@@ -1,96 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 18BDB6B02D4
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 00:18:25 -0400 (EDT)
-Received: by obdeg2 with SMTP id eg2so17187455obd.0
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 21:18:24 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id j188si17751924oif.115.2015.07.20.21.18.23
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C9996B02D4
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 00:49:08 -0400 (EDT)
+Received: by wgav7 with SMTP id v7so80442609wga.2
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 21:49:07 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id he1si16952120wib.34.2015.07.20.21.49.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Jul 2015 21:18:24 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 01/10] mm/hugetlb: add cache of descriptors to
- resv_map for region_add
-Date: Tue, 21 Jul 2015 04:16:30 +0000
-Message-ID: <20150721041629.GA19982@hori1.linux.bs1.fc.nec.co.jp>
-References: <1436761268-6397-1-git-send-email-mike.kravetz@oracle.com>
- <1436761268-6397-2-git-send-email-mike.kravetz@oracle.com>
- <20150717090213.GB32135@hori1.linux.bs1.fc.nec.co.jp>
- <55AD34D4.2020804@oracle.com>
-In-Reply-To: <55AD34D4.2020804@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <22AD3C911DA5AE4BAF7FA181F0F5C9B4@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 20 Jul 2015 21:49:06 -0700 (PDT)
+Subject: Re: [Patch V6 12/16] mm: provide early_memremap_ro to establish
+ read-only mapping
+References: <1437108697-4115-1-git-send-email-jgross@suse.com>
+ <1437108697-4115-13-git-send-email-jgross@suse.com>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <55ADCF40.6010903@suse.com>
+Date: Tue, 21 Jul 2015 06:49:04 +0200
 MIME-Version: 1.0
+In-Reply-To: <1437108697-4115-13-git-send-email-jgross@suse.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>
+To: linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, linux-arch@vger.kernel.org
+Cc: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com
 
-On Mon, Jul 20, 2015 at 10:50:12AM -0700, Mike Kravetz wrote:
-...
-> > ...
-> >> @@ -3236,11 +3360,14 @@ retry:
-> >>   	 * any allocations necessary to record that reservation occur outsi=
-de
-> >>   	 * the spinlock.
-> >>   	 */
-> >> -	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED))
-> >> +	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
-> >>   		if (vma_needs_reservation(h, vma, address) < 0) {
-> >>   			ret =3D VM_FAULT_OOM;
-> >>   			goto backout_unlocked;
-> >>   		}
-> >> +		/* Just decrements count, does not deallocate */
-> >> +		vma_abort_reservation(h, vma, address);
-> >> +	}
-> >=20
-> > This is not "abort reservation" operation, but you use "abort reservati=
-on"
-> > routine, which might confusing and makes future maintenance hard. I thi=
-nk
-> > this should be done in a simplified variant of vma_commit_reservation()
-> > (maybe just an alias of your vma_abort_reservation()) or fast path in
-> > vma_commit_reservation().
->=20
-> I am struggling a bit with the names of these routines.  The
-> routines in question are:
->=20
-> vma_needs_reservation - This is a wrapper for region_chg(), so the
-> 	return value is the number of regions needed for the page.
-> 	Since there is only one page, the routine effectively
-> 	becomes a boolean.  Hence the name "needs".
->=20
-> vma_commit_reservation - This is a wrapper for region_add().  It
-> 	must be called after a prior call to vma_needs_reservation
-> 	and after actual allocation of the page.
->=20
-> We need a way to handle the case where vma_needs_reservation has
-> been called, but the page allocation is not successful.  I chose
-> the name vma_abort_reservation, but as noted (even in my comments)
-> it is not an actual abort.
->=20
-> I am not sure if you are suggesting vma_commit_reservation() should
-> handle this as a special case.  I think a separately named routine which
-> indicates and end of the reservation/allocation process would be
-> easier to understand.
->=20
-> What about changing the name vma_abort_reservation() to
-> vma_end_reservation()?  This would indicate that the reservation/
-> allocation process is ended.
+Hi MM maintainers,
 
-OK, vma_end_reservation() sounds nice to me.
+this patch is the last requiring an ack for the series to go in.
+Could you please comment?
 
-> > Thanks,
-> > Naoya Horiguchi
->=20
-> Thank you for your reviews.
 
-You're welcome :)
+Juergen
 
-Naoya Horiguchi=
+On 07/17/2015 06:51 AM, Juergen Gross wrote:
+> During early boot as Xen pv domain the kernel needs to map some page
+> tables supplied by the hypervisor read only. This is needed to be
+> able to relocate some data structures conflicting with the physical
+> memory map especially on systems with huge RAM (above 512GB).
+>
+> Provide the function early_memremap_ro() to provide this read only
+> mapping.
+>
+> Signed-off-by: Juergen Gross <jgross@suse.com>
+> Acked-by: Konrad Rzeszutek Wilk <Konrad.wilk@oracle.com>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: linux-mm@kvack.org
+> Cc: linux-arch@vger.kernel.org
+> ---
+>   include/asm-generic/early_ioremap.h |  2 ++
+>   include/asm-generic/fixmap.h        |  3 +++
+>   mm/early_ioremap.c                  | 12 ++++++++++++
+>   3 files changed, 17 insertions(+)
+>
+> diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
+> index a5de55c..316bd04 100644
+> --- a/include/asm-generic/early_ioremap.h
+> +++ b/include/asm-generic/early_ioremap.h
+> @@ -11,6 +11,8 @@ extern void __iomem *early_ioremap(resource_size_t phys_addr,
+>   				   unsigned long size);
+>   extern void *early_memremap(resource_size_t phys_addr,
+>   			    unsigned long size);
+> +extern void *early_memremap_ro(resource_size_t phys_addr,
+> +			       unsigned long size);
+>   extern void early_iounmap(void __iomem *addr, unsigned long size);
+>   extern void early_memunmap(void *addr, unsigned long size);
+>
+> diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
+> index f23174f..1cbb833 100644
+> --- a/include/asm-generic/fixmap.h
+> +++ b/include/asm-generic/fixmap.h
+> @@ -46,6 +46,9 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
+>   #ifndef FIXMAP_PAGE_NORMAL
+>   #define FIXMAP_PAGE_NORMAL PAGE_KERNEL
+>   #endif
+> +#if !defined(FIXMAP_PAGE_RO) && defined(PAGE_KERNEL_RO)
+> +#define FIXMAP_PAGE_RO PAGE_KERNEL_RO
+> +#endif
+>   #ifndef FIXMAP_PAGE_NOCACHE
+>   #define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NOCACHE
+>   #endif
+> diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+> index e10ccd2..0cfadaf 100644
+> --- a/mm/early_ioremap.c
+> +++ b/mm/early_ioremap.c
+> @@ -217,6 +217,13 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
+>   	return (__force void *)__early_ioremap(phys_addr, size,
+>   					       FIXMAP_PAGE_NORMAL);
+>   }
+> +#ifdef FIXMAP_PAGE_RO
+> +void __init *
+> +early_memremap_ro(resource_size_t phys_addr, unsigned long size)
+> +{
+> +	return (__force void *)__early_ioremap(phys_addr, size, FIXMAP_PAGE_RO);
+> +}
+> +#endif
+>   #else /* CONFIG_MMU */
+>
+>   void __init __iomem *
+> @@ -231,6 +238,11 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
+>   {
+>   	return (void *)phys_addr;
+>   }
+> +void __init *
+> +early_memremap_ro(resource_size_t phys_addr, unsigned long size)
+> +{
+> +	return (void *)phys_addr;
+> +}
+>
+>   void __init early_iounmap(void __iomem *addr, unsigned long size)
+>   {
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
