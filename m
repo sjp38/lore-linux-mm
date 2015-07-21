@@ -1,95 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 686C7280244
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 19:07:06 -0400 (EDT)
-Received: by pdbnt7 with SMTP id nt7so56920655pdb.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:07:06 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id y9si46488546pdl.235.2015.07.21.16.07.05
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D5C929003C7
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 19:19:56 -0400 (EDT)
+Received: by pachj5 with SMTP id hj5so127735596pac.3
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:19:56 -0700 (PDT)
+Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com. [2607:f8b0:400e:c02::230])
+        by mx.google.com with ESMTPS id rq5si46590387pab.83.2015.07.21.16.19.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 16:07:05 -0700 (PDT)
-Received: by padck2 with SMTP id ck2so126968176pad.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:07:05 -0700 (PDT)
-Date: Tue, 21 Jul 2015 16:07:02 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Jul 2015 16:19:56 -0700 (PDT)
+Received: by pdbbh15 with SMTP id bh15so82297686pdb.1
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:19:55 -0700 (PDT)
+Date: Tue, 21 Jul 2015 16:19:53 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC 1/4] mm, compaction: introduce kcompactd
-In-Reply-To: <55AE0AFE.8070200@suse.cz>
-Message-ID: <alpine.DEB.2.10.1507211549380.3833@chino.kir.corp.google.com>
-References: <1435826795-13777-1-git-send-email-vbabka@suse.cz> <1435826795-13777-2-git-send-email-vbabka@suse.cz> <alpine.DEB.2.10.1507091439100.17177@chino.kir.corp.google.com> <55AE0AFE.8070200@suse.cz>
+Subject: Re: [rfc] mm, thp: allow khugepaged to periodically compact memory
+ synchronously
+In-Reply-To: <55AE1285.4010600@suse.cz>
+Message-ID: <alpine.DEB.2.10.1507211607250.3833@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1507141918340.11697@chino.kir.corp.google.com> <55AE1285.4010600@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Tue, 21 Jul 2015, Vlastimil Babka wrote:
 
-> > Khugepaged benefits from the periodic memory compaction being done
-> > immediately before it attempts to compact memory, and that may be lost
-> > with a de-coupled approach like this.
+> On 07/15/2015 04:19 AM, David Rientjes wrote:
+> > We have seen a large benefit in the amount of hugepages that can be
+> > allocated at fault
+> 
+> That's understandable...
+> 
+> > and by khugepaged when memory is periodically
+> > compacted in the background.
+> 
+> ... but for khugepaged it's surprising. Doesn't khugepaged (unlike page
+> faults) attempt the same sync compaction as your manual triggers?
 > 
 
-Meant to say "before it attempts to allocate a hugepage", but it seems you 
-understood that :)
+Not exactly, this compaction is over all memory rather than just 
+terminating when you find a pageblock free.  It keeps more pageblocks free 
+of memory that are easily allocated both at fault and by khugepaged 
+without having to do its own compaction.  The largest benefit, obviously, 
+is to the page fault path, however.
 
-> That could be helped with waking up khugepaged after kcompactd is successful
-> in making a hugepage available.
-
-I don't think the criteria for waking up khugepaged should become any more 
-complex beyond its current state, which is impacted by two different 
-tunables, and whether it actually has memory to scan.  During this 
-additional wakeup, you'd also need to pass kcompactd's node and only do 
-local khugepaged scanning since there's no guarantee khugepaged can 
-allocate on all nodes when one kcompactd defragments memory.  I think 
-coupling these two would be too complex and not worth it.
-
-> Also in your rfc you propose the compaction
-> period to be 15 minutes, while khugepaged wakes up each 10 (or 30) seconds by
-> default for the scanning and collapsing, so only fraction of the work is
-> attempted right after the compaction anyway?
+> > We trigger synchronous memory compaction over all memory every 15 minutes
+> > to keep fragmentation low and to offset the lightweight compaction that
+> > is done at page fault to keep latency low.
+> 
+> I'm surprised that 15 minutes is frequent enough to make a difference. I'd
+> expect it very much depends on the memory size and workload though.
 > 
 
-The rfc actually proposes the compaction period to be 0, meaning it's 
-disabled, but suggests in the changelog that we have seen a reproducible 
-benefit with the period of 15m.
+This is over all machines running all workloads and its directly related 
+to how abort-happy we have made memory compaction in the pagefault path 
+which occurs when locks are contended or need_resched() triggers.  
+Sometimes we see memory compaction doing very little work in the fault 
+path as a result of this and this patch becomes the only real source of 
+memory compactions over all memory; it just isn't triggered anywhere else.
 
-I'm not concerned about scan_sleep_millisecs here, if khugepaged was able 
-to successfully allocate in its last scan.  I'm only concerned with 
-alloc_sleep_millisecs which defaults to 60000.  I think it would be 
-unfortunate if kcompactd were to free a pageblock, and then khugepaged 
-waits for 60s before allocating.
+We make it a tunable here because some users will want speed it up just as 
+they do scan_sleep_millisecs or abort_sleep_millisecs and, yes, that will 
+rely on your particular workload and config.
 
-> Hm reports of even not-so-high-order allocation failures occur from time to
-> time. Some might be from atomic context, but some are because compaction just
-> can't help due to the unmovable fragmentation. That's mostly a guess, since
-> such detailed information isn't there, but I think Joonsoo did some
-> experiments that confirmed this.
+> > compact_sleep_millisecs controls how often khugepaged will compact all
+> > memory.  Each scan_sleep_millisecs wakeup after this value has expired, a
+> > node is synchronously compacted until all memory has been scanned.  Then,
+> > khugepaged will restart the process compact_sleep_millisecs later.
+> > 
+> > This defaults to 0, which means no memory compaction is done.
+> 
+> Being another tunable and defaulting to 0 it means that most people won't use
+> it at all, or their distro will provide some other value. We should really
+> strive to make it self-tuning based on e.g. memory fragmentation statistics.
+> But I know that my kcompactd proposal also wasn't quite there yet...
 > 
 
-If it's unmovable fragmentation, then any periodic synchronous memory 
-compaction isn't going to help either.  The page allocator already does 
-MIGRATE_SYNC_LIGHT compaction on its second pass and that will terminate 
-when a high-order page is available.  If it is currently failing, then I 
-don't see the benefit of synchronous memory compaction over all memory 
-that would substantially help this case.
+Agreed on a better default.  I proposed the rfc this way because we need 
+this functionality now and works well for our 15m period so we have no 
+problem immediately tuning this to 15m.
 
-> Also effects on the fragmentation are evaluated when making changes to
-> compaction, see e.g. http://marc.info/?l=linux-mm&m=143634369227134&w=2
-> In the past it has prevented changes that would improve latency of direct
-> compaction. They might be possible if there was a reliable source of more
-> thorough periodic compaction to counter the not-so-thorough direct compaction.
-> 
+I would imagine that the default should be a multiple of the 
+abort_sleep_millisecs default of 60000 and consider the length of the 
+largest node.
 
-Hmm, I don't think we have to select one to the excusion of the other.  I 
-don't think that because khugepaged may do periodic synchronous memory 
-compaction (to eventually remove direct compaction entirely from the page 
-fault path, since we have checks in the page allocator that specifically 
-do that) that we can't do background memory compaction elsewhere.  I think 
-it would be trivial to schedule a workqueue in the page allocator when 
-MIGRATE_ASYNC compaction fails for a high-order allocation on a node and 
-to have that local compaction done in the background.
+That said, I'm not sure about self-tuning of the period itself.  The 
+premise is that this compaction keeps the memory in a relatively 
+unfragmented state such that thp does not need to compact in the fault 
+path and we have a much higher likelihood of being able to allocate since 
+nothing else may actually trigger memory compaction besides this.  It 
+seems like that should done on period defined by the user; hence, this is 
+for "periodic memory compaction".
+
+However, I agree with your comment in the kcompactd thread about the 
+benefits of a different type, "background memory compaction", that can be 
+kicked off when a high-order allocation fails, for instance, or based on 
+a heuristic that looks at memory fragmentation statistics.  I think the 
+two are quite distinct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
