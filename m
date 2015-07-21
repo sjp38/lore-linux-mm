@@ -1,54 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A2D176B0274
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 08:55:50 -0400 (EDT)
-Received: by wgkl9 with SMTP id l9so155432027wgk.1
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 05:55:50 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id p3si18940764wiy.86.2015.07.21.05.55.48
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AB346B0274
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 09:50:39 -0400 (EDT)
+Received: by igbpg9 with SMTP id pg9so107414319igb.0
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 06:50:39 -0700 (PDT)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id s8si9546554igd.59.2015.07.21.06.50.38
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 05:55:49 -0700 (PDT)
-Received: by wibud3 with SMTP id ud3so113435004wib.1
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 05:55:48 -0700 (PDT)
-Date: Tue, 21 Jul 2015 14:55:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/5] memcg: export struct mem_cgroup
-Message-ID: <20150721125546.GM11967@dhcp22.suse.cz>
-References: <1436958885-18754-1-git-send-email-mhocko@kernel.org>
- <1436958885-18754-2-git-send-email-mhocko@kernel.org>
- <20150715135711.1778a8c08f2ea9560a7c1f6f@linux-foundation.org>
- <20150716071948.GC3077@dhcp22.suse.cz>
- <20150716143433.e43554a19b1c89a8524020cb@linux-foundation.org>
- <20150716225639.GA11131@cmpxchg.org>
- <20150716160358.de3404c44ba29dc132032bbc@linux-foundation.org>
- <20150717122819.GA14895@cmpxchg.org>
- <20150720112356.GF1211@dhcp22.suse.cz>
- <20150720154327.97fd5ca81fe6ce50e4a631ff@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150720154327.97fd5ca81fe6ce50e4a631ff@linux-foundation.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Tue, 21 Jul 2015 06:50:38 -0700 (PDT)
+Date: Tue, 21 Jul 2015 08:50:36 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 3/3] slub: build detached freelist with look-ahead
+In-Reply-To: <20150720232817.05f08663@redhat.com>
+Message-ID: <alpine.DEB.2.11.1507210846060.27213@east.gentwo.org>
+References: <20150715155934.17525.2835.stgit@devil> <20150715160212.17525.88123.stgit@devil> <20150716115756.311496af@redhat.com> <20150720025415.GA21760@js1304-P5Q-DELUXE> <20150720232817.05f08663@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Duyck <alexander.duyck@gmail.com>, Hannes Frederic Sowa <hannes@stressinduktion.org>
 
-On Mon 20-07-15 15:43:27, Andrew Morton wrote:
-> On Mon, 20 Jul 2015 13:23:56 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> >  I do not think we want two sets of header
-> > files - one for mm and other for other external users.
-> 
-> We're already doing this (mm/*.h) and it works well.
+On Mon, 20 Jul 2015, Jesper Dangaard Brouer wrote:
 
-I still fail to see any huge win for memcontrol.h though.
-Anyway I gave it a try and hit the dependencies wall very soon
-(especially due to mm/slab.h vs. mm/memcontrol.h dependencies). Who
-knows how many others are lurking there.
--- 
-Michal Hocko
-SUSE Labs
+> Yes, I think it is merged... how do I turn off merging?
+
+linux/Documentation/kernel-parameters.txt
+
+        slab_nomerge    [MM]
+                        Disable merging of slabs with similar size. May be
+                        necessary if there is some reason to distinguish
+                        allocs to different slabs. Debug options disable
+                        merging on their own.
+                        For more information see Documentation/vm/slub.txt.
+
+        slab_max_order= [MM, SLAB]
+                        Determines the maximum allowed order for slabs.
+                        A high setting may cause OOMs due to memory
+                        fragmentation.  Defaults to 1 for systems with
+                        more than 32MB of RAM, 0 otherwise.
+
+
+       slub_debug[=options[,slabs]]    [MM, SLUB]
+                        Enabling slub_debug allows one to determine the
+                        culprit if slab objects become corrupted. Enabling
+                        slub_debug can create guard zones around objects and
+                        may poison objects when not in use. Also tracks the
+                        last alloc / free. For more information see
+                        Documentation/vm/slub.txt.
+
+        slub_max_order= [MM, SLUB]
+                        Determines the maximum allowed order for slabs.
+                        A high setting may cause OOMs due to memory
+                        fragmentation. For more information see
+                        Documentation/vm/slub.txt.
+
+        slub_min_objects=       [MM, SLUB]
+                        The minimum number of objects per slab. SLUB will
+                        increase the slab order up to slub_max_order to
+                        generate a sufficiently large slab able to contain
+                        the number of objects indicated. The higher the number
+                        of objects the smaller the overhead of tracking slabs
+                        and the less frequently locks need to be acquired.
+                        For more information see Documentation/vm/slub.txt.
+
+        slub_min_order= [MM, SLUB]
+                        Determines the minimum page order for slabs. Must be
+                        lower than slub_max_order.
+                        For more information see Documentation/vm/slub.txt.
+
+        slub_nomerge    [MM, SLUB]
+                        Same with slab_nomerge. This is supported for legacy.
+                        See slab_nomerge for more information.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
