@@ -1,82 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id DDFC66B028B
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 04:51:30 -0400 (EDT)
-Received: by pdbnt7 with SMTP id nt7so45267998pdb.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 01:51:30 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id we5si42090561pac.177.2015.07.21.01.51.29
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C14316B02BE
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 04:59:05 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so108029489wib.1
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 01:59:05 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z7si25688520wjz.12.2015.07.21.01.59.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 01:51:30 -0700 (PDT)
-Date: Tue, 21 Jul 2015 11:51:08 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v9 5/8] mmu-notifier: add clear_young callback
-Message-ID: <20150721085108.GA18673@esperanza>
-References: <cover.1437303956.git.vdavydov@parallels.com>
- <e4ab6e8be3f9f94fe9814219c4a9a19c375a5835.1437303956.git.vdavydov@parallels.com>
- <CAJu=L5_q=xWfANDBX2-Z3=uudof+ifKS56zEtAR372VqDWOj2Q@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Jul 2015 01:59:03 -0700 (PDT)
+Date: Tue, 21 Jul 2015 10:58:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [regression 4.2-rc3] loop: xfstests xfs/073 deadlocked in low
+ memory conditions
+Message-ID: <20150721085859.GG11967@dhcp22.suse.cz>
+References: <20150721015934.GY7943@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJu=L5_q=xWfANDBX2-Z3=uudof+ifKS56zEtAR372VqDWOj2Q@mail.gmail.com>
+In-Reply-To: <20150721015934.GY7943@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andres Lagar-Cavilla <andreslc@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg
- Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David
- Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ming Lei <ming.lei@canonical.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <andreas.dilger@intel.com>, Oleg Drokin <oleg.drokin@intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org
 
-On Mon, Jul 20, 2015 at 11:34:21AM -0700, Andres Lagar-Cavilla wrote:
-> On Sun, Jul 19, 2015 at 5:31 AM, Vladimir Davydov <vdavydov@parallels.com>
-[...]
-> > +static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
-> > +                                       struct mm_struct *mm,
-> > +                                       unsigned long start,
-> > +                                       unsigned long end)
-> > +{
-> > +       struct kvm *kvm = mmu_notifier_to_kvm(mn);
-> > +       int young, idx;
-> > +
-> >
-> If you need to cut out another version please add comments as to the two
-> issues raised:
-> - This doesn't proactively flush TLBs -- not obvious if it should.
-> - This adversely affects performance in Pre_haswell Intel EPT.
+[CCing more people from a potentially affected fs - the reference to the 
+ email thread is: http://marc.info/?l=linux-mm&m=143744398020147&w=2]
 
-Oops, I stopped reading your e-mail in reply to the previous version of
-this patch as soon as I saw the Reviewed-by tag, so I missed your
-request for the comment, sorry about that.
+On Tue 21-07-15 11:59:34, Dave Chinner wrote:
+> Hi Ming,
+> 
+> With the recent merge of the loop device changes, I'm now seeing
+> XFS deadlock on my single CPU, 1GB RAM VM running xfs/073.
+> 
+> The deadlocked is as follows:
+> 
+> kloopd1: loop_queue_read_work
+> 	xfs_file_iter_read
+> 	lock XFS inode XFS_IOLOCK_SHARED (on image file)
+> 	page cache read (GFP_KERNEL)
+> 	radix tree alloc
+> 	memory reclaim
+> 	reclaim XFS inodes
+> 	log force to unpin inodes
+> 	<wait for log IO completion>
+> 
+> xfs-cil/loop1: <does log force IO work>
+> 	xlog_cil_push
+> 	xlog_write
+> 	<loop issuing log writes>
+> 		xlog_state_get_iclog_space()
+> 		<blocks due to all log buffers under write io>
+> 		<waits for IO completion>
+> 
+> kloopd1: loop_queue_write_work
+> 	xfs_file_write_iter
+> 	lock XFS inode XFS_IOLOCK_EXCL (on image file)
+> 	<wait for inode to be unlocked>
+> 
+> [The full stack traces are below].
+> 
+> i.e. the kloopd, with it's split read and write work queues, has
+> introduced a dependency through memory reclaim. i.e. that writes
+> need to be able to progress for reads make progress.
+> 
+> The problem, fundamentally, is that mpage_readpages() does a
+> GFP_KERNEL allocation, rather than paying attention to the inode's
+> mapping gfp mask, which is set to GFP_NOFS.
+> 
+> The didn't used to happen, because the loop device used to issue
+> reads through the splice path and that does:
+> 
+> 	error = add_to_page_cache_lru(page, mapping, index,
+> 			GFP_KERNEL & mapping_gfp_mask(mapping));
+> 
+> i.e. it pays attention to the allocation context placed on the
+> inode and so is doing GFP_NOFS allocations here and avoiding the
+> recursion problem.
+> 
+> [ CC'd Michal Hocko and the mm list because it's a clear exaple of
+> why ignoring the mapping gfp mask on any page cache allocation is
+> a landmine waiting to be tripped over. ]
 
-Here it goes (incremental):
+Thank you for CCing me. I haven't noticed this one when checking for
+other similar hardcoded GFP_KERNEL users (6afdb859b710 ("mm: do not
+ignore mapping_gfp_mask in page cache allocation paths")). And there
+seem to be more of them now that I am looking closer.
+
+I am not sure what to do about fs/nfs/dir.c:nfs_symlink which doesn't
+require GFP_NOFS or mapping gfp mask for other allocations in the same
+context.
+
+What do you think about this preliminary (and untested) patch? I cannot
+say I would be happy about sprinkling mapping_gfp_mask all over the place
+and it sounds like we should drop gfp_mask argument altogether and
+use it internally in __add_to_page_cache_locked that would require all
+the filesystems to use mapping gfp consistently which I am not sure is
+the case here. From a quick glance it seems that some file system use
+it all the time while others are selective.
 ---
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index ff4173ce6924..e69a5cb99571 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -397,6 +397,19 @@ static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
- 
- 	idx = srcu_read_lock(&kvm->srcu);
- 	spin_lock(&kvm->mmu_lock);
-+	/*
-+	 * Even though we do not flush TLB, this will still adversely
-+	 * affect performance on pre-Haswell Intel EPT, where there is
-+	 * no EPT Access Bit to clear so that we have to tear down EPT
-+	 * tables instead. If we find this unacceptable, we can always
-+	 * add a parameter to kvm_age_hva so that it effectively doesn't
-+	 * do anything on clear_young.
-+	 *
-+	 * Also note that currently we never issue secondary TLB flushes
-+	 * from clear_young, leaving this job up to the regular system
-+	 * cadence. If we find this inaccurate, we might come up with a
-+	 * more sophisticated heuristic later.
-+	 */
- 	young = kvm_age_hva(kvm, start, end);
- 	spin_unlock(&kvm->mmu_lock);
- 	srcu_read_unlock(&kvm->srcu, idx);
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
