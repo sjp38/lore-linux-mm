@@ -1,55 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 304159003C7
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 04:05:52 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so112637004wib.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 01:05:51 -0700 (PDT)
-Received: from mail-wg0-x230.google.com (mail-wg0-x230.google.com. [2a00:1450:400c:c00::230])
-        by mx.google.com with ESMTPS id cb5si17721259wib.5.2015.07.21.01.05.49
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 12E9F6B028B
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 04:35:26 -0400 (EDT)
+Received: by padck2 with SMTP id ck2so115191824pad.0
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 01:35:25 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id ff5si41979998pac.199.2015.07.21.01.35.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 01:05:50 -0700 (PDT)
-Received: by wgbcc4 with SMTP id cc4so56089309wgb.3
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 01:05:49 -0700 (PDT)
-Date: Tue, 21 Jul 2015 10:05:44 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v2 0/4] x86, mm: Handle large PAT bit in pud/pmd
- interfaces
-Message-ID: <20150721080544.GA28118@gmail.com>
-References: <1436977435-31826-1-git-send-email-toshi.kani@hp.com>
+        (version=TLS1 cipher=RC4-SHA bits=128/128);
+        Tue, 21 Jul 2015 01:35:25 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v4 1/5] pagemap: check permissions and capabilities at
+ open time
+Date: Tue, 21 Jul 2015 08:06:27 +0000
+Message-ID: <20150721080626.GB4490@hori1.linux.bs1.fc.nec.co.jp>
+References: <20150714152516.29844.69929.stgit@buzz>
+ <20150714153735.29844.38428.stgit@buzz>
+In-Reply-To: <20150714153735.29844.38428.stgit@buzz>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <A81DE86E3939F047A0A5DED82AC44DC0@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1436977435-31826-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Mark Williamson <mwilliamson@undo-software.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>
 
+On Tue, Jul 14, 2015 at 06:37:35PM +0300, Konstantin Khlebnikov wrote:
+> This patch moves permission checks from pagemap_read() into pagemap_open(=
+).
+>=20
+> Pointer to mm is saved in file->private_data. This reference pins only
+> mm_struct itself. /proc/*/mem, maps, smaps already work in the same way.
+>=20
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Link: http://lkml.kernel.org/r/CA+55aFyKpWrt_Ajzh1rzp_GcwZ4=3D6Y=3DkOv8hB=
+z172CFJp6L8Tg@mail.gmail.com
 
-* Toshi Kani <toshi.kani@hp.com> wrote:
-
-> The PAT bit gets relocated to bit 12 when PUD and PMD mappings are used.
-> This bit 12, however, is not covered by PTE_FLAGS_MASK, which is corrently
-> used for masking pfn and flags for all cases.
-> 
-> Patch 1/4-2/4 make changes necessary for patch 3/4 to use P?D_PAGE_MASK.
-> 
-> Patch 3/4 fixes pud/pmd interfaces to handle the PAT bit when PUD and PMD
-> mappings are used.
-> 
-> Patch 3/4 fixes /sys/kernel/debug/kernel_page_tables to show the PAT bit
-> properly.
-> 
-> Note, the PAT bit is first enabled in 4.2-rc1 with WT mappings.
-
-Are patches 1-3 only needed to fix /sys/kernel/debug/kernel_page_tables output, or 
-are there other things fixed as well? The patches do not tell us any of that 
-information ...
-
-Thanks,
-
-	Ingo
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
