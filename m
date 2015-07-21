@@ -1,80 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id A32699003C7
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 08:27:08 -0400 (EDT)
-Received: by wicmv11 with SMTP id mv11so40167476wic.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 05:27:08 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
-        by mx.google.com with ESMTPS id m7si18818877wix.86.2015.07.21.05.27.06
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 31D486B0274
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 08:54:32 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so56134610wib.1
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 05:54:31 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cg18si14376894wjb.154.2015.07.21.05.54.29
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 05:27:07 -0700 (PDT)
-Received: by wibxm9 with SMTP id xm9so119110291wib.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 05:27:06 -0700 (PDT)
-Date: Tue, 21 Jul 2015 14:27:04 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: trace tlb flush after disabling preemption in
- try_to_unmap_flush
-Message-ID: <20150721122704.GL11967@dhcp22.suse.cz>
-References: <1437075339-32715-1-git-send-email-sasha.levin@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1437075339-32715-1-git-send-email-sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Jul 2015 05:54:30 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH 1/2] mm, page_isolation: remove bogus tests for isolated pages
+Date: Tue, 21 Jul 2015 14:53:37 +0200
+Message-Id: <1437483218-18703-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <55969822.9060907@suse.cz>
+References: <55969822.9060907@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, mingo@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, "minkyung88.kim" <minkyung88.kim@lge.com>, kmk3210@gmail.com, Seungho Park <seungho1.park@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
 
-On Thu 16-07-15 15:35:39, Sasha Levin wrote:
-> Commit "mm: send one IPI per CPU to TLB flush all entries after unmapping
-> pages" added a trace_tlb_flush() while preemption was still enabled. This
-> means that we'll access smp_processor_id() which in turn will get us quite
-> a few warnings.
-> 
-> Fix it by moving the trace to where the preemption is disabled, one line
-> down.
-> 
-> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+The __test_page_isolated_in_pageblock() is used to verify whether all pages
+in pageblock were either successfully isolated, or are hwpoisoned. Two of the
+possible state of pages, that are tested, are however bogus and misleading.
 
-Reviewed-by: Michal Hocko <mhocko@suse.com>
+Both tests rely on get_freepage_migratetype(page), which however has no
+guarantees about pages on freelists. Specifically, it doesn't guarantee that
+the migratetype returned by the function actually matches the migratetype of
+the freelist that the page is on. Such guarantee is not its purpose and would
+have negative impact on allocator performance.
 
-> ---
-> 
-> The diff is all lies: I've moved trace_tlb_flush() one line down rather
-> than get_cpu() a line up ;)
-> 
->  mm/rmap.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 30812e9..63ba46c 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -613,9 +613,10 @@ void try_to_unmap_flush(void)
->  	if (!tlb_ubc->flush_required)
->  		return;
->  
-> +	cpu = get_cpu();
-> +
->  	trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, -1UL);
->  
-> -	cpu = get_cpu();
->  	if (cpumask_test_cpu(cpu, &tlb_ubc->cpumask))
->  		percpu_flush_tlb_batch_pages(&tlb_ubc->cpumask);
->  
-> -- 
-> 1.7.10.4
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+The first test checks whether the freepage_migratetype equals MIGRATE_ISOLATE,
+supposedly to catch races between page isolation and allocator activity. These
+races should be fixed nowadays with 51bb1a4093 ("mm/page_alloc: add freepage
+on isolate pageblock to correct buddy list") and related patches. As explained
+above, the check wouldn't be able to catch them reliably anyway. For the same
+reason false positives can happen, although they are harmless, as the
+move_freepages() call would just move the page to the same freelist it's
+already on. So removing the test is not a bug fix, just cleanup. After this
+patch, we assume that all PageBuddy pages are on the correct freelist and that
+the races were really fixed. A truly reliable verification in the form of e.g.
+VM_BUG_ON() would be complicated and is arguably not needed.
 
+The second test (page_count(page) == 0 && get_freepage_migratetype(page)
+== MIGRATE_ISOLATE) is probably supposed (the code comes from a big memory
+isolation patch from 2007) to catch pages on MIGRATE_ISOLATE pcplists.
+However, pcplists don't contain MIGRATE_ISOLATE freepages nowadays, those are
+freed directly to free lists, so the check is obsolete. Remove it as well.
+
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Michal Nazarewicz <mina86@mina86.com>
+Cc: Laura Abbott <lauraa@codeaurora.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/page_isolation.c | 30 ++++++------------------------
+ 1 file changed, 6 insertions(+), 24 deletions(-)
+
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 0e69d25..9eaa489c 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -226,34 +226,16 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
+ 			continue;
+ 		}
+ 		page = pfn_to_page(pfn);
+-		if (PageBuddy(page)) {
++		if (PageBuddy(page))
+ 			/*
+-			 * If race between isolatation and allocation happens,
+-			 * some free pages could be in MIGRATE_MOVABLE list
+-			 * although pageblock's migratation type of the page
+-			 * is MIGRATE_ISOLATE. Catch it and move the page into
+-			 * MIGRATE_ISOLATE list.
++			 * If the page is on a free list, it has to be on
++			 * the correct MIGRATE_ISOLATE freelist. There is no
++			 * simple way to verify that as VM_BUG_ON(), though.
+ 			 */
+-			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
+-				struct page *end_page;
+-
+-				end_page = page + (1 << page_order(page)) - 1;
+-				move_freepages(page_zone(page), page, end_page,
+-						MIGRATE_ISOLATE);
+-			}
+ 			pfn += 1 << page_order(page);
+-		}
+-		else if (page_count(page) == 0 &&
+-			get_freepage_migratetype(page) == MIGRATE_ISOLATE)
+-			pfn += 1;
+-		else if (skip_hwpoisoned_pages && PageHWPoison(page)) {
+-			/*
+-			 * The HWPoisoned page may be not in buddy
+-			 * system, and page_count() is not 0.
+-			 */
++		else if (skip_hwpoisoned_pages && PageHWPoison(page))
++			/* A HWPoisoned page cannot be also PageBuddy */
+ 			pfn++;
+-			continue;
+-		}
+ 		else
+ 			break;
+ 	}
 -- 
-Michal Hocko
-SUSE Labs
+2.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
