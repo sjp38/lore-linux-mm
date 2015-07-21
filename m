@@ -1,60 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A13CE6B025E
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 18:14:35 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so145481813wib.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 15:14:35 -0700 (PDT)
-Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com. [2a00:1450:400c:c05::22a])
-        by mx.google.com with ESMTPS id cw6si43132901wjc.208.2015.07.21.15.14.33
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D8F06B0260
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 18:31:17 -0400 (EDT)
+Received: by pdbbh15 with SMTP id bh15so81750901pdb.1
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 15:31:17 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id i2si46380080pdc.102.2015.07.21.15.31.16
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 15:14:34 -0700 (PDT)
-Received: by wibud3 with SMTP id ud3so145481029wib.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 15:14:33 -0700 (PDT)
-Date: Wed, 22 Jul 2015 01:14:29 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv2 0/6] Make vma_is_anonymous() reliable
-Message-ID: <20150721221429.GA7478@node.dhcp.inet.fi>
-References: <1437133993-91885-1-git-send-email-kirill.shutemov@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Jul 2015 15:31:16 -0700 (PDT)
+Received: by pabkd10 with SMTP id kd10so55066570pab.2
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 15:31:16 -0700 (PDT)
+Date: Tue, 21 Jul 2015 15:31:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] mm/slub: allow merging when SLAB_DEBUG_FREE is set
+In-Reply-To: <20150720152913.14239.69304.stgit@buzz>
+Message-ID: <alpine.DEB.2.10.1507211531010.3833@chino.kir.corp.google.com>
+References: <20150720152913.14239.69304.stgit@buzz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1437133993-91885-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Fri, Jul 17, 2015 at 02:53:07PM +0300, Kirill A. Shutemov wrote:
-> We rely on ->vm_ops == NULL to detect anonymous VMA but this check is not
-> always reliable:
-> 
->  - MPX sets ->vm_ops on anonymous VMA;
-> 
->   - many drivers don't set ->vm_ops. See for instance hpet_mmap().
-> 
->   This patchset makes vma_is_anonymous() more reliable and makes few
->   cleanups around the code.
-> 
-> v2:
->  - drop broken patch;
->  - more cleanup for mpx code (Oleg);
->  - vma_is_anonymous() in create_huge_pmd() and wp_huge_pmd();
-> 
-> Kirill A. Shutemov (5):
->   mm: mark most vm_operations_struct const
->   x86, mpx: do not set ->vm_ops on mpx VMAs
->   mm: make sure all file VMAs have ->vm_ops set
->   mm: use vma_is_anonymous() in create_huge_pmd() and wp_huge_pmd()
->   mm, madvise: use vma_is_anonymous() to check for anon VMA
-> 
-> Oleg Nesterov (1):
->   mm, mpx: add "vm_flags_t vm_flags" arg to do_mmap_pgoff()
+On Mon, 20 Jul 2015, Konstantin Khlebnikov wrote:
 
-ping?
+> This patch fixes creation of new kmem-caches after enabling sanity_checks
+> for existing mergeable kmem-caches in runtime: before that patch creation
+> fails because unique name in sysfs already taken by existing kmem-cache.
+> 
+> Unlike to other debug options this doesn't change object layout and could
+> be enabled and disabled at any time.
+> 
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
--- 
- Kirill A. Shutemov
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
