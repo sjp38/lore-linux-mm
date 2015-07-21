@@ -1,950 +1,910 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 55ED29003C7
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 15:59:45 -0400 (EDT)
-Received: by qkdv3 with SMTP id v3so140384671qkd.3
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 12:59:45 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id 123si29576350qha.40.2015.07.21.12.59.42
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id B22099003C7
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 15:59:47 -0400 (EDT)
+Received: by qkfc129 with SMTP id c129so97601524qkf.1
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 12:59:47 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com ([23.79.238.175])
+        by mx.google.com with ESMTP id k9si7535028qgk.87.2015.07.21.12.59.42
         for <linux-mm@kvack.org>;
         Tue, 21 Jul 2015 12:59:43 -0700 (PDT)
 From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH V4 2/6] mm: mlock: Add new mlock, munlock, and munlockall system calls
-Date: Tue, 21 Jul 2015 15:59:37 -0400
-Message-Id: <1437508781-28655-3-git-send-email-emunson@akamai.com>
+Subject: [PATCH V4 4/6] mm: mlock: Introduce VM_LOCKONFAULT and add mlock flags to enable it
+Date: Tue, 21 Jul 2015 15:59:39 -0400
+Message-Id: <1437508781-28655-5-git-send-email-emunson@akamai.com>
 In-Reply-To: <1437508781-28655-1-git-send-email-emunson@akamai.com>
 References: <1437508781-28655-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Heiko Carstens <heiko.carstens@de.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Catalin Marinas <catalin.marinas@arm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Guenter Roeck <linux@roeck-us.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, adi-buildroot-devel@lists.sourceforge.net, linux-cris-kernel@axis.com, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-am33-list@redhat.com, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-With the refactored mlock code, introduce new system calls for mlock,
-munlock, and munlockall.  The new calls will allow the user to specify
-what lock states are being added or cleared.  mlock2 and munlock2 are
-trivial at the moment, but a follow on patch will add a new mlock state
-making them useful.
+The cost of faulting in all memory to be locked can be very high when
+working with large mappings.  If only portions of the mapping will be
+used this can incur a high penalty for locking.
 
-munlock2 addresses a limitation of the current implementation.  If a
-user calls mlockall(MCL_CURRENT | MCL_FUTURE) and then later decides
-that MCL_FUTURE should be removed, they would have to call munlockall()
-followed by mlockall(MCL_CURRENT) which could potentially be very
-expensive.  The new munlockall2 system call allows a user to simply
-clear the MCL_FUTURE flag.
+For the example of a large file, this is the usage pattern for a large
+statical language model (probably applies to other statical or graphical
+models as well).  For the security example, any application transacting
+in data that cannot be swapped out (credit card data, medical records,
+etc).
+
+This patch introduces the ability to request that pages are not
+pre-faulted, but are placed on the unevictable LRU when they are finally
+faulted in.  This can be done area at a time via the
+mlock2(MLOCK_ONFAULT) or the mlockall(MCL_ONFAULT) system calls.  These
+calls can be undone via munlock2(MLOCK_ONFAULT) or
+munlockall2(MCL_ONFAULT).
+
+Applying the VM_LOCKONFAULT flag to a mapping with pages that are
+already present required the addition of a function in gup.c to pin all
+pages which are present in an address range.  It borrows heavily from
+__mm_populate().
+
+To keep accounting checks out of the page fault path, users are billed
+for the entire mapping lock as if MLOCK_LOCKED was used.
 
 Signed-off-by: Eric B Munson <emunson@akamai.com>
 Cc: Michal Hocko <mhocko@suse.cz>
 Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Guenter Roeck <linux@roeck-us.net>
+Cc: Jonathan Corbet <corbet@lwn.net>
 Cc: linux-alpha@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
-Cc: linux-arm-kernel@lists.infradead.org
-Cc: adi-buildroot-devel@lists.sourceforge.net
-Cc: linux-cris-kernel@axis.com
-Cc: linux-ia64@vger.kernel.org
-Cc: linux-m68k@lists.linux-m68k.org
 Cc: linux-mips@linux-mips.org
-Cc: linux-am33-list@redhat.com
 Cc: linux-parisc@vger.kernel.org
 Cc: linuxppc-dev@lists.ozlabs.org
-Cc: linux-s390@vger.kernel.org
-Cc: linux-sh@vger.kernel.org
 Cc: sparclinux@vger.kernel.org
 Cc: linux-xtensa@linux-xtensa.org
-Cc: linux-api@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
+Cc: dri-devel@lists.freedesktop.org
 Cc: linux-mm@kvack.org
+Cc: linux-arch@vger.kernel.org
+Cc: linux-api@vger.kernel.org
 ---
 Changes from V3:
-* Do a (hopefully) complete job of adding the new system calls
+Do extensive search for VM_LOCKED and ensure that VM_LOCKONFAULT is also handled
+ where appropriate
 
- arch/alpha/include/asm/unistd.h           |  2 +-
- arch/alpha/include/uapi/asm/mman.h        |  2 ++
- arch/alpha/include/uapi/asm/unistd.h      |  3 +++
- arch/alpha/kernel/systbls.S               |  3 +++
- arch/arm/include/asm/unistd.h             |  2 +-
- arch/arm/include/uapi/asm/unistd.h        |  3 +++
- arch/arm/kernel/calls.S                   |  3 +++
- arch/arm64/include/asm/unistd32.h         |  6 ++++++
- arch/avr32/include/uapi/asm/unistd.h      |  3 +++
- arch/avr32/kernel/syscall_table.S         |  3 +++
- arch/blackfin/include/uapi/asm/unistd.h   |  3 +++
- arch/blackfin/mach-common/entry.S         |  3 +++
- arch/cris/arch-v10/kernel/entry.S         |  3 +++
- arch/cris/arch-v32/kernel/entry.S         |  3 +++
- arch/frv/kernel/entry.S                   |  3 +++
- arch/ia64/include/asm/unistd.h            |  2 +-
- arch/ia64/include/uapi/asm/unistd.h       |  3 +++
- arch/ia64/kernel/entry.S                  |  3 +++
- arch/m32r/kernel/entry.S                  |  3 +++
- arch/m32r/kernel/syscall_table.S          |  3 +++
- arch/m68k/include/asm/unistd.h            |  2 +-
- arch/m68k/include/uapi/asm/unistd.h       |  3 +++
- arch/m68k/kernel/syscalltable.S           |  3 +++
- arch/microblaze/include/uapi/asm/unistd.h |  3 +++
- arch/microblaze/kernel/syscall_table.S    |  3 +++
- arch/mips/include/uapi/asm/mman.h         |  5 +++++
- arch/mips/include/uapi/asm/unistd.h       | 21 +++++++++++++++------
- arch/mips/kernel/scall32-o32.S            |  3 +++
- arch/mips/kernel/scall64-64.S             |  3 +++
- arch/mips/kernel/scall64-n32.S            |  3 +++
- arch/mips/kernel/scall64-o32.S            |  3 +++
- arch/mn10300/kernel/entry.S               |  3 +++
- arch/parisc/include/uapi/asm/mman.h       |  2 ++
- arch/parisc/include/uapi/asm/unistd.h     |  5 ++++-
- arch/powerpc/include/uapi/asm/mman.h      |  2 ++
- arch/powerpc/include/uapi/asm/unistd.h    |  3 +++
- arch/s390/include/uapi/asm/unistd.h       |  5 ++++-
- arch/s390/kernel/compat_wrapper.c         |  3 +++
- arch/s390/kernel/syscalls.S               |  3 +++
- arch/sh/kernel/syscalls_32.S              |  3 +++
- arch/sparc/include/uapi/asm/mman.h        |  2 ++
- arch/sparc/include/uapi/asm/unistd.h      |  5 ++++-
- arch/sparc/kernel/systbls_32.S            |  2 +-
- arch/sparc/kernel/systbls_64.S            |  4 ++--
- arch/tile/include/uapi/asm/mman.h         |  5 +++++
- arch/x86/entry/syscalls/syscall_32.tbl    |  3 +++
- arch/x86/entry/syscalls/syscall_64.tbl    |  3 +++
- arch/xtensa/include/uapi/asm/mman.h       |  5 +++++
- arch/xtensa/include/uapi/asm/unistd.h     | 10 ++++++++--
- include/linux/syscalls.h                  |  4 ++++
- include/uapi/asm-generic/mman.h           |  2 ++
- include/uapi/asm-generic/unistd.h         |  8 +++++++-
- kernel/sys_ni.c                           |  3 +++
- mm/mlock.c                                | 28 ++++++++++++++++++++++++++++
- 54 files changed, 205 insertions(+), 19 deletions(-)
+ arch/alpha/include/uapi/asm/mman.h   |  2 +
+ arch/mips/include/uapi/asm/mman.h    |  2 +
+ arch/parisc/include/uapi/asm/mman.h  |  2 +
+ arch/powerpc/include/uapi/asm/mman.h |  2 +
+ arch/sparc/include/uapi/asm/mman.h   |  2 +
+ arch/tile/include/uapi/asm/mman.h    |  3 ++
+ arch/xtensa/include/uapi/asm/mman.h  |  2 +
+ drivers/gpu/drm/drm_vm.c             |  8 ++-
+ fs/proc/task_mmu.c                   |  3 +-
+ include/linux/mm.h                   |  2 +
+ include/uapi/asm-generic/mman.h      |  2 +
+ kernel/events/uprobes.c              |  2 +-
+ kernel/fork.c                        |  2 +-
+ mm/debug.c                           |  1 +
+ mm/gup.c                             |  3 +-
+ mm/huge_memory.c                     |  3 +-
+ mm/hugetlb.c                         |  4 +-
+ mm/internal.h                        |  5 +-
+ mm/ksm.c                             |  2 +-
+ mm/madvise.c                         |  4 +-
+ mm/memory.c                          |  5 +-
+ mm/mlock.c                           | 98 +++++++++++++++++++++++++-----------
+ mm/mmap.c                            | 28 +++++++----
+ mm/mremap.c                          |  6 +--
+ mm/msync.c                           |  2 +-
+ mm/rmap.c                            | 12 ++---
+ mm/shmem.c                           |  2 +-
+ mm/swap.c                            |  3 +-
+ mm/vmscan.c                          |  2 +-
+ 29 files changed, 145 insertions(+), 69 deletions(-)
 
-diff --git a/arch/alpha/include/asm/unistd.h b/arch/alpha/include/asm/unistd.h
-index a56e608..1d09392 100644
---- a/arch/alpha/include/asm/unistd.h
-+++ b/arch/alpha/include/asm/unistd.h
-@@ -3,7 +3,7 @@
- 
- #include <uapi/asm/unistd.h>
- 
--#define NR_SYSCALLS			514
-+#define NR_SYSCALLS			517
- 
- #define __ARCH_WANT_OLD_READDIR
- #define __ARCH_WANT_STAT64
 diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-index 0086b47..ec72436 100644
+index ec72436..77ae8db 100644
 --- a/arch/alpha/include/uapi/asm/mman.h
 +++ b/arch/alpha/include/uapi/asm/mman.h
-@@ -38,6 +38,8 @@
+@@ -37,8 +37,10 @@
+ 
  #define MCL_CURRENT	 8192		/* lock all currently mapped pages */
  #define MCL_FUTURE	16384		/* lock all additions to address space */
++#define MCL_ONFAULT	32768		/* lock all pages that are faulted in */
  
-+#define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
-+
+ #define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
++#define MLOCK_ONFAULT	0x02		/* Lock pages in range after they are faulted in, do not prefault */
+ 
  #define MADV_NORMAL	0		/* no further special treatment */
  #define MADV_RANDOM	1		/* expect random page references */
- #define MADV_SEQUENTIAL	2		/* expect sequential page references */
-diff --git a/arch/alpha/include/uapi/asm/unistd.h b/arch/alpha/include/uapi/asm/unistd.h
-index aa33bf5..29141d6 100644
---- a/arch/alpha/include/uapi/asm/unistd.h
-+++ b/arch/alpha/include/uapi/asm/unistd.h
-@@ -475,5 +475,8 @@
- #define __NR_getrandom			511
- #define __NR_memfd_create		512
- #define __NR_execveat			513
-+#define __NR_mlock2			514
-+#define __NR_munlock2			515
-+#define __NR_munlockall2		516
- 
- #endif /* _UAPI_ALPHA_UNISTD_H */
-diff --git a/arch/alpha/kernel/systbls.S b/arch/alpha/kernel/systbls.S
-index 9b62e3f..04d1cce 100644
---- a/arch/alpha/kernel/systbls.S
-+++ b/arch/alpha/kernel/systbls.S
-@@ -532,6 +532,9 @@ sys_call_table:
- 	.quad sys_getrandom
- 	.quad sys_memfd_create
- 	.quad sys_execveat
-+	.quad sys_mlock2
-+	.quad sys_munlock2			/* 515 */
-+	.quad sys_munlockall2
- 
- 	.size sys_call_table, . - sys_call_table
- 	.type sys_call_table, @object
-diff --git a/arch/arm/include/asm/unistd.h b/arch/arm/include/asm/unistd.h
-index 32640c4..7cba573 100644
---- a/arch/arm/include/asm/unistd.h
-+++ b/arch/arm/include/asm/unistd.h
-@@ -19,7 +19,7 @@
-  * This may need to be greater than __NR_last_syscall+1 in order to
-  * account for the padding in the syscall table
-  */
--#define __NR_syscalls  (388)
-+#define __NR_syscalls  (392)
- 
- /*
-  * *NOTE*: This is a ghost syscall private to the kernel.  Only the
-diff --git a/arch/arm/include/uapi/asm/unistd.h b/arch/arm/include/uapi/asm/unistd.h
-index 0c3f5a0..46eaf405 100644
---- a/arch/arm/include/uapi/asm/unistd.h
-+++ b/arch/arm/include/uapi/asm/unistd.h
-@@ -414,6 +414,9 @@
- #define __NR_memfd_create		(__NR_SYSCALL_BASE+385)
- #define __NR_bpf			(__NR_SYSCALL_BASE+386)
- #define __NR_execveat			(__NR_SYSCALL_BASE+387)
-+#define __NR_mlock2			(__NR_SYSCALL_BASE+388)
-+#define __NR_munlock2			(__NR_SYSCALL_BASE+389)
-+#define __NR_munlockall2		(__NR_SYSCALL_BASE+390)
- 
- /*
-  * The following SWIs are ARM private.
-diff --git a/arch/arm/kernel/calls.S b/arch/arm/kernel/calls.S
-index 05745eb..8880822 100644
---- a/arch/arm/kernel/calls.S
-+++ b/arch/arm/kernel/calls.S
-@@ -397,6 +397,9 @@
- /* 385 */	CALL(sys_memfd_create)
- 		CALL(sys_bpf)
- 		CALL(sys_execveat)
-+		CALL(sys_mlock2)
-+		CALL(sys_munlock2)
-+/* 390 */	CALL(sys_munlockall2)
- #ifndef syscalls_counted
- .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
- #define syscalls_counted
-diff --git a/arch/arm64/include/asm/unistd32.h b/arch/arm64/include/asm/unistd32.h
-index cef934a..318072aa 100644
---- a/arch/arm64/include/asm/unistd32.h
-+++ b/arch/arm64/include/asm/unistd32.h
-@@ -797,3 +797,9 @@ __SYSCALL(__NR_memfd_create, sys_memfd_create)
- __SYSCALL(__NR_bpf, sys_bpf)
- #define __NR_execveat 387
- __SYSCALL(__NR_execveat, compat_sys_execveat)
-+#define __NR_mlock2 388
-+__SYSCALL(__NR_mlock2, sys_mlock2)
-+#define __NR_munlock2 389
-+__SYSCALL(__NR_munlock2, sys_munlock2)
-+#define __NR_munlockall2 390
-+__SYSCALL(__NR_munlockall2, sys_munlockall2)
-diff --git a/arch/avr32/include/uapi/asm/unistd.h b/arch/avr32/include/uapi/asm/unistd.h
-index bbe2fba..e6a1681 100644
---- a/arch/avr32/include/uapi/asm/unistd.h
-+++ b/arch/avr32/include/uapi/asm/unistd.h
-@@ -333,5 +333,8 @@
- #define __NR_memfd_create	318
- #define __NR_bpf		319
- #define __NR_execveat		320
-+#define __NR_mlock2		321
-+#define __NR_munlock2		322
-+#define __NR_munlockall2	323
- 
- #endif /* _UAPI__ASM_AVR32_UNISTD_H */
-diff --git a/arch/avr32/kernel/syscall_table.S b/arch/avr32/kernel/syscall_table.S
-index c3b593b..83928ab 100644
---- a/arch/avr32/kernel/syscall_table.S
-+++ b/arch/avr32/kernel/syscall_table.S
-@@ -334,4 +334,7 @@ sys_call_table:
- 	.long	sys_memfd_create
- 	.long	sys_bpf
- 	.long	sys_execveat		/* 320 */
-+	.long   sys_mlock2
-+	.long   sys_munlock2
-+	.long   sys_munlockall2
- 	.long	sys_ni_syscall		/* r8 is saturated at nr_syscalls */
-diff --git a/arch/blackfin/include/uapi/asm/unistd.h b/arch/blackfin/include/uapi/asm/unistd.h
-index 0cb9078..37c0362 100644
---- a/arch/blackfin/include/uapi/asm/unistd.h
-+++ b/arch/blackfin/include/uapi/asm/unistd.h
-@@ -433,6 +433,9 @@
- #define __IGNORE_munlock
- #define __IGNORE_mlockall
- #define __IGNORE_munlockall
-+#define __IGNORE_mlock2
-+#define __IGNORE_munlock2
-+#define __IGNORE_munlockall2
- #define __IGNORE_mincore
- #define __IGNORE_madvise
- #define __IGNORE_remap_file_pages
-diff --git a/arch/blackfin/mach-common/entry.S b/arch/blackfin/mach-common/entry.S
-index 8d9431e..5d83587 100644
---- a/arch/blackfin/mach-common/entry.S
-+++ b/arch/blackfin/mach-common/entry.S
-@@ -1704,6 +1704,9 @@ ENTRY(_sys_call_table)
- 	.long _sys_memfd_create		/* 390 */
- 	.long _sys_bpf
- 	.long _sys_execveat
-+	.long _sys_mlock2
-+	.long _sys_munlock2
-+	.long _sys_munlockall2		/* 395 */
- 
- 	.rept NR_syscalls-(.-_sys_call_table)/4
- 	.long _sys_ni_syscall
-diff --git a/arch/cris/arch-v10/kernel/entry.S b/arch/cris/arch-v10/kernel/entry.S
-index 81570fc..d0ce531 100644
---- a/arch/cris/arch-v10/kernel/entry.S
-+++ b/arch/cris/arch-v10/kernel/entry.S
-@@ -955,6 +955,9 @@ sys_call_table:
- 	.long sys_process_vm_writev
- 	.long sys_kcmp			/* 350 */
- 	.long sys_finit_module
-+	.long sys_mlock2
-+	.long sys_munlock2
-+	.long sys_munlockall2
- 
-         /*
-          * NOTE!! This doesn't have to be exact - we just have
-diff --git a/arch/cris/arch-v32/kernel/entry.S b/arch/cris/arch-v32/kernel/entry.S
-index 026a0b2..7f50a0b 100644
---- a/arch/cris/arch-v32/kernel/entry.S
-+++ b/arch/cris/arch-v32/kernel/entry.S
-@@ -875,6 +875,9 @@ sys_call_table:
- 	.long sys_process_vm_writev
- 	.long sys_kcmp			/* 350 */
- 	.long sys_finit_module
-+	.long sys_mlock2
-+	.long sys_munlock2
-+	.long sys_munlockall2
- 
- 	/*
- 	 * NOTE!! This doesn't have to be exact - we just have
-diff --git a/arch/frv/kernel/entry.S b/arch/frv/kernel/entry.S
-index dfcd263..ee605a0 100644
---- a/arch/frv/kernel/entry.S
-+++ b/arch/frv/kernel/entry.S
-@@ -1515,5 +1515,8 @@ sys_call_table:
- 	.long sys_rt_tgsigqueueinfo	/* 335 */
- 	.long sys_perf_event_open
- 	.long sys_setns
-+	.long sys_mlock2
-+	.long sys_munlock2
-+	.long sys_munlockall2		/* 340 */
- 
- syscall_table_size = (. - sys_call_table)
-diff --git a/arch/ia64/include/asm/unistd.h b/arch/ia64/include/asm/unistd.h
-index 95c39b9..db73390 100644
---- a/arch/ia64/include/asm/unistd.h
-+++ b/arch/ia64/include/asm/unistd.h
-@@ -11,7 +11,7 @@
- 
- 
- 
--#define NR_syscalls			319 /* length of syscall table */
-+#define NR_syscalls			322 /* length of syscall table */
- 
- /*
-  * The following defines stop scripts/checksyscalls.sh from complaining about
-diff --git a/arch/ia64/include/uapi/asm/unistd.h b/arch/ia64/include/uapi/asm/unistd.h
-index 4610795..5f485cc 100644
---- a/arch/ia64/include/uapi/asm/unistd.h
-+++ b/arch/ia64/include/uapi/asm/unistd.h
-@@ -332,5 +332,8 @@
- #define __NR_memfd_create		1340
- #define __NR_bpf			1341
- #define __NR_execveat			1342
-+#define __NR_mlock2			1343
-+#define __NR_munlock2			1344
-+#define __NR_munlockall2		1345
- 
- #endif /* _UAPI_ASM_IA64_UNISTD_H */
-diff --git a/arch/ia64/kernel/entry.S b/arch/ia64/kernel/entry.S
-index ae0de7b..3ef4457 100644
---- a/arch/ia64/kernel/entry.S
-+++ b/arch/ia64/kernel/entry.S
-@@ -1768,5 +1768,8 @@ sys_call_table:
- 	data8 sys_memfd_create			// 1340
- 	data8 sys_bpf
- 	data8 sys_execveat
-+	data8 sys_mlock2
-+	data8 sys_munlock2
-+	data8 sys_munlockall2			// 1345
- 
- 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
-diff --git a/arch/m32r/kernel/entry.S b/arch/m32r/kernel/entry.S
-index c639bfa..4f7f2e2 100644
---- a/arch/m32r/kernel/entry.S
-+++ b/arch/m32r/kernel/entry.S
-@@ -76,6 +76,9 @@
- #define sys_munlock		sys_ni_syscall
- #define sys_mlockall		sys_ni_syscall
- #define sys_munlockall		sys_ni_syscall
-+#define sys_mlock2		sys_ni_syscall
-+#define sys_munlock2		sys_ni_syscall
-+#define sys_munlockall2		sys_ni_syscall
- #define sys_mremap		sys_ni_syscall
- #define sys_mincore		sys_ni_syscall
- #define sys_remap_file_pages	sys_ni_syscall
-diff --git a/arch/m32r/kernel/syscall_table.S b/arch/m32r/kernel/syscall_table.S
-index f365c19..9918c3e 100644
---- a/arch/m32r/kernel/syscall_table.S
-+++ b/arch/m32r/kernel/syscall_table.S
-@@ -325,3 +325,6 @@ ENTRY(sys_call_table)
- 	.long sys_eventfd
- 	.long sys_fallocate
- 	.long sys_setns			/* 325 */
-+	.long sys_mlock2
-+	.long sys_munlock2
-+	.long sys_munlockall2
-diff --git a/arch/m68k/include/asm/unistd.h b/arch/m68k/include/asm/unistd.h
-index 244e0db..b18f3da 100644
---- a/arch/m68k/include/asm/unistd.h
-+++ b/arch/m68k/include/asm/unistd.h
-@@ -4,7 +4,7 @@
- #include <uapi/asm/unistd.h>
- 
- 
--#define NR_syscalls		356
-+#define NR_syscalls		359
- 
- #define __ARCH_WANT_OLD_READDIR
- #define __ARCH_WANT_OLD_STAT
-diff --git a/arch/m68k/include/uapi/asm/unistd.h b/arch/m68k/include/uapi/asm/unistd.h
-index 61fb6cb..1405c3f 100644
---- a/arch/m68k/include/uapi/asm/unistd.h
-+++ b/arch/m68k/include/uapi/asm/unistd.h
-@@ -361,5 +361,8 @@
- #define __NR_memfd_create	353
- #define __NR_bpf		354
- #define __NR_execveat		355
-+#define __NR_mlock2		356
-+#define __NR_munlock2		357
-+#define __NR_munlockall2	358
- 
- #endif /* _UAPI_ASM_M68K_UNISTD_H_ */
-diff --git a/arch/m68k/kernel/syscalltable.S b/arch/m68k/kernel/syscalltable.S
-index a0ec430..7963c03 100644
---- a/arch/m68k/kernel/syscalltable.S
-+++ b/arch/m68k/kernel/syscalltable.S
-@@ -376,4 +376,7 @@ ENTRY(sys_call_table)
- 	.long sys_memfd_create
- 	.long sys_bpf
- 	.long sys_execveat		/* 355 */
-+	.long sys_mlock2
-+	.long sys_munlock2
-+	.long sys_munlockall2
- 
-diff --git a/arch/microblaze/include/uapi/asm/unistd.h b/arch/microblaze/include/uapi/asm/unistd.h
-index 32850c7..59b06b0 100644
---- a/arch/microblaze/include/uapi/asm/unistd.h
-+++ b/arch/microblaze/include/uapi/asm/unistd.h
-@@ -404,5 +404,8 @@
- #define __NR_memfd_create	386
- #define __NR_bpf		387
- #define __NR_execveat		388
-+#define __NR_mlock2		389 /* ok - nommu or mmu */
-+#define __NR_munlock2		390 /* ok - nommu or mmu */
-+#define __NR_munlockall2	391 /* ok - nommu or mmu */
- 
- #endif /* _UAPI_ASM_MICROBLAZE_UNISTD_H */
-diff --git a/arch/microblaze/kernel/syscall_table.S b/arch/microblaze/kernel/syscall_table.S
-index 29c8568..6e4b0fe 100644
---- a/arch/microblaze/kernel/syscall_table.S
-+++ b/arch/microblaze/kernel/syscall_table.S
-@@ -389,3 +389,6 @@ ENTRY(sys_call_table)
- 	.long sys_memfd_create
- 	.long sys_bpf
- 	.long sys_execveat
-+	.long sys_mlock2
-+	.long sys_munlock2		/* 390 */
-+	.long sys_munlockall2
 diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-index cfcb876..67c1cdf 100644
+index 67c1cdf..71ed81d 100644
 --- a/arch/mips/include/uapi/asm/mman.h
 +++ b/arch/mips/include/uapi/asm/mman.h
-@@ -62,6 +62,11 @@
+@@ -61,11 +61,13 @@
+  */
  #define MCL_CURRENT	1		/* lock all current mappings */
  #define MCL_FUTURE	2		/* lock all future mappings */
++#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
  
-+/*
-+ * Flags for mlock
-+ */
-+#define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
-+
+ /*
+  * Flags for mlock
+  */
+ #define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
++#define MLOCK_ONFAULT	0x02		/* Lock pages in range after they are faulted in, do not prefault */
+ 
  #define MADV_NORMAL	0		/* no further special treatment */
  #define MADV_RANDOM	1		/* expect random page references */
- #define MADV_SEQUENTIAL 2		/* expect sequential page references */
-diff --git a/arch/mips/include/uapi/asm/unistd.h b/arch/mips/include/uapi/asm/unistd.h
-index c03088f..101b884 100644
---- a/arch/mips/include/uapi/asm/unistd.h
-+++ b/arch/mips/include/uapi/asm/unistd.h
-@@ -377,16 +377,19 @@
- #define __NR_memfd_create		(__NR_Linux + 354)
- #define __NR_bpf			(__NR_Linux + 355)
- #define __NR_execveat			(__NR_Linux + 356)
-+#define __NR_mlock2			(__NR_Linux + 357)
-+#define __NR_munlock2			(__NR_Linux + 358)
-+#define __NR_munlockall2		(__NR_Linux + 359)
- 
- /*
-  * Offset of the last Linux o32 flavoured syscall
-  */
--#define __NR_Linux_syscalls		356
-+#define __NR_Linux_syscalls		359
- 
- #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
- 
- #define __NR_O32_Linux			4000
--#define __NR_O32_Linux_syscalls		356
-+#define __NR_O32_Linux_syscalls		359
- 
- #if _MIPS_SIM == _MIPS_SIM_ABI64
- 
-@@ -711,16 +714,19 @@
- #define __NR_memfd_create		(__NR_Linux + 314)
- #define __NR_bpf			(__NR_Linux + 315)
- #define __NR_execveat			(__NR_Linux + 316)
-+#define __NR_mlock2			(__NR_Linux + 317)
-+#define __NR_munlock2			(__NR_Linux + 318)
-+#define __NR_munlockall2		(__NR_Linux + 319)
- 
- /*
-  * Offset of the last Linux 64-bit flavoured syscall
-  */
--#define __NR_Linux_syscalls		316
-+#define __NR_Linux_syscalls		319
- 
- #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
- 
- #define __NR_64_Linux			5000
--#define __NR_64_Linux_syscalls		316
-+#define __NR_64_Linux_syscalls		319
- 
- #if _MIPS_SIM == _MIPS_SIM_NABI32
- 
-@@ -1049,15 +1055,18 @@
- #define __NR_memfd_create		(__NR_Linux + 318)
- #define __NR_bpf			(__NR_Linux + 319)
- #define __NR_execveat			(__NR_Linux + 320)
-+#define __NR_mlock2			(__NR_Linux + 321)
-+#define __NR_munlock2			(__NR_Linux + 322)
-+#define __NR_munlockall2		(__NR_Linux + 323)
- 
- /*
-  * Offset of the last N32 flavoured syscall
-  */
--#define __NR_Linux_syscalls		320
-+#define __NR_Linux_syscalls		323
- 
- #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
- 
- #define __NR_N32_Linux			6000
--#define __NR_N32_Linux_syscalls		320
-+#define __NR_N32_Linux_syscalls		323
- 
- #endif /* _UAPI_ASM_UNISTD_H */
-diff --git a/arch/mips/kernel/scall32-o32.S b/arch/mips/kernel/scall32-o32.S
-index 4cc1350..c409d53 100644
---- a/arch/mips/kernel/scall32-o32.S
-+++ b/arch/mips/kernel/scall32-o32.S
-@@ -599,3 +599,6 @@ EXPORT(sys_call_table)
- 	PTR	sys_memfd_create
- 	PTR	sys_bpf				/* 4355 */
- 	PTR	sys_execveat
-+	PTR	sys_mlock2
-+	PTR	sys_munlock2
-+	PTR	sys_munlockall2
-diff --git a/arch/mips/kernel/scall64-64.S b/arch/mips/kernel/scall64-64.S
-index ad4d4463..0aa2742 100644
---- a/arch/mips/kernel/scall64-64.S
-+++ b/arch/mips/kernel/scall64-64.S
-@@ -436,4 +436,7 @@ EXPORT(sys_call_table)
- 	PTR	sys_memfd_create
- 	PTR	sys_bpf				/* 5315 */
- 	PTR	sys_execveat
-+	PTR	sys_mlock2
-+	PTR	sys_munlock2
-+	PTR	sys_munlockall2
- 	.size	sys_call_table,.-sys_call_table
-diff --git a/arch/mips/kernel/scall64-n32.S b/arch/mips/kernel/scall64-n32.S
-index 446cc65..eb21955 100644
---- a/arch/mips/kernel/scall64-n32.S
-+++ b/arch/mips/kernel/scall64-n32.S
-@@ -429,4 +429,7 @@ EXPORT(sysn32_call_table)
- 	PTR	sys_memfd_create
- 	PTR	sys_bpf
- 	PTR	compat_sys_execveat		/* 6320 */
-+	PTR	sys_mlock2
-+	PTR	sys_munlock2
-+	PTR	sys_munlockall2
- 	.size	sysn32_call_table,.-sysn32_call_table
-diff --git a/arch/mips/kernel/scall64-o32.S b/arch/mips/kernel/scall64-o32.S
-index f543ff4..f45049c 100644
---- a/arch/mips/kernel/scall64-o32.S
-+++ b/arch/mips/kernel/scall64-o32.S
-@@ -584,4 +584,7 @@ EXPORT(sys32_call_table)
- 	PTR	sys_memfd_create
- 	PTR	sys_bpf				/* 4355 */
- 	PTR	compat_sys_execveat
-+	PTR	sys_mlock2
-+	PTR	sys_munlock2
-+	PTR	sys_munlockall2
- 	.size	sys32_call_table,.-sys32_call_table
-diff --git a/arch/mn10300/kernel/entry.S b/arch/mn10300/kernel/entry.S
-index 177d61d..d34adf5 100644
---- a/arch/mn10300/kernel/entry.S
-+++ b/arch/mn10300/kernel/entry.S
-@@ -767,6 +767,9 @@ ENTRY(sys_call_table)
- 	.long sys_perf_event_open
- 	.long sys_recvmmsg
- 	.long sys_setns
-+	.long sys_mlock2		/* 340 */
-+	.long sys_munlock2
-+	.long sys_munlockall2
- 
- 
- nr_syscalls=(.-sys_call_table)/4
 diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-index 294d251..daab994 100644
+index daab994..c0871ce 100644
 --- a/arch/parisc/include/uapi/asm/mman.h
 +++ b/arch/parisc/include/uapi/asm/mman.h
-@@ -32,6 +32,8 @@
+@@ -31,8 +31,10 @@
+ 
  #define MCL_CURRENT	1		/* lock all current mappings */
  #define MCL_FUTURE	2		/* lock all future mappings */
++#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
  
-+#define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
-+
+ #define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
++#define MLOCK_ONFAULT	0x02		/* Lock pages in range after they are faulted in, do not prefault */
+ 
  #define MADV_NORMAL     0               /* no further special treatment */
  #define MADV_RANDOM     1               /* expect random page references */
- #define MADV_SEQUENTIAL 2               /* expect sequential page references */
-diff --git a/arch/parisc/include/uapi/asm/unistd.h b/arch/parisc/include/uapi/asm/unistd.h
-index 2e639d7..455c8a3 100644
---- a/arch/parisc/include/uapi/asm/unistd.h
-+++ b/arch/parisc/include/uapi/asm/unistd.h
-@@ -358,8 +358,11 @@
- #define __NR_memfd_create	(__NR_Linux + 340)
- #define __NR_bpf		(__NR_Linux + 341)
- #define __NR_execveat		(__NR_Linux + 342)
-+#define __NR_mlock2		(__NR_Linux + 343)
-+#define __NR_munlock2		(__NR_Linux + 344)
-+#define __NR_munlockall2	(__NR_Linux + 345)
- 
--#define __NR_Linux_syscalls	(__NR_execveat + 1)
-+#define __NR_Linux_syscalls	(__NR_munlockall2 + 1)
- 
- 
- #define __IGNORE_select		/* newselect */
 diff --git a/arch/powerpc/include/uapi/asm/mman.h b/arch/powerpc/include/uapi/asm/mman.h
-index 6ea26df..189e85f 100644
+index 189e85f..f93f7eb 100644
 --- a/arch/powerpc/include/uapi/asm/mman.h
 +++ b/arch/powerpc/include/uapi/asm/mman.h
-@@ -23,6 +23,8 @@
+@@ -22,8 +22,10 @@
+ 
  #define MCL_CURRENT     0x2000          /* lock all currently mapped pages */
  #define MCL_FUTURE      0x4000          /* lock all additions to address space */
++#define MCL_ONFAULT	0x8000		/* lock all pages that are faulted in */
  
-+#define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
-+
+ #define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
++#define MLOCK_ONFAULT	0x02		/* Lock pages in range after they are faulted in, do not prefault */
+ 
  #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
  #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-diff --git a/arch/powerpc/include/uapi/asm/unistd.h b/arch/powerpc/include/uapi/asm/unistd.h
-index e4aa173..c9901e7 100644
---- a/arch/powerpc/include/uapi/asm/unistd.h
-+++ b/arch/powerpc/include/uapi/asm/unistd.h
-@@ -386,5 +386,8 @@
- #define __NR_bpf		361
- #define __NR_execveat		362
- #define __NR_switch_endian	363
-+#define __NR_mlock2		364
-+#define __NR_munlock2		365
-+#define __NR_munlockall2	366
- 
- #endif /* _UAPI_ASM_POWERPC_UNISTD_H_ */
-diff --git a/arch/s390/include/uapi/asm/unistd.h b/arch/s390/include/uapi/asm/unistd.h
-index 67878af..d1c5b1f 100644
---- a/arch/s390/include/uapi/asm/unistd.h
-+++ b/arch/s390/include/uapi/asm/unistd.h
-@@ -290,7 +290,10 @@
- #define __NR_s390_pci_mmio_write	352
- #define __NR_s390_pci_mmio_read		353
- #define __NR_execveat		354
--#define NR_syscalls 355
-+#define __NR_mlock2		355
-+#define __NR_munlock2		356
-+#define __NR_munlockall2	357
-+#define NR_syscalls 358
- 
- /* 
-  * There are some system calls that are not present on 64 bit, some
-diff --git a/arch/s390/kernel/compat_wrapper.c b/arch/s390/kernel/compat_wrapper.c
-index f8498dd..58339e2 100644
---- a/arch/s390/kernel/compat_wrapper.c
-+++ b/arch/s390/kernel/compat_wrapper.c
-@@ -220,3 +220,6 @@ COMPAT_SYSCALL_WRAP2(memfd_create, const char __user *, uname, unsigned int, fla
- COMPAT_SYSCALL_WRAP3(bpf, int, cmd, union bpf_attr *, attr, unsigned int, size);
- COMPAT_SYSCALL_WRAP3(s390_pci_mmio_write, const unsigned long, mmio_addr, const void __user *, user_buffer, const size_t, length);
- COMPAT_SYSCALL_WRAP3(s390_pci_mmio_read, const unsigned long, mmio_addr, void __user *, user_buffer, const size_t, length);
-+COMPAT_SYSCALL_WRAP3(mlock2, unsigned long, start, size_t, len, int, flags);
-+COMPAT_SYSCALL_WRAP3(munlock2, unsigned long, start, size_t, len, int, flags);
-+COMPAT_SYSCALL_WRAP1(munlockall2, int, flags);
-diff --git a/arch/s390/kernel/syscalls.S b/arch/s390/kernel/syscalls.S
-index 1acad02..f6d81d6 100644
---- a/arch/s390/kernel/syscalls.S
-+++ b/arch/s390/kernel/syscalls.S
-@@ -363,3 +363,6 @@ SYSCALL(sys_bpf,compat_sys_bpf)
- SYSCALL(sys_s390_pci_mmio_write,compat_sys_s390_pci_mmio_write)
- SYSCALL(sys_s390_pci_mmio_read,compat_sys_s390_pci_mmio_read)
- SYSCALL(sys_execveat,compat_sys_execveat)
-+SYSCALL(sys_mlock2,compat_sys_mlock2)			/* 355 */
-+SYSCALL(sys_munlock2,compat_sys_munlock2)
-+SYSCALL(sys_munlockall2,compat_sys_munlockall2)
-diff --git a/arch/sh/kernel/syscalls_32.S b/arch/sh/kernel/syscalls_32.S
-index 734234b..6d07867 100644
---- a/arch/sh/kernel/syscalls_32.S
-+++ b/arch/sh/kernel/syscalls_32.S
-@@ -386,3 +386,6 @@ ENTRY(sys_call_table)
- 	.long sys_process_vm_writev
- 	.long sys_kcmp
- 	.long sys_finit_module
-+	.long sys_mlock2
-+	.long sys_munlock2		/* 370 */
-+	.long sys_munlockall2
 diff --git a/arch/sparc/include/uapi/asm/mman.h b/arch/sparc/include/uapi/asm/mman.h
-index 0b14df3..13d51be 100644
+index 13d51be..8cd2ebc 100644
 --- a/arch/sparc/include/uapi/asm/mman.h
 +++ b/arch/sparc/include/uapi/asm/mman.h
-@@ -18,6 +18,8 @@
+@@ -17,8 +17,10 @@
+ 
  #define MCL_CURRENT     0x2000          /* lock all currently mapped pages */
  #define MCL_FUTURE      0x4000          /* lock all additions to address space */
++#define MCL_ONFAULT	0x8000		/* lock all pages that are faulted in */
  
-+#define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
-+
+ #define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
++#define MLOCK_ONFAULT	0x02		/* Lock pages in range after they are faulted in, do not prefault */
+ 
  #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
  #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
-diff --git a/arch/sparc/include/uapi/asm/unistd.h b/arch/sparc/include/uapi/asm/unistd.h
-index 6f35f4d..c25bbb1 100644
---- a/arch/sparc/include/uapi/asm/unistd.h
-+++ b/arch/sparc/include/uapi/asm/unistd.h
-@@ -416,8 +416,11 @@
- #define __NR_memfd_create	348
- #define __NR_bpf		349
- #define __NR_execveat		350
-+#define __NR_mlock2		351
-+#define __NR_munlock2		352
-+#define __NR_munlockall2	353
- 
--#define NR_syscalls		351
-+#define NR_syscalls		354
- 
- /* Bitmask values returned from kern_features system call.  */
- #define KERN_FEATURE_MIXED_MODE_STACK	0x00000001
-diff --git a/arch/sparc/kernel/systbls_32.S b/arch/sparc/kernel/systbls_32.S
-index e31a905..72b68d4 100644
---- a/arch/sparc/kernel/systbls_32.S
-+++ b/arch/sparc/kernel/systbls_32.S
-@@ -87,4 +87,4 @@ sys_call_table:
- /*335*/	.long sys_syncfs, sys_sendmmsg, sys_setns, sys_process_vm_readv, sys_process_vm_writev
- /*340*/	.long sys_ni_syscall, sys_kcmp, sys_finit_module, sys_sched_setattr, sys_sched_getattr
- /*345*/	.long sys_renameat2, sys_seccomp, sys_getrandom, sys_memfd_create, sys_bpf
--/*350*/	.long sys_execveat
-+/*350*/	.long sys_execveat, sys_mlock2, sys_munlock2, sys_munlockall2
-diff --git a/arch/sparc/kernel/systbls_64.S b/arch/sparc/kernel/systbls_64.S
-index d72f76a..a96bfea 100644
---- a/arch/sparc/kernel/systbls_64.S
-+++ b/arch/sparc/kernel/systbls_64.S
-@@ -88,7 +88,7 @@ sys_call_table32:
- 	.word sys_syncfs, compat_sys_sendmmsg, sys_setns, compat_sys_process_vm_readv, compat_sys_process_vm_writev
- /*340*/	.word sys_kern_features, sys_kcmp, sys_finit_module, sys_sched_setattr, sys_sched_getattr
- 	.word sys32_renameat2, sys_seccomp, sys_getrandom, sys_memfd_create, sys_bpf
--/*350*/	.word sys32_execveat
-+/*350*/	.word sys32_execveat, sys_mlock2, sys_munlock2, sys_munlockall2
- 
- #endif /* CONFIG_COMPAT */
- 
-@@ -168,4 +168,4 @@ sys_call_table:
- 	.word sys_syncfs, sys_sendmmsg, sys_setns, sys_process_vm_readv, sys_process_vm_writev
- /*340*/	.word sys_kern_features, sys_kcmp, sys_finit_module, sys_sched_setattr, sys_sched_getattr
- 	.word sys_renameat2, sys_seccomp, sys_getrandom, sys_memfd_create, sys_bpf
--/*350*/	.word sys64_execveat
-+/*350*/	.word sys64_execveat, sys_mlock2, sys_munlock2, sys_munlockall2
 diff --git a/arch/tile/include/uapi/asm/mman.h b/arch/tile/include/uapi/asm/mman.h
-index 81b8fc3..f69ce48 100644
+index f69ce48..acdd013 100644
 --- a/arch/tile/include/uapi/asm/mman.h
 +++ b/arch/tile/include/uapi/asm/mman.h
-@@ -37,5 +37,10 @@
+@@ -36,11 +36,14 @@
+  */
  #define MCL_CURRENT	1		/* lock all current mappings */
  #define MCL_FUTURE	2		/* lock all future mappings */
- 
-+/*
-+ * Flags for mlock
-+ */
-+#define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
++#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
 +
+ 
+ /*
+  * Flags for mlock
+  */
+ #define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
++#define MLOCK_ONFAULT	0x02		/* Lock pages in range after they are faulted in, do not prefault */
+ 
  
  #endif /* _ASM_TILE_MMAN_H */
-diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
-index ef8187f..13ce950 100644
---- a/arch/x86/entry/syscalls/syscall_32.tbl
-+++ b/arch/x86/entry/syscalls/syscall_32.tbl
-@@ -365,3 +365,6 @@
- 356	i386	memfd_create		sys_memfd_create
- 357	i386	bpf			sys_bpf
- 358	i386	execveat		sys_execveat			stub32_execveat
-+359	i386	mlock2			sys_mlock2
-+360	i386	munlock2		sys_munlock2
-+361	i386	munlockall2		sys_munlockall2
-diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index 9ef32d5..13b3cb1 100644
---- a/arch/x86/entry/syscalls/syscall_64.tbl
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -329,6 +329,9 @@
- 320	common	kexec_file_load		sys_kexec_file_load
- 321	common	bpf			sys_bpf
- 322	64	execveat		stub_execveat
-+323	common	mlock2			sys_mlock2
-+324	common	munlock2		sys_munlock2
-+325	common	munlockall2		sys_munlockall2
- 
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
 diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index 201aec0..11f354f 100644
+index 11f354f..5725a15 100644
 --- a/arch/xtensa/include/uapi/asm/mman.h
 +++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -75,6 +75,11 @@
+@@ -74,11 +74,13 @@
+  */
  #define MCL_CURRENT	1		/* lock all current mappings */
  #define MCL_FUTURE	2		/* lock all future mappings */
++#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
  
-+/*
-+ * Flags for mlock
-+ */
-+#define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
-+
+ /*
+  * Flags for mlock
+  */
+ #define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
++#define MLOCK_ONFAULT	0x02		/* Lock pages in range after they are faulted in, do not prefault */
+ 
  #define MADV_NORMAL	0		/* no further special treatment */
  #define MADV_RANDOM	1		/* expect random page references */
- #define MADV_SEQUENTIAL	2		/* expect sequential page references */
-diff --git a/arch/xtensa/include/uapi/asm/unistd.h b/arch/xtensa/include/uapi/asm/unistd.h
-index b95c305..fbd0876 100644
---- a/arch/xtensa/include/uapi/asm/unistd.h
-+++ b/arch/xtensa/include/uapi/asm/unistd.h
-@@ -753,8 +753,14 @@ __SYSCALL(339, sys_memfd_create, 2)
- __SYSCALL(340, sys_bpf, 3)
- #define __NR_execveat				341
- __SYSCALL(341, sys_execveat, 5)
--
--#define __NR_syscall_count			342
-+#define __NR_mlock2				342
-+__SYSCALL(342, sys_mlock2, 3)
-+#define __NR_munlock2				343
-+__SYSCALL(343, sys_munlock2, 3)
-+#define __NR_munlockall2			344
-+__SYSCALL(344, sys_munlock2, 1)
-+
-+#define __NR_syscall_count			345
+diff --git a/drivers/gpu/drm/drm_vm.c b/drivers/gpu/drm/drm_vm.c
+index aab49ee..dfbcfc2 100644
+--- a/drivers/gpu/drm/drm_vm.c
++++ b/drivers/gpu/drm/drm_vm.c
+@@ -699,9 +699,15 @@ int drm_vma_info(struct seq_file *m, void *data)
+ 		   (void *)(unsigned long)virt_to_phys(high_memory));
  
- /*
-  * sysxtensa syscall handler
-diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index b45c45b..aecab5d 100644
---- a/include/linux/syscalls.h
-+++ b/include/linux/syscalls.h
-@@ -884,4 +884,8 @@ asmlinkage long sys_execveat(int dfd, const char __user *filename,
- 			const char __user *const __user *argv,
- 			const char __user *const __user *envp, int flags);
- 
-+asmlinkage long sys_mlock2(unsigned long start, size_t len, int flags);
-+asmlinkage long sys_munlock2(unsigned long start, size_t len, int flags);
-+asmlinkage long sys_munlockall2(int flags);
+ 	list_for_each_entry(pt, &dev->vmalist, head) {
++		char lock_flag = '-';
 +
+ 		vma = pt->vma;
+ 		if (!vma)
+ 			continue;
++		if (vma->vm_flags & VM_LOCKED)
++			lock_flag = 'l';
++		else if (vma->vm_flags & VM_LOCKONFAULT)
++			lock_flag = 'f';
+ 		seq_printf(m,
+ 			   "\n%5d 0x%pK-0x%pK %c%c%c%c%c%c 0x%08lx000",
+ 			   pt->pid,
+@@ -710,7 +716,7 @@ int drm_vma_info(struct seq_file *m, void *data)
+ 			   vma->vm_flags & VM_WRITE ? 'w' : '-',
+ 			   vma->vm_flags & VM_EXEC ? 'x' : '-',
+ 			   vma->vm_flags & VM_MAYSHARE ? 's' : 'p',
+-			   vma->vm_flags & VM_LOCKED ? 'l' : '-',
++			   lock_flag,
+ 			   vma->vm_flags & VM_IO ? 'i' : '-',
+ 			   vma->vm_pgoff);
+ 
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index ca1e091..2c435a7 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -579,6 +579,7 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+ #ifdef CONFIG_X86_INTEL_MPX
+ 		[ilog2(VM_MPX)]		= "mp",
+ #endif
++		[ilog2(VM_LOCKONFAULT)]	= "lf",
+ 		[ilog2(VM_LOCKED)]	= "lo",
+ 		[ilog2(VM_IO)]		= "io",
+ 		[ilog2(VM_SEQ_READ)]	= "sr",
+@@ -654,7 +655,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 		   mss.swap >> 10,
+ 		   vma_kernel_pagesize(vma) >> 10,
+ 		   vma_mmu_pagesize(vma) >> 10,
+-		   (vma->vm_flags & VM_LOCKED) ?
++		   (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) ?
+ 			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
+ 
+ 	show_smap_vma_flags(m, vma);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 2e872f9..e78544f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -127,6 +127,7 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
+ #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
+ 
++#define VM_LOCKONFAULT	0x00001000	/* Lock the pages covered when they are faulted in */
+ #define VM_LOCKED	0x00002000
+ #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
+ 
+@@ -1865,6 +1866,7 @@ static inline void mm_populate(unsigned long addr, unsigned long len)
+ 	/* Ignore errors */
+ 	(void) __mm_populate(addr, len, 1);
+ }
++extern int mm_lock_present(unsigned long addr, unsigned long start);
+ #else
+ static inline void mm_populate(unsigned long addr, unsigned long len) {}
  #endif
 diff --git a/include/uapi/asm-generic/mman.h b/include/uapi/asm-generic/mman.h
-index e9fe6fd..242436b 100644
+index 242436b..555aab0 100644
 --- a/include/uapi/asm-generic/mman.h
 +++ b/include/uapi/asm-generic/mman.h
-@@ -18,4 +18,6 @@
+@@ -17,7 +17,9 @@
+ 
  #define MCL_CURRENT	1		/* lock all current mappings */
  #define MCL_FUTURE	2		/* lock all future mappings */
++#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
  
-+#define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
-+
+ #define MLOCK_LOCKED	0x01		/* Lock and populate the specified range */
++#define MLOCK_ONFAULT	0x02		/* Lock pages in range after they are faulted in, do not prefault */
+ 
  #endif /* __ASM_GENERIC_MMAN_H */
-diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
-index e016bd9..e759fa2 100644
---- a/include/uapi/asm-generic/unistd.h
-+++ b/include/uapi/asm-generic/unistd.h
-@@ -709,9 +709,15 @@ __SYSCALL(__NR_memfd_create, sys_memfd_create)
- __SYSCALL(__NR_bpf, sys_bpf)
- #define __NR_execveat 281
- __SC_COMP(__NR_execveat, sys_execveat, compat_sys_execveat)
-+#define __NR_mlock2 282
-+__SYSCALL(__NR_mlock2, sys_mlock2)
-+#define __NR_munlock2 283
-+__SYSCALL(__NR_munlock2, sys_munlock2)
-+#define __NR_munlockall2 284
-+__SYSCALL(__NR_munlockall2, sys_munlockall2)
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index cb346f2..882c9f6 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -201,7 +201,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+ 		try_to_free_swap(page);
+ 	pte_unmap_unlock(ptep, ptl);
  
- #undef __NR_syscalls
--#define __NR_syscalls 282
-+#define __NR_syscalls 285
+-	if (vma->vm_flags & VM_LOCKED)
++	if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT))
+ 		munlock_vma_page(page);
+ 	put_page(page);
+ 
+diff --git a/kernel/fork.c b/kernel/fork.c
+index dbd9b8d..a949228 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -454,7 +454,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
+ 		tmp->vm_mm = mm;
+ 		if (anon_vma_fork(tmp, mpnt))
+ 			goto fail_nomem_anon_vma_fork;
+-		tmp->vm_flags &= ~VM_LOCKED;
++		tmp->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
+ 		tmp->vm_next = tmp->vm_prev = NULL;
+ 		file = tmp->vm_file;
+ 		if (file) {
+diff --git a/mm/debug.c b/mm/debug.c
+index 76089dd..25176bb 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -121,6 +121,7 @@ static const struct trace_print_flags vmaflags_names[] = {
+ 	{VM_GROWSDOWN,			"growsdown"	},
+ 	{VM_PFNMAP,			"pfnmap"	},
+ 	{VM_DENYWRITE,			"denywrite"	},
++	{VM_LOCKONFAULT,		"lockonfault"	},
+ 	{VM_LOCKED,			"locked"	},
+ 	{VM_IO,				"io"		},
+ 	{VM_SEQ_READ,			"seqread"	},
+diff --git a/mm/gup.c b/mm/gup.c
+index 233ef17..097a22a 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -92,7 +92,8 @@ retry:
+ 		 */
+ 		mark_page_accessed(page);
+ 	}
+-	if ((flags & FOLL_POPULATE) && (vma->vm_flags & VM_LOCKED)) {
++	if ((flags & FOLL_POPULATE) &&
++	    (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT))) {
+ 		/*
+ 		 * The preliminary mapping check is mainly to avoid the
+ 		 * pointless overhead of lock_page on the ZERO_PAGE
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index c107094..7985e35 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1238,7 +1238,8 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+ 					  pmd, _pmd,  1))
+ 			update_mmu_cache_pmd(vma, addr, pmd);
+ 	}
+-	if ((flags & FOLL_POPULATE) && (vma->vm_flags & VM_LOCKED)) {
++	if ((flags & FOLL_POPULATE) &&
++	    (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT))) {
+ 		if (page->mapping && trylock_page(page)) {
+ 			lru_add_drain();
+ 			if (page->mapping)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index a8c3087..82caa48 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3764,8 +3764,8 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
+ 	unsigned long s_end = sbase + PUD_SIZE;
+ 
+ 	/* Allow segments to share if only one is marked locked */
+-	unsigned long vm_flags = vma->vm_flags & ~VM_LOCKED;
+-	unsigned long svm_flags = svma->vm_flags & ~VM_LOCKED;
++	unsigned long vm_flags = vma->vm_flags & ~(VM_LOCKED | VM_LOCKONFAULT);
++	unsigned long svm_flags = svma->vm_flags & ~(VM_LOCKED | VM_LOCKONFAULT);
+ 
+ 	/*
+ 	 * match the virtual addresses, permission and the alignment of the
+diff --git a/mm/internal.h b/mm/internal.h
+index 36b23f1..53e140e 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -246,10 +246,11 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+ extern long populate_vma_page_range(struct vm_area_struct *vma,
+ 		unsigned long start, unsigned long end, int *nonblocking);
+ extern void munlock_vma_pages_range(struct vm_area_struct *vma,
+-			unsigned long start, unsigned long end);
++			unsigned long start, unsigned long end, vm_flags_t to_drop);
+ static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
+ {
+-	munlock_vma_pages_range(vma, vma->vm_start, vma->vm_end);
++	munlock_vma_pages_range(vma, vma->vm_start, vma->vm_end,
++				VM_LOCKED | VM_LOCKONFAULT);
+ }
  
  /*
-  * All syscalls below here should go away really,
-diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-index 7995ef5..63529b7 100644
---- a/kernel/sys_ni.c
-+++ b/kernel/sys_ni.c
-@@ -193,6 +193,9 @@ cond_syscall(sys_mlock);
- cond_syscall(sys_munlock);
- cond_syscall(sys_mlockall);
- cond_syscall(sys_munlockall);
-+cond_syscall(sys_mlock2);
-+cond_syscall(sys_munlock2);
-+cond_syscall(sys_munlockall2);
- cond_syscall(sys_mincore);
- cond_syscall(sys_madvise);
- cond_syscall(sys_mremap);
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 7ee101e..5d91b7d 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1058,7 +1058,7 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
+ 			err = replace_page(vma, page, kpage, orig_pte);
+ 	}
+ 
+-	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
++	if ((vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) && kpage && !err) {
+ 		munlock_vma_page(page);
+ 		if (!PageMlocked(kpage)) {
+ 			unlock_page(page);
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 64bb8a2..c9d9296 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -279,7 +279,7 @@ static long madvise_dontneed(struct vm_area_struct *vma,
+ 			     unsigned long start, unsigned long end)
+ {
+ 	*prev = vma;
+-	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
++	if (vma->vm_flags & (VM_LOCKED|VM_LOCKONFAULT|VM_HUGETLB|VM_PFNMAP))
+ 		return -EINVAL;
+ 
+ 	zap_page_range(vma, start, end - start, NULL);
+@@ -300,7 +300,7 @@ static long madvise_remove(struct vm_area_struct *vma,
+ 
+ 	*prev = NULL;	/* tell sys_madvise we drop mmap_sem */
+ 
+-	if (vma->vm_flags & (VM_LOCKED | VM_HUGETLB))
++	if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT | VM_HUGETLB))
+ 		return -EINVAL;
+ 
+ 	f = vma->vm_file;
+diff --git a/mm/memory.c b/mm/memory.c
+index 388dcf9..2b19e0b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2165,7 +2165,7 @@ static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		 * Don't let another task, with possibly unlocked vma,
+ 		 * keep the mlocked page.
+ 		 */
+-		if (page_copied && (vma->vm_flags & VM_LOCKED)) {
++		if (page_copied && (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT))) {
+ 			lock_page(old_page);	/* LRU manipulation */
+ 			munlock_vma_page(old_page);
+ 			unlock_page(old_page);
+@@ -2577,7 +2577,8 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	}
+ 
+ 	swap_free(entry);
+-	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
++	if (vm_swap_full() || (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) ||
++	    PageMlocked(page))
+ 		try_to_free_swap(page);
+ 	unlock_page(page);
+ 	if (page != swapcache) {
 diff --git a/mm/mlock.c b/mm/mlock.c
-index 8e52c23..d6e61d6 100644
+index d6e61d6..8b45be1 100644
 --- a/mm/mlock.c
 +++ b/mm/mlock.c
-@@ -648,6 +648,14 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
- 	return do_mlock(start, len, VM_LOCKED);
- }
- 
-+SYSCALL_DEFINE3(mlock2, unsigned long, start, size_t, len, int, flags)
-+{
-+	if (!flags || flags & ~MLOCK_LOCKED)
-+		return -EINVAL;
-+
-+	return do_mlock(start, len, VM_LOCKED);
-+}
-+
- static int do_munlock(unsigned long start, size_t len, vm_flags_t flags)
+@@ -406,23 +406,22 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
+  * @vma - vma containing range to be munlock()ed.
+  * @start - start address in @vma of the range
+  * @end - end of range in @vma.
++ * @to_drop - the VMA flags we want to drop from the specified range
+  *
+- *  For mremap(), munmap() and exit().
++ *  For mremap(), munmap(), munlock(), and exit().
+  *
+- * Called with @vma VM_LOCKED.
+- *
+- * Returns with VM_LOCKED cleared.  Callers must be prepared to
++ * Returns with specified flags cleared.  Callers must be prepared to
+  * deal with this.
+  *
+- * We don't save and restore VM_LOCKED here because pages are
++ * We don't save and restore specified flags here because pages are
+  * still on lru.  In unmap path, pages might be scanned by reclaim
+  * and re-mlocked by try_to_{munlock|unmap} before we unmap and
+  * free them.  This will result in freeing mlocked pages.
+  */
+-void munlock_vma_pages_range(struct vm_area_struct *vma,
+-			     unsigned long start, unsigned long end)
++void munlock_vma_pages_range(struct vm_area_struct *vma, unsigned long start,
++			     unsigned long end, vm_flags_t to_drop)
  {
- 	int ret;
-@@ -667,6 +675,13 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
- 	return do_munlock(start, len, VM_LOCKED);
+-	vma->vm_flags &= ~VM_LOCKED;
++	vma->vm_flags &= ~to_drop;
+ 
+ 	while (start < end) {
+ 		struct page *page = NULL;
+@@ -502,11 +501,12 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
+ 	pgoff_t pgoff;
+ 	int nr_pages;
+ 	int ret = 0;
+-	int lock = !!(newflags & VM_LOCKED);
++	int lock = !!(newflags & (VM_LOCKED | VM_LOCKONFAULT));
+ 
+ 	if (newflags == vma->vm_flags || (vma->vm_flags & VM_SPECIAL) ||
+ 	    is_vm_hugetlb_page(vma) || vma == get_gate_vma(current->mm))
+-		goto out;	/* don't set VM_LOCKED,  don't count */
++		/* don't set VM_LOCKED or VM_LOCKONFAULT and don't count */
++		goto out;
+ 
+ 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+ 	*prev = vma_merge(mm, *prev, start, end, newflags, vma->anon_vma,
+@@ -546,7 +546,11 @@ success:
+ 	if (lock)
+ 		vma->vm_flags = newflags;
+ 	else
+-		munlock_vma_pages_range(vma, start, end);
++		/*
++		 * We need to tell which VM_LOCK* flag(s) we are clearing here
++		 */
++		munlock_vma_pages_range(vma, start, end,
++					(vma->vm_flags & ~(newflags)));
+ 
+ out:
+ 	*prev = vma;
+@@ -581,10 +585,12 @@ static int apply_vma_flags(unsigned long start, size_t len,
+ 		/* Here we know that  vma->vm_start <= nstart < vma->vm_end. */
+ 
+ 		newflags = vma->vm_flags;
+-		if (add_flags)
++		if (add_flags) {
++			newflags &= ~(VM_LOCKED | VM_LOCKONFAULT);
+ 			newflags |= flags;
+-		else
++		} else {
+ 			newflags &= ~flags;
++		}
+ 
+ 		tmp = vma->vm_end;
+ 		if (tmp > end)
+@@ -637,9 +643,15 @@ static int do_mlock(unsigned long start, size_t len, vm_flags_t flags)
+ 	if (error)
+ 		return error;
+ 
+-	error = __mm_populate(start, len, 0);
+-	if (error)
+-		return __mlock_posix_error_return(error);
++	if (flags & (VM_LOCKED | VM_LOCKONFAULT)) {
++		if (flags & VM_LOCKED)
++			error = __mm_populate(start, len, 0);
++		else
++			error = mm_lock_present(start, len);
++		if (error)
++			return __mlock_posix_error_return(error);
++	}
++
+ 	return 0;
  }
  
-+SYSCALL_DEFINE3(munlock2, unsigned long, start, size_t, len, int, flags)
-+{
-+	if (!flags || flags & ~MLOCK_LOCKED)
-+		return -EINVAL;
-+	return do_munlock(start, len, VM_LOCKED);
-+}
+@@ -650,10 +662,14 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
+ 
+ SYSCALL_DEFINE3(mlock2, unsigned long, start, size_t, len, int, flags)
+ {
+-	if (!flags || flags & ~MLOCK_LOCKED)
++	if (!flags || (flags & ~(MLOCK_LOCKED | MLOCK_ONFAULT)) ||
++	    flags == (MLOCK_LOCKED | MLOCK_ONFAULT))
+ 		return -EINVAL;
+ 
+-	return do_mlock(start, len, VM_LOCKED);
++	if (flags & MLOCK_LOCKED)
++		return do_mlock(start, len, VM_LOCKED);
 +
++	return do_mlock(start, len, VM_LOCKONFAULT);
+ }
+ 
+ static int do_munlock(unsigned long start, size_t len, vm_flags_t flags)
+@@ -672,31 +688,46 @@ static int do_munlock(unsigned long start, size_t len, vm_flags_t flags)
+ 
+ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
+ {
+-	return do_munlock(start, len, VM_LOCKED);
++	return do_munlock(start, len, VM_LOCKED | VM_LOCKONFAULT);
+ }
+ 
+ SYSCALL_DEFINE3(munlock2, unsigned long, start, size_t, len, int, flags)
+ {
+-	if (!flags || flags & ~MLOCK_LOCKED)
++	vm_flags_t to_clear = 0;
++
++	if (!flags || flags & ~(MLOCK_LOCKED | MLOCK_ONFAULT))
+ 		return -EINVAL;
+-	return do_munlock(start, len, VM_LOCKED);
++
++	if (flags & MLOCK_LOCKED)
++		to_clear |= VM_LOCKED;
++	if (flags & MLOCK_ONFAULT)
++		to_clear |= VM_LOCKONFAULT;
++
++	return do_munlock(start, len, to_clear);
+ }
+ 
  static int do_mlockall(int flags)
  {
  	struct vm_area_struct * vma, * prev = NULL;
-@@ -756,6 +771,19 @@ SYSCALL_DEFINE0(munlockall)
++	vm_flags_t to_add;
+ 
+ 	if (flags & MCL_FUTURE)
+ 		current->mm->def_flags |= VM_LOCKED;
+ 	if (flags == MCL_FUTURE)
+ 		goto out;
+ 
++	if (flags & MCL_ONFAULT) {
++		current->mm->def_flags |= VM_LOCKONFAULT;
++		to_add = VM_LOCKONFAULT;
++	} else {
++		to_add = VM_LOCKED;
++	}
++
+ 	for (vma = current->mm->mmap; vma ; vma = prev->vm_next) {
+ 		vm_flags_t newflags;
+ 
+-		newflags = vma->vm_flags & ~VM_LOCKED;
+-		if (flags & MCL_CURRENT)
+-			newflags |= VM_LOCKED;
++		newflags = vma->vm_flags & ~(VM_LOCKED | VM_LOCKONFAULT);
++		newflags |= to_add;
+ 
+ 		/* Ignore errors */
+ 		mlock_fixup(vma, &prev, vma->vm_start, vma->vm_end, newflags);
+@@ -711,7 +742,8 @@ SYSCALL_DEFINE1(mlockall, int, flags)
+ 	unsigned long lock_limit;
+ 	int ret = -EINVAL;
+ 
+-	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE)))
++	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT)) ||
++	    (flags & (MCL_FUTURE | MCL_ONFAULT)) == (MCL_FUTURE | MCL_ONFAULT))
+ 		goto out;
+ 
+ 	ret = -EPERM;
+@@ -740,18 +772,24 @@ out:
+ static int do_munlockall(int flags)
+ {
+ 	struct vm_area_struct * vma, * prev = NULL;
++	vm_flags_t to_clear = 0;
+ 
+ 	if (flags & MCL_FUTURE)
+ 		current->mm->def_flags &= ~VM_LOCKED;
++	if (flags & MCL_ONFAULT)
++		current->mm->def_flags &= ~VM_LOCKONFAULT;
+ 	if (flags == MCL_FUTURE)
+ 		goto out;
+ 
++	if (flags & MCL_CURRENT)
++		to_clear |= VM_LOCKED;
++	if (flags & MCL_ONFAULT)
++		to_clear |= VM_LOCKONFAULT;
++
+ 	for (vma = current->mm->mmap; vma ; vma = prev->vm_next) {
+ 		vm_flags_t newflags;
+ 
+-		newflags = vma->vm_flags;
+-		if (flags & MCL_CURRENT)
+-			newflags &= ~VM_LOCKED;
++		newflags = vma->vm_flags & ~to_clear;
+ 
+ 		/* Ignore errors */
+ 		mlock_fixup(vma, &prev, vma->vm_start, vma->vm_end, newflags);
+@@ -766,7 +804,7 @@ SYSCALL_DEFINE0(munlockall)
+ 	int ret;
+ 
+ 	down_write(&current->mm->mmap_sem);
+-	ret = do_munlockall(MCL_CURRENT | MCL_FUTURE);
++	ret = do_munlockall(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT);
+ 	up_write(&current->mm->mmap_sem);
  	return ret;
  }
+@@ -775,7 +813,7 @@ SYSCALL_DEFINE1(munlockall2, int, flags)
+ {
+ 	int ret = -EINVAL;
  
-+SYSCALL_DEFINE1(munlockall2, int, flags)
-+{
-+	int ret = -EINVAL;
+-	if (!flags || flags & ~(MCL_CURRENT | MCL_FUTURE))
++	if (!flags || flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT))
+ 		return ret;
+ 
+ 	down_write(&current->mm->mmap_sem);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index aa632ad..de89be4 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1232,8 +1232,8 @@ static inline int mlock_future_check(struct mm_struct *mm,
+ {
+ 	unsigned long locked, lock_limit;
+ 
+-	/*  mlock MCL_FUTURE? */
+-	if (flags & VM_LOCKED) {
++	/*  mlock MCL_FUTURE or MCL_ONFAULT? */
++	if (flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 		locked = len >> PAGE_SHIFT;
+ 		locked += mm->locked_vm;
+ 		lock_limit = rlimit(RLIMIT_MEMLOCK);
+@@ -1646,12 +1646,12 @@ out:
+ 	perf_event_mmap(vma);
+ 
+ 	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
+-	if (vm_flags & VM_LOCKED) {
++	if (vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 		if (!((vm_flags & VM_SPECIAL) || is_vm_hugetlb_page(vma) ||
+ 					vma == get_gate_vma(current->mm)))
+ 			mm->locked_vm += (len >> PAGE_SHIFT);
+ 		else
+-			vma->vm_flags &= ~VM_LOCKED;
++			vma->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
+ 	}
+ 
+ 	if (file)
+@@ -2104,7 +2104,7 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
+ 		return -ENOMEM;
+ 
+ 	/* mlock limit tests */
+-	if (vma->vm_flags & VM_LOCKED) {
++	if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 		unsigned long locked;
+ 		unsigned long limit;
+ 		locked = mm->locked_vm + grow;
+@@ -2128,7 +2128,7 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
+ 		return -ENOMEM;
+ 
+ 	/* Ok, everything looks good - let it rip */
+-	if (vma->vm_flags & VM_LOCKED)
++	if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT))
+ 		mm->locked_vm += grow;
+ 	vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
+ 	return 0;
+@@ -2583,7 +2583,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
+ 	if (mm->locked_vm) {
+ 		struct vm_area_struct *tmp = vma;
+ 		while (tmp && tmp->vm_start < end) {
+-			if (tmp->vm_flags & VM_LOCKED) {
++			if (tmp->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 				mm->locked_vm -= vma_pages(tmp);
+ 				munlock_vma_pages_all(tmp);
+ 			}
+@@ -2636,6 +2636,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 	unsigned long populate = 0;
+ 	unsigned long ret = -EINVAL;
+ 	struct file *file;
++	vm_flags_t drop_lock_flag = 0;
+ 
+ 	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. "
+ 			"See Documentation/vm/remap_file_pages.txt.\n",
+@@ -2675,10 +2676,15 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 	flags |= MAP_SHARED | MAP_FIXED | MAP_POPULATE;
+ 	if (vma->vm_flags & VM_LOCKED) {
+ 		flags |= MAP_LOCKED;
+-		/* drop PG_Mlocked flag for over-mapped range */
+-		munlock_vma_pages_range(vma, start, start + size);
++		drop_lock_flag = VM_LOCKED;
++	} else if (vma->vm_flags & VM_LOCKONFAULT) {
++		drop_lock_flag = VM_LOCKONFAULT;
+ 	}
+ 
++	if (drop_lock_flag)
++		/* drop PG_Mlocked flag for over-mapped range */
++		munlock_vma_pages_range(vma, start, start + size, VM_LOCKED);
 +
-+	if (!flags || flags & ~(MCL_CURRENT | MCL_FUTURE))
-+		return ret;
-+
-+	down_write(&current->mm->mmap_sem);
-+	ret = do_munlockall(flags);
-+	up_write(&current->mm->mmap_sem);
-+	return ret;
-+}
-+
- /*
-  * Objects with different lifetime than processes (SHM_LOCK and SHM_HUGETLB
-  * shm segments) get accounted against the user_struct instead.
+ 	file = get_file(vma->vm_file);
+ 	ret = do_mmap_pgoff(vma->vm_file, start, size,
+ 			prot, flags, pgoff, &populate);
+@@ -2781,7 +2787,7 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
+ out:
+ 	perf_event_mmap(vma);
+ 	mm->total_vm += len >> PAGE_SHIFT;
+-	if (flags & VM_LOCKED)
++	if (flags & (VM_LOCKED | VM_LOCKONFAULT))
+ 		mm->locked_vm += (len >> PAGE_SHIFT);
+ 	vma->vm_flags |= VM_SOFTDIRTY;
+ 	return addr;
+@@ -2816,7 +2822,7 @@ void exit_mmap(struct mm_struct *mm)
+ 	if (mm->locked_vm) {
+ 		vma = mm->mmap;
+ 		while (vma) {
+-			if (vma->vm_flags & VM_LOCKED)
++			if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT))
+ 				munlock_vma_pages_all(vma);
+ 			vma = vma->vm_next;
+ 		}
+diff --git a/mm/mremap.c b/mm/mremap.c
+index a7c93ec..44d4c44 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -335,7 +335,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
+ 			vma->vm_next->vm_flags |= VM_ACCOUNT;
+ 	}
+ 
+-	if (vm_flags & VM_LOCKED) {
++	if (vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 		mm->locked_vm += new_len >> PAGE_SHIFT;
+ 		*locked = true;
+ 	}
+@@ -371,7 +371,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+ 			return ERR_PTR(-EINVAL);
+ 	}
+ 
+-	if (vma->vm_flags & VM_LOCKED) {
++	if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 		unsigned long locked, lock_limit;
+ 		locked = mm->locked_vm << PAGE_SHIFT;
+ 		lock_limit = rlimit(RLIMIT_MEMLOCK);
+@@ -548,7 +548,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 			}
+ 
+ 			vm_stat_account(mm, vma->vm_flags, vma->vm_file, pages);
+-			if (vma->vm_flags & VM_LOCKED) {
++			if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 				mm->locked_vm += pages;
+ 				locked = true;
+ 				new_addr = addr;
+diff --git a/mm/msync.c b/mm/msync.c
+index bb04d53..1183183 100644
+--- a/mm/msync.c
++++ b/mm/msync.c
+@@ -73,7 +73,7 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
+ 		}
+ 		/* Here vma->vm_start <= start < vma->vm_end. */
+ 		if ((flags & MS_INVALIDATE) &&
+-				(vma->vm_flags & VM_LOCKED)) {
++				(vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT))) {
+ 			error = -EBUSY;
+ 			goto out_unlock;
+ 		}
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 171b687..3e91372 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -742,9 +742,9 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 		if (!pmd)
+ 			return SWAP_AGAIN;
+ 
+-		if (vma->vm_flags & VM_LOCKED) {
++		if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 			spin_unlock(ptl);
+-			pra->vm_flags |= VM_LOCKED;
++			pra->vm_flags |= (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT));
+ 			return SWAP_FAIL; /* To break the loop */
+ 		}
+ 
+@@ -763,9 +763,9 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 		if (!pte)
+ 			return SWAP_AGAIN;
+ 
+-		if (vma->vm_flags & VM_LOCKED) {
++		if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 			pte_unmap_unlock(pte, ptl);
+-			pra->vm_flags |= VM_LOCKED;
++			pra->vm_flags |= (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT));
+ 			return SWAP_FAIL; /* To break the loop */
+ 		}
+ 
+@@ -1205,7 +1205,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	 * skipped over this mm) then we should reactivate it.
+ 	 */
+ 	if (!(flags & TTU_IGNORE_MLOCK)) {
+-		if (vma->vm_flags & VM_LOCKED)
++		if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT))
+ 			goto out_mlock;
+ 
+ 		if (flags & TTU_MUNLOCK)
+@@ -1315,7 +1315,7 @@ out_mlock:
+ 	 * page is actually mlocked.
+ 	 */
+ 	if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+-		if (vma->vm_flags & VM_LOCKED) {
++		if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+ 			mlock_vma_page(page);
+ 			ret = SWAP_MLOCK;
+ 		}
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 4caf8ed..9ddf2ca 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -754,7 +754,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+ 	index = page->index;
+ 	inode = mapping->host;
+ 	info = SHMEM_I(inode);
+-	if (info->flags & VM_LOCKED)
++	if (info->flags & (VM_LOCKED | VM_LOCKONFAULT))
+ 		goto redirty;
+ 	if (!total_swap_pages)
+ 		goto redirty;
+diff --git a/mm/swap.c b/mm/swap.c
+index a3a0a2f..3580a21 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -710,7 +710,8 @@ void lru_cache_add_active_or_unevictable(struct page *page,
+ {
+ 	VM_BUG_ON_PAGE(PageLRU(page), page);
+ 
+-	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
++	if (likely((vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) == 0) ||
++		   (vma->vm_flags & VM_SPECIAL)) {
+ 		SetPageActive(page);
+ 		lru_cache_add(page);
+ 		return;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index e61445d..019d306 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -804,7 +804,7 @@ static enum page_references page_check_references(struct page *page,
+ 	 * Mlock lost the isolation race with us.  Let try_to_unmap()
+ 	 * move the page to the unevictable list.
+ 	 */
+-	if (vm_flags & VM_LOCKED)
++	if (vm_flags & (VM_LOCKED | VM_LOCKONFAULT))
+ 		return PAGEREF_RECLAIM;
+ 
+ 	if (referenced_ptes) {
 -- 
 1.9.1
 
