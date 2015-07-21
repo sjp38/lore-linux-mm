@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id CE4439003C7
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 14:10:43 -0400 (EDT)
-Received: by qged69 with SMTP id d69so62481512qge.0
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 11:10:43 -0700 (PDT)
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 990EE9003C7
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 14:10:55 -0400 (EDT)
+Received: by ykax123 with SMTP id x123so173066769yka.1
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 11:10:55 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id c66si29236518qgf.109.2015.07.21.11.10.42
+        by mx.google.com with ESMTPS id n63si17205250ywn.87.2015.07.21.11.10.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 11:10:43 -0700 (PDT)
+        Tue, 21 Jul 2015 11:10:54 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v4 04/10] hugetlbfs: hugetlb_vmtruncate_list() needs to take a range to delete
-Date: Tue, 21 Jul 2015 11:09:38 -0700
-Message-Id: <1437502184-14269-5-git-send-email-mike.kravetz@oracle.com>
+Subject: [PATCH v4 07/10] mm/hugetlb: alloc_huge_page handle areas hole punched by fallocate
+Date: Tue, 21 Jul 2015 11:09:41 -0700
+Message-Id: <1437502184-14269-8-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1437502184-14269-1-git-send-email-mike.kravetz@oracle.com>
 References: <1437502184-14269-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,76 +20,111 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>
 
-fallocate hole punch will want to unmap a specific range of pages.
-Modify the existing hugetlb_vmtruncate_list() routine to take a
-start/end range.  If end is 0, this indicates all pages after start
-should be unmapped.  This is the same as the existing truncate
-functionality.  Modify existing callers to add 0 as end of range.
-
-Since the routine will be used in hole punch as well as truncate
-operations, it is more appropriately renamed to hugetlb_vmdelete_list().
+Areas hole punched by fallocate will not have entries in the
+region/reserve map.  However, shared mappings with min_size subpool
+reservations may still have reserved pages.  alloc_huge_page needs
+to handle this special case and do the proper accounting.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- fs/hugetlbfs/inode.c | 25 ++++++++++++++++++-------
- 1 file changed, 18 insertions(+), 7 deletions(-)
+ mm/hugetlb.c | 54 +++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 39 insertions(+), 15 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 0cf74df..ed40f56 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -349,11 +349,15 @@ static void hugetlbfs_evict_inode(struct inode *inode)
- }
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index f9d3faf..efcd58c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1735,34 +1735,58 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	struct hugepage_subpool *spool = subpool_vma(vma);
+ 	struct hstate *h = hstate_vma(vma);
+ 	struct page *page;
+-	long chg, commit;
++	long map_chg, map_commit;
++	long gbl_chg;
+ 	int ret, idx;
+ 	struct hugetlb_cgroup *h_cg;
  
- static inline void
--hugetlb_vmtruncate_list(struct rb_root *root, pgoff_t pgoff)
-+hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
- {
- 	struct vm_area_struct *vma;
- 
--	vma_interval_tree_foreach(vma, root, pgoff, ULONG_MAX) {
-+	/*
-+	 * end == 0 indicates that the entire range after
-+	 * start should be unmapped.
-+	 */
-+	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
- 		unsigned long v_offset;
- 
- 		/*
-@@ -362,13 +366,20 @@ hugetlb_vmtruncate_list(struct rb_root *root, pgoff_t pgoff)
- 		 * which overlap the truncated area starting at pgoff,
- 		 * and no vma on a 32-bit arch can span beyond the 4GB.
- 		 */
--		if (vma->vm_pgoff < pgoff)
--			v_offset = (pgoff - vma->vm_pgoff) << PAGE_SHIFT;
-+		if (vma->vm_pgoff < start)
-+			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
- 		else
- 			v_offset = 0;
- 
--		unmap_hugepage_range(vma, vma->vm_start + v_offset,
--				     vma->vm_end, NULL);
-+		if (end) {
-+			end = ((end - start) << PAGE_SHIFT) +
-+			       vma->vm_start + v_offset;
-+			if (end > vma->vm_end)
-+				end = vma->vm_end;
-+		} else
-+			end = vma->vm_end;
+ 	idx = hstate_index(h);
+ 	/*
+-	 * Processes that did not create the mapping will have no
+-	 * reserves and will not have accounted against subpool
+-	 * limit. Check that the subpool limit can be made before
+-	 * satisfying the allocation MAP_NORESERVE mappings may also
+-	 * need pages and subpool limit allocated allocated if no reserve
+-	 * mapping overlaps.
++	 * Examine the region/reserve map to determine if the process
++	 * has a reservation for the page to be allocated.  A return
++	 * code of zero indicates a reservation exists (no change).
+ 	 */
+-	chg = vma_needs_reservation(h, vma, addr);
+-	if (chg < 0)
++	map_chg = gbl_chg = vma_needs_reservation(h, vma, addr);
++	if (map_chg < 0)
+ 		return ERR_PTR(-ENOMEM);
+-	if (chg || avoid_reserve)
+-		if (hugepage_subpool_get_pages(spool, 1) < 0) {
 +
-+		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
- 	}
- }
++	/*
++	 * Processes that did not create the mapping will have no
++	 * reserves as indicated by the region/reserve map. Check
++	 * that the allocation will not exceed the subpool limit.
++	 * Allocations for MAP_NORESERVE mappings also need to be
++	 * checked against any subpool limit.
++	 */
++	if (map_chg || avoid_reserve) {
++		gbl_chg = hugepage_subpool_get_pages(spool, 1);
++		if (gbl_chg < 0) {
+ 			vma_end_reservation(h, vma, addr);
+ 			return ERR_PTR(-ENOSPC);
+ 		}
  
-@@ -384,7 +395,7 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
- 	i_size_write(inode, offset);
- 	i_mmap_lock_write(mapping);
- 	if (!RB_EMPTY_ROOT(&mapping->i_mmap))
--		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
-+		hugetlb_vmdelete_list(&mapping->i_mmap, pgoff, 0);
- 	i_mmap_unlock_write(mapping);
- 	truncate_hugepages(inode, offset);
- 	return 0;
++		/*
++		 * Even though there was no reservation in the region/reserve
++		 * map, there could be reservations associated with the
++		 * subpool that can be used.  This would be indicated if the
++		 * return value of hugepage_subpool_get_pages() is zero.
++		 * However, if avoid_reserve is specified we still avoid even
++		 * the subpool reservations.
++		 */
++		if (avoid_reserve)
++			gbl_chg = 1;
++	}
++
+ 	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
+ 	if (ret)
+ 		goto out_subpool_put;
+ 
+ 	spin_lock(&hugetlb_lock);
+-	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
++	/*
++	 * glb_chg is passed to indicate whether or not a page must be taken
++	 * from the global free pool (global change).  gbl_chg == 0 indicates
++	 * a reservation exists for the allocation.
++	 */
++	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, gbl_chg);
+ 	if (!page) {
+ 		spin_unlock(&hugetlb_lock);
+ 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+@@ -1778,8 +1802,8 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 
+ 	set_page_private(page, (unsigned long)spool);
+ 
+-	commit = vma_commit_reservation(h, vma, addr);
+-	if (unlikely(chg > commit)) {
++	map_commit = vma_commit_reservation(h, vma, addr);
++	if (unlikely(map_chg > map_commit)) {
+ 		/*
+ 		 * The page was added to the reservation map between
+ 		 * vma_needs_reservation and vma_commit_reservation.
+@@ -1799,7 +1823,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ out_uncharge_cgroup:
+ 	hugetlb_cgroup_uncharge_cgroup(idx, pages_per_huge_page(h), h_cg);
+ out_subpool_put:
+-	if (chg || avoid_reserve)
++	if (map_chg || avoid_reserve)
+ 		hugepage_subpool_put_pages(spool, 1);
+ 	vma_end_reservation(h, vma, addr);
+ 	return ERR_PTR(-ENOSPC);
 -- 
 2.1.0
 
