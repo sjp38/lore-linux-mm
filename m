@@ -1,116 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C9996B02D4
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 00:49:08 -0400 (EDT)
-Received: by wgav7 with SMTP id v7so80442609wga.2
-        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 21:49:07 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id he1si16952120wib.34.2015.07.20.21.49.05
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 20 Jul 2015 21:49:06 -0700 (PDT)
-Subject: Re: [Patch V6 12/16] mm: provide early_memremap_ro to establish
- read-only mapping
-References: <1437108697-4115-1-git-send-email-jgross@suse.com>
- <1437108697-4115-13-git-send-email-jgross@suse.com>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <55ADCF40.6010903@suse.com>
-Date: Tue, 21 Jul 2015 06:49:04 +0200
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 595236B02BB
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 01:46:17 -0400 (EDT)
+Received: by pdbnt7 with SMTP id nt7so42697504pdb.0
+        for <linux-mm@kvack.org>; Mon, 20 Jul 2015 22:46:17 -0700 (PDT)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id fx5si41063511pdb.170.2015.07.20.22.46.14
+        for <linux-mm@kvack.org>;
+        Mon, 20 Jul 2015 22:46:16 -0700 (PDT)
+Date: Tue, 21 Jul 2015 15:46:12 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [regression 4.2-rc3] loop: xfstests xfs/073 deadlocked in low
+ memory conditions
+Message-ID: <20150721054612.GZ7943@dastard>
+References: <20150721015934.GY7943@dastard>
+ <CACVXFVMyW8SmuxPoZznemwQTnvXZLbxyoi9iYh7wK-3BdW=jbQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1437108697-4115-13-git-send-email-jgross@suse.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACVXFVMyW8SmuxPoZznemwQTnvXZLbxyoi9iYh7wK-3BdW=jbQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, linux-arch@vger.kernel.org
-Cc: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com
+To: Ming Lei <ming.lei@canonical.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, xfs@oss.sgi.com
 
-Hi MM maintainers,
+On Tue, Jul 21, 2015 at 12:05:56AM -0400, Ming Lei wrote:
+> On Mon, Jul 20, 2015 at 9:59 PM, Dave Chinner <david@fromorbit.com> wrote:
+> > Hi Ming,
+> >
+> > With the recent merge of the loop device changes, I'm now seeing
+> > XFS deadlock on my single CPU, 1GB RAM VM running xfs/073.
+> >
+> > The deadlocked is as follows:
+> >
+> > kloopd1: loop_queue_read_work
+> >         xfs_file_iter_read
+> >         lock XFS inode XFS_IOLOCK_SHARED (on image file)
+> >         page cache read (GFP_KERNEL)
+> >         radix tree alloc
+> >         memory reclaim
+> >         reclaim XFS inodes
+> >         log force to unpin inodes
+> >         <wait for log IO completion>
+> >
+> > xfs-cil/loop1: <does log force IO work>
+> >         xlog_cil_push
+> >         xlog_write
+> >         <loop issuing log writes>
+> >                 xlog_state_get_iclog_space()
+> >                 <blocks due to all log buffers under write io>
+> >                 <waits for IO completion>
+> >
+> > kloopd1: loop_queue_write_work
+> >         xfs_file_write_iter
+> >         lock XFS inode XFS_IOLOCK_EXCL (on image file)
+> >         <wait for inode to be unlocked>
+> >
+> > [The full stack traces are below].
+> >
+> > i.e. the kloopd, with it's split read and write work queues, has
+> > introduced a dependency through memory reclaim. i.e. that writes
+> > need to be able to progress for reads make progress.
+> 
+> This kind of change just makes READ vs READ OR WRITE submitted
+> to fs concurrently, and the use case should have been simulated from
+> user space on one regular XFS file too?
 
-this patch is the last requiring an ack for the series to go in.
-Could you please comment?
+Assuming the "regular XFS file" is on a normal block device (i.e.
+not a loop device) then this will not deadlock as there is not
+dependency on vfs level locking for log writes.
+
+i.e. normal userspace IO path is:
+
+userspace read
+	vfs_read
+	  xfs_read
+	    page cache alloc (GFP_KERNEL)
+	      direct reclaim
+	        xfs_inode reclaim
+		  log force
+		    CIL push
+		      <workqueue>
+		        xlog_write
+			  submit_bio
+			    -> hardware.
+
+And then the log IO completes, and everything continues onward.
+
+What the loop device used to do:
+
+userspace read
+	vfs_read
+	  xfs_read
+	    page cache alloc (GFP_KERNEL)
+	    submit_bio
+	      loop device
+	        splice_read (on image file)
+		  xfs_splice_read
+		    page cache alloc (GFP_NOFS)
+		      direct reclaim
+		        <skip filesystem reclaim>
+		      submit_bio
+		        -> hardware.
+
+And when the read Io completes, everything moves onwards.
+
+What the loop device now does:
+
+userspace read
+	vfs_read
+	  xfs_read
+	    page cache alloc (GFP_KERNEL)
+	    submit_bio
+	      loop device
+	        <workqueue>
+	        vfs_read (on image file)
+		  xfs_read
+		    page cache alloc (GFP_KERNEL)
+		      direct reclaim
+			xfs_inode reclaim
+			  log force
+			    CIL push
+			      <workqueue>
+				xlog_write
+				  submit_bio
+				    loop device
+				    <workqueue>
+				      vfs_write (on image file)
+				        xfs_write
+					  <deadlock on image file lock>
 
 
-Juergen
+> > The problem, fundamentally, is that mpage_readpages() does a
+> > GFP_KERNEL allocation, rather than paying attention to the inode's
+> > mapping gfp mask, which is set to GFP_NOFS.
+> 
+> That looks the root cause, and I guess the issue is just triggered
+> after commit aa4d86163e4(block: loop: switch to VFS ITER_BVEC)
+> which changes splice to bvec iterator.
 
-On 07/17/2015 06:51 AM, Juergen Gross wrote:
-> During early boot as Xen pv domain the kernel needs to map some page
-> tables supplied by the hypervisor read only. This is needed to be
-> able to relocate some data structures conflicting with the physical
-> memory map especially on systems with huge RAM (above 512GB).
->
-> Provide the function early_memremap_ro() to provide this read only
-> mapping.
->
-> Signed-off-by: Juergen Gross <jgross@suse.com>
-> Acked-by: Konrad Rzeszutek Wilk <Konrad.wilk@oracle.com>
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> Cc: linux-mm@kvack.org
-> Cc: linux-arch@vger.kernel.org
-> ---
->   include/asm-generic/early_ioremap.h |  2 ++
->   include/asm-generic/fixmap.h        |  3 +++
->   mm/early_ioremap.c                  | 12 ++++++++++++
->   3 files changed, 17 insertions(+)
->
-> diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
-> index a5de55c..316bd04 100644
-> --- a/include/asm-generic/early_ioremap.h
-> +++ b/include/asm-generic/early_ioremap.h
-> @@ -11,6 +11,8 @@ extern void __iomem *early_ioremap(resource_size_t phys_addr,
->   				   unsigned long size);
->   extern void *early_memremap(resource_size_t phys_addr,
->   			    unsigned long size);
-> +extern void *early_memremap_ro(resource_size_t phys_addr,
-> +			       unsigned long size);
->   extern void early_iounmap(void __iomem *addr, unsigned long size);
->   extern void early_memunmap(void *addr, unsigned long size);
->
-> diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
-> index f23174f..1cbb833 100644
-> --- a/include/asm-generic/fixmap.h
-> +++ b/include/asm-generic/fixmap.h
-> @@ -46,6 +46,9 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
->   #ifndef FIXMAP_PAGE_NORMAL
->   #define FIXMAP_PAGE_NORMAL PAGE_KERNEL
->   #endif
-> +#if !defined(FIXMAP_PAGE_RO) && defined(PAGE_KERNEL_RO)
-> +#define FIXMAP_PAGE_RO PAGE_KERNEL_RO
-> +#endif
->   #ifndef FIXMAP_PAGE_NOCACHE
->   #define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NOCACHE
->   #endif
-> diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-> index e10ccd2..0cfadaf 100644
-> --- a/mm/early_ioremap.c
-> +++ b/mm/early_ioremap.c
-> @@ -217,6 +217,13 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
->   	return (__force void *)__early_ioremap(phys_addr, size,
->   					       FIXMAP_PAGE_NORMAL);
->   }
-> +#ifdef FIXMAP_PAGE_RO
-> +void __init *
-> +early_memremap_ro(resource_size_t phys_addr, unsigned long size)
-> +{
-> +	return (__force void *)__early_ioremap(phys_addr, size, FIXMAP_PAGE_RO);
-> +}
-> +#endif
->   #else /* CONFIG_MMU */
->
->   void __init __iomem *
-> @@ -231,6 +238,11 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
->   {
->   	return (void *)phys_addr;
->   }
-> +void __init *
-> +early_memremap_ro(resource_size_t phys_addr, unsigned long size)
-> +{
-> +	return (void *)phys_addr;
-> +}
->
->   void __init early_iounmap(void __iomem *addr, unsigned long size)
->   {
->
+Yup - you are the unfortunate person who has wandered into the
+minefield I'd been telling people about for quite some time. :(
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
