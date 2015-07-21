@@ -1,58 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A2B2B6B02B9
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 18:47:15 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so127501564pdr.2
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 15:47:15 -0700 (PDT)
-Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com. [2607:f8b0:400e:c02::229])
-        by mx.google.com with ESMTPS id i6si46341516pat.204.2015.07.21.15.47.14
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 686C7280244
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 19:07:06 -0400 (EDT)
+Received: by pdbnt7 with SMTP id nt7so56920655pdb.0
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:07:06 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id y9si46488546pdl.235.2015.07.21.16.07.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 15:47:14 -0700 (PDT)
-Received: by pdrg1 with SMTP id g1so127501412pdr.2
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 15:47:14 -0700 (PDT)
-Date: Tue, 21 Jul 2015 15:47:11 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Jul 2015 16:07:05 -0700 (PDT)
+Received: by padck2 with SMTP id ck2so126968176pad.0
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:07:05 -0700 (PDT)
+Date: Tue, 21 Jul 2015 16:07:02 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/2] mm: rename and move get/set_freepage_migratetype
-In-Reply-To: <1437483218-18703-2-git-send-email-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.10.1507211547000.3833@chino.kir.corp.google.com>
-References: <55969822.9060907@suse.cz> <1437483218-18703-1-git-send-email-vbabka@suse.cz> <1437483218-18703-2-git-send-email-vbabka@suse.cz>
+Subject: Re: [RFC 1/4] mm, compaction: introduce kcompactd
+In-Reply-To: <55AE0AFE.8070200@suse.cz>
+Message-ID: <alpine.DEB.2.10.1507211549380.3833@chino.kir.corp.google.com>
+References: <1435826795-13777-1-git-send-email-vbabka@suse.cz> <1435826795-13777-2-git-send-email-vbabka@suse.cz> <alpine.DEB.2.10.1507091439100.17177@chino.kir.corp.google.com> <55AE0AFE.8070200@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "minkyung88.kim" <minkyung88.kim@lge.com>, kmk3210@gmail.com, Seungho Park <seungho1.park@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 On Tue, 21 Jul 2015, Vlastimil Babka wrote:
 
-> The pair of get/set_freepage_migratetype() functions are used to cache
-> pageblock migratetype for a page put on a pcplist, so that it does not have
-> to be retrieved again when the page is put on a free list (e.g. when pcplists
-> become full). Historically it was also assumed that the value is accurate for
-> pages on freelists (as the functions' names unfortunately suggest), but that
-> cannot be guaranteed without affecting various allocator fast paths. It is in
-> fact not needed and all such uses have been removed.
+> > Khugepaged benefits from the periodic memory compaction being done
+> > immediately before it attempts to compact memory, and that may be lost
+> > with a de-coupled approach like this.
 > 
-> The last remaining (but pointless) usage related to pages of freelists is in
-> move_freepages(), which this patch removes.
-> 
-> To prevent further confusion, rename the functions to
-> get/set_pcppage_migratetype() and expand their description. Since all the
-> users are now in mm/page_alloc.c, move the functions there from the shared
-> header.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Laura Abbott <lauraa@codeaurora.org>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
 
-Acked-by: David Rientjes <rientjes@google.com>
+Meant to say "before it attempts to allocate a hugepage", but it seems you 
+understood that :)
+
+> That could be helped with waking up khugepaged after kcompactd is successful
+> in making a hugepage available.
+
+I don't think the criteria for waking up khugepaged should become any more 
+complex beyond its current state, which is impacted by two different 
+tunables, and whether it actually has memory to scan.  During this 
+additional wakeup, you'd also need to pass kcompactd's node and only do 
+local khugepaged scanning since there's no guarantee khugepaged can 
+allocate on all nodes when one kcompactd defragments memory.  I think 
+coupling these two would be too complex and not worth it.
+
+> Also in your rfc you propose the compaction
+> period to be 15 minutes, while khugepaged wakes up each 10 (or 30) seconds by
+> default for the scanning and collapsing, so only fraction of the work is
+> attempted right after the compaction anyway?
+> 
+
+The rfc actually proposes the compaction period to be 0, meaning it's 
+disabled, but suggests in the changelog that we have seen a reproducible 
+benefit with the period of 15m.
+
+I'm not concerned about scan_sleep_millisecs here, if khugepaged was able 
+to successfully allocate in its last scan.  I'm only concerned with 
+alloc_sleep_millisecs which defaults to 60000.  I think it would be 
+unfortunate if kcompactd were to free a pageblock, and then khugepaged 
+waits for 60s before allocating.
+
+> Hm reports of even not-so-high-order allocation failures occur from time to
+> time. Some might be from atomic context, but some are because compaction just
+> can't help due to the unmovable fragmentation. That's mostly a guess, since
+> such detailed information isn't there, but I think Joonsoo did some
+> experiments that confirmed this.
+> 
+
+If it's unmovable fragmentation, then any periodic synchronous memory 
+compaction isn't going to help either.  The page allocator already does 
+MIGRATE_SYNC_LIGHT compaction on its second pass and that will terminate 
+when a high-order page is available.  If it is currently failing, then I 
+don't see the benefit of synchronous memory compaction over all memory 
+that would substantially help this case.
+
+> Also effects on the fragmentation are evaluated when making changes to
+> compaction, see e.g. http://marc.info/?l=linux-mm&m=143634369227134&w=2
+> In the past it has prevented changes that would improve latency of direct
+> compaction. They might be possible if there was a reliable source of more
+> thorough periodic compaction to counter the not-so-thorough direct compaction.
+> 
+
+Hmm, I don't think we have to select one to the excusion of the other.  I 
+don't think that because khugepaged may do periodic synchronous memory 
+compaction (to eventually remove direct compaction entirely from the page 
+fault path, since we have checks in the page allocator that specifically 
+do that) that we can't do background memory compaction elsewhere.  I think 
+it would be trivial to schedule a workqueue in the page allocator when 
+MIGRATE_ASYNC compaction fails for a high-order allocation on a node and 
+to have that local compaction done in the background.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
