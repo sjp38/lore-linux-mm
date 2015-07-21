@@ -1,107 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 647C69003C7
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:26:20 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so71838412wib.1
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 13:26:20 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bb10si20958578wib.69.2015.07.21.13.26.18
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CC2D9003C7
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:44:44 -0400 (EDT)
+Received: by padck2 with SMTP id ck2so125380147pad.0
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 13:44:44 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id fn7si45737690pdb.248.2015.07.21.13.44.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Jul 2015 13:26:18 -0700 (PDT)
-Date: Mon, 20 Jul 2015 10:03:35 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 9/9] drm/exynos: Convert g2d_userptr_get_dma_addr() to
- use get_vaddr_frames()
-Message-ID: <20150720080335.GB3131@quack.suse.cz>
-References: <1436799351-21975-1-git-send-email-jack@suse.com>
- <1436799351-21975-10-git-send-email-jack@suse.com>
- <55A8D700.9080203@xs4all.nl>
- <55A8D903.2080102@samsung.com>
- <55A8D96F.5000704@xs4all.nl>
- <55A9C484.2090707@samsung.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="6TrnltStXW4iwmi0"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <55A9C484.2090707@samsung.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Jul 2015 13:44:43 -0700 (PDT)
+Date: Tue, 21 Jul 2015 13:44:41 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V4 2/6] mm: mlock: Add new mlock, munlock, and
+ munlockall system calls
+Message-Id: <20150721134441.d69e4e1099bd43e56835b3c5@linux-foundation.org>
+In-Reply-To: <1437508781-28655-3-git-send-email-emunson@akamai.com>
+References: <1437508781-28655-1-git-send-email-emunson@akamai.com>
+	<1437508781-28655-3-git-send-email-emunson@akamai.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Inki Dae <inki.dae@samsung.com>
-Cc: Hans Verkuil <hverkuil@xs4all.nl>, Jan Kara <jack@suse.com>, linux-media@vger.kernel.org, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-samsung-soc@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Heiko Carstens <heiko.carstens@de.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Catalin Marinas <catalin.marinas@arm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Guenter Roeck <linux@roeck-us.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, adi-buildroot-devel@lists.sourceforge.net, linux-cris-kernel@axis.com, linux-ia64@vger.kernel.org, linux-m68k@vger.kernel.org, linux-mips@linux-mips.org, linux-am33-list@redhat.com, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
+On Tue, 21 Jul 2015 15:59:37 -0400 Eric B Munson <emunson@akamai.com> wrote:
 
---6TrnltStXW4iwmi0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-
-On Sat 18-07-15 12:14:12, Inki Dae wrote:
-> On 2015e?? 07i?? 17i? 1/4  19:31, Hans Verkuil wrote:
-> > On 07/17/2015 12:29 PM, Inki Dae wrote:
-> >> On 2015e?? 07i?? 17i? 1/4  19:20, Hans Verkuil wrote:
-> >>> On 07/13/2015 04:55 PM, Jan Kara wrote:
-> >>>> From: Jan Kara <jack@suse.cz>
-> >>>>
-> >>>> Convert g2d_userptr_get_dma_addr() to pin pages using get_vaddr_frames().
-> >>>> This removes the knowledge about vmas and mmap_sem locking from exynos
-> >>>> driver. Also it fixes a problem that the function has been mapping user
-> >>>> provided address without holding mmap_sem.
-> >>>
-> >>> I'd like to see an Ack from one of the exynos drm driver maintainers before
-> >>> I merge this.
-> >>>
-> >>> Inki, Marek?
-> >>
-> >> I already gave Ack but it seems that Jan missed it while updating.
-> >>
-> >> Anyway,
-> >> Acked-by: Inki Dae <inki.dae@samsung.com>
-> > 
-> > Thanks!
+> With the refactored mlock code, introduce new system calls for mlock,
+> munlock, and munlockall.  The new calls will allow the user to specify
+> what lock states are being added or cleared.  mlock2 and munlock2 are
+> trivial at the moment, but a follow on patch will add a new mlock state
+> making them useful.
 > 
-> Oops, sorry. This patch would incur a build warning. Below is my comment.
-> 
-> >>>> @@ -456,65 +455,38 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
-> >>>>  		return ERR_PTR(-ENOMEM);
-> >>>>  
-> >>>>  	atomic_set(&g2d_userptr->refcount, 1);
-> >>>> +	g2d_userptr->size = size;
-> >>>>  
-> >>>>  	start = userptr & PAGE_MASK;
-> >>>>  	offset = userptr & ~PAGE_MASK;
-> >>>>  	end = PAGE_ALIGN(userptr + size);
-> >>>>  	npages = (end - start) >> PAGE_SHIFT;
-> >>>> -	g2d_userptr->npages = npages;
-> >>>> -
-> >>>> -	pages = drm_calloc_large(npages, sizeof(struct page *));
-> >>>> -	if (!pages) {
-> >>>> -		DRM_ERROR("failed to allocate pages.\n");
-> >>>> -		ret = -ENOMEM;
-> >>>> +	g2d_userptr->vec = frame_vector_create(npages);
-> >>>> +	if (!g2d_userptr->vec)
-> 
-> You would need ret = -EFAULT here. And below is a patch posted already,
-> 	http://www.spinics.net/lists/dri-devel/msg85321.html
+> munlock2 addresses a limitation of the current implementation.  If a
+> user calls mlockall(MCL_CURRENT | MCL_FUTURE) and then later decides
+> that MCL_FUTURE should be removed, they would have to call munlockall()
+> followed by mlockall(MCL_CURRENT) which could potentially be very
+> expensive.  The new munlockall2 system call allows a user to simply
+> clear the MCL_FUTURE flag.
 
-The error should IMHO be -ENOMEM because frame_vector_create() fails only
-if we fail to allocate the structure. Attached is the updated version of
-the patch. Hans, can you please pick this one?
+This is hard.  Maybe we shouldn't have wired up anything other than
+x86.  That's what we usually do with new syscalls.
+
+You appear to have missed
+mm-mlock-add-new-mlock-munlock-and-munlockall-system-calls-fix.patch:
+
+--- a/arch/arm64/include/asm/unistd.h~mm-mlock-add-new-mlock-munlock-and-munlockall-system-calls-fix
++++ a/arch/arm64/include/asm/unistd.h
+@@ -44,7 +44,7 @@
+ #define __ARM_NR_compat_cacheflush	(__ARM_NR_COMPAT_BASE+2)
+ #define __ARM_NR_compat_set_tls		(__ARM_NR_COMPAT_BASE+5)
  
-> ps. please, ignore the codes related to build error in the patch.
-> 
-> With the change, Acked-by: Inki Dae <inki.dae@samsung.com>
-
-Thanks and sorry for making so many stupid mistakes in the Exynos driver.
-
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
-
---6TrnltStXW4iwmi0
-Content-Type: text/x-patch; charset=us-ascii
-Content-Disposition: attachment; filename="0009-drm-exynos-Convert-g2d_userptr_get_dma_addr-to-use-g.patch"
+-#define __NR_compat_syscalls		388
++#define __NR_compat_syscalls		391
+ #endif
+ 
+ #define __ARCH_WANT_SYS_CLONE
 
 
---6TrnltStXW4iwmi0--
+And mm-mlock-add-new-mlock-munlock-and-munlockall-system-calls-fix-2.patch:
+
+
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: mm-mlock-add-new-mlock-munlock-and-munlockall-system-calls-fix-2
+
+can we just remove the s390 bits which cause the breakage?
+I will wire up the syscalls as soon as the patch set gets merged.
+
+Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Eric B Munson <emunson@akamai.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ arch/s390/kernel/syscalls.S |    3 ---
+ 1 file changed, 3 deletions(-)
+
+diff -puN arch/s390/kernel/syscalls.S~mm-mlock-add-new-mlock-munlock-and-munlockall-system-calls-fix-2 arch/s390/kernel/syscalls.S
+--- a/arch/s390/kernel/syscalls.S~mm-mlock-add-new-mlock-munlock-and-munlockall-system-calls-fix-2
++++ a/arch/s390/kernel/syscalls.S
+@@ -363,6 +363,3 @@ SYSCALL(sys_bpf,compat_sys_bpf)
+ SYSCALL(sys_s390_pci_mmio_write,compat_sys_s390_pci_mmio_write)
+ SYSCALL(sys_s390_pci_mmio_read,compat_sys_s390_pci_mmio_read)
+ SYSCALL(sys_execveat,compat_sys_execveat)
+-SYSCALL(sys_mlock2,compat_sys_mlock2)			/* 355 */
+-SYSCALL(sys_munlock2,compat_sys_munlock2)
+-SYSCALL(sys_munlockall2,compat_sys_munlockall2)
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
