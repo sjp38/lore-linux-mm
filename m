@@ -1,142 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E89C19003C7
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 19:34:04 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so130423010pdj.3
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:34:04 -0700 (PDT)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C236D9003C7
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 19:34:09 -0400 (EDT)
+Received: by pacan13 with SMTP id an13so129091355pac.1
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 16:34:09 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g3si46623575pat.105.2015.07.21.16.34.03
+        by mx.google.com with ESMTPS id fg4si46681334pdb.98.2015.07.21.16.34.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 16:34:04 -0700 (PDT)
-Date: Tue, 21 Jul 2015 16:34:02 -0700
+        Tue, 21 Jul 2015 16:34:08 -0700 (PDT)
+Date: Tue, 21 Jul 2015 16:34:07 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm v9 0/8] idle memory tracking
-Message-Id: <20150721163402.43ad2527d9b8caa476a1c9e1@linux-foundation.org>
-In-Reply-To: <cover.1437303956.git.vdavydov@parallels.com>
+Subject: Re: [PATCH -mm v9 1/8] memcg: add page_cgroup_ino helper
+Message-Id: <20150721163407.4e198dfcf61eebbbc49731c2@linux-foundation.org>
+In-Reply-To: <aa0190b76489260b4d1b65cdfa65221f4e6390f5.1437303956.git.vdavydov@parallels.com>
 References: <cover.1437303956.git.vdavydov@parallels.com>
+	<aa0190b76489260b4d1b65cdfa65221f4e6390f5.1437303956.git.vdavydov@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
+Cc: Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sun, 19 Jul 2015 15:31:09 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
+On Sun, 19 Jul 2015 15:31:10 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
 
-> Hi,
+> This function returns the inode number of the closest online ancestor of
+> the memory cgroup a page is charged to. It is required for exporting
+> information about which page is charged to which cgroup to userspace,
+> which will be introduced by a following patch.
 > 
-> This patch set introduces a new user API for tracking user memory pages
-> that have not been used for a given period of time. The purpose of this
-> is to provide the userspace with the means of tracking a workload's
-> working set, i.e. the set of pages that are actively used by the
-> workload. Knowing the working set size can be useful for partitioning
-> the system more efficiently, e.g. by tuning memory cgroup limits
-> appropriately, or for job placement within a compute cluster.
-> 
-> It is based on top of v4.2-rc2-mmotm-2015-07-15-16-46
-> It applies without conflicts to v4.2-rc2-mmotm-2015-07-17-16-04 as well
-> 
-> ---- USE CASES ----
-> 
-> The unified cgroup hierarchy has memory.low and memory.high knobs, which
-> are defined as the low and high boundaries for the workload working set
-> size. However, the working set size of a workload may be unknown or
-> change in time. With this patch set, one can periodically estimate the
-> amount of memory unused by each cgroup and tune their memory.low and
-> memory.high parameters accordingly, therefore optimizing the overall
-> memory utilization.
-> 
-> Another use case is balancing workloads within a compute cluster.
-> Knowing how much memory is not really used by a workload unit may help
-> take a more optimal decision when considering migrating the unit to
-> another node within the cluster.
-> 
-> Also, as noted by Minchan, this would be useful for per-process reclaim
-> (https://lwn.net/Articles/545668/). With idle tracking, we could reclaim idle
-> pages only by smart user memory manager.
-> 
-> ---- USER API ----
-> 
-> The user API consists of two new proc files:
-> 
->  * /proc/kpageidle.  This file implements a bitmap where each bit corresponds
->    to a page, indexed by PFN.
+> ...
+>
 
-What are the bit mappings?  If I read the first byte of /proc/kpageidle
-I get PFN #0 in bit zero of that byte?  And the second byte of
-/proc/kpageidle contains PFN #8 in its LSB, etc?
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -441,6 +441,29 @@ struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page)
+>  	return &memcg->css;
+>  }
+>  
+> +/**
+> + * page_cgroup_ino - return inode number of the memcg a page is charged to
+> + * @page: the page
+> + *
+> + * Look up the closest online ancestor of the memory cgroup @page is charged to
+> + * and return its inode number or 0 if @page is not charged to any cgroup. It
+> + * is safe to call this function without holding a reference to @page.
+> + */
+> +unsigned long page_cgroup_ino(struct page *page)
 
-Maybe this is covered in the documentation file.
+Shouldn't it return an ino_t?
 
-> When the bit is set, the corresponding page is
->    idle. A page is considered idle if it has not been accessed since it was
->    marked idle.
+> +{
+> +	struct mem_cgroup *memcg;
+> +	unsigned long ino = 0;
+> +
+> +	rcu_read_lock();
+> +	memcg = READ_ONCE(page->mem_cgroup);
+> +	while (memcg && !(memcg->css.flags & CSS_ONLINE))
+> +		memcg = parent_mem_cgroup(memcg);
+> +	if (memcg)
+> +		ino = cgroup_ino(memcg->css.cgroup);
+> +	rcu_read_unlock();
+> +	return ino;
+> +}
 
-Perhaps we can spell out in some detail what "accessed" means?  I see
-you've hooked into mark_page_accessed(), so a read from disk is an
-access.  What about a write to disk?  And what about a page being
-accessed from some random device (could hook into get_user_pages()?) Is
-getting written to swap an access?  When a dirty pagecache page is
-written out by kswapd or direct reclaim?
-
-This also should be in the permanent documentation.
-
-> To mark a page idle one should set the bit corresponding to the
->    page by writing to the file. A value written to the file is OR-ed with the
->    current bitmap value. Only user memory pages can be marked idle, for other
->    page types input is silently ignored. Writing to this file beyond max PFN
->    results in the ENXIO error. Only available when CONFIG_IDLE_PAGE_TRACKING is
->    set.
-> 
->    This file can be used to estimate the amount of pages that are not
->    used by a particular workload as follows:
-> 
->    1. mark all pages of interest idle by setting corresponding bits in the
->       /proc/kpageidle bitmap
->    2. wait until the workload accesses its working set
->    3. read /proc/kpageidle and count the number of bits set
-
-Security implications.  This interface could be used to learn about a
-sensitive application by poking data at it and then observing its
-memory access patterns.  Perhaps this is why the proc files are
-root-only (whcih I assume is sufficient).  Some words here about the
-security side of things and the reasoning behind the chosen permissions
-would be good to have.
-
->  * /proc/kpagecgroup.  This file contains a 64-bit inode number of the
->    memory cgroup each page is charged to, indexed by PFN.
-
-Actually "closest online ancestor".  This also should be in the
-interface documentation.
-
-> Only available when CONFIG_MEMCG is set.
-
-CONFIG_MEMCG and CONFIG_IDLE_PAGE_TRACKING I assume?
-
-> 
->    This file can be used to find all pages (including unmapped file
->    pages) accounted to a particular cgroup. Using /proc/kpageidle, one
->    can then estimate the cgroup working set size.
-> 
-> For an example of using these files for estimating the amount of unused
-> memory pages per each memory cgroup, please see the script attached
-> below.
-
-Why were these put in /proc anyway?  Rather than under /sys/fs/cgroup
-somewhere?  Presumably because /proc/kpageidle is useful in non-memcg
-setups.
-
-> ---- PERFORMANCE EVALUATION ----
-
-"^___" means "end of changelog".  Perhaps that should have been
-"^---\n" - unclear.
-
-> Documentation/vm/pagemap.txt           |  22 ++-
-
-I think we'll need quite a lot more than this to fully describe the
-interface?
+The function is racy, isn't it?  There's nothing to prevent this inode
+from getting torn down and potentially reallocated one nanosecond after
+page_cgroup_ino() returns?  If so, it is only safely usable by things
+which don't care (such as procfs interfaces) and this should be
+documented in some fashion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
