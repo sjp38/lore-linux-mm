@@ -1,46 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DB8D9003C7
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 05:16:20 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so92205420wib.1
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 02:16:19 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bt2si1403076wjb.200.2015.07.22.02.16.17
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 79F8E9003C7
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 05:21:28 -0400 (EDT)
+Received: by pabkd10 with SMTP id kd10so63590368pab.2
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 02:21:28 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id na2si2394355pdb.130.2015.07.22.02.21.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Jul 2015 02:16:18 -0700 (PDT)
-Message-ID: <55AF5F5A.3000707@suse.cz>
-Date: Wed, 22 Jul 2015 11:16:10 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Jul 2015 02:21:27 -0700 (PDT)
+Date: Wed, 22 Jul 2015 12:21:07 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm v9 1/8] memcg: add page_cgroup_ino helper
+Message-ID: <20150722092107.GH23374@esperanza>
+References: <cover.1437303956.git.vdavydov@parallels.com>
+ <aa0190b76489260b4d1b65cdfa65221f4e6390f5.1437303956.git.vdavydov@parallels.com>
+ <20150721163407.4e198dfcf61eebbbc49731c2@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH V4 2/6] mm: mlock: Add new mlock, munlock, and munlockall
- system calls
-References: <1437508781-28655-1-git-send-email-emunson@akamai.com> <1437508781-28655-3-git-send-email-emunson@akamai.com>
-In-Reply-To: <1437508781-28655-3-git-send-email-emunson@akamai.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150721163407.4e198dfcf61eebbbc49731c2@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Heiko Carstens <heiko.carstens@de.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Catalin Marinas <catalin.marinas@arm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Guenter Roeck <linux@roeck-us.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, adi-buildroot-devel@lists.sourceforge.net, linux-cris-kernel@axis.com, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-am33-list@redhat.com, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 07/21/2015 09:59 PM, Eric B Munson wrote:
-> With the refactored mlock code, introduce new system calls for mlock,
-> munlock, and munlockall.  The new calls will allow the user to specify
-> what lock states are being added or cleared.  mlock2 and munlock2 are
-> trivial at the moment, but a follow on patch will add a new mlock state
-> making them useful.
->
-> munlock2 addresses a limitation of the current implementation.  If a
+On Tue, Jul 21, 2015 at 04:34:07PM -0700, Andrew Morton wrote:
+> On Sun, 19 Jul 2015 15:31:10 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
+> 
+> > This function returns the inode number of the closest online ancestor of
+> > the memory cgroup a page is charged to. It is required for exporting
+> > information about which page is charged to which cgroup to userspace,
+> > which will be introduced by a following patch.
+> > 
+> > ...
+> >
+> 
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -441,6 +441,29 @@ struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page)
+> >  	return &memcg->css;
+> >  }
+> >  
+> > +/**
+> > + * page_cgroup_ino - return inode number of the memcg a page is charged to
+> > + * @page: the page
+> > + *
+> > + * Look up the closest online ancestor of the memory cgroup @page is charged to
+> > + * and return its inode number or 0 if @page is not charged to any cgroup. It
+> > + * is safe to call this function without holding a reference to @page.
+> > + */
+> > +unsigned long page_cgroup_ino(struct page *page)
+> 
+> Shouldn't it return an ino_t?
 
-   ^ munlockall2?
+Yep, thanks.
 
-> user calls mlockall(MCL_CURRENT | MCL_FUTURE) and then later decides
-> that MCL_FUTURE should be removed, they would have to call munlockall()
-> followed by mlockall(MCL_CURRENT) which could potentially be very
-> expensive.  The new munlockall2 system call allows a user to simply
-> clear the MCL_FUTURE flag.
->
+> 
+> > +{
+> > +	struct mem_cgroup *memcg;
+> > +	unsigned long ino = 0;
+> > +
+> > +	rcu_read_lock();
+> > +	memcg = READ_ONCE(page->mem_cgroup);
+> > +	while (memcg && !(memcg->css.flags & CSS_ONLINE))
+> > +		memcg = parent_mem_cgroup(memcg);
+> > +	if (memcg)
+> > +		ino = cgroup_ino(memcg->css.cgroup);
+> > +	rcu_read_unlock();
+> > +	return ino;
+> > +}
+> 
+> The function is racy, isn't it?  There's nothing to prevent this inode
+> from getting torn down and potentially reallocated one nanosecond after
+> page_cgroup_ino() returns?  If so, it is only safely usable by things
+> which don't care (such as procfs interfaces) and this should be
+> documented in some fashion.
+
+Agree. Here goes the incremental patch:
+---
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index d644aadfdd0d..ad800e62cb7a 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -343,7 +343,7 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
+ }
+ 
+ struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page);
+-unsigned long page_cgroup_ino(struct page *page);
++ino_t page_cgroup_ino(struct page *page);
+ 
+ static inline bool mem_cgroup_disabled(void)
+ {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b9c76a0906f9..bd30638c2a95 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -448,8 +448,13 @@ struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page)
+  * Look up the closest online ancestor of the memory cgroup @page is charged to
+  * and return its inode number or 0 if @page is not charged to any cgroup. It
+  * is safe to call this function without holding a reference to @page.
++ *
++ * Note, this function is inherently racy, because there is nothing to prevent
++ * the cgroup inode from getting torn down and potentially reallocated a moment
++ * after page_cgroup_ino() returns, so it only should be used by callers that
++ * do not care (such as procfs interfaces).
+  */
+-unsigned long page_cgroup_ino(struct page *page)
++ino_t page_cgroup_ino(struct page *page)
+ {
+ 	struct mem_cgroup *memcg;
+ 	unsigned long ino = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
