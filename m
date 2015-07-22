@@ -1,85 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 768039003CD
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 06:31:01 -0400 (EDT)
-Received: by pachj5 with SMTP id hj5so136548402pac.3
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 03:31:01 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id pb3si2815750pdb.145.2015.07.22.03.30.59
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 5217C9003C7
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 06:33:38 -0400 (EDT)
+Received: by lblf12 with SMTP id f12so133645131lbl.2
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 03:33:37 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id f9si842289laa.60.2015.07.22.03.33.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Jul 2015 03:31:00 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NRV00HXBX7JJ650@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 22 Jul 2015 11:30:55 +0100 (BST)
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v3 5/5] ARM64: kasan: print memory assignment
-Date: Wed, 22 Jul 2015 13:30:37 +0300
-Message-id: <1437561037-31995-6-git-send-email-a.ryabinin@samsung.com>
-In-reply-to: <1437561037-31995-1-git-send-email-a.ryabinin@samsung.com>
-References: <1437561037-31995-1-git-send-email-a.ryabinin@samsung.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Jul 2015 03:33:36 -0700 (PDT)
+Date: Wed, 22 Jul 2015 13:33:06 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm v9 4/8] proc: add kpagecgroup file
+Message-ID: <20150722103306.GJ23374@esperanza>
+References: <cover.1437303956.git.vdavydov@parallels.com>
+ <679498f8d3f87c1ee57b7c3b58382193c9046b6a.1437303956.git.vdavydov@parallels.com>
+ <20150721163433.618855e1f61536a09dfac30b@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150721163433.618855e1f61536a09dfac30b@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linus Walleij <linus.walleij@linaro.org>, Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg
+ Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David
+ Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Linus Walleij <linus.walleij@linaro.org>
+On Tue, Jul 21, 2015 at 04:34:33PM -0700, Andrew Morton wrote:
+> On Sun, 19 Jul 2015 15:31:13 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
+> 
+> > /proc/kpagecgroup contains a 64-bit inode number of the memory cgroup
+> > each page is charged to, indexed by PFN. Having this information is
+> > useful for estimating a cgroup working set size.
+> > 
+> > The file is present if CONFIG_PROC_PAGE_MONITOR && CONFIG_MEMCG.
+> >
+> > ...
+> >
+> > @@ -225,10 +226,62 @@ static const struct file_operations proc_kpageflags_operations = {
+> >  	.read = kpageflags_read,
+> >  };
+> >  
+> > +#ifdef CONFIG_MEMCG
+> > +static ssize_t kpagecgroup_read(struct file *file, char __user *buf,
+> > +				size_t count, loff_t *ppos)
+> > +{
+> > +	u64 __user *out = (u64 __user *)buf;
+> > +	struct page *ppage;
+> > +	unsigned long src = *ppos;
+> > +	unsigned long pfn;
+> > +	ssize_t ret = 0;
+> > +	u64 ino;
+> > +
+> > +	pfn = src / KPMSIZE;
+> > +	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
+> > +	if (src & KPMMASK || count & KPMMASK)
+> > +		return -EINVAL;
+> 
+> The user-facing documentation should explain that reads must be
+> performed in multiple-of-8 sizes.
 
-This prints out the virtual memory assigned to KASan in the
-boot crawl along with other memory assignments, if and only
-if KASan is activated.
+It does. It's in the end of Documentation/vm/pagemap.c:
 
-Example dmesg from the Juno Development board:
+: Other notes:
+: 
+: Reading from any of the files will return -EINVAL if you are not starting
+: the read on an 8-byte boundary (e.g., if you sought an odd number of bytes
+: into the file), or if the size of the read is not a multiple of 8 bytes.
 
-Memory: 1691156K/2080768K available (5465K kernel code, 444K rwdata,
-2160K rodata, 340K init, 217K bss, 373228K reserved, 16384K cma-reserved)
-Virtual kernel memory layout:
-    kasan   : 0xffffff8000000000 - 0xffffff9000000000   (    64 GB)
-    vmalloc : 0xffffff9000000000 - 0xffffffbdbfff0000   (   182 GB)
-    vmemmap : 0xffffffbdc0000000 - 0xffffffbfc0000000   (     8 GB maximum)
-              0xffffffbdc2000000 - 0xffffffbdc3fc0000   (    31 MB actual)
-    fixed   : 0xffffffbffabfd000 - 0xffffffbffac00000   (    12 KB)
-    PCI I/O : 0xffffffbffae00000 - 0xffffffbffbe00000   (    16 MB)
-    modules : 0xffffffbffc000000 - 0xffffffc000000000   (    64 MB)
-    memory  : 0xffffffc000000000 - 0xffffffc07f000000   (  2032 MB)
-      .init : 0xffffffc0007f5000 - 0xffffffc00084a000   (   340 KB)
-      .text : 0xffffffc000080000 - 0xffffffc0007f45b4   (  7634 KB)
-      .data : 0xffffffc000850000 - 0xffffffc0008bf200   (   445 KB)
+> 
+> > +	while (count > 0) {
+> > +		if (pfn_valid(pfn))
+> > +			ppage = pfn_to_page(pfn);
+> > +		else
+> > +			ppage = NULL;
+> > +
+> > +		if (ppage)
+> > +			ino = page_cgroup_ino(ppage);
+> > +		else
+> > +			ino = 0;
+> > +
+> > +		if (put_user(ino, out)) {
+> > +			ret = -EFAULT;
+> 
+> Here we do the usual procfs violation of read() behaviour.  read()
+> normally only returns an error if it read nothing.  This code will
+> transfer a megabyte then return -EFAULT so userspace doesn't know that
+> it got that megabyte.
 
-Signed-off-by: Linus Walleij <linus.walleij@linaro.org>
-Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
----
- arch/arm64/mm/init.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+Yeah, that's how it works. I did it preliminary for /proc/kpagecgroup to
+work exactly like /proc/kpageflags and /proc/kpagecount.
 
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index ad87ce8..3930692 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -298,6 +298,9 @@ void __init mem_init(void)
- #define MLK_ROUNDUP(b, t) b, t, DIV_ROUND_UP(((t) - (b)), SZ_1K)
- 
- 	pr_notice("Virtual kernel memory layout:\n"
-+#ifdef CONFIG_KASAN
-+		  "    kasan   : 0x%16lx - 0x%16lx   (%6ld GB)\n"
-+#endif
- 		  "    vmalloc : 0x%16lx - 0x%16lx   (%6ld GB)\n"
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- 		  "    vmemmap : 0x%16lx - 0x%16lx   (%6ld GB maximum)\n"
-@@ -310,6 +313,9 @@ void __init mem_init(void)
- 		  "      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n"
- 		  "      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n"
- 		  "      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",
-+#ifdef CONFIG_KASAN
-+		  MLG(KASAN_SHADOW_START, KASAN_SHADOW_END),
-+#endif
- 		  MLG(VMALLOC_START, VMALLOC_END),
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- 		  MLG((unsigned long)vmemmap,
--- 
-2.4.5
+FWIW, the man page I have on my system already warns about this
+peculiarity of read(2):
+
+: On error, -1 is returned, and errno is set appropriately. In this
+: case, it is left unspecified whether the file position (if any)
+: changes.
+
+> 
+> That's easy to fix, but procfs files do this all over the place anyway :(
+> 
+> > +			break;
+> > +		}
+> > +
+> > +		pfn++;
+> > +		out++;
+> > +		count -= KPMSIZE;
+> > +	}
+> > +
+> > +	*ppos += (char __user *)out - buf;
+> > +	if (!ret)
+> > +		ret = (char __user *)out - buf;
+> > +	return ret;
+> > +}
+> > +
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
