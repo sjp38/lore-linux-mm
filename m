@@ -1,81 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 74DBD9003C8
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 18:03:21 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so145104377pdr.2
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 15:03:21 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com. [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id u9si6646013pdp.186.2015.07.22.15.03.20
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5217A9003C8
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 18:03:29 -0400 (EDT)
+Received: by igvi1 with SMTP id i1so139744635igv.1
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 15:03:29 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j9si5119029ige.71.2015.07.22.15.03.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 15:03:20 -0700 (PDT)
-Received: by pdbbh15 with SMTP id bh15so99405430pdb.1
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 15:03:20 -0700 (PDT)
-Date: Wed, 22 Jul 2015 15:03:18 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mmap.2: document the munmap exception for underlying
- page size
-In-Reply-To: <55AFD009.6080706@gmail.com>
-Message-ID: <alpine.DEB.2.10.1507221457300.21468@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com> <55AFD009.6080706@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Jul 2015 15:03:28 -0700 (PDT)
+Date: Wed, 22 Jul 2015 15:03:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 01/10] mm/hugetlb: add cache of descriptors to
+ resv_map for region_add
+Message-Id: <20150722150327.d61964bcc129ccd190514297@linux-foundation.org>
+In-Reply-To: <1437502184-14269-2-git-send-email-mike.kravetz@oracle.com>
+References: <1437502184-14269-1-git-send-email-mike.kravetz@oracle.com>
+	<1437502184-14269-2-git-send-email-mike.kravetz@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Eric B Munson <emunson@akamai.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Michal Hocko <mhocko@suse.cz>
 
-On Wed, 22 Jul 2015, Michael Kerrisk (man-pages) wrote:
+On Tue, 21 Jul 2015 11:09:35 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-> > diff --git a/man2/mmap.2 b/man2/mmap.2
-> > --- a/man2/mmap.2
-> > +++ b/man2/mmap.2
-> > @@ -383,6 +383,10 @@ All pages containing a part
-> >  of the indicated range are unmapped, and subsequent references
-> >  to these pages will generate
-> >  .BR SIGSEGV .
-> > +An exception is when the underlying memory is not of the native page
-> > +size, such as hugetlb page sizes, whereas
-> > +.I length
-> > +must be a multiple of the underlying page size.
-> >  It is not an error if the
-> >  indicated range does not contain any mapped pages.
-> >  .SS Timestamps changes for file-backed mappings
+> fallocate hole punch will want to remove a specific range of
+> pages.  When pages are removed, their associated entries in
+> the region/reserve map will also be removed.  This will break
+> an assumption in the region_chg/region_add calling sequence.
+> If a new region descriptor must be allocated, it is done as
+> part of the region_chg processing.  In this way, region_add
+> can not fail because it does not need to attempt an allocation.
 > 
-> I'm struggling a bit to understand your text. Is the point this:
+> To prepare for fallocate hole punch, create a "cache" of
+> descriptors that can be used by region_add if necessary.
+> region_chg will ensure there are sufficient entries in the
+> cache.  It will be necessary to track the number of in progress
+> add operations to know a sufficient number of descriptors
+> reside in the cache.  A new routine region_abort is added to
+> adjust this in progress count when add operations are aborted.
+> vma_abort_reservation is also added for callers creating
+> reservations with vma_needs_reservation/vma_commit_reservation.
 > 
->     If we have a hugetlb area, then the munmap() length
->     must be a multiple of the page size.
-> 
-> ?
-> 
+> ...
+>
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -35,6 +35,9 @@ struct resv_map {
+>  	struct kref refs;
+>  	spinlock_t lock;
+>  	struct list_head regions;
+> +	long adds_in_progress;
+> +	struct list_head rgn_cache;
+> +	long rgn_cache_count;
+>  };
 
-Of the hugetlb page size, yes, which was meant by the "underlying page 
-size" since we have configurable hugetlb sizes.  This is different from 
-the native page size, whereas the length is rounded up to be page aligned 
-per POSIX.
+Linux style is to spell words out fully: rgn->region.  One advantage of
+doing this is that we get consistency: when there's no doubt about how
+a thing is spelled we don't end up with various different terms for the
+same thing.  Note that we already have resv_map.regions and struct
+file_region.
 
-> Are there any requirements about 'addr'? Must it also me huge-page-aligned?
-> 
+To avoid a respin I think I'll just do a s/rgn/region/g on the patches
+then take a look for 80 col overflow - shout at me if you dislike that.
 
-Yes, so it looks like we need to fix up the reference to "address addr 
-must be a multiple of the page size" to something like "address addr must 
-be a multiple of the underlying page size" but I think the distinction 
-isn't explicit enough as I'd like it.  I think it's better to explicitly 
-show the exception for hugetlb page sizes and compare the underlying page 
-size to the native page size to define how the behavior differs.
+And yes, resv_map should have been called reservation_map.  I suck.
 
-Would something like
+And there's region_chg.  Who wrote this stuff.
 
-	An exception is when the underlying memory, such as hugetlb 
-	memory, is not of the native page size: the address addr and
-	the length must be a multiple of the underlying page size.
+As an off-topic cleanup, resv_map and its associated stuff could be
+moved out of include/linux/hugetlb.h and made private to hugetlb.c with
+some minor changes.
 
-suffice?
+Finally, the data structure definition site is a great place at which
+to document the overall design.  What the fields do, how they interact,
+locking design, etc.  eg, what data structure is at
+resv_map.region_cache, how is it managed, what purpose does it serve
+etc.
 
-Also, is it typical to reference the commit of the documentation change 
-in the kernel source that defines this?  I see this done with .\" blocks 
-for MAP_STACK in the same man page.
+And adds_in_progress is interesting.  I see the comment over
+region_abort() (rgn_abort?!) but haven't quite soaked that in yet.
+
+>
+> ...
+>
+> @@ -312,11 +339,16 @@ static long region_add(struct resv_map *resv, long f, long t)
+>   * so that the subsequent region_add call will have all the
+>   * regions it needs and will not fail.
+>   *
+> + * Upon entry, region_chg will also examine the cache of
+> + * region descriptors associated with the map.  If there
+
+"are"
+
+> + * not enough descriptors cached, one will be allocated
+> + * for the in progress add operation.
+> + *
+>   * Returns the number of huge pages that need to be added
+>   * to the existing reservation map for the range [f, t).
+>   * This number is greater or equal to zero.  -ENOMEM is
+> - * returned if a new file_region structure is needed and can
+> - * not be allocated.
+> + * returned if a new file_region structure or cache entry
+> + * is needed and can not be allocated.
+>   */
+>  static long region_chg(struct resv_map *resv, long f, long t)
+>  {
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
