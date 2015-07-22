@@ -1,92 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 83DB96B0279
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 13:13:43 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so141570565pdr.2
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:13:43 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id of15si5208202pdb.167.2015.07.22.10.13.42
-        for <linux-mm@kvack.org>;
-        Wed, 22 Jul 2015 10:13:42 -0700 (PDT)
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: [PATCH] mm: Flush the TLB for a single address in a huge page
-Date: Wed, 22 Jul 2015 18:13:34 +0100
-Message-Id: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com>
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 44CD56B0279
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 13:17:03 -0400 (EDT)
+Received: by wicgb10 with SMTP id gb10so107760519wic.1
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:17:02 -0700 (PDT)
+Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
+        by mx.google.com with ESMTPS id gp7si3554072wjc.131.2015.07.22.10.17.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Jul 2015 10:17:01 -0700 (PDT)
+Received: by wibxm9 with SMTP id xm9so172973743wib.0
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:17:01 -0700 (PDT)
+Message-ID: <55AFD009.6080706@gmail.com>
+Date: Wed, 22 Jul 2015 19:16:57 +0200
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [patch] mmap.2: document the munmap exception for underlying
+ page size
+References: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: mtk.manpages@gmail.com, Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Eric B Munson <emunson@akamai.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-When the page table entry is a huge page (and not a table), there is no
-need to flush the TLB by range. This patch changes flush_tlb_range() to
-flush_tlb_page() in functions where we know the pmd entry is a huge
-page.
+Hi David,
 
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
----
+On 07/22/2015 02:41 AM, David Rientjes wrote:
+> munmap(2) will fail with an errno of EINVAL for hugetlb memory if the 
+> length is not a multiple of the underlying page size.
+> 
+> Documentation/vm/hugetlbpage.txt was updated to specify this behavior 
+> since Linux 4.1 in commit 80d6b94bd69a ("mm, doc: cleanup and clarify 
+> munmap behavior for hugetlb memory").
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  man2/mmap.2 | 4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -383,6 +383,10 @@ All pages containing a part
+>  of the indicated range are unmapped, and subsequent references
+>  to these pages will generate
+>  .BR SIGSEGV .
+> +An exception is when the underlying memory is not of the native page
+> +size, such as hugetlb page sizes, whereas
+> +.I length
+> +must be a multiple of the underlying page size.
+>  It is not an error if the
+>  indicated range does not contain any mapped pages.
+>  .SS Timestamps changes for file-backed mappings
 
-Hi,
+I'm struggling a bit to understand your text. Is the point this:
 
-That's just a minor improvement but it saves iterating over each small
-page in a huge page when a single TLB entry is used (we already have a
-similar assumption in __tlb_adjust_range).
+    If we have a hugetlb area, then the munmap() length
+    must be a multiple of the page size.
 
-Thanks.
+?
 
- mm/pgtable-generic.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+Are there any requirements about 'addr'? Must it also me huge-page-aligned?
 
-diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-index 6b674e00153c..ff17eca26211 100644
---- a/mm/pgtable-generic.c
-+++ b/mm/pgtable-generic.c
-@@ -67,7 +67,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 	if (changed) {
- 		set_pmd_at(vma->vm_mm, address, pmdp, entry);
--		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+		flush_tlb_page(vma, address);
- 	}
- 	return changed;
- #else /* CONFIG_TRANSPARENT_HUGEPAGE */
-@@ -101,7 +101,7 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 	young = pmdp_test_and_clear_young(vma, address, pmdp);
- 	if (young)
--		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+		flush_tlb_page(vma, address);
- 	return young;
- }
- #endif
-@@ -128,7 +128,7 @@ pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma, unsigned long address,
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 	VM_BUG_ON(!pmd_trans_huge(*pmdp));
- 	pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
--	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+	flush_tlb_page(vma, address);
- 	return pmd;
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-@@ -143,7 +143,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
- 	/* tlb flush only to serialize against gup-fast */
--	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+	flush_tlb_page(vma, address);
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- #endif
-@@ -195,7 +195,7 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
- {
- 	pmd_t entry = *pmdp;
- 	set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
--	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+	flush_tlb_page(vma, address);
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- #endif
+Thanks,
+
+Michael
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
