@@ -1,59 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 51D869003C8
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 17:42:20 -0400 (EDT)
-Received: by pacan13 with SMTP id an13so146384282pac.1
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:42:20 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id o6si6526374pds.214.2015.07.22.14.42.18
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 3850F9003C8
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 17:43:11 -0400 (EDT)
+Received: by qkfc129 with SMTP id c129so119575607qkf.1
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:43:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f61si3237375qgf.106.2015.07.22.14.43.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 14:42:19 -0700 (PDT)
-Received: by pachj5 with SMTP id hj5so144837808pac.3
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:42:18 -0700 (PDT)
-Date: Wed, 22 Jul 2015 14:42:15 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] mm, page_isolation: remove bogus tests for isolated
- pages
-In-Reply-To: <55AF8BD2.6060009@suse.cz>
-Message-ID: <alpine.DEB.2.10.1507221442070.21468@chino.kir.corp.google.com>
-References: <55969822.9060907@suse.cz> <1437483218-18703-1-git-send-email-vbabka@suse.cz> <alpine.DEB.2.10.1507211540080.3833@chino.kir.corp.google.com> <55AF8BD2.6060009@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Jul 2015 14:43:10 -0700 (PDT)
+Date: Wed, 22 Jul 2015 23:41:16 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCHv2 0/6] Make vma_is_anonymous() reliable
+Message-ID: <20150722214115.GA20872@redhat.com>
+References: <1437133993-91885-1-git-send-email-kirill.shutemov@linux.intel.com> <20150721221429.GA7478@node.dhcp.inet.fi> <20150721163957.c83e5feb8239d2081d8a7489@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150721163957.c83e5feb8239d2081d8a7489@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "minkyung88.kim" <minkyung88.kim@lge.com>, kmk3210@gmail.com, Seungho Park <seungho1.park@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 22 Jul 2015, Vlastimil Babka wrote:
+On 07/21, Andrew Morton wrote:
+>
+> On Wed, 22 Jul 2015 01:14:29 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+>
+> > ping?
+>
+> Oleg, he's pinging you.
 
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Wed, 22 Jul 2015 14:16:52 +0200
-> Subject: [PATCH 2/3] fixup! mm, page_isolation: remove bogus tests for
->  isolated pages
-> 
-> ---
->  mm/page_alloc.c | 4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 41dc650..c61fef8 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -789,7 +789,11 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  			page = list_entry(list->prev, struct page, lru);
->  			/* must delete as __free_one_page list manipulates */
->  			list_del(&page->lru);
-> +
->  			mt = get_freepage_migratetype(page);
-> +			/* MIGRATE_ISOLATE page should not go to pcplists */
-> +			VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
-> +			/* Pageblock could have been isolated meanwhile */
->  			if (unlikely(has_isolate_pageblock(zone)))
->  				mt = get_pageblock_migratetype(page);
->  
+Me? ;)
 
-Looks good, thanks!
+I think this series is fine. I was silent because I think my
+opinion is not importand when it comes to changes in mm/.
+
+FWIW,
+
+Reviewed-by: Oleg Nesterov <oleg@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
