@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id BC4046B0038
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 20:08:44 -0400 (EDT)
-Received: by pabkd10 with SMTP id kd10so56185403pab.2
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 17:08:44 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id el7si46775473pdb.190.2015.07.21.17.08.43
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C9FF76B0038
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 20:11:33 -0400 (EDT)
+Received: by iecri3 with SMTP id ri3so60287473iec.2
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 17:11:33 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id e3si46865932pdc.50.2015.07.21.17.11.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 17:08:44 -0700 (PDT)
-Received: by pdrg1 with SMTP id g1so128435578pdr.2
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 17:08:43 -0700 (PDT)
-Date: Tue, 21 Jul 2015 17:08:42 -0700 (PDT)
+        Tue, 21 Jul 2015 17:11:33 -0700 (PDT)
+Received: by pachj5 with SMTP id hj5so128336859pac.3
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 17:11:33 -0700 (PDT)
+Date: Tue, 21 Jul 2015 17:11:31 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 03/10] mm, page_alloc: Remove unnecessary recalculations
- for dirty zone balancing
-In-Reply-To: <1437379219-9160-4-git-send-email-mgorman@suse.com>
-Message-ID: <alpine.DEB.2.10.1507211703410.12650@chino.kir.corp.google.com>
-References: <1437379219-9160-1-git-send-email-mgorman@suse.com> <1437379219-9160-4-git-send-email-mgorman@suse.com>
+Subject: Re: [PATCH 04/10] mm, page_alloc: Remove unnecessary taking of a
+ seqlock when cpusets are disabled
+In-Reply-To: <1437379219-9160-5-git-send-email-mgorman@suse.com>
+Message-ID: <alpine.DEB.2.10.1507211710090.12650@chino.kir.corp.google.com>
+References: <1437379219-9160-1-git-send-email-mgorman@suse.com> <1437379219-9160-5-git-send-email-mgorman@suse.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -29,18 +29,16 @@ On Mon, 20 Jul 2015, Mel Gorman wrote:
 
 > From: Mel Gorman <mgorman@suse.de>
 > 
-> File-backed pages that will be immediately dirtied are balanced between
-> zones but it's unnecessarily expensive. Move consider_zone_balanced into
-> the alloc_context instead of checking bitmaps multiple times.
+> There is a seqcounter that protects spurious allocation fails when a task
+> is changing the allowed nodes in a cpuset. There is no need to check the
+> seqcounter until a cpuset exists.
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Mel Gorman <mgorman@sujse.de>
 
 Acked-by: David Rientjes <rientjes@google.com>
 
-consider_zone_dirty eliminates zones over their dirty limits and 
-zone_dirty_ok() returns true if zones are under their dirty limits, so the 
-naming of both are a little strange.  You might consider changing them 
-while you're here.
+but there's a typo in your email address in the signed-off-by line.  Nice 
+to know you actually type them by hand though :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
