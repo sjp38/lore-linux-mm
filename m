@@ -1,116 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 658559003C7
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 05:45:19 -0400 (EDT)
-Received: by pdbnt7 with SMTP id nt7so65255690pdb.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 02:45:19 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id p3si2519323pds.160.2015.07.22.02.45.18
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EB569003C7
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 06:03:36 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so155765737wib.0
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 03:03:35 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ei6si23854372wib.96.2015.07.22.03.03.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 02:45:18 -0700 (PDT)
-Date: Wed, 22 Jul 2015 12:45:04 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v9 2/8] hwpoison: use page_cgroup_ino for filtering
- by memcg
-Message-ID: <20150722094504.GI23374@esperanza>
-References: <cover.1437303956.git.vdavydov@parallels.com>
- <94215634d13582d2a1453686d6cc6b1a59b07d2a.1437303956.git.vdavydov@parallels.com>
- <20150721163412.1b44e77f5ac3b742734d1ce6@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 22 Jul 2015 03:03:34 -0700 (PDT)
+Message-ID: <55AF6A73.1080500@suse.cz>
+Date: Wed, 22 Jul 2015 12:03:31 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150721163412.1b44e77f5ac3b742734d1ce6@linux-foundation.org>
+Subject: Re: [PATCH V4 4/6] mm: mlock: Introduce VM_LOCKONFAULT and add mlock
+ flags to enable it
+References: <1437508781-28655-1-git-send-email-emunson@akamai.com> <1437508781-28655-5-git-send-email-emunson@akamai.com>
+In-Reply-To: <1437508781-28655-5-git-send-email-emunson@akamai.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Eric B Munson <emunson@akamai.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Jonathan Corbet <corbet@lwn.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On Tue, Jul 21, 2015 at 04:34:12PM -0700, Andrew Morton wrote:
-> On Sun, 19 Jul 2015 15:31:11 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
-> 
-> > Hwpoison allows to filter pages by memory cgroup ino. Currently, it
-> > calls try_get_mem_cgroup_from_page to obtain the cgroup from a page and
-> > then its ino using cgroup_ino, but now we have an apter method for that,
-> > page_cgroup_ino, so use it instead.
-> 
-> I assume "an apter" was supposed to be "a helper"?
+On 07/21/2015 09:59 PM, Eric B Munson wrote:
+> The cost of faulting in all memory to be locked can be very high when
+> working with large mappings.  If only portions of the mapping will be
+> used this can incur a high penalty for locking.
+>
+> For the example of a large file, this is the usage pattern for a large
+> statical language model (probably applies to other statical or graphical
+> models as well).  For the security example, any application transacting
+> in data that cannot be swapped out (credit card data, medical records,
+> etc).
+>
+> This patch introduces the ability to request that pages are not
+> pre-faulted, but are placed on the unevictable LRU when they are finally
+> faulted in.  This can be done area at a time via the
+> mlock2(MLOCK_ONFAULT) or the mlockall(MCL_ONFAULT) system calls.  These
+> calls can be undone via munlock2(MLOCK_ONFAULT) or
+> munlockall2(MCL_ONFAULT).
+>
+> Applying the VM_LOCKONFAULT flag to a mapping with pages that are
+> already present required the addition of a function in gup.c to pin all
+> pages which are present in an address range.  It borrows heavily from
+> __mm_populate().
+>
+> To keep accounting checks out of the page fault path, users are billed
+> for the entire mapping lock as if MLOCK_LOCKED was used.
 
-Yes, sounds better :-)
+Hi,
 
-> 
-> > --- a/mm/hwpoison-inject.c
-> > +++ b/mm/hwpoison-inject.c
-> > @@ -45,12 +45,9 @@ static int hwpoison_inject(void *data, u64 val)
-> >  	/*
-> >  	 * do a racy check with elevated page count, to make sure PG_hwpoison
-> >  	 * will only be set for the targeted owner (or on a free page).
-> > -	 * We temporarily take page lock for try_get_mem_cgroup_from_page().
-> >  	 * memory_failure() will redo the check reliably inside page lock.
-> >  	 */
-> > -	lock_page(hpage);
-> >  	err = hwpoison_filter(hpage);
-> > -	unlock_page(hpage);
-> >  	if (err)
-> >  		goto put_out;
-> >  
-> > @@ -126,7 +123,7 @@ static int pfn_inject_init(void)
-> >  	if (!dentry)
-> >  		goto fail;
-> >  
-> > -#ifdef CONFIG_MEMCG_SWAP
-> > +#ifdef CONFIG_MEMCG
-> >  	dentry = debugfs_create_u64("corrupt-filter-memcg", 0600,
-> >  				    hwpoison_dir, &hwpoison_filter_memcg);
-> >  	if (!dentry)
-> 
-> Confused.  We're changing the conditions under which this debugfs file
-> is created.  Is this a typo or some unchangelogged thing or what?
+I think you should include a complete description of which transitions 
+for vma states and mlock2/munlock2 flags applied on them are valid and 
+what they do. It will also help with the manpages.
+You explained some to Jon in the last thread, but I think there should 
+be a canonical description in changelog (if not also Documentation, if 
+mlock is covered there).
 
-This is an unchangelogged cleanup. In fact, there had been a comment
-regarding it before v6, but then it got lost. Sorry about that. The
-commit message should look like this:
+For example the scenario Jon asked, what happens after a 
+mlock2(MLOCK_ONFAULT) followed by mlock2(MLOCK_LOCKED), and that the 
+answer is "nothing". Your promised code comment for apply_vma_flags() 
+doesn't suffice IMHO (and I'm not sure it's there, anyway?).
 
-"""
-Hwpoison allows to filter pages by memory cgroup ino. Currently, it
-calls try_get_mem_cgroup_from_page to obtain the cgroup from a page and
-then its ino using cgroup_ino, but now we have a helper method for that,
-page_cgroup_ino, so use it instead.
+But the more I think about the scenario and your new VM_LOCKONFAULT vma 
+flag, it seems awkward to me. Why should munlocking at all care if the 
+vma was mlocked with MLOCK_LOCKED or MLOCK_ONFAULT? In either case the 
+result is that all pages currently populated are munlocked. So the flags 
+for munlock2 should be unnecessary.
 
-This patch also loosens the hwpoison memcg filter dependency rules - it
-makes it depend on CONFIG_MEMCG instead of CONFIG_MEMCG_SWAP, because
-hwpoison memcg filter does not require anything (nor it used to) from
-CONFIG_MEMCG_SWAP side.
-"""
+I also think VM_LOCKONFAULT is unnecessary. VM_LOCKED should be enough - 
+see how you had to handle the new flag in all places that had to handle 
+the old flag? I think the information whether mlock was supposed to 
+fault the whole vma is obsolete at the moment mlock returns. VM_LOCKED 
+should be enough for both modes, and the flag to mlock2 could just 
+control whether the pre-faulting is done.
 
-Or we can simply revert this cleanups if you don't like it:
----
-diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
-index 5015679014c1..1cd105ee5a7b 100644
---- a/mm/hwpoison-inject.c
-+++ b/mm/hwpoison-inject.c
-@@ -123,7 +123,7 @@ static int pfn_inject_init(void)
- 	if (!dentry)
- 		goto fail;
- 
--#ifdef CONFIG_MEMCG
-+#ifdef CONFIG_MEMCG_SWAP
- 	dentry = debugfs_create_u64("corrupt-filter-memcg", 0600,
- 				    hwpoison_dir, &hwpoison_filter_memcg);
- 	if (!dentry)
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 97005396a507..5ea7d8c760fa 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -130,7 +130,7 @@ static int hwpoison_filter_flags(struct page *p)
-  * can only guarantee that the page either belongs to the memcg tasks, or is
-  * a freed page.
-  */
--#ifdef CONFIG_MEMCG
-+#ifdef CONFIG_MEMCG_SWAP
- u64 hwpoison_filter_memcg;
- EXPORT_SYMBOL_GPL(hwpoison_filter_memcg);
- static int hwpoison_filter_task(struct page *p)
+So what should be IMHO enough:
+- munlock can stay without flags
+- mlock2 has only one new flag MLOCK_ONFAULT. If specified, pre-faulting 
+is not done, just set VM_LOCKED and mlock pages already present.
+- same with mmap(MAP_LOCKONFAULT) (need to define what happens when both 
+MAP_LOCKED and MAP_LOCKONFAULT are specified).
+
+Now mlockall(MCL_FUTURE) muddles the situation in that it stores the 
+information for future VMA's in current->mm->def_flags, and this 
+def_flags would need to distinguish VM_LOCKED with population and 
+without. But that could be still solvable without introducing a new vma 
+flag everywhere.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
