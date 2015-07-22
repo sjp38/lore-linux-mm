@@ -1,94 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EB569003C7
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 06:03:36 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so155765737wib.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 03:03:35 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ei6si23854372wib.96.2015.07.22.03.03.34
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 642AA9003C7
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 06:30:51 -0400 (EDT)
+Received: by pachj5 with SMTP id hj5so136546090pac.3
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 03:30:51 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id mc7si2801830pdb.169.2015.07.22.03.30.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Jul 2015 03:03:34 -0700 (PDT)
-Message-ID: <55AF6A73.1080500@suse.cz>
-Date: Wed, 22 Jul 2015 12:03:31 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCH V4 4/6] mm: mlock: Introduce VM_LOCKONFAULT and add mlock
- flags to enable it
-References: <1437508781-28655-1-git-send-email-emunson@akamai.com> <1437508781-28655-5-git-send-email-emunson@akamai.com>
-In-Reply-To: <1437508781-28655-5-git-send-email-emunson@akamai.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Jul 2015 03:30:50 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NRV00H4CX7AW960@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 22 Jul 2015 11:30:46 +0100 (BST)
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+Subject: [PATCH v3 0/5] KASAN for arm64
+Date: Wed, 22 Jul 2015 13:30:32 +0300
+Message-id: <1437561037-31995-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Jonathan Corbet <corbet@lwn.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linus Walleij <linus.walleij@linaro.org>, Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
 
-On 07/21/2015 09:59 PM, Eric B Munson wrote:
-> The cost of faulting in all memory to be locked can be very high when
-> working with large mappings.  If only portions of the mapping will be
-> used this can incur a high penalty for locking.
->
-> For the example of a large file, this is the usage pattern for a large
-> statical language model (probably applies to other statical or graphical
-> models as well).  For the security example, any application transacting
-> in data that cannot be swapped out (credit card data, medical records,
-> etc).
->
-> This patch introduces the ability to request that pages are not
-> pre-faulted, but are placed on the unevictable LRU when they are finally
-> faulted in.  This can be done area at a time via the
-> mlock2(MLOCK_ONFAULT) or the mlockall(MCL_ONFAULT) system calls.  These
-> calls can be undone via munlock2(MLOCK_ONFAULT) or
-> munlockall2(MCL_ONFAULT).
->
-> Applying the VM_LOCKONFAULT flag to a mapping with pages that are
-> already present required the addition of a function in gup.c to pin all
-> pages which are present in an address range.  It borrows heavily from
-> __mm_populate().
->
-> To keep accounting checks out of the page fault path, users are billed
-> for the entire mapping lock as if MLOCK_LOCKED was used.
+For git users patches are available in git:
+ 	git://github.com/aryabinin/linux.git kasan/arm64v3
 
-Hi,
+Changes since v2:
+ - Rebase on top of v4.2-rc3
+ - Address feedback from Catalin.
+ - Print memory assignment fro Linus
+ - Add message about KASAN being initialized
 
-I think you should include a complete description of which transitions 
-for vma states and mlock2/munlock2 flags applied on them are valid and 
-what they do. It will also help with the manpages.
-You explained some to Jon in the last thread, but I think there should 
-be a canonical description in changelog (if not also Documentation, if 
-mlock is covered there).
+Changes since v1:
+ - Address feedback from Catalin.
+ - Generalize some kasan init code from arch/x86/mm/kasan_init_64.c
+    and reuse it for arm64.
+ - Some bugfixes, including:
+   	add missing arm64/include/asm/kasan.h
+	add tlb flush after changing ttbr1
+ - Add code comments.
 
-For example the scenario Jon asked, what happens after a 
-mlock2(MLOCK_ONFAULT) followed by mlock2(MLOCK_LOCKED), and that the 
-answer is "nothing". Your promised code comment for apply_vma_flags() 
-doesn't suffice IMHO (and I'm not sure it's there, anyway?).
 
-But the more I think about the scenario and your new VM_LOCKONFAULT vma 
-flag, it seems awkward to me. Why should munlocking at all care if the 
-vma was mlocked with MLOCK_LOCKED or MLOCK_ONFAULT? In either case the 
-result is that all pages currently populated are munlocked. So the flags 
-for munlock2 should be unnecessary.
+Andrey Ryabinin (4):
+  mm: kasan: introduce generic kasan_populate_zero_shadow()
+  arm64: introduce VA_START macro - the first kernel virtual address.
+  arm64: move PGD_SIZE definition to pgalloc.h
+  arm64: add KASAN support
 
-I also think VM_LOCKONFAULT is unnecessary. VM_LOCKED should be enough - 
-see how you had to handle the new flag in all places that had to handle 
-the old flag? I think the information whether mlock was supposed to 
-fault the whole vma is obsolete at the moment mlock returns. VM_LOCKED 
-should be enough for both modes, and the flag to mlock2 could just 
-control whether the pre-faulting is done.
+Linus Walleij (1):
+  ARM64: kasan: print memory assignment
 
-So what should be IMHO enough:
-- munlock can stay without flags
-- mlock2 has only one new flag MLOCK_ONFAULT. If specified, pre-faulting 
-is not done, just set VM_LOCKED and mlock pages already present.
-- same with mmap(MAP_LOCKONFAULT) (need to define what happens when both 
-MAP_LOCKED and MAP_LOCKONFAULT are specified).
+ arch/arm64/Kconfig               |  17 ++++
+ arch/arm64/include/asm/kasan.h   |  24 ++++++
+ arch/arm64/include/asm/memory.h  |   2 +
+ arch/arm64/include/asm/pgalloc.h |   1 +
+ arch/arm64/include/asm/pgtable.h |   9 +-
+ arch/arm64/include/asm/string.h  |  16 ++++
+ arch/arm64/kernel/arm64ksyms.c   |   3 +
+ arch/arm64/kernel/head.S         |   3 +
+ arch/arm64/kernel/module.c       |  16 +++-
+ arch/arm64/kernel/setup.c        |   2 +
+ arch/arm64/lib/memcpy.S          |   3 +
+ arch/arm64/lib/memmove.S         |   7 +-
+ arch/arm64/lib/memset.S          |   3 +
+ arch/arm64/mm/Makefile           |   3 +
+ arch/arm64/mm/init.c             |   6 ++
+ arch/arm64/mm/kasan_init.c       | 176 +++++++++++++++++++++++++++++++++++++++
+ arch/arm64/mm/pgd.c              |   2 -
+ arch/x86/mm/kasan_init_64.c      |   8 +-
+ include/linux/kasan.h            |   8 ++
+ mm/kasan/Makefile                |   2 +-
+ mm/kasan/kasan_init.c            | 142 +++++++++++++++++++++++++++++++
+ 21 files changed, 440 insertions(+), 13 deletions(-)
+ create mode 100644 arch/arm64/include/asm/kasan.h
+ create mode 100644 arch/arm64/mm/kasan_init.c
+ create mode 100644 mm/kasan/kasan_init.c
 
-Now mlockall(MCL_FUTURE) muddles the situation in that it stores the 
-information for future VMA's in current->mm->def_flags, and this 
-def_flags would need to distinguish VM_LOCKED with population and 
-without. But that could be still solvable without introducing a new vma 
-flag everywhere.
+-- 
+2.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
