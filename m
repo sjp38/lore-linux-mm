@@ -1,66 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FBDC9003C8
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 18:49:03 -0400 (EDT)
-Received: by pacan13 with SMTP id an13so147155807pac.1
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 15:49:02 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id qn16si6859959pab.174.2015.07.22.15.49.02
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id AA27C9003C8
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 18:51:11 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so193543963wib.0
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 15:51:11 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id en7si5974167wib.123.2015.07.22.15.51.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 15:49:02 -0700 (PDT)
-Received: by padck2 with SMTP id ck2so145089845pad.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 15:49:02 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1507221436350.21468@chino.kir.corp.google.com>
-References: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com> <alpine.DEB.2.10.1507221436350.21468@chino.kir.corp.google.com>
-From: Catalin Marinas <catalin.marinas@arm.com>
-Date: Wed, 22 Jul 2015 23:48:42 +0100
-Message-ID: <CAHkRjk7=VMG63VfZdWbZqYu8FOa9M+54Mmdro661E2zt3WToog@mail.gmail.com>
-Subject: Re: [PATCH] mm: Flush the TLB for a single address in a huge page
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 22 Jul 2015 15:51:10 -0700 (PDT)
+Message-ID: <1437605459.3298.14.camel@stgolabs.net>
+Subject: Re: [PATCH v4 00/10] hugetlbfs: add fallocate support
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Wed, 22 Jul 2015 15:50:59 -0700
+In-Reply-To: <20150722153753.08f0a221023706d4ed1cc575@linux-foundation.org>
+References: <1437502184-14269-1-git-send-email-mike.kravetz@oracle.com>
+	 <20150722150647.2597c7e5be9ee1eecc438b6f@linux-foundation.org>
+	 <1437603594.3298.5.camel@stgolabs.net>
+	 <20150722153023.e8f15eb4e490f79cc029c8cd@linux-foundation.org>
+	 <1437604474.3298.7.camel@stgolabs.net>
+	 <20150722153753.08f0a221023706d4ed1cc575@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Michal Hocko <mhocko@suse.cz>
 
-On 22 July 2015 at 22:39, David Rientjes <rientjes@google.com> wrote:
-> On Wed, 22 Jul 2015, Catalin Marinas wrote:
->
->> When the page table entry is a huge page (and not a table), there is no
->> need to flush the TLB by range. This patch changes flush_tlb_range() to
->> flush_tlb_page() in functions where we know the pmd entry is a huge
->> page.
->>
->> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> ---
->>
->> Hi,
->>
->> That's just a minor improvement but it saves iterating over each small
->> page in a huge page when a single TLB entry is used (we already have a
->> similar assumption in __tlb_adjust_range).
->
-> For x86 smp, this seems to mean the difference between unconditional
-> flush_tlb_page() and local_flush_tlb() due to
-> tlb_single_page_flush_ceiling, so I don't think this just removes the
-> iteration.
+On Wed, 2015-07-22 at 15:37 -0700, Andrew Morton wrote:
+> On Wed, 22 Jul 2015 15:34:34 -0700 Davidlohr Bueso <dave@stgolabs.net> wrote:
+> 
+> > On Wed, 2015-07-22 at 15:30 -0700, Andrew Morton wrote:
+> > > selftests is a pretty scrappy place.  It's partly a dumping ground for
+> > > things so useful test code doesn't just get lost and bitrotted.  Partly
+> > > a framework so people who add features can easily test them. Partly to
+> > > provide tools to architecture maintainers when they wire up new
+> > > syscalls and the like.
+> > 
+> > Yeah, ipc, for instance, also sucks _badly_ in selftests.
+> 
+> What testsuite should people be using for IPC?
 
-You are right, on x86 the tlb_single_page_flush_ceiling seems to be
-33, so for an HPAGE_SIZE range the code does a local_flush_tlb()
-always. I would say a single page TLB flush is more efficient than a
-whole TLB flush but I'm not familiar enough with x86.
+The best I've found is using the ipc parts of LTP. It's caught a lot of
+bugs in the past. Unsurprisingly, I believe Fengguang has this
+automated.
 
-Alternatively, I could introduce a flush_tlb_pmd_huge_page (suggested
-by Andrea separately) and let the architectures deal with this as they
-see fit. The default definition would do a flush_tlb_range(vma,
-address, address + HPAGE_SIZE). For arm64, I'll define it as
-flush_tlb_page(vma, address).
+Manfred also has a few for more specific purposes -- which also serve
+for performance testing:
+https://github.com/manfred-colorfu/ipcsemtest
+https://github.com/manfred-colorfu/ipcscale
 
--- 
-Catalin
+iirc Dave Hansen also had written some shm-specific tests.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
