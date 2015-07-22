@@ -1,102 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 548E59003C7
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:04:45 -0400 (EDT)
-Received: by qgeu79 with SMTP id u79so47308557qge.1
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 07:04:45 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id a7si1772098qka.5.2015.07.22.07.04.44
+Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 53D339003C7
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:05:06 -0400 (EDT)
+Received: by qkfc129 with SMTP id c129so110888874qkf.1
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 07:05:06 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com ([23.79.238.175])
+        by mx.google.com with ESMTP id f82si1770413qkf.18.2015.07.22.07.05.02
         for <linux-mm@kvack.org>;
-        Wed, 22 Jul 2015 07:04:44 -0700 (PDT)
-Date: Wed, 22 Jul 2015 10:04:43 -0400
+        Wed, 22 Jul 2015 07:05:04 -0700 (PDT)
+Date: Wed, 22 Jul 2015 10:05:02 -0400
 From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH V4 1/6] mm: mlock: Refactor mlock, munlock, and
- munlockall code
-Message-ID: <20150722140443.GA2859@akamai.com>
+Subject: Re: [PATCH V4 2/6] mm: mlock: Add new mlock, munlock, and munlockall
+ system calls
+Message-ID: <20150722140502.GB2859@akamai.com>
 References: <1437508781-28655-1-git-send-email-emunson@akamai.com>
- <1437508781-28655-2-git-send-email-emunson@akamai.com>
- <20150722104226.GA8630@node.dhcp.inet.fi>
+ <1437508781-28655-3-git-send-email-emunson@akamai.com>
+ <55AF5F5A.3000707@suse.cz>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="4Ckj6UjgE2iN1+kY"
+	protocol="application/pgp-signature"; boundary="NDin8bjvE/0mNLFQ"
 Content-Disposition: inline
-In-Reply-To: <20150722104226.GA8630@node.dhcp.inet.fi>
+In-Reply-To: <55AF5F5A.3000707@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Heiko Carstens <heiko.carstens@de.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Catalin Marinas <catalin.marinas@arm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Guenter Roeck <linux@roeck-us.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, adi-buildroot-devel@lists.sourceforge.net, linux-cris-kernel@axis.com, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-mips@linux-mips.org, linux-am33-list@redhat.com, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
 
---4Ckj6UjgE2iN1+kY
+--NDin8bjvE/0mNLFQ
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
-On Wed, 22 Jul 2015, Kirill A. Shutemov wrote:
+On Wed, 22 Jul 2015, Vlastimil Babka wrote:
 
-> On Tue, Jul 21, 2015 at 03:59:36PM -0400, Eric B Munson wrote:
-> > @@ -648,20 +656,23 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, si=
-ze_t, len)
-> >  	start &=3D PAGE_MASK;
-> > =20
-> >  	down_write(&current->mm->mmap_sem);
-> > -	ret =3D do_mlock(start, len, 0);
-> > +	ret =3D apply_vma_flags(start, len, flags, false);
-> >  	up_write(&current->mm->mmap_sem);
-> > =20
-> >  	return ret;
-> >  }
-> > =20
-> > +SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
-> > +{
-> > +	return do_munlock(start, len, VM_LOCKED);
-> > +}
-> > +
-> >  static int do_mlockall(int flags)
-> >  {
-> >  	struct vm_area_struct * vma, * prev =3D NULL;
-> > =20
-> >  	if (flags & MCL_FUTURE)
-> >  		current->mm->def_flags |=3D VM_LOCKED;
-> > -	else
-> > -		current->mm->def_flags &=3D ~VM_LOCKED;
+> On 07/21/2015 09:59 PM, Eric B Munson wrote:
+> >With the refactored mlock code, introduce new system calls for mlock,
+> >munlock, and munlockall.  The new calls will allow the user to specify
+> >what lock states are being added or cleared.  mlock2 and munlock2 are
+> >trivial at the moment, but a follow on patch will add a new mlock state
+> >making them useful.
+> >
+> >munlock2 addresses a limitation of the current implementation.  If a
 >=20
-> I think this is wrong.
->=20
-> With current code mlockall(MCL_CURRENT) after mlockall(MCL_FUTURE |
-> MCL_CURRENT) would undo future mlocking, without unlocking currently
-> mlocked memory.
->=20
-> The change will break the use-case.
+>   ^ munlockall2?
 
-It is wrong and I have addressed it in this case as well as with the
-MCL_ONFAULT flag introduced in patch 4.  I will also add to the mlockall
-man page to specify this behavior.
+Fixed, thanks.
 
 
---4Ckj6UjgE2iN1+kY
+--NDin8bjvE/0mNLFQ
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: Digital signature
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1
 
-iQIcBAEBAgAGBQJVr6L7AAoJELbVsDOpoOa94JcP/00xVbldg68yFn68XqCk9RUB
-rnX4dN6MizbF/fivcGEHbA+mMdTN4U720d5J7w+w3xRjfhMeVgSUJ1zijGqrXycI
-IegJ44vXygDb1RklxLXtp3ZEY+eGpI3jVonPy+VqmBGYP8nt9fB/OV5UdOkzMrtM
-4w68P9Ie6/3N8GkrOD3RCpPBd/LJX1H/rqUuKVZoF2XTmqRa0P2C0opB5/14Na1I
-URS9VD+IjtTmJbW9F3gGc64ErRBqrCVE9LH3aZ/Ahw9MDunEVkiP6AUoRT8QOYQJ
-hReJ8It5UO+vnD3pmDmnlsNEMIj/lFEfU2ivOL7Vc7nV/mDp6eDbb1bcu9lucaQc
-7ZZtDWVQZVwFajFP9TkTqIUDQL2yYza5URafCvGk4nfRX/Oo0zwH8A92I1gQFheY
-aekydRlcKQIcYVBSWzzY+hhQJiPdeXzLibIiB3u2GDgOas60q/fl0ow9EcErwCE3
-qUuCqifLs/FHfDZRkhOBoKpCBaJrARyCeDSlblKBJfe4s3/1YXYGpEe+mLNkIGaa
-2W4Hb+vfERWtllFa3+S9tfabyAvS0Enz2YbmBIInrQXsY5p1xnLnIM+2i8Lx7s4N
-pFUeVuaiVxCSX3wdgOMymm2gS1+x0MpP6Oh/fYyxKmBVQJLeXnyk84udvL0jBSx3
-kN19RlbEfOnvcpIra2bg
-=1q3r
+iQIcBAEBAgAGBQJVr6MOAAoJELbVsDOpoOa9s9sP/A7izRQp4uVnMpOwD0MxlFeD
+XcaKq8V5n3o7/BMR992hOIWBEl5/HUrJR3sRtfi42uPUYK930Ofy+mckUN6D4iiH
+EyIKyjBq6DIBcChWmlXqNBh86cb1gvkx1gTNjjOSXVIFkrjvstCRomfHd7FtDmBq
+u37dhRe0VJLAVWRRn+GvV5IEJzv20RnEgdfSw8kf+M4nO9g/59z8qe+IC3g2xLD2
+q8D1rEwwnDOeYZVSkP+dt7EVkoR/hHbDdgijEocWwpKTNih4NcH0xgfcfYFbT3j+
+MNNt3EeYAjmgZNZOL/YRbxWbnol84EdQUAZ9lfkjL/n5Pd4A4/yKduK1692DAtzD
+RDPGJ5xP9g8JHM6+xvMk66ZEMFfZpnGioXfrV+2emLq8q4P+N2zJ6PREPk7r00tO
+cbFFd/RNnVLBcCjj/1aIHG2txHVB9GVkUzj7MbHID019oC2IcQU+vFfUJcs5gexr
+ntuWehXpnANwZY+kUKZWPevnUNqWsll4ITtbG7/6L20NbBADB8EXRnIyj4MzdLMN
+x/aAITZB0qq1ad9H1pH4eXp7tnzX2b3T3HZN8+PWWhhPNBFenRFiOC4VnNT6J4aS
+pZ/DMiXv5h6h17dEX3UQK4aMUurZw7Ptaj/N16MOsxTWM0jIm4De79+TfARt58Zs
+xqZ6XgkcJBiIIcnJXw4D
+=NAcA
 -----END PGP SIGNATURE-----
 
---4Ckj6UjgE2iN1+kY--
+--NDin8bjvE/0mNLFQ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
