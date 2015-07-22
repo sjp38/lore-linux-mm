@@ -1,219 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id F18CB9003C7
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 08:29:11 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so161184626wib.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 05:29:11 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fz6si24471949wic.116.2015.07.22.05.29.09
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 8160F9003C7
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 08:46:47 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so170724326wib.0
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 05:46:46 -0700 (PDT)
+Received: from mx03.imt-systems.com (mx03.imt-systems.com. [212.224.83.172])
+        by mx.google.com with ESMTPS id pr9si2299573wjc.194.2015.07.22.05.46.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Jul 2015 05:29:10 -0700 (PDT)
-Message-ID: <55AF8C94.6020406@suse.cz>
-Date: Wed, 22 Jul 2015 14:29:08 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Jul 2015 05:46:44 -0700 (PDT)
+Received: from ucsinet10.imt-systems.com (ucsinet10.imt-systems.com [212.224.83.165])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mx03.imt-systems.com (Postfix) with ESMTPS id 3mbxPZ243Gz3xG4
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:46:42 +0200 (CEST)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	(authenticated bits=0)
+	by ucsinet10.imt-systems.com (8.14.7/8.14.7) with ESMTP id t6MCkeis018053
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:46:42 +0200
+Received: by wibud3 with SMTP id ud3so152568114wib.1
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 05:46:40 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm: rename and move get/set_freepage_migratetype
-References: <55969822.9060907@suse.cz> <1437483218-18703-1-git-send-email-vbabka@suse.cz> <1437483218-18703-2-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1437483218-18703-2-git-send-email-vbabka@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAKSJeFKR+jWYiMiexvqGyBQe-=hGmq0DO0TZK-EQszTwcbmG4A@mail.gmail.com>
+References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils>
+	<557E6C0C.3050802@monom.org>
+	<CAKSJeFKR+jWYiMiexvqGyBQe-=hGmq0DO0TZK-EQszTwcbmG4A@mail.gmail.com>
+Date: Wed, 22 Jul 2015 14:46:40 +0200
+Message-ID: <CAKSJeFK3ZxWRDg5pwBqgMWXkzatHu+cp5Gx9W+7cyaNMx5qTFA@mail.gmail.com>
+Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
+ with XFS
+From: Morten Stevens <mstevens@fedoraproject.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, "minkyung88.kim" <minkyung88.kim@lge.com>, kmk3210@gmail.com, Seungho Park <seungho1.park@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Morten Stevens <mstevens@fedoraproject.org>, Stephen Smalley <sds@tycho.nsa.gov>
+Cc: Daniel Wagner <wagi@monom.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Prarit Bhargava <prarit@redhat.com>, Dave Chinner <david@fromorbit.com>, Eric Paris <eparis@redhat.com>, Eric Sandeen <esandeen@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On 07/21/2015 02:53 PM, Vlastimil Babka wrote:
-> The pair of get/set_freepage_migratetype() functions are used to cache
-> pageblock migratetype for a page put on a pcplist, so that it does not have
-> to be retrieved again when the page is put on a free list (e.g. when pcplists
-> become full). Historically it was also assumed that the value is accurate for
-> pages on freelists (as the functions' names unfortunately suggest), but that
-> cannot be guaranteed without affecting various allocator fast paths. It is in
-> fact not needed and all such uses have been removed.
-> 
-> The last remaining (but pointless) usage related to pages of freelists is in
-> move_freepages(), which this patch removes.
+2015-06-17 13:45 GMT+02:00 Morten Stevens <mstevens@fedoraproject.org>:
+> 2015-06-15 8:09 GMT+02:00 Daniel Wagner <wagi@monom.org>:
+>> On 06/14/2015 06:48 PM, Hugh Dickins wrote:
+>>> It appears that, at some point last year, XFS made directory handling
+>>> changes which bring it into lockdep conflict with shmem_zero_setup():
+>>> it is surprising that mmap() can clone an inode while holding mmap_sem,
+>>> but that has been so for many years.
+>>>
+>>> Since those few lockdep traces that I've seen all implicated selinux,
+>>> I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
+>>> v3.13's commit c7277090927a ("security: shmem: implement kernel private
+>>> shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
+>>> the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
+>>>
+>>> This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
+>>> (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
+>>> which cloned inode in mmap(), but if so, I cannot locate them now.
+>>>
+>>> Reported-and-tested-by: Prarit Bhargava <prarit@redhat.com>
+>>> Reported-by: Daniel Wagner <wagi@monom.org>
+>>
+>> Reported-and-tested-by: Daniel Wagner <wagi@monom.org>
+>>
+>> Sorry for the long delay. It took me a while to figure out my original
+>> setup. I could verify that this patch made the lockdep message go away
+>> on 4.0-rc6 and also on 4.1-rc8.
+>
+> Yes, it's also fixed for me after applying this patch to 4.1-rc8.
 
-I realized there's one more callsite that can be removed. Here's
-whole updated patch due to different changelog and to cope with
-context changed by the fixlet to patch 1/2.
+Here is another deadlock with the latest 4.2.0-rc3:
 
-------8<------
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Thu, 2 Jul 2015 16:37:06 +0200
-Subject: mm: rename and move get/set_freepage_migratetype
+Jul 22 14:36:40 fc23 kernel:
+======================================================
+Jul 22 14:36:40 fc23 kernel: [ INFO: possible circular locking
+dependency detected ]
+Jul 22 14:36:40 fc23 kernel: 4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1
+Tainted: G        W
+Jul 22 14:36:40 fc23 kernel:
+-------------------------------------------------------
+Jul 22 14:36:40 fc23 kernel: httpd/1597 is trying to acquire lock:
+Jul 22 14:36:40 fc23 kernel: (&ids->rwsem){+++++.}, at:
+[<ffffffff81385354>] shm_close+0x34/0x130
+Jul 22 14:36:40 fc23 kernel: #012but task is already holding lock:
+Jul 22 14:36:40 fc23 kernel: (&mm->mmap_sem){++++++}, at:
+[<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
+Jul 22 14:36:40 fc23 kernel: #012which lock already depends on the new lock.
+Jul 22 14:36:40 fc23 kernel: #012the existing dependency chain (in
+reverse order) is:
+Jul 22 14:36:40 fc23 kernel: #012-> #3 (&mm->mmap_sem){++++++}:
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81217baa>] __might_fault+0x7a/0xa0
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81284a1e>] filldir+0x9e/0x130
+Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019bb08>]
+xfs_dir2_block_getdents.isra.12+0x198/0x1c0 [xfs]
+Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019c5b4>]
+xfs_readdir+0x1b4/0x330 [xfs]
+Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019f38b>]
+xfs_file_readdir+0x2b/0x30 [xfs]
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff812847e7>] iterate_dir+0x97/0x130
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81284d21>] SyS_getdents+0x91/0x120
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
+entry_SYSCALL_64_fastpath+0x12/0x76
+Jul 22 14:36:40 fc23 kernel: #012-> #2 (&xfs_dir_ilock_class){++++.+}:
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81101e97>]
+down_read_nested+0x57/0xa0
+Jul 22 14:36:40 fc23 kernel:       [<ffffffffa01b0e57>]
+xfs_ilock+0x167/0x350 [xfs]
+Jul 22 14:36:40 fc23 kernel:       [<ffffffffa01b10b8>]
+xfs_ilock_attr_map_shared+0x38/0x50 [xfs]
+Jul 22 14:36:40 fc23 kernel:       [<ffffffffa014799d>]
+xfs_attr_get+0xbd/0x190 [xfs]
+Jul 22 14:36:40 fc23 kernel:       [<ffffffffa01c17ad>]
+xfs_xattr_get+0x3d/0x70 [xfs]
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8129962f>]
+generic_getxattr+0x4f/0x70
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139ba52>]
+inode_doinit_with_dentry+0x162/0x670
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139cf69>]
+sb_finish_set_opts+0xd9/0x230
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139d66c>]
+selinux_set_mnt_opts+0x35c/0x660
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139ff97>]
+superblock_doinit+0x77/0xf0
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff813a0020>]
+delayed_superblock_init+0x10/0x20
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81272d23>]
+iterate_supers+0xb3/0x110
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff813a4e5f>]
+selinux_complete_init+0x2f/0x40
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff813b47a3>]
+security_load_policy+0x103/0x600
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff813a6901>]
+sel_write_load+0xc1/0x750
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8126e817>] __vfs_write+0x37/0x100
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8126f229>] vfs_write+0xa9/0x1a0
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8126ff48>] SyS_write+0x58/0xd0
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
+entry_SYSCALL_64_fastpath+0x12/0x76
+Jul 22 14:36:40 fc23 kernel: #012-> #1 (&isec->lock){+.+.+.}:
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8186de8f>]
+mutex_lock_nested+0x7f/0x3e0
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139b9a9>]
+inode_doinit_with_dentry+0xb9/0x670
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139bf7c>]
+selinux_d_instantiate+0x1c/0x20
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff813955f6>]
+security_d_instantiate+0x36/0x60
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81287c34>] d_instantiate+0x54/0x70
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8120111c>]
+__shmem_file_setup+0xdc/0x240
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81201290>]
+shmem_file_setup+0x10/0x20
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff813856e0>] newseg+0x290/0x3a0
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8137e278>] ipcget+0x208/0x2d0
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81386074>] SyS_shmget+0x54/0x70
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
+entry_SYSCALL_64_fastpath+0x12/0x76
+Jul 22 14:36:40 fc23 kernel: #012-> #0 (&ids->rwsem){+++++.}:
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81108df8>]
+__lock_acquire+0x1a78/0x1d00
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff8186efba>] down_write+0x5a/0xc0
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81385354>] shm_close+0x34/0x130
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff812203a5>] remove_vma+0x45/0x80
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81222a30>] do_munmap+0x2b0/0x460
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
+Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
+entry_SYSCALL_64_fastpath+0x12/0x76
+Jul 22 14:36:40 fc23 kernel: #012other info that might help us debug this:
+Jul 22 14:36:40 fc23 kernel: Chain exists of:#012  &ids->rwsem -->
+&xfs_dir_ilock_class --> &mm->mmap_sem
+Jul 22 14:36:40 fc23 kernel: Possible unsafe locking scenario:
+Jul 22 14:36:40 fc23 kernel:       CPU0                    CPU1
+Jul 22 14:36:40 fc23 kernel:       ----                    ----
+Jul 22 14:36:40 fc23 kernel:  lock(&mm->mmap_sem);
+Jul 22 14:36:40 fc23 kernel:
+lock(&xfs_dir_ilock_class);
+Jul 22 14:36:40 fc23 kernel:                               lock(&mm->mmap_sem);
+Jul 22 14:36:40 fc23 kernel:  lock(&ids->rwsem);
+Jul 22 14:36:40 fc23 kernel: #012 *** DEADLOCK ***
+Jul 22 14:36:40 fc23 kernel: 1 lock held by httpd/1597:
+Jul 22 14:36:40 fc23 kernel: #0:  (&mm->mmap_sem){++++++}, at:
+[<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
+Jul 22 14:36:40 fc23 kernel: #012stack backtrace:
+Jul 22 14:36:40 fc23 kernel: CPU: 7 PID: 1597 Comm: httpd Tainted: G
+     W       4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1
+Jul 22 14:36:40 fc23 kernel: Hardware name: VMware, Inc. VMware
+Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00
+05/20/2014
+Jul 22 14:36:40 fc23 kernel: 0000000000000000 000000006cb6fe9d
+ffff88019ff07c58 ffffffff81868175
+Jul 22 14:36:40 fc23 kernel: 0000000000000000 ffffffff82aea390
+ffff88019ff07ca8 ffffffff81105903
+Jul 22 14:36:40 fc23 kernel: ffff88019ff07c78 ffff88019ff07d08
+0000000000000001 ffff8800b75108f0
+Jul 22 14:36:40 fc23 kernel: Call Trace:
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81868175>] dump_stack+0x4c/0x65
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81105903>] print_circular_bug+0x1e3/0x250
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81108df8>] __lock_acquire+0x1a78/0x1d00
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81220c33>] ? unlink_file_vma+0x33/0x60
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81385354>] ? shm_close+0x34/0x130
+Jul 22 14:36:40 fc23 kernel: [<ffffffff8186efba>] down_write+0x5a/0xc0
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81385354>] ? shm_close+0x34/0x130
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81385354>] shm_close+0x34/0x130
+Jul 22 14:36:40 fc23 kernel: [<ffffffff812203a5>] remove_vma+0x45/0x80
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81222a30>] do_munmap+0x2b0/0x460
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81386bbb>] ? SyS_shmdt+0x4b/0x180
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
+Jul 22 14:36:40 fc23 kernel: [<ffffffff81871d2e>]
+entry_SYSCALL_64_fastpath+0x12/0x76
 
-The pair of get/set_freepage_migratetype() functions are used to cache
-pageblock migratetype for a page put on a pcplist, so that it does not have
-to be retrieved again when the page is put on a free list (e.g. when pcplists
-become full). Historically it was also assumed that the value is accurate for
-pages on freelists (as the functions' names unfortunately suggest), but that
-cannot be guaranteed without affecting various allocator fast paths. It is in
-fact not needed and all such uses have been removed.
+Best regards,
 
-The last two remaining (but pointless) usages related to pages of freelists
-are removed by this patch:
-- move_freepages() which operates on pages already on freelists
-- __free_pages_ok() which puts a page directly to freelist, bypassing pcplists
-
-To prevent further confusion, rename the functions to
-get/set_pcppage_migratetype() and expand their description. Since all the
-users are now in mm/page_alloc.c, move the functions there from the shared
-header.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Laura Abbott <lauraa@codeaurora.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/mm.h | 12 ------------
- mm/page_alloc.c    | 41 ++++++++++++++++++++++++++++-------------
- 2 files changed, 28 insertions(+), 25 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index c3a2b37..ce36145 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -310,18 +310,6 @@ struct inode;
- #define page_private(page)		((page)->private)
- #define set_page_private(page, v)	((page)->private = (v))
- 
--/* It's valid only if the page is free path or free_list */
--static inline void set_freepage_migratetype(struct page *page, int migratetype)
--{
--	page->index = migratetype;
--}
--
--/* It's valid only if the page is free path or free_list */
--static inline int get_freepage_migratetype(struct page *page)
--{
--	return page->index;
--}
--
- /*
-  * FIXME: take this include out, include page-flags.h in
-  * files which need it (119 of them)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c61fef8..4b220cb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -125,6 +125,24 @@ unsigned long dirty_balance_reserve __read_mostly;
- int percpu_pagelist_fraction;
- gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
- 
-+/*
-+ * A cached value of the page's pageblock's migratetype, used when the page is
-+ * put on a pcplist. Used to avoid the pageblock migratetype lookup when
-+ * freeing from pcplists in most cases, at the cost of possibly becoming stale.
-+ * Also the migratetype set in the page does not necessarily match the pcplist
-+ * index, e.g. page might have MIGRATE_CMA set but be on a pcplist with any
-+ * other index - this ensures that it will be put on the correct CMA freelist.
-+ */
-+static inline int get_pcppage_migratetype(struct page *page)
-+{
-+	return page->index;
-+}
-+
-+static inline void set_pcppage_migratetype(struct page *page, int migratetype)
-+{
-+	page->index = migratetype;
-+}
-+
- #ifdef CONFIG_PM_SLEEP
- /*
-  * The following functions are used by the suspend/hibernate code to temporarily
-@@ -790,7 +808,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 			/* must delete as __free_one_page list manipulates */
- 			list_del(&page->lru);
- 
--			mt = get_freepage_migratetype(page);
-+			mt = get_pcppage_migratetype(page);
- 			/* MIGRATE_ISOLATE page should not go to pcplists */
- 			VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
- 			/* Pageblock could have been isolated meanwhile */
-@@ -963,7 +981,6 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	migratetype = get_pfnblock_migratetype(page, pfn);
- 	local_irq_save(flags);
- 	__count_vm_events(PGFREE, 1 << order);
--	set_freepage_migratetype(page, migratetype);
- 	free_one_page(page_zone(page), page, pfn, order, migratetype);
- 	local_irq_restore(flags);
- }
-@@ -1384,7 +1401,7 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- 		rmv_page_order(page);
- 		area->nr_free--;
- 		expand(zone, page, order, current_order, area, migratetype);
--		set_freepage_migratetype(page, migratetype);
-+		set_pcppage_migratetype(page, migratetype);
- 		return page;
- 	}
- 
-@@ -1461,7 +1478,6 @@ int move_freepages(struct zone *zone,
- 		order = page_order(page);
- 		list_move(&page->lru,
- 			  &zone->free_area[order].free_list[migratetype]);
--		set_freepage_migratetype(page, migratetype);
- 		page += 1 << order;
- 		pages_moved += 1 << order;
- 	}
-@@ -1631,14 +1647,13 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
- 		expand(zone, page, order, current_order, area,
- 					start_migratetype);
- 		/*
--		 * The freepage_migratetype may differ from pageblock's
-+		 * The pcppage_migratetype may differ from pageblock's
- 		 * migratetype depending on the decisions in
--		 * try_to_steal_freepages(). This is OK as long as it
--		 * does not differ for MIGRATE_CMA pageblocks. For CMA
--		 * we need to make sure unallocated pages flushed from
--		 * pcp lists are returned to the correct freelist.
-+		 * find_suitable_fallback(). This is OK as long as it does not
-+		 * differ for MIGRATE_CMA pageblocks. Those can be used as
-+		 * fallback only via special __rmqueue_cma_fallback() function
- 		 */
--		set_freepage_migratetype(page, start_migratetype);
-+		set_pcppage_migratetype(page, start_migratetype);
- 
- 		trace_mm_page_alloc_extfrag(page, order, current_order,
- 			start_migratetype, fallback_mt);
-@@ -1714,7 +1729,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
- 		else
- 			list_add_tail(&page->lru, list);
- 		list = &page->lru;
--		if (is_migrate_cma(get_freepage_migratetype(page)))
-+		if (is_migrate_cma(get_pcppage_migratetype(page)))
- 			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
- 					      -(1 << order));
- 	}
-@@ -1911,7 +1926,7 @@ void free_hot_cold_page(struct page *page, bool cold)
- 		return;
- 
- 	migratetype = get_pfnblock_migratetype(page, pfn);
--	set_freepage_migratetype(page, migratetype);
-+	set_pcppage_migratetype(page, migratetype);
- 	local_irq_save(flags);
- 	__count_vm_event(PGFREE);
- 
-@@ -2116,7 +2131,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
- 		if (!page)
- 			goto failed;
- 		__mod_zone_freepage_state(zone, -(1 << order),
--					  get_freepage_migratetype(page));
-+					  get_pcppage_migratetype(page));
- 	}
- 
- 	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
--- 
-2.4.5
-
-
+Morten
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
