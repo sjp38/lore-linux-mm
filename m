@@ -1,59 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 30DEF9003C7
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:05:45 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so165200509wib.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 07:05:44 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jg6si3844443wid.4.2015.07.22.07.05.43
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id E67C69003C7
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:10:29 -0400 (EDT)
+Received: by iecri3 with SMTP id ri3so73386097iec.2
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 07:10:29 -0700 (PDT)
+Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
+        by mx.google.com with ESMTPS id f100si1598842ioi.34.2015.07.22.07.10.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Jul 2015 07:05:43 -0700 (PDT)
-Date: Wed, 22 Jul 2015 15:05:30 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v3 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
- feature
-Message-ID: <20150722140530.GK2561@suse.de>
-References: <1437114578-2502-1-git-send-email-pintu.k@samsung.com>
- <1437366544-32673-1-git-send-email-pintu.k@samsung.com>
- <20150720082810.GG2561@suse.de>
- <02c601d0c306$f86d30f0$e94792d0$@samsung.com>
- <20150720175538.GJ2561@suse.de>
- <05af01d0c47f$3337ccd0$99a76670$@samsung.com>
+        (version=TLSv1.1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 22 Jul 2015 07:10:29 -0700 (PDT)
+Message-ID: <55AFA44C.2060906@windriver.com>
+Date: Wed, 22 Jul 2015 10:10:20 -0400
+From: Paul Gortmaker <paul.gortmaker@windriver.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <05af01d0c47f$3337ccd0$99a76670$@samsung.com>
+Subject: Re: [PATCH V3 4/5] mm: mmap: Add mmap flag to request VM_LOCKONFAULT
+References: <1436288623-13007-1-git-send-email-emunson@akamai.com> <1436288623-13007-5-git-send-email-emunson@akamai.com> <CAP=VYLq5=9DCfncJpQizcSbQt1O7VL2yEdzZNOFK+M3pqLpb3Q@mail.gmail.com> <55AD5CB9.4090400@ezchip.com> <20150721153722.GB5411@akamai.com>
+In-Reply-To: <20150721153722.GB5411@akamai.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu.k@samsung.com>
-Cc: akpm@linux-foundation.org, corbet@lwn.net, vbabka@suse.cz, gorcunov@openvz.org, mhocko@suse.cz, emunson@akamai.com, kirill.shutemov@linux.intel.com, standby24x7@gmail.com, hannes@cmpxchg.org, vdavydov@parallels.com, hughd@google.com, minchan@kernel.org, tj@kernel.org, rientjes@google.com, xypron.glpk@gmx.de, dzickus@redhat.com, prarit@redhat.com, ebiederm@xmission.com, rostedt@goodmis.org, uobergfe@redhat.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, ddstreet@ieee.org, sasha.levin@oracle.com, koct9i@gmail.com, cj@linux.com, opensource.ganesh@gmail.com, vinmenon@codeaurora.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, qiuxishi@huawei.com, Valdis.Kletnieks@vt.edu, cpgs@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, iqbal.ams@samsung.com, pintu.ping@gmail.com, pintu.k@outlook.com
+To: Eric B Munson <emunson@akamai.com>
+Cc: Chris Metcalf <cmetcalf@ezchip.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-arch <linux-arch@vger.kernel.org>, linux-api@vger.kernel.org, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>
 
-On Wed, Jul 22, 2015 at 06:33:26PM +0530, PINTU KUMAR wrote:
-> Dear Mel, thank you very much for your comments and suggestions.
-> I will drop this one and look on further improving direct_reclaim and
-> compaction.
-> Just few more comments below before I close.
+On 2015-07-21 11:37 AM, Eric B Munson wrote:
+> On Mon, 20 Jul 2015, Chris Metcalf wrote:
 > 
-> Also, during this patch, I feel that the hibernation_mode part in
-> shrink_all_memory can be corrected.
-> So, can I separately submit the below patch?
-> That is instead of hard-coding the hibernation_mode, we can get hibernation
-> status using:
-> system_entering_hibernation()
+>> On 07/18/2015 03:11 PM, Paul Gortmaker wrote:
+>>> On Tue, Jul 7, 2015 at 1:03 PM, Eric B Munson<emunson@akamai.com>  wrote:
+>>>>> The cost of faulting in all memory to be locked can be very high when
+>>>>> working with large mappings.  If only portions of the mapping will be
+>>>>> used this can incur a high penalty for locking.
+>>>>>
+>>>>> Now that we have the new VMA flag for the locked but not present state,
+>>>>> expose it  as an mmap option like MAP_LOCKED -> VM_LOCKED.
+>>> An automatic bisection on arch/tile leads to this commit:
+>>>
+>>> 5a5656f2c9b61c74c15f9ef3fa2e6513b6c237bb is the first bad commit
+>>> commit 5a5656f2c9b61c74c15f9ef3fa2e6513b6c237bb
+>>> Author: Eric B Munson<emunson@akamai.com>
+>>> Date:   Thu Jul 16 10:09:22 2015 +1000
+>>>
+>>>     mm: mmap: add mmap flag to request VM_LOCKONFAULT
+>>
+>> Eric, I'm happy to help with figuring out the tile issues.
 > 
-> Please let me know your suggestion about this changes.
-> 
-> -#ifdef CONFIG_HIBERNATION
-> +#if defined CONFIG_HIBERNATION || CONFIG_SHRINK_MEMORY
+> Thanks for the offer, I think I have is sorted in V4 (which I am
+> checking one last time before I post).
 
-This appears to be a patch on top of "Add /proc/sys/vm/shrink_memory
-feature" so I do not see what would be separately submitted that would
-make sense.
+Not quite sorted yet.  Seems parisc fails on v4.  It updated the
+number of syscalls but did not update syscall_table.S causing:
 
--- 
-Mel Gorman
-SUSE Labs
+arch/parisc/kernel/syscall_table.S:444: Error: size of syscall table does not fit value of __NR_Linux_syscalls
+
+http://kisskb.ellerman.id.au/kisskb/buildresult/12468884/
+
+Paul.
+--
+
+> Eric
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
