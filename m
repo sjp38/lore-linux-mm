@@ -1,107 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D09C9003C8
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 17:39:38 -0400 (EDT)
-Received: by pabkd10 with SMTP id kd10so72842278pab.2
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:39:38 -0700 (PDT)
-Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
-        by mx.google.com with ESMTPS id dn14si6571869pac.111.2015.07.22.14.39.36
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 51D869003C8
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 17:42:20 -0400 (EDT)
+Received: by pacan13 with SMTP id an13so146384282pac.1
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:42:20 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id o6si6526374pds.214.2015.07.22.14.42.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 14:39:37 -0700 (PDT)
-Received: by pdbbh15 with SMTP id bh15so99142060pdb.1
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:39:36 -0700 (PDT)
-Date: Wed, 22 Jul 2015 14:39:34 -0700 (PDT)
+        Wed, 22 Jul 2015 14:42:19 -0700 (PDT)
+Received: by pachj5 with SMTP id hj5so144837808pac.3
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:42:18 -0700 (PDT)
+Date: Wed, 22 Jul 2015 14:42:15 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: Flush the TLB for a single address in a huge page
-In-Reply-To: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com>
-Message-ID: <alpine.DEB.2.10.1507221436350.21468@chino.kir.corp.google.com>
-References: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com>
+Subject: Re: [PATCH 1/2] mm, page_isolation: remove bogus tests for isolated
+ pages
+In-Reply-To: <55AF8BD2.6060009@suse.cz>
+Message-ID: <alpine.DEB.2.10.1507221442070.21468@chino.kir.corp.google.com>
+References: <55969822.9060907@suse.cz> <1437483218-18703-1-git-send-email-vbabka@suse.cz> <alpine.DEB.2.10.1507211540080.3833@chino.kir.corp.google.com> <55AF8BD2.6060009@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "minkyung88.kim" <minkyung88.kim@lge.com>, kmk3210@gmail.com, Seungho Park <seungho1.park@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
 
-On Wed, 22 Jul 2015, Catalin Marinas wrote:
+On Wed, 22 Jul 2015, Vlastimil Babka wrote:
 
-> When the page table entry is a huge page (and not a table), there is no
-> need to flush the TLB by range. This patch changes flush_tlb_range() to
-> flush_tlb_page() in functions where we know the pmd entry is a huge
-> page.
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Date: Wed, 22 Jul 2015 14:16:52 +0200
+> Subject: [PATCH 2/3] fixup! mm, page_isolation: remove bogus tests for
+>  isolated pages
 > 
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
 > ---
+>  mm/page_alloc.c | 4 ++++
+>  1 file changed, 4 insertions(+)
 > 
-> Hi,
-> 
-> That's just a minor improvement but it saves iterating over each small
-> page in a huge page when a single TLB entry is used (we already have a
-> similar assumption in __tlb_adjust_range).
-> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 41dc650..c61fef8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -789,7 +789,11 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>  			page = list_entry(list->prev, struct page, lru);
+>  			/* must delete as __free_one_page list manipulates */
+>  			list_del(&page->lru);
+> +
+>  			mt = get_freepage_migratetype(page);
+> +			/* MIGRATE_ISOLATE page should not go to pcplists */
+> +			VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
+> +			/* Pageblock could have been isolated meanwhile */
+>  			if (unlikely(has_isolate_pageblock(zone)))
+>  				mt = get_pageblock_migratetype(page);
+>  
 
-For x86 smp, this seems to mean the difference between unconditional 
-flush_tlb_page() and local_flush_tlb() due to 
-tlb_single_page_flush_ceiling, so I don't think this just removes the 
-iteration.
-
-> Thanks.
-> 
->  mm/pgtable-generic.c | 10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-> index 6b674e00153c..ff17eca26211 100644
-> --- a/mm/pgtable-generic.c
-> +++ b/mm/pgtable-generic.c
-> @@ -67,7 +67,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
->  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
->  	if (changed) {
->  		set_pmd_at(vma->vm_mm, address, pmdp, entry);
-> -		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-> +		flush_tlb_page(vma, address);
->  	}
->  	return changed;
->  #else /* CONFIG_TRANSPARENT_HUGEPAGE */
-> @@ -101,7 +101,7 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
->  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->  	young = pmdp_test_and_clear_young(vma, address, pmdp);
->  	if (young)
-> -		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-> +		flush_tlb_page(vma, address);
->  	return young;
->  }
->  #endif
-> @@ -128,7 +128,7 @@ pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma, unsigned long address,
->  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
->  	VM_BUG_ON(!pmd_trans_huge(*pmdp));
->  	pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
-> -	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-> +	flush_tlb_page(vma, address);
->  	return pmd;
->  }
->  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-> @@ -143,7 +143,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
->  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
->  	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
->  	/* tlb flush only to serialize against gup-fast */
-> -	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-> +	flush_tlb_page(vma, address);
->  }
->  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->  #endif
-> @@ -195,7 +195,7 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
->  {
->  	pmd_t entry = *pmdp;
->  	set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
-> -	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-> +	flush_tlb_page(vma, address);
->  }
->  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->  #endif
+Looks good, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
