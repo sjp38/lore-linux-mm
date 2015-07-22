@@ -1,266 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B2D96B0256
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 11:20:59 -0400 (EDT)
-Received: by lahh5 with SMTP id h5so140166017lah.2
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 08:20:58 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id r6si1454350lag.118.2015.07.22.08.20.56
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 5994A6B0256
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 11:23:27 -0400 (EDT)
+Received: by wicgb10 with SMTP id gb10so103323495wic.1
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 08:23:26 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bb10si25314400wib.69.2015.07.22.08.23.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 08:20:56 -0700 (PDT)
-Date: Wed, 22 Jul 2015 18:20:29 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v9 6/8] proc: add kpageidle file
-Message-ID: <20150722152029.GL23374@esperanza>
-References: <cover.1437303956.git.vdavydov@parallels.com>
- <d7a78b72053cf529c0c9ff6cbc02ffbb3d58fe35.1437303956.git.vdavydov@parallels.com>
- <20150721163452.c1e4075a2b193bcd325fad56@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 22 Jul 2015 08:23:25 -0700 (PDT)
+Message-ID: <55AFB569.90702@suse.cz>
+Date: Wed, 22 Jul 2015 17:23:21 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150721163452.c1e4075a2b193bcd325fad56@linux-foundation.org>
+Subject: Re: [RFC 1/4] mm, compaction: introduce kcompactd
+References: <1435826795-13777-1-git-send-email-vbabka@suse.cz> <1435826795-13777-2-git-send-email-vbabka@suse.cz> <alpine.DEB.2.10.1507091439100.17177@chino.kir.corp.google.com> <55AE0AFE.8070200@suse.cz> <alpine.DEB.2.10.1507211549380.3833@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1507211549380.3833@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg
- Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David
- Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, Jul 21, 2015 at 04:34:52PM -0700, Andrew Morton wrote:
-> On Sun, 19 Jul 2015 15:31:15 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
-> 
-> > Knowing the portion of memory that is not used by a certain application
-> > or memory cgroup (idle memory) can be useful for partitioning the system
-> > efficiently, e.g. by setting memory cgroup limits appropriately.
-> > Currently, the only means to estimate the amount of idle memory provided
-> > by the kernel is /proc/PID/{clear_refs,smaps}: the user can clear the
-> > access bit for all pages mapped to a particular process by writing 1 to
-> > clear_refs, wait for some time, and then count smaps:Referenced.
-> > However, this method has two serious shortcomings:
-> > 
-> >  - it does not count unmapped file pages
-> >  - it affects the reclaimer logic
-> > 
-> > To overcome these drawbacks, this patch introduces two new page flags,
-> > Idle and Young, and a new proc file, /proc/kpageidle. A page's Idle flag
-> > can only be set from userspace by setting bit in /proc/kpageidle at the
-> > offset corresponding to the page, and it is cleared whenever the page is
-> > accessed either through page tables (it is cleared in page_referenced()
-> > in this case) or using the read(2) system call (mark_page_accessed()).
-> > Thus by setting the Idle flag for pages of a particular workload, which
-> > can be found e.g. by reading /proc/PID/pagemap, waiting for some time to
-> > let the workload access its working set, and then reading the kpageidle
-> > file, one can estimate the amount of pages that are not used by the
-> > workload.
-> > 
-> > The Young page flag is used to avoid interference with the memory
-> > reclaimer. A page's Young flag is set whenever the Access bit of a page
-> > table entry pointing to the page is cleared by writing to kpageidle. If
-> > page_referenced() is called on a Young page, it will add 1 to its return
-> > value, therefore concealing the fact that the Access bit was cleared.
-> > 
-> > Note, since there is no room for extra page flags on 32 bit, this
-> > feature uses extended page flags when compiled on 32 bit.
-> > 
-> > ...
-> >
-> >
-> > ...
-> >
-> > +static void kpageidle_clear_pte_refs(struct page *page)
-> > +{
-> > +	struct rmap_walk_control rwc = {
-> > +		.rmap_one = kpageidle_clear_pte_refs_one,
-> > +		.anon_lock = page_lock_anon_vma_read,
-> > +	};
-> 
-> I think this can be static const, since `arg' is unused?  That would
-> save some cycles and stack.
+On 07/22/2015 01:07 AM, David Rientjes wrote:
+> On Tue, 21 Jul 2015, Vlastimil Babka wrote:
+>
+>>> Khugepaged benefits from the periodic memory compaction being done
+>>> immediately before it attempts to compact memory, and that may be lost
+>>> with a de-coupled approach like this.
+>>
+>
+> Meant to say "before it attempts to allocate a hugepage", but it seems you
+> understood that :)
 
-Good catch, thanks.
+Right :)
 
-> 
-> > +	bool need_lock;
-> > +
-> > +	if (!page_mapped(page) ||
-> > +	    !page_rmapping(page))
-> > +		return;
-> > +
-> > +	need_lock = !PageAnon(page) || PageKsm(page);
-> > +	if (need_lock && !trylock_page(page))
-> 
-> Oh.  So the feature is a bit unreliable.
-> 
-> I'm not immediately seeing anything which would prevent us from using
-> plain old lock_page() here.  What's going on?
+>> That could be helped with waking up khugepaged after kcompactd is successful
+>> in making a hugepage available.
+>
+> I don't think the criteria for waking up khugepaged should become any more
+> complex beyond its current state, which is impacted by two different
+> tunables, and whether it actually has memory to scan.  During this
+> additional wakeup, you'd also need to pass kcompactd's node and only do
+> local khugepaged scanning since there's no guarantee khugepaged can
+> allocate on all nodes when one kcompactd defragments memory.
 
-A page may be locked for quite a long period of time, e.g.
-truncate_inode_pages_range() may wait until a page writeback finishes
-under the page lock. Instead of stalling kpageidle scan, we'd better
-move on to the next page. Of course, the result won't be 100% accurate.
-In fact, it isn't accurate anyway, because we skip isolated pages,
-neither can it possibly be 100% accurate, because the scan itself is not
-instant so that while we are performing it the system usage pattern
-might change. This new API is only supposed to give a good estimate of
-memory usage pattern, which could be used as a hint for adjusting the
-system configuration to improve performance.
+Keeping track of the nodes where hugepage allocations are expected to 
+succeed is already done in this series. "local khugepaged scanning" is 
+unfortunately not possible in general, since the node that will be used 
+for a given pmd is not known until half of pte's (or more) are scanned.
 
-> 
-> > +		return;
-> > +
-> > +	rmap_walk(page, &rwc);
-> > +
-> > +	if (need_lock)
-> > +		unlock_page(page);
-> > +}
-> > +
-> > +static ssize_t kpageidle_read(struct file *file, char __user *buf,
-> > +			      size_t count, loff_t *ppos)
-> > +{
-> > +	u64 __user *out = (u64 __user *)buf;
-> > +	struct page *page;
-> > +	unsigned long pfn, end_pfn;
-> > +	ssize_t ret = 0;
-> > +	u64 idle_bitmap = 0;
-> > +	int bit;
-> > +
-> > +	if (*ppos & KPMMASK || count & KPMMASK)
-> > +		return -EINVAL;
-> 
-> Interface requires 8-byte aligned offset and size.
-> 
-> > +	pfn = *ppos * BITS_PER_BYTE;
-> > +	if (pfn >= max_pfn)
-> > +		return 0;
-> > +
-> > +	end_pfn = pfn + count * BITS_PER_BYTE;
-> > +	if (end_pfn > max_pfn)
-> > +		end_pfn = ALIGN(max_pfn, KPMBITS);
-> 
-> So we lose up to 63 pages.  Presumably max_pfn is well enough aligned
-> for this to not matter, dunno.
+> I think
+> coupling these two would be too complex and not worth it.
 
-ALIGN(x, a) resolves to ((x + a - 1) & ~(a - 1)), which is >= x, so we
-shouldn't loose anything.
+It wouldn't be that complex (see above), and go away if khugepaged 
+scanning is converted to deferred task work. In that case it's also 
+possible to assume that it's only worth touching memory local to the 
+task, so if that node indicates no available hugepages, the scanning can 
+be skipped.
 
-> 
-> > +	for (; pfn < end_pfn; pfn++) {
-> > +		bit = pfn % KPMBITS;
-> > +		page = kpageidle_get_page(pfn);
-> > +		if (page) {
-> > +			if (page_is_idle(page)) {
-> > +				/*
-> > +				 * The page might have been referenced via a
-> > +				 * pte, in which case it is not idle. Clear
-> > +				 * refs and recheck.
-> > +				 */
-> > +				kpageidle_clear_pte_refs(page);
-> > +				if (page_is_idle(page))
-> > +					idle_bitmap |= 1ULL << bit;
-> 
-> I don't understand what's going on here.  More details, please?
+>> Also in your rfc you propose the compaction
+>> period to be 15 minutes, while khugepaged wakes up each 10 (or 30) seconds by
+>> default for the scanning and collapsing, so only fraction of the work is
+>> attempted right after the compaction anyway?
+>>
+>
+> The rfc actually proposes the compaction period to be 0, meaning it's
+> disabled, but suggests in the changelog that we have seen a reproducible
+> benefit with the period of 15m.
 
-The output is a bitmap, which is stored as an array of 8-byte elements,
-where byte order within each word is native, i.e. if page at pfn #i is
-idle we need to set bit #i%64 of element #i/64 of the array. I'll
-reflect this in the documentation.
+Ah, right.
 
-> 
-> > +			}
-> > +			put_page(page);
-> > +		}
-> > +		if (bit == KPMBITS - 1) {
-> > +			if (put_user(idle_bitmap, out)) {
-> > +				ret = -EFAULT;
-> > +				break;
-> > +			}
-> > +			idle_bitmap = 0;
-> > +			out++;
-> > +		}
-> > +	}
-> > +
-> > +	*ppos += (char __user *)out - buf;
-> > +	if (!ret)
-> > +		ret = (char __user *)out - buf;
-> > +	return ret;
-> > +}
-> > +
-> > +static ssize_t kpageidle_write(struct file *file, const char __user *buf,
-> > +			       size_t count, loff_t *ppos)
-> > +{
-> > +	const u64 __user *in = (const u64 __user *)buf;
-> > +	struct page *page;
-> > +	unsigned long pfn, end_pfn;
-> > +	ssize_t ret = 0;
-> > +	u64 idle_bitmap = 0;
-> > +	int bit;
-> > +
-> > +	if (*ppos & KPMMASK || count & KPMMASK)
-> > +		return -EINVAL;
-> > +
-> > +	pfn = *ppos * BITS_PER_BYTE;
-> > +	if (pfn >= max_pfn)
-> > +		return -ENXIO;
-> > +
-> > +	end_pfn = pfn + count * BITS_PER_BYTE;
-> > +	if (end_pfn > max_pfn)
-> > +		end_pfn = ALIGN(max_pfn, KPMBITS);
-> > +
-> > +	for (; pfn < end_pfn; pfn++) {
-> > +		bit = pfn % KPMBITS;
-> > +		if (bit == 0) {
-> > +			if (get_user(idle_bitmap, in)) {
-> > +				ret = -EFAULT;
-> > +				break;
-> > +			}
-> > +			in++;
-> > +		}
-> > +		if (idle_bitmap >> bit & 1) {
-> 
-> Hate it when I have to go look up a C precedence table.  This is
-> 
-> 		if ((idle_bitmap >> bit) & 1) {
+> I'm not concerned about scan_sleep_millisecs here, if khugepaged was able
+> to successfully allocate in its last scan.  I'm only concerned with
+> alloc_sleep_millisecs which defaults to 60000.  I think it would be
+> unfortunate if kcompactd were to free a pageblock, and then khugepaged
+> waits for 60s before allocating.
 
-Fixed.
+Don't forget that khugepaged has to find a suitable pmd first, which can 
+take much longer than 60s. It might be rescanning address spaces that 
+have no candidates, or processes that are sleeping and wouldn't benefit 
+from THP. Another potential advantage for doing the scanning and 
+collapses in task context...
 
-Here goes the incremental patch with all the fixes:
----
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index 7ff7cba8617b..9daa6e92450f 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -362,7 +362,11 @@ static int kpageidle_clear_pte_refs_one(struct page *page,
- 
- static void kpageidle_clear_pte_refs(struct page *page)
- {
--	struct rmap_walk_control rwc = {
-+	/*
-+	 * Since rwc.arg is unused, rwc is effectively immutable, so we
-+	 * can make it static const to save some cycles and stack.
-+	 */
-+	static const struct rmap_walk_control rwc = {
- 		.rmap_one = kpageidle_clear_pte_refs_one,
- 		.anon_lock = page_lock_anon_vma_read,
- 	};
-@@ -376,7 +380,7 @@ static void kpageidle_clear_pte_refs(struct page *page)
- 	if (need_lock && !trylock_page(page))
- 		return;
- 
--	rmap_walk(page, &rwc);
-+	rmap_walk(page, (struct rmap_walk_control *)&rwc);
- 
- 	if (need_lock)
- 		unlock_page(page);
-@@ -466,7 +470,7 @@ static ssize_t kpageidle_write(struct file *file, const char __user *buf,
- 			}
- 			in++;
- 		}
--		if (idle_bitmap >> bit & 1) {
-+		if ((idle_bitmap >> bit) & 1) {
- 			page = kpageidle_get_page(pfn);
- 			if (page) {
- 				kpageidle_clear_pte_refs(page);
+>> Hm reports of even not-so-high-order allocation failures occur from time to
+>> time. Some might be from atomic context, but some are because compaction just
+>> can't help due to the unmovable fragmentation. That's mostly a guess, since
+>> such detailed information isn't there, but I think Joonsoo did some
+>> experiments that confirmed this.
+>>
+>
+> If it's unmovable fragmentation, then any periodic synchronous memory
+> compaction isn't going to help either.
+
+It can help if it moves away movable pages out of unmovable pageblocks, 
+so the following unmovable allocations can be served from those 
+pageblocks and not fallback to pollute another movable pageblock. Even 
+better if this is done (kcompactd woken up) in response to such 
+fallback, where unmovable page falls to a partially filled movable 
+pageblock. Stuffing also this into khugepaged would be really a stretch. 
+Joonsoo proposed another daemon for that in
+https://lkml.org/lkml/2015/4/27/94 but extending kcompactd would be a 
+very natural way for this.
+
+> The page allocator already does
+> MIGRATE_SYNC_LIGHT compaction on its second pass and that will terminate
+> when a high-order page is available.  If it is currently failing, then I
+> don't see the benefit of synchronous memory compaction over all memory
+> that would substantially help this case.
+
+The sync compaction is no longer done for THP page faults, so if there's 
+no other source of the sync compaction, system can fragment over time 
+and then it might be too late when the need comes.
+
+>> Also effects on the fragmentation are evaluated when making changes to
+>> compaction, see e.g. http://marc.info/?l=linux-mm&m=143634369227134&w=2
+>> In the past it has prevented changes that would improve latency of direct
+>> compaction. They might be possible if there was a reliable source of more
+>> thorough periodic compaction to counter the not-so-thorough direct compaction.
+>>
+>
+> Hmm, I don't think we have to select one to the excusion of the other.  I
+> don't think that because khugepaged may do periodic synchronous memory
+> compaction (to eventually remove direct compaction entirely from the page
+> fault path, since we have checks in the page allocator that specifically
+> do that)
+
+That would be nice for the THP page faults, yes. Or maybe just change 
+the default for thp "defrag" tunable to "madvise".
+
+> that we can't do background memory compaction elsewhere.  I think
+> it would be trivial to schedule a workqueue in the page allocator when
+> MIGRATE_ASYNC compaction fails for a high-order allocation on a node and
+> to have that local compaction done in the background.
+
+I think pushing compaction in a workqueue would meet a bigger resistance 
+than new kthreads. It could be too heavyweight for this mechanism and 
+what if there's suddenly lots of allocations in parallel failing and 
+scheduling the work items? So if we do it elsewhere, I think it's best 
+as kcompactd kthreads and then why would we do it also in khugepaged?
+
+I guess a broader input than just us two would help :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
