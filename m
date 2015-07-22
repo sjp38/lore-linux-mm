@@ -1,44 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C9FF76B0038
-	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 20:11:33 -0400 (EDT)
-Received: by iecri3 with SMTP id ri3so60287473iec.2
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 17:11:33 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id e3si46865932pdc.50.2015.07.21.17.11.33
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 32E536B0261
+	for <linux-mm@kvack.org>; Tue, 21 Jul 2015 20:25:29 -0400 (EDT)
+Received: by qkfc129 with SMTP id c129so101415853qkf.1
+        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 17:25:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d14si30311639qhc.99.2015.07.21.17.25.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jul 2015 17:11:33 -0700 (PDT)
-Received: by pachj5 with SMTP id hj5so128336859pac.3
-        for <linux-mm@kvack.org>; Tue, 21 Jul 2015 17:11:33 -0700 (PDT)
-Date: Tue, 21 Jul 2015 17:11:31 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 04/10] mm, page_alloc: Remove unnecessary taking of a
- seqlock when cpusets are disabled
-In-Reply-To: <1437379219-9160-5-git-send-email-mgorman@suse.com>
-Message-ID: <alpine.DEB.2.10.1507211710090.12650@chino.kir.corp.google.com>
-References: <1437379219-9160-1-git-send-email-mgorman@suse.com> <1437379219-9160-5-git-send-email-mgorman@suse.com>
+        Tue, 21 Jul 2015 17:25:28 -0700 (PDT)
+Date: Wed, 22 Jul 2015 08:25:22 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH 3/3] percpu: add macro PCPU_CHUNK_AREA_IN_USE
+Message-ID: <20150722002522.GB1834@dhcp-17-102.nay.redhat.com>
+References: <1437404130-5188-1-git-send-email-bhe@redhat.com>
+ <1437404130-5188-3-git-send-email-bhe@redhat.com>
+ <alpine.DEB.2.11.1507201034210.14535@east.gentwo.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1507201034210.14535@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Christoph Lameter <cl@linux.com>
+Cc: tj@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 20 Jul 2015, Mel Gorman wrote:
+Hi Christoph,
 
-> From: Mel Gorman <mgorman@suse.de>
+On 07/20/15 at 10:35am, Christoph Lameter wrote:
+> On Mon, 20 Jul 2015, Baoquan He wrote:
 > 
-> There is a seqcounter that protects spurious allocation fails when a task
-> is changing the allowed nodes in a cpuset. There is no need to check the
-> seqcounter until a cpuset exists.
+> > chunk->map[] contains <offset|in-use flag> of each area. Now add a
+> > new macro PCPU_CHUNK_AREA_IN_USE and use it as the in-use flag to
+> > replace all magic number '1'.
 > 
-> Signed-off-by: Mel Gorman <mgorman@sujse.de>
+> Hmmm... This is a bitflag and the code now looks like there is some sort
+> of bitmask that were are using. Use bitops or something else that clearly
+> implies that a bit is flipped instead?
 
-Acked-by: David Rientjes <rientjes@google.com>
+Thanks for your reviewing and suggesting.
 
-but there's a typo in your email address in the signed-off-by line.  Nice 
-to know you actually type them by hand though :)
+I tried your suggestion and changed to use set_bit/clear_bit to do
+instead. It's like this:
+
+@@ -328,8 +329,10 @@ static void pcpu_mem_free(void *ptr, size_t size)
+  */
+ static int pcpu_count_occupied_pages(struct pcpu_chunk *chunk, int i)
+ {
+-       int off = chunk->map[i] & ~1;
+-       int end = chunk->map[i + 1] & ~1;
++       int off = chunk->map[i];
++       int end = chunk->map[i + 1];
++       clear_bit(PCPU_CHUNK_AREA_IN_USE_BIT, &chunk->map[i]);
++       clear_bit(PCPU_CHUNK_AREA_IN_USE_BIT, &chunk->map[i + 1]);
+
+Looks like code becomes a little redundent. If several different bits in
+chunk->map[] have different usage and need several different flags,
+bitops maybe better. While now only the lowest bit need be handle, use
+bitops kindof too much and can make code a little messy.
+
+You and Tejun may be a little struggled on this change since it make
+code longer. Tejun has suggested that at least use a shorter name, like
+PCPU_MAP_BUSY. I am going to post v2 to see if it's better.
+
+Thanks
+Baoquan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
