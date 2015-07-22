@@ -1,219 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8160F9003C7
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 08:46:47 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so170724326wib.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 05:46:46 -0700 (PDT)
-Received: from mx03.imt-systems.com (mx03.imt-systems.com. [212.224.83.172])
-        by mx.google.com with ESMTPS id pr9si2299573wjc.194.2015.07.22.05.46.44
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 09DD99003C7
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 09:06:25 -0400 (EDT)
+Received: by oige126 with SMTP id e126so143095745oig.0
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 06:06:24 -0700 (PDT)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id el7si3727738pdb.190.2015.07.22.06.06.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 05:46:44 -0700 (PDT)
-Received: from ucsinet10.imt-systems.com (ucsinet10.imt-systems.com [212.224.83.165])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mx03.imt-systems.com (Postfix) with ESMTPS id 3mbxPZ243Gz3xG4
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:46:42 +0200 (CEST)
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	(authenticated bits=0)
-	by ucsinet10.imt-systems.com (8.14.7/8.14.7) with ESMTP id t6MCkeis018053
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 14:46:42 +0200
-Received: by wibud3 with SMTP id ud3so152568114wib.1
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 05:46:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAKSJeFKR+jWYiMiexvqGyBQe-=hGmq0DO0TZK-EQszTwcbmG4A@mail.gmail.com>
-References: <alpine.LSU.2.11.1506140944380.11018@eggly.anvils>
-	<557E6C0C.3050802@monom.org>
-	<CAKSJeFKR+jWYiMiexvqGyBQe-=hGmq0DO0TZK-EQszTwcbmG4A@mail.gmail.com>
-Date: Wed, 22 Jul 2015 14:46:40 +0200
-Message-ID: <CAKSJeFK3ZxWRDg5pwBqgMWXkzatHu+cp5Gx9W+7cyaNMx5qTFA@mail.gmail.com>
-Subject: Re: mm: shmem_zero_setup skip security check and lockdep conflict
- with XFS
-From: Morten Stevens <mstevens@fedoraproject.org>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Jul 2015 06:06:24 -0700 (PDT)
+Received: from epcpsbgr5.samsung.com
+ (u145.gpu120.samsung.co.kr [203.254.230.145])
+ by mailout1.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0NRW00UZ74ELXA40@mailout1.samsung.com> for linux-mm@kvack.org;
+ Wed, 22 Jul 2015 22:06:21 +0900 (KST)
+From: PINTU KUMAR <pintu.k@samsung.com>
+References: <1437114578-2502-1-git-send-email-pintu.k@samsung.com>
+ <1437366544-32673-1-git-send-email-pintu.k@samsung.com>
+ <20150720082810.GG2561@suse.de> <02c601d0c306$f86d30f0$e94792d0$@samsung.com>
+ <20150720175538.GJ2561@suse.de>
+In-reply-to: <20150720175538.GJ2561@suse.de>
+Subject: RE: [PATCH v3 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
+ feature
+Date: Wed, 22 Jul 2015 18:33:26 +0530
+Message-id: <05af01d0c47f$3337ccd0$99a76670$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: en-us
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Morten Stevens <mstevens@fedoraproject.org>, Stephen Smalley <sds@tycho.nsa.gov>
-Cc: Daniel Wagner <wagi@monom.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Prarit Bhargava <prarit@redhat.com>, Dave Chinner <david@fromorbit.com>, Eric Paris <eparis@redhat.com>, Eric Sandeen <esandeen@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
+To: 'Mel Gorman' <mgorman@suse.de>
+Cc: akpm@linux-foundation.org, corbet@lwn.net, vbabka@suse.cz, gorcunov@openvz.org, mhocko@suse.cz, emunson@akamai.com, kirill.shutemov@linux.intel.com, standby24x7@gmail.com, hannes@cmpxchg.org, vdavydov@parallels.com, hughd@google.com, minchan@kernel.org, tj@kernel.org, rientjes@google.com, xypron.glpk@gmx.de, dzickus@redhat.com, prarit@redhat.com, ebiederm@xmission.com, rostedt@goodmis.org, uobergfe@redhat.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, ddstreet@ieee.org, sasha.levin@oracle.com, koct9i@gmail.com, cj@linux.com, opensource.ganesh@gmail.com, vinmenon@codeaurora.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, qiuxishi@huawei.com, Valdis.Kletnieks@vt.edu, cpgs@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, iqbal.ams@samsung.com, pintu.ping@gmail.com, pintu.k@outlook.com
 
-2015-06-17 13:45 GMT+02:00 Morten Stevens <mstevens@fedoraproject.org>:
-> 2015-06-15 8:09 GMT+02:00 Daniel Wagner <wagi@monom.org>:
->> On 06/14/2015 06:48 PM, Hugh Dickins wrote:
->>> It appears that, at some point last year, XFS made directory handling
->>> changes which bring it into lockdep conflict with shmem_zero_setup():
->>> it is surprising that mmap() can clone an inode while holding mmap_sem,
->>> but that has been so for many years.
->>>
->>> Since those few lockdep traces that I've seen all implicated selinux,
->>> I'm hoping that we can use the __shmem_file_setup(,,,S_PRIVATE) which
->>> v3.13's commit c7277090927a ("security: shmem: implement kernel private
->>> shmem inodes") introduced to avoid LSM checks on kernel-internal inodes:
->>> the mmap("/dev/zero") cloned inode is indeed a kernel-internal detail.
->>>
->>> This also covers the !CONFIG_SHMEM use of ramfs to support /dev/zero
->>> (and MAP_SHARED|MAP_ANONYMOUS).  I thought there were also drivers
->>> which cloned inode in mmap(), but if so, I cannot locate them now.
->>>
->>> Reported-and-tested-by: Prarit Bhargava <prarit@redhat.com>
->>> Reported-by: Daniel Wagner <wagi@monom.org>
->>
->> Reported-and-tested-by: Daniel Wagner <wagi@monom.org>
->>
->> Sorry for the long delay. It took me a while to figure out my original
->> setup. I could verify that this patch made the lockdep message go away
->> on 4.0-rc6 and also on 4.1-rc8.
->
-> Yes, it's also fixed for me after applying this patch to 4.1-rc8.
+Dear Mel, thank you very much for your comments and suggestions.
+I will drop this one and look on further improving direct_reclaim and
+compaction.
+Just few more comments below before I close.
 
-Here is another deadlock with the latest 4.2.0-rc3:
+Also, during this patch, I feel that the hibernation_mode part in
+shrink_all_memory can be corrected.
+So, can I separately submit the below patch?
+That is instead of hard-coding the hibernation_mode, we can get hibernation
+status using:
+system_entering_hibernation()
 
-Jul 22 14:36:40 fc23 kernel:
-======================================================
-Jul 22 14:36:40 fc23 kernel: [ INFO: possible circular locking
-dependency detected ]
-Jul 22 14:36:40 fc23 kernel: 4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1
-Tainted: G        W
-Jul 22 14:36:40 fc23 kernel:
--------------------------------------------------------
-Jul 22 14:36:40 fc23 kernel: httpd/1597 is trying to acquire lock:
-Jul 22 14:36:40 fc23 kernel: (&ids->rwsem){+++++.}, at:
-[<ffffffff81385354>] shm_close+0x34/0x130
-Jul 22 14:36:40 fc23 kernel: #012but task is already holding lock:
-Jul 22 14:36:40 fc23 kernel: (&mm->mmap_sem){++++++}, at:
-[<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
-Jul 22 14:36:40 fc23 kernel: #012which lock already depends on the new lock.
-Jul 22 14:36:40 fc23 kernel: #012the existing dependency chain (in
-reverse order) is:
-Jul 22 14:36:40 fc23 kernel: #012-> #3 (&mm->mmap_sem){++++++}:
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81217baa>] __might_fault+0x7a/0xa0
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81284a1e>] filldir+0x9e/0x130
-Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019bb08>]
-xfs_dir2_block_getdents.isra.12+0x198/0x1c0 [xfs]
-Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019c5b4>]
-xfs_readdir+0x1b4/0x330 [xfs]
-Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019f38b>]
-xfs_file_readdir+0x2b/0x30 [xfs]
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff812847e7>] iterate_dir+0x97/0x130
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81284d21>] SyS_getdents+0x91/0x120
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
-entry_SYSCALL_64_fastpath+0x12/0x76
-Jul 22 14:36:40 fc23 kernel: #012-> #2 (&xfs_dir_ilock_class){++++.+}:
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81101e97>]
-down_read_nested+0x57/0xa0
-Jul 22 14:36:40 fc23 kernel:       [<ffffffffa01b0e57>]
-xfs_ilock+0x167/0x350 [xfs]
-Jul 22 14:36:40 fc23 kernel:       [<ffffffffa01b10b8>]
-xfs_ilock_attr_map_shared+0x38/0x50 [xfs]
-Jul 22 14:36:40 fc23 kernel:       [<ffffffffa014799d>]
-xfs_attr_get+0xbd/0x190 [xfs]
-Jul 22 14:36:40 fc23 kernel:       [<ffffffffa01c17ad>]
-xfs_xattr_get+0x3d/0x70 [xfs]
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8129962f>]
-generic_getxattr+0x4f/0x70
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139ba52>]
-inode_doinit_with_dentry+0x162/0x670
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139cf69>]
-sb_finish_set_opts+0xd9/0x230
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139d66c>]
-selinux_set_mnt_opts+0x35c/0x660
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139ff97>]
-superblock_doinit+0x77/0xf0
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff813a0020>]
-delayed_superblock_init+0x10/0x20
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81272d23>]
-iterate_supers+0xb3/0x110
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff813a4e5f>]
-selinux_complete_init+0x2f/0x40
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff813b47a3>]
-security_load_policy+0x103/0x600
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff813a6901>]
-sel_write_load+0xc1/0x750
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8126e817>] __vfs_write+0x37/0x100
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8126f229>] vfs_write+0xa9/0x1a0
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8126ff48>] SyS_write+0x58/0xd0
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
-entry_SYSCALL_64_fastpath+0x12/0x76
-Jul 22 14:36:40 fc23 kernel: #012-> #1 (&isec->lock){+.+.+.}:
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8186de8f>]
-mutex_lock_nested+0x7f/0x3e0
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139b9a9>]
-inode_doinit_with_dentry+0xb9/0x670
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139bf7c>]
-selinux_d_instantiate+0x1c/0x20
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff813955f6>]
-security_d_instantiate+0x36/0x60
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81287c34>] d_instantiate+0x54/0x70
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8120111c>]
-__shmem_file_setup+0xdc/0x240
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81201290>]
-shmem_file_setup+0x10/0x20
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff813856e0>] newseg+0x290/0x3a0
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8137e278>] ipcget+0x208/0x2d0
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81386074>] SyS_shmget+0x54/0x70
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
-entry_SYSCALL_64_fastpath+0x12/0x76
-Jul 22 14:36:40 fc23 kernel: #012-> #0 (&ids->rwsem){+++++.}:
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81108df8>]
-__lock_acquire+0x1a78/0x1d00
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff8186efba>] down_write+0x5a/0xc0
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81385354>] shm_close+0x34/0x130
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff812203a5>] remove_vma+0x45/0x80
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81222a30>] do_munmap+0x2b0/0x460
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
-Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
-entry_SYSCALL_64_fastpath+0x12/0x76
-Jul 22 14:36:40 fc23 kernel: #012other info that might help us debug this:
-Jul 22 14:36:40 fc23 kernel: Chain exists of:#012  &ids->rwsem -->
-&xfs_dir_ilock_class --> &mm->mmap_sem
-Jul 22 14:36:40 fc23 kernel: Possible unsafe locking scenario:
-Jul 22 14:36:40 fc23 kernel:       CPU0                    CPU1
-Jul 22 14:36:40 fc23 kernel:       ----                    ----
-Jul 22 14:36:40 fc23 kernel:  lock(&mm->mmap_sem);
-Jul 22 14:36:40 fc23 kernel:
-lock(&xfs_dir_ilock_class);
-Jul 22 14:36:40 fc23 kernel:                               lock(&mm->mmap_sem);
-Jul 22 14:36:40 fc23 kernel:  lock(&ids->rwsem);
-Jul 22 14:36:40 fc23 kernel: #012 *** DEADLOCK ***
-Jul 22 14:36:40 fc23 kernel: 1 lock held by httpd/1597:
-Jul 22 14:36:40 fc23 kernel: #0:  (&mm->mmap_sem){++++++}, at:
-[<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
-Jul 22 14:36:40 fc23 kernel: #012stack backtrace:
-Jul 22 14:36:40 fc23 kernel: CPU: 7 PID: 1597 Comm: httpd Tainted: G
-     W       4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1
-Jul 22 14:36:40 fc23 kernel: Hardware name: VMware, Inc. VMware
-Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00
-05/20/2014
-Jul 22 14:36:40 fc23 kernel: 0000000000000000 000000006cb6fe9d
-ffff88019ff07c58 ffffffff81868175
-Jul 22 14:36:40 fc23 kernel: 0000000000000000 ffffffff82aea390
-ffff88019ff07ca8 ffffffff81105903
-Jul 22 14:36:40 fc23 kernel: ffff88019ff07c78 ffff88019ff07d08
-0000000000000001 ffff8800b75108f0
-Jul 22 14:36:40 fc23 kernel: Call Trace:
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81868175>] dump_stack+0x4c/0x65
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81105903>] print_circular_bug+0x1e3/0x250
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81108df8>] __lock_acquire+0x1a78/0x1d00
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81220c33>] ? unlink_file_vma+0x33/0x60
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81109a07>] lock_acquire+0xc7/0x270
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81385354>] ? shm_close+0x34/0x130
-Jul 22 14:36:40 fc23 kernel: [<ffffffff8186efba>] down_write+0x5a/0xc0
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81385354>] ? shm_close+0x34/0x130
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81385354>] shm_close+0x34/0x130
-Jul 22 14:36:40 fc23 kernel: [<ffffffff812203a5>] remove_vma+0x45/0x80
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81222a30>] do_munmap+0x2b0/0x460
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81386bbb>] ? SyS_shmdt+0x4b/0x180
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
-Jul 22 14:36:40 fc23 kernel: [<ffffffff81871d2e>]
-entry_SYSCALL_64_fastpath+0x12/0x76
+Please let me know your suggestion about this changes.
 
-Best regards,
+-#ifdef CONFIG_HIBERNATION
++#if defined CONFIG_HIBERNATION || CONFIG_SHRINK_MEMORY
+ /*
+  * Try to free `nr_to_reclaim' of memory, system-wide, and return the number of
+  * freed pages.
+@@ -3576,12 +3580,16 @@ unsigned long shrink_all_memory(unsigned long
+nr_to_reclaim)
+                .may_writepage = 1,
+                .may_unmap = 1,
+                .may_swap = 1,
+-               .hibernation_mode = 1,
+        };
+        struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
+        struct task_struct *p = current;
+        unsigned long nr_reclaimed;
 
-Morten
++       if (system_entering_hibernation())
++               sc.hibernation_mode = 1;
++       else
++               sc.hibernation_mode = 0;
++
+        p->flags |= PF_MEMALLOC;
+        lockdep_set_current_reclaim_state(sc.gfp_mask);
+        reclaim_state.reclaimed_slab = 0;
+@@ -3597,6 +3605,28 @@ unsigned long shrink_all_memory(unsigned long
+nr_to_reclaim)
+ }
+ #endif /* CONFIG_HIBERNATION */
+
+
+> -----Original Message-----
+> From: Mel Gorman [mailto:mgorman@suse.de]
+> Sent: Monday, July 20, 2015 11:26 PM
+> To: PINTU KUMAR
+> Cc: akpm@linux-foundation.org; corbet@lwn.net; vbabka@suse.cz;
+> gorcunov@openvz.org; mhocko@suse.cz; emunson@akamai.com;
+> kirill.shutemov@linux.intel.com; standby24x7@gmail.com;
+> hannes@cmpxchg.org; vdavydov@parallels.com; hughd@google.com;
+> minchan@kernel.org; tj@kernel.org; rientjes@google.com;
+> xypron.glpk@gmx.de; dzickus@redhat.com; prarit@redhat.com;
+> ebiederm@xmission.com; rostedt@goodmis.org; uobergfe@redhat.com;
+> paulmck@linux.vnet.ibm.com; iamjoonsoo.kim@lge.com; ddstreet@ieee.org;
+> sasha.levin@oracle.com; koct9i@gmail.com; cj@linux.com;
+> opensource.ganesh@gmail.com; vinmenon@codeaurora.org; linux-
+> doc@vger.kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; linux-
+> pm@vger.kernel.org; qiuxishi@huawei.com; Valdis.Kletnieks@vt.edu;
+> cpgs@samsung.com; pintu_agarwal@yahoo.com; vishnu.ps@samsung.com;
+> rohit.kr@samsung.com; iqbal.ams@samsung.com; pintu.ping@gmail.com;
+> pintu.k@outlook.com
+> Subject: Re: [PATCH v3 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
+> feature
+> 
+> On Mon, Jul 20, 2015 at 09:43:02PM +0530, PINTU KUMAR wrote:
+> > Hi,
+> >
+> > Thank you all for reviewing the patch and providing your valuable
+> > comments and suggestions.
+> > During the ELC conference many people suggested to release the patch
+> > to mainline, so this patch, to get others opinion.
+> >
+> 
+> Unfortunately, in my opinion it runs the risk of creating a different set of
+> problems. Either it needs to be run frequently to keep memory free which
+incurs
+> one set of penalties or it is used too late when there are
+> unmovable/unreclaimable pages preventing allocations succeeding in which case
+> you are back at the original problem. 
+
+Yes, I completely agree with you that it needs to be invoked at the right time.
+Running it too late is of no benefit.
+
+> I see what you did and why it would work in  some cases 
+> but I think the main reason it works is because it's run frequently
+> enough so memory is never used. 
+
+Yes, we ran frequently, but not so frequently and only when required.
+Actually, it gives us best result when calling shrink_memory plus compaction
+together,
+once after boot, and once during order-4 failure from kernel, or during suspend
+state.
+It reduced the slowpath count drastically (during 30 application launch test).
+VMSTAT		WITHOUT	WITH
+slowpath_entered	16659		1859
+allocstall		298		149
+pageoutrun		2699		1108
+compact_stall		244		37
+nr_free_cma		2560		2505
+
+Anyways, I agree that if reclaimable pages or SWAP free is not enough, it does
+not 
+yield good results.
+
+> Grouping pages by mobility actually took
+> advantage of a similar property when it increased min_free_kbytes but that was
+> much more limited than adding a giant hammer for userspace to reclaim the
+> world.
+> 
+> > If you have any more suggestions to experiment and verify please let me
+know.
+> >
+> 
+> I believe I already did. If it's high-order reliability that is important then
+you need
+> to either reserve the memory or look at protecting the pages using grouping
+> pages by mobility. I pointed out what series to look at and the leader
+explains
+> how it could be adjusted further for the embedded case if necessary.
+
+Thanks. I would definitely look into grouping pages by mobility and those
+series.
+
+> 
+> If it's latency you are interested in then reclaim/compaction needs to be
+modified
+> to be more aggressive when it is somehow detected that the high-order
+> allocation must succeed for functional correctness. In that case the
+relational
+> starting point would be to look at should_continue_reclaim and how it relates
+to
+> compaction.
+> 
+Thanks. Definitely I will do a deep dive into should_continue_reclaim.
+
+> > The suggestion was only to open up the shrink_all_memory API for some use
+> cases.
+> >
+> > I am not saying that it needs to be called continuously. It can be
+> > used only on certain condition and only when deemed necessary.
+> > The same technique is already used in hibernation to reduce the RAM
+> > snapshot image size.
+> 
+> Reducing memory usage is not the same as guaranteeing that high-order pages
+> are available for allocation.
+> 
+> --
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
