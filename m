@@ -1,86 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 94FAC6B0258
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 12:33:44 -0400 (EDT)
-Received: by lbbyj8 with SMTP id yj8so140498714lbb.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 09:33:44 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id a7si1633019lab.49.2015.07.22.09.33.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 09:33:42 -0700 (PDT)
-Date: Wed, 22 Jul 2015 19:33:17 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v9 5/8] mmu-notifier: add clear_young callback
-Message-ID: <20150722163317.GO23374@esperanza>
-References: <cover.1437303956.git.vdavydov@parallels.com>
- <e4ab6e8be3f9f94fe9814219c4a9a19c375a5835.1437303956.git.vdavydov@parallels.com>
- <CAJu=L5_q=xWfANDBX2-Z3=uudof+ifKS56zEtAR372VqDWOj2Q@mail.gmail.com>
- <20150721085108.GA18673@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150721085108.GA18673@esperanza>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 83DB96B0279
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 13:13:43 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so141570565pdr.2
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:13:43 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id of15si5208202pdb.167.2015.07.22.10.13.42
+        for <linux-mm@kvack.org>;
+        Wed, 22 Jul 2015 10:13:42 -0700 (PDT)
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: [PATCH] mm: Flush the TLB for a single address in a huge page
+Date: Wed, 22 Jul 2015 18:13:34 +0100
+Message-Id: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg
- Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David
- Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-Hi Andrew,
+When the page table entry is a huge page (and not a table), there is no
+need to flush the TLB by range. This patch changes flush_tlb_range() to
+flush_tlb_page() in functions where we know the pmd entry is a huge
+page.
 
-Would you mind merging this incremental patch to the original one? Or
-should I better resubmit the whole series with all the fixes?
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+---
 
-On Tue, Jul 21, 2015 at 11:51:08AM +0300, Vladimir Davydov wrote:
-> On Mon, Jul 20, 2015 at 11:34:21AM -0700, Andres Lagar-Cavilla wrote:
-> > On Sun, Jul 19, 2015 at 5:31 AM, Vladimir Davydov <vdavydov@parallels.com>
-> [...]
-> > > +static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
-> > > +                                       struct mm_struct *mm,
-> > > +                                       unsigned long start,
-> > > +                                       unsigned long end)
-> > > +{
-> > > +       struct kvm *kvm = mmu_notifier_to_kvm(mn);
-> > > +       int young, idx;
-> > > +
-> > >
-> > If you need to cut out another version please add comments as to the two
-> > issues raised:
-> > - This doesn't proactively flush TLBs -- not obvious if it should.
-> > - This adversely affects performance in Pre_haswell Intel EPT.
-> 
-> Oops, I stopped reading your e-mail in reply to the previous version of
-> this patch as soon as I saw the Reviewed-by tag, so I missed your
-> request for the comment, sorry about that.
-> 
-> Here it goes (incremental):
-> ---
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index ff4173ce6924..e69a5cb99571 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -397,6 +397,19 @@ static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
->  
->  	idx = srcu_read_lock(&kvm->srcu);
->  	spin_lock(&kvm->mmu_lock);
-> +	/*
-> +	 * Even though we do not flush TLB, this will still adversely
-> +	 * affect performance on pre-Haswell Intel EPT, where there is
-> +	 * no EPT Access Bit to clear so that we have to tear down EPT
-> +	 * tables instead. If we find this unacceptable, we can always
-> +	 * add a parameter to kvm_age_hva so that it effectively doesn't
-> +	 * do anything on clear_young.
-> +	 *
-> +	 * Also note that currently we never issue secondary TLB flushes
-> +	 * from clear_young, leaving this job up to the regular system
-> +	 * cadence. If we find this inaccurate, we might come up with a
-> +	 * more sophisticated heuristic later.
-> +	 */
->  	young = kvm_age_hva(kvm, start, end);
->  	spin_unlock(&kvm->mmu_lock);
->  	srcu_read_unlock(&kvm->srcu, idx);
+Hi,
+
+That's just a minor improvement but it saves iterating over each small
+page in a huge page when a single TLB entry is used (we already have a
+similar assumption in __tlb_adjust_range).
+
+Thanks.
+
+ mm/pgtable-generic.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index 6b674e00153c..ff17eca26211 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -67,7 +67,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 	if (changed) {
+ 		set_pmd_at(vma->vm_mm, address, pmdp, entry);
+-		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++		flush_tlb_page(vma, address);
+ 	}
+ 	return changed;
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+@@ -101,7 +101,7 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 	young = pmdp_test_and_clear_young(vma, address, pmdp);
+ 	if (young)
+-		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++		flush_tlb_page(vma, address);
+ 	return young;
+ }
+ #endif
+@@ -128,7 +128,7 @@ pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma, unsigned long address,
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 	VM_BUG_ON(!pmd_trans_huge(*pmdp));
+ 	pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
+-	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	flush_tlb_page(vma, address);
+ 	return pmd;
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+@@ -143,7 +143,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
+ 	/* tlb flush only to serialize against gup-fast */
+-	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	flush_tlb_page(vma, address);
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #endif
+@@ -195,7 +195,7 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ {
+ 	pmd_t entry = *pmdp;
+ 	set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
+-	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
++	flush_tlb_page(vma, address);
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
