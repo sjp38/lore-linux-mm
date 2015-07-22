@@ -1,74 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C40319003C7
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 19:19:57 -0400 (EDT)
-Received: by padck2 with SMTP id ck2so145446760pad.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 16:19:57 -0700 (PDT)
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id C62769003C7
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 19:31:41 -0400 (EDT)
+Received: by obnw1 with SMTP id w1so143774961obn.3
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 16:31:41 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id gs1si7092003pac.67.2015.07.22.16.19.55
+        by mx.google.com with ESMTPS id y4si2358442oiy.21.2015.07.22.16.31.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 16:19:56 -0700 (PDT)
-Message-ID: <55B024C6.8010504@oracle.com>
-Date: Wed, 22 Jul 2015 16:18:30 -0700
+        Wed, 22 Jul 2015 16:31:40 -0700 (PDT)
+Message-ID: <55B027D3.4020608@oracle.com>
+Date: Wed, 22 Jul 2015 16:31:31 -0700
 From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 00/10] hugetlbfs: add fallocate support
-References: <1437502184-14269-1-git-send-email-mike.kravetz@oracle.com>	<20150722150647.2597c7e5be9ee1eecc438b6f@linux-foundation.org>	<1437603594.3298.5.camel@stgolabs.net> <20150722153023.e8f15eb4e490f79cc029c8cd@linux-foundation.org>
-In-Reply-To: <20150722153023.e8f15eb4e490f79cc029c8cd@linux-foundation.org>
+Subject: Re: [patch] mmap.2: document the munmap exception for underlying
+ page size
+References: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, Eric B Munson <emunson@akamai.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Michal Hocko <mhocko@suse.cz>
+To: David Rientjes <rientjes@google.com>, mtk.manpages@gmail.com
+Cc: Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Eric B Munson <emunson@akamai.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-On 07/22/2015 03:30 PM, Andrew Morton wrote:
-> On Wed, 22 Jul 2015 15:19:54 -0700 Davidlohr Bueso <dave@stgolabs.net> wrote:
+On 07/21/2015 05:41 PM, David Rientjes wrote:
+> munmap(2) will fail with an errno of EINVAL for hugetlb memory if the
+> length is not a multiple of the underlying page size.
 >
->>>
->>> I didn't know that libhugetlbfs has tests.  I wonder if that makes
->>> tools/testing/selftests/vm's hugetlbfstest harmful?
->>
->> Why harmful? Redundant, maybe(?).
+> Documentation/vm/hugetlbpage.txt was updated to specify this behavior
+> since Linux 4.1 in commit 80d6b94bd69a ("mm, doc: cleanup and clarify
+> munmap behavior for hugetlb memory").
 >
-> The presence of the in-kernel tests will cause people to add stuff to
-> them when it would be better if they were to apply that effort to
-> making libhugetlbfs better.  Or vice versa.
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>   man2/mmap.2 | 4 ++++
+>   1 file changed, 4 insertions(+)
 >
-> Mike's work is an example.  Someone later makes a change to hugetlbfs, runs
-> the kernel selftest and says "yay, everything works", unaware that they
-> just broke fallocate support.
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -383,6 +383,10 @@ All pages containing a part
+>   of the indicated range are unmapped, and subsequent references
+>   to these pages will generate
+>   .BR SIGSEGV .
+> +An exception is when the underlying memory is not of the native page
+> +size, such as hugetlb page sizes, whereas
+> +.I length
+> +must be a multiple of the underlying page size.
+>   It is not an error if the
+>   indicated range does not contain any mapped pages.
+>   .SS Timestamps changes for file-backed mappings
 >
->> Does anyone even use selftests for
->> hugetlbfs regression testing? Lets see, we also have these:
->>
->> - hugepage-{mmap,shm}.c
->> - map_hugetlb.c
->>
->> There's probably a lot of room for improvement here.
->
-> selftests is a pretty scrappy place.  It's partly a dumping ground for
-> things so useful test code doesn't just get lost and bitrotted.  Partly
-> a framework so people who add features can easily test them. Partly to
-> provide tools to architecture maintainers when they wire up new
-> syscalls and the like.
->
-> Unless there's some good reason to retain the hugetlb part of
-> selftests, I'm thinking we should just remove it to avoid
-> distracting/misleading people.  Or possibly move the libhugetlbfs test
-> code into the kernel tree and maintain it there.
+> --
 
-Adding Eric as he is the libhugetlbfs maintainer.
+Should we also add a similar comment for the mmap offset?  Currently
+the man page says:
 
-I think removing the hugetlb selftests in the kernel and pointing
-people to libhugetlbfs is the way to go.  From a very quick scan
-of the selftests, I would guess libhugetlbfs covers everything
-in those tests.
+"offset must be a multiple of the page size as returned by
+  sysconf(_SC_PAGE_SIZE)."
 
-I'm willing to verify the testing provided by selftests is included
-in libhugetlbfs, and remove selftests if that is the direction we
-want to take.
+For hugetlbfs, I beieve the offset must be a multiple of the
+hugetlb page size.  A similar comment/exception about using
+the "underlying page size" would apply here as well.
 
 -- 
 Mike Kravetz
