@@ -1,79 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 44CD56B0279
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 13:17:03 -0400 (EDT)
-Received: by wicgb10 with SMTP id gb10so107760519wic.1
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:17:02 -0700 (PDT)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id gp7si3554072wjc.131.2015.07.22.10.17.01
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 1444C6B0279
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 13:59:31 -0400 (EDT)
+Received: by igr7 with SMTP id 7so74446494igr.0
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:59:30 -0700 (PDT)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id c3si5465213pat.101.2015.07.22.10.54.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 10:17:01 -0700 (PDT)
-Received: by wibxm9 with SMTP id xm9so172973743wib.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 10:17:01 -0700 (PDT)
-Message-ID: <55AFD009.6080706@gmail.com>
-Date: Wed, 22 Jul 2015 19:16:57 +0200
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [patch] mmap.2: document the munmap exception for underlying
- page size
-References: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Jul 2015 10:54:32 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NRW00GV3HQRCG10@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 22 Jul 2015 18:54:27 +0100 (BST)
+Message-id: <55AFD8D0.9020308@samsung.com>
+Date: Wed, 22 Jul 2015 20:54:24 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH v2 5/5] arm64: add KASan support
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+ <1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
+ <CACRpkdaRJJjCXR=vK1M2YhR26JZfGoBB+jcqz8r2MhERfxRzqA@mail.gmail.com>
+ <CAPAsAGy-r8Z2N09wKV+e0kLfbwxd-eWK6N5Xajsnqq9jfyWqcQ@mail.gmail.com>
+ <CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
+ <CAPAsAGw-iawTpjJh66rQN5fqBFT6UBZCcv2eKx7JTqCXzhzpsw@mail.gmail.com>
+ <CACRpkdY2i2M27gP_fXawkFrC_GFgWaKr5rEn6d47refNPiEk=g@mail.gmail.com>
+ <55AE56DB.4040607@samsung.com>
+ <CACRpkdYaqK8upK-3b01JbO_y+sHnk4-Hm1MfvjSy0tKUkFREtQ@mail.gmail.com>
+In-reply-to: 
+ <CACRpkdYaqK8upK-3b01JbO_y+sHnk4-Hm1MfvjSy0tKUkFREtQ@mail.gmail.com>
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: mtk.manpages@gmail.com, Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Eric B Munson <emunson@akamai.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: Linus Walleij <linus.walleij@linaro.org>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi David,
-
-On 07/22/2015 02:41 AM, David Rientjes wrote:
-> munmap(2) will fail with an errno of EINVAL for hugetlb memory if the 
-> length is not a multiple of the underlying page size.
+On 07/22/2015 12:27 AM, Linus Walleij wrote:
+> On Tue, Jul 21, 2015 at 4:27 PM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
 > 
-> Documentation/vm/hugetlbpage.txt was updated to specify this behavior 
-> since Linux 4.1 in commit 80d6b94bd69a ("mm, doc: cleanup and clarify 
-> munmap behavior for hugetlb memory").
+>> I used vexpress. Anyway, it doesn't matter now, since I have an update
+>> with a lot of stuff fixed, and it works on hardware.
+>> I still need to do some work on it and tomorrow, probably, I will share.
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  man2/mmap.2 | 4 ++++
->  1 file changed, 4 insertions(+)
+> Ah awesome. I have a stash of ARM boards so I can test it on a
+> range of hardware once you feel it's ready.
 > 
-> diff --git a/man2/mmap.2 b/man2/mmap.2
-> --- a/man2/mmap.2
-> +++ b/man2/mmap.2
-> @@ -383,6 +383,10 @@ All pages containing a part
->  of the indicated range are unmapped, and subsequent references
->  to these pages will generate
->  .BR SIGSEGV .
-> +An exception is when the underlying memory is not of the native page
-> +size, such as hugetlb page sizes, whereas
-> +.I length
-> +must be a multiple of the underlying page size.
->  It is not an error if the
->  indicated range does not contain any mapped pages.
->  .SS Timestamps changes for file-backed mappings
 
-I'm struggling a bit to understand your text. Is the point this:
+So here is updated version:
+	git://github.com/aryabinin/linux.git kasan/arm_v0_1
 
-    If we have a hugetlb area, then the munmap() length
-    must be a multiple of the page size.
-
-?
-
-Are there any requirements about 'addr'? Must it also me huge-page-aligned?
-
-Thanks,
-
-Michael
+The code is still ugly in some places and it probably have some bugs.
+Lightly tested on exynos 5410/5420.
 
 
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+> Sorry for pulling stuff out of your hands, people are excited about
+> KASan ARM32 as it turns out.
+> 
+> Yours,
+> Linus Walleij
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
