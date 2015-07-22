@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id F3EEB9003C8
-	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 18:03:16 -0400 (EDT)
-Received: by iehx8 with SMTP id x8so98346556ieh.3
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 15:03:16 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j1si14187099igx.6.2015.07.22.15.03.16
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 74DBD9003C8
+	for <linux-mm@kvack.org>; Wed, 22 Jul 2015 18:03:21 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so145104377pdr.2
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 15:03:21 -0700 (PDT)
+Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com. [2607:f8b0:400e:c02::235])
+        by mx.google.com with ESMTPS id u9si6646013pdp.186.2015.07.22.15.03.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jul 2015 15:03:16 -0700 (PDT)
-Date: Wed, 22 Jul 2015 15:03:14 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 00/10] hugetlbfs: add fallocate support
-Message-Id: <20150722150314.8c68d1715641c5533220f092@linux-foundation.org>
-In-Reply-To: <1437502184-14269-1-git-send-email-mike.kravetz@oracle.com>
-References: <1437502184-14269-1-git-send-email-mike.kravetz@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Jul 2015 15:03:20 -0700 (PDT)
+Received: by pdbbh15 with SMTP id bh15so99405430pdb.1
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 15:03:20 -0700 (PDT)
+Date: Wed, 22 Jul 2015 15:03:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mmap.2: document the munmap exception for underlying
+ page size
+In-Reply-To: <55AFD009.6080706@gmail.com>
+Message-ID: <alpine.DEB.2.10.1507221457300.21468@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com> <55AFD009.6080706@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christoph Hellwig <hch@infradead.org>, Michal Hocko <mhocko@suse.cz>
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Eric B Munson <emunson@akamai.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-On Tue, 21 Jul 2015 11:09:34 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On Wed, 22 Jul 2015, Michael Kerrisk (man-pages) wrote:
 
-> Changes in this revision address the minor comment and function name
-> issues brought up by Naoya Horiguchi.  Patch set is also rebased on
-> current "mmotm/since-4.1".  This revision does not introduce any
-> functional changes.
+> > diff --git a/man2/mmap.2 b/man2/mmap.2
+> > --- a/man2/mmap.2
+> > +++ b/man2/mmap.2
+> > @@ -383,6 +383,10 @@ All pages containing a part
+> >  of the indicated range are unmapped, and subsequent references
+> >  to these pages will generate
+> >  .BR SIGSEGV .
+> > +An exception is when the underlying memory is not of the native page
+> > +size, such as hugetlb page sizes, whereas
+> > +.I length
+> > +must be a multiple of the underlying page size.
+> >  It is not an error if the
+> >  indicated range does not contain any mapped pages.
+> >  .SS Timestamps changes for file-backed mappings
 > 
-> As suggested during the RFC process, tests have been proposed to
-> libhugetlbfs as described at:
-> http://librelist.com/browser//libhugetlbfs/2015/6/25/patch-tests-add-tests-for-fallocate-system-call/
-> fallocate(2) man page modifications are also necessary to specify
-> that fallocate for hugetlbfs only operates on whole pages.  This
-> change will be submitted once the code has stabilized and been
-> proposed for merging.
+> I'm struggling a bit to understand your text. Is the point this:
 > 
-> hugetlbfs is used today by applications that want a high degree of
-> control over huge page usage.  Often, large hugetlbfs files are used
-> to map a large number huge pages into the application processes.
-> The applications know when page ranges within these large files will
-> no longer be used, and ideally would like to release them back to
-> the subpool or global pools for other uses.  The fallocate() system
-> call provides an interface for preallocation and hole punching within
-> files.  This patch set adds fallocate functionality to hugetlbfs.
+>     If we have a hugetlb area, then the munmap() length
+>     must be a multiple of the page size.
 > 
-> v4:
->   Renamed vma_abort_reservation() to vma_end_reservation().
->
-> ...
->
-> v3 patch series:
-> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> ?
+> 
 
-eek.  Please don't hide the reviews and acks in [0/n] like this.  I
-don't expect to see them there, which causes me to park the patch
-series until I'm feeling awake enough to undertake the patchset's first
-ever review.
+Of the hugetlb page size, yes, which was meant by the "underlying page 
+size" since we have configurable hugetlb sizes.  This is different from 
+the native page size, whereas the length is rounded up to be page aligned 
+per POSIX.
+
+> Are there any requirements about 'addr'? Must it also me huge-page-aligned?
+> 
+
+Yes, so it looks like we need to fix up the reference to "address addr 
+must be a multiple of the page size" to something like "address addr must 
+be a multiple of the underlying page size" but I think the distinction 
+isn't explicit enough as I'd like it.  I think it's better to explicitly 
+show the exception for hugetlb page sizes and compare the underlying page 
+size to the native page size to define how the behavior differs.
+
+Would something like
+
+	An exception is when the underlying memory, such as hugetlb 
+	memory, is not of the native page size: the address addr and
+	the length must be a multiple of the underlying page size.
+
+suffice?
+
+Also, is it typical to reference the commit of the documentation change 
+in the kernel source that defines this?  I see this done with .\" blocks 
+for MAP_STACK in the same man page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
