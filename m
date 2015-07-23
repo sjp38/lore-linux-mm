@@ -1,73 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E85176B0260
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 07:09:25 -0400 (EDT)
-Received: by qged69 with SMTP id d69so86292985qge.0
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 04:09:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w37si5330620qge.31.2015.07.23.04.09.24
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id DC2706B0260
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 07:18:18 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so143980173wib.1
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 04:18:18 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id b14si7816935wjz.87.2015.07.23.04.18.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jul 2015 04:09:24 -0700 (PDT)
-Date: Thu, 23 Jul 2015 13:09:17 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 3/3] slub: build detached freelist with look-ahead
-Message-ID: <20150723130917.6e46e7d0@redhat.com>
-In-Reply-To: <20150723063423.GG4449@js1304-P5Q-DELUXE>
-References: <20150715155934.17525.2835.stgit@devil>
-	<20150715160212.17525.88123.stgit@devil>
-	<20150716115756.311496af@redhat.com>
-	<20150720025415.GA21760@js1304-P5Q-DELUXE>
-	<20150720232817.05f08663@redhat.com>
-	<alpine.DEB.2.11.1507210846060.27213@east.gentwo.org>
-	<20150722012819.6b98a599@redhat.com>
-	<20150723063423.GG4449@js1304-P5Q-DELUXE>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 23 Jul 2015 04:18:17 -0700 (PDT)
+Received: by wibxm9 with SMTP id xm9so143979239wib.1
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 04:18:16 -0700 (PDT)
+From: Valentin Rothberg <valentinrothberg@gmail.com>
+Subject: [PATCH] mm/Kconfig: NEED_BOUNCE_POOL: clean-up condition
+Date: Thu, 23 Jul 2015 13:18:06 +0200
+Message-Id: <1437650286-117629-1-git-send-email-valentinrothberg@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Duyck <alexander.duyck@gmail.com>, Hannes Frederic Sowa <hannes@stressinduktion.org>, brouer@redhat.com
+To: akpm@linux-foundation.org, jack@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: pebolle@tiscali.nl, stefan.hengelein@fau.de, Valentin Rothberg <valentinrothberg@gmail.com>
 
+commit 106542e7987c ("fs: Remove ext3 filesystem driver") removed ext3
+and JBD, hence remove the superfluous condition.
 
-On Thu, 23 Jul 2015 15:34:24 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+Signed-off-by: Valentin Rothberg <valentinrothberg@gmail.com>
+---
+I detected the issue with undertaker-checkpatch
+(https://undertaker.cs.fau.de)
 
-> On Wed, Jul 22, 2015 at 01:28:19AM +0200, Jesper Dangaard Brouer wrote:
-> > On Tue, 21 Jul 2015 08:50:36 -0500 (CDT)
-> > Christoph Lameter <cl@linux.com> wrote:
-> > 
-> > > On Mon, 20 Jul 2015, Jesper Dangaard Brouer wrote:
-> > > 
-> > > > Yes, I think it is merged... how do I turn off merging?
-> > > 
-> > > linux/Documentation/kernel-parameters.txt
-> > > 
-> > >         slab_nomerge    [MM]
-> > >                         Disable merging of slabs with similar size. May be
-> > >                         necessary if there is some reason to distinguish
-> > >                         allocs to different slabs. Debug options disable
-> > >                         merging on their own.
-> > >                         For more information see Documentation/vm/slub.txt.
-> > 
-> > I was hoping I could define this per slub runtime.  Any chance this
-> > would be made possible?
-> 
-> It's not possible to set/reset slab merge in runtime. Once merging
-> happens, one slab could have objects from different kmem_caches so we
-> can't separate it cleanly. Current best approach is to prevent merging
-> when creating new kmem_cache by introducing new slab flag
-> like as SLAB_NO_MERGE.
+ mm/Kconfig | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
 
-Yes, the best option would be a new flag (e.g. SLAB_NO_MERGE) when
-creating the kmem_cache.
-
+diff --git a/mm/Kconfig b/mm/Kconfig
+index e79de2bd12cd..d4e6495a720f 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -299,15 +299,9 @@ config BOUNCE
+ # On the 'tile' arch, USB OHCI needs the bounce pool since tilegx will often
+ # have more than 4GB of memory, but we don't currently use the IOTLB to present
+ # a 32-bit address to OHCI.  So we need to use a bounce pool instead.
+-#
+-# We also use the bounce pool to provide stable page writes for jbd.  jbd
+-# initiates buffer writeback without locking the page or setting PG_writeback,
+-# and fixing that behavior (a second time; jbd2 doesn't have this problem) is
+-# a major rework effort.  Instead, use the bounce buffer to snapshot pages
+-# (until jbd goes away).  The only jbd user is ext3.
+ config NEED_BOUNCE_POOL
+ 	bool
+-	default y if (TILE && USB_OHCI_HCD) || (BLK_DEV_INTEGRITY && JBD)
++	default y if TILE && USB_OHCI_HCD
+ 
+ config NR_QUICK
+ 	int
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
