@@ -1,101 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id BBFAB6B025F
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 10:16:26 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so221327024wib.0
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 07:16:26 -0700 (PDT)
-Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
-        by mx.google.com with ESMTPS id w2si30996310wiy.40.2015.07.23.07.16.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jul 2015 07:16:25 -0700 (PDT)
-Received: by wibud3 with SMTP id ud3so221325697wib.0
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 07:16:24 -0700 (PDT)
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id C5C766B025F
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 10:41:25 -0400 (EDT)
+Received: by igvi1 with SMTP id i1so15920747igv.1
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 07:41:25 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id o5si5567645ige.3.2015.07.23.07.41.24
+        for <linux-mm@kvack.org>;
+        Thu, 23 Jul 2015 07:41:25 -0700 (PDT)
+Message-ID: <55B0FD14.8050501@intel.com>
+Date: Thu, 23 Jul 2015 07:41:24 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAD3Xx4KNpbiSau5E2qSOuvww4FNeVBk8vbutA-fFX_0f8XLm8g@mail.gmail.com>
-References: <1437650286-117629-1-git-send-email-valentinrothberg@gmail.com>
- <20150723134714.GA29224@quack.suse.cz> <CAD3Xx4KNpbiSau5E2qSOuvww4FNeVBk8vbutA-fFX_0f8XLm8g@mail.gmail.com>
-From: Valentin Rothberg <valentinrothberg@gmail.com>
-Date: Thu, 23 Jul 2015 16:15:55 +0200
-Message-ID: <CAD3Xx4+YmcVqQm5vPFDDhVZmY5L0su+5n2C69XGaZb97PJFCDw@mail.gmail.com>
-Subject: Re: [PATCH] mm/Kconfig: NEED_BOUNCE_POOL: clean-up condition
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] mm: Flush the TLB for a single address in a huge page
+References: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com> <alpine.DEB.2.10.1507221436350.21468@chino.kir.corp.google.com> <CAHkRjk7=VMG63VfZdWbZqYu8FOa9M+54Mmdro661E2zt3WToog@mail.gmail.com> <55B021B1.5020409@intel.com> <20150723104938.GA27052@e104818-lin.cambridge.arm.com> <20150723141303.GB23799@redhat.com>
+In-Reply-To: <20150723141303.GB23799@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Greg KH <gregkh@linuxfoundation.org>
-Cc: akpm@linux-foundation.org, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Bolle <pebolle@tiscali.nl>, hengelein Stefan <stefan.hengelein@fau.de>
+To: Andrea Arcangeli <aarcange@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Jul 23, 2015 at 4:01 PM, Valentin Rothberg
-<valentinrothberg@gmail.com> wrote:
-> Hi Jan,
->
-> On Thu, Jul 23, 2015 at 3:47 PM, Jan Kara <jack@suse.cz> wrote:
->> On Thu 23-07-15 13:18:06, Valentin Rothberg wrote:
->>> commit 106542e7987c ("fs: Remove ext3 filesystem driver") removed ext3
->>> and JBD, hence remove the superfluous condition.
+On 07/23/2015 07:13 AM, Andrea Arcangeli wrote:
+> On Thu, Jul 23, 2015 at 11:49:38AM +0100, Catalin Marinas wrote:
+>> On Thu, Jul 23, 2015 at 12:05:21AM +0100, Dave Hansen wrote:
+>>> On 07/22/2015 03:48 PM, Catalin Marinas wrote:
+>>>> You are right, on x86 the tlb_single_page_flush_ceiling seems to be
+>>>> 33, so for an HPAGE_SIZE range the code does a local_flush_tlb()
+>>>> always. I would say a single page TLB flush is more efficient than a
+>>>> whole TLB flush but I'm not familiar enough with x86.
 >>>
->>> Signed-off-by: Valentin Rothberg <valentinrothberg@gmail.com>
->>> ---
->>> I detected the issue with undertaker-checkpatch
->>> (https://undertaker.cs.fau.de)
+>>> The last time I looked, the instruction to invalidate a single page is
+>>> more expensive than the instruction to flush the entire TLB. 
 >>
->> Thanks. I have added your patch into my tree. BTW, is the checker automated
->> enough that it could be made part of the 0-day tests Fengguang runs?
->
-> The checker is automated, but it also produces false positives for
-> certain kinds of bugs/defects, so we decided to run the bot on our
-> servers at the University of Erlangen-Nuremberg.  It runs daily on
-> linux-next; we check the reports and fix the issue as above or we
-> report it to the authors and maintainers.  So we catch things as soon
-> as they are in linux-next.
->
-> If you want to check for symbolic issues (i.e., references on
-> undefined Kconfig opionts/symbols) you can use
-> scripts/checkkconfigsymbols.py which detects most of the cases.
-> However, this script did not catch the upper case (I will check why).
+>> I was thinking of the overall cost of re-populating the TLB after being
+>> nuked rather than the instruction itself.
+> 
+> Unless I'm not aware about timing differences in flushing 2MB TLB
+> entries vs flushing 4kb TLB entries with invlpg, the benchmarks that
+> have been run to tune the optimal tlb_single_page_flush_ceiling value,
+> should already guarantee us that this is a valid optimization (as we
+> just got one entry, we're not even close to the 33 ceiling that makes
+> it more a grey area).
 
-checkkconfigsymbols.py did not detect the issue since it does not
-check (yet) default statements.  I fixed it locally and will send a
-patch tomorrow after testing it on more Linux versions.
+We had a discussion about this a few weeks ago:
 
-Kind regards,
- Valentin
+	https://lkml.org/lkml/2015/6/25/666
 
-> Kind regards,
->  Valentin
->
->>                                                                 Honza
->>
->>>  mm/Kconfig | 8 +-------
->>>  1 file changed, 1 insertion(+), 7 deletions(-)
->>>
->>> diff --git a/mm/Kconfig b/mm/Kconfig
->>> index e79de2bd12cd..d4e6495a720f 100644
->>> --- a/mm/Kconfig
->>> +++ b/mm/Kconfig
->>> @@ -299,15 +299,9 @@ config BOUNCE
->>>  # On the 'tile' arch, USB OHCI needs the bounce pool since tilegx will often
->>>  # have more than 4GB of memory, but we don't currently use the IOTLB to present
->>>  # a 32-bit address to OHCI.  So we need to use a bounce pool instead.
->>> -#
->>> -# We also use the bounce pool to provide stable page writes for jbd.  jbd
->>> -# initiates buffer writeback without locking the page or setting PG_writeback,
->>> -# and fixing that behavior (a second time; jbd2 doesn't have this problem) is
->>> -# a major rework effort.  Instead, use the bounce buffer to snapshot pages
->>> -# (until jbd goes away).  The only jbd user is ext3.
->>>  config NEED_BOUNCE_POOL
->>>       bool
->>> -     default y if (TILE && USB_OHCI_HCD) || (BLK_DEV_INTEGRITY && JBD)
->>> +     default y if TILE && USB_OHCI_HCD
->>>
->>>  config NR_QUICK
->>>       int
->>> --
->>> 1.9.1
->>>
->> --
->> Jan Kara <jack@suse.com>
->> SUSE Labs, CR
+The argument is that the CPU is so good at refilling the TLB that it
+rarely waits on it, so the "cost" can be very very low.
+
+>>> That said, I can't imagine this will hurt anything.  We also have TLBs
+>>> that can mix 2M and 4k pages and I don't think we did back when we put
+>>> that code in originally.
+> 
+> Dave, I'm confused about this. We should still stick to an invariant
+> that we can't ever mix 2M and 4k TLB entries if their mappings end up
+> overlapping on the same physical memory (if this isn't enforced in
+> common code, some x86 implementation errata triggers, and it really
+> oopses with machine checks so it's not just theoretical). Perhaps I
+> misunderstood what you meant with mix 2M and 4k pages though.
+
+On older CPUs we had dedicated 2M TLB slots.  Now, we have an STLB that
+can hold 2M and 4k entries at the same time.  That will surely change
+the performance profile enough that whatever testing we did in the past
+is fairly stale now.
+
+I didn't mean mixing 4k and 2M mappings for the same virtual address.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
