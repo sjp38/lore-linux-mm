@@ -1,178 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id CCB696B025E
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 17:55:37 -0400 (EDT)
-Received: by qkdv3 with SMTP id v3so3826611qkd.3
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 14:55:37 -0700 (PDT)
-Received: from mail.catern.com (catern.com. [104.131.201.120])
-        by mx.google.com with ESMTPS id d13si7533213qka.37.2015.07.23.14.55.35
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id AB26A6B025F
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 17:59:52 -0400 (EDT)
+Received: by obnw1 with SMTP id w1so5236720obn.3
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 14:59:52 -0700 (PDT)
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com. [209.85.214.181])
+        by mx.google.com with ESMTPS id l139si5146361oig.36.2015.07.23.14.59.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jul 2015 14:55:36 -0700 (PDT)
-From: Spencer Baugh <sbaugh@catern.com>
-Subject: [PATCH] mm: add resched points to remap_pmd_range/ioremap_pmd_range
-Date: Thu, 23 Jul 2015 14:54:33 -0700
-Message-Id: <1437688476-3399-3-git-send-email-sbaugh@catern.com>
+        Thu, 23 Jul 2015 14:59:51 -0700 (PDT)
+Received: by obre1 with SMTP id e1so5410116obr.1
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 14:59:51 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1437668913-25446-1-git-send-email-sds@tycho.nsa.gov>
+References: <1437668913-25446-1-git-send-email-sds@tycho.nsa.gov>
+Date: Thu, 23 Jul 2015 17:59:51 -0400
+Message-ID: <CAHC9VhQFHkZexii9OFvA-wuBZ5ypM7DX515SErfPiprx+_NFrQ@mail.gmail.com>
+Subject: Re: [RFC][PATCH] ipc: Use private shmem or hugetlbfs inodes for shm segments.
+From: Paul Moore <paul@paul-moore.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Joern Engel <joern@logfs.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Shachar Raindel <raindel@mellanox.com>, Boaz Harrosh <boaz@plexistor.com>, Andy Lutomirski <luto@amacapital.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Roman Pen <r.peniaev@gmail.com>, Andrey Konovalov <adech.fo@gmail.com>, Eric Dumazet <edumazet@google.com>, Dmitry Vyukov <dvyukov@google.com>, Rob Jones <rob.jones@codethink.co.uk>, WANG Chao <chaowang@redhat.com>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
-Cc: Joern Engel <joern@purestorage.com>, Spencer Baugh <Spencer.baugh@purestorage.com>, Spencer Baugh <sbaugh@catern.com>
+To: Stephen Smalley <sds@tycho.nsa.gov>
+Cc: mstevens@fedoraproject.org, linux-kernel@vger.kernel.org, nyc@holomorphy.com, hughd@google.com, akpm@linux-foundation.org, manfred@colorfullife.com, dave@stgolabs.net, linux-mm@kvack.org, wagi@monom.org, prarit@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>, david@fromorbit.com, esandeen@redhat.com, Eric Paris <eparis@redhat.com>, selinux@tycho.nsa.gov, linux-security-module@vger.kernel.org
 
-From: Joern Engel <joern@logfs.org>
+On Thu, Jul 23, 2015 at 12:28 PM, Stephen Smalley <sds@tycho.nsa.gov> wrote:
+> The shm implementation internally uses shmem or hugetlbfs inodes
+> for shm segments.  As these inodes are never directly exposed to
+> userspace and only accessed through the shm operations which are
+> already hooked by security modules, mark the inodes with the
+> S_PRIVATE flag so that inode security initialization and permission
+> checking is skipped.
+>
+> This was motivated by the following lockdep warning:
+> ===================================================
+> [ INFO: possible circular locking dependency detected ]
+> 4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1 Tainted: G        W
+> -------------------------------------------------------
+> httpd/1597 is trying to acquire lock:
+> (&ids->rwsem){+++++.}, at: [<ffffffff81385354>] shm_close+0x34/0x130
+> (&mm->mmap_sem){++++++}, at: [<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
+>       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+>       [<ffffffff81217baa>] __might_fault+0x7a/0xa0
+>       [<ffffffff81284a1e>] filldir+0x9e/0x130
+>       [<ffffffffa019bb08>] xfs_dir2_block_getdents.isra.12+0x198/0x1c0 [xfs]
+>       [<ffffffffa019c5b4>] xfs_readdir+0x1b4/0x330 [xfs]
+>       [<ffffffffa019f38b>] xfs_file_readdir+0x2b/0x30 [xfs]
+>       [<ffffffff812847e7>] iterate_dir+0x97/0x130
+>       [<ffffffff81284d21>] SyS_getdents+0x91/0x120
+>       [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
+>       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+>       [<ffffffff81101e97>] down_read_nested+0x57/0xa0
+>       [<ffffffffa01b0e57>] xfs_ilock+0x167/0x350 [xfs]
+>       [<ffffffffa01b10b8>] xfs_ilock_attr_map_shared+0x38/0x50 [xfs]
+>       [<ffffffffa014799d>] xfs_attr_get+0xbd/0x190 [xfs]
+>       [<ffffffffa01c17ad>] xfs_xattr_get+0x3d/0x70 [xfs]
+>       [<ffffffff8129962f>] generic_getxattr+0x4f/0x70
+>       [<ffffffff8139ba52>] inode_doinit_with_dentry+0x162/0x670
+>       [<ffffffff8139cf69>] sb_finish_set_opts+0xd9/0x230
+>       [<ffffffff8139d66c>] selinux_set_mnt_opts+0x35c/0x660
+>       [<ffffffff8139ff97>] superblock_doinit+0x77/0xf0
+>       [<ffffffff813a0020>] delayed_superblock_init+0x10/0x20
+>       [<ffffffff81272d23>] iterate_supers+0xb3/0x110
+>       [<ffffffff813a4e5f>] selinux_complete_init+0x2f/0x40
+>       [<ffffffff813b47a3>] security_load_policy+0x103/0x600
+>       [<ffffffff813a6901>] sel_write_load+0xc1/0x750
+>       [<ffffffff8126e817>] __vfs_write+0x37/0x100
+>       [<ffffffff8126f229>] vfs_write+0xa9/0x1a0
+>       [<ffffffff8126ff48>] SyS_write+0x58/0xd0
+>       [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
+>       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+>       [<ffffffff8186de8f>] mutex_lock_nested+0x7f/0x3e0
+>       [<ffffffff8139b9a9>] inode_doinit_with_dentry+0xb9/0x670
+>       [<ffffffff8139bf7c>] selinux_d_instantiate+0x1c/0x20
+>       [<ffffffff813955f6>] security_d_instantiate+0x36/0x60
+>       [<ffffffff81287c34>] d_instantiate+0x54/0x70
+>       [<ffffffff8120111c>] __shmem_file_setup+0xdc/0x240
+>       [<ffffffff81201290>] shmem_file_setup+0x10/0x20
+>       [<ffffffff813856e0>] newseg+0x290/0x3a0
+>       [<ffffffff8137e278>] ipcget+0x208/0x2d0
+>       [<ffffffff81386074>] SyS_shmget+0x54/0x70
+>       [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
+>       [<ffffffff81108df8>] __lock_acquire+0x1a78/0x1d00
+>       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+>       [<ffffffff8186efba>] down_write+0x5a/0xc0
+>       [<ffffffff81385354>] shm_close+0x34/0x130
+>       [<ffffffff812203a5>] remove_vma+0x45/0x80
+>       [<ffffffff81222a30>] do_munmap+0x2b0/0x460
+>       [<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
+>       [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
+> Chain exists of:#012  &ids->rwsem --> &xfs_dir_ilock_class --> &mm->mmap_sem
+> Possible unsafe locking scenario:
+>       CPU0                    CPU1
+>       ----                    ----
+>  lock(&mm->mmap_sem);
+>  lock(&xfs_dir_ilock_class);
+>                               lock(&mm->mmap_sem);
+>  lock(&ids->rwsem);
+> 1 lock held by httpd/1597:
+> CPU: 7 PID: 1597 Comm: httpd Tainted: G W       4.2.0-0.rc3.git0.1.fc24.x86_64+Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Pla0000000000000000 000000006cb6fe9d ffff88019ff07c58 ffffffff81868175
+> 0000000000000000 ffffffff82aea390 ffff88019ff07ca8 ffffffff81105903
+> ffff88019ff07c78 ffff88019ff07d08 0000000000000001 ffff8800b75108f0
+> Call Trace:
+> [<ffffffff81868175>] dump_stack+0x4c/0x65
+> [<ffffffff81105903>] print_circular_bug+0x1e3/0x250
+> [<ffffffff81108df8>] __lock_acquire+0x1a78/0x1d00
+> [<ffffffff81220c33>] ? unlink_file_vma+0x33/0x60
+> [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+> [<ffffffff81385354>] ? shm_close+0x34/0x130
+> [<ffffffff8186efba>] down_write+0x5a/0xc0
+> [<ffffffff81385354>] ? shm_close+0x34/0x130
+> [<ffffffff81385354>] shm_close+0x34/0x130
+> [<ffffffff812203a5>] remove_vma+0x45/0x80
+> [<ffffffff81222a30>] do_munmap+0x2b0/0x460
+> [<ffffffff81386bbb>] ? SyS_shmdt+0x4b/0x180
+> [<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
+> [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
+>
+> Reported-by: Morten Stevens <mstevens@fedoraproject.org>
+> Signed-off-by: Stephen Smalley <sds@tycho.nsa.gov>
+> ---
+>  fs/hugetlbfs/inode.c | 2 ++
+>  ipc/shm.c            | 2 +-
+>  mm/shmem.c           | 4 ++--
+>  3 files changed, 5 insertions(+), 3 deletions(-)
 
-Mapping large memory spaces can be slow and prevent high-priority
-realtime threads from preempting lower-priority threads for a long time.
-In my case it was a 256GB mapping causing at least 950ms scheduler
-delay.  Problem detection is ratelimited and depends on interrupts
-happening at the right time, so actual delay is likely worse.
+Seems reasonable and fits with what we've been doing.
 
-------------[ cut here ]------------
-WARNING: at arch/x86/kernel/irq.c:182 do_IRQ+0x126/0x140()
-Thread not rescheduled for 36 jiffies
-CPU: 14 PID: 6684 Comm: foo Tainted: G           O 3.10.59+
- 0000000000000009 ffff883f7fbc3ee0 ffffffff8163a12c ffff883f7fbc3f18
- ffffffff8103f131 ffff887f48275ac0 0000000000000012 000000000000007c
- 0000000000000000 ffff887f5bc11fd8 ffff883f7fbc3f78 ffffffff8103f19c
-Call Trace:
- <IRQ>  [<ffffffff8163a12c>] dump_stack+0x19/0x1b
- [<ffffffff8103f131>] warn_slowpath_common+0x61/0x80
- [<ffffffff8103f19c>] warn_slowpath_fmt+0x4c/0x50
- [<ffffffff810bd917>] ? rcu_irq_exit+0x77/0xc0
- [<ffffffff8164a556>] do_IRQ+0x126/0x140
- [<ffffffff816407ef>] common_interrupt+0x6f/0x6f
- <EOI>  [<ffffffff810fde68>] ? set_pageblock_migratetype+0x28/0x30
- [<ffffffff8126da37>] ? clear_page_c_e+0x7/0x10
- [<ffffffff811004b3>] ? get_page_from_freelist+0x5b3/0x880
- [<ffffffff81100863>] __alloc_pages_nodemask+0xe3/0x810
- [<ffffffff8126f48b>] ? trace_hardirqs_on_thunk+0x3a/0x3c
- [<ffffffff81138206>] alloc_pages_current+0x86/0x120
- [<ffffffff810fc02e>] __get_free_pages+0xe/0x50
- [<ffffffff81034e85>] pte_alloc_one_kernel+0x15/0x20
- [<ffffffff8111b6cd>] __pte_alloc_kernel+0x1d/0xf0
- [<ffffffff8126531c>] ioremap_page_range+0x2cc/0x320
- [<ffffffff81031619>] __ioremap_caller+0x1e9/0x2b0
- [<ffffffff810316f7>] ioremap_nocache+0x17/0x20
- [<ffffffff81275b45>] pci_iomap+0x55/0xb0
- [<ffffffffa007f29a>] vfio_pci_mmap+0x1ea/0x210 [vfio_pci]
- [<ffffffffa0025173>] vfio_device_fops_mmap+0x23/0x30 [vfio]
- [<ffffffff81124ed8>] mmap_region+0x3d8/0x5e0
- [<ffffffff811253e5>] do_mmap_pgoff+0x305/0x3c0
- [<ffffffff8126f3f3>] ? call_rwsem_down_write_failed+0x13/0x20
- [<ffffffff81111677>] vm_mmap_pgoff+0x67/0xa0
- [<ffffffff811237e2>] SyS_mmap_pgoff+0x272/0x2e0
- [<ffffffff810067e2>] SyS_mmap+0x22/0x30
- [<ffffffff81648c59>] system_call_fastpath+0x16/0x1b
----[ end trace 6b0a8d2341444bdd ]---
-------------[ cut here ]------------
-WARNING: at arch/x86/kernel/irq.c:182 do_IRQ+0x126/0x140()
-Thread not rescheduled for 95 jiffies
-CPU: 14 PID: 6684 Comm: foo Tainted: G        W  O 3.10.59+
- 0000000000000009 ffff883f7fbc3ee0 ffffffff8163a12c ffff883f7fbc3f18
- ffffffff8103f131 ffff887f48275ac0 000000000000002f 000000000000007c
- 0000000000000000 00007fadd1e00000 ffff883f7fbc3f78 ffffffff8103f19c
-Call Trace:
- <IRQ>  [<ffffffff8163a12c>] dump_stack+0x19/0x1b
- [<ffffffff8103f131>] warn_slowpath_common+0x61/0x80
- [<ffffffff8103f19c>] warn_slowpath_fmt+0x4c/0x50
- [<ffffffff810bd917>] ? rcu_irq_exit+0x77/0xc0
- [<ffffffff8164a556>] do_IRQ+0x126/0x140
- [<ffffffff816407ef>] common_interrupt+0x6f/0x6f
- <EOI>  [<ffffffff81640483>] ? _raw_spin_lock+0x13/0x30
- [<ffffffff8111b621>] __pte_alloc+0x31/0xc0
- [<ffffffff8111feac>] remap_pfn_range+0x45c/0x470
- [<ffffffffa007f1f8>] vfio_pci_mmap+0x148/0x210 [vfio_pci]
- [<ffffffffa0025173>] vfio_device_fops_mmap+0x23/0x30 [vfio]
- [<ffffffff81124ed8>] mmap_region+0x3d8/0x5e0
- [<ffffffff811253e5>] do_mmap_pgoff+0x305/0x3c0
- [<ffffffff8126f3f3>] ? call_rwsem_down_write_failed+0x13/0x20
- [<ffffffff81111677>] vm_mmap_pgoff+0x67/0xa0
- [<ffffffff811237e2>] SyS_mmap_pgoff+0x272/0x2e0
- [<ffffffff810067e2>] SyS_mmap+0x22/0x30
- [<ffffffff81648c59>] system_call_fastpath+0x16/0x1b
----[ end trace 6b0a8d2341444bde ]---
-------------[ cut here ]------------
-WARNING: at arch/x86/kernel/irq.c:182 do_IRQ+0x126/0x140()
-Thread not rescheduled for 45 jiffies
-CPU: 18 PID: 21726 Comm: foo Tainted: G           O 3.10.59+
- 0000000000000009 ffff88203f203ee0 ffffffff8163a13c ffff88203f203f18
- ffffffff8103f131 ffff881ec5f1ad60 0000000000000016 000000000000006e
- 0000000000000000 ffffc939a6dd8000 ffff88203f203f78 ffffffff8103f19c
-Call Trace:
- <IRQ>  [<ffffffff8163a13c>] dump_stack+0x19/0x1b
- [<ffffffff8103f131>] warn_slowpath_common+0x61/0x80
- [<ffffffff8103f19c>] warn_slowpath_fmt+0x4c/0x50
- [<ffffffff810bd917>] ? rcu_irq_exit+0x77/0xc0
- [<ffffffff8164a556>] do_IRQ+0x126/0x140
- [<ffffffff816407ef>] common_interrupt+0x6f/0x6f
- <EOI>  [<ffffffff81640861>] ? retint_restore_args+0x13/0x13
- [<ffffffff810346c7>] ? free_memtype+0x87/0x150
- [<ffffffff8112bb46>] ? vunmap_page_range+0x1e6/0x2a0
- [<ffffffff8112c5e1>] remove_vm_area+0x51/0x70
- [<ffffffff810318a7>] iounmap+0x67/0xa0
- [<ffffffff812757e5>] pci_iounmap+0x35/0x40
- [<ffffffffa00973da>] vfio_pci_release+0x9a/0x150 [vfio_pci]
- [<ffffffffa0065cbc>] vfio_device_fops_release+0x1c/0x40 [vfio]
- [<ffffffff8114d82b>] __fput+0xdb/0x220
- [<ffffffff8114d97e>] ____fput+0xe/0x10
- [<ffffffff810614ac>] task_work_run+0xbc/0xe0
- [<ffffffff81043d0e>] do_exit+0x3ce/0xe50
- [<ffffffff8104557f>] do_group_exit+0x3f/0xa0
- [<ffffffff81054769>] get_signal_to_deliver+0x1a9/0x5b0
- [<ffffffff810023f8>] do_signal+0x48/0x5e0
- [<ffffffff81056778>] ? k_getrusage+0x368/0x3d0
- [<ffffffff810736e2>] ? default_wake_function+0x12/0x20
- [<ffffffff816471c0>] ? kprobe_flush_task+0xc0/0x150
- [<ffffffff81070684>] ? finish_task_switch+0xc4/0xe0
- [<ffffffff810029f5>] do_notify_resume+0x65/0x80
- [<ffffffff8164098e>] retint_signal+0x4d/0x9f
----[ end trace 3506c05e4a0af3e5 ]---
+Acked-by: Paul Moore <paul@paul-moore.com>
 
-Signed-off-by: Joern Engel <joern@logfs.org>
-Signed-off-by: Spencer Baugh <sbaugh@catern.com>
----
- lib/ioremap.c | 1 +
- mm/memory.c   | 1 +
- mm/vmalloc.c  | 1 +
- 3 files changed, 3 insertions(+)
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 0cf74df..973c24c 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -1010,6 +1010,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
+>         inode = hugetlbfs_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0);
+>         if (!inode)
+>                 goto out_dentry;
+> +       if (creat_flags == HUGETLB_SHMFS_INODE)
+> +               inode->i_flags |= S_PRIVATE;
+>
+>         file = ERR_PTR(-ENOMEM);
+>         if (hugetlb_reserve_pages(inode, 0,
+> diff --git a/ipc/shm.c b/ipc/shm.c
+> index 06e5cf2..4aef24d 100644
+> --- a/ipc/shm.c
+> +++ b/ipc/shm.c
+> @@ -545,7 +545,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+>                 if  ((shmflg & SHM_NORESERVE) &&
+>                                 sysctl_overcommit_memory != OVERCOMMIT_NEVER)
+>                         acctflag = VM_NORESERVE;
+> -               file = shmem_file_setup(name, size, acctflag);
+> +               file = shmem_kernel_file_setup(name, size, acctflag);
+>         }
+>         error = PTR_ERR(file);
+>         if (IS_ERR(file))
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 4caf8ed..dbe0c1e 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -3363,8 +3363,8 @@ put_path:
+>   * shmem_kernel_file_setup - get an unlinked file living in tmpfs which must be
+>   *     kernel internal.  There will be NO LSM permission checks against the
+>   *     underlying inode.  So users of this interface must do LSM checks at a
+> - *     higher layer.  The one user is the big_key implementation.  LSM checks
+> - *     are provided at the key level rather than the inode level.
+> + *     higher layer.  The users are the big_key and shm implementations.  LSM
+> + *     checks are provided at the key or shm level rather than the inode.
+>   * @name: name for dentry (to be seen in /proc/<pid>/maps
+>   * @size: size to be set for the file
+>   * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
+> --
+> 2.1.0
+>
 
-diff --git a/lib/ioremap.c b/lib/ioremap.c
-index 86c8911..d38e46d 100644
---- a/lib/ioremap.c
-+++ b/lib/ioremap.c
-@@ -90,6 +90,7 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
- 
- 		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, prot))
- 			return -ENOMEM;
-+		cond_resched();
- 	} while (pmd++, addr = next, addr != end);
- 	return 0;
- }
-diff --git a/mm/memory.c b/mm/memory.c
-index 388dcf9..1541880 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1656,6 +1656,7 @@ static inline int remap_pmd_range(struct mm_struct *mm, pud_t *pud,
- 		if (remap_pte_range(mm, pmd, addr, next,
- 				pfn + (addr >> PAGE_SHIFT), prot))
- 			return -ENOMEM;
-+		cond_resched();
- 	} while (pmd++, addr = next, addr != end);
- 	return 0;
- }
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 2faaa29..d503c8e 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -80,6 +80,7 @@ static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		vunmap_pte_range(pmd, addr, next);
-+		cond_resched();
- 	} while (pmd++, addr = next, addr != end);
- }
- 
+
+
 -- 
-2.5.0.rc3
+paul moore
+www.paul-moore.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
