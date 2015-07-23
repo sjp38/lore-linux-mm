@@ -1,124 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CD779003C7
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 16:37:04 -0400 (EDT)
-Received: by igr7 with SMTP id 7so539697igr.0
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 13:37:04 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p2si36596igh.37.2015.07.23.13.37.03
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 157FA6B025C
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 16:52:06 -0400 (EDT)
+Received: by pachj5 with SMTP id hj5so1850514pac.3
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 13:52:05 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id al7si14665986pad.160.2015.07.23.13.52.04
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jul 2015 13:37:03 -0700 (PDT)
-Date: Thu, 23 Jul 2015 13:37:02 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v1 4/4] mm/memory-failure: check __PG_HWPOISON
- separately from PAGE_FLAGS_CHECK_AT_*
-Message-Id: <20150723133702.81a9dacc997b25260c44f42d@linux-foundation.org>
-In-Reply-To: <1437010894-10262-5-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1437010894-10262-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1437010894-10262-5-git-send-email-n-horiguchi@ah.jp.nec.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Jul 2015 13:52:05 -0700 (PDT)
+Received: by pacan13 with SMTP id an13so1938092pac.1
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 13:52:04 -0700 (PDT)
+Date: Thu, 23 Jul 2015 13:52:02 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mmap.2: document the munmap exception for underlying
+ page size
+In-Reply-To: <55B0E900.8090207@gmail.com>
+Message-ID: <alpine.DEB.2.10.1507231349080.31024@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com> <55B027D3.4020608@oracle.com> <alpine.DEB.2.10.1507221646100.14953@chino.kir.corp.google.com> <55B0E900.8090207@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Dean Nelson <dnelson@redhat.com>, Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Eric B Munson <emunson@akamai.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-On Thu, 16 Jul 2015 01:41:56 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Thu, 23 Jul 2015, Michael Kerrisk (man-pages) wrote:
 
-> The race condition addressed in commit add05cecef80 ("mm: soft-offline: don't
-> free target page in successful page migration") was not closed completely,
-> because that can happen not only for soft-offline, but also for hard-offline.
-> Consider that a slab page is about to be freed into buddy pool, and then an
-> uncorrected memory error hits the page just after entering __free_one_page(),
-> then VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP) is triggered,
-> despite the fact that it's not necessary because the data on the affected
-> page is not consumed.
+> >> Should we also add a similar comment for the mmap offset?  Currently
+> >> the man page says:
+> >>
+> >> "offset must be a multiple of the page size as returned by
+> >>  sysconf(_SC_PAGE_SIZE)."
+> >>
+> >> For hugetlbfs, I beieve the offset must be a multiple of the
+> >> hugetlb page size.  A similar comment/exception about using
+> >> the "underlying page size" would apply here as well.
+> >>
+> > 
+> > Yes, that makes sense, thanks.  We should also explicitly say that mmap(2) 
+> > automatically aligns length to be hugepage aligned if backed by hugetlbfs.
 > 
-> To solve it, this patch drops __PG_HWPOISON from page flag checks at
-> allocation/free time. I think it's justified because __PG_HWPOISON flags is
-> defined to prevent the page from being reused and setting it outside the
-> page's alloc-free cycle is a designed behavior (not a bug.)
+> And, surely, it also does something similar for mmap()'s 'addr'
+> argument? 
 > 
-> And the patch reverts most of the changes from commit add05cecef80 about
-> the new refcounting rule of soft-offlined pages, which is no longer necessary.
+> I suggest we add a subsection to describe the HugeTLB differences. How 
+> about something like:
 > 
-> ...
->
-> --- v4.2-rc2.orig/mm/memory-failure.c
-> +++ v4.2-rc2/mm/memory-failure.c
-> @@ -1723,6 +1723,9 @@ int soft_offline_page(struct page *page, int flags)
->  
->  	get_online_mems();
->  
-> +	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-> +		set_migratetype_isolate(page, true);
-> +
->  	ret = get_any_page(page, pfn, flags);
->  	put_online_mems();
->  	if (ret > 0) { /* for in-use pages */
+>    Huge page (Huge TLB) mappings
+>        For  mappings  that  employ  huge pages, the requirements for the
+>        arguments  of  mmap()  and  munmap()  differ  somewhat  from  the
+>        requirements for mappings that use the native system page size.
+> 
+>        For mmap(), offset must be a multiple of the underlying huge page
+>        size.  The system automatically aligns length to be a multiple of
+>        the underlying huge page size.
+> 
+>        For  munmap(),  addr  and  length  must both be a multiple of the
+>        underlying huge page size.
+> ?
+> 
 
-This patch gets build-broken by your
-mm-page_isolation-make-set-unset_migratetype_isolate-file-local.patch,
-which I shall drop.
+Looks good, please add my acked-by.  The commit that expanded on the 
+documentation of this behavior was 
+80d6b94bd69a7a49b52bf503ef6a841f43cf5bbb.
 
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: mm, page_isolation: make set/unset_migratetype_isolate() file-local
-
-Nowaday, set/unset_migratetype_isolate() is defined and used only in
-mm/page_isolation, so let's limit the scope within the file.
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- include/linux/page-isolation.h |    5 -----
- mm/page_isolation.c            |    5 +++--
- 2 files changed, 3 insertions(+), 7 deletions(-)
-
-diff -puN include/linux/page-isolation.h~mm-page_isolation-make-set-unset_migratetype_isolate-file-local include/linux/page-isolation.h
---- a/include/linux/page-isolation.h~mm-page_isolation-make-set-unset_migratetype_isolate-file-local
-+++ a/include/linux/page-isolation.h
-@@ -65,11 +65,6 @@ undo_isolate_page_range(unsigned long st
- int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
- 			bool skip_hwpoisoned_pages);
- 
--/*
-- * Internal functions. Changes pageblock's migrate type.
-- */
--int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages);
--void unset_migratetype_isolate(struct page *page, unsigned migratetype);
- struct page *alloc_migrate_target(struct page *page, unsigned long private,
- 				int **resultp);
- 
-diff -puN mm/page_isolation.c~mm-page_isolation-make-set-unset_migratetype_isolate-file-local mm/page_isolation.c
---- a/mm/page_isolation.c~mm-page_isolation-make-set-unset_migratetype_isolate-file-local
-+++ a/mm/page_isolation.c
-@@ -9,7 +9,8 @@
- #include <linux/hugetlb.h>
- #include "internal.h"
- 
--int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
-+static int set_migratetype_isolate(struct page *page,
-+				bool skip_hwpoisoned_pages)
- {
- 	struct zone *zone;
- 	unsigned long flags, pfn;
-@@ -72,7 +73,7 @@ out:
- 	return ret;
- }
- 
--void unset_migratetype_isolate(struct page *page, unsigned migratetype)
-+static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
- {
- 	struct zone *zone;
- 	unsigned long flags, nr_pages;
-_
+Answering from your other email, no, this behavior in the kernel has not 
+changed recently but we found it wasn't properly documented so we wanted 
+to fix that both in the kernel tree and in the man-pages to make it 
+explicit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
