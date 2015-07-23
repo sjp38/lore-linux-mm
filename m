@@ -1,161 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 754059003C7
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 06:03:43 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so200773847wib.0
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 03:03:42 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id sb12si7444884wjb.77.2015.07.23.03.03.39
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4066B0254
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 06:49:44 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so18207166wic.0
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 03:49:43 -0700 (PDT)
+Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
+        by mx.google.com with ESMTPS id ft10si22807275wib.100.2015.07.23.03.49.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Jul 2015 03:03:40 -0700 (PDT)
-Subject: Re: [PATCH V4 4/6] mm: mlock: Introduce VM_LOCKONFAULT and add mlock
- flags to enable it
-References: <1437508781-28655-1-git-send-email-emunson@akamai.com>
- <1437508781-28655-5-git-send-email-emunson@akamai.com>
- <55AF6A73.1080500@suse.cz> <20150722184343.GA2351@akamai.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55B0BBF9.7050802@suse.cz>
-Date: Thu, 23 Jul 2015 12:03:37 +0200
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 23 Jul 2015 03:49:42 -0700 (PDT)
+Date: Thu, 23 Jul 2015 11:49:38 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] mm: Flush the TLB for a single address in a huge page
+Message-ID: <20150723104938.GA27052@e104818-lin.cambridge.arm.com>
+References: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com>
+ <alpine.DEB.2.10.1507221436350.21468@chino.kir.corp.google.com>
+ <CAHkRjk7=VMG63VfZdWbZqYu8FOa9M+54Mmdro661E2zt3WToog@mail.gmail.com>
+ <55B021B1.5020409@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20150722184343.GA2351@akamai.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <55B021B1.5020409@intel.com>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Jonathan Corbet <corbet@lwn.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-On 07/22/2015 08:43 PM, Eric B Munson wrote:
-> On Wed, 22 Jul 2015, Vlastimil Babka wrote:
-> 
->> 
->> Hi,
->> 
->> I think you should include a complete description of which
->> transitions for vma states and mlock2/munlock2 flags applied on them
->> are valid and what they do. It will also help with the manpages.
->> You explained some to Jon in the last thread, but I think there
->> should be a canonical description in changelog (if not also
->> Documentation, if mlock is covered there).
->> 
->> For example the scenario Jon asked, what happens after a
->> mlock2(MLOCK_ONFAULT) followed by mlock2(MLOCK_LOCKED), and that the
->> answer is "nothing". Your promised code comment for
->> apply_vma_flags() doesn't suffice IMHO (and I'm not sure it's there,
->> anyway?).
-> 
-> I missed adding that comment to the code, will be there in V5 along with
-> the description in the changelog.
+On Thu, Jul 23, 2015 at 12:05:21AM +0100, Dave Hansen wrote:
+> On 07/22/2015 03:48 PM, Catalin Marinas wrote:
+> > You are right, on x86 the tlb_single_page_flush_ceiling seems to be
+> > 33, so for an HPAGE_SIZE range the code does a local_flush_tlb()
+> > always. I would say a single page TLB flush is more efficient than a
+> > whole TLB flush but I'm not familiar enough with x86.
+>=20
+> The last time I looked, the instruction to invalidate a single page is
+> more expensive than the instruction to flush the entire TLB.=20
 
-Thanks!
+I was thinking of the overall cost of re-populating the TLB after being
+nuked rather than the instruction itself.
 
->> 
->> But the more I think about the scenario and your new VM_LOCKONFAULT
->> vma flag, it seems awkward to me. Why should munlocking at all care
->> if the vma was mlocked with MLOCK_LOCKED or MLOCK_ONFAULT? In either
->> case the result is that all pages currently populated are munlocked.
->> So the flags for munlock2 should be unnecessary.
-> 
-> Say a user has a large area of interleaved MLOCK_LOCK and MLOCK_ONFAULT
-> mappings and they want to unlock only the ones with MLOCK_LOCK.  With
-> the current implementation, this is possible in a single system call
-> that spans the entire region.  With your suggestion, the user would have
-> to know what regions where locked with MLOCK_LOCK and call munlock() on
-> each of them.  IMO, the way munlock2() works better mirrors the way
-> munlock() currently works when called on a large area of interleaved
-> locked and unlocked areas.
+> We also don't bother doing ranged flushes _ever_ for hugetlbfs TLB
+> invalidations, but that was just because the work done around commit
+> e7b52ffd4 didn't see any benefit.
 
-Um OK, that scenario is possible in theory. But I have a hard time imagining
-that somebody would really want to do that. I think much more people would
-benefit from a simpler API.
+For huge pages, there are indeed fewer page table levels to fetch, so I
+guess the impact is not significant. With virtualisation/nested pages,
+at least on ARM, refilling the TLB for guest would take longer (though
+it's highly dependent on the microarchitecture implementation, whether
+it caches the guest PA to host PA separately).
 
-> 
->> 
->> I also think VM_LOCKONFAULT is unnecessary. VM_LOCKED should be
->> enough - see how you had to handle the new flag in all places that
->> had to handle the old flag? I think the information whether mlock
->> was supposed to fault the whole vma is obsolete at the moment mlock
->> returns. VM_LOCKED should be enough for both modes, and the flag to
->> mlock2 could just control whether the pre-faulting is done.
->> 
->> So what should be IMHO enough:
->> - munlock can stay without flags
->> - mlock2 has only one new flag MLOCK_ONFAULT. If specified,
->> pre-faulting is not done, just set VM_LOCKED and mlock pages already
->> present.
->> - same with mmap(MAP_LOCKONFAULT) (need to define what happens when
->> both MAP_LOCKED and MAP_LOCKONFAULT are specified).
->> 
->> Now mlockall(MCL_FUTURE) muddles the situation in that it stores the
->> information for future VMA's in current->mm->def_flags, and this
->> def_flags would need to distinguish VM_LOCKED with population and
->> without. But that could be still solvable without introducing a new
->> vma flag everywhere.
-> 
-> With you right up until that last paragraph.  I have been staring at
-> this a while and I cannot come up a way to handle the
-> mlockall(MCL_ONFAULT) without introducing a new vm flag.  It doesn't
-> have to be VM_LOCKONFAULT, we could use the model that Michal Hocko
-> suggested with something like VM_FAULTPOPULATE.  However, we can't
-> really use this flag anywhere except the mlock code becuase we have to
-> be able to distinguish a caller that wants to use MLOCK_LOCK with
-> whatever control VM_FAULTPOPULATE might grant outside of mlock and a
-> caller that wants MLOCK_ONFAULT.  That was a long way of saying we need
-> an extra vma flag regardless.  However, if that flag only controls if
-> mlock pre-populates it would work and it would do away with most of the
-> places I had to touch to handle VM_LOCKONFAULT properly.
+> That said, I can't imagine this will hurt anything.  We also have TLBs
+> that can mix 2M and 4k pages and I don't think we did back when we put
+> that code in originally.
 
-Yes, it would be a good way. Adding a new vma flag is probably cleanest after
-all, but the flag would be set *in addition* to VM_LOCKED, *just* to prevent
-pre-faulting. The places that check VM_LOCKED for the actual page mlocking (i.e.
-try_to_unmap_one) would just keep checking VM_LOCKED. The places where VM_LOCKED
-is checked to trigger prepopulation, would skip that if VM_LOCKONFAULT is also
-set. Having VM_LOCKONFAULT set without also VM_LOCKED itself would be invalid state.
+Another question is whether flushing a single address is enough for a
+huge page. I assumed it is since tlb_remove_pmd_tlb_entry() only adjusts
+the mmu_gather range by PAGE_SIZE (rather than HPAGE_SIZE) and no-one
+complained so far. AFAICT, there are only 3 architectures that don't use
+asm-generic/tlb.h but they all seem to handle this case:
 
-This should work fine with the simplified API as I proposed so let me reiterate
-and try fill in the blanks:
+arch/arm: it implements tlb_remove_pmd_tlb_entry() in a similar way to
+the generic one
 
-- mlock2 has only one new flag MLOCK_ONFAULT. If specified, VM_LOCKONFAULT is
-set in addition to VM_LOCKED and no prefaulting is done
-  - old mlock syscall naturally behaves as mlock2 without MLOCK_ONFAULT
-  - calling mlock/mlock2 on an already-mlocked area (if that's permitted
-already?) will add/remove VM_LOCKONFAULT as needed. If it's removing,
-prepopulate whole range. Of course adding VM_LOCKONFAULT to a vma that was
-already prefaulted doesn't make any difference, but it's consistent with the rest.
-- munlock removes both VM_LOCKED and VM_LOCKONFAULT
-- mmap could treat MAP_LOCKONFAULT as a modifier to MAP_LOCKED to be consistent?
-or not? I'm not sure here, either way subtly differs from mlock API anyway, I
-just wish MAP_LOCKED never existed...
-- mlockall(MCL_CURRENT) sets or clears VM_LOCKONFAULT depending on
-MCL_LOCKONFAULT, mlockall(MCL_FUTURE) does the same on mm->def_flags
-- munlockall2 removes both, like munlock. munlockall2(MCL_FUTURE) does that to
-def_flags
+arch/s390: tlb_remove_pmd_tlb_entry() is a no-op
 
-> I picked VM_LOCKONFAULT because it is explicit about what it is for and
-> there is little risk of someone coming along in 5 years and saying "why
-> not overload this flag to do this other thing completely unrelated to
-> mlock?".  A flag for controling speculative population is more likely to
-> be overloaded outside of mlock().
+arch/ia64: does not support THP
 
-Sure, let's make clear the name is related to mlock, but the behavior could
-still be additive to MAP_LOCKED.
-
-> If you have a sane way of handling mlockall(MCL_ONFAULT) without a new
-> VMA flag, I am happy to give it a try, but I haven't been able to come
-> up with one that doesn't have its own gremlins.
-
-Well we could store the MCL_FUTURE | MCL_ONFAULT bit elsewhere in mm_struct than
-the def_flags field. The VM_LOCKED field is already evaluated specially from all
-the other def_flags. We are nearing the full 32bit space for vma flags. I think
-all I've proposed above wouldn't change much if we removed per-vma
-VM_LOCKONFAULT flag from the equation. Just that re-mlocking area already
-mlocked *withouth* MLOCK_ONFAULT wouldn't know that it was alread prepopulated,
-and would have to re-populate in either case (I'm not sure, maybe it's already
-done by current implementation anyway so it's not a potential performance
-regression).
-Only mlockall(MCL_FUTURE | MCL_ONFAULT) should really need the ONFAULT info to
-"stick" somewhere in mm_struct, but it doesn't have to be def_flags?
+--=20
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
