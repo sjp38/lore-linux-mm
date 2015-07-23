@@ -1,94 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 18D309003C7
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 12:49:26 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so2020108wib.1
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 09:49:25 -0700 (PDT)
-Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
-        by mx.google.com with ESMTPS id d2si9496298wjw.157.2015.07.23.09.49.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 23 Jul 2015 09:49:24 -0700 (PDT)
-Date: Thu, 23 Jul 2015 17:49:21 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] mm: Flush the TLB for a single address in a huge page
-Message-ID: <20150723164921.GH27052@e104818-lin.cambridge.arm.com>
-References: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com>
- <alpine.DEB.2.10.1507221436350.21468@chino.kir.corp.google.com>
- <CAHkRjk7=VMG63VfZdWbZqYu8FOa9M+54Mmdro661E2zt3WToog@mail.gmail.com>
- <55B021B1.5020409@intel.com>
- <20150723104938.GA27052@e104818-lin.cambridge.arm.com>
- <20150723141303.GB23799@redhat.com>
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F6AD9003C7
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 12:52:50 -0400 (EDT)
+Received: by oihq81 with SMTP id q81so169594926oih.2
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 09:52:50 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id m3si13449665pdh.67.2015.07.23.09.52.49
+        for <linux-mm@kvack.org>;
+        Thu, 23 Jul 2015 09:52:49 -0700 (PDT)
+Message-ID: <55B11BE1.3070903@intel.com>
+Date: Thu, 23 Jul 2015 09:52:49 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20150723141303.GB23799@redhat.com>
-Content-Type: text/plain; charset=WINDOWS-1252
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Subject: Re: [PATCH] mm: Flush the TLB for a single address in a huge page
+References: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com> <alpine.DEB.2.10.1507221436350.21468@chino.kir.corp.google.com> <CAHkRjk7=VMG63VfZdWbZqYu8FOa9M+54Mmdro661E2zt3WToog@mail.gmail.com> <55B021B1.5020409@intel.com> <20150723104938.GA27052@e104818-lin.cambridge.arm.com> <20150723141303.GB23799@redhat.com> <55B0FD14.8050501@intel.com> <20150723155801.GC23799@redhat.com>
+In-Reply-To: <20150723155801.GC23799@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Jul 23, 2015 at 03:13:03PM +0100, Andrea Arcangeli wrote:
-> On Thu, Jul 23, 2015 at 11:49:38AM +0100, Catalin Marinas wrote:
-> > On Thu, Jul 23, 2015 at 12:05:21AM +0100, Dave Hansen wrote:
-> > > On 07/22/2015 03:48 PM, Catalin Marinas wrote:
-> > > > You are right, on x86 the tlb_single_page_flush_ceiling seems to be
-> > > > 33, so for an HPAGE_SIZE range the code does a local_flush_tlb()
-> > > > always. I would say a single page TLB flush is more efficient than =
-a
-> > > > whole TLB flush but I'm not familiar enough with x86.
-> > >=20
-> > > The last time I looked, the instruction to invalidate a single page i=
-s
-> > > more expensive than the instruction to flush the entire TLB.=20
-[...]
-> > Another question is whether flushing a single address is enough for a
-> > huge page. I assumed it is since tlb_remove_pmd_tlb_entry() only adjust=
-s
-[...]
-> > the mmu_gather range by PAGE_SIZE (rather than HPAGE_SIZE) and
-> > no-one complained so far. AFAICT, there are only 3 architectures
-> > that don't use asm-generic/tlb.h but they all seem to handle this
-> > case:
->=20
-> Agreed that archs using the generic tlb.h that sets the tlb->end to
-> address+PAGE_SIZE should be fine with the flush_tlb_page.
->=20
-> > arch/arm: it implements tlb_remove_pmd_tlb_entry() in a similar way to
-> > the generic one
-> >=20
-> > arch/s390: tlb_remove_pmd_tlb_entry() is a no-op
->=20
-> I guess s390 is fine too but I'm not convinced that the fact it won't
-> adjust the tlb->start/end is a guarantees that flush_tlb_page is
-> enough when a single 2MB TLB has to be invalidated (not during range
-> zapping).
->=20
-> For the range zapping, could the arch decide to unconditionally flush
-> the whole TLB without doing the tlb->start/end tracking by overriding
-> tlb_gather_mmu in a way that won't call __tlb_reset_range? There seems
-> to be quite some flexibility in the per-arch tlb_gather_mmu setup in
-> order to unconditionally set tlb->start/end to the total range zapped,
-> without actually narrowing it down during the pagetable walk.
+On 07/23/2015 08:58 AM, Andrea Arcangeli wrote:
+> You wrote the patch that uses the tlb_single_page_flush_ceiling, so if
+> the above discussion would be relevant with regard to flush_tlb_page,
+> are you implying that the above optimization in the kernel, should
+> also be removed?
 
-You are right, looking at the s390 code, tlb_finish_mmu() flushes the
-whole TLB, so the ranges don't seem to matter. I'm cc'ing the s390
-maintainers to confirm whether this patch affects them in any way:
+When I put that in, my goal was to bring consistency to how we handled
+things without regressing anything.  I was never able to measure any
+nice macro-level benefits to a particular flush behavior.
 
-https://lkml.org/lkml/2015/7/22/521
+We can also now just easily disable the ranged flushes if we want to, or
+leave them in place for small flushes only.
 
-IIUC, all the functions touched by this patch are implemented by s390 in
-its specific way, so I don't think it makes any difference:
+> When these flush_tlb_range optimizations were introduced, it was
+> measured with benchmark that they helped IIRC. If it's not true
+> anymore with latest CPU I don't know but there should be at least a
+> subset of those CPUs where this helps. So I doubt it should be removed
+> for all CPUs out there.
 
-pmdp_set_access_flags
-pmdp_clear_flush_young
-pmdp_huge_clear_flush
-pmdp_splitting_flush
-pmdp_invalidate
+I tried to reproduce the results and had a difficult time doing so.
 
---=20
-Catalin
+> The tlb_single_page_flush_ceiling optimization has nothing to do with
+> 2MB pages. But if that is still valid (or if it has ever been valid
+> for older CPUs), why is flush_tlb_page not a valid optimization at
+> least for those older CPUS? Why is it worth doing single invalidates
+> on 4k pages and not on 2MB pages?
+
+I haven't seen any solid evidence that we should do it for one and not
+the other.
+
+> It surely was helpful to do invlpg invalidated on 4k pages, up to 33
+> in a row, with x86 CPUs as you wrote the code quoted above to do
+> that, and it is still in the current kernel. So why are 2MB pages
+> different?
+
+They were originally different because the work that introduced 'invlpg'
+didn't see a benefit from using 'invlpg' on 2M pages.  I didn't
+reevaluate it when I hacked on the code and just left it as it was.
+
+It would be great if someone would go and collect some recent data on
+using 'invlpg' on 2M pages!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
