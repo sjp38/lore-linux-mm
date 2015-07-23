@@ -1,74 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ECAA6B025A
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 01:20:07 -0400 (EDT)
-Received: by pdbnt7 with SMTP id nt7so79945208pdb.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 22:20:06 -0700 (PDT)
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id B05156B025A
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 01:28:55 -0400 (EDT)
+Received: by pdbnt7 with SMTP id nt7so80059475pdb.0
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 22:28:55 -0700 (PDT)
 Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id zi5si9072111pac.113.2015.07.22.22.20.05
+        by mx.google.com with ESMTP id ku8si9142200pab.80.2015.07.22.22.28.53
         for <linux-mm@kvack.org>;
-        Wed, 22 Jul 2015 22:20:06 -0700 (PDT)
-Date: Thu, 23 Jul 2015 14:24:31 +0900
+        Wed, 22 Jul 2015 22:28:54 -0700 (PDT)
+Date: Thu, 23 Jul 2015 14:33:19 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/2] mm: rename and move get/set_freepage_migratetype
-Message-ID: <20150723052431.GD4449@js1304-P5Q-DELUXE>
-References: <55969822.9060907@suse.cz>
- <1437483218-18703-1-git-send-email-vbabka@suse.cz>
- <1437483218-18703-2-git-send-email-vbabka@suse.cz>
- <55AF8C94.6020406@suse.cz>
+Subject: Re: [RFC PATCH 00/10] redesign compaction algorithm
+Message-ID: <20150723053319.GE4449@js1304-P5Q-DELUXE>
+References: <1435193121-25880-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20150625110314.GJ11809@suse.de>
+ <CAAmzW4OnE7A6sxEDFRcp9jbuxkYkJvJw_PH1TBFtS0nZOmrVGg@mail.gmail.com>
+ <20150625172550.GA26927@suse.de>
+ <CAAmzW4PMWOaAa0bd7xVr5Jz=xVgqMw8G=UFOwhUGuyLL9EFbHA@mail.gmail.com>
+ <20150625184135.GB26927@suse.de>
+ <CAAmzW4OuArqzavsPY3_3u5OnnO=ZY1HSnUT4Rgoq2ytd+n89xQ@mail.gmail.com>
+ <20150626102241.GH26927@suse.de>
+ <20150708082458.GA17015@js1304-P5Q-DELUXE>
+ <55AE109A.4020803@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <55AF8C94.6020406@suse.cz>
+In-Reply-To: <55AE109A.4020803@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "minkyung88.kim" <minkyung88.kim@lge.com>, kmk3210@gmail.com, Seungho Park <seungho1.park@lge.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
 
-On Wed, Jul 22, 2015 at 02:29:08PM +0200, Vlastimil Babka wrote:
-> On 07/21/2015 02:53 PM, Vlastimil Babka wrote:
-> > The pair of get/set_freepage_migratetype() functions are used to cache
-> > pageblock migratetype for a page put on a pcplist, so that it does not have
-> > to be retrieved again when the page is put on a free list (e.g. when pcplists
-> > become full). Historically it was also assumed that the value is accurate for
-> > pages on freelists (as the functions' names unfortunately suggest), but that
-> > cannot be guaranteed without affecting various allocator fast paths. It is in
-> > fact not needed and all such uses have been removed.
-> > 
-> > The last remaining (but pointless) usage related to pages of freelists is in
-> > move_freepages(), which this patch removes.
+On Tue, Jul 21, 2015 at 11:27:54AM +0200, Vlastimil Babka wrote:
+> On 07/08/2015 10:24 AM, Joonsoo Kim wrote:
+> >On Fri, Jun 26, 2015 at 11:22:41AM +0100, Mel Gorman wrote:
+> >>On Fri, Jun 26, 2015 at 11:07:47AM +0900, Joonsoo Kim wrote:
+> >>
+> >>The whole reason we avoid migrating to unmovable blocks is because it
+> >>did happen and quite quickly.  Do not use unmovable blocks as migration
+> >>targets. If high-order kernel allocations are required then some reclaim
+> >>is necessary for compaction to work with.
+> >
+> >Hello, Mel and Vlastimil.
+> >
+> >Sorry for late response. I need some time to get the number and it takes
+> >so long due to bugs on page owner. Before mentioning about this patchset,
+> >I should mention that result of my previous patchset about active
+> >fragmentation avoidance that you have reviewed is wrong. Incorrect result
+> >is caused by page owner bug and correct result shows just slight
+> >improvement rather than dramatical improvment.
+> >
+> >https://lkml.org/lkml/2015/4/27/92
 > 
-> I realized there's one more callsite that can be removed. Here's
-> whole updated patch due to different changelog and to cope with
-> context changed by the fixlet to patch 1/2.
-> 
-> ------8<------
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Thu, 2 Jul 2015 16:37:06 +0200
-> Subject: mm: rename and move get/set_freepage_migratetype
-> 
-> The pair of get/set_freepage_migratetype() functions are used to cache
-> pageblock migratetype for a page put on a pcplist, so that it does not have
-> to be retrieved again when the page is put on a free list (e.g. when pcplists
-> become full). Historically it was also assumed that the value is accurate for
-> pages on freelists (as the functions' names unfortunately suggest), but that
-> cannot be guaranteed without affecting various allocator fast paths. It is in
-> fact not needed and all such uses have been removed.
-> 
-> The last two remaining (but pointless) usages related to pages of freelists
-> are removed by this patch:
-> - move_freepages() which operates on pages already on freelists
-> - __free_pages_ok() which puts a page directly to freelist, bypassing pcplists
-> 
-> To prevent further confusion, rename the functions to
-> get/set_pcppage_migratetype() and expand their description. Since all the
-> users are now in mm/page_alloc.c, move the functions there from the shared
-> header.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Acked-by: David Rientjes <rientjes@google.com>
+> Doh, glad you found the bug.
+> BTW I still think patch 1 of that series would make sense and it's a
+> code cleanup too. Patch 2 would depend on the corrected
+> measurements. Patch 3 also, and the active anti-fragmentation work
+> could be done by kcompactd if the idea of that thread floats.
 
-Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Yes, I don't give up those patches. :)
+
+> 
+> >Back to our discussion, indeed, you are right. As you expected,
+> >fragmentation increases due to this patch. It's not much but adding
+> >other changes of this patchset accelerates fragmentation more so
+> >it's not tolerable in the end.
+> >
+> >Below is number of *non-mixed* pageblock measured by page owner
+> >after running modified stress-highalloc test that repeats test 3 times
+> >without rebooting like as Vlastimil did.
+> >
+> >pb[n] means that it is measured after n times runs of stress-highalloc
+> >test without rebooting. They are averaged by 3 runs.
+> >
+> >                         base nonmovable redesign revert-nonmovable
+> >pb[1]:DMA32:movable:    1359    1333    1303    1380
+> >pb[1]:Normal:movable:   368     341     356     364
+> >
+> >pb[2]:DMA32:movable:    1306    1277    1216    1322
+> >pb[2]:Normal:movable:   359     345     325     349
+> >
+> >pb[3]:DMA32:movable:    1265    1240    1179    1276
+> >pb[3]:Normal:movable:   330     330     312     332
+> >
+> >Allowing scanning on nonmovable pageblock increases fragmentation so
+> >non-mixed pageblock is reduced by rougly 2~3%. Whole of this patchset
+> >bumps this reduction up to roughly 6%. But, with reverting nonmovable
+> >patch, it get restored and looks better than before.
+> 
+> Hm that's somewhat strange. Why is it only the *combination* of
+> "nonmovable" and "redesign" that makes it so bad?
+
+I guess that freepage scanner scans limited zone range in nonmovable case
+so bad effect is also limited.
+
+> >Nevertheless, still, I'd like to change freepage scanner's behaviour
+> >because there are systems that most of pageblocks are unmovable pageblock.
+> >In this kind of system, without this change, compaction would not
+> >work well as my experiment, build-frag-unmovable, showed, and essential
+> >high-order allocation fails.
+> >
+> >I have no idea how to overcome this situation without this kind of change.
+> >If you have such a idea, please let me know.
+> 
+> Hm it's a tough one :/
+> 
+> >Here is similar idea to handle this situation without causing more
+> >fragmentation. Changes as following:
+> >
+> >1. Freepage scanner just scan only movable pageblocks.
+> >2. If freepage scanner doesn't find any freepage on movable pageblocks
+> >and whole zone range is scanned, freepage scanner start to scan on
+> >non-movable pageblocks.
+> >
+> >Here is the result.
+> >                                                 new-idea
+> >pb[1]:DMA32:movable:                            1371
+> >pb[1]:Normal:movable:                            384
+> >
+> >pb[2]:DMA32:movable:                            1322
+> >pb[2]:Normal:movable:                            372
+> >
+> >pb[3]:DMA32:movable:                            1273
+> >pb[3]:Normal:movable:                            358
+> >
+> >Result is better than revert-nonmovable case. Although I didn't attach
+> >the whole result, this one is better than revert one in term of success
+> >rate.
+> >
+> >Before starting to optimize this idea, I'd like to hear your opinion
+> >about this change.
+> 
+> Well, it might be better than nothing. Optimization could be
+> remembering from the first pass which pageblock was the emptiest?
+> But that would make the first pass more involved, so I'm not sure.
+
+Now, I don't have any idea for it. I need more think.
 
 Thanks.
 
