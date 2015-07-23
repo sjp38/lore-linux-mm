@@ -1,143 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id B05156B025A
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 01:28:55 -0400 (EDT)
-Received: by pdbnt7 with SMTP id nt7so80059475pdb.0
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 22:28:55 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id ku8si9142200pab.80.2015.07.22.22.28.53
-        for <linux-mm@kvack.org>;
-        Wed, 22 Jul 2015 22:28:54 -0700 (PDT)
-Date: Thu, 23 Jul 2015 14:33:19 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 00/10] redesign compaction algorithm
-Message-ID: <20150723053319.GE4449@js1304-P5Q-DELUXE>
-References: <1435193121-25880-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20150625110314.GJ11809@suse.de>
- <CAAmzW4OnE7A6sxEDFRcp9jbuxkYkJvJw_PH1TBFtS0nZOmrVGg@mail.gmail.com>
- <20150625172550.GA26927@suse.de>
- <CAAmzW4PMWOaAa0bd7xVr5Jz=xVgqMw8G=UFOwhUGuyLL9EFbHA@mail.gmail.com>
- <20150625184135.GB26927@suse.de>
- <CAAmzW4OuArqzavsPY3_3u5OnnO=ZY1HSnUT4Rgoq2ytd+n89xQ@mail.gmail.com>
- <20150626102241.GH26927@suse.de>
- <20150708082458.GA17015@js1304-P5Q-DELUXE>
- <55AE109A.4020803@suse.cz>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B1ED06B025F
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 01:41:52 -0400 (EDT)
+Received: by pacan13 with SMTP id an13so153014956pac.1
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 22:41:52 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id a8si9201308pdl.110.2015.07.22.22.41.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Jul 2015 22:41:51 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] mm, page_isolation: make set/unset_migratetype_isolate()
+ file-local
+Date: Thu, 23 Jul 2015 05:40:04 +0000
+Message-ID: <1437630002-25936-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55AE109A.4020803@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 21, 2015 at 11:27:54AM +0200, Vlastimil Babka wrote:
-> On 07/08/2015 10:24 AM, Joonsoo Kim wrote:
-> >On Fri, Jun 26, 2015 at 11:22:41AM +0100, Mel Gorman wrote:
-> >>On Fri, Jun 26, 2015 at 11:07:47AM +0900, Joonsoo Kim wrote:
-> >>
-> >>The whole reason we avoid migrating to unmovable blocks is because it
-> >>did happen and quite quickly.  Do not use unmovable blocks as migration
-> >>targets. If high-order kernel allocations are required then some reclaim
-> >>is necessary for compaction to work with.
-> >
-> >Hello, Mel and Vlastimil.
-> >
-> >Sorry for late response. I need some time to get the number and it takes
-> >so long due to bugs on page owner. Before mentioning about this patchset,
-> >I should mention that result of my previous patchset about active
-> >fragmentation avoidance that you have reviewed is wrong. Incorrect result
-> >is caused by page owner bug and correct result shows just slight
-> >improvement rather than dramatical improvment.
-> >
-> >https://lkml.org/lkml/2015/4/27/92
-> 
-> Doh, glad you found the bug.
-> BTW I still think patch 1 of that series would make sense and it's a
-> code cleanup too. Patch 2 would depend on the corrected
-> measurements. Patch 3 also, and the active anti-fragmentation work
-> could be done by kcompactd if the idea of that thread floats.
+Nowaday, set/unset_migratetype_isolate() is defined and used only in
+mm/page_isolation, so let's limit the scope within the file.
 
-Yes, I don't give up those patches. :)
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ include/linux/page-isolation.h | 5 -----
+ mm/page_isolation.c            | 5 +++--
+ 2 files changed, 3 insertions(+), 7 deletions(-)
 
-> 
-> >Back to our discussion, indeed, you are right. As you expected,
-> >fragmentation increases due to this patch. It's not much but adding
-> >other changes of this patchset accelerates fragmentation more so
-> >it's not tolerable in the end.
-> >
-> >Below is number of *non-mixed* pageblock measured by page owner
-> >after running modified stress-highalloc test that repeats test 3 times
-> >without rebooting like as Vlastimil did.
-> >
-> >pb[n] means that it is measured after n times runs of stress-highalloc
-> >test without rebooting. They are averaged by 3 runs.
-> >
-> >                         base nonmovable redesign revert-nonmovable
-> >pb[1]:DMA32:movable:    1359    1333    1303    1380
-> >pb[1]:Normal:movable:   368     341     356     364
-> >
-> >pb[2]:DMA32:movable:    1306    1277    1216    1322
-> >pb[2]:Normal:movable:   359     345     325     349
-> >
-> >pb[3]:DMA32:movable:    1265    1240    1179    1276
-> >pb[3]:Normal:movable:   330     330     312     332
-> >
-> >Allowing scanning on nonmovable pageblock increases fragmentation so
-> >non-mixed pageblock is reduced by rougly 2~3%. Whole of this patchset
-> >bumps this reduction up to roughly 6%. But, with reverting nonmovable
-> >patch, it get restored and looks better than before.
-> 
-> Hm that's somewhat strange. Why is it only the *combination* of
-> "nonmovable" and "redesign" that makes it so bad?
-
-I guess that freepage scanner scans limited zone range in nonmovable case
-so bad effect is also limited.
-
-> >Nevertheless, still, I'd like to change freepage scanner's behaviour
-> >because there are systems that most of pageblocks are unmovable pageblock.
-> >In this kind of system, without this change, compaction would not
-> >work well as my experiment, build-frag-unmovable, showed, and essential
-> >high-order allocation fails.
-> >
-> >I have no idea how to overcome this situation without this kind of change.
-> >If you have such a idea, please let me know.
-> 
-> Hm it's a tough one :/
-> 
-> >Here is similar idea to handle this situation without causing more
-> >fragmentation. Changes as following:
-> >
-> >1. Freepage scanner just scan only movable pageblocks.
-> >2. If freepage scanner doesn't find any freepage on movable pageblocks
-> >and whole zone range is scanned, freepage scanner start to scan on
-> >non-movable pageblocks.
-> >
-> >Here is the result.
-> >                                                 new-idea
-> >pb[1]:DMA32:movable:                            1371
-> >pb[1]:Normal:movable:                            384
-> >
-> >pb[2]:DMA32:movable:                            1322
-> >pb[2]:Normal:movable:                            372
-> >
-> >pb[3]:DMA32:movable:                            1273
-> >pb[3]:Normal:movable:                            358
-> >
-> >Result is better than revert-nonmovable case. Although I didn't attach
-> >the whole result, this one is better than revert one in term of success
-> >rate.
-> >
-> >Before starting to optimize this idea, I'd like to hear your opinion
-> >about this change.
-> 
-> Well, it might be better than nothing. Optimization could be
-> remembering from the first pass which pageblock was the emptiest?
-> But that would make the first pass more involved, so I'm not sure.
-
-Now, I don't have any idea for it. I need more think.
-
-Thanks.
+diff --git v4.2-rc2.orig/include/linux/page-isolation.h v4.2-rc2/include/li=
+nux/page-isolation.h
+index 2dc1e1697b45..047d64706f2a 100644
+--- v4.2-rc2.orig/include/linux/page-isolation.h
++++ v4.2-rc2/include/linux/page-isolation.h
+@@ -65,11 +65,6 @@ undo_isolate_page_range(unsigned long start_pfn, unsigne=
+d long end_pfn,
+ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+ 			bool skip_hwpoisoned_pages);
+=20
+-/*
+- * Internal functions. Changes pageblock's migrate type.
+- */
+-int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)=
+;
+-void unset_migratetype_isolate(struct page *page, unsigned migratetype);
+ struct page *alloc_migrate_target(struct page *page, unsigned long private=
+,
+ 				int **resultp);
+=20
+diff --git v4.2-rc2.orig/mm/page_isolation.c v4.2-rc2/mm/page_isolation.c
+index 32fdc1df05e5..4568fd58f70a 100644
+--- v4.2-rc2.orig/mm/page_isolation.c
++++ v4.2-rc2/mm/page_isolation.c
+@@ -9,7 +9,8 @@
+ #include <linux/hugetlb.h>
+ #include "internal.h"
+=20
+-int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
++static int set_migratetype_isolate(struct page *page,
++				bool skip_hwpoisoned_pages)
+ {
+ 	struct zone *zone;
+ 	unsigned long flags, pfn;
+@@ -72,7 +73,7 @@ int set_migratetype_isolate(struct page *page, bool skip_=
+hwpoisoned_pages)
+ 	return ret;
+ }
+=20
+-void unset_migratetype_isolate(struct page *page, unsigned migratetype)
++static void unset_migratetype_isolate(struct page *page, unsigned migratet=
+ype)
+ {
+ 	struct zone *zone;
+ 	unsigned long flags, nr_pages;
+--=20
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
