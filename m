@@ -1,66 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 582CD6B0260
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 08:28:32 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so146735624wib.1
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 05:28:31 -0700 (PDT)
-Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
-        by mx.google.com with ESMTPS id i2si8166077wjz.123.2015.07.23.05.28.30
+Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FA776B0256
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 09:05:25 -0400 (EDT)
+Received: by lbbqi7 with SMTP id qi7so76839793lbb.3
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 06:05:24 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id ge10si12953892wib.92.2015.07.23.06.05.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 23 Jul 2015 05:28:30 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id F0CC2983CE
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 12:28:29 +0000 (UTC)
-Date: Thu, 23 Jul 2015 13:28:28 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 03/10] mm, page_alloc: Remove unnecessary recalculations
- for dirty zone balancing
-Message-ID: <20150723122827.GB2660@techsingularity.net>
-References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
- <1437379219-9160-4-git-send-email-mgorman@suse.com>
- <alpine.DEB.2.10.1507211703410.12650@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Jul 2015 06:05:23 -0700 (PDT)
+Received: by wibxm9 with SMTP id xm9so207570323wib.0
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 06:05:22 -0700 (PDT)
+Message-ID: <55B0E690.3040601@gmail.com>
+Date: Thu, 23 Jul 2015 15:05:20 +0200
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1507211703410.12650@chino.kir.corp.google.com>
+Subject: Re: [patch] mmap.2: document the munmap exception for underlying
+ page size
+References: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com> <55AFD009.6080706@gmail.com> <alpine.DEB.2.10.1507221457300.21468@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1507221457300.21468@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: mtk.manpages@gmail.com, Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Eric B Munson <emunson@akamai.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-On Tue, Jul 21, 2015 at 05:08:42PM -0700, David Rientjes wrote:
-> On Mon, 20 Jul 2015, Mel Gorman wrote:
+On 07/23/2015 12:03 AM, David Rientjes wrote:
+> On Wed, 22 Jul 2015, Michael Kerrisk (man-pages) wrote:
 > 
-> > From: Mel Gorman <mgorman@suse.de>
-> > 
-> > File-backed pages that will be immediately dirtied are balanced between
-> > zones but it's unnecessarily expensive. Move consider_zone_balanced into
-> > the alloc_context instead of checking bitmaps multiple times.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+>>> diff --git a/man2/mmap.2 b/man2/mmap.2
+>>> --- a/man2/mmap.2
+>>> +++ b/man2/mmap.2
+>>> @@ -383,6 +383,10 @@ All pages containing a part
+>>>  of the indicated range are unmapped, and subsequent references
+>>>  to these pages will generate
+>>>  .BR SIGSEGV .
+>>> +An exception is when the underlying memory is not of the native page
+>>> +size, such as hugetlb page sizes, whereas
+>>> +.I length
+>>> +must be a multiple of the underlying page size.
+>>>  It is not an error if the
+>>>  indicated range does not contain any mapped pages.
+>>>  .SS Timestamps changes for file-backed mappings
+>>
+>> I'm struggling a bit to understand your text. Is the point this:
+>>
+>>     If we have a hugetlb area, then the munmap() length
+>>     must be a multiple of the page size.
+>>
+>> ?
+>>
 > 
-> Acked-by: David Rientjes <rientjes@google.com>
+> Of the hugetlb page size, yes, which was meant by the "underlying page 
+> size" since we have configurable hugetlb sizes.  This is different from 
+> the native page size, whereas the length is rounded up to be page aligned 
+> per POSIX.
 > 
+>> Are there any requirements about 'addr'? Must it also me huge-page-aligned?
+>>
+> 
+> Yes, so it looks like we need to fix up the reference to "address addr 
+> must be a multiple of the page size" to something like "address addr must 
+> be a multiple of the underlying page size" but I think the distinction 
+> isn't explicit enough as I'd like it.  I think it's better to explicitly 
+> show the exception for hugetlb page sizes and compare the underlying page 
+> size to the native page size to define how the behavior differs.
+> 
+> Would something like
+> 
+> 	An exception is when the underlying memory, such as hugetlb 
+> 	memory, is not of the native page size: the address addr and
+> 	the length must be a multiple of the underlying page size.
 
-Thanks.
+See my suggestion in another mail (in a few minutes).
 
-> consider_zone_dirty eliminates zones over their dirty limits and 
-> zone_dirty_ok() returns true if zones are under their dirty limits, so the 
-> naming of both are a little strange.  You might consider changing them 
-> while you're here.
+> suffice?
+> 
+> Also, is it typical to reference the commit of the documentation change 
+> in the kernel source that defines this?  I see this done with .\" blocks 
+> for MAP_STACK in the same man page.
 
-Yeah, that seems sensible. I named the struct field spread_dirty_page so
-the relevant check now looks like
+I find it handy to add such references, for later references.
+By the way, are you saying that some piece of behavior has
+changed in recent times for munmap() on HugeTLB?
 
-	if (ac->spread_dirty_page && !zone_dirty_ok(zone))
+Thanks,
 
-Alternative suggestions welcome but I think this is more meaningful than
-consider_zone_dirty was.
+Michael
 
 -- 
-Mel Gorman
-SUSE Labs
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
