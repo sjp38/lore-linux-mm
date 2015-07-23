@@ -1,74 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 157FA6B025C
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 16:52:06 -0400 (EDT)
-Received: by pachj5 with SMTP id hj5so1850514pac.3
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 13:52:05 -0700 (PDT)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id al7si14665986pad.160.2015.07.23.13.52.04
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id F2D7C6B025C
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 16:58:23 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so1894248pdr.2
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 13:58:23 -0700 (PDT)
+Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com. [2607:f8b0:400e:c02::22d])
+        by mx.google.com with ESMTPS id t6si14818596pdm.24.2015.07.23.13.58.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jul 2015 13:52:05 -0700 (PDT)
-Received: by pacan13 with SMTP id an13so1938092pac.1
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 13:52:04 -0700 (PDT)
-Date: Thu, 23 Jul 2015 13:52:02 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Jul 2015 13:58:23 -0700 (PDT)
+Received: by pdbnt7 with SMTP id nt7so1927010pdb.0
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 13:58:22 -0700 (PDT)
+Date: Thu, 23 Jul 2015 13:58:20 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mmap.2: document the munmap exception for underlying
- page size
-In-Reply-To: <55B0E900.8090207@gmail.com>
-Message-ID: <alpine.DEB.2.10.1507231349080.31024@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com> <55B027D3.4020608@oracle.com> <alpine.DEB.2.10.1507221646100.14953@chino.kir.corp.google.com> <55B0E900.8090207@gmail.com>
+Subject: Re: [RFC 1/4] mm, compaction: introduce kcompactd
+In-Reply-To: <20150723060348.GF4449@js1304-P5Q-DELUXE>
+Message-ID: <alpine.DEB.2.10.1507231353400.31024@chino.kir.corp.google.com>
+References: <1435826795-13777-1-git-send-email-vbabka@suse.cz> <1435826795-13777-2-git-send-email-vbabka@suse.cz> <alpine.DEB.2.10.1507091439100.17177@chino.kir.corp.google.com> <20150723060348.GF4449@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Eric B Munson <emunson@akamai.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-On Thu, 23 Jul 2015, Michael Kerrisk (man-pages) wrote:
+On Thu, 23 Jul 2015, Joonsoo Kim wrote:
 
-> >> Should we also add a similar comment for the mmap offset?  Currently
-> >> the man page says:
-> >>
-> >> "offset must be a multiple of the page size as returned by
-> >>  sysconf(_SC_PAGE_SIZE)."
-> >>
-> >> For hugetlbfs, I beieve the offset must be a multiple of the
-> >> hugetlb page size.  A similar comment/exception about using
-> >> the "underlying page size" would apply here as well.
-> >>
-> > 
-> > Yes, that makes sense, thanks.  We should also explicitly say that mmap(2) 
-> > automatically aligns length to be hugepage aligned if backed by hugetlbfs.
+> > The slub allocator does try to allocate its high-order memory with 
+> > __GFP_WAIT before falling back to lower orders if possible.  I would think 
+> > that this would be the greatest sign of on-demand memory compaction being 
+> > a problem, especially since CONFIG_SLUB is the default, but I haven't seen 
+> > such reports.
 > 
-> And, surely, it also does something similar for mmap()'s 'addr'
-> argument? 
-> 
-> I suggest we add a subsection to describe the HugeTLB differences. How 
-> about something like:
-> 
->    Huge page (Huge TLB) mappings
->        For  mappings  that  employ  huge pages, the requirements for the
->        arguments  of  mmap()  and  munmap()  differ  somewhat  from  the
->        requirements for mappings that use the native system page size.
-> 
->        For mmap(), offset must be a multiple of the underlying huge page
->        size.  The system automatically aligns length to be a multiple of
->        the underlying huge page size.
-> 
->        For  munmap(),  addr  and  length  must both be a multiple of the
->        underlying huge page size.
-> ?
+> In fact, some of our product had trouble with slub's high order
+> allocation 5 months ago. At that time, compaction didn't make high order
+> page and compaction attempts are frequently deferred. It also causes many
+> reclaim to make high order page so I suggested masking out __GFP_WAIT
+> and adding __GFP_NO_KSWAPD when trying slub's high order allocation to
+> reduce reclaim/compaction overhead. Although using high order page in slub
+> has some gains that reducing internal fragmentation and reducing management
+> overhead, benefit is marginal compared to the cost at making high order
+> page. This solution improves system response time for our case. I planned
+> to submit the patch but it is delayed due to my laziness. :)
 > 
 
-Looks good, please add my acked-by.  The commit that expanded on the 
-documentation of this behavior was 
-80d6b94bd69a7a49b52bf503ef6a841f43cf5bbb.
+Hi Joonsoo,
 
-Answering from your other email, no, this behavior in the kernel has not 
-changed recently but we found it wasn't properly documented so we wanted 
-to fix that both in the kernel tree and in the man-pages to make it 
-explicit.
+On a fragmented machine I can certainly understand that the overhead 
+involved in allocating the high-order page outweighs the benefit later and 
+it's better to fallback more quickly to page orders if the cache allows 
+it.
+
+I believe that this would be improved by the suggestion of doing 
+background synchronous compaction.  So regardless of whether __GFP_WAIT is 
+set, if the allocation fails then we can kick off background compaction 
+that will hopefully defragment memory for future callers.  That should 
+make high-order atomic allocations more successful as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
