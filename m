@@ -1,164 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FC0B6B0260
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 05:18:52 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so14947180wib.1
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 02:18:51 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 754059003C7
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 06:03:43 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so200773847wib.0
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 03:03:42 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id oo2si7191241wjc.190.2015.07.23.02.18.49
+        by mx.google.com with ESMTPS id sb12si7444884wjb.77.2015.07.23.03.03.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Jul 2015 02:18:50 -0700 (PDT)
-Subject: Re: [RFC 1/4] mm, compaction: introduce kcompactd
-References: <1435826795-13777-1-git-send-email-vbabka@suse.cz>
- <1435826795-13777-2-git-send-email-vbabka@suse.cz>
- <alpine.DEB.2.10.1507091439100.17177@chino.kir.corp.google.com>
- <55AE0AFE.8070200@suse.cz>
- <alpine.DEB.2.10.1507211549380.3833@chino.kir.corp.google.com>
- <55AFB569.90702@suse.cz>
- <alpine.DEB.2.10.1507221509520.24115@chino.kir.corp.google.com>
+        Thu, 23 Jul 2015 03:03:40 -0700 (PDT)
+Subject: Re: [PATCH V4 4/6] mm: mlock: Introduce VM_LOCKONFAULT and add mlock
+ flags to enable it
+References: <1437508781-28655-1-git-send-email-emunson@akamai.com>
+ <1437508781-28655-5-git-send-email-emunson@akamai.com>
+ <55AF6A73.1080500@suse.cz> <20150722184343.GA2351@akamai.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55B0B175.9090306@suse.cz>
-Date: Thu, 23 Jul 2015 11:18:45 +0200
+Message-ID: <55B0BBF9.7050802@suse.cz>
+Date: Thu, 23 Jul 2015 12:03:37 +0200
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1507221509520.24115@chino.kir.corp.google.com>
+In-Reply-To: <20150722184343.GA2351@akamai.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Jonathan Corbet <corbet@lwn.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
-On 07/23/2015 12:36 AM, David Rientjes wrote:
+On 07/22/2015 08:43 PM, Eric B Munson wrote:
 > On Wed, 22 Jul 2015, Vlastimil Babka wrote:
 > 
->> > I don't think the criteria for waking up khugepaged should become any more
->> > complex beyond its current state, which is impacted by two different
->> > tunables, and whether it actually has memory to scan.  During this
->> > additional wakeup, you'd also need to pass kcompactd's node and only do
->> > local khugepaged scanning since there's no guarantee khugepaged can
->> > allocate on all nodes when one kcompactd defragments memory.
 >> 
->> Keeping track of the nodes where hugepage allocations are expected to succeed
->> is already done in this series. "local khugepaged scanning" is unfortunately
->> not possible in general, since the node that will be used for a given pmd is
->> not known until half of pte's (or more) are scanned.
+>> Hi,
 >> 
-> 
-> When a khugepaged allocation fails for a node, it could easily kick off 
-> background compaction on that node and revisit the range later, very 
-> similar to how we can kick off background compaction in the page allocator 
-> when async or sync_light compaction fails.
-
-The revisiting sounds rather complicated. Page allocator doesn't have to do that.
-
-> The distinction I'm trying to draw is between "periodic" and "background" 
-> compaction.  I think there're usecases for both and we shouldn't be 
-> limiting ourselves to one or the other.
-
-OK, I understand you think we can have both, and the periodic one would be in
-khugepaged. My main concern is that if we do the periodic one in khugepaged,
-people might oppose adding yet another one as kcompactd. I hope we agree that
-khugepaged is not suitable for all the use cases of the background one.
-
-My secondary concern/opinion is that I would hope that the background compaction
-would be good enough to remove the need for the periodic one. So I would try the
-background one first. But I understand the periodic one is simpler to implement.
-On the other hand, it's not as urgent if you can simulate it from userspace.
-With the 15min period you use, there's likely not much overhead saved when
-invoking it from within the kernel? Sure there wouldn't be the synchronization
-with khugepaged activity, but I still wonder if wiating for up to 1 minute
-before khugepaged wakes up can make much difference with the 15min period.
-Hm, your cron job could also perhaps adjust the khugepaged sleep tunable when
-compaction is done, which IIRC results in immediate wakeup.
-
-> Periodic compaction would wakeup at a user-defined period and fully 
-> compact memory over all nodes, round-robin at each wakeup.  This keeps 
-> fragmentation low so that (ideally) background compaction or direct 
-> compaction wouldn't be needed.
-> 
-> Background compaction would be triggered from the page allocator when 
-> async or sync_light compaction fails, regardless of whether this was from 
-> khugepaged, page fault context, or any other high-order allocation.  This 
-> is an interesting discussion because I can think of lots of ways to be 
-> smart about it, but I haven't tried to implement it yet: heuristics that 
-> do ratelimiting, preemptive compaction based on fragmentation stats, etc.
-
-Yes.
-
-> My rfc implements periodic compaction in khugepaged simply because we find 
-> very large thp_fault_fallback numbers and these faults tend to come in 
-> bunches so that background compaction wouldn't really help the situation 
-> itself: it's simply not fast enough and we give up compaction at fault way 
-> too early for it have a chance of being successful.  I have a hard time 
-> finding other examples of that outside thp, especially at such large 
-> orders.  The number one culprit that I can think of would be slub and I 
-> haven't seen any complaints about high order_fallback stats.
-> 
-> The additional benefit of doing the periodic compaction in khugepaged is 
-> that we can do it before scanning, where alloc_sleep_millisecs is so high 
-> that kicking off background compaction on allocation failure wouldn't 
-> help.
-> 
-> Then, storing the nodes where khugepaged allocation has failed isn't 
-> needed: the allocation itself would trigger background compaction.
-
-The storing is more useful for THP page faults as it prevents further direct
-reclaim and compaction attempts (potentially interferring with the background
-compaction), until the triggered background compaction succeeds. The assumption
-is that the attempts would likely fail anyway and just increase the page fault
-latency. You could see it as a simple rate limiting too.
-
->> > If it's unmovable fragmentation, then any periodic synchronous memory
->> > compaction isn't going to help either.
+>> I think you should include a complete description of which
+>> transitions for vma states and mlock2/munlock2 flags applied on them
+>> are valid and what they do. It will also help with the manpages.
+>> You explained some to Jon in the last thread, but I think there
+>> should be a canonical description in changelog (if not also
+>> Documentation, if mlock is covered there).
 >> 
->> It can help if it moves away movable pages out of unmovable pageblocks, so the
->> following unmovable allocations can be served from those pageblocks and not
->> fallback to pollute another movable pageblock. Even better if this is done
->> (kcompactd woken up) in response to such fallback, where unmovable page falls
->> to a partially filled movable pageblock. Stuffing also this into khugepaged
->> would be really a stretch. Joonsoo proposed another daemon for that in
->> https://lkml.org/lkml/2015/4/27/94 but extending kcompactd would be a very
->> natural way for this.
->> 
+>> For example the scenario Jon asked, what happens after a
+>> mlock2(MLOCK_ONFAULT) followed by mlock2(MLOCK_LOCKED), and that the
+>> answer is "nothing". Your promised code comment for
+>> apply_vma_flags() doesn't suffice IMHO (and I'm not sure it's there,
+>> anyway?).
 > 
-> Sure, this is an example of why background compaction would be helpful and 
-> triggered by the page allocator when async or migrate_sync allocation 
-> fails.
-> 
->> > Hmm, I don't think we have to select one to the excusion of the other.  I
->> > don't think that because khugepaged may do periodic synchronous memory
->> > compaction (to eventually remove direct compaction entirely from the page
->> > fault path, since we have checks in the page allocator that specifically
->> > do that)
->> 
->> That would be nice for the THP page faults, yes. Or maybe just change the
->> default for thp "defrag" tunable to "madvise".
->> 
-> 
-> Right, however I'm afraid that what we have done to compaction in the 
-> fault path for MIGRATE_ASYNC has been implicitly change that default in 
-> the code :)  I have examples where async compaction in the fault path 
-> scans three pageblocks and gives up because of the abort heuristics, 
-> that's not suggesting that we'll be very successful.  The hope is that we 
-> can change the default to "madvise" due to periodic and background 
-> compaction and then make the "always" case do some actual defrag :)
+> I missed adding that comment to the code, will be there in V5 along with
+> the description in the changelog.
 
-OK.
+Thanks!
 
->> I think pushing compaction in a workqueue would meet a bigger resistance than
->> new kthreads. It could be too heavyweight for this mechanism and what if
->> there's suddenly lots of allocations in parallel failing and scheduling the
->> work items? So if we do it elsewhere, I think it's best as kcompactd kthreads
->> and then why would we do it also in khugepaged?
 >> 
+>> But the more I think about the scenario and your new VM_LOCKONFAULT
+>> vma flag, it seems awkward to me. Why should munlocking at all care
+>> if the vma was mlocked with MLOCK_LOCKED or MLOCK_ONFAULT? In either
+>> case the result is that all pages currently populated are munlocked.
+>> So the flags for munlock2 should be unnecessary.
 > 
-> We'd need the aforementioned ratelimiting to ensure that background 
-> compaction is handled appropriately, absolutely.
+> Say a user has a large area of interleaved MLOCK_LOCK and MLOCK_ONFAULT
+> mappings and they want to unlock only the ones with MLOCK_LOCK.  With
+> the current implementation, this is possible in a single system call
+> that spans the entire region.  With your suggestion, the user would have
+> to know what regions where locked with MLOCK_LOCK and call munlock() on
+> each of them.  IMO, the way munlock2() works better mirrors the way
+> munlock() currently works when called on a large area of interleaved
+> locked and unlocked areas.
 
-So we would limit the number of work items, but a single work item could still
-be very heavyweight. I'm not sure it would be perceived well, as well as lack of
-accountability. Kthread is still better for this type of work IMHO.
+Um OK, that scenario is possible in theory. But I have a hard time imagining
+that somebody would really want to do that. I think much more people would
+benefit from a simpler API.
+
+> 
+>> 
+>> I also think VM_LOCKONFAULT is unnecessary. VM_LOCKED should be
+>> enough - see how you had to handle the new flag in all places that
+>> had to handle the old flag? I think the information whether mlock
+>> was supposed to fault the whole vma is obsolete at the moment mlock
+>> returns. VM_LOCKED should be enough for both modes, and the flag to
+>> mlock2 could just control whether the pre-faulting is done.
+>> 
+>> So what should be IMHO enough:
+>> - munlock can stay without flags
+>> - mlock2 has only one new flag MLOCK_ONFAULT. If specified,
+>> pre-faulting is not done, just set VM_LOCKED and mlock pages already
+>> present.
+>> - same with mmap(MAP_LOCKONFAULT) (need to define what happens when
+>> both MAP_LOCKED and MAP_LOCKONFAULT are specified).
+>> 
+>> Now mlockall(MCL_FUTURE) muddles the situation in that it stores the
+>> information for future VMA's in current->mm->def_flags, and this
+>> def_flags would need to distinguish VM_LOCKED with population and
+>> without. But that could be still solvable without introducing a new
+>> vma flag everywhere.
+> 
+> With you right up until that last paragraph.  I have been staring at
+> this a while and I cannot come up a way to handle the
+> mlockall(MCL_ONFAULT) without introducing a new vm flag.  It doesn't
+> have to be VM_LOCKONFAULT, we could use the model that Michal Hocko
+> suggested with something like VM_FAULTPOPULATE.  However, we can't
+> really use this flag anywhere except the mlock code becuase we have to
+> be able to distinguish a caller that wants to use MLOCK_LOCK with
+> whatever control VM_FAULTPOPULATE might grant outside of mlock and a
+> caller that wants MLOCK_ONFAULT.  That was a long way of saying we need
+> an extra vma flag regardless.  However, if that flag only controls if
+> mlock pre-populates it would work and it would do away with most of the
+> places I had to touch to handle VM_LOCKONFAULT properly.
+
+Yes, it would be a good way. Adding a new vma flag is probably cleanest after
+all, but the flag would be set *in addition* to VM_LOCKED, *just* to prevent
+pre-faulting. The places that check VM_LOCKED for the actual page mlocking (i.e.
+try_to_unmap_one) would just keep checking VM_LOCKED. The places where VM_LOCKED
+is checked to trigger prepopulation, would skip that if VM_LOCKONFAULT is also
+set. Having VM_LOCKONFAULT set without also VM_LOCKED itself would be invalid state.
+
+This should work fine with the simplified API as I proposed so let me reiterate
+and try fill in the blanks:
+
+- mlock2 has only one new flag MLOCK_ONFAULT. If specified, VM_LOCKONFAULT is
+set in addition to VM_LOCKED and no prefaulting is done
+  - old mlock syscall naturally behaves as mlock2 without MLOCK_ONFAULT
+  - calling mlock/mlock2 on an already-mlocked area (if that's permitted
+already?) will add/remove VM_LOCKONFAULT as needed. If it's removing,
+prepopulate whole range. Of course adding VM_LOCKONFAULT to a vma that was
+already prefaulted doesn't make any difference, but it's consistent with the rest.
+- munlock removes both VM_LOCKED and VM_LOCKONFAULT
+- mmap could treat MAP_LOCKONFAULT as a modifier to MAP_LOCKED to be consistent?
+or not? I'm not sure here, either way subtly differs from mlock API anyway, I
+just wish MAP_LOCKED never existed...
+- mlockall(MCL_CURRENT) sets or clears VM_LOCKONFAULT depending on
+MCL_LOCKONFAULT, mlockall(MCL_FUTURE) does the same on mm->def_flags
+- munlockall2 removes both, like munlock. munlockall2(MCL_FUTURE) does that to
+def_flags
+
+> I picked VM_LOCKONFAULT because it is explicit about what it is for and
+> there is little risk of someone coming along in 5 years and saying "why
+> not overload this flag to do this other thing completely unrelated to
+> mlock?".  A flag for controling speculative population is more likely to
+> be overloaded outside of mlock().
+
+Sure, let's make clear the name is related to mlock, but the behavior could
+still be additive to MAP_LOCKED.
+
+> If you have a sane way of handling mlockall(MCL_ONFAULT) without a new
+> VMA flag, I am happy to give it a try, but I haven't been able to come
+> up with one that doesn't have its own gremlins.
+
+Well we could store the MCL_FUTURE | MCL_ONFAULT bit elsewhere in mm_struct than
+the def_flags field. The VM_LOCKED field is already evaluated specially from all
+the other def_flags. We are nearing the full 32bit space for vma flags. I think
+all I've proposed above wouldn't change much if we removed per-vma
+VM_LOCKONFAULT flag from the equation. Just that re-mlocking area already
+mlocked *withouth* MLOCK_ONFAULT wouldn't know that it was alread prepopulated,
+and would have to re-populate in either case (I'm not sure, maybe it's already
+done by current implementation anyway so it's not a potential performance
+regression).
+Only mlockall(MCL_FUTURE | MCL_ONFAULT) should really need the ONFAULT info to
+"stick" somewhere in mm_struct, but it doesn't have to be def_flags?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
