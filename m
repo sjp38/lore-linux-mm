@@ -1,165 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id BDBC39003C7
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 12:30:25 -0400 (EDT)
-Received: by qged69 with SMTP id d69so90786798qge.0
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 09:30:25 -0700 (PDT)
-Received: from emvm-gh1-uea09.nsa.gov (emvm-gh1-uea09.nsa.gov. [63.239.67.10])
-        by mx.google.com with ESMTP id h52si6492762qgf.43.2015.07.23.09.30.23
-        for <linux-mm@kvack.org>;
-        Thu, 23 Jul 2015 09:30:24 -0700 (PDT)
-From: Stephen Smalley <sds@tycho.nsa.gov>
-Subject: [RFC][PATCH] ipc: Use private shmem or hugetlbfs inodes for shm segments.
-Date: Thu, 23 Jul 2015 12:28:33 -0400
-Message-Id: <1437668913-25446-1-git-send-email-sds@tycho.nsa.gov>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 18D309003C7
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 12:49:26 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so2020108wib.1
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 09:49:25 -0700 (PDT)
+Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
+        by mx.google.com with ESMTPS id d2si9496298wjw.157.2015.07.23.09.49.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 23 Jul 2015 09:49:24 -0700 (PDT)
+Date: Thu, 23 Jul 2015 17:49:21 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] mm: Flush the TLB for a single address in a huge page
+Message-ID: <20150723164921.GH27052@e104818-lin.cambridge.arm.com>
+References: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com>
+ <alpine.DEB.2.10.1507221436350.21468@chino.kir.corp.google.com>
+ <CAHkRjk7=VMG63VfZdWbZqYu8FOa9M+54Mmdro661E2zt3WToog@mail.gmail.com>
+ <55B021B1.5020409@intel.com>
+ <20150723104938.GA27052@e104818-lin.cambridge.arm.com>
+ <20150723141303.GB23799@redhat.com>
+MIME-Version: 1.0
+In-Reply-To: <20150723141303.GB23799@redhat.com>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mstevens@fedoraproject.org
-Cc: linux-kernel@vger.kernel.org, nyc@holomorphy.com, hughd@google.com, akpm@linux-foundation.org, manfred@colorfullife.com, dave@stgolabs.net, linux-mm@kvack.org, wagi@monom.org, prarit@redhat.com, torvalds@linux-foundation.org, david@fromorbit.com, esandeen@redhat.com, eparis@redhat.com, selinux@tycho.nsa.gov, paul@paul-moore.com, linux-security-module@vger.kernel.org, Stephen Smalley <sds@tycho.nsa.gov>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-The shm implementation internally uses shmem or hugetlbfs inodes
-for shm segments.  As these inodes are never directly exposed to
-userspace and only accessed through the shm operations which are
-already hooked by security modules, mark the inodes with the
-S_PRIVATE flag so that inode security initialization and permission
-checking is skipped.
+On Thu, Jul 23, 2015 at 03:13:03PM +0100, Andrea Arcangeli wrote:
+> On Thu, Jul 23, 2015 at 11:49:38AM +0100, Catalin Marinas wrote:
+> > On Thu, Jul 23, 2015 at 12:05:21AM +0100, Dave Hansen wrote:
+> > > On 07/22/2015 03:48 PM, Catalin Marinas wrote:
+> > > > You are right, on x86 the tlb_single_page_flush_ceiling seems to be
+> > > > 33, so for an HPAGE_SIZE range the code does a local_flush_tlb()
+> > > > always. I would say a single page TLB flush is more efficient than =
+a
+> > > > whole TLB flush but I'm not familiar enough with x86.
+> > >=20
+> > > The last time I looked, the instruction to invalidate a single page i=
+s
+> > > more expensive than the instruction to flush the entire TLB.=20
+[...]
+> > Another question is whether flushing a single address is enough for a
+> > huge page. I assumed it is since tlb_remove_pmd_tlb_entry() only adjust=
+s
+[...]
+> > the mmu_gather range by PAGE_SIZE (rather than HPAGE_SIZE) and
+> > no-one complained so far. AFAICT, there are only 3 architectures
+> > that don't use asm-generic/tlb.h but they all seem to handle this
+> > case:
+>=20
+> Agreed that archs using the generic tlb.h that sets the tlb->end to
+> address+PAGE_SIZE should be fine with the flush_tlb_page.
+>=20
+> > arch/arm: it implements tlb_remove_pmd_tlb_entry() in a similar way to
+> > the generic one
+> >=20
+> > arch/s390: tlb_remove_pmd_tlb_entry() is a no-op
+>=20
+> I guess s390 is fine too but I'm not convinced that the fact it won't
+> adjust the tlb->start/end is a guarantees that flush_tlb_page is
+> enough when a single 2MB TLB has to be invalidated (not during range
+> zapping).
+>=20
+> For the range zapping, could the arch decide to unconditionally flush
+> the whole TLB without doing the tlb->start/end tracking by overriding
+> tlb_gather_mmu in a way that won't call __tlb_reset_range? There seems
+> to be quite some flexibility in the per-arch tlb_gather_mmu setup in
+> order to unconditionally set tlb->start/end to the total range zapped,
+> without actually narrowing it down during the pagetable walk.
 
-This was motivated by the following lockdep warning:
-===================================================
-[ INFO: possible circular locking dependency detected ]
-4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1 Tainted: G        W
--------------------------------------------------------
-httpd/1597 is trying to acquire lock:
-(&ids->rwsem){+++++.}, at: [<ffffffff81385354>] shm_close+0x34/0x130
-(&mm->mmap_sem){++++++}, at: [<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
-      [<ffffffff81109a07>] lock_acquire+0xc7/0x270
-      [<ffffffff81217baa>] __might_fault+0x7a/0xa0
-      [<ffffffff81284a1e>] filldir+0x9e/0x130
-      [<ffffffffa019bb08>] xfs_dir2_block_getdents.isra.12+0x198/0x1c0 [xfs]
-      [<ffffffffa019c5b4>] xfs_readdir+0x1b4/0x330 [xfs]
-      [<ffffffffa019f38b>] xfs_file_readdir+0x2b/0x30 [xfs]
-      [<ffffffff812847e7>] iterate_dir+0x97/0x130
-      [<ffffffff81284d21>] SyS_getdents+0x91/0x120
-      [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
-      [<ffffffff81109a07>] lock_acquire+0xc7/0x270
-      [<ffffffff81101e97>] down_read_nested+0x57/0xa0
-      [<ffffffffa01b0e57>] xfs_ilock+0x167/0x350 [xfs]
-      [<ffffffffa01b10b8>] xfs_ilock_attr_map_shared+0x38/0x50 [xfs]
-      [<ffffffffa014799d>] xfs_attr_get+0xbd/0x190 [xfs]
-      [<ffffffffa01c17ad>] xfs_xattr_get+0x3d/0x70 [xfs]
-      [<ffffffff8129962f>] generic_getxattr+0x4f/0x70
-      [<ffffffff8139ba52>] inode_doinit_with_dentry+0x162/0x670
-      [<ffffffff8139cf69>] sb_finish_set_opts+0xd9/0x230
-      [<ffffffff8139d66c>] selinux_set_mnt_opts+0x35c/0x660
-      [<ffffffff8139ff97>] superblock_doinit+0x77/0xf0
-      [<ffffffff813a0020>] delayed_superblock_init+0x10/0x20
-      [<ffffffff81272d23>] iterate_supers+0xb3/0x110
-      [<ffffffff813a4e5f>] selinux_complete_init+0x2f/0x40
-      [<ffffffff813b47a3>] security_load_policy+0x103/0x600
-      [<ffffffff813a6901>] sel_write_load+0xc1/0x750
-      [<ffffffff8126e817>] __vfs_write+0x37/0x100
-      [<ffffffff8126f229>] vfs_write+0xa9/0x1a0
-      [<ffffffff8126ff48>] SyS_write+0x58/0xd0
-      [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
-      [<ffffffff81109a07>] lock_acquire+0xc7/0x270
-      [<ffffffff8186de8f>] mutex_lock_nested+0x7f/0x3e0
-      [<ffffffff8139b9a9>] inode_doinit_with_dentry+0xb9/0x670
-      [<ffffffff8139bf7c>] selinux_d_instantiate+0x1c/0x20
-      [<ffffffff813955f6>] security_d_instantiate+0x36/0x60
-      [<ffffffff81287c34>] d_instantiate+0x54/0x70
-      [<ffffffff8120111c>] __shmem_file_setup+0xdc/0x240
-      [<ffffffff81201290>] shmem_file_setup+0x10/0x20
-      [<ffffffff813856e0>] newseg+0x290/0x3a0
-      [<ffffffff8137e278>] ipcget+0x208/0x2d0
-      [<ffffffff81386074>] SyS_shmget+0x54/0x70
-      [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
-      [<ffffffff81108df8>] __lock_acquire+0x1a78/0x1d00
-      [<ffffffff81109a07>] lock_acquire+0xc7/0x270
-      [<ffffffff8186efba>] down_write+0x5a/0xc0
-      [<ffffffff81385354>] shm_close+0x34/0x130
-      [<ffffffff812203a5>] remove_vma+0x45/0x80
-      [<ffffffff81222a30>] do_munmap+0x2b0/0x460
-      [<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
-      [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
-Chain exists of:#012  &ids->rwsem --> &xfs_dir_ilock_class --> &mm->mmap_sem
-Possible unsafe locking scenario:
-      CPU0                    CPU1
-      ----                    ----
- lock(&mm->mmap_sem);
- lock(&xfs_dir_ilock_class);
-                              lock(&mm->mmap_sem);
- lock(&ids->rwsem);
-1 lock held by httpd/1597:
-CPU: 7 PID: 1597 Comm: httpd Tainted: G W       4.2.0-0.rc3.git0.1.fc24.x86_64+Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Pla0000000000000000 000000006cb6fe9d ffff88019ff07c58 ffffffff81868175
-0000000000000000 ffffffff82aea390 ffff88019ff07ca8 ffffffff81105903
-ffff88019ff07c78 ffff88019ff07d08 0000000000000001 ffff8800b75108f0
-Call Trace:
-[<ffffffff81868175>] dump_stack+0x4c/0x65
-[<ffffffff81105903>] print_circular_bug+0x1e3/0x250
-[<ffffffff81108df8>] __lock_acquire+0x1a78/0x1d00
-[<ffffffff81220c33>] ? unlink_file_vma+0x33/0x60
-[<ffffffff81109a07>] lock_acquire+0xc7/0x270
-[<ffffffff81385354>] ? shm_close+0x34/0x130
-[<ffffffff8186efba>] down_write+0x5a/0xc0
-[<ffffffff81385354>] ? shm_close+0x34/0x130
-[<ffffffff81385354>] shm_close+0x34/0x130
-[<ffffffff812203a5>] remove_vma+0x45/0x80
-[<ffffffff81222a30>] do_munmap+0x2b0/0x460
-[<ffffffff81386bbb>] ? SyS_shmdt+0x4b/0x180
-[<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
-[<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
+You are right, looking at the s390 code, tlb_finish_mmu() flushes the
+whole TLB, so the ranges don't seem to matter. I'm cc'ing the s390
+maintainers to confirm whether this patch affects them in any way:
 
-Reported-by: Morten Stevens <mstevens@fedoraproject.org>
-Signed-off-by: Stephen Smalley <sds@tycho.nsa.gov>
----
- fs/hugetlbfs/inode.c | 2 ++
- ipc/shm.c            | 2 +-
- mm/shmem.c           | 4 ++--
- 3 files changed, 5 insertions(+), 3 deletions(-)
+https://lkml.org/lkml/2015/7/22/521
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 0cf74df..973c24c 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -1010,6 +1010,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
- 	inode = hugetlbfs_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0);
- 	if (!inode)
- 		goto out_dentry;
-+	if (creat_flags == HUGETLB_SHMFS_INODE)
-+		inode->i_flags |= S_PRIVATE;
- 
- 	file = ERR_PTR(-ENOMEM);
- 	if (hugetlb_reserve_pages(inode, 0,
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 06e5cf2..4aef24d 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -545,7 +545,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
- 		if  ((shmflg & SHM_NORESERVE) &&
- 				sysctl_overcommit_memory != OVERCOMMIT_NEVER)
- 			acctflag = VM_NORESERVE;
--		file = shmem_file_setup(name, size, acctflag);
-+		file = shmem_kernel_file_setup(name, size, acctflag);
- 	}
- 	error = PTR_ERR(file);
- 	if (IS_ERR(file))
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 4caf8ed..dbe0c1e 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -3363,8 +3363,8 @@ put_path:
-  * shmem_kernel_file_setup - get an unlinked file living in tmpfs which must be
-  * 	kernel internal.  There will be NO LSM permission checks against the
-  * 	underlying inode.  So users of this interface must do LSM checks at a
-- * 	higher layer.  The one user is the big_key implementation.  LSM checks
-- * 	are provided at the key level rather than the inode level.
-+ *	higher layer.  The users are the big_key and shm implementations.  LSM
-+ *	checks are provided at the key or shm level rather than the inode.
-  * @name: name for dentry (to be seen in /proc/<pid>/maps
-  * @size: size to be set for the file
-  * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
--- 
-2.1.0
+IIUC, all the functions touched by this patch are implemented by s390 in
+its specific way, so I don't think it makes any difference:
+
+pmdp_set_access_flags
+pmdp_clear_flush_young
+pmdp_huge_clear_flush
+pmdp_splitting_flush
+pmdp_invalidate
+
+--=20
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
