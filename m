@@ -1,55 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E1AB9003C7
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 14:32:33 -0400 (EDT)
-Received: by ykax123 with SMTP id x123so538874yka.1
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 11:32:33 -0700 (PDT)
-Received: from mail-yk0-x231.google.com (mail-yk0-x231.google.com. [2607:f8b0:4002:c07::231])
-        by mx.google.com with ESMTPS id v6si3481231ykc.166.2015.07.23.11.32.31
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 702C99003C7
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 14:34:15 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so5995698wib.0
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 11:34:15 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bq1si32246462wib.68.2015.07.23.11.34.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jul 2015 11:32:32 -0700 (PDT)
-Received: by ykfw194 with SMTP id w194so592256ykf.0
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 11:32:31 -0700 (PDT)
-Date: Thu, 23 Jul 2015 14:32:28 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 0/5] Make cpuid <-> nodeid mapping persistent.
-Message-ID: <20150723183228.GR15934@mtj.duckdns.org>
-References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
- <20150715221345.GO15934@mtj.duckdns.org>
- <55B07145.5010404@cn.fujitsu.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 23 Jul 2015 11:34:13 -0700 (PDT)
+Subject: Re: [PATCH] mm, page_isolation: make set/unset_migratetype_isolate()
+ file-local
+References: <1437630002-25936-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55B133A1.3050403@suse.cz>
+Date: Thu, 23 Jul 2015 20:34:09 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55B07145.5010404@cn.fujitsu.com>
+In-Reply-To: <1437630002-25936-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, laijs@cn.fujitsu.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hello, Tang.
-
-On Thu, Jul 23, 2015 at 12:44:53PM +0800, Tang Chen wrote:
-> Allocating cpuid when a new cpu comes up and reusing the cpuid when it
-> comes up again is possible. But I'm not quite sure if it will be less
-> modification
-> because we still need an array or bit map or something to keep the mapping,
-> and select backup nodes for cpus on memory-less nodes when allocating
-> memory.
+On 07/23/2015 07:40 AM, Naoya Horiguchi wrote:
+> Nowaday, set/unset_migratetype_isolate() is defined and used only in
+> mm/page_isolation, so let's limit the scope within the file.
 > 
-> I can post a set of patches for this idea. And then we can see which one is
-> better.
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-I suspect the difference could be that in the current code the users
-(workqueue) can remain the same while if we do it lazily there
-probably needs to be a way to poke it.  As long as the IDs are
-allocated to the online CPUs first, I think pre-allocating everything
-should be fine too.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Thanks.
-
--- 
-tejun
+> ---
+>  include/linux/page-isolation.h | 5 -----
+>  mm/page_isolation.c            | 5 +++--
+>  2 files changed, 3 insertions(+), 7 deletions(-)
+> 
+> diff --git v4.2-rc2.orig/include/linux/page-isolation.h v4.2-rc2/include/linux/page-isolation.h
+> index 2dc1e1697b45..047d64706f2a 100644
+> --- v4.2-rc2.orig/include/linux/page-isolation.h
+> +++ v4.2-rc2/include/linux/page-isolation.h
+> @@ -65,11 +65,6 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+>  int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+>  			bool skip_hwpoisoned_pages);
+>  
+> -/*
+> - * Internal functions. Changes pageblock's migrate type.
+> - */
+> -int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages);
+> -void unset_migratetype_isolate(struct page *page, unsigned migratetype);
+>  struct page *alloc_migrate_target(struct page *page, unsigned long private,
+>  				int **resultp);
+>  
+> diff --git v4.2-rc2.orig/mm/page_isolation.c v4.2-rc2/mm/page_isolation.c
+> index 32fdc1df05e5..4568fd58f70a 100644
+> --- v4.2-rc2.orig/mm/page_isolation.c
+> +++ v4.2-rc2/mm/page_isolation.c
+> @@ -9,7 +9,8 @@
+>  #include <linux/hugetlb.h>
+>  #include "internal.h"
+>  
+> -int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
+> +static int set_migratetype_isolate(struct page *page,
+> +				bool skip_hwpoisoned_pages)
+>  {
+>  	struct zone *zone;
+>  	unsigned long flags, pfn;
+> @@ -72,7 +73,7 @@ int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
+>  	return ret;
+>  }
+>  
+> -void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+> +static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+>  {
+>  	struct zone *zone;
+>  	unsigned long flags, nr_pages;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
