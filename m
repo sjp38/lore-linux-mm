@@ -1,127 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 73D496B025F
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 19:09:32 -0400 (EDT)
-Received: by pachj5 with SMTP id hj5so3428425pac.3
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 16:09:32 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id ev9si15463537pad.47.2015.07.23.16.09.31
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C89B6B025F
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 19:17:33 -0400 (EDT)
+Received: by igbpg9 with SMTP id pg9so3333938igb.0
+        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 16:17:33 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id w185si6255661iod.104.2015.07.23.16.17.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jul 2015 16:09:31 -0700 (PDT)
-Received: by pdjr16 with SMTP id r16so3343716pdj.3
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 16:09:31 -0700 (PDT)
-Date: Thu, 23 Jul 2015 16:09:28 -0700
-From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
-Subject: Re: [PATCH] hugetlb: cond_resched for set_max_huge_pages and
- follow_hugetlb_page
-Message-ID: <20150723230928.GI24876@Sligo.logfs.org>
-References: <1437688476-3399-1-git-send-email-sbaugh@catern.com>
- <alpine.DEB.2.10.1507231506050.6965@chino.kir.corp.google.com>
- <20150723223651.GH24876@Sligo.logfs.org>
- <alpine.DEB.2.10.1507231550390.7871@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 23 Jul 2015 16:17:32 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v1 4/4] mm/memory-failure: check __PG_HWPOISON
+ separately from PAGE_FLAGS_CHECK_AT_*
+Date: Thu, 23 Jul 2015 23:13:40 +0000
+Message-ID: <20150723231340.GA14329@hori1.linux.bs1.fc.nec.co.jp>
+References: <1437010894-10262-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1437010894-10262-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20150723133702.81a9dacc997b25260c44f42d@linux-foundation.org>
+In-Reply-To: <20150723133702.81a9dacc997b25260c44f42d@linux-foundation.org>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <82195C359B12ED4DAE5E7A3F20B0B201@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.10.1507231550390.7871@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Spencer Baugh <sbaugh@catern.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Mike Kravetz <mike.kravetz@oracle.com>, Luiz Capitulino <lcapitulino@redhat.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, Spencer Baugh <Spencer.baugh@purestorage.com>, Joern Engel <joern@logfs.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Dean Nelson <dnelson@redhat.com>, Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, Jul 23, 2015 at 03:54:43PM -0700, David Rientjes wrote:
-> On Thu, 23 Jul 2015, Jorn Engel wrote:
-> 
-> > > This is wrong, you'd want to do any cond_resched() before the page 
-> > > allocation to avoid racing with an update to h->nr_huge_pages or 
-> > > h->surplus_huge_pages while hugetlb_lock was dropped that would result in 
-> > > the page having been uselessly allocated.
-> > 
-> > There are three options.  Either
-> > 	/* some allocation */
-> > 	cond_resched();
-> > or
-> > 	cond_resched();
-> > 	/* some allocation */
-> > or
-> > 	if (cond_resched()) {
-> > 		spin_lock(&hugetlb_lock);
-> > 		continue;
-> > 	}
-> > 	/* some allocation */
-> > 
-> > I think you want the second option instead of the first.  That way we
-> > have a little less memory allocation for the time we are scheduled out.
-> > Sure, we can do that.  It probably doesn't make a big difference either
-> > way, but why not.
-> > 
-> 
-> The loop is dropping the lock simply to do the allocation and it needs to 
-> compare with the user-written number of hugepages to allocate.
+On Thu, Jul 23, 2015 at 01:37:02PM -0700, Andrew Morton wrote:
+> On Thu, 16 Jul 2015 01:41:56 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec=
+.com> wrote:
+>=20
+> > The race condition addressed in commit add05cecef80 ("mm: soft-offline:=
+ don't
+> > free target page in successful page migration") was not closed complete=
+ly,
+> > because that can happen not only for soft-offline, but also for hard-of=
+fline.
+> > Consider that a slab page is about to be freed into buddy pool, and the=
+n an
+> > uncorrected memory error hits the page just after entering __free_one_p=
+age(),
+> > then VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP) is triggere=
+d,
+> > despite the fact that it's not necessary because the data on the affect=
+ed
+> > page is not consumed.
+> >=20
+> > To solve it, this patch drops __PG_HWPOISON from page flag checks at
+> > allocation/free time. I think it's justified because __PG_HWPOISON flag=
+s is
+> > defined to prevent the page from being reused and setting it outside th=
+e
+> > page's alloc-free cycle is a designed behavior (not a bug.)
+> >=20
+> > And the patch reverts most of the changes from commit add05cecef80 abou=
+t
+> > the new refcounting rule of soft-offlined pages, which is no longer nec=
+essary.
+> >=20
+> > ...
+> >
+> > --- v4.2-rc2.orig/mm/memory-failure.c
+> > +++ v4.2-rc2/mm/memory-failure.c
+> > @@ -1723,6 +1723,9 @@ int soft_offline_page(struct page *page, int flag=
+s)
+> > =20
+> >  	get_online_mems();
+> > =20
+> > +	if (get_pageblock_migratetype(page) !=3D MIGRATE_ISOLATE)
+> > +		set_migratetype_isolate(page, true);
+> > +
+> >  	ret =3D get_any_page(page, pfn, flags);
+> >  	put_online_mems();
+> >  	if (ret > 0) { /* for in-use pages */
+>=20
+> This patch gets build-broken by your
+> mm-page_isolation-make-set-unset_migratetype_isolate-file-local.patch,
+> which I shall drop.
 
-And at this point the existing code is racy.  Page allocation might
-block for minutes trying to free some memory.  A cond_resched doesn't
-change that - it only increases the odds of hitting the race window.
+I apologize this build failure. At first I planned to add another hwpoison =
+patch
+after this to remove this migratetype thing separately, but I was not 100% =
+sure
+of the correctness, so I did not include it in this version.
+But Vlastimil's cleanup patch showed me that using MIGRATE_ISOLATE at free =
+time
+(, which is what soft offline code does now,) is wrong (or not an expected =
+usage).
+So I shouldn't have reverted the above part.
 
-> What we don't want is to allocate, reschedule, and check if we really 
-> needed to allocate.  That's what your patch does because it races with 
-> persistent_huge_page().  It's probably the worst place to do it.
-> 
-> Rather, what you want to do is check if you need to allocate, reschedule 
-> if needed (and if so, recheck), and then allocate.
-> 
-> > If you are asking for the third option, I would rather avoid that.  It
-> > makes the code more complex and doesn't change the fact that we have a
-> > race and better be able to handle the race.  The code size growth will
-> > likely cost us more performance that we would ever gain.  nr_huge_pages
-> > tends to get updated once per system boot.
-> 
-> Your third option is nonsensical, you didn't save the state of whether you 
-> locked the lock so you can't reliably unlock it, and you cannot hold a 
-> spinlock while allocating in this context.
+So I want the patch "mm, page_isolation: make set/unset_migratetype_isolate=
+()
+file-local" to be merged first, and I'd like to update this hwpoison before
+going into mmotm. Could you drop this series from your tree for now?
+I'll repost the next version probably next week.
 
-Are we looking at the same code?  Mine looks like this:
-	while (count > persistent_huge_pages(h)) {
-		/*
-		 * If this allocation races such that we no longer need the
-		 * page, free_huge_page will handle it by freeing the page
-		 * and reducing the surplus.
-		 */
-		spin_unlock(&hugetlb_lock);
-		if (hstate_is_gigantic(h))
-			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
-		else
-			ret = alloc_fresh_huge_page(h, nodes_allowed);
-		spin_lock(&hugetlb_lock);
-		if (!ret)
-			goto out;
-
-		/* Bail for signals. Probably ctrl-c from user */
-		if (signal_pending(current))
-			goto out;
-	}
-
-What state is there to save?  We just called spin_unlock, we did a
-schedule and if we want to continue without doing page allocation we
-better take the lock again.  Or do you want to go even more complex and
-check for signals as well?
-
-The case you are concerned about is rare.  It is so rare that it doesn't
-matter from a performance point of view, only for correctness.  And if
-we hit the rare case, the worst harm would be an unnecessary allocation
-that we return back to the system.  How much complexity do you think it
-is worth to avoid this allocation?  How much runtime will the bigger
-text size cost you in the common cases?
-
-What matters to me is the scheduler latency.  That is real and happens
-reliably once per boot.
-
-Jorn
-
---
-Chance favors only the prepared mind.
--- Louis Pasteur
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
