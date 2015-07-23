@@ -1,98 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id ED3266B0260
-	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 02:51:45 -0400 (EDT)
-Received: by pabkd10 with SMTP id kd10so80455392pab.2
-        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 23:51:45 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id r14si9642378pdi.86.2015.07.22.23.51.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Jul 2015 23:51:45 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/2] mm: rename and move get/set_freepage_migratetype
-Date: Thu, 23 Jul 2015 06:48:08 +0000
-Message-ID: <20150723064806.GC16668@hori1.linux.bs1.fc.nec.co.jp>
-References: <55969822.9060907@suse.cz>
- <1437483218-18703-1-git-send-email-vbabka@suse.cz>
- <1437483218-18703-2-git-send-email-vbabka@suse.cz> <55AF8C94.6020406@suse.cz>
-In-Reply-To: <55AF8C94.6020406@suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <7C22623600D23D4DA44DC07E854D4946@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 76E606B0260
+	for <linux-mm@kvack.org>; Thu, 23 Jul 2015 02:58:57 -0400 (EDT)
+Received: by wicgb10 with SMTP id gb10so128741031wic.1
+        for <linux-mm@kvack.org>; Wed, 22 Jul 2015 23:58:57 -0700 (PDT)
+Received: from cvs.linux-mips.org (eddie.linux-mips.org. [148.251.95.138])
+        by mx.google.com with ESMTP id m8si688199wiz.119.2015.07.22.23.58.55
+        for <linux-mm@kvack.org>;
+        Wed, 22 Jul 2015 23:58:55 -0700 (PDT)
+Received: from localhost.localdomain ([127.0.0.1]:34903 "EHLO linux-mips.org"
+        rhost-flags-OK-OK-OK-FAIL) by eddie.linux-mips.org with ESMTP
+        id S27006887AbbGWG6zFKdVI (ORCPT <rfc822;linux-mm@kvack.org>);
+        Thu, 23 Jul 2015 08:58:55 +0200
+Date: Thu, 23 Jul 2015 08:58:31 +0200
+From: Ralf Baechle <ralf@linux-mips.org>
+Subject: Re: [PATCH V4 2/6] mm: mlock: Add new mlock, munlock, and munlockall
+ system calls
+Message-ID: <20150723065830.GA5919@linux-mips.org>
+References: <1437508781-28655-1-git-send-email-emunson@akamai.com>
+ <1437508781-28655-3-git-send-email-emunson@akamai.com>
+ <20150721134441.d69e4e1099bd43e56835b3c5@linux-foundation.org>
+ <1437528316.16792.7.camel@ellerman.id.au>
+ <20150722141501.GA3203@akamai.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150722141501.GA3203@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minkyung88.kim" <minkyung88.kim@lge.com>, "kmk3210@gmail.com" <kmk3210@gmail.com>, Seungho Park <seungho1.park@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mips@linux-mips.org, linux-m68k@vger.kernel.org, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, linux-am33-list@redhat.com, Geert Uytterhoeven <geert@linux-m68k.org>, Vlastimil Babka <vbabka@suse.cz>, Guenter Roeck <linux@roeck-us.net>, linux-xtensa@linux-xtensa.org, linux-s390@vger.kernel.org, adi-buildroot-devel@lists.sourceforge.net, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-parisc@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-alpha@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On Wed, Jul 22, 2015 at 02:29:08PM +0200, Vlastimil Babka wrote:
-> On 07/21/2015 02:53 PM, Vlastimil Babka wrote:
-> > The pair of get/set_freepage_migratetype() functions are used to cache
-> > pageblock migratetype for a page put on a pcplist, so that it does not =
-have
-> > to be retrieved again when the page is put on a free list (e.g. when pc=
-plists
-> > become full). Historically it was also assumed that the value is accura=
-te for
-> > pages on freelists (as the functions' names unfortunately suggest), but=
- that
-> > cannot be guaranteed without affecting various allocator fast paths. It=
- is in
-> > fact not needed and all such uses have been removed.
-> >=20
-> > The last remaining (but pointless) usage related to pages of freelists =
-is in
-> > move_freepages(), which this patch removes.
->=20
-> I realized there's one more callsite that can be removed. Here's
-> whole updated patch due to different changelog and to cope with
-> context changed by the fixlet to patch 1/2.
->=20
-> ------8<------
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Thu, 2 Jul 2015 16:37:06 +0200
-> Subject: mm: rename and move get/set_freepage_migratetype
->=20
-> The pair of get/set_freepage_migratetype() functions are used to cache
-> pageblock migratetype for a page put on a pcplist, so that it does not ha=
-ve
-> to be retrieved again when the page is put on a free list (e.g. when pcpl=
-ists
-> become full). Historically it was also assumed that the value is accurate=
- for
-> pages on freelists (as the functions' names unfortunately suggest), but t=
-hat
-> cannot be guaranteed without affecting various allocator fast paths. It i=
-s in
-> fact not needed and all such uses have been removed.
->=20
-> The last two remaining (but pointless) usages related to pages of freelis=
-ts
-> are removed by this patch:
-> - move_freepages() which operates on pages already on freelists
-> - __free_pages_ok() which puts a page directly to freelist, bypassing pcp=
-lists
->=20
-> To prevent further confusion, rename the functions to
-> get/set_pcppage_migratetype() and expand their description. Since all the
-> users are now in mm/page_alloc.c, move the functions there from the share=
-d
-> header.
->=20
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Laura Abbott <lauraa@codeaurora.org>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
+On Wed, Jul 22, 2015 at 10:15:01AM -0400, Eric B Munson wrote:
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>=
+> > 
+> > You haven't wired it up properly on powerpc, but I haven't mentioned it because
+> > I'd rather we did it.
+> > 
+> > cheers
+> 
+> It looks like I will be spinning a V5, so I will drop all but the x86
+> system calls additions in that version.
+
+The MIPS bits are looking good however, so
+
+Acked-by: Ralf Baechle <ralf@linux-mips.org>
+
+With my ack, will you keep them or maybe carry them as a separate patch?
+
+Cheers,
+
+  Ralf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
