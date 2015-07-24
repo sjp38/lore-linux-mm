@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A5A886B0253
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 16:15:31 -0400 (EDT)
-Received: by padck2 with SMTP id ck2so19294729pad.0
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 13:15:31 -0700 (PDT)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id md1si6305364pdb.200.2015.07.24.13.15.30
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 54E526B0038
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 16:28:46 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so77647172wic.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 13:28:46 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ic1si6166755wid.77.2015.07.24.13.28.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Jul 2015 13:15:30 -0700 (PDT)
-Received: by pachj5 with SMTP id hj5so19208034pac.3
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 13:15:30 -0700 (PDT)
-Date: Fri, 24 Jul 2015 13:15:28 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: vm_flags, vm_flags_t and __nocast
-In-Reply-To: <20150724100940.GB22732@node.dhcp.inet.fi>
-Message-ID: <alpine.DEB.2.10.1507241314300.5215@chino.kir.corp.google.com>
-References: <201507241628.EnDEXbaF%fengguang.wu@intel.com> <20150724100940.GB22732@node.dhcp.inet.fi>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 24 Jul 2015 13:28:44 -0700 (PDT)
+Message-ID: <1437769711.3298.55.camel@stgolabs.net>
+Subject: Re: [PATCH] hugetlb: cond_resched for set_max_huge_pages and
+ follow_hugetlb_page
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Fri, 24 Jul 2015 13:28:31 -0700
+In-Reply-To: <20150724171237.GC3458@Sligo.logfs.org>
+References: <1437688476-3399-1-git-send-email-sbaugh@catern.com>
+	 <20150724065959.GB4622@dhcp22.suse.cz>
+	 <20150724171237.GC3458@Sligo.logfs.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, kbuild test robot <fengguang.wu@intel.com>, Oleg Nesterov <oleg@redhat.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: =?ISO-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Spencer Baugh <sbaugh@catern.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, Luiz Capitulino <lcapitulino@redhat.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, Spencer Baugh <Spencer.baugh@purestorage.com>, Joern Engel <joern@logfs.org>
 
-On Fri, 24 Jul 2015, Kirill A. Shutemov wrote:
+On Fri, 2015-07-24 at 10:12 -0700, JA?rn Engel wrote:
+> On Fri, Jul 24, 2015 at 08:59:59AM +0200, Michal Hocko wrote:
+> > On Thu 23-07-15 14:54:31, Spencer Baugh wrote:
+> > > From: Joern Engel <joern@logfs.org>
+> > > 
+> > > ~150ms scheduler latency for both observed in the wild.
+> > 
+> > This is way to vague. Could you describe your problem somehow more,
+> > please?
+> > There are schduling points in the page allocator (when it triggers the
+> > reclaim), why are those not sufficient? Or do you manage to allocate
+> > many hugetlb pages without performing the reclaim and that leads to
+> > soft lockups?
+> 
+> We don't use transparent hugepages - they cause too much latency.
+> Instead we reserve somewhere around 3/4 or so of physical memory for
+> hugepages.  "sysctl -w vm.nr_hugepages=100000" or something similar in a
+> startup script.
+> 
+> Since it is early in boot we don't go through page reclaim.
 
-> sparse complains on each and every vm_flags_t initialization, even with
-> proper VM_* constants.
-> 
-> Do we really want to fix that?
-> 
-> To me it's too much pain and no gain. __nocast is not beneficial here.
-> 
-> And I'm not sure that vm_flags_t typedef was a good idea after all.
-> Originally, it was intended to become 64-bit one day, but four years later
-> it's still unsigned long. Plain unsigned long works fine for other bit
-> field.
-> 
-> What is special about vm_flags?
-> 
-
-Maybe remove the __nocast until it's a different type?  Seems like all 
-these sites would have to be audited when that happens anyway.
+Still, please be more verbose about what you _are_ encountering. Iow,
+please have decent changelog in v2.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
