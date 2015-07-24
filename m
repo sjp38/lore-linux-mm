@@ -1,213 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CD8119003CC
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:28 -0400 (EDT)
-Received: by ykay190 with SMTP id y190so17320790yka.3
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:28 -0700 (PDT)
-Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id m3si5893483ykc.3.2015.07.24.04.48.19
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id EF4CA6B025B
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:54:41 -0400 (EDT)
+Received: by lbbyj8 with SMTP id yj8so13645049lbb.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:54:41 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id ks11si7324181lac.78.2015.07.24.04.54.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Jul 2015 04:48:19 -0700 (PDT)
-From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv2 05/10] xen/balloon: rationalize memory hotplug stats
-Date: Fri, 24 Jul 2015 12:47:43 +0100
-Message-ID: <1437738468-24110-6-git-send-email-david.vrabel@citrix.com>
-In-Reply-To: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
-References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Jul 2015 04:54:39 -0700 (PDT)
+Date: Fri, 24 Jul 2015 14:54:22 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [mmotm:master 260/385] include/linux/mmu_notifier.h:247:19:
+ sparse: context imbalance in 'kpageidle_clear_pte_refs_one' - unexpected
+ unlock
+Message-ID: <20150724115422.GB8100@esperanza>
+References: <201507241941.wqF1a0kN%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <201507241941.wqF1a0kN%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xen-devel@lists.xenproject.org
-Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Kiper <daniel.kiper@oracle.com>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andres Lagar-Cavilla <andreslc@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-The stats used for memory hotplug make no sense and are fiddled with
-in odd ways.  Remove them and introduce total_pages to track the total
-number of pages (both populated and unpopulated) including those within
-hotplugged regions (note that this includes not yet onlined pages).
+On Fri, Jul 24, 2015 at 07:14:46PM +0800, kbuild test robot wrote:
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   61f5f835b6f06fbc233481b5d3c0afd71ecf54e8
+> commit: a06e045a2c99e39bf342ccb5dbbd6655f3814238 [260/385] proc: add kpageidle file
+> reproduce:
+>   # apt-get install sparse
+>   git checkout a06e045a2c99e39bf342ccb5dbbd6655f3814238
+>   make ARCH=x86_64 allmodconfig
+>   make C=1 CF=-D__CHECK_ENDIAN__
+> 
+> 
+> sparse warnings: (new ones prefixed by >>)
+> 
+> >> include/linux/mmu_notifier.h:247:19: sparse: context imbalance in 'kpageidle_clear_pte_refs_one' - unexpected unlock
+> 
+> vim +/kpageidle_clear_pte_refs_one +247 include/linux/mmu_notifier.h
+> 
+> cddb8a5c Andrea Arcangeli     2008-07-28  231  
+> cddb8a5c Andrea Arcangeli     2008-07-28  232  static inline void mmu_notifier_release(struct mm_struct *mm)
+> cddb8a5c Andrea Arcangeli     2008-07-28  233  {
+> cddb8a5c Andrea Arcangeli     2008-07-28  234  	if (mm_has_notifiers(mm))
+> cddb8a5c Andrea Arcangeli     2008-07-28  235  		__mmu_notifier_release(mm);
+> cddb8a5c Andrea Arcangeli     2008-07-28  236  }
+> cddb8a5c Andrea Arcangeli     2008-07-28  237  
+> cddb8a5c Andrea Arcangeli     2008-07-28  238  static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
+> 57128468 Andres Lagar-Cavilla 2014-09-22  239  					  unsigned long start,
+> 57128468 Andres Lagar-Cavilla 2014-09-22  240  					  unsigned long end)
+> cddb8a5c Andrea Arcangeli     2008-07-28  241  {
+> cddb8a5c Andrea Arcangeli     2008-07-28  242  	if (mm_has_notifiers(mm))
+> 57128468 Andres Lagar-Cavilla 2014-09-22  243  		return __mmu_notifier_clear_flush_young(mm, start, end);
+> cddb8a5c Andrea Arcangeli     2008-07-28  244  	return 0;
+> cddb8a5c Andrea Arcangeli     2008-07-28  245  }
+> cddb8a5c Andrea Arcangeli     2008-07-28  246  
+> 59eaee21 Vladimir Davydov     2015-07-23 @247  static inline int mmu_notifier_clear_young(struct mm_struct *mm,
+> 59eaee21 Vladimir Davydov     2015-07-23  248  					   unsigned long start,
+> 59eaee21 Vladimir Davydov     2015-07-23  249  					   unsigned long end)
+> 59eaee21 Vladimir Davydov     2015-07-23  250  {
+> 59eaee21 Vladimir Davydov     2015-07-23  251  	if (mm_has_notifiers(mm))
+> 59eaee21 Vladimir Davydov     2015-07-23  252  		return __mmu_notifier_clear_young(mm, start, end);
+> 59eaee21 Vladimir Davydov     2015-07-23  253  	return 0;
+> 59eaee21 Vladimir Davydov     2015-07-23  254  }
+> 59eaee21 Vladimir Davydov     2015-07-23  255  
 
-This will be used in the following commit when deciding whether
-additional memory needs to be hotplugged.
-
-Signed-off-by: David Vrabel <david.vrabel@citrix.com>
----
- drivers/xen/balloon.c | 75 +++++++++------------------------------------------
- include/xen/balloon.h |  5 +---
- 2 files changed, 13 insertions(+), 67 deletions(-)
-
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 29aeb8f..b5037b1 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -194,21 +194,6 @@ static enum bp_state update_schedule(enum bp_state state)
- }
- 
- #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--static long current_credit(void)
--{
--	return balloon_stats.target_pages - balloon_stats.current_pages -
--		balloon_stats.hotplug_pages;
--}
--
--static bool balloon_is_inflated(void)
--{
--	if (balloon_stats.balloon_low || balloon_stats.balloon_high ||
--			balloon_stats.balloon_hotplug)
--		return true;
--	else
--		return false;
--}
--
- static struct resource *additional_memory_resource(phys_addr_t size)
- {
- 	struct resource *res;
-@@ -300,10 +285,7 @@ static enum bp_state reserve_additional_memory(long credit)
- 		goto err;
- 	}
- 
--	balloon_hotplug -= credit;
--
--	balloon_stats.hotplug_pages += credit;
--	balloon_stats.balloon_hotplug = balloon_hotplug;
-+	balloon_stats.total_pages += balloon_hotplug;
- 
- 	return BP_DONE;
-   err:
-@@ -319,11 +301,6 @@ static void xen_online_page(struct page *page)
- 
- 	__balloon_append(page);
- 
--	if (balloon_stats.hotplug_pages)
--		--balloon_stats.hotplug_pages;
--	else
--		--balloon_stats.balloon_hotplug;
--
- 	mutex_unlock(&balloon_mutex);
- }
- 
-@@ -340,32 +317,22 @@ static struct notifier_block xen_memory_nb = {
- 	.priority = 0
- };
- #else
--static long current_credit(void)
-+static enum bp_state reserve_additional_memory(long credit)
- {
--	unsigned long target = balloon_stats.target_pages;
--
--	target = min(target,
--		     balloon_stats.current_pages +
--		     balloon_stats.balloon_low +
--		     balloon_stats.balloon_high);
--
--	return target - balloon_stats.current_pages;
-+	balloon_stats.target_pages = balloon_stats.current_pages;
-+	return BP_DONE;
- }
-+#endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
- 
--static bool balloon_is_inflated(void)
-+static long current_credit(void)
- {
--	if (balloon_stats.balloon_low || balloon_stats.balloon_high)
--		return true;
--	else
--		return false;
-+	return balloon_stats.target_pages - balloon_stats.current_pages;
- }
- 
--static enum bp_state reserve_additional_memory(long credit)
-+static bool balloon_is_inflated(void)
- {
--	balloon_stats.target_pages = balloon_stats.current_pages;
--	return BP_DONE;
-+	return balloon_stats.balloon_low || balloon_stats.balloon_high;
- }
--#endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
- 
- static enum bp_state increase_reservation(unsigned long nr_pages)
- {
-@@ -378,15 +345,6 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
- 		.domid        = DOMID_SELF
- 	};
- 
--#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--	if (!balloon_stats.balloon_low && !balloon_stats.balloon_high) {
--		nr_pages = min(nr_pages, balloon_stats.balloon_hotplug);
--		balloon_stats.hotplug_pages += nr_pages;
--		balloon_stats.balloon_hotplug -= nr_pages;
--		return BP_DONE;
--	}
--#endif
--
- 	if (nr_pages > ARRAY_SIZE(frame_list))
- 		nr_pages = ARRAY_SIZE(frame_list);
- 
-@@ -449,15 +407,6 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
- 		.domid        = DOMID_SELF
- 	};
- 
--#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--	if (balloon_stats.hotplug_pages) {
--		nr_pages = min(nr_pages, balloon_stats.hotplug_pages);
--		balloon_stats.hotplug_pages -= nr_pages;
--		balloon_stats.balloon_hotplug += nr_pages;
--		return BP_DONE;
--	}
--#endif
--
- 	if (nr_pages > ARRAY_SIZE(frame_list))
- 		nr_pages = ARRAY_SIZE(frame_list);
- 
-@@ -647,6 +596,8 @@ static void __init balloon_add_region(unsigned long start_pfn,
- 		   don't subtract from it. */
- 		__balloon_append(page);
- 	}
-+
-+	balloon_stats.total_pages += extra_pfn_end - start_pfn;
- }
- 
- static int __init balloon_init(void)
-@@ -664,6 +615,7 @@ static int __init balloon_init(void)
- 	balloon_stats.target_pages  = balloon_stats.current_pages;
- 	balloon_stats.balloon_low   = 0;
- 	balloon_stats.balloon_high  = 0;
-+	balloon_stats.total_pages   = balloon_stats.current_pages;
- 
- 	balloon_stats.schedule_delay = 1;
- 	balloon_stats.max_schedule_delay = 32;
-@@ -671,9 +623,6 @@ static int __init balloon_init(void)
- 	balloon_stats.max_retry_count = RETRY_UNLIMITED;
- 
- #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--	balloon_stats.hotplug_pages = 0;
--	balloon_stats.balloon_hotplug = 0;
--
- 	set_online_page_callback(&xen_online_page);
- 	register_memory_notifier(&xen_memory_nb);
- #endif
-diff --git a/include/xen/balloon.h b/include/xen/balloon.h
-index cc2e1a7..c8aee7a 100644
---- a/include/xen/balloon.h
-+++ b/include/xen/balloon.h
-@@ -11,14 +11,11 @@ struct balloon_stats {
- 	/* Number of pages in high- and low-memory balloons. */
- 	unsigned long balloon_low;
- 	unsigned long balloon_high;
-+	unsigned long total_pages;
- 	unsigned long schedule_delay;
- 	unsigned long max_schedule_delay;
- 	unsigned long retry_count;
- 	unsigned long max_retry_count;
--#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--	unsigned long hotplug_pages;
--	unsigned long balloon_hotplug;
--#endif
- };
- 
- extern struct balloon_stats balloon_stats;
--- 
-2.1.4
+Looks like this warning is issued, because page_check_address, used by
+kpageidle_clear_pte_refs_one, is not annotated as acquiring a ptl lock.
+It is false-positive then.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
