@@ -1,96 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 559EF9003C7
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 02:57:56 -0400 (EDT)
-Received: by laah7 with SMTP id h7so8632328laa.0
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 23:57:55 -0700 (PDT)
-Received: from mail-lb0-x22b.google.com (mail-lb0-x22b.google.com. [2a00:1450:4010:c04::22b])
-        by mx.google.com with ESMTPS id zl2si6692087lbb.55.2015.07.23.23.57.53
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D5279003C7
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 03:00:05 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so15072165wib.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 00:00:05 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id p4si2598856wiz.100.2015.07.24.00.00.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jul 2015 23:57:54 -0700 (PDT)
-Received: by lbbyj8 with SMTP id yj8so9231814lbb.0
-        for <linux-mm@kvack.org>; Thu, 23 Jul 2015 23:57:53 -0700 (PDT)
+        Fri, 24 Jul 2015 00:00:02 -0700 (PDT)
+Received: by wicmv11 with SMTP id mv11so52306114wic.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 00:00:01 -0700 (PDT)
+Date: Fri, 24 Jul 2015 08:59:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] hugetlb: cond_resched for set_max_huge_pages and
+ follow_hugetlb_page
+Message-ID: <20150724065959.GB4622@dhcp22.suse.cz>
+References: <1437688476-3399-1-git-send-email-sbaugh@catern.com>
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <alpine.DEB.2.10.1507231349080.31024@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1507211736300.24133@chino.kir.corp.google.com>
- <55B027D3.4020608@oracle.com> <alpine.DEB.2.10.1507221646100.14953@chino.kir.corp.google.com>
- <55B0E900.8090207@gmail.com> <alpine.DEB.2.10.1507231349080.31024@chino.kir.corp.google.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Fri, 24 Jul 2015 08:57:34 +0200
-Message-ID: <CAKgNAkj+FvuXh0sjx6A_RD9_0BaYm_xsyXS6Ym5svcmXtBVKmg@mail.gmail.com>
-Subject: Re: [patch] mmap.2: document the munmap exception for underlying page size
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1437688476-3399-1-git-send-email-sbaugh@catern.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Hugh Dickins <hughd@google.com>, Davide Libenzi <davidel@xmailserver.org>, Eric B Munson <emunson@akamai.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-man <linux-man@vger.kernel.org>
+To: Spencer Baugh <sbaugh@catern.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Mike Kravetz <mike.kravetz@oracle.com>, Luiz Capitulino <lcapitulino@redhat.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, Joern Engel <joern@purestorage.com>, Spencer Baugh <Spencer.baugh@purestorage.com>, Joern Engel <joern@logfs.org>
 
-Hello David,
+On Thu 23-07-15 14:54:31, Spencer Baugh wrote:
+> From: Joern Engel <joern@logfs.org>
+> 
+> ~150ms scheduler latency for both observed in the wild.
 
-On 23 July 2015 at 22:52, David Rientjes <rientjes@google.com> wrote:
-> On Thu, 23 Jul 2015, Michael Kerrisk (man-pages) wrote:
->
->> >> Should we also add a similar comment for the mmap offset?  Currently
->> >> the man page says:
->> >>
->> >> "offset must be a multiple of the page size as returned by
->> >>  sysconf(_SC_PAGE_SIZE)."
->> >>
->> >> For hugetlbfs, I beieve the offset must be a multiple of the
->> >> hugetlb page size.  A similar comment/exception about using
->> >> the "underlying page size" would apply here as well.
->> >>
->> >
->> > Yes, that makes sense, thanks.  We should also explicitly say that mmap(2)
->> > automatically aligns length to be hugepage aligned if backed by hugetlbfs.
->>
->> And, surely, it also does something similar for mmap()'s 'addr'
->> argument?
->>
->> I suggest we add a subsection to describe the HugeTLB differences. How
->> about something like:
->>
->>    Huge page (Huge TLB) mappings
->>        For  mappings  that  employ  huge pages, the requirements for the
->>        arguments  of  mmap()  and  munmap()  differ  somewhat  from  the
->>        requirements for mappings that use the native system page size.
->>
->>        For mmap(), offset must be a multiple of the underlying huge page
->>        size.  The system automatically aligns length to be a multiple of
->>        the underlying huge page size.
->>
->>        For  munmap(),  addr  and  length  must both be a multiple of the
->>        underlying huge page size.
->> ?
->>
->
-> Looks good, please add my acked-by.
+This is way to vague. Could you describe your problem somehow more,
+please?
+There are schduling points in the page allocator (when it triggers the
+reclaim), why are those not sufficient? Or do you manage to allocate
+many hugetlb pages without performing the reclaim and that leads to
+soft lockups?
 
-Done. Thanks for checking the text.
-
-> The commit that expanded on the
-> documentation of this behavior was
-> 80d6b94bd69a7a49b52bf503ef6a841f43cf5bbb.
->
-> Answering from your other email, no, this behavior in the kernel has not
-> changed recently but we found it wasn't properly documented so we wanted
-> to fix that both in the kernel tree and in the man-pages to make it
-> explicit.
-
-Okay -- thanks for the clarification.
-
-Cheers,
-
-Michael
-
-
+> 
+> Signed-off-by: Joern Engel <joern@logfs.org>
+> Signed-off-by: Spencer Baugh <sbaugh@catern.com>
+> ---
+>  mm/hugetlb.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index a8c3087..2eb6919 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1836,6 +1836,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+>  			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
+>  		else
+>  			ret = alloc_fresh_huge_page(h, nodes_allowed);
+> +		cond_resched();
+>  		spin_lock(&hugetlb_lock);
+>  		if (!ret)
+>  			goto out;
+> @@ -3521,6 +3522,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  				spin_unlock(ptl);
+>  			ret = hugetlb_fault(mm, vma, vaddr,
+>  				(flags & FOLL_WRITE) ? FAULT_FLAG_WRITE : 0);
+> +			cond_resched();
+>  			if (!(ret & VM_FAULT_ERROR))
+>  				continue;
+>  
+> -- 
+> 2.5.0.rc3
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
