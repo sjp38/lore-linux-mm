@@ -1,71 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id EDBA16B0038
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 10:17:52 -0400 (EDT)
-Received: by laah7 with SMTP id h7so15088503laa.0
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:17:52 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id yk6si7652972lbb.90.2015.07.24.07.17.50
+Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D3B106B0038
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 10:22:27 -0400 (EDT)
+Received: by qkdl129 with SMTP id l129so15163990qkd.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:22:27 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t34si10204587qgt.97.2015.07.24.07.22.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Jul 2015 07:17:51 -0700 (PDT)
-Date: Fri, 24 Jul 2015 17:17:26 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v9 6/8] proc: add kpageidle file
-Message-ID: <20150724141726.GE8100@esperanza>
-References: <cover.1437303956.git.vdavydov@parallels.com>
- <d7a78b72053cf529c0c9ff6cbc02ffbb3d58fe35.1437303956.git.vdavydov@parallels.com>
- <CAP=VYLqiNfQJ6oyQg2GszeHwdOmeY_uD3XPvw=++weJOKdx4_g@mail.gmail.com>
+        Fri, 24 Jul 2015 07:22:27 -0700 (PDT)
+Message-ID: <55B24A1D.1030400@redhat.com>
+Date: Fri, 24 Jul 2015 10:22:21 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <CAP=VYLqiNfQJ6oyQg2GszeHwdOmeY_uD3XPvw=++weJOKdx4_g@mail.gmail.com>
+Subject: Re: [RFC v2 0/4] Outsourcing compaction for THP allocations to kcompactd
+References: <1435826795-13777-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1435826795-13777-1-git-send-email-vbabka@suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel
- Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel
- Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, LKML doc <linux-doc@vger.kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri, Jul 24, 2015 at 10:08:25AM -0400, Paul Gortmaker wrote:
+On 07/02/2015 04:46 AM, Vlastimil Babka wrote:
+> This RFC series is another evolution of the attempt to deal with THP
+> allocations latencies. Please see the motivation in the previous version [1]
+>
+> The main difference here is that I've bitten the bullet and implemented
+> per-node kcompactd kthreads - see Patch 1 for the details of why and how.
+> Trying to fit everything into khugepaged was getting too clumsy, and kcompactd
+> could have more benefits, see e.g. the ideas here [2]. Not everything is
+> implemented yet, though, I would welcome some feedback first.
 
-> fs/proc/page.c:341:4: error: implicit declaration of function
-> 'pmdp_clear_young_notify' [-Werror=implicit-function-declaration]
-> fs/proc/page.c:347:4: error: implicit declaration of function
-> 'ptep_clear_young_notify' [-Werror=implicit-function-declaration]
-> cc1: some warnings being treated as errors
-> make[3]: *** [fs/proc/page.o] Error 1
-> make[2]: *** [fs/proc] Error 2
+This leads to a few questions, one of which has an obvious answer.
 
-My bad, sorry.
+1) Why should this functionality not be folded into kswapd?
 
-It's already been reported by the kbuild-test-robot, see
+    (because kswapd can get stuck on IO for long periods of time)
 
-  [linux-next:master 3983/4215] fs/proc/page.c:332:4: error: implicit declaration of function 'pmdp_clear_young_notify'
+2) Given that kswapd can get stuck on IO for long periods of
+    time, are there other tasks we may want to break out of
+    kswapd, in order to reduce page reclaim latencies for things
+    like network allocations?
 
-The fix is:
-
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH] mmu_notifier: add missing stubs for clear_young
-
-This is a compilation fix for !CONFIG_MMU_NOTIFIER.
-
-Fixes: mmu-notifier-add-clear_young-callback
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index a5b17137c683..a1a210d59961 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -471,6 +471,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- 
- #define ptep_clear_flush_young_notify ptep_clear_flush_young
- #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
-+#define ptep_clear_young_notify ptep_test_and_clear_young
-+#define pmdp_clear_young_notify pmdp_test_and_clear_young
- #define	ptep_clear_flush_notify ptep_clear_flush
- #define pmdp_huge_clear_flush_notify pmdp_huge_clear_flush
- #define pmdp_huge_get_and_clear_notify pmdp_huge_get_and_clear
+    (freeing clean inactive pages?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
