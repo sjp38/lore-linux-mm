@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 092D96B0257
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 12:42:36 -0400 (EDT)
-Received: by igbij6 with SMTP id ij6so21020346igb.1
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 09:42:35 -0700 (PDT)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id bq3si7300460pdb.3.2015.07.24.09.42.34
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id C35B46B0258
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 12:42:38 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so16240941pdj.3
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 09:42:38 -0700 (PDT)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id fo7si21881391pac.56.2015.07.24.09.42.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Jul 2015 09:42:34 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout1.w1.samsung.com
+        Fri, 24 Jul 2015 09:42:36 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
  (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NS0007VN3QUA350@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 24 Jul 2015 17:42:30 +0100 (BST)
+ with ESMTP id <0NS000K1U3QVRJ60@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 24 Jul 2015 17:42:31 +0100 (BST)
 From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v4 3/7] arm64: introduce VA_START macro - the first kernel
- virtual address.
-Date: Fri, 24 Jul 2015 19:41:55 +0300
-Message-id: <1437756119-12817-4-git-send-email-a.ryabinin@samsung.com>
+Subject: [PATCH v4 4/7] arm64: move PGD_SIZE definition to pgalloc.h
+Date: Fri, 24 Jul 2015 19:41:56 +0300
+Message-id: <1437756119-12817-5-git-send-email-a.ryabinin@samsung.com>
 In-reply-to: <1437756119-12817-1-git-send-email-a.ryabinin@samsung.com>
 References: <1437756119-12817-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,48 +25,40 @@ List-ID: <linux-mm.kvack.org>
 To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
 Cc: Arnd Bergmann <arnd@arndb.de>, Linus Walleij <linus.walleij@linaro.org>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexey Klimov <klimov.linux@gmail.com>, Andrey Ryabinin <a.ryabinin@samsung.com>
 
-In order to not use lengthy (UL(0xffffffffffffffff) << VA_BITS) everywhere,
-replace it with VA_START.
+This will be used by KASAN latter.
 
 Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 ---
- arch/arm64/include/asm/memory.h  | 2 ++
- arch/arm64/include/asm/pgtable.h | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ arch/arm64/include/asm/pgalloc.h | 1 +
+ arch/arm64/mm/pgd.c              | 2 --
+ 2 files changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index f800d45..288c19d 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -42,12 +42,14 @@
-  * PAGE_OFFSET - the virtual address of the start of the kernel image (top
-  *		 (VA_BITS - 1))
-  * VA_BITS - the maximum number of bits for virtual addresses.
-+ * VA_START - the first kernel virtual address.
-  * TASK_SIZE - the maximum size of a user space task.
-  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
-  * The module space lives between the addresses given by TASK_SIZE
-  * and PAGE_OFFSET - it must be within 128MB of the kernel text.
-  */
- #define VA_BITS			(CONFIG_ARM64_VA_BITS)
-+#define VA_START		(UL(0xffffffffffffffff) << VA_BITS)
- #define PAGE_OFFSET		(UL(0xffffffffffffffff) << (VA_BITS - 1))
- #define MODULES_END		(PAGE_OFFSET)
- #define MODULES_VADDR		(MODULES_END - SZ_64M)
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index 56283f8..a1f9f61 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -40,7 +40,7 @@
-  *	fixed mappings and modules
-  */
- #define VMEMMAP_SIZE		ALIGN((1UL << (VA_BITS - PAGE_SHIFT)) * sizeof(struct page), PUD_SIZE)
--#define VMALLOC_START		(UL(0xffffffffffffffff) << VA_BITS)
-+#define VMALLOC_START		(VA_START)
- #define VMALLOC_END		(PAGE_OFFSET - PUD_SIZE - VMEMMAP_SIZE - SZ_64K)
+diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
+index 7642056..c150539 100644
+--- a/arch/arm64/include/asm/pgalloc.h
++++ b/arch/arm64/include/asm/pgalloc.h
+@@ -27,6 +27,7 @@
+ #define check_pgt_cache()		do { } while (0)
  
- #define vmemmap			((struct page *)(VMALLOC_END + SZ_64K))
+ #define PGALLOC_GFP	(GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO)
++#define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
+ 
+ #if CONFIG_PGTABLE_LEVELS > 2
+ 
+diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
+index 71ca104..cb3ba1b 100644
+--- a/arch/arm64/mm/pgd.c
++++ b/arch/arm64/mm/pgd.c
+@@ -28,8 +28,6 @@
+ 
+ #include "mm.h"
+ 
+-#define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
+-
+ static struct kmem_cache *pgd_cache;
+ 
+ pgd_t *pgd_alloc(struct mm_struct *mm)
 -- 
 2.4.5
 
