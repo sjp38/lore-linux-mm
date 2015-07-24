@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
-	by kanga.kvack.org (Postfix) with ESMTP id C24989003C7
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:01 -0400 (EDT)
-Received: by ykay190 with SMTP id y190so17313185yka.3
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:01 -0700 (PDT)
+Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 80C6F9003C7
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:02 -0400 (EDT)
+Received: by ykdu72 with SMTP id u72so17385908ykd.2
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:02 -0700 (PDT)
 Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id y139si5871632yke.97.2015.07.24.04.48.00
+        by mx.google.com with ESMTPS id y139si5871632yke.97.2015.07.24.04.48.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Jul 2015 04:48:00 -0700 (PDT)
+        Fri, 24 Jul 2015 04:48:01 -0700 (PDT)
 From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv2 07/10] xen/balloon: make alloc_xenballoon_pages() always allocate low pages
-Date: Fri, 24 Jul 2015 12:47:45 +0100
-Message-ID: <1437738468-24110-8-git-send-email-david.vrabel@citrix.com>
+Subject: [PATCHv2 04/10] xen/balloon: find non-conflicting regions to place hotplugged memory
+Date: Fri, 24 Jul 2015 12:47:42 +0100
+Message-ID: <1437738468-24110-5-git-send-email-david.vrabel@citrix.com>
 In-Reply-To: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
 References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
@@ -22,142 +22,131 @@ List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xenproject.org
 Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Kiper <daniel.kiper@oracle.com>
 
-All users of alloc_xenballoon_pages() wanted low memory pages, so
-remove the option for high memory.
+Instead of placing hotplugged memory at the end of RAM (which may
+conflict with PCI devices or reserved regions) use allocate_resource()
+to get a new, suitably aligned resource that does not conflict.
 
 Signed-off-by: David Vrabel <david.vrabel@citrix.com>
 Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
 ---
- arch/x86/xen/grant-table.c         |  2 +-
- drivers/xen/balloon.c              | 21 ++++++++-------------
- drivers/xen/grant-table.c          |  2 +-
- drivers/xen/privcmd.c              |  2 +-
- drivers/xen/xenbus/xenbus_client.c |  3 +--
- include/xen/balloon.h              |  3 +--
- 6 files changed, 13 insertions(+), 20 deletions(-)
+ drivers/xen/balloon.c | 64 +++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 54 insertions(+), 10 deletions(-)
 
-diff --git a/arch/x86/xen/grant-table.c b/arch/x86/xen/grant-table.c
-index 1580e7a..e079500 100644
---- a/arch/x86/xen/grant-table.c
-+++ b/arch/x86/xen/grant-table.c
-@@ -133,7 +133,7 @@ static int __init xlated_setup_gnttab_pages(void)
- 		kfree(pages);
- 		return -ENOMEM;
- 	}
--	rc = alloc_xenballooned_pages(nr_grant_frames, pages, 0 /* lowmem */);
-+	rc = alloc_xenballooned_pages(nr_grant_frames, pages);
- 	if (rc) {
- 		pr_warn("%s Couldn't balloon alloc %ld pfns rc:%d\n", __func__,
- 			nr_grant_frames, rc);
 diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index ced34cd..cc68a4d 100644
+index fd93369..29aeb8f 100644
 --- a/drivers/xen/balloon.c
 +++ b/drivers/xen/balloon.c
-@@ -136,17 +136,16 @@ static void balloon_append(struct page *page)
+@@ -54,6 +54,7 @@
+ #include <linux/memory.h>
+ #include <linux/memory_hotplug.h>
+ #include <linux/percpu-defs.h>
++#include <linux/slab.h>
+ 
+ #include <asm/page.h>
+ #include <asm/pgalloc.h>
+@@ -208,6 +209,43 @@ static bool balloon_is_inflated(void)
+ 		return false;
  }
  
- /* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
--static struct page *balloon_retrieve(bool prefer_highmem)
-+static struct page *balloon_retrieve(bool require_lowmem)
- {
- 	struct page *page;
- 
- 	if (list_empty(&ballooned_pages))
- 		return NULL;
- 
--	if (prefer_highmem)
--		page = list_entry(ballooned_pages.prev, struct page, lru);
--	else
--		page = list_entry(ballooned_pages.next, struct page, lru);
-+	page = list_entry(ballooned_pages.next, struct page, lru);
-+	if (require_lowmem && PageHighMem(page))
++static struct resource *additional_memory_resource(phys_addr_t size)
++{
++	struct resource *res;
++	int ret;
++
++	res = kzalloc(sizeof(*res), GFP_KERNEL);
++	if (!res)
 +		return NULL;
- 	list_del(&page->lru);
++
++	res->name = "System RAM";
++	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
++
++	ret = allocate_resource(&iomem_resource, res,
++				size, 0, -1,
++				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
++	if (ret < 0) {
++		pr_err("Cannot allocate new System RAM resource\n");
++		kfree(res);
++		return NULL;
++	}
++
++	return res;
++}
++
++static void release_memory_resource(struct resource *resource)
++{
++	if (!resource)
++		return;
++
++	/*
++	 * No need to reset region to identity mapped since we now
++	 * know that no I/O can be in this region
++	 */
++	release_resource(resource);
++	kfree(resource);
++}
++
+ /*
+  * reserve_additional_memory() adds memory region of size >= credit above
+  * max_pfn. New region is section aligned and size is modified to be multiple
+@@ -221,13 +259,17 @@ static bool balloon_is_inflated(void)
  
- 	if (PageHighMem(page))
-@@ -533,24 +532,20 @@ EXPORT_SYMBOL_GPL(balloon_set_new_target);
-  * alloc_xenballooned_pages - get pages that have been ballooned out
-  * @nr_pages: Number of pages to get
-  * @pages: pages returned
-- * @highmem: allow highmem pages
-  * @return 0 on success, error otherwise
-  */
--int alloc_xenballooned_pages(int nr_pages, struct page **pages, bool highmem)
-+int alloc_xenballooned_pages(int nr_pages, struct page **pages)
+ static enum bp_state reserve_additional_memory(long credit)
  {
- 	int pgno = 0;
- 	struct page *page;
- 	mutex_lock(&balloon_mutex);
- 	while (pgno < nr_pages) {
--		page = balloon_retrieve(highmem);
--		if (page && (highmem || !PageHighMem(page))) {
-+		page = balloon_retrieve(true);
-+		if (page) {
- 			pages[pgno++] = page;
- 		} else {
- 			enum bp_state st;
--			if (page)
--				balloon_append(page);
--			st = decrease_reservation(nr_pages - pgno,
--					highmem ? GFP_HIGHUSER : GFP_USER);
-+			st = decrease_reservation(nr_pages - pgno, GFP_USER);
- 			if (st != BP_DONE)
- 				goto out_undo;
- 		}
-diff --git a/drivers/xen/grant-table.c b/drivers/xen/grant-table.c
-index 62f591f..a4b702c 100644
---- a/drivers/xen/grant-table.c
-+++ b/drivers/xen/grant-table.c
-@@ -687,7 +687,7 @@ int gnttab_alloc_pages(int nr_pages, struct page **pages)
- 	int i;
- 	int ret;
++	struct resource *resource;
+ 	int nid, rc;
+-	u64 hotplug_start_paddr;
+-	unsigned long balloon_hotplug = credit;
++	unsigned long balloon_hotplug;
++
++	balloon_hotplug = round_up(credit, PAGES_PER_SECTION);
++
++	resource = additional_memory_resource(balloon_hotplug * PAGE_SIZE);
++	if (!resource)
++		goto err;
  
--	ret = alloc_xenballooned_pages(nr_pages, pages, false);
-+	ret = alloc_xenballooned_pages(nr_pages, pages);
- 	if (ret < 0)
- 		return ret;
+-	hotplug_start_paddr = PFN_PHYS(SECTION_ALIGN_UP(max_pfn));
+-	balloon_hotplug = round_up(balloon_hotplug, PAGES_PER_SECTION);
+-	nid = memory_add_physaddr_to_nid(hotplug_start_paddr);
++	nid = memory_add_physaddr_to_nid(resource->start);
  
-diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
-index 5a29616..59cfec9 100644
---- a/drivers/xen/privcmd.c
-+++ b/drivers/xen/privcmd.c
-@@ -401,7 +401,7 @@ static int alloc_empty_pages(struct vm_area_struct *vma, int numpgs)
- 	if (pages == NULL)
- 		return -ENOMEM;
+ #ifdef CONFIG_XEN_HAVE_PVMMU
+         /*
+@@ -242,21 +284,20 @@ static enum bp_state reserve_additional_memory(long credit)
+ 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+ 		unsigned long pfn, i;
  
--	rc = alloc_xenballooned_pages(numpgs, pages, 0);
-+	rc = alloc_xenballooned_pages(numpgs, pages);
- 	if (rc != 0) {
- 		pr_warn("%s Could not alloc %d pfns rc:%d\n", __func__,
- 			numpgs, rc);
-diff --git a/drivers/xen/xenbus/xenbus_client.c b/drivers/xen/xenbus/xenbus_client.c
-index 9ad3272..2a2da04 100644
---- a/drivers/xen/xenbus/xenbus_client.c
-+++ b/drivers/xen/xenbus/xenbus_client.c
-@@ -614,8 +614,7 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
- 	if (!node)
- 		return -ENOMEM;
+-		pfn = PFN_DOWN(hotplug_start_paddr);
++		pfn = PFN_DOWN(resource->start);
+ 		for (i = 0; i < balloon_hotplug; i++) {
+ 			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
+ 				pr_warn("set_phys_to_machine() failed, no memory added\n");
+-				return BP_ECANCELED;
++				goto err;
+ 			}
+                 }
+ 	}
+ #endif
  
--	err = alloc_xenballooned_pages(nr_grefs, node->hvm.pages,
--				       false /* lowmem */);
-+	err = alloc_xenballooned_pages(nr_grefs, node->hvm.pages);
- 	if (err)
- 		goto out_err;
+-	rc = add_memory(nid, hotplug_start_paddr, balloon_hotplug << PAGE_SHIFT);
+-
++	rc = add_memory_resource(nid, resource);
+ 	if (rc) {
+ 		pr_warn("Cannot add additional memory (%i)\n", rc);
+-		return BP_ECANCELED;
++		goto err;
+ 	}
  
-diff --git a/include/xen/balloon.h b/include/xen/balloon.h
-index c8aee7a..83efdeb 100644
---- a/include/xen/balloon.h
-+++ b/include/xen/balloon.h
-@@ -22,8 +22,7 @@ extern struct balloon_stats balloon_stats;
+ 	balloon_hotplug -= credit;
+@@ -265,6 +306,9 @@ static enum bp_state reserve_additional_memory(long credit)
+ 	balloon_stats.balloon_hotplug = balloon_hotplug;
  
- void balloon_set_new_target(unsigned long target);
+ 	return BP_DONE;
++  err:
++	release_memory_resource(resource);
++	return BP_ECANCELED;
+ }
  
--int alloc_xenballooned_pages(int nr_pages, struct page **pages,
--		bool highmem);
-+int alloc_xenballooned_pages(int nr_pages, struct page **pages);
- void free_xenballooned_pages(int nr_pages, struct page **pages);
- 
- struct device;
+ static void xen_online_page(struct page *page)
 -- 
 2.1.4
 
