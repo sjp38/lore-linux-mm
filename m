@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id BD3F39003CC
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:20 -0400 (EDT)
-Received: by ykay190 with SMTP id y190so17318545yka.3
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:20 -0700 (PDT)
+Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
+	by kanga.kvack.org (Postfix) with ESMTP id C21899003CC
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:22 -0400 (EDT)
+Received: by ykdu72 with SMTP id u72so17391731ykd.2
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:22 -0700 (PDT)
 Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id m3si5893483ykc.3.2015.07.24.04.48.18
+        by mx.google.com with ESMTPS id p7si5876537ywc.86.2015.07.24.04.48.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Fri, 24 Jul 2015 04:48:18 -0700 (PDT)
 From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv2 09/10] x86/xen: export xen_alloc_p2m_entry()
-Date: Fri, 24 Jul 2015 12:47:47 +0100
-Message-ID: <1437738468-24110-10-git-send-email-david.vrabel@citrix.com>
+Subject: [PATCHv2 06/10] xen/balloon: only hotplug additional memory if required
+Date: Fri, 24 Jul 2015 12:47:44 +0100
+Message-ID: <1437738468-24110-7-git-send-email-david.vrabel@citrix.com>
 In-Reply-To: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
 References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
@@ -22,94 +22,102 @@ List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xenproject.org
 Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Kiper <daniel.kiper@oracle.com>
 
-Rename alloc_p2m() to xen_alloc_p2m_entry() and export it.
+Now that we track the total number of pages (included hotplugged
+regions), it is easy to determine if more memory needs to be
+hotplugged.
 
-This is useful for ensuring that a p2m entry is allocated (i.e., not a
-shared missing or identity entry) so that subsequent set_phys_to_machine()
-calls will require no further allocations.
+Add a new BP_WAIT state to signal that the balloon process needs to
+wait until kicked by the memory add notifier (when the new section is
+onlined by userspace).
 
 Signed-off-by: David Vrabel <david.vrabel@citrix.com>
 ---
- arch/x86/include/asm/xen/page.h |  2 ++
- arch/x86/xen/p2m.c              | 16 ++++++++++------
- 2 files changed, 12 insertions(+), 6 deletions(-)
+v2:
+- New BP_WAIT status after adding new memory sections.
+---
+ drivers/xen/balloon.c | 23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/include/asm/xen/page.h b/arch/x86/include/asm/xen/page.h
-index c44a5d5..960b380 100644
---- a/arch/x86/include/asm/xen/page.h
-+++ b/arch/x86/include/asm/xen/page.h
-@@ -45,6 +45,8 @@ extern unsigned long *xen_p2m_addr;
- extern unsigned long  xen_p2m_size;
- extern unsigned long  xen_max_p2m_pfn;
- 
-+extern int xen_alloc_p2m_entry(unsigned long pfn);
-+
- extern unsigned long get_phys_to_machine(unsigned long pfn);
- extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
- extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
-diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
-index 8b7f18e..ef93ccf 100644
---- a/arch/x86/xen/p2m.c
-+++ b/arch/x86/xen/p2m.c
-@@ -503,7 +503,7 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
-  * the new pages are installed with cmpxchg; if we lose the race then
-  * simply free the page we allocated and use the one that's there.
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index b5037b1..ced34cd 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -75,12 +75,14 @@
+  * balloon_process() state:
+  *
+  * BP_DONE: done or nothing to do,
++ * BP_WAIT: wait to be rescheduled,
+  * BP_EAGAIN: error, go to sleep,
+  * BP_ECANCELED: error, balloon operation canceled.
   */
--static bool alloc_p2m(unsigned long pfn)
-+int xen_alloc_p2m_entry(unsigned long pfn)
+ 
+ enum bp_state {
+ 	BP_DONE,
++	BP_WAIT,
+ 	BP_EAGAIN,
+ 	BP_ECANCELED
+ };
+@@ -167,6 +169,9 @@ static struct page *balloon_next_page(struct page *page)
+ 
+ static enum bp_state update_schedule(enum bp_state state)
  {
- 	unsigned topidx, mididx;
- 	unsigned long *top_mfn_p, *mid_mfn;
-@@ -524,7 +524,7 @@ static bool alloc_p2m(unsigned long pfn)
- 		/* PMD level is missing, allocate a new one */
- 		ptep = alloc_p2m_pmd(addr, pte_pg);
- 		if (!ptep)
--			return false;
-+			return -ENOMEM;
- 	}
- 
- 	if (p2m_top_mfn) {
-@@ -541,7 +541,7 @@ static bool alloc_p2m(unsigned long pfn)
- 
- 			mid_mfn = alloc_p2m_page();
- 			if (!mid_mfn)
--				return false;
-+				return -ENOMEM;
- 
- 			p2m_mid_mfn_init(mid_mfn, p2m_missing);
- 
-@@ -567,7 +567,7 @@ static bool alloc_p2m(unsigned long pfn)
- 
- 		p2m = alloc_p2m_page();
- 		if (!p2m)
--			return false;
-+			return -ENOMEM;
- 
- 		if (p2m_pfn == PFN_DOWN(__pa(p2m_missing)))
- 			p2m_init(p2m);
-@@ -590,8 +590,9 @@ static bool alloc_p2m(unsigned long pfn)
- 			free_p2m_page(p2m);
- 	}
- 
--	return true;
-+	return 0;
- }
-+EXPORT_SYMBOL(xen_alloc_p2m);
- 
- unsigned long __init set_phys_range_identity(unsigned long pfn_s,
- 				      unsigned long pfn_e)
-@@ -648,7 +649,10 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
- bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
- {
- 	if (unlikely(!__set_phys_to_machine(pfn, mfn))) {
--		if (!alloc_p2m(pfn))
-+		int ret;
++	if (state == BP_WAIT)
++		return BP_WAIT;
 +
-+		ret = xen_alloc_p2m_entry(pfn);
-+		if (ret < 0)
- 			return false;
+ 	if (state == BP_ECANCELED)
+ 		return BP_ECANCELED;
  
- 		return __set_phys_to_machine(pfn, mfn);
+@@ -242,12 +247,22 @@ static void release_memory_resource(struct resource *resource)
+  * bit set). Real size of added memory is established at page onlining stage.
+  */
+ 
+-static enum bp_state reserve_additional_memory(long credit)
++static enum bp_state reserve_additional_memory(void)
+ {
++	long credit;
+ 	struct resource *resource;
+ 	int nid, rc;
+ 	unsigned long balloon_hotplug;
+ 
++	credit = balloon_stats.target_pages - balloon_stats.total_pages;
++
++	/*
++	 * Already hotplugged enough pages?  Wait for them to be
++	 * onlined.
++	 */
++	if (credit <= 0)
++		return BP_EAGAIN;
++
+ 	balloon_hotplug = round_up(credit, PAGES_PER_SECTION);
+ 
+ 	resource = additional_memory_resource(balloon_hotplug * PAGE_SIZE);
+@@ -287,7 +302,7 @@ static enum bp_state reserve_additional_memory(long credit)
+ 
+ 	balloon_stats.total_pages += balloon_hotplug;
+ 
+-	return BP_DONE;
++	return BP_WAIT;
+   err:
+ 	release_memory_resource(resource);
+ 	return BP_ECANCELED;
+@@ -317,7 +332,7 @@ static struct notifier_block xen_memory_nb = {
+ 	.priority = 0
+ };
+ #else
+-static enum bp_state reserve_additional_memory(long credit)
++static enum bp_state reserve_additional_memory(void)
+ {
+ 	balloon_stats.target_pages = balloon_stats.current_pages;
+ 	return BP_DONE;
+@@ -484,7 +499,7 @@ static void balloon_process(struct work_struct *work)
+ 			if (balloon_is_inflated())
+ 				state = increase_reservation(credit);
+ 			else
+-				state = reserve_additional_memory(credit);
++				state = reserve_additional_memory();
+ 		}
+ 
+ 		if (credit < 0)
 -- 
 2.1.4
 
