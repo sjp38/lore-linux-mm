@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B36D59003CC
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:18 -0400 (EDT)
-Received: by ykay190 with SMTP id y190so17318012yka.3
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:18 -0700 (PDT)
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id BD3F39003CC
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:20 -0400 (EDT)
+Received: by ykay190 with SMTP id y190so17318545yka.3
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:20 -0700 (PDT)
 Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id p7si5876537ywc.86.2015.07.24.04.48.17
+        by mx.google.com with ESMTPS id m3si5893483ykc.3.2015.07.24.04.48.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Fri, 24 Jul 2015 04:48:18 -0700 (PDT)
 From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv2 01/10] mm: memory hotplug with an existing resource
-Date: Fri, 24 Jul 2015 12:47:39 +0100
-Message-ID: <1437738468-24110-2-git-send-email-david.vrabel@citrix.com>
+Subject: [PATCHv2 09/10] x86/xen: export xen_alloc_p2m_entry()
+Date: Fri, 24 Jul 2015 12:47:47 +0100
+Message-ID: <1437738468-24110-10-git-send-email-david.vrabel@citrix.com>
 In-Reply-To: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
 References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
@@ -20,98 +20,96 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xenproject.org
-Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Kiper <daniel.kiper@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Kiper <daniel.kiper@oracle.com>
 
-Add add_memory_resource() to add memory using an existing "System RAM"
-resource.  This is useful if the memory region is being located by
-finding a free resource slot with allocate_resource().
+Rename alloc_p2m() to xen_alloc_p2m_entry() and export it.
 
-Xen guests will make use of this in their balloon driver to hotplug
-arbitrary amounts of memory in response to toolstack requests.
+This is useful for ensuring that a p2m entry is allocated (i.e., not a
+shared missing or identity entry) so that subsequent set_phys_to_machine()
+calls will require no further allocations.
 
 Signed-off-by: David Vrabel <david.vrabel@citrix.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/memory_hotplug.h |  2 ++
- mm/memory_hotplug.c            | 28 +++++++++++++++++++++-------
- 2 files changed, 23 insertions(+), 7 deletions(-)
+ arch/x86/include/asm/xen/page.h |  2 ++
+ arch/x86/xen/p2m.c              | 16 ++++++++++------
+ 2 files changed, 12 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 6ffa0ac..c76d371 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -11,6 +11,7 @@ struct zone;
- struct pglist_data;
- struct mem_section;
- struct memory_block;
-+struct resource;
+diff --git a/arch/x86/include/asm/xen/page.h b/arch/x86/include/asm/xen/page.h
+index c44a5d5..960b380 100644
+--- a/arch/x86/include/asm/xen/page.h
++++ b/arch/x86/include/asm/xen/page.h
+@@ -45,6 +45,8 @@ extern unsigned long *xen_p2m_addr;
+ extern unsigned long  xen_p2m_size;
+ extern unsigned long  xen_max_p2m_pfn;
  
- #ifdef CONFIG_MEMORY_HOTPLUG
- 
-@@ -266,6 +267,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
- extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
- 		void *arg, int (*func)(struct memory_block *, void *));
- extern int add_memory(int nid, u64 start, u64 size);
-+extern int add_memory_resource(int nid, struct resource *resource);
- extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default);
- extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 26fbba7..460d0fe 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1216,23 +1216,21 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
- }
- 
- /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
--int __ref add_memory(int nid, u64 start, u64 size)
-+int __ref add_memory_resource(int nid, struct resource *res)
++extern int xen_alloc_p2m_entry(unsigned long pfn);
++
+ extern unsigned long get_phys_to_machine(unsigned long pfn);
+ extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+ extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
+index 8b7f18e..ef93ccf 100644
+--- a/arch/x86/xen/p2m.c
++++ b/arch/x86/xen/p2m.c
+@@ -503,7 +503,7 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
+  * the new pages are installed with cmpxchg; if we lose the race then
+  * simply free the page we allocated and use the one that's there.
+  */
+-static bool alloc_p2m(unsigned long pfn)
++int xen_alloc_p2m_entry(unsigned long pfn)
  {
-+	u64 start, size;
- 	pg_data_t *pgdat = NULL;
- 	bool new_pgdat;
- 	bool new_node;
--	struct resource *res;
- 	int ret;
+ 	unsigned topidx, mididx;
+ 	unsigned long *top_mfn_p, *mid_mfn;
+@@ -524,7 +524,7 @@ static bool alloc_p2m(unsigned long pfn)
+ 		/* PMD level is missing, allocate a new one */
+ 		ptep = alloc_p2m_pmd(addr, pte_pg);
+ 		if (!ptep)
+-			return false;
++			return -ENOMEM;
+ 	}
  
-+	start = res->start;
-+	size = resource_size(res);
-+
- 	ret = check_hotplug_memory_range(start, size);
- 	if (ret)
- 		return ret;
+ 	if (p2m_top_mfn) {
+@@ -541,7 +541,7 @@ static bool alloc_p2m(unsigned long pfn)
  
--	res = register_memory_resource(start, size);
--	ret = -EEXIST;
--	if (!res)
--		return ret;
--
- 	{	/* Stupid hack to suppress address-never-null warning */
- 		void *p = NODE_DATA(nid);
- 		new_pgdat = !p;
-@@ -1282,6 +1280,22 @@ out:
- 	mem_hotplug_done();
- 	return ret;
+ 			mid_mfn = alloc_p2m_page();
+ 			if (!mid_mfn)
+-				return false;
++				return -ENOMEM;
+ 
+ 			p2m_mid_mfn_init(mid_mfn, p2m_missing);
+ 
+@@ -567,7 +567,7 @@ static bool alloc_p2m(unsigned long pfn)
+ 
+ 		p2m = alloc_p2m_page();
+ 		if (!p2m)
+-			return false;
++			return -ENOMEM;
+ 
+ 		if (p2m_pfn == PFN_DOWN(__pa(p2m_missing)))
+ 			p2m_init(p2m);
+@@ -590,8 +590,9 @@ static bool alloc_p2m(unsigned long pfn)
+ 			free_p2m_page(p2m);
+ 	}
+ 
+-	return true;
++	return 0;
  }
-+EXPORT_SYMBOL_GPL(add_memory_resource);
-+
-+int __ref add_memory(int nid, u64 start, u64 size)
-+{
-+	struct resource *res;
-+	int ret;
-+
-+	res = register_memory_resource(start, size);
-+	if (!res)
-+		return -EEXIST;
-+
-+	ret = add_memory_resource(nid, res);
-+	if (ret < 0)
-+		release_memory_resource(res);
-+	return ret;
-+}
- EXPORT_SYMBOL_GPL(add_memory);
++EXPORT_SYMBOL(xen_alloc_p2m);
  
- #ifdef CONFIG_MEMORY_HOTREMOVE
+ unsigned long __init set_phys_range_identity(unsigned long pfn_s,
+ 				      unsigned long pfn_e)
+@@ -648,7 +649,10 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+ bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+ {
+ 	if (unlikely(!__set_phys_to_machine(pfn, mfn))) {
+-		if (!alloc_p2m(pfn))
++		int ret;
++
++		ret = xen_alloc_p2m_entry(pfn);
++		if (ret < 0)
+ 			return false;
+ 
+ 		return __set_phys_to_machine(pfn, mfn);
 -- 
 2.1.4
 
