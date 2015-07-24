@@ -1,104 +1,706 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 36F499003C7
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 08:39:37 -0400 (EDT)
-Received: by qkfc129 with SMTP id c129so13210067qkf.1
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 05:39:37 -0700 (PDT)
-Received: from emvm-gh1-uea08.nsa.gov (emvm-gh1-uea08.nsa.gov. [63.239.67.9])
-        by mx.google.com with ESMTP id j15si6296767qhc.33.2015.07.24.05.39.35
-        for <linux-mm@kvack.org>;
-        Fri, 24 Jul 2015 05:39:36 -0700 (PDT)
-Message-ID: <55B231BE.6090304@tycho.nsa.gov>
-Date: Fri, 24 Jul 2015 08:38:22 -0400
-From: Stephen Smalley <sds@tycho.nsa.gov>
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D67226B0038
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 10:08:57 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so29632013wib.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:08:57 -0700 (PDT)
+Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
+        by mx.google.com with ESMTPS id wd10si14994015wjc.201.2015.07.24.07.08.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Jul 2015 07:08:55 -0700 (PDT)
+Received: by wibxm9 with SMTP id xm9so29717485wib.1
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:08:54 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] ipc: Use private shmem or hugetlbfs inodes for shm
- segments.
-References: <1437668913-25446-1-git-send-email-sds@tycho.nsa.gov> <20150724001157.GF3902@dastard>
-In-Reply-To: <20150724001157.GF3902@dastard>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <d7a78b72053cf529c0c9ff6cbc02ffbb3d58fe35.1437303956.git.vdavydov@parallels.com>
+References: <cover.1437303956.git.vdavydov@parallels.com> <d7a78b72053cf529c0c9ff6cbc02ffbb3d58fe35.1437303956.git.vdavydov@parallels.com>
+From: Paul Gortmaker <paul.gortmaker@windriver.com>
+Date: Fri, 24 Jul 2015 10:08:25 -0400
+Message-ID: <CAP=VYLqiNfQJ6oyQg2GszeHwdOmeY_uD3XPvw=++weJOKdx4_g@mail.gmail.com>
+Subject: Re: [PATCH -mm v9 6/8] proc: add kpageidle file
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: prarit@redhat.com, mstevens@fedoraproject.org, manfred@colorfullife.com, esandeen@redhat.com, wagi@monom.org, hughd@google.com, linux-kernel@vger.kernel.org, eparis@redhat.com, linux-mm@kvack.org, linux-security-module@vger.kernel.org, dave@stgolabs.net, nyc@holomorphy.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, selinux@tycho.nsa.gov
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, LKML doc <linux-doc@vger.kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>
 
-On 07/23/2015 08:11 PM, Dave Chinner wrote:
-> On Thu, Jul 23, 2015 at 12:28:33PM -0400, Stephen Smalley wrote:
->> The shm implementation internally uses shmem or hugetlbfs inodes
->> for shm segments.  As these inodes are never directly exposed to
->> userspace and only accessed through the shm operations which are
->> already hooked by security modules, mark the inodes with the
->> S_PRIVATE flag so that inode security initialization and permission
->> checking is skipped.
->>
->> This was motivated by the following lockdep warning:
->> ===================================================
->> [ INFO: possible circular locking dependency detected ]
->> 4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1 Tainted: G        W
->> -------------------------------------------------------
->> httpd/1597 is trying to acquire lock:
->> (&ids->rwsem){+++++.}, at: [<ffffffff81385354>] shm_close+0x34/0x130
->> (&mm->mmap_sem){++++++}, at: [<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
->>       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
->>       [<ffffffff81217baa>] __might_fault+0x7a/0xa0
->>       [<ffffffff81284a1e>] filldir+0x9e/0x130
->>       [<ffffffffa019bb08>] xfs_dir2_block_getdents.isra.12+0x198/0x1c0 [xfs]
->>       [<ffffffffa019c5b4>] xfs_readdir+0x1b4/0x330 [xfs]
->>       [<ffffffffa019f38b>] xfs_file_readdir+0x2b/0x30 [xfs]
->>       [<ffffffff812847e7>] iterate_dir+0x97/0x130
->>       [<ffffffff81284d21>] SyS_getdents+0x91/0x120
->>       [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
->>       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
->>       [<ffffffff81101e97>] down_read_nested+0x57/0xa0
->>       [<ffffffffa01b0e57>] xfs_ilock+0x167/0x350 [xfs]
->>       [<ffffffffa01b10b8>] xfs_ilock_attr_map_shared+0x38/0x50 [xfs]
->>       [<ffffffffa014799d>] xfs_attr_get+0xbd/0x190 [xfs]
->>       [<ffffffffa01c17ad>] xfs_xattr_get+0x3d/0x70 [xfs]
->>       [<ffffffff8129962f>] generic_getxattr+0x4f/0x70
->>       [<ffffffff8139ba52>] inode_doinit_with_dentry+0x162/0x670
->>       [<ffffffff8139cf69>] sb_finish_set_opts+0xd9/0x230
->>       [<ffffffff8139d66c>] selinux_set_mnt_opts+0x35c/0x660
->>       [<ffffffff8139ff97>] superblock_doinit+0x77/0xf0
->>       [<ffffffff813a0020>] delayed_superblock_init+0x10/0x20
->>       [<ffffffff81272d23>] iterate_supers+0xb3/0x110
->>       [<ffffffff813a4e5f>] selinux_complete_init+0x2f/0x40
->>       [<ffffffff813b47a3>] security_load_policy+0x103/0x600
->>       [<ffffffff813a6901>] sel_write_load+0xc1/0x750
->>       [<ffffffff8126e817>] __vfs_write+0x37/0x100
->>       [<ffffffff8126f229>] vfs_write+0xa9/0x1a0
->>       [<ffffffff8126ff48>] SyS_write+0x58/0xd0
->>       [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
->>       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
->>       [<ffffffff8186de8f>] mutex_lock_nested+0x7f/0x3e0
->>       [<ffffffff8139b9a9>] inode_doinit_with_dentry+0xb9/0x670
->>       [<ffffffff8139bf7c>] selinux_d_instantiate+0x1c/0x20
->>       [<ffffffff813955f6>] security_d_instantiate+0x36/0x60
->>       [<ffffffff81287c34>] d_instantiate+0x54/0x70
->>       [<ffffffff8120111c>] __shmem_file_setup+0xdc/0x240
->>       [<ffffffff81201290>] shmem_file_setup+0x10/0x20
->>       [<ffffffff813856e0>] newseg+0x290/0x3a0
->>       [<ffffffff8137e278>] ipcget+0x208/0x2d0
->>       [<ffffffff81386074>] SyS_shmget+0x54/0x70
->>       [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
->>       [<ffffffff81108df8>] __lock_acquire+0x1a78/0x1d00
->>       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
->>       [<ffffffff8186efba>] down_write+0x5a/0xc0
->>       [<ffffffff81385354>] shm_close+0x34/0x130
->>       [<ffffffff812203a5>] remove_vma+0x45/0x80
->>       [<ffffffff81222a30>] do_munmap+0x2b0/0x460
->>       [<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
->>       [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
-> 
-> That's a completely screwed up stack trace. There are *4* syscall
-> entry points with 4 separate, unrelated syscall chains on that
-> stack trace, all starting at the same address. How is this a valid
-> stack trace and not a lockdep bug of some kind?
+On Sun, Jul 19, 2015 at 8:31 AM, Vladimir Davydov
+<vdavydov@parallels.com> wrote:
+> Knowing the portion of memory that is not used by a certain application
+> or memory cgroup (idle memory) can be useful for partitioning the system
+> efficiently, e.g. by setting memory cgroup limits appropriately.
 
-Sorry, I mangled it when I tried to reformat it from Morten Steven's
-original report.  Fixed in v2.
+The version of this commit currently in linux-next breaks cris and m68k
+(and maybe others).   Fails with:
 
+fs/proc/page.c:341:4: error: implicit declaration of function
+'pmdp_clear_young_notify' [-Werror=implicit-function-declaration]
+fs/proc/page.c:347:4: error: implicit declaration of function
+'ptep_clear_young_notify' [-Werror=implicit-function-declaration]
+cc1: some warnings being treated as errors
+make[3]: *** [fs/proc/page.o] Error 1
+make[2]: *** [fs/proc] Error 2
 
+http://kisskb.ellerman.id.au/kisskb/buildresult/12470364/
+
+Bisect says:
+
+65525488fa86cda44fb6870f29e9859c974700cd is the first bad commit
+commit 65525488fa86cda44fb6870f29e9859c974700cd
+Author: Vladimir Davydov <vdavydov@parallels.com>
+Date:   Fri Jul 24 09:11:32 2015 +1000
+
+    proc: add kpageidle file
+
+Paul.
+--
+
+> Currently, the only means to estimate the amount of idle memory provided
+> by the kernel is /proc/PID/{clear_refs,smaps}: the user can clear the
+> access bit for all pages mapped to a particular process by writing 1 to
+> clear_refs, wait for some time, and then count smaps:Referenced.
+> However, this method has two serious shortcomings:
+>
+>  - it does not count unmapped file pages
+>  - it affects the reclaimer logic
+>
+> To overcome these drawbacks, this patch introduces two new page flags,
+> Idle and Young, and a new proc file, /proc/kpageidle. A page's Idle flag
+> can only be set from userspace by setting bit in /proc/kpageidle at the
+> offset corresponding to the page, and it is cleared whenever the page is
+> accessed either through page tables (it is cleared in page_referenced()
+> in this case) or using the read(2) system call (mark_page_accessed()).
+> Thus by setting the Idle flag for pages of a particular workload, which
+> can be found e.g. by reading /proc/PID/pagemap, waiting for some time to
+> let the workload access its working set, and then reading the kpageidle
+> file, one can estimate the amount of pages that are not used by the
+> workload.
+>
+> The Young page flag is used to avoid interference with the memory
+> reclaimer. A page's Young flag is set whenever the Access bit of a page
+> table entry pointing to the page is cleared by writing to kpageidle. If
+> page_referenced() is called on a Young page, it will add 1 to its return
+> value, therefore concealing the fact that the Access bit was cleared.
+>
+> Note, since there is no room for extra page flags on 32 bit, this
+> feature uses extended page flags when compiled on 32 bit.
+>
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> ---
+>  Documentation/vm/pagemap.txt |  12 ++-
+>  fs/proc/page.c               | 218 +++++++++++++++++++++++++++++++++++++++++++
+>  fs/proc/task_mmu.c           |   4 +-
+>  include/linux/mm.h           |  98 +++++++++++++++++++
+>  include/linux/page-flags.h   |  11 +++
+>  include/linux/page_ext.h     |   4 +
+>  mm/Kconfig                   |  12 +++
+>  mm/debug.c                   |   4 +
+>  mm/huge_memory.c             |  11 ++-
+>  mm/migrate.c                 |   5 +
+>  mm/page_ext.c                |   3 +
+>  mm/rmap.c                    |   5 +
+>  mm/swap.c                    |   2 +
+>  13 files changed, 385 insertions(+), 4 deletions(-)
+>
+> diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
+> index 3a37ed184258..34fe828c3007 100644
+> --- a/Documentation/vm/pagemap.txt
+> +++ b/Documentation/vm/pagemap.txt
+> @@ -5,7 +5,7 @@ pagemap is a new (as of 2.6.25) set of interfaces in the kernel that allow
+>  userspace programs to examine the page tables and related information by
+>  reading files in /proc.
+>
+> -There are four components to pagemap:
+> +There are five components to pagemap:
+>
+>   * /proc/pid/pagemap.  This file lets a userspace process find out which
+>     physical frame each virtual page is mapped to.  It contains one 64-bit
+> @@ -70,6 +70,16 @@ There are four components to pagemap:
+>     memory cgroup each page is charged to, indexed by PFN. Only available when
+>     CONFIG_MEMCG is set.
+>
+> + * /proc/kpageidle.  This file implements a bitmap where each bit corresponds
+> +   to a page, indexed by PFN. When the bit is set, the corresponding page is
+> +   idle. A page is considered idle if it has not been accessed since it was
+> +   marked idle. To mark a page idle one should set the bit corresponding to the
+> +   page by writing to the file. A value written to the file is OR-ed with the
+> +   current bitmap value. Only user memory pages can be marked idle, for other
+> +   page types input is silently ignored. Writing to this file beyond max PFN
+> +   results in the ENXIO error. Only available when CONFIG_IDLE_PAGE_TRACKING is
+> +   set.
+> +
+>  Short descriptions to the page flags:
+>
+>   0. LOCKED
+> diff --git a/fs/proc/page.c b/fs/proc/page.c
+> index 70d23245dd43..273537885ab4 100644
+> --- a/fs/proc/page.c
+> +++ b/fs/proc/page.c
+> @@ -5,6 +5,8 @@
+>  #include <linux/ksm.h>
+>  #include <linux/mm.h>
+>  #include <linux/mmzone.h>
+> +#include <linux/rmap.h>
+> +#include <linux/mmu_notifier.h>
+>  #include <linux/huge_mm.h>
+>  #include <linux/proc_fs.h>
+>  #include <linux/seq_file.h>
+> @@ -16,6 +18,7 @@
+>
+>  #define KPMSIZE sizeof(u64)
+>  #define KPMMASK (KPMSIZE - 1)
+> +#define KPMBITS (KPMSIZE * BITS_PER_BYTE)
+>
+>  /* /proc/kpagecount - an array exposing page counts
+>   *
+> @@ -275,6 +278,217 @@ static const struct file_operations proc_kpagecgroup_operations = {
+>  };
+>  #endif /* CONFIG_MEMCG */
+>
+> +#ifdef CONFIG_IDLE_PAGE_TRACKING
+> +/*
+> + * Idle page tracking only considers user memory pages, for other types of
+> + * pages the idle flag is always unset and an attempt to set it is silently
+> + * ignored.
+> + *
+> + * We treat a page as a user memory page if it is on an LRU list, because it is
+> + * always safe to pass such a page to rmap_walk(), which is essential for idle
+> + * page tracking. With such an indicator of user pages we can skip isolated
+> + * pages, but since there are not usually many of them, it will hardly affect
+> + * the overall result.
+> + *
+> + * This function tries to get a user memory page by pfn as described above.
+> + */
+> +static struct page *kpageidle_get_page(unsigned long pfn)
+> +{
+> +       struct page *page;
+> +       struct zone *zone;
+> +
+> +       if (!pfn_valid(pfn))
+> +               return NULL;
+> +
+> +       page = pfn_to_page(pfn);
+> +       if (!page || !PageLRU(page) ||
+> +           !get_page_unless_zero(page))
+> +               return NULL;
+> +
+> +       zone = page_zone(page);
+> +       spin_lock_irq(&zone->lru_lock);
+> +       if (unlikely(!PageLRU(page))) {
+> +               put_page(page);
+> +               page = NULL;
+> +       }
+> +       spin_unlock_irq(&zone->lru_lock);
+> +       return page;
+> +}
+> +
+> +static int kpageidle_clear_pte_refs_one(struct page *page,
+> +                                       struct vm_area_struct *vma,
+> +                                       unsigned long addr, void *arg)
+> +{
+> +       struct mm_struct *mm = vma->vm_mm;
+> +       spinlock_t *ptl;
+> +       pmd_t *pmd;
+> +       pte_t *pte;
+> +       bool referenced = false;
+> +
+> +       if (unlikely(PageTransHuge(page))) {
+> +               pmd = page_check_address_pmd(page, mm, addr,
+> +                                            PAGE_CHECK_ADDRESS_PMD_FLAG, &ptl);
+> +               if (pmd) {
+> +                       referenced = pmdp_clear_young_notify(vma, addr, pmd);
+> +                       spin_unlock(ptl);
+> +               }
+> +       } else {
+> +               pte = page_check_address(page, mm, addr, &ptl, 0);
+> +               if (pte) {
+> +                       referenced = ptep_clear_young_notify(vma, addr, pte);
+> +                       pte_unmap_unlock(pte, ptl);
+> +               }
+> +       }
+> +       if (referenced) {
+> +               clear_page_idle(page);
+> +               /*
+> +                * We cleared the referenced bit in a mapping to this page. To
+> +                * avoid interference with page reclaim, mark it young so that
+> +                * page_referenced() will return > 0.
+> +                */
+> +               set_page_young(page);
+> +       }
+> +       return SWAP_AGAIN;
+> +}
+> +
+> +static void kpageidle_clear_pte_refs(struct page *page)
+> +{
+> +       struct rmap_walk_control rwc = {
+> +               .rmap_one = kpageidle_clear_pte_refs_one,
+> +               .anon_lock = page_lock_anon_vma_read,
+> +       };
+> +       bool need_lock;
+> +
+> +       if (!page_mapped(page) ||
+> +           !page_rmapping(page))
+> +               return;
+> +
+> +       need_lock = !PageAnon(page) || PageKsm(page);
+> +       if (need_lock && !trylock_page(page))
+> +               return;
+> +
+> +       rmap_walk(page, &rwc);
+> +
+> +       if (need_lock)
+> +               unlock_page(page);
+> +}
+> +
+> +static ssize_t kpageidle_read(struct file *file, char __user *buf,
+> +                             size_t count, loff_t *ppos)
+> +{
+> +       u64 __user *out = (u64 __user *)buf;
+> +       struct page *page;
+> +       unsigned long pfn, end_pfn;
+> +       ssize_t ret = 0;
+> +       u64 idle_bitmap = 0;
+> +       int bit;
+> +
+> +       if (*ppos & KPMMASK || count & KPMMASK)
+> +               return -EINVAL;
+> +
+> +       pfn = *ppos * BITS_PER_BYTE;
+> +       if (pfn >= max_pfn)
+> +               return 0;
+> +
+> +       end_pfn = pfn + count * BITS_PER_BYTE;
+> +       if (end_pfn > max_pfn)
+> +               end_pfn = ALIGN(max_pfn, KPMBITS);
+> +
+> +       for (; pfn < end_pfn; pfn++) {
+> +               bit = pfn % KPMBITS;
+> +               page = kpageidle_get_page(pfn);
+> +               if (page) {
+> +                       if (page_is_idle(page)) {
+> +                               /*
+> +                                * The page might have been referenced via a
+> +                                * pte, in which case it is not idle. Clear
+> +                                * refs and recheck.
+> +                                */
+> +                               kpageidle_clear_pte_refs(page);
+> +                               if (page_is_idle(page))
+> +                                       idle_bitmap |= 1ULL << bit;
+> +                       }
+> +                       put_page(page);
+> +               }
+> +               if (bit == KPMBITS - 1) {
+> +                       if (put_user(idle_bitmap, out)) {
+> +                               ret = -EFAULT;
+> +                               break;
+> +                       }
+> +                       idle_bitmap = 0;
+> +                       out++;
+> +               }
+> +       }
+> +
+> +       *ppos += (char __user *)out - buf;
+> +       if (!ret)
+> +               ret = (char __user *)out - buf;
+> +       return ret;
+> +}
+> +
+> +static ssize_t kpageidle_write(struct file *file, const char __user *buf,
+> +                              size_t count, loff_t *ppos)
+> +{
+> +       const u64 __user *in = (const u64 __user *)buf;
+> +       struct page *page;
+> +       unsigned long pfn, end_pfn;
+> +       ssize_t ret = 0;
+> +       u64 idle_bitmap = 0;
+> +       int bit;
+> +
+> +       if (*ppos & KPMMASK || count & KPMMASK)
+> +               return -EINVAL;
+> +
+> +       pfn = *ppos * BITS_PER_BYTE;
+> +       if (pfn >= max_pfn)
+> +               return -ENXIO;
+> +
+> +       end_pfn = pfn + count * BITS_PER_BYTE;
+> +       if (end_pfn > max_pfn)
+> +               end_pfn = ALIGN(max_pfn, KPMBITS);
+> +
+> +       for (; pfn < end_pfn; pfn++) {
+> +               bit = pfn % KPMBITS;
+> +               if (bit == 0) {
+> +                       if (get_user(idle_bitmap, in)) {
+> +                               ret = -EFAULT;
+> +                               break;
+> +                       }
+> +                       in++;
+> +               }
+> +               if (idle_bitmap >> bit & 1) {
+> +                       page = kpageidle_get_page(pfn);
+> +                       if (page) {
+> +                               kpageidle_clear_pte_refs(page);
+> +                               set_page_idle(page);
+> +                               put_page(page);
+> +                       }
+> +               }
+> +       }
+> +
+> +       *ppos += (const char __user *)in - buf;
+> +       if (!ret)
+> +               ret = (const char __user *)in - buf;
+> +       return ret;
+> +}
+> +
+> +static const struct file_operations proc_kpageidle_operations = {
+> +       .llseek = mem_lseek,
+> +       .read = kpageidle_read,
+> +       .write = kpageidle_write,
+> +};
+> +
+> +#ifndef CONFIG_64BIT
+> +static bool need_page_idle(void)
+> +{
+> +       return true;
+> +}
+> +struct page_ext_operations page_idle_ops = {
+> +       .need = need_page_idle,
+> +};
+> +#endif
+> +#endif /* CONFIG_IDLE_PAGE_TRACKING */
+> +
+>  static int __init proc_page_init(void)
+>  {
+>         proc_create("kpagecount", S_IRUSR, NULL, &proc_kpagecount_operations);
+> @@ -282,6 +496,10 @@ static int __init proc_page_init(void)
+>  #ifdef CONFIG_MEMCG
+>         proc_create("kpagecgroup", S_IRUSR, NULL, &proc_kpagecgroup_operations);
+>  #endif
+> +#ifdef CONFIG_IDLE_PAGE_TRACKING
+> +       proc_create("kpageidle", S_IRUSR | S_IWUSR, NULL,
+> +                   &proc_kpageidle_operations);
+> +#endif
+>         return 0;
+>  }
+>  fs_initcall(proc_page_init);
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 860bb0f30f14..7c9a17414106 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -459,7 +459,7 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+>
+>         mss->resident += size;
+>         /* Accumulate the size in pages that have been accessed. */
+> -       if (young || PageReferenced(page))
+> +       if (young || page_is_young(page) || PageReferenced(page))
+>                 mss->referenced += size;
+>         mapcount = page_mapcount(page);
+>         if (mapcount >= 2) {
+> @@ -808,6 +808,7 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
+>
+>                 /* Clear accessed and referenced bits. */
+>                 pmdp_test_and_clear_young(vma, addr, pmd);
+> +               test_and_clear_page_young(page);
+>                 ClearPageReferenced(page);
+>  out:
+>                 spin_unlock(ptl);
+> @@ -835,6 +836,7 @@ out:
+>
+>                 /* Clear accessed and referenced bits. */
+>                 ptep_test_and_clear_young(vma, addr, pte);
+> +               test_and_clear_page_young(page);
+>                 ClearPageReferenced(page);
+>         }
+>         pte_unmap_unlock(pte - 1, ptl);
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index c3a2b37365f6..0e62be7d5138 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2202,5 +2202,103 @@ void __init setup_nr_node_ids(void);
+>  static inline void setup_nr_node_ids(void) {}
+>  #endif
+>
+> +#ifdef CONFIG_IDLE_PAGE_TRACKING
+> +#ifdef CONFIG_64BIT
+> +static inline bool page_is_young(struct page *page)
+> +{
+> +       return PageYoung(page);
+> +}
+> +
+> +static inline void set_page_young(struct page *page)
+> +{
+> +       SetPageYoung(page);
+> +}
+> +
+> +static inline bool test_and_clear_page_young(struct page *page)
+> +{
+> +       return TestClearPageYoung(page);
+> +}
+> +
+> +static inline bool page_is_idle(struct page *page)
+> +{
+> +       return PageIdle(page);
+> +}
+> +
+> +static inline void set_page_idle(struct page *page)
+> +{
+> +       SetPageIdle(page);
+> +}
+> +
+> +static inline void clear_page_idle(struct page *page)
+> +{
+> +       ClearPageIdle(page);
+> +}
+> +#else /* !CONFIG_64BIT */
+> +/*
+> + * If there is not enough space to store Idle and Young bits in page flags, use
+> + * page ext flags instead.
+> + */
+> +extern struct page_ext_operations page_idle_ops;
+> +
+> +static inline bool page_is_young(struct page *page)
+> +{
+> +       return test_bit(PAGE_EXT_YOUNG, &lookup_page_ext(page)->flags);
+> +}
+> +
+> +static inline void set_page_young(struct page *page)
+> +{
+> +       set_bit(PAGE_EXT_YOUNG, &lookup_page_ext(page)->flags);
+> +}
+> +
+> +static inline bool test_and_clear_page_young(struct page *page)
+> +{
+> +       return test_and_clear_bit(PAGE_EXT_YOUNG,
+> +                                 &lookup_page_ext(page)->flags);
+> +}
+> +
+> +static inline bool page_is_idle(struct page *page)
+> +{
+> +       return test_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
+> +}
+> +
+> +static inline void set_page_idle(struct page *page)
+> +{
+> +       set_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
+> +}
+> +
+> +static inline void clear_page_idle(struct page *page)
+> +{
+> +       clear_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
+> +}
+> +#endif /* CONFIG_64BIT */
+> +#else /* !CONFIG_IDLE_PAGE_TRACKING */
+> +static inline bool page_is_young(struct page *page)
+> +{
+> +       return false;
+> +}
+> +
+> +static inline void set_page_young(struct page *page)
+> +{
+> +}
+> +
+> +static inline bool test_and_clear_page_young(struct page *page)
+> +{
+> +       return false;
+> +}
+> +
+> +static inline bool page_is_idle(struct page *page)
+> +{
+> +       return false;
+> +}
+> +
+> +static inline void set_page_idle(struct page *page)
+> +{
+> +}
+> +
+> +static inline void clear_page_idle(struct page *page)
+> +{
+> +}
+> +#endif /* CONFIG_IDLE_PAGE_TRACKING */
+> +
+>  #endif /* __KERNEL__ */
+>  #endif /* _LINUX_MM_H */
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 91b7f9b2b774..478f2241f284 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -109,6 +109,10 @@ enum pageflags {
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>         PG_compound_lock,
+>  #endif
+> +#if defined(CONFIG_IDLE_PAGE_TRACKING) && defined(CONFIG_64BIT)
+> +       PG_young,
+> +       PG_idle,
+> +#endif
+>         __NR_PAGEFLAGS,
+>
+>         /* Filesystems */
+> @@ -363,6 +367,13 @@ PAGEFLAG_FALSE(HWPoison)
+>  #define __PG_HWPOISON 0
+>  #endif
+>
+> +#if defined(CONFIG_IDLE_PAGE_TRACKING) && defined(CONFIG_64BIT)
+> +TESTPAGEFLAG(Young, young, PF_ANY)
+> +SETPAGEFLAG(Young, young, PF_ANY)
+> +TESTCLEARFLAG(Young, young, PF_ANY)
+> +PAGEFLAG(Idle, idle, PF_ANY)
+> +#endif
+> +
+>  /*
+>   * On an anonymous page mapped into a user virtual memory area,
+>   * page->mapping points to its anon_vma, not to a struct address_space;
+> diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
+> index c42981cd99aa..17f118a82854 100644
+> --- a/include/linux/page_ext.h
+> +++ b/include/linux/page_ext.h
+> @@ -26,6 +26,10 @@ enum page_ext_flags {
+>         PAGE_EXT_DEBUG_POISON,          /* Page is poisoned */
+>         PAGE_EXT_DEBUG_GUARD,
+>         PAGE_EXT_OWNER,
+> +#if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
+> +       PAGE_EXT_YOUNG,
+> +       PAGE_EXT_IDLE,
+> +#endif
+>  };
+>
+>  /*
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index e79de2bd12cd..db817e2c2ec8 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -654,3 +654,15 @@ config DEFERRED_STRUCT_PAGE_INIT
+>           when kswapd starts. This has a potential performance impact on
+>           processes running early in the lifetime of the systemm until kswapd
+>           finishes the initialisation.
+> +
+> +config IDLE_PAGE_TRACKING
+> +       bool "Enable idle page tracking"
+> +       select PROC_PAGE_MONITOR
+> +       select PAGE_EXTENSION if !64BIT
+> +       help
+> +         This feature allows to estimate the amount of user pages that have
+> +         not been touched during a given period of time. This information can
+> +         be useful to tune memory cgroup limits and/or for job placement
+> +         within a compute cluster.
+> +
+> +         See Documentation/vm/pagemap.txt for more details.
+> diff --git a/mm/debug.c b/mm/debug.c
+> index 76089ddf99ea..6c1b3ea61bfd 100644
+> --- a/mm/debug.c
+> +++ b/mm/debug.c
+> @@ -48,6 +48,10 @@ static const struct trace_print_flags pageflag_names[] = {
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>         {1UL << PG_compound_lock,       "compound_lock" },
+>  #endif
+> +#if defined(CONFIG_IDLE_PAGE_TRACKING) && defined(CONFIG_64BIT)
+> +       {1UL << PG_young,               "young"         },
+> +       {1UL << PG_idle,                "idle"          },
+> +#endif
+>  };
+>
+>  static void dump_flags(unsigned long flags,
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 8f9a334a6c66..5ab46adca104 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1806,6 +1806,11 @@ static void __split_huge_page_refcount(struct page *page,
+>                 /* clear PageTail before overwriting first_page */
+>                 smp_wmb();
+>
+> +               if (page_is_young(page))
+> +                       set_page_young(page_tail);
+> +               if (page_is_idle(page))
+> +                       set_page_idle(page_tail);
+> +
+>                 /*
+>                  * __split_huge_page_splitting() already set the
+>                  * splitting bit in all pmd that could map this
+> @@ -2311,7 +2316,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>                 VM_BUG_ON_PAGE(PageLRU(page), page);
+>
+>                 /* If there is no mapped pte young don't collapse the page */
+> -               if (pte_young(pteval) || PageReferenced(page) ||
+> +               if (pte_young(pteval) ||
+> +                   page_is_young(page) || PageReferenced(page) ||
+>                     mmu_notifier_test_young(vma->vm_mm, address))
+>                         referenced = true;
+>         }
+> @@ -2738,7 +2744,8 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>                  */
+>                 if (page_count(page) != 1 + !!PageSwapCache(page))
+>                         goto out_unmap;
+> -               if (pte_young(pteval) || PageReferenced(page) ||
+> +               if (pte_young(pteval) ||
+> +                   page_is_young(page) || PageReferenced(page) ||
+>                     mmu_notifier_test_young(vma->vm_mm, address))
+>                         referenced = true;
+>         }
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index d3529d620a5b..d86cec005aa6 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -524,6 +524,11 @@ void migrate_page_copy(struct page *newpage, struct page *page)
+>                         __set_page_dirty_nobuffers(newpage);
+>         }
+>
+> +       if (page_is_young(page))
+> +               set_page_young(newpage);
+> +       if (page_is_idle(page))
+> +               set_page_idle(newpage);
+> +
+>         /*
+>          * Copy NUMA information to the new page, to prevent over-eager
+>          * future migrations of this same page.
+> diff --git a/mm/page_ext.c b/mm/page_ext.c
+> index d86fd2f5353f..e4b3af054bf2 100644
+> --- a/mm/page_ext.c
+> +++ b/mm/page_ext.c
+> @@ -59,6 +59,9 @@ static struct page_ext_operations *page_ext_ops[] = {
+>  #ifdef CONFIG_PAGE_OWNER
+>         &page_owner_ops,
+>  #endif
+> +#if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
+> +       &page_idle_ops,
+> +#endif
+>  };
+>
+>  static unsigned long total_usage;
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 30812e9042ae..9e411aa03176 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -900,6 +900,11 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+>                 pte_unmap_unlock(pte, ptl);
+>         }
+>
+> +       if (referenced)
+> +               clear_page_idle(page);
+> +       if (test_and_clear_page_young(page))
+> +               referenced++;
+> +
+>         if (referenced) {
+>                 pra->referenced++;
+>                 pra->vm_flags |= vma->vm_flags;
+> diff --git a/mm/swap.c b/mm/swap.c
+> index d398860badd1..04b6ce51bcf0 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -623,6 +623,8 @@ void mark_page_accessed(struct page *page)
+>         } else if (!PageReferenced(page)) {
+>                 SetPageReferenced(page);
+>         }
+> +       if (page_is_idle(page))
+> +               clear_page_idle(page);
+>  }
+>  EXPORT_SYMBOL(mark_page_accessed);
+>
+> --
+> 2.1.4
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
