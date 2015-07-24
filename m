@@ -1,89 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 2946A6B0038
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 10:39:38 -0400 (EDT)
-Received: by qged69 with SMTP id d69so11545351qge.0
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:39:38 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com ([23.79.238.175])
-        by mx.google.com with ESMTP id b34si10268486qkb.72.2015.07.24.07.39.36
-        for <linux-mm@kvack.org>;
-        Fri, 24 Jul 2015 07:39:37 -0700 (PDT)
-Date: Fri, 24 Jul 2015 10:39:36 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH V4 2/6] mm: mlock: Add new mlock, munlock, and munlockall
- system calls
-Message-ID: <20150724143936.GE9203@akamai.com>
-References: <1437508781-28655-1-git-send-email-emunson@akamai.com>
- <1437508781-28655-3-git-send-email-emunson@akamai.com>
- <20150721134441.d69e4e1099bd43e56835b3c5@linux-foundation.org>
- <1437528316.16792.7.camel@ellerman.id.au>
- <20150722141501.GA3203@akamai.com>
- <20150723065830.GA5919@linux-mips.org>
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DF936B0253
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 10:39:45 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so30864951wib.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:39:45 -0700 (PDT)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id gk6si4659737wib.34.2015.07.24.07.39.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Jul 2015 07:39:44 -0700 (PDT)
+Received: by wibxm9 with SMTP id xm9so31962881wib.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:39:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="+JUInw4efm7IfTNU"
-Content-Disposition: inline
-In-Reply-To: <20150723065830.GA5919@linux-mips.org>
+In-Reply-To: <20150716222621.GB21791@redhat.com>
+References: <1436784852-144369-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1436784852-144369-3-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150713165323.GA7906@redhat.com> <55A3EFE9.7080101@linux.intel.com>
+ <20150716110503.9A4F5196@black.fi.intel.com> <55A7D38C.7070907@linux.intel.com>
+ <20150716160927.GA27037@node.dhcp.inet.fi> <20150716222603.GA21791@redhat.com>
+ <20150716222621.GB21791@redhat.com>
+From: Paul Gortmaker <paul.gortmaker@windriver.com>
+Date: Fri, 24 Jul 2015 10:39:13 -0400
+Message-ID: <CAP=VYLp+5Co5PyHcbfkdkNUmyy259DuG4ov=+da+UeRAGFUe1Q@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm, mpx: add "vm_flags_t vm_flags" arg to do_mmap_pgoff()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ralf Baechle <ralf@linux-mips.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mips@linux-mips.org, linux-m68k@vger.kernel.org, linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, linux-am33-list@redhat.com, Geert Uytterhoeven <geert@linux-m68k.org>, Vlastimil Babka <vbabka@suse.cz>, Guenter Roeck <linux@roeck-us.net>, linux-xtensa@linux-xtensa.org, linux-s390@vger.kernel.org, adi-buildroot-devel@lists.sourceforge.net, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-parisc@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-alpha@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Thomas Gleixner <tglx@linutronix.de>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>
 
+On Thu, Jul 16, 2015 at 6:26 PM, Oleg Nesterov <oleg@redhat.com> wrote:
+> Add the additional "vm_flags_t vm_flags" argument to do_mmap_pgoff(),
+> rename it to do_mmap(), and re-introduce do_mmap_pgoff() as a simple
+> wrapper on top of do_mmap(). Perhaps we should update the callers of
+> do_mmap_pgoff() and kill it later.
 
---+JUInw4efm7IfTNU
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+It seems that the version of this patch in linux-next breaks all nommu
+builds (m86k, some arm, etc).
 
-On Thu, 23 Jul 2015, Ralf Baechle wrote:
+mm/nommu.c: In function 'do_mmap':
+mm/nommu.c:1248:30: error: 'vm_flags' redeclared as different kind of symbol
+mm/nommu.c:1241:15: note: previous definition of 'vm_flags' was here
+scripts/Makefile.build:258: recipe for target 'mm/nommu.o' failed
 
-> On Wed, Jul 22, 2015 at 10:15:01AM -0400, Eric B Munson wrote:
->=20
-> > >=20
-> > > You haven't wired it up properly on powerpc, but I haven't mentioned =
-it because
-> > > I'd rather we did it.
-> > >=20
-> > > cheers
-> >=20
-> > It looks like I will be spinning a V5, so I will drop all but the x86
-> > system calls additions in that version.
->=20
-> The MIPS bits are looking good however, so
->=20
-> Acked-by: Ralf Baechle <ralf@linux-mips.org>
->=20
-> With my ack, will you keep them or maybe carry them as a separate patch?
+http://kisskb.ellerman.id.au/kisskb/buildresult/12470285/
 
-I will keep the MIPS additions as a separate patch in the series, though
-I have dropped two of the new syscalls after some discussion.  So I will
-not include your ack on the new patch.
+Bisect says:
 
-Eric
+31705a3a633bb63683918f055fe6032939672b61 is the first bad commit
+commit 31705a3a633bb63683918f055fe6032939672b61
+Author: Oleg Nesterov <oleg@redhat.com>
+Date:   Fri Jul 24 09:20:30 2015 +1000
 
---+JUInw4efm7IfTNU
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+    mm, mpx: add "vm_flags_t vm_flags" arg to do_mmap_pgoff()
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+Paul.
+--
 
-iQIcBAEBAgAGBQJVsk4oAAoJELbVsDOpoOa9Eo0QAJ6eViChMf3Imw2HLUBOL+qS
-B7hozSCTuKLHaqx8QBhkjX6yqn0FIa5+TUWk76Py3JA00geQAiSWGmmZidLmdkmL
-QqZgrvi6B/hsDx4qhNk3wsTpeOtRL6JfpM0CI42Y5JO9nXvp/mpEJyHIRbrvlOtG
-GdRPYjyf1gXqwFaOJel7/GvPhRxMh0vkIr78XqNZOQovWL9cfvaUGaZmLGcLJq78
-PPYyuZ53AmNg83C8wDpgPfdgQ/L4ob+mZJIcP8purUXHpu7Xu7KbePkdoPqZ1EDT
-zRias9nrfrQQTCYaga4MM6wMa2S+iDNPq6Ae+sI6eoDyMxhjuUEi4xxHZ9HGwSIm
-Ii5cbD5//xbOHceAPuQ0lhvWH06ip6OVEXx68ACl7p46Ebi7B2jOeSyKH3UNpomS
-37NdAdUk3PlC3r3CwoPS2XXYjthQr8rVLVqoZP1wC4KxHanglXzFv+AwyLwRCQJ3
-6WevOpUmjVstR67EZBXmHMC4yVGxwF9TdC15G4coZEBw8wcLV6rC2TuK1KZw5JHR
-1yIJtZIBQmNoFkGwNWggIFsDiOasKmgUjjHY/yPPrn0MTkCy69zrnkqzoKZQEIoE
-MXYJiYfYFy7Ek7/K7u/lCjJI0X1bXk3QTmNrX5BuVzQPtV8jdzcBzl4SQhFGc7IH
-4GNpeBolyRBy2p7wt0lO
-=/Udu
------END PGP SIGNATURE-----
-
---+JUInw4efm7IfTNU--
+>
+> This way mpx_mmap() can simply call do_mmap(vm_flags => VM_MPX) and
+> do not play with vm internals.
+>
+> After this change mmap_region() has a single user outside of mmap.c,
+> arch/tile/mm/elf.c:arch_setup_additional_pages(). It would be nice
+> to change arch/tile/ and unexport mmap_region().
+>
+> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+> ---
+>  arch/x86/mm/mpx.c  |   51 +++++++--------------------------------------------
+>  include/linux/mm.h |   12 ++++++++++--
+>  mm/mmap.c          |   10 ++++------
+>  mm/nommu.c         |   15 ++++++++-------
+>  4 files changed, 29 insertions(+), 59 deletions(-)
+>
+> diff --git a/arch/x86/mm/mpx.c b/arch/x86/mm/mpx.c
+> index 4d1c11c..fdbd3e0 100644
+> --- a/arch/x86/mm/mpx.c
+> +++ b/arch/x86/mm/mpx.c
+> @@ -24,58 +24,21 @@
+>   */
+>  static unsigned long mpx_mmap(unsigned long len)
+>  {
+> -       unsigned long ret;
+> -       unsigned long addr, pgoff;
+>         struct mm_struct *mm = current->mm;
+> -       vm_flags_t vm_flags;
+> -       struct vm_area_struct *vma;
+> +       unsigned long addr, populate;
+>
+>         /* Only bounds table and bounds directory can be allocated here */
+>         if (len != MPX_BD_SIZE_BYTES && len != MPX_BT_SIZE_BYTES)
+>                 return -EINVAL;
+>
+>         down_write(&mm->mmap_sem);
+> -
+> -       /* Too many mappings? */
+> -       if (mm->map_count > sysctl_max_map_count) {
+> -               ret = -ENOMEM;
+> -               goto out;
+> -       }
+> -
+> -       /* Obtain the address to map to. we verify (or select) it and ensure
+> -        * that it represents a valid section of the address space.
+> -        */
+> -       addr = get_unmapped_area(NULL, 0, len, 0, MAP_ANONYMOUS | MAP_PRIVATE);
+> -       if (addr & ~PAGE_MASK) {
+> -               ret = addr;
+> -               goto out;
+> -       }
+> -
+> -       vm_flags = VM_READ | VM_WRITE | VM_MPX |
+> -                       mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+> -
+> -       /* Set pgoff according to addr for anon_vma */
+> -       pgoff = addr >> PAGE_SHIFT;
+> -
+> -       ret = mmap_region(NULL, addr, len, vm_flags, pgoff);
+> -       if (IS_ERR_VALUE(ret))
+> -               goto out;
+> -
+> -       vma = find_vma(mm, ret);
+> -       if (!vma) {
+> -               ret = -ENOMEM;
+> -               goto out;
+> -       }
+> -
+> -       if (vm_flags & VM_LOCKED) {
+> -               up_write(&mm->mmap_sem);
+> -               mm_populate(ret, len);
+> -               return ret;
+> -       }
+> -
+> -out:
+> +       addr = do_mmap(NULL, 0, len, PROT_READ | PROT_WRITE,
+> +                       MAP_ANONYMOUS | MAP_PRIVATE, VM_MPX, 0, &populate);
+>         up_write(&mm->mmap_sem);
+> -       return ret;
+> +       if (populate)
+> +               mm_populate(addr, populate);
+> +
+> +       return addr;
+>  }
+>
+>  enum reg_type {
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0207ffa..1f0a56e 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1849,11 +1849,19 @@ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned lo
+>
+>  extern unsigned long mmap_region(struct file *file, unsigned long addr,
+>         unsigned long len, vm_flags_t vm_flags, unsigned long pgoff);
+> -extern unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+> +extern unsigned long do_mmap(struct file *file, unsigned long addr,
+>         unsigned long len, unsigned long prot, unsigned long flags,
+> -       unsigned long pgoff, unsigned long *populate);
+> +       vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate);
+>  extern int do_munmap(struct mm_struct *, unsigned long, size_t);
+>
+> +static inline unsigned long
+> +do_mmap_pgoff(struct file *file, unsigned long addr,
+> +       unsigned long len, unsigned long prot, unsigned long flags,
+> +       unsigned long pgoff, unsigned long *populate)
+> +{
+> +       return do_mmap(file, addr, len, prot, flags, 0, pgoff, populate);
+> +}
+> +
+>  #ifdef CONFIG_MMU
+>  extern int __mm_populate(unsigned long addr, unsigned long len,
+>                          int ignore_errors);
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 2185cd9..2f36ebc 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1247,14 +1247,12 @@ static inline int mlock_future_check(struct mm_struct *mm,
+>  /*
+>   * The caller must hold down_write(&current->mm->mmap_sem).
+>   */
+> -
+> -unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+> +unsigned long do_mmap(struct file *file, unsigned long addr,
+>                         unsigned long len, unsigned long prot,
+> -                       unsigned long flags, unsigned long pgoff,
+> -                       unsigned long *populate)
+> +                       unsigned long flags, vm_flags_t vm_flags,
+> +                       unsigned long pgoff, unsigned long *populate)
+>  {
+>         struct mm_struct *mm = current->mm;
+> -       vm_flags_t vm_flags;
+>
+>         *populate = 0;
+>
+> @@ -1298,7 +1296,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+>          * to. we assume access permissions have been handled by the open
+>          * of the memory object, so we don't do any here.
+>          */
+> -       vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
+> +       vm_flags |= calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
+>                         mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+>
+>         if (flags & MAP_LOCKED)
+> diff --git a/mm/nommu.c b/mm/nommu.c
+> index e544508..e3026fd 100644
+> --- a/mm/nommu.c
+> +++ b/mm/nommu.c
+> @@ -1271,13 +1271,14 @@ enomem:
+>  /*
+>   * handle mapping creation for uClinux
+>   */
+> -unsigned long do_mmap_pgoff(struct file *file,
+> -                           unsigned long addr,
+> -                           unsigned long len,
+> -                           unsigned long prot,
+> -                           unsigned long flags,
+> -                           unsigned long pgoff,
+> -                           unsigned long *populate)
+> +unsigned long do_mmap(struct file *file,
+> +                       unsigned long addr,
+> +                       unsigned long len,
+> +                       unsigned long prot,
+> +                       unsigned long flags,
+> +                       vm_flags_t vm_flags,
+> +                       unsigned long pgoff,
+> +                       unsigned long *populate)
+>  {
+>         struct vm_area_struct *vma;
+>         struct vm_region *region;
+> --
+> 1.5.5.1
+>
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
