@@ -1,70 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0949F6B0038
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 19:09:08 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so20195486pdj.3
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 16:09:07 -0700 (PDT)
-Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com. [2607:f8b0:400e:c02::22d])
-        by mx.google.com with ESMTPS id os6si23964374pab.195.2015.07.24.16.09.07
+Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B0326B0038
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 19:21:42 -0400 (EDT)
+Received: by ykax123 with SMTP id x123so31390501yka.1
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 16:21:42 -0700 (PDT)
+Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
+        by mx.google.com with ESMTPS id c140si7160667ywa.56.2015.07.24.16.21.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Jul 2015 16:09:07 -0700 (PDT)
-Received: by pdrg1 with SMTP id g1so20013425pdr.2
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 16:09:06 -0700 (PDT)
-Date: Fri, 24 Jul 2015 16:09:05 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC v2 1/4] mm: make alloc_pages_exact_node pass
- __GFP_THISNODE
-In-Reply-To: <55B2A596.1010101@suse.cz>
-Message-ID: <alpine.DEB.2.10.1507241606270.12744@chino.kir.corp.google.com>
-References: <1437749126-25867-1-git-send-email-vbabka@suse.cz> <alpine.DEB.2.10.1507241301400.5215@chino.kir.corp.google.com> <55B2A596.1010101@suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 24 Jul 2015 16:21:41 -0700 (PDT)
+Message-ID: <55B2C882.8050903@citrix.com>
+Date: Sat, 25 Jul 2015 00:21:38 +0100
+From: Julien Grall <julien.grall@citrix.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [Xen-devel] [PATCHv2 10/10] xen/balloon: pre-allocate p2m entries
+ for ballooned pages
+References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
+ <1437738468-24110-11-git-send-email-david.vrabel@citrix.com>
+In-Reply-To: <1437738468-24110-11-git-send-email-david.vrabel@citrix.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: David Vrabel <david.vrabel@citrix.com>, xen-devel@lists.xenproject.org
+Cc: Daniel Kiper <daniel.kiper@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Fri, 24 Jul 2015, Vlastimil Babka wrote:
+Hi David,
 
-> > I assume you looked at the collapse_huge_page() case and decided that it 
-> > needs no modification since the gfp mask is used later for other calls?
-> 
-> Yeah. Not that the memcg charge parts would seem to care about __GFP_THISNODE,
-> though.
-> 
+On 24/07/2015 12:47, David Vrabel wrote:
+> Pages returned by alloc_xenballooned_pages() will be used for grant
+> mapping which will call set_phys_to_machine() (in PV guests).
+>
+> Ballooned pages are set as INVALID_P2M_ENTRY in the p2m and thus may
+> be using the (shared) missing tables and a subsequent
+> set_phys_to_machine() will need to allocate new tables.
+>
+> Since the grant mapping may be done from a context that cannot sleep,
+> the p2m entries must already be allocated.
+>
+> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
+> ---
+>   drivers/xen/balloon.c | 8 +++++++-
+>   1 file changed, 7 insertions(+), 1 deletion(-)
+>
+> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+> index fd6970f3..8932d10 100644
+> --- a/drivers/xen/balloon.c
+> +++ b/drivers/xen/balloon.c
+> @@ -541,6 +541,7 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
+>   {
+>   	int pgno = 0;
+>   	struct page *page;
+> +	int ret = -ENOMEM;
+>
+>   	mutex_lock(&balloon_mutex);
+>
+> @@ -550,6 +551,11 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
+>   		page = balloon_retrieve(true);
+>   		if (page) {
+>   			pages[pgno++] = page;
+> +#ifdef CONFIG_XEN_HAVE_PVMMU
+> +			ret = xen_alloc_p2m_entry(page_to_pfn(page));
 
-Hmm, not sure that memcg would ever care about __GFP_THISNODE.  I wonder 
-if it make more sense to remove setting __GFP_THISNODE in 
-collapse_huge_page()?  khugepaged_alloc_page() seems fine with the new 
-alloc_pages_exact_node() semantics.
+Don't you want to call this function only when the guest is not using 
+auto-translated physmap?
 
-> >> diff --git a/mm/migrate.c b/mm/migrate.c
-> >> index f53838f..d139222 100644
-> >> --- a/mm/migrate.c
-> >> +++ b/mm/migrate.c
-> >> @@ -1554,10 +1554,8 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
-> >>  	struct page *newpage;
-> >>  
-> >>  	newpage = alloc_pages_exact_node(nid,
-> >> -					 (GFP_HIGHUSER_MOVABLE |
-> >> -					  __GFP_THISNODE | __GFP_NOMEMALLOC |
-> >> -					  __GFP_NORETRY | __GFP_NOWARN) &
-> >> -					 ~GFP_IOFS, 0);
-> >> +				(GFP_HIGHUSER_MOVABLE | __GFP_NOMEMALLOC |
-> >> +				 __GFP_NORETRY | __GFP_NOWARN) & ~GFP_IOFS, 0);
-> >>  
-> >>  	return newpage;
-> >>  }
-> > [snip]
-> > 
-> > What about the alloc_pages_exact_node() in new_page_node()?
-> 
-> Oops, seems I missed that one. So the API seems ok otherwise?
-> 
+> +			if (ret < 0)
+> +				goto out_undo;
+> +#endif
+>   		} else {
+>   			enum bp_state st;
+>
+> @@ -576,7 +582,7 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
+>    out_undo:
+>   	mutex_unlock(&balloon_mutex);
+>   	free_xenballooned_pages(pgno, pages);
+> -	return -ENOMEM;
+> +	return ret;
+>   }
+>   EXPORT_SYMBOL(alloc_xenballooned_pages);
+>
+>
 
-Yup!  And I believe that this patch doesn't cause any regression after the 
-new_page_node() issue is fixed.
+Regards,
+
+-- 
+Julien Grall
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
