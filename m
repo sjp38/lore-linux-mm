@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FC716B0254
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 10:46:01 -0400 (EDT)
-Received: by lblf12 with SMTP id f12so16699251lbl.2
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:46:00 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E7226B0255
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 10:46:03 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so31112511wib.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:46:03 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bc2si1383619wib.87.2015.07.24.07.45.55
+        by mx.google.com with ESMTPS id i7si4611850wiz.121.2015.07.24.07.45.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Fri, 24 Jul 2015 07:45:56 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC v2 4/4] mm: fallback for offline nodes in alloc_pages_node
-Date: Fri, 24 Jul 2015 16:45:26 +0200
-Message-Id: <1437749126-25867-4-git-send-email-vbabka@suse.cz>
+Subject: [RFC v2 3/4] mm: use numa_mem_id in alloc_pages_node()
+Date: Fri, 24 Jul 2015 16:45:25 +0200
+Message-Id: <1437749126-25867-3-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1437749126-25867-1-git-send-email-vbabka@suse.cz>
 References: <1437749126-25867-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,34 +20,25 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>
 
-alloc_pages_node() now warns when an offline node is passed. Make it fallback
-to the local (or nearest) node as if NUMA_NO_NODE nid is passed, but keep the
-VM_WARN_ON warning.
+numa_mem_id() is able to handle allocation from CPU's on memory-less nodes,
+so it's a more robust fallback than the currently used numa_node_id().
 
-Suggested-by: David Rientjes <rientjes@google.com>
+Suggested-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
-David's suggested if(VM_WARN_ON(...)) doesn't work that way, hence this more
-involved and awkward syntax.
-
- include/linux/gfp.h | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ include/linux/gfp.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 531c72d..104a027 100644
+index 54c3ee7..531c72d 100644
 --- a/include/linux/gfp.h
 +++ b/include/linux/gfp.h
-@@ -321,8 +321,12 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
- 						unsigned int order)
+@@ -322,7 +322,7 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
  {
  	/* Unknown node is current (or closest) node */
--	if (nid == NUMA_NO_NODE)
-+	if (nid == NUMA_NO_NODE) {
- 		nid = numa_mem_id();
-+	} else if (!node_online(nid)) {
-+		VM_WARN_ON(!node_online(nid));
+ 	if (nid == NUMA_NO_NODE)
+-		nid = numa_node_id();
 +		nid = numa_mem_id();
-+	}
  
  	return __alloc_pages_node(nid, gfp_mask, order);
  }
