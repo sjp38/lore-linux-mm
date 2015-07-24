@@ -1,81 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 41F196B0038
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 16:49:20 -0400 (EDT)
-Received: by pachj5 with SMTP id hj5so19545595pac.3
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 13:49:19 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id be10si22960302pad.11.2015.07.24.13.49.18
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 5387A6B0038
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 16:52:42 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so78184726wic.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 13:52:42 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dk2si69126wib.80.2015.07.24.13.52.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Jul 2015 13:49:18 -0700 (PDT)
-Received: by pachj5 with SMTP id hj5so19545390pac.3
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 13:49:18 -0700 (PDT)
-Date: Fri, 24 Jul 2015 13:49:14 -0700
-From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
-Subject: Re: [PATCH] hugetlb: cond_resched for set_max_huge_pages and
- follow_hugetlb_page
-Message-ID: <20150724204914.GE3458@Sligo.logfs.org>
-References: <1437688476-3399-1-git-send-email-sbaugh@catern.com>
- <alpine.DEB.2.10.1507231506050.6965@chino.kir.corp.google.com>
- <20150723223651.GH24876@Sligo.logfs.org>
- <alpine.DEB.2.10.1507231550390.7871@chino.kir.corp.google.com>
- <20150723230928.GI24876@Sligo.logfs.org>
- <alpine.DEB.2.10.1507241237420.5215@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 24 Jul 2015 13:52:40 -0700 (PDT)
+Message-ID: <55B2A596.1010101@suse.cz>
+Date: Fri, 24 Jul 2015 22:52:38 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.10.1507241237420.5215@chino.kir.corp.google.com>
+Subject: Re: [RFC v2 1/4] mm: make alloc_pages_exact_node pass __GFP_THISNODE
+References: <1437749126-25867-1-git-send-email-vbabka@suse.cz> <alpine.DEB.2.10.1507241301400.5215@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1507241301400.5215@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Spencer Baugh <sbaugh@catern.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Mike Kravetz <mike.kravetz@oracle.com>, Luiz Capitulino <lcapitulino@redhat.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, Spencer Baugh <Spencer.baugh@purestorage.com>, Joern Engel <joern@logfs.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Fri, Jul 24, 2015 at 12:49:14PM -0700, David Rientjes wrote:
+On 24.7.2015 22:08, David Rientjes wrote:
+> On Fri, 24 Jul 2015, Vlastimil Babka wrote:
 > 
-> I don't see the cond_resched() you propose to add, but the need for it is 
-> obvious with a large user-written nr_hugepages in the above loop.
+>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+>> index 15928f0..c50848e 100644
+>> --- a/include/linux/gfp.h
+>> +++ b/include/linux/gfp.h
+>> @@ -300,6 +300,22 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
+>>  	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
+>>  }
+>>  
+>> +/*
+>> + * An optimized version of alloc_pages_node(), to be only used in places where
+>> + * the overhead of the check for nid == -1 could matter.
 > 
-> The suggestion is to check the conditional, reschedule if needed (and if 
-> so, recheck the conditional), and then allocate.
+> We don't actually check for nid == -1, or nid == NUMA_NO_NODE, in any of 
+> the functions.  I would just state that nid must be valid and possible to 
+> allocate from when passed to this function.
+
+OK
+
+>> + */
+>> +static inline struct page *
+>> +__alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
+>> +{
+>> +	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
+>> +
+>> +	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+>> +}
+>> +
+>> +/*
+>> + * Allocate pages, preferring the node given as nid. When nid equals -1,
+>> + * prefer the current CPU's node.
+>> + */
 > 
-> Your third option looks fine and the best place to do the cond_resched().  
-> I was looking at your second option when I responded and compared it to 
-> the first.  We don't want to do cond_resched() immediately before or after 
-> the allocation, the net result is the same: we may be pointlessly 
-> allocating the hugepage and each hugepage allocation can be very 
-> heavyweight.
+> We've done quite a bit of work to refer only to NUMA_NO_NODE, so we'd like 
+> to avoid hardcoded -1 anywhere we can.
+
+OK
+
+>>  static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+>>  						unsigned int order)
+>>  {
+>> @@ -310,11 +326,18 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+>>  	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+>>  }
+>>  
+>> +/*
+>> + * Allocate pages, restricting the allocation to the node given as nid. The
+>> + * node must be valid and online. This is achieved by adding __GFP_THISNODE
+>> + * to gfp_mask.
 > 
-> So I agree with your third option from the previous email.
+> Not sure we need to point out that __GPF_THISNODE does this, it stands out 
+> pretty well in the function already :)
 
-All right.  We are talking about the same thing now.  But I previously
-argued that the pointless allocation will a) not impact correctness and
-b) be so rare as to not impact performance.  The problem with the third
-option is that it adds a bit of constant overhead all the time to
-compensate for not doing the pointless allocation.
+Right.
 
-On my systems at least, the pointless allocation will happen, on
-average, less than once per boot.  Unless my systems are vastly
-unrepresentative, the third option doesn't look appealing to me.
+>> + */
+>>  static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
+>>  						unsigned int order)
+>>  {
+>>  	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
+>>  
+>> +	gfp_mask |= __GFP_THISNODE;
+>> +
+>>  	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+>>  }
+>>  
+> [snip]
+> 
+> I assume you looked at the collapse_huge_page() case and decided that it 
+> needs no modification since the gfp mask is used later for other calls?
 
-> You may also want to include the actual text of the warning from the 
-> kernel log in your commit message.  When people encounter this, then will 
-> probably grep in the kernel logs for some keywords to see if it was 
-> already fixed and I fear your current commit message may allow it to be 
-> missed.
+Yeah. Not that the memcg charge parts would seem to care about __GFP_THISNODE,
+though.
 
-Ack.
+>> diff --git a/mm/migrate.c b/mm/migrate.c
+>> index f53838f..d139222 100644
+>> --- a/mm/migrate.c
+>> +++ b/mm/migrate.c
+>> @@ -1554,10 +1554,8 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
+>>  	struct page *newpage;
+>>  
+>>  	newpage = alloc_pages_exact_node(nid,
+>> -					 (GFP_HIGHUSER_MOVABLE |
+>> -					  __GFP_THISNODE | __GFP_NOMEMALLOC |
+>> -					  __GFP_NORETRY | __GFP_NOWARN) &
+>> -					 ~GFP_IOFS, 0);
+>> +				(GFP_HIGHUSER_MOVABLE | __GFP_NOMEMALLOC |
+>> +				 __GFP_NORETRY | __GFP_NOWARN) & ~GFP_IOFS, 0);
+>>  
+>>  	return newpage;
+>>  }
+> [snip]
+> 
+> What about the alloc_pages_exact_node() in new_page_node()?
 
-I should still have those warning in logfiles somewhere and can hunt
-them down.
-
-Jorn
-
---
-Act only according to that maxim whereby you can, at the same time,
-will that it should become a universal law.
--- Immanuel Kant
+Oops, seems I missed that one. So the API seems ok otherwise?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
