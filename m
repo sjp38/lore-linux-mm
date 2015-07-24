@@ -1,146 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 84EEF6B0259
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 17:29:03 -0400 (EDT)
-Received: by qkdv3 with SMTP id v3so22089311qkd.3
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 14:29:03 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id w195si11689406qha.60.2015.07.24.14.28.48
-        for <linux-mm@kvack.org>;
-        Fri, 24 Jul 2015 14:28:49 -0700 (PDT)
-From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH V5 7/7] mips: Add entry for new mlock2 syscall
-Date: Fri, 24 Jul 2015 17:28:45 -0400
-Message-Id: <1437773325-8623-8-git-send-email-emunson@akamai.com>
-In-Reply-To: <1437773325-8623-1-git-send-email-emunson@akamai.com>
-References: <1437773325-8623-1-git-send-email-emunson@akamai.com>
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id CAE536B0038
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 18:11:16 -0400 (EDT)
+Received: by obdeg2 with SMTP id eg2so24324660obd.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 15:11:16 -0700 (PDT)
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com. [209.85.214.170])
+        by mx.google.com with ESMTPS id j133si7772686oid.16.2015.07.24.15.11.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Jul 2015 15:11:15 -0700 (PDT)
+Received: by obbop1 with SMTP id op1so24191802obb.2
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 15:11:15 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1437741275-5388-1-git-send-email-sds@tycho.nsa.gov>
+References: <1437741275-5388-1-git-send-email-sds@tycho.nsa.gov>
+Date: Fri, 24 Jul 2015 18:11:15 -0400
+Message-ID: <CAHC9VhREcOuVcJdL35T98KadWTdkw-ArDay6ju6PjZ7dZXHW4g@mail.gmail.com>
+Subject: Re: [PATCH v2] ipc: Use private shmem or hugetlbfs inodes for shm segments.
+From: Paul Moore <paul@paul-moore.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Stephen Smalley <sds@tycho.nsa.gov>
+Cc: mstevens@fedoraproject.org, linux-kernel@vger.kernel.org, nyc@holomorphy.com, hughd@google.com, akpm@linux-foundation.org, manfred@colorfullife.com, dave@stgolabs.net, linux-mm@kvack.org, wagi@monom.org, prarit@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>, david@fromorbit.com, esandeen@redhat.com, Eric Paris <eparis@redhat.com>, selinux@tycho.nsa.gov, linux-security-module@vger.kernel.org
 
-A previous commit introduced the new mlock2 syscall, add entries for the
-MIPS architecture.
+On Fri, Jul 24, 2015 at 8:34 AM, Stephen Smalley <sds@tycho.nsa.gov> wrote:
+> The shm implementation internally uses shmem or hugetlbfs inodes
+> for shm segments.  As these inodes are never directly exposed to
+> userspace and only accessed through the shm operations which are
+> already hooked by security modules, mark the inodes with the
+> S_PRIVATE flag so that inode security initialization and permission
+> checking is skipped.
+>
+> This was motivated by the following lockdep warning:
+> Jul 22 14:36:40 fc23 kernel:
+> ======================================================
+> Jul 22 14:36:40 fc23 kernel: [ INFO: possible circular locking
+> dependency detected ]
+> Jul 22 14:36:40 fc23 kernel: 4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1
+> Tainted: G        W
+> Jul 22 14:36:40 fc23 kernel:
+> -------------------------------------------------------
+> Jul 22 14:36:40 fc23 kernel: httpd/1597 is trying to acquire lock:
+> Jul 22 14:36:40 fc23 kernel: (&ids->rwsem){+++++.}, at:
+> [<ffffffff81385354>] shm_close+0x34/0x130
+> Jul 22 14:36:40 fc23 kernel: #012but task is already holding lock:
+> Jul 22 14:36:40 fc23 kernel: (&mm->mmap_sem){++++++}, at:
+> [<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
+> Jul 22 14:36:40 fc23 kernel: #012which lock already depends on the new lock.
+> Jul 22 14:36:40 fc23 kernel: #012the existing dependency chain (in
+> reverse order) is:
+> Jul 22 14:36:40 fc23 kernel: #012-> #3 (&mm->mmap_sem){++++++}:
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81217baa>] __might_fault+0x7a/0xa0
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81284a1e>] filldir+0x9e/0x130
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019bb08>]
+> xfs_dir2_block_getdents.isra.12+0x198/0x1c0 [xfs]
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019c5b4>]
+> xfs_readdir+0x1b4/0x330 [xfs]
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019f38b>]
+> xfs_file_readdir+0x2b/0x30 [xfs]
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff812847e7>] iterate_dir+0x97/0x130
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81284d21>] SyS_getdents+0x91/0x120
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
+> entry_SYSCALL_64_fastpath+0x12/0x76
+> Jul 22 14:36:40 fc23 kernel: #012-> #2 (&xfs_dir_ilock_class){++++.+}:
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81101e97>]
+> down_read_nested+0x57/0xa0
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffffa01b0e57>]
+> xfs_ilock+0x167/0x350 [xfs]
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffffa01b10b8>]
+> xfs_ilock_attr_map_shared+0x38/0x50 [xfs]
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffffa014799d>]
+> xfs_attr_get+0xbd/0x190 [xfs]
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffffa01c17ad>]
+> xfs_xattr_get+0x3d/0x70 [xfs]
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8129962f>]
+> generic_getxattr+0x4f/0x70
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139ba52>]
+> inode_doinit_with_dentry+0x162/0x670
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139cf69>]
+> sb_finish_set_opts+0xd9/0x230
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139d66c>]
+> selinux_set_mnt_opts+0x35c/0x660
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139ff97>]
+> superblock_doinit+0x77/0xf0
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff813a0020>]
+> delayed_superblock_init+0x10/0x20
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81272d23>]
+> iterate_supers+0xb3/0x110
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff813a4e5f>]
+> selinux_complete_init+0x2f/0x40
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff813b47a3>]
+> security_load_policy+0x103/0x600
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff813a6901>]
+> sel_write_load+0xc1/0x750
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8126e817>] __vfs_write+0x37/0x100
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8126f229>] vfs_write+0xa9/0x1a0
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8126ff48>] SyS_write+0x58/0xd0
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
+> entry_SYSCALL_64_fastpath+0x12/0x76
+> Jul 22 14:36:40 fc23 kernel: #012-> #1 (&isec->lock){+.+.+.}:
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8186de8f>]
+> mutex_lock_nested+0x7f/0x3e0
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139b9a9>]
+> inode_doinit_with_dentry+0xb9/0x670
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8139bf7c>]
+> selinux_d_instantiate+0x1c/0x20
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff813955f6>]
+> security_d_instantiate+0x36/0x60
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81287c34>] d_instantiate+0x54/0x70
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8120111c>]
+> __shmem_file_setup+0xdc/0x240
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81201290>]
+> shmem_file_setup+0x10/0x20
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff813856e0>] newseg+0x290/0x3a0
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8137e278>] ipcget+0x208/0x2d0
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81386074>] SyS_shmget+0x54/0x70
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
+> entry_SYSCALL_64_fastpath+0x12/0x76
+> Jul 22 14:36:40 fc23 kernel: #012-> #0 (&ids->rwsem){+++++.}:
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81108df8>]
+> __lock_acquire+0x1a78/0x1d00
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff8186efba>] down_write+0x5a/0xc0
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81385354>] shm_close+0x34/0x130
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff812203a5>] remove_vma+0x45/0x80
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81222a30>] do_munmap+0x2b0/0x460
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81871d2e>]
+> entry_SYSCALL_64_fastpath+0x12/0x76
+> Jul 22 14:36:40 fc23 kernel: #012other info that might help us debug this:
+> Jul 22 14:36:40 fc23 kernel: Chain exists of:#012  &ids->rwsem -->
+> &xfs_dir_ilock_class --> &mm->mmap_sem
+> Jul 22 14:36:40 fc23 kernel: Possible unsafe locking scenario:
+> Jul 22 14:36:40 fc23 kernel:       CPU0                    CPU1
+> Jul 22 14:36:40 fc23 kernel:       ----                    ----
+> Jul 22 14:36:40 fc23 kernel:  lock(&mm->mmap_sem);
+> Jul 22 14:36:40 fc23 kernel:
+> lock(&xfs_dir_ilock_class);
+> Jul 22 14:36:40 fc23 kernel:                               lock(&mm->mmap_sem);
+> Jul 22 14:36:40 fc23 kernel:  lock(&ids->rwsem);
+> Jul 22 14:36:40 fc23 kernel: #012 *** DEADLOCK ***
+> Jul 22 14:36:40 fc23 kernel: 1 lock held by httpd/1597:
+> Jul 22 14:36:40 fc23 kernel: #0:  (&mm->mmap_sem){++++++}, at:
+> [<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
+> Jul 22 14:36:40 fc23 kernel: #012stack backtrace:
+> Jul 22 14:36:40 fc23 kernel: CPU: 7 PID: 1597 Comm: httpd Tainted: G
+>      W       4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1
+> Jul 22 14:36:40 fc23 kernel: Hardware name: VMware, Inc. VMware
+> Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00
+> 05/20/2014
+> Jul 22 14:36:40 fc23 kernel: 0000000000000000 000000006cb6fe9d
+> ffff88019ff07c58 ffffffff81868175
+> Jul 22 14:36:40 fc23 kernel: 0000000000000000 ffffffff82aea390
+> ffff88019ff07ca8 ffffffff81105903
+> Jul 22 14:36:40 fc23 kernel: ffff88019ff07c78 ffff88019ff07d08
+> 0000000000000001 ffff8800b75108f0
+> Jul 22 14:36:40 fc23 kernel: Call Trace:
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81868175>] dump_stack+0x4c/0x65
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81105903>] print_circular_bug+0x1e3/0x250
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81108df8>] __lock_acquire+0x1a78/0x1d00
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81220c33>] ? unlink_file_vma+0x33/0x60
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81385354>] ? shm_close+0x34/0x130
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff8186efba>] down_write+0x5a/0xc0
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81385354>] ? shm_close+0x34/0x130
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81385354>] shm_close+0x34/0x130
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff812203a5>] remove_vma+0x45/0x80
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81222a30>] do_munmap+0x2b0/0x460
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81386bbb>] ? SyS_shmdt+0x4b/0x180
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81386c25>] SyS_shmdt+0xb5/0x180
+> Jul 22 14:36:40 fc23 kernel: [<ffffffff81871d2e>]
+> entry_SYSCALL_64_fastpath+0x12/0x76
+>
+> Reported-by: Morten Stevens <mstevens@fedoraproject.org>
+> Signed-off-by: Stephen Smalley <sds@tycho.nsa.gov>
+> ---
+> This version only differs in the patch description, which restores
+> the original lockdep trace from Morten Stevens.  It was unfortunately
+> mangled in the prior version.
+>
+>  fs/hugetlbfs/inode.c | 2 ++
+>  ipc/shm.c            | 2 +-
+>  mm/shmem.c           | 4 ++--
+>  3 files changed, 5 insertions(+), 3 deletions(-)
 
-Signed-off-by: Eric B Munson <emunson@akamai.com>
-Cc: Ralf Baechle <ralf@linux-mips.org>
-Cc: linux-mips@linux-mips.org
-Cc: linux-api@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- arch/mips/include/uapi/asm/unistd.h | 15 +++++++++------
- arch/mips/kernel/scall32-o32.S      |  1 +
- arch/mips/kernel/scall64-64.S       |  1 +
- arch/mips/kernel/scall64-n32.S      |  1 +
- arch/mips/kernel/scall64-o32.S      |  1 +
- 5 files changed, 13 insertions(+), 6 deletions(-)
+The stuff below looked reasonable to me yesterday, still looks reasonable today.
 
-diff --git a/arch/mips/include/uapi/asm/unistd.h b/arch/mips/include/uapi/asm/unistd.h
-index c03088f..d0bdfaa 100644
---- a/arch/mips/include/uapi/asm/unistd.h
-+++ b/arch/mips/include/uapi/asm/unistd.h
-@@ -377,16 +377,17 @@
- #define __NR_memfd_create		(__NR_Linux + 354)
- #define __NR_bpf			(__NR_Linux + 355)
- #define __NR_execveat			(__NR_Linux + 356)
-+#define __NR_mlock2			(__NR_Linux + 357)
- 
- /*
-  * Offset of the last Linux o32 flavoured syscall
-  */
--#define __NR_Linux_syscalls		356
-+#define __NR_Linux_syscalls		357
- 
- #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
- 
- #define __NR_O32_Linux			4000
--#define __NR_O32_Linux_syscalls		356
-+#define __NR_O32_Linux_syscalls		357
- 
- #if _MIPS_SIM == _MIPS_SIM_ABI64
- 
-@@ -711,16 +712,17 @@
- #define __NR_memfd_create		(__NR_Linux + 314)
- #define __NR_bpf			(__NR_Linux + 315)
- #define __NR_execveat			(__NR_Linux + 316)
-+#define __NR_mlock2			(__NR_Linux + 317)
- 
- /*
-  * Offset of the last Linux 64-bit flavoured syscall
-  */
--#define __NR_Linux_syscalls		316
-+#define __NR_Linux_syscalls		317
- 
- #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
- 
- #define __NR_64_Linux			5000
--#define __NR_64_Linux_syscalls		316
-+#define __NR_64_Linux_syscalls		317
- 
- #if _MIPS_SIM == _MIPS_SIM_NABI32
- 
-@@ -1049,15 +1051,16 @@
- #define __NR_memfd_create		(__NR_Linux + 318)
- #define __NR_bpf			(__NR_Linux + 319)
- #define __NR_execveat			(__NR_Linux + 320)
-+#define __NR_mlock2			(__NR_Linux + 321)
- 
- /*
-  * Offset of the last N32 flavoured syscall
-  */
--#define __NR_Linux_syscalls		320
-+#define __NR_Linux_syscalls		321
- 
- #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
- 
- #define __NR_N32_Linux			6000
--#define __NR_N32_Linux_syscalls		320
-+#define __NR_N32_Linux_syscalls		321
- 
- #endif /* _UAPI_ASM_UNISTD_H */
-diff --git a/arch/mips/kernel/scall32-o32.S b/arch/mips/kernel/scall32-o32.S
-index 4cc1350..b0b377a 100644
---- a/arch/mips/kernel/scall32-o32.S
-+++ b/arch/mips/kernel/scall32-o32.S
-@@ -599,3 +599,4 @@ EXPORT(sys_call_table)
- 	PTR	sys_memfd_create
- 	PTR	sys_bpf				/* 4355 */
- 	PTR	sys_execveat
-+	PTR	sys_mlock2
-diff --git a/arch/mips/kernel/scall64-64.S b/arch/mips/kernel/scall64-64.S
-index ad4d4463..97aaf51 100644
---- a/arch/mips/kernel/scall64-64.S
-+++ b/arch/mips/kernel/scall64-64.S
-@@ -436,4 +436,5 @@ EXPORT(sys_call_table)
- 	PTR	sys_memfd_create
- 	PTR	sys_bpf				/* 5315 */
- 	PTR	sys_execveat
-+	PTR	sys_mlock2
- 	.size	sys_call_table,.-sys_call_table
-diff --git a/arch/mips/kernel/scall64-n32.S b/arch/mips/kernel/scall64-n32.S
-index 446cc65..e36f21e 100644
---- a/arch/mips/kernel/scall64-n32.S
-+++ b/arch/mips/kernel/scall64-n32.S
-@@ -429,4 +429,5 @@ EXPORT(sysn32_call_table)
- 	PTR	sys_memfd_create
- 	PTR	sys_bpf
- 	PTR	compat_sys_execveat		/* 6320 */
-+	PTR	sys_mlock2
- 	.size	sysn32_call_table,.-sysn32_call_table
-diff --git a/arch/mips/kernel/scall64-o32.S b/arch/mips/kernel/scall64-o32.S
-index f543ff4..7a8b2df 100644
---- a/arch/mips/kernel/scall64-o32.S
-+++ b/arch/mips/kernel/scall64-o32.S
-@@ -584,4 +584,5 @@ EXPORT(sys32_call_table)
- 	PTR	sys_memfd_create
- 	PTR	sys_bpf				/* 4355 */
- 	PTR	compat_sys_execveat
-+	PTR	sys_mlock2
- 	.size	sys32_call_table,.-sys32_call_table
+Acked-by: Paul Moore <paul@paul-moore.com>
+
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 0cf74df..973c24c 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -1010,6 +1010,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
+>         inode = hugetlbfs_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0);
+>         if (!inode)
+>                 goto out_dentry;
+> +       if (creat_flags == HUGETLB_SHMFS_INODE)
+> +               inode->i_flags |= S_PRIVATE;
+>
+>         file = ERR_PTR(-ENOMEM);
+>         if (hugetlb_reserve_pages(inode, 0,
+> diff --git a/ipc/shm.c b/ipc/shm.c
+> index 06e5cf2..4aef24d 100644
+> --- a/ipc/shm.c
+> +++ b/ipc/shm.c
+> @@ -545,7 +545,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+>                 if  ((shmflg & SHM_NORESERVE) &&
+>                                 sysctl_overcommit_memory != OVERCOMMIT_NEVER)
+>                         acctflag = VM_NORESERVE;
+> -               file = shmem_file_setup(name, size, acctflag);
+> +               file = shmem_kernel_file_setup(name, size, acctflag);
+>         }
+>         error = PTR_ERR(file);
+>         if (IS_ERR(file))
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 4caf8ed..dbe0c1e 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -3363,8 +3363,8 @@ put_path:
+>   * shmem_kernel_file_setup - get an unlinked file living in tmpfs which must be
+>   *     kernel internal.  There will be NO LSM permission checks against the
+>   *     underlying inode.  So users of this interface must do LSM checks at a
+> - *     higher layer.  The one user is the big_key implementation.  LSM checks
+> - *     are provided at the key level rather than the inode level.
+> + *     higher layer.  The users are the big_key and shm implementations.  LSM
+> + *     checks are provided at the key or shm level rather than the inode.
+>   * @name: name for dentry (to be seen in /proc/<pid>/maps
+>   * @size: size to be set for the file
+>   * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
+> --
+> 2.1.0
+>
+
+
+
 -- 
-1.9.1
+paul moore
+www.paul-moore.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
