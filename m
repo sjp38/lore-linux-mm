@@ -1,49 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A8F09003C7
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:17:15 -0400 (EDT)
-Received: by wicmv11 with SMTP id mv11so54670021wic.0
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 01:17:14 -0700 (PDT)
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
-        by mx.google.com with ESMTPS id m6si2909583wiz.81.2015.07.24.01.17.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Jul 2015 01:17:13 -0700 (PDT)
-Received: by wicmv11 with SMTP id mv11so54669097wic.0
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 01:17:13 -0700 (PDT)
-Date: Fri, 24 Jul 2015 10:17:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/5] memcg: export struct mem_cgroup
-Message-ID: <20150724081710.GG4103@dhcp22.suse.cz>
-References: <1436958885-18754-2-git-send-email-mhocko@kernel.org>
- <20150715135711.1778a8c08f2ea9560a7c1f6f@linux-foundation.org>
- <20150716071948.GC3077@dhcp22.suse.cz>
- <20150716143433.e43554a19b1c89a8524020cb@linux-foundation.org>
- <20150716225639.GA11131@cmpxchg.org>
- <20150716160358.de3404c44ba29dc132032bbc@linux-foundation.org>
- <20150717122819.GA14895@cmpxchg.org>
- <20150717151827.GB15934@mtj.duckdns.org>
- <20150717131900.5b0b5d91597d207c474be7a5@linux-foundation.org>
- <20150720114913.GG1211@dhcp22.suse.cz>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 93AE29003C7
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:18:58 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so10319291pdj.3
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 01:18:58 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id fi7si18765297pac.187.2015.07.24.01.18.57
+        for <linux-mm@kvack.org>;
+        Fri, 24 Jul 2015 01:18:57 -0700 (PDT)
+Date: Fri, 24 Jul 2015 16:18:30 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 371/385] arch/x86/mm/mpx.c:71:54: sparse: implicit
+ cast to nocast type
+Message-ID: <201507241628.EnDEXbaF%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150720114913.GG1211@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon 20-07-15 13:49:13, Michal Hocko wrote:
-> On Fri 17-07-15 13:19:00, Andrew Morton wrote:
-[...]
-> > Why were cg_proto_flags and cg_proto moved from include/net/sock.h?
-> 
-> Because they naturally belong to memcg header file. We can keep it there
-> if you prefer but I felt like sock.h is quite heavy already.
-> Now that I am looking into other MEMCG_KMEM related stuff there,
-> memcg_proto_active sounds like a good one to move to memcontrol.h as well.
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   61f5f835b6f06fbc233481b5d3c0afd71ecf54e8
+commit: b9e95c5dd1134d35b6c9aeaa3967ab5b3945ba73 [371/385] mm, mpx: add "vm_flags_t vm_flags" arg to do_mmap_pgoff()
+reproduce:
+  # apt-get install sparse
+  git checkout b9e95c5dd1134d35b6c9aeaa3967ab5b3945ba73
+  make ARCH=x86_64 allmodconfig
+  make C=1 CF=-D__CHECK_ENDIAN__
 
-Double checked and memcg_proto_active has only one user which lives in
-memcontrol.c so it doesn't make much sense to have it in the header file
+
+sparse warnings: (new ones prefixed by >>)
+
+>> arch/x86/mm/mpx.c:71:54: sparse: implicit cast to nocast type
+   arch/x86/mm/mpx.c:312:27: sparse: incompatible types in comparison expression (different address spaces)
+--
+>> include/linux/mm.h:1812:54: sparse: implicit cast to nocast type
+--
+   mm/mmap.c:1343:47: sparse: implicit cast to nocast type
+   mm/mmap.c:1345:45: sparse: implicit cast to nocast type
+   mm/mmap.c:1354:45: sparse: implicit cast to nocast type
+   mm/mmap.c:1375:47: sparse: implicit cast to nocast type
+   mm/mmap.c:1395:37: sparse: implicit cast to nocast type
+   mm/mmap.c:1399:37: sparse: implicit cast to nocast type
+   mm/mmap.c:1443:33: sparse: implicit cast to nocast type
+   mm/mmap.c:1578:29: sparse: implicit cast to nocast type
+   mm/internal.h:253:43: sparse: implicit cast to nocast type
+   mm/mmap.c:2650:37: sparse: implicit cast to nocast type
+   mm/mmap.c:2690:34: sparse: implicit cast to nocast type
+   mm/mmap.c:2693:34: sparse: implicit cast to nocast type
+>> include/linux/mm.h:1812:54: sparse: implicit cast to nocast type
+   mm/internal.h:253:43: sparse: implicit cast to nocast type
+
+vim +71 arch/x86/mm/mpx.c
+
+    55	 * bounds tables (the bounds directory is user-allocated).
+    56	 *
+    57	 * Later on, we use the vma->vm_ops to uniquely identify these
+    58	 * VMAs.
+    59	 */
+    60	static unsigned long mpx_mmap(unsigned long len)
+    61	{
+    62		struct mm_struct *mm = current->mm;
+    63		unsigned long addr, populate;
+    64	
+    65		/* Only bounds table can be allocated here */
+    66		if (len != mpx_bt_size_bytes(mm))
+    67			return -EINVAL;
+    68	
+    69		down_write(&mm->mmap_sem);
+    70		addr = do_mmap(NULL, 0, len, PROT_READ | PROT_WRITE,
+  > 71				MAP_ANONYMOUS | MAP_PRIVATE, VM_MPX, 0, &populate);
+    72		up_write(&mm->mmap_sem);
+    73		if (populate)
+    74			mm_populate(addr, populate);
+    75	
+    76		return addr;
+    77	}
+    78	
+    79	enum reg_type {
+
 ---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
