@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id BD0D69003CB
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:17 -0400 (EDT)
-Received: by ykdu72 with SMTP id u72so17390346ykd.2
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:17 -0700 (PDT)
+Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B36D59003CC
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:18 -0400 (EDT)
+Received: by ykay190 with SMTP id y190so17318012yka.3
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:18 -0700 (PDT)
 Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id p7si5876537ywc.86.2015.07.24.04.48.16
+        by mx.google.com with ESMTPS id p7si5876537ywc.86.2015.07.24.04.48.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Jul 2015 04:48:17 -0700 (PDT)
+        Fri, 24 Jul 2015 04:48:18 -0700 (PDT)
 From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv2 03/10] x86/xen: discard RAM regions above the maximum reservation
-Date: Fri, 24 Jul 2015 12:47:41 +0100
-Message-ID: <1437738468-24110-4-git-send-email-david.vrabel@citrix.com>
+Subject: [PATCHv2 01/10] mm: memory hotplug with an existing resource
+Date: Fri, 24 Jul 2015 12:47:39 +0100
+Message-ID: <1437738468-24110-2-git-send-email-david.vrabel@citrix.com>
 In-Reply-To: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
 References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
@@ -20,44 +20,98 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xenproject.org
-Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Kiper <daniel.kiper@oracle.com>
+Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Kiper <daniel.kiper@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
 
-During setup, discard RAM regions that are above the maximum
-reservation (instead of marking them as E820_UNUSABLE).  This allows
-hotplug memory to be placed at these addresses.
+Add add_memory_resource() to add memory using an existing "System RAM"
+resource.  This is useful if the memory region is being located by
+finding a free resource slot with allocate_resource().
+
+Xen guests will make use of this in their balloon driver to hotplug
+arbitrary amounts of memory in response to toolstack requests.
 
 Signed-off-by: David Vrabel <david.vrabel@citrix.com>
-Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- arch/x86/xen/setup.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ include/linux/memory_hotplug.h |  2 ++
+ mm/memory_hotplug.c            | 28 +++++++++++++++++++++-------
+ 2 files changed, 23 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index 55f388e..32910c5 100644
---- a/arch/x86/xen/setup.c
-+++ b/arch/x86/xen/setup.c
-@@ -646,6 +646,7 @@ char * __init xen_memory_setup(void)
- 		phys_addr_t addr = map[i].addr;
- 		phys_addr_t size = map[i].size;
- 		u32 type = map[i].type;
-+		bool discard = false;
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 6ffa0ac..c76d371 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -11,6 +11,7 @@ struct zone;
+ struct pglist_data;
+ struct mem_section;
+ struct memory_block;
++struct resource;
  
- 		if (type == E820_RAM) {
- 			if (addr < mem_end) {
-@@ -656,10 +657,11 @@ char * __init xen_memory_setup(void)
- 				xen_add_extra_mem(addr, size);
- 				xen_max_p2m_pfn = PFN_DOWN(addr + size);
- 			} else
--				type = E820_UNUSABLE;
-+				discard = true;
- 		}
+ #ifdef CONFIG_MEMORY_HOTPLUG
  
--		xen_align_and_add_e820_region(addr, size, type);
-+		if (!discard)
-+			xen_align_and_add_e820_region(addr, size, type);
+@@ -266,6 +267,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
+ extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+ 		void *arg, int (*func)(struct memory_block *, void *));
+ extern int add_memory(int nid, u64 start, u64 size);
++extern int add_memory_resource(int nid, struct resource *resource);
+ extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 26fbba7..460d0fe 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1216,23 +1216,21 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
+ }
  
- 		map[i].addr += size;
- 		map[i].size -= size;
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+-int __ref add_memory(int nid, u64 start, u64 size)
++int __ref add_memory_resource(int nid, struct resource *res)
+ {
++	u64 start, size;
+ 	pg_data_t *pgdat = NULL;
+ 	bool new_pgdat;
+ 	bool new_node;
+-	struct resource *res;
+ 	int ret;
+ 
++	start = res->start;
++	size = resource_size(res);
++
+ 	ret = check_hotplug_memory_range(start, size);
+ 	if (ret)
+ 		return ret;
+ 
+-	res = register_memory_resource(start, size);
+-	ret = -EEXIST;
+-	if (!res)
+-		return ret;
+-
+ 	{	/* Stupid hack to suppress address-never-null warning */
+ 		void *p = NODE_DATA(nid);
+ 		new_pgdat = !p;
+@@ -1282,6 +1280,22 @@ out:
+ 	mem_hotplug_done();
+ 	return ret;
+ }
++EXPORT_SYMBOL_GPL(add_memory_resource);
++
++int __ref add_memory(int nid, u64 start, u64 size)
++{
++	struct resource *res;
++	int ret;
++
++	res = register_memory_resource(start, size);
++	if (!res)
++		return -EEXIST;
++
++	ret = add_memory_resource(nid, res);
++	if (ret < 0)
++		release_memory_resource(res);
++	return ret;
++}
+ EXPORT_SYMBOL_GPL(add_memory);
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
 -- 
 2.1.4
 
