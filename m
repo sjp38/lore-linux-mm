@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 80C6F9003C7
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:02 -0400 (EDT)
-Received: by ykdu72 with SMTP id u72so17385908ykd.2
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:02 -0700 (PDT)
+Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EF379003C7
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:48:04 -0400 (EDT)
+Received: by ykfw194 with SMTP id w194so17473189ykf.0
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:48:04 -0700 (PDT)
 Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id y139si5871632yke.97.2015.07.24.04.48.01
+        by mx.google.com with ESMTPS id y139si5871632yke.97.2015.07.24.04.48.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Jul 2015 04:48:01 -0700 (PDT)
+        Fri, 24 Jul 2015 04:48:04 -0700 (PDT)
 From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv2 04/10] xen/balloon: find non-conflicting regions to place hotplugged memory
-Date: Fri, 24 Jul 2015 12:47:42 +0100
-Message-ID: <1437738468-24110-5-git-send-email-david.vrabel@citrix.com>
-In-Reply-To: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
-References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
+Subject: [PATCHv2 00/10] mm, xen/balloon: memory hotplug improvements
+Date: Fri, 24 Jul 2015 12:47:38 +0100
+Message-ID: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -22,133 +20,25 @@ List-ID: <linux-mm.kvack.org>
 To: xen-devel@lists.xenproject.org
 Cc: David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Kiper <daniel.kiper@oracle.com>
 
-Instead of placing hotplugged memory at the end of RAM (which may
-conflict with PCI devices or reserved regions) use allocate_resource()
-to get a new, suitably aligned resource that does not conflict.
+The series improves the use of hotplug memory in the Xen balloon
+driver.
 
-Signed-off-by: David Vrabel <david.vrabel@citrix.com>
-Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
----
- drivers/xen/balloon.c | 64 +++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 54 insertions(+), 10 deletions(-)
+- Reliably find a non-conflicting location for the hotplugged memory
+  (this fixes memory hotplug in a number of cases, particularly in
+  dom0).
 
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index fd93369..29aeb8f 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -54,6 +54,7 @@
- #include <linux/memory.h>
- #include <linux/memory_hotplug.h>
- #include <linux/percpu-defs.h>
-+#include <linux/slab.h>
- 
- #include <asm/page.h>
- #include <asm/pgalloc.h>
-@@ -208,6 +209,43 @@ static bool balloon_is_inflated(void)
- 		return false;
- }
- 
-+static struct resource *additional_memory_resource(phys_addr_t size)
-+{
-+	struct resource *res;
-+	int ret;
-+
-+	res = kzalloc(sizeof(*res), GFP_KERNEL);
-+	if (!res)
-+		return NULL;
-+
-+	res->name = "System RAM";
-+	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-+
-+	ret = allocate_resource(&iomem_resource, res,
-+				size, 0, -1,
-+				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
-+	if (ret < 0) {
-+		pr_err("Cannot allocate new System RAM resource\n");
-+		kfree(res);
-+		return NULL;
-+	}
-+
-+	return res;
-+}
-+
-+static void release_memory_resource(struct resource *resource)
-+{
-+	if (!resource)
-+		return;
-+
-+	/*
-+	 * No need to reset region to identity mapped since we now
-+	 * know that no I/O can be in this region
-+	 */
-+	release_resource(resource);
-+	kfree(resource);
-+}
-+
- /*
-  * reserve_additional_memory() adds memory region of size >= credit above
-  * max_pfn. New region is section aligned and size is modified to be multiple
-@@ -221,13 +259,17 @@ static bool balloon_is_inflated(void)
- 
- static enum bp_state reserve_additional_memory(long credit)
- {
-+	struct resource *resource;
- 	int nid, rc;
--	u64 hotplug_start_paddr;
--	unsigned long balloon_hotplug = credit;
-+	unsigned long balloon_hotplug;
-+
-+	balloon_hotplug = round_up(credit, PAGES_PER_SECTION);
-+
-+	resource = additional_memory_resource(balloon_hotplug * PAGE_SIZE);
-+	if (!resource)
-+		goto err;
- 
--	hotplug_start_paddr = PFN_PHYS(SECTION_ALIGN_UP(max_pfn));
--	balloon_hotplug = round_up(balloon_hotplug, PAGES_PER_SECTION);
--	nid = memory_add_physaddr_to_nid(hotplug_start_paddr);
-+	nid = memory_add_physaddr_to_nid(resource->start);
- 
- #ifdef CONFIG_XEN_HAVE_PVMMU
-         /*
-@@ -242,21 +284,20 @@ static enum bp_state reserve_additional_memory(long credit)
- 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
- 		unsigned long pfn, i;
- 
--		pfn = PFN_DOWN(hotplug_start_paddr);
-+		pfn = PFN_DOWN(resource->start);
- 		for (i = 0; i < balloon_hotplug; i++) {
- 			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
- 				pr_warn("set_phys_to_machine() failed, no memory added\n");
--				return BP_ECANCELED;
-+				goto err;
- 			}
-                 }
- 	}
- #endif
- 
--	rc = add_memory(nid, hotplug_start_paddr, balloon_hotplug << PAGE_SHIFT);
--
-+	rc = add_memory_resource(nid, resource);
- 	if (rc) {
- 		pr_warn("Cannot add additional memory (%i)\n", rc);
--		return BP_ECANCELED;
-+		goto err;
- 	}
- 
- 	balloon_hotplug -= credit;
-@@ -265,6 +306,9 @@ static enum bp_state reserve_additional_memory(long credit)
- 	balloon_stats.balloon_hotplug = balloon_hotplug;
- 
- 	return BP_DONE;
-+  err:
-+	release_memory_resource(resource);
-+	return BP_ECANCELED;
- }
- 
- static void xen_online_page(struct page *page)
--- 
-2.1.4
+- Use hotplugged memory for alloc_xenballooned_pages() (keeping more
+  memory available for the domain and reducing fragmentation of the
+  p2m).
+
+Changes in v2:
+- New BP_WAIT state to signal the balloon process to wait for
+  userspace to online the new memory.
+- Preallocate P2M entries in alloc_xenballooned_pages() so they do not
+  need allocated later (in a context where GFP_KERNEL allocations are
+  not possible).
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
