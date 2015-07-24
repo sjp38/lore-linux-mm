@@ -1,127 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 410959003C7
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 03:17:58 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so15070526wib.1
-        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 00:17:57 -0700 (PDT)
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com. [195.75.94.111])
-        by mx.google.com with ESMTPS id p2si13248844wjf.71.2015.07.24.00.17.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Jul 2015 00:17:56 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Fri, 24 Jul 2015 08:17:55 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4BC302190023
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 08:17:28 +0100 (BST)
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t6O7HpOY31654132
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 07:17:51 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t6O7Hp5r006112
-	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 01:17:51 -0600
-Date: Fri, 24 Jul 2015 09:17:49 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] mm: Flush the TLB for a single address in a huge page
-Message-ID: <20150724091749.766df0d7@mschwide>
-In-Reply-To: <20150723164921.GH27052@e104818-lin.cambridge.arm.com>
-References: <1437585214-22481-1-git-send-email-catalin.marinas@arm.com>
-	<alpine.DEB.2.10.1507221436350.21468@chino.kir.corp.google.com>
-	<CAHkRjk7=VMG63VfZdWbZqYu8FOa9M+54Mmdro661E2zt3WToog@mail.gmail.com>
-	<55B021B1.5020409@intel.com>
-	<20150723104938.GA27052@e104818-lin.cambridge.arm.com>
-	<20150723141303.GB23799@redhat.com>
-	<20150723164921.GH27052@e104818-lin.cambridge.arm.com>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 03B419003C7
+	for <linux-mm@kvack.org>; Fri, 24 Jul 2015 04:00:48 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so10004541pdr.2
+        for <linux-mm@kvack.org>; Fri, 24 Jul 2015 01:00:47 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id t4si18693056pdn.152.2015.07.24.01.00.46
+        for <linux-mm@kvack.org>;
+        Fri, 24 Jul 2015 01:00:46 -0700 (PDT)
+Date: Fri, 24 Jul 2015 15:59:25 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 127/385] mm/internal.h:253:43: sparse: implicit cast
+ to nocast type
+Message-ID: <201507241522.TyziMu2M%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Eric B Munson <emunson@akamai.com>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, 23 Jul 2015 17:49:21 +0100
-Catalin Marinas <catalin.marinas@arm.com> wrote:
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   61f5f835b6f06fbc233481b5d3c0afd71ecf54e8
+commit: 3426387b81048271b9c48a2a35c1e474e4fce06f [127/385] mm-mlock-introduce-vm_lockonfault-and-add-mlock-flags-to-enable-it-v4
+reproduce:
+  # apt-get install sparse
+  git checkout 3426387b81048271b9c48a2a35c1e474e4fce06f
+  make ARCH=x86_64 allmodconfig
+  make C=1 CF=-D__CHECK_ENDIAN__
 
-> On Thu, Jul 23, 2015 at 03:13:03PM +0100, Andrea Arcangeli wrote:
-> > On Thu, Jul 23, 2015 at 11:49:38AM +0100, Catalin Marinas wrote:
-> > > On Thu, Jul 23, 2015 at 12:05:21AM +0100, Dave Hansen wrote:
-> > > > On 07/22/2015 03:48 PM, Catalin Marinas wrote:
-> > > > > You are right, on x86 the tlb_single_page_flush_ceiling seems to be
-> > > > > 33, so for an HPAGE_SIZE range the code does a local_flush_tlb()
-> > > > > always. I would say a single page TLB flush is more efficient than a
-> > > > > whole TLB flush but I'm not familiar enough with x86.
-> > > > 
-> > > > The last time I looked, the instruction to invalidate a single page is
-> > > > more expensive than the instruction to flush the entire TLB. 
-> [...]
-> > > Another question is whether flushing a single address is enough for a
-> > > huge page. I assumed it is since tlb_remove_pmd_tlb_entry() only adjusts
-> [...]
-> > > the mmu_gather range by PAGE_SIZE (rather than HPAGE_SIZE) and
-> > > no-one complained so far. AFAICT, there are only 3 architectures
-> > > that don't use asm-generic/tlb.h but they all seem to handle this
-> > > case:
-> > 
-> > Agreed that archs using the generic tlb.h that sets the tlb->end to
-> > address+PAGE_SIZE should be fine with the flush_tlb_page.
-> > 
-> > > arch/arm: it implements tlb_remove_pmd_tlb_entry() in a similar way to
-> > > the generic one
-> > > 
-> > > arch/s390: tlb_remove_pmd_tlb_entry() is a no-op
-> > 
-> > I guess s390 is fine too but I'm not convinced that the fact it won't
-> > adjust the tlb->start/end is a guarantees that flush_tlb_page is
-> > enough when a single 2MB TLB has to be invalidated (not during range
-> > zapping).
 
-tlb_remove_pmd_tlb_entry() is a no-op because pmdp_get_and_clear_full()
-already did the job. s390 is special in regard to TLB flushing, the
-machines have the requirement that a pte/pmd needs to be invalidated
-with specific instruction if there is a process that might use the
-translation path. In this case the IDTE instruction needs to be used
-which sets the invalid bit in the pmd *and* flushes the TLB at the
-same time. The code still tries to be lazy and do batched flushes to
-improve performance. All in all quite complicated..
+sparse warnings: (new ones prefixed by >>)
 
-> > For the range zapping, could the arch decide to unconditionally flush
-> > the whole TLB without doing the tlb->start/end tracking by overriding
-> > tlb_gather_mmu in a way that won't call __tlb_reset_range? There seems
-> > to be quite some flexibility in the per-arch tlb_gather_mmu setup in
-> > order to unconditionally set tlb->start/end to the total range zapped,
-> > without actually narrowing it down during the pagetable walk.
-> 
-> You are right, looking at the s390 code, tlb_finish_mmu() flushes the
-> whole TLB, so the ranges don't seem to matter. I'm cc'ing the s390
-> maintainers to confirm whether this patch affects them in any way:
-> 
-> https://lkml.org/lkml/2015/7/22/521
-> 
-> IIUC, all the functions touched by this patch are implemented by s390 in
-> its specific way, so I don't think it makes any difference:
-> 
-> pmdp_set_access_flags
-> pmdp_clear_flush_young
-> pmdp_huge_clear_flush
-> pmdp_splitting_flush
-> pmdp_invalidate
+   mm/mmap.c:1345:47: sparse: implicit cast to nocast type
+   mm/mmap.c:1347:45: sparse: implicit cast to nocast type
+   mm/mmap.c:1356:45: sparse: implicit cast to nocast type
+   mm/mmap.c:1377:47: sparse: implicit cast to nocast type
+   mm/mmap.c:1397:37: sparse: implicit cast to nocast type
+   mm/mmap.c:1401:37: sparse: implicit cast to nocast type
+   mm/mmap.c:1445:33: sparse: implicit cast to nocast type
+   mm/mmap.c:1580:29: sparse: implicit cast to nocast type
+>> mm/internal.h:253:43: sparse: implicit cast to nocast type
+   mm/mmap.c:2652:37: sparse: implicit cast to nocast type
+   mm/mmap.c:2692:34: sparse: implicit cast to nocast type
+   mm/mmap.c:2694:34: sparse: implicit cast to nocast type
+   mm/mmap.c:2699:67: sparse: implicit cast to nocast type
+>> mm/internal.h:253:43: sparse: implicit cast to nocast type
 
-tlb_finish_mmu may flush all entries for a specific address space, not
-the whole TLB. And it does so only for batched operations. If all changes
-to the page tables have been done with IPTE/IDTE then flush_mm will not
-be set and no full address space flush is done.
+vim +253 mm/internal.h
 
-But to answer the question: s390 is fine with the change outlined in
-https://lkml.org/lkml/2015/7/22/521
+   237	{
+   238		return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+   239	}
+   240	
+   241	/* mm/util.c */
+   242	void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+   243			struct vm_area_struct *prev, struct rb_node *rb_parent);
+   244	
+   245	#ifdef CONFIG_MMU
+   246	extern long populate_vma_page_range(struct vm_area_struct *vma,
+   247			unsigned long start, unsigned long end, int *nonblocking);
+   248	extern void munlock_vma_pages_range(struct vm_area_struct *vma,
+   249				unsigned long start, unsigned long end, vm_flags_t to_drop);
+   250	static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
+   251	{
+   252		munlock_vma_pages_range(vma, vma->vm_start, vma->vm_end,
+ > 253					VM_LOCKED | VM_LOCKONFAULT);
+   254	}
+   255	
+   256	/*
+   257	 * must be called with vma's mmap_sem held for read or write, and page locked.
+   258	 */
+   259	extern void mlock_vma_page(struct page *page);
+   260	extern unsigned int munlock_vma_page(struct page *page);
+   261	
 
--- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
