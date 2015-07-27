@@ -1,63 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 087226B0254
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:59:29 -0400 (EDT)
-Received: by igbij6 with SMTP id ij6so77844794igb.1
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:59:28 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id lq5si6449827igb.63.2015.07.27.08.59.28
-        for <linux-mm@kvack.org>;
-        Mon, 27 Jul 2015 08:59:28 -0700 (PDT)
-Date: Mon, 27 Jul 2015 16:59:23 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v4 5/7] arm64: add KASAN support
-Message-ID: <20150727155922.GB350@e104818-lin.cambridge.arm.com>
-References: <1437756119-12817-1-git-send-email-a.ryabinin@samsung.com>
- <1437756119-12817-6-git-send-email-a.ryabinin@samsung.com>
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F2DB6B0254
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 12:05:31 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so145571871wic.0
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 09:05:30 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id xy9si31448735wjc.160.2015.07.27.09.05.28
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 27 Jul 2015 09:05:29 -0700 (PDT)
+Date: Mon, 27 Jul 2015 17:05:25 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v2] bootmem: avoid freeing to bootmem after bootmem is
+ done
+Message-ID: <20150727160525.GQ2561@suse.de>
+References: <20150727105951.GO2561@suse.de>
+ <1438011366-11474-1-git-send-email-cmetcalf@ezchip.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1437756119-12817-6-git-send-email-a.ryabinin@samsung.com>
+In-Reply-To: <1438011366-11474-1-git-send-email-cmetcalf@ezchip.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Alexey Klimov <klimov.linux@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Linus Walleij <linus.walleij@linaro.org>, linux-kernel@vger.kernel.org, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
+To: Chris Metcalf <cmetcalf@ezchip.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Paul McQuade <paulmcquad@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 24, 2015 at 07:41:57PM +0300, Andrey Ryabinin wrote:
-> diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-> index 4d2a925..2cacf55 100644
-> --- a/arch/arm64/Makefile
-> +++ b/arch/arm64/Makefile
-> @@ -40,6 +40,12 @@ else
->  TEXT_OFFSET := 0x00080000
->  endif
->  
-> +# KASAN_SHADOW_OFFSET = VA_START + (1 << (VA_BITS - 3)) - (1 << 61)
-> +KASAN_SHADOW_OFFSET := $(shell printf "0x%x\n" $$(( \
-> +			(-1 << $(CONFIG_ARM64_VA_BITS)) \
-> +			+ (1 << ($(CONFIG_ARM64_VA_BITS) - 3)) \
-> +			- (1 << (64 - 3)) )) )
+On Mon, Jul 27, 2015 at 11:36:06AM -0400, Chris Metcalf wrote:
+> Bootmem isn't popular any more, but some architectures still use it,
+> and freeing to bootmem after calling free_all_bootmem_core() can end
+> up scribbling over random memory.  Instead, make sure the kernel
+> generates a warning in this case by ensuring the node_bootmem_map
+> field is non-NULL when are freeing or marking bootmem.
+> 
+> An instance of this bug was just fixed in the tile architecture
+> ("tile: use free_bootmem_late() for initrd") and catching this case
+> more widely seems like a good thing.
+> 
+> Signed-off-by: Chris Metcalf <cmetcalf@ezchip.com>
 
-Does this work with any POSIX shell? Do we always have a 64-bit type?
-As I wasn't sure about this, I suggested awk (or perl).
-
-> +static void __init clear_pgds(unsigned long start,
-> +			unsigned long end)
-> +{
-> +	/*
-> +	 * Remove references to kasan page tables from
-> +	 * swapper_pg_dir. pgd_clear() can't be used
-> +	 * here because it's nop on 2,3-level pagetable setups
-> +	 */
-> +	for (; start && start < end; start += PGDIR_SIZE)
-> +		set_pgd(pgd_offset_k(start), __pgd(0));
-> +}
-
-I don't think we need the "start" check, just "start < end". Do you
-expect a start == 0 (or overflow)?
+Acked-by: Mel Gorman <mgorman@suse.de>
 
 -- 
-Catalin
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
