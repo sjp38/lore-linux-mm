@@ -1,74 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 91EC56B0253
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 17:13:47 -0400 (EDT)
-Received: by igbpg9 with SMTP id pg9so110304493igb.0
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 14:13:47 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id g84si16462134ioi.123.2015.07.27.14.13.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Jul 2015 14:13:47 -0700 (PDT)
-Received: by pachj5 with SMTP id hj5so57171303pac.3
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 14:13:46 -0700 (PDT)
-Date: Mon, 27 Jul 2015 14:12:54 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id ADD436B0253
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 18:02:18 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so58566480pdr.2
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 15:02:18 -0700 (PDT)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id y5si33981098pdf.59.2015.07.27.15.02.16
+        for <linux-mm@kvack.org>;
+        Mon, 27 Jul 2015 15:02:17 -0700 (PDT)
+Date: Tue, 28 Jul 2015 08:01:53 +1000
+From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [PATCH v2] ipc: Use private shmem or hugetlbfs inodes for shm
  segments.
-In-Reply-To: <55B69D67.4070002@tycho.nsa.gov>
-Message-ID: <alpine.LSU.2.11.1507271411270.2122@eggly.anvils>
-References: <1437741275-5388-1-git-send-email-sds@tycho.nsa.gov> <alpine.LSU.2.11.1507271212180.1028@eggly.anvils> <55B69D67.4070002@tycho.nsa.gov>
+Message-ID: <20150727220153.GI3902@dastard>
+References: <1437741275-5388-1-git-send-email-sds@tycho.nsa.gov>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1437741275-5388-1-git-send-email-sds@tycho.nsa.gov>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Stephen Smalley <sds@tycho.nsa.gov>
-Cc: Hugh Dickins <hughd@google.com>, prarit@redhat.com, david@fromorbit.com, mstevens@fedoraproject.org, manfred@colorfullife.com, esandeen@redhat.com, wagi@monom.org, linux-kernel@vger.kernel.org, eparis@redhat.com, linux-mm@kvack.org, linux-security-module@vger.kernel.org, dave@stgolabs.net, nyc@holomorphy.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, selinux@tycho.nsa.gov
+Cc: mstevens@fedoraproject.org, linux-kernel@vger.kernel.org, nyc@holomorphy.com, hughd@google.com, akpm@linux-foundation.org, manfred@colorfullife.com, dave@stgolabs.net, linux-mm@kvack.org, wagi@monom.org, prarit@redhat.com, torvalds@linux-foundation.org, esandeen@redhat.com, eparis@redhat.com, selinux@tycho.nsa.gov, paul@paul-moore.com, linux-security-module@vger.kernel.org
 
-On Mon, 27 Jul 2015, Stephen Smalley wrote:
-> On 07/27/2015 03:32 PM, Hugh Dickins wrote:
-> > On Fri, 24 Jul 2015, Stephen Smalley wrote:
-> >> --- a/fs/hugetlbfs/inode.c
-> >> +++ b/fs/hugetlbfs/inode.c
-> >> @@ -1010,6 +1010,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
-> >>  	inode = hugetlbfs_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0);
-> >>  	if (!inode)
-> >>  		goto out_dentry;
-> >> +	if (creat_flags == HUGETLB_SHMFS_INODE)
-> >> +		inode->i_flags |= S_PRIVATE;
-> > 
-> > I wonder if you would do better just to set S_PRIVATE unconditionally
-> > there.
-> > 
-> > hugetlb_file_setup() has two callsites, neither of which exposes an fd.
-> > One of them is shm.c's newseg(), which is getting us into the lockdep
-> > trouble that you're fixing here.
-> > 
-> > The other is mmap.c's mmap_pgoff().  Now I don't think that will ever
-> > get into lockdep trouble (no mutex or rwsem has been taken at that
-> > point), but might your change above introduce (perhaps now or perhaps
-> > in future) an inconsistency between how SElinux checks are applied to
-> > a SHM area, and how they are applied to a MAP_ANONYMOUS|MAP_HUGETLB
-> > area, and how they are applied to a straight MAP_ANONYMOUS area?
-> > 
-> > I think your patch as it stands brings SHM into line with
-> > MAP_ANONYMOUS, but leaves MAP_ANONYMOUS|MAP_HUGETLB going the old way.
-> > Perhaps an anomaly would appear when mprotect() is used?
-> > 
-> > It's up to you: I think your patch is okay as is,
-> > but I just wonder if it has a surprise in store for the future.
+On Fri, Jul 24, 2015 at 08:34:35AM -0400, Stephen Smalley wrote:
+> The shm implementation internally uses shmem or hugetlbfs inodes
+> for shm segments.  As these inodes are never directly exposed to
+> userspace and only accessed through the shm operations which are
+> already hooked by security modules, mark the inodes with the
+> S_PRIVATE flag so that inode security initialization and permission
+> checking is skipped.
 > 
-> That sounds reasonable, although there is the concern that
-> hugetlb_file_setup() might be used in the future for files that are
-> exposed as fds, unless we rename it to hugetlb_kernel_file_setup() or
+> This was motivated by the following lockdep warning:
+> Jul 22 14:36:40 fc23 kernel:
+> ======================================================
+> Jul 22 14:36:40 fc23 kernel: [ INFO: possible circular locking
+> dependency detected ]
+> Jul 22 14:36:40 fc23 kernel: 4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1
+> Tainted: G        W
+> Jul 22 14:36:40 fc23 kernel:
+> -------------------------------------------------------
+> Jul 22 14:36:40 fc23 kernel: httpd/1597 is trying to acquire lock:
+> Jul 22 14:36:40 fc23 kernel: (&ids->rwsem){+++++.}, at:
+> [<ffffffff81385354>] shm_close+0x34/0x130
+> Jul 22 14:36:40 fc23 kernel: #012but task is already holding lock:
+> Jul 22 14:36:40 fc23 kernel: (&mm->mmap_sem){++++++}, at:
+> [<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
+> Jul 22 14:36:40 fc23 kernel: #012which lock already depends on the new lock.
+> Jul 22 14:36:40 fc23 kernel: #012the existing dependency chain (in
+> reverse order) is:
+> Jul 22 14:36:40 fc23 kernel: #012-> #3 (&mm->mmap_sem){++++++}:
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81217baa>] __might_fault+0x7a/0xa0
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffff81284a1e>] filldir+0x9e/0x130
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019bb08>]
+> xfs_dir2_block_getdents.isra.12+0x198/0x1c0 [xfs]
+> Jul 22 14:36:40 fc23 kernel:       [<ffffffffa019c5b4>]
+[....]
 
-Good idea.
+This was send via git-send-email, which means that you've mangled
+the line wrapping when you pasted the stack trace into the git
+commit message.  I strongly suggest that you trim the data/kernel
+part of these traces as it is unneccessary information, and it makes
+it harder to read. i.e the trace in the commit message should look
+more like:
 
-> similar to match shmem_kernel_file_setup().  Also should probably be
-> done as a separate change on top since it isn't directly related to
-> ipc/shm or fixing this lockdep.
+======================================================
+ [ INFO: possible circular locking dependency detected ]
+ 4.2.0-0.rc3.git0.1.fc24.x86_64+debug #1 Tainted: G        W
+-------------------------------------------------------
+ httpd/1597 is trying to acquire lock:
+ (&ids->rwsem){+++++.}, at: [<ffffffff81385354>] shm_close+0x34/0x130
+ #012but task is already holding lock:
+ (&mm->mmap_sem){++++++}, at: [<ffffffff81386bbb>] SyS_shmdt+0x4b/0x180
+ #012which lock already depends on the new lock.
+ #012the existing dependency chain (in reverse order) is:
+ #012-> #3 (&mm->mmap_sem){++++++}:
+       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+       [<ffffffff81217baa>] __might_fault+0x7a/0xa0
+       [<ffffffff81284a1e>] filldir+0x9e/0x130
+       [<ffffffffa019bb08>] xfs_dir2_block_getdents.isra.12+0x198/0x1c0 [xfs]
+       [<ffffffffa019c5b4>] xfs_readdir+0x1b4/0x330 [xfs]
+       [<ffffffffa019f38b>] xfs_file_readdir+0x2b/0x30 [xfs]
+       [<ffffffff812847e7>] iterate_dir+0x97/0x130
+       [<ffffffff81284d21>] SyS_getdents+0x91/0x120
+       [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
+ #012-> #2 (&xfs_dir_ilock_class){++++.+}:
+       [<ffffffff81109a07>] lock_acquire+0xc7/0x270
+       [<ffffffff81101e97>] down_read_nested+0x57/0xa0
+       [<ffffffffa01b0e57>] xfs_ilock+0x167/0x350 [xfs]
+       [<ffffffffa01b10b8>] xfs_ilock_attr_map_shared+0x38/0x50 [xfs]
+       [<ffffffffa014799d>] xfs_attr_get+0xbd/0x190 [xfs]
+       [<ffffffffa01c17ad>] xfs_xattr_get+0x3d/0x70 [xfs]
+       [<ffffffff8129962f>] generic_getxattr+0x4f/0x70
+       [<ffffffff8139ba52>] inode_doinit_with_dentry+0x162/0x670
+       [<ffffffff8139cf69>] sb_finish_set_opts+0xd9/0x230
+       [<ffffffff8139d66c>] selinux_set_mnt_opts+0x35c/0x660
+       [<ffffffff8139ff97>] superblock_doinit+0x77/0xf0
+       [<ffffffff813a0020>] delayed_superblock_init+0x10/0x20
+       [<ffffffff81272d23>] iterate_supers+0xb3/0x110
+       [<ffffffff813a4e5f>] selinux_complete_init+0x2f/0x40
+       [<ffffffff813b47a3>] security_load_policy+0x103/0x600
+       [<ffffffff813a6901>] sel_write_load+0xc1/0x750
+       [<ffffffff8126e817>] __vfs_write+0x37/0x100
+       [<ffffffff8126f229>] vfs_write+0xa9/0x1a0
+       [<ffffffff8126ff48>] SyS_write+0x58/0xd0
+       [<ffffffff81871d2e>] entry_SYSCALL_64_fastpath+0x12/0x76
+....
 
-Fair enough.
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
