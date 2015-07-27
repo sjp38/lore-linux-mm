@@ -1,58 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 99D1E6B0253
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:02:29 -0400 (EDT)
-Received: by oibn4 with SMTP id n4so52743911oib.3
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:02:29 -0700 (PDT)
-Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id m64si13823872oif.44.2015.07.27.08.02.28
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 97FF06B0253
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:17:28 -0400 (EDT)
+Received: by laah7 with SMTP id h7so51162945laa.0
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:17:28 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id dl8si15501318lad.72.2015.07.27.08.17.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 27 Jul 2015 08:02:28 -0700 (PDT)
-From: Guenter Roeck <linux@roeck-us.net>
-Subject: [PATCH -next] mm: Fix build breakage seen if MMU_NOTIFIER is not configured
-Date: Mon, 27 Jul 2015 08:02:23 -0700
-Message-Id: <1438009343-25468-1-git-send-email-linux@roeck-us.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Jul 2015 08:17:27 -0700 (PDT)
+Date: Mon, 27 Jul 2015 18:17:12 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -next] mm: Fix build breakage seen if MMU_NOTIFIER is not
+ configured
+Message-ID: <20150727151712.GQ8100@esperanza>
+References: <1438009343-25468-1-git-send-email-linux@roeck-us.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1438009343-25468-1-git-send-email-linux@roeck-us.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, Andres Lagar-Cavilla <andreslc@google.com>, Vladimir Davydov <vdavydov@parallels.com>
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andres Lagar-Cavilla <andreslc@google.com>
 
-Commit 65525488fa86 ("proc: add kpageidle file") introduces code
-which depends on MMU_NOTIFIER, yet the newly introduced configuration
-flag does not declare that dependency. This results in the following
-build failures seen if IDLE_PAGE_TRACKING is configured but MMU_NOTIFIER
-is not.
+On Mon, Jul 27, 2015 at 08:02:23AM -0700, Guenter Roeck wrote:
 
-fs/proc/page.c: In function 'kpageidle_clear_pte_refs_one':
-fs/proc/page.c:341:4: error:
-	implicit declaration of function 'pmdp_clear_young_notify'
-fs/proc/page.c:347:4: error:
-	implicit declaration of function 'ptep_clear_young_notify'
+> fs/proc/page.c: In function 'kpageidle_clear_pte_refs_one':
+> fs/proc/page.c:341:4: error:
+> 	implicit declaration of function 'pmdp_clear_young_notify'
+> fs/proc/page.c:347:4: error:
+> 	implicit declaration of function 'ptep_clear_young_notify'
 
-Fixes: 65525488fa86 ("proc: add kpageidle file")
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>
-Cc: Vladimir Davydov <vdavydov@parallels.com>
-Signed-off-by: Guenter Roeck <linux@roeck-us.net>
----
- mm/Kconfig | 1 +
- 1 file changed, 1 insertion(+)
+The issue has already been reported and fixed, see
+http://www.spinics.net/lists/linux-mm/msg92023.html
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 7e9ccb438985..b73b41c3217b 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -651,6 +651,7 @@ config DEFERRED_STRUCT_PAGE_INIT
- 
- config IDLE_PAGE_TRACKING
- 	bool "Enable idle page tracking"
-+	depends on MMU_NOTIFIER
- 	select PROC_PAGE_MONITOR
- 	select PAGE_EXTENSION if !64BIT
- 	help
--- 
-2.1.0
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
