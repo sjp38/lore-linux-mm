@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 63C286B0255
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:47:48 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so145954992wib.1
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:47:48 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j2si14672121wiz.27.2015.07.27.08.47.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Jul 2015 08:47:47 -0700 (PDT)
-Subject: Re: [RFC v2 1/4] mm: make alloc_pages_exact_node pass __GFP_THISNODE
-References: <1437749126-25867-1-git-send-email-vbabka@suse.cz>
- <20150727153900.GA31432@cmpxchg.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55B652A0.3070208@suse.cz>
-Date: Mon, 27 Jul 2015 17:47:44 +0200
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 087226B0254
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:59:29 -0400 (EDT)
+Received: by igbij6 with SMTP id ij6so77844794igb.1
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:59:28 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id lq5si6449827igb.63.2015.07.27.08.59.28
+        for <linux-mm@kvack.org>;
+        Mon, 27 Jul 2015 08:59:28 -0700 (PDT)
+Date: Mon, 27 Jul 2015 16:59:23 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v4 5/7] arm64: add KASAN support
+Message-ID: <20150727155922.GB350@e104818-lin.cambridge.arm.com>
+References: <1437756119-12817-1-git-send-email-a.ryabinin@samsung.com>
+ <1437756119-12817-6-git-send-email-a.ryabinin@samsung.com>
 MIME-Version: 1.0
-In-Reply-To: <20150727153900.GA31432@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1437756119-12817-6-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Alexey Klimov <klimov.linux@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Linus Walleij <linus.walleij@linaro.org>, linux-kernel@vger.kernel.org, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
 
-On 07/27/2015 05:39 PM, Johannes Weiner wrote:
-> On Fri, Jul 24, 2015 at 04:45:23PM +0200, Vlastimil Babka wrote:
->> @@ -310,11 +326,18 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
->>   	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
->>   }
->>
->> +/*
->> + * Allocate pages, restricting the allocation to the node given as nid. The
->> + * node must be valid and online. This is achieved by adding __GFP_THISNODE
->> + * to gfp_mask.
->> + */
->>   static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
->>   						unsigned int order)
->>   {
->>   	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
->>
->> +	gfp_mask |= __GFP_THISNODE;
->> +
->>   	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
->>   }
->
-> The "exact" name is currently ambiguous within the allocator API, and
-> it's bad that we have _exact_node() and _exact_nid() with entirely
-> different meanings. It'd be good to make "thisnode" refer to specific
-> and exclusive node requests, and "exact" to mean page allocation
-> chunks that are not in powers of two.
+On Fri, Jul 24, 2015 at 07:41:57PM +0300, Andrey Ryabinin wrote:
+> diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
+> index 4d2a925..2cacf55 100644
+> --- a/arch/arm64/Makefile
+> +++ b/arch/arm64/Makefile
+> @@ -40,6 +40,12 @@ else
+>  TEXT_OFFSET := 0x00080000
+>  endif
+>  
+> +# KASAN_SHADOW_OFFSET = VA_START + (1 << (VA_BITS - 3)) - (1 << 61)
+> +KASAN_SHADOW_OFFSET := $(shell printf "0x%x\n" $$(( \
+> +			(-1 << $(CONFIG_ARM64_VA_BITS)) \
+> +			+ (1 << ($(CONFIG_ARM64_VA_BITS) - 3)) \
+> +			- (1 << (64 - 3)) )) )
 
-Ugh, good point.
+Does this work with any POSIX shell? Do we always have a 64-bit type?
+As I wasn't sure about this, I suggested awk (or perl).
 
-> Would you consider renaming this function to alloc_pages_thisnode() as
-> part of this series?
+> +static void __init clear_pgds(unsigned long start,
+> +			unsigned long end)
+> +{
+> +	/*
+> +	 * Remove references to kasan page tables from
+> +	 * swapper_pg_dir. pgd_clear() can't be used
+> +	 * here because it's nop on 2,3-level pagetable setups
+> +	 */
+> +	for (; start && start < end; start += PGDIR_SIZE)
+> +		set_pgd(pgd_offset_k(start), __pgd(0));
+> +}
 
-Sure, let's do it properly while at it. Yet "thisnode" is somewhat 
-misleading name as it might imply the cpu's local node. The same applies 
-to __GFP_THISNODE. So maybe find a better name for both? restrict_node? 
-single_node?
+I don't think we need the "start" check, just "start < end". Do you
+expect a start == 0 (or overflow)?
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
