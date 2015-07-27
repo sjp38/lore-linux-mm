@@ -1,48 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EB8A6B0038
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 06:59:59 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so110900959wib.1
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 03:59:58 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fz6si13298978wic.116.2015.07.27.03.59.56
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id E65846B0038
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 07:01:58 -0400 (EDT)
+Received: by ykfw194 with SMTP id w194so65901283ykf.0
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 04:01:58 -0700 (PDT)
+Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
+        by mx.google.com with ESMTPS id g63si12325128ywd.182.2015.07.27.04.01.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Jul 2015 03:59:57 -0700 (PDT)
-Date: Mon, 27 Jul 2015 11:59:51 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] bootmem: avoid freeing to bootmem after bootmem is done
-Message-ID: <20150727105951.GO2561@suse.de>
-References: <1437771226-31255-1-git-send-email-cmetcalf@ezchip.com>
+        Mon, 27 Jul 2015 04:01:57 -0700 (PDT)
+Message-ID: <55B60F6E.3040901@citrix.com>
+Date: Mon, 27 Jul 2015 12:01:02 +0100
+From: Julien Grall <julien.grall@citrix.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1437771226-31255-1-git-send-email-cmetcalf@ezchip.com>
+Subject: Re: [Xen-devel] [PATCHv2 10/10] xen/balloon: pre-allocate p2m entries
+ for ballooned pages
+References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
+	<1437738468-24110-11-git-send-email-david.vrabel@citrix.com>
+	<55B2C882.8050903@citrix.com> <55B5FA39.8000401@citrix.com>
+In-Reply-To: <55B5FA39.8000401@citrix.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@ezchip.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Paul McQuade <paulmcquad@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Vrabel <david.vrabel@citrix.com>, xen-devel@lists.xenproject.org
+Cc: linux-mm@kvack.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-kernel@vger.kernel.org
 
-On Fri, Jul 24, 2015 at 04:53:46PM -0400, Chris Metcalf wrote:
-> Bootmem isn't popular any more, but some architectures still use
-> it, and freeing to bootmem after calling free_all_bootmem_core()
-> can end up scribbling over random memory.  Instead, make sure the
-> kernel panics by ensuring the node_bootmem_map field is non-NULL
-> when are freeing or marking bootmem.
+On 27/07/15 10:30, David Vrabel wrote:
+> On 25/07/15 00:21, Julien Grall wrote:
+>> On 24/07/2015 12:47, David Vrabel wrote:
+>>> @@ -550,6 +551,11 @@ int alloc_xenballooned_pages(int nr_pages, struct
+>>> page **pages)
+>>>           page = balloon_retrieve(true);
+>>>           if (page) {
+>>>               pages[pgno++] = page;
+>>> +#ifdef CONFIG_XEN_HAVE_PVMMU
+>>> +            ret = xen_alloc_p2m_entry(page_to_pfn(page));
+>>
+>> Don't you want to call this function only when the guest is not using
+>> auto-translated physmap?
 > 
-> An instance of this bug was just fixed in the tile architecture
-> ("tile: use free_bootmem_late() for initrd") and catching this case
-> more widely seems like a good thing.
-> 
-> Signed-off-by: Chris Metcalf <cmetcalf@ezchip.com>
+> xen_alloc_p2m_entry() is a nop in auto-xlate guests, so no need for an
+> additional check here.
 
-In general it looks fine  but you could just WARN_ON, return and still
-boot the kernel too. Obviously it would need to be fixed but Linus will
-push back if he spots a BUG_ON when there was a recovery option.
+I don't have the impression it's the case or it's not obvious.
+
+For instance xen_p2m_addr, used within with the xen_alloc_p2m_entry (old
+name alloc_p2m) is never set for auto-xlate guests. Therefore the value
+is 0.
+
+Same for p2m_identity and p2m_missing & co.
+
+Regards,
 
 -- 
-Mel Gorman
-SUSE Labs
+Julien Grall
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
