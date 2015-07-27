@@ -1,124 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id BD8606B0255
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 03:13:42 -0400 (EDT)
-Received: by wicmv11 with SMTP id mv11so126585143wic.0
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 00:13:42 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ei3si29279799wjd.20.2015.07.27.00.13.40
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id AC3536B0256
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 03:15:23 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so102111405wib.0
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 00:15:23 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id p3si12516695wia.63.2015.07.27.00.15.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Jul 2015 00:13:41 -0700 (PDT)
-Date: Mon, 27 Jul 2015 09:13:34 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [mmotm:master 229/385] fs/hugetlbfs/inode.c:578:13: error:
- 'struct vm_area_struct' has no member named 'vm_policy'
-Message-ID: <20150727071333.GC11317@dhcp22.suse.cz>
-References: <201507240615.1plto0Cp%fengguang.wu@intel.com>
- <55B27566.1050202@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Jul 2015 00:15:22 -0700 (PDT)
+Received: by wibxm9 with SMTP id xm9so98716283wib.0
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 00:15:21 -0700 (PDT)
+Date: Mon, 27 Jul 2015 10:15:18 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH V5 4/7] mm: mlock: Add mlock flags to enable
+ VM_LOCKONFAULT usage
+Message-ID: <20150727071518.GD11657@node.dhcp.inet.fi>
+References: <1437773325-8623-1-git-send-email-emunson@akamai.com>
+ <1437773325-8623-5-git-send-email-emunson@akamai.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <55B27566.1050202@oracle.com>
+In-Reply-To: <1437773325-8623-5-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 24-07-15 10:27:02, Mike Kravetz wrote:
-> On 07/23/2015 03:18 PM, kbuild test robot wrote:
-> >tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> >head:   61f5f835b6f06fbc233481b5d3c0afd71ecf54e8
-> >commit: 0c5e1e8ed55974975bb829e4b93cf19aa0dfcafc [229/385] hugetlbfs: add hugetlbfs_fallocate()
-> >config: i386-randconfig-r0-201529 (attached as .config)
-> >reproduce:
-> >   git checkout 0c5e1e8ed55974975bb829e4b93cf19aa0dfcafc
-> >   # save the attached .config to linux build tree
-> >   make ARCH=i386
-> >
-> >All error/warnings (new ones prefixed by >>):
-> >
-> >    fs/hugetlbfs/inode.c: In function 'hugetlbfs_fallocate':
-> >>>fs/hugetlbfs/inode.c:578:13: error: 'struct vm_area_struct' has no member named 'vm_policy'
-> >       pseudo_vma.vm_policy =
-> >                 ^
-> >>>fs/hugetlbfs/inode.c:579:4: error: implicit declaration of function 'mpol_shared_policy_lookup' [-Werror=implicit-function-declaration]
-> >        mpol_shared_policy_lookup(&HUGETLBFS_I(inode)->policy,
-> >        ^
-> >    fs/hugetlbfs/inode.c:595:28: error: 'struct vm_area_struct' has no member named 'vm_policy'
-> >        mpol_cond_put(pseudo_vma.vm_policy);
-> >                                ^
-> >    fs/hugetlbfs/inode.c:601:27: error: 'struct vm_area_struct' has no member named 'vm_policy'
-> >       mpol_cond_put(pseudo_vma.vm_policy);
-> >                               ^
-> >    cc1: some warnings being treated as errors
-> >
-> >vim +578 fs/hugetlbfs/inode.c
-> >
-> >    572			if (signal_pending(current)) {
-> >    573				error = -EINTR;
-> >    574				break;
-> >    575			}
-> >    576	
-> >    577			/* Get policy based on index */
-> >  > 578			pseudo_vma.vm_policy =
-> >  > 579				mpol_shared_policy_lookup(&HUGETLBFS_I(inode)->policy,
-> >    580								index);
-> >    581	
-> >    582			/* addr is the offset within the file (zero based) */
-> >
-> >---
-> >0-DAY kernel test infrastructure                Open Source Technology Center
-> >https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-> >
+On Fri, Jul 24, 2015 at 05:28:42PM -0400, Eric B Munson wrote:
+> The previous patch introduced a flag that specified pages in a VMA
+> should be placed on the unevictable LRU, but they should not be made
+> present when the area is created.  This patch adds the ability to set
+> this state via the new mlock system calls.
 > 
-> Michal already added a patch to mmotm.  The patch below is functionally
-> equivalent but moves the #ifdef out of the executable code path, and
-> modifies a comment.  This has been functional/stress tested in a kernel
-> without CONFIG_NUMA defined.
-
-I will drop my quick hack once Andrew picks your patch which is indeed
-better. 
-
-One nit below...
-
-> hugetlbfs: build fix fallocate if not CONFIG_NUMA
+> We add MLOCK_ONFAULT for mlock2 and MCL_ONFAULT for mlockall.
+> MLOCK_ONFAULT will set the VM_LOCKONFAULT flag as well as the VM_LOCKED
+> flag for the target region.  MCL_CURRENT and MCL_ONFAULT are used to
+> lock current mappings.  With MCL_CURRENT all pages are made present and
+> with MCL_ONFAULT they are locked when faulted in.  When specified with
+> MCL_FUTURE all new mappings will be marked with VM_LOCKONFAULT.
 > 
-> When fallocate preallocation allocates pages, it will use the
-> defined numa policy.  However, if numa is not defined there is
-> no such policy and no code should reference numa policy.  Create
-> wrappers to isolate policy manipulation code that are NOOP in
-> the non-NUMA case.
+> Currently, mlockall() clears all VMA lock flags and then sets the
+> requested flags.  For instance, if a process has MCL_FUTURE and
+> MCL_CURRENT set, but they want to clear MCL_FUTURE this would be
+> accomplished by calling mlockall(MCL_CURRENT).  This still holds with
+> the introduction of MCL_ONFAULT.  Each call to mlockall() resets all
+> VMA flags to the values specified in the current call.  The new mlock2
+> system call behaves in the same way.  If a region is locked with
+> MLOCK_ONFAULT and a user wants to force it to be populated now, a second
+> call to mlock2(MLOCK_LOCKED) will accomplish this.
 > 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> munlock() will unconditionally clear both vma flags.  munlockall()
+> unconditionally clears for VMA flags on all VMAs and in the
+> mm->def_flags field.
+> 
+> Signed-off-by: Eric B Munson <emunson@akamai.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Jonathan Corbet <corbet@lwn.net>
+> Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Cc: linux-alpha@vger.kernel.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mips@linux-mips.org
+> Cc: linux-parisc@vger.kernel.org
+> Cc: linuxppc-dev@lists.ozlabs.org
+> Cc: sparclinux@vger.kernel.org
+> Cc: linux-xtensa@linux-xtensa.org
+> Cc: linux-arch@vger.kernel.org
+> Cc: linux-api@vger.kernel.org
+> Cc: linux-mm@kvack.org
 > ---
->  fs/hugetlbfs/inode.c | 39 ++++++++++++++++++++++++++++++---------
->  1 file changed, 30 insertions(+), 9 deletions(-)
+> Changes from V4:
+> * Split addition of VMA flag
 > 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index d977cae..4bae359 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -85,6 +85,29 @@ static const match_table_t tokens = {
->  	{Opt_err,	NULL},
->  };
-> 
-> +#ifdef CONFIG_NUMA
-> +static inline void hugetlb_set_vma_policy(struct vm_area_struct *vma,
-> +					struct inode *inode, pgoff_t index)
-> +{
-> +	vma->vm_policy = mpol_shared_policy_lookup(&HUGETLBFS_I(inode)->policy,
-> +							index);
-> +}
-> +
-> +static inline void hugetlb_vma_mpol_cond_put(struct vm_area_struct *vma)
+> Changes from V3:
+> * Do extensive search for VM_LOCKED and ensure that VM_LOCKONFAULT is also handled
+>  where appropriate
+>  arch/alpha/include/uapi/asm/mman.h   |  2 ++
+>  arch/mips/include/uapi/asm/mman.h    |  2 ++
+>  arch/parisc/include/uapi/asm/mman.h  |  2 ++
+>  arch/powerpc/include/uapi/asm/mman.h |  2 ++
+>  arch/sparc/include/uapi/asm/mman.h   |  2 ++
+>  arch/tile/include/uapi/asm/mman.h    |  3 +++
+>  arch/xtensa/include/uapi/asm/mman.h  |  2 ++
 
-The naming could be better. What about hugetlb_drop_vma_policy to be
-symmetric to hugetlb_set_vma_policy. Or is there any reason to expose
-that this is a cond_put?
+Again, you can save few lines by moving some code into mman-common.h.
+
+Otherwise looks good.
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
