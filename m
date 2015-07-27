@@ -1,121 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E21716B0253
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 09:35:57 -0400 (EDT)
-Received: by qged69 with SMTP id d69so51363095qge.0
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 06:35:57 -0700 (PDT)
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id F3A346B0254
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 09:41:28 -0400 (EDT)
+Received: by qkdl129 with SMTP id l129so39355140qkd.0
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 06:41:28 -0700 (PDT)
 Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id 18si20867613qgk.119.2015.07.27.06.35.56
+        by mx.google.com with ESMTP id d197si20852501qhc.108.2015.07.27.06.41.27
         for <linux-mm@kvack.org>;
-        Mon, 27 Jul 2015 06:35:56 -0700 (PDT)
-Date: Mon, 27 Jul 2015 09:35:55 -0400
+        Mon, 27 Jul 2015 06:41:27 -0700 (PDT)
+Date: Mon, 27 Jul 2015 09:41:26 -0400
 From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH V5 0/7] Allow user to request memory to be locked on page
- fault
-Message-ID: <20150727133555.GA17133@akamai.com>
+Subject: Re: [PATCH V5 5/7] mm: mmap: Add mmap flag to request VM_LOCKONFAULT
+Message-ID: <20150727134126.GB17133@akamai.com>
 References: <1437773325-8623-1-git-send-email-emunson@akamai.com>
- <55B5F4FF.9070604@suse.cz>
+ <1437773325-8623-6-git-send-email-emunson@akamai.com>
+ <20150727073129.GE11657@node.dhcp.inet.fi>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="y0ulUmNC+osPPQO6"
+	protocol="application/pgp-signature"; boundary="H1spWtNR+x+ondvy"
 Content-Disposition: inline
-In-Reply-To: <55B5F4FF.9070604@suse.cz>
+In-Reply-To: <20150727073129.GE11657@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Shuah Khan <shuahkh@osg.samsung.com>, Michal Hocko <mhocko@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Ralf Baechle <ralf@linux-mips.org>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Paul Gortmaker <paul.gortmaker@windriver.com>, Chris Metcalf <cmetcalf@ezchip.com>, Guenter Roeck <linux@roeck-us.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
 
 
---y0ulUmNC+osPPQO6
+--H1spWtNR+x+ondvy
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
-On Mon, 27 Jul 2015, Vlastimil Babka wrote:
+On Mon, 27 Jul 2015, Kirill A. Shutemov wrote:
 
-> On 07/24/2015 11:28 PM, Eric B Munson wrote:
+> On Fri, Jul 24, 2015 at 05:28:43PM -0400, Eric B Munson wrote:
+> > The cost of faulting in all memory to be locked can be very high when
+> > working with large mappings.  If only portions of the mapping will be
+> > used this can incur a high penalty for locking.
+> >=20
+> > Now that we have the new VMA flag for the locked but not present state,
+> > expose it as an mmap option like MAP_LOCKED -> VM_LOCKED.
 >=20
-> ...
+> As I mentioned before, I don't think this interface is justified.
 >=20
-> >Changes from V4:
-> >Drop all architectures for new sys call entries except x86[_64] and MIPS
-> >Drop munlock2 and munlockall2
-> >Make VM_LOCKONFAULT a modifier to VM_LOCKED only to simplify book keeping
-> >Adjust tests to match
+> MAP_LOCKED has known issues[1]. The MAP_LOCKED problem is not necessary
+> affects MAP_LOCKONFAULT, but still.
 >=20
-> Hi, thanks for considering my suggestions. Well, I do hope there
-> were correct as API's are hard and I'm no API expert. But since
-> API's are also impossible to change after merging, I'm sorry but
-> I'll keep pestering for one last thing. Thanks again for persisting,
-> I do believe it's for the good thing!
+> Let's not add new interface unless it's demonstrably useful.
 >=20
-> The thing is that I still don't like that one has to call
-> mlock2(MLOCK_LOCKED) to get the equivalent of the old mlock(). Why
-> is that flag needed? We have two modes of locking now, and v5 no
-> longer treats them separately in vma flags. But having two flags
-> gives us four possible combinations, so two of them would serve
-> nothing but to confuse the programmer IMHO. What will mlock2()
-> without flags do? What will mlock2(MLOCK_LOCKED | MLOCK_ONFAULT) do?
-> (Note I haven't studied the code yet, as having agreed on the API
-> should come first. But I did suggest documenting these things more
-> thoroughly too...)
-> OK I checked now and both cases above seem to return EINVAL.
->=20
-> So about the only point I see in MLOCK_LOCKED flag is parity with
-> MAP_LOCKED for mmap(). But as Kirill said (and me before as well)
-> MAP_LOCKED is broken anyway so we shouldn't twist the rest just of
-> the API to keep the poor thing happier in its misery.
->=20
-> Also note that AFAICS you don't have MCL_LOCKED for mlockall() so
-> there's no full parity anyway. But please don't fix that by adding
-> MCL_LOCKED :)
->=20
-> Thanks!
+> [1] http://lkml.kernel.org/g/20150114095019.GC4706@dhcp22.suse.cz
+
+I understand and should have been more explicit.  This patch is still
+included becuase I have an internal user that wants to see it added.
+The problem discussed in the thread you point out does not affect
+MAP_LOCKONFAULT because we do not attempt to populate the region with
+MAP_LOCKONFAULT.
+
+As I told Vlastimil, if this is a hard NAK with the patch I can work
+with that.  Otherwise I prefer it stays.
 
 
-I have an MLOCK_LOCKED flag because I prefer an interface to be
-explicit.  The caller of mlock2() will be required to fill in the flags
-argument regardless.  I can drop the MLOCK_LOCKED flag with 0 being the
-value for LOCKED, but I thought it easier to make clear what was going
-on at any call to mlock2().  If user space defines a MLOCK_LOCKED that
-happens to be 0, I suppose that would be okay.
-
-We do actually have an MCL_LOCKED, we just call it MCL_CURRENT.  Would
-you prefer that I match the name in mlock2() (add MLOCK_CURRENT
-instead)?
-
-Finally, on the question of MAP_LOCKONFAULT, do you just dislike
-MAP_LOCKED and do not want to see it extended, or is this a NAK on the
-set if that patch is included.  I ask because I have to spin a V6 to get
-the MLOCK flag declarations right, but I would prefer not to do a V7+.
-If this is a NAK with, I can drop that patch and rework the tests to
-cover without the mmap flag.  Otherwise I want to keep it, I have an
-internal user that would like to see it added.
-
-
---y0ulUmNC+osPPQO6
+--H1spWtNR+x+ondvy
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: Digital signature
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1
 
-iQIcBAEBAgAGBQJVtjO7AAoJELbVsDOpoOa9TNAQAIfRrQ4rp3LViJe+X+UdnFJ7
-BFJUSHiM7IjUdM+WZyf7s+giHKSybtEIuoX5961wGuUvd777r+83I41Lc0XLR94g
-kquJMYCL+WkIIqyor2Me6FNMnQwUs8EegFgRcJXcy0j+1zaxgkBRUzeYP30ecd39
-ZYdjGfwn2Cyc4vsb/ze/rQ9R24DgQBT8xI4+3XzGwq5ViteaAFuUgY3bZ3gkxgI1
-jFMAiyOCUGp0LBPMMTMOQ52o2xsWHAfADfCy9v3xalA7Rl8s8lX0DfirCoTnRj8f
-27SMJ/kU/RBSCTemsqp4osDnO6cYATAQUk/00w5B8zwUG//syjb8a139izyS8UhU
-arBzKRJR6eZARqtW8IauNTJ6IW8uyp8QNrni7At9hc+rcFgG3+hGt7+H8bugENb8
-VSuydDJoris+H4ysj175AK6Xh2gN2cYxiAxzbeIwnwyn+9uL7A0UpFavyaYjUx2K
-/M1bFELVo/LzAg0tZBNi+nyboZSmAzMoF2RkTPmEK0+5taWqCmYPke0ST4zKAxsA
-z2CpFTxmoKHo8ksPHzQUlTF2KcRl2FlIe2uxUwQ0WAXVqcOJUUo8/OK+knvDPJ7A
-S8jXh2XMpEHh0EQTFvUYrQ+ZxT/nkzITFv33zBGhxryq0ve/AYRbSC87H8RBLHrd
-dqVY5/pEceCOYg9+DxnG
-=1hv9
+iQIcBAEBAgAGBQJVtjUGAAoJELbVsDOpoOa9FEQP/0tZqvE9r1cDWHP2fRNfVeMA
+4SA6NwWvWAlS3Jyzwqin6jEPfTp5mp9XmBs2OSFCUtRM4gheS+V0qm4UMCoUUe8V
+1biXRm6JAcqlQ9RaQsIleuwtu6rfq/VmPvyXfoh2VzHtHkfJH1es+IuzyMvN8rB2
++dMOrDXpr0TGzV2pUXmpqvJV9XCuJJqC2EUp3ygCjCsxtir7que+hBurNHk6V37o
+SJPg+1fOfKlZC2JoH1e3nlaNa8E7Tgn3CcaS95PJGtjp3B3B/WFHyQsV7ICDCPph
+p1DS8lNn1AHvC8Ia1b9q9k6iuPVpunFRthVyXLfDtb7UVDxyDBAbBArQMlSqdS98
+7s+Am4nRAqQ4hyvCrfFbkXyplihX34uwmi263r7pAPizwJRx/ArnJk+EJK6Qclp+
+aiL2BO8PJR2vPi7BfsPSBcgd68iEeCCsOpNGD3GyQ3C5tdtZK/MaDmZm2cCdzaZg
+pWkEgj3oi8jiTD59NskpqqsmtWahucR6HVXAF6DNvZXypigq+uvnaqImEOxpOEQR
+h1zR5O8L5jnZO1BYAHpJO1+16ZAPcNa2tF20OcxsAvcGvblbFNYG1jzAE6w9FGbz
+Qr4VU8B1u/IiDGuHNroiwrTOlN7Tn7wYN0/bstOPk3UavEmg3wEuOaaQat2CU7pC
+rLymWmGP9Rc0+NgO/vMz
+=Leis
 -----END PGP SIGNATURE-----
 
---y0ulUmNC+osPPQO6--
+--H1spWtNR+x+ondvy--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
