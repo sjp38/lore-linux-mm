@@ -1,49 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 35F246B0253
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:32:58 -0400 (EDT)
-Received: by ykdu72 with SMTP id u72so71984881ykd.2
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:32:58 -0700 (PDT)
-Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id f187si12814782ywd.190.2015.07.27.08.32.56
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C260F6B0254
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:36:41 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so144487873wic.0
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:36:41 -0700 (PDT)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0081.outbound.protection.outlook.com. [157.55.234.81])
+        by mx.google.com with ESMTPS id bm9si14613470wib.28.2015.07.27.08.36.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Jul 2015 08:32:57 -0700 (PDT)
-Message-ID: <55B64F1D.8090807@citrix.com>
-Date: Mon, 27 Jul 2015 16:32:45 +0100
-From: David Vrabel <david.vrabel@citrix.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 27 Jul 2015 08:36:39 -0700 (PDT)
+From: Chris Metcalf <cmetcalf@ezchip.com>
+Subject: [PATCH v2] bootmem: avoid freeing to bootmem after bootmem is done
+Date: Mon, 27 Jul 2015 11:36:06 -0400
+Message-ID: <1438011366-11474-1-git-send-email-cmetcalf@ezchip.com>
+In-Reply-To: <20150727105951.GO2561@suse.de>
 MIME-Version: 1.0
-Subject: vmemmap_verify() BUGs during memory hotplug (4.2-rc1 regression)
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Paul
+ McQuade <paulmcquad@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, Mel
+ Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Chris Metcalf <cmetcalf@ezchip.com>
 
-Mel,
+Bootmem isn't popular any more, but some architectures still use it,
+and freeing to bootmem after calling free_all_bootmem_core() can end
+up scribbling over random memory.  Instead, make sure the kernel
+generates a warning in this case by ensuring the node_bootmem_map
+field is non-NULL when are freeing or marking bootmem.
 
-As of commit 8a942fdea560d4ac0e9d9fabcd5201ad20e0c382 (mm: meminit: make
-__early_pfn_to_nid SMP-safe and introduce meminit_pfn_in_nid)
-vmemmap_verify() will BUG_ON() during memory hotplug because of its use
-of early_pfn_to_nid().  Previously, it would have reported bogus (or
-failed to report valid) warnings.
+An instance of this bug was just fixed in the tile architecture
+("tile: use free_bootmem_late() for initrd") and catching this case
+more widely seems like a good thing.
 
-I believe this does not affect memory hotplug on most x86 systems
-because vmemmap_populate() would normally call
-vmemmap_populate_hugepages() which avoids calling vmemmap_verify() in
-the common case (no existing mappings covering the new area).
+Signed-off-by: Chris Metcalf <cmetcalf@ezchip.com>
+---
+v2: use WARN_ON() instead of BUG_ON() [Mel Gorman]
 
-I'm triggering the early_pfn_to_nid() BUG_ON() with the Xen balloon
-driver in a PV guest which will always call vmemmap_populate_basepages()
-(since Xen PV guests lack superpage support).
+ mm/bootmem.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-Not really sure what the best way to resolve this is.  Presumably
-vmmemmap_verify() needs to switch to using pfn_to_nid() after the
-initial initialization but there doesn't appear to be anything suitable
-to distinguish between the early and hotplug cases.
-
-David
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index a23dd1934654..3b6380784c28 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -236,6 +236,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 	count += pages;
+ 	while (pages--)
+ 		__free_pages_bootmem(page++, cur++, 0);
++	bdata->node_bootmem_map = NULL;
+ 
+ 	bdebug("nid=%td released=%lx\n", bdata - bootmem_node_data, count);
+ 
+@@ -294,6 +295,9 @@ static void __init __free(bootmem_data_t *bdata,
+ 		sidx + bdata->node_min_pfn,
+ 		eidx + bdata->node_min_pfn);
+ 
++	if (WARN_ON(bdata->node_bootmem_map == NULL))
++		return;
++
+ 	if (bdata->hint_idx > sidx)
+ 		bdata->hint_idx = sidx;
+ 
+@@ -314,6 +318,9 @@ static int __init __reserve(bootmem_data_t *bdata, unsigned long sidx,
+ 		eidx + bdata->node_min_pfn,
+ 		flags);
+ 
++	if (WARN_ON(bdata->node_bootmem_map == NULL))
++		return 0;
++
+ 	for (idx = sidx; idx < eidx; idx++)
+ 		if (test_and_set_bit(idx, bdata->node_bootmem_map)) {
+ 			if (exclusive) {
+-- 
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
