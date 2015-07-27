@@ -1,88 +1,251 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id F3A346B0254
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 09:41:28 -0400 (EDT)
-Received: by qkdl129 with SMTP id l129so39355140qkd.0
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 06:41:28 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id d197si20852501qhc.108.2015.07.27.06.41.27
-        for <linux-mm@kvack.org>;
-        Mon, 27 Jul 2015 06:41:27 -0700 (PDT)
-Date: Mon, 27 Jul 2015 09:41:26 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH V5 5/7] mm: mmap: Add mmap flag to request VM_LOCKONFAULT
-Message-ID: <20150727134126.GB17133@akamai.com>
-References: <1437773325-8623-1-git-send-email-emunson@akamai.com>
- <1437773325-8623-6-git-send-email-emunson@akamai.com>
- <20150727073129.GE11657@node.dhcp.inet.fi>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 52B906B0253
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 09:55:43 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so117113522wib.0
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 06:55:42 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u9si22923711wjx.196.2015.07.27.06.55.40
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 27 Jul 2015 06:55:41 -0700 (PDT)
+Subject: Re: [PATCH 2/4] mm/compaction: enable mobile-page migration
+References: <1436776519-17337-1-git-send-email-gioh.kim@lge.com>
+ <1436776519-17337-3-git-send-email-gioh.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55B63851.1080100@suse.cz>
+Date: Mon, 27 Jul 2015 15:55:29 +0200
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="H1spWtNR+x+ondvy"
-Content-Disposition: inline
-In-Reply-To: <20150727073129.GE11657@node.dhcp.inet.fi>
+In-Reply-To: <1436776519-17337-3-git-send-email-gioh.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Paul Gortmaker <paul.gortmaker@windriver.com>, Chris Metcalf <cmetcalf@ezchip.com>, Guenter Roeck <linux@roeck-us.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org
+To: Gioh Kim <gioh.kim@lge.com>, jlayton@poochiereds.net, bfields@fieldses.org, iamjoonsoo.kim@lge.com, viro@zeniv.linux.org.uk, mst@redhat.com, koct9i@gmail.com, minchan@kernel.org, aquini@redhat.com, linux-fsdevel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org
+Cc: dri-devel@lists.freedesktop.org, akpm@linux-foundation.org, Gioh Kim <gurugio@hanmail.net>
 
+On 07/13/2015 10:35 AM, Gioh Kim wrote:
+> From: Gioh Kim <gurugio@hanmail.net>
+>
+> Add framework to register callback functions and check page mobility.
+> There are some modes for page isolation so that isolate interface
+> has arguments of page address and isolation mode while putback
+> interface has only page address as argument.
 
---H1spWtNR+x+ondvy
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Note that unlike what subject suggest, this doesn't really enable 
+mobile-page migration inside compaction, since that only happens with 
+patch 3. This might theoretically affect some cherry-pick backports that 
+don't care about balloon pages. I can imagine that can easily happen in 
+the world of mobile devices?
+It would thus be somewhat cleaner if this patch was complete in that sense.
 
-On Mon, 27 Jul 2015, Kirill A. Shutemov wrote:
+> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+> Acked-by: Rafael Aquini <aquini@redhat.com>
+> ---
+>   fs/proc/page.c                         |  3 ++
+>   include/linux/compaction.h             | 80 ++++++++++++++++++++++++++++++++++
+>   include/linux/fs.h                     |  2 +
+>   include/linux/page-flags.h             | 19 ++++++++
+>   include/uapi/linux/kernel-page-flags.h |  1 +
+>   5 files changed, 105 insertions(+)
+>
+> diff --git a/fs/proc/page.c b/fs/proc/page.c
+> index 7eee2d8..a4f5a00 100644
+> --- a/fs/proc/page.c
+> +++ b/fs/proc/page.c
+> @@ -146,6 +146,9 @@ u64 stable_page_flags(struct page *page)
+>   	if (PageBalloon(page))
+>   		u |= 1 << KPF_BALLOON;
+>
+> +	if (PageMobile(page))
+> +		u |= 1 << KPF_MOBILE;
 
-> On Fri, Jul 24, 2015 at 05:28:43PM -0400, Eric B Munson wrote:
-> > The cost of faulting in all memory to be locked can be very high when
-> > working with large mappings.  If only portions of the mapping will be
-> > used this can incur a high penalty for locking.
-> >=20
-> > Now that we have the new VMA flag for the locked but not present state,
-> > expose it as an mmap option like MAP_LOCKED -> VM_LOCKED.
->=20
-> As I mentioned before, I don't think this interface is justified.
->=20
-> MAP_LOCKED has known issues[1]. The MAP_LOCKED problem is not necessary
-> affects MAP_LOCKONFAULT, but still.
->=20
-> Let's not add new interface unless it's demonstrably useful.
->=20
-> [1] http://lkml.kernel.org/g/20150114095019.GC4706@dhcp22.suse.cz
+PageMovable() would probably be as good a name and correspond to 
+MIGRATE_MOVABLE somewhat, unlike a completely new term. Whatever driver 
+starts to using this should probably change allocation flags to allocate 
+MIGRATE_MOVABLE, so that it works fine with what fragmentation avoidance 
+expects. Guess I should have said that earlier, but can you still 
+reconsider?
 
-I understand and should have been more explicit.  This patch is still
-included becuase I have an internal user that wants to see it added.
-The problem discussed in the thread you point out does not affect
-MAP_LOCKONFAULT because we do not attempt to populate the region with
-MAP_LOCKONFAULT.
+> +
+>   	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
+>
+>   	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index aa8f61c..f693072 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -1,6 +1,9 @@
+>   #ifndef _LINUX_COMPACTION_H
+>   #define _LINUX_COMPACTION_H
+>
+> +#include <linux/page-flags.h>
+> +#include <linux/pagemap.h>
+> +
+>   /* Return values for compact_zone() and try_to_compact_pages() */
+>   /* compaction didn't start as it was deferred due to past failures */
+>   #define COMPACT_DEFERRED	0
+> @@ -51,6 +54,70 @@ extern void compaction_defer_reset(struct zone *zone, int order,
+>   				bool alloc_success);
+>   extern bool compaction_restarting(struct zone *zone, int order);
+>
+> +static inline bool mobile_page(struct page *page)
+> +{
+> +	return page->mapping &&	(PageMobile(page) || PageBalloon(page));
+> +}
 
-As I told Vlastimil, if this is a hard NAK with the patch I can work
-with that.  Otherwise I prefer it stays.
+I would put this definition to linux/page-flags.h and rename it to 
+page_mobile (or better page_movable()), which is more common ordering.
 
+> +
+> +static inline bool isolate_mobilepage(struct page *page, isolate_mode_t mode)
 
---H1spWtNR+x+ondvy
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+Does this have to be in compaction.h? The only user is compaction.c so 
+probably move it there, and if there ever is another module using this 
+in the future, we can move it to a more appropriate place and declare it 
+in e.g. mm/internal.h.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+> +{
+> +	bool ret = false;
+> +
+> +	/*
+> +	 * Avoid burning cycles with pages that are yet under __free_pages(),
+> +	 * or just got freed under us.
+> +	 *
+> +	 * In case we 'win' a race for a mobile page being freed under us and
+> +	 * raise its refcount preventing __free_pages() from doing its job
+> +	 * the put_page() at the end of this block will take care of
+> +	 * release this page, thus avoiding a nasty leakage.
+> +	 */
+> +	if (unlikely(!get_page_unless_zero(page)))
+> +		goto out;
+> +
+> +	/*
+> +	 * As mobile pages are not isolated from LRU lists, concurrent
+> +	 * compaction threads can race against page migration functions
+> +	 * as well as race against the releasing a page.
+> +	 *
+> +	 * In order to avoid having an already isolated mobile page
+> +	 * being (wrongly) re-isolated while it is under migration,
+> +	 * or to avoid attempting to isolate pages being released,
+> +	 * lets be sure we have the page lock
+> +	 * before proceeding with the mobile page isolation steps.
+> +	 */
+> +	if (unlikely(!trylock_page(page)))
+> +		goto out_putpage;
+> +
+> +	if (!(mobile_page(page) && page->mapping->a_ops->isolatepage))
+> +		goto out_not_isolated;
+> +	ret = page->mapping->a_ops->isolatepage(page, mode);
+> +	if (!ret)
+> +		goto out_not_isolated;
+> +	unlock_page(page);
+> +	return ret;
+> +
+> +out_not_isolated:
+> +	unlock_page(page);
+> +out_putpage:
+> +	put_page(page);
+> +out:
+> +	return ret;
+> +}
+> +
+> +static inline void putback_mobilepage(struct page *page)
 
-iQIcBAEBAgAGBQJVtjUGAAoJELbVsDOpoOa9FEQP/0tZqvE9r1cDWHP2fRNfVeMA
-4SA6NwWvWAlS3Jyzwqin6jEPfTp5mp9XmBs2OSFCUtRM4gheS+V0qm4UMCoUUe8V
-1biXRm6JAcqlQ9RaQsIleuwtu6rfq/VmPvyXfoh2VzHtHkfJH1es+IuzyMvN8rB2
-+dMOrDXpr0TGzV2pUXmpqvJV9XCuJJqC2EUp3ygCjCsxtir7que+hBurNHk6V37o
-SJPg+1fOfKlZC2JoH1e3nlaNa8E7Tgn3CcaS95PJGtjp3B3B/WFHyQsV7ICDCPph
-p1DS8lNn1AHvC8Ia1b9q9k6iuPVpunFRthVyXLfDtb7UVDxyDBAbBArQMlSqdS98
-7s+Am4nRAqQ4hyvCrfFbkXyplihX34uwmi263r7pAPizwJRx/ArnJk+EJK6Qclp+
-aiL2BO8PJR2vPi7BfsPSBcgd68iEeCCsOpNGD3GyQ3C5tdtZK/MaDmZm2cCdzaZg
-pWkEgj3oi8jiTD59NskpqqsmtWahucR6HVXAF6DNvZXypigq+uvnaqImEOxpOEQR
-h1zR5O8L5jnZO1BYAHpJO1+16ZAPcNa2tF20OcxsAvcGvblbFNYG1jzAE6w9FGbz
-Qr4VU8B1u/IiDGuHNroiwrTOlN7Tn7wYN0/bstOPk3UavEmg3wEuOaaQat2CU7pC
-rLymWmGP9Rc0+NgO/vMz
-=Leis
------END PGP SIGNATURE-----
+Likewise, this could go to migrate.c. Or maybe together with 
+isolate_mobilepage() if you don't want to split them.
 
---H1spWtNR+x+ondvy--
+> +{
+> +	/*
+> +	 * 'lock_page()' stabilizes the page and prevents races against
+> +	 * concurrent isolation threads attempting to re-isolate it.
+> +	 */
+> +	lock_page(page);
+> +	if (page->mapping && page->mapping->a_ops->putbackpage)
+> +		page->mapping->a_ops->putbackpage(page);
+> +	unlock_page(page);
+> +	/* drop the extra ref count taken for mobile page isolation */
+> +	put_page(page);
+> +}
+>   #else
+>   static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
+>   			unsigned int order, int alloc_flags,
+> @@ -83,6 +150,19 @@ static inline bool compaction_deferred(struct zone *zone, int order)
+>   	return true;
+>   }
+>
+> +static inline bool mobile_page(struct page *page)
+> +{
+> +	return false;
+> +}
+> +
+> +static inline bool isolate_mobilepage(struct page *page, isolate_mode_t mode)
+> +{
+> +	return false;
+> +}
+> +
+> +static inline void putback_mobilepage(struct page *page)
+> +{
+> +}
+>   #endif /* CONFIG_COMPACTION */
+>
+>   #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index a0653e5..2cc4b24 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -396,6 +396,8 @@ struct address_space_operations {
+>   	 */
+>   	int (*migratepage) (struct address_space *,
+>   			struct page *, struct page *, enum migrate_mode);
+> +	bool (*isolatepage) (struct page *, isolate_mode_t);
+> +	void (*putbackpage) (struct page *);
+>   	int (*launder_page) (struct page *);
+>   	int (*is_partially_uptodate) (struct page *, unsigned long,
+>   					unsigned long);
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index f34e040..abef145 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -582,6 +582,25 @@ static inline void __ClearPageBalloon(struct page *page)
+>   	atomic_set(&page->_mapcount, -1);
+>   }
+>
+> +#define PAGE_MOBILE_MAPCOUNT_VALUE (-255)
+> +
+> +static inline int PageMobile(struct page *page)
+> +{
+> +	return atomic_read(&page->_mapcount) == PAGE_MOBILE_MAPCOUNT_VALUE;
+> +}
+> +
+> +static inline void __SetPageMobile(struct page *page)
+> +{
+> +	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
+> +	atomic_set(&page->_mapcount, PAGE_MOBILE_MAPCOUNT_VALUE);
+> +}
+> +
+> +static inline void __ClearPageMobile(struct page *page)
+> +{
+> +	VM_BUG_ON_PAGE(!PageMobile(page), page);
+> +	atomic_set(&page->_mapcount, -1);
+> +}
+> +
+>   /*
+>    * If network-based swap is enabled, sl*b must keep track of whether pages
+>    * were allocated from pfmemalloc reserves.
+> diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
+> index a6c4962..d50d9e8 100644
+> --- a/include/uapi/linux/kernel-page-flags.h
+> +++ b/include/uapi/linux/kernel-page-flags.h
+> @@ -33,6 +33,7 @@
+>   #define KPF_THP			22
+>   #define KPF_BALLOON		23
+>   #define KPF_ZERO_PAGE		24
+> +#define KPF_MOBILE		25
+>
+>
+>   #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
