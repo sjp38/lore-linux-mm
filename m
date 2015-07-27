@@ -1,89 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id BF3C36B0253
-	for <linux-mm@kvack.org>; Sun, 26 Jul 2015 09:57:29 -0400 (EDT)
-Received: by qkbm65 with SMTP id m65so31811134qkb.2
-        for <linux-mm@kvack.org>; Sun, 26 Jul 2015 06:57:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 107si17309981qge.122.2015.07.26.06.57.28
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 41BCA6B0038
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 02:31:49 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so100842653wib.0
+        for <linux-mm@kvack.org>; Sun, 26 Jul 2015 23:31:48 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id p11si29057854wjw.192.2015.07.26.23.31.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Jul 2015 06:57:28 -0700 (PDT)
-Date: Sun, 26 Jul 2015 15:57:21 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [mmotm:master 371/385] mm/nommu.c:1248:30: error: 'vm_flags'
- redeclared as different kind of symbol
-Message-ID: <20150726135721.GA23533@redhat.com>
-References: <201507240605.wGSz9Yxl%fengguang.wu@intel.com>
- <20150724093546.GA22732@node.dhcp.inet.fi>
+        Sun, 26 Jul 2015 23:31:47 -0700 (PDT)
+Received: by wicgb10 with SMTP id gb10so97036066wic.1
+        for <linux-mm@kvack.org>; Sun, 26 Jul 2015 23:31:47 -0700 (PDT)
+Date: Mon, 27 Jul 2015 09:31:43 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH V5 1/7] mm: mlock: Refactor mlock, munlock, and
+ munlockall code
+Message-ID: <20150727063143.GA11657@node.dhcp.inet.fi>
+References: <1437773325-8623-1-git-send-email-emunson@akamai.com>
+ <1437773325-8623-2-git-send-email-emunson@akamai.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150724093546.GA22732@node.dhcp.inet.fi>
+In-Reply-To: <1437773325-8623-2-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Gortmaker <paul.gortmaker@windriver.com>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Oh. I am really sorry. I broke NOMMU again, and this time I was really stupid.
-
-And thanks a lot Kirill!
-
-I am travelling till the end of the next week, can't be responsive until I return :/
-
-
-
-On 07/24, Kirill A. Shutemov wrote:
->
-> On Fri, Jul 24, 2015 at 06:46:09AM +0800, kbuild test robot wrote:
-> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> > head:   61f5f835b6f06fbc233481b5d3c0afd71ecf54e8
-> > commit: b9e95c5dd1134d35b6c9aeaa3967ab5b3945ba73 [371/385] mm, mpx: add "vm_flags_t vm_flags" arg to do_mmap_pgoff()
-> > config: microblaze-nommu_defconfig (attached as .config)
-> > reproduce:
-> >   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-> >   chmod +x ~/bin/make.cross
-> >   git checkout b9e95c5dd1134d35b6c9aeaa3967ab5b3945ba73
-> >   # save the attached .config to linux build tree
-> >   make.cross ARCH=microblaze 
-> > 
-> > All error/warnings (new ones prefixed by >>):
-> > 
-> >    mm/nommu.c: In function 'do_mmap':
-> > >> mm/nommu.c:1248:30: error: 'vm_flags' redeclared as different kind of symbol
-> >      unsigned long capabilities, vm_flags, result;
-> >                                  ^
-> >    mm/nommu.c:1241:15: note: previous definition of 'vm_flags' was here
-> >        vm_flags_t vm_flags,
-> >                   ^
-> > 
+On Fri, Jul 24, 2015 at 05:28:39PM -0400, Eric B Munson wrote:
+> Extending the mlock system call is very difficult because it currently
+> does not take a flags argument.  A later patch in this set will extend
+> mlock to support a middle ground between pages that are locked and
+> faulted in immediately and unlocked pages.  To pave the way for the new
+> system call, the code needs some reorganization so that all the actual
+> entry point handles is checking input and translating to VMA flags.
 > 
-> This should fix the issue:
-> 
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index 530eea5af989..af2196e35013 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -1245,7 +1245,7 @@ unsigned long do_mmap(struct file *file,
->         struct vm_area_struct *vma;
->         struct vm_region *region;
->         struct rb_node *rb;
-> -       unsigned long capabilities, vm_flags, result;
-> +       unsigned long capabilities, result;
->         int ret;
->  
->         *populate = 0;
-> @@ -1263,7 +1263,7 @@ unsigned long do_mmap(struct file *file,
->  
->         /* we've determined that we can make the mapping, now translate what we
->          * now know into VMA flags */
-> -       vm_flags = determine_vm_flags(file, prot, flags, capabilities);
-> +       vm_flags |= determine_vm_flags(file, prot, flags, capabilities);
->  
->         /* we're going to need to record the mapping */
->         region = kmem_cache_zalloc(vm_region_jar, GFP_KERNEL);
-> -- 
->  Kirill A. Shutemov
+> Signed-off-by: Eric B Munson <emunson@akamai.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
