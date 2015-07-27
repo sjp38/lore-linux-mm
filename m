@@ -1,42 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 97FF06B0253
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:17:28 -0400 (EDT)
-Received: by laah7 with SMTP id h7so51162945laa.0
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:17:28 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id dl8si15501318lad.72.2015.07.27.08.17.26
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 47A086B0254
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:18:18 -0400 (EDT)
+Received: by igbpg9 with SMTP id pg9so96332289igb.0
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:18:18 -0700 (PDT)
+Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
+        by mx.google.com with ESMTPS id b16si16102755icr.6.2015.07.27.08.18.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Jul 2015 08:17:27 -0700 (PDT)
-Date: Mon, 27 Jul 2015 18:17:12 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -next] mm: Fix build breakage seen if MMU_NOTIFIER is not
- configured
-Message-ID: <20150727151712.GQ8100@esperanza>
-References: <1438009343-25468-1-git-send-email-linux@roeck-us.net>
+        Mon, 27 Jul 2015 08:18:17 -0700 (PDT)
+Received: by igbpg9 with SMTP id pg9so96331843igb.0
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:18:17 -0700 (PDT)
+Date: Mon, 27 Jul 2015 08:18:14 -0700
+From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
+Subject: Re: [PATCH] mm: add resched points to
+ remap_pmd_range/ioremap_pmd_range
+Message-ID: <20150727151814.GR9641@Sligo.logfs.org>
+References: <1437688476-3399-3-git-send-email-sbaugh@catern.com>
+ <20150724070420.GF4103@dhcp22.suse.cz>
+ <20150724165627.GA3458@Sligo.logfs.org>
+ <20150727070840.GB11317@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1438009343-25468-1-git-send-email-linux@roeck-us.net>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20150727070840.GB11317@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andres Lagar-Cavilla <andreslc@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Spencer Baugh <sbaugh@catern.com>, Toshi Kani <toshi.kani@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Joern Engel <joern@logfs.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Shachar Raindel <raindel@mellanox.com>, Boaz Harrosh <boaz@plexistor.com>, Andy Lutomirski <luto@amacapital.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Roman Pen <r.peniaev@gmail.com>, Andrey Konovalov <adech.fo@gmail.com>, Eric Dumazet <edumazet@google.com>, Dmitry Vyukov <dvyukov@google.com>, Rob Jones <rob.jones@codethink.co.uk>, WANG Chao <chaowang@redhat.com>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Spencer Baugh <Spencer.baugh@purestorage.com>
 
-On Mon, Jul 27, 2015 at 08:02:23AM -0700, Guenter Roeck wrote:
+On Mon, Jul 27, 2015 at 09:08:42AM +0200, Michal Hocko wrote:
+> On Fri 24-07-15 09:56:27, JA?rn Engel wrote:
+> > On Fri, Jul 24, 2015 at 09:04:21AM +0200, Michal Hocko wrote:
+> > > On Thu 23-07-15 14:54:33, Spencer Baugh wrote:
+> > > > From: Joern Engel <joern@logfs.org>
+> > > > 
+> > > > Mapping large memory spaces can be slow and prevent high-priority
+> > > > realtime threads from preempting lower-priority threads for a long time.
+> > > 
+> > > How can a lower priority task block the high priority one? Do you have
+> > > preemption disabled?
+> > 
+> > Yes.
 
-> fs/proc/page.c: In function 'kpageidle_clear_pte_refs_one':
-> fs/proc/page.c:341:4: error:
-> 	implicit declaration of function 'pmdp_clear_young_notify'
-> fs/proc/page.c:347:4: error:
-> 	implicit declaration of function 'ptep_clear_young_notify'
+We have kernel preemption disabled.  A lower-priority task in a system
+call will block higher-priority tasks.
 
-The issue has already been reported and fixed, see
-http://www.spinics.net/lists/linux-mm/msg92023.html
+JA?rn
 
-Thanks,
-Vladimir
+--
+After Iraq, if a PM said there are trees in the rainforest youa??d need
+to send for proof.
+-- Alex Thompson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
