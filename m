@@ -1,44 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D94816B0255
-	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:41:50 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so118522563wib.0
-        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:41:50 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 63C286B0255
+	for <linux-mm@kvack.org>; Mon, 27 Jul 2015 11:47:48 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so145954992wib.1
+        for <linux-mm@kvack.org>; Mon, 27 Jul 2015 08:47:48 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qc8si22087091wjc.78.2015.07.27.08.41.48
+        by mx.google.com with ESMTPS id j2si14672121wiz.27.2015.07.27.08.47.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Jul 2015 08:41:49 -0700 (PDT)
-Date: Mon, 27 Jul 2015 16:41:46 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: vmemmap_verify() BUGs during memory hotplug (4.2-rc1 regression)
-Message-ID: <20150727154146.GP2561@suse.de>
-References: <55B64F1D.8090807@citrix.com>
+        Mon, 27 Jul 2015 08:47:47 -0700 (PDT)
+Subject: Re: [RFC v2 1/4] mm: make alloc_pages_exact_node pass __GFP_THISNODE
+References: <1437749126-25867-1-git-send-email-vbabka@suse.cz>
+ <20150727153900.GA31432@cmpxchg.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55B652A0.3070208@suse.cz>
+Date: Mon, 27 Jul 2015 17:47:44 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <55B64F1D.8090807@citrix.com>
+In-Reply-To: <20150727153900.GA31432@cmpxchg.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Mon, Jul 27, 2015 at 04:32:45PM +0100, David Vrabel wrote:
-> Mel,
-> 
-> As of commit 8a942fdea560d4ac0e9d9fabcd5201ad20e0c382 (mm: meminit: make
-> __early_pfn_to_nid SMP-safe and introduce meminit_pfn_in_nid)
-> vmemmap_verify() will BUG_ON() during memory hotplug because of its use
-> of early_pfn_to_nid().  Previously, it would have reported bogus (or
-> failed to report valid) warnings.
-> 
+On 07/27/2015 05:39 PM, Johannes Weiner wrote:
+> On Fri, Jul 24, 2015 at 04:45:23PM +0200, Vlastimil Babka wrote:
+>> @@ -310,11 +326,18 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+>>   	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+>>   }
+>>
+>> +/*
+>> + * Allocate pages, restricting the allocation to the node given as nid. The
+>> + * node must be valid and online. This is achieved by adding __GFP_THISNODE
+>> + * to gfp_mask.
+>> + */
+>>   static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
+>>   						unsigned int order)
+>>   {
+>>   	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
+>>
+>> +	gfp_mask |= __GFP_THISNODE;
+>> +
+>>   	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+>>   }
+>
+> The "exact" name is currently ambiguous within the allocator API, and
+> it's bad that we have _exact_node() and _exact_nid() with entirely
+> different meanings. It'd be good to make "thisnode" refer to specific
+> and exclusive node requests, and "exact" to mean page allocation
+> chunks that are not in powers of two.
 
-Please test "mm, meminit: Allow early_pfn_to_nid to be used during
-runtime"
+Ugh, good point.
 
--- 
-Mel Gorman
-SUSE Labs
+> Would you consider renaming this function to alloc_pages_thisnode() as
+> part of this series?
+
+Sure, let's do it properly while at it. Yet "thisnode" is somewhat 
+misleading name as it might imply the cpu's local node. The same applies 
+to __GFP_THISNODE. So maybe find a better name for both? restrict_node? 
+single_node?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
