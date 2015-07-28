@@ -1,42 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C41586B0253
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:33:01 -0400 (EDT)
-Received: by qgeu79 with SMTP id u79so76195645qge.1
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 07:33:01 -0700 (PDT)
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 508FA6B0254
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:33:02 -0400 (EDT)
+Received: by qkdv3 with SMTP id v3so51353718qkd.3
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 07:33:02 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i195si25470529qhc.17.2015.07.28.07.33.00
+        by mx.google.com with ESMTPS id e92si25495814qge.113.2015.07.28.07.33.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 28 Jul 2015 07:33:01 -0700 (PDT)
 From: Mark Salter <msalter@redhat.com>
-Subject: [PATCH 0/2] arm64: support initrd outside of mapped RAM
-Date: Tue, 28 Jul 2015 10:32:39 -0400
-Message-Id: <1438093961-15536-1-git-send-email-msalter@redhat.com>
+Subject: [PATCH 1/2] mm: add utility for early copy from unmapped ram
+Date: Tue, 28 Jul 2015 10:32:40 -0400
+Message-Id: <1438093961-15536-2-git-send-email-msalter@redhat.com>
+In-Reply-To: <1438093961-15536-1-git-send-email-msalter@redhat.com>
+References: <1438093961-15536-1-git-send-email-msalter@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
 Cc: "Arnd Bergmann <arnd@arndb.de>--cc=Ard Biesheuvel" <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Mark Salter <msalter@redhat.com>
 
-When booting an arm64 kernel w/initrd using UEFI/grub, use of mem= will likely
-cut off part or all of the initrd. This leaves it outside the kernel linear
-map which leads to failure when unpacking. The x86 code has a similar need to
-relocate an initrd outside of mapped memory in some cases.
+In some early boot circumstances, it may be necessary to copy
+from RAM outside the kernel linear mapping to mapped RAM. The
+need to relocate an initrd is one example in the x86 code. This
+patch creates a helper function based on current x86 code.
 
-The current x86 code uses early_memremap() to copy the original initrd from
-unmapped to mapped RAM. This patchset creates a generic copy_from_early_mem()
-utility based on that x86 code and has arm64 use it to relocate the initrd
-if necessary.
+Signed-off-by: Mark Salter <msalter@redhat.com>
+---
+ include/asm-generic/early_ioremap.h |  6 ++++++
+ mm/early_ioremap.c                  | 22 ++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)
 
-Mark Salter (2):
-  mm: add utility for early copy from unmapped ram
-  arm64: support initrd outside kernel linear map
-
- arch/arm64/kernel/setup.c           | 55 +++++++++++++++++++++++++++++++++++++
- include/asm-generic/early_ioremap.h |  6 ++++
- mm/early_ioremap.c                  | 22 +++++++++++++++
- 3 files changed, 83 insertions(+)
-
+diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
+index a5de55c..e539f27 100644
+--- a/include/asm-generic/early_ioremap.h
++++ b/include/asm-generic/early_ioremap.h
+@@ -33,6 +33,12 @@ extern void early_ioremap_setup(void);
+  */
+ extern void early_ioremap_reset(void);
+ 
++/*
++ * Early copy from unmapped memory to kernel mapped memory.
++ */
++extern void copy_from_early_mem(void *dest, phys_addr_t src,
++				unsigned long size);
++
+ #else
+ static inline void early_ioremap_init(void) { }
+ static inline void early_ioremap_setup(void) { }
+diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+index e10ccd2..acba804 100644
+--- a/mm/early_ioremap.c
++++ b/mm/early_ioremap.c
+@@ -217,6 +217,28 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
+ 	return (__force void *)__early_ioremap(phys_addr, size,
+ 					       FIXMAP_PAGE_NORMAL);
+ }
++
++#define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
++
++void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
++{
++	unsigned long slop, clen;
++	char *p;
++
++	while (size) {
++		slop = src & ~PAGE_MASK;
++		clen = size;
++		if (clen > MAX_MAP_CHUNK - slop)
++			clen = MAX_MAP_CHUNK - slop;
++		p = early_memremap(src & PAGE_MASK, clen + slop);
++		memcpy(dest, p + slop, clen);
++		early_iounmap(p, clen + slop);
++		dest += clen;
++		src += clen;
++		size -= clen;
++	}
++}
++
+ #else /* CONFIG_MMU */
+ 
+ void __init __iomem *
 -- 
 2.4.3
 
