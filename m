@@ -1,65 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D4C986B0038
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 13:08:50 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so75107967pdj.3
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:08:50 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id j3si8708937pdl.212.2015.07.28.10.08.49
+Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 119296B0253
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 13:09:37 -0400 (EDT)
+Received: by ykfw194 with SMTP id w194so101231377ykf.0
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:09:36 -0700 (PDT)
+Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
+        by mx.google.com with ESMTPS id n124si15912264ywe.197.2015.07.28.10.09.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Jul 2015 10:08:50 -0700 (PDT)
-Received: by pdrg1 with SMTP id g1so73845381pdr.2
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:08:49 -0700 (PDT)
-Date: Tue, 28 Jul 2015 10:08:44 -0700
-From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
-Subject: Re: [PATCH] mm: add resched points to
- remap_pmd_range/ioremap_pmd_range
-Message-ID: <20150728170844.GY9641@Sligo.logfs.org>
-References: <1437688476-3399-3-git-send-email-sbaugh@catern.com>
- <20150724070420.GF4103@dhcp22.suse.cz>
- <20150724165627.GA3458@Sligo.logfs.org>
- <20150727070840.GB11317@dhcp22.suse.cz>
- <20150727151814.GR9641@Sligo.logfs.org>
- <20150728133254.GI24972@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 28 Jul 2015 10:09:36 -0700 (PDT)
+Message-ID: <55B7B74A.8080207@citrix.com>
+Date: Tue, 28 Jul 2015 18:09:30 +0100
+From: David Vrabel <david.vrabel@citrix.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20150728133254.GI24972@dhcp22.suse.cz>
+Subject: Re: vmemmap_verify() BUGs during memory hotplug (4.2-rc1 regression)
+References: <55B64F1D.8090807@citrix.com> <20150727154146.GP2561@suse.de>
+In-Reply-To: <20150727154146.GP2561@suse.de>
+Content-Type: text/plain; charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Spencer Baugh <sbaugh@catern.com>, Toshi Kani <toshi.kani@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Joern Engel <joern@logfs.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Shachar Raindel <raindel@mellanox.com>, Boaz Harrosh <boaz@plexistor.com>, Andy Lutomirski <luto@amacapital.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Roman Pen <r.peniaev@gmail.com>, Andrey Konovalov <adech.fo@gmail.com>, Eric Dumazet <edumazet@google.com>, Dmitry Vyukov <dvyukov@google.com>, Rob Jones <rob.jones@codethink.co.uk>, WANG Chao <chaowang@redhat.com>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Spencer Baugh <Spencer.baugh@purestorage.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 28, 2015 at 03:32:55PM +0200, Michal Hocko wrote:
-> > 
-> > We have kernel preemption disabled.  A lower-priority task in a system
-> > call will block higher-priority tasks.
+On 27/07/15 16:41, Mel Gorman wrote:
+> On Mon, Jul 27, 2015 at 04:32:45PM +0100, David Vrabel wrote:
+>> Mel,
+>>
+>> As of commit 8a942fdea560d4ac0e9d9fabcd5201ad20e0c382 (mm: meminit: make
+>> __early_pfn_to_nid SMP-safe and introduce meminit_pfn_in_nid)
+>> vmemmap_verify() will BUG_ON() during memory hotplug because of its use
+>> of early_pfn_to_nid().  Previously, it would have reported bogus (or
+>> failed to report valid) warnings.
+>>
 > 
-> This is an inherent problem of !PREEMPT, though. There are many
-> loops which can take quite some time but we do not want to sprinkle
-> cond_resched all over the kernel. On the other hand these io/remap resp.
-> vunmap page table walks do not have any cond_resched points AFAICS so we
-> can at least mimic zap_pmd_range which does cond_resched.
+> Please test "mm, meminit: Allow early_pfn_to_nid to be used during
+> runtime"
 
-Even for !PREEMPT we don't want infinite scheduler latencies.  Real
-question is how much we are willing to accept and at what point we
-should start sprinkling cond_resched.  I would pick 100ms, but that is
-just a personal choice.  If we decide on 200ms or 500ms, I can live with
-that too.
+That fixed the BUG_ON() thanks.  But I still can't only the new sections
+because their first page is not reserved, but I've not had time to
+investigate why this is yet.
 
-But whatever value we pick, I suspect these resched points need to go in
-eventually.  As memory sizes grow, people will also start mapping bigger
-regions and the scheduler latency will eventually exceed whatever value
-we picked.
-
-Jorn
-
---
-Fools ignore complexity.  Pragmatists suffer it.
-Some can avoid it.  Geniuses remove it.
--- Perlis's Programming Proverb #58, SIGPLAN Notices, Sept.  1982
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
