@@ -1,72 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 82EC46B0253
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 18:15:20 -0400 (EDT)
-Received: by pabkd10 with SMTP id kd10so76331471pab.2
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 15:15:20 -0700 (PDT)
-Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com. [2607:f8b0:400e:c02::22d])
-        by mx.google.com with ESMTPS id bz5si4072069pdb.210.2015.07.28.15.15.19
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 99CFC6B0253
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 18:27:00 -0400 (EDT)
+Received: by pachj5 with SMTP id hj5so76284656pac.3
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 15:27:00 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id v5si12881640pdr.5.2015.07.28.15.26.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Jul 2015 15:15:19 -0700 (PDT)
-Received: by pdbbh15 with SMTP id bh15so77467163pdb.1
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 15:15:18 -0700 (PDT)
-Date: Tue, 28 Jul 2015 15:15:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+        Tue, 28 Jul 2015 15:26:59 -0700 (PDT)
+Received: by pachj5 with SMTP id hj5so76284490pac.3
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 15:26:59 -0700 (PDT)
+Date: Tue, 28 Jul 2015 15:26:54 -0700
+From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
 Subject: Re: hugetlb pages not accounted for in rss
-In-Reply-To: <55B7F0F8.8080909@oracle.com>
-Message-ID: <alpine.DEB.2.10.1507281509420.23577@chino.kir.corp.google.com>
-References: <55B6BE37.3010804@oracle.com> <20150728183248.GB1406@Sligo.logfs.org> <55B7F0F8.8080909@oracle.com>
+Message-ID: <20150728222654.GA28456@Sligo.logfs.org>
+References: <55B6BE37.3010804@oracle.com>
+ <20150728183248.GB1406@Sligo.logfs.org>
+ <55B7F0F8.8080909@oracle.com>
+ <alpine.DEB.2.10.1507281509420.23577@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.10.1507281509420.23577@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@purestorage.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Tue, 28 Jul 2015, Mike Kravetz wrote:
-
-> > > The easiest way to resolve this issue would be to remove the test and
-> > > perhaps document that hugetlb pages are not accounted for in rss.
-> > > However, it does seem like a big oversight that hugetlb pages are not
-> > > accounted for in rss.  From a quick scan of the code it appears THP
-> > > pages are properly accounted for.
-> > > 
-> > > Thoughts?
-> > 
-> > Unsurprisingly I agree that hugepages should count towards rss.  Keeping
-> > the test in keeps us honest.  Actually fixing the issue would make us
-> > honest and correct.
-> > 
-> > Increasingly we have tiny processes (by rss) that actually consume large
-> > fractions of total memory.  Makes rss somewhat useless as a measure of
-> > anything.
+On Tue, Jul 28, 2015 at 03:15:17PM -0700, David Rientjes wrote:
 > 
-> I'll take a look at what it would take to get the accounting in place.
+> Starting to account hugetlb pages in rss may lead to breakage in userspace 
+> and I would agree with your earlier suggestion that just removing any test 
+> for rss would be appropriate.
 
-I'm not sure that I would agree that accounting hugetlb pages in rss would 
-always be appropriate.
+What would you propose for me then?  I have 80% RAM or more in reserved
+hugepages.  OOM-killer is not a concern, as it panics the system - the
+alternatives were almost universally silly and we didn't want to deal
+with system in unpredictable states.  But knowing how much memory is
+used by which process is a concern.  And if you only tell me about the
+small (and continuously shrinking) portion, I essentially fly blind.
 
-For reserved hugetlb pages, not surplus, the hugetlb pages are always 
-resident even when unmapped.  Unmapping the memory is not going to cause 
-them to be freed.  That's different from thp where the hugepages are 
-actually freed when you do munmap().
+That is not a case of "may lead to breakage", it _is_ broken.
 
-The oom killer looks at rss as the metric to determine which process to 
-kill that will result in a large amount of memory freeing.  If hugetlb 
-pages are accounted in rss, this may lead to unnecessary killing since 
-little memory may be freed as a result.
+Ideally we would have fixed this in 2002 when hugetlbfs was introduced.
+By now we might have to introduce a new field, rss_including_hugepages
+or whatever.  Then we have to update tools like top etc. to use the new
+field when appropriate.  No fun, but might be necessary.
 
-For that reason, we've added hugetlb statistics to the oom killer output 
-since we've been left wondering in the past where all the memory on the 
-system went :)
+If we can get away with including hugepages in rss and fixing the OOM
+killer to be less silly, I would strongly prefer that.  But I don't know
+how much of a mess we are already in.
 
-We also have a separate hugetlb cgroup that tracks hugetlb memory usage 
-rather than memcg.
+Jorn
 
-Starting to account hugetlb pages in rss may lead to breakage in userspace 
-and I would agree with your earlier suggestion that just removing any test 
-for rss would be appropriate.
+--
+Time? What's that? Time is only worth what you do with it.
+-- Theo de Raadt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
