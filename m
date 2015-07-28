@@ -1,43 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D5E4A6B0038
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 11:22:57 -0400 (EDT)
-Received: by oige126 with SMTP id e126so71137501oig.0
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 08:22:57 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id s14si16775528oie.90.2015.07.28.08.22.57
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E142F6B0038
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 11:48:25 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so163400900wib.0
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 08:48:25 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id aq6si35107586wjc.144.2015.07.28.08.48.22
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Jul 2015 08:22:57 -0700 (PDT)
-Date: Tue, 28 Jul 2015 17:22:48 +0200
-From: Daniel Kiper <daniel.kiper@oracle.com>
-Subject: Re: [PATCHv2 05/10] xen/balloon: rationalize memory hotplug stats
-Message-ID: <20150728152248.GJ3492@olila.local.net-space.pl>
-References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
- <1437738468-24110-6-git-send-email-david.vrabel@citrix.com>
+        (version=TLS1 cipher=RC4-SHA bits=128/128);
+        Tue, 28 Jul 2015 08:48:23 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 2A70A9917C
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 15:48:22 +0000 (UTC)
+Date: Tue, 28 Jul 2015 16:48:20 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 05/10] mm, page_alloc: Remove unnecessary updating of GFP
+ flags during normal operation
+Message-ID: <20150728154819.GE2660@techsingularity.net>
+References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
+ <1437379219-9160-6-git-send-email-mgorman@suse.com>
+ <55B78545.8000906@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1437738468-24110-6-git-send-email-david.vrabel@citrix.com>
+In-Reply-To: <55B78545.8000906@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>
-Cc: xen-devel@lists.xenproject.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
 
-On Fri, Jul 24, 2015 at 12:47:43PM +0100, David Vrabel wrote:
-> The stats used for memory hotplug make no sense and are fiddled with
-> in odd ways.  Remove them and introduce total_pages to track the total
-> number of pages (both populated and unpopulated) including those within
-> hotplugged regions (note that this includes not yet onlined pages).
->
-> This will be used in the following commit when deciding whether
-> additional memory needs to be hotplugged.
->
-> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
+On Tue, Jul 28, 2015 at 03:36:05PM +0200, Vlastimil Babka wrote:
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -124,7 +124,9 @@ unsigned long totalcma_pages __read_mostly;
+> >  unsigned long dirty_balance_reserve __read_mostly;
+> >
+> >  int percpu_pagelist_fraction;
+> >-gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
+> >+
+> >+gfp_t __gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
+> >+struct static_key gfp_restricted_key __read_mostly = STATIC_KEY_INIT_TRUE;
+> 
+> ... and here it's combined with STATIC_KEY_INIT_TRUE. I've suspected
+> that this is not allowed, which Peter confirmed on IRC.
+> 
 
-Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+Thanks because I was not aware of hazards of that nature. I'll drop the
+jump-label related patches from the series until the patches related to
+the correct idiom are finalised. The micro-optimisations are not the
+main point of this series and the savings are tiny.
 
-Daniel
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
