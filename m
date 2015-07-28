@@ -1,47 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 119296B0253
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 13:09:37 -0400 (EDT)
-Received: by ykfw194 with SMTP id w194so101231377ykf.0
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:09:36 -0700 (PDT)
-Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id n124si15912264ywe.197.2015.07.28.10.09.34
+Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
+	by kanga.kvack.org (Postfix) with ESMTP id C146E6B0038
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 13:18:26 -0400 (EDT)
+Received: by ykay190 with SMTP id y190so101182551yka.3
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:18:26 -0700 (PDT)
+Received: from mail-yk0-x242.google.com (mail-yk0-x242.google.com. [2607:f8b0:4002:c07::242])
+        by mx.google.com with ESMTPS id x188si15971690ywd.77.2015.07.28.10.18.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Jul 2015 10:09:36 -0700 (PDT)
-Message-ID: <55B7B74A.8080207@citrix.com>
-Date: Tue, 28 Jul 2015 18:09:30 +0100
-From: David Vrabel <david.vrabel@citrix.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Jul 2015 10:18:25 -0700 (PDT)
+Received: by ykek23 with SMTP id k23so6277342yke.0
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:18:25 -0700 (PDT)
+Date: Tue, 28 Jul 2015 13:18:22 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH 03/14] kthread: Add drain_kthread_worker()
+Message-ID: <20150728171822.GA5322@mtj.duckdns.org>
+References: <1438094371-8326-1-git-send-email-pmladek@suse.com>
+ <1438094371-8326-4-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
-Subject: Re: vmemmap_verify() BUGs during memory hotplug (4.2-rc1 regression)
-References: <55B64F1D.8090807@citrix.com> <20150727154146.GP2561@suse.de>
-In-Reply-To: <20150727154146.GP2561@suse.de>
-Content-Type: text/plain; charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1438094371-8326-4-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 27/07/15 16:41, Mel Gorman wrote:
-> On Mon, Jul 27, 2015 at 04:32:45PM +0100, David Vrabel wrote:
->> Mel,
->>
->> As of commit 8a942fdea560d4ac0e9d9fabcd5201ad20e0c382 (mm: meminit: make
->> __early_pfn_to_nid SMP-safe and introduce meminit_pfn_in_nid)
->> vmemmap_verify() will BUG_ON() during memory hotplug because of its use
->> of early_pfn_to_nid().  Previously, it would have reported bogus (or
->> failed to report valid) warnings.
->>
-> 
-> Please test "mm, meminit: Allow early_pfn_to_nid to be used during
-> runtime"
+Hello,
 
-That fixed the BUG_ON() thanks.  But I still can't only the new sections
-because their first page is not reserved, but I've not had time to
-investigate why this is yet.
+On Tue, Jul 28, 2015 at 04:39:20PM +0200, Petr Mladek wrote:
+> +/*
+> + * Test whether @work is being queued from another work
+> + * executing on the same kthread.
+> + */
+> +static bool is_chained_work(struct kthread_worker *worker)
+> +{
+> +	struct kthread_worker *current_worker;
+> +
+> +	current_worker = current_kthread_worker();
+> +	/*
+> +	 * Return %true if I'm a kthread worker executing a work item on
+> +	 * the given @worker.
+> +	 */
+> +	return current_worker && current_worker == worker;
+> +}
 
-David
+I'm not sure full-on chained work detection is necessary here.
+kthread worker's usages tend to be significantly simpler and draining
+is only gonna be used for destruction.
+
+> +void drain_kthread_worker(struct kthread_worker *worker)
+> +{
+> +	int flush_cnt = 0;
+> +
+> +	spin_lock_irq(&worker->lock);
+> +	worker->nr_drainers++;
+> +
+> +	while (!list_empty(&worker->work_list)) {
+> +		/*
+> +		 * Unlock, so we could move forward. Note that queuing
+> +		 * is limited by @nr_drainers > 0.
+> +		 */
+> +		spin_unlock_irq(&worker->lock);
+> +
+> +		flush_kthread_worker(worker);
+> +
+> +		if (++flush_cnt == 10 ||
+> +		    (flush_cnt % 100 == 0 && flush_cnt <= 1000))
+> +			pr_warn("kthread worker %s: drain_kthread_worker() isn't complete after %u tries\n",
+> +				worker->task->comm, flush_cnt);
+> +
+> +		spin_lock_irq(&worker->lock);
+> +	}
+
+I'd just do something like WARN_ONCE(flush_cnt++ > 10, "kthread worker: ...").
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
