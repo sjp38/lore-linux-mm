@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id E6A7F6B025A
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:40:15 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so162759690wib.0
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 07:40:15 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B9CB86B025C
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:40:18 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so182503074wic.0
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 07:40:18 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fm3si20815889wic.41.2015.07.28.07.40.09
+        by mx.google.com with ESMTPS id ex6si18412425wid.103.2015.07.28.07.40.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Jul 2015 07:40:10 -0700 (PDT)
+        Tue, 28 Jul 2015 07:40:11 -0700 (PDT)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [RFC PATCH 07/14] mm/huge_page: Convert khugepaged() into kthread worker API
-Date: Tue, 28 Jul 2015 16:39:24 +0200
-Message-Id: <1438094371-8326-8-git-send-email-pmladek@suse.com>
+Subject: [RFC PATCH 08/14] rcu: Convert RCU gp kthreads into kthread worker API
+Date: Tue, 28 Jul 2015 16:39:25 +0200
+Message-Id: <1438094371-8326-9-git-send-email-pmladek@suse.com>
 In-Reply-To: <1438094371-8326-1-git-send-email-pmladek@suse.com>
 References: <1438094371-8326-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -36,190 +36,292 @@ single thread for the work. It helps to make sure that it is
 available when needed. Also it allows a better control, e.g.
 define a scheduling priority.
 
-This patch converts khugepaged() in kthread worker API
-because it modifies the scheduling.
+This patch converts RCU gp threads into the kthread worker API.
+They modify the scheduling, have their own logic to bind the process.
+They provide functions that are critical for the system to work
+and thus deserve a dedicated kthread. In fact, they most likely
+could not be implemented using workqueues because workqueues
+are implemented using RCU.
 
-It keeps the functionality except that we do not wakeup
-the worker when it is already created and someone
-calls start() once again.
+The conversion is rather straightforward. It moves the code from
+the main cycle into a single work because they should be done
+together.
 
-Note that we could not longer check for kthread_should_stop()
-in the works. The kthread used by the worker has to stay alive
-until all queued works are finished. Instead, we use the existing
-check khugepaged_enabled() that returns false when we are going down.
+Note that we would like to provide more helper functions in
+the kthread worker API and hide access to worker.task in the
+long term. But it is not completely solved in this RFC.
 
 Signed-off-by: Petr Mladek <pmladek@suse.com>
 ---
- mm/huge_memory.c | 91 +++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 57 insertions(+), 34 deletions(-)
+ kernel/rcu/tree.c | 175 +++++++++++++++++++++++++++++-------------------------
+ kernel/rcu/tree.h |   4 +-
+ 2 files changed, 96 insertions(+), 83 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index c107094f79ba..55733735a487 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -54,7 +54,17 @@ static unsigned int khugepaged_full_scans;
- static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
- /* during fragmentation poll the hugepage allocator once every minute */
- static unsigned int khugepaged_alloc_sleep_millisecs __read_mostly = 60000;
--static struct task_struct *khugepaged_thread __read_mostly;
-+
-+static void khugepaged_init_func(struct kthread_work *dummy);
-+static void khugepaged_do_scan_func(struct kthread_work *dummy);
-+static void khugepaged_wait_func(struct kthread_work *dummy);
-+static void khugepaged_cleanup_func(struct kthread_work *dummy);
-+static DEFINE_KTHREAD_WORKER(khugepaged_worker);
-+static DEFINE_KTHREAD_WORK(khugepaged_init_work, khugepaged_init_func);
-+static DEFINE_KTHREAD_WORK(khugepaged_do_scan_work, khugepaged_do_scan_func);
-+static DEFINE_KTHREAD_WORK(khugepaged_wait_work, khugepaged_wait_func);
-+static DEFINE_KTHREAD_WORK(khugepaged_cleanup_work, khugepaged_cleanup_func);
-+
- static DEFINE_MUTEX(khugepaged_mutex);
- static DEFINE_SPINLOCK(khugepaged_mm_lock);
- static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
-@@ -65,7 +75,6 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
-  */
- static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+index 65137bc28b2b..475bd59509ed 100644
+--- a/kernel/rcu/tree.c
++++ b/kernel/rcu/tree.c
+@@ -485,7 +485,7 @@ void show_rcu_gp_kthreads(void)
  
--static int khugepaged(void *none);
- static int khugepaged_slab_init(void);
- static void khugepaged_slab_exit(void);
- 
-@@ -146,25 +155,34 @@ static int start_stop_khugepaged(void)
- {
- 	int err = 0;
- 	if (khugepaged_enabled()) {
--		if (!khugepaged_thread)
--			khugepaged_thread = kthread_run(khugepaged, NULL,
--							"khugepaged");
--		if (unlikely(IS_ERR(khugepaged_thread))) {
--			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
--			err = PTR_ERR(khugepaged_thread);
--			khugepaged_thread = NULL;
--			goto fail;
-+		if (kthread_worker_created(&khugepaged_worker))
-+			goto out;
-+
-+		err = create_kthread_worker(&khugepaged_worker,
-+					    "khugepaged");
-+
-+		if (unlikely(err)) {
-+			pr_err("khugepaged: failed to create kthread worker\n");
-+			goto out;
- 		}
- 
--		if (!list_empty(&khugepaged_scan.mm_head))
--			wake_up_interruptible(&khugepaged_wait);
-+		queue_kthread_work(&khugepaged_worker,
-+				   &khugepaged_init_work);
-+
-+		if (list_empty(&khugepaged_scan.mm_head))
-+			queue_kthread_work(&khugepaged_worker,
-+					   &khugepaged_wait_work);
-+		else
-+			queue_kthread_work(&khugepaged_worker,
-+					   &khugepaged_do_scan_work);
- 
- 		set_recommended_min_free_kbytes();
--	} else if (khugepaged_thread) {
--		kthread_stop(khugepaged_thread);
--		khugepaged_thread = NULL;
-+	} else if (kthread_worker_created(&khugepaged_worker)) {
-+		queue_kthread_work(&khugepaged_worker,
-+				   &khugepaged_cleanup_work);
-+		wakeup_and_destroy_kthread_worker(&khugepaged_worker);
+ 	for_each_rcu_flavor(rsp) {
+ 		pr_info("%s: wait state: %d ->state: %#lx\n",
+-			rsp->name, rsp->gp_state, rsp->gp_kthread->state);
++			rsp->name, rsp->gp_state, rsp->gp_worker.task->state);
+ 		/* sched_show_task(rsp->gp_kthread); */
  	}
--fail:
-+out:
- 	return err;
+ }
+@@ -1586,9 +1586,9 @@ static int rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
+  */
+ static void rcu_gp_kthread_wake(struct rcu_state *rsp)
+ {
+-	if (current == rsp->gp_kthread ||
++	if (current == rsp->gp_worker.task ||
+ 	    !READ_ONCE(rsp->gp_flags) ||
+-	    !rsp->gp_kthread)
++	    !rsp->gp_worker.task)
+ 		return;
+ 	wake_up(&rsp->gp_wq);
+ }
+@@ -2017,101 +2017,109 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
+ 	raw_spin_unlock_irq(&rnp->lock);
  }
  
-@@ -2780,11 +2798,17 @@ static int khugepaged_has_work(void)
- 
- static int khugepaged_wait_event(void)
- {
--	return !list_empty(&khugepaged_scan.mm_head) ||
--		kthread_should_stop();
-+	return (!list_empty(&khugepaged_scan.mm_head) ||
-+		!khugepaged_enabled());
++static void rcu_gp_kthread_init_func(struct kthread_work *work)
++{
++	struct rcu_state *rsp = container_of(work, struct rcu_state,
++					     gp_init_work);
++
++	rcu_bind_gp_kthread();
++
++	queue_kthread_work(&rsp->gp_worker, &rsp->gp_work);
 +}
 +
-+static void khugepaged_init_func(struct kthread_work *dummy)
-+{
-+	set_freezable();
-+	set_user_nice(current, MAX_NICE);
- }
- 
--static void khugepaged_do_scan(void)
-+static void khugepaged_do_scan_func(struct kthread_work *dummy)
+ /*
+- * Body of kthread that handles grace periods.
++ * Main work of kthread that handles grace periods.
+  */
+-static int __noreturn rcu_gp_kthread(void *arg)
++static void rcu_gp_kthread_func(struct kthread_work *work)
  {
- 	struct page *hpage = NULL;
- 	unsigned int progress = 0, pass_through_head = 0;
-@@ -2799,7 +2823,7 @@ static void khugepaged_do_scan(void)
+ 	int fqs_state;
+ 	int gf;
+ 	unsigned long j;
+ 	int ret;
+-	struct rcu_state *rsp = arg;
++	struct rcu_state *rsp = container_of(work, struct rcu_state, gp_work);
+ 	struct rcu_node *rnp = rcu_get_root(rsp);
  
- 		cond_resched();
+-	rcu_bind_gp_kthread();
++	/* Handle grace-period start. */
+ 	for (;;) {
++		trace_rcu_grace_period(rsp->name,
++				       READ_ONCE(rsp->gpnum),
++				       TPS("reqwait"));
++		rsp->gp_state = RCU_GP_WAIT_GPS;
++		wait_event_interruptible(rsp->gp_wq,
++					 READ_ONCE(rsp->gp_flags) &
++					 RCU_GP_FLAG_INIT);
++		/* Locking provides needed memory barrier. */
++		if (rcu_gp_init(rsp))
++			break;
++		cond_resched_rcu_qs();
++		WRITE_ONCE(rsp->gp_activity, jiffies);
++		WARN_ON(signal_pending(current));
++		trace_rcu_grace_period(rsp->name,
++				       READ_ONCE(rsp->gpnum),
++				       TPS("reqwaitsig"));
++	}
  
--		if (unlikely(kthread_should_stop() || try_to_freeze()))
-+		if (unlikely(!khugepaged_enabled() || try_to_freeze()))
- 			break;
- 
- 		spin_lock(&khugepaged_mm_lock);
-@@ -2816,43 +2840,42 @@ static void khugepaged_do_scan(void)
- 
- 	if (!IS_ERR_OR_NULL(hpage))
- 		put_page(hpage);
-+
-+	if (khugepaged_enabled())
-+		queue_kthread_work(&khugepaged_worker, &khugepaged_wait_work);
- }
- 
--static void khugepaged_wait_work(void)
-+static void khugepaged_wait_func(struct kthread_work *dummy)
- {
- 	if (khugepaged_has_work()) {
- 		if (!khugepaged_scan_sleep_millisecs)
--			return;
-+			goto out;
- 
- 		wait_event_freezable_timeout(khugepaged_wait,
--					     kthread_should_stop(),
-+					     !khugepaged_enabled(),
- 			msecs_to_jiffies(khugepaged_scan_sleep_millisecs));
--		return;
-+		goto out;
+-		/* Handle grace-period start. */
+-		for (;;) {
++	/* Handle quiescent-state forcing. */
++	fqs_state = RCU_SAVE_DYNTICK;
++	j = jiffies_till_first_fqs;
++	if (j > HZ) {
++		j = HZ;
++		jiffies_till_first_fqs = HZ;
++	}
++	ret = 0;
++	for (;;) {
++		if (!ret)
++			rsp->jiffies_force_qs = jiffies + j;
++		trace_rcu_grace_period(rsp->name,
++				       READ_ONCE(rsp->gpnum),
++				       TPS("fqswait"));
++		rsp->gp_state = RCU_GP_WAIT_FQS;
++		ret = wait_event_interruptible_timeout(rsp->gp_wq,
++				((gf = READ_ONCE(rsp->gp_flags)) &
++				 RCU_GP_FLAG_FQS) ||
++				(!READ_ONCE(rnp->qsmask) &&
++				 !rcu_preempt_blocked_readers_cgp(rnp)),
++				j);
++		/* Locking provides needed memory barriers. */
++		/* If grace period done, leave loop. */
++		if (!READ_ONCE(rnp->qsmask) &&
++		    !rcu_preempt_blocked_readers_cgp(rnp))
++			break;
++		/* If time for quiescent-state forcing, do it. */
++		if (ULONG_CMP_GE(jiffies, rsp->jiffies_force_qs) ||
++		    (gf & RCU_GP_FLAG_FQS)) {
+ 			trace_rcu_grace_period(rsp->name,
+ 					       READ_ONCE(rsp->gpnum),
+-					       TPS("reqwait"));
+-			rsp->gp_state = RCU_GP_WAIT_GPS;
+-			wait_event_interruptible(rsp->gp_wq,
+-						 READ_ONCE(rsp->gp_flags) &
+-						 RCU_GP_FLAG_INIT);
+-			/* Locking provides needed memory barrier. */
+-			if (rcu_gp_init(rsp))
+-				break;
++					       TPS("fqsstart"));
++			fqs_state = rcu_gp_fqs(rsp, fqs_state);
++			trace_rcu_grace_period(rsp->name,
++					       READ_ONCE(rsp->gpnum),
++					       TPS("fqsend"));
++			cond_resched_rcu_qs();
++			WRITE_ONCE(rsp->gp_activity, jiffies);
++		} else {
++			/* Deal with stray signal. */
+ 			cond_resched_rcu_qs();
+ 			WRITE_ONCE(rsp->gp_activity, jiffies);
+ 			WARN_ON(signal_pending(current));
+ 			trace_rcu_grace_period(rsp->name,
+ 					       READ_ONCE(rsp->gpnum),
+-					       TPS("reqwaitsig"));
++					       TPS("fqswaitsig"));
+ 		}
+-
+-		/* Handle quiescent-state forcing. */
+-		fqs_state = RCU_SAVE_DYNTICK;
+-		j = jiffies_till_first_fqs;
++		j = jiffies_till_next_fqs;
+ 		if (j > HZ) {
+ 			j = HZ;
+-			jiffies_till_first_fqs = HZ;
++			jiffies_till_next_fqs = HZ;
++		} else if (j < 1) {
++			j = 1;
++			jiffies_till_next_fqs = 1;
+ 		}
+-		ret = 0;
+-		for (;;) {
+-			if (!ret)
+-				rsp->jiffies_force_qs = jiffies + j;
+-			trace_rcu_grace_period(rsp->name,
+-					       READ_ONCE(rsp->gpnum),
+-					       TPS("fqswait"));
+-			rsp->gp_state = RCU_GP_WAIT_FQS;
+-			ret = wait_event_interruptible_timeout(rsp->gp_wq,
+-					((gf = READ_ONCE(rsp->gp_flags)) &
+-					 RCU_GP_FLAG_FQS) ||
+-					(!READ_ONCE(rnp->qsmask) &&
+-					 !rcu_preempt_blocked_readers_cgp(rnp)),
+-					j);
+-			/* Locking provides needed memory barriers. */
+-			/* If grace period done, leave loop. */
+-			if (!READ_ONCE(rnp->qsmask) &&
+-			    !rcu_preempt_blocked_readers_cgp(rnp))
+-				break;
+-			/* If time for quiescent-state forcing, do it. */
+-			if (ULONG_CMP_GE(jiffies, rsp->jiffies_force_qs) ||
+-			    (gf & RCU_GP_FLAG_FQS)) {
+-				trace_rcu_grace_period(rsp->name,
+-						       READ_ONCE(rsp->gpnum),
+-						       TPS("fqsstart"));
+-				fqs_state = rcu_gp_fqs(rsp, fqs_state);
+-				trace_rcu_grace_period(rsp->name,
+-						       READ_ONCE(rsp->gpnum),
+-						       TPS("fqsend"));
+-				cond_resched_rcu_qs();
+-				WRITE_ONCE(rsp->gp_activity, jiffies);
+-			} else {
+-				/* Deal with stray signal. */
+-				cond_resched_rcu_qs();
+-				WRITE_ONCE(rsp->gp_activity, jiffies);
+-				WARN_ON(signal_pending(current));
+-				trace_rcu_grace_period(rsp->name,
+-						       READ_ONCE(rsp->gpnum),
+-						       TPS("fqswaitsig"));
+-			}
+-			j = jiffies_till_next_fqs;
+-			if (j > HZ) {
+-				j = HZ;
+-				jiffies_till_next_fqs = HZ;
+-			} else if (j < 1) {
+-				j = 1;
+-				jiffies_till_next_fqs = 1;
+-			}
+-		}
+-
+-		/* Handle grace-period end. */
+-		rcu_gp_cleanup(rsp);
  	}
- 
- 	if (khugepaged_enabled())
- 		wait_event_freezable(khugepaged_wait, khugepaged_wait_event());
 +
-+out:
-+	if (khugepaged_enabled())
-+		queue_kthread_work(&khugepaged_worker,
-+				   &khugepaged_do_scan_work);
++	/* Handle grace-period end. */
++	rcu_gp_cleanup(rsp);
++
++	queue_kthread_work(&rsp->gp_worker, &rsp->gp_work);
  }
  
--static int khugepaged(void *none)
-+static void khugepaged_cleanup_func(struct kthread_work *dummy)
+ /*
+@@ -2129,7 +2137,7 @@ static bool
+ rcu_start_gp_advanced(struct rcu_state *rsp, struct rcu_node *rnp,
+ 		      struct rcu_data *rdp)
  {
- 	struct mm_slot *mm_slot;
+-	if (!rsp->gp_kthread || !cpu_needs_another_gp(rsp, rdp)) {
++	if (!rsp->gp_worker.task || !cpu_needs_another_gp(rsp, rdp)) {
+ 		/*
+ 		 * Either we have not yet spawned the grace-period
+ 		 * task, this CPU does not need another grace period,
+@@ -3909,7 +3917,7 @@ static int __init rcu_spawn_gp_kthread(void)
+ 	struct rcu_node *rnp;
+ 	struct rcu_state *rsp;
+ 	struct sched_param sp;
+-	struct task_struct *t;
++	int ret;
  
--	set_freezable();
--	set_user_nice(current, MAX_NICE);
--
--	while (!kthread_should_stop()) {
--		khugepaged_do_scan();
--		khugepaged_wait_work();
--	}
--
- 	spin_lock(&khugepaged_mm_lock);
- 	mm_slot = khugepaged_scan.mm_slot;
- 	khugepaged_scan.mm_slot = NULL;
- 	if (mm_slot)
- 		collect_mm_slot(mm_slot);
- 	spin_unlock(&khugepaged_mm_lock);
--	return 0;
- }
+ 	/* Force priority into range. */
+ 	if (IS_ENABLED(CONFIG_RCU_BOOST) && kthread_prio < 1)
+@@ -3924,16 +3932,19 @@ static int __init rcu_spawn_gp_kthread(void)
  
- static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
+ 	rcu_scheduler_fully_active = 1;
+ 	for_each_rcu_flavor(rsp) {
+-		t = kthread_create(rcu_gp_kthread, rsp, "%s", rsp->name);
+-		BUG_ON(IS_ERR(t));
++		init_kthread_worker(&rsp->gp_worker);
++		init_kthread_work(&rsp->gp_init_work, rcu_gp_kthread_init_func);
++		init_kthread_work(&rsp->gp_work, rcu_gp_kthread_func);
++		ret = create_kthread_worker(&rsp->gp_worker, "%s", rsp->name);
++		BUG_ON(ret);
+ 		rnp = rcu_get_root(rsp);
+ 		raw_spin_lock_irqsave(&rnp->lock, flags);
+-		rsp->gp_kthread = t;
+ 		if (kthread_prio) {
+ 			sp.sched_priority = kthread_prio;
+-			sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++			sched_setscheduler_nocheck(rsp->gp_worker.task,
++						   SCHED_FIFO, &sp);
+ 		}
+-		wake_up_process(t);
++		queue_kthread_work(&rsp->gp_worker, &rsp->gp_init_work);
+ 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+ 	}
+ 	rcu_spawn_nocb_kthreads();
+diff --git a/kernel/rcu/tree.h b/kernel/rcu/tree.h
+index 4adb7ca0bf47..2f318d406a53 100644
+--- a/kernel/rcu/tree.h
++++ b/kernel/rcu/tree.h
+@@ -457,7 +457,9 @@ struct rcu_state {
+ 	u8	boost;				/* Subject to priority boost. */
+ 	unsigned long gpnum;			/* Current gp number. */
+ 	unsigned long completed;		/* # of last completed gp. */
+-	struct task_struct *gp_kthread;		/* Task for grace periods. */
++	struct kthread_worker gp_worker;	/* Worker for grace periods */
++	struct kthread_work gp_init_work;	/* Init work for handling gp */
++	struct kthread_work gp_work;		/* Main work for handling gp */
+ 	wait_queue_head_t gp_wq;		/* Where GP task waits. */
+ 	short gp_flags;				/* Commands for GP task. */
+ 	short gp_state;				/* GP kthread sleep state. */
 -- 
 1.8.5.6
 
