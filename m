@@ -1,27 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 330176B0038
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 13:23:33 -0400 (EDT)
-Received: by ykdu72 with SMTP id u72so101492407ykd.2
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:23:33 -0700 (PDT)
-Received: from mail-yk0-x244.google.com (mail-yk0-x244.google.com. [2607:f8b0:4002:c07::244])
-        by mx.google.com with ESMTPS id o187si15994756yka.19.2015.07.28.10.23.32
+Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 096C16B0038
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 13:27:02 -0400 (EDT)
+Received: by ykax123 with SMTP id x123so101784809yka.1
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:27:01 -0700 (PDT)
+Received: from mail-yk0-x243.google.com (mail-yk0-x243.google.com. [2607:f8b0:4002:c07::243])
+        by mx.google.com with ESMTPS id a63si16014460ykd.11.2015.07.28.10.27.00
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Jul 2015 10:23:32 -0700 (PDT)
-Received: by ykfw194 with SMTP id w194so6272463ykf.2
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:23:32 -0700 (PDT)
-Date: Tue, 28 Jul 2015 13:23:29 -0400
+        Tue, 28 Jul 2015 10:27:00 -0700 (PDT)
+Received: by ykdu72 with SMTP id u72so6275565ykd.3
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:27:00 -0700 (PDT)
+Date: Tue, 28 Jul 2015 13:26:57 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH 05/14] kthread: Add
- wakeup_and_destroy_kthread_worker()
-Message-ID: <20150728172329.GB5322@mtj.duckdns.org>
+Subject: Re: [RFC PATCH 06/14] kthread: Add kthread_worker_created()
+Message-ID: <20150728172657.GC5322@mtj.duckdns.org>
 References: <1438094371-8326-1-git-send-email-pmladek@suse.com>
- <1438094371-8326-6-git-send-email-pmladek@suse.com>
+ <1438094371-8326-7-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1438094371-8326-6-git-send-email-pmladek@suse.com>
+In-Reply-To: <1438094371-8326-7-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Petr Mladek <pmladek@suse.com>
@@ -29,27 +28,18 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, 
 
 Hello,
 
-On Tue, Jul 28, 2015 at 04:39:22PM +0200, Petr Mladek wrote:
-...
-> +void wakeup_and_destroy_kthread_worker(struct kthread_worker *worker)
-> +{
-> +	struct task_struct *task = worker->task;
-> +
-> +	if (WARN_ON(!task))
-> +		return;
-> +
-> +	spin_lock_irq(&worker->lock);
-> +	if (worker->current_work)
-> +		wake_up_process(worker->task);
-> +	spin_unlock_irq(&worker->lock);
-> +
-> +	destroy_kthread_worker(worker);
-> +}
+On Tue, Jul 28, 2015 at 04:39:23PM +0200, Petr Mladek wrote:
+> I would like to make cleaner kthread worker API and hide the definition
+> of struct kthread_worker. It will prevent any custom hacks and make
+> the API more secure.
+> 
+> This patch provides an API to check if the worker has been created
+> and hides the implementation details.
 
-I don't know.  Wouldn't it make far more sense to convert those wake
-up events with queueings?  It seems backwards to be converting things
-to work item based interface and then insert work items which wait for
-external events.  More on this later.
+Maybe it'd be a better idea to make create_kthread_worker() allocate
+and return pointer to struct kthread_worker?  You're adding
+create/destroy interface anyway, it won't need a separate created
+query function and the synchronization rules would be self-evident.
 
 Thanks.
 
