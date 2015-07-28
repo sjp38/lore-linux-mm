@@ -1,43 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 073F96B0254
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:54:38 -0400 (EDT)
-Received: by ykdu72 with SMTP id u72so97439255ykd.2
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 07:54:37 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id p193si15556400ykd.77.2015.07.28.07.54.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Jul 2015 07:54:37 -0700 (PDT)
-Date: Tue, 28 Jul 2015 16:54:26 +0200
-From: Daniel Kiper <daniel.kiper@oracle.com>
-Subject: Re: [PATCHv2 01/10] mm: memory hotplug with an existing resource
-Message-ID: <20150728145426.GI3492@olila.local.net-space.pl>
-References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
- <1437738468-24110-2-git-send-email-david.vrabel@citrix.com>
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 97EE96B0255
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 10:59:36 -0400 (EDT)
+Received: by igbij6 with SMTP id ij6so119622868igb.1
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 07:59:36 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id ap10si19665259icc.72.2015.07.28.07.59.36
+        for <linux-mm@kvack.org>;
+        Tue, 28 Jul 2015 07:59:36 -0700 (PDT)
+Date: Tue, 28 Jul 2015 15:59:06 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH 0/2] arm64: support initrd outside of mapped RAM
+Message-ID: <20150728145906.GE15213@leverpostej>
+References: <1438093961-15536-1-git-send-email-msalter@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1437738468-24110-2-git-send-email-david.vrabel@citrix.com>
+In-Reply-To: <1438093961-15536-1-git-send-email-msalter@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>
-Cc: xen-devel@lists.xenproject.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Mark Salter <msalter@redhat.com>
+Cc: Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <Will.Deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-On Fri, Jul 24, 2015 at 12:47:39PM +0100, David Vrabel wrote:
-> Add add_memory_resource() to add memory using an existing "System RAM"
-> resource.  This is useful if the memory region is being located by
-> finding a free resource slot with allocate_resource().
->
-> Xen guests will make use of this in their balloon driver to hotplug
-> arbitrary amounts of memory in response to toolstack requests.
->
-> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
+Hi Mark,
 
-Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+As a heads-up, it looks like you missed a space when sending this; Arnd
+and Ard got merged into:
 
-Daniel
+"Arnd Bergmann <arnd@arndb.de>--cc=Ard Biesheuvel" <ard.biesheuvel@linaro.org>
+
+I've corrected that for this reply.
+
+On Tue, Jul 28, 2015 at 03:32:39PM +0100, Mark Salter wrote:
+> When booting an arm64 kernel w/initrd using UEFI/grub, use of mem= will likely
+> cut off part or all of the initrd. This leaves it outside the kernel linear
+> map which leads to failure when unpacking. The x86 code has a similar need to
+> relocate an initrd outside of mapped memory in some cases.
+> 
+> The current x86 code uses early_memremap() to copy the original initrd from
+> unmapped to mapped RAM. This patchset creates a generic copy_from_early_mem()
+> utility based on that x86 code and has arm64 use it to relocate the initrd
+> if necessary.
+
+This sounds like a sane idea to me.
+
+> Mark Salter (2):
+>   mm: add utility for early copy from unmapped ram
+>   arm64: support initrd outside kernel linear map
+> 
+>  arch/arm64/kernel/setup.c           | 55 +++++++++++++++++++++++++++++++++++++
+>  include/asm-generic/early_ioremap.h |  6 ++++
+>  mm/early_ioremap.c                  | 22 +++++++++++++++
+>  3 files changed, 83 insertions(+)
+
+Any reason for not moving x86 over to the new generic version?
+
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
