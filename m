@@ -1,63 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 34AC96B0038
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 14:32:53 -0400 (EDT)
-Received: by igr7 with SMTP id 7so128851825igr.0
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 11:32:53 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id el7si2742281pdb.190.2015.07.28.11.32.52
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C26C6B0038
+	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 15:48:31 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so194289268wib.1
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 12:48:31 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id fq16si8188320wjc.124.2015.07.28.12.48.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Jul 2015 11:32:52 -0700 (PDT)
-Received: by pachj5 with SMTP id hj5so73693034pac.3
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 11:32:52 -0700 (PDT)
-Date: Tue, 28 Jul 2015 11:32:48 -0700
-From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
-Subject: Re: hugetlb pages not accounted for in rss
-Message-ID: <20150728183248.GB1406@Sligo.logfs.org>
-References: <55B6BE37.3010804@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Jul 2015 12:48:29 -0700 (PDT)
+Date: Tue, 28 Jul 2015 21:48:20 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC PATCH 14/14] kthread_worker: Add
+ set_kthread_worker_scheduler*()
+Message-ID: <20150728194820.GE19282@twins.programming.kicks-ass.net>
+References: <1438094371-8326-1-git-send-email-pmladek@suse.com>
+ <1438094371-8326-15-git-send-email-pmladek@suse.com>
+ <20150728174154.GG5322@mtj.duckdns.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <55B6BE37.3010804@oracle.com>
+In-Reply-To: <20150728174154.GG5322@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Petr Mladek <pmladek@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 27, 2015 at 04:26:47PM -0700, Mike Kravetz wrote:
-> I started looking at the hugetlb self tests.  The test hugetlbfstest
-> expects hugetlb pages to be accounted for in rss.  However, there is
-> no code in the kernel to do this accounting.
+On Tue, Jul 28, 2015 at 01:41:54PM -0400, Tejun Heo wrote:
+> On Tue, Jul 28, 2015 at 04:39:31PM +0200, Petr Mladek wrote:
+> > +/**
+> > + * set_kthread_worker_scheduler - change the scheduling policy and/or RT
+> > + *	priority of a kthread worker.
+> > + * @worker: target kthread_worker
+> > + * @policy: new policy
+> > + * @sched_priority: new RT priority
+> > + *
+> > + * Return: 0 on success. An error code otherwise.
+> > + */
+> > +int set_kthread_worker_scheduler(struct kthread_worker *worker,
+> > +				 int policy, int sched_priority)
+> > +{
+> > +	return __set_kthread_worker_scheduler(worker, policy, sched_priority,
+> > +					      true);
+> > +}
 > 
-> It looks like there was an effort to add the accounting back in 2013.
-> The test program made it into tree, but the accounting code did not.
+> Ditto.  I don't get why we would want these thin wrappers.
 
-My apologies.  Upstream work always gets axed first when I run out of
-time - which happens more often than not.
-
-> The easiest way to resolve this issue would be to remove the test and
-> perhaps document that hugetlb pages are not accounted for in rss.
-> However, it does seem like a big oversight that hugetlb pages are not
-> accounted for in rss.  From a quick scan of the code it appears THP
-> pages are properly accounted for.
-> 
-> Thoughts?
-
-Unsurprisingly I agree that hugepages should count towards rss.  Keeping
-the test in keeps us honest.  Actually fixing the issue would make us
-honest and correct.
-
-Increasingly we have tiny processes (by rss) that actually consume large
-fractions of total memory.  Makes rss somewhat useless as a measure of
-anything.
-
-Jorn
-
---
-Consensus is no proof!
--- John Naisbitt
+On top of which this is an obsolete interface :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
