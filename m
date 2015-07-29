@@ -1,108 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EEE656B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 01:12:23 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so82787990pdr.2
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 22:12:23 -0700 (PDT)
-Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id c9si58787120pas.144.2015.07.28.22.12.22
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A6326B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 02:34:14 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so205478590wic.0
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 23:34:13 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fu7si25168155wib.72.2015.07.28.23.34.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 28 Jul 2015 22:12:22 -0700 (PDT)
-Received: from epcpsbgr1.samsung.com
- (u141.gpu120.samsung.co.kr [203.254.230.141])
- by mailout1.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
- 64bit (built May  5 2014))
- with ESMTP id <0NS8012DKH4K29E0@mailout1.samsung.com> for linux-mm@kvack.org;
- Wed, 29 Jul 2015 14:12:20 +0900 (KST)
-From: PINTU KUMAR <pintu.k@samsung.com>
-References: <1437114578-2502-1-git-send-email-pintu.k@samsung.com>
- <1437366544-32673-1-git-send-email-pintu.k@samsung.com>
- <20150720082810.GG2561@suse.de> <02c601d0c306$f86d30f0$e94792d0$@samsung.com>
- <20150720175538.GJ2561@suse.de> <05af01d0c47f$3337ccd0$99a76670$@samsung.com>
- <20150722140530.GK2561@suse.de>
-In-reply-to: <20150722140530.GK2561@suse.de>
-Subject: RE: [PATCH v3 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
- feature
-Date: Wed, 29 Jul 2015 10:41:10 +0530
-Message-id: <030e01d0c9bd$20e1df60$62a59e20$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: en-us
+        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 28 Jul 2015 23:34:12 -0700 (PDT)
+Subject: Re: [RFC 1/4] mm, compaction: introduce kcompactd
+References: <1435826795-13777-1-git-send-email-vbabka@suse.cz>
+ <1435826795-13777-2-git-send-email-vbabka@suse.cz>
+ <alpine.DEB.2.10.1507091439100.17177@chino.kir.corp.google.com>
+ <55AE0AFE.8070200@suse.cz>
+ <alpine.DEB.2.10.1507211549380.3833@chino.kir.corp.google.com>
+ <55AFB569.90702@suse.cz>
+ <alpine.DEB.2.10.1507221509520.24115@chino.kir.corp.google.com>
+ <55B0B175.9090306@suse.cz>
+ <alpine.DEB.2.10.1507231358470.31024@chino.kir.corp.google.com>
+ <55B1DF11.8070100@suse.cz>
+ <alpine.DEB.2.10.1507281711250.12378@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55B873DE.2060800@suse.cz>
+Date: Wed, 29 Jul 2015 08:34:06 +0200
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.10.1507281711250.12378@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mel Gorman' <mgorman@suse.de>
-Cc: akpm@linux-foundation.org, corbet@lwn.net, vbabka@suse.cz, gorcunov@openvz.org, mhocko@suse.cz, emunson@akamai.com, kirill.shutemov@linux.intel.com, standby24x7@gmail.com, hannes@cmpxchg.org, vdavydov@parallels.com, hughd@google.com, minchan@kernel.org, tj@kernel.org, rientjes@google.com, xypron.glpk@gmx.de, dzickus@redhat.com, prarit@redhat.com, ebiederm@xmission.com, rostedt@goodmis.org, uobergfe@redhat.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, ddstreet@ieee.org, sasha.levin@oracle.com, koct9i@gmail.com, cj@linux.com, opensource.ganesh@gmail.com, vinmenon@codeaurora.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, qiuxishi@huawei.com, Valdis.Kletnieks@vt.edu, cpgs@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, iqbal.ams@samsung.com, pintu.ping@gmail.com, pintu.k@outlook.com
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Sorry, for late reply.
-
-> -----Original Message-----
-> From: Mel Gorman [mailto:mgorman@suse.de]
-> Sent: Wednesday, July 22, 2015 7:36 PM
-> To: PINTU KUMAR
-> Cc: akpm@linux-foundation.org; corbet@lwn.net; vbabka@suse.cz;
-> gorcunov@openvz.org; mhocko@suse.cz; emunson@akamai.com;
-> kirill.shutemov@linux.intel.com; standby24x7@gmail.com;
-> hannes@cmpxchg.org; vdavydov@parallels.com; hughd@google.com;
-> minchan@kernel.org; tj@kernel.org; rientjes@google.com;
-> xypron.glpk@gmx.de; dzickus@redhat.com; prarit@redhat.com;
-> ebiederm@xmission.com; rostedt@goodmis.org; uobergfe@redhat.com;
-> paulmck@linux.vnet.ibm.com; iamjoonsoo.kim@lge.com; ddstreet@ieee.org;
-> sasha.levin@oracle.com; koct9i@gmail.com; cj@linux.com;
-> opensource.ganesh@gmail.com; vinmenon@codeaurora.org; linux-
-> doc@vger.kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; linux-
-> pm@vger.kernel.org; qiuxishi@huawei.com; Valdis.Kletnieks@vt.edu;
-> cpgs@samsung.com; pintu_agarwal@yahoo.com; vishnu.ps@samsung.com;
-> rohit.kr@samsung.com; iqbal.ams@samsung.com; pintu.ping@gmail.com;
-> pintu.k@outlook.com
-> Subject: Re: [PATCH v3 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
-> feature
+On 07/29/2015 02:33 AM, David Rientjes wrote:
+> On Fri, 24 Jul 2015, Vlastimil Babka wrote:
 > 
-> On Wed, Jul 22, 2015 at 06:33:26PM +0530, PINTU KUMAR wrote:
-> > Dear Mel, thank you very much for your comments and suggestions.
-> > I will drop this one and look on further improving direct_reclaim and
-> > compaction.
-> > Just few more comments below before I close.
-> >
-> > Also, during this patch, I feel that the hibernation_mode part in
-> > shrink_all_memory can be corrected.
-> > So, can I separately submit the below patch?
-> > That is instead of hard-coding the hibernation_mode, we can get
-> > hibernation status using:
-> > system_entering_hibernation()
-> >
-> > Please let me know your suggestion about this changes.
-> >
-> > -#ifdef CONFIG_HIBERNATION
-> > +#if defined CONFIG_HIBERNATION || CONFIG_SHRINK_MEMORY
+>> > Two issues I want to bring up:
+>> > 
+>> >   (1) do non-thp configs benefit from periodic compaction?
+>> > 
+>> >       In my experience, no, but perhaps there are other use cases where
+>> >       this has been a pain.  The primary candidates, in my opinion,
+>> >       would be the networking stack and slub.  Joonsoo reports having to
+>> >       workaround issues with high-order slub allocations being too
+>> >       expensive.  I'm not sure that would be better served by periodic
+>> >       compaction, but it seems like a candidate for background compaction.
+>> 
+>> Yes hopefully a proactive background compaction would serve them enough.
+>> 
+>> >       This is why my rfc tied periodic compaction to khugepaged, and we
+>> >       have strong evidence that this helps thp and cpu utilization.  For
+>> >       periodic compaction to be possible outside of thp, we'd need a use
+>> >       case for it.
+>> > 
+>> >   (2) does kcompactd have to be per-node?
+>> > 
+>> >       I don't see the immediate benefit since direct compaction can
+>> >       already scan remote memory and migrate it, khugepaged can do the
+>> 
+>> It can work remotely, but it's slower.
+>> 
+>> >       same.  Is there evidence that suggests that a per-node kcompactd
+>> >       is significantly better than a single kthread?  I think others
+>> >       would be more receptive of a single kthread addition.
+>> 
+>> I think it's simpler design wrt waking up the kthread for the desired node,
+>> and self-tuning any sleeping depending on per-node pressure. It also matches
+>> the design of kswapd. And IMHO machines with many memory nodes should
+>> naturally have also many CPU's to cope with the threads, so it should all
+>> scale well.
+>> 
 > 
-I was talking about only the following case.
-Instead of hard coding the hibernation_mode in shrink_all_memory, 
-We can set it at runtime.
-
--               .hibernation_mode = 1,
-
-+       if (system_entering_hibernation())
-+               sc.hibernation_mode = 1;
-+       else
-+               sc.hibernation_mode = 0;
-
-The PM owners should confirm if this is ok.
-Once confirmed, I will submit the full patch set.
-
-+> This appears to be a patch on top of "Add /proc/sys/vm/shrink_memory feature"
-> so I do not see what would be separately submitted that would make sense.
+> I see your "proactive background compaction" as my "periodic compaction" 
+> :)  And I agree with your comment that we should be careful about defining 
+> the API so it can be easily extended in the future.
 > 
-And we don't need to have /proc/sys/vm/shrink_memory patch for this.
+> I see the two mechanisms different enough that they need to be defined 
+> separately: periodic compaction that would be done at certain intervals 
+> regardless of fragmentation or allocation failures to keep fragmentation 
+> low, and background compaction that would be done when a zone reaches a 
+> certain fragmentation index for high orders, similar to extfrag_threshold, 
+> or an allocation failure.
 
-However, if required, we can also expose shrink_all_memory() outside the
-hibernation using the CONFIG_SHRINK_MEMORY.
-Otherwise, we can neglect other changes.
+Is there a smart way to check the fragmentation index without doing it just
+periodically, and without polluting the allocator fast paths?
 
-> --
-> Mel Gorman
-> SUSE Labs
+Do you think we should still handle THP availability separately as this patchset
+does, or not? I think it could still serve to reduce page fault latencies and
+pointless khugepaged scanning when hugepages cannot be allocated.
+Which implies, can the following be built on top of this patchset?
+
+> Per-node kcompactd threads we agree would be optimal, so let's try to see 
+> if we can make that work.
+> 
+> What do you think about the following?
+> 
+>  - add vm.compact_period_secs to define the number of seconds between
+>    full compactions on each node.  This compaction would reset the
+>    pageblock skip heuristic and be synchronous.  It would default to 900
+>    based only on our evidence that 15m period compaction helps increase
+>    our cpu utilization for khugepaged; it is arbitrary and I'd happily
+>    change it if someone has a better suggestion.  Changing it to 0 would
+>    disable periodic compaction (we don't anticipate anybody will ever
+>    want kcompactd threads will take 100% of cpu on each node).  We can
+>    stagger this over all nodes to avoid all kcompactd threads working at
+>    the same time.
+
+I guess more testing would be useful to see that it still improves things over
+the background compaction?
+
+>  - add vm.compact_background_extfrag_threshold to define the extfrag
+>    threshold when kcompactd should start doing sync_light migration
+>    in the background without resetting the pageblock skip heuristic.
+>    The threshold is defined at PAGE_ALLOC_COSTLY_ORDER and is halved
+>    for each order higher so that very high order allocations don't
+
+I've pondered what exactly the fragmentation index calculates, and it's hard to
+imagine how I'd set the threshold. Note that the equation already does
+effectively a halving with each order increase, but probably in the opposite
+direction that you want it to.
+
+Michal Hocko suggested to me offline that we have tunables like
+compact_min_order and compact_max_order, where (IIUC) compaction would trigger
+when no pages of >=compact_min_order are available, and then compaction would
+stop when pages of >=compact_max_order are available (i.e. a kind of
+hysteresis). I'm not sure about this either, as the user would have to know
+which order-allocations his particular drivers need (unless it's somehow
+self-tuning).
+
+What I have instead in mind is something like the current high-order watermark
+checking (which may be going away soon, but anyway...) basically for each order
+we say how many pages of "at least that order" should be available. This could
+be calculated progressively for all orders from a single tunable and size of
+zone. Or maybe two tunables meant as min/max, to triggest start and end of
+background compaction.
+
+>    trigger it.  To reduce overhead, this can be checked only in the
+>    slowpath.
+
+Hmm slowpath might be too late, but could be usable starting point.
+
+> I'd also like to talk about compacting of mlocked memory and limit it to 
+> only periodic compaction so that we aren't constantly incurring minor 
+> faults when not expected.
+
+Well, periodic compaction can be "expected" in the sense that period is known,
+but how would the knowledge help the applications suffering from the minor faults?
+
+> How does this sound?
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
