@@ -1,61 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C26F69003C7
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 11:58:21 -0400 (EDT)
-Received: by wicgb10 with SMTP id gb10so207123110wic.1
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:58:21 -0700 (PDT)
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
-        by mx.google.com with ESMTPS id s8si8181832wiy.84.2015.07.29.08.58.16
+Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CBF19003C7
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 12:03:19 -0400 (EDT)
+Received: by ykba194 with SMTP id a194so11656283ykb.0
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 09:03:19 -0700 (PDT)
+Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
+        by mx.google.com with ESMTPS id 202si18977531ykw.64.2015.07.29.09.03.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jul 2015 08:58:20 -0700 (PDT)
-Received: by wibxm9 with SMTP id xm9so32980905wib.1
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:58:16 -0700 (PDT)
-Date: Wed, 29 Jul 2015 17:58:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -mm v9 0/8] idle memory tracking
-Message-ID: <20150729155814.GO15801@dhcp22.suse.cz>
-References: <cover.1437303956.git.vdavydov@parallels.com>
- <20150729123629.GI15801@dhcp22.suse.cz>
- <20150729135907.GT8100@esperanza>
- <CANN689HJX2ZL891uOd8TW9ct4PNH9d5odQZm86WMxkpkCWhA-w@mail.gmail.com>
- <20150729144539.GU8100@esperanza>
- <20150729150855.GM15801@dhcp22.suse.cz>
- <20150729153640.GX8100@esperanza>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Jul 2015 09:03:18 -0700 (PDT)
+Message-ID: <55B8F92B.2060900@citrix.com>
+Date: Wed, 29 Jul 2015 17:02:51 +0100
+From: David Vrabel <david.vrabel@citrix.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150729153640.GX8100@esperanza>
+Subject: Re: [PATCHv2 06/10] xen/balloon: only hotplug additional memory if
+ required
+References: <1437738468-24110-1-git-send-email-david.vrabel@citrix.com>
+ <1437738468-24110-7-git-send-email-david.vrabel@citrix.com>
+ <20150729155535.GL3492@olila.local.net-space.pl>
+In-Reply-To: <20150729155535.GL3492@olila.local.net-space.pl>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Daniel Kiper <daniel.kiper@oracle.com>
+Cc: xen-devel@lists.xenproject.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 29-07-15 18:36:40, Vladimir Davydov wrote:
-> On Wed, Jul 29, 2015 at 05:08:55PM +0200, Michal Hocko wrote:
-> > On Wed 29-07-15 17:45:39, Vladimir Davydov wrote:
-[...]
-> > > Page table scan approach has the inherent problem - it ignores unmapped
-> > > page cache. If a workload does a lot of read/write or map-access-unmap
-> > > operations, we won't be able to even roughly estimate its wss.
-> > 
-> > That page cache is trivially reclaimable if it is clean. If it needs
-> > writeback then it is non-idle only until the next writeback. So why does
-> > it matter for the estimation?
+On 29/07/15 16:55, Daniel Kiper wrote:
+> On Fri, Jul 24, 2015 at 12:47:44PM +0100, David Vrabel wrote:
+>> --- a/drivers/xen/balloon.c
+>> +++ b/drivers/xen/balloon.c
+>> @@ -75,12 +75,14 @@
+>>   * balloon_process() state:
+>>   *
+>>   * BP_DONE: done or nothing to do,
+>> + * BP_WAIT: wait to be rescheduled,
 > 
-> Because it might be a part of a workload's working set, in which case
-> evicting it will make the workload lag.
+> BP_SLEEP? BP_WAIT suggests that balloon process waits for something in a loop.
 
-My point was that no sane application will rely on the unmaped pagecache
-being part of the working set. But you are right that you might have a
-more complex load consisting of many applications each doing buffered
-IO on the same set of files which might get evicted due to other memory
-pressure in the meantime and have a higher latencies. This is where low
-limit covering this memory as well might be helpful.
+Waiting in a loop is what wait_event() does.
 
--- 
-Michal Hocko
-SUSE Labs
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
