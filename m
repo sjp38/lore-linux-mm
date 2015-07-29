@@ -1,79 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 70DAE6B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:25:07 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so23754711wib.0
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 05:25:07 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id j10si7169316wjf.167.2015.07.29.05.25.05
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CA1C6B0254
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:25:18 -0400 (EDT)
+Received: by wicgb10 with SMTP id gb10so198138084wic.1
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 05:25:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o3si26750628wic.109.2015.07.29.05.25.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 29 Jul 2015 05:25:05 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 879D898A45
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 12:25:04 +0000 (UTC)
-Date: Wed, 29 Jul 2015 13:25:02 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 08/10] mm, page_alloc: Remove MIGRATE_RESERVE
-Message-ID: <20150729122502.GB19352@techsingularity.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Jul 2015 05:25:16 -0700 (PDT)
+Subject: Re: [PATCH 10/10] mm, page_alloc: Only enforce watermarks for order-0
+ allocations
 References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
- <1437379219-9160-9-git-send-email-mgorman@suse.com>
- <55B8A3F3.6090107@suse.cz>
+ <1437379219-9160-11-git-send-email-mgorman@suse.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55B8C629.80303@suse.cz>
+Date: Wed, 29 Jul 2015 14:25:13 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <55B8A3F3.6090107@suse.cz>
+In-Reply-To: <1437379219-9160-11-git-send-email-mgorman@suse.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.com>, Linux-MM <linux-mm@kvack.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On Wed, Jul 29, 2015 at 11:59:15AM +0200, Vlastimil Babka wrote:
-> On 07/20/2015 10:00 AM, Mel Gorman wrote:
-> > From: Mel Gorman <mgorman@suse.de>
-> > 
-> > MIGRATE_RESERVE preserves an old property of the buddy allocator that existed
-> > prior to fragmentation avoidance -- min_free_kbytes worth of pages tended to
-> > remain free until the only alternative was to fail the allocation. At the
+On 07/20/2015 10:00 AM, Mel Gorman wrote:
+
+[...]
+
+>  static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+>  			unsigned long mark, int classzone_idx, int alloc_flags,
+> @@ -2259,7 +2261,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+>  {
+>  	long min = mark;
+>  	int o;
+> -	long free_cma = 0;
+> +	const bool atomic = (alloc_flags & ALLOC_HARDER);
+>  
+>  	/* free_pages may go negative - that's OK */
+>  	free_pages -= (1 << order) - 1;
+> @@ -2271,7 +2273,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+>  	 * If the caller is not atomic then discount the reserves. This will
+>  	 * over-estimate how the atomic reserve but it avoids a search
+>  	 */
+> -	if (likely(!(alloc_flags & ALLOC_HARDER)))
+> +	if (likely(!atomic))
+>  		free_pages -= z->nr_reserved_highatomic;
+>  	else
+>  		min -= min / 4;
+> @@ -2279,22 +2281,30 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+>  #ifdef CONFIG_CMA
+>  	/* If allocation can't use CMA areas don't use free CMA pages */
+>  	if (!(alloc_flags & ALLOC_CMA))
+> -		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
+> +		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+>  #endif
+>  
+> -	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
+> +	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
+>  		return false;
+> -	for (o = 0; o < order; o++) {
+> -		/* At the next order, this order's pages become unavailable */
+> -		free_pages -= z->free_area[o].nr_free << o;
+>  
+> -		/* Require fewer higher order pages to be free */
+> -		min >>= 1;
+> +	/* order-0 watermarks are ok */
+> +	if (!order)
+> +		return true;
+> +
+> +	/* Check at least one high-order page is free */
+> +	for (o = order; o < MAX_ORDER; o++) {
+> +		struct free_area *area = &z->free_area[o];
+> +		int mt;
+> +
+> +		if (atomic && area->nr_free)
+> +			return true;
+
+This may be a false positive due to MIGRATE_CMA or MIGRATE_ISOLATE pages being
+the only free ones. But maybe it doesn't matter that much?
+
+>  
+> -		if (free_pages <= min)
+> -			return false;
+> +		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
+> +			if (!list_empty(&area->free_list[mt]))
+> +				return true;
+> +		}
+
+This may be a false negative for ALLOC_CMA allocations, if the only free pages
+are of MIGRATE_CMA. Arguably that's the worse case than a false positive?
+
+>  	}
+> -	return true;
+> +	return false;
+>  }
+>  
+>  bool zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 > 
->           ^ I think you meant contiguous instead of free?
-
-That is exactly what I meant.
-
-> Is it because
-> splitting chooses lowest possible order, and grouping by mobility means you
-> might be splitting e.g. order-5 movable page instead of using order-0 unmovable
-> page? And that the fallback heuristics specifically select highest available
-> order? I think it's not that obvious, so worth mentioning.
-> 
-
-Yes, the commit that introduced MIGRATE_RESERVE discusses it so I didn't
-repeat it as the git digging is simply
-
-1. Find the commit that introduced MIGRATE_HIGHATOMIC and see it
-   replaced MIGRATE_RESERVE
-2. Find the commit that introduced MIGRATE_RESERVE
-
-That locates 56fd56b868f1 ("Bias the location of pages freed for
-min_free_kbytes in the same MAX_ORDER_NR_PAGES blocks").
-
-> > time it was discovered that high-order atomic allocations relied on this
-> > property so MIGRATE_RESERVE was introduced. A later patch will introduce
-> > an alternative MIGRATE_HIGHATOMIC so this patch deletes MIGRATE_RESERVE
-> > and supporting code so it'll be easier to review. Note that this patch
-> > in isolation may look like a false regression if someone was bisecting
-> > high-order atomic allocation failures.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-
-Thanks.
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
