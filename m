@@ -1,57 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C53E06B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 06:56:00 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so215371399wib.1
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 03:56:00 -0700 (PDT)
-Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
-        by mx.google.com with ESMTPS id xa3si43104576wjc.106.2015.07.29.03.55.58
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C6916B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 07:23:58 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so214789419wic.0
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 04:23:57 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ck10si26488441wib.65.2015.07.29.04.23.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jul 2015 03:55:59 -0700 (PDT)
-Received: by wibxm9 with SMTP id xm9so20591187wib.1
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 03:55:58 -0700 (PDT)
-Date: Wed, 29 Jul 2015 12:55:54 +0200
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [PATCH 0/4] enable migration of driver pages
-Message-ID: <20150729105554.GU16722@phenom.ffwll.local>
-References: <1436776519-17337-1-git-send-email-gioh.kim@lge.com>
- <20150729104945.GA30872@techsingularity.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Jul 2015 04:23:57 -0700 (PDT)
+Date: Wed, 29 Jul 2015 13:23:54 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [RFC PATCH 13/14] kthread_worker: Add
+ set_kthread_worker_user_nice()
+Message-ID: <20150729112354.GK2673@pathway.suse.cz>
+References: <1438094371-8326-1-git-send-email-pmladek@suse.com>
+ <1438094371-8326-14-git-send-email-pmladek@suse.com>
+ <20150728174058.GF5322@mtj.duckdns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150729104945.GA30872@techsingularity.net>
+In-Reply-To: <20150728174058.GF5322@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Gioh Kim <gioh.kim@lge.com>, jlayton@poochiereds.net, bfields@fieldses.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, viro@zeniv.linux.org.uk, mst@redhat.com, koct9i@gmail.com, minchan@kernel.org, aquini@redhat.com, linux-fsdevel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, akpm@linux-foundation.org, Gioh Kim <gurugio@hanmail.net>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 29, 2015 at 11:49:45AM +0100, Mel Gorman wrote:
-> On Mon, Jul 13, 2015 at 05:35:15PM +0900, Gioh Kim wrote:
-> > My ARM-based platform occured severe fragmentation problem after long-term
-> > (several days) test. Sometimes even order-3 page allocation failed. It has
-> > memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
-> > and 20~30 memory is reserved for zram.
-> > 
+On Tue 2015-07-28 13:40:58, Tejun Heo wrote:
+> On Tue, Jul 28, 2015 at 04:39:30PM +0200, Petr Mladek wrote:
+> ...
+> > +/*
+> > + * set_kthread_worker_user_nice - set scheduling priority for the kthread worker
+> > + * @worker: target kthread_worker
+> > + * @nice: niceness value
+> > + */
+> > +void set_kthread_worker_user_nice(struct kthread_worker *worker, long nice)
+> > +{
+> > +	struct task_struct *task = worker->task;
+> > +
+> > +	WARN_ON(!task);
+> > +	set_user_nice(task, nice);
+> > +}
+> > +EXPORT_SYMBOL(set_kthread_worker_user_nice);
 > 
-> The primary motivation of this series is to reduce fragmentation by allowing
-> more kernel pages to be moved. Conceptually that is a worthwhile goal but
-> there should be at least one major in-kernel user and while balloon
-> pages were a good starting point, I think we really need to see what the
-> zram changes look like at the same time.
+> kthread_worker is explcitly associated with a single kthread.  Why do
+> we want to create explicit wrappers for kthread operations?  This is
+> encapsulation for encapsulation's sake.  It doesn't buy us anything at
+> all.  Just let the user access the associated kthread and operate on
+> it.
 
-I think gpu drivers really would be the perfect candidate for compacting
-kernel page allocations. And this also seems the primary motivation for
-this patch series, so I think that's really what we should use to judge
-these patches.
+My plan is to make the API cleaner and hide struct kthread_worker
+definition into kthread.c. It would prevent anyone doing any hacks
+with it. BTW, we do the same with struct workqueue_struct.
 
-Of course then there's the seemingly eternal chicken/egg problem of
-upstream gpu drivers for SoCs :(
--Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-http://blog.ffwll.ch
+Another possibility would be to add helper function to get the
+associated task struct but this might cause inconsistencies when
+the worker is restarted.
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
