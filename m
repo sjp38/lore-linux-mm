@@ -1,92 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 746B66B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 11:03:38 -0400 (EDT)
-Received: by ykdu72 with SMTP id u72so9906017ykd.2
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:03:38 -0700 (PDT)
-Received: from mail-yk0-x236.google.com (mail-yk0-x236.google.com. [2607:f8b0:4002:c07::236])
-        by mx.google.com with ESMTPS id z126si18763695ywe.152.2015.07.29.08.03.36
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 07B476B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 11:05:54 -0400 (EDT)
+Received: by wicgb10 with SMTP id gb10so204946382wic.1
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:05:53 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
+        by mx.google.com with ESMTPS id go10si8922811wjc.165.2015.07.29.08.05.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jul 2015 08:03:36 -0700 (PDT)
-Received: by ykax123 with SMTP id x123so9953527yka.1
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:03:36 -0700 (PDT)
-Date: Wed, 29 Jul 2015 11:03:33 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH 03/14] kthread: Add drain_kthread_worker()
-Message-ID: <20150729150333.GA3504@mtj.duckdns.org>
-References: <1438094371-8326-1-git-send-email-pmladek@suse.com>
- <1438094371-8326-4-git-send-email-pmladek@suse.com>
- <20150728171822.GA5322@mtj.duckdns.org>
- <20150729100457.GI2673@pathway.suse.cz>
+        Wed, 29 Jul 2015 08:05:52 -0700 (PDT)
+Received: by wibxm9 with SMTP id xm9so30785685wib.1
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:05:51 -0700 (PDT)
+Date: Wed, 29 Jul 2015 17:05:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
+Message-ID: <20150729150549.GL15801@dhcp22.suse.cz>
+References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
+ <1436358472-29137-8-git-send-email-mhocko@kernel.org>
+ <20150710140533.GB29540@dhcp22.suse.cz>
+ <20150714151823.GG17660@dhcp22.suse.cz>
+ <20150729131454.GB10001@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150729100457.GI2673@pathway.suse.cz>
+In-Reply-To: <20150729131454.GB10001@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hello, Petr.
+On Wed 29-07-15 09:14:54, Johannes Weiner wrote:
+> On Tue, Jul 14, 2015 at 05:18:23PM +0200, Michal Hocko wrote:
+[...]
+> > 3) fail mem_cgroup_can_attach if we are trying to migrate a task sharing
+> > mm_struct with a process outside of the tset. If I understand the
+> > tset properly this would require all the sharing tasks to be migrated
+> > together and we would never end up with task_css != &task->mm->css.
+> > __cgroup_procs_write doesn't seem to support multi pid move currently
+> > AFAICS, though. cgroup_migrate_add_src, however, seems to be intended
+> > for this purpose so this should be doable. Without that support we would
+> > basically disallow migrating these tasks - I wouldn't object if you ask
+> > me.
+> 
+> I'd prefer not adding controller-specific failure modes for attaching,
 
-On Wed, Jul 29, 2015 at 12:04:57PM +0200, Petr Mladek wrote:
-> > I'm not sure full-on chained work detection is necessary here.
-> > kthread worker's usages tend to be significantly simpler and draining
-> > is only gonna be used for destruction.
-> 
-> I think that it might be useful to detect bugs when someone
-> depends on the worker when it is being destroyed. For example,
-> I tried to convert "khubd" kthread and there was not easy to
-> double check that this worked as expected.
-> 
-> I actually think about replacing
-> 
->     WARN_ON_ONCE(!is_chained_work(worker)))
-> 
-> with
-> 
->     WARN_ON(!is_chained_work(worker)))
-> 
-> in queue_kthread_work, so that we get the warning for all misused
-> workers.
+Does this mean that there is a plan to drop the return value from
+can_attach? I can see that both cpuset and cpu controllers currently
+allow to fail to attach. Are those going to change? I remember some
+discussions but no clear outcome of those.
 
-This is a partial soluation no matter what you do especially for
-destruction path as there's nothing which prevents draining and
-destruction winning the race and then external queueing coming in
-afterwards.  For use-after-free, slab debug should work pretty well.
-I really don't think we need anything special here.
+> and this too would lead to very non-obvious behavior.
 
-> > > +	while (!list_empty(&worker->work_list)) {
-> > > +		/*
-> > > +		 * Unlock, so we could move forward. Note that queuing
-> > > +		 * is limited by @nr_drainers > 0.
-> > > +		 */
-> > > +		spin_unlock_irq(&worker->lock);
-> > > +
-> > > +		flush_kthread_worker(worker);
-> > > +
-> > > +		if (++flush_cnt == 10 ||
-> > > +		    (flush_cnt % 100 == 0 && flush_cnt <= 1000))
-> > > +			pr_warn("kthread worker %s: drain_kthread_worker() isn't complete after %u tries\n",
-> > > +				worker->task->comm, flush_cnt);
-> > > +
-> > > +		spin_lock_irq(&worker->lock);
-> > > +	}
-> > 
-> > I'd just do something like WARN_ONCE(flush_cnt++ > 10, "kthread worker: ...").
+Yeah, the user will not get an error source with the current API but
+this is an inherent restriction currently. Maybe we can add a knob with
+the error source?
+
+If there is a clear consensus that can_attach failures are clearly a no
+go then what about "silent" moving of the associated tasks? This would
+be similar to thread group except the group would be more generic term.
+
+> > Do you see other options? From the above three options the 3rd one
+> > sounds the most sane to me and the 1st quite easy to implement. Both will
+> > require some cgroup core work though. But maybe we would be good enough
+> > with 3rd option without supporting moving schizophrenic tasks and that
+> > would be reduced to memcg code.
 > 
-> This would print the warning only for one broken worker. But I do not
-> have strong opinion about it.
+> A modified form of 1) would be to track the mms referring to a memcg
+> but during offline search the process tree for a matching task.
 
-I really think that'd be a good enough protection here.  It's
-indicative an outright kernel bug and things tend to go awry and/or
-badly reported after the initial failure anyway.
+But we might have many of those and all of them living in different
+cgroups. So which one do we take? The first encountered, the one with
+the majority? I am not sure this is much better.
 
-Thanks.
+I would really prefer if we could get rid of the schizophrenia if it is
+possible.
+
+> This is heavy-handed, but it's a rare case and this work would be done
+> in the cgroup removal path rather than during task exit.
+
+Yes it would be lighter a bit.
+
+> This is stolen
+> from the current mm_update_next_owner():
+> 
+> list_for_each_entry(mm, memcg->mms, memcg_list) {
+>     for_each_process(g) {
+>         if (g->flags & PF_KTHREAD)
+>             continue;
+>         for_each_thread(g, c) {
+>             if (c->mm == mm)
+>                 goto assign;
+>             if (c->mm)
+>                 break;
+>         }
+>     }
+> assign:
+>     memcg = mem_cgroup_from_task(c);
+>     mm->memcg = memcg;
+>     list_move(&mm->memcg_list, &memcg->mms);
+> }
+> 
+> (plus appropriate synchronization, of course)
 
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
