@@ -1,110 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 07B476B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 11:05:54 -0400 (EDT)
-Received: by wicgb10 with SMTP id gb10so204946382wic.1
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:05:53 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id go10si8922811wjc.165.2015.07.29.08.05.51
+Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 92E176B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 11:08:23 -0400 (EDT)
+Received: by ykdu72 with SMTP id u72so10045436ykd.2
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:08:23 -0700 (PDT)
+Received: from mail-yk0-x231.google.com (mail-yk0-x231.google.com. [2607:f8b0:4002:c07::231])
+        by mx.google.com with ESMTPS id f206si18776197ykd.144.2015.07.29.08.08.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jul 2015 08:05:52 -0700 (PDT)
-Received: by wibxm9 with SMTP id xm9so30785685wib.1
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:05:51 -0700 (PDT)
-Date: Wed, 29 Jul 2015 17:05:49 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
-Message-ID: <20150729150549.GL15801@dhcp22.suse.cz>
-References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
- <1436358472-29137-8-git-send-email-mhocko@kernel.org>
- <20150710140533.GB29540@dhcp22.suse.cz>
- <20150714151823.GG17660@dhcp22.suse.cz>
- <20150729131454.GB10001@cmpxchg.org>
+        Wed, 29 Jul 2015 08:08:23 -0700 (PDT)
+Received: by ykdu72 with SMTP id u72so10045195ykd.2
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:08:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150729131454.GB10001@cmpxchg.org>
+In-Reply-To: <20150729144539.GU8100@esperanza>
+References: <cover.1437303956.git.vdavydov@parallels.com>
+	<20150729123629.GI15801@dhcp22.suse.cz>
+	<20150729135907.GT8100@esperanza>
+	<CANN689HJX2ZL891uOd8TW9ct4PNH9d5odQZm86WMxkpkCWhA-w@mail.gmail.com>
+	<20150729144539.GU8100@esperanza>
+Date: Wed, 29 Jul 2015 08:08:22 -0700
+Message-ID: <CANN689Euq3Y-CHQo8q88vzFAYZX4S6rK+rZRfbuSKfS74u=gcg@mail.gmail.com>
+Subject: Re: [PATCH -mm v9 0/8] idle memory tracking
+From: Michel Lespinasse <walken@google.com>
+Content-Type: multipart/alternative; boundary=001a11398bee328a01051c04f509
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 29-07-15 09:14:54, Johannes Weiner wrote:
-> On Tue, Jul 14, 2015 at 05:18:23PM +0200, Michal Hocko wrote:
-[...]
-> > 3) fail mem_cgroup_can_attach if we are trying to migrate a task sharing
-> > mm_struct with a process outside of the tset. If I understand the
-> > tset properly this would require all the sharing tasks to be migrated
-> > together and we would never end up with task_css != &task->mm->css.
-> > __cgroup_procs_write doesn't seem to support multi pid move currently
-> > AFAICS, though. cgroup_migrate_add_src, however, seems to be intended
-> > for this purpose so this should be doable. Without that support we would
-> > basically disallow migrating these tasks - I wouldn't object if you ask
-> > me.
-> 
-> I'd prefer not adding controller-specific failure modes for attaching,
+--001a11398bee328a01051c04f509
+Content-Type: text/plain; charset=UTF-8
 
-Does this mean that there is a plan to drop the return value from
-can_attach? I can see that both cpuset and cpu controllers currently
-allow to fail to attach. Are those going to change? I remember some
-discussions but no clear outcome of those.
+On Wed, Jul 29, 2015 at 7:45 AM, Vladimir Davydov <vdavydov@parallels.com>
+wrote:
+> Page table scan approach has the inherent problem - it ignores unmapped
+> page cache. If a workload does a lot of read/write or map-access-unmap
+> operations, we won't be able to even roughly estimate its wss.
 
-> and this too would lead to very non-obvious behavior.
-
-Yeah, the user will not get an error source with the current API but
-this is an inherent restriction currently. Maybe we can add a knob with
-the error source?
-
-If there is a clear consensus that can_attach failures are clearly a no
-go then what about "silent" moving of the associated tasks? This would
-be similar to thread group except the group would be more generic term.
-
-> > Do you see other options? From the above three options the 3rd one
-> > sounds the most sane to me and the 1st quite easy to implement. Both will
-> > require some cgroup core work though. But maybe we would be good enough
-> > with 3rd option without supporting moving schizophrenic tasks and that
-> > would be reduced to memcg code.
-> 
-> A modified form of 1) would be to track the mms referring to a memcg
-> but during offline search the process tree for a matching task.
-
-But we might have many of those and all of them living in different
-cgroups. So which one do we take? The first encountered, the one with
-the majority? I am not sure this is much better.
-
-I would really prefer if we could get rid of the schizophrenia if it is
-possible.
-
-> This is heavy-handed, but it's a rare case and this work would be done
-> in the cgroup removal path rather than during task exit.
-
-Yes it would be lighter a bit.
-
-> This is stolen
-> from the current mm_update_next_owner():
-> 
-> list_for_each_entry(mm, memcg->mms, memcg_list) {
->     for_each_process(g) {
->         if (g->flags & PF_KTHREAD)
->             continue;
->         for_each_thread(g, c) {
->             if (c->mm == mm)
->                 goto assign;
->             if (c->mm)
->                 break;
->         }
->     }
-> assign:
->     memcg = mem_cgroup_from_task(c);
->     mm->memcg = memcg;
->     list_move(&mm->memcg_list, &memcg->mms);
-> }
-> 
-> (plus appropriate synchronization, of course)
+You can catch that in mark_page_accessed on those paths, though.
 
 -- 
-Michal Hocko
-SUSE Labs
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
+
+--001a11398bee328a01051c04f509
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+On Wed, Jul 29, 2015 at 7:45 AM, Vladimir Davydov &lt;<a href=3D"mailto:vda=
+vydov@parallels.com">vdavydov@parallels.com</a>&gt; wrote:<br>&gt; Page tab=
+le scan approach has the inherent problem - it ignores unmapped<br>&gt; pag=
+e cache. If a workload does a lot of read/write or map-access-unmap<br>&gt;=
+ operations, we won&#39;t be able to even roughly estimate its wss.<br><br>=
+You can catch that in mark_page_accessed on those paths, though.<br><br>-- =
+<br>Michel &quot;Walken&quot; Lespinasse<br>A program is never fully debugg=
+ed until the last user dies.<br>
+
+--001a11398bee328a01051c04f509--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
