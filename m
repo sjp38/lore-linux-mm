@@ -1,144 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BF6566B0257
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 11:43:07 -0400 (EDT)
-Received: by qkdg63 with SMTP id g63so6418988qkd.0
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:43:07 -0700 (PDT)
-Received: from prod-mail-xrelay06.akamai.com (prod-mail-xrelay06.akamai.com. [96.6.114.98])
-        by mx.google.com with ESMTP id c93si31887363qgd.5.2015.07.29.08.43.05
+Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 07A7B6B0258
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 11:43:10 -0400 (EDT)
+Received: by ykdu72 with SMTP id u72so11015066ykd.2
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:43:09 -0700 (PDT)
+Received: from prod-mail-xrelay08.akamai.com (prod-mail-xrelay08.akamai.com. [96.6.114.112])
+        by mx.google.com with ESMTP id e80si8274100qka.22.2015.07.29.08.43.05
         for <linux-mm@kvack.org>;
-        Wed, 29 Jul 2015 08:43:05 -0700 (PDT)
+        Wed, 29 Jul 2015 08:43:06 -0700 (PDT)
 From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH V6 2/6] mm: mlock: Add new mlock system call
-Date: Wed, 29 Jul 2015 11:42:51 -0400
-Message-Id: <1438184575-10537-3-git-send-email-emunson@akamai.com>
+Subject: [PATCH V6 3/6] mm: Introduce VM_LOCKONFAULT
+Date: Wed, 29 Jul 2015 11:42:52 -0400
+Message-Id: <1438184575-10537-4-git-send-email-emunson@akamai.com>
 In-Reply-To: <1438184575-10537-1-git-send-email-emunson@akamai.com>
 References: <1438184575-10537-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Heiko Carstens <heiko.carstens@de.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Catalin Marinas <catalin.marinas@arm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Guenter Roeck <linux@roeck-us.net>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, adi-buildroot-devel@lists.sourceforge.net, linux-cris-kernel@axis.com, linux-ia64@vger.kernel.org, linux-m68k@lists.linux-m68k.org, linux-am33-list@redhat.com, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-With the refactored mlock code, introduce a new system call for mlock.
-The new call will allow the user to specify what lock states are being
-added.  mlock2 is trivial at the moment, but a follow on patch will add
-a new mlock state making it useful.
+The cost of faulting in all memory to be locked can be very high when
+working with large mappings.  If only portions of the mapping will be
+used this can incur a high penalty for locking.
+
+For the example of a large file, this is the usage pattern for a large
+statical language model (probably applies to other statical or graphical
+models as well).  For the security example, any application transacting
+in data that cannot be swapped out (credit card data, medical records,
+etc).
+
+This patch introduces the ability to request that pages are not
+pre-faulted, but are placed on the unevictable LRU when they are finally
+faulted in.  The VM_LOCKONFAULT flag will be used together with
+VM_LOCKED and has no effect when set without VM_LOCKED.  Setting the
+VM_LOCKONFAULT flag for a VMA will cause pages faulted into that VMA to
+be added to the unevictable LRU when they are faulted or if they are
+already present, but will not cause any missing pages to be faulted in.
+
+Exposing this new lock state means that we cannot overload the meaning
+of the FOLL_POPULATE flag any longer.  Prior to this patch it was used
+to mean that the VMA for a fault was locked.  This means we need the
+new FOLL_MLOCK flag to communicate the locked state of a VMA.
+FOLL_POPULATE will now only control if the VMA should be populated and
+in the case of VM_LOCKONFAULT, it will not be set.
 
 Signed-off-by: Eric B Munson <emunson@akamai.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Cc: Michal Hocko <mhocko@suse.cz>
 Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Guenter Roeck <linux@roeck-us.net>
-Cc: linux-alpha@vger.kernel.org
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: linux-kernel@vger.kernel.org
-Cc: linux-arm-kernel@lists.infradead.org
-Cc: adi-buildroot-devel@lists.sourceforge.net
-Cc: linux-cris-kernel@axis.com
-Cc: linux-ia64@vger.kernel.org
-Cc: linux-m68k@lists.linux-m68k.org
-Cc: linux-am33-list@redhat.com
-Cc: linux-parisc@vger.kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: linux-s390@vger.kernel.org
-Cc: linux-sh@vger.kernel.org
-Cc: sparclinux@vger.kernel.org
-Cc: linux-xtensa@linux-xtensa.org
-Cc: linux-api@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
+Cc: dri-devel@lists.freedesktop.org
 Cc: linux-mm@kvack.org
+Cc: linux-api@vger.kernel.org
 ---
- arch/x86/entry/syscalls/syscall_32.tbl | 1 +
- arch/x86/entry/syscalls/syscall_64.tbl | 1 +
- include/linux/syscalls.h               | 2 ++
- include/uapi/asm-generic/unistd.h      | 4 +++-
- kernel/sys_ni.c                        | 1 +
- mm/mlock.c                             | 9 +++++++++
- 6 files changed, 17 insertions(+), 1 deletion(-)
+ drivers/gpu/drm/drm_vm.c |  8 +++++++-
+ fs/proc/task_mmu.c       |  1 +
+ include/linux/mm.h       |  2 ++
+ kernel/fork.c            |  2 +-
+ mm/debug.c               |  1 +
+ mm/gup.c                 | 10 ++++++++--
+ mm/huge_memory.c         |  2 +-
+ mm/hugetlb.c             |  4 ++--
+ mm/mlock.c               |  2 +-
+ mm/mmap.c                |  2 +-
+ mm/rmap.c                |  4 ++--
+ 11 files changed, 27 insertions(+), 11 deletions(-)
 
-diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
-index ef8187f..839d5df 100644
---- a/arch/x86/entry/syscalls/syscall_32.tbl
-+++ b/arch/x86/entry/syscalls/syscall_32.tbl
-@@ -365,3 +365,4 @@
- 356	i386	memfd_create		sys_memfd_create
- 357	i386	bpf			sys_bpf
- 358	i386	execveat		sys_execveat			stub32_execveat
-+359	i386	mlock2			sys_mlock2
-diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index 9ef32d5..ad36769 100644
---- a/arch/x86/entry/syscalls/syscall_64.tbl
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -329,6 +329,7 @@
- 320	common	kexec_file_load		sys_kexec_file_load
- 321	common	bpf			sys_bpf
- 322	64	execveat		stub_execveat
-+323	common	mlock2			sys_mlock2
+diff --git a/drivers/gpu/drm/drm_vm.c b/drivers/gpu/drm/drm_vm.c
+index aab49ee..103a5f6 100644
+--- a/drivers/gpu/drm/drm_vm.c
++++ b/drivers/gpu/drm/drm_vm.c
+@@ -699,9 +699,15 @@ int drm_vma_info(struct seq_file *m, void *data)
+ 		   (void *)(unsigned long)virt_to_phys(high_memory));
  
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index b45c45b..56a3d59 100644
---- a/include/linux/syscalls.h
-+++ b/include/linux/syscalls.h
-@@ -884,4 +884,6 @@ asmlinkage long sys_execveat(int dfd, const char __user *filename,
- 			const char __user *const __user *argv,
- 			const char __user *const __user *envp, int flags);
- 
-+asmlinkage long sys_mlock2(unsigned long start, size_t len, int flags);
+ 	list_for_each_entry(pt, &dev->vmalist, head) {
++		char lock_flag = '-';
 +
+ 		vma = pt->vma;
+ 		if (!vma)
+ 			continue;
++		if (vma->vm_flags & VM_LOCKONFAULT)
++			lock_flag = 'f';
++		else if (vma->vm_flags & VM_LOCKED)
++			lock_flag = 'l';
+ 		seq_printf(m,
+ 			   "\n%5d 0x%pK-0x%pK %c%c%c%c%c%c 0x%08lx000",
+ 			   pt->pid,
+@@ -710,7 +716,7 @@ int drm_vma_info(struct seq_file *m, void *data)
+ 			   vma->vm_flags & VM_WRITE ? 'w' : '-',
+ 			   vma->vm_flags & VM_EXEC ? 'x' : '-',
+ 			   vma->vm_flags & VM_MAYSHARE ? 's' : 'p',
+-			   vma->vm_flags & VM_LOCKED ? 'l' : '-',
++			   lock_flag,
+ 			   vma->vm_flags & VM_IO ? 'i' : '-',
+ 			   vma->vm_pgoff);
+ 
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index ca1e091..38d69fc 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -579,6 +579,7 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+ #ifdef CONFIG_X86_INTEL_MPX
+ 		[ilog2(VM_MPX)]		= "mp",
  #endif
-diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
-index e016bd9..14a6013 100644
---- a/include/uapi/asm-generic/unistd.h
-+++ b/include/uapi/asm-generic/unistd.h
-@@ -709,9 +709,11 @@ __SYSCALL(__NR_memfd_create, sys_memfd_create)
- __SYSCALL(__NR_bpf, sys_bpf)
- #define __NR_execveat 281
- __SC_COMP(__NR_execveat, sys_execveat, compat_sys_execveat)
-+#define __NR_mlock2 282
-+__SYSCALL(__NR_mlock2, sys_mlock2)
++		[ilog2(VM_LOCKONFAULT)]	= "lf",
+ 		[ilog2(VM_LOCKED)]	= "lo",
+ 		[ilog2(VM_IO)]		= "io",
+ 		[ilog2(VM_SEQ_READ)]	= "sr",
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 2e872f9..c2f3551 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -127,6 +127,7 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
+ #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
  
- #undef __NR_syscalls
--#define __NR_syscalls 282
-+#define __NR_syscalls 283
++#define VM_LOCKONFAULT	0x00001000	/* Lock the pages covered when they are faulted in */
+ #define VM_LOCKED	0x00002000
+ #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
  
- /*
-  * All syscalls below here should go away really,
-diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-index 7995ef5..4818b71 100644
---- a/kernel/sys_ni.c
-+++ b/kernel/sys_ni.c
-@@ -193,6 +193,7 @@ cond_syscall(sys_mlock);
- cond_syscall(sys_munlock);
- cond_syscall(sys_mlockall);
- cond_syscall(sys_munlockall);
-+cond_syscall(sys_mlock2);
- cond_syscall(sys_mincore);
- cond_syscall(sys_madvise);
- cond_syscall(sys_mremap);
+@@ -2043,6 +2044,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
+ #define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
+ #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
+ #define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
++#define FOLL_MLOCK	0x1000	/* lock present pages */
+ 
+ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+ 			void *data);
+diff --git a/kernel/fork.c b/kernel/fork.c
+index dbd9b8d..a949228 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -454,7 +454,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
+ 		tmp->vm_mm = mm;
+ 		if (anon_vma_fork(tmp, mpnt))
+ 			goto fail_nomem_anon_vma_fork;
+-		tmp->vm_flags &= ~VM_LOCKED;
++		tmp->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
+ 		tmp->vm_next = tmp->vm_prev = NULL;
+ 		file = tmp->vm_file;
+ 		if (file) {
+diff --git a/mm/debug.c b/mm/debug.c
+index 76089dd..25176bb 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -121,6 +121,7 @@ static const struct trace_print_flags vmaflags_names[] = {
+ 	{VM_GROWSDOWN,			"growsdown"	},
+ 	{VM_PFNMAP,			"pfnmap"	},
+ 	{VM_DENYWRITE,			"denywrite"	},
++	{VM_LOCKONFAULT,		"lockonfault"	},
+ 	{VM_LOCKED,			"locked"	},
+ 	{VM_IO,				"io"		},
+ 	{VM_SEQ_READ,			"seqread"	},
+diff --git a/mm/gup.c b/mm/gup.c
+index 6297f6b..e632908 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -92,7 +92,7 @@ retry:
+ 		 */
+ 		mark_page_accessed(page);
+ 	}
+-	if ((flags & FOLL_POPULATE) && (vma->vm_flags & VM_LOCKED)) {
++	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
+ 		/*
+ 		 * The preliminary mapping check is mainly to avoid the
+ 		 * pointless overhead of lock_page on the ZERO_PAGE
+@@ -265,6 +265,9 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+ 	unsigned int fault_flags = 0;
+ 	int ret;
+ 
++	/* mlock all present pages, but do not fault in new pages */
++	if ((*flags & (FOLL_POPULATE | FOLL_MLOCK)) == FOLL_MLOCK)
++		return -ENOENT;
+ 	/* For mm_populate(), just skip the stack guard page. */
+ 	if ((*flags & FOLL_POPULATE) &&
+ 			(stack_guard_page_start(vma, address) ||
+@@ -850,7 +853,10 @@ long populate_vma_page_range(struct vm_area_struct *vma,
+ 	VM_BUG_ON_VMA(end   > vma->vm_end, vma);
+ 	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
+ 
+-	gup_flags = FOLL_TOUCH | FOLL_POPULATE;
++	gup_flags = FOLL_TOUCH | FOLL_MLOCK;
++	if ((vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) == VM_LOCKED)
++		gup_flags |= FOLL_POPULATE;
++
+ 	/*
+ 	 * We want to touch writable mappings with a write fault in order
+ 	 * to break COW, except for shared mappings because these don't COW
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index c107094..98ee786 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1238,7 +1238,7 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+ 					  pmd, _pmd,  1))
+ 			update_mmu_cache_pmd(vma, addr, pmd);
+ 	}
+-	if ((flags & FOLL_POPULATE) && (vma->vm_flags & VM_LOCKED)) {
++	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
+ 		if (page->mapping && trylock_page(page)) {
+ 			lru_add_drain();
+ 			if (page->mapping)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index a8c3087..82caa48 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3764,8 +3764,8 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
+ 	unsigned long s_end = sbase + PUD_SIZE;
+ 
+ 	/* Allow segments to share if only one is marked locked */
+-	unsigned long vm_flags = vma->vm_flags & ~VM_LOCKED;
+-	unsigned long svm_flags = svma->vm_flags & ~VM_LOCKED;
++	unsigned long vm_flags = vma->vm_flags & ~(VM_LOCKED | VM_LOCKONFAULT);
++	unsigned long svm_flags = svma->vm_flags & ~(VM_LOCKED | VM_LOCKONFAULT);
+ 
+ 	/*
+ 	 * match the virtual addresses, permission and the alignment of the
 diff --git a/mm/mlock.c b/mm/mlock.c
-index 1585cca..807f986 100644
+index 807f986..2a3a860 100644
 --- a/mm/mlock.c
 +++ b/mm/mlock.c
-@@ -642,6 +642,15 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
- 	return do_mlock(start, len, VM_LOCKED);
- }
- 
-+SYSCALL_DEFINE3(mlock2, unsigned long, start, size_t, len, int, flags)
-+{
-+	vm_flags_t vm_flags = VM_LOCKED;
-+	if (flags)
-+		return -EINVAL;
-+
-+	return do_mlock(start, len, vm_flags);
-+}
-+
- SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
+@@ -422,7 +422,7 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
+ void munlock_vma_pages_range(struct vm_area_struct *vma,
+ 			     unsigned long start, unsigned long end)
  {
- 	int ret;
+-	vma->vm_flags &= ~VM_LOCKED;
++	vma->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
+ 
+ 	while (start < end) {
+ 		struct page *page = NULL;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index aa632ad..bdbefc3 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1651,7 +1651,7 @@ out:
+ 					vma == get_gate_vma(current->mm)))
+ 			mm->locked_vm += (len >> PAGE_SHIFT);
+ 		else
+-			vma->vm_flags &= ~VM_LOCKED;
++			vma->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
+ 	}
+ 
+ 	if (file)
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 171b687..47c855a 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -744,7 +744,7 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 
+ 		if (vma->vm_flags & VM_LOCKED) {
+ 			spin_unlock(ptl);
+-			pra->vm_flags |= VM_LOCKED;
++			pra->vm_flags |= (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT));
+ 			return SWAP_FAIL; /* To break the loop */
+ 		}
+ 
+@@ -765,7 +765,7 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 
+ 		if (vma->vm_flags & VM_LOCKED) {
+ 			pte_unmap_unlock(pte, ptl);
+-			pra->vm_flags |= VM_LOCKED;
++			pra->vm_flags |= (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT));
+ 			return SWAP_FAIL; /* To break the loop */
+ 		}
+ 
 -- 
 1.9.1
 
