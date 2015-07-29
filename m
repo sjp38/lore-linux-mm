@@ -1,127 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B7C046B0255
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 09:13:11 -0400 (EDT)
-Received: by wicmv11 with SMTP id mv11so218625651wic.0
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 06:13:11 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id cw6si43667148wjc.208.2015.07.29.06.05.03
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E08F26B0256
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 09:15:40 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so25926072wib.1
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 06:15:40 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id j10si7417569wjf.167.2015.07.29.06.15.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=RC4-SHA bits=128/128);
-        Wed, 29 Jul 2015 06:05:33 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id DF466992CB
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 13:05:01 +0000 (UTC)
-Date: Wed, 29 Jul 2015 14:04:59 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 10/10] mm, page_alloc: Only enforce watermarks for
- order-0 allocations
-Message-ID: <20150729130459.GD19352@techsingularity.net>
-References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
- <1437379219-9160-11-git-send-email-mgorman@suse.com>
- <55B8C629.80303@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Jul 2015 06:15:39 -0700 (PDT)
+Date: Wed, 29 Jul 2015 09:14:54 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 7/8] memcg: get rid of mm_struct::owner
+Message-ID: <20150729131454.GB10001@cmpxchg.org>
+References: <1436358472-29137-1-git-send-email-mhocko@kernel.org>
+ <1436358472-29137-8-git-send-email-mhocko@kernel.org>
+ <20150710140533.GB29540@dhcp22.suse.cz>
+ <20150714151823.GG17660@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <55B8C629.80303@suse.cz>
+In-Reply-To: <20150714151823.GG17660@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@suse.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 29, 2015 at 02:25:13PM +0200, Vlastimil Babka wrote:
-> On 07/20/2015 10:00 AM, Mel Gorman wrote:
+On Tue, Jul 14, 2015 at 05:18:23PM +0200, Michal Hocko wrote:
+> On Fri 10-07-15 16:05:33, Michal Hocko wrote:
+> > JFYI: I've found some more issues while hamerring this more.
 > 
-> [...]
+> OK so the main issue is quite simple but I have completely missed it when
+> thinking about the patch before. clone(CLONE_VM) without CLONE_THREAD is
+> really nasty and it will easily lockup the machine with preempt. disabled
+> for ever. It goes like this:
+> taskA (in memcg A)
+>   taskB = clone(CLONE_VM)
+> 				taskB
+> 				  A -> B	# Both tasks charge to B now
+> 				  exit()	# No tasks in B -> can be
+> 				  		# offlined now
+> 				css_offline()
+>   mem_cgroup_try_charge
+>     get_mem_cgroup_from_mm
+>       rcu_read_lock()
+>       do {
+>       } while css_tryget_online(mm->memcg)	# will never succeed
+>       rcu_read_unlock()
 > 
-> >  static bool __zone_watermark_ok(struct zone *z, unsigned int order,
-> >  			unsigned long mark, int classzone_idx, int alloc_flags,
-> > @@ -2259,7 +2261,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
-> >  {
-> >  	long min = mark;
-> >  	int o;
-> > -	long free_cma = 0;
-> > +	const bool atomic = (alloc_flags & ALLOC_HARDER);
-> >  
-> >  	/* free_pages may go negative - that's OK */
-> >  	free_pages -= (1 << order) - 1;
-> > @@ -2271,7 +2273,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
-> >  	 * If the caller is not atomic then discount the reserves. This will
-> >  	 * over-estimate how the atomic reserve but it avoids a search
-> >  	 */
-> > -	if (likely(!(alloc_flags & ALLOC_HARDER)))
-> > +	if (likely(!atomic))
-> >  		free_pages -= z->nr_reserved_highatomic;
-> >  	else
-> >  		min -= min / 4;
-> > @@ -2279,22 +2281,30 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
-> >  #ifdef CONFIG_CMA
-> >  	/* If allocation can't use CMA areas don't use free CMA pages */
-> >  	if (!(alloc_flags & ALLOC_CMA))
-> > -		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
-> > +		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
-> >  #endif
-> >  
-> > -	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
-> > +	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
-> >  		return false;
-> > -	for (o = 0; o < order; o++) {
-> > -		/* At the next order, this order's pages become unavailable */
-> > -		free_pages -= z->free_area[o].nr_free << o;
-> >  
-> > -		/* Require fewer higher order pages to be free */
-> > -		min >>= 1;
-> > +	/* order-0 watermarks are ok */
-> > +	if (!order)
-> > +		return true;
-> > +
-> > +	/* Check at least one high-order page is free */
-> > +	for (o = order; o < MAX_ORDER; o++) {
-> > +		struct free_area *area = &z->free_area[o];
-> > +		int mt;
-> > +
-> > +		if (atomic && area->nr_free)
-> > +			return true;
+> taskA and taskB are basically independent entities wrt. the life
+> cycle (unlike threads which are bound to the group leader). The
+> previous code handles this by re-ownering during exit by the monster
+> mm_update_next_owner.
+>
+> I can see the following options without reintroducing reintroducing
+> some form of mm_update_next_owner:
 > 
-> This may be a false positive due to MIGRATE_CMA or MIGRATE_ISOLATE pages being
-> the only free ones. But maybe it doesn't matter that much?
-> 
+> 1) Do not allow offlining a cgroup if we have active users in it.  This
+> would require a callback from the cgroup core to the subsystem called if
+> there are no active tasks tracked by the cgroup core. Tracking on the memcg
+> side doesn't sound terribly hard - just mark a mm_struct as an alien and
+> count the number of aliens during the move in mem_cgroup. mm_drop_memcg
+> then drops the counter. We could end up with EBUSY cgroup without any
+> visible tasks which is a bit awkward.
 
-I don't think it does. If it it's a false positive then a high-order
-atomic allocation may fail which is still meant to be a situation the
-caller can cope with.
+You couldn't remove the group, and you wouldn't know which task needs
+to move to get the mm out of there. That's no good.
 
-For MIGRATE_ISOLATE, it's a transient situation.
+> 2) update get_mem_cgroup_from_mm and others to fallback to the parent
+> memcg if the current one is offline. This would be in line with charge
+> reparenting we used to do. I cannot say I would like this because it
+> allows for easy runaway to the root memcg if the hierarchy is not
+> configured cautiously. The code would be also quite tricky because each
+> direct consumer of mm->memcg would have to be aware of this. This is
+> awkward.
 
-If this can be demonstrated as a problem for users of CMA then it would be
-best to be certain there is a use case that requires more reliable high-order
-atomic allocations *and* CMA at the same time. Ordinarily, CMA users are
-also not atomic because they cannot migrate. If such an important use case
-can be identified then it's a one-liner patch and a changelog that adds
+In the unified hierarchy, there won't be tasks inside intermediate
+nodes, so reparenting would lead to surprising behavior.
 
-	if (!IS_ENABLED(CONFIG_CMA) && atomic && area->nr_free)
+> 3) fail mem_cgroup_can_attach if we are trying to migrate a task sharing
+> mm_struct with a process outside of the tset. If I understand the
+> tset properly this would require all the sharing tasks to be migrated
+> together and we would never end up with task_css != &task->mm->css.
+> __cgroup_procs_write doesn't seem to support multi pid move currently
+> AFAICS, though. cgroup_migrate_add_src, however, seems to be intended
+> for this purpose so this should be doable. Without that support we would
+> basically disallow migrating these tasks - I wouldn't object if you ask
+> me.
 
-> >  
-> > -		if (free_pages <= min)
-> > -			return false;
-> > +		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
-> > +			if (!list_empty(&area->free_list[mt]))
-> > +				return true;
-> > +		}
-> 
-> This may be a false negative for ALLOC_CMA allocations, if the only free pages
-> are of MIGRATE_CMA. Arguably that's the worse case than a false positive?
-> 
+I'd prefer not adding controller-specific failure modes for attaching,
+and this too would lead to very non-obvious behavior.
 
-I also think this is unlikely that there are many high-order atomic
-allocations and CMA at the same time. If it's identified to be the case
-then CMA also needs to check the pageblock type inside when CONFIG_CMA
-is enabled. Again, it's something I would prefer to see that has a
-concrete use case first.
+> Do you see other options? From the above three options the 3rd one
+> sounds the most sane to me and the 1st quite easy to implement. Both will
+> require some cgroup core work though. But maybe we would be good enough
+> with 3rd option without supporting moving schizophrenic tasks and that
+> would be reduced to memcg code.
 
--- 
-Mel Gorman
-SUSE Labs
+A modified form of 1) would be to track the mms referring to a memcg
+but during offline search the process tree for a matching task. This
+is heavy-handed, but it's a rare case and this work would be done in
+the cgroup removal path rather than during task exit. This is stolen
+from the current mm_update_next_owner():
+
+list_for_each_entry(mm, memcg->mms, memcg_list) {
+    for_each_process(g) {
+        if (g->flags & PF_KTHREAD)
+            continue;
+        for_each_thread(g, c) {
+            if (c->mm == mm)
+                goto assign;
+            if (c->mm)
+                break;
+        }
+    }
+assign:
+    memcg = mem_cgroup_from_task(c);
+    mm->memcg = memcg;
+    list_move(&mm->memcg_list, &memcg->mms);
+}
+
+(plus appropriate synchronization, of course)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
