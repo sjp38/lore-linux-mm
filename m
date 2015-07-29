@@ -1,64 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D80C6B0253
-	for <linux-mm@kvack.org>; Tue, 28 Jul 2015 20:53:38 -0400 (EDT)
-Received: by pdbbh15 with SMTP id bh15so79315037pdb.1
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 17:53:37 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id h4si5057914pat.104.2015.07.28.17.53.37
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id EEE656B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 01:12:23 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so82787990pdr.2
+        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 22:12:23 -0700 (PDT)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id c9si58787120pas.144.2015.07.28.22.12.22
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Jul 2015 17:53:37 -0700 (PDT)
-Received: by pachj5 with SMTP id hj5so77926904pac.3
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 17:53:37 -0700 (PDT)
-Date: Tue, 28 Jul 2015 17:53:32 -0700
-From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
-Subject: Re: hugetlb pages not accounted for in rss
-Message-ID: <20150729005332.GB17938@Sligo.logfs.org>
-References: <55B6BE37.3010804@oracle.com>
- <20150728183248.GB1406@Sligo.logfs.org>
- <55B7F0F8.8080909@oracle.com>
- <alpine.DEB.2.10.1507281509420.23577@chino.kir.corp.google.com>
- <20150728222654.GA28456@Sligo.logfs.org>
- <alpine.DEB.2.10.1507281622470.10368@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.10.1507281622470.10368@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 28 Jul 2015 22:12:22 -0700 (PDT)
+Received: from epcpsbgr1.samsung.com
+ (u141.gpu120.samsung.co.kr [203.254.230.141])
+ by mailout1.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0NS8012DKH4K29E0@mailout1.samsung.com> for linux-mm@kvack.org;
+ Wed, 29 Jul 2015 14:12:20 +0900 (KST)
+From: PINTU KUMAR <pintu.k@samsung.com>
+References: <1437114578-2502-1-git-send-email-pintu.k@samsung.com>
+ <1437366544-32673-1-git-send-email-pintu.k@samsung.com>
+ <20150720082810.GG2561@suse.de> <02c601d0c306$f86d30f0$e94792d0$@samsung.com>
+ <20150720175538.GJ2561@suse.de> <05af01d0c47f$3337ccd0$99a76670$@samsung.com>
+ <20150722140530.GK2561@suse.de>
+In-reply-to: <20150722140530.GK2561@suse.de>
+Subject: RE: [PATCH v3 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
+ feature
+Date: Wed, 29 Jul 2015 10:41:10 +0530
+Message-id: <030e01d0c9bd$20e1df60$62a59e20$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: en-us
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: 'Mel Gorman' <mgorman@suse.de>
+Cc: akpm@linux-foundation.org, corbet@lwn.net, vbabka@suse.cz, gorcunov@openvz.org, mhocko@suse.cz, emunson@akamai.com, kirill.shutemov@linux.intel.com, standby24x7@gmail.com, hannes@cmpxchg.org, vdavydov@parallels.com, hughd@google.com, minchan@kernel.org, tj@kernel.org, rientjes@google.com, xypron.glpk@gmx.de, dzickus@redhat.com, prarit@redhat.com, ebiederm@xmission.com, rostedt@goodmis.org, uobergfe@redhat.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, ddstreet@ieee.org, sasha.levin@oracle.com, koct9i@gmail.com, cj@linux.com, opensource.ganesh@gmail.com, vinmenon@codeaurora.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, qiuxishi@huawei.com, Valdis.Kletnieks@vt.edu, cpgs@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, iqbal.ams@samsung.com, pintu.ping@gmail.com, pintu.k@outlook.com
 
-On Tue, Jul 28, 2015 at 04:30:19PM -0700, David Rientjes wrote:
-> 
-> It's not only the oom killer, I don't believe hugeltb pages are accounted 
-> to the "rss" in memcg.  They use the hugetlb_cgroup for that.  Starting to 
-> account for them in existing memcg deployments would cause them to hit 
-> their memory limits much earlier.  The "rss_huge" field in memcg only 
-> represents transparent hugepages.
-> 
-> I agree with your comment that having done this when hugetlbfs was 
-> introduced would have been optimal.
-> 
-> It's always difficult to add a new class of memory to an existing metric 
-> ("new" here because it's currently unaccounted).
-> 
-> If we can add yet another process metric to track hugetlbfs memory mapped, 
-> then the test could be converted to use that.  I'm not sure if the 
-> jusitifcation would be strong enough, but you could try.
+Sorry, for late reply.
 
-Well, we definitely need something.  Having a 100GB process show 3GB of
-rss is not very useful.  How would we notice a memory leak if it only
-affects hugepages, for example?
+> -----Original Message-----
+> From: Mel Gorman [mailto:mgorman@suse.de]
+> Sent: Wednesday, July 22, 2015 7:36 PM
+> To: PINTU KUMAR
+> Cc: akpm@linux-foundation.org; corbet@lwn.net; vbabka@suse.cz;
+> gorcunov@openvz.org; mhocko@suse.cz; emunson@akamai.com;
+> kirill.shutemov@linux.intel.com; standby24x7@gmail.com;
+> hannes@cmpxchg.org; vdavydov@parallels.com; hughd@google.com;
+> minchan@kernel.org; tj@kernel.org; rientjes@google.com;
+> xypron.glpk@gmx.de; dzickus@redhat.com; prarit@redhat.com;
+> ebiederm@xmission.com; rostedt@goodmis.org; uobergfe@redhat.com;
+> paulmck@linux.vnet.ibm.com; iamjoonsoo.kim@lge.com; ddstreet@ieee.org;
+> sasha.levin@oracle.com; koct9i@gmail.com; cj@linux.com;
+> opensource.ganesh@gmail.com; vinmenon@codeaurora.org; linux-
+> doc@vger.kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; linux-
+> pm@vger.kernel.org; qiuxishi@huawei.com; Valdis.Kletnieks@vt.edu;
+> cpgs@samsung.com; pintu_agarwal@yahoo.com; vishnu.ps@samsung.com;
+> rohit.kr@samsung.com; iqbal.ams@samsung.com; pintu.ping@gmail.com;
+> pintu.k@outlook.com
+> Subject: Re: [PATCH v3 1/1] kernel/sysctl.c: Add /proc/sys/vm/shrink_memory
+> feature
+> 
+> On Wed, Jul 22, 2015 at 06:33:26PM +0530, PINTU KUMAR wrote:
+> > Dear Mel, thank you very much for your comments and suggestions.
+> > I will drop this one and look on further improving direct_reclaim and
+> > compaction.
+> > Just few more comments below before I close.
+> >
+> > Also, during this patch, I feel that the hibernation_mode part in
+> > shrink_all_memory can be corrected.
+> > So, can I separately submit the below patch?
+> > That is instead of hard-coding the hibernation_mode, we can get
+> > hibernation status using:
+> > system_entering_hibernation()
+> >
+> > Please let me know your suggestion about this changes.
+> >
+> > -#ifdef CONFIG_HIBERNATION
+> > +#if defined CONFIG_HIBERNATION || CONFIG_SHRINK_MEMORY
+> 
+I was talking about only the following case.
+Instead of hard coding the hibernation_mode in shrink_all_memory, 
+We can set it at runtime.
 
-Jorn
+-               .hibernation_mode = 1,
 
---
-The object-oriented version of 'Spaghetti code' is, of course, 'Lasagna code'.
-(Too many layers).
--- Roberto Waltman.
++       if (system_entering_hibernation())
++               sc.hibernation_mode = 1;
++       else
++               sc.hibernation_mode = 0;
+
+The PM owners should confirm if this is ok.
+Once confirmed, I will submit the full patch set.
+
++> This appears to be a patch on top of "Add /proc/sys/vm/shrink_memory feature"
+> so I do not see what would be separately submitted that would make sense.
+> 
+And we don't need to have /proc/sys/vm/shrink_memory patch for this.
+
+However, if required, we can also expose shrink_all_memory() outside the
+hibernation using the CONFIG_SHRINK_MEMORY.
+Otherwise, we can neglect other changes.
+
+> --
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
