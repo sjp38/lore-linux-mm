@@ -1,59 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 378166B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 15:08:09 -0400 (EDT)
-Received: by pacan13 with SMTP id an13so10255289pac.1
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 12:08:09 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id cl3si11299121pad.39.2015.07.29.12.08.07
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id EB8876B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 17:30:17 -0400 (EDT)
+Received: by pachj5 with SMTP id hj5so11583280pac.3
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 14:30:17 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id e2si41839207pdd.99.2015.07.29.14.30.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jul 2015 12:08:08 -0700 (PDT)
-Received: by pachj5 with SMTP id hj5so10001094pac.3
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 12:08:07 -0700 (PDT)
-Date: Wed, 29 Jul 2015 12:08:05 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: hugetlb pages not accounted for in rss
-In-Reply-To: <20150729005332.GB17938@Sligo.logfs.org>
-Message-ID: <alpine.DEB.2.10.1507291205590.24373@chino.kir.corp.google.com>
-References: <55B6BE37.3010804@oracle.com> <20150728183248.GB1406@Sligo.logfs.org> <55B7F0F8.8080909@oracle.com> <alpine.DEB.2.10.1507281509420.23577@chino.kir.corp.google.com> <20150728222654.GA28456@Sligo.logfs.org> <alpine.DEB.2.10.1507281622470.10368@chino.kir.corp.google.com>
- <20150729005332.GB17938@Sligo.logfs.org>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="397176738-1464267060-1438196886=:24373"
+        Wed, 29 Jul 2015 14:30:16 -0700 (PDT)
+Date: Wed, 29 Jul 2015 14:30:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm v9 0/8] idle memory tracking
+Message-Id: <20150729143015.e8420eca17acbd36d1ce9242@linux-foundation.org>
+In-Reply-To: <20150729162908.GY8100@esperanza>
+References: <cover.1437303956.git.vdavydov@parallels.com>
+	<20150729123629.GI15801@dhcp22.suse.cz>
+	<20150729135907.GT8100@esperanza>
+	<20150729142618.GJ15801@dhcp22.suse.cz>
+	<20150729152817.GV8100@esperanza>
+	<20150729154718.GN15801@dhcp22.suse.cz>
+	<20150729162908.GY8100@esperanza>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@purestorage.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Wed, 29 Jul 2015 19:29:08 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
 
---397176738-1464267060-1438196886=:24373
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
+> /proc/kpageidle should probably live somewhere in /sys/kernel/mm, but I
+> added it where similar files are located (kpagecount, kpageflags) to
+> keep things consistent.
 
-On Tue, 28 Jul 2015, Jorn Engel wrote:
+I think these files should be moved elsewhere.  Consistency is good,
+but not when we're being consistent with a bad thing.
 
-> Well, we definitely need something.  Having a 100GB process show 3GB of
-> rss is not very useful.  How would we notice a memory leak if it only
-> affects hugepages, for example?
-> 
-
-Since the hugetlb pool is a global resource, it would also be helpful to  
-determine if a process is mapping more than expected.  You can't do that  
-just by adding a huge rss metric, however: if you have 2MB and 1GB
-hugepages configured you wouldn't know if a process was mapping 512 2MB   
-hugepages or 1 1GB hugepage.
-  
-That's the purpose of hugetlb_cgroup, after all, and it supports usage 
-counters for all hstates.  The test could be converted to use that to 
-measure usage if configured in the kernel.
-
-Beyond that, I'm not sure how a per-hstate rss metric would be exported to 
-userspace in a clean way and other ways of obtaining the same data are 
-possible with hugetlb_cgroup.  I'm not sure how successful you'd be in 
-arguing that we need separate rss counters for it.
---397176738-1464267060-1438196886=:24373--
+So let's place these in /sys/kernel/mm and then start being consistent
+with that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
