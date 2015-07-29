@@ -1,92 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 207346B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 05:18:54 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so2782100pdj.3
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 02:18:53 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id l3si40895794pdp.109.2015.07.29.02.18.52
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 24D126B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 05:20:19 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so17045319wib.0
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 02:20:18 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d2si6313881wjw.157.2015.07.29.02.20.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 29 Jul 2015 02:18:53 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] memory_failure: remove redundant check for the
- PG_HWPoison flag of 'hpage'
-Date: Wed, 29 Jul 2015 09:17:32 +0000
-Message-ID: <20150729091725.GA1256@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150729155246.2fed1b96@hp>
-In-Reply-To: <20150729155246.2fed1b96@hp>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <2EFB11D90BBD494EB805C635DBD1F4A8@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Jul 2015 02:20:17 -0700 (PDT)
+Subject: Re: [Patch V6 12/16] mm: provide early_memremap_ro to establish
+ read-only mapping
+References: <1437108697-4115-1-git-send-email-jgross@suse.com>
+ <1437108697-4115-13-git-send-email-jgross@suse.com>
+ <55ADCF40.6010903@suse.com>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <55B89ACD.2070903@suse.com>
+Date: Wed, 29 Jul 2015 11:20:13 +0200
 MIME-Version: 1.0
+In-Reply-To: <55ADCF40.6010903@suse.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, linux-arch@vger.kernel.org
+Cc: xen-devel@lists.xensource.com, konrad.wilk@oracle.com, david.vrabel@citrix.com, boris.ostrovsky@oracle.com
 
-# CC:ed linux-mm
+On 07/21/2015 06:49 AM, Juergen Gross wrote:
+> Hi MM maintainers,
+>
+> this patch is the last requiring an ack for the series to go in.
+> Could you please comment?
 
-Hi Xiaoqiang,
+PING?
 
-On Wed, Jul 29, 2015 at 03:52:46PM +0800, Wang Xiaoqiang wrote:
-> Hi,
->=20
-> I find a little problem in the memory_failure function in
-> mm/memory-failure.c . Please check it.
->=20
-> memory_failure: remove redundant check for the PG_HWPoison flag of
-> `hpage'.
->=20
-> Since we have check the PG_HWPoison flag by `PageHWPoison' before,
-> so the later check by `TestSetPageHWPoison' must return true, there
-> is no need to check again!
-
-I'm afraid that this TestSetPageHWPoison is not redundant, because this cod=
-e
-serializes the concurrent memory error events over the same hugetlb page
-(, where 'p' indicates the 4kB error page and 'hpage' indicates the head pa=
-ge.)
-
-When an error hits a hugetlb page, set_page_hwpoison_huge_page() sets
-PageHWPoison flags over all subpages of the hugetlb page in the ascending
-order of pfn. So if we don't have this TestSet, memory error handler can
-run more than once on concurrent errors when the 1st memory error hits
-(for example) the 100th subpage and the 2nd memory error hits (for example)
-the 50th subpage.
-
-Thanks,
-Naoya Horiguchi
-
-> Signed-off-by: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
-> ---
->  mm/memory-failure.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->=20
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 1cf7f29..7794fd8 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1115,7 +1115,7 @@ int memory_failure(unsigned long pfn, int trapno, i=
-nt flags)
->  			lock_page(hpage);
->  			if (PageHWPoison(hpage)) {
->  				if ((hwpoison_filter(p) && TestClearPageHWPoison(p))
-> -				    || (p !=3D hpage && TestSetPageHWPoison(hpage))) {
-> +				    || p !=3D hpage) {
->  					atomic_long_sub(nr_pages, &num_poisoned_pages);
->  					unlock_page(hpage);
->  					return 0;
-> --=20
-> 1.7.10.4
->=20
->=20
->=20
+>
+>
+> Juergen
+>
+> On 07/17/2015 06:51 AM, Juergen Gross wrote:
+>> During early boot as Xen pv domain the kernel needs to map some page
+>> tables supplied by the hypervisor read only. This is needed to be
+>> able to relocate some data structures conflicting with the physical
+>> memory map especially on systems with huge RAM (above 512GB).
+>>
+>> Provide the function early_memremap_ro() to provide this read only
+>> mapping.
+>>
+>> Signed-off-by: Juergen Gross <jgross@suse.com>
+>> Acked-by: Konrad Rzeszutek Wilk <Konrad.wilk@oracle.com>
+>> Cc: Arnd Bergmann <arnd@arndb.de>
+>> Cc: linux-mm@kvack.org
+>> Cc: linux-arch@vger.kernel.org
+>> ---
+>>   include/asm-generic/early_ioremap.h |  2 ++
+>>   include/asm-generic/fixmap.h        |  3 +++
+>>   mm/early_ioremap.c                  | 12 ++++++++++++
+>>   3 files changed, 17 insertions(+)
+>>
+>> diff --git a/include/asm-generic/early_ioremap.h
+>> b/include/asm-generic/early_ioremap.h
+>> index a5de55c..316bd04 100644
+>> --- a/include/asm-generic/early_ioremap.h
+>> +++ b/include/asm-generic/early_ioremap.h
+>> @@ -11,6 +11,8 @@ extern void __iomem *early_ioremap(resource_size_t
+>> phys_addr,
+>>                      unsigned long size);
+>>   extern void *early_memremap(resource_size_t phys_addr,
+>>                   unsigned long size);
+>> +extern void *early_memremap_ro(resource_size_t phys_addr,
+>> +                   unsigned long size);
+>>   extern void early_iounmap(void __iomem *addr, unsigned long size);
+>>   extern void early_memunmap(void *addr, unsigned long size);
+>>
+>> diff --git a/include/asm-generic/fixmap.h b/include/asm-generic/fixmap.h
+>> index f23174f..1cbb833 100644
+>> --- a/include/asm-generic/fixmap.h
+>> +++ b/include/asm-generic/fixmap.h
+>> @@ -46,6 +46,9 @@ static inline unsigned long virt_to_fix(const
+>> unsigned long vaddr)
+>>   #ifndef FIXMAP_PAGE_NORMAL
+>>   #define FIXMAP_PAGE_NORMAL PAGE_KERNEL
+>>   #endif
+>> +#if !defined(FIXMAP_PAGE_RO) && defined(PAGE_KERNEL_RO)
+>> +#define FIXMAP_PAGE_RO PAGE_KERNEL_RO
+>> +#endif
+>>   #ifndef FIXMAP_PAGE_NOCACHE
+>>   #define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NOCACHE
+>>   #endif
+>> diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+>> index e10ccd2..0cfadaf 100644
+>> --- a/mm/early_ioremap.c
+>> +++ b/mm/early_ioremap.c
+>> @@ -217,6 +217,13 @@ early_memremap(resource_size_t phys_addr,
+>> unsigned long size)
+>>       return (__force void *)__early_ioremap(phys_addr, size,
+>>                              FIXMAP_PAGE_NORMAL);
+>>   }
+>> +#ifdef FIXMAP_PAGE_RO
+>> +void __init *
+>> +early_memremap_ro(resource_size_t phys_addr, unsigned long size)
+>> +{
+>> +    return (__force void *)__early_ioremap(phys_addr, size,
+>> FIXMAP_PAGE_RO);
+>> +}
+>> +#endif
+>>   #else /* CONFIG_MMU */
+>>
+>>   void __init __iomem *
+>> @@ -231,6 +238,11 @@ early_memremap(resource_size_t phys_addr,
+>> unsigned long size)
+>>   {
+>>       return (void *)phys_addr;
+>>   }
+>> +void __init *
+>> +early_memremap_ro(resource_size_t phys_addr, unsigned long size)
+>> +{
+>> +    return (void *)phys_addr;
+>> +}
+>>
+>>   void __init early_iounmap(void __iomem *addr, unsigned long size)
+>>   {
+>>
+>
 > --
-> thx!
-> Wang Xiaoqiang
-> =
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
