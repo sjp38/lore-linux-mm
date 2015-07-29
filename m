@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 269F86B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 05:54:45 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so213340433wib.1
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 02:54:44 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
-        by mx.google.com with ESMTPS id dj8si26069310wib.80.2015.07.29.02.54.42
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C7666B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 05:59:24 -0400 (EDT)
+Received: by wicmv11 with SMTP id mv11so211979517wic.0
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 02:59:23 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ja14si26134390wic.18.2015.07.29.02.59.22
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jul 2015 02:54:43 -0700 (PDT)
-Received: by wibxm9 with SMTP id xm9so193168003wib.0
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 02:54:42 -0700 (PDT)
-Date: Wed, 29 Jul 2015 11:54:40 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: add resched points to
- remap_pmd_range/ioremap_pmd_range
-Message-ID: <20150729095439.GD15801@dhcp22.suse.cz>
-References: <1437688476-3399-3-git-send-email-sbaugh@catern.com>
- <20150724070420.GF4103@dhcp22.suse.cz>
- <20150724165627.GA3458@Sligo.logfs.org>
- <20150727070840.GB11317@dhcp22.suse.cz>
- <20150727151814.GR9641@Sligo.logfs.org>
- <20150728133254.GI24972@dhcp22.suse.cz>
- <20150728170844.GY9641@Sligo.logfs.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Jul 2015 02:59:22 -0700 (PDT)
+Subject: Re: [PATCH 08/10] mm, page_alloc: Remove MIGRATE_RESERVE
+References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
+ <1437379219-9160-9-git-send-email-mgorman@suse.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55B8A3F3.6090107@suse.cz>
+Date: Wed, 29 Jul 2015 11:59:15 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20150728170844.GY9641@Sligo.logfs.org>
+In-Reply-To: <1437379219-9160-9-git-send-email-mgorman@suse.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
-Cc: Spencer Baugh <sbaugh@catern.com>, Toshi Kani <toshi.kani@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Joern Engel <joern@logfs.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Shachar Raindel <raindel@mellanox.com>, Boaz Harrosh <boaz@plexistor.com>, Andy Lutomirski <luto@amacapital.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Roman Pen <r.peniaev@gmail.com>, Andrey Konovalov <adech.fo@gmail.com>, Eric Dumazet <edumazet@google.com>, Dmitry Vyukov <dvyukov@google.com>, Rob Jones <rob.jones@codethink.co.uk>, WANG Chao <chaowang@redhat.com>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Spencer Baugh <Spencer.baugh@purestorage.com>
+To: Mel Gorman <mgorman@suse.com>, Linux-MM <linux-mm@kvack.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On Tue 28-07-15 10:08:44, Jorn Engel wrote:
-> On Tue, Jul 28, 2015 at 03:32:55PM +0200, Michal Hocko wrote:
-> > > 
-> > > We have kernel preemption disabled.  A lower-priority task in a system
-> > > call will block higher-priority tasks.
-> > 
-> > This is an inherent problem of !PREEMPT, though. There are many
-> > loops which can take quite some time but we do not want to sprinkle
-> > cond_resched all over the kernel. On the other hand these io/remap resp.
-> > vunmap page table walks do not have any cond_resched points AFAICS so we
-> > can at least mimic zap_pmd_range which does cond_resched.
+On 07/20/2015 10:00 AM, Mel Gorman wrote:
+> From: Mel Gorman <mgorman@suse.de>
 > 
-> Even for !PREEMPT we don't want infinite scheduler latencies.  Real
-> question is how much we are willing to accept and at what point we
-> should start sprinkling cond_resched.  I would pick 100ms, but that is
-> just a personal choice.  If we decide on 200ms or 500ms, I can live with
-> that too.
+> MIGRATE_RESERVE preserves an old property of the buddy allocator that existed
+> prior to fragmentation avoidance -- min_free_kbytes worth of pages tended to
+> remain free until the only alternative was to fail the allocation. At the
 
-I do not thing this is about a magic value. It is more about natural
-places for scheduling point. As I've written above cond_resched at pmd
-level of the page table walk sounds reasonable to me as we do that
-already for zap_pmd_range and consistency would make sense to me.
+          ^ I think you meant contiguous instead of free? Is it because
+splitting chooses lowest possible order, and grouping by mobility means you
+might be splitting e.g. order-5 movable page instead of using order-0 unmovable
+page? And that the fallback heuristics specifically select highest available
+order? I think it's not that obvious, so worth mentioning.
 
--- 
-Michal Hocko
-SUSE Labs
+> time it was discovered that high-order atomic allocations relied on this
+> property so MIGRATE_RESERVE was introduced. A later patch will introduce
+> an alternative MIGRATE_HIGHATOMIC so this patch deletes MIGRATE_RESERVE
+> and supporting code so it'll be easier to review. Note that this patch
+> in isolation may look like a false regression if someone was bisecting
+> high-order atomic allocation failures.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
