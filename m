@@ -1,73 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id ECC7B6B0254
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 11:08:59 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so224902425wib.1
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:08:59 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id cu9si27512164wib.124.2015.07.29.08.08.57
+Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C35D6B0254
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 11:12:07 -0400 (EDT)
+Received: by ykay190 with SMTP id y190so10142634yka.3
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:12:06 -0700 (PDT)
+Received: from mail-yk0-x22b.google.com (mail-yk0-x22b.google.com. [2607:f8b0:4002:c07::22b])
+        by mx.google.com with ESMTPS id y16si18817478ywa.58.2015.07.29.08.12.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jul 2015 08:08:58 -0700 (PDT)
-Received: by wibud3 with SMTP id ud3so30680336wib.0
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:08:57 -0700 (PDT)
-Date: Wed, 29 Jul 2015 17:08:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -mm v9 0/8] idle memory tracking
-Message-ID: <20150729150855.GM15801@dhcp22.suse.cz>
-References: <cover.1437303956.git.vdavydov@parallels.com>
- <20150729123629.GI15801@dhcp22.suse.cz>
- <20150729135907.GT8100@esperanza>
- <CANN689HJX2ZL891uOd8TW9ct4PNH9d5odQZm86WMxkpkCWhA-w@mail.gmail.com>
- <20150729144539.GU8100@esperanza>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Jul 2015 08:12:06 -0700 (PDT)
+Received: by ykax123 with SMTP id x123so10201802yka.1
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 08:12:06 -0700 (PDT)
+Date: Wed, 29 Jul 2015 11:12:02 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH 13/14] kthread_worker: Add
+ set_kthread_worker_user_nice()
+Message-ID: <20150729151202.GB3504@mtj.duckdns.org>
+References: <1438094371-8326-1-git-send-email-pmladek@suse.com>
+ <1438094371-8326-14-git-send-email-pmladek@suse.com>
+ <20150728174058.GF5322@mtj.duckdns.org>
+ <20150729112354.GK2673@pathway.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150729144539.GU8100@esperanza>
+In-Reply-To: <20150729112354.GK2673@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 29-07-15 17:45:39, Vladimir Davydov wrote:
-> On Wed, Jul 29, 2015 at 07:12:13AM -0700, Michel Lespinasse wrote:
-> > On Wed, Jul 29, 2015 at 6:59 AM, Vladimir Davydov <vdavydov@parallels.com>
-> > wrote:
-> > >> I guess the primary reason to rely on the pfn rather than the LRU walk,
-> > >> which would be more targeted (especially for memcg cases), is that we
-> > >> cannot hold lru lock for the whole LRU walk and we cannot continue
-> > >> walking after the lock is dropped. Maybe we can try to address that
-> > >> instead? I do not think this is easy to achieve but have you considered
-> > >> that as an option?
-> > >
-> > > Yes, I have, and I've come to a conclusion it's not doable, because LRU
-> > > lists can be constantly rotating at an arbitrary rate. If you have an
-> > > idea in mind how this could be done, please share.
-> > >
-> > > Speaking of LRU-vs-PFN walk, iterating over PFNs has its own advantages:
-> > >  - You can distribute a walk in time to avoid CPU bursts.
-> > >  - You are free to parallelize the scanner as you wish to decrease the
-> > >    scan time.
-> > 
-> > There is a third way: one could go through every MM in the system and scan
-> > their page tables. Doing things that way turns out to be generally faster
-> > than scanning by physical address, because you don't have to go through
-> > RMAP for every page. But, you end up needing to take the mmap_sem lock of
-> > every MM (in turn) while scanning them, and that degrades quickly under
-> > memory load, which is exactly when you most need this feature. So, scan by
-> > address is still what we use here.
-> 
-> Page table scan approach has the inherent problem - it ignores unmapped
-> page cache. If a workload does a lot of read/write or map-access-unmap
-> operations, we won't be able to even roughly estimate its wss.
+Hello,
 
-That page cache is trivially reclaimable if it is clean. If it needs
-writeback then it is non-idle only until the next writeback. So why does
-it matter for the estimation?
+On Wed, Jul 29, 2015 at 01:23:54PM +0200, Petr Mladek wrote:
+> My plan is to make the API cleaner and hide struct kthread_worker
+> definition into kthread.c. It would prevent anyone doing any hacks
+> with it. BTW, we do the same with struct workqueue_struct.
+
+I think obsessive attachment to cleanliness tends to worse code in
+general like simple several liner wrappers which don't do anything
+other than increasing interface surface and obscuring what's going on.
+Let's please take a reasonable trade-off.  It shouldn't be nasty but
+we don't want to be paying unnecessary complexity for perfect purity
+either.
+
+> Another possibility would be to add helper function to get the
+> associated task struct but this might cause inconsistencies when
+> the worker is restarted.
+
+A kthread_worker would be instantiated on the create call and released
+on destroy and the caller is natrually expected to synchronize
+creation and destruction against all other operations.  Nothing seems
+complicated or subtle to me.
+
+Thanks.
 
 -- 
-Michal Hocko
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
