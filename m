@@ -1,97 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 2281F6B0256
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 09:20:36 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so5989266pdr.2
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 06:20:35 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id u4si61728764pdh.9.2015.07.29.06.20.34
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CBAA36B0256
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 09:30:48 -0400 (EDT)
+Received: by wicgb10 with SMTP id gb10so200840303wic.1
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 06:30:48 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id by11si13644379wib.105.2015.07.29.06.30.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 29 Jul 2015 06:20:35 -0700 (PDT)
-Subject: Re: [RFC -v2] panic_on_oom_timeout
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150617121104.GD25056@dhcp22.suse.cz>
-	<201506172131.EFE12444.JMLFOSVOHFOtFQ@I-love.SAKURA.ne.jp>
-	<20150617125127.GF25056@dhcp22.suse.cz>
-	<20150617132427.GG25056@dhcp22.suse.cz>
-	<20150729115543.GG15801@dhcp22.suse.cz>
-In-Reply-To: <20150729115543.GG15801@dhcp22.suse.cz>
-Message-Id: <201507292220.DBB48488.OHLOJMVtOFFSFQ@I-love.SAKURA.ne.jp>
-Date: Wed, 29 Jul 2015 22:20:03 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Wed, 29 Jul 2015 06:30:46 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id A74659922A
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 13:30:45 +0000 (UTC)
+Date: Wed, 29 Jul 2015 14:30:43 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC v2 1/4] mm: make alloc_pages_exact_node pass __GFP_THISNODE
+Message-ID: <20150729133043.GE19352@techsingularity.net>
+References: <1437749126-25867-1-git-send-email-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1437749126-25867-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Michal Hocko wrote:
-> On Wed 17-06-15 15:24:27, Michal Hocko wrote:
-> > On Wed 17-06-15 14:51:27, Michal Hocko wrote:
-> > [...]
-> > > The important thing is to decide what is the reasonable way forward. We
-> > > have two two implementations of panic based timeout. So we should decide
-> > 
-> > And the most obvious question, of course.
-> > - Should we add a panic timeout at all?
-> > 
-> > > - Should be the timeout bound to panic_on_oom?
-> > > - Should we care about constrained OOM contexts?
-> > > - If yes should they use the same timeout?
-> > > - If yes should each memcg be able to define its own timeout?
-> >        ^ no
-> >  
-> > > My thinking is that it should be bound to panic_on_oom=1 only until we
-> > > hear from somebody actually asking for a constrained oom and even then
-> > > do not allow for too large configuration space (e.g. no per-memcg
-> > > timeout) or have separate mempolicy vs. memcg timeouts.
-> > > 
-> > > Let's start simple and make things more complicated later!
+On Fri, Jul 24, 2015 at 04:45:23PM +0200, Vlastimil Babka wrote:
+> The function alloc_pages_exact_node() was introduced in 6484eb3e2a81 ("page
+> allocator: do not check NUMA node ID when the caller knows the node is valid")
+
+No gold stars for that one.
+
+> as an optimized variant of alloc_pages_node(), that doesn't allow the node id
+> to be -1. Unfortunately the name of the function can easily suggest that the
+> allocation is restricted to the given node and fails otherwise. In truth, the
+> node is only preferred, unless __GFP_THISNODE is passed among the gfp flags.
 > 
-> Any more ideas/thoughts on this?
+> The misleading name has lead to mistakes in the past, see 5265047ac301 ("mm,
+> thp: really limit transparent hugepage allocation to local node") and
+> b360edb43f8e ("mm, mempolicy: migrate_to_node should only migrate to node").
+> 
+> To prevent further mistakes and provide a convenience function for allocations
+> truly restricted to a node, this patch makes alloc_pages_exact_node() pass
+> __GFP_THISNODE to that effect. The previous implementation of
 
-No ideas/thoughts from my side.
+The change of what we have now is a good idea. What you have is a solid
+improvement in my view but I see there are a few different suggestions
+in the thread. Based on that I think it makes sense to just destroy
+alloc_pages_exact_node. In the future "exact" in the allocator API will
+mean "exactly this number of pages". Use your __alloc_pages_node helper
+and specify __GFP_THISNODE if the caller requires that specific node.
 
+> alloc_pages_exact_node() is copied as __alloc_pages_node() which implies it's
+> an optimized variant of __alloc_pages_node() not intended for general usage.
+> All three functions are described in the comment.
+> 
+> Existing callers of alloc_pages_exact_node() are adjusted as follows:
+> - those that explicitly pass __GFP_THISNODE keep calling
+>   alloc_pages_exact_node(), but the flag is removed from the call
 
+__alloc_pages_node(__GFP_THISNODE) would be harder to get wrong in the future
 
-By the way, the "set TIF_MEMDIE upon calling out_of_memory() when TIF_MEMDIE
-was not set by previous out_of_memory() because oom_kill_process() chose a
-different thread" logic
+> - others are converted to call __alloc_pages_node(). Some may still pass
+>   __GFP_THISNODE if they serve as wrappers that get gfp_flags from higher
+>   layers.
+> 
+> There's exception of sba_alloc_coherent() which open-codes the check for
+> nid == -1, so it is converted to use alloc_pages_node() instead. This means
+> it no longer performs some VM_BUG_ON checks, but otherwise the whole patch
+> makes no functional changes.
+> 
 
-    if (current->mm &&
-        (fatal_signal_pending(current) || task_will_free_mem(current))) {
-            mark_oom_victim(current);
-            goto out;
-    }
+In general, checks for -1 should go away, particularly with new patches.
+Use NUMA_NO_NODE.
 
-sounds broken for me, for GFP_NOFS allocations do not call
-out_of_memory() from the beginning.
-
-Say, Process1 has two threads called Thread1 and Thread2. Thread1 was blocked
-at unkillable lock and Thread2 was doing GFP_NOFS allocation from syscall
-context (e.g. codes under security/ directory) when TIF_MEMDIE was set on
-Thread1.
-
-While failing GFP_NOFS allocation for ext4 filesystem's operations damages
-the filesystem, failing GFP_NOFS allocation from syscall context will not
-damage the filesystem. Therefore, Thread2 should be able to fail GFP_NOFS
-allocations than wait for TIF_MEMDIE forever (which will never be set
-because the logic above does not apply to GFP_NOFS allocation).
-
-I didn't imagine kmalloc_killable() when I wrote "(3) Replace kmalloc()
-with kmalloc_nofail() and kmalloc_noretry()." at
-http://marc.info/?l=linux-mm&m=142408937117294 . But I came to feel that
-introducing GFP_KILLABLE (retry unless fatal_signal_pending()) which is
-between GFP_NORETRY (don't retry) and GFP_NOFAIL (retry forever) might help
-reducing the possibility of stalling multi-threaded OOM victim process.
-
-
-
-Other than that, my ideas/thoughts are staying at
-http://marc.info/?l=linux-mm&m=143239200805478 .
-
-Please continue CC'ing me because I'm not subscribed to linux-mm ML.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
