@@ -1,155 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A6326B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 02:34:14 -0400 (EDT)
-Received: by wicmv11 with SMTP id mv11so205478590wic.0
-        for <linux-mm@kvack.org>; Tue, 28 Jul 2015 23:34:13 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fu7si25168155wib.72.2015.07.28.23.34.11
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 13B456B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 04:34:06 -0400 (EDT)
+Received: by qgii95 with SMTP id i95so1020339qgi.2
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 01:34:05 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a74si30222281qgf.30.2015.07.29.01.34.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Jul 2015 23:34:12 -0700 (PDT)
-Subject: Re: [RFC 1/4] mm, compaction: introduce kcompactd
-References: <1435826795-13777-1-git-send-email-vbabka@suse.cz>
- <1435826795-13777-2-git-send-email-vbabka@suse.cz>
- <alpine.DEB.2.10.1507091439100.17177@chino.kir.corp.google.com>
- <55AE0AFE.8070200@suse.cz>
- <alpine.DEB.2.10.1507211549380.3833@chino.kir.corp.google.com>
- <55AFB569.90702@suse.cz>
- <alpine.DEB.2.10.1507221509520.24115@chino.kir.corp.google.com>
- <55B0B175.9090306@suse.cz>
- <alpine.DEB.2.10.1507231358470.31024@chino.kir.corp.google.com>
- <55B1DF11.8070100@suse.cz>
- <alpine.DEB.2.10.1507281711250.12378@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55B873DE.2060800@suse.cz>
-Date: Wed, 29 Jul 2015 08:34:06 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Jul 2015 01:34:04 -0700 (PDT)
+Message-ID: <55B88FF1.7050502@redhat.com>
+Date: Wed, 29 Jul 2015 10:33:53 +0200
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1507281711250.12378@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH v2] mm: show proportional swap share of the mapping
+References: <1434373614-1041-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1434373614-1041-1-git-send-email-minchan@kernel.org>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="bIWt5psMKkstMKPBx4WDUW0nPWD78awtW"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Bongkyu Kim <bongkyu.kim@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Jonathan Corbet <corbet@lwn.net>
 
-On 07/29/2015 02:33 AM, David Rientjes wrote:
-> On Fri, 24 Jul 2015, Vlastimil Babka wrote:
-> 
->> > Two issues I want to bring up:
->> > 
->> >   (1) do non-thp configs benefit from periodic compaction?
->> > 
->> >       In my experience, no, but perhaps there are other use cases where
->> >       this has been a pain.  The primary candidates, in my opinion,
->> >       would be the networking stack and slub.  Joonsoo reports having to
->> >       workaround issues with high-order slub allocations being too
->> >       expensive.  I'm not sure that would be better served by periodic
->> >       compaction, but it seems like a candidate for background compaction.
->> 
->> Yes hopefully a proactive background compaction would serve them enough.
->> 
->> >       This is why my rfc tied periodic compaction to khugepaged, and we
->> >       have strong evidence that this helps thp and cpu utilization.  For
->> >       periodic compaction to be possible outside of thp, we'd need a use
->> >       case for it.
->> > 
->> >   (2) does kcompactd have to be per-node?
->> > 
->> >       I don't see the immediate benefit since direct compaction can
->> >       already scan remote memory and migrate it, khugepaged can do the
->> 
->> It can work remotely, but it's slower.
->> 
->> >       same.  Is there evidence that suggests that a per-node kcompactd
->> >       is significantly better than a single kthread?  I think others
->> >       would be more receptive of a single kthread addition.
->> 
->> I think it's simpler design wrt waking up the kthread for the desired node,
->> and self-tuning any sleeping depending on per-node pressure. It also matches
->> the design of kswapd. And IMHO machines with many memory nodes should
->> naturally have also many CPU's to cope with the threads, so it should all
->> scale well.
->> 
-> 
-> I see your "proactive background compaction" as my "periodic compaction" 
-> :)  And I agree with your comment that we should be careful about defining 
-> the API so it can be easily extended in the future.
-> 
-> I see the two mechanisms different enough that they need to be defined 
-> separately: periodic compaction that would be done at certain intervals 
-> regardless of fragmentation or allocation failures to keep fragmentation 
-> low, and background compaction that would be done when a zone reaches a 
-> certain fragmentation index for high orders, similar to extfrag_threshold, 
-> or an allocation failure.
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--bIWt5psMKkstMKPBx4WDUW0nPWD78awtW
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-Is there a smart way to check the fragmentation index without doing it just
-periodically, and without polluting the allocator fast paths?
+On 06/15/2015 03:06 PM, Minchan Kim wrote:
+> We want to know per-process workingset size for smart memory management=
 
-Do you think we should still handle THP availability separately as this patchset
-does, or not? I think it could still serve to reduce page fault latencies and
-pointless khugepaged scanning when hugepages cannot be allocated.
-Which implies, can the following be built on top of this patchset?
+> on userland and we use swap(ex, zram) heavily to maximize memory effici=
+ency
+> so workingset includes swap as well as RSS.
+>=20
+> On such system, if there are lots of shared anonymous pages, it's
+> really hard to figure out exactly how many each process consumes
+> memory(ie, rss + wap) if the system has lots of shared anonymous
+> memory(e.g, android).
+>=20
+> This patch introduces SwapPss field on /proc/<pid>/smaps so we can get
+> more exact workingset size per process.
+>=20
+> Bongkyu tested it. Result is below.
+>=20
+> 1. 50M used swap
+> SwapTotal: 461976 kB
+> SwapFree: 411192 kB
+>=20
+> $ adb shell cat /proc/*/smaps | grep "SwapPss:" | awk '{sum +=3D $2} EN=
+D {print sum}';
+> 48236
+> $ adb shell cat /proc/*/smaps | grep "Swap:" | awk '{sum +=3D $2} END {=
+print sum}';
+> 141184
 
-> Per-node kcompactd threads we agree would be optimal, so let's try to see 
-> if we can make that work.
-> 
-> What do you think about the following?
-> 
->  - add vm.compact_period_secs to define the number of seconds between
->    full compactions on each node.  This compaction would reset the
->    pageblock skip heuristic and be synchronous.  It would default to 900
->    based only on our evidence that 15m period compaction helps increase
->    our cpu utilization for khugepaged; it is arbitrary and I'd happily
->    change it if someone has a better suggestion.  Changing it to 0 would
->    disable periodic compaction (we don't anticipate anybody will ever
->    want kcompactd threads will take 100% of cpu on each node).  We can
->    stagger this over all nodes to avoid all kcompactd threads working at
->    the same time.
+Hi Minchan,
 
-I guess more testing would be useful to see that it still improves things over
-the background compaction?
+I just found out about this patch. What kind of shared memory is that?
+Since it's android, I'm inclined to think something specific like
+ashmem. I'm asking because this patch won't help for more common type of
+shared memory. See my comment below.
 
->  - add vm.compact_background_extfrag_threshold to define the extfrag
->    threshold when kcompactd should start doing sync_light migration
->    in the background without resetting the pageblock skip heuristic.
->    The threshold is defined at PAGE_ALLOC_COSTLY_ORDER and is halved
->    for each order higher so that very high order allocations don't
+>=20
+> 2. 240M used swap
+> SwapTotal: 461976 kB
+> SwapFree: 216808 kB
+>=20
+> $ adb shell cat /proc/*/smaps | grep "SwapPss:" | awk '{sum +=3D $2} EN=
+D {print sum}';
+> 230315
+> $ adb shell cat /proc/*/smaps | grep "Swap:" | awk '{sum +=3D $2} END {=
+print sum}';
+> 1387744
+>=20
+snip
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 6dee68d013ff..d537899f4b25 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -446,6 +446,7 @@ struct mem_size_stats {
+>  	unsigned long anonymous_thp;
+>  	unsigned long swap;
+>  	u64 pss;
+> +	u64 swap_pss;
+>  };
+> =20
+>  static void smaps_account(struct mem_size_stats *mss, struct page *pag=
+e,
+> @@ -492,9 +493,20 @@ static void smaps_pte_entry(pte_t *pte, unsigned l=
+ong addr,
+>  	} else if (is_swap_pte(*pte)) {
 
-I've pondered what exactly the fragmentation index calculates, and it's hard to
-imagine how I'd set the threshold. Note that the equation already does
-effectively a halving with each order increase, but probably in the opposite
-direction that you want it to.
+This won't work for sysV shm, tmpfs and MAP_SHARED | MAP_ANONYMOUS
+mapping pages which are pte_none when paged out. They're currently not
+accounted at all when in swap.
 
-Michal Hocko suggested to me offline that we have tunables like
-compact_min_order and compact_max_order, where (IIUC) compaction would trigger
-when no pages of >=compact_min_order are available, and then compaction would
-stop when pages of >=compact_max_order are available (i.e. a kind of
-hysteresis). I'm not sure about this either, as the user would have to know
-which order-allocations his particular drivers need (unless it's somehow
-self-tuning).
+Jerome
 
-What I have instead in mind is something like the current high-order watermark
-checking (which may be going away soon, but anyway...) basically for each order
-we say how many pages of "at least that order" should be available. This could
-be calculated progressively for all orders from a single tunable and size of
-zone. Or maybe two tunables meant as min/max, to triggest start and end of
-background compaction.
+>  		swp_entry_t swpent =3D pte_to_swp_entry(*pte);
+> =20
+> -		if (!non_swap_entry(swpent))
+> +		if (!non_swap_entry(swpent)) {
+> +			int mapcount;
+> +
+>  			mss->swap +=3D PAGE_SIZE;
+> -		else if (is_migration_entry(swpent))
+> +			mapcount =3D swp_swapcount(swpent);
+> +			if (mapcount >=3D 2) {
+> +				u64 pss_delta =3D (u64)PAGE_SIZE << PSS_SHIFT;
+> +
+> +				do_div(pss_delta, mapcount);
+> +				mss->swap_pss +=3D pss_delta;
+> +			} else {
+> +				mss->swap_pss +=3D (u64)PAGE_SIZE << PSS_SHIFT;
+> +			}
+> +		} else if (is_migration_entry(swpent))
+>  			page =3D migration_entry_to_page(swpent);
+>  	}
+> =20
+> @@ -638,6 +650,7 @@ static int show_smap(struct seq_file *m, void *v, i=
+nt is_pid)
+>  		   "Anonymous:      %8lu kB\n"
+>  		   "AnonHugePages:  %8lu kB\n"
+>  		   "Swap:           %8lu kB\n"
+> +		   "SwapPss:        %8lu kB\n"
+>  		   "KernelPageSize: %8lu kB\n"
+>  		   "MMUPageSize:    %8lu kB\n"
+>  		   "Locked:         %8lu kB\n",
+> @@ -652,6 +665,7 @@ static int show_smap(struct seq_file *m, void *v, i=
+nt is_pid)
+>  		   mss.anonymous >> 10,
+>  		   mss.anonymous_thp >> 10,
+>  		   mss.swap >> 10,
+> +		   (unsigned long)(mss.swap_pss >> (10 + PSS_SHIFT)),
+>  		   vma_kernel_pagesize(vma) >> 10,
+>  		   vma_mmu_pagesize(vma) >> 10,
+>  		   (vma->vm_flags & VM_LOCKED) ?
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index cee108cbe2d5..afc9eb3cba48 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -432,6 +432,7 @@ extern unsigned int count_swap_pages(int, int);
+>  extern sector_t map_swap_page(struct page *, struct block_device **);
+>  extern sector_t swapdev_block(int, pgoff_t);
+>  extern int page_swapcount(struct page *);
+> +extern int swp_swapcount(swp_entry_t entry);
+>  extern struct swap_info_struct *page_swap_info(struct page *);
+>  extern int reuse_swap_page(struct page *);
+>  extern int try_to_free_swap(struct page *);
+> @@ -523,6 +524,11 @@ static inline int page_swapcount(struct page *page=
+)
+>  	return 0;
+>  }
+> =20
+> +static inline int swp_swapcount(swp_entry_t entry)
+> +{
+> +	return 0;
+> +}
+> +
+>  #define reuse_swap_page(page)	(page_mapcount(page) =3D=3D 1)
+> =20
+>  static inline int try_to_free_swap(struct page *page)
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index a7e72103f23b..7a6bd1e5a8e9 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -875,6 +875,48 @@ int page_swapcount(struct page *page)
+>  }
+> =20
+>  /*
+> + * How many references to @entry are currently swapped out?
+> + * This considers COUNT_CONTINUED so it returns exact answer.
+> + */
+> +int swp_swapcount(swp_entry_t entry)
+> +{
+> +	int count, tmp_count, n;
+> +	struct swap_info_struct *p;
+> +	struct page *page;
+> +	pgoff_t offset;
+> +	unsigned char *map;
+> +
+> +	p =3D swap_info_get(entry);
+> +	if (!p)
+> +		return 0;
+> +
+> +	count =3D swap_count(p->swap_map[swp_offset(entry)]);
+> +	if (!(count & COUNT_CONTINUED))
+> +		goto out;
+> +
+> +	count &=3D ~COUNT_CONTINUED;
+> +	n =3D SWAP_MAP_MAX + 1;
+> +
+> +	offset =3D swp_offset(entry);
+> +	page =3D vmalloc_to_page(p->swap_map + offset);
+> +	offset &=3D ~PAGE_MASK;
+> +	VM_BUG_ON(page_private(page) !=3D SWP_CONTINUED);
+> +
+> +	do {
+> +		page =3D list_entry(page->lru.next, struct page, lru);
+> +		map =3D kmap_atomic(page) + offset;
+> +		tmp_count =3D *map;
+> +		kunmap_atomic(map);
+> +
+> +		count +=3D (tmp_count & ~COUNT_CONTINUED) * n;
+> +		n *=3D (SWAP_CONT_MAX + 1);
+> +	} while (tmp_count & COUNT_CONTINUED);
+> +out:
+> +	spin_unlock(&p->lock);
+> +	return count;
+> +}
+> +
+> +/*
+>   * We can write to an anon page without COW if there are no other refe=
+rences
+>   * to it.  And as a side-effect, free up its swap: because the old con=
+tent
+>   * on disk will never be read, and seeking back there to write new con=
+tent
+>=20
 
->    trigger it.  To reduce overhead, this can be checked only in the
->    slowpath.
 
-Hmm slowpath might be too late, but could be usable starting point.
 
-> I'd also like to talk about compacting of mlocked memory and limit it to 
-> only periodic compaction so that we aren't constantly incurring minor 
-> faults when not expected.
+--bIWt5psMKkstMKPBx4WDUW0nPWD78awtW
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
 
-Well, periodic compaction can be "expected" in the sense that period is known,
-but how would the knowledge help the applications suffering from the minor faults?
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
-> How does this sound?
-> 
+iQEcBAEBCAAGBQJVuI/1AAoJEHTzHJCtsuoCmf8IAIozqtSK0Pjl8/Pen+NhJZEg
+OAp/Ld1UIPfXxQ0UGsPSQ9R6nCKomskjE6FwEKVqmb/Ui94UanmrLBQiAJVcgLJA
+XLPZXOO4Z7D1+XXVlcA1UEkwVu4OKcLZCOqA/KpH7+pI7ot9bOw8VvhNmAVSrju1
+N5Kt6Fz4nZaIfDCAMeYD7ahZplHlk0JxsLlvHJfE3mWCjgutZWzHEQEpOGTWMQZo
+mE9FrqhW5Yu+zfPRatmmF0QFXdpHeZjyb5MjX9HEyi+bWBukNbKzfN5IoKj+379M
+JNnyyaHe6FI9eXWT1hHGwMnbjbp2MKFTaNfXEHVVgFlur6K8OgqmwnDXVKQ/2hQ=
+=3F+Y
+-----END PGP SIGNATURE-----
+
+--bIWt5psMKkstMKPBx4WDUW0nPWD78awtW--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
