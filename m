@@ -1,84 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id CB2089003C7
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 12:35:00 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so75733442wib.0
-        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 09:35:00 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D2A99003C7
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 12:35:01 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so75733870wib.0
+        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 09:35:01 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f8si4288863wiz.88.2015.07.30.09.34.58
+        by mx.google.com with ESMTPS id dx2si14743265wib.2.2015.07.30.09.34.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Thu, 30 Jul 2015 09:34:59 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 2/3] mm: unify checks in alloc_pages_node() and __alloc_pages_node()
-Date: Thu, 30 Jul 2015 18:34:30 +0200
-Message-Id: <1438274071-22551-2-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v3 3/3] mm: use numa_mem_id() in alloc_pages_node()
+Date: Thu, 30 Jul 2015 18:34:31 +0200
+Message-Id: <1438274071-22551-3-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1438274071-22551-1-git-send-email-vbabka@suse.cz>
 References: <1438274071-22551-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, cbe-oss-dev@lists.ozlabs.org, kvm@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, cbe-oss-dev@lists.ozlabs.org, kvm@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>
 
-Perform the same debug checks in alloc_pages_node() as are done in
-__alloc_pages_node(), by making the former function a wrapper of the latter
-one.
+numa_mem_id() is able to handle allocation from CPUs on memory-less nodes,
+so it's a more robust fallback than the currently used numa_node_id().
 
-In addition to better diagnostics in DEBUG_VM builds for situations which
-have been already fatal (e.g. out-of-bounds node id), there are two visible
-changes for potential existing buggy callers of alloc_pages_node():
-
-- calling alloc_pages_node() with any negative nid (e.g. due to arithmetic
-  overflow) was treated as passing NUMA_NO_NODE and fallback to local node was
-  applied. This will now be fatal.
-- calling alloc_pages_node() with an offline node will now be checked for
-  DEBUG_VM builds. Since it's not fatal if the node has been previously online,
-  and this patch may expose some existing buggy callers, change the VM_BUG_ON
-  in __alloc_pages_node() to VM_WARN_ON.
-
+Suggested-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 ---
-v3: I think this is enough for what patch 4/4 in v2 tried to provide on top,
-    so there's no patch 4/4 anymore. The DEBUG_VM-only fixup didn't seem
-    justified to me.
-
- include/linux/gfp.h | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ include/linux/gfp.h | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index d2c142b..4a12cae2 100644
+index 4a12cae2..f92cbd2 100644
 --- a/include/linux/gfp.h
 +++ b/include/linux/gfp.h
-@@ -310,23 +310,23 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
- static inline struct page *
- __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
- {
--	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
-+	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
-+	VM_WARN_ON(!node_online(nid));
- 
- 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
- }
+@@ -318,13 +318,14 @@ __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
  
  /*
   * Allocate pages, preferring the node given as nid. When nid == NUMA_NO_NODE,
-- * prefer the current CPU's node.
-+ * prefer the current CPU's node. Otherwise node must be valid and online.
+- * prefer the current CPU's node. Otherwise node must be valid and online.
++ * prefer the current CPU's closest node. Otherwise node must be valid and
++ * online.
   */
  static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
  						unsigned int order)
  {
--	/* Unknown node is current node */
--	if (nid < 0)
-+	if (nid == NUMA_NO_NODE)
- 		nid = numa_node_id();
+ 	if (nid == NUMA_NO_NODE)
+-		nid = numa_node_id();
++		nid = numa_mem_id();
  
--	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
-+	return __alloc_pages_node(nid, gfp_mask, order);
+ 	return __alloc_pages_node(nid, gfp_mask, order);
  }
- 
- #ifdef CONFIG_NUMA
 -- 
 2.4.6
 
