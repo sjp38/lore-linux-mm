@@ -1,39 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 747F06B0253
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 13:59:50 -0400 (EDT)
-Received: by qgii95 with SMTP id i95so29609351qgi.2
-        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 10:59:50 -0700 (PDT)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id n33si2234713qkh.21.2015.07.30.10.59.48
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 04DC16B0253
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 14:55:27 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so3892202wib.1
+        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 11:55:26 -0700 (PDT)
+Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
+        by mx.google.com with ESMTPS id fx4si542845wib.75.2015.07.30.11.55.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 30 Jul 2015 10:59:49 -0700 (PDT)
-Date: Thu, 30 Jul 2015 12:59:47 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 3/3] mm: use numa_mem_id() in alloc_pages_node()
-In-Reply-To: <1438274071-22551-3-git-send-email-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.11.1507301259230.5521@east.gentwo.org>
-References: <1438274071-22551-1-git-send-email-vbabka@suse.cz> <1438274071-22551-3-git-send-email-vbabka@suse.cz>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Jul 2015 11:55:25 -0700 (PDT)
+Received: by wicgb10 with SMTP id gb10so4014390wic.1
+        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 11:55:24 -0700 (PDT)
+Message-ID: <1438282521.6432.53.camel@gmail.com>
+Subject: Re: [PATCH] mm: add resched points to
+ remap_pmd_range/ioremap_pmd_range
+From: Mike Galbraith <umgwanakikbuti@gmail.com>
+Date: Thu, 30 Jul 2015 20:55:21 +0200
+In-Reply-To: <20150730165803.GA17882@Sligo.logfs.org>
+References: <1437688476-3399-3-git-send-email-sbaugh@catern.com>
+	 <20150724070420.GF4103@dhcp22.suse.cz>
+	 <20150724165627.GA3458@Sligo.logfs.org>
+	 <20150727070840.GB11317@dhcp22.suse.cz>
+	 <20150727151814.GR9641@Sligo.logfs.org>
+	 <20150728133254.GI24972@dhcp22.suse.cz>
+	 <20150728170844.GY9641@Sligo.logfs.org>
+	 <20150729095439.GD15801@dhcp22.suse.cz>
+	 <1438269775.23663.58.camel@gmail.com>
+	 <20150730165803.GA17882@Sligo.logfs.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, cbe-oss-dev@lists.ozlabs.org, kvm@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+To: =?ISO-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Spencer Baugh <sbaugh@catern.com>, Toshi Kani <toshi.kani@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Joern Engel <joern@logfs.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Shachar Raindel <raindel@mellanox.com>, Boaz Harrosh <boaz@plexistor.com>, Andy Lutomirski <luto@amacapital.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Roman Pen <r.peniaev@gmail.com>, Andrey Konovalov <adech.fo@gmail.com>, Eric Dumazet <edumazet@google.com>, Dmitry Vyukov <dvyukov@google.com>, Rob Jones <rob.jones@codethink.co.uk>, WANG Chao <chaowang@redhat.com>, open list <linux-kernel@vger.kernel.org>, "open
+ list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Spencer Baugh <Spencer.baugh@purestorage.com>
 
-On Thu, 30 Jul 2015, Vlastimil Babka wrote:
+On Thu, 2015-07-30 at 09:58 -0700, JA?rn Engel wrote:
+> On Thu, Jul 30, 2015 at 05:22:55PM +0200, Mike Galbraith wrote:
+> > 
+> > I piddled about with the thought that it might be nice to be able to
+> > sprinkle cond_resched() about to cut rt latencies without wrecking
+> > normal load throughput, cobbled together a cond_resched_rt().
+> > 
+> > On my little box that was a waste of time, as the biggest hits are block
+> > softirq and free_hot_cold_page_list().
+> 
+> Block softirq is one of our problems as well.  It is a bit of a joke
+> that __do_softirq() moves work to ksoftirqd after 2ms, but block softirq
+> can take several 100ms in bad cases.
+> 
+> We could give individual softirqs a time budget.  If they exceed the
+> budget they should complete, but reassert themselves.  Not sure about
+> the rest, but that would be pretty simple to implement for block
+> softirq.
 
-> numa_mem_id() is able to handle allocation from CPUs on memory-less nodes,
-> so it's a more robust fallback than the currently used numa_node_id().
->
-> Suggested-by: Christoph Lameter <cl@linux.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+Yeah, it wants something, not sure what though.  Fix up every spot that
+hinders rt performance, you'll end up with PREEMPT_RT, and generic
+performance falls straight through the floor.  Darn.
 
-You can add my ack too if it helps.
-
-Acked-by: Christoph Lameter <cl@linux.com>
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
