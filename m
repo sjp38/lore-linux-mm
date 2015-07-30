@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 569EF6B025E
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 13:04:31 -0400 (EDT)
-Received: by ykdu72 with SMTP id u72so39080225ykd.2
-        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 10:04:31 -0700 (PDT)
+Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 836F46B025F
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 13:04:33 -0400 (EDT)
+Received: by ykay190 with SMTP id y190so39044663yka.3
+        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 10:04:33 -0700 (PDT)
 Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id o142si1264864ywd.173.2015.07.30.10.04.22
+        by mx.google.com with ESMTPS id o142si1264864ywd.173.2015.07.30.10.04.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Jul 2015 10:04:23 -0700 (PDT)
+        Thu, 30 Jul 2015 10:04:24 -0700 (PDT)
 From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv3 02/10] xen/balloon: remove scratch page left overs
-Date: Thu, 30 Jul 2015 18:03:04 +0100
-Message-ID: <1438275792-5726-3-git-send-email-david.vrabel@citrix.com>
+Subject: [PATCHv3 09/10] x86/xen: export xen_alloc_p2m_entry()
+Date: Thu, 30 Jul 2015 18:03:11 +0100
+Message-ID: <1438275792-5726-10-git-send-email-david.vrabel@citrix.com>
 In-Reply-To: <1438275792-5726-1-git-send-email-david.vrabel@citrix.com>
 References: <1438275792-5726-1-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
@@ -23,32 +23,107 @@ To: linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org
 Cc: David Vrabel <david.vrabel@citrix.com>, linux-mm@kvack.org, Konrad
  Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Daniel Kiper <daniel.kiper@oracle.com>
 
-Commit 0bb599fd30108883b00c7d4a226eeb49111e6932 (xen: remove scratch
-frames for ballooned pages and m2p override) removed the use of the
-scratch page for ballooned out pages.
+Rename alloc_p2m() to xen_alloc_p2m_entry() and export it.
 
-Remove some left over function definitions.
+This is useful for ensuring that a p2m entry is allocated (i.e., not a
+shared missing or identity entry) so that subsequent set_phys_to_machine()
+calls will require no further allocations.
 
 Signed-off-by: David Vrabel <david.vrabel@citrix.com>
-Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
 ---
- include/xen/balloon.h | 3 ---
- 1 file changed, 3 deletions(-)
+v3:
+- Make xen_alloc_p2m_entry() a nop on auto-xlate guests.
+---
+ arch/x86/include/asm/xen/page.h |  2 ++
+ arch/x86/xen/p2m.c              | 19 +++++++++++++------
+ 2 files changed, 15 insertions(+), 6 deletions(-)
 
-diff --git a/include/xen/balloon.h b/include/xen/balloon.h
-index a4c1c6a..cc2e1a7 100644
---- a/include/xen/balloon.h
-+++ b/include/xen/balloon.h
-@@ -29,9 +29,6 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages,
- 		bool highmem);
- void free_xenballooned_pages(int nr_pages, struct page **pages);
+diff --git a/arch/x86/include/asm/xen/page.h b/arch/x86/include/asm/xen/page.h
+index c44a5d5..960b380 100644
+--- a/arch/x86/include/asm/xen/page.h
++++ b/arch/x86/include/asm/xen/page.h
+@@ -45,6 +45,8 @@ extern unsigned long *xen_p2m_addr;
+ extern unsigned long  xen_p2m_size;
+ extern unsigned long  xen_max_p2m_pfn;
  
--struct page *get_balloon_scratch_page(void);
--void put_balloon_scratch_page(void);
--
- struct device;
- #ifdef CONFIG_XEN_SELFBALLOONING
- extern int register_xen_selfballooning(struct device *dev);
++extern int xen_alloc_p2m_entry(unsigned long pfn);
++
+ extern unsigned long get_phys_to_machine(unsigned long pfn);
+ extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+ extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
+index 8b7f18e..0215897 100644
+--- a/arch/x86/xen/p2m.c
++++ b/arch/x86/xen/p2m.c
+@@ -503,7 +503,7 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
+  * the new pages are installed with cmpxchg; if we lose the race then
+  * simply free the page we allocated and use the one that's there.
+  */
+-static bool alloc_p2m(unsigned long pfn)
++int xen_alloc_p2m_entry(unsigned long pfn)
+ {
+ 	unsigned topidx, mididx;
+ 	unsigned long *top_mfn_p, *mid_mfn;
+@@ -513,6 +513,9 @@ static bool alloc_p2m(unsigned long pfn)
+ 	unsigned long addr = (unsigned long)(xen_p2m_addr + pfn);
+ 	unsigned long p2m_pfn;
+ 
++	if (xen_feature(XENFEAT_auto_translated_physmap))
++		return 0;
++
+ 	topidx = p2m_top_index(pfn);
+ 	mididx = p2m_mid_index(pfn);
+ 
+@@ -524,7 +527,7 @@ static bool alloc_p2m(unsigned long pfn)
+ 		/* PMD level is missing, allocate a new one */
+ 		ptep = alloc_p2m_pmd(addr, pte_pg);
+ 		if (!ptep)
+-			return false;
++			return -ENOMEM;
+ 	}
+ 
+ 	if (p2m_top_mfn) {
+@@ -541,7 +544,7 @@ static bool alloc_p2m(unsigned long pfn)
+ 
+ 			mid_mfn = alloc_p2m_page();
+ 			if (!mid_mfn)
+-				return false;
++				return -ENOMEM;
+ 
+ 			p2m_mid_mfn_init(mid_mfn, p2m_missing);
+ 
+@@ -567,7 +570,7 @@ static bool alloc_p2m(unsigned long pfn)
+ 
+ 		p2m = alloc_p2m_page();
+ 		if (!p2m)
+-			return false;
++			return -ENOMEM;
+ 
+ 		if (p2m_pfn == PFN_DOWN(__pa(p2m_missing)))
+ 			p2m_init(p2m);
+@@ -590,8 +593,9 @@ static bool alloc_p2m(unsigned long pfn)
+ 			free_p2m_page(p2m);
+ 	}
+ 
+-	return true;
++	return 0;
+ }
++EXPORT_SYMBOL(xen_alloc_p2m_entry);
+ 
+ unsigned long __init set_phys_range_identity(unsigned long pfn_s,
+ 				      unsigned long pfn_e)
+@@ -648,7 +652,10 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+ bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
+ {
+ 	if (unlikely(!__set_phys_to_machine(pfn, mfn))) {
+-		if (!alloc_p2m(pfn))
++		int ret;
++
++		ret = xen_alloc_p2m_entry(pfn);
++		if (ret < 0)
+ 			return false;
+ 
+ 		return __set_phys_to_machine(pfn, mfn);
 -- 
 2.1.4
 
