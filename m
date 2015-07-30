@@ -1,236 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 45CAB9003C7
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 10:08:26 -0400 (EDT)
-Received: by wicmv11 with SMTP id mv11so22770565wic.0
-        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 07:08:25 -0700 (PDT)
-Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com. [2a00:1450:400c:c05::230])
-        by mx.google.com with ESMTPS id o4si2082700wjx.75.2015.07.30.07.08.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Jul 2015 07:08:24 -0700 (PDT)
-Received: by wibxm9 with SMTP id xm9so70520576wib.1
-        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 07:08:24 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 2/2] mm: rename and move get/set_freepage_migratetype
-In-Reply-To: <55AF8C94.6020406@suse.cz>
-References: <55969822.9060907@suse.cz> <1437483218-18703-1-git-send-email-vbabka@suse.cz> <1437483218-18703-2-git-send-email-vbabka@suse.cz> <55AF8C94.6020406@suse.cz>
-Date: Thu, 30 Jul 2015 16:08:20 +0200
-Message-ID: <xa1tegjpeo17.fsf@mina86.com>
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id ACEEA6B0257
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 10:32:58 -0400 (EDT)
+Received: by lahh5 with SMTP id h5so26273639lah.2
+        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 07:32:58 -0700 (PDT)
+Received: from cvs.linux-mips.org (eddie.linux-mips.org. [148.251.95.138])
+        by mx.google.com with ESMTP id es2si3698258wib.12.2015.07.30.07.32.56
+        for <linux-mm@kvack.org>;
+        Thu, 30 Jul 2015 07:32:56 -0700 (PDT)
+Received: from localhost.localdomain ([127.0.0.1]:45849 "EHLO linux-mips.org"
+        rhost-flags-OK-OK-OK-FAIL) by eddie.linux-mips.org with ESMTP
+        id S27011420AbbG3OczuEDWM (ORCPT <rfc822;linux-mm@kvack.org>);
+        Thu, 30 Jul 2015 16:32:55 +0200
+Date: Thu, 30 Jul 2015 16:32:52 +0200
+From: Ralf Baechle <ralf@linux-mips.org>
+Subject: Re: [PATCH V6 6/6] mips: Add entry for new mlock2 syscall
+Message-ID: <20150730143252.GF25552@linux-mips.org>
+References: <1438184575-10537-1-git-send-email-emunson@akamai.com>
+ <1438184575-10537-7-git-send-email-emunson@akamai.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1438184575-10537-7-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, "minkyung88.kim" <minkyung88.kim@lge.com>, kmk3210@gmail.com, Seungho Park <seungho1.park@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Laura Abbott <lauraa@codeaurora.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mips@linux-mips.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 22 2015, Vlastimil Babka wrote:
-> Subject: mm: rename and move get/set_freepage_migratetype
->
-> The pair of get/set_freepage_migratetype() functions are used to cache
-> pageblock migratetype for a page put on a pcplist, so that it does not ha=
-ve
-> to be retrieved again when the page is put on a free list (e.g. when pcpl=
-ists
-> become full). Historically it was also assumed that the value is accurate=
- for
-> pages on freelists (as the functions' names unfortunately suggest), but t=
-hat
-> cannot be guaranteed without affecting various allocator fast paths. It i=
-s in
-> fact not needed and all such uses have been removed.
->
-> The last two remaining (but pointless) usages related to pages of freelis=
-ts
-> are removed by this patch:
-> - move_freepages() which operates on pages already on freelists
-> - __free_pages_ok() which puts a page directly to freelist, bypassing pcp=
-lists
->
-> To prevent further confusion, rename the functions to
-> get/set_pcppage_migratetype() and expand their description. Since all the
-> users are now in mm/page_alloc.c, move the functions there from the shared
-> header.
->
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
+On Wed, Jul 29, 2015 at 11:42:55AM -0400, Eric B Munson wrote:
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+> A previous commit introduced the new mlock2 syscall, add entries for the
+> MIPS architecture.
 
-> Cc: Laura Abbott <lauraa@codeaurora.org>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  include/linux/mm.h | 12 ------------
->  mm/page_alloc.c    | 41 ++++++++++++++++++++++++++++-------------
->  2 files changed, 28 insertions(+), 25 deletions(-)
->
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index c3a2b37..ce36145 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -310,18 +310,6 @@ struct inode;
->  #define page_private(page)		((page)->private)
->  #define set_page_private(page, v)	((page)->private =3D (v))
->=20=20
-> -/* It's valid only if the page is free path or free_list */
-> -static inline void set_freepage_migratetype(struct page *page, int migra=
-tetype)
-> -{
-> -	page->index =3D migratetype;
-> -}
-> -
-> -/* It's valid only if the page is free path or free_list */
-> -static inline int get_freepage_migratetype(struct page *page)
-> -{
-> -	return page->index;
-> -}
-> -
->  /*
->   * FIXME: take this include out, include page-flags.h in
->   * files which need it (119 of them)
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index c61fef8..4b220cb 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -125,6 +125,24 @@ unsigned long dirty_balance_reserve __read_mostly;
->  int percpu_pagelist_fraction;
->  gfp_t gfp_allowed_mask __read_mostly =3D GFP_BOOT_MASK;
->=20=20
-> +/*
-> + * A cached value of the page's pageblock's migratetype, used when the p=
-age is
-> + * put on a pcplist. Used to avoid the pageblock migratetype lookup when
-> + * freeing from pcplists in most cases, at the cost of possibly becoming=
- stale.
-> + * Also the migratetype set in the page does not necessarily match the p=
-cplist
-> + * index, e.g. page might have MIGRATE_CMA set but be on a pcplist with =
-any
-> + * other index - this ensures that it will be put on the correct CMA fre=
-elist.
-> + */
-> +static inline int get_pcppage_migratetype(struct page *page)
-> +{
-> +	return page->index;
-> +}
-> +
-> +static inline void set_pcppage_migratetype(struct page *page, int migrat=
-etype)
-> +{
-> +	page->index =3D migratetype;
-> +}
-> +
->  #ifdef CONFIG_PM_SLEEP
->  /*
->   * The following functions are used by the suspend/hibernate code to tem=
-porarily
-> @@ -790,7 +808,7 @@ static void free_pcppages_bulk(struct zone *zone, int=
- count,
->  			/* must delete as __free_one_page list manipulates */
->  			list_del(&page->lru);
->=20=20
-> -			mt =3D get_freepage_migratetype(page);
-> +			mt =3D get_pcppage_migratetype(page);
->  			/* MIGRATE_ISOLATE page should not go to pcplists */
->  			VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
->  			/* Pageblock could have been isolated meanwhile */
-> @@ -963,7 +981,6 @@ static void __free_pages_ok(struct page *page, unsign=
-ed int order)
->  	migratetype =3D get_pfnblock_migratetype(page, pfn);
->  	local_irq_save(flags);
->  	__count_vm_events(PGFREE, 1 << order);
-> -	set_freepage_migratetype(page, migratetype);
->  	free_one_page(page_zone(page), page, pfn, order, migratetype);
->  	local_irq_restore(flags);
->  }
-> @@ -1384,7 +1401,7 @@ struct page *__rmqueue_smallest(struct zone *zone, =
-unsigned int order,
->  		rmv_page_order(page);
->  		area->nr_free--;
->  		expand(zone, page, order, current_order, area, migratetype);
-> -		set_freepage_migratetype(page, migratetype);
-> +		set_pcppage_migratetype(page, migratetype);
->  		return page;
->  	}
->=20=20
-> @@ -1461,7 +1478,6 @@ int move_freepages(struct zone *zone,
->  		order =3D page_order(page);
->  		list_move(&page->lru,
->  			  &zone->free_area[order].free_list[migratetype]);
-> -		set_freepage_migratetype(page, migratetype);
->  		page +=3D 1 << order;
->  		pages_moved +=3D 1 << order;
->  	}
-> @@ -1631,14 +1647,13 @@ __rmqueue_fallback(struct zone *zone, unsigned in=
-t order, int start_migratetype)
->  		expand(zone, page, order, current_order, area,
->  					start_migratetype);
->  		/*
-> -		 * The freepage_migratetype may differ from pageblock's
-> +		 * The pcppage_migratetype may differ from pageblock's
->  		 * migratetype depending on the decisions in
-> -		 * try_to_steal_freepages(). This is OK as long as it
-> -		 * does not differ for MIGRATE_CMA pageblocks. For CMA
-> -		 * we need to make sure unallocated pages flushed from
-> -		 * pcp lists are returned to the correct freelist.
-> +		 * find_suitable_fallback(). This is OK as long as it does not
-> +		 * differ for MIGRATE_CMA pageblocks. Those can be used as
-> +		 * fallback only via special __rmqueue_cma_fallback() function
->  		 */
-> -		set_freepage_migratetype(page, start_migratetype);
-> +		set_pcppage_migratetype(page, start_migratetype);
->=20=20
->  		trace_mm_page_alloc_extfrag(page, order, current_order,
->  			start_migratetype, fallback_mt);
-> @@ -1714,7 +1729,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned=
- int order,
->  		else
->  			list_add_tail(&page->lru, list);
->  		list =3D &page->lru;
-> -		if (is_migrate_cma(get_freepage_migratetype(page)))
-> +		if (is_migrate_cma(get_pcppage_migratetype(page)))
->  			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
->  					      -(1 << order));
->  	}
-> @@ -1911,7 +1926,7 @@ void free_hot_cold_page(struct page *page, bool col=
-d)
->  		return;
->=20=20
->  	migratetype =3D get_pfnblock_migratetype(page, pfn);
-> -	set_freepage_migratetype(page, migratetype);
-> +	set_pcppage_migratetype(page, migratetype);
->  	local_irq_save(flags);
->  	__count_vm_event(PGFREE);
->=20=20
-> @@ -2116,7 +2131,7 @@ struct page *buffered_rmqueue(struct zone *preferre=
-d_zone,
->  		if (!page)
->  			goto failed;
->  		__mod_zone_freepage_state(zone, -(1 << order),
-> -					  get_freepage_migratetype(page));
-> +					  get_pcppage_migratetype(page));
->  	}
->=20=20
->  	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
-> --=20
-> 2.4.5
->
->
->
+Looking good, so
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+Acked-by: Ralf Baechle <ralf@linux-mips.org>
+
+Recently somebody else was floating around a patch that was adding
+three syscalls.  Not sure if in the end the adding the syscall part to
+non-x86 was dropped.  Just mentioning in case there are any conflicts;
+in particulary nobody should rely on syscall numbers unless they're
+for something in Linus' tree!
+
+  Ralf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
