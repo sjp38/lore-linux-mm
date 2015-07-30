@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 02CC16B0258
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 13:04:22 -0400 (EDT)
-Received: by ykax123 with SMTP id x123so39165154yka.1
-        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 10:04:21 -0700 (PDT)
+Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 40B446B025A
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 13:04:24 -0400 (EDT)
+Received: by ykax123 with SMTP id x123so39166046yka.1
+        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 10:04:24 -0700 (PDT)
 Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id o142si1264864ywd.173.2015.07.30.10.04.18
+        by mx.google.com with ESMTPS id t123si1305303ywe.6.2015.07.30.10.04.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Thu, 30 Jul 2015 10:04:19 -0700 (PDT)
 From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv3 05/10] xen/balloon: rationalize memory hotplug stats
-Date: Thu, 30 Jul 2015 18:03:07 +0100
-Message-ID: <1438275792-5726-6-git-send-email-david.vrabel@citrix.com>
+Subject: [PATCHv3 01/10] mm: memory hotplug with an existing resource
+Date: Thu, 30 Jul 2015 18:03:03 +0100
+Message-ID: <1438275792-5726-2-git-send-email-david.vrabel@citrix.com>
 In-Reply-To: <1438275792-5726-1-git-send-email-david.vrabel@citrix.com>
 References: <1438275792-5726-1-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
@@ -21,194 +21,98 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org
 Cc: David Vrabel <david.vrabel@citrix.com>, linux-mm@kvack.org, Konrad
- Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Daniel Kiper <daniel.kiper@oracle.com>
+ Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Daniel Kiper <daniel.kiper@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
 
-The stats used for memory hotplug make no sense and are fiddled with
-in odd ways.  Remove them and introduce total_pages to track the total
-number of pages (both populated and unpopulated) including those within
-hotplugged regions (note that this includes not yet onlined pages).
+Add add_memory_resource() to add memory using an existing "System RAM"
+resource.  This is useful if the memory region is being located by
+finding a free resource slot with allocate_resource().
 
-This will be used in a subsequent commit (xen/balloon: only hotplug
-additional memory if required) when deciding whether additional memory
-needs to be hotplugged.
+Xen guests will make use of this in their balloon driver to hotplug
+arbitrary amounts of memory in response to toolstack requests.
 
 Signed-off-by: David Vrabel <david.vrabel@citrix.com>
-Reviewed-by: Daniel Kiper <daniel.kiper@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- drivers/xen/balloon.c | 75 +++++++++------------------------------------------
- include/xen/balloon.h |  5 +---
- 2 files changed, 13 insertions(+), 67 deletions(-)
+ include/linux/memory_hotplug.h |  2 ++
+ mm/memory_hotplug.c            | 28 +++++++++++++++++++++-------
+ 2 files changed, 23 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 7ecbbc5..932d232 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -194,21 +194,6 @@ static enum bp_state update_schedule(enum bp_state state)
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 6ffa0ac..c76d371 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -11,6 +11,7 @@ struct zone;
+ struct pglist_data;
+ struct mem_section;
+ struct memory_block;
++struct resource;
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ 
+@@ -266,6 +267,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
+ extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+ 		void *arg, int (*func)(struct memory_block *, void *));
+ extern int add_memory(int nid, u64 start, u64 size);
++extern int add_memory_resource(int nid, struct resource *resource);
+ extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 003dbe4..169770a 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1224,23 +1224,21 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
  }
  
- #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--static long current_credit(void)
--{
--	return balloon_stats.target_pages - balloon_stats.current_pages -
--		balloon_stats.hotplug_pages;
--}
--
--static bool balloon_is_inflated(void)
--{
--	if (balloon_stats.balloon_low || balloon_stats.balloon_high ||
--			balloon_stats.balloon_hotplug)
--		return true;
--	else
--		return false;
--}
--
- static struct resource *additional_memory_resource(phys_addr_t size)
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+-int __ref add_memory(int nid, u64 start, u64 size)
++int __ref add_memory_resource(int nid, struct resource *res)
  {
- 	struct resource *res;
-@@ -289,10 +274,7 @@ static enum bp_state reserve_additional_memory(long credit)
- 		goto err;
- 	}
++	u64 start, size;
+ 	pg_data_t *pgdat = NULL;
+ 	bool new_pgdat;
+ 	bool new_node;
+-	struct resource *res;
+ 	int ret;
  
--	balloon_hotplug -= credit;
--
--	balloon_stats.hotplug_pages += credit;
--	balloon_stats.balloon_hotplug = balloon_hotplug;
-+	balloon_stats.total_pages += balloon_hotplug;
- 
- 	return BP_DONE;
-   err:
-@@ -308,11 +290,6 @@ static void xen_online_page(struct page *page)
- 
- 	__balloon_append(page);
- 
--	if (balloon_stats.hotplug_pages)
--		--balloon_stats.hotplug_pages;
--	else
--		--balloon_stats.balloon_hotplug;
--
- 	mutex_unlock(&balloon_mutex);
- }
- 
-@@ -329,32 +306,22 @@ static struct notifier_block xen_memory_nb = {
- 	.priority = 0
- };
- #else
--static long current_credit(void)
-+static enum bp_state reserve_additional_memory(long credit)
- {
--	unsigned long target = balloon_stats.target_pages;
--
--	target = min(target,
--		     balloon_stats.current_pages +
--		     balloon_stats.balloon_low +
--		     balloon_stats.balloon_high);
--
--	return target - balloon_stats.current_pages;
-+	balloon_stats.target_pages = balloon_stats.current_pages;
-+	return BP_DONE;
- }
-+#endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
- 
--static bool balloon_is_inflated(void)
-+static long current_credit(void)
- {
--	if (balloon_stats.balloon_low || balloon_stats.balloon_high)
--		return true;
--	else
--		return false;
-+	return balloon_stats.target_pages - balloon_stats.current_pages;
- }
- 
--static enum bp_state reserve_additional_memory(long credit)
-+static bool balloon_is_inflated(void)
- {
--	balloon_stats.target_pages = balloon_stats.current_pages;
--	return BP_DONE;
-+	return balloon_stats.balloon_low || balloon_stats.balloon_high;
- }
--#endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */
- 
- static enum bp_state increase_reservation(unsigned long nr_pages)
- {
-@@ -367,15 +334,6 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
- 		.domid        = DOMID_SELF
- 	};
- 
--#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--	if (!balloon_stats.balloon_low && !balloon_stats.balloon_high) {
--		nr_pages = min(nr_pages, balloon_stats.balloon_hotplug);
--		balloon_stats.hotplug_pages += nr_pages;
--		balloon_stats.balloon_hotplug -= nr_pages;
--		return BP_DONE;
--	}
--#endif
--
- 	if (nr_pages > ARRAY_SIZE(frame_list))
- 		nr_pages = ARRAY_SIZE(frame_list);
- 
-@@ -438,15 +396,6 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
- 		.domid        = DOMID_SELF
- 	};
- 
--#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--	if (balloon_stats.hotplug_pages) {
--		nr_pages = min(nr_pages, balloon_stats.hotplug_pages);
--		balloon_stats.hotplug_pages -= nr_pages;
--		balloon_stats.balloon_hotplug += nr_pages;
--		return BP_DONE;
--	}
--#endif
--
- 	if (nr_pages > ARRAY_SIZE(frame_list))
- 		nr_pages = ARRAY_SIZE(frame_list);
- 
-@@ -636,6 +585,8 @@ static void __init balloon_add_region(unsigned long start_pfn,
- 		   don't subtract from it. */
- 		__balloon_append(page);
- 	}
++	start = res->start;
++	size = resource_size(res);
 +
-+	balloon_stats.total_pages += extra_pfn_end - start_pfn;
- }
+ 	ret = check_hotplug_memory_range(start, size);
+ 	if (ret)
+ 		return ret;
  
- static int __init balloon_init(void)
-@@ -653,6 +604,7 @@ static int __init balloon_init(void)
- 	balloon_stats.target_pages  = balloon_stats.current_pages;
- 	balloon_stats.balloon_low   = 0;
- 	balloon_stats.balloon_high  = 0;
-+	balloon_stats.total_pages   = balloon_stats.current_pages;
- 
- 	balloon_stats.schedule_delay = 1;
- 	balloon_stats.max_schedule_delay = 32;
-@@ -660,9 +612,6 @@ static int __init balloon_init(void)
- 	balloon_stats.max_retry_count = RETRY_UNLIMITED;
- 
- #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--	balloon_stats.hotplug_pages = 0;
--	balloon_stats.balloon_hotplug = 0;
+-	res = register_memory_resource(start, size);
+-	ret = -EEXIST;
+-	if (!res)
+-		return ret;
 -
- 	set_online_page_callback(&xen_online_page);
- 	register_memory_notifier(&xen_memory_nb);
- #endif
-diff --git a/include/xen/balloon.h b/include/xen/balloon.h
-index cc2e1a7..c8aee7a 100644
---- a/include/xen/balloon.h
-+++ b/include/xen/balloon.h
-@@ -11,14 +11,11 @@ struct balloon_stats {
- 	/* Number of pages in high- and low-memory balloons. */
- 	unsigned long balloon_low;
- 	unsigned long balloon_high;
-+	unsigned long total_pages;
- 	unsigned long schedule_delay;
- 	unsigned long max_schedule_delay;
- 	unsigned long retry_count;
- 	unsigned long max_retry_count;
--#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
--	unsigned long hotplug_pages;
--	unsigned long balloon_hotplug;
--#endif
- };
+ 	{	/* Stupid hack to suppress address-never-null warning */
+ 		void *p = NODE_DATA(nid);
+ 		new_pgdat = !p;
+@@ -1290,6 +1288,22 @@ out:
+ 	mem_hotplug_done();
+ 	return ret;
+ }
++EXPORT_SYMBOL_GPL(add_memory_resource);
++
++int __ref add_memory(int nid, u64 start, u64 size)
++{
++	struct resource *res;
++	int ret;
++
++	res = register_memory_resource(start, size);
++	if (!res)
++		return -EEXIST;
++
++	ret = add_memory_resource(nid, res);
++	if (ret < 0)
++		release_memory_resource(res);
++	return ret;
++}
+ EXPORT_SYMBOL_GPL(add_memory);
  
- extern struct balloon_stats balloon_stats;
+ #ifdef CONFIG_MEMORY_HOTREMOVE
 -- 
 2.1.4
 
