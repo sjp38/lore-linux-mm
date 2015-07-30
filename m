@@ -1,68 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id B3F716B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 19:57:30 -0400 (EDT)
-Received: by pdbnt7 with SMTP id nt7so13898447pdb.0
-        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 16:57:30 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id i10si17992983pdo.14.2015.07.29.16.57.28
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 361186B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jul 2015 20:21:13 -0400 (EDT)
+Received: by iggf3 with SMTP id f3so23400436igg.1
+        for <linux-mm@kvack.org>; Wed, 29 Jul 2015 17:21:13 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id dn14si12990515pac.111.2015.07.29.17.21.11
         for <linux-mm@kvack.org>;
-        Wed, 29 Jul 2015 16:57:29 -0700 (PDT)
-Date: Thu, 30 Jul 2015 09:57:25 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC 1/4] mm, compaction: introduce kcompactd
-Message-ID: <20150729235725.GN3902@dastard>
-References: <alpine.DEB.2.10.1507091439100.17177@chino.kir.corp.google.com>
- <55AE0AFE.8070200@suse.cz>
- <alpine.DEB.2.10.1507211549380.3833@chino.kir.corp.google.com>
- <55AFB569.90702@suse.cz>
- <alpine.DEB.2.10.1507221509520.24115@chino.kir.corp.google.com>
- <55B0B175.9090306@suse.cz>
- <alpine.DEB.2.10.1507231358470.31024@chino.kir.corp.google.com>
- <55B1DF11.8070100@suse.cz>
- <alpine.DEB.2.10.1507281711250.12378@chino.kir.corp.google.com>
- <55B873DE.2060800@suse.cz>
+        Wed, 29 Jul 2015 17:21:12 -0700 (PDT)
+Subject: Re: [PATCH 0/4] enable migration of driver pages
+References: <1436776519-17337-1-git-send-email-gioh.kim@lge.com>
+ <20150729104945.GA30872@techsingularity.net>
+ <20150729105554.GU16722@phenom.ffwll.local>
+ <20150729121614.GA19352@techsingularity.net>
+ <20150729124635.GW16722@phenom.ffwll.local>
+From: Gioh Kim <gioh.kim@lge.com>
+Message-ID: <55B96DF5.40602@lge.com>
+Date: Thu, 30 Jul 2015 09:21:09 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55B873DE.2060800@suse.cz>
+In-Reply-To: <20150729124635.GW16722@phenom.ffwll.local>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Mel Gorman <mgorman@techsingularity.net>, jlayton@poochiereds.net, bfields@fieldses.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, viro@zeniv.linux.org.uk, mst@redhat.com, koct9i@gmail.com, minchan@kernel.org, aquini@redhat.com, linux-fsdevel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, akpm@linux-foundation.org, Gioh Kim <gurugio@hanmail.net>
 
-On Wed, Jul 29, 2015 at 08:34:06AM +0200, Vlastimil Babka wrote:
-> On 07/29/2015 02:33 AM, David Rientjes wrote:
-> > On Fri, 24 Jul 2015, Vlastimil Babka wrote:
-> > 
-> >> > Two issues I want to bring up:
-> >> > 
-> >> >   (1) do non-thp configs benefit from periodic compaction?
-> >> > 
-> >> >       In my experience, no, but perhaps there are other use cases where
-> >> >       this has been a pain.  The primary candidates, in my opinion,
-> >> >       would be the networking stack and slub.  Joonsoo reports having to
-> >> >       workaround issues with high-order slub allocations being too
-> >> >       expensive.  I'm not sure that would be better served by periodic
-> >> >       compaction, but it seems like a candidate for background compaction.
-> >> 
-> >> Yes hopefully a proactive background compaction would serve them enough.
-> >> 
-> >> >       This is why my rfc tied periodic compaction to khugepaged, and we
-> >> >       have strong evidence that this helps thp and cpu utilization.  For
-> >> >       periodic compaction to be possible outside of thp, we'd need a use
-> >> >       case for it.
 
-Allowing us to use higher order pages in the page cache to support
-filesystem block sizes larger than page size without having to
-care about memory fragmentation preventing page cache allocation?
 
-Cheers,
+2015-07-29 i??i?? 9:46i?? Daniel Vetter i?'(e??) i?' e,?:
+> On Wed, Jul 29, 2015 at 01:16:14PM +0100, Mel Gorman wrote:
+>> On Wed, Jul 29, 2015 at 12:55:54PM +0200, Daniel Vetter wrote:
+>>> On Wed, Jul 29, 2015 at 11:49:45AM +0100, Mel Gorman wrote:
+>>>> On Mon, Jul 13, 2015 at 05:35:15PM +0900, Gioh Kim wrote:
+>>>>> My ARM-based platform occured severe fragmentation problem after long-term
+>>>>> (several days) test. Sometimes even order-3 page allocation failed. It has
+>>>>> memory size 512MB ~ 1024MB. 30% ~ 40% memory is consumed for graphic processing
+>>>>> and 20~30 memory is reserved for zram.
+>>>>>
+>>>>
+>>>> The primary motivation of this series is to reduce fragmentation by allowing
+>>>> more kernel pages to be moved. Conceptually that is a worthwhile goal but
+>>>> there should be at least one major in-kernel user and while balloon
+>>>> pages were a good starting point, I think we really need to see what the
+>>>> zram changes look like at the same time.
+>>>
+>>> I think gpu drivers really would be the perfect candidate for compacting
+>>> kernel page allocations. And this also seems the primary motivation for
+>>> this patch series, so I think that's really what we should use to judge
+>>> these patches.
+>>>
+>>> Of course then there's the seemingly eternal chicken/egg problem of
+>>> upstream gpu drivers for SoCs :(
+>>
+>> I recognised that the driver he had modified was not an in-tree user so
+>> it did not really help the review or the design. I did not think it was
+>> very fair to ask that an in-tree GPU driver be converted when it would not
+>> help the embedded platform of interest. Converting zram is both a useful
+>> illustration of the aops requirements and is expected to be beneficial on
+>> the embedded platform. Now, if a GPU driver author was willing to convert
+>> theirs as an example then that would be useful!
+>
+> Well my concern is more with merging infrastructure to upstream for
+> drivers which aren't upstream and with no plan to make that happen anytime
+> soon. Seems like just offload a bit to me ... but in the end core mm isn't
+> my thing so not my decision.
+> -Daniel
+>
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I get idea from the out-tree driver but this infrastructure will be useful
+for zram and balloon. That is agreed by the maintainers of each driver.
+
+I'm currently accepting feedbacks from
+balloon and zram and trying to be applicable for them.
+Of course I hope there will be more application. It'll be more useful
+if it has more application.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
