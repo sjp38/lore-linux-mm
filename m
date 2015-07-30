@@ -1,35 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id ECD726B0253
-	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 13:41:42 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so1618172wib.1
-        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 10:41:42 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id h15si3121958wjq.149.2015.07.30.10.41.41
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F7E56B0253
+	for <linux-mm@kvack.org>; Thu, 30 Jul 2015 13:58:10 -0400 (EDT)
+Received: by qgeh16 with SMTP id h16so29467615qge.3
+        for <linux-mm@kvack.org>; Thu, 30 Jul 2015 10:58:10 -0700 (PDT)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id q33si2234000qkq.14.2015.07.30.10.58.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Jul 2015 10:41:41 -0700 (PDT)
-Date: Thu, 30 Jul 2015 13:41:12 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3 3/3] mm: use numa_mem_id() in alloc_pages_node()
-Message-ID: <20150730174112.GC15257@cmpxchg.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 30 Jul 2015 10:58:09 -0700 (PDT)
+Date: Thu, 30 Jul 2015 12:58:05 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3 1/3] mm: rename alloc_pages_exact_node to
+ __alloc_pages_node
+In-Reply-To: <1438274071-22551-1-git-send-email-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.11.1507301255380.5521@east.gentwo.org>
 References: <1438274071-22551-1-git-send-email-vbabka@suse.cz>
- <1438274071-22551-3-git-send-email-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1438274071-22551-3-git-send-email-vbabka@suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, cbe-oss-dev@lists.ozlabs.org, kvm@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, cbe-oss-dev@lists.ozlabs.org, kvm@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Gleb Natapov <gleb@kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Cliff Whickman <cpw@sgi.com>, Michael Ellerman <mpe@ellerman.id.au>, Robin Holt <robinmholt@gmail.com>
 
-On Thu, Jul 30, 2015 at 06:34:31PM +0200, Vlastimil Babka wrote:
-> numa_mem_id() is able to handle allocation from CPUs on memory-less nodes,
-> so it's a more robust fallback than the currently used numa_node_id().
+On Thu, 30 Jul 2015, Vlastimil Babka wrote:
 
-Won't it fall through to the next closest memory node in the zonelist
-anyway? Is this for callers doing NUMA_NO_NODE with __GFP_THISZONE?
+> --- a/mm/slob.c
+> +++ b/mm/slob.c
+>  	void *page;
+>
+> -#ifdef CONFIG_NUMA
+> -	if (node != NUMA_NO_NODE)
+> -		page = alloc_pages_exact_node(node, gfp, order);
+> -	else
+> -#endif
+> -		page = alloc_pages(gfp, order);
+> +	page = alloc_pages_node(node, gfp, order);
+
+NAK. This is changing slob behavior. With no node specified it must use
+alloc_pages because that obeys NUMA memory policies etc etc. It should not
+force allocation from the current node like what is happening here after
+the patch. See the code in slub.c that is similar.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
