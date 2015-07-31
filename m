@@ -1,113 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 693316B0253
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 04:36:06 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so39095914pdr.2
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 01:36:06 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id u7si8753944pdl.135.2015.07.31.01.36.04
-        for <linux-mm@kvack.org>;
-        Fri, 31 Jul 2015 01:36:05 -0700 (PDT)
-Date: Fri, 31 Jul 2015 17:40:59 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 10/10] mm, page_alloc: Only enforce watermarks for
- order-0 allocations
-Message-ID: <20150731084059.GC16553@js1304-P5Q-DELUXE>
-References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
- <1437379219-9160-11-git-send-email-mgorman@suse.com>
- <20150731060838.GB15912@js1304-P5Q-DELUXE>
- <20150731071907.GB5840@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150731071907.GB5840@techsingularity.net>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E98A06B0255
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 04:40:57 -0400 (EDT)
+Received: by pdbbh15 with SMTP id bh15so38978371pdb.1
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 01:40:57 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com. [209.85.220.45])
+        by mx.google.com with ESMTPS id kk7si8775512pab.132.2015.07.31.01.40.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 Jul 2015 01:40:57 -0700 (PDT)
+Received: by pachj5 with SMTP id hj5so37484026pac.3
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 01:40:57 -0700 (PDT)
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Subject: [PATCH 14/15] mm: Drop unlikely before IS_ERR(_OR_NULL)
+Date: Fri, 31 Jul 2015 14:08:34 +0530
+Message-Id: <91586af267deb26b905fba61a9f1f665a204a4e3.1438331416.git.viresh.kumar@linaro.org>
+In-Reply-To: <cover.1438331416.git.viresh.kumar@linaro.org>
+References: <cover.1438331416.git.viresh.kumar@linaro.org>
+In-Reply-To: <cover.1438331416.git.viresh.kumar@linaro.org>
+References: <cover.1438331416.git.viresh.kumar@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Mel Gorman <mgorman@suse.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linaro-kernel@lists.linaro.org, linux-kernel@vger.kernel.org, Viresh Kumar <viresh.kumar@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri, Jul 31, 2015 at 08:19:07AM +0100, Mel Gorman wrote:
-> On Fri, Jul 31, 2015 at 03:08:38PM +0900, Joonsoo Kim wrote:
-> > On Mon, Jul 20, 2015 at 09:00:19AM +0100, Mel Gorman wrote:
-> > > From: Mel Gorman <mgorman@suse.de>
-> > > 
-> > > The primary purpose of watermarks is to ensure that reclaim can always
-> > > make forward progress in PF_MEMALLOC context (kswapd and direct reclaim).
-> > > These assume that order-0 allocations are all that is necessary for
-> > > forward progress.
-> > > 
-> > > High-order watermarks serve a different purpose. Kswapd had no high-order
-> > > awareness before they were introduced (https://lkml.org/lkml/2004/9/5/9).
-> > > This was particularly important when there were high-order atomic requests.
-> > > The watermarks both gave kswapd awareness and made a reserve for those
-> > > atomic requests.
-> > > 
-> > > There are two important side-effects of this. The most important is that
-> > > a non-atomic high-order request can fail even though free pages are available
-> > > and the order-0 watermarks are ok. The second is that high-order watermark
-> > > checks are expensive as the free list counts up to the requested order must
-> > > be examined.
-> > > 
-> > > With the introduction of MIGRATE_HIGHATOMIC it is no longer necessary to
-> > > have high-order watermarks. Kswapd and compaction still need high-order
-> > > awareness which is handled by checking that at least one suitable high-order
-> > > page is free.
-> > 
-> > I totally agree removing watermark checking for order from
-> > PAGE_ALLOC_COSTLY_ORDER to MAX_ORDER. It doesn't make sense to
-> > maintain such high-order freepage that MM don't guarantee allocation
-> > success. For example, in my system, when there is 1 order-9 freepage,
-> > allocation request for order-9 fails because watermark check requires
-> > at least 2 order-9 freepages in order to succeed order-9 allocation.
-> > 
-> > But, I think watermark checking with order up to PAGE_ALLOC_COSTLY_ORDER is
-> > different. If we maintain just 1 high-order freepages, successive
-> > high-order allocation request that should be success always fall into
-> > allocation slow-path and go into the direct reclaim/compaction. It enlarges
-> > many workload's latency. We should prepare at least some number of freepage
-> > to handle successive high-order allocation request gracefully.
-> > 
-> > So, how about following?
-> > 
-> > 1) kswapd checks watermark as is up to PAGE_ALLOC_COSTLY_ORDER. It
-> > guarantees kswapd prepares some number of high-order freepages so
-> > successive high-order allocation request will be handlded gracefully.
-> > 2) In case of !kswapd, just check whether appropriate freepage is
-> > in buddy or not.
-> > 
-> 
-> If !atomic allocations use the high-order reserves then they'll fragment
-> similarly to how they get fragmented today. It defeats the purpose of
-> the reserve. I noted in the leader that embedded platforms may choose to
-> carry an out-of-ftree patch that makes the reserves a kernel reserve for
-> high-order pages but that I didn't think it was a good idea for mainline.
+IS_ERR(_OR_NULL) already contain an 'unlikely' compiler flag and there
+is no need to do that again from its callers. Drop it.
 
-I assume that your previous patch isn't merged. !atomic allocation can
-use reserve that kswapd makes in normal pageblock. That will fragment
-similarly as is, but, it isn't unsolvable problem. If compaction is enhanced,
-we don't need to worry about fragmentation as I experienced in embedded
-platform.
+Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+---
+ mm/huge_memory.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> 
-> Your suggestion implies we have two watermark checks. The fast path
-> which obeys watermarks in the traditional way. kswapd would use the same
-> watermark check. The slow path would use the watermark check in this
-> path. It is quite complex when historically it was expected that a
-> !atomic high-order allocation request may take a long time. Furthermore,
-
-Why quite complex? Watermark check already apply different threshold.
-
-> it's the case that kswapd gives up high-order reclaim requests very
-> quickly because there were cases where a high-order request would cause
-> kswapd to continually reclaim when the system was fragmented. I fear
-> that your suggestion would partially reintroduce the problem in the name
-> of trying to decrease the latency of a !atomic high-order allocation
-> request that is expected to be expensive sometimes.
-
-!atomic high-order allocation request is expected to be expensive sometimes,
-but, they don't want to be expensive. IMO, optimizing them is MM's duty.
-
-Thanks.
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index c107094f79ba..e14652480c59 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -149,7 +149,7 @@ static int start_stop_khugepaged(void)
+ 		if (!khugepaged_thread)
+ 			khugepaged_thread = kthread_run(khugepaged, NULL,
+ 							"khugepaged");
+-		if (unlikely(IS_ERR(khugepaged_thread))) {
++		if (IS_ERR(khugepaged_thread)) {
+ 			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
+ 			err = PTR_ERR(khugepaged_thread);
+ 			khugepaged_thread = NULL;
+-- 
+2.4.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
