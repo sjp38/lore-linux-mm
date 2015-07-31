@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 310DF6B0253
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 14:00:27 -0400 (EDT)
-Received: by igbpg9 with SMTP id pg9so37061708igb.0
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 11:00:27 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0223.hostedemail.com. [216.40.44.223])
-        by mx.google.com with ESMTP id j3si4873996igx.35.2015.07.31.11.00.26
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id B2DEB6B0253
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 15:38:57 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so47434956pdr.2
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 12:38:57 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id i3si12383960pdp.75.2015.07.31.12.38.55
         for <linux-mm@kvack.org>;
-        Fri, 31 Jul 2015 11:00:26 -0700 (PDT)
-Message-ID: <1438365622.19675.97.camel@perches.com>
-Subject: Re: [PATCH 14/15] mm: Drop unlikely before IS_ERR(_OR_NULL)
-From: Joe Perches <joe@perches.com>
-Date: Fri, 31 Jul 2015 11:00:22 -0700
-In-Reply-To: <20150731110637.GB899@linux>
-References: <cover.1438331416.git.viresh.kumar@linaro.org>
-	 <91586af267deb26b905fba61a9f1f665a204a4e3.1438331416.git.viresh.kumar@linaro.org>
-	 <20150731085646.GA31544@node.dhcp.inet.fi>
-	 <FA3D9AE9-9D1E-4232-87DE-42F21B408B24@gmail.com>
-	 <20150731093450.GA7505@linux> <1438338481.19675.72.camel@perches.com>
-	 <20150731110637.GB899@linux>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Fri, 31 Jul 2015 12:38:56 -0700 (PDT)
+From: "Sean O. Stalley" <sean.stalley@intel.com>
+Subject: [PATCH v2 0/4] mm: add dma_pool_zalloc() & pci_pool_zalloc()
+Date: Fri, 31 Jul 2015 12:36:40 -0700
+Message-Id: <1438371404-3219-1-git-send-email-sean.stalley@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Viresh Kumar <viresh.kumar@linaro.org>
-Cc: yalin wang <yalin.wang2010@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linaro-kernel@lists.linaro.org, open list <linux-kernel@vger.kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
+To: corbet@lwn.net, vinod.koul@intel.com, bhelgaas@google.com, Julia.Lawall@lip6.fr, Gilles.Muller@lip6.fr, nicolas.palix@imag.fr, mmarek@suse.cz, akpm@linux-foundation.org
+Cc: sean.stalley@intel.com, bigeasy@linutronix.de, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, dmaengine@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, cocci@systeme.lip6.fr
 
-On Fri, 2015-07-31 at 16:36 +0530, Viresh Kumar wrote:
-> On 31-07-15, 03:28, Joe Perches wrote:
-> > If it's all fixed, then it's unlikely to be needed in checkpatch.
-> 
-> I thought checkpatch is more about not committing new mistakes, rather than
-> finding them in old code.
+Currently a call to dma_pool_alloc() with a ___GFP_ZERO flag returns
+a non-zeroed memory region.
 
-True, but checkpatch is more about style than substance.
+This patchset adds support for the __GFP_ZERO flag to dma_pool_alloc(),
+adds 2 wrapper functions for allocing zeroed memory from a pool, 
+and provides a coccinelle script for finding & replacing instances of
+dma_pool_alloc() followed by memset(0) with a single dma_pool_zalloc() call.
 
-There are a lot of things that _could_ be added to the script
-but don't have to be because of relative rarity.
+Changes from v1 to v2:
+	- don't memset() POOL_POISON_ALLOCATED in dma_pool_alloc() if
+	  __GFP_ZERO is set
+	- Ran test to see how often pool_alloc_page() is called
 
-The unanswered fundamental though is whether the unlikely use
-in #define IS_ERR_VALUE is useful.
 
-include/linux/err.h:21:#define IS_ERR_VALUE(x) unlikely((x) >= (unsigned long)-MAX_ERRNO)
+There was some concern that this always calls memset() to zero,
+instead of passing __GFP_ZERO into the page allocator.
+[https://lkml.org/lkml/2015/7/15/881]
 
-How often does using unlikely here make the code smaller/faster
-with more recent compilers than gcc 3.4?  Or even using gcc 3.4.
+I ran a test on my system to get an idea of how often dma_pool_alloc()
+calls into pool_alloc_page().
 
+After Boot:	[   30.119863] alloc_calls:541, page_allocs:7
+After an hour:	[ 3600.951031] alloc_calls:9566, page_allocs:12
+After copying 1GB file onto a USB drive:
+		[ 4260.657148] alloc_calls:17225, page_allocs:12
+
+It doesn't look like dma_pool_alloc() calls down to the page allocator
+very often (at least on my system).
+
+
+Sean O. Stalley (4):
+  mm: Add support for __GFP_ZERO flag to dma_pool_alloc()
+  mm: Add dma_pool_zalloc() call to DMA API
+  pci: mm: Add pci_pool_zalloc() call
+  coccinelle: mm: scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci
+
+ Documentation/DMA-API.txt                          |  7 ++
+ include/linux/dmapool.h                            |  6 ++
+ include/linux/pci.h                                |  2 +
+ mm/dmapool.c                                       |  9 ++-
+ .../coccinelle/api/alloc/pool_zalloc-simple.cocci  | 84 ++++++++++++++++++++++
+ 5 files changed, 106 insertions(+), 2 deletions(-)
+ create mode 100644 scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
