@@ -1,94 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id AAD576B0253
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 03:25:19 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so20096362wib.0
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 00:25:19 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x15si3516526wia.58.2015.07.31.00.25.17
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id DFB846B0253
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 04:13:20 -0400 (EDT)
+Received: by igbij6 with SMTP id ij6so11812694igb.1
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 01:13:20 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id nt6si2201880igb.79.2015.07.31.01.13.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 31 Jul 2015 00:25:17 -0700 (PDT)
-Subject: Re: [PATCH 09/10] mm, page_alloc: Reserve pageblocks for high-order
- atomic allocations on demand
-References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
- <1437379219-9160-10-git-send-email-mgorman@suse.com>
- <20150731055407.GA15912@js1304-P5Q-DELUXE>
- <20150731071113.GA5840@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55BB22D9.5040200@suse.cz>
-Date: Fri, 31 Jul 2015 09:25:13 +0200
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 31 Jul 2015 01:13:20 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] memory_failure: remove redundant check for the
+ PG_HWPoison flag of 'hpage'
+Date: Fri, 31 Jul 2015 08:12:19 +0000
+Message-ID: <20150731081218.GA14902@hori1.linux.bs1.fc.nec.co.jp>
+References: <20150729155246.2fed1b96@hp>
+ <20150729091725.GA1256@hori1.linux.bs1.fc.nec.co.jp>
+ <20150730105246.6bcc0af5@hp>
+In-Reply-To: <20150730105246.6bcc0af5@hp>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <168C1A5C72F36C4D9BD0E5B84802A310@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20150731071113.GA5840@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 07/31/2015 09:11 AM, Mel Gorman wrote:
-> On Fri, Jul 31, 2015 at 02:54:07PM +0900, Joonsoo Kim wrote:
->> Hello, Mel.
->>
->> On Mon, Jul 20, 2015 at 09:00:18AM +0100, Mel Gorman wrote:
->>> From: Mel Gorman <mgorman@suse.de>
->>>
->>> High-order watermark checking exists for two reasons --  kswapd high-order
->>> awareness and protection for high-order atomic requests. Historically we
->>> depended on MIGRATE_RESERVE to preserve min_free_kbytes as high-order free
->>> pages for as long as possible. This patch introduces MIGRATE_HIGHATOMIC
->>> that reserves pageblocks for high-order atomic allocations. This is expected
->>> to be more reliable than MIGRATE_RESERVE was.
->>
->> I have some concerns on this patch.
->>
->> 1) This patch breaks intention of __GFP_WAIT.
->> __GFP_WAIT is used when we want to succeed allocation even if we need
->> to do some reclaim/compaction work. That implies importance of
->> allocation success. But, reserved pageblock for MIGRATE_HIGHATOMIC makes
->> atomic allocation (~__GFP_WAIT) more successful than allocation with
->> __GFP_WAIT in many situation. It breaks basic assumption of gfp flags
->> and doesn't make any sense.
->>
->
-> Currently allocation requests that do not specify __GFP_WAIT get the
-> ALLOC_HARDER flag which allows them to dip further into watermark reserves.
-> It already is the case that there are corner cases where a high atomic
-> allocation can succeed when a non-atomic allocation would reclaim.
+On Thu, Jul 30, 2015 at 10:52:46AM +0800, Wang Xiaoqiang wrote:
+...
+> In your example, the 100th subage enter the memory
+> error handler firstly, and then it uses the=20
+> set_page_hwpoison_huge_page to set all subpages
+> with PG_HWPoison flag, the 50th page handler waits
+> for grab the lock_page(hpage) now.=20
+>=20
+> When the 100th page handler unlock the 'hpage',=20
+> the 50th grab it, and now the 'hapge' has been=20
+> set with PG_HWPosison. So PageHWPoison micro=20
+> will return true, and the following code will
+> be executed:
+>=20
+> if (PageHWPoison(hpage)) {
+>     if ((hwpoison_filter(p) && TestClearPageHWPoison(p))
+>         || (p !=3D hpage && TestSetPageHWPoison(hpage))) {
+>         atomic_long_sub(nr_pages, &num_poisoned_pages);
+>         unlock_page(hpage);
+>         return 0;
+>     }  =20
+> }
+>=20
+> Now 'p' is 50th subpage, it doesn't equal the=20
+> 'hpage' obviously, so if we don't have TestSetPageHWPoison
+> here, it still will ignore the 50th error.
 
-I think (and said so before elsewhere) is that the problem is that we 
-don't currently distinguish allocations that can't wait (=are really 
-atomic and have no order-0 fallback) and allocations that just don't 
-want to wait (=they have fallbacks). The second ones should obviously 
-not access the current ALLOC_HARDER watermark-based reserves nor the 
-proposed highatomic reserves.
+Ah, you're right, thanks for the explanation, Xiaoqiang!
 
-Well we do look at __GFP_NO_KSWAPD flag to treat allocation as 
-non-atomic, so that covers THP allocations and two drivers. But the 
-recent networking commit fb05e7a89f50 didn't add the flag and nor does 
-Joonsoo's slub patch use it. Either we should rename the flag and employ 
-it where appropriate, or agree that access to reserves is orthogonal 
-concern to waking up kswapd, and distinguish non-atomic non-__GFP_WAIT 
-allocations differently.
-
->>> A MIGRATE_HIGHORDER pageblock is created when an allocation request steals
->>> a pageblock but limits the total number to 10% of the zone.
->>
->> When steals happens, pageblock already can be fragmented and we can't
->> fully utilize this pageblock without allowing order-0 allocation. This
->> is very waste.
->>
->
-> If the pageblock was stolen, it implies there was at least 1 usable page
-> of the correct order. As the pageblock is then reserved, any pages that
-> free in that block stay free for use by high-order atomic allocations.
-> Else, the number of pageblocks will increase again until the 10% limit
-> is hit.
-
-It's however true that many of the "any pages free in that block" may be 
-order-0, so they both won't be useful to high-order atomic allocations, 
-and won't be available to other allocations, so they might remain unused.
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
