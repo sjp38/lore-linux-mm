@@ -1,126 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 02EB56B0255
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 15:39:16 -0400 (EDT)
-Received: by pabkd10 with SMTP id kd10so45503092pab.2
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 12:39:15 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id x1si12303234pdm.181.2015.07.31.12.39.11
-        for <linux-mm@kvack.org>;
-        Fri, 31 Jul 2015 12:39:11 -0700 (PDT)
-From: "Sean O. Stalley" <sean.stalley@intel.com>
-Subject: [PATCH v2 4/4] coccinelle: mm: scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci
-Date: Fri, 31 Jul 2015 12:36:44 -0700
-Message-Id: <1438371404-3219-5-git-send-email-sean.stalley@intel.com>
-In-Reply-To: <1438371404-3219-1-git-send-email-sean.stalley@intel.com>
-References: <1438371404-3219-1-git-send-email-sean.stalley@intel.com>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D34696B0253
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 16:54:21 -0400 (EDT)
+Received: by pdjr16 with SMTP id r16so49359460pdj.3
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 13:54:21 -0700 (PDT)
+Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com. [2607:f8b0:400e:c02::231])
+        by mx.google.com with ESMTPS id el7si12743891pdb.190.2015.07.31.13.54.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 Jul 2015 13:54:20 -0700 (PDT)
+Received: by pdrg1 with SMTP id g1so48225120pdr.2
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 13:54:20 -0700 (PDT)
+Date: Fri, 31 Jul 2015 13:54:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2 1/5] mm/memory-failure: unlock_page before put_page
+In-Reply-To: <1438325105-10059-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.DEB.2.10.1507311353490.5910@chino.kir.corp.google.com>
+References: <1438325105-10059-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1438325105-10059-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: corbet@lwn.net, vinod.koul@intel.com, bhelgaas@google.com, Julia.Lawall@lip6.fr, Gilles.Muller@lip6.fr, nicolas.palix@imag.fr, mmarek@suse.cz, akpm@linux-foundation.org
-Cc: sean.stalley@intel.com, bigeasy@linutronix.de, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, dmaengine@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, cocci@systeme.lip6.fr
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Dean Nelson <dnelson@redhat.com>, Tony Luck <tony.luck@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-add [pci|dma]_pool_zalloc coccinelle check.
-replaces instances of [pci|dma]_pool_alloc() followed by memset(0)
-with [pci|dma]_pool_zalloc().
+On Fri, 31 Jul 2015, Naoya Horiguchi wrote:
 
-Signed-off-by: Sean O. Stalley <sean.stalley@intel.com>
----
- .../coccinelle/api/alloc/pool_zalloc-simple.cocci  | 84 ++++++++++++++++++++++
- 1 file changed, 84 insertions(+)
- create mode 100644 scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci
+> In "just unpoisoned" path, we do put_page and then unlock_page, which is a
+> wrong order and causes "freeing locked page" bug. So let's fix it.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  mm/memory-failure.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git v4.2-rc4.orig/mm/memory-failure.c v4.2-rc4/mm/memory-failure.c
+> index c53543d89282..04d677048af7 100644
+> --- v4.2-rc4.orig/mm/memory-failure.c
+> +++ v4.2-rc4/mm/memory-failure.c
+> @@ -1209,9 +1209,9 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+>  	if (!PageHWPoison(p)) {
+>  		printk(KERN_ERR "MCE %#lx: just unpoisoned\n", pfn);
+>  		atomic_long_sub(nr_pages, &num_poisoned_pages);
+> +		unlock_page(hpage);
+>  		put_page(hpage);
+> -		res = 0;
+> -		goto out;
+> +		return 0;
+>  	}
+>  	if (hwpoison_filter(p)) {
+>  		if (TestClearPageHWPoison(p))
 
-diff --git a/scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci b/scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci
-new file mode 100644
-index 0000000..9b7eb32
---- /dev/null
-+++ b/scripts/coccinelle/api/alloc/pool_zalloc-simple.cocci
-@@ -0,0 +1,84 @@
-+///
-+/// Use *_pool_zalloc rather than *_pool_alloc followed by memset with 0
-+///
-+// Copyright: (C) 2015 Intel Corp.  GPLv2.
-+// Options: --no-includes --include-headers
-+//
-+// Keywords: dma_pool_zalloc, pci_pool_zalloc
-+//
-+
-+virtual context
-+virtual patch
-+virtual org
-+virtual report
-+
-+//----------------------------------------------------------
-+//  For context mode
-+//----------------------------------------------------------
-+
-+@depends on context@
-+expression x;
-+statement S;
-+@@
-+
-+* x = \(dma_pool_alloc\|pci_pool_alloc\)(...);
-+  if ((x==NULL) || ...) S
-+* memset(x,0, ...);
-+
-+//----------------------------------------------------------
-+//  For patch mode
-+//----------------------------------------------------------
-+
-+@depends on patch@
-+expression x;
-+expression a,b,c;
-+statement S;
-+@@
-+
-+- x = dma_pool_alloc(a,b,c);
-++ x = dma_pool_zalloc(a,b,c);
-+  if ((x==NULL) || ...) S
-+- memset(x,0,...);
-+
-+@depends on patch@
-+expression x;
-+expression a,b,c;
-+statement S;
-+@@
-+
-+- x = pci_pool_alloc(a,b,c);
-++ x = pci_pool_zalloc(a,b,c);
-+  if ((x==NULL) || ...) S
-+- memset(x,0,...);
-+
-+//----------------------------------------------------------
-+//  For org and report mode
-+//----------------------------------------------------------
-+
-+@r depends on org || report@
-+expression x;
-+expression a,b,c;
-+statement S;
-+position p;
-+@@
-+
-+ x = @p\(dma_pool_alloc\|pci_pool_alloc\)(a,b,c);
-+ if ((x==NULL) || ...) S
-+ memset(x,0, ...);
-+
-+@script:python depends on org@
-+p << r.p;
-+x << r.x;
-+@@
-+
-+msg="%s" % (x)
-+msg_safe=msg.replace("[","@(").replace("]",")")
-+coccilib.org.print_todo(p[0], msg_safe)
-+
-+@script:python depends on report@
-+p << r.p;
-+x << r.x;
-+@@
-+
-+msg="WARNING: *_pool_zalloc should be used for %s, instead of *_pool_alloc/memset" % (x)
-+coccilib.report.print_report(p[0], msg)
--- 
-1.9.1
+Looks like you could do the unlock_page() before either the printk or 
+atomic_long_sub(), but probably not important.
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
