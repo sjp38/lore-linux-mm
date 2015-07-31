@@ -1,96 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 29A636B0253
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 17:09:10 -0400 (EDT)
-Received: by ioeg141 with SMTP id g141so97671600ioe.3
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 14:09:10 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id b3si12900420pat.66.2015.07.31.14.09.09
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BA139003C7
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 17:17:21 -0400 (EDT)
+Received: by pdbnt7 with SMTP id nt7so48386153pdb.0
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 14:17:21 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id ti5si12880743pab.152.2015.07.31.14.17.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Jul 2015 14:09:09 -0700 (PDT)
-Received: by pdjr16 with SMTP id r16so49521939pdj.3
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 14:09:09 -0700 (PDT)
-Date: Fri, 31 Jul 2015 14:09:07 -0700 (PDT)
+        Fri, 31 Jul 2015 14:17:20 -0700 (PDT)
+Received: by pdbnt7 with SMTP id nt7so48385979pdb.0
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 14:17:19 -0700 (PDT)
+Date: Fri, 31 Jul 2015 14:17:18 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: hugetlb pages not accounted for in rss
-In-Reply-To: <20150730213412.GF17882@Sligo.logfs.org>
-Message-ID: <alpine.DEB.2.10.1507311358541.5910@chino.kir.corp.google.com>
-References: <55B6BE37.3010804@oracle.com> <20150728183248.GB1406@Sligo.logfs.org> <55B7F0F8.8080909@oracle.com> <alpine.DEB.2.10.1507281509420.23577@chino.kir.corp.google.com> <20150728222654.GA28456@Sligo.logfs.org> <alpine.DEB.2.10.1507281622470.10368@chino.kir.corp.google.com>
- <20150729005332.GB17938@Sligo.logfs.org> <alpine.DEB.2.10.1507291205590.24373@chino.kir.corp.google.com> <55B95FDB.1000801@oracle.com> <20150730213412.GF17882@Sligo.logfs.org>
+Subject: Re: [RFC 1/4] mm, compaction: introduce kcompactd
+In-Reply-To: <20150730105732.GJ19352@techsingularity.net>
+Message-ID: <alpine.DEB.2.10.1507311412200.5910@chino.kir.corp.google.com>
+References: <1435826795-13777-1-git-send-email-vbabka@suse.cz> <1435826795-13777-2-git-send-email-vbabka@suse.cz> <20150730105732.GJ19352@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="397176738-1092654570-1438376948=:5910"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@purestorage.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Thu, 30 Jul 2015, Mel Gorman wrote:
 
---397176738-1092654570-1438376948=:5910
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
-
-On Thu, 30 Jul 2015, Jorn Engel wrote:
-
-> > If I want to track hugetlb usage on a per-task basis, do I then need to
-> > create one cgroup per task?
-> > 
-
-I think this would only be used for debugging or testing, but if you have 
-root and are trying to organize processes into a hugetlb_cgroup hierarchy, 
-presumably you would just look at smaps and find each thread's hugetlb 
-memory usage and not bother.
-
-> Maybe some background is useful.  I would absolutely love to use
-> transparent hugepages.  They are absolutely perfect in every respect,
-> except for performance.  With transparent hugepages we get higher
-> latencies.  Small pages are unacceptable, so we are forced to use
-> non-transparent hugepages.
+> There will be different opinions on periodic compaction but to be honest,
+> periodic compaction also could be implemented from userspace using the
+> compact_node sysfs files. The risk with periodic compaction is that it
+> can cause stalls in applications that do not care if they fault the pages
+> being migrated. This may happen even though there are zero requirements
+> for high-order pages from anybody.
 > 
 
-Believe me, we are on the same page that way :)  We still deploy 
-configurations with hugetlb memory because we need to meet certain 
-allocation requirements and it is only possible to do at boot.
+When thp is enabled, I think there is always a non-zero requirement for 
+high-order pages.  That's why we've shown an increase of 1.4% in cpu 
+utilization over all our machines by doing periodic memory compaction.  
+It's essential when thp is enabled and no amount of background compaction 
+kicked off with a trigger similar to kswapd (which I have agreed with in 
+this thread) is going to assist when a very large process is exec'd.
 
-With regard to the performance of thp, I can think of two things that are 
-affecting you:
+That's why my proposal was for background compaction through kcompactd 
+kicked off in the allocator slowpath and for periodic compaction on, at 
+the minimum, thp configurations to keep fragmentation low.  Dave Chinner 
+seems to also have a usecase absent thp for high-order page cache 
+allocation.
 
- - allocation cost
-
-   Async memory compaction in the page fault path for thp memory is very
-   lightweight and it happily falls back to using small pages instead.
-   Memory compaction is always being improved upon and there is on-going
-   work to do memory compaction both periodically and in the background to
-   keep fragmentation low.  The ultimate goal would be to remove async
-   compaction entirely from the thp page fault path and rely on 
-   improvements to memory compaction such that we have a great allocation
-   success rate and less cost when we fail.
-
- - NUMA cost
-
-   Until very recently, thp pages could easily be allocated remotely
-   instead of small pages locally.  That has since been improved and we
-   only allocate thp locally and then fallback to small pages locally
-   first.  Khugepaged can still migrate memory remotely, but it will
-   allocate the hugepage on the node where the majority of smallpages
-   are from.
-
-> The part of our system that uses small pages is pretty much constant,
-> while total system memory follows Moore's law.  When possible we even
-> try to shrink that part.  Hugepages already dominate today and things
-> will get worse.
-> 
-
-I wrote a patchset, hugepages overcommit, that allows unmapped hugetlb 
-pages to be freed in oom conditions before calling the oom killer up to a 
-certain threshold and then kickoff a background thread to try to 
-reallocate them.  The idea is to keep the hugetlb pool as large as 
-possible up to oom and then only reclaim what is needed and then try to 
-reallocate them.  Not sure if it would help your particular usecase or 
-not.
---397176738-1092654570-1438376948=:5910--
+I think it would depend on how aggressive you are proposing background 
+compaction to be, whether it will ever be MIGRATE_SYNC over all memory, or 
+whether it will only terminate when a fragmentation index meets a 
+threshold.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
