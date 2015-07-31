@@ -1,47 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E1896B0256
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 11:08:17 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so61952065wib.1
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 08:08:16 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id pc3si5971993wic.24.2015.07.31.08.08.15
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 282B16B0256
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 11:09:45 -0400 (EDT)
+Received: by qkfc129 with SMTP id c129so30120687qkf.1
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 08:09:45 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b20si6157454qkh.3.2015.07.31.08.09.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Jul 2015 08:08:15 -0700 (PDT)
-Date: Fri, 31 Jul 2015 17:08:06 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [tip:x86/mm] x86/mm/mtrr: Clean up mtrr_type_lookup()
-Message-ID: <20150731150806.GX25159@twins.programming.kicks-ass.net>
-References: <1431714237-880-6-git-send-email-toshi.kani@hp.com>
- <1432628901-18044-6-git-send-email-bp@alien8.de>
- <tip-0cc705f56e400764a171055f727d28a48260bb4b@git.kernel.org>
- <20150731131802.GW25159@twins.programming.kicks-ass.net>
- <20150731144452.GA8106@nazgul.tnic>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 Jul 2015 08:09:44 -0700 (PDT)
+Message-ID: <55BB8FB2.6040004@redhat.com>
+Date: Fri, 31 Jul 2015 17:09:38 +0200
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150731144452.GA8106@nazgul.tnic>
+Subject: Re: [PATCHv9 30/36] thp: add option to setup migration entiries during
+ PMD split
+References: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com> <1437402069-105900-31-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1437402069-105900-31-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="1DLOfwxWiXA2sjSHOVoUkPb5ihV8UQlHf"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: mingo@kernel.org, hpa@zytor.com, dvlasenk@redhat.com, bp@suse.de, akpm@linux-foundation.org, brgerst@gmail.com, tglx@linutronix.de, linux-mm@kvack.org, luto@amacapital.net, mcgrof@suse.com, toshi.kani@hp.com, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-tip-commits@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jul 31, 2015 at 04:44:52PM +0200, Borislav Petkov wrote:
-> On Fri, Jul 31, 2015 at 03:18:02PM +0200, Peter Zijlstra wrote:
-> > Using these functions with preemption enabled is racy against MTRR
-> > updates. And if that race is ok, at the very least explain that it is
-> > indeed racy and why this is not a problem.
-> 
-> Right, so Luis has been working on burying direct MTRR access so
-> after that work is done, we'll be using only PAT for changing memory
-> attributes. Look at arch_phys_wc_add() and all those fbdev users of
-> mtrr_add() which get converted to that thing...
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--1DLOfwxWiXA2sjSHOVoUkPb5ihV8UQlHf
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-Drivers don't do those lookups afaict.
+On 07/20/2015 04:21 PM, Kirill A. Shutemov wrote:
+> We are going to use migration PTE entires to stabilize page counts.
+> If the page is mapped with PMDs we need to split the PMD and setup
+> migration enties. It's reasonable to combine these operations to avoid
+> double-scanning over the page table.
 
-But its things like set_memory_XX(), and afaict that's all buggy against
-MTRR modifications.
+Entries? Three different typos for three occurrences of the same word.
+You don't like it, do you?
+
+>=20
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Tested-by: Sasha Levin <sasha.levin@oracle.com>
+> Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Acked-by: Jerome Marchand <jmarchan@redhat.com>
+
+> ---
+>  mm/huge_memory.c | 23 +++++++++++++++--------
+>  1 file changed, 15 insertions(+), 8 deletions(-)
+>=20
+
+
+
+--1DLOfwxWiXA2sjSHOVoUkPb5ihV8UQlHf
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAEBCAAGBQJVu4+yAAoJEHTzHJCtsuoCrlAIAK8fh4KyYtG3dLWKObgWfN2V
+goTeV5eMksF2UG04TtEXX500LAxr9LF7HjuowmoQhDt3KzLmXKopr7xH5eZ69U1P
+F5/KHvJEsWWtJVgN5axnKqtvg+PKGPuuPqIl5OK3wlqX65kNlXoeYdiwe7ccnyQu
+ilMNEKrKuR3yXInkhYZg1ldh+7hYC+xEZkIqxlMOqYTlFb/ajJUIw9+kepztrw1N
+vsjbfQaS7y1A/zHQK5enUmQrc3jczQehcAddRj7xyxqiUibhGPZI6NbWGT1+QTlQ
+0cCID4Vvi/qX5rnnmIWflCSpCniChLms92S89w8qfeAu4beVUZHQmm0Y+aB0nv4=
+=l7RX
+-----END PGP SIGNATURE-----
+
+--1DLOfwxWiXA2sjSHOVoUkPb5ihV8UQlHf--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
