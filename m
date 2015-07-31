@@ -1,61 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B6289003C8
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 05:34:55 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so39922952pdr.2
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 02:34:55 -0700 (PDT)
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com. [209.85.192.179])
-        by mx.google.com with ESMTPS id bp9si9165914pdb.52.2015.07.31.02.34.54
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id D39519003C8
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 05:35:20 -0400 (EDT)
+Received: by laah7 with SMTP id h7so40497015laa.0
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 02:35:20 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id c5si3111515lag.135.2015.07.31.02.35.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Jul 2015 02:34:54 -0700 (PDT)
-Received: by pdbnt7 with SMTP id nt7so39891511pdb.0
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 02:34:54 -0700 (PDT)
-Date: Fri, 31 Jul 2015 15:04:50 +0530
-From: Viresh Kumar <viresh.kumar@linaro.org>
-Subject: Re: [PATCH 14/15] mm: Drop unlikely before IS_ERR(_OR_NULL)
-Message-ID: <20150731093450.GA7505@linux>
-References: <cover.1438331416.git.viresh.kumar@linaro.org>
- <91586af267deb26b905fba61a9f1f665a204a4e3.1438331416.git.viresh.kumar@linaro.org>
- <20150731085646.GA31544@node.dhcp.inet.fi>
- <FA3D9AE9-9D1E-4232-87DE-42F21B408B24@gmail.com>
+        Fri, 31 Jul 2015 02:35:18 -0700 (PDT)
+Date: Fri, 31 Jul 2015 12:34:57 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm v9 0/8] idle memory tracking
+Message-ID: <20150731093457.GG8100@esperanza>
+References: <cover.1437303956.git.vdavydov@parallels.com>
+ <20150729123629.GI15801@dhcp22.suse.cz>
+ <20150729135907.GT8100@esperanza>
+ <20150729142618.GJ15801@dhcp22.suse.cz>
+ <20150729152817.GV8100@esperanza>
+ <20150729154718.GN15801@dhcp22.suse.cz>
+ <20150729162908.GY8100@esperanza>
+ <20150729143015.e8420eca17acbd36d1ce9242@linux-foundation.org>
+ <20150730091212.GA8100@esperanza>
+ <20150730130122.GC8100@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <FA3D9AE9-9D1E-4232-87DE-42F21B408B24@gmail.com>
+In-Reply-To: <20150730130122.GC8100@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yalin wang <yalin.wang2010@gmail.com>, Joe Perches <joe@perches.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linaro-kernel@lists.linaro.org, open list <linux-kernel@vger.kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 31-07-15, 17:32, yalin wang wrote:
+On Thu, Jul 30, 2015 at 04:01:22PM +0300, Vladimir Davydov wrote:
+> On Thu, Jul 30, 2015 at 12:12:12PM +0300, Vladimir Davydov wrote:
+> > On Wed, Jul 29, 2015 at 02:30:15PM -0700, Andrew Morton wrote:
+> > > On Wed, 29 Jul 2015 19:29:08 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
+> > > 
+> > > > /proc/kpageidle should probably live somewhere in /sys/kernel/mm, but I
+> > > > added it where similar files are located (kpagecount, kpageflags) to
+> > > > keep things consistent.
+> > > 
+> > > I think these files should be moved elsewhere.  Consistency is good,
+> > > but not when we're being consistent with a bad thing.
+> > > 
+> > > So let's place these in /sys/kernel/mm and then start being consistent
+> > > with that?
+> > 
+> > I really don't think we should separate kpagecgroup from kpagecount and
+> > kpageflags, because they look very similar (each of them is read-only,
+> > contains an array of u64 values referenced by PFN). Scattering these
+> > files between different filesystems would look ugly IMO.
+> > 
+> > However, kpageidle is somewhat different (it's read-write, contains a
+> > bitmap) so I think it's worth moving it to /sys/kernel/mm. We have to
+> > move the code from fs/proc to mm/something then to remove dependency
+> > from PROC_FS, which would be unnecessary. Let me give it a try.
 > 
-> > On Jul 31, 2015, at 16:56, Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > 
-> > On Fri, Jul 31, 2015 at 02:08:34PM +0530, Viresh Kumar wrote:
-> >> IS_ERR(_OR_NULL) already contain an 'unlikely' compiler flag and there
-> >> is no need to do that again from its callers. Drop it.
-> >> 
-> >> Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
-> > 
-> > Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Here it goes:
+> 
+> From: Vladimir Davydov <vdavydov@parallels.com>
+> Subject: [PATCH] Move /proc/kpageidle to /sys/kernel/mm/page_idle/bitmap
 
-> search in code, there are lots of using like this , does need add this check into checkpatch ?
+Since it is rather difficult to merge it into proc-add-kpageidle, should
+I resend the whole series with all fixes included, provided you find
+this patch OK of course?
 
-cc'd Joe for that. :)
-
-> # grep -r 'likely.*IS_ERR'  .
-> ./include/linux/blk-cgroup.h:	if (unlikely(IS_ERR(blkg)))
-> ./fs/nfs/objlayout/objio_osd.c:	if (unlikely(IS_ERR(od))) {
-> ./fs/cifs/readdir.c:	if (unlikely(IS_ERR(dentry)))
-> ./fs/ext4/extents.c:		if (unlikely(IS_ERR(bh))) {
-> ./fs/ext4/extents.c:		if (unlikely(IS_ERR(path1))) {
-> ./fs/ext4/extents.c:		if (unlikely(IS_ERR(path2))) {
-
-Btw, my series has fixed all of them :)
-
--- 
-viresh
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
