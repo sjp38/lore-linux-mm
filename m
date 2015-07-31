@@ -1,292 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FC996B0253
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 06:43:22 -0400 (EDT)
-Received: by pdbnt7 with SMTP id nt7so40800984pdb.0
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 03:43:22 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id qz11si9399947pac.236.2015.07.31.03.43.21
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C22B6B0253
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 07:00:22 -0400 (EDT)
+Received: by pdbbh15 with SMTP id bh15so40852849pdb.1
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 04:00:22 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id fk8si9526032pdb.228.2015.07.31.04.00.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Jul 2015 03:43:21 -0700 (PDT)
-Received: by padck2 with SMTP id ck2so39275158pad.0
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 03:43:21 -0700 (PDT)
-Date: Fri, 31 Jul 2015 19:43:09 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/4] mm/compaction: enable mobile-page migration
-Message-ID: <20150731104309.GA22158@bbox>
-References: <1436776519-17337-1-git-send-email-gioh.kim@lge.com>
- <1436776519-17337-3-git-send-email-gioh.kim@lge.com>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 31 Jul 2015 04:00:20 -0700 (PDT)
+Received: from fsav205.sakura.ne.jp (fsav205.sakura.ne.jp [210.224.168.167])
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id t6VB0IvQ003599
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 20:00:18 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Received: from AQUA (softbank126074231104.bbtec.net [126.74.231.104])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id t6VB0IY6003596
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 20:00:18 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Subject: [PATCH 1/2] mm,oom: Fix potentially killing unrelated process.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201507312000.GDH95883.OHOtJVFFQMFLOS@I-love.SAKURA.ne.jp>
+Date: Fri, 31 Jul 2015 20:00:18 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1436776519-17337-3-git-send-email-gioh.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>
-Cc: jlayton@poochiereds.net, bfields@fieldses.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, viro@zeniv.linux.org.uk, mst@redhat.com, koct9i@gmail.com, aquini@redhat.com, linux-fsdevel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, akpm@linux-foundation.org, Gioh Kim <gurugio@hanmail.net>
+To: linux-mm@kvack.org
 
-Hi Gioh,
-
-On Mon, Jul 13, 2015 at 05:35:17PM +0900, Gioh Kim wrote:
-> From: Gioh Kim <gurugio@hanmail.net>
+Quoting from http://www.spinics.net/lists/linux-mm/msg89346.html
+> > Is "/* mm cannot safely be dereferenced after task_unlock(victim) */" true?
+> > It seems to me that it should be "/* mm cannot safely be compared after
+> > task_unlock(victim) */" because it is theoretically possible to have
+> > 
+> >   CPU 0                         CPU 1                   CPU 2
+> >   task_unlock(victim);
+> >                                 victim exits and releases mm.
+> >                                 Usage count of the mm becomes 0 and thus released.
+> >                                                         New mm is allocated and assigned to some thread.
+> >   (p->mm == mm) matches the recreated mm and kill unrelated p.
+> > 
+> > sequence. We need to either get a reference to victim's mm before
+> > task_unlock(victim) or do comparison before task_unlock(victim).
 > 
-> Add framework to register callback functions and check page mobility.
-> There are some modes for page isolation so that isolate interface
-> has arguments of page address and isolation mode while putback
-> interface has only page address as argument.
-> 
-> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
-> Acked-by: Rafael Aquini <aquini@redhat.com>
-> ---
->  fs/proc/page.c                         |  3 ++
->  include/linux/compaction.h             | 80 ++++++++++++++++++++++++++++++++++
->  include/linux/fs.h                     |  2 +
->  include/linux/page-flags.h             | 19 ++++++++
->  include/uapi/linux/kernel-page-flags.h |  1 +
->  5 files changed, 105 insertions(+)
-> 
-> diff --git a/fs/proc/page.c b/fs/proc/page.c
-> index 7eee2d8..a4f5a00 100644
-> --- a/fs/proc/page.c
-> +++ b/fs/proc/page.c
-> @@ -146,6 +146,9 @@ u64 stable_page_flags(struct page *page)
->  	if (PageBalloon(page))
->  		u |= 1 << KPF_BALLOON;
->  
-> +	if (PageMobile(page))
-> +		u |= 1 << KPF_MOBILE;
-> +
+> Hmm, I guess you are right. The race is theoretically possible,
+> especially when there are many tasks when iterating over the list might
+> take some time. reference to the mm would solve this. Care to send a
+> patch?
 
-Need a new page flag for non-LRU page migration?
-I am worry that we don't have empty slot for page flag on 32-bit.
+Today I had a time to write this patch.
 
-Aha, see SetPageMobile below. You use _mapcount.
-It seems to be work for non-LRU pages but unfortunately, zsmalloc
-already have used that field as own purpose so there is no room
-for it.
+----------------------------------------
 
+>From 2c5c4da4c9c5a124820f53f138c456e07c9248bb Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Fri, 31 Jul 2015 13:37:31 +0900
+Subject: [PATCH 1/2] mm,oom: Fix potentially killing unrelated process.
 
->  	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
->  
->  	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index aa8f61c..f693072 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -1,6 +1,9 @@
->  #ifndef _LINUX_COMPACTION_H
->  #define _LINUX_COMPACTION_H
->  
-> +#include <linux/page-flags.h>
-> +#include <linux/pagemap.h>
-> +
->  /* Return values for compact_zone() and try_to_compact_pages() */
->  /* compaction didn't start as it was deferred due to past failures */
->  #define COMPACT_DEFERRED	0
-> @@ -51,6 +54,70 @@ extern void compaction_defer_reset(struct zone *zone, int order,
->  				bool alloc_success);
->  extern bool compaction_restarting(struct zone *zone, int order);
->  
-> +static inline bool mobile_page(struct page *page)
-> +{
-> +	return page->mapping &&	(PageMobile(page) || PageBalloon(page));
+At the for_each_process() loop in oom_kill_process(), we are comparing
+address of OOM victim's mm without holding a reference to that mm.
+If there are a lot of processes to compare or a lot of "Kill process
+%d (%s) sharing same memory" messages to print, for_each_process() loop
+could take very long time.
 
+It is possible that meanwhile the OOM victim exits and releases its mm,
+and then mm is allocated with the same address and assigned to some
+unrelated process. When we hit such race, the unrelated process will be
+killed by error. To make sure that the OOM victim's mm does not go away
+until for_each_process() loop finishes, get a reference on the OOM
+victim's mm before calling task_unlock(victim).
 
-What's the locking rule to test mobile_page?
-Why we need such many checking?
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ mm/oom_kill.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-Why we need PageBalloon check?
-You are trying to make generic abstraction for non-LRU page to migrate
-but PageBalloon check in here breaks your goal.
-
-> +}
-> +
-> +static inline bool isolate_mobilepage(struct page *page, isolate_mode_t mode)
-> +{
-> +	bool ret = false;
-> +
-> +	/*
-> +	 * Avoid burning cycles with pages that are yet under __free_pages(),
-> +	 * or just got freed under us.
-> +	 *
-> +	 * In case we 'win' a race for a mobile page being freed under us and
-> +	 * raise its refcount preventing __free_pages() from doing its job
-> +	 * the put_page() at the end of this block will take care of
-> +	 * release this page, thus avoiding a nasty leakage.
-> +	 */
-
-Good.
-
-> +	if (unlikely(!get_page_unless_zero(page)))
-> +		goto out;
-> +
-> +	/*
-> +	 * As mobile pages are not isolated from LRU lists, concurrent
-> +	 * compaction threads can race against page migration functions
-> +	 * as well as race against the releasing a page.
-
-How can it race with releasing a page?
-We already get refcount above.
-
-Do you mean page->mapping tearing race?
-If so, zsmalloc should be chaned to hold a lock.
-
-
-> +	 *
-> +	 * In order to avoid having an already isolated mobile page
-> +	 * being (wrongly) re-isolated while it is under migration,
-> +	 * or to avoid attempting to isolate pages being released,
-> +	 * lets be sure we have the page lock
-> +	 * before proceeding with the mobile page isolation steps.
-> +	 */
-> +	if (unlikely(!trylock_page(page)))
-> +		goto out_putpage;
-> +
-> +	if (!(mobile_page(page) && page->mapping->a_ops->isolatepage))
-> +		goto out_not_isolated;
-
-I cannot know how isolate_mobilepage is called by upper layer
-because this patch doesn't include it.
-Anyway, why we need such many checks to prove it's mobile page?
-
-mobile_page() {
-	page->mapping && (PageMobile(page) || PageBalloon(page));
-}
-
-Additionally, added page->mapping->a_ops->isolatepage check
-
-Is it possible that a non-LRU page's address space provides
-only page->maping->migratepage without isolate/putback?
-
-Couldn't we make it simple like this?
-
-        page->mapping && page->mapping->migratepage
-
-So, couldn't we make mobile_page like this
-
-PageMobile(struct page *page)
-{
-        VM_BUG_ON_PAGE(!PageLocked(page), page);
-        VM_BUG_ON_PAGE(PageLRU(page), page);
-
-        return page->mapping && page->mapping->migratepage;
-}
-
-It will save _mapcount of struct page.
-
-> +	ret = page->mapping->a_ops->isolatepage(page, mode);
-> +	if (!ret)
-> +		goto out_not_isolated;
-> +	unlock_page(page);
-> +	return ret;
-> +
-> +out_not_isolated:
-> +	unlock_page(page);
-> +out_putpage:
-> +	put_page(page);
-> +out:
-> +	return ret;
-> +}
-> +
-> +static inline void putback_mobilepage(struct page *page)
-> +{
-> +	/*
-> +	 * 'lock_page()' stabilizes the page and prevents races against
-
-What does it mean 'stabilize'?
-Clear comment is always welcome rather than vague word.
-
-> +	 * concurrent isolation threads attempting to re-isolate it.
-> +	 */
-> +	lock_page(page);
-> +	if (page->mapping && page->mapping->a_ops->putbackpage)
-> +		page->mapping->a_ops->putbackpage(page);
-> +	unlock_page(page);
-> +	/* drop the extra ref count taken for mobile page isolation */
-> +	put_page(page);
-> +}
->  #else
->  static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
->  			unsigned int order, int alloc_flags,
-> @@ -83,6 +150,19 @@ static inline bool compaction_deferred(struct zone *zone, int order)
->  	return true;
->  }
->  
-> +static inline bool mobile_page(struct page *page)
-> +{
-> +	return false;
-> +}
-> +
-> +static inline bool isolate_mobilepage(struct page *page, isolate_mode_t mode)
-> +{
-> +	return false;
-> +}
-> +
-> +static inline void putback_mobilepage(struct page *page)
-> +{
-> +}
->  #endif /* CONFIG_COMPACTION */
->  
->  #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index a0653e5..2cc4b24 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -396,6 +396,8 @@ struct address_space_operations {
->  	 */
->  	int (*migratepage) (struct address_space *,
->  			struct page *, struct page *, enum migrate_mode);
-> +	bool (*isolatepage) (struct page *, isolate_mode_t);
-> +	void (*putbackpage) (struct page *);
->  	int (*launder_page) (struct page *);
->  	int (*is_partially_uptodate) (struct page *, unsigned long,
->  					unsigned long);
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index f34e040..abef145 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -582,6 +582,25 @@ static inline void __ClearPageBalloon(struct page *page)
->  	atomic_set(&page->_mapcount, -1);
->  }
->  
-> +#define PAGE_MOBILE_MAPCOUNT_VALUE (-255)
-> +
-> +static inline int PageMobile(struct page *page)
-> +{
-> +	return atomic_read(&page->_mapcount) == PAGE_MOBILE_MAPCOUNT_VALUE;
-> +}
-> +
-> +static inline void __SetPageMobile(struct page *page)
-> +{
-> +	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
-> +	atomic_set(&page->_mapcount, PAGE_MOBILE_MAPCOUNT_VALUE);
-> +}
-> +
-> +static inline void __ClearPageMobile(struct page *page)
-> +{
-> +	VM_BUG_ON_PAGE(!PageMobile(page), page);
-> +	atomic_set(&page->_mapcount, -1);
-> +}
-> +
->  /*
->   * If network-based swap is enabled, sl*b must keep track of whether pages
->   * were allocated from pfmemalloc reserves.
-> diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-> index a6c4962..d50d9e8 100644
-> --- a/include/uapi/linux/kernel-page-flags.h
-> +++ b/include/uapi/linux/kernel-page-flags.h
-> @@ -33,6 +33,7 @@
->  #define KPF_THP			22
->  #define KPF_BALLOON		23
->  #define KPF_ZERO_PAGE		24
-> +#define KPF_MOBILE		25
->  
->  
->  #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
-> -- 
-> 2.1.4
-> 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 1ecc0bc..5249e7e 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -552,8 +552,9 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 		victim = p;
+ 	}
+ 
+-	/* mm cannot safely be dereferenced after task_unlock(victim) */
++	/* Get a reference to safely compare mm after task_unlock(victim) */
+ 	mm = victim->mm;
++	atomic_inc(&mm->mm_users);
+ 	mark_oom_victim(victim);
+ 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+ 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+@@ -586,6 +587,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	rcu_read_unlock();
+ 
+ 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
++	mmput(mm);
+ 	put_task_struct(victim);
+ }
+ #undef K
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
