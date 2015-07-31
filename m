@@ -1,73 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 34EB96B0254
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 03:20:14 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so19973387wib.1
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 00:20:13 -0700 (PDT)
-Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
-        by mx.google.com with ESMTPS id hs1si3516864wib.37.2015.07.31.00.20.12
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AAD576B0253
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 03:25:19 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so20096362wib.0
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 00:25:19 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x15si3516526wia.58.2015.07.31.00.25.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 31 Jul 2015 00:20:12 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id D5B2098C51
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 07:20:11 +0000 (UTC)
-Date: Fri, 31 Jul 2015 08:20:09 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC PATCH 00/10] Remove zonelist cache and high-order watermark
- checking
-Message-ID: <20150731072009.GC5840@techsingularity.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 31 Jul 2015 00:25:17 -0700 (PDT)
+Subject: Re: [PATCH 09/10] mm, page_alloc: Reserve pageblocks for high-order
+ atomic allocations on demand
 References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
- <20150731061403.GC15912@js1304-P5Q-DELUXE>
+ <1437379219-9160-10-git-send-email-mgorman@suse.com>
+ <20150731055407.GA15912@js1304-P5Q-DELUXE>
+ <20150731071113.GA5840@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55BB22D9.5040200@suse.cz>
+Date: Fri, 31 Jul 2015 09:25:13 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20150731061403.GC15912@js1304-P5Q-DELUXE>
+In-Reply-To: <20150731071113.GA5840@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Mel Gorman <mgorman@suse.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 31, 2015 at 03:14:03PM +0900, Joonsoo Kim wrote:
-> On Mon, Jul 20, 2015 at 09:00:09AM +0100, Mel Gorman wrote:
-> > From: Mel Gorman <mgorman@suse.de>
-> > 
-> > This series started with the idea to move LRU lists to pgdat but this
-> > part was more important to start with. It was written against 4.2-rc1 but
-> > applies to 4.2-rc3.
-> > 
-> > The zonelist cache has been around for a long time but it is of dubious merit
-> > with a lot of complexity. There are a few reasons why it needs help that
-> > are explained in the first patch but the most important is that a failed
-> > THP allocation can cause a zone to be treated as "full". This potentially
-> > causes unnecessary stalls, reclaim activity or remote fallbacks. Maybe the
-> > issues could be fixed but it's not worth it.  The series places a small
-> > number of other micro-optimisations on top before examining watermarks.
-> > 
-> > High-order watermarks are something that can cause high-order allocations to
-> > fail even though pages are free. This was originally to protect high-order
-> > atomic allocations but there is a much better way that can be handled using
-> > migrate types. This series uses page grouping by mobility to preserve some
-> > pageblocks for high-order allocations with the size of the reservation
-> > depending on demand. kswapd awareness is maintained by examining the free
-> > lists. By patch 10 in this series, there are no high-order watermark checks
-> > while preserving the properties that motivated the introduction of the
-> > watermark checks.
-> 
-> I guess that removal of zonelist cache and high-order watermarks has
-> different purpose and different set of reader. It is better to
-> separate this two kinds of patches next time to help reviewer to see
-> what they want to see.
-> 
+On 07/31/2015 09:11 AM, Mel Gorman wrote:
+> On Fri, Jul 31, 2015 at 02:54:07PM +0900, Joonsoo Kim wrote:
+>> Hello, Mel.
+>>
+>> On Mon, Jul 20, 2015 at 09:00:18AM +0100, Mel Gorman wrote:
+>>> From: Mel Gorman <mgorman@suse.de>
+>>>
+>>> High-order watermark checking exists for two reasons --  kswapd high-order
+>>> awareness and protection for high-order atomic requests. Historically we
+>>> depended on MIGRATE_RESERVE to preserve min_free_kbytes as high-order free
+>>> pages for as long as possible. This patch introduces MIGRATE_HIGHATOMIC
+>>> that reserves pageblocks for high-order atomic allocations. This is expected
+>>> to be more reliable than MIGRATE_RESERVE was.
+>>
+>> I have some concerns on this patch.
+>>
+>> 1) This patch breaks intention of __GFP_WAIT.
+>> __GFP_WAIT is used when we want to succeed allocation even if we need
+>> to do some reclaim/compaction work. That implies importance of
+>> allocation success. But, reserved pageblock for MIGRATE_HIGHATOMIC makes
+>> atomic allocation (~__GFP_WAIT) more successful than allocation with
+>> __GFP_WAIT in many situation. It breaks basic assumption of gfp flags
+>> and doesn't make any sense.
+>>
+>
+> Currently allocation requests that do not specify __GFP_WAIT get the
+> ALLOC_HARDER flag which allows them to dip further into watermark reserves.
+> It already is the case that there are corner cases where a high atomic
+> allocation can succeed when a non-atomic allocation would reclaim.
 
-One of the reasons zonelist existed was to avoid watermark checks in some
-case. The series also intends to reduce the cost of watermark checks in some
-cases which is why they are part of the same series. I'm not comfortable
-doing one without the other.
+I think (and said so before elsewhere) is that the problem is that we 
+don't currently distinguish allocations that can't wait (=are really 
+atomic and have no order-0 fallback) and allocations that just don't 
+want to wait (=they have fallbacks). The second ones should obviously 
+not access the current ALLOC_HARDER watermark-based reserves nor the 
+proposed highatomic reserves.
 
--- 
-Mel Gorman
-SUSE Labs
+Well we do look at __GFP_NO_KSWAPD flag to treat allocation as 
+non-atomic, so that covers THP allocations and two drivers. But the 
+recent networking commit fb05e7a89f50 didn't add the flag and nor does 
+Joonsoo's slub patch use it. Either we should rename the flag and employ 
+it where appropriate, or agree that access to reserves is orthogonal 
+concern to waking up kswapd, and distinguish non-atomic non-__GFP_WAIT 
+allocations differently.
+
+>>> A MIGRATE_HIGHORDER pageblock is created when an allocation request steals
+>>> a pageblock but limits the total number to 10% of the zone.
+>>
+>> When steals happens, pageblock already can be fragmented and we can't
+>> fully utilize this pageblock without allowing order-0 allocation. This
+>> is very waste.
+>>
+>
+> If the pageblock was stolen, it implies there was at least 1 usable page
+> of the correct order. As the pageblock is then reserved, any pages that
+> free in that block stay free for use by high-order atomic allocations.
+> Else, the number of pageblocks will increase again until the 10% limit
+> is hit.
+
+It's however true that many of the "any pages free in that block" may be 
+order-0, so they both won't be useful to high-order atomic allocations, 
+and won't be available to other allocations, so they might remain unused.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
