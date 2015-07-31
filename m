@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id EC7826B0259
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 11:28:30 -0400 (EDT)
-Received: by wicgj17 with SMTP id gj17so22734494wic.1
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 08:28:30 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 620EF6B025A
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 11:28:33 -0400 (EDT)
+Received: by wibud3 with SMTP id ud3so36655437wib.0
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 08:28:33 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ex4si6013250wib.114.2015.07.31.08.28.25
+        by mx.google.com with ESMTPS id eq6si6068020wib.54.2015.07.31.08.28.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Fri, 31 Jul 2015 08:28:26 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 4/5] mm, compaction: always skip compound pages by order in migrate scanner
-Date: Fri, 31 Jul 2015 17:28:06 +0200
-Message-Id: <1438356487-7082-5-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v2 1/5] mm, compaction: more robust check for scanners meeting
+Date: Fri, 31 Jul 2015 17:28:03 +0200
+Message-Id: <1438356487-7082-2-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1438356487-7082-1-git-send-email-vbabka@suse.cz>
 References: <1438356487-7082-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>
 
-The compaction migrate scanner tries to skip compound pages by their order, to
-reduce number of iterations for pages it cannot isolate. The check is only done
-if PageLRU() is true, which means it applies to THP pages, but not e.g.
-hugetlbfs pages or any other non-LRU compound pages, which we have to iterate
-by base pages.
+Compaction should finish when the migration and free scanner meet, i.e. they
+reach the same pageblock. Currently however, the test in compact_finished()
+simply just compares the exact pfns, which may yield a false negative when the
+free scanner position is in the middle of a pageblock and the migration scanner
+reaches the begining of the same pageblock.
 
-This limitation comes from the assumption that it's only safe to read
-compound_order() when we have the zone's lru_lock and THP cannot be split under
-us. But the only danger (after filtering out order values that are not below
-MAX_ORDER, to prevent overflows) is that we skip too much or too little after
-reading a bogus compound_order() due to a rare race. This is the same reasoning
-as patch 99c0fd5e51c4 ("mm, compaction: skip buddy pages by their order in the
-migrate scanner") introduced for unsafely reading PageBuddy() order.
+This hasn't been a problem until commit e14c720efdd7 ("mm, compaction: remember
+position within pageblock in free pages scanner") allowed the free scanner
+position to be in the middle of a pageblock between invocations.  The hot-fix
+1d5bfe1ffb5b ("mm, compaction: prevent infinite loop in compact_zone")
+prevented the issue by adding a special check in the migration scanner to
+satisfy the current detection of scanners meeting.
 
-After this patch, all pages are tested for PageCompound() and we skip them by
-compound_order().  The test is done after the test for balloon_page_movable()
-as we don't want to assume if balloon pages (or other pages with own isolation
-and migration implementation if a generic API gets implemented) are compound
-or not.
+However, the proper fix is to make the detection more robust. This patch
+introduces the compact_scanners_met() function that returns true when the free
+scanner position is in the same or lower pageblock than the migration scanner.
+The special case in isolate_migratepages() introduced by 1d5bfe1ffb5b is
+removed.
 
-When tested with stress-highalloc from mmtests on 4GB system with 1GB hugetlbfs
-pages, the vmstat compact_migrate_scanned count decreased by 15%.
-
+Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Cc: Minchan Kim <minchan@kernel.org>
 Acked-by: Mel Gorman <mgorman@suse.de>
@@ -50,80 +47,66 @@ Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Acked-by: Michal Nazarewicz <mina86@mina86.com>
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Christoph Lameter <cl@linux.com>
-Cc: Rik van Riel <riel@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 Cc: David Rientjes <rientjes@google.com>
 ---
- mm/compaction.c | 36 +++++++++++++++++-------------------
- 1 file changed, 17 insertions(+), 19 deletions(-)
+ mm/compaction.c | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 07b6104..70b0776 100644
+index 16e1b57..d46aaeb 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -680,6 +680,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+@@ -902,6 +902,16 @@ static bool suitable_migration_target(struct page *page)
+ }
  
- 	/* Time to isolate some pages for migration */
- 	for (; low_pfn < end_pfn; low_pfn++) {
-+		bool is_lru;
+ /*
++ * Test whether the free scanner has reached the same or lower pageblock than
++ * the migration scanner, and compaction should thus terminate.
++ */
++static inline bool compact_scanners_met(struct compact_control *cc)
++{
++	return (cc->free_pfn >> pageblock_order)
++		<= (cc->migrate_pfn >> pageblock_order);
++}
 +
- 		/*
- 		 * Periodically drop the lock (if held) regardless of its
- 		 * contention, to give chance to IRQs. Abort async compaction
-@@ -723,39 +725,35 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		 * It's possible to migrate LRU pages and balloon pages
- 		 * Skip any other type of page
- 		 */
--		if (!PageLRU(page)) {
-+		is_lru = PageLRU(page);
-+		if (!is_lru) {
- 			if (unlikely(balloon_page_movable(page))) {
- 				if (balloon_page_isolate(page)) {
- 					/* Successfully isolated */
- 					goto isolate_success;
- 				}
++/*
+  * Based on information in the current compact_control, find blocks
+  * suitable for isolating free pages from and then isolate them.
+  */
+@@ -1131,12 +1141,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 	}
+ 
+ 	acct_isolated(zone, cc);
+-	/*
+-	 * Record where migration scanner will be restarted. If we end up in
+-	 * the same pageblock as the free scanner, make the scanners fully
+-	 * meet so that compact_finished() terminates compaction.
+-	 */
+-	cc->migrate_pfn = (end_pfn <= cc->free_pfn) ? low_pfn : cc->free_pfn;
++	/* Record where migration scanner will be restarted. */
++	cc->migrate_pfn = low_pfn;
+ 
+ 	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
+ }
+@@ -1151,7 +1157,7 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
+ 		return COMPACT_PARTIAL;
+ 
+ 	/* Compaction run completes if the migrate and free scanner meet */
+-	if (cc->free_pfn <= cc->migrate_pfn) {
++	if (compact_scanners_met(cc)) {
+ 		/* Let the next compaction start anew. */
+ 		zone->compact_cached_migrate_pfn[0] = zone->zone_start_pfn;
+ 		zone->compact_cached_migrate_pfn[1] = zone->zone_start_pfn;
+@@ -1380,7 +1386,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 			 * migrate_pages() may return -ENOMEM when scanners meet
+ 			 * and we want compact_finished() to detect it
+ 			 */
+-			if (err == -ENOMEM && cc->free_pfn > cc->migrate_pfn) {
++			if (err == -ENOMEM && !compact_scanners_met(cc)) {
+ 				ret = COMPACT_PARTIAL;
+ 				goto out;
  			}
--			continue;
- 		}
- 
- 		/*
--		 * PageLRU is set. lru_lock normally excludes isolation
--		 * splitting and collapsing (collapsing has already happened
--		 * if PageLRU is set) but the lock is not necessarily taken
--		 * here and it is wasteful to take it just to check transhuge.
--		 * Check PageCompound without lock and skip the whole pageblock
--		 * if it's a transhuge page, as calling compound_order()
--		 * without preventing THP from splitting the page underneath us
--		 * may return surprising results.
--		 * If we happen to check a THP tail page, compound_order()
--		 * returns 0. It should be rare enough to not bother with
--		 * using compound_head() in that case.
-+		 * Regardless of being on LRU, compound pages such as THP and
-+		 * hugetlbfs are not to be compacted. We can potentially save
-+		 * a lot of iterations if we skip them at once. The check is
-+		 * racy, but we can consider only valid values and the only
-+		 * danger is skipping too much.
- 		 */
- 		if (PageCompound(page)) {
--			int nr;
--			if (locked)
--				nr = 1 << compound_order(page);
--			else
--				nr = pageblock_nr_pages;
--			low_pfn += nr - 1;
-+			unsigned int comp_order = compound_order(page);
-+
-+			if (likely(comp_order < MAX_ORDER))
-+				low_pfn += (1UL << comp_order) - 1;
-+
- 			continue;
- 		}
- 
-+		if (!is_lru)
-+			continue;
-+
- 		/*
- 		 * Migration will fail if an anonymous page is pinned in memory,
- 		 * so avoid taking lru_lock and isolating it unnecessarily in an
 -- 
 2.4.6
 
