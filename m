@@ -1,106 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B35816B0255
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 04:25:37 -0400 (EDT)
-Received: by pdjr16 with SMTP id r16so39840187pdj.3
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 01:25:37 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id cr17si3045676pac.187.2015.07.31.01.25.35
-        for <linux-mm@kvack.org>;
-        Fri, 31 Jul 2015 01:25:36 -0700 (PDT)
-Date: Fri, 31 Jul 2015 17:30:31 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 85A866B0255
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 04:28:58 -0400 (EDT)
+Received: by wicgj17 with SMTP id gj17so7222774wic.1
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 01:28:58 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id pu2si6719128wjc.109.2015.07.31.01.28.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 31 Jul 2015 01:28:56 -0700 (PDT)
 Subject: Re: [PATCH 09/10] mm, page_alloc: Reserve pageblocks for high-order
  atomic allocations on demand
-Message-ID: <20150731083030.GB16553@js1304-P5Q-DELUXE>
 References: <1437379219-9160-1-git-send-email-mgorman@suse.com>
  <1437379219-9160-10-git-send-email-mgorman@suse.com>
- <20150731055407.GA15912@js1304-P5Q-DELUXE>
- <20150731071113.GA5840@techsingularity.net>
- <55BB22D9.5040200@suse.cz>
+ <55B8BA75.9090903@suse.cz> <20150729125334.GC19352@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55BB31C4.3000107@suse.cz>
+Date: Fri, 31 Jul 2015 10:28:52 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55BB22D9.5040200@suse.cz>
+In-Reply-To: <20150729125334.GC19352@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Mel Gorman <mgorman@suse.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Pintu Kumar <pintu.k@samsung.com>, Xishi Qiu <qiuxishi@huawei.com>, Gioh Kim <gioh.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 31, 2015 at 09:25:13AM +0200, Vlastimil Babka wrote:
-> On 07/31/2015 09:11 AM, Mel Gorman wrote:
-> >On Fri, Jul 31, 2015 at 02:54:07PM +0900, Joonsoo Kim wrote:
-> >>Hello, Mel.
-> >>
-> >>On Mon, Jul 20, 2015 at 09:00:18AM +0100, Mel Gorman wrote:
-> >>>From: Mel Gorman <mgorman@suse.de>
-> >>>
-> >>>High-order watermark checking exists for two reasons --  kswapd high-order
-> >>>awareness and protection for high-order atomic requests. Historically we
-> >>>depended on MIGRATE_RESERVE to preserve min_free_kbytes as high-order free
-> >>>pages for as long as possible. This patch introduces MIGRATE_HIGHATOMIC
-> >>>that reserves pageblocks for high-order atomic allocations. This is expected
-> >>>to be more reliable than MIGRATE_RESERVE was.
-> >>
-> >>I have some concerns on this patch.
-> >>
-> >>1) This patch breaks intention of __GFP_WAIT.
-> >>__GFP_WAIT is used when we want to succeed allocation even if we need
-> >>to do some reclaim/compaction work. That implies importance of
-> >>allocation success. But, reserved pageblock for MIGRATE_HIGHATOMIC makes
-> >>atomic allocation (~__GFP_WAIT) more successful than allocation with
-> >>__GFP_WAIT in many situation. It breaks basic assumption of gfp flags
-> >>and doesn't make any sense.
-> >>
-> >
-> >Currently allocation requests that do not specify __GFP_WAIT get the
-> >ALLOC_HARDER flag which allows them to dip further into watermark reserves.
-> >It already is the case that there are corner cases where a high atomic
-> >allocation can succeed when a non-atomic allocation would reclaim.
-> 
-> I think (and said so before elsewhere) is that the problem is that
-> we don't currently distinguish allocations that can't wait (=are
-> really atomic and have no order-0 fallback) and allocations that
-> just don't want to wait (=they have fallbacks). The second ones
-> should obviously not access the current ALLOC_HARDER watermark-based
-> reserves nor the proposed highatomic reserves.
+On 07/29/2015 02:53 PM, Mel Gorman wrote:
+> On Wed, Jul 29, 2015 at 01:35:17PM +0200, Vlastimil Babka wrote:
+>> On 07/20/2015 10:00 AM, Mel Gorman wrote:
+>>> +/*
+>>> + * Used when an allocation is about to fail under memory pressure. This
+>>> + * potentially hurts the reliability of high-order allocations when under
+>>> + * intense memory pressure but failed atomic allocations should be easier
+>>> + * to recover from than an OOM.
+>>> + */
+>>> +static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
+>>> +{
+>>> +	struct zonelist *zonelist = ac->zonelist;
+>>> +	unsigned long flags;
+>>> +	struct zoneref *z;
+>>> +	struct zone *zone;
+>>> +	struct page *page;
+>>> +	int order;
+>>> +
+>>> +	for_each_zone_zonelist_nodemask(zone, z, zonelist, ac->high_zoneidx,
+>>> +								ac->nodemask) {
+>>
+>> This fixed order might bias some zones over others wrt unreserving. Is it OK?
+>
+> I could not think of a situation where it mattered. It'll always be
+> preferring highest zone over lower zones. Allocation requests that can
+> use any zone that do not care. Allocation requests that are limited to
+> lower zones are protected as long as possible.
 
-Yes, I agree. If we distinguish such cases, I'm not sure that this
-kinds of reservation is needed. It is better that atomic high-order
-allocation in IRQ context should prepare their own fallback such as
-reserving memory or low-order allocation.
+Hmm... allocation requests will follow fair zone policy and thus the 
+highatomic reservations will be spread fairly among all zones? Unless 
+the allocations require lower zones of course.
 
-> 
-> Well we do look at __GFP_NO_KSWAPD flag to treat allocation as
-> non-atomic, so that covers THP allocations and two drivers. But the
-> recent networking commit fb05e7a89f50 didn't add the flag and nor
-> does Joonsoo's slub patch use it. Either we should rename the flag
-> and employ it where appropriate, or agree that access to reserves is
-> orthogonal concern to waking up kswapd, and distinguish non-atomic
-> non-__GFP_WAIT allocations differently.
-> 
-> >>>A MIGRATE_HIGHORDER pageblock is created when an allocation request steals
-> >>>a pageblock but limits the total number to 10% of the zone.
-> >>
-> >>When steals happens, pageblock already can be fragmented and we can't
-> >>fully utilize this pageblock without allowing order-0 allocation. This
-> >>is very waste.
-> >>
-> >
-> >If the pageblock was stolen, it implies there was at least 1 usable page
-> >of the correct order. As the pageblock is then reserved, any pages that
-> >free in that block stay free for use by high-order atomic allocations.
-> >Else, the number of pageblocks will increase again until the 10% limit
-> >is hit.
-> 
-> It's however true that many of the "any pages free in that block"
-> may be order-0, so they both won't be useful to high-order atomic
-> allocations, and won't be available to other allocations, so they
-> might remain unused.
+But for unreservations, normal/high allocations failing under memory 
+pressure will lead to unreserving highatomic pageblocks first in the 
+higher zones and only then the lower zones, and that was my concern. But 
+it's true that failing allocations that require lower zones will lead to 
+unreserving the lower zones, so it might be ok in the end.
 
-Agreed.
+>
+>>
+>>> +		/* Preserve at least one pageblock */
+>>> +		if (zone->nr_reserved_highatomic <= pageblock_nr_pages)
+>>> +			continue;
+>>> +
+>>> +		spin_lock_irqsave(&zone->lock, flags);
+>>> +		for (order = 0; order < MAX_ORDER; order++) {
+>>
+>> Would it make more sense to look in descending order for a higher chance of
+>> unreserving a pageblock that's mostly free? Like the traditional page stealing does?
+>>
+>
+> I don't think it's worth the search cost. Traditional page stealing is
+> searching because it's trying to minimise events that cause external
+> fragmentation. Here we'd gain very little. We are under some memory
+> pressure here, if enough pages are not free then another one will get
+> freed shortly. Either way, I doubt the difference is measurable.
 
-Thanks.
+Hmm, I guess...
+
+>
+>>> +			struct free_area *area = &(zone->free_area[order]);
+>>> +
+>>> +			if (list_empty(&area->free_list[MIGRATE_HIGHATOMIC]))
+>>> +				continue;
+>>> +
+>>> +			page = list_entry(area->free_list[MIGRATE_HIGHATOMIC].next,
+>>> +						struct page, lru);
+>>> +
+>>> +			zone->nr_reserved_highatomic -= pageblock_nr_pages;
+>>> +			set_pageblock_migratetype(page, ac->migratetype);
+>>
+>> Would it make more sense to assume MIGRATE_UNMOVABLE, as high-order allocations
+>> present in the pageblock typically would be, and apply the traditional page
+>> stealing heuristics to decide if it should be changed to ac->migratetype (if
+>> that differs)?
+>>
+>
+> Superb spot, I had to think about this for a while and initially I was
+> thinking your suggestion was a no-brainer and obviously the right thing
+> to do.
+>
+> On the pro side, it preserves the fragmentation logic because it'll force
+> the normal page stealing logic to be applied.
+>
+> On the con side, we may reassign the pageblock twice -- once to
+> MIGRATE_UNMOVABLE and once to ac->migratetype. That one does not matter
+> but the second con is that we inadvertly increase the number of unmovable
+> blocks in some cases.
+>
+> Lets say we default to MIGRATE_UNMOVABLE, ac->migratetype is MIGRATE_MOVABLE
+> and there are enough free pages to satisfy the allocation but not steal
+> the whole pageblock. The end result is that we have a new unmovable
+> pageblock that may not be necessary. The next unmovable allocation
+> potentially is forever. They key observation is that previously the
+> pageblock could have been short-lived high-order allocations that could
+> be completely free soon if it was assigned MIGRATE_MOVABLE. This may not
+> apply when SLUB is using high-order allocations but the point still
+> holds.
+
+Yeah, I see the point. The obvious counterexample is a pageblock that we 
+design as MOVABLE and yet it contains some long-lived unmovable 
+allocation. More unmovable allocations could lead to choosing another 
+movable block as a fallback, while if we marked this pageblock as 
+unmovable, they could go here and not increase fragmentation.
+
+The problem is, we can't known which one is the case. I've toyed with an 
+idea of MIGRATE_MIXED blocks that would be for cases where the 
+heuristics decide that e.g. an UNMOVABLE block is empty enough to change 
+it to MOVABLE, but still it may contain some unmovable allocations. Such 
+pageblocks should be preferred fallbacks for future unmovable 
+allocations before truly pristine movable pageblocks.
+
+The scenario here could be another where MIGRATE_MIXED would make sense.
+
+> Grouping pages by mobility really needs to strive to keep the number of
+> unmovable blocks as low as possible.
+
+More precisely, the number of blocks with unmovable allocations in them. 
+Which is much harder objective.
+
+> If ac->migratetype is
+> MIGRATE_UNMOVABLE then we lose nothing. If it's any other type then the
+> current code keeps the number of unmovable blocks as low as possible.
+>
+> On that basis I think the current code is fine but it needs a comment to
+> record why it's like this.
+>
+>>> @@ -2175,15 +2257,23 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+>>>   			unsigned long mark, int classzone_idx, int alloc_flags,
+>>>   			long free_pages)
+>>>   {
+>>> -	/* free_pages may go negative - that's OK */
+>>>   	long min = mark;
+>>>   	int o;
+>>>   	long free_cma = 0;
+>>>
+>>> +	/* free_pages may go negative - that's OK */
+>>>   	free_pages -= (1 << order) - 1;
+>>> +
+>>>   	if (alloc_flags & ALLOC_HIGH)
+>>>   		min -= min / 2;
+>>> -	if (alloc_flags & ALLOC_HARDER)
+>>> +
+>>> +	/*
+>>> +	 * If the caller is not atomic then discount the reserves. This will
+>>> +	 * over-estimate how the atomic reserve but it avoids a search
+>>> +	 */
+>>> +	if (likely(!(alloc_flags & ALLOC_HARDER)))
+>>> +		free_pages -= z->nr_reserved_highatomic;
+>>
+>> Hm, so in the case the maximum of 10% reserved blocks is already full, we deny
+>> the allocation access to another 10% of the memory and push it to reclaim. This
+>> seems rather excessive.
+>
+> It's necessary. If normal callers can use it then the reserve fills with
+> normal pages, the memory gets fragmented and high-order atomic allocations
+> fail due to fragmentation. Similarly, the number of MIGRATE_HIGHORDER
+> pageblocks cannot be unbound or everything else will be continually pushed
+> into reclaim even if there is plenty of memory free.
+
+I understand denying normal allocations access to highatomic reserves 
+via watermarks is necessary. But my concern is that for each reserved 
+pageblock we effectively deny up to two pageblocks-worth-of-pages to 
+normal allocations. One pageblock that is marked as MIGRATE_HIGHATOMIC, 
+and once it becomes full, free_pages above are decreased twice - once by 
+the pageblock becoming full, and then again by subtracting 
+z->nr_reserved_highatomic. This extra gap is still usable by highatomic 
+allocations, but they will also potentially mark more pageblocks 
+highatomic and further increase the gap. In the worst case we have 10% 
+of pageblocks marked highatomic and full, and another 10% that is only 
+usable by highatomic allocations (but won't be marked as such), and if 
+no more highatomic allocations come then the 10% is wasted.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
