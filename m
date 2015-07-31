@@ -1,68 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 4511C6B0256
-	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 11:16:38 -0400 (EDT)
-Received: by qgii95 with SMTP id i95so47709206qgi.2
-        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 08:16:38 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 140si6135010qhb.84.2015.07.31.08.16.37
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id BBB056B0256
+	for <linux-mm@kvack.org>; Fri, 31 Jul 2015 11:28:27 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so36769013wib.1
+        for <linux-mm@kvack.org>; Fri, 31 Jul 2015 08:28:27 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dj6si6091717wib.22.2015.07.31.08.28.25
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 Jul 2015 08:16:37 -0700 (PDT)
-Message-ID: <55BB914F.2000700@redhat.com>
-Date: Fri, 31 Jul 2015 17:16:31 +0200
-From: Jerome Marchand <jmarchan@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCHv9 36/36] thp: update documentation
-References: <1437402069-105900-1-git-send-email-kirill.shutemov@linux.intel.com> <1437402069-105900-37-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1437402069-105900-37-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="lMh4KjPuqilvH9jcILTTPwWojnatckbfB"
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 31 Jul 2015 08:28:25 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v2 0/5] Assorted compaction cleanups and optimizations
+Date: Fri, 31 Jul 2015 17:28:02 +0200
+Message-Id: <1438356487-7082-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rik van Riel <riel@redhat.com>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---lMh4KjPuqilvH9jcILTTPwWojnatckbfB
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+v2 changes:
+ - dropped Patch 6 as adjusting to Joonsoo's objection would be too
+   complicated and the results didn't justify it
+ - don't check for compound order > 0 in patches 4 and 5 as suggested by
+   Michal Nazarewicz. Negative values are handled by converting to unsinged
+   int, the pfn calculations work fine with 0 and it's unlikely to see 0
+   due to a race when we just checked PageCompound().
 
-On 07/20/2015 04:21 PM, Kirill A. Shutemov wrote:
-> The patch updates Documentation/vm/transhuge.txt to reflect changes in
-> THP design.
->=20
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+This series is partly the cleanups that were posted as part of the RFC for
+changing initial scanning positions [1] and partly new relatively simple
+scanner optimizations (yes, they are still possible). I've resumed working
+on the bigger scanner changes, but that will take a while, so no point in
+delaying these smaller patches.
 
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
+The interesting patches are 4 and 5. In 4, skipping of compound pages in single
+iteration is improved for migration scanner, so it works also for !PageLRU
+compound pages such as hugetlbfs, slab etc. Patch 5 introduces this kind of
+skipping in the free scanner. The trick is that we can read compound_order()
+without any protection, if we are careful to filter out values larger than
+MAX_ORDER. The only danger is that we skip too much.  The same trick was
+already used for reading the freepage order in the migrate scanner.
 
-> ---
->  Documentation/vm/transhuge.txt | 151 ++++++++++++++++++++++++++-------=
---------
->  1 file changed, 96 insertions(+), 55 deletions(-)
->=20
+To demonstrate improvements of Patches 4 and 5 I've run stress-highalloc from
+mmtests, set to simulate THP allocations (including __GFP_COMP) on a 4GB system
+where 1GB was occupied by hugetlbfs pages. I'll include just the relevant
+stats:
+
+                               Patch 3     Patch 4     Patch 5
+
+Compaction stalls                 7523        7529        7515
+Compaction success                 323         304         322
+Compaction failures               7200        7224        7192
+Page migrate success            247778      264395      240737
+Page migrate failure             15358       33184       21621
+Compaction pages isolated       906928      980192      909983
+Compaction migrate scanned     2005277     1692805     1498800
+Compaction free scanned       13255284    11539986     9011276
+Compaction cost                    288         305         277
+
+With 5 iterations per patch, the results are still noisy, but we can see that
+Patch 4 does reduce migrate_scanned by 15% thanks to skipping the hugetlbfs
+pages at once. Interestingly, free_scanned is also reduced and I have no idea
+why. Patch 5 further reduces free_scanned as expected, by 15%. Other stats
+are unaffected modulo noise.
+
+[1] https://lkml.org/lkml/2015/1/19/158
 
 
+Vlastimil Babka (5):
+  mm, compaction: more robust check for scanners meeting
+  mm, compaction: simplify handling restart position in free pages
+    scanner
+  mm, compaction: encapsulate resetting cached scanner positions
+  mm, compaction: always skip compound pages by order in migrate scanner
+  mm, compaction: skip compound pages by order in free scanner
 
---lMh4KjPuqilvH9jcILTTPwWojnatckbfB
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+ mm/compaction.c | 134 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 86 insertions(+), 48 deletions(-)
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAEBCAAGBQJVu5FPAAoJEHTzHJCtsuoCcaoH/2c+02dYPc7gfuiQ/zb4img8
-PrKJsvNAVvlA38Otl4jyYonJcgujW3y04GbcChNeZXOWd9E4/hM/qi62G/AxxCST
-hoyKbGcpl25/ybcEvHSYASDeg3gAqQfZVa/X2kTcvmm7GQdhcfGreokdJMHSwy+1
-sLp0d6061com5NT4w46xgRsB/K0ggJMqZChABhobNwPfQsl/Ss8HJnZiNv2RMPvN
-o+51odrsm1sgn6nCaZNYR23vGUK7ybLN2669cS5242St4JUakSICeKpIJvvKwMYg
-ruU+pNdWjV0Hj5TNXPlcKgcmB2kDeAs9NREDJCX1Xb/mKdneqY6ZHpXCdz6dBCk=
-=2Wf5
------END PGP SIGNATURE-----
-
---lMh4KjPuqilvH9jcILTTPwWojnatckbfB--
+-- 
+2.4.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
