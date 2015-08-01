@@ -1,63 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 7691E6B0038
-	for <linux-mm@kvack.org>; Sat,  1 Aug 2015 07:18:28 -0400 (EDT)
-Received: by pdbbh15 with SMTP id bh15so54321482pdb.1
-        for <linux-mm@kvack.org>; Sat, 01 Aug 2015 04:18:28 -0700 (PDT)
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com. [209.85.220.47])
-        by mx.google.com with ESMTPS id sn7si2850976pbc.78.2015.08.01.04.18.27
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 277756B0038
+	for <linux-mm@kvack.org>; Sat,  1 Aug 2015 09:52:18 -0400 (EDT)
+Received: by pabkd10 with SMTP id kd10so57226404pab.2
+        for <linux-mm@kvack.org>; Sat, 01 Aug 2015 06:52:17 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id ek3si3415743pbd.51.2015.08.01.06.52.16
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Aug 2015 04:18:27 -0700 (PDT)
-Received: by pacan13 with SMTP id an13so56605894pac.1
-        for <linux-mm@kvack.org>; Sat, 01 Aug 2015 04:18:27 -0700 (PDT)
-Date: Sat, 1 Aug 2015 16:48:21 +0530
-From: Viresh Kumar <viresh.kumar@linaro.org>
-Subject: Re: [PATCH 14/15] mm: Drop unlikely before IS_ERR(_OR_NULL)
-Message-ID: <20150801111821.GJ899@linux>
-References: <cover.1438331416.git.viresh.kumar@linaro.org>
- <91586af267deb26b905fba61a9f1f665a204a4e3.1438331416.git.viresh.kumar@linaro.org>
- <20150731085646.GA31544@node.dhcp.inet.fi>
- <FA3D9AE9-9D1E-4232-87DE-42F21B408B24@gmail.com>
- <20150731093450.GA7505@linux>
- <1438338481.19675.72.camel@perches.com>
- <20150731110637.GB899@linux>
- <1438365622.19675.97.camel@perches.com>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 01 Aug 2015 06:52:16 -0700 (PDT)
+Received: from fsav309.sakura.ne.jp (fsav309.sakura.ne.jp [153.120.85.140])
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id t71DqE0G065396
+	for <linux-mm@kvack.org>; Sat, 1 Aug 2015 22:52:14 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Received: from AQUA (softbank126074231104.bbtec.net [126.74.231.104])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id t71DqD7N065393
+	for <linux-mm@kvack.org>; Sat, 1 Aug 2015 22:52:13 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Subject: [PATCH 1/2] mm: Fix race between setting TIF_MEMDIE and __alloc_pages_high_priority().
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201508012252.DHI57365.HOFOVSQMFOFtJL@I-love.SAKURA.ne.jp>
+Date: Sat, 1 Aug 2015 22:52:09 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1438365622.19675.97.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: yalin wang <yalin.wang2010@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linaro-kernel@lists.linaro.org, open list <linux-kernel@vger.kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
+To: linux-mm@kvack.org
 
-On 31-07-15, 11:00, Joe Perches wrote:
-> On Fri, 2015-07-31 at 16:36 +0530, Viresh Kumar wrote:
-> > On 31-07-15, 03:28, Joe Perches wrote:
-> > > If it's all fixed, then it's unlikely to be needed in checkpatch.
-> > 
-> > I thought checkpatch is more about not committing new mistakes, rather than
-> > finding them in old code.
-> 
-> True, but checkpatch is more about style than substance.
-> 
-> There are a lot of things that _could_ be added to the script
-> but don't have to be because of relative rarity.
-> 
-> The unanswered fundamental though is whether the unlikely use
-> in #define IS_ERR_VALUE is useful.
-> 
-> include/linux/err.h:21:#define IS_ERR_VALUE(x) unlikely((x) >= (unsigned long)-MAX_ERRNO)
-> 
-> How often does using unlikely here make the code smaller/faster
-> with more recent compilers than gcc 3.4?  Or even using gcc 3.4.
+>From 4a3cf5be07a66cf3906a380e77ba5e2ac1b2b3d5 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Sat, 1 Aug 2015 22:39:30 +0900
+Subject: [PATCH 1/2] mm: Fix race between setting TIF_MEMDIE and
+ __alloc_pages_high_priority().
 
-No idea :)
+Currently, TIF_MEMDIE is checked at gfp_to_alloc_flags() which is before
+calling __alloc_pages_high_priority() and at
 
+  /* Avoid allocations with no watermarks from looping endlessly */
+  if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
 
+which is after returning from __alloc_pages_high_priority(). This means
+that if TIF_MEMDIE is set between returning from gfp_to_alloc_flags() and
+checking test_thread_flag(TIF_MEMDIE), the allocation can fail without
+calling __alloc_pages_high_priority(). We need to replace
+"test_thread_flag(TIF_MEMDIE)" with "whether TIF_MEMDIE was already set
+as of calling gfp_to_alloc_flags()" in order to close this race window.
+
+Since gfp_to_alloc_flags() includes ALLOC_NO_WATERMARKS for several cases,
+it will be more correct to replace "test_thread_flag(TIF_MEMDIE)" with
+"whether gfp_to_alloc_flags() included ALLOC_NO_WATERMARKS" because the
+purpose of test_thread_flag(TIF_MEMDIE) is to give up immediately if
+__alloc_pages_high_priority() failed.
+
+Note that we could simply do
+
+  if (alloc_flags & ALLOC_NO_WATERMARKS) {
+    ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+    page = __alloc_pages_high_priority(gfp_mask, order, ac);
+    if (page)
+      goto got_pg;
+    WARN_ON_ONCE(!wait && (gfp_mask & __GFP_NOFAIL));
+    goto nopage;
+  }
+
+instead of changing to
+
+  if ((alloc_flags & ALLOC_NO_WATERMARKS) && !(gfp_mask & __GFP_NOFAIL))
+    goto nopage;
+
+if we can duplicate
+
+  if (!wait) {
+    WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
+    goto nopage;
+  }
+
+.
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4b220cb..37a0390 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3085,7 +3085,7 @@ retry:
+ 		goto nopage;
+ 
+ 	/* Avoid allocations with no watermarks from looping endlessly */
+-	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
++	if ((alloc_flags & ALLOC_NO_WATERMARKS) && !(gfp_mask & __GFP_NOFAIL))
+ 		goto nopage;
+ 
+ 	/*
 -- 
-viresh
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
