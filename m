@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B41C56B0038
-	for <linux-mm@kvack.org>; Sat,  1 Aug 2015 10:28:24 -0400 (EDT)
-Received: by wicmv11 with SMTP id mv11so87746991wic.0
-        for <linux-mm@kvack.org>; Sat, 01 Aug 2015 07:28:24 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ba10si3790760wib.29.2015.08.01.07.28.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 01 Aug 2015 07:28:22 -0700 (PDT)
-Date: Sat, 1 Aug 2015 16:28:20 +0200
-From: "Luis R. Rodriguez" <mcgrof@suse.com>
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E2BFD6B0038
+	for <linux-mm@kvack.org>; Sat,  1 Aug 2015 12:33:14 -0400 (EDT)
+Received: by wibxm9 with SMTP id xm9so66108854wib.1
+        for <linux-mm@kvack.org>; Sat, 01 Aug 2015 09:33:14 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id cg18si15687602wjb.154.2015.08.01.09.33.12
+        for <linux-mm@kvack.org>;
+        Sat, 01 Aug 2015 09:33:13 -0700 (PDT)
+Date: Sat, 1 Aug 2015 18:33:11 +0200
+From: Borislav Petkov <bp@alien8.de>
 Subject: Re: [tip:x86/mm] x86/mm/mtrr: Clean up mtrr_type_lookup()
-Message-ID: <20150801142820.GU30479@wotan.suse.de>
+Message-ID: <20150801163311.GA15356@nazgul.tnic>
 References: <1431714237-880-6-git-send-email-toshi.kani@hp.com>
  <1432628901-18044-6-git-send-email-bp@alien8.de>
  <tip-0cc705f56e400764a171055f727d28a48260bb4b@git.kernel.org>
@@ -20,37 +19,34 @@ References: <1431714237-880-6-git-send-email-toshi.kani@hp.com>
  <20150731144452.GA8106@nazgul.tnic>
  <20150731150806.GX25159@twins.programming.kicks-ass.net>
  <20150731152713.GA9756@nazgul.tnic>
+ <20150801142820.GU30479@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20150731152713.GA9756@nazgul.tnic>
+In-Reply-To: <20150801142820.GU30479@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, Toshi Kani <toshi.kani@hp.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, mingo@kernel.org, hpa@zytor.com, dvlasenk@redhat.com, bp@suse.de, akpm@linux-foundation.org, brgerst@gmail.com, tglx@linutronix.de, linux-mm@kvack.org, luto@amacapital.net, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-tip-commits@vger.kernel.org
+To: "Luis R. Rodriguez" <mcgrof@suse.com>
+Cc: Toshi Kani <toshi.kani@hp.com>, Peter Zijlstra <peterz@infradead.org>, mingo@kernel.org, hpa@zytor.com, dvlasenk@redhat.com, bp@suse.de, akpm@linux-foundation.org, brgerst@gmail.com, tglx@linutronix.de, linux-mm@kvack.org, luto@amacapital.net, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-tip-commits@vger.kernel.org
 
-On Fri, Jul 31, 2015 at 05:27:13PM +0200, Borislav Petkov wrote:
-> On Fri, Jul 31, 2015 at 05:08:06PM +0200, Peter Zijlstra wrote:
-> > But its things like set_memory_XX(), and afaict that's all buggy against
-> > MTRR modifications.
-> 
-> I think the idea is to not do any MTRR modifications at some point:
-> 
-> From Documentation/x86/pat.txt:
-> 
-> "... Ideally mtrr_add() usage will be phased out in favor of
-> arch_phys_wc_add() which will be a no-op on PAT enabled systems. The
-> region over which a arch_phys_wc_add() is made, should already have been
-> ioremapped with WC attributes or PAT entries, this can be done by using
-> ioremap_wc() / set_memory_wc()."
+On Sat, Aug 01, 2015 at 04:28:20PM +0200, Luis R. Rodriguez wrote:
+> I need to update this documentation to remove set_memory_wc() there as we've
+> learned with the MTRR --> PAT conversion that set_memory_wc() cannot be used on
+> IO memory, it can only be used for RAM. I am not sure if I would call it being
+> broken that you cannot use set_memory_*() for IO memory that may have been by
+> design.
 
-I need to update this documentation to remove set_memory_wc() there as we've
-learned with the MTRR --> PAT conversion that set_memory_wc() cannot be used on
-IO memory, it can only be used for RAM. I am not sure if I would call it being
-broken that you cannot use set_memory_*() for IO memory that may have been by
-design.
+Well, it doesn't really make sense to write-combine IO memory, does it?
+My simplistic impression is that an IO range behind which there's a
+device, cannot stomach any caching of IO as all commands/data accesses
+need to happen as they get issued...
 
-  Luis
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
