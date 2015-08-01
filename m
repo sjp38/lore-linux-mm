@@ -1,101 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 277756B0038
-	for <linux-mm@kvack.org>; Sat,  1 Aug 2015 09:52:18 -0400 (EDT)
-Received: by pabkd10 with SMTP id kd10so57226404pab.2
-        for <linux-mm@kvack.org>; Sat, 01 Aug 2015 06:52:17 -0700 (PDT)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5157C6B0254
+	for <linux-mm@kvack.org>; Sat,  1 Aug 2015 09:53:14 -0400 (EDT)
+Received: by pachj5 with SMTP id hj5so57026549pac.3
+        for <linux-mm@kvack.org>; Sat, 01 Aug 2015 06:53:14 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id ek3si3415743pbd.51.2015.08.01.06.52.16
+        by mx.google.com with ESMTPS id t3si16886553pdf.232.2015.08.01.06.53.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 01 Aug 2015 06:52:16 -0700 (PDT)
-Received: from fsav309.sakura.ne.jp (fsav309.sakura.ne.jp [153.120.85.140])
-	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id t71DqE0G065396
-	for <linux-mm@kvack.org>; Sat, 1 Aug 2015 22:52:14 +0900 (JST)
+        Sat, 01 Aug 2015 06:53:13 -0700 (PDT)
+Received: from fsav206.sakura.ne.jp (fsav206.sakura.ne.jp [210.224.168.168])
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id t71DrAZC065658
+	for <linux-mm@kvack.org>; Sat, 1 Aug 2015 22:53:10 +0900 (JST)
 	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
 Received: from AQUA (softbank126074231104.bbtec.net [126.74.231.104])
 	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id t71DqD7N065393
-	for <linux-mm@kvack.org>; Sat, 1 Aug 2015 22:52:13 +0900 (JST)
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id t71DrAAf065655
+	for <linux-mm@kvack.org>; Sat, 1 Aug 2015 22:53:10 +0900 (JST)
 	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Subject: [PATCH 1/2] mm: Fix race between setting TIF_MEMDIE and __alloc_pages_high_priority().
+Subject: [PATCH 2/2] mm: Fix potentically scheduling in GFP_ATOMIC allocations.
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-Id: <201508012252.DHI57365.HOFOVSQMFOFtJL@I-love.SAKURA.ne.jp>
-Date: Sat, 1 Aug 2015 22:52:09 +0900
+Message-Id: <201508012253.JFI12317.SVtFHFFJOMQLOO@I-love.SAKURA.ne.jp>
+Date: Sat, 1 Aug 2015 22:53:06 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 
->From 4a3cf5be07a66cf3906a380e77ba5e2ac1b2b3d5 Mon Sep 17 00:00:00 2001
+>From 08a638e04351386ab03cd1223988ac7940d4d3aa Mon Sep 17 00:00:00 2001
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sat, 1 Aug 2015 22:39:30 +0900
-Subject: [PATCH 1/2] mm: Fix race between setting TIF_MEMDIE and
- __alloc_pages_high_priority().
+Date: Sat, 1 Aug 2015 22:46:12 +0900
+Subject: [PATCH 2/2] mm: Fix potentically scheduling in GFP_ATOMIC
+ allocations.
 
-Currently, TIF_MEMDIE is checked at gfp_to_alloc_flags() which is before
-calling __alloc_pages_high_priority() and at
-
-  /* Avoid allocations with no watermarks from looping endlessly */
-  if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-
-which is after returning from __alloc_pages_high_priority(). This means
-that if TIF_MEMDIE is set between returning from gfp_to_alloc_flags() and
-checking test_thread_flag(TIF_MEMDIE), the allocation can fail without
-calling __alloc_pages_high_priority(). We need to replace
-"test_thread_flag(TIF_MEMDIE)" with "whether TIF_MEMDIE was already set
-as of calling gfp_to_alloc_flags()" in order to close this race window.
-
-Since gfp_to_alloc_flags() includes ALLOC_NO_WATERMARKS for several cases,
-it will be more correct to replace "test_thread_flag(TIF_MEMDIE)" with
-"whether gfp_to_alloc_flags() included ALLOC_NO_WATERMARKS" because the
-purpose of test_thread_flag(TIF_MEMDIE) is to give up immediately if
-__alloc_pages_high_priority() failed.
-
-Note that we could simply do
-
-  if (alloc_flags & ALLOC_NO_WATERMARKS) {
-    ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
-    page = __alloc_pages_high_priority(gfp_mask, order, ac);
-    if (page)
-      goto got_pg;
-    WARN_ON_ONCE(!wait && (gfp_mask & __GFP_NOFAIL));
-    goto nopage;
-  }
-
-instead of changing to
-
-  if ((alloc_flags & ALLOC_NO_WATERMARKS) && !(gfp_mask & __GFP_NOFAIL))
-    goto nopage;
-
-if we can duplicate
+Currently, if somebody does GFP_ATOMIC | __GFP_NOFAIL allocation,
+wait_iff_congested() might be called via __alloc_pages_high_priority()
+before reaching
 
   if (!wait) {
     WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
     goto nopage;
   }
 
-.
+because gfp_to_alloc_flags() includes ALLOC_NO_WATERMARKS if TIF_MEMDIE
+was set.
+
+We need to check for __GFP_WAIT flag at __alloc_pages_high_priority()
+in order to make sure that we won't schedule.
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 ---
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/page_alloc.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4b220cb..37a0390 100644
+index 37a0390..f9f09fa 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3085,7 +3085,7 @@ retry:
- 		goto nopage;
+@@ -2917,16 +2917,15 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+ {
+ 	struct page *page;
  
- 	/* Avoid allocations with no watermarks from looping endlessly */
--	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-+	if ((alloc_flags & ALLOC_NO_WATERMARKS) && !(gfp_mask & __GFP_NOFAIL))
- 		goto nopage;
+-	do {
++	for (;;) {
+ 		page = get_page_from_freelist(gfp_mask, order,
+ 						ALLOC_NO_WATERMARKS, ac);
  
- 	/*
+-		if (!page && gfp_mask & __GFP_NOFAIL)
+-			wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC,
+-									HZ/50);
+-	} while (!page && (gfp_mask & __GFP_NOFAIL));
+-
+-	return page;
++		if (page || (gfp_mask & (__GFP_NOFAIL | __GFP_WAIT)) !=
++		    (__GFP_NOFAIL | __GFP_WAIT))
++			return page;
++		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
++	}
+ }
+ 
+ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
 -- 
 1.8.3.1
 
