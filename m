@@ -1,61 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C392C6B0264
-	for <linux-mm@kvack.org>; Mon,  3 Aug 2015 13:36:05 -0400 (EDT)
-Received: by qgeh16 with SMTP id h16so93251727qge.3
-        for <linux-mm@kvack.org>; Mon, 03 Aug 2015 10:36:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z14si17602551qhd.23.2015.08.03.10.36.04
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Aug 2015 10:36:04 -0700 (PDT)
-Date: Mon, 3 Aug 2015 19:33:58 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: vm_flags, vm_flags_t and __nocast
-Message-ID: <20150803173358.GA20243@redhat.com>
-References: <201507241628.EnDEXbaF%fengguang.wu@intel.com> <20150724100940.GB22732@node.dhcp.inet.fi> <alpine.DEB.2.10.1507241314300.5215@chino.kir.corp.google.com> <20150803155155.7F8546E@black.fi.intel.com>
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 69DDB280245
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2015 14:31:13 -0400 (EDT)
+Received: by iggf3 with SMTP id f3so61386658igg.1
+        for <linux-mm@kvack.org>; Mon, 03 Aug 2015 11:31:13 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0100.hostedemail.com. [216.40.44.100])
+        by mx.google.com with ESMTP id fm10si6621253igb.25.2015.08.03.11.31.12
+        for <linux-mm@kvack.org>;
+        Mon, 03 Aug 2015 11:31:12 -0700 (PDT)
+Date: Mon, 3 Aug 2015 14:31:09 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [RFC PATCH 09/14] ring_buffer: Initialize completions
+ statically in the benchmark
+Message-ID: <20150803143109.0b13925b@gandalf.local.home>
+In-Reply-To: <1438094371-8326-10-git-send-email-pmladek@suse.com>
+References: <1438094371-8326-1-git-send-email-pmladek@suse.com>
+	<1438094371-8326-10-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150803155155.7F8546E@black.fi.intel.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 08/03, Kirill A. Shutemov wrote:
->
-> Subject: [PATCH] mm: drop __nocast from vm_flags_t definition
->
-> __nocast does no good for vm_flags_t. It only produces useless sparse
-> warnings.
->
-> Let's drop it.
+On Tue, 28 Jul 2015 16:39:26 +0200
+Petr Mladek <pmladek@suse.com> wrote:
 
-Personally I like this change.
-
-I too see no value in this "__nocast".
-
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  include/linux/mm_types.h | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> It looks strange to initialize the completions repeatedly.
 > 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 1fb4e46a1736..b9134cc27c4d 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -226,7 +226,7 @@ struct page_frag {
->  #endif
->  };
->  
-> -typedef unsigned long __nocast vm_flags_t;
-> +typedef unsigned long vm_flags_t;
->  
->  /*
->   * A region containing a mapping of a non-memory backed file under NOMMU
-> -- 
-> 2.4.6
+> This patch uses static initialization. It simplifies the code
+> and even helps to get rid of two memory barriers.
+
+There was a reason I did it this way and did not use static
+initializers. But I can't recall why I did that. :-/
+
+I'll have to think about this some more.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
