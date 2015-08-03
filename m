@@ -1,76 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C5D96B0253
-	for <linux-mm@kvack.org>; Mon,  3 Aug 2015 16:56:13 -0400 (EDT)
-Received: by wibud3 with SMTP id ud3so151392765wib.1
-        for <linux-mm@kvack.org>; Mon, 03 Aug 2015 13:56:12 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id hw4si27855072wjb.135.2015.08.03.13.56.11
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D6ED6B0253
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2015 19:03:00 -0400 (EDT)
+Received: by pacgq8 with SMTP id gq8so34915766pac.3
+        for <linux-mm@kvack.org>; Mon, 03 Aug 2015 16:02:59 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id dk10si28973112pdb.35.2015.08.03.16.02.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Aug 2015 13:56:11 -0700 (PDT)
-Date: Mon, 3 Aug 2015 16:55:32 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/3] mm: make workingset detection logic memcg aware
-Message-ID: <20150803205532.GA19478@cmpxchg.org>
-References: <cover.1438599199.git.vdavydov@parallels.com>
- <9662034e14549b9e1445684f674063ce8b092cb0.1438599199.git.vdavydov@parallels.com>
- <20150803132358.GA18399@cmpxchg.org>
- <20150803135229.GA11971@esperanza>
+        Mon, 03 Aug 2015 16:02:59 -0700 (PDT)
+Received: by pawu10 with SMTP id u10so22817227paw.1
+        for <linux-mm@kvack.org>; Mon, 03 Aug 2015 16:02:58 -0700 (PDT)
+Date: Tue, 4 Aug 2015 08:02:49 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] vmscan: reclaim_clean_pages_from_list() must count
+ mlocked pages
+Message-ID: <20150803230237.GA19415@blaptop>
+References: <1438597107-18329-1-git-send-email-jaewon31.kim@samsung.com>
+ <20150803122509.GA29929@bgram>
+ <55BF80F2.2020602@samsung.com>
+ <20150803153333.GA31987@blaptop>
+ <55BF8CF1.4050309@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20150803135229.GA11971@esperanza>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <55BF8CF1.4050309@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jaewon Kim <jaewon31.kim@samsung.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
 
-On Mon, Aug 03, 2015 at 04:52:29PM +0300, Vladimir Davydov wrote:
-> On Mon, Aug 03, 2015 at 09:23:58AM -0400, Johannes Weiner wrote:
-> > On Mon, Aug 03, 2015 at 03:04:22PM +0300, Vladimir Davydov wrote:
-> > > @@ -179,8 +180,9 @@ static void unpack_shadow(void *shadow,
-> > >  	eviction = entry;
-> > >  
-> > >  	*zone = NODE_DATA(nid)->node_zones + zid;
-> > > +	*lruvec = mem_cgroup_page_lruvec(page, *zone);
-> > >  
-> > > -	refault = atomic_long_read(&(*zone)->inactive_age);
-> > > +	refault = atomic_long_read(&(*lruvec)->inactive_age);
-> > >  	mask = ~0UL >> (NODES_SHIFT + ZONES_SHIFT +
-> > >  			RADIX_TREE_EXCEPTIONAL_SHIFT);
-> > >  	/*
+Hello,
+
+On Tue, Aug 04, 2015 at 12:46:57AM +0900, Jaewon Kim wrote:
+> 
+> 
+> On 2015e?? 08i?? 04i? 1/4  00:33, Minchan Kim wrote:
+> > On Mon, Aug 03, 2015 at 11:55:46PM +0900, Jaewon Kim wrote:
+> >>
+> >>
+> >> On 2015e?? 08i?? 03i? 1/4  21:27, Minchan Kim wrote:
+> >>> Hello,
+> >>>
+> >>> On Mon, Aug 03, 2015 at 07:18:27PM +0900, Jaewon Kim wrote:
+> >>>> reclaim_clean_pages_from_list() decreases NR_ISOLATED_FILE by returned
+> >>>> value from shrink_page_list(). But mlocked pages in the isolated
+> >>>> clean_pages page list would be removed from the list but not counted as
+> >>>> nr_reclaimed. Fix this miscounting by returning the number of mlocked
+> >>>> pages and count it.
+> >>>
+> >>> If there are pages not able to reclaim, VM try to migrate it and
+> >>> have to handle the stat in migrate_pages.
+> >>> If migrate_pages fails again, putback-fiends should handle it.
+> >>>
+> >>> Is there anyting I am missing now?
+> >>>
+> >>> Thanks.
+> >>>
+> >> Hello
+> >>
+> >> Only pages in cc->migratepages will be handled by migrate_pages or
+> >> putback_movable_pages, and NR_ISOLATED_FILE will be counted properly.
+> >> However mlocked pages will not be put back into cc->migratepages,
+> >> and also not be counted in NR_ISOLATED_FILE because putback_lru_page
+> >> in shrink_page_list does not increase NR_ISOLATED_FILE.
+> >> The current reclaim_clean_pages_from_list assumes that shrink_page_list
+> >> returns number of pages removed from the candidate list.
+> >>
+> >> i.e)
+> >> isolate_migratepages_range    : NR_ISOLATED_FILE += 10
+> >> reclaim_clean_pages_from_list : NR_ISOLATED_FILE -= 5 (1 mlocked page)
+> >> migrate_pages                 : NR_ISOLATED_FILE -=4
+> >> => NR_ISOLATED_FILE increased by 1
 > > 
-> > You can not compare an eviction shadow entry from one lruvec with the
-> > inactive age of another lruvec. The inactive ages are not related and
-> > might differ significantly: memcgs are created ad hoc, memory hotplug,
-> > page allocator fairness drift. In those cases the result will be pure
-> > noise.
+> > Thanks for the clarity.
+> > 
+> > I think the problem is shrink_page_list is awkard. It put back to
+> > unevictable pages instantly instead of passing it to caller while
+> > it relies on caller for non-reclaimed-non-unevictable page's putback.
+> > 
+> > I think we can make it consistent so that shrink_page_list could
+> > return non-reclaimed pages via page_list and caller can handle it.
+> > As a bonus, it could try to migrate mlocked pages without retrial.
+> > 
+> >>
+> >> Thank you.
 > 
-> That's true. If a page is evicted in one cgroup and then refaulted in
-> another, the activation will be random. However, is it a frequent event
-> when a page used by and evicted from one cgroup is refaulted in another?
-> If there is no active file sharing (is it common?), this should only
-> happen to code pages, but those will most likely end up in the cgroup
-> that has the greatest limit, so they shouldn't be evicted and refaulted
-> frequently. So the question is can we tolerate some noise here?
-
-It's not just the memcg, it's also the difference between zones
-themselves.
-
-> > As much as I would like to see a simpler way, I am pessimistic that
-> > there is a way around storing memcg ids in the shadow entries.
+> To make clear do you mean changing shrink_page_list like this rather than
+> previous my suggestion?
 > 
-> On 32 bit there is too little space for storing memcg id. We can shift
-> the distance so that it would fit and still contain something meaningful
-> though, but that would take much more code, so I'm trying to try the
-> simplest way first.
+> @@ -1157,7 +1157,7 @@ cull_mlocked:
+>                 if (PageSwapCache(page))
+>                         try_to_free_swap(page);
+>                 unlock_page(page);
+> -               putback_lru_page(page);
+> +               list_add(&page->lru, &ret_pages);
+>                 continue;
 
-It should be easy to trim quite a few bits from the timestamp, both in
-terms of available memory as well as in terms of distance granularity.
-We probably don't care if the refault distance is only accurate to say
-2MB, and how many pages do we have to represent on 32-bit in the first
-place? Once we trim that, we should be able to fit a CSS ID.
+Yes. That's what I said.
+
+Thanks.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
