@@ -1,179 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id BC4496B0253
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 04:05:53 -0400 (EDT)
-Received: by pasy3 with SMTP id y3so2407008pas.2
-        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 01:05:53 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id zr6si555369pac.3.2015.08.04.01.05.52
-        for <linux-mm@kvack.org>;
-        Tue, 04 Aug 2015 01:05:52 -0700 (PDT)
-Subject: Re: [PATCH 1/5] x86, gfp: Cache best near node for memory allocation.
-References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
- <1436261425-29881-2-git-send-email-tangchen@cn.fujitsu.com>
- <20150715214802.GL15934@mtj.duckdns.org> <55C03332.2030808@cn.fujitsu.com>
-From: Jiang Liu <jiang.liu@linux.intel.com>
-Message-ID: <55C0725B.80201@linux.intel.com>
-Date: Tue, 4 Aug 2015 16:05:47 +0800
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F9F16B0253
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 04:13:49 -0400 (EDT)
+Received: by labsr2 with SMTP id sr2so1835698lab.2
+        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 01:13:48 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id n5si149161laf.168.2015.08.04.01.13.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Aug 2015 01:13:47 -0700 (PDT)
+Date: Tue, 4 Aug 2015 11:13:29 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 2/3] mm: make workingset detection logic memcg aware
+Message-ID: <20150804081329.GB11971@esperanza>
+References: <cover.1438599199.git.vdavydov@parallels.com>
+ <9662034e14549b9e1445684f674063ce8b092cb0.1438599199.git.vdavydov@parallels.com>
+ <20150803132358.GA18399@cmpxchg.org>
+ <20150803135229.GA11971@esperanza>
+ <20150803205532.GA19478@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <55C03332.2030808@cn.fujitsu.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150803205532.GA19478@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>
-Cc: mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, laijs@cn.fujitsu.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2015/8/4 11:36, Tang Chen wrote:
-> Hi TJ,
+On Mon, Aug 03, 2015 at 04:55:32PM -0400, Johannes Weiner wrote:
+> On Mon, Aug 03, 2015 at 04:52:29PM +0300, Vladimir Davydov wrote:
+> > On Mon, Aug 03, 2015 at 09:23:58AM -0400, Johannes Weiner wrote:
+> > > On Mon, Aug 03, 2015 at 03:04:22PM +0300, Vladimir Davydov wrote:
+> > > > @@ -179,8 +180,9 @@ static void unpack_shadow(void *shadow,
+> > > >  	eviction = entry;
+> > > >  
+> > > >  	*zone = NODE_DATA(nid)->node_zones + zid;
+> > > > +	*lruvec = mem_cgroup_page_lruvec(page, *zone);
+> > > >  
+> > > > -	refault = atomic_long_read(&(*zone)->inactive_age);
+> > > > +	refault = atomic_long_read(&(*lruvec)->inactive_age);
+> > > >  	mask = ~0UL >> (NODES_SHIFT + ZONES_SHIFT +
+> > > >  			RADIX_TREE_EXCEPTIONAL_SHIFT);
+> > > >  	/*
+> > > 
+> > > You can not compare an eviction shadow entry from one lruvec with the
+> > > inactive age of another lruvec. The inactive ages are not related and
+> > > might differ significantly: memcgs are created ad hoc, memory hotplug,
+> > > page allocator fairness drift. In those cases the result will be pure
+> > > noise.
+> > 
+> > That's true. If a page is evicted in one cgroup and then refaulted in
+> > another, the activation will be random. However, is it a frequent event
+> > when a page used by and evicted from one cgroup is refaulted in another?
+> > If there is no active file sharing (is it common?), this should only
+> > happen to code pages, but those will most likely end up in the cgroup
+> > that has the greatest limit, so they shouldn't be evicted and refaulted
+> > frequently. So the question is can we tolerate some noise here?
 > 
-> Sorry for the late reply.
-> 
-> On 07/16/2015 05:48 AM, Tejun Heo wrote:
->> ......
->> so in initialization pharse makes no sense any more. The best near online
->> node for each cpu should be cached somewhere.
->> I'm not really following.  Is this because the now offline node can
->> later come online and we'd have to break the constant mapping
->> invariant if we update the mapping later?  If so, it'd be nice to
->> spell that out.
-> 
-> Yes. Will document this in the next version.
-> 
->>> ......
->>>   +int get_near_online_node(int node)
->>> +{
->>> +    return per_cpu(x86_cpu_to_near_online_node,
->>> +               cpumask_first(&node_to_cpuid_mask_map[node]));
->>> +}
->>> +EXPORT_SYMBOL(get_near_online_node);
->> Umm... this function is sitting on a fairly hot path and scanning a
->> cpumask each time.  Why not just build a numa node -> numa node array?
-> 
-> Indeed. Will avoid to scan a cpumask.
-> 
->> ......
->>
->>>     static inline struct page *alloc_pages_exact_node(int nid, gfp_t
->>> gfp_mask,
->>>                           unsigned int order)
->>>   {
->>> -    VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
->>> +    VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
->>> +
->>> +#if IS_ENABLED(CONFIG_X86) && IS_ENABLED(CONFIG_NUMA)
->>> +    if (!node_online(nid))
->>> +        nid = get_near_online_node(nid);
->>> +#endif
->>>         return __alloc_pages(gfp_mask, order, node_zonelist(nid,
->>> gfp_mask));
->>>   }
->> Ditto.  Also, what's the synchronization rules for NUMA node
->> on/offlining.  If you end up updating the mapping later, how would
->> that be synchronized against the above usages?
-> 
-> I think the near online node map should be updated when node online/offline
-> happens. But about this, I think the current numa code has a little
-> problem.
-> 
-> As you know, firmware info binds a set of CPUs and memory to a node. But
-> at boot time, if the node has no memory (a memory-less node) , it won't
-> be online.
-> But the CPUs on that node is available, and bound to the near online node.
-> (Here, I mean numa_set_node(cpu, node).)
-> 
-> Why does the kernel do this ? I think it is used to ensure that we can
-> allocate memory
-> successfully by calling functions like alloc_pages_node() and
-> alloc_pages_exact_node().
-> By these two fuctions, any CPU should be bound to a node who has memory
-> so that
-> memory allocation can be successful.
-> 
-> That means, for a memory-less node at boot time, CPUs on the node is
-> online,
-> but the node is not online.
-> 
-> That also means, "the node is online" equals to "the node has memory".
-> Actually, there
-> are a lot of code in the kernel is using this rule.
-> 
-> 
-> But,
-> 1) in cpu_up(), it will try to online a node, and it doesn't check if
-> the node has memory.
-> 2) in try_offline_node(), it offlines CPUs first, and then the memory.
-> 
-> This behavior looks a little wired, or let's say it is ambiguous. It
-> seems that a NUMA node
-> consists of CPUs and memory. So if the CPUs are online, the node should
-> be online.
-Hi Chen,
-	I have posted a patch set to enable memoryless node on x86,
-will repost it for review:) Hope it help to solve this issue.
-Thanks!
-Gerry
+> It's not just the memcg, it's also the difference between zones
+> themselves.
+
+But I do take into account the difference between zones in this patch -
+zone and node ids are still stored in a shadow entry. I only neglect
+memcg id. So if a page is refaulted in another zone within the same
+cgroup, its refault distance will be calculated correctly. We only get
+noise in case of a page refaulted from a different cgroup.
 
 > 
-> And also,
-> The main purpose of this patch-set is to make the cpuid <-> nodeid
-> mapping persistent.
-> After this patch-set, alloc_pages_node() and alloc_pages_exact_node()
-> won't depend on
-> cpuid <-> nodeid mapping any more. So the node should be online if the
-> CPUs on it are
-> online. Otherwise, we cannot setup interfaces of CPUs under /sys.
+> > > As much as I would like to see a simpler way, I am pessimistic that
+> > > there is a way around storing memcg ids in the shadow entries.
+> > 
+> > On 32 bit there is too little space for storing memcg id. We can shift
+> > the distance so that it would fit and still contain something meaningful
+> > though, but that would take much more code, so I'm trying to try the
+> > simplest way first.
 > 
-> 
-> Unfortunately, since I don't have a machine a with memory-less node, I
-> cannot reproduce
-> the problem right now.
-> 
-> How do you think the node online behavior should be changed ?
-> 
-> Thanks.
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> -- 
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> It should be easy to trim quite a few bits from the timestamp, both in
+> terms of available memory as well as in terms of distance granularity.
+> We probably don't care if the refault distance is only accurate to say
+> 2MB, and how many pages do we have to represent on 32-bit in the first
+> place? Once we trim that, we should be able to fit a CSS ID.
+
+NODES_SHIFT <= 10, ZONES_SHIFT == 2, RADIX_TREE_EXCEPTIONAL_SHIFT == 2
+
+And we need 16 bit for storing memcg id, so there are only 2 bits left.
+Even with 2MB accuracy, it gives us the maximal refault distance of 6MB
+:-(
+
+However, I doubt there is a 32 bit host with 1024 NUMA nodes. Can we
+possibly limit this config option on 32 bit architectures?
+
+Or may be we can limit the number of cgroups to say 1024 if running on
+32 bit? This would allow us to win 6 more bits, so that the maximal
+refault distance would be 512MB with the accuracy of 2MB. But can we be
+sure this won't brake anyone's setup, especially counting that cgroups
+can be zombieing around for a while after rmdir?
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
