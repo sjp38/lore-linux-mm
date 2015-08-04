@@ -1,130 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 7888C6B0253
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 03:42:51 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so11448655wib.1
-        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 00:42:50 -0700 (PDT)
-Received: from mail1.protonmail.ch (mail1.protonmail.ch. [185.70.40.18])
-        by mx.google.com with ESMTPS id fh6si1191963wib.59.2015.08.04.00.42.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Aug 2015 00:42:49 -0700 (PDT)
-Subject: Re: ========== Re: RAM encryption and key storing in CPU ==========
-Date: Tue, 4 Aug 2015 03:42:48 -0400
-From: ngabor <ngabor@protonmail.ch>
-Reply-To: ngabor <ngabor@protonmail.ch>
-Message-ID: <727c3b99a3851cb44b5c9e5f4c64938b@protonmail.ch>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BC4496B0253
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 04:05:53 -0400 (EDT)
+Received: by pasy3 with SMTP id y3so2407008pas.2
+        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 01:05:53 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id zr6si555369pac.3.2015.08.04.01.05.52
+        for <linux-mm@kvack.org>;
+        Tue, 04 Aug 2015 01:05:52 -0700 (PDT)
+Subject: Re: [PATCH 1/5] x86, gfp: Cache best near node for memory allocation.
+References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1436261425-29881-2-git-send-email-tangchen@cn.fujitsu.com>
+ <20150715214802.GL15934@mtj.duckdns.org> <55C03332.2030808@cn.fujitsu.com>
+From: Jiang Liu <jiang.liu@linux.intel.com>
+Message-ID: <55C0725B.80201@linux.intel.com>
+Date: Tue, 4 Aug 2015 16:05:47 +0800
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="b1_727c3b99a3851cb44b5c9e5f4c64938b"
+In-Reply-To: <55C03332.2030808@cn.fujitsu.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>
+Cc: mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, laijs@cn.fujitsu.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This is a multi-part message in MIME format.
+On 2015/8/4 11:36, Tang Chen wrote:
+> Hi TJ,
+> 
+> Sorry for the late reply.
+> 
+> On 07/16/2015 05:48 AM, Tejun Heo wrote:
+>> ......
+>> so in initialization pharse makes no sense any more. The best near online
+>> node for each cpu should be cached somewhere.
+>> I'm not really following.  Is this because the now offline node can
+>> later come online and we'd have to break the constant mapping
+>> invariant if we update the mapping later?  If so, it'd be nice to
+>> spell that out.
+> 
+> Yes. Will document this in the next version.
+> 
+>>> ......
+>>>   +int get_near_online_node(int node)
+>>> +{
+>>> +    return per_cpu(x86_cpu_to_near_online_node,
+>>> +               cpumask_first(&node_to_cpuid_mask_map[node]));
+>>> +}
+>>> +EXPORT_SYMBOL(get_near_online_node);
+>> Umm... this function is sitting on a fairly hot path and scanning a
+>> cpumask each time.  Why not just build a numa node -> numa node array?
+> 
+> Indeed. Will avoid to scan a cpumask.
+> 
+>> ......
+>>
+>>>     static inline struct page *alloc_pages_exact_node(int nid, gfp_t
+>>> gfp_mask,
+>>>                           unsigned int order)
+>>>   {
+>>> -    VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
+>>> +    VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
+>>> +
+>>> +#if IS_ENABLED(CONFIG_X86) && IS_ENABLED(CONFIG_NUMA)
+>>> +    if (!node_online(nid))
+>>> +        nid = get_near_online_node(nid);
+>>> +#endif
+>>>         return __alloc_pages(gfp_mask, order, node_zonelist(nid,
+>>> gfp_mask));
+>>>   }
+>> Ditto.  Also, what's the synchronization rules for NUMA node
+>> on/offlining.  If you end up updating the mapping later, how would
+>> that be synchronized against the above usages?
+> 
+> I think the near online node map should be updated when node online/offline
+> happens. But about this, I think the current numa code has a little
+> problem.
+> 
+> As you know, firmware info binds a set of CPUs and memory to a node. But
+> at boot time, if the node has no memory (a memory-less node) , it won't
+> be online.
+> But the CPUs on that node is available, and bound to the near online node.
+> (Here, I mean numa_set_node(cpu, node).)
+> 
+> Why does the kernel do this ? I think it is used to ensure that we can
+> allocate memory
+> successfully by calling functions like alloc_pages_node() and
+> alloc_pages_exact_node().
+> By these two fuctions, any CPU should be bound to a node who has memory
+> so that
+> memory allocation can be successful.
+> 
+> That means, for a memory-less node at boot time, CPUs on the node is
+> online,
+> but the node is not online.
+> 
+> That also means, "the node is online" equals to "the node has memory".
+> Actually, there
+> are a lot of code in the kernel is using this rule.
+> 
+> 
+> But,
+> 1) in cpu_up(), it will try to online a node, and it doesn't check if
+> the node has memory.
+> 2) in try_offline_node(), it offlines CPUs first, and then the memory.
+> 
+> This behavior looks a little wired, or let's say it is ambiguous. It
+> seems that a NUMA node
+> consists of CPUs and memory. So if the CPUs are online, the node should
+> be online.
+Hi Chen,
+	I have posted a patch set to enable memoryless node on x86,
+will repost it for review:) Hope it help to solve this issue.
+Thanks!
+Gerry
 
---b1_727c3b99a3851cb44b5c9e5f4c64938b
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
-
-SGFsbG8/CgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDogPT09
-PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVSA9PT09PT09
-PT09CgpUaW1lIChHTVQpOiBKdW4gMjMgMjAxNSAwNDo0MjozNAoKRnJvbTogbmdhYm9yQHByb3Rv
-bm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBo
-dWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZwoKCgpJcyBh
-bnlib2R5IHJlYWRpbmcgdGhpcz8KCgotLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0t
-CgpTdWJqZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVQoKVGlt
-ZSAoR01UKTogSnVuIDE5IDIwMTUgMTc6MjI6NDkKCkZyb206IG5nYWJvckBwcm90b25tYWlsLmNo
-CgpUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNv
-bSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmcKCgoKSGFsbG8/IDopCgoK
-LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDogUmU6IFJBTSBlbmNy
-eXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUKClRpbWUgKEdNVCk6IE1heSAyMyAyMDE1IDA5
-OjAxOjI2CgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaAoKVG86IGxpbnV4LW1tQGt2YWNrLm9y
-ZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxp
-bnV4LWZvdW5kYXRpb24ub3JnCgoKCkFueSBjb21tZW50cz8KCgotLS0tLS0tLSBPcmlnaW5hbCBN
-ZXNzYWdlIC0tLS0tLS0tCgpTdWJqZWN0OiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3Jpbmcg
-aW4gQ1BVCgpUaW1lIChHTVQpOiBNYXkgMjEgMjAxNSAxMDoxNzoyNQoKRnJvbTogbmdhYm9yQHBy
-b3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZh
-bkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZwoKCgpI
-ZWxsbywKCgoKPT09PT09PT09PQoKUHJvYmxlbToKCgoKRXZlcnl0aGluZyBpcyBzdG9yZWQgaW4g
-cGxhaW50ZXh0IGluIHRoZSBNZW1vcnkuCgoKClNvIGlmIGFsdGhvdWdoIGZ1bGwgZGlzYyBlbmNy
-eXB0aW9uIGlzIHVzZWQgb24gYSBMaW51eCBEZXNrdG9wLCBpdCBpcyBwb3NzaWJsZSB0byBjb3B5
-IHRoZSBjb250ZW50IG9mIHRoZSBtZW1vcnksIHdoaWxlIHRoZSBub3RlYm9vayB3YXMgb24gc3Vz
-cGVuZCBvciBpdCB3YXMgcnVubmluZzoKCgoKaHR0cHM6Ly9jaXRwLnByaW5jZXRvbi5lZHUvcmVz
-ZWFyY2gvbWVtb3J5L21lZGlhLwoKCgo9PT09PT09PT09CgpTb2x1dGlvbjoKCgoKQ2FuIHdlIChv
-cHRpb25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5IGFuZCBzdG9yZSB0
-aGUga2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4gZ2VuZXJhbCB0aGVz
-ZSBraW5kIG9mIGF0dGFja3M/CgoKCmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdl
-bi5kZS90cmVzb3IKCgoKSXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5IGluIHRoZSBMaW51eCBrZXJu
-ZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVybiBpdCBvbj8gSWYgbm8sIGhv
-dyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5saW5lPyBXaGF0IGFyZSB0aGUg
-YXJndW1lbnRzIGFnYWluc3QgaXQ/CgoKCippZiBzb21lb25lIHdvdWxkIHdhbnQgdG8gaGFyZGVu
-IGl0J3MgTGludXggRGVza3RvcCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJlIHN0b2xlbi4uKSBp
-dCBjb3VsZCB0dXJuIG9uIHRoaXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGljeSB0byBhbHdheXMg
-dHVybiBvZmYgdGhlIG5vdGVib29rIHdoaWxlIG5vdCB1c2luZyBpdC4KCgoKVGhhbmsgeW91IGZv
-ciB5b3VyIGNvbW1lbnRzLg==
-
-
---b1_727c3b99a3851cb44b5c9e5f4c64938b
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: base64
-
-PGRpdj5IYWxsbz8gPGJyPjwvZGl2PjxibG9ja3F1b3RlPjxkaXY+LS0tLS0tLS0gT3JpZ2luYWwg
-TWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1YmplY3Q6ID09PT09PT09PT0gUmU6IFJB
-TSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUgPT09PT09PT09PTxicj48L2Rpdj48
-ZGl2PlRpbWUgKEdNVCk6IEp1biAyMyAyMDE1IDA0OjQyOjM0PGJyPjwvZGl2PjxkaXY+RnJvbTog
-bmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3Jn
-LCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGlu
-dXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5JcyBhbnlib2R5
-IHJlYWRpbmcgdGhpcz8gPGJyPjwvZGl2PjxibG9ja3F1b3RlPjxkaXY+LS0tLS0tLS0gT3JpZ2lu
-YWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1YmplY3Q6IFJlOiBSQU0gZW5jcnlw
-dGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2PjxkaXY+VGltZSAoR01UKTogSnVu
-IDE5IDIwMTUgMTc6MjI6NDk8YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5j
-aDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6
-ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxi
-cj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkhhbGxvPyA6KTxicj48L2Rpdj48YmxvY2txdW90
-ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5T
-dWJqZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVTxicj48L2Rp
-dj48ZGl2PlRpbWUgKEdNVCk6IE1heSAyMyAyMDE1IDA5OjAxOjI2PGJyPjwvZGl2PjxkaXY+RnJv
-bTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2su
-b3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xA
-bGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5BbnkgY29t
-bWVudHM/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3Nh
-Z2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5
-IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2PjxkaXY+VGltZSAoR01UKTogTWF5IDIxIDIwMTUgMTA6
-MTc6MjU8YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48
-ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWku
-Y29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2
-Pjxicj48L2Rpdj48ZGl2PkhlbGxvLCA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj49PT09
-PT09PT09PGJyPjwvZGl2PjxkaXY+PGI+UHJvYmxlbTwvYj46IDxicj48L2Rpdj48ZGl2Pjxicj48
-L2Rpdj48ZGl2PkV2ZXJ5dGhpbmcgaXMgc3RvcmVkIGluIHBsYWludGV4dCBpbiB0aGUgTWVtb3J5
-LiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5TbyBpZiBhbHRob3VnaCBmdWxsIGRpc2Mg
-ZW5jcnlwdGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3RvcCwgaXQgaXMgcG9zc2libGUgdG8g
-Y29weSB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGlsZSB0aGUgbm90ZWJvb2sgd2FzIG9u
-IHN1c3BlbmQgb3IgaXQgd2FzIHJ1bm5pbmc6IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2
-PjxhIGhyZWY9Imh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNoL21lbW9yeS9tZWRp
-YS8iPmh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNoL21lbW9yeS9tZWRpYS88L2E+
-PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+PT09PT09PT09PTxicj48L2Rpdj48ZGl2Pjxi
-PlNvbHV0aW9uPC9iPjogPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+Q2FuIHdlIChvcHRp
-b25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5IGFuZCBzdG9yZSB0aGUg
-a2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4gZ2VuZXJhbCB0aGVzZSBr
-aW5kIG9mIGF0dGFja3M/IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PjxhIGhyZWY9Imh0
-dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVzb3IiPmh0dHBzOi8vd3d3
-MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVzb3I8L2E+PGJyPjwvZGl2PjxkaXY+PGJy
-PjwvZGl2PjxkaXY+SXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5IGluIHRoZSBMaW51eCBrZXJuZWw/
-IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVybiBpdCBvbj8gSWYgbm8sIGhvdyBj
-YW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5saW5lPyBXaGF0IGFyZSB0aGUgYXJn
-dW1lbnRzIGFnYWluc3QgaXQ/IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PippZiBzb21l
-b25lIHdvdWxkIHdhbnQgdG8gaGFyZGVuIGl0J3MgTGludXggRGVza3RvcCAoc2luY2Ugbm90ZWJv
-b2tzIGNvdWxkIGJlIHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJuIG9uIHRoaXMgZmVhdHVyZSB0byBh
-dm9pZCBhIHBvbGljeSB0byBhbHdheXMgdHVybiBvZmYgdGhlIG5vdGVib29rIHdoaWxlIG5vdCB1
-c2luZyBpdC4gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+VGhhbmsgeW91IGZvciB5b3Vy
-IGNvbW1lbnRzLiA8YnI+PC9kaXY+PC9ibG9ja3F1b3RlPjwvYmxvY2txdW90ZT48L2Jsb2NrcXVv
-dGU+PC9ibG9ja3F1b3RlPg==
-
-
-
---b1_727c3b99a3851cb44b5c9e5f4c64938b--
+> 
+> And also,
+> The main purpose of this patch-set is to make the cpuid <-> nodeid
+> mapping persistent.
+> After this patch-set, alloc_pages_node() and alloc_pages_exact_node()
+> won't depend on
+> cpuid <-> nodeid mapping any more. So the node should be online if the
+> CPUs on it are
+> online. Otherwise, we cannot setup interfaces of CPUs under /sys.
+> 
+> 
+> Unfortunately, since I don't have a machine a with memory-less node, I
+> cannot reproduce
+> the problem right now.
+> 
+> How do you think the node online behavior should be changed ?
+> 
+> Thanks.
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> -- 
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
