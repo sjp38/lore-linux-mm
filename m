@@ -1,177 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id AD9B86B0253
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 00:00:32 -0400 (EDT)
-Received: by qgab18 with SMTP id b18so1702526qga.2
-        for <linux-mm@kvack.org>; Mon, 03 Aug 2015 21:00:32 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 79si10903418qgg.88.2015.08.03.21.00.30
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 187086B0253
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 01:28:05 -0400 (EDT)
+Received: by pasy3 with SMTP id y3so31504559pas.2
+        for <linux-mm@kvack.org>; Mon, 03 Aug 2015 22:28:04 -0700 (PDT)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id yo7si30608501pac.224.2015.08.03.22.28.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Aug 2015 21:00:31 -0700 (PDT)
-Subject: Re: [PATCH 1/3] Reverted "selftests: add hugetlbfstest"
-References: <1438304393-30413-1-git-send-email-mike.kravetz@oracle.com>
- <1438304393-30413-2-git-send-email-mike.kravetz@oracle.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <55C0382B.4010608@oracle.com>
-Date: Mon, 3 Aug 2015 20:57:31 -0700
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Aug 2015 22:28:03 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t745S0DV017300
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Tue, 4 Aug 2015 14:28:00 +0900 (JST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] smaps: fill missing fields for vma(VM_HUGETLB)
+Date: Tue, 4 Aug 2015 05:13:39 +0000
+Message-ID: <20150804051339.GA24931@hori1.linux.bs1.fc.nec.co.jp>
+References: <55B6BE37.3010804@oracle.com>
+ <20150728183248.GB1406@Sligo.logfs.org> <55B7F0F8.8080909@oracle.com>
+ <alpine.DEB.2.10.1507281509420.23577@chino.kir.corp.google.com>
+ <20150728222654.GA28456@Sligo.logfs.org>
+ <alpine.DEB.2.10.1507281622470.10368@chino.kir.corp.google.com>
+ <20150729005332.GB17938@Sligo.logfs.org>
+ <alpine.DEB.2.10.1507291205590.24373@chino.kir.corp.google.com>
+ <55B95FDB.1000801@oracle.com>
+ <20150804025530.GA13210@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20150804025530.GA13210@hori1.linux.bs1.fc.nec.co.jp>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <D702EB50A1EE8E4AB3996A1307D939AE@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <1438304393-30413-2-git-send-email-mike.kravetz@oracle.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, joern@purestorage.com
-Cc: Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Rebased as suggested by Naoya Horiguch
-
-This manually reverts 7e50533d4b84289e4f01de56d6f98e9c64e2229e
-
-The hugetlbfstest test depends on hugetlb pages being counted
-in a task's rss.  This functionality is not in the kernel, so
-the test will always fail.  Remove test to avoid confusion.
-
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
-  tools/testing/selftests/vm/Makefile        |  1 -
-  tools/testing/selftests/vm/hugetlbfstest.c | 86 
-------------------------------
-  tools/testing/selftests/vm/run_vmtests     | 11 ----
-  3 files changed, 98 deletions(-)
-  delete mode 100644 tools/testing/selftests/vm/hugetlbfstest.c
-
-diff --git a/tools/testing/selftests/vm/Makefile 
-b/tools/testing/selftests/vm/Makefile
-index 2da6608..bb888c6 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -4,7 +4,6 @@ CFLAGS = -Wall
-  BINARIES = compaction_test
-  BINARIES += hugepage-mmap
-  BINARIES += hugepage-shm
--BINARIES += hugetlbfstest
-  BINARIES += map_hugetlb
-  BINARIES += mlock2-tests
-  BINARIES += on-fault-limit
-diff --git a/tools/testing/selftests/vm/hugetlbfstest.c 
-b/tools/testing/selftests/vm/hugetlbfstest.c
-deleted file mode 100644
-index 02e1072..0000000
---- a/tools/testing/selftests/vm/hugetlbfstest.c
-+++ /dev/null
-@@ -1,86 +0,0 @@
--#define _GNU_SOURCE
--#include <assert.h>
--#include <fcntl.h>
--#include <stdio.h>
--#include <stdlib.h>
--#include <string.h>
--#include <sys/mman.h>
--#include <sys/stat.h>
--#include <sys/types.h>
--#include <unistd.h>
--
--typedef unsigned long long u64;
--
--static size_t length = 1 << 24;
--
--static u64 read_rss(void)
--{
--	char buf[4096], *s = buf;
--	int i, fd;
--	u64 rss;
--
--	fd = open("/proc/self/statm", O_RDONLY);
--	assert(fd > 2);
--	memset(buf, 0, sizeof(buf));
--	read(fd, buf, sizeof(buf) - 1);
--	for (i = 0; i < 1; i++)
--		s = strchr(s, ' ') + 1;
--	rss = strtoull(s, NULL, 10);
--	return rss << 12; /* assumes 4k pagesize */
--}
--
--static void do_mmap(int fd, int extra_flags, int unmap)
--{
--	int *p;
--	int flags = MAP_PRIVATE | MAP_POPULATE | extra_flags;
--	u64 before, after;
--	int ret;
--
--	before = read_rss();
--	p = mmap(NULL, length, PROT_READ | PROT_WRITE, flags, fd, 0);
--	assert(p != MAP_FAILED ||
--			!"mmap returned an unexpected error");
--	after = read_rss();
--	assert(llabs(after - before - length) < 0x40000 ||
--			!"rss didn't grow as expected");
--	if (!unmap)
--		return;
--	ret = munmap(p, length);
--	assert(!ret || !"munmap returned an unexpected error");
--	after = read_rss();
--	assert(llabs(after - before) < 0x40000 ||
--			!"rss didn't shrink as expected");
--}
--
--static int open_file(const char *path)
--{
--	int fd, err;
--
--	unlink(path);
--	fd = open(path, O_CREAT | O_RDWR | O_TRUNC | O_EXCL
--			| O_LARGEFILE | O_CLOEXEC, 0600);
--	assert(fd > 2);
--	unlink(path);
--	err = ftruncate(fd, length);
--	assert(!err);
--	return fd;
--}
--
--int main(void)
--{
--	int hugefd, fd;
--
--	fd = open_file("/dev/shm/hugetlbhog");
--	hugefd = open_file("/hugepages/hugetlbhog");
--
--	system("echo 100 > /proc/sys/vm/nr_hugepages");
--	do_mmap(-1, MAP_ANONYMOUS, 1);
--	do_mmap(fd, 0, 1);
--	do_mmap(-1, MAP_ANONYMOUS | MAP_HUGETLB, 1);
--	do_mmap(hugefd, 0, 1);
--	do_mmap(hugefd, MAP_HUGETLB, 1);
--	/* Leak the last one to test do_exit() */
--	do_mmap(-1, MAP_ANONYMOUS | MAP_HUGETLB, 0);
--	printf("oll korrekt.\n");
--	return 0;
--}
-diff --git a/tools/testing/selftests/vm/run_vmtests 
-b/tools/testing/selftests/vm/run_vmtests
-index 231174a..b7ae2b6 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -76,17 +76,6 @@ else
-  fi
-
-  echo "--------------------"
--echo "running hugetlbfstest"
--echo "--------------------"
--./hugetlbfstest
--if [ $? -ne 0 ]; then
--	echo "[FAIL]"
--	exitcode=1
--else
--	echo "[PASS]"
--fi
--
--echo "--------------------"
-  echo "running userfaultfd"
-  echo "--------------------"
-  ./userfaultfd 128 32
--- 
-2.4.3
+T24gVHVlLCBBdWcgMDQsIDIwMTUgYXQgMDI6NTU6MzBBTSArMDAwMCwgTmFveWEgSG9yaWd1Y2hp
+IHdyb3RlOg0KPiBPbiBXZWQsIEp1bCAyOSwgMjAxNSBhdCAwNDoyMDo1OVBNIC0wNzAwLCBNaWtl
+IEtyYXZldHogd3JvdGU6DQo+ID4gT24gMDcvMjkvMjAxNSAxMjowOCBQTSwgRGF2aWQgUmllbnRq
+ZXMgd3JvdGU6DQo+ID4gPk9uIFR1ZSwgMjggSnVsIDIwMTUsIErDtnJuIEVuZ2VsIHdyb3RlOg0K
+PiA+ID4NCj4gPiA+PldlbGwsIHdlIGRlZmluaXRlbHkgbmVlZCBzb21ldGhpbmcuICBIYXZpbmcg
+YSAxMDBHQiBwcm9jZXNzIHNob3cgM0dCIG9mDQo+ID4gPj5yc3MgaXMgbm90IHZlcnkgdXNlZnVs
+LiAgSG93IHdvdWxkIHdlIG5vdGljZSBhIG1lbW9yeSBsZWFrIGlmIGl0IG9ubHkNCj4gPiA+PmFm
+ZmVjdHMgaHVnZXBhZ2VzLCBmb3IgZXhhbXBsZT8NCj4gPiA+Pg0KPiA+ID4NCj4gPiA+U2luY2Ug
+dGhlIGh1Z2V0bGIgcG9vbCBpcyBhIGdsb2JhbCByZXNvdXJjZSwgaXQgd291bGQgYWxzbyBiZSBo
+ZWxwZnVsIHRvDQo+ID4gPmRldGVybWluZSBpZiBhIHByb2Nlc3MgaXMgbWFwcGluZyBtb3JlIHRo
+YW4gZXhwZWN0ZWQuICBZb3UgY2FuJ3QgZG8gdGhhdA0KPiA+ID5qdXN0IGJ5IGFkZGluZyBhIGh1
+Z2UgcnNzIG1ldHJpYywgaG93ZXZlcjogaWYgeW91IGhhdmUgMk1CIGFuZCAxR0INCj4gPiA+aHVn
+ZXBhZ2VzIGNvbmZpZ3VyZWQgeW91IHdvdWxkbid0IGtub3cgaWYgYSBwcm9jZXNzIHdhcyBtYXBw
+aW5nIDUxMiAyTUINCj4gPiA+aHVnZXBhZ2VzIG9yIDEgMUdCIGh1Z2VwYWdlLg0KPiA+ID4NCj4g
+PiA+VGhhdCdzIHRoZSBwdXJwb3NlIG9mIGh1Z2V0bGJfY2dyb3VwLCBhZnRlciBhbGwsIGFuZCBp
+dCBzdXBwb3J0cyB1c2FnZQ0KPiA+ID5jb3VudGVycyBmb3IgYWxsIGhzdGF0ZXMuICBUaGUgdGVz
+dCBjb3VsZCBiZSBjb252ZXJ0ZWQgdG8gdXNlIHRoYXQgdG8NCj4gPiA+bWVhc3VyZSB1c2FnZSBp
+ZiBjb25maWd1cmVkIGluIHRoZSBrZXJuZWwuDQo+ID4gPg0KPiA+ID5CZXlvbmQgdGhhdCwgSSdt
+IG5vdCBzdXJlIGhvdyBhIHBlci1oc3RhdGUgcnNzIG1ldHJpYyB3b3VsZCBiZSBleHBvcnRlZCB0
+bw0KPiA+ID51c2Vyc3BhY2UgaW4gYSBjbGVhbiB3YXkgYW5kIG90aGVyIHdheXMgb2Ygb2J0YWlu
+aW5nIHRoZSBzYW1lIGRhdGEgYXJlDQo+ID4gPnBvc3NpYmxlIHdpdGggaHVnZXRsYl9jZ3JvdXAu
+ICBJJ20gbm90IHN1cmUgaG93IHN1Y2Nlc3NmdWwgeW91J2QgYmUgaW4NCj4gPiA+YXJndWluZyB0
+aGF0IHdlIG5lZWQgc2VwYXJhdGUgcnNzIGNvdW50ZXJzIGZvciBpdC4NCj4gPg0KPiA+IElmIEkg
+d2FudCB0byB0cmFjayBodWdldGxiIHVzYWdlIG9uIGEgcGVyLXRhc2sgYmFzaXMsIGRvIEkgdGhl
+biBuZWVkIHRvDQo+ID4gY3JlYXRlIG9uZSBjZ3JvdXAgcGVyIHRhc2s/DQo+ID4NCj4gPiBGb3Ig
+ZXhhbXBsZSwgc3VwcG9zZSBJIGhhdmUgbWFueSB0YXNrcyB1c2luZyBodWdldGxiIGFuZCB0aGUg
+Z2xvYmFsIHBvb2wNCj4gPiBpcyBnZXR0aW5nIGxvdyBvbiBmcmVlIHBhZ2VzLiAgSXQgbWlnaHQg
+YmUgdXNlZnVsIHRvIGtub3cgd2hpY2ggdGFza3MgYXJlDQo+ID4gdXNpbmcgaHVnZXRsYiBwYWdl
+cywgYW5kIGhvdyBtYW55IHRoZXkgYXJlIHVzaW5nLg0KPiA+DQo+ID4gSSBkb24ndCBhY3R1YWxs
+eSBoYXZlIHRoaXMgbmVlZCAoSSB0aGluayksIGJ1dCBpdCBhcHBlYXJzIHRvIGJlIHdoYXQNCj4g
+PiBKw7ZybiBpcyBhc2tpbmcgZm9yLg0KPiANCj4gT25lIHBvc3NpYmxlIHdheSB0byBnZXQgaHVn
+ZXRsYiBtZXRyaWMgaW4gcGVyLXRhc2sgYmFzaXMgaXMgdG8gd2FsayBwYWdlDQo+IHRhYmxlIHZp
+YSAvcHJvYy9waWQvcGFnZW1hcCwgYW5kIGNvdW50aW5nIHBhZ2UgZmxhZ3MgZm9yIGVhY2ggbWFw
+cGVkIHBhZ2UNCj4gKHdlIGNhbiBlYXNpbHkgZG8gdGhpcyB3aXRoIHRvb2xzL3ZtL3BhZ2UtdHlw
+ZXMuYyBsaWtlICJwYWdlLXR5cGVzIC1wIDxQSUQ+DQo+IC1iIGh1Z2UiKS4gVGhpcyBpcyBvYnZp
+b3VzbHkgc2xvd2VyIHRoYW4ganVzdCBzdG9yaW5nIHRoZSBjb3VudGVyIGFzDQo+IGluLWtlcm5l
+bCBkYXRhIGFuZCBqdXN0IGV4cG9ydGluZyBpdCwgYnV0IG1pZ2h0IGJlIHVzZWZ1bCBpbiBzb21l
+IHNpdHVhdGlvbi4NCg0KQlRXLCBjdXJyZW50bHkgc21hcHMgZG9lc24ndCByZXBvcnQgYW55IG1l
+YW5pbmdmdWwgaW5mbyBmb3Igdm1hKFZNX0hVR0VUTEIpLg0KSSB3cm90ZSB0aGUgZm9sbG93aW5n
+IHBhdGNoLCB3aGljaCBob3BlZnVsbHkgaXMgaGVscGZ1bCBmb3IgeW91ciBwdXJwb3NlLg0KDQpU
+aGFua3MsDQpOYW95YSBIb3JpZ3VjaGkNCg0KLS0tDQpGcm9tOiBOYW95YSBIb3JpZ3VjaGkgPG4t
+aG9yaWd1Y2hpQGFoLmpwLm5lYy5jb20+DQpTdWJqZWN0OiBbUEFUQ0hdIHNtYXBzOiBmaWxsIG1p
+c3NpbmcgZmllbGRzIGZvciB2bWEoVk1fSFVHRVRMQikNCg0KQ3VycmVudGx5IHNtYXBzIHJlcG9y
+dHMgbWFueSB6ZXJvIGZpZWxkcyBmb3Igdm1hKFZNX0hVR0VUTEIpLCB3aGljaCBpcw0KaW5jb252
+ZW5pZW50IHdoZW4gd2Ugd2FudCB0byBrbm93IHBlci10YXNrIG9yIHBlci12bWEgYmFzZSBodWdl
+dGxiIHVzYWdlLg0KVGhpcyBwYXRjaCBlbmFibGVzIHRoZXNlIGZpZWxkcyBieSBpbnRyb2R1Y2lu
+ZyBzbWFwc19odWdldGxiX3JhbmdlKCkuDQoNCmJlZm9yZSBwYXRjaDoNCg0KICBTaXplOiAgICAg
+ICAgICAgICAgMjA0ODAga0INCiAgUnNzOiAgICAgICAgICAgICAgICAgICAwIGtCDQogIFBzczog
+ICAgICAgICAgICAgICAgICAgMCBrQg0KICBTaGFyZWRfQ2xlYW46ICAgICAgICAgIDAga0INCiAg
+U2hhcmVkX0RpcnR5OiAgICAgICAgICAwIGtCDQogIFByaXZhdGVfQ2xlYW46ICAgICAgICAgMCBr
+Qg0KICBQcml2YXRlX0RpcnR5OiAgICAgICAgIDAga0INCiAgUmVmZXJlbmNlZDogICAgICAgICAg
+ICAwIGtCDQogIEFub255bW91czogICAgICAgICAgICAgMCBrQg0KICBBbm9uSHVnZVBhZ2VzOiAg
+ICAgICAgIDAga0INCiAgU3dhcDogICAgICAgICAgICAgICAgICAwIGtCDQogIEtlcm5lbFBhZ2VT
+aXplOiAgICAgMjA0OCBrQg0KICBNTVVQYWdlU2l6ZTogICAgICAgIDIwNDgga0INCiAgTG9ja2Vk
+OiAgICAgICAgICAgICAgICAwIGtCDQogIFZtRmxhZ3M6IHJkIHdyIG1yIG13IG1lIGRlIGh0DQoN
+CmFmdGVyIHBhdGNoOg0KDQogIFNpemU6ICAgICAgICAgICAgICAyMDQ4MCBrQg0KICBSc3M6ICAg
+ICAgICAgICAgICAgMTg0MzIga0INCiAgUHNzOiAgICAgICAgICAgICAgIDE4NDMyIGtCDQogIFNo
+YXJlZF9DbGVhbjogICAgICAgICAgMCBrQg0KICBTaGFyZWRfRGlydHk6ICAgICAgICAgIDAga0IN
+CiAgUHJpdmF0ZV9DbGVhbjogICAgICAgICAwIGtCDQogIFByaXZhdGVfRGlydHk6ICAgICAxODQz
+MiBrQg0KICBSZWZlcmVuY2VkOiAgICAgICAgMTg0MzIga0INCiAgQW5vbnltb3VzOiAgICAgICAg
+IDE4NDMyIGtCDQogIEFub25IdWdlUGFnZXM6ICAgICAgICAgMCBrQg0KICBTd2FwOiAgICAgICAg
+ICAgICAgICAgIDAga0INCiAgS2VybmVsUGFnZVNpemU6ICAgICAyMDQ4IGtCDQogIE1NVVBhZ2VT
+aXplOiAgICAgICAgMjA0OCBrQg0KICBMb2NrZWQ6ICAgICAgICAgICAgICAgIDAga0INCiAgVm1G
+bGFnczogcmQgd3IgbXIgbXcgbWUgZGUgaHQNCg0KU2lnbmVkLW9mZi1ieTogTmFveWEgSG9yaWd1
+Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KLS0tDQogZnMvcHJvYy90YXNrX21tdS5j
+IHwgMjcgKysrKysrKysrKysrKysrKysrKysrKysrKysrDQogMSBmaWxlIGNoYW5nZWQsIDI3IGlu
+c2VydGlvbnMoKykNCg0KZGlmZiAtLWdpdCBhL2ZzL3Byb2MvdGFza19tbXUuYyBiL2ZzL3Byb2Mv
+dGFza19tbXUuYw0KaW5kZXggY2ExZTA5MTg4MWQ0Li5jNzIxODYwMzMwNmQgMTAwNjQ0DQotLS0g
+YS9mcy9wcm9jL3Rhc2tfbW11LmMNCisrKyBiL2ZzL3Byb2MvdGFza19tbXUuYw0KQEAgLTYxMCwx
+MiArNjEwLDM5IEBAIHN0YXRpYyB2b2lkIHNob3dfc21hcF92bWFfZmxhZ3Moc3RydWN0IHNlcV9m
+aWxlICptLCBzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnZtYSkNCiAJc2VxX3B1dGMobSwgJ1xuJyk7
+DQogfQ0KIA0KKyNpZmRlZiBDT05GSUdfSFVHRVRMQl9QQUdFDQorc3RhdGljIGludCBzbWFwc19o
+dWdldGxiX3JhbmdlKHB0ZV90ICpwdGUsIHVuc2lnbmVkIGxvbmcgaG1hc2ssDQorCQkJCSB1bnNp
+Z25lZCBsb25nIGFkZHIsIHVuc2lnbmVkIGxvbmcgZW5kLA0KKwkJCQkgc3RydWN0IG1tX3dhbGsg
+KndhbGspDQorew0KKwlzdHJ1Y3QgbWVtX3NpemVfc3RhdHMgKm1zcyA9IHdhbGstPnByaXZhdGU7
+DQorCXN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hID0gd2Fsay0+dm1hOw0KKwlzdHJ1Y3QgcGFn
+ZSAqcGFnZSA9IE5VTEw7DQorDQorCWlmIChwdGVfcHJlc2VudCgqcHRlKSkgew0KKwkJcGFnZSA9
+IHZtX25vcm1hbF9wYWdlKHZtYSwgYWRkciwgKnB0ZSk7DQorCX0gZWxzZSBpZiAoaXNfc3dhcF9w
+dGUoKnB0ZSkpIHsNCisJCXN3cF9lbnRyeV90IHN3cGVudCA9IHB0ZV90b19zd3BfZW50cnkoKnB0
+ZSk7DQorDQorCQlpZiAoaXNfbWlncmF0aW9uX2VudHJ5KHN3cGVudCkpDQorCQkJcGFnZSA9IG1p
+Z3JhdGlvbl9lbnRyeV90b19wYWdlKHN3cGVudCk7DQorCX0NCisJaWYgKHBhZ2UpDQorCQlzbWFw
+c19hY2NvdW50KG1zcywgcGFnZSwgaHVnZV9wYWdlX3NpemUoaHN0YXRlX3ZtYSh2bWEpKSwNCisJ
+CQkgICAgICBwdGVfeW91bmcoKnB0ZSksIHB0ZV9kaXJ0eSgqcHRlKSk7DQorCXJldHVybiAwOw0K
+K30NCisjZW5kaWYgLyogSFVHRVRMQl9QQUdFICovDQorDQogc3RhdGljIGludCBzaG93X3NtYXAo
+c3RydWN0IHNlcV9maWxlICptLCB2b2lkICp2LCBpbnQgaXNfcGlkKQ0KIHsNCiAJc3RydWN0IHZt
+X2FyZWFfc3RydWN0ICp2bWEgPSB2Ow0KIAlzdHJ1Y3QgbWVtX3NpemVfc3RhdHMgbXNzOw0KIAlz
+dHJ1Y3QgbW1fd2FsayBzbWFwc193YWxrID0gew0KIAkJLnBtZF9lbnRyeSA9IHNtYXBzX3B0ZV9y
+YW5nZSwNCisjaWZkZWYgQ09ORklHX0hVR0VUTEJfUEFHRQ0KKwkJLmh1Z2V0bGJfZW50cnkgPSBz
+bWFwc19odWdldGxiX3JhbmdlLA0KKyNlbmRpZg0KIAkJLm1tID0gdm1hLT52bV9tbSwNCiAJCS5w
+cml2YXRlID0gJm1zcywNCiAJfTsNCi0tIA0KMi40LjMNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
