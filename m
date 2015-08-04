@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 73C7C6B0254
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 15:58:14 -0400 (EDT)
-Received: by pacgq8 with SMTP id gq8so15957539pac.3
-        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 12:58:14 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id x8si815737pde.111.2015.08.04.12.58.12
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E8126B0255
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 15:58:16 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so8452799pdr.2
+        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 12:58:16 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id b8si804520pas.112.2015.08.04.12.58.12
         for <linux-mm@kvack.org>;
         Tue, 04 Aug 2015 12:58:12 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH 03/11] dax: Improve comment about truncate race
-Date: Tue,  4 Aug 2015 15:57:57 -0400
-Message-Id: <1438718285-21168-4-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH 01/11] ext4: Use ext4_get_block_write() for DAX
+Date: Tue,  4 Aug 2015 15:57:55 -0400
+Message-Id: <1438718285-21168-2-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1438718285-21168-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1438718285-21168-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,33 +21,50 @@ Cc: Matthew Wilcox <willy@linux.intel.com>
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-Jan Kara pointed out I should be more explicit here about the perils of
-racing against truncate.  The comment is mostly the same as for the PTE
-case.
+DAX relies on the get_block function either zeroing newly allocated blocks
+before they're findable by subsequent calls to get_block, or marking newly
+allocated blocks as unwritten.  ext4_get_block() cannot create unwritten
+extents, but ext4_get_block_write() can.
 
+Reported-by: Andy Rudoff <andy.rudoff@intel.com>
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- fs/dax.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ fs/ext4/file.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 15f8ffc..0a13118 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -553,7 +553,12 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	if (!buffer_size_valid(&bh) || bh.b_size < PMD_SIZE)
- 		goto fallback;
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index 953d519..ca5302a 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -196,7 +196,7 @@ out:
+ static void ext4_end_io_unwritten(struct buffer_head *bh, int uptodate)
+ {
+ 	struct inode *inode = bh->b_assoc_map->host;
+-	/* XXX: breaks on 32-bit > 16GB. Is that even supported? */
++	/* XXX: breaks on 32-bit > 16TB. Is that even supported? */
+ 	loff_t offset = (loff_t)(uintptr_t)bh->b_private << inode->i_blkbits;
+ 	int err;
+ 	if (!uptodate)
+@@ -207,8 +207,7 @@ static void ext4_end_io_unwritten(struct buffer_head *bh, int uptodate)
  
--	/* Guard against a race with truncate */
-+	/*
-+	 * If a truncate happened while we were allocating blocks, we may
-+	 * leave blocks allocated to the file that are beyond EOF.  We can't
-+	 * take i_mutex here, so just leave them hanging; they'll be freed
-+	 * when the file is deleted.
-+	 */
- 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 	if (pgoff >= size) {
- 		result = VM_FAULT_SIGBUS;
+ static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+-	return dax_fault(vma, vmf, ext4_get_block, ext4_end_io_unwritten);
+-					/* Is this the right get_block? */
++	return dax_fault(vma, vmf, ext4_get_block_write, ext4_end_io_unwritten);
+ }
+ 
+ static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+@@ -220,7 +219,8 @@ static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+ 
+ static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+-	return dax_mkwrite(vma, vmf, ext4_get_block, ext4_end_io_unwritten);
++	return dax_mkwrite(vma, vmf, ext4_get_block_write,
++				ext4_end_io_unwritten);
+ }
+ 
+ static const struct vm_operations_struct ext4_dax_vm_ops = {
 -- 
 2.1.4
 
