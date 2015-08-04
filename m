@@ -1,89 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D45C6B0253
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 10:17:12 -0400 (EDT)
-Received: by qkdv3 with SMTP id v3so3618894qkd.3
-        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 07:17:12 -0700 (PDT)
-Received: from mail-qk0-x232.google.com (mail-qk0-x232.google.com. [2607:f8b0:400d:c09::232])
-        by mx.google.com with ESMTPS id d185si2008213qhc.54.2015.08.04.07.17.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Aug 2015 07:17:11 -0700 (PDT)
-Received: by qkdg63 with SMTP id g63so3642763qkd.0
-        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 07:17:10 -0700 (PDT)
-Date: Tue, 4 Aug 2015 10:17:02 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: Re: [PATCH 05/15] HMM: introduce heterogeneous memory management
- v4.
-Message-ID: <20150804141701.GA3511@gmail.com>
-References: <359230388.367691438604474011.JavaMail.weblogic@epmlwas08c>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EA956B0253
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 10:27:17 -0400 (EDT)
+Received: by pacgq8 with SMTP id gq8so9834118pac.3
+        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 07:27:17 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id bv5si2232780pdb.154.2015.08.04.07.27.16
+        for <linux-mm@kvack.org>;
+        Tue, 04 Aug 2015 07:27:16 -0700 (PDT)
+Message-ID: <55C0CBC3.2000602@intel.com>
+Date: Tue, 04 Aug 2015 07:27:15 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <359230388.367691438604474011.JavaMail.weblogic@epmlwas08c>
+Subject: Re: [PATCH] mm: add the block to the tail of the list in expand()
+References: <55BB4027.7080200@huawei.com> <55BC0392.2070205@intel.com> <55BECC85.7050206@huawei.com> <55BEE99E.8090901@intel.com> <55C011A6.1090003@huawei.com>
+In-Reply-To: <55C011A6.1090003@huawei.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: GIRISH K S <ks.giri@samsung.com>
-Cc: Girish KS <girishks2000@gmail.com>, J??e Glisse <jglisse@redhat.com>, Christophe Harle <charle@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Dave Airlie <airlied@redhat.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, "joro@8bytes.org" <joro@8bytes.org>, Greg Stoner <Greg.Stoner@amd.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Cameron Buschardt <cabuschardt@nvidia.com>, Rik van Riel <riel@redhat.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Lucien Dunning <ldunning@nvidia.com>, Johannes Weiner <jweiner@redhat.com>, Haggai Eran <haggaie@mellanox.com>, Michael Mantor <Michael.Mantor@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Larry Woodman <lwoodman@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Brendan Conoboy <blc@redhat.com>, John Bridgman <John.Bridgman@amd.com>, Subhash Gutti <sgutti@nvidia.com>, Roland Dreier <roland@purestorage.com>, Duncan Poole <dpoole@nvidia.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Alexander Deucher <Alexander.Deucher@amd.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Sherry Cheung <SCheung@nvidia.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Ben Sander <ben.sander@amd.com>, Joe Donohue <jdonohue@redhat.com>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, iamjoonsoo.kim@lge.com, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Aug 03, 2015 at 12:21:14PM +0000, GIRISH K S wrote:
-> On Mon, Aug 03, 2015 at 01:20:13PM +0530, Girish KS wrote:
-> > On 18-Jul-2015 12:47 am, "JA?AE?A?A?A?a??A?A?A?a??A?A 1/2 A?AE?A?A?A?a??A?A?A?a??A?A 1/2 e Glisse" wrote:
-> > >
-> 
-> [...]
-> 
-> > > +int hmm_mirror_register(struct hmm_mirror *mirror)
-> > > +{
-> > > +       struct mm_struct *mm = current->mm;
-> > > +       struct hmm *hmm = NULL;
-> > > +       int ret = 0;
-> > > +
-> > > +       /* Sanity checks. */
-> > > +       BUG_ON(!mirror);
-> > > +       BUG_ON(!mirror->device);
-> > > +       BUG_ON(!mm);
-> > > +
-> > > +       /*
-> > > +        * Initialize the mirror struct fields, the mlist init and del
-> > dance is
-> > > +        * necessary to make the error path easier for driver and for hmm.
-> > > +        */
-> > > +       kref_init(&mirror->kref);
-> > > +       INIT_HLIST_NODE(&mirror->mlist);
-> > > +       INIT_LIST_HEAD(&mirror->dlist);
-> > > +       spin_lock(&mirror->device->lock);
-> > > +       list_add(&mirror->dlist, &mirror->device->mirrors);
-> > > +       spin_unlock(&mirror->device->lock);
-> > > +
-> > > +       down_write(&mm->mmap_sem);
-> > > +
-> > > +       hmm = mm->hmm ? hmm_ref(hmm) : NULL;
-> > 
-> > Instead of hmm mm->hmm would be the right param to be passed.  Here even
-> > though mm->hmm is true hmm_ref returns NULL. Because hmm is not updated
-> > after initialization in the beginning.
-> 
-> ENOPARSE ? While this can be simplified to hmm = hmm_ref(mm->hmm); I do not
-> see what you mean. The mm struct might already have a valid hmm field set,
-> and that valid hmm struct might also already be in the process of being
-> destroy. So hmm_ref() might either return the same hmm pointer if the hmm
-> object is not about to be release or NULL. But at this point there is no
-> certainty on the return value of hmm_ref().
-> 
-> I didn't mean hmm = hmm_ref(mm->hmm);. I ll try to put it in a better way.
-> The hmm local variable is initialized to NULL in the start of the function
-> (struct hmm *hmm = NULL;), and this is not modified till it is passed to
-> hmm_ref.  So hmm_ref would always return a NULL irrespective of mm->hmm is
-> NULL or valid address.  
-> So  the statement hmm = mm->hmm ? hmm_ref(hmm) : NULL; should be replaced
-> as hmm = mm->hmm ? hmm_ref(mm->hmm) : NULL;. 
+On 08/03/2015 06:13 PM, Xishi Qiu wrote:
+> How did you do the experiment?
 
-Oh yeah typo probably outcome of many patch reorg i did.
+I just stuck in some counters in expand() that looked to see whether the
+list was empty or not when the page is added and then printed them out
+occasionally.
 
-Cheers,
-JA(C)rA'me
+It will be interesting to see the results both on a freshly-booted
+system and one that's reached relatively steady-state and is moving
+around a minimal number of pageblocks between the different types.
+
+In any case, the end result here needs to be some indication that the
+patch either helps ease fragmentation or helps performance.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
