@@ -1,17 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id A7BBC6B0038
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 15:58:13 -0400 (EDT)
-Received: by pdco4 with SMTP id o4so8338035pdc.3
-        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 12:58:13 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ox5si882960pbc.7.2015.08.04.12.58.12
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 73C7C6B0254
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 15:58:14 -0400 (EDT)
+Received: by pacgq8 with SMTP id gq8so15957539pac.3
+        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 12:58:14 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id x8si815737pde.111.2015.08.04.12.58.12
         for <linux-mm@kvack.org>;
         Tue, 04 Aug 2015 12:58:12 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH 00/11] DAX fixes for 4.3
-Date: Tue,  4 Aug 2015 15:57:54 -0400
-Message-Id: <1438718285-21168-1-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH 03/11] dax: Improve comment about truncate race
+Date: Tue,  4 Aug 2015 15:57:57 -0400
+Message-Id: <1438718285-21168-4-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <1438718285-21168-1-git-send-email-matthew.r.wilcox@intel.com>
+References: <1438718285-21168-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
@@ -19,43 +21,33 @@ Cc: Matthew Wilcox <willy@linux.intel.com>
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-Hi Andrew,
+Jan Kara pointed out I should be more explicit here about the perils of
+racing against truncate.  The comment is mostly the same as for the PTE
+case.
 
-I believe this entire patch series should apply cleanly to your tree.
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+---
+ fs/dax.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-The first patch I have already sent to Ted.  It should be applied for 4.2.
-
-Patch 4 depends on patch 1 having been applied first, patch 5 depends
-on patch 4, and patch 6 depends on patch 5, so I can't wait for those
-patches to go in via the ext4 tree.
-
-Most of these patches aren't needed for 4.2 and earlier, because they
-pertain to the PMD support which is only in the -mm tree.
-
-Kirill A. Shutemov (3):
-  thp: Decrement refcount on huge zero page if it is split
-  thp: Fix zap_huge_pmd() for DAX
-  dax: Don't use set_huge_zero_page()
-
-Matthew Wilcox (8):
-  ext4: Use ext4_get_block_write() for DAX
-  thp: Change insert_pfn's return type to void
-  dax: Improve comment about truncate race
-  ext4: Add ext4_get_block_dax()
-  ext4: Start transaction before calling into DAX
-  dax: Fix race between simultaneous faults
-  dax: Ensure that zero pages are removed from other processes
-  dax: Use linear_page_index()
-
- fs/dax.c                | 66 ++++++++++++++++++++++++---------------
- fs/ext4/ext4.h          |  2 ++
- fs/ext4/file.c          | 61 ++++++++++++++++++++++++++++++++----
- fs/ext4/inode.c         | 11 +++++++
- include/linux/huge_mm.h |  3 --
- mm/huge_memory.c        | 83 ++++++++++++++++++++++---------------------------
- mm/memory.c             | 11 +++++--
- 7 files changed, 155 insertions(+), 82 deletions(-)
-
+diff --git a/fs/dax.c b/fs/dax.c
+index 15f8ffc..0a13118 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -553,7 +553,12 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	if (!buffer_size_valid(&bh) || bh.b_size < PMD_SIZE)
+ 		goto fallback;
+ 
+-	/* Guard against a race with truncate */
++	/*
++	 * If a truncate happened while we were allocating blocks, we may
++	 * leave blocks allocated to the file that are beyond EOF.  We can't
++	 * take i_mutex here, so just leave them hanging; they'll be freed
++	 * when the file is deleted.
++	 */
+ 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 	if (pgoff >= size) {
+ 		result = VM_FAULT_SIGBUS;
 -- 
 2.1.4
 
