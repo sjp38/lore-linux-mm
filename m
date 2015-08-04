@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E63F56B025B
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 15:58:28 -0400 (EDT)
-Received: by pawu10 with SMTP id u10so16018392paw.1
-        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 12:58:28 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id x8si815737pde.111.2015.08.04.12.58.13
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 191776B025C
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 15:58:31 -0400 (EDT)
+Received: by pdco4 with SMTP id o4so8340575pdc.3
+        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 12:58:30 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id mx11si801739pbc.120.2015.08.04.12.58.13
         for <linux-mm@kvack.org>;
-        Tue, 04 Aug 2015 12:58:13 -0700 (PDT)
+        Tue, 04 Aug 2015 12:58:14 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH 11/11] dax: Use linear_page_index()
-Date: Tue,  4 Aug 2015 15:58:05 -0400
-Message-Id: <1438718285-21168-12-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH 10/11] dax: Ensure that zero pages are removed from other processes
+Date: Tue,  4 Aug 2015 15:58:04 -0400
+Message-Id: <1438718285-21168-11-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1438718285-21168-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1438718285-21168-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,27 +21,36 @@ Cc: Matthew Wilcox <willy@linux.intel.com>
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-I was basically open-coding it (thanks to copying code from do_fault()
-which probably also needs to be fixed).
+If the first access to a huge page was a store, there would be no existing
+zero pmd in this process's page tables.  There could be a zero pmd in
+another process's page tables, if it had done a load.  We can detect this
+case by noticing that the buffer_head returned from the filesystem is
+New, and ensure that other processes mapping this huge page have their
+page tables flushed.
 
+Reported-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- fs/dax.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/dax.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index 233e61e..b6769ce 100644
+index bf9a22b..233e61e 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -529,7 +529,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	if ((pmd_addr + PMD_SIZE) > vma->vm_end)
- 		return VM_FAULT_FALLBACK;
+@@ -568,7 +568,11 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	if ((pgoff | PG_PMD_COLOUR) >= size)
+ 		goto fallback;
  
--	pgoff = ((pmd_addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-+	pgoff = linear_page_index(vma, pmd_addr);
- 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 	if (pgoff >= size)
- 		return VM_FAULT_SIGBUS;
+-	if (is_huge_zero_pmd(*pmd))
++	/*
++	 * If we allocated new storage, make sure no process has any
++	 * zero pages covering this hole
++	 */
++	if (buffer_new(&bh))
+ 		unmap_mapping_range(mapping, pgoff << PAGE_SHIFT, PMD_SIZE, 0);
+ 
+ 	if (!write && !buffer_mapped(&bh) && buffer_uptodate(&bh)) {
 -- 
 2.1.4
 
