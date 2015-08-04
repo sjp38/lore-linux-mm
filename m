@@ -1,51 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 7577D6B0253
-	for <linux-mm@kvack.org>; Mon,  3 Aug 2015 23:08:05 -0400 (EDT)
-Received: by padck2 with SMTP id ck2so104643995pad.0
-        for <linux-mm@kvack.org>; Mon, 03 Aug 2015 20:08:05 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id x2si30165011pdi.17.2015.08.03.20.08.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 03 Aug 2015 20:08:04 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t74380xW024508
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Tue, 4 Aug 2015 12:08:01 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 0/3] vm hugetlb selftest cleanup
-Date: Tue, 4 Aug 2015 03:04:41 +0000
-Message-ID: <20150804030432.GA13839@hori1.linux.bs1.fc.nec.co.jp>
-References: <1438304393-30413-1-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1438304393-30413-1-git-send-email-mike.kravetz@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <EAE1668293101442BC47DD9BB848DFEF@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C9F516B0253
+	for <linux-mm@kvack.org>; Mon,  3 Aug 2015 23:37:49 -0400 (EDT)
+Received: by pawu10 with SMTP id u10so27721064paw.1
+        for <linux-mm@kvack.org>; Mon, 03 Aug 2015 20:37:49 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id f2si30128295pat.213.2015.08.03.20.37.47
+        for <linux-mm@kvack.org>;
+        Mon, 03 Aug 2015 20:37:48 -0700 (PDT)
+Message-ID: <55C03332.2030808@cn.fujitsu.com>
+Date: Tue, 4 Aug 2015 11:36:18 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH 1/5] x86, gfp: Cache best near node for memory allocation.
+References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com> <1436261425-29881-2-git-send-email-tangchen@cn.fujitsu.com> <20150715214802.GL15934@mtj.duckdns.org>
+In-Reply-To: <20150715214802.GL15934@mtj.duckdns.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "joern@purestorage.com" <joern@purestorage.com>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, laijs@cn.fujitsu.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tangchen@cn.fujitsu.com
 
-On Thu, Jul 30, 2015 at 05:59:50PM -0700, Mike Kravetz wrote:
-> As a followup to discussions of hugetlbfs fallocate, this provides
-> cleanup the vm hugetlb selftests.  Remove hugetlbfstest as it tests
-> functionality not present in the kernel.  Emphasize that libhugetlbfs
-> test suite should be used for hugetlb regression testing.
->=20
-> Mike Kravetz (3):
->   Reverted "selftests: add hugetlbfstest"
->   selftests:vm: Point to libhugetlbfs for regression testing
->   Documentation: update libhugetlbfs location and use for testing
+Hi TJ,
 
-It seems that patch 1 conflicts with commit bd67d5c15cc1 ("Test compaction
-of mlocked memory"), but the resolution is trivial, so for the series ...
+Sorry for the late reply.
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+On 07/16/2015 05:48 AM, Tejun Heo wrote:
+> ......
+> so in initialization pharse makes no sense any more. The best near online
+> node for each cpu should be cached somewhere.
+> I'm not really following.  Is this because the now offline node can
+> later come online and we'd have to break the constant mapping
+> invariant if we update the mapping later?  If so, it'd be nice to
+> spell that out.
 
-Thanks!=
+Yes. Will document this in the next version.
+
+>> ......
+>>   
+>> +int get_near_online_node(int node)
+>> +{
+>> +	return per_cpu(x86_cpu_to_near_online_node,
+>> +		       cpumask_first(&node_to_cpuid_mask_map[node]));
+>> +}
+>> +EXPORT_SYMBOL(get_near_online_node);
+> Umm... this function is sitting on a fairly hot path and scanning a
+> cpumask each time.  Why not just build a numa node -> numa node array?
+
+Indeed. Will avoid to scan a cpumask.
+
+> ......
+>
+>>   
+>>   static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
+>>   						unsigned int order)
+>>   {
+>> -	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
+>> +	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
+>> +
+>> +#if IS_ENABLED(CONFIG_X86) && IS_ENABLED(CONFIG_NUMA)
+>> +	if (!node_online(nid))
+>> +		nid = get_near_online_node(nid);
+>> +#endif
+>>   
+>>   	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+>>   }
+> Ditto.  Also, what's the synchronization rules for NUMA node
+> on/offlining.  If you end up updating the mapping later, how would
+> that be synchronized against the above usages?
+
+I think the near online node map should be updated when node online/offline
+happens. But about this, I think the current numa code has a little problem.
+
+As you know, firmware info binds a set of CPUs and memory to a node. But
+at boot time, if the node has no memory (a memory-less node) , it won't 
+be online.
+But the CPUs on that node is available, and bound to the near online node.
+(Here, I mean numa_set_node(cpu, node).)
+
+Why does the kernel do this ? I think it is used to ensure that we can 
+allocate memory
+successfully by calling functions like alloc_pages_node() and 
+alloc_pages_exact_node().
+By these two fuctions, any CPU should be bound to a node who has memory 
+so that
+memory allocation can be successful.
+
+That means, for a memory-less node at boot time, CPUs on the node is 
+online,
+but the node is not online.
+
+That also means, "the node is online" equals to "the node has memory". 
+Actually, there
+are a lot of code in the kernel is using this rule.
+
+
+But,
+1) in cpu_up(), it will try to online a node, and it doesn't check if 
+the node has memory.
+2) in try_offline_node(), it offlines CPUs first, and then the memory.
+
+This behavior looks a little wired, or let's say it is ambiguous. It 
+seems that a NUMA node
+consists of CPUs and memory. So if the CPUs are online, the node should 
+be online.
+
+And also,
+The main purpose of this patch-set is to make the cpuid <-> nodeid 
+mapping persistent.
+After this patch-set, alloc_pages_node() and alloc_pages_exact_node() 
+won't depend on
+cpuid <-> nodeid mapping any more. So the node should be online if the 
+CPUs on it are
+online. Otherwise, we cannot setup interfaces of CPUs under /sys.
+
+
+Unfortunately, since I don't have a machine a with memory-less node, I 
+cannot reproduce
+the problem right now.
+
+How do you think the node online behavior should be changed ?
+
+Thanks.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
