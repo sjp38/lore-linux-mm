@@ -1,85 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 87E996B0038
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 19:06:36 -0400 (EDT)
-Received: by pabxd6 with SMTP id xd6so1984159pab.2
-        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 16:06:36 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id pf6si1625894pbc.182.2015.08.04.16.06.29
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A2786B0038
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 19:30:55 -0400 (EDT)
+Received: by padck2 with SMTP id ck2so19798423pad.0
+        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 16:30:55 -0700 (PDT)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id pu4si1848859pbb.18.2015.08.04.16.30.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Aug 2015 16:06:30 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] memory-failure/hwpoison_user_mappings: move the comment
- about swap cache pages' check to proper location
-Date: Tue, 4 Aug 2015 23:05:18 +0000
-Message-ID: <20150804230517.GA13606@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150804202038.0ca2777e@hp>
-In-Reply-To: <20150804202038.0ca2777e@hp>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <FF68DA42A17DCB4AB220F912882D4018@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Aug 2015 16:30:54 -0700 (PDT)
+Received: by pdrg1 with SMTP id g1so10322892pdr.2
+        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 16:30:54 -0700 (PDT)
+Date: Wed, 5 Aug 2015 08:31:08 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2] vmscan: fix increasing nr_isolated incurred by
+ putback unevictable pages
+Message-ID: <20150804233108.GA662@bgram>
+References: <1438684808-12707-1-git-send-email-jaewon31.kim@samsung.com>
+ <20150804150937.ee3b62257e77911a2f41a48e@linux-foundation.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150804150937.ee3b62257e77911a2f41a48e@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jaewon Kim <jaewon31.kim@samsung.com>, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
 
-On Tue, Aug 04, 2015 at 08:20:38PM +0800, Wang Xiaoqiang wrote:
-> Hi Naoya,
->=20
-> This patch just move the comment about swap cache pages' check to the
-> proper location in 'hwpoison_user_mappings' function.
->=20
-> Signed-off-by: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
+Hello,
 
-Thank you for finding out this.
+On Tue, Aug 04, 2015 at 03:09:37PM -0700, Andrew Morton wrote:
+> On Tue, 04 Aug 2015 19:40:08 +0900 Jaewon Kim <jaewon31.kim@samsung.com> wrote:
+> 
+> > reclaim_clean_pages_from_list() assumes that shrink_page_list() returns
+> > number of pages removed from the candidate list. But shrink_page_list()
+> > puts back mlocked pages without passing it to caller and without
+> > counting as nr_reclaimed. This incurrs increasing nr_isolated.
+> > To fix this, this patch changes shrink_page_list() to pass unevictable
+> > pages back to caller. Caller will take care those pages.
+> > 
+> > ..
+> >
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1157,7 +1157,7 @@ cull_mlocked:
+> >  		if (PageSwapCache(page))
+> >  			try_to_free_swap(page);
+> >  		unlock_page(page);
+> > -		putback_lru_page(page);
+> > +		list_add(&page->lru, &ret_pages);
+> >  		continue;
+> >  
+> >  activate_locked:
+> 
+> Is this going to cause a whole bunch of mlocked pages to be migrated
+> whereas in current kernels they stay where they are?
+> 
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+It fixes two issues.
 
-> ---
->  mm/memory-failure.c |    8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
->=20
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 1cf7f29..3253abb 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -945,10 +945,6 @@ static int hwpoison_user_mappings(struct page *p, un=
-signed long pfn,
->  	if (!(PageLRU(hpage) || PageHuge(p)))
->  		return SWAP_SUCCESS;
-> =20
-> -	/*
-> -	 * This check implies we don't kill processes if their pages
-> -	 * are in the swap cache early. Those are always late kills.
-> -	 */
->  	if (!page_mapped(hpage))
->  		return SWAP_SUCCESS;
-> =20
-> @@ -957,6 +953,10 @@ static int hwpoison_user_mappings(struct page *p, un=
-signed long pfn,
->  		return SWAP_FAIL;
->  	}
-> =20
-> +	/*
-> +	 * This check implies we don't kill processes if their pages
-> +	 * are in the swap cache early. Those are always late kills.
-> +	 */
->  	if (PageSwapCache(p)) {
->  		printk(KERN_ERR
->  		       "MCE %#lx: keeping poisoned page in swap cache\n", pfn);
-> --=20
-> 1.7.10.4
->=20
->=20
->=20
-> --
-> thx!
-> Wang Xiaoqiang
->=20
-> =
+1. With unevictable page, cma_alloc will be successful.
+
+Exactly speaking, cma_alloc of current kernel will fail due to unevictable pages.
+
+2. fix leaking of NR_ISOLATED counter of vmstat
+
+With it, too_many_isolated works. Otherwise, it could make hang until
+the process get SIGKILL.
+
+So, I think it's stable material.
+
+Acked-by: Minchan Kim <minchan@kernel.org>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
