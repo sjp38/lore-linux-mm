@@ -1,81 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4668D6B0253
-	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 05:52:02 -0400 (EDT)
-Received: by wicmv11 with SMTP id mv11so168642021wic.0
-        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 02:52:01 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
-        by mx.google.com with ESMTPS id a17si20207892wiv.61.2015.08.04.02.52.00
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id F373A6B0253
+	for <linux-mm@kvack.org>; Tue,  4 Aug 2015 06:40:37 -0400 (EDT)
+Received: by pacgq8 with SMTP id gq8so5496825pac.3
+        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 03:40:37 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id oe10si1205431pbb.101.2015.08.04.03.40.36
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Aug 2015 02:52:00 -0700 (PDT)
-Received: by wicmv11 with SMTP id mv11so168640995wic.0
-        for <linux-mm@kvack.org>; Tue, 04 Aug 2015 02:51:59 -0700 (PDT)
-Date: Tue, 4 Aug 2015 11:51:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, vmscan: Do not wait for page writeback for GFP_NOFS
- allocations
-Message-ID: <20150804095158.GE18509@dhcp22.suse.cz>
-References: <1435677437-16717-1-git-send-email-mhocko@suse.cz>
- <20150701061731.GB6286@dhcp22.suse.cz>
- <20150701133715.GA6287@dhcp22.suse.cz>
- <20150702142551.GB9456@thunk.org>
- <20150702151321.GE12547@dhcp22.suse.cz>
- <alpine.LSU.2.11.1508032227050.5070@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1508032227050.5070@eggly.anvils>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 04 Aug 2015 03:40:37 -0700 (PDT)
+Received: from epcpsbgr5.samsung.com
+ (u145.gpu120.samsung.co.kr [203.254.230.145])
+ by mailout3.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0NSK02CWL0BMR610@mailout3.samsung.com> for linux-mm@kvack.org;
+ Tue, 04 Aug 2015 19:40:34 +0900 (KST)
+From: Jaewon Kim <jaewon31.kim@samsung.com>
+Subject: [PATCH v2] vmscan: fix increasing nr_isolated incurred by putback
+ unevictable pages
+Date: Tue, 04 Aug 2015 19:40:08 +0900
+Message-id: <1438684808-12707-1-git-send-email-jaewon31.kim@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Marian Marinov <mm@1h.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: mgorman@suse.de, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com, Jaewon Kim <jaewon31.kim@samsung.com>
 
-On Mon 03-08-15 23:32:00, Hugh Dickins wrote:
-[...]
-> But I have modified it a little, I don't think you'll mind.  As you
-> suggested yourself, I actually prefer to test may_enter_fs there, rather
-> than __GFP_FS: not a big deal, I certainly wouldn't want to delay the
-> fix if someone thinks differently; but I tend to feel that may_enter_fs
-> is what we already use for such decisions there, so better to use it.
-> (And the SwapCache case immune to ext4 or xfs IO submission pattern.)
+reclaim_clean_pages_from_list() assumes that shrink_page_list() returns
+number of pages removed from the candidate list. But shrink_page_list()
+puts back mlocked pages without passing it to caller and without
+counting as nr_reclaimed. This incurrs increasing nr_isolated.
+To fix this, this patch changes shrink_page_list() to pass unevictable
+pages back to caller. Caller will take care those pages.
 
-I am not opposed. This is closer to what we had before.
+Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
+---
+Changes since v1
 
-[...]
-> (I was tempted to add in
-> my unlock_page there, that we discussed once before: but again thought
-> it better to minimize the fix - it is "selfish" not to unlock_page,
-> but I think that anything heading for deadlock on the locked page would
-> in other circumstances be heading for deadlock on the writeback page -
-> I've never found that change critical.)
+1/ changed subject from vmscan: reclaim_clean_pages_from_list() must count mlocked pages
+2/ changed to return unevictable pages rather than returning the number of unevictable pages
 
-I agree. It would deserve a separate patch.
+ mm/vmscan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> And I've done quite a bit of testing.  The loads that hung at the
-> weekend have been running nicely for 24 hours now, no problem with the
-> writeback hang and no problem with the dcache ENOTDIR issue.  Though
-> I've no idea of what recent VM change turned this into a hot issue.
-> 
-> And more testing on the history of it, considering your stable 3.6+
-> designation that I wasn't satisfied with.  Getting out that USB stick
-> again, I find that 3.6, 3.7 and 3.8 all OOM if their __GFP_IO test
-> is updated to a may_enter_fs test; but something happened in 3.9
-> to make it and subsequent releases safe with the may_enter_fs test.
-
-Interesting. I would have guessed that 3.12 would make a difference (as
-mentioned in the changelog). Why would 3.9 make a difference is not
-entirely clear to me.
-
-> You can certainly argue that the remote chance of a deadlock is
-> worse than the fair chance of a spurious OOM; but if you insist
-> on 3.6+, then I think it would have to go back even further,
-> because we marked that commit for stable itself.  I suggest 3.9+.
-
-Agreed and thanks!
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 5e8eadd..a4b2d07 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1157,7 +1157,7 @@ cull_mlocked:
+ 		if (PageSwapCache(page))
+ 			try_to_free_swap(page);
+ 		unlock_page(page);
+-		putback_lru_page(page);
++		list_add(&page->lru, &ret_pages);
+ 		continue;
+ 
+ activate_locked:
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
