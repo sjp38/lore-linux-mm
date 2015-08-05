@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AA3C9003C7
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2015 16:14:10 -0400 (EDT)
-Received: by ykcq64 with SMTP id q64so40299553ykc.2
-        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 13:14:09 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i70si2426581yke.58.2015.08.05.13.14.09
+Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
+	by kanga.kvack.org (Postfix) with ESMTP id CFD4D6B0255
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2015 17:30:22 -0400 (EDT)
+Received: by ykeo23 with SMTP id o23so46793294yke.3
+        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 14:30:22 -0700 (PDT)
+Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
+        by mx.google.com with ESMTPS id u18si7853264qgd.7.2015.08.05.14.30.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Aug 2015 13:14:09 -0700 (PDT)
-Date: Wed, 5 Aug 2015 13:14:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] zswap: change zpool/compressor at runtime
-Message-Id: <20150805131406.8bd8a1a6d2a6691aa6eedd34@linux-foundation.org>
-In-Reply-To: <1438782403-29496-4-git-send-email-ddstreet@ieee.org>
-References: <1438782403-29496-1-git-send-email-ddstreet@ieee.org>
-	<1438782403-29496-4-git-send-email-ddstreet@ieee.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 05 Aug 2015 14:30:21 -0700 (PDT)
+References: <55C18D2E.4030009@rjmx.net> <alpine.DEB.2.11.1508051105070.29534@east.gentwo.org> <20150805162436.GD25159@twins.programming.kicks-ass.net> <81C750EC-F4D4-4890-894A-1D92E5CF3A31@rjmx.net> <alpine.DEB.2.11.1508051405130.30653@east.gentwo.org> <12261B75-F5F5-4332-A7E9-490251E4DC37@rjmx.net> <alpine.DEB.2.11.1508051431570.30889@east.gentwo.org>
+In-Reply-To: <alpine.DEB.2.11.1508051431570.30889@east.gentwo.org>
+Mime-Version: 1.0 (1.0)
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset=us-ascii
+Message-Id: <86F8E462-6302-41BE-9271-CA150A822F3A@rjmx.net>
+From: Ron Murray <rjmx@rjmx.net>
+Subject: Re: PROBLEM: 4.1.4 -- Kernel Panic on shutdown
+Date: Wed, 5 Aug 2015 17:30:04 -0400
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>
 
-On Wed,  5 Aug 2015 09:46:43 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
 
-> Update the zpool and compressor parameters to be changeable at runtime.
-> When changed, a new pool is created with the requested zpool/compressor,
-> and added as the current pool at the front of the pool list.  Previous
-> pools remain in the list only to remove existing compressed pages from.
-> The old pool(s) are removed once they become empty.
+> On Aug 5, 2015, at 15:34, Christoph Lameter <cl@linux.com> wrote:
 > 
-> +/*********************************
-> +* param callbacks
-> +**********************************/
-> +
-> +static int __zswap_param_set(const char *val, const struct kernel_param *kp,
-> +			     char *type, char *compressor)
-> +{
-> +	struct zswap_pool *pool, *put_pool = NULL;
-> +	char str[kp->str->maxlen], *s;
+>> On Wed, 5 Aug 2015, Ron Murray wrote:
+>> 
+>> True. But if I don't get a crash with it, it might tell us whether the
+>> fault lies with SLUB or not. And I will still try with SLUB and the
+>> debug option (probably tonight, after I get home).
+> 
+> What fails is the check for a pointer to valid slab page on kfree. That
+> pointer was handed to the allocator.
+> 
 
-What's the upper bound on the size of this variable-sized array?
+Fair enough. I'll go with the command-line option instead.
 
-> +	int ret;
-> +
-> +	strlcpy(str, val, kp->str->maxlen);
-> +	s = strim(str);
-> +
-> +	/* if this is load-time (pre-init) param setting,
+--
+Ron Murray <rjmx@rjmx.net>
+PGP Fingerprint: 0ED0 C1D1 615C FCCE 7424  9B27 31D8 AED5 AF6D 0D4A
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
