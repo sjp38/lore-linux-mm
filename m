@@ -1,133 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 36EB56B0038
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2015 09:28:44 -0400 (EDT)
-Received: by lbbyj8 with SMTP id yj8so24405322lbb.0
-        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 06:28:43 -0700 (PDT)
-Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [2a02:6b8:0:801::10])
-        by mx.google.com with ESMTPS id xg7si2188490lbb.48.2015.08.05.06.28.41
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FC786B0038
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2015 09:46:56 -0400 (EDT)
+Received: by qgj62 with SMTP id 62so4539255qgj.2
+        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 06:46:56 -0700 (PDT)
+Received: from mail-qg0-x22c.google.com (mail-qg0-x22c.google.com. [2607:f8b0:400d:c04::22c])
+        by mx.google.com with ESMTPS id g11si5497543qhc.0.2015.08.05.06.46.55
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Aug 2015 06:28:42 -0700 (PDT)
-Message-ID: <55C20F67.8000900@yandex-team.ru>
-Date: Wed, 05 Aug 2015 16:28:07 +0300
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 0/4] enhance shmem process and swap accounting
-References: <1438779685-5227-1-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1438779685-5227-1-git-send-email-vbabka@suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        Wed, 05 Aug 2015 06:46:56 -0700 (PDT)
+Received: by qged69 with SMTP id d69so29831832qge.0
+        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 06:46:55 -0700 (PDT)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH 0/3] make zswap params changeable at runtime
+Date: Wed,  5 Aug 2015 09:46:40 -0400
+Message-Id: <1438782403-29496-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Jerome Marchand <jmarchan@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Minchan Kim <minchan@kernel.org>
+To: Seth Jennings <sjennings@variantweb.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Streetman <ddstreet@ieee.org>
 
-On 05.08.2015 16:01, Vlastimil Babka wrote:
-> Reposting due to lack of feedback in May. I hope at least patches 1 and 2
-> could be merged as they are IMHO bugfixes. 3 and 4 is optional but IMHO useful.
->
-> Changes since v2:
-> o Rebase on next-20150805.
-> o This means that /proc/pid/maps has the proportional swap share (SwapPss:)
->    field as per https://lkml.org/lkml/2015/6/15/274
->    It's not clear what to do with shmem here so it's 0 for now.
->    - swapped out shmem doesn't have swap entries, so we would have to look at who
->      else has the shmem object (partially) mapped
->    - to be more precise we should also check if his range actually includes
->      the offset in question, which could get rather involved
->    - or is there some easy way I don't see?
-> o Konstantin suggested for patch 3/4 that I drop the CONFIG_SHMEM #ifdefs
->    I didn't see the point in going against tinyfication when the work is
->    already done, but I can do that if more people think it's better and it
->    would block the series.
+This is a resend of the patch series.  It makes creation of the zpool and
+compressor dynamic, so that they can be changed at runtime.  This makes
+using/configuring zswap easier, as before this zswap had to be configured
+at boot time, using boot params.
 
-That's not a blocker.
+This uses a single list to track both the zpool and compressor together,
+although Seth had mentioned an alternative which is to track the zpools
+and compressors using separate lists.  In the most common case, only a
+single zpool and single compressor, using one list is slightly simpler
+than using two lists, and for the uncommon case of multiple zpools and/or
+compressors, using one list is slightly less simple (and uses slightly
+more memory, probably) than using two lists.
 
-Except naming in the last patch you can add:
-Acked-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Dan Streetman (3):
+  zpool: add zpool_has_pool()
+  zswap: dynamic pool creation
+  zswap: change zpool/compressor at runtime
 
->
-> Changes since v1:
-> o In Patch 2, rely on SHMEM_I(inode)->swapped if possible, and fallback to
->    radix tree iterator on partially mapped shmem objects, i.e. decouple shmem
->    swap usage determination from the page walk, for performance reasons.
->    Thanks to Jerome and Konstantin for the tips.
->    The downside is that mm/shmem.c had to be touched.
->
-> This series is based on Jerome Marchand's [1] so let me quote the first
-> paragraph from there:
->
-> There are several shortcomings with the accounting of shared memory
-> (sysV shm, shared anonymous mapping, mapping to a tmpfs file). The
-> values in /proc/<pid>/status and statm don't allow to distinguish
-> between shmem memory and a shared mapping to a regular file, even
-> though theirs implication on memory usage are quite different: at
-> reclaim, file mapping can be dropped or write back on disk while shmem
-> needs a place in swap. As for shmem pages that are swapped-out or in
-> swap cache, they aren't accounted at all.
->
-> The original motivation for myself is that a customer found (IMHO rightfully)
-> confusing that e.g. top output for process swap usage is unreliable with
-> respect to swapped out shmem pages, which are not accounted for.
->
-> The fundamental difference between private anonymous and shmem pages is that
-> the latter has PTE's converted to pte_none, and not swapents. As such, they are
-> not accounted to the number of swapents visible e.g. in /proc/pid/status VmSwap
-> row. It might be theoretically possible to use swapents when swapping out shmem
-> (without extra cost, as one has to change all mappers anyway), and on swap in
-> only convert the swapent for the faulting process, leaving swapents in other
-> processes until they also fault (so again no extra cost). But I don't know how
-> many assumptions this would break, and it would be too disruptive change for a
-> relatively small benefit.
->
-> Instead, my approach is to document the limitation of VmSwap, and provide means
-> to determine the swap usage for shmem areas for those who are interested and
-> willing to pay the price, using /proc/pid/smaps. Because outside of ipcs, I
-> don't think it's possible to currently to determine the usage at all.  The
-> previous patchset [1] did introduce new shmem-specific fields into smaps
-> output, and functions to determine the values. I take a simpler approach,
-> noting that smaps output already has a "Swap: X kB" line, where currently X ==
-> 0 always for shmem areas. I think we can just consider this a bug and provide
-> the proper value by consulting the radix tree, as e.g. mincore_page() does. In the
-> patch changelog I explain why this is also not perfect (and cannot be without
-> swapents), but still arguably much better than showing a 0.
->
-> The last two patches are adapted from Jerome's patchset and provide a VmRSS
-> breakdown to VmAnon, VmFile and VmShm in /proc/pid/status. Hugh noted that
-> this is a welcome addition, and I agree that it might help e.g. debugging
-> process memory usage at albeit non-zero, but still rather low cost of extra
-> per-mm counter and some page flag checks. I updated these patches to 4.0-rc1,
-> made them respect !CONFIG_SHMEM so that tiny systems don't pay the cost, and
-> optimized the page flag checking somewhat.
->
-> [1] http://lwn.net/Articles/611966/
->
-> Jerome Marchand (2):
->    mm, shmem: Add shmem resident memory accounting
->    mm, procfs: Display VmAnon, VmFile and VmShm in /proc/pid/status
->
-> Vlastimil Babka (2):
->    mm, documentation: clarify /proc/pid/status VmSwap limitations
->    mm, proc: account for shmem swap in /proc/pid/smaps
->
->   Documentation/filesystems/proc.txt | 18 ++++++++++---
->   arch/s390/mm/pgtable.c             |  5 +---
->   fs/proc/task_mmu.c                 | 52 ++++++++++++++++++++++++++++++++++--
->   include/linux/mm.h                 | 28 ++++++++++++++++++++
->   include/linux/mm_types.h           |  9 ++++---
->   include/linux/shmem_fs.h           |  6 +++++
->   kernel/events/uprobes.c            |  2 +-
->   mm/memory.c                        | 30 +++++++--------------
->   mm/oom_kill.c                      |  5 ++--
->   mm/rmap.c                          | 15 +++--------
->   mm/shmem.c                         | 54 ++++++++++++++++++++++++++++++++++++++
->   11 files changed, 178 insertions(+), 46 deletions(-)
->
-
+ include/linux/zpool.h |   2 +
+ mm/zpool.c            |  25 ++
+ mm/zswap.c            | 683 ++++++++++++++++++++++++++++++++++++++------------
+ 3 files changed, 555 insertions(+), 155 deletions(-)
 
 -- 
-Konstantin
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
