@@ -1,119 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ABFF6B0038
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2015 12:49:30 -0400 (EDT)
-Received: by pabyb7 with SMTP id yb7so8341337pab.0
-        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 09:49:30 -0700 (PDT)
-Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
-        by mx.google.com with ESMTPS id fx5si6129857pdb.170.2015.08.05.09.49.29
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 79AE06B0038
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2015 12:57:33 -0400 (EDT)
+Received: by iodd187 with SMTP id d187so55394151iod.2
+        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 09:57:33 -0700 (PDT)
+Received: from resqmta-po-10v.sys.comcast.net (resqmta-po-10v.sys.comcast.net. [2001:558:fe16:19:96:114:154:169])
+        by mx.google.com with ESMTPS id v12si4627184igd.23.2015.08.05.09.57.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Aug 2015 09:49:29 -0700 (PDT)
-Received: by pdrg1 with SMTP id g1so20927909pdr.2
-        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 09:49:29 -0700 (PDT)
-References: <1438768284-30927-1-git-send-email-mhocko@kernel.org> <1438768284-30927-5-git-send-email-mhocko@kernel.org>
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [RFC 4/8] jbd, jbd2: Do not fail journal because of frozen_buffer allocation failure
-In-reply-to: <1438768284-30927-5-git-send-email-mhocko@kernel.org>
-Date: Wed, 05 Aug 2015 09:49:24 -0700
-Message-ID: <xr93twsdwui3.fsf@gthelen.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 05 Aug 2015 09:57:32 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: PROBLEM: 4.1.4 -- Kernel Panic on shutdown
+From: Ron Murray <rjmx@rjmx.net>
+In-Reply-To: <alpine.DEB.2.11.1508051105070.29534@east.gentwo.org>
+Date: Wed, 5 Aug 2015 12:57:19 -0400
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <461E8600-5A4C-44DD-A108-4A5C2FA5BAD3@rjmx.net>
+References: <55C18D2E.4030009@rjmx.net> <alpine.DEB.2.11.1508051105070.29534@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
+I'll try the command-line option and see what I get. I thought about memory c=
+orruption, so ran memtest86 for a few hours with no errors (whatever that's w=
+orth).
 
-mhocko@kernel.org wrote:
+ .....Ron
 
-> From: Michal Hocko <mhocko@suse.com>
->
-> Journal transaction might fail prematurely because the frozen_buffer
-> is allocated by GFP_NOFS request:
-> [   72.440013] do_get_write_access: OOM for frozen_buffer
-> [   72.440014] EXT4-fs: ext4_reserve_inode_write:4729: aborting transaction: Out of memory in __ext4_journal_get_write_access
-> [   72.440015] EXT4-fs error (device sda1) in ext4_reserve_inode_write:4735: Out of memory
-> (...snipped....)
-> [   72.495559] do_get_write_access: OOM for frozen_buffer
-> [   72.495560] EXT4-fs: ext4_reserve_inode_write:4729: aborting transaction: Out of memory in __ext4_journal_get_write_access
-> [   72.496839] do_get_write_access: OOM for frozen_buffer
-> [   72.496841] EXT4-fs: ext4_reserve_inode_write:4729: aborting transaction: Out of memory in __ext4_journal_get_write_access
-> [   72.505766] Aborting journal on device sda1-8.
-> [   72.505851] EXT4-fs (sda1): Remounting filesystem read-only
->
-> This wasn't a problem until "mm: page_alloc: do not lock up GFP_NOFS
-> allocations upon OOM" because small GPF_NOFS allocations never failed.
-> This allocation seems essential for the journal and GFP_NOFS is too
-> restrictive to the memory allocator so let's use __GFP_NOFAIL here to
-> emulate the previous behavior.
->
-> jbd code has the very same issue so let's do the same there as well.
->
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  fs/jbd/transaction.c  | 11 +----------
->  fs/jbd2/transaction.c | 14 +++-----------
->  2 files changed, 4 insertions(+), 21 deletions(-)
->
-> diff --git a/fs/jbd/transaction.c b/fs/jbd/transaction.c
-> index 1695ba8334a2..bf7474deda2f 100644
-> --- a/fs/jbd/transaction.c
-> +++ b/fs/jbd/transaction.c
-> @@ -673,16 +673,7 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
->  				jbd_unlock_bh_state(bh);
->  				frozen_buffer =
->  					jbd_alloc(jh2bh(jh)->b_size,
-> -							 GFP_NOFS);
-> -				if (!frozen_buffer) {
-> -					printk(KERN_ERR
-> -					       "%s: OOM for frozen_buffer\n",
-> -					       __func__);
-> -					JBUFFER_TRACE(jh, "oom!");
-> -					error = -ENOMEM;
-> -					jbd_lock_bh_state(bh);
-> -					goto done;
-> -				}
-> +							 GFP_NOFS|__GFP_NOFAIL);
->  				goto repeat;
->  			}
->  			jh->b_frozen_data = frozen_buffer;
-> diff --git a/fs/jbd2/transaction.c b/fs/jbd2/transaction.c
-> index ff2f2e6ad311..bff071e21553 100644
-> --- a/fs/jbd2/transaction.c
-> +++ b/fs/jbd2/transaction.c
-> @@ -923,16 +923,7 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
->  				jbd_unlock_bh_state(bh);
->  				frozen_buffer =
->  					jbd2_alloc(jh2bh(jh)->b_size,
-> -							 GFP_NOFS);
-> -				if (!frozen_buffer) {
-> -					printk(KERN_ERR
-> -					       "%s: OOM for frozen_buffer\n",
-> -					       __func__);
-> -					JBUFFER_TRACE(jh, "oom!");
-> -					error = -ENOMEM;
-> -					jbd_lock_bh_state(bh);
-> -					goto done;
-> -				}
-> +							 GFP_NOFS|__GFP_NOFAIL);
->  				goto repeat;
->  			}
->  			jh->b_frozen_data = frozen_buffer;
-> @@ -1157,7 +1148,8 @@ int jbd2_journal_get_undo_access(handle_t *handle, struct buffer_head *bh)
->  
->  repeat:
->  	if (!jh->b_committed_data) {
-> -		committed_data = jbd2_alloc(jh2bh(jh)->b_size, GFP_NOFS);
-> +		committed_data = jbd2_alloc(jh2bh(jh)->b_size,
-> +					    GFP_NOFS|__GFP_NOFAIL);
->  		if (!committed_data) {
->  			printk(KERN_ERR "%s: No memory for committed data\n",
->  				__func__);
+Sent from my iPhone
 
-Is this "if (!committed_data) {" check now dead code?
+On Aug 5, 2015, at 12:09, Christoph Lameter <cl@linux.com> wrote:
 
-I also see other similar suspected dead sites in the rest of the series.
+>> [1.] One line summary of the problem:
+>>    4.1.4 -- Kernel Panic on shutdown
+>=20
+> This is a kfree of an object that was not allocated via the slab
+> allocators or was already freed. If you boot with the kernel command line
+> argument "slub_debug" then you could get some more information. Could also=
+
+> be that memory was somehow corrupted.
+>=20
+> The backtrace shows that this is a call occurring in the
+> scheduler.
+>=20
+> CCing scheduler developers.
+>=20
+>=20
+>=20
+> Call Trace:
+> <IRQ>
+> [<ffffffff81072189>] free_sched_group+0x29/0x30
+> [<ffffffff810721a0>] free_sched_group+rcu+0x10/0x20
+> [<ffffffff81099771>] rcu_process_callbacks+0x231/0x510
+> [<ffffffff81055cee>] __do_softirq+0xee/0x1e0
+> [<ffffffff81055ef5>] irq_exit+0x55/0x60
+> [<ffffffff810382f5>] smp_apic_timer_interrupt+0x45/0x60
+> [<ffffffff815e4f5b>] apic_timer_interrupt+0x6b/0x70
+> <EOI>
+> [<ffffffff81071b61>] ? finish_task_switch+0x61/0x100
+> [<ffffffff814ddc7d>] ? cpuidle_enter_state+0xad/0x170
+> [<ffffffff814ddc76>] ? cpuidle_enter_state+0xa6/0x170
+> [<ffffffff814ddd62>] cpuidle_enter+0x12/0x20
+> [<ffffffff810883a8>] cpu_startup_entry+0x268/0x2e0
+> [<ffffffff81036437>] start_secondary+0x167/0x170
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
