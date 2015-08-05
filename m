@@ -1,33 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D6746B0038
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2015 13:06:54 -0400 (EDT)
-Received: by qgeh16 with SMTP id h16so34409054qge.3
-        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 10:06:53 -0700 (PDT)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id c66si6245607qgf.109.2015.08.05.10.06.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 05 Aug 2015 10:06:53 -0700 (PDT)
-Date: Wed, 5 Aug 2015 12:06:51 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: PROBLEM: 4.1.4 -- Kernel Panic on shutdown
-In-Reply-To: <461E8600-5A4C-44DD-A108-4A5C2FA5BAD3@rjmx.net>
-Message-ID: <alpine.DEB.2.11.1508051205510.30033@east.gentwo.org>
-References: <55C18D2E.4030009@rjmx.net> <alpine.DEB.2.11.1508051105070.29534@east.gentwo.org> <461E8600-5A4C-44DD-A108-4A5C2FA5BAD3@rjmx.net>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C0656B0038
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2015 13:08:52 -0400 (EDT)
+Received: by lbbpo9 with SMTP id po9so28411146lbb.2
+        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 10:08:51 -0700 (PDT)
+Received: from bastet.se.axis.com (bastet.se.axis.com. [195.60.68.11])
+        by mx.google.com with ESMTP id r2si2542504lae.66.2015.08.05.10.08.50
+        for <linux-mm@kvack.org>;
+        Wed, 05 Aug 2015 10:08:50 -0700 (PDT)
+From: Rabin Vincent <rabin.vincent@axis.com>
+Subject: [PATCH] writeback: fix initial dirty limit
+Date: Wed, 5 Aug 2015 19:08:40 +0200
+Message-ID: <1438794520-27414-1-git-send-email-rabin.vincent@axis.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ron Murray <rjmx@rjmx.net>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: axboe@fb.com, akpm@linux-foundation.org
+Cc: tj@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rabin Vincent <rabinv@axis.com>
 
-On Wed, 5 Aug 2015, Ron Murray wrote:
+The initial value of global_wb_domain.dirty_limit set by
+writeback_set_ratelimit() is zeroed out by the memset in
+wb_domain_init().
 
-> I'll try the command-line option and see what I get. I thought about memory corruption, so ran memtest86 for a few hours with no errors (whatever that's worth).
+Signed-off-by: Rabin Vincent <rabin.vincent@axis.com>
+---
+ mm/page-writeback.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-It could be corruption due to an errand pointer value. memory testing will
-not catch that. slub_debug will perform validation of pointers and basic
-integrity checks on slab objects.
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 22cddd3..5cccc12 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2063,10 +2063,10 @@ static struct notifier_block ratelimit_nb = {
+  */
+ void __init page_writeback_init(void)
+ {
++	BUG_ON(wb_domain_init(&global_wb_domain, GFP_KERNEL));
++
+ 	writeback_set_ratelimit();
+ 	register_cpu_notifier(&ratelimit_nb);
+-
+-	BUG_ON(wb_domain_init(&global_wb_domain, GFP_KERNEL));
+ }
+ 
+ /**
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
