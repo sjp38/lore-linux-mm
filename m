@@ -1,60 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 40FCD6B0253
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 03:00:14 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so9816037wib.0
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 00:00:13 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gm10si2296266wib.11.2015.08.06.00.00.12
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DAD466B0253
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 03:53:04 -0400 (EDT)
+Received: by pacrr5 with SMTP id rr5so21532611pac.3
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 00:53:04 -0700 (PDT)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id dx2si10044148pab.128.2015.08.06.00.53.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 06 Aug 2015 00:00:12 -0700 (PDT)
-Subject: Re: [PATCH v3 3/3] mm: use numa_mem_id() in alloc_pages_node()
-References: <1438274071-22551-1-git-send-email-vbabka@suse.cz>
- <1438274071-22551-3-git-send-email-vbabka@suse.cz>
- <20150730174112.GC15257@cmpxchg.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55C305F5.8050005@suse.cz>
-Date: Thu, 6 Aug 2015 09:00:05 +0200
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 06 Aug 2015 00:53:04 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t767r0At020149
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Thu, 6 Aug 2015 16:53:01 +0900 (JST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] smaps: fill missing fields for vma(VM_HUGETLB)
+Date: Thu, 6 Aug 2015 07:44:44 +0000
+Message-ID: <20150806074443.GA7870@hori1.linux.bs1.fc.nec.co.jp>
+References: <alpine.DEB.2.10.1507281509420.23577@chino.kir.corp.google.com>
+ <20150728222654.GA28456@Sligo.logfs.org>
+ <alpine.DEB.2.10.1507281622470.10368@chino.kir.corp.google.com>
+ <20150729005332.GB17938@Sligo.logfs.org>
+ <alpine.DEB.2.10.1507291205590.24373@chino.kir.corp.google.com>
+ <55B95FDB.1000801@oracle.com>
+ <20150804025530.GA13210@hori1.linux.bs1.fc.nec.co.jp>
+ <20150804051339.GA24931@hori1.linux.bs1.fc.nec.co.jp>
+ <20150804182158.GH14335@Sligo.logfs.org>
+ <alpine.DEB.2.10.1508051917430.4843@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1508051917430.4843@chino.kir.corp.google.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <ABC6F904EE674643A446880AED11F08D@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20150730174112.GC15257@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, cbe-oss-dev@lists.ozlabs.org, kvm@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+To: David Rientjes <rientjes@google.com>
+Cc: =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On 07/30/2015 07:41 PM, Johannes Weiner wrote:
-> On Thu, Jul 30, 2015 at 06:34:31PM +0200, Vlastimil Babka wrote:
->> numa_mem_id() is able to handle allocation from CPUs on memory-less nodes,
->> so it's a more robust fallback than the currently used numa_node_id().
->
-> Won't it fall through to the next closest memory node in the zonelist
-> anyway?
-
-Right, I would expect the zonelist of memoryless node to be the same as 
-of the closest node. Documentation/vm/numa seems to agree.
-
-Is this for callers doing NUMA_NO_NODE with __GFP_THISZONE?
-
-I guess that's the only scenario where that matters, yeah. And there 
-might well be no such caller now, but maybe some will sneak in without 
-the author testing on a system with memoryless node.
-
-Note that with !CONFIG_HAVE_MEMORYLESS_NODES, numa_mem_id() just does 
-numa_node_id().
-
-So yeah I think "a more robust fallback" is correct :) But let's put it 
-explicitly in changelog then:
-
-----8<----
-
-alloc_pages_node() might fail when called with NUMA_NO_NODE and 
-__GFP_THISNODE on a CPU belonging to a memoryless node. To make the 
-local-node fallback more robust and prevent such situations, use 
-numa_mem_id(), which was introduced for similar scenarios in the slab 
-context.
+T24gV2VkLCBBdWcgMDUsIDIwMTUgYXQgMDc6MTg6NDRQTSAtMDcwMCwgRGF2aWQgUmllbnRqZXMg
+d3JvdGU6DQouLi4NCj4gSG1tLCB3b3VsZG4ndCB0aGlzIGJlIGNvbmZ1c2luZyBzaW5jZSBWbVJT
+UyBpbiAvcHJvYy9waWQvc3RhdHVzIGRvZXNuJ3QgDQo+IG1hdGNoIHRoZSByc3Mgc2hvd24gaW4g
+c21hcHMsIHNpbmNlIGh1Z2V0bGIgbWFwcGluZ3MgYXJlbid0IGFjY291bnRlZCBpbiANCj4gZ2V0
+X21tX3JzcygpPw0KPiANCj4gTm90IHN1cmUgdGhpcyBpcyBhIGdvb2QgaWRlYSwgSSB0aGluayBj
+b25zaXN0ZW5jeSBhbW9uZ3N0IHJzcyB2YWx1ZXMgd291bGQgDQo+IGJlIG1vcmUgaW1wb3J0YW50
+Lg0KDQpSaWdodCwgc28gb25lIG9wdGlvbiBpcyBtYWtpbmcgZ2V0X21tX3JzcygpIGNvdW50IGh1
+Z2V0bGIsIGJ1dCB0aGF0IGNvdWxkDQptYWtlIG9vbS9tZW1jZyBsZXNzIGVmZmljaWVudCBvciBi
+cm9rZW4gYXMgeW91IHN0YXRlZCBpbiBhIHByZXZpb3VzIGVtYWlsLg0KU28gYW5vdGhlciBvbmUg
+aXMgdG8gYWRkICJWbUh1Z2V0bGJSU1M6IiBmaWVsZCBpbiAvcHJvYy9waWQvc3RhdHVzPw0KDQpU
+aGFua3MsDQpOYW95YSBIb3JpZ3VjaGk=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
