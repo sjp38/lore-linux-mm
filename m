@@ -1,111 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 26E6E9003C7
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 17:42:15 -0400 (EDT)
-Received: by qgeh16 with SMTP id h16so62844713qge.3
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 14:42:15 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d35si14155259qga.128.2015.08.06.14.42.14
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 735C06B0255
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 17:50:57 -0400 (EDT)
+Received: by qkdg63 with SMTP id g63so31325554qkd.0
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 14:50:57 -0700 (PDT)
+Received: from smtp.variantweb.net (smtp.variantweb.net. [104.131.104.118])
+        by mx.google.com with ESMTPS id f124si14188244qhe.90.2015.08.06.14.50.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Aug 2015 14:42:14 -0700 (PDT)
-From: Mark Salter <msalter@redhat.com>
-Subject: [PATCH V2 2/3] arm64: support initrd outside kernel linear map
-Date: Thu,  6 Aug 2015 17:41:38 -0400
-Message-Id: <1438897299-2266-3-git-send-email-msalter@redhat.com>
-In-Reply-To: <1438897299-2266-1-git-send-email-msalter@redhat.com>
-References: <1438897299-2266-1-git-send-email-msalter@redhat.com>
+        Thu, 06 Aug 2015 14:50:56 -0700 (PDT)
+Date: Thu, 6 Aug 2015 16:50:23 -0500
+From: Seth Jennings <sjennings@variantweb.net>
+Subject: Re: [PATCH 1/3] zpool: add zpool_has_pool()
+Message-ID: <20150806215023.GA8670@cerebellum.local.variantweb.net>
+References: <1438782403-29496-1-git-send-email-ddstreet@ieee.org>
+ <1438782403-29496-2-git-send-email-ddstreet@ieee.org>
+ <20150805130836.16c42cd0a9fe6f4050cf0620@linux-foundation.org>
+ <CALZtONDNYyKEdk2fc40ePH4Y+vOcUE-D7OG1DRekgSxLgVYKeA@mail.gmail.com>
+ <20150805150659.eefc5ff531741ab34f48b330@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150805150659.eefc5ff531741ab34f48b330@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, x86@kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Mark Salter <msalter@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Streetman <ddstreet@ieee.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-The use of mem= could leave part or all of the initrd outside of
-the kernel linear map. This will lead to an error when unpacking
-the initrd and a probable failure to boot. This patch catches that
-situation and relocates the initrd to be fully within the linear
-map.
+On Wed, Aug 05, 2015 at 03:06:59PM -0700, Andrew Morton wrote:
+> On Wed, 5 Aug 2015 18:00:26 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+> 
+> > >
+> > > If there's some reason why this can't happen, can we please have a code
+> > > comment which reveals that reason?
+> > 
+> > zpool_create_pool() should work if this returns true, unless as you
+> > say the module is rmmod'ed *and* removed from the system - since
+> > zpool_create_pool() will call request_module() just as this function
+> > does.  I can add a comment explaining that.
+> 
+> I like comments ;)
+> 
+> Seth, I'm planning on sitting on these patches until you've had a
+> chance to review them.
 
-Signed-off-by: Mark Salter <msalter@redhat.com>
----
- arch/arm64/kernel/setup.c | 55 +++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 55 insertions(+)
+Thanks Andrew.  I'm reviewing now.  Patch 2/3 is pretty huge.  I've got
+the gist of the changes now.  I'm also building and testing for myself
+as this creates a lot more surface area for issues, alternating between
+compressors and allocating new compression transforms on the fly.
 
-diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
-index f3067d4..96339b5 100644
---- a/arch/arm64/kernel/setup.c
-+++ b/arch/arm64/kernel/setup.c
-@@ -359,6 +359,60 @@ static void __init request_standard_resources(void)
- 	}
- }
- 
-+/*
-+ * Relocate initrd if it is not completely within the linear mapping.
-+ * This would be the case if mem= cuts out all or part of it.
-+ */
-+static void __init relocate_initrd(void)
-+{
-+#ifdef CONFIG_BLK_DEV_INITRD
-+	phys_addr_t orig_start = __virt_to_phys(initrd_start);
-+	phys_addr_t orig_end = __virt_to_phys(initrd_end);
-+	phys_addr_t ram_end = memblock_end_of_DRAM();
-+	phys_addr_t new_start;
-+	unsigned long size, to_free = 0;
-+	void *dest;
-+
-+	if (orig_end <= ram_end)
-+		return;
-+
-+	/* Note if any of original initrd will freeing below */
-+	if (orig_start < ram_end)
-+		to_free = ram_end - orig_start;
-+
-+	size = orig_end - orig_start;
-+
-+	/* initrd needs to be relocated completely inside linear mapping */
-+	new_start = memblock_find_in_range(0, PFN_PHYS(max_pfn),
-+					   size, PAGE_SIZE);
-+	if (!new_start)
-+		panic("Cannot relocate initrd of size %ld\n", size);
-+	memblock_reserve(new_start, size);
-+
-+	initrd_start = __phys_to_virt(new_start);
-+	initrd_end   = initrd_start + size;
-+
-+	pr_info("Moving initrd from [%llx-%llx] to [%llx-%llx]\n",
-+		orig_start, orig_start + size - 1,
-+		new_start, new_start + size - 1);
-+
-+	dest = (void *)initrd_start;
-+
-+	if (to_free) {
-+		memcpy(dest, (void *)__phys_to_virt(orig_start), to_free);
-+		dest += to_free;
-+	}
-+
-+	copy_from_early_mem(dest, orig_start + to_free, size - to_free);
-+
-+	if (to_free) {
-+		pr_info("Freeing original RAMDISK from [%llx-%llx]\n",
-+			orig_start, orig_start + to_free - 1);
-+		memblock_free(orig_start, to_free);
-+	}
-+#endif
-+}
-+
- u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
- 
- void __init setup_arch(char **cmdline_p)
-@@ -392,6 +446,7 @@ void __init setup_arch(char **cmdline_p)
- 	acpi_boot_table_init();
- 
- 	paging_init();
-+	relocate_initrd();
- 	request_standard_resources();
- 
- 	early_ioremap_reset();
--- 
-2.4.3
+I'm kinda with Sergey on this in that it adds yet another complexity to
+an already complex feature.  This adds more locking, more RCU, more
+refcounting.  It's becoming harder to review, test, and verify.
+
+I should have results tomorrow.
+
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
