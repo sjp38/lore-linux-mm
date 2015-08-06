@@ -1,38 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F1BA6B0257
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 16:45:35 -0400 (EDT)
-Received: by qged69 with SMTP id d69so61980173qge.0
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 13:45:35 -0700 (PDT)
-Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
-        by mx.google.com with ESMTPS id 35si13903882qkw.127.2015.08.06.13.45.34
+Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D5BB9003C7
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 17:41:53 -0400 (EDT)
+Received: by qkbm65 with SMTP id m65so31263607qkb.2
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 14:41:53 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 49si14226917qgp.63.2015.08.06.14.41.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 06 Aug 2015 13:45:34 -0700 (PDT)
-Date: Thu, 6 Aug 2015 15:45:31 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: page-flags behavior on compound pages: a worry
-In-Reply-To: <alpine.LSU.2.11.1508061121120.7500@eggly.anvils>
-Message-ID: <alpine.DEB.2.11.1508061542200.8172@east.gentwo.org>
-References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com> <1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com> <alpine.LSU.2.11.1508052001350.6404@eggly.anvils> <20150806153259.GA2834@node.dhcp.inet.fi>
- <alpine.LSU.2.11.1508061121120.7500@eggly.anvils>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Aug 2015 14:41:52 -0700 (PDT)
+From: Mark Salter <msalter@redhat.com>
+Subject: [PATCH V2 0/3] mm: Add generic copy from early unmapped RAM
+Date: Thu,  6 Aug 2015 17:41:36 -0400
+Message-Id: <1438897299-2266-1-git-send-email-msalter@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, x86@kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Mark Salter <msalter@redhat.com>
 
-On Thu, 6 Aug 2015, Hugh Dickins wrote:
+When booting an arm64 kernel w/initrd using UEFI/grub, use of mem= will likely
+cut off part or all of the initrd. This leaves it outside the kernel linear
+map which leads to failure when unpacking. The x86 code has a similar need to
+relocate an initrd outside of mapped memory in some cases.
 
-> > I know a patchset which solves this! ;)
->
-> Oh, and I know a patchset which avoids these problems completely,
-> by not using compound pages at all ;)
+The current x86 code uses early_memremap() to copy the original initrd from
+unmapped to mapped RAM. This patchset creates a generic copy_from_early_mem()
+utility based on that x86 code and has arm64 and x86 share it in their
+respective initrd relocation code.
 
-Another dumb idea: Stop the insanity of splitting pages on the fly?
-Splitting pages should work like page migration: Lock everything down and
-ensure no one is using the page and then do it. That way the compound pages
-and its metadata are as stable as a regular page.
+Changes from V1:
+
+  * Change cover letter subject to highlight the added generic code
+
+  * Add patch for x86 to use common copy_from_early_mem()
+
+Mark Salter (3):
+  mm: add utility for early copy from unmapped ram
+  arm64: support initrd outside kernel linear map
+  x86: use generic early mem copy
+
+ arch/arm64/kernel/setup.c           | 55 +++++++++++++++++++++++++++++++++++++
+ arch/x86/kernel/setup.c             | 21 +-------------
+ include/asm-generic/early_ioremap.h |  6 ++++
+ mm/early_ioremap.c                  | 22 +++++++++++++++
+ 4 files changed, 84 insertions(+), 20 deletions(-)
+
+-- 
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
