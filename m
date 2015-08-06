@@ -1,93 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 9873C6B0253
-	for <linux-mm@kvack.org>; Wed,  5 Aug 2015 22:18:47 -0400 (EDT)
-Received: by pacrr5 with SMTP id rr5so15018423pac.3
-        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 19:18:47 -0700 (PDT)
-Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com. [2607:f8b0:400e:c02::230])
-        by mx.google.com with ESMTPS id a10si8601120pas.176.2015.08.05.19.18.46
+Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id C92586B0253
+	for <linux-mm@kvack.org>; Wed,  5 Aug 2015 23:31:20 -0400 (EDT)
+Received: by ioii16 with SMTP id i16so69253237ioi.0
+        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 20:31:20 -0700 (PDT)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
+        by mx.google.com with ESMTPS id m7si556321igk.28.2015.08.05.20.31.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Aug 2015 19:18:46 -0700 (PDT)
-Received: by pdco4 with SMTP id o4so25849350pdc.3
-        for <linux-mm@kvack.org>; Wed, 05 Aug 2015 19:18:46 -0700 (PDT)
-Date: Wed, 5 Aug 2015 19:18:44 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] smaps: fill missing fields for vma(VM_HUGETLB)
-In-Reply-To: <20150804182158.GH14335@Sligo.logfs.org>
-Message-ID: <alpine.DEB.2.10.1508051917430.4843@chino.kir.corp.google.com>
-References: <20150728183248.GB1406@Sligo.logfs.org> <55B7F0F8.8080909@oracle.com> <alpine.DEB.2.10.1507281509420.23577@chino.kir.corp.google.com> <20150728222654.GA28456@Sligo.logfs.org> <alpine.DEB.2.10.1507281622470.10368@chino.kir.corp.google.com>
- <20150729005332.GB17938@Sligo.logfs.org> <alpine.DEB.2.10.1507291205590.24373@chino.kir.corp.google.com> <55B95FDB.1000801@oracle.com> <20150804025530.GA13210@hori1.linux.bs1.fc.nec.co.jp> <20150804051339.GA24931@hori1.linux.bs1.fc.nec.co.jp>
- <20150804182158.GH14335@Sligo.logfs.org>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="397176738-1446445883-1438827525=:4843"
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 05 Aug 2015 20:31:19 -0700 (PDT)
+Date: Wed, 5 Aug 2015 22:31:18 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: PROBLEM: 4.1.4 -- Kernel Panic on shutdown
+In-Reply-To: <55C2BC00.8020302@rjmx.net>
+Message-ID: <alpine.DEB.2.11.1508052229540.891@east.gentwo.org>
+References: <55C18D2E.4030009@rjmx.net> <alpine.DEB.2.11.1508051105070.29534@east.gentwo.org> <20150805162436.GD25159@twins.programming.kicks-ass.net> <alpine.DEB.2.11.1508051131580.29823@east.gentwo.org> <20150805163609.GE25159@twins.programming.kicks-ass.net>
+ <alpine.DEB.2.11.1508051201280.29823@east.gentwo.org> <55C2BC00.8020302@rjmx.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@purestorage.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Ron Murray <rjmx@rjmx.net>
+Cc: Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Wed, 5 Aug 2015, Ron Murray wrote:
 
---397176738-1446445883-1438827525=:4843
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
+> OK, tried that (with no parameters though. Should I try some?). That got
+> me a crash with a blank screen and no panic report. The thing is clearly
 
-On Tue, 4 Aug 2015, Jorn Engel wrote:
+Hmmm... Crash early on? Could you attach a serial console and try
+"earlyprintk" as an option as well?
 
-> > From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Subject: [PATCH] smaps: fill missing fields for vma(VM_HUGETLB)
-> > 
-> > Currently smaps reports many zero fields for vma(VM_HUGETLB), which is
-> > inconvenient when we want to know per-task or per-vma base hugetlb usage.
-> > This patch enables these fields by introducing smaps_hugetlb_range().
-> > 
-> > before patch:
-> > 
-> >   Size:              20480 kB
-> >   Rss:                   0 kB
-> >   Pss:                   0 kB
-> >   Shared_Clean:          0 kB
-> >   Shared_Dirty:          0 kB
-> >   Private_Clean:         0 kB
-> >   Private_Dirty:         0 kB
-> >   Referenced:            0 kB
-> >   Anonymous:             0 kB
-> >   AnonHugePages:         0 kB
-> >   Swap:                  0 kB
-> >   KernelPageSize:     2048 kB
-> >   MMUPageSize:        2048 kB
-> >   Locked:                0 kB
-> >   VmFlags: rd wr mr mw me de ht
-> > 
-> > after patch:
-> > 
-> >   Size:              20480 kB
-> >   Rss:               18432 kB
-> >   Pss:               18432 kB
-> >   Shared_Clean:          0 kB
-> >   Shared_Dirty:          0 kB
-> >   Private_Clean:         0 kB
-> >   Private_Dirty:     18432 kB
-> >   Referenced:        18432 kB
-> >   Anonymous:         18432 kB
-> >   AnonHugePages:         0 kB
-> >   Swap:                  0 kB
-> >   KernelPageSize:     2048 kB
-> >   MMUPageSize:        2048 kB
-> >   Locked:                0 kB
-> >   VmFlags: rd wr mr mw me de ht
-> 
-> Nice!
-> 
+> touchy: small changes in memory positions make a difference. That's
+> probably why I didn't get a panic message until 4.1.4: the gods have to
+> all be looking in the right direction.
 
-Hmm, wouldn't this be confusing since VmRSS in /proc/pid/status doesn't 
-match the rss shown in smaps, since hugetlb mappings aren't accounted in 
-get_mm_rss()?
+Subtle corruption issue. If slub_debug does not get it then other
+debugging techniques may have to be used.
 
-Not sure this is a good idea, I think consistency amongst rss values would 
-be more important.
---397176738-1446445883-1438827525=:4843--
+> > [  OK  ] Stopped CUPS Scheduler.
+> > [  OK  ] Stopped (null).
+> > ------------[ cut here ]------------
+>
+> Note the "Stopped (null)" before the "cut here" line. I wonder whether
+> that has anything to do with the problem, or is it a red herring?
+
+Hmmm... Thats a message from user space.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
