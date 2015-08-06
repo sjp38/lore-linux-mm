@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
-	by kanga.kvack.org (Postfix) with ESMTP id BD8C66B0253
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 04:11:03 -0400 (EDT)
-Received: by oip136 with SMTP id 136so33504544oip.1
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 01:11:03 -0700 (PDT)
-Received: from BLU004-OMC1S26.hotmail.com (blu004-omc1s26.hotmail.com. [65.55.116.37])
-        by mx.google.com with ESMTPS id o184si4140975oia.77.2015.08.06.01.11.03
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A7DAB6B0255
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 04:55:42 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so13636544wic.1
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 01:55:42 -0700 (PDT)
+Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com. [2a00:1450:400c:c05::22b])
+        by mx.google.com with ESMTPS id jy3si11449624wjb.152.2015.08.06.01.55.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 06 Aug 2015 01:11:03 -0700 (PDT)
-Message-ID: <BLU436-SMTP128848C012F916D3DFC86B80740@phx.gbl>
-From: Wanpeng Li <wanpeng.li@hotmail.com>
-Subject: [PATCH] mm/hwpoison: fix page refcount of unkown non LRU page
-Date: Thu, 6 Aug 2015 16:09:37 +0800
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Aug 2015 01:55:41 -0700 (PDT)
+Received: by wicne3 with SMTP id ne3so13635657wic.1
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 01:55:40 -0700 (PDT)
+Message-ID: <1438851337.4626.72.camel@gmail.com>
+Subject: Re: [PATCH] mm: add resched points to
+ remap_pmd_range/ioremap_pmd_range
+From: Mike Galbraith <umgwanakikbuti@gmail.com>
+Date: Thu, 06 Aug 2015 10:55:37 +0200
+In-Reply-To: <20150730165803.GA17882@Sligo.logfs.org>
+References: <1437688476-3399-3-git-send-email-sbaugh@catern.com>
+	 <20150724070420.GF4103@dhcp22.suse.cz>
+	 <20150724165627.GA3458@Sligo.logfs.org>
+	 <20150727070840.GB11317@dhcp22.suse.cz>
+	 <20150727151814.GR9641@Sligo.logfs.org>
+	 <20150728133254.GI24972@dhcp22.suse.cz>
+	 <20150728170844.GY9641@Sligo.logfs.org>
+	 <20150729095439.GD15801@dhcp22.suse.cz>
+	 <1438269775.23663.58.camel@gmail.com>
+	 <20150730165803.GA17882@Sligo.logfs.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wanpeng Li <wanpeng.li@hotmail.com>
+To: =?ISO-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Spencer Baugh <sbaugh@catern.com>, Toshi Kani <toshi.kani@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, Joern Engel <joern@logfs.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Shachar Raindel <raindel@mellanox.com>, Boaz Harrosh <boaz@plexistor.com>, Andy Lutomirski <luto@amacapital.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Roman Pen <r.peniaev@gmail.com>, Andrey Konovalov <adech.fo@gmail.com>, Eric Dumazet <edumazet@google.com>, Dmitry Vyukov <dvyukov@google.com>, Rob Jones <rob.jones@codethink.co.uk>, WANG Chao <chaowang@redhat.com>, open list <linux-kernel@vger.kernel.org>, "open
+ list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Spencer Baugh <Spencer.baugh@purestorage.com>
 
-After try to drain pages from pagevec/pageset, we try to get reference
-count of the page again, however, the reference count of the page is 
-not reduced if the page is still not on LRU list. This patch fix it by 
-adding the put_page() to drop the page reference which is from 
-__get_any_page().
+On Thu, 2015-07-30 at 09:58 -0700, JA?rn Engel wrote:
+> On Thu, Jul 30, 2015 at 05:22:55PM +0200, Mike Galbraith wrote:
+> > 
+> > I piddled about with the thought that it might be nice to be able to
+> > sprinkle cond_resched() about to cut rt latencies without wrecking
+> > normal load throughput, cobbled together a cond_resched_rt().
+> > 
+> > On my little box that was a waste of time, as the biggest hits are block
+> > softirq and free_hot_cold_page_list().
+> 
+> Block softirq is one of our problems as well.  It is a bit of a joke
+> that __do_softirq() moves work to ksoftirqd after 2ms, but block softirq
+> can take several 100ms in bad cases.
 
-Signed-off-by: Wanpeng Li <wanpeng.li@hotmail.com> 
----
- mm/memory-failure.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+On my little desktop box, one blk_done_softirq() loop iteration can take
+up to a few milliseconds, leaving me wondering if breaking that loop
+will help a studly box much.  iow, I'd like to know how bad it gets, if
+one iteration can be huge, loop breaking there is fairly pointless, and
+I can stop fiddling.  Do you happen to know iteration time during a size
+huge block softirq hit?  On my little box, loop break/re-raise and
+whatnot improves the general case substantially, but doesn't do much at
+all for worst case.. or rather the next worst case in a list of unknown
+length ;-)
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index c53543d..23163d0 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1535,6 +1535,8 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
- 		 */
- 		ret = __get_any_page(page, pfn, 0);
- 		if (!PageLRU(page)) {
-+			/* Drop page reference which is from __get_any_page() */
-+			put_page(page);
- 			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
- 				pfn, page->flags);
- 			return -EIO;
--- 
-1.7.1
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
