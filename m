@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 019886B0258
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 13:54:43 -0400 (EDT)
-Received: by qged69 with SMTP id d69so58360655qge.0
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 10:54:42 -0700 (PDT)
-Received: from mail-qk0-x229.google.com (mail-qk0-x229.google.com. [2607:f8b0:400d:c09::229])
-        by mx.google.com with ESMTPS id k140si13186049qhk.19.2015.08.06.10.54.41
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CBF66B025B
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 13:54:57 -0400 (EDT)
+Received: by qged69 with SMTP id d69so58365652qge.0
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 10:54:57 -0700 (PDT)
+Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com. [2607:f8b0:400d:c04::233])
+        by mx.google.com with ESMTPS id n97si6774074qkh.75.2015.08.06.10.54.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Aug 2015 10:54:42 -0700 (PDT)
-Received: by qkbm65 with SMTP id m65so28953324qkb.2
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 10:54:41 -0700 (PDT)
+        Thu, 06 Aug 2015 10:54:56 -0700 (PDT)
+Received: by qgeg42 with SMTP id g42so21572657qge.1
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 10:54:56 -0700 (PDT)
 From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH] zpool: clarification comment for zpool_has_pool
-Date: Thu,  6 Aug 2015 13:54:33 -0400
-Message-Id: <1438883673-7791-1-git-send-email-ddstreet@ieee.org>
-In-Reply-To: <CALZtONDNYyKEdk2fc40ePH4Y+vOcUE-D7OG1DRekgSxLgVYKeA@mail.gmail.com>
+Subject: [PATCH] zswap: comment clarifying maxlen
+Date: Thu,  6 Aug 2015 13:54:49 -0400
+Message-Id: <1438883689-7868-1-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <CALZtONCquXbE-dHWQUfKL_OSO7Bk5HN+t2EZduoD11vcaiJxmQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>
 
-Add clarification in the documentation comment for zpool_has_pool() to
-explain the caller should assume the requested driver is or is not
-available, depending on return value.  If true is returned, the caller
-should assume zpool_create_pool() will succeed, but still must be
-prepared to handle failure.
+Add a comment clarifying the variable-size array created on the stack will
+always be either CRYPTO_MAX_ALG_NAME (64) or 32 bytes long.
 
 Signed-off-by: Dan Streetman <ddstreet@ieee.org>
 ---
- mm/zpool.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ mm/zswap.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/mm/zpool.c b/mm/zpool.c
-index aafcf8f..d8cf7cd 100644
---- a/mm/zpool.c
-+++ b/mm/zpool.c
-@@ -103,7 +103,15 @@ static void zpool_put_driver(struct zpool_driver *driver)
-  * zpool_has_pool() - Check if the pool driver is available
-  * @type	The type of the zpool to check (e.g. zbud, zsmalloc)
-  *
-- * This checks if the @type pool driver is available.
-+ * This checks if the @type pool driver is available.  This will try to load
-+ * the requested module, if needed, but there is no guarantee the module will
-+ * still be loaded and available immediately after calling.  If this returns
-+ * true, the caller should assume the pool is available, but must be prepared
-+ * to handle the @zpool_create_pool() returning failure.  However if this
-+ * returns false, the caller should assume the requested pool type is not
-+ * available; either the requested pool type module does not exist, or could
-+ * not be loaded, and calling @zpool_create_pool() with the pool type will
-+ * fail.
-  *
-  * Returns: true if @type pool is available, false if not
-  */
+diff --git a/mm/zswap.c b/mm/zswap.c
+index 7bbecd9..b198081 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -691,6 +691,11 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
+ 	char str[kp->str->maxlen], *s;
+ 	int ret;
+ 
++	/*
++	 * kp is either zswap_zpool_kparam or zswap_compressor_kparam, defined
++	 * at the top of this file, so maxlen is CRYPTO_MAX_ALG_NAME (64) or
++	 * 32 (arbitrary).
++	 */
+ 	strlcpy(str, val, kp->str->maxlen);
+ 	s = strim(str);
+ 
 -- 
 2.1.0
 
