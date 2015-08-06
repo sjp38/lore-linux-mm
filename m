@@ -1,83 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B496E6B0253
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 05:59:51 -0400 (EDT)
-Received: by pabxd6 with SMTP id xd6so41409944pab.2
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 02:59:51 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id o2si1865750pdi.153.2015.08.06.02.59.50
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DEF16B0253
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 06:07:09 -0400 (EDT)
+Received: by igr7 with SMTP id 7so7849177igr.0
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 03:07:09 -0700 (PDT)
+Received: from mail-io0-x232.google.com (mail-io0-x232.google.com. [2607:f8b0:4001:c06::232])
+        by mx.google.com with ESMTPS id rs7si1238352igb.46.2015.08.06.03.07.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Aug 2015 02:59:50 -0700 (PDT)
-Date: Thu, 6 Aug 2015 12:59:38 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [linux-next:master 6252/6518]
- include/linux/mmu_notifier.h:247:19: sparse: context imbalance in
- 'page_idle_clear_pte_refs_one' - unexpected unlock
-Message-ID: <20150806095938.GO11971@esperanza>
-References: <201508061748.2PzbGIFl%fengguang.wu@intel.com>
+        Thu, 06 Aug 2015 03:07:08 -0700 (PDT)
+Received: by iodb91 with SMTP id b91so16092600iod.1
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 03:07:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <201508061748.2PzbGIFl%fengguang.wu@intel.com>
+In-Reply-To: <20150805131406.8bd8a1a6d2a6691aa6eedd34@linux-foundation.org>
+References: <1438782403-29496-1-git-send-email-ddstreet@ieee.org>
+ <1438782403-29496-4-git-send-email-ddstreet@ieee.org> <20150805131406.8bd8a1a6d2a6691aa6eedd34@linux-foundation.org>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 6 Aug 2015 06:06:49 -0400
+Message-ID: <CALZtONCquXbE-dHWQUfKL_OSO7Bk5HN+t2EZduoD11vcaiJxmQ@mail.gmail.com>
+Subject: Re: [PATCH 3/3] zswap: change zpool/compressor at runtime
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 06, 2015 at 05:48:54PM +0800, kbuild test robot wrote:
-> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   c6b169e6ffb962068153bd92b0c4ecbd731a122f
-> commit: cbba4e22584984bffccd07e0801fd2b8ec1ecf5f [6252/6518] Move /proc/kpageidle to /sys/kernel/mm/page_idle/bitmap
-> reproduce:
->   # apt-get install sparse
->   git checkout cbba4e22584984bffccd07e0801fd2b8ec1ecf5f
->   make ARCH=x86_64 allmodconfig
->   make C=1 CF=-D__CHECK_ENDIAN__
-> 
-> 
-> sparse warnings: (new ones prefixed by >>)
-> 
-> >> include/linux/mmu_notifier.h:247:19: sparse: context imbalance in 'page_idle_clear_pte_refs_one' - unexpected unlock
-> 
-> vim +/page_idle_clear_pte_refs_one +247 include/linux/mmu_notifier.h
-> 
-> cddb8a5c Andrea Arcangeli     2008-07-28  231  
-> cddb8a5c Andrea Arcangeli     2008-07-28  232  static inline void mmu_notifier_release(struct mm_struct *mm)
-> cddb8a5c Andrea Arcangeli     2008-07-28  233  {
-> cddb8a5c Andrea Arcangeli     2008-07-28  234  	if (mm_has_notifiers(mm))
-> cddb8a5c Andrea Arcangeli     2008-07-28  235  		__mmu_notifier_release(mm);
-> cddb8a5c Andrea Arcangeli     2008-07-28  236  }
-> cddb8a5c Andrea Arcangeli     2008-07-28  237  
-> cddb8a5c Andrea Arcangeli     2008-07-28  238  static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
-> 57128468 Andres Lagar-Cavilla 2014-09-22  239  					  unsigned long start,
-> 57128468 Andres Lagar-Cavilla 2014-09-22  240  					  unsigned long end)
-> cddb8a5c Andrea Arcangeli     2008-07-28  241  {
-> cddb8a5c Andrea Arcangeli     2008-07-28  242  	if (mm_has_notifiers(mm))
-> 57128468 Andres Lagar-Cavilla 2014-09-22  243  		return __mmu_notifier_clear_flush_young(mm, start, end);
-> cddb8a5c Andrea Arcangeli     2008-07-28  244  	return 0;
-> cddb8a5c Andrea Arcangeli     2008-07-28  245  }
-> cddb8a5c Andrea Arcangeli     2008-07-28  246  
-> 632116f6 Vladimir Davydov     2015-08-06 @247  static inline int mmu_notifier_clear_young(struct mm_struct *mm,
-> 632116f6 Vladimir Davydov     2015-08-06  248  					   unsigned long start,
-> 632116f6 Vladimir Davydov     2015-08-06  249  					   unsigned long end)
-> 632116f6 Vladimir Davydov     2015-08-06  250  {
-> 632116f6 Vladimir Davydov     2015-08-06  251  	if (mm_has_notifiers(mm))
-> 632116f6 Vladimir Davydov     2015-08-06  252  		return __mmu_notifier_clear_young(mm, start, end);
-> 632116f6 Vladimir Davydov     2015-08-06  253  	return 0;
-> 632116f6 Vladimir Davydov     2015-08-06  254  }
-> 632116f6 Vladimir Davydov     2015-08-06  255  
+On Wed, Aug 5, 2015 at 4:14 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Wed,  5 Aug 2015 09:46:43 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+>
+>> Update the zpool and compressor parameters to be changeable at runtime.
+>> When changed, a new pool is created with the requested zpool/compressor,
+>> and added as the current pool at the front of the pool list.  Previous
+>> pools remain in the list only to remove existing compressed pages from.
+>> The old pool(s) are removed once they become empty.
+>>
+>> +/*********************************
+>> +* param callbacks
+>> +**********************************/
+>> +
+>> +static int __zswap_param_set(const char *val, const struct kernel_param *kp,
+>> +                          char *type, char *compressor)
+>> +{
+>> +     struct zswap_pool *pool, *put_pool = NULL;
+>> +     char str[kp->str->maxlen], *s;
+>
+> What's the upper bound on the size of this variable-sized array?
 
-False-positive as I explained to the similar warning for
-kpageilde_clear_pte_refs_one:
+the kernel_param in this function will always be either
+zswap_compressor_kparam or zswap_zpool_kparam, which are defined at
+the top, and their maxlen fields are set to sizeof(their string),
+which is either CRYPTO_MAX_ALG_NAME (currently 64) or 32 (arbitrary
+max for zpool name).
 
-http://www.spinics.net/lists/linux-mm/msg92053.html
+I can also add a comment here to clarify that.
 
-It is caused by page_check_address, which is not annotated as acquiring
-a ptl lock.
-
-Thanks,
-Vladimir
+>
+>> +     int ret;
+>> +
+>> +     strlcpy(str, val, kp->str->maxlen);
+>> +     s = strim(str);
+>> +
+>> +     /* if this is load-time (pre-init) param setting,
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
