@@ -1,146 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id C2C946B0253
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 11:33:03 -0400 (EDT)
-Received: by wijp15 with SMTP id p15so27443168wij.0
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 08:33:03 -0700 (PDT)
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
-        by mx.google.com with ESMTPS id d13si13530577wjs.119.2015.08.06.08.33.01
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id BF1BF280245
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 11:34:02 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so27537589wic.1
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 08:34:02 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d2si4795136wiz.96.2015.08.06.08.33.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Aug 2015 08:33:02 -0700 (PDT)
-Received: by wibxm9 with SMTP id xm9so27593262wib.0
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 08:33:01 -0700 (PDT)
-Date: Thu, 6 Aug 2015 18:33:00 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: page-flags behavior on compound pages: a worry
-Message-ID: <20150806153259.GA2834@node.dhcp.inet.fi>
-References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com>
- <alpine.LSU.2.11.1508052001350.6404@eggly.anvils>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 06 Aug 2015 08:34:01 -0700 (PDT)
+Subject: Re: [PATCH V6 3/6] mm: Introduce VM_LOCKONFAULT
+References: <1438184575-10537-1-git-send-email-emunson@akamai.com>
+ <1438184575-10537-4-git-send-email-emunson@akamai.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55C37E62.6020909@suse.cz>
+Date: Thu, 6 Aug 2015 17:33:54 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1508052001350.6404@eggly.anvils>
+In-Reply-To: <1438184575-10537-4-git-send-email-emunson@akamai.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eric B Munson <emunson@akamai.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Wed, Aug 05, 2015 at 09:15:57PM -0700, Hugh Dickins wrote:
-> Hi Kirill,
-> 
-> I had a nasty thought this morning.
- 
-Tough day.
+On 07/29/2015 05:42 PM, Eric B Munson wrote:
+> The cost of faulting in all memory to be locked can be very high when
+> working with large mappings.  If only portions of the mapping will be
+> used this can incur a high penalty for locking.
+>
+> For the example of a large file, this is the usage pattern for a large
+> statical language model (probably applies to other statical or graphical
+> models as well).  For the security example, any application transacting
+> in data that cannot be swapped out (credit card data, medical records,
+> etc).
+>
+> This patch introduces the ability to request that pages are not
+> pre-faulted, but are placed on the unevictable LRU when they are finally
+> faulted in.  The VM_LOCKONFAULT flag will be used together with
+> VM_LOCKED and has no effect when set without VM_LOCKED.  Setting the
+> VM_LOCKONFAULT flag for a VMA will cause pages faulted into that VMA to
+> be added to the unevictable LRU when they are faulted or if they are
+> already present, but will not cause any missing pages to be faulted in.
+>
+> Exposing this new lock state means that we cannot overload the meaning
+> of the FOLL_POPULATE flag any longer.  Prior to this patch it was used
+> to mean that the VMA for a fault was locked.  This means we need the
+> new FOLL_MLOCK flag to communicate the locked state of a VMA.
+> FOLL_POPULATE will now only control if the VMA should be populated and
+> in the case of VM_LOCKONFAULT, it will not be set.
+>
+> Signed-off-by: Eric B Munson <emunson@akamai.com>
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Jonathan Corbet <corbet@lwn.net>
+> Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Cc: linux-kernel@vger.kernel.org
+> Cc: dri-devel@lists.freedesktop.org
+> Cc: linux-mm@kvack.org
+> Cc: linux-api@vger.kernel.org
+> ---
+>   drivers/gpu/drm/drm_vm.c |  8 +++++++-
+>   fs/proc/task_mmu.c       |  1 +
+>   include/linux/mm.h       |  2 ++
+>   kernel/fork.c            |  2 +-
+>   mm/debug.c               |  1 +
+>   mm/gup.c                 | 10 ++++++++--
+>   mm/huge_memory.c         |  2 +-
+>   mm/hugetlb.c             |  4 ++--
+>   mm/mlock.c               |  2 +-
+>   mm/mmap.c                |  2 +-
+>   mm/rmap.c                |  4 ++--
+>   11 files changed, 27 insertions(+), 11 deletions(-)
+>
+> diff --git a/drivers/gpu/drm/drm_vm.c b/drivers/gpu/drm/drm_vm.c
+> index aab49ee..103a5f6 100644
+> --- a/drivers/gpu/drm/drm_vm.c
+> +++ b/drivers/gpu/drm/drm_vm.c
+> @@ -699,9 +699,15 @@ int drm_vma_info(struct seq_file *m, void *data)
+>   		   (void *)(unsigned long)virt_to_phys(high_memory));
+>
+>   	list_for_each_entry(pt, &dev->vmalist, head) {
+> +		char lock_flag = '-';
+> +
+>   		vma = pt->vma;
+>   		if (!vma)
+>   			continue;
+> +		if (vma->vm_flags & VM_LOCKONFAULT)
+> +			lock_flag = 'f';
+> +		else if (vma->vm_flags & VM_LOCKED)
+> +			lock_flag = 'l';
+>   		seq_printf(m,
+>   			   "\n%5d 0x%pK-0x%pK %c%c%c%c%c%c 0x%08lx000",
+>   			   pt->pid,
+> @@ -710,7 +716,7 @@ int drm_vma_info(struct seq_file *m, void *data)
+>   			   vma->vm_flags & VM_WRITE ? 'w' : '-',
+>   			   vma->vm_flags & VM_EXEC ? 'x' : '-',
+>   			   vma->vm_flags & VM_MAYSHARE ? 's' : 'p',
+> -			   vma->vm_flags & VM_LOCKED ? 'l' : '-',
+> +			   lock_flag,
+>   			   vma->vm_flags & VM_IO ? 'i' : '-',
+>   			   vma->vm_pgoff);
+>
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index ca1e091..38d69fc 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -579,6 +579,7 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
 
-I'm trying to wrap my head around this mail and not sure if I succeed
-much. :-|
+This function has the following comment:
 
-> Andrew had prodded me gently to re-examine my concerns with your
-> page-flags rework in mmotm.  I still dislike the bloat (my mm/built-in.o
-> text goes up from 478513 to 490183 bytes on a non-DEBUG_VM build); but I
-> was hoping to set that aside, to let us move forward.
-> 
-> But looking into the bloat led me to what seems a more serious issue
-> with it.  I'd tacked a little function on to the end of mm/filemap.c:
-> 
-> bool page_is_locked(struct page *page)
-> {
-> 	return !!PageLocked(page);
-> }
-> 
-> which came out as:
-> 
-> 0000000000003a60 <page_is_locked>:
->     3a60:	48 8b 07             	mov    (%rdi),%rax
->     3a63:	55                   	push   %rbp
->     3a64:	48 89 e5             	mov    %rsp,%rbp
-> 
-> [instructions above same as without your patches; those below added by them]
-> 
->     3a67:	f6 c4 80             	test   $0x80,%ah
->     3a6a:	74 10                	je     3a7c <page_is_locked+0x1c>
->     3a6c:	48 8b 47 30          	mov    0x30(%rdi),%rax
->     3a70:	48 8b 17             	mov    (%rdi),%rdx
->     3a73:	80 e6 80             	and    $0x80,%dh
->     3a76:	48 0f 44 c7          	cmove  %rdi,%rax
->     3a7a:	eb 03                	jmp    3a7f <page_is_locked+0x1f>
->     3a7c:	48 89 f8             	mov    %rdi,%rax
->     3a7f:	48 8b 00             	mov    (%rax),%rax
-> 
-> [instructions above added by your patches; those below same as before]
-> 
->     3a82:	5d                   	pop    %rbp
->     3a83:	83 e0 01             	and    $0x1,%eax
->     3a86:	c3                   	retq   
-> 
-> The "and $0x80,%dh" looked superfluous at first, but of course it isn't:
-> it's from the smp_rmb() in David's 668f9abbd433 "mm: close PageTail race"
-> (a later commit refactors compound_head() but doesn't change the story).
-> 
-> And it's that race, or a worse race of that kind, that now worries me.
-> Relying on smp_wmb() and smp_rmb() may be all that was needed in the
-> case that David was fixing; and (I dare not look at them to audit!)
-> all uses of compound_head() in our current v4.2-rc tree may well be
-> safe, for this or that contingent reason in each place that it's used.
-> 
-> But there is no locking within compound_head(page) to make it safe
-> everywhere, yet your page-flags rework is changing a large number
-> of PageWhatever()s and SetPageWhatever()s and ClearPageWhatever()s
-> now to do a hidden compound_head(page) beneath the covers.
-> 
-> To be more specific: if preemption, or an interrupt, or entry to SMM
-> mode, or whatever, delays this thread somewhere in that compound_head()
-> sequence of instructions, how can we be sure that the "head" returned
-> by compound_head() is good?  We know the page was PageTail just before
-> looking up page->first_page, and we know it was PageTail just after,
-> but we don't know that it was PageTail throughout, and we don't know
-> whether page->first_page is even a good page pointer, or something
-> else from the private/ptl/slab_cache union.
+Don't forget to update Documentation/ on changes.
 
-That looks like a very valid worry to me. For current -mm tree.
+[...]
 
-But let's take my refcounting rework into picture.
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -92,7 +92,7 @@ retry:
+>   		 */
+>   		mark_page_accessed(page);
+>   	}
+> -	if ((flags & FOLL_POPULATE) && (vma->vm_flags & VM_LOCKED)) {
+> +	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
+>   		/*
+>   		 * The preliminary mapping check is mainly to avoid the
+>   		 * pointless overhead of lock_page on the ZERO_PAGE
+> @@ -265,6 +265,9 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+>   	unsigned int fault_flags = 0;
+>   	int ret;
+>
+> +	/* mlock all present pages, but do not fault in new pages */
+> +	if ((*flags & (FOLL_POPULATE | FOLL_MLOCK)) == FOLL_MLOCK)
+> +		return -ENOENT;
+>   	/* For mm_populate(), just skip the stack guard page. */
+>   	if ((*flags & FOLL_POPULATE) &&
+>   			(stack_guard_page_start(vma, address) ||
+> @@ -850,7 +853,10 @@ long populate_vma_page_range(struct vm_area_struct *vma,
+>   	VM_BUG_ON_VMA(end   > vma->vm_end, vma);
+>   	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
+>
+> -	gup_flags = FOLL_TOUCH | FOLL_POPULATE;
+> +	gup_flags = FOLL_TOUCH | FOLL_MLOCK;
+> +	if ((vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) == VM_LOCKED)
+> +		gup_flags |= FOLL_POPULATE;
+> +
+>   	/*
+>   	 * We want to touch writable mappings with a write fault in order
+>   	 * to break COW, except for shared mappings because these don't COW
 
-One thing it simplifies is protection against splitting. Once you've got a
-reference to a page, it cannot be split under you. It makes PageTail() and
-->first_page stable for most callsites.
+I think this might be breaking the populate part of mmap(MAP_POPULATE & 
+~MAP_LOCKED) case, if I follow the execution correctly (it's far from 
+simple...)
 
-We can access the page's flags under ptl, without having reference the
-page. And that's fine: ptl protects against splitting too.
+SYSCALL_DEFINE6(mmap_pgoff... with MAP_POPULATE
+   vm_mmap_pgoff(..., MAP_POPULATE...)
+     do_mmap_pgoff(...MAP_POPULATE... &populate) -> populate == TRUE
+     mm_populate()
+       __mm_populate()
+         populate_vma_page_range()
 
-Fast GUP also have a way to protect against split.
+Previously, this path would have FOLL_POPULATE in gup_flags and continue 
+with __get_user_pages() and faultin_page() (actually regardless of 
+FOLL_POPULATE) which would fault in the pages.
 
-IIUC, the only potentially problematic callsites left are physical memory
-scanners. This code requires audit. I'll do that.
- 
-Do I miss something else?
+After your patch, populate_vma_page_range() will set FOLL_MLOCK, but 
+since VM_LOCKED is not set, FOLL_POPULATE won't be set either.
+Then faultin_page() will return on the new check:
 
-> Of course it would be very rare for it to go wrong; and most callsites
-> will obviously be safe for this or that reason; though, sadly, none of
-> them safe from holding a reference to the tail page in question, since
-> its count is frozen at 0 and cannot be grabbed by get_page_unless_zero.
+	flags & (FOLL_POPULATE | FOLL_MLOCK)) == FOLL_MLOCK
 
-Do you mean that grabbing head page's ->_count is not enough to protect
-against splitting and freeing tail page under you?
-
-I know a patchset which solves this! ;)
-
-> But I don't see how it can be safe to rely on compound_head() inside
-> a general purpose page-flag function, that we're all accustomed to
-> think of as a simple bitop, that can be applied without great care.
-> 
-> Hugh
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
- Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
