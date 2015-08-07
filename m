@@ -1,121 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E6466B0038
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 02:30:28 -0400 (EDT)
-Received: by pdrh1 with SMTP id h1so23632157pdr.0
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 23:30:28 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id cx7si15878710pad.49.2015.08.06.23.30.27
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C05B6B0038
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 03:21:33 -0400 (EDT)
+Received: by pawu10 with SMTP id u10so82304741paw.1
+        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 00:21:33 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id n3si15970291pap.184.2015.08.07.00.21.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Aug 2015 23:30:27 -0700 (PDT)
-Received: by pabxd6 with SMTP id xd6so62743491pab.2
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 23:30:27 -0700 (PDT)
-Date: Fri, 7 Aug 2015 15:30:56 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 2/3] zswap: dynamic pool creation
-Message-ID: <20150807063056.GG1891@swordfish>
-References: <1438782403-29496-1-git-send-email-ddstreet@ieee.org>
- <1438782403-29496-3-git-send-email-ddstreet@ieee.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1438782403-29496-3-git-send-email-ddstreet@ieee.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 07 Aug 2015 00:21:32 -0700 (PDT)
+Received: from epcpsbgr4.samsung.com
+ (u144.gpu120.samsung.co.kr [203.254.230.144])
+ by mailout3.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0NSP01BFVB3TZ880@mailout3.samsung.com> for linux-mm@kvack.org;
+ Fri, 07 Aug 2015 16:21:29 +0900 (KST)
+From: Pintu Kumar <pintu.k@samsung.com>
+Subject: [PATCH 1/1] mm: vmstat: introducing vm counter for slowpath
+Date: Fri, 07 Aug 2015 12:38:54 +0530
+Message-id: <1438931334-25894-1-git-send-email-pintu.k@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org, dave@stgolabs.net, mhocko@suse.cz, koct9i@gmail.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, pintu.k@samsung.com
+Cc: cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.k@outlook.com, vishnu.ps@samsung.com, rohit.kr@samsung.com
 
-Hello,
+This patch add new counter slowpath_entered in /proc/vmstat to
+track how many times the system entered into slowpath after
+first allocation attempt is failed.
+This is useful to know the rate of allocation success within
+the slowpath.
+This patch is tested on ARM with 512MB RAM.
+A sample output is shown below after successful boot-up:
+shell> cat /proc/vmstat
+nr_free_pages 4712
+pgalloc_normal 1319432
+pgalloc_movable 0
+pageoutrun 379
+allocstall 0
+slowpath_entered 585
+compact_stall 0
+compact_fail 0
+compact_success 0
 
-On (08/05/15 09:46), Dan Streetman wrote:
-[..]
-> -enum comp_op {
-> -	ZSWAP_COMPOP_COMPRESS,
-> -	ZSWAP_COMPOP_DECOMPRESS
-> +struct zswap_pool {
-> +	struct zpool *zpool;
-> +	struct kref kref;
-> +	struct list_head list;
-> +	struct rcu_head rcu_head;
-> +	struct notifier_block notifier;
-> +	char tfm_name[CRYPTO_MAX_ALG_NAME];
+>From the above output we can see that the system entered
+slowpath 585 times.
+But the existing counter kswapd(pageoutrun), direct_reclaim(allocstall),
+direct_compact(compact_stall) does not tell this value.
+>From the above value, it clearly indicates that the system have
+entered slowpath 585 times. Out of which 379 times allocation passed
+through kswapd, without performing direct reclaim/compaction.
+That means the remaining 206 times the allocation would have succeeded
+using the alloc_pages_high_priority.
 
-do you need to keep a second CRYPTO_MAX_ALG_NAME copy? shouldn't it
-be `tfm->__crt_alg->cra_name`, which is what
-	crypto_tfm_alg_name(struct crypto_tfm *tfm)
-does?
+Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
+---
+ include/linux/vm_event_item.h |    2 +-
+ mm/page_alloc.c               |    2 ++
+ mm/vmstat.c                   |    2 +-
+ 3 files changed, 4 insertions(+), 2 deletions(-)
 
-> +	struct crypto_comp * __percpu *tfm;
->  };
-
-->tfm will be access pretty often, right? did you intentionally put it
-at the bottom offset of `struct zswap_pool'?
-
-[..]
-> +static struct zswap_pool *__zswap_pool_current(void)
->  {
-> -	return totalram_pages * zswap_max_pool_percent / 100 <
-> -		DIV_ROUND_UP(zswap_pool_total_size, PAGE_SIZE);
-> +	struct zswap_pool *pool;
-> +
-> +	pool = list_first_or_null_rcu(&zswap_pools, typeof(*pool), list);
-> +	WARN_ON(!pool);
-> +
-> +	return pool;
-> +}
-> +
-> +static struct zswap_pool *zswap_pool_current(void)
-> +{
-> +	assert_spin_locked(&zswap_pools_lock);
-> +
-> +	return __zswap_pool_current();
-> +}
-
-this one seems to be used only once. do you want to replace
-that single usage (well, if it's really needed)
-
-	WARN_ON(pool == zswap_pool_current());
-with
-	WARN_ON(pool == __zswap_pool_current);
-
-?
-
-you can then drop zswap_pool_current()... and probably rename
-__zswap_pool_current() to zswap_pool_current().
-
-	-ss
-
-> +static struct zswap_pool *zswap_pool_current_get(void)
-> +{
-> +	struct zswap_pool *pool;
-> +
-> +	rcu_read_lock();
-> +
-> +	pool = __zswap_pool_current();
-> +	if (!pool || !zswap_pool_get(pool))
-> +		pool = NULL;
-> +
-> +	rcu_read_unlock();
-> +
-> +	return pool;
-> +}
-> +
-> +static struct zswap_pool *zswap_pool_last_get(void)
-> +{
-> +	struct zswap_pool *pool, *last = NULL;
-> +
-> +	rcu_read_lock();
-> +
-> +	list_for_each_entry_rcu(pool, &zswap_pools, list)
-> +		last = pool;
-> +	if (!WARN_ON(!last) && !zswap_pool_get(last))
-> +		last = NULL;
-> +
-> +	rcu_read_unlock();
-> +
-> +	return last;
-> +}
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 2b1cef8..9825f294 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -37,7 +37,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ #endif
+ 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_INODESTEAL,
+ 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
+-		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
++		PAGEOUTRUN, ALLOCSTALL, SLOWPATH_ENTERED, PGROTATED,
+ 		DROP_PAGECACHE, DROP_SLAB,
+ #ifdef CONFIG_NUMA_BALANCING
+ 		NUMA_PTE_UPDATES,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2024d2e..4a5d487 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3029,6 +3029,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	if (IS_ENABLED(CONFIG_NUMA) && (gfp_mask & __GFP_THISNODE) && !wait)
+ 		goto nopage;
+ 
++	count_vm_event(SLOWPATH_ENTERED);
++
+ retry:
+ 	if (!(gfp_mask & __GFP_NO_KSWAPD))
+ 		wake_all_kswapds(order, ac);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 1fd0886..1c54fdf 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -778,7 +778,7 @@ const char * const vmstat_text[] = {
+ 	"kswapd_high_wmark_hit_quickly",
+ 	"pageoutrun",
+ 	"allocstall",
+-
++	"slowpath_entered",
+ 	"pgrotated",
+ 
+ 	"drop_pagecache",
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
