@@ -1,52 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D90FC6B0253
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 10:50:59 -0400 (EDT)
-Received: by wibxm9 with SMTP id xm9so69073187wib.1
-        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 07:50:59 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id ed5si11445027wib.67.2015.08.07.07.50.58
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 857D06B0038
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 10:55:40 -0400 (EDT)
+Received: by qgeh16 with SMTP id h16so76171944qge.3
+        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 07:55:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a101si18290755qkh.66.2015.08.07.07.55.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Aug 2015 07:50:58 -0700 (PDT)
-Received: by wibhh20 with SMTP id hh20so69128176wib.0
-        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 07:50:58 -0700 (PDT)
-Date: Fri, 7 Aug 2015 17:50:56 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: page-flags behavior on compound pages: a worry
-Message-ID: <20150807145056.GB12177@node.dhcp.inet.fi>
-References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com>
- <alpine.LSU.2.11.1508052001350.6404@eggly.anvils>
- <20150806153259.GA2834@node.dhcp.inet.fi>
- <alpine.LSU.2.11.1508061121120.7500@eggly.anvils>
- <alpine.DEB.2.11.1508061542200.8172@east.gentwo.org>
+        Fri, 07 Aug 2015 07:55:39 -0700 (PDT)
+Subject: Re: PROBLEM: 4.1.4 -- Kernel Panic on shutdown
+References: <55C18D2E.4030009@rjmx.net>
+ <alpine.DEB.2.11.1508051105070.29534@east.gentwo.org>
+ <20150805162436.GD25159@twins.programming.kicks-ass.net>
+ <alpine.DEB.2.11.1508051131580.29823@east.gentwo.org>
+ <20150805163609.GE25159@twins.programming.kicks-ass.net>
+ <alpine.DEB.2.11.1508051201280.29823@east.gentwo.org>
+ <55C2BC00.8020302@rjmx.net>
+ <alpine.DEB.2.11.1508052229540.891@east.gentwo.org>
+ <55C3F70E.2050202@rjmx.net>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <55C4C6E8.5090501@redhat.com>
+Date: Fri, 7 Aug 2015 07:55:36 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1508061542200.8172@east.gentwo.org>
+In-Reply-To: <55C3F70E.2050202@rjmx.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ron Murray <rjmx@rjmx.net>, Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 
-On Thu, Aug 06, 2015 at 03:45:31PM -0500, Christoph Lameter wrote:
-> On Thu, 6 Aug 2015, Hugh Dickins wrote:
-> 
-> > > I know a patchset which solves this! ;)
-> >
-> > Oh, and I know a patchset which avoids these problems completely,
-> > by not using compound pages at all ;)
-> 
-> Another dumb idea: Stop the insanity of splitting pages on the fly?
-> Splitting pages should work like page migration: Lock everything down and
-> ensure no one is using the page and then do it. That way the compound pages
-> and its metadata are as stable as a regular page.
- 
-That's what I do in refcounting patchset.
+On 08/06/2015 05:08 PM, Ron Murray wrote:
+> On 8/5/2015 23:31, Christoph Lameter wrote:
+>> On Wed, 5 Aug 2015, Ron Murray wrote:
+>>
+>>> OK, tried that (with no parameters though. Should I try some?). That got
+>>> me a crash with a blank screen and no panic report. The thing is clearly
+>> Hmmm... Crash early on? Could you attach a serial console and try
+>> "earlyprintk" as an option as well?
+>     Might be difficult, since the box doesn't have a serial port. I think
+> I have a USB serial port somewhere, but I don't know if it'll work. I
+> will see what I can do.
+>
+>>> touchy: small changes in memory positions make a difference. That's
+>>> probably why I didn't get a panic message until 4.1.4: the gods have to
+>>> all be looking in the right direction.
+>> Subtle corruption issue. If slub_debug does not get it then other
+>> debugging techniques may have to be used.
+>>
+>>>> [  OK  ] Stopped CUPS Scheduler.
+>>>> [  OK  ] Stopped (null).
+>>>> ------------[ cut here ]------------
+>>> Note the "Stopped (null)" before the "cut here" line. I wonder whether
+>>> that has anything to do with the problem, or is it a red herring?
+>> Hmmm... Thats a message from user space.
+> That's what I thought. I'll see if that message shows up in 4.0.9, and
+> try to find out what it is.
+>
+>
 
--- 
- Kirill A. Shutemov
+There was a similar report about a crash on reboot with 4.1.3[1]
+where that reporter linked it to a bluetooth mouse. Hopefully this
+isn't a red herring but it might be a similar report?
+
+Thanks,
+Laura
+
+[1]https://bugzilla.redhat.com/show_bug.cgi?id=1248741
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
