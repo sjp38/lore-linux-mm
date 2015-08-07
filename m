@@ -1,86 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 07E2F6B0038
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 15:02:55 -0400 (EDT)
-Received: by ioeg141 with SMTP id g141so120512198ioe.3
-        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 12:02:54 -0700 (PDT)
-Received: from mail-io0-x22d.google.com (mail-io0-x22d.google.com. [2607:f8b0:4001:c06::22d])
-        by mx.google.com with ESMTPS id j124si8911780ioe.170.2015.08.07.12.02.54
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 4710F6B0253
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 17:26:24 -0400 (EDT)
+Received: by pabyb7 with SMTP id yb7so63485476pab.0
+        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 14:26:24 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ix1si19803928pbd.181.2015.08.07.14.26.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Aug 2015 12:02:54 -0700 (PDT)
-Received: by iodb91 with SMTP id b91so60640455iod.1
-        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 12:02:54 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <201508070924.YNOeybcV%fengguang.wu@intel.com>
-References: <201508070924.YNOeybcV%fengguang.wu@intel.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Fri, 7 Aug 2015 15:02:34 -0400
-Message-ID: <CALZtONBF7UbyFO5VD3RH4G58_WJb+4bQSiGKZoKgbka19eGXXg@mail.gmail.com>
-Subject: Re: [linux-next:master 6299/6518] mm/zswap.c:759:1: warning:
- '__zswap_param_set' uses dynamic stack allocation
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Aug 2015 14:26:23 -0700 (PDT)
+Date: Fri, 7 Aug 2015 14:26:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [linux-next:master 6277/6751] mm/page_idle.c:74:4: error:
+ implicit declaration of function 'pte_unmap'
+Message-Id: <20150807142622.b2de8f5e70f1224dfe9aa195@linux-foundation.org>
+In-Reply-To: <201508072227.PBXmgcfg%fengguang.wu@intel.com>
+References: <201508072227.PBXmgcfg%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, Aug 6, 2015 at 9:59 PM, kbuild test robot
-<fengguang.wu@intel.com> wrote:
+On Fri, 7 Aug 2015 22:24:33 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+
 > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   c6b169e6ffb962068153bd92b0c4ecbd731a122f
-> commit: e2e60954eae9929a982d12b6ff24a91b37822f34 [6299/6518] zswap: change zpool/compressor at runtime
-> config: s390-allyesconfig (attached as .config)
+> head:   e6455bc5b91f41f842f30465c9193320f0568707
+> commit: cbba4e22584984bffccd07e0801fd2b8ec1ecf5f [6277/6751] Move /proc/kpageidle to /sys/kernel/mm/page_idle/bitmap
+> config: blackfin-allmodconfig (attached as .config)
 > reproduce:
 >   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
 >   chmod +x ~/bin/make.cross
->   git checkout e2e60954eae9929a982d12b6ff24a91b37822f34
+>   git checkout cbba4e22584984bffccd07e0801fd2b8ec1ecf5f
 >   # save the attached .config to linux build tree
->   make.cross ARCH=s390
->
-> All warnings (new ones prefixed by >>):
->
->    mm/zswap.c: In function '__zswap_param_set':
->>> mm/zswap.c:759:1: warning: '__zswap_param_set' uses dynamic stack allocation
+>   make.cross ARCH=blackfin 
+> 
+> All error/warnings (new ones prefixed by >>):
+> 
+>    mm/page_idle.c: In function 'page_idle_clear_pte_refs_one':
+>    mm/page_idle.c:67:4: error: implicit declaration of function 'pmdp_test_and_clear_young' [-Werror=implicit-function-declaration]
+>    mm/page_idle.c:71:3: error: implicit declaration of function 'page_check_address' [-Werror=implicit-function-declaration]
 
-ugh, ok.  It really should be fine, but I'll send a patch to use a
-static-sized array instead; we know it's never more than 64 bytes.
+Yeah.  This?
 
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: proc-add-kpageidle-file-fix-6-fix-2-fix
 
->     }
->     ^
->
-> vim +/__zswap_param_set +759 mm/zswap.c
->
->    743                   * list; if it's new (and empty) then it'll be removed and
->    744                   * destroyed by the put after we drop the lock
->    745                   */
->    746                  list_add_tail_rcu(&pool->list, &zswap_pools);
->    747                  put_pool = pool;
->    748          }
->    749
->    750          spin_unlock(&zswap_pools_lock);
->    751
->    752          /* drop the ref from either the old current pool,
->    753           * or the new pool we failed to add
->    754           */
->    755          if (put_pool)
->    756                  zswap_pool_put(put_pool);
->    757
->    758          return ret;
->  > 759  }
->    760
->    761  static int zswap_compressor_param_set(const char *val,
->    762                                        const struct kernel_param *kp)
->    763  {
->    764          return __zswap_param_set(val, kp, zswap_zpool_type, NULL);
->    765  }
->    766
->    767  static int zswap_zpool_param_set(const char *val,
->
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+kpageidle requires an MMU
+
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Vladimir Davydov <vdavydov@parallels.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/Kconfig |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN fs/proc/page.c~proc-add-kpageidle-file-fix-6-fix-2-fix fs/proc/page.c
+diff -puN mm/Kconfig~proc-add-kpageidle-file-fix-6-fix-2-fix mm/Kconfig
+--- a/mm/Kconfig~proc-add-kpageidle-file-fix-6-fix-2-fix
++++ a/mm/Kconfig
+@@ -657,7 +657,7 @@ config DEFERRED_STRUCT_PAGE_INIT
+ 
+ config IDLE_PAGE_TRACKING
+ 	bool "Enable idle page tracking"
+-	depends on SYSFS
++	depends on SYSFS && MMU
+ 	select PAGE_EXTENSION if !64BIT
+ 	help
+ 	  This feature allows to estimate the amount of user pages that have
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
