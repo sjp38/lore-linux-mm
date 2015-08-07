@@ -1,73 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 857D06B0038
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 10:55:40 -0400 (EDT)
-Received: by qgeh16 with SMTP id h16so76171944qge.3
-        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 07:55:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a101si18290755qkh.66.2015.08.07.07.55.39
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 163076B0038
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 11:05:05 -0400 (EDT)
+Received: by wicgj17 with SMTP id gj17so65110965wic.1
+        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 08:05:04 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
+        by mx.google.com with ESMTPS id dj6si11545302wib.22.2015.08.07.08.05.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Aug 2015 07:55:39 -0700 (PDT)
-Subject: Re: PROBLEM: 4.1.4 -- Kernel Panic on shutdown
-References: <55C18D2E.4030009@rjmx.net>
- <alpine.DEB.2.11.1508051105070.29534@east.gentwo.org>
- <20150805162436.GD25159@twins.programming.kicks-ass.net>
- <alpine.DEB.2.11.1508051131580.29823@east.gentwo.org>
- <20150805163609.GE25159@twins.programming.kicks-ass.net>
- <alpine.DEB.2.11.1508051201280.29823@east.gentwo.org>
- <55C2BC00.8020302@rjmx.net>
- <alpine.DEB.2.11.1508052229540.891@east.gentwo.org>
- <55C3F70E.2050202@rjmx.net>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <55C4C6E8.5090501@redhat.com>
-Date: Fri, 7 Aug 2015 07:55:36 -0700
+        Fri, 07 Aug 2015 08:05:03 -0700 (PDT)
+Received: by wibxm9 with SMTP id xm9so69613335wib.1
+        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 08:05:03 -0700 (PDT)
+Date: Fri, 7 Aug 2015 17:05:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm/slub: don't wait for high-order page allocation
+Message-ID: <20150807150501.GJ30785@dhcp22.suse.cz>
+References: <1438913403-3682-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-In-Reply-To: <55C3F70E.2050202@rjmx.net>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1438913403-3682-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ron Murray <rjmx@rjmx.net>, Christoph Lameter <cl@linux.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Shaohua Li <shli@fb.com>, Vlastimil Babka <vbabka@suse.cz>, Eric Dumazet <edumazet@google.com>
 
-On 08/06/2015 05:08 PM, Ron Murray wrote:
-> On 8/5/2015 23:31, Christoph Lameter wrote:
->> On Wed, 5 Aug 2015, Ron Murray wrote:
->>
->>> OK, tried that (with no parameters though. Should I try some?). That got
->>> me a crash with a blank screen and no panic report. The thing is clearly
->> Hmmm... Crash early on? Could you attach a serial console and try
->> "earlyprintk" as an option as well?
->     Might be difficult, since the box doesn't have a serial port. I think
-> I have a USB serial port somewhere, but I don't know if it'll work. I
-> will see what I can do.
->
->>> touchy: small changes in memory positions make a difference. That's
->>> probably why I didn't get a panic message until 4.1.4: the gods have to
->>> all be looking in the right direction.
->> Subtle corruption issue. If slub_debug does not get it then other
->> debugging techniques may have to be used.
->>
->>>> [  OK  ] Stopped CUPS Scheduler.
->>>> [  OK  ] Stopped (null).
->>>> ------------[ cut here ]------------
->>> Note the "Stopped (null)" before the "cut here" line. I wonder whether
->>> that has anything to do with the problem, or is it a red herring?
->> Hmmm... Thats a message from user space.
-> That's what I thought. I'll see if that message shows up in 4.0.9, and
-> try to find out what it is.
->
->
+On Fri 07-08-15 11:10:03, Joonsoo Kim wrote:
+[...]
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 257283f..52b9025 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1364,6 +1364,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+>  	 * so we fall-back to the minimum order allocation.
+>  	 */
+>  	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
+> +	if ((alloc_gfp & __GFP_WAIT) && oo_order(oo) > oo_order(s->min))
+> +		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~__GFP_WAIT;
 
-There was a similar report about a crash on reboot with 4.1.3[1]
-where that reporter linked it to a bluetooth mouse. Hopefully this
-isn't a red herring but it might be a similar report?
+Wouldn't it be preferable to "fix" the __GFP_WAIT behavior than spilling
+__GFP_NOMEMALLOC around the kernel? GFP flags are getting harder and
+harder to use right and that is a signal we should thing about it and
+unclutter the current state.
 
-Thanks,
-Laura
+>  
+>  	page = alloc_slab_page(s, alloc_gfp, node, oo);
+>  	if (unlikely(!page)) {
+> -- 
+> 1.9.1
 
-[1]https://bugzilla.redhat.com/show_bug.cgi?id=1248741
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
