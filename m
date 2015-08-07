@@ -1,76 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 30BCE6B0259
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 22:10:21 -0400 (EDT)
-Received: by pacrr5 with SMTP id rr5so40656366pac.3
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 19:10:20 -0700 (PDT)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id v8si14806162pds.131.2015.08.06.19.10.19
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 7539D6B0038
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 23:30:48 -0400 (EDT)
+Received: by qged69 with SMTP id d69so67269075qge.0
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 20:30:48 -0700 (PDT)
+Received: from smtp.variantweb.net (smtp.variantweb.net. [104.131.104.118])
+        by mx.google.com with ESMTPS id m77si15624652qgm.53.2015.08.06.20.30.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Aug 2015 19:10:19 -0700 (PDT)
-Received: by pabyb7 with SMTP id yb7so43822971pab.0
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 19:10:19 -0700 (PDT)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH v2] mm/slub: don't wait for high-order page allocation
-Date: Fri,  7 Aug 2015 11:10:03 +0900
-Message-Id: <1438913403-3682-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Thu, 06 Aug 2015 20:30:47 -0700 (PDT)
+Date: Thu, 6 Aug 2015 22:30:43 -0500
+From: Seth Jennings <sjennings@variantweb.net>
+Subject: Re: [PATCH 1/3] zpool: add zpool_has_pool()
+Message-ID: <20150807033043.GA10018@cerebellum.local.variantweb.net>
+References: <1438782403-29496-1-git-send-email-ddstreet@ieee.org>
+ <1438782403-29496-2-git-send-email-ddstreet@ieee.org>
+ <20150805130836.16c42cd0a9fe6f4050cf0620@linux-foundation.org>
+ <CALZtONDNYyKEdk2fc40ePH4Y+vOcUE-D7OG1DRekgSxLgVYKeA@mail.gmail.com>
+ <20150805150659.eefc5ff531741ab34f48b330@linux-foundation.org>
+ <20150806215023.GA8670@cerebellum.local.variantweb.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150806215023.GA8670@cerebellum.local.variantweb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Shaohua Li <shli@fb.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Eric Dumazet <edumazet@google.com>
+Cc: Dan Streetman <ddstreet@ieee.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-Almost description is copied from commit fb05e7a89f50
-("net: don't wait for order-3 page allocation").
+On Thu, Aug 06, 2015 at 04:50:23PM -0500, Seth Jennings wrote:
+> On Wed, Aug 05, 2015 at 03:06:59PM -0700, Andrew Morton wrote:
+> > On Wed, 5 Aug 2015 18:00:26 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+> > 
+> > > >
+> > > > If there's some reason why this can't happen, can we please have a code
+> > > > comment which reveals that reason?
+> > > 
+> > > zpool_create_pool() should work if this returns true, unless as you
+> > > say the module is rmmod'ed *and* removed from the system - since
+> > > zpool_create_pool() will call request_module() just as this function
+> > > does.  I can add a comment explaining that.
+> > 
+> > I like comments ;)
+> > 
+> > Seth, I'm planning on sitting on these patches until you've had a
+> > chance to review them.
+> 
+> Thanks Andrew.  I'm reviewing now.  Patch 2/3 is pretty huge.  I've got
+> the gist of the changes now.  I'm also building and testing for myself
+> as this creates a lot more surface area for issues, alternating between
+> compressors and allocating new compression transforms on the fly.
+> 
+> I'm kinda with Sergey on this in that it adds yet another complexity to
+> an already complex feature.  This adds more locking, more RCU, more
+> refcounting.  It's becoming harder to review, test, and verify.
+> 
+> I should have results tomorrow.
 
-I saw excessive direct memory reclaim/compaction triggered by slub.
-This causes performance issues and add latency. Slub uses high-order
-allocation to reduce internal fragmentation and management overhead. But,
-direct memory reclaim/compaction has high overhead and the benefit of
-high-order allocation can't compensate the overhead of both work.
+So I gave it a test run turning all the knobs (compressor, enabled,
+max_pool_percent, and zpool) like a crazy person and it was stable,
+and all the adjustments had the expected result.
 
-This patch makes auxiliary high-order allocation atomic. If there is
-no memory pressure and memory isn't fragmented, the alloction will still
-success, so we don't sacrifice high-order allocation's benefit here.
-If the atomic allocation fails, direct memory reclaim/compaction will not
-be triggered, allocation fallback to low-order immediately, hence
-the direct memory reclaim/compaction overhead is avoided. In the
-allocation failure case, kswapd is waken up and trying to make high-order
-freepages, so allocation could success next time.
+Dan, you might follow up with an update to Documentation/vm/zswap.txt
+noting that these parameters are runtime adjustable now.
 
-Following is the test to measure effect of this patch.
+The growing complexity is a concern, but it is nice to have the
+flexibility.  Thanks for the good work!
 
-System: QEMU, CPU 8, 512 MB
-Mem: 25% memory is allocated at random position to make fragmentation.
- Memory-hogger occupies 150 MB memory.
-Workload: hackbench -g 20 -l 1000
+To patchset:
 
-Average result by 10 runs (Base va Patched)
+Acked-by: Seth Jennings <sjennings@variantweb.net>
 
-elapsed_time(s): 4.3468 vs 2.9838
-compact_stall: 461.7 vs 73.6
-pgmigrate_success: 28315.9 vs 7256.1
-
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/slub.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 257283f..52b9025 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1364,6 +1364,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	 * so we fall-back to the minimum order allocation.
- 	 */
- 	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
-+	if ((alloc_gfp & __GFP_WAIT) && oo_order(oo) > oo_order(s->min))
-+		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~__GFP_WAIT;
- 
- 	page = alloc_slab_page(s, alloc_gfp, node, oo);
- 	if (unlikely(!page)) {
--- 
-1.9.1
+> 
+> Thanks,
+> Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
