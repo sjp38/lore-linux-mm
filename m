@@ -1,63 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D28516B0254
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 20:09:00 -0400 (EDT)
-Received: by igbij6 with SMTP id ij6so21663280igb.1
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 17:09:00 -0700 (PDT)
-Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
-        by mx.google.com with ESMTPS id h16si1007901igt.23.2015.08.06.17.08.59
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E7776B0253
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 21:38:39 -0400 (EDT)
+Received: by pawu10 with SMTP id u10so75802323paw.1
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 18:38:38 -0700 (PDT)
+Received: from mgwym04.jp.fujitsu.com (mgwym04.jp.fujitsu.com. [211.128.242.43])
+        by mx.google.com with ESMTPS id wi5si14608909pbc.159.2015.08.06.18.38.36
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 06 Aug 2015 17:08:59 -0700 (PDT)
-Subject: Re: PROBLEM: 4.1.4 -- Kernel Panic on shutdown
-References: <55C18D2E.4030009@rjmx.net>
- <alpine.DEB.2.11.1508051105070.29534@east.gentwo.org>
- <20150805162436.GD25159@twins.programming.kicks-ass.net>
- <alpine.DEB.2.11.1508051131580.29823@east.gentwo.org>
- <20150805163609.GE25159@twins.programming.kicks-ass.net>
- <alpine.DEB.2.11.1508051201280.29823@east.gentwo.org>
- <55C2BC00.8020302@rjmx.net>
- <alpine.DEB.2.11.1508052229540.891@east.gentwo.org>
-From: Ron Murray <rjmx@rjmx.net>
-Message-ID: <55C3F70E.2050202@rjmx.net>
-Date: Thu, 6 Aug 2015 20:08:46 -0400
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Aug 2015 18:38:38 -0700 (PDT)
+Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
+	by yt-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 067EDAC0385
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 10:38:34 +0900 (JST)
+Subject: Re: [PATCH 0/3] Make workingset detection logic memcg aware
+References: <cover.1438599199.git.vdavydov@parallels.com>
+ <55C16842.9040505@jp.fujitsu.com> <20150806085911.GL11971@esperanza>
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <55C40C08.8010706@jp.fujitsu.com>
+Date: Fri, 7 Aug 2015 10:38:16 +0900
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.11.1508052229540.891@east.gentwo.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150806085911.GL11971@esperanza>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 8/5/2015 23:31, Christoph Lameter wrote:
-> On Wed, 5 Aug 2015, Ron Murray wrote:
+On 2015/08/06 17:59, Vladimir Davydov wrote:
+> On Wed, Aug 05, 2015 at 10:34:58AM +0900, Kamezawa Hiroyuki wrote:
 >
->> OK, tried that (with no parameters though. Should I try some?). That got
->> me a crash with a blank screen and no panic report. The thing is clearly
-> Hmmm... Crash early on? Could you attach a serial console and try
-> "earlyprintk" as an option as well?
-   Might be difficult, since the box doesn't have a serial port. I think
-I have a USB serial port somewhere, but I don't know if it'll work. I
-will see what I can do.
-
->> touchy: small changes in memory positions make a difference. That's
->> probably why I didn't get a panic message until 4.1.4: the gods have to
->> all be looking in the right direction.
-> Subtle corruption issue. If slub_debug does not get it then other
-> debugging techniques may have to be used.
+>> Reading discussion, I feel storing more data is difficult, too.
 >
->>> [  OK  ] Stopped CUPS Scheduler.
->>> [  OK  ] Stopped (null).
->>> ------------[ cut here ]------------
->> Note the "Stopped (null)" before the "cut here" line. I wonder whether
->> that has anything to do with the problem, or is it a red herring?
-> Hmmm... Thats a message from user space.
-That's what I thought. I'll see if that message shows up in 4.0.9, and
-try to find out what it is.
+> Yep, even with the current 16-bit memcg id. Things would get even worse
+> if we wanted to extend it one day (will we?)
+>
+>>
+>> I wonder, rather than collecting more data, rough calculation can help the situation.
+>> for example,
+>>
+>>     (refault_disatance calculated in zone) * memcg_reclaim_ratio < memcg's active list
+>>
+>> If one of per-zone calc or per-memcg calc returns true, refault should be true.
+>>
+>> memcg_reclaim_ratio is the percentage of scan in a memcg against in a zone.
+>
+> This particular formula wouldn't work I'm afraid. If there are two
+> isolated cgroups issuing local reclaim on the same zone, the refault
+> distance needed for activation would be reduced by half for no apparent
+> reason.
 
-  .....Ron
- 
+Hmm, you mean activation in memcg means activation in global LRU, and it's not a
+valid reason. Current implementation does have the same issue, right ?
+
+i.e. when a container has been hitting its limit for a while, and then, a file cache is
+pushed out but came back soon, it can be easily activated.
+
+I'd like to confirm what you want to do.
+
+  1) avoid activating a file cache when it was kicked out because of memcg's local limit.
+  2) maintain acitve/inactive ratio in memcg properly as global LRU does.
+  3) reclaim shadow entry at proper timing.
+
+All ? hmm. It seems that mixture of record of global memory pressure and of local memory
+pressure is just wrong.
+
+Now, the record is
+a??a??a??a??
+a??a??a??a??eviction | node | zone | 2bit.
+
+How about changing this as
+
+         0 |eviction | node | zone | 2bit
+         1 |eviction |  memcgid    | 2bit
+
+Assume each memcg has an eviction counter, which ignoring node/zone.
+i.e. memcg local reclaim happens against memcg not against zone.
+
+At page-in,
+         if (the 1st bit is 0)
+                 compare eviction counter with zone's counter and activate the page if needed.
+         else if (the 1st bit is 1)
+                 compare eviction counter with the memcg (if exists)
+                 if (current memcg == recorded memcg && eviction distance is okay)
+                      activate page.
+                 else
+                      inactivate
+       
+At page-out
+         if (global memory pressure)
+                 record eviction id with using zone's counter.
+         else if (memcg local memory pressure)
+                 record eviction id with memcg's counter.
+
+By this,
+    1) locally reclaimed pages cannot be activated unless it's refaulted in the same memcg.
+       In this case, activating in the memcg has some meaning.
+
+    2) At global memory pressure, distance is properly calculated based on global system status.
+       global memory pressure can ignore memcg's behavior.
+
+about shadow entries, kmemcg should take care of it....
+
+
+Thanks,
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
