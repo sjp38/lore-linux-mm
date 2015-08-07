@@ -1,88 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 789786B0254
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 19:58:21 -0400 (EDT)
-Received: by qged69 with SMTP id d69so64825147qge.0
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 16:58:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v72si14714675qge.61.2015.08.06.16.58.19
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D28516B0254
+	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 20:09:00 -0400 (EDT)
+Received: by igbij6 with SMTP id ij6so21663280igb.1
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 17:09:00 -0700 (PDT)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id h16si1007901igt.23.2015.08.06.17.08.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Aug 2015 16:58:20 -0700 (PDT)
-From: Mark Salter <msalter@redhat.com>
-Subject: [PATCH V2 1/3] mm: add utility for early copy from unmapped ram
-Date: Thu,  6 Aug 2015 17:41:37 -0400
-Message-Id: <1438897299-2266-2-git-send-email-msalter@redhat.com>
-In-Reply-To: <1438897299-2266-1-git-send-email-msalter@redhat.com>
-References: <1438897299-2266-1-git-send-email-msalter@redhat.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 06 Aug 2015 17:08:59 -0700 (PDT)
+Subject: Re: PROBLEM: 4.1.4 -- Kernel Panic on shutdown
+References: <55C18D2E.4030009@rjmx.net>
+ <alpine.DEB.2.11.1508051105070.29534@east.gentwo.org>
+ <20150805162436.GD25159@twins.programming.kicks-ass.net>
+ <alpine.DEB.2.11.1508051131580.29823@east.gentwo.org>
+ <20150805163609.GE25159@twins.programming.kicks-ass.net>
+ <alpine.DEB.2.11.1508051201280.29823@east.gentwo.org>
+ <55C2BC00.8020302@rjmx.net>
+ <alpine.DEB.2.11.1508052229540.891@east.gentwo.org>
+From: Ron Murray <rjmx@rjmx.net>
+Message-ID: <55C3F70E.2050202@rjmx.net>
+Date: Thu, 6 Aug 2015 20:08:46 -0400
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.11.1508052229540.891@east.gentwo.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, x86@kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Mark Salter <msalter@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 
-In some early boot circumstances, it may be necessary to copy
-from RAM outside the kernel linear mapping to mapped RAM. The
-need to relocate an initrd is one example in the x86 code. This
-patch creates a helper function based on current x86 code.
+On 8/5/2015 23:31, Christoph Lameter wrote:
+> On Wed, 5 Aug 2015, Ron Murray wrote:
+>
+>> OK, tried that (with no parameters though. Should I try some?). That got
+>> me a crash with a blank screen and no panic report. The thing is clearly
+> Hmmm... Crash early on? Could you attach a serial console and try
+> "earlyprintk" as an option as well?
+   Might be difficult, since the box doesn't have a serial port. I think
+I have a USB serial port somewhere, but I don't know if it'll work. I
+will see what I can do.
 
-Signed-off-by: Mark Salter <msalter@redhat.com>
----
- include/asm-generic/early_ioremap.h |  6 ++++++
- mm/early_ioremap.c                  | 22 ++++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+>> touchy: small changes in memory positions make a difference. That's
+>> probably why I didn't get a panic message until 4.1.4: the gods have to
+>> all be looking in the right direction.
+> Subtle corruption issue. If slub_debug does not get it then other
+> debugging techniques may have to be used.
+>
+>>> [  OK  ] Stopped CUPS Scheduler.
+>>> [  OK  ] Stopped (null).
+>>> ------------[ cut here ]------------
+>> Note the "Stopped (null)" before the "cut here" line. I wonder whether
+>> that has anything to do with the problem, or is it a red herring?
+> Hmmm... Thats a message from user space.
+That's what I thought. I'll see if that message shows up in 4.0.9, and
+try to find out what it is.
 
-diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
-index a5de55c..e539f27 100644
---- a/include/asm-generic/early_ioremap.h
-+++ b/include/asm-generic/early_ioremap.h
-@@ -33,6 +33,12 @@ extern void early_ioremap_setup(void);
-  */
- extern void early_ioremap_reset(void);
+  .....Ron
  
-+/*
-+ * Early copy from unmapped memory to kernel mapped memory.
-+ */
-+extern void copy_from_early_mem(void *dest, phys_addr_t src,
-+				unsigned long size);
-+
- #else
- static inline void early_ioremap_init(void) { }
- static inline void early_ioremap_setup(void) { }
-diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-index e10ccd2..acba804 100644
---- a/mm/early_ioremap.c
-+++ b/mm/early_ioremap.c
-@@ -217,6 +217,28 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
- 	return (__force void *)__early_ioremap(phys_addr, size,
- 					       FIXMAP_PAGE_NORMAL);
- }
-+
-+#define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
-+
-+void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
-+{
-+	unsigned long slop, clen;
-+	char *p;
-+
-+	while (size) {
-+		slop = src & ~PAGE_MASK;
-+		clen = size;
-+		if (clen > MAX_MAP_CHUNK - slop)
-+			clen = MAX_MAP_CHUNK - slop;
-+		p = early_memremap(src & PAGE_MASK, clen + slop);
-+		memcpy(dest, p + slop, clen);
-+		early_iounmap(p, clen + slop);
-+		dest += clen;
-+		src += clen;
-+		size -= clen;
-+	}
-+}
-+
- #else /* CONFIG_MMU */
- 
- void __init __iomem *
--- 
-2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
