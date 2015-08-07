@@ -1,119 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EF8B6B0038
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 03:49:27 -0400 (EDT)
-Received: by pabyb7 with SMTP id yb7so50128064pab.0
-        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 00:49:26 -0700 (PDT)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id ho6si16116872pac.147.2015.08.07.00.49.25
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 932306B0254
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 03:50:16 -0400 (EDT)
+Received: by qgj62 with SMTP id 62so44527578qgj.2
+        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 00:50:16 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id z81si16479431qkz.128.2015.08.07.00.50.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Aug 2015 00:49:26 -0700 (PDT)
-Received: by pacrr5 with SMTP id rr5so46967450pac.3
-        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 00:49:25 -0700 (PDT)
-Date: Fri, 7 Aug 2015 16:50:01 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 1/1] mm: vmstat: introducing vm counter for slowpath
-Message-ID: <20150807075001.GK1891@swordfish>
-References: <1438931334-25894-1-git-send-email-pintu.k@samsung.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 07 Aug 2015 00:50:15 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/hwpoison: fix page refcount of unkown non LRU page
+Date: Fri, 7 Aug 2015 07:46:13 +0000
+Message-ID: <20150807074612.GA8014@hori1.linux.bs1.fc.nec.co.jp>
+References: <BLU436-SMTP128848C012F916D3DFC86B80740@phx.gbl>
+In-Reply-To: <BLU436-SMTP128848C012F916D3DFC86B80740@phx.gbl>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <705AE040ABD8B04C9959EE9CE33FFDD6@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1438931334-25894-1-git-send-email-pintu.k@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pintu Kumar <pintu.k@samsung.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org, dave@stgolabs.net, mhocko@suse.cz, koct9i@gmail.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.k@outlook.com, vishnu.ps@samsung.com, rohit.kr@samsung.com
+To: Wanpeng Li <wanpeng.li@hotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On (08/07/15 12:38), Pintu Kumar wrote:
-> This patch add new counter slowpath_entered in /proc/vmstat to
-> track how many times the system entered into slowpath after
-> first allocation attempt is failed.
-> This is useful to know the rate of allocation success within
-> the slowpath.
-> This patch is tested on ARM with 512MB RAM.
-> A sample output is shown below after successful boot-up:
-> shell> cat /proc/vmstat
-> nr_free_pages 4712
-> pgalloc_normal 1319432
-> pgalloc_movable 0
-> pageoutrun 379
-> allocstall 0
-> slowpath_entered 585
-> compact_stall 0
-> compact_fail 0
-> compact_success 0
-> 
-> From the above output we can see that the system entered
-> slowpath 585 times.
+On Thu, Aug 06, 2015 at 04:09:37PM +0800, Wanpeng Li wrote:
+> After try to drain pages from pagevec/pageset, we try to get reference
+> count of the page again, however, the reference count of the page is=20
+> not reduced if the page is still not on LRU list. This patch fix it by=20
+> adding the put_page() to drop the page reference which is from=20
+> __get_any_page().
+>=20
+> Signed-off-by: Wanpeng Li <wanpeng.li@hotmail.com>=20
 
-so what can you do with this number?
+This fix is correct. Thanks you for catching this, Wanpeng!
 
-	-ss
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-> But the existing counter kswapd(pageoutrun), direct_reclaim(allocstall),
-> direct_compact(compact_stall) does not tell this value.
-> From the above value, it clearly indicates that the system have
-> entered slowpath 585 times. Out of which 379 times allocation passed
-> through kswapd, without performing direct reclaim/compaction.
-> That means the remaining 206 times the allocation would have succeeded
-> using the alloc_pages_high_priority.
-> 
-> Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
+BTW, I think this patch is worth sending to stable tree. It seems that
+the latest change around this code is given by the following commit:
+
+  commit af8fae7c08862bb85c5cf445bf9b36314b82111f
+  Author: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+  Date:   Fri Feb 22 16:34:03 2013 -0800
+ =20
+      mm/memory-failure.c: clean up soft_offline_page()
+
+. I think that this bug existed before this commit, but this patch is
+cleanly applicable only after this patch, so I think tagging
+"Cc: stable@vger.kernel.org # 3.9+" is good.
+
+Thanks,
+Naoya Horiguchi
+
 > ---
->  include/linux/vm_event_item.h |    2 +-
->  mm/page_alloc.c               |    2 ++
->  mm/vmstat.c                   |    2 +-
->  3 files changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-> index 2b1cef8..9825f294 100644
-> --- a/include/linux/vm_event_item.h
-> +++ b/include/linux/vm_event_item.h
-> @@ -37,7 +37,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->  #endif
->  		PGINODESTEAL, SLABS_SCANNED, KSWAPD_INODESTEAL,
->  		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
-> -		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-> +		PAGEOUTRUN, ALLOCSTALL, SLOWPATH_ENTERED, PGROTATED,
->  		DROP_PAGECACHE, DROP_SLAB,
->  #ifdef CONFIG_NUMA_BALANCING
->  		NUMA_PTE_UPDATES,
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 2024d2e..4a5d487 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3029,6 +3029,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	if (IS_ENABLED(CONFIG_NUMA) && (gfp_mask & __GFP_THISNODE) && !wait)
->  		goto nopage;
->  
-> +	count_vm_event(SLOWPATH_ENTERED);
-> +
->  retry:
->  	if (!(gfp_mask & __GFP_NO_KSWAPD))
->  		wake_all_kswapds(order, ac);
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 1fd0886..1c54fdf 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -778,7 +778,7 @@ const char * const vmstat_text[] = {
->  	"kswapd_high_wmark_hit_quickly",
->  	"pageoutrun",
->  	"allocstall",
-> -
-> +	"slowpath_entered",
->  	"pgrotated",
->  
->  	"drop_pagecache",
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+>  mm/memory-failure.c |    2 ++
+>  1 files changed, 2 insertions(+), 0 deletions(-)
+>=20
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index c53543d..23163d0 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1535,6 +1535,8 @@ static int get_any_page(struct page *page, unsigned=
+ long pfn, int flags)
+>  		 */
+>  		ret =3D __get_any_page(page, pfn, 0);
+>  		if (!PageLRU(page)) {
+> +			/* Drop page reference which is from __get_any_page() */
+> +			put_page(page);
+>  			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
+>  				pfn, page->flags);
+>  			return -EIO;
+> --=20
+> 1.7.1
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
