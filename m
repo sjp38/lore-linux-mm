@@ -1,84 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 48DE66B0253
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 03:33:05 -0400 (EDT)
-Received: by pabxd6 with SMTP id xd6so63985451pab.2
-        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 00:33:05 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id mc9si11041734pdb.199.2015.08.07.00.33.03
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7036B0038
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 03:44:26 -0400 (EDT)
+Received: by wibhh20 with SMTP id hh20so54503071wib.0
+        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 00:44:26 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id z7si9416828wiw.51.2015.08.07.00.44.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 07 Aug 2015 00:33:04 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t777X0KZ009744
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Fri, 7 Aug 2015 16:33:01 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2 1/2] smaps: fill missing fields for vma(VM_HUGETLB)
-Date: Fri, 7 Aug 2015 07:24:50 +0000
-Message-ID: <1438932278-7973-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <20150806074443.GA7870@hori1.linux.bs1.fc.nec.co.jp>
- <1438932278-7973-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1438932278-7973-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <019B25B7041C0D43A202E166A1F4B9FD@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Aug 2015 00:44:25 -0700 (PDT)
+Received: by wibxm9 with SMTP id xm9so50823050wib.0
+        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 00:44:24 -0700 (PDT)
+Date: Fri, 7 Aug 2015 09:44:22 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/1] mm: vmstat: introducing vm counter for slowpath
+Message-ID: <20150807074422.GE26566@dhcp22.suse.cz>
+References: <1438931334-25894-1-git-send-email-pintu.k@samsung.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1438931334-25894-1-git-send-email-pintu.k@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Pintu Kumar <pintu.k@samsung.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org, dave@stgolabs.net, koct9i@gmail.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.k@outlook.com, vishnu.ps@samsung.com, rohit.kr@samsung.com
 
-Q3VycmVudGx5IHNtYXBzIHJlcG9ydHMgbWFueSB6ZXJvIGZpZWxkcyBmb3Igdm1hKFZNX0hVR0VU
-TEIpLCB3aGljaCBpcw0KaW5jb252ZW5pZW50IHdoZW4gd2Ugd2FudCB0byBrbm93IHBlci10YXNr
-IG9yIHBlci12bWEgYmFzZSBodWdldGxiIHVzYWdlLg0KVGhpcyBwYXRjaCBlbmFibGVzIHRoZXNl
-IGZpZWxkcyBieSBpbnRyb2R1Y2luZyBzbWFwc19odWdldGxiX3JhbmdlKCkuDQoNCmJlZm9yZSBw
-YXRjaDoNCg0KICBTaXplOiAgICAgICAgICAgICAgMjA0ODAga0INCiAgUnNzOiAgICAgICAgICAg
-ICAgICAgICAwIGtCDQogIFBzczogICAgICAgICAgICAgICAgICAgMCBrQg0KICBTaGFyZWRfQ2xl
-YW46ICAgICAgICAgIDAga0INCiAgU2hhcmVkX0RpcnR5OiAgICAgICAgICAwIGtCDQogIFByaXZh
-dGVfQ2xlYW46ICAgICAgICAgMCBrQg0KICBQcml2YXRlX0RpcnR5OiAgICAgICAgIDAga0INCiAg
-UmVmZXJlbmNlZDogICAgICAgICAgICAwIGtCDQogIEFub255bW91czogICAgICAgICAgICAgMCBr
-Qg0KICBBbm9uSHVnZVBhZ2VzOiAgICAgICAgIDAga0INCiAgU3dhcDogICAgICAgICAgICAgICAg
-ICAwIGtCDQogIEtlcm5lbFBhZ2VTaXplOiAgICAgMjA0OCBrQg0KICBNTVVQYWdlU2l6ZTogICAg
-ICAgIDIwNDgga0INCiAgTG9ja2VkOiAgICAgICAgICAgICAgICAwIGtCDQogIFZtRmxhZ3M6IHJk
-IHdyIG1yIG13IG1lIGRlIGh0DQoNCmFmdGVyIHBhdGNoOg0KDQogIFNpemU6ICAgICAgICAgICAg
-ICAyMDQ4MCBrQg0KICBSc3M6ICAgICAgICAgICAgICAgMTg0MzIga0INCiAgUHNzOiAgICAgICAg
-ICAgICAgIDE4NDMyIGtCDQogIFNoYXJlZF9DbGVhbjogICAgICAgICAgMCBrQg0KICBTaGFyZWRf
-RGlydHk6ICAgICAgICAgIDAga0INCiAgUHJpdmF0ZV9DbGVhbjogICAgICAgICAwIGtCDQogIFBy
-aXZhdGVfRGlydHk6ICAgICAxODQzMiBrQg0KICBSZWZlcmVuY2VkOiAgICAgICAgMTg0MzIga0IN
-CiAgQW5vbnltb3VzOiAgICAgICAgIDE4NDMyIGtCDQogIEFub25IdWdlUGFnZXM6ICAgICAgICAg
-MCBrQg0KICBTd2FwOiAgICAgICAgICAgICAgICAgIDAga0INCiAgS2VybmVsUGFnZVNpemU6ICAg
-ICAyMDQ4IGtCDQogIE1NVVBhZ2VTaXplOiAgICAgICAgMjA0OCBrQg0KICBMb2NrZWQ6ICAgICAg
-ICAgICAgICAgIDAga0INCiAgVm1GbGFnczogcmQgd3IgbXIgbXcgbWUgZGUgaHQNCg0KU2lnbmVk
-LW9mZi1ieTogTmFveWEgSG9yaWd1Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KQWNr
-ZWQtYnk6IErDtnJuIEVuZ2VsIDxqb2VybkBsb2dmcy5vcmc+DQotLS0NCiBmcy9wcm9jL3Rhc2tf
-bW11LmMgfCAyNyArKysrKysrKysrKysrKysrKysrKysrKysrKysNCiAxIGZpbGUgY2hhbmdlZCwg
-MjcgaW5zZXJ0aW9ucygrKQ0KDQpkaWZmIC0tZ2l0IHY0LjItcmM0Lm9yaWcvZnMvcHJvYy90YXNr
-X21tdS5jIHY0LjItcmM0L2ZzL3Byb2MvdGFza19tbXUuYw0KaW5kZXggY2ExZTA5MTg4MWQ0Li5j
-NzIxODYwMzMwNmQgMTAwNjQ0DQotLS0gdjQuMi1yYzQub3JpZy9mcy9wcm9jL3Rhc2tfbW11LmMN
-CisrKyB2NC4yLXJjNC9mcy9wcm9jL3Rhc2tfbW11LmMNCkBAIC02MTAsMTIgKzYxMCwzOSBAQCBz
-dGF0aWMgdm9pZCBzaG93X3NtYXBfdm1hX2ZsYWdzKHN0cnVjdCBzZXFfZmlsZSAqbSwgc3RydWN0
-IHZtX2FyZWFfc3RydWN0ICp2bWEpDQogCXNlcV9wdXRjKG0sICdcbicpOw0KIH0NCiANCisjaWZk
-ZWYgQ09ORklHX0hVR0VUTEJfUEFHRQ0KK3N0YXRpYyBpbnQgc21hcHNfaHVnZXRsYl9yYW5nZShw
-dGVfdCAqcHRlLCB1bnNpZ25lZCBsb25nIGhtYXNrLA0KKwkJCQkgdW5zaWduZWQgbG9uZyBhZGRy
-LCB1bnNpZ25lZCBsb25nIGVuZCwNCisJCQkJIHN0cnVjdCBtbV93YWxrICp3YWxrKQ0KK3sNCisJ
-c3RydWN0IG1lbV9zaXplX3N0YXRzICptc3MgPSB3YWxrLT5wcml2YXRlOw0KKwlzdHJ1Y3Qgdm1f
-YXJlYV9zdHJ1Y3QgKnZtYSA9IHdhbGstPnZtYTsNCisJc3RydWN0IHBhZ2UgKnBhZ2UgPSBOVUxM
-Ow0KKw0KKwlpZiAocHRlX3ByZXNlbnQoKnB0ZSkpIHsNCisJCXBhZ2UgPSB2bV9ub3JtYWxfcGFn
-ZSh2bWEsIGFkZHIsICpwdGUpOw0KKwl9IGVsc2UgaWYgKGlzX3N3YXBfcHRlKCpwdGUpKSB7DQor
-CQlzd3BfZW50cnlfdCBzd3BlbnQgPSBwdGVfdG9fc3dwX2VudHJ5KCpwdGUpOw0KKw0KKwkJaWYg
-KGlzX21pZ3JhdGlvbl9lbnRyeShzd3BlbnQpKQ0KKwkJCXBhZ2UgPSBtaWdyYXRpb25fZW50cnlf
-dG9fcGFnZShzd3BlbnQpOw0KKwl9DQorCWlmIChwYWdlKQ0KKwkJc21hcHNfYWNjb3VudChtc3Ms
-IHBhZ2UsIGh1Z2VfcGFnZV9zaXplKGhzdGF0ZV92bWEodm1hKSksDQorCQkJICAgICAgcHRlX3lv
-dW5nKCpwdGUpLCBwdGVfZGlydHkoKnB0ZSkpOw0KKwlyZXR1cm4gMDsNCit9DQorI2VuZGlmIC8q
-IEhVR0VUTEJfUEFHRSAqLw0KKw0KIHN0YXRpYyBpbnQgc2hvd19zbWFwKHN0cnVjdCBzZXFfZmls
-ZSAqbSwgdm9pZCAqdiwgaW50IGlzX3BpZCkNCiB7DQogCXN0cnVjdCB2bV9hcmVhX3N0cnVjdCAq
-dm1hID0gdjsNCiAJc3RydWN0IG1lbV9zaXplX3N0YXRzIG1zczsNCiAJc3RydWN0IG1tX3dhbGsg
-c21hcHNfd2FsayA9IHsNCiAJCS5wbWRfZW50cnkgPSBzbWFwc19wdGVfcmFuZ2UsDQorI2lmZGVm
-IENPTkZJR19IVUdFVExCX1BBR0UNCisJCS5odWdldGxiX2VudHJ5ID0gc21hcHNfaHVnZXRsYl9y
-YW5nZSwNCisjZW5kaWYNCiAJCS5tbSA9IHZtYS0+dm1fbW0sDQogCQkucHJpdmF0ZSA9ICZtc3Ms
-DQogCX07DQotLSANCjIuNC4zDQo=
+On Fri 07-08-15 12:38:54, Pintu Kumar wrote:
+> This patch add new counter slowpath_entered in /proc/vmstat to
+> track how many times the system entered into slowpath after
+> first allocation attempt is failed.
+
+This is too lowlevel to be exported in the regular user visible
+interface IMO.
+
+> This is useful to know the rate of allocation success within
+> the slowpath.
+
+What would be that information good for? Is a regular administrator
+expected to consume this value or this is aimed more to kernel
+developers? If the later then I think a trace point sounds like a better
+interface.
+
+> This patch is tested on ARM with 512MB RAM.
+> A sample output is shown below after successful boot-up:
+> shell> cat /proc/vmstat
+> nr_free_pages 4712
+> pgalloc_normal 1319432
+> pgalloc_movable 0
+> pageoutrun 379
+> allocstall 0
+> slowpath_entered 585
+> compact_stall 0
+> compact_fail 0
+> compact_success 0
+> 
+> >From the above output we can see that the system entered
+> slowpath 585 times.
+> But the existing counter kswapd(pageoutrun), direct_reclaim(allocstall),
+> direct_compact(compact_stall) does not tell this value.
+> >From the above value, it clearly indicates that the system have
+> entered slowpath 585 times. Out of which 379 times allocation passed
+> through kswapd, without performing direct reclaim/compaction.
+> That means the remaining 206 times the allocation would have succeeded
+> using the alloc_pages_high_priority.
+> 
+> Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
