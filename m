@@ -1,79 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7539D6B0038
-	for <linux-mm@kvack.org>; Thu,  6 Aug 2015 23:30:48 -0400 (EDT)
-Received: by qged69 with SMTP id d69so67269075qge.0
-        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 20:30:48 -0700 (PDT)
-Received: from smtp.variantweb.net (smtp.variantweb.net. [104.131.104.118])
-        by mx.google.com with ESMTPS id m77si15624652qgm.53.2015.08.06.20.30.46
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E6466B0038
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 02:30:28 -0400 (EDT)
+Received: by pdrh1 with SMTP id h1so23632157pdr.0
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 23:30:28 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id cx7si15878710pad.49.2015.08.06.23.30.27
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Aug 2015 20:30:47 -0700 (PDT)
-Date: Thu, 6 Aug 2015 22:30:43 -0500
-From: Seth Jennings <sjennings@variantweb.net>
-Subject: Re: [PATCH 1/3] zpool: add zpool_has_pool()
-Message-ID: <20150807033043.GA10018@cerebellum.local.variantweb.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Aug 2015 23:30:27 -0700 (PDT)
+Received: by pabxd6 with SMTP id xd6so62743491pab.2
+        for <linux-mm@kvack.org>; Thu, 06 Aug 2015 23:30:27 -0700 (PDT)
+Date: Fri, 7 Aug 2015 15:30:56 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 2/3] zswap: dynamic pool creation
+Message-ID: <20150807063056.GG1891@swordfish>
 References: <1438782403-29496-1-git-send-email-ddstreet@ieee.org>
- <1438782403-29496-2-git-send-email-ddstreet@ieee.org>
- <20150805130836.16c42cd0a9fe6f4050cf0620@linux-foundation.org>
- <CALZtONDNYyKEdk2fc40ePH4Y+vOcUE-D7OG1DRekgSxLgVYKeA@mail.gmail.com>
- <20150805150659.eefc5ff531741ab34f48b330@linux-foundation.org>
- <20150806215023.GA8670@cerebellum.local.variantweb.net>
+ <1438782403-29496-3-git-send-email-ddstreet@ieee.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150806215023.GA8670@cerebellum.local.variantweb.net>
+In-Reply-To: <1438782403-29496-3-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Streetman <ddstreet@ieee.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 06, 2015 at 04:50:23PM -0500, Seth Jennings wrote:
-> On Wed, Aug 05, 2015 at 03:06:59PM -0700, Andrew Morton wrote:
-> > On Wed, 5 Aug 2015 18:00:26 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
-> > 
-> > > >
-> > > > If there's some reason why this can't happen, can we please have a code
-> > > > comment which reveals that reason?
-> > > 
-> > > zpool_create_pool() should work if this returns true, unless as you
-> > > say the module is rmmod'ed *and* removed from the system - since
-> > > zpool_create_pool() will call request_module() just as this function
-> > > does.  I can add a comment explaining that.
-> > 
-> > I like comments ;)
-> > 
-> > Seth, I'm planning on sitting on these patches until you've had a
-> > chance to review them.
-> 
-> Thanks Andrew.  I'm reviewing now.  Patch 2/3 is pretty huge.  I've got
-> the gist of the changes now.  I'm also building and testing for myself
-> as this creates a lot more surface area for issues, alternating between
-> compressors and allocating new compression transforms on the fly.
-> 
-> I'm kinda with Sergey on this in that it adds yet another complexity to
-> an already complex feature.  This adds more locking, more RCU, more
-> refcounting.  It's becoming harder to review, test, and verify.
-> 
-> I should have results tomorrow.
+Hello,
 
-So I gave it a test run turning all the knobs (compressor, enabled,
-max_pool_percent, and zpool) like a crazy person and it was stable,
-and all the adjustments had the expected result.
+On (08/05/15 09:46), Dan Streetman wrote:
+[..]
+> -enum comp_op {
+> -	ZSWAP_COMPOP_COMPRESS,
+> -	ZSWAP_COMPOP_DECOMPRESS
+> +struct zswap_pool {
+> +	struct zpool *zpool;
+> +	struct kref kref;
+> +	struct list_head list;
+> +	struct rcu_head rcu_head;
+> +	struct notifier_block notifier;
+> +	char tfm_name[CRYPTO_MAX_ALG_NAME];
 
-Dan, you might follow up with an update to Documentation/vm/zswap.txt
-noting that these parameters are runtime adjustable now.
+do you need to keep a second CRYPTO_MAX_ALG_NAME copy? shouldn't it
+be `tfm->__crt_alg->cra_name`, which is what
+	crypto_tfm_alg_name(struct crypto_tfm *tfm)
+does?
 
-The growing complexity is a concern, but it is nice to have the
-flexibility.  Thanks for the good work!
+> +	struct crypto_comp * __percpu *tfm;
+>  };
 
-To patchset:
+->tfm will be access pretty often, right? did you intentionally put it
+at the bottom offset of `struct zswap_pool'?
 
-Acked-by: Seth Jennings <sjennings@variantweb.net>
+[..]
+> +static struct zswap_pool *__zswap_pool_current(void)
+>  {
+> -	return totalram_pages * zswap_max_pool_percent / 100 <
+> -		DIV_ROUND_UP(zswap_pool_total_size, PAGE_SIZE);
+> +	struct zswap_pool *pool;
+> +
+> +	pool = list_first_or_null_rcu(&zswap_pools, typeof(*pool), list);
+> +	WARN_ON(!pool);
+> +
+> +	return pool;
+> +}
+> +
+> +static struct zswap_pool *zswap_pool_current(void)
+> +{
+> +	assert_spin_locked(&zswap_pools_lock);
+> +
+> +	return __zswap_pool_current();
+> +}
 
-> 
-> Thanks,
-> Seth
+this one seems to be used only once. do you want to replace
+that single usage (well, if it's really needed)
+
+	WARN_ON(pool == zswap_pool_current());
+with
+	WARN_ON(pool == __zswap_pool_current);
+
+?
+
+you can then drop zswap_pool_current()... and probably rename
+__zswap_pool_current() to zswap_pool_current().
+
+	-ss
+
+> +static struct zswap_pool *zswap_pool_current_get(void)
+> +{
+> +	struct zswap_pool *pool;
+> +
+> +	rcu_read_lock();
+> +
+> +	pool = __zswap_pool_current();
+> +	if (!pool || !zswap_pool_get(pool))
+> +		pool = NULL;
+> +
+> +	rcu_read_unlock();
+> +
+> +	return pool;
+> +}
+> +
+> +static struct zswap_pool *zswap_pool_last_get(void)
+> +{
+> +	struct zswap_pool *pool, *last = NULL;
+> +
+> +	rcu_read_lock();
+> +
+> +	list_for_each_entry_rcu(pool, &zswap_pools, list)
+> +		last = pool;
+> +	if (!WARN_ON(!last) && !zswap_pool_get(last))
+> +		last = NULL;
+> +
+> +	rcu_read_unlock();
+> +
+> +	return last;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
