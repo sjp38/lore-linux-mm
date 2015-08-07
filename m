@@ -1,78 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 4710F6B0253
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 17:26:24 -0400 (EDT)
-Received: by pabyb7 with SMTP id yb7so63485476pab.0
-        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 14:26:24 -0700 (PDT)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A2B56B0253
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 18:35:50 -0400 (EDT)
+Received: by pacrr5 with SMTP id rr5so61305462pac.3
+        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 15:35:49 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ix1si19803928pbd.181.2015.08.07.14.26.23
+        by mx.google.com with ESMTPS id ep1si20008979pbd.256.2015.08.07.15.35.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Aug 2015 14:26:23 -0700 (PDT)
-Date: Fri, 7 Aug 2015 14:26:22 -0700
+        Fri, 07 Aug 2015 15:35:49 -0700 (PDT)
+Date: Fri, 7 Aug 2015 15:35:47 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [linux-next:master 6277/6751] mm/page_idle.c:74:4: error:
- implicit declaration of function 'pte_unmap'
-Message-Id: <20150807142622.b2de8f5e70f1224dfe9aa195@linux-foundation.org>
-In-Reply-To: <201508072227.PBXmgcfg%fengguang.wu@intel.com>
-References: <201508072227.PBXmgcfg%fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/1] mm: vmstat: introducing vm counter for slowpath
+Message-Id: <20150807153547.04cf3a12ae095fcdd19da670@linux-foundation.org>
+In-Reply-To: <0f2101d0d10f$594e4240$0beac6c0$@samsung.com>
+References: <1438931334-25894-1-git-send-email-pintu.k@samsung.com>
+	<20150807074422.GE26566@dhcp22.suse.cz>
+	<0f2101d0d10f$594e4240$0beac6c0$@samsung.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
+To: PINTU KUMAR <pintu.k@samsung.com>
+Cc: 'Michal Hocko' <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org, dave@stgolabs.net, koct9i@gmail.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.k@outlook.com, vishnu.ps@samsung.com, rohit.kr@samsung.com
 
-On Fri, 7 Aug 2015 22:24:33 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Fri, 07 Aug 2015 18:16:47 +0530 PINTU KUMAR <pintu.k@samsung.com> wrote:
 
-> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   e6455bc5b91f41f842f30465c9193320f0568707
-> commit: cbba4e22584984bffccd07e0801fd2b8ec1ecf5f [6277/6751] Move /proc/kpageidle to /sys/kernel/mm/page_idle/bitmap
-> config: blackfin-allmodconfig (attached as .config)
-> reproduce:
->   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->   chmod +x ~/bin/make.cross
->   git checkout cbba4e22584984bffccd07e0801fd2b8ec1ecf5f
->   # save the attached .config to linux build tree
->   make.cross ARCH=blackfin 
+> > > This is useful to know the rate of allocation success within the
+> > > slowpath.
+> > 
+> > What would be that information good for? Is a regular administrator expected
+> to
+> > consume this value or this is aimed more to kernel developers? If the later
+> then I
+> > think a trace point sounds like a better interface.
+> > 
+> This information is good for kernel developers.
+> I found this information useful while debugging low memory situation and
+> sluggishness behavior.
+> I wanted to know how many times the first allocation is failing and how many
+> times system entering slowpath.
+> As I said, the existing counter does not give this information clearly. 
+> The pageoutrun, allocstall is too confusing.
+> Also, if kswapd and compaction is disabled, we have no other counter for
+> slowpath (except allocstall).
+> Another problem is that allocstall can also be incremented from hibernation
+> during shrink_all_memory calling.
+> Which may create more confusion.
+> Thus I found this interface useful to understand low memory behavior.
+> If device sluggishness is happening because of too many slowpath or due to some
+> other problem.
+> Then we can decide what will be the best memory configuration for my device to
+> reduce the slowpath.
 > 
-> All error/warnings (new ones prefixed by >>):
-> 
->    mm/page_idle.c: In function 'page_idle_clear_pte_refs_one':
->    mm/page_idle.c:67:4: error: implicit declaration of function 'pmdp_test_and_clear_young' [-Werror=implicit-function-declaration]
->    mm/page_idle.c:71:3: error: implicit declaration of function 'page_check_address' [-Werror=implicit-function-declaration]
+> Regarding trace points, I am not sure if we can attach counter to it.
+> Also trace may have more over-head and requires additional configs to be enabled
+> to debug.
+> Mostly these configs will not be enabled by default (at least in embedded, low
+> memory device).
+> I found the vmstat interface more easy and useful.
 
-Yeah.  This?
+This does seem like a pretty basic and sensible thing to expose in
+vmstat.  It probably makes more sense than some of the other things we
+have in there.
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: proc-add-kpageidle-file-fix-6-fix-2-fix
+Yes, it could be a tracepoint but practically speaking, a tracepoint
+makes it developer-only.  You can ask a bug reporter or a customer
+"what is /proc/vmstat:slowpath_entered" doing, but it's harder to ask
+them to set up tracing.
 
-kpageidle requires an MMU
+And I don't think this will lock us into anything - vmstat is a big
+dumping ground and I don't see a big problem with removing or changing
+things later on.  IMO, debugfs rules apply here and vmstat would be in
+debugfs, had debugfs existed at the time.
 
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Vladimir Davydov <vdavydov@parallels.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
 
- mm/Kconfig |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Two things:
 
-diff -puN fs/proc/page.c~proc-add-kpageidle-file-fix-6-fix-2-fix fs/proc/page.c
-diff -puN mm/Kconfig~proc-add-kpageidle-file-fix-6-fix-2-fix mm/Kconfig
---- a/mm/Kconfig~proc-add-kpageidle-file-fix-6-fix-2-fix
-+++ a/mm/Kconfig
-@@ -657,7 +657,7 @@ config DEFERRED_STRUCT_PAGE_INIT
- 
- config IDLE_PAGE_TRACKING
- 	bool "Enable idle page tracking"
--	depends on SYSFS
-+	depends on SYSFS && MMU
- 	select PAGE_EXTENSION if !64BIT
- 	help
- 	  This feature allows to estimate the amount of user pages that have
-_
+- we appear to have forgotten to document /proc/vmstat
+
+- How does one actually use slowpath_entered?  Obviously we'd like to
+  know "what proportion of allocations entered the slowpath", so we
+  calculate
+
+	slowpath_entered/X
+
+  how do we obtain "X"?  Is it by adding up all the pgalloc_*?  If
+  so, perhaps we should really have slowpath_entered_dma,
+  slowpath_entered_dma32, ...?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
