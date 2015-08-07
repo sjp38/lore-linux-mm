@@ -1,182 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 20AFF6B0038
-	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 05:18:28 -0400 (EDT)
-Received: by wijp15 with SMTP id p15so52708027wij.0
-        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 02:18:27 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gs3si9849890wib.29.2015.08.07.02.18.25
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C74D6B0038
+	for <linux-mm@kvack.org>; Fri,  7 Aug 2015 05:28:13 -0400 (EDT)
+Received: by oiev193 with SMTP id v193so22604810oie.3
+        for <linux-mm@kvack.org>; Fri, 07 Aug 2015 02:28:13 -0700 (PDT)
+Received: from BLU004-OMC1S29.hotmail.com (blu004-omc1s29.hotmail.com. [65.55.116.40])
+        by mx.google.com with ESMTPS id 194si6874626oif.69.2015.08.07.02.28.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 07 Aug 2015 02:18:26 -0700 (PDT)
-Subject: Re: [PATCH v2 4/5] mm, compaction: always skip compound pages by
- order in migrate scanner
-References: <1438356487-7082-1-git-send-email-vbabka@suse.cz>
- <1438356487-7082-5-git-send-email-vbabka@suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55C477DC.90503@suse.cz>
-Date: Fri, 7 Aug 2015 11:18:20 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 07 Aug 2015 02:28:12 -0700 (PDT)
+Message-ID: <BLU436-SMTP77121C8FEC4887D613BDF180730@phx.gbl>
+Subject: Re: [PATCH] mm/hwpoison: fix page refcount of unkown non LRU page
+References: <BLU436-SMTP128848C012F916D3DFC86B80740@phx.gbl>
+ <20150807074612.GA8014@hori1.linux.bs1.fc.nec.co.jp>
+From: Wanpeng Li <wanpeng.li@hotmail.com>
+Date: Fri, 7 Aug 2015 17:28:00 +0800
 MIME-Version: 1.0
-In-Reply-To: <1438356487-7082-5-git-send-email-vbabka@suse.cz>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20150807074612.GA8014@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-As requested, here's a rebased version that doesn't depend on the page-flags
-changes from Kirill. This obsoletes the following patches from that series:
 
-page-flags-define-behavior-of-lru-related-flags-on-compound-pages-fix.patch
-page-flags-define-behavior-of-lru-related-flags-on-compound-pages-fix-fix.patch
 
-They were effectively squashed into this patch. Other than that, I've changed
-the changelog a bit to reflect that, and added comment to the recheck-after-locking
-part along with minor code tweaks there.
+On 8/7/15 3:46 PM, Naoya Horiguchi wrote:
+> On Thu, Aug 06, 2015 at 04:09:37PM +0800, Wanpeng Li wrote:
+>> After try to drain pages from pagevec/pageset, we try to get reference
+>> count of the page again, however, the reference count of the page is 
+>> not reduced if the page is still not on LRU list. This patch fix it by 
+>> adding the put_page() to drop the page reference which is from 
+>> __get_any_page().
+>>
+>> Signed-off-by: Wanpeng Li <wanpeng.li@hotmail.com> 
+> This fix is correct. Thanks you for catching this, Wanpeng!
+>
+> Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-------8<------
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Fri, 7 Aug 2015 11:12:33 +0200
-Subject: [PATCH] mm, compaction: always skip all compound pages by order in
- migrate scanner
+Thanks, :)
 
-The compaction migrate scanner tries to skip THP pages by their order, to
-reduce number of iterations for pages it cannot isolate. The check is only done
-if PageLRU() is true, which means it applies to THP pages, but not e.g.
-hugetlbfs pages or any other non-LRU compound pages, which we have to iterate
-by base pages.
+>
+> BTW, I think this patch is worth sending to stable tree. It seems that
+> the latest change around this code is given by the following commit:
+>
+>   commit af8fae7c08862bb85c5cf445bf9b36314b82111f
+>   Author: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>   Date:   Fri Feb 22 16:34:03 2013 -0800
+>   
+>       mm/memory-failure.c: clean up soft_offline_page()
+>
+> . I think that this bug existed before this commit, but this patch is
+> cleanly applicable only after this patch, so I think tagging
+> "Cc: stable@vger.kernel.org # 3.9+" is good.
 
-This limitation comes from the assumption that it's only safe to read
-compound_order() when we have the zone's lru_lock and THP cannot be split under
-us. But the only danger (after filtering out order values that are not below
-MAX_ORDER, to prevent overflows) is that we skip too much or too little after
-reading a bogus compound_order() due to a rare race. This is the same reasoning
-as patch 99c0fd5e51c4 ("mm, compaction: skip buddy pages by their order in the
-migrate scanner") introduced for unsafely reading PageBuddy() order.
+I will add this in v2.
 
-After this patch, all pages are tested for PageCompound() and we skip them by
-compound_order().  The test is done after the test for balloon_page_movable()
-as we don't want to assume if balloon pages (or other pages with own isolation
-and migration implementation if a generic API gets implemented) are compound
-or not.
+Regards,
+Wanpeng Li
 
-When tested with stress-highalloc from mmtests on 4GB system with 1GB hugetlbfs
-pages, the vmstat compact_migrate_scanned count decreased by 15%.
-
-[Patch from Kirill A. Shutemov <kirill.shutemov@linux.intel.com> that changed
- PageTransHuge checks to PageCompound for different series was squashed here]
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
----
- mm/compaction.c | 47 +++++++++++++++++++++++++++--------------------
- 1 file changed, 27 insertions(+), 20 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index e51b56a..8f64d35 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -705,6 +705,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 
- 	/* Time to isolate some pages for migration */
- 	for (; low_pfn < end_pfn; low_pfn++) {
-+		bool is_lru;
-+
- 		/*
- 		 * Periodically drop the lock (if held) regardless of its
- 		 * contention, to give chance to IRQs. Abort async compaction
-@@ -748,36 +750,35 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		 * It's possible to migrate LRU pages and balloon pages
- 		 * Skip any other type of page
- 		 */
--		if (!PageLRU(page)) {
-+		is_lru = PageLRU(page);
-+		if (!is_lru) {
- 			if (unlikely(balloon_page_movable(page))) {
- 				if (balloon_page_isolate(page)) {
- 					/* Successfully isolated */
- 					goto isolate_success;
- 				}
- 			}
--			continue;
- 		}
- 
- 		/*
--		 * PageLRU is set. lru_lock normally excludes isolation
--		 * splitting and collapsing (collapsing has already happened
--		 * if PageLRU is set) but the lock is not necessarily taken
--		 * here and it is wasteful to take it just to check transhuge.
--		 * Check TransHuge without lock and skip the whole pageblock if
--		 * it's either a transhuge or hugetlbfs page, as calling
--		 * compound_order() without preventing THP from splitting the
--		 * page underneath us may return surprising results.
-+		 * Regardless of being on LRU, compound pages such as THP and
-+		 * hugetlbfs are not to be compacted. We can potentially save
-+		 * a lot of iterations if we skip them at once. The check is
-+		 * racy, but we can consider only valid values and the only
-+		 * danger is skipping too much.
- 		 */
--		if (PageTransHuge(page)) {
--			if (!locked)
--				low_pfn = ALIGN(low_pfn + 1,
--						pageblock_nr_pages) - 1;
--			else
--				low_pfn += (1 << compound_order(page)) - 1;
-+		if (PageCompound(page)) {
-+			unsigned int comp_order = compound_order(page);
-+
-+			if (likely(comp_order < MAX_ORDER))
-+				low_pfn += (1UL << comp_order) - 1;
- 
- 			continue;
- 		}
- 
-+		if (!is_lru)
-+			continue;
-+
- 		/*
- 		 * Migration will fail if an anonymous page is pinned in memory,
- 		 * so avoid taking lru_lock and isolating it unnecessarily in an
-@@ -794,11 +795,17 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 			if (!locked)
- 				break;
- 
--			/* Recheck PageLRU and PageTransHuge under lock */
-+			/* Recheck PageLRU and PageCompound under lock */
- 			if (!PageLRU(page))
- 				continue;
--			if (PageTransHuge(page)) {
--				low_pfn += (1 << compound_order(page)) - 1;
-+
-+			/*
-+			 * Page become compound since the non-locked check,
-+			 * and it's on LRU. It can only be a THP so the order
-+			 * is safe to read and it's 0 for tail pages.
-+			 */
-+			if (unlikely(PageCompound(page))) {
-+				low_pfn += (1UL << compound_order(page)) - 1;
- 				continue;
- 			}
- 		}
-@@ -809,7 +816,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		if (__isolate_lru_page(page, isolate_mode) != 0)
- 			continue;
- 
--		VM_BUG_ON_PAGE(PageTransCompound(page), page);
-+		VM_BUG_ON_PAGE(PageCompound(page), page);
- 
- 		/* Successfully isolated */
- 		del_page_from_lru_list(page, lruvec, page_lru(page));
--- 
-2.4.6
+>
+> Thanks,
+> Naoya Horiguchi
+>
+>> ---
+>>  mm/memory-failure.c |    2 ++
+>>  1 files changed, 2 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+>> index c53543d..23163d0 100644
+>> --- a/mm/memory-failure.c
+>> +++ b/mm/memory-failure.c
+>> @@ -1535,6 +1535,8 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
+>>  		 */
+>>  		ret = __get_any_page(page, pfn, 0);
+>>  		if (!PageLRU(page)) {
+>> +			/* Drop page reference which is from __get_any_page() */
+>> +			put_page(page);
+>>  			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
+>>  				pfn, page->flags);
+>>  			return -EIO;
+>> -- 
+>> 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
