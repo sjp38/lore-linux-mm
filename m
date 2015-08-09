@@ -1,147 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F85D9003C8
-	for <linux-mm@kvack.org>; Sun,  9 Aug 2015 01:23:08 -0400 (EDT)
-Received: by qkdv3 with SMTP id v3so49320692qkd.3
-        for <linux-mm@kvack.org>; Sat, 08 Aug 2015 22:23:07 -0700 (PDT)
-Received: from prod-mail-xrelay05.akamai.com ([23.79.238.179])
-        by mx.google.com with ESMTP id u77si27485415qge.46.2015.08.08.22.22.59
+Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 441F79003C8
+	for <linux-mm@kvack.org>; Sun,  9 Aug 2015 01:23:10 -0400 (EDT)
+Received: by qkdv3 with SMTP id v3so49320797qkd.3
+        for <linux-mm@kvack.org>; Sat, 08 Aug 2015 22:23:10 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com ([23.79.238.175])
+        by mx.google.com with ESMTP id r123si27406937qha.22.2015.08.08.22.22.59
         for <linux-mm@kvack.org>;
         Sat, 08 Aug 2015 22:22:59 -0700 (PDT)
 From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH v7 1/6] mm: mlock: Refactor mlock, munlock, and munlockall code
-Date: Sun,  9 Aug 2015 01:22:51 -0400
-Message-Id: <1439097776-27695-2-git-send-email-emunson@akamai.com>
+Subject: [PATCH v7 6/6] mips: Add entry for new mlock2 syscall
+Date: Sun,  9 Aug 2015 01:22:56 -0400
+Message-Id: <1439097776-27695-7-git-send-email-emunson@akamai.com>
 In-Reply-To: <1439097776-27695-1-git-send-email-emunson@akamai.com>
 References: <1439097776-27695-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Eric B Munson <emunson@akamai.com>, Ralf Baechle <ralf@linux-mips.org>, linux-mips@linux-mips.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Extending the mlock system call is very difficult because it currently
-does not take a flags argument.  A later patch in this set will extend
-mlock to support a middle ground between pages that are locked and
-faulted in immediately and unlocked pages.  To pave the way for the new
-system call, the code needs some reorganization so that all the actual
-entry point handles is checking input and translating to VMA flags.
+A previous commit introduced the new mlock2 syscall, add entries for the
+MIPS architecture.
 
 Signed-off-by: Eric B Munson <emunson@akamai.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+Acked-by: Ralf Baechle <ralf@linux-mips.org>
+Cc: Ralf Baechle <ralf@linux-mips.org>
+Cc: linux-mips@linux-mips.org
+Cc: linux-api@vger.kernel.org
+Cc: linux-arch@vger.kernel.org
 Cc: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 ---
- mm/mlock.c | 30 +++++++++++++++++-------------
- 1 file changed, 17 insertions(+), 13 deletions(-)
+ arch/mips/include/uapi/asm/unistd.h | 15 +++++++++------
+ arch/mips/kernel/scall32-o32.S      |  1 +
+ arch/mips/kernel/scall64-64.S       |  1 +
+ arch/mips/kernel/scall64-n32.S      |  1 +
+ arch/mips/kernel/scall64-o32.S      |  1 +
+ 5 files changed, 13 insertions(+), 6 deletions(-)
 
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 6fd2cf1..5692ee5 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -553,7 +553,8 @@ out:
- 	return ret;
- }
+diff --git a/arch/mips/include/uapi/asm/unistd.h b/arch/mips/include/uapi/asm/unistd.h
+index c03088f..d0bdfaa 100644
+--- a/arch/mips/include/uapi/asm/unistd.h
++++ b/arch/mips/include/uapi/asm/unistd.h
+@@ -377,16 +377,17 @@
+ #define __NR_memfd_create		(__NR_Linux + 354)
+ #define __NR_bpf			(__NR_Linux + 355)
+ #define __NR_execveat			(__NR_Linux + 356)
++#define __NR_mlock2			(__NR_Linux + 357)
  
--static int do_mlock(unsigned long start, size_t len, int on)
-+static int apply_vma_lock_flags(unsigned long start, size_t len,
-+				vm_flags_t flags)
- {
- 	unsigned long nstart, end, tmp;
- 	struct vm_area_struct * vma, * prev;
-@@ -575,14 +576,11 @@ static int do_mlock(unsigned long start, size_t len, int on)
- 		prev = vma;
+ /*
+  * Offset of the last Linux o32 flavoured syscall
+  */
+-#define __NR_Linux_syscalls		356
++#define __NR_Linux_syscalls		357
  
- 	for (nstart = start ; ; ) {
--		vm_flags_t newflags;
--
--		/* Here we know that  vma->vm_start <= nstart < vma->vm_end. */
-+		vm_flags_t newflags = vma->vm_flags & ~VM_LOCKED;
+ #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
  
--		newflags = vma->vm_flags & ~VM_LOCKED;
--		if (on)
--			newflags |= VM_LOCKED;
-+		newflags |= flags;
+ #define __NR_O32_Linux			4000
+-#define __NR_O32_Linux_syscalls		356
++#define __NR_O32_Linux_syscalls		357
  
-+		/* Here we know that  vma->vm_start <= nstart < vma->vm_end. */
- 		tmp = vma->vm_end;
- 		if (tmp > end)
- 			tmp = end;
-@@ -604,7 +602,7 @@ static int do_mlock(unsigned long start, size_t len, int on)
- 	return error;
- }
+ #if _MIPS_SIM == _MIPS_SIM_ABI64
  
--SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
-+static int do_mlock(unsigned long start, size_t len, vm_flags_t flags)
- {
- 	unsigned long locked;
- 	unsigned long lock_limit;
-@@ -628,7 +626,7 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
+@@ -711,16 +712,17 @@
+ #define __NR_memfd_create		(__NR_Linux + 314)
+ #define __NR_bpf			(__NR_Linux + 315)
+ #define __NR_execveat			(__NR_Linux + 316)
++#define __NR_mlock2			(__NR_Linux + 317)
  
- 	/* check against resource limits */
- 	if ((locked <= lock_limit) || capable(CAP_IPC_LOCK))
--		error = do_mlock(start, len, 1);
-+		error = apply_vma_lock_flags(start, len, flags);
+ /*
+  * Offset of the last Linux 64-bit flavoured syscall
+  */
+-#define __NR_Linux_syscalls		316
++#define __NR_Linux_syscalls		317
  
- 	up_write(&current->mm->mmap_sem);
- 	if (error)
-@@ -640,6 +638,11 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
- 	return 0;
- }
+ #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
  
-+SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
-+{
-+	return do_mlock(start, len, VM_LOCKED);
-+}
-+
- SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
- {
- 	int ret;
-@@ -648,13 +651,13 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
- 	start &= PAGE_MASK;
+ #define __NR_64_Linux			5000
+-#define __NR_64_Linux_syscalls		316
++#define __NR_64_Linux_syscalls		317
  
- 	down_write(&current->mm->mmap_sem);
--	ret = do_mlock(start, len, 0);
-+	ret = apply_vma_lock_flags(start, len, 0);
- 	up_write(&current->mm->mmap_sem);
+ #if _MIPS_SIM == _MIPS_SIM_NABI32
  
- 	return ret;
- }
+@@ -1049,15 +1051,16 @@
+ #define __NR_memfd_create		(__NR_Linux + 318)
+ #define __NR_bpf			(__NR_Linux + 319)
+ #define __NR_execveat			(__NR_Linux + 320)
++#define __NR_mlock2			(__NR_Linux + 321)
  
--static int do_mlockall(int flags)
-+static int apply_mlockall_flags(int flags)
- {
- 	struct vm_area_struct * vma, * prev = NULL;
+ /*
+  * Offset of the last N32 flavoured syscall
+  */
+-#define __NR_Linux_syscalls		320
++#define __NR_Linux_syscalls		321
  
-@@ -662,6 +665,7 @@ static int do_mlockall(int flags)
- 		current->mm->def_flags |= VM_LOCKED;
- 	else
- 		current->mm->def_flags &= ~VM_LOCKED;
-+
- 	if (flags == MCL_FUTURE)
- 		goto out;
+ #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
  
-@@ -703,7 +707,7 @@ SYSCALL_DEFINE1(mlockall, int, flags)
+ #define __NR_N32_Linux			6000
+-#define __NR_N32_Linux_syscalls		320
++#define __NR_N32_Linux_syscalls		321
  
- 	if (!(flags & MCL_CURRENT) || (current->mm->total_vm <= lock_limit) ||
- 	    capable(CAP_IPC_LOCK))
--		ret = do_mlockall(flags);
-+		ret = apply_mlockall_flags(flags);
- 	up_write(&current->mm->mmap_sem);
- 	if (!ret && (flags & MCL_CURRENT))
- 		mm_populate(0, TASK_SIZE);
-@@ -716,7 +720,7 @@ SYSCALL_DEFINE0(munlockall)
- 	int ret;
- 
- 	down_write(&current->mm->mmap_sem);
--	ret = do_mlockall(0);
-+	ret = apply_mlockall_flags(0);
- 	up_write(&current->mm->mmap_sem);
- 	return ret;
- }
+ #endif /* _UAPI_ASM_UNISTD_H */
+diff --git a/arch/mips/kernel/scall32-o32.S b/arch/mips/kernel/scall32-o32.S
+index 4cc1350..b0b377a 100644
+--- a/arch/mips/kernel/scall32-o32.S
++++ b/arch/mips/kernel/scall32-o32.S
+@@ -599,3 +599,4 @@ EXPORT(sys_call_table)
+ 	PTR	sys_memfd_create
+ 	PTR	sys_bpf				/* 4355 */
+ 	PTR	sys_execveat
++	PTR	sys_mlock2
+diff --git a/arch/mips/kernel/scall64-64.S b/arch/mips/kernel/scall64-64.S
+index ad4d4463..97aaf51 100644
+--- a/arch/mips/kernel/scall64-64.S
++++ b/arch/mips/kernel/scall64-64.S
+@@ -436,4 +436,5 @@ EXPORT(sys_call_table)
+ 	PTR	sys_memfd_create
+ 	PTR	sys_bpf				/* 5315 */
+ 	PTR	sys_execveat
++	PTR	sys_mlock2
+ 	.size	sys_call_table,.-sys_call_table
+diff --git a/arch/mips/kernel/scall64-n32.S b/arch/mips/kernel/scall64-n32.S
+index 446cc65..e36f21e 100644
+--- a/arch/mips/kernel/scall64-n32.S
++++ b/arch/mips/kernel/scall64-n32.S
+@@ -429,4 +429,5 @@ EXPORT(sysn32_call_table)
+ 	PTR	sys_memfd_create
+ 	PTR	sys_bpf
+ 	PTR	compat_sys_execveat		/* 6320 */
++	PTR	sys_mlock2
+ 	.size	sysn32_call_table,.-sysn32_call_table
+diff --git a/arch/mips/kernel/scall64-o32.S b/arch/mips/kernel/scall64-o32.S
+index f543ff4..7a8b2df 100644
+--- a/arch/mips/kernel/scall64-o32.S
++++ b/arch/mips/kernel/scall64-o32.S
+@@ -584,4 +584,5 @@ EXPORT(sys32_call_table)
+ 	PTR	sys_memfd_create
+ 	PTR	sys_bpf				/* 4355 */
+ 	PTR	compat_sys_execveat
++	PTR	sys_mlock2
+ 	.size	sys32_call_table,.-sys32_call_table
 -- 
 1.9.1
 
