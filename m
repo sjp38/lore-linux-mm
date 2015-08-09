@@ -1,87 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A3E746B0253
-	for <linux-mm@kvack.org>; Sun,  9 Aug 2015 08:17:48 -0400 (EDT)
-Received: by oiev193 with SMTP id v193so45314032oie.3
-        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 05:17:48 -0700 (PDT)
-Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id wx3si12077161oeb.11.2015.08.09.05.17.47
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 73C716B0253
+	for <linux-mm@kvack.org>; Sun,  9 Aug 2015 09:48:58 -0400 (EDT)
+Received: by qgdd90 with SMTP id d90so2010874qgd.3
+        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 06:48:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 44si21468931qgj.54.2015.08.09.06.48.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 09 Aug 2015 05:17:47 -0700 (PDT)
-From: Guenter Roeck <linux@roeck-us.net>
-Subject: [RFC PATCH] percpu: Prevent endless loop if there is no unallocated region
-Date: Sun,  9 Aug 2015 05:17:39 -0700
-Message-Id: <1439122659-31442-1-git-send-email-linux@roeck-us.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 09 Aug 2015 06:48:57 -0700 (PDT)
+Subject: Re: PROBLEM: 4.1.4 -- Kernel Panic on shutdown
+References: <55C18D2E.4030009@rjmx.net>
+ <alpine.DEB.2.11.1508051105070.29534@east.gentwo.org>
+ <20150805162436.GD25159@twins.programming.kicks-ass.net>
+ <alpine.DEB.2.11.1508051131580.29823@east.gentwo.org>
+ <20150805163609.GE25159@twins.programming.kicks-ass.net>
+ <alpine.DEB.2.11.1508051201280.29823@east.gentwo.org>
+ <55C2BC00.8020302@rjmx.net>
+ <alpine.DEB.2.11.1508052229540.891@east.gentwo.org>
+ <55C3F70E.2050202@rjmx.net> <55C4C6E8.5090501@redhat.com>
+ <55C5645D.1080508@rjmx.net>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <55C75A46.6030308@redhat.com>
+Date: Sun, 9 Aug 2015 06:48:54 -0700
+MIME-Version: 1.0
+In-Reply-To: <55C5645D.1080508@rjmx.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>
+To: Ron Murray <rjmx@rjmx.net>, Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 
-Qemu tests with unicore32 show memory management code entering an endless
-loop in pcpu_alloc(). Bisect points to commit a93ace487a33 ("percpu: move
-region iterations out of pcpu_[de]populate_chunk()"). Code analysis
-identifies the following relevant changes.
+On 08/07/2015 07:07 PM, Ron Murray wrote:
+> On 08/07/2015 10:55 AM, Laura Abbott wrote:
+>>
+>> There was a similar report about a crash on reboot with 4.1.3[1]
+>> where that reporter linked it to a bluetooth mouse. Hopefully this
+>> isn't a red herring but it might be a similar report?
+>>
+>> Thanks,
+>> Laura
+>>
+>> [1]https://bugzilla.redhat.com/show_bug.cgi?id=1248741
+>>
+> Thanks for the suggestion. I don't have a bluetooth mouse (although it
+> is wireless), but I do have a bluetooth keyboard. And -- surprise! -- I
+> don't get a crash when I leave the keyboard turned off.
+>
+> It seems to me that there are at least two possibilities here:
+>
+> 1. Something in the bluetooth stack causes some kind of memory corruption
+>
+> or
+>
+> 2. The corruption is caused by something else, and using bluetooth
+> shifts it into a memory range where it causes crashes (we already know
+> that it's very touchy).
+>
+> Do you know if the original poster in the Red Hat bug report solved the
+> problem, or did he just give up using bluetooth?
+>
+> Suggestions for further faultfinding appreciated.
+>
+>   .....Ron
+>
+>
 
--       rs = page_start;
--       pcpu_next_pop(chunk, &rs, &re, page_end);
--
--       if (rs != page_start || re != page_end) {
-+       pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
 
-For unicore32, values were page_start==0, page_end==1, rs==0, re==1.
-This worked fine with the old code. With the new code, however, the loop
-is always entered. Debugging information added into the loop shows
-an endless repetition of
+There was a report of HID corruption, can you try the patch at
+https://git.kernel.org/cgit/linux/kernel/git/jikos/hid.git/commit/?id=0621809e37936e7c2b3eac9165cf2aad7f9189eb
 
-in loop chunk c5c53100 populated 0xff rs 1 re 2 page start 0 page end 1
-in loop chunk c5c53100 populated 0xff rs 1 re 2 page start 0 page end 1
-in loop chunk c5c53100 populated 0xff rs 1 re 2 page start 0 page end 1
-in loop chunk c5c53100 populated 0xff rs 1 re 2 page start 0 page end 1
-
-To make matters worse, the identified memory chunk is immutable,
-resulting in endless "WARNING: CPU: 0 PID: 0 at mm/percpu.c:1004
-pcpu_alloc+0x56c/0x5d4()" messages.
-
-It appears that pcpu_for_each_unpop_region() always loops at least
-once even if there is no unpopulated region, since the result of
-find_next_zero_bit() points to the end of the range if there is no zero
-bit available.
-
-One could think that something is wrong with the unicore32 code, but a
-comment above pcpu_for_each_unpop_region() states "populate if not all
-pages are already there", suggesting that the situation is valid.
-
-An additional range check in pcpu_for_each_unpop_region() fixes the
-observed problem.
-
-Fixes: a93ace487a33 ("percpu: move region iterations out of pcpu_[de]populate_chunk()")
-Cc: Tejun Heo <tj@kernel.org>
-Signed-off-by: Guenter Roeck <linux@roeck-us.net>
----
-Tested potential impact on other architectures with more than 60 qemu
-configurations. All work fine. Still, not sure if this is the correct
-fix, and/or if there is something wrong with the calling code, so
-marking it as RFC.
-
- mm/percpu.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/percpu.c b/mm/percpu.c
-index 2dd74487a0af..18b239c33c12 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -269,7 +269,7 @@ static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
-  */
- #define pcpu_for_each_unpop_region(chunk, rs, re, start, end)		    \
- 	for ((rs) = (start), pcpu_next_unpop((chunk), &(rs), &(re), (end)); \
--	     (rs) < (re);						    \
-+	     (rs) < (re) && (rs) < (end);				    \
- 	     (rs) = (re) + 1, pcpu_next_unpop((chunk), &(rs), &(re), (end)))
- 
- #define pcpu_for_each_pop_region(chunk, rs, re, start, end)		    \
--- 
-2.1.4
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
