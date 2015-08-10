@@ -1,155 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id D7F926B0256
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 07:56:30 -0400 (EDT)
-Received: by oiev193 with SMTP id v193so55573300oie.3
-        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 04:56:30 -0700 (PDT)
-Received: from BLU004-OMC1S11.hotmail.com (blu004-omc1s11.hotmail.com. [65.55.116.22])
-        by mx.google.com with ESMTPS id nt10si14251830obc.0.2015.08.10.04.56.30
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id AD4206B0253
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 08:00:08 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so34129588wic.1
+        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 05:00:08 -0700 (PDT)
+Received: from mail-wi0-x242.google.com (mail-wi0-x242.google.com. [2a00:1450:400c:c05::242])
+        by mx.google.com with ESMTPS id jc5si15696763wic.74.2015.08.10.05.00.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 10 Aug 2015 04:56:30 -0700 (PDT)
-Message-ID: <BLU436-SMTP12740A47B6EBB7DF2F12A9280700@phx.gbl>
-From: Wanpeng Li <wanpeng.li@hotmail.com>
-Subject: [PATCH v2 5/5] mm/hwpoison: replace most of put_page in memory error handling by put_hwpoison_page
-Date: Mon, 10 Aug 2015 19:28:23 +0800
-In-Reply-To: <1439206103-86829-1-git-send-email-wanpeng.li@hotmail.com>
-References: <1439206103-86829-1-git-send-email-wanpeng.li@hotmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Aug 2015 05:00:06 -0700 (PDT)
+Received: by wibvo3 with SMTP id vo3so20946083wib.3
+        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 05:00:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <87mvxzptqv.fsf@linux.vnet.ibm.com>
+References: <1437756119-12817-1-git-send-email-a.ryabinin@samsung.com>
+	<1437756119-12817-3-git-send-email-a.ryabinin@samsung.com>
+	<87mvxzptqv.fsf@linux.vnet.ibm.com>
+Date: Mon, 10 Aug 2015 15:00:05 +0300
+Message-ID: <CAPAsAGwsA138f=oNaqJ4qT6Ow9VyoSqAkwZSa_pCDJVsA-JuAg@mail.gmail.com>
+Subject: Re: [PATCH v4 2/7] mm: kasan: introduce generic kasan_populate_zero_shadow()
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <wanpeng.li@hotmail.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Arnd Bergmann <arnd@arndb.de>, Linus Walleij <linus.walleij@linaro.org>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Alexey Klimov <klimov.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>
 
-Replace most of put_page in memory error handling by put_hwpoison_page,
-except the ones at the front of soft_offline_page since the page maybe 
-THP page and the get refcount in madvise_hwpoison is against the single 
-4KB page instead of the logic in get_hwpoison_page. 
+2015-08-10 9:01 GMT+03:00 Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>:
+> Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+>
+>> Introduce generic kasan_populate_zero_shadow(start, end).
+>> This function maps kasan_zero_page to the [start, end] addresses.
+>>
+>> In follow on patches it will be used for ARMv8 (and maybe other
+>> architectures) and will replace x86_64 specific populate_zero_shadow().
+>>
+>> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+>
+> This assume that we can have shared pgtable_t in generic code ? Is that
+> true for generic code ? Even if it is we may want to allow some arch to
+> override this ? On ppc64, we store the hardware hash page table slot
+> number in pte_t, Hence we won't be able to share pgtable_t.
+>
 
-Signed-off-by: Wanpeng Li <wanpeng.li@hotmail.com>
----
- mm/memory-failure.c |   28 +++++++++++++---------------
- 1 files changed, 13 insertions(+), 15 deletions(-)
+So, ppc64 could define some config which will disable compilation of
+mm/kasan/kasan_init.c.
+However, it might be a bad idea to use such never defined config symbol now.
+So I think this could be done later, in "KASAN for powerpc" series.
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index fa9aa21..6179fc1 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1159,9 +1159,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 			pr_err("MCE: %#lx: thp split failed\n", pfn);
- 			if (TestClearPageHWPoison(p))
- 				atomic_long_sub(nr_pages, &num_poisoned_pages);
--			put_page(p);
--			if (p != hpage)
--				put_page(hpage);
-+			put_hwpoison_page(p);
- 			return -EBUSY;
- 		}
- 		VM_BUG_ON_PAGE(!page_count(p), p);
-@@ -1222,14 +1220,14 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 		printk(KERN_ERR "MCE %#lx: just unpoisoned\n", pfn);
- 		atomic_long_sub(nr_pages, &num_poisoned_pages);
- 		unlock_page(hpage);
--		put_page(hpage);
-+		put_hwpoison_page(hpage);
- 		return 0;
- 	}
- 	if (hwpoison_filter(p)) {
- 		if (TestClearPageHWPoison(p))
- 			atomic_long_sub(nr_pages, &num_poisoned_pages);
- 		unlock_page(hpage);
--		put_page(hpage);
-+		put_hwpoison_page(hpage);
- 		return 0;
- 	}
- 
-@@ -1243,7 +1241,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	if (PageHuge(p) && PageTail(p) && TestSetPageHWPoison(hpage)) {
- 		action_result(pfn, MF_MSG_POISONED_HUGE, MF_IGNORED);
- 		unlock_page(hpage);
--		put_page(hpage);
-+		put_hwpoison_page(hpage);
- 		return 0;
- 	}
- 	/*
-@@ -1477,9 +1475,9 @@ int unpoison_memory(unsigned long pfn)
- 	}
- 	unlock_page(page);
- 
--	put_page(page);
-+	put_hwpoison_page(page);
- 	if (freeit && !(pfn == my_zero_pfn(0) && page_count(p) == 1))
--		put_page(page);
-+		put_hwpoison_page(page);
- 
- 	return 0;
- }
-@@ -1539,7 +1537,7 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
- 		/*
- 		 * Try to free it.
- 		 */
--		put_page(page);
-+		put_hwpoison_page(page);
- 		shake_page(page, 1);
- 
- 		/*
-@@ -1548,7 +1546,7 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
- 		ret = __get_any_page(page, pfn, 0);
- 		if (!PageLRU(page)) {
- 			/* Drop page reference which is from __get_any_page() */
--			put_page(page);
-+			put_hwpoison_page(page);
- 			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
- 				pfn, page->flags);
- 			return -EIO;
-@@ -1571,7 +1569,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
- 	lock_page(hpage);
- 	if (PageHWPoison(hpage)) {
- 		unlock_page(hpage);
--		put_page(hpage);
-+		put_hwpoison_page(hpage);
- 		pr_info("soft offline: %#lx hugepage already poisoned\n", pfn);
- 		return -EBUSY;
- 	}
-@@ -1582,7 +1580,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
- 	 * get_any_page() and isolate_huge_page() takes a refcount each,
- 	 * so need to drop one here. 
- 	 */
--	put_page(hpage);
-+	put_hwpoison_page(hpage);
- 	if (!ret) {
- 		pr_info("soft offline: %#lx hugepage failed to isolate\n", pfn);
- 		return -EBUSY;
-@@ -1631,7 +1629,7 @@ static int __soft_offline_page(struct page *page, int flags)
- 	wait_on_page_writeback(page);
- 	if (PageHWPoison(page)) {
- 		unlock_page(page);
--		put_page(page);
-+		put_hwpoison_page(page);
- 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
- 		return -EBUSY;
- 	}
-@@ -1646,7 +1644,7 @@ static int __soft_offline_page(struct page *page, int flags)
- 	 * would need to fix isolation locking first.
- 	 */
- 	if (ret == 1) {
--		put_page(page);
-+		put_hwpoison_page(page);
- 		pr_info("soft_offline: %#lx: invalidated\n", pfn);
- 		SetPageHWPoison(page);
- 		atomic_long_inc(&num_poisoned_pages);
-@@ -1663,7 +1661,7 @@ static int __soft_offline_page(struct page *page, int flags)
- 	 * Drop page reference which is came from get_any_page()
- 	 * successful isolate_lru_page() already took another one.
- 	 */
--	put_page(page);
-+	put_hwpoison_page(page);
- 	if (!ret) {
- 		LIST_HEAD(pagelist);
- 		inc_zone_page_state(page, NR_ISOLATED_ANON +
--- 
-1.7.1
+>
+>
+>> ---
+>>  arch/x86/mm/kasan_init_64.c |  14 ----
+>>  include/linux/kasan.h       |   8 +++
+>>  mm/kasan/Makefile           |   2 +-
+>>  mm/kasan/kasan_init.c       | 151 ++++++++++++++++++++++++++++++++++++++++++++
+>>  4 files changed, 160 insertions(+), 15 deletions(-)
+>>  create mode 100644 mm/kasan/kasan_init.c
+>>
+>> diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+>> index e1840f3..812086c 100644
+>> --- a/arch/x86/mm/kasan_init_64.c
+>> +++ b/arch/x86/mm/kasan_init_64.c
+>> @@ -12,20 +12,6 @@
+>>  extern pgd_t early_level4_pgt[PTRS_PER_PGD];
+>>  extern struct range pfn_mapped[E820_X_MAX];
+>>
+>> -static pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
+>> -static pmd_t kasan_zero_pmd[PTRS_PER_PMD] __page_aligned_bss;
+>> -static pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
+>> -
+>> -/*
+>
+> -aneesh
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
