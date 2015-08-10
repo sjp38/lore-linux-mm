@@ -1,53 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id F16246B0253
-	for <linux-mm@kvack.org>; Sun,  9 Aug 2015 20:34:59 -0400 (EDT)
-Received: by pabyb7 with SMTP id yb7so93640188pab.0
-        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 17:34:59 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id t9si11524596pas.186.2015.08.09.17.34.57
-        for <linux-mm@kvack.org>;
-        Sun, 09 Aug 2015 17:34:59 -0700 (PDT)
-Date: Mon, 10 Aug 2015 09:40:22 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2] mm/slub: don't wait for high-order page allocation
-Message-ID: <20150810004022.GC26074@js1304-P5Q-DELUXE>
-References: <1438913403-3682-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20150807150501.GJ30785@dhcp22.suse.cz>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id DEAB56B0255
+	for <linux-mm@kvack.org>; Sun,  9 Aug 2015 20:48:36 -0400 (EDT)
+Received: by pabyb7 with SMTP id yb7so93820758pab.0
+        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 17:48:36 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id bp6si30283482pac.217.2015.08.09.17.48.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 09 Aug 2015 17:48:36 -0700 (PDT)
+Received: by pawu10 with SMTP id u10so127494261paw.1
+        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 17:48:35 -0700 (PDT)
+Date: Mon, 10 Aug 2015 09:49:12 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 2/3] zswap: dynamic pool creation
+Message-ID: <20150810004912.GB645@swordfish>
+References: <1438782403-29496-1-git-send-email-ddstreet@ieee.org>
+ <1438782403-29496-3-git-send-email-ddstreet@ieee.org>
+ <20150807063056.GG1891@swordfish>
+ <CALZtONATwf7EbWo1RhoNzeYnacCk6A__9Jrtr4UZvV9W-seX7g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150807150501.GJ30785@dhcp22.suse.cz>
+In-Reply-To: <CALZtONATwf7EbWo1RhoNzeYnacCk6A__9Jrtr4UZvV9W-seX7g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Shaohua Li <shli@fb.com>, Vlastimil Babka <vbabka@suse.cz>, Eric Dumazet <edumazet@google.com>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Fri, Aug 07, 2015 at 05:05:01PM +0200, Michal Hocko wrote:
-> On Fri 07-08-15 11:10:03, Joonsoo Kim wrote:
-> [...]
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index 257283f..52b9025 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -1364,6 +1364,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
-> >  	 * so we fall-back to the minimum order allocation.
-> >  	 */
-> >  	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
-> > +	if ((alloc_gfp & __GFP_WAIT) && oo_order(oo) > oo_order(s->min))
-> > +		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~__GFP_WAIT;
+Hello,
+
+On (08/07/15 10:24), Dan Streetman wrote:
+> > On (08/05/15 09:46), Dan Streetman wrote:
+> > [..]
+> >> -enum comp_op {
+> >> -     ZSWAP_COMPOP_COMPRESS,
+> >> -     ZSWAP_COMPOP_DECOMPRESS
+> >> +struct zswap_pool {
+> >> +     struct zpool *zpool;
+> >> +     struct kref kref;
+> >> +     struct list_head list;
+> >> +     struct rcu_head rcu_head;
+> >> +     struct notifier_block notifier;
+> >> +     char tfm_name[CRYPTO_MAX_ALG_NAME];
+> >
+> > do you need to keep a second CRYPTO_MAX_ALG_NAME copy? shouldn't it
+> > be `tfm->__crt_alg->cra_name`, which is what
+> >         crypto_tfm_alg_name(struct crypto_tfm *tfm)
+> > does?
 > 
-> Wouldn't it be preferable to "fix" the __GFP_WAIT behavior than spilling
-> __GFP_NOMEMALLOC around the kernel? GFP flags are getting harder and
-> harder to use right and that is a signal we should thing about it and
-> unclutter the current state.
+> well, we don't absolutely have to keep a copy of tfm_name.  However,
+> ->tfm is a __percpu variable, so each time we want to check the pool's
+> tfm name, we would need to do:
+> crypto_comp_name(this_cpu_ptr(pool->tfm))
+> 
+> nothing wrong with that really, just adds a bit more code each time we
+> want to check the tfm name.  I'll send a patch to change it.
+> 
+> >
+> >> +     struct crypto_comp * __percpu *tfm;
+> >>  };
+> >
+> > ->tfm will be access pretty often, right? did you intentionally put it
+> > at the bottom offset of `struct zswap_pool'?
+> 
+> no it wasn't intentional; does moving it up provide a benefit?
 
-Maybe, it is preferable. Could you try that?
+well, I just prefer to keep 'read mostly' pointers together. all
+those cache lines, etc.
 
-Anyway, it is separate issue so I don't want pending this patch until
-that change.
+gcc 5.1, x86_64
 
-Thanks.
+ struct zswap_pool {
+        struct zpool *zpool;
++       struct crypto_comp * __percpu *tfm;
+        struct kref kref;
+        struct list_head list;
+        struct rcu_head rcu_head;
+        struct notifier_block notifier;
+        char tfm_name[CRYPTO_MAX_ALG_NAME];
+-       struct crypto_comp * __percpu *tfm;
+ };
+
+../scripts/bloat-o-meter zswap.o.old zswap.o
+add/remove: 0/0 grow/shrink: 0/6 up/down: 0/-27 (-27)
+function                                     old     new   delta
+zswap_writeback_entry                        659     656      -3
+zswap_frontswap_store                       1445    1442      -3
+zswap_frontswap_load                         417     414      -3
+zswap_pool_create                            438     432      -6
+__zswap_cpu_comp_notifier.part               152     146      -6
+__zswap_cpu_comp_notifier                    122     116      -6
+
+
+you know it better ;-)
+
+
+[..]
+> > this one seems to be used only once. do you want to replace
+> > that single usage (well, if it's really needed)
+> 
+> it's actually used twice, in __zswap_pool_empty() and
+> __zswap_param_set().  The next patch adds __zswap_param_set().
+
+Aha, sorry, didn't read the next patch in advance.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
