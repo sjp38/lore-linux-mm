@@ -1,80 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 170A56B0253
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 02:01:33 -0400 (EDT)
-Received: by pacrr5 with SMTP id rr5so96130872pac.3
-        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 23:01:32 -0700 (PDT)
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com. [122.248.162.6])
-        by mx.google.com with ESMTPS id lb4si31367230pbc.153.2015.08.09.23.01.30
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 77B9D6B0253
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 02:15:49 -0400 (EDT)
+Received: by pdrh1 with SMTP id h1so49718637pdr.0
+        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 23:15:49 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com. [209.85.220.48])
+        by mx.google.com with ESMTPS id pa4si19787256pdb.151.2015.08.09.23.15.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Sun, 09 Aug 2015 23:01:32 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 10 Aug 2015 11:31:28 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 75F1E3940053
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 11:31:24 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t7A61GAL32637026
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 11:31:16 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t7A61DEa009214
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 11:31:14 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 2/7] mm: kasan: introduce generic kasan_populate_zero_shadow()
-In-Reply-To: <1437756119-12817-3-git-send-email-a.ryabinin@samsung.com>
-References: <1437756119-12817-1-git-send-email-a.ryabinin@samsung.com> <1437756119-12817-3-git-send-email-a.ryabinin@samsung.com>
-Date: Mon, 10 Aug 2015 11:31:12 +0530
-Message-ID: <87mvxzptqv.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 09 Aug 2015 23:15:48 -0700 (PDT)
+Received: by pacrr5 with SMTP id rr5so96397232pac.3
+        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 23:15:48 -0700 (PDT)
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Subject: [PATCH V1 Resend 10/11] mm: Drop unlikely before IS_ERR(_OR_NULL)
+Date: Mon, 10 Aug 2015 11:42:32 +0530
+Message-Id: <a4c1dcb64bd60a990ec7ac031835120bec548680.1439187003.git.viresh.kumar@linaro.org>
+In-Reply-To: <cover.1439187003.git.viresh.kumar@linaro.org>
+References: <cover.1439187003.git.viresh.kumar@linaro.org>
+In-Reply-To: <cover.1439187003.git.viresh.kumar@linaro.org>
+References: <cover.1439187003.git.viresh.kumar@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
-Cc: Arnd Bergmann <arnd@arndb.de>, Linus Walleij <linus.walleij@linaro.org>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexey Klimov <klimov.linux@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org
+To: akpm@linux-foundation.org
+Cc: linaro-kernel@lists.linaro.org, linux-kernel@vger.kernel.org, Viresh Kumar <viresh.kumar@linaro.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Matthew Wilcox <willy@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+IS_ERR(_OR_NULL) already contain an 'unlikely' compiler flag and there
+is no need to do that again from its callers. Drop it.
 
-> Introduce generic kasan_populate_zero_shadow(start, end).
-> This function maps kasan_zero_page to the [start, end] addresses.
->
-> In follow on patches it will be used for ARMv8 (and maybe other
-> architectures) and will replace x86_64 specific populate_zero_shadow().
->
-> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+---
+ mm/huge_memory.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-This assume that we can have shared pgtable_t in generic code ? Is that
-true for generic code ? Even if it is we may want to allow some arch to
-override this ? On ppc64, we store the hardware hash page table slot
-number in pte_t, Hence we won't be able to share pgtable_t. 
-
-
-
-> ---
->  arch/x86/mm/kasan_init_64.c |  14 ----
->  include/linux/kasan.h       |   8 +++
->  mm/kasan/Makefile           |   2 +-
->  mm/kasan/kasan_init.c       | 151 ++++++++++++++++++++++++++++++++++++++++++++
->  4 files changed, 160 insertions(+), 15 deletions(-)
->  create mode 100644 mm/kasan/kasan_init.c
->
-> diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-> index e1840f3..812086c 100644
-> --- a/arch/x86/mm/kasan_init_64.c
-> +++ b/arch/x86/mm/kasan_init_64.c
-> @@ -12,20 +12,6 @@
->  extern pgd_t early_level4_pgt[PTRS_PER_PGD];
->  extern struct range pfn_mapped[E820_X_MAX];
->  
-> -static pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
-> -static pmd_t kasan_zero_pmd[PTRS_PER_PMD] __page_aligned_bss;
-> -static pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
-> -
-> -/*
-
--aneesh
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 7109330c5911..97b8d5cd4550 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -151,7 +151,7 @@ static int start_stop_khugepaged(void)
+ 		if (!khugepaged_thread)
+ 			khugepaged_thread = kthread_run(khugepaged, NULL,
+ 							"khugepaged");
+-		if (unlikely(IS_ERR(khugepaged_thread))) {
++		if (IS_ERR(khugepaged_thread)) {
+ 			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
+ 			err = PTR_ERR(khugepaged_thread);
+ 			khugepaged_thread = NULL;
+-- 
+2.4.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
