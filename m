@@ -1,81 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CD0126B0253
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 05:16:31 -0400 (EDT)
-Received: by oihn130 with SMTP id n130so84877234oih.2
-        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 02:16:31 -0700 (PDT)
-Received: from BLU004-OMC1S17.hotmail.com (blu004-omc1s17.hotmail.com. [65.55.116.28])
-        by mx.google.com with ESMTPS id ru3si13957012obc.104.2015.08.10.02.16.31
+Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
+	by kanga.kvack.org (Postfix) with ESMTP id D119B6B0255
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 05:21:58 -0400 (EDT)
+Received: by qkbm65 with SMTP id m65so56004025qkb.2
+        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 02:21:58 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id h184si5985712qhc.21.2015.08.10.02.21.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 10 Aug 2015 02:16:31 -0700 (PDT)
-Message-ID: <BLU437-SMTP7349274677DC2936F6E47180700@phx.gbl>
-Subject: Re: [PATCH 1/2] mm/hwpoison: fix fail to split THP w/ refcount held
-References: <BLU436-SMTP188C7B16D46EEDEB4A9B9F980700@phx.gbl>
- <20150810081019.GA21282@hori1.linux.bs1.fc.nec.co.jp>
- <BLU436-SMTP6090BE1965823BCE9FBC4580700@phx.gbl>
- <20150810085047.GC21282@hori1.linux.bs1.fc.nec.co.jp>
-From: Wanpeng Li <wanpeng.li@hotmail.com>
-Date: Mon, 10 Aug 2015 17:15:14 +0800
-MIME-Version: 1.0
-In-Reply-To: <20150810085047.GC21282@hori1.linux.bs1.fc.nec.co.jp>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 10 Aug 2015 02:21:58 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/2] mm/hwpoison: fix refcount of THP head page in
+ no-injection case
+Date: Mon, 10 Aug 2015 09:20:20 +0000
+Message-ID: <20150810092020.GB28025@hori1.linux.bs1.fc.nec.co.jp>
+References: <1439188351-24292-1-git-send-email-wanpeng.li@hotmail.com>
+ <BLU436-SMTP1881EF02196F4DFB4A0882B80700@phx.gbl>
+ <20150810083529.GB21282@hori1.linux.bs1.fc.nec.co.jp>
+ <BLU436-SMTP3886BA6C827CC74CCF19EB80700@phx.gbl>
+ <BLU436-SMTP2382AA11A7E96E3F330B50F80700@phx.gbl>
+In-Reply-To: <BLU436-SMTP2382AA11A7E96E3F330B50F80700@phx.gbl>
+Content-Language: ja-JP
 Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
+Content-ID: <5A7E6C0848CAAB46B5D541334679DB88@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Wanpeng Li <wanpeng.li@hotmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
+On Mon, Aug 10, 2015 at 05:06:25PM +0800, Wanpeng Li wrote:
+...
+> >>>diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
+> >>>index 5015679..c343a45 100644
+> >>>--- a/mm/hwpoison-inject.c
+> >>>+++ b/mm/hwpoison-inject.c
+> >>>@@ -56,6 +56,8 @@ inject:
+> >>>      return memory_failure(pfn, 18, MF_COUNT_INCREASED);
+> >>>  put_out:
+> >>>      put_page(p);
+> >>>+    if (p !=3D hpage)
+> >>>+        put_page(hpage);
+> >>Yes, we need this when we inject to a thp tail page and "goto put_out"
+> >>is
+> >>called. But it seems that this code can be called also when injecting
+> >>error
+> >>to a hugetlb tail page and hwpoison_filter() returns non-zero, which is
+> >>not
+> >>expected. Unfortunately simply doing like below
+> >>
+> >>+    if (!PageHuge(p) && p !=3D hpage)
+> >>+        put_page(hpage);
+> >>
+> >>doesn't work, because exisiting put_page(p) can release refcount of
+> >>hugetlb
+> >>tail page, while get_hwpoison_page() takes refcount of hugetlb head
+> >>page.
+> >>
+> >>So I feel that we need put_hwpoison_page() to properly release the
+> >>refcount
+> >>taken by memory error handlers.
+> >
+> >Good point. I think I will continue to do it and will post it out soon. =
+:)
+>=20
+> How about something like this:
+>=20
+> +void put_hwpoison_page(struct page *page)
+> +{
+> +       struct page *head =3D compound_head(page);
+> +
+> +       if (PageHuge(head))
+> +               goto put_out;
+> +
+> +       if (PageTransHuge(head))
+> +               if (page !=3D head)
+> +                       put_page(head);
+> +
+> +put_out:
+> +       put_page(page);
+> +       return;
+> +}
+> +
 
+Looks good.
 
-On 8/10/15 4:50 PM, Naoya Horiguchi wrote:
-> On Mon, Aug 10, 2015 at 04:29:18PM +0800, Wanpeng Li wrote:
->> Hi Naoya,
->>
->> On 8/10/15 4:10 PM, Naoya Horiguchi wrote:
->>> On Mon, Aug 10, 2015 at 02:32:30PM +0800, Wanpeng Li wrote:
->>>> THP pages will get a refcount in madvise_hwpoison() w/ MF_COUNT_INCREASED
->>>> flag, however, the refcount is still held when fail to split THP pages.
->>>>
->>>> Fix it by reducing the refcount of THP pages when fail to split THP.
->>>>
->>>> Signed-off-by: Wanpeng Li <wanpeng.li@hotmail.com>
->>> It seems that the same conditional put_page() would be added to
->>> "soft offline: %#lx page already poisoned" branch too, right?
->> PageHWPoison() is just called before the soft_offline_page() in
->> madvise_hwpoion(). I think the PageHWPosion()
->> check in soft_offline_page() makes more sense for the other
->> soft_offline_page() callsites which don't have the
->> refcount held.
-> What I am worried is a race like below:
->
->   CPU0                              CPU1
->
->   madvise_hwpoison
->   get_user_pages_fast
->   PageHWPoison check (false)
->                                     memory_failure
->                                     TestSetPageHWPoison
->   soft_offline_page
->   PageHWPoison check (true)
->   return -EBUSY (without put_page)
+> Any comments are welcome, I can update the patch by myself. :)
 
-Indeed, there is a race even through it is rared happen.
+Most of callsites of put_page() in memory_failure(), soft_offline_page(),
+and unpoison_page() can be replaced with put_hwpoison_page().
 
->
-> It's rare and madvise_hwpoison() is testing feature, so this never causes
-> real problems in production systems, so it's not a big deal.
-> My suggestion is maybe just for code correctness thing ...
-
-Thanks for your proposal, I will add your suggestion in v2 and post out
-after we have a uniform solution for patch 2/2. :)
-
-Regards,
-Wanpeng Li
-
->
-> Thanks,
-> Naoya Horiguchi
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
