@@ -1,284 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B47D26B0256
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 11:14:35 -0400 (EDT)
-Received: by pawu10 with SMTP id u10so142419290paw.1
-        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 08:14:35 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id cg6si5866605pad.123.2015.08.10.08.14.32
-        for <linux-mm@kvack.org>;
-        Mon, 10 Aug 2015 08:14:32 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
-Date: Mon, 10 Aug 2015 18:14:24 +0300
-Message-Id: <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 219D76B0038
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 12:36:41 -0400 (EDT)
+Received: by ykaz130 with SMTP id z130so36670949yka.0
+        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 09:36:40 -0700 (PDT)
+Received: from mail-yk0-x231.google.com (mail-yk0-x231.google.com. [2607:f8b0:4002:c07::231])
+        by mx.google.com with ESMTPS id w5si11578950ykd.51.2015.08.10.09.36.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Aug 2015 09:36:40 -0700 (PDT)
+Received: by ykaz130 with SMTP id z130so36670681yka.0
+        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 09:36:40 -0700 (PDT)
+Date: Mon, 10 Aug 2015 12:36:38 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH] percpu: Prevent endless loop if there is no
+ unallocated region
+Message-ID: <20150810163638.GC23408@mtj.duckdns.org>
+References: <1439122659-31442-1-git-send-email-linux@roeck-us.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1439122659-31442-1-git-send-email-linux@roeck-us.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-As we don't have struct pages for DAX memory, Matthew had to find an
-replacement for lock_page() to avoid fault vs. truncate races.
-i_mmap_lock was used for that.
+Hello,
 
-Recently, Matthew had to convert locking to exclusive to address fault
-vs. fault races. And this kills scalability completely.
+On Sun, Aug 09, 2015 at 05:17:39AM -0700, Guenter Roeck wrote:
+> Qemu tests with unicore32 show memory management code entering an endless
+> loop in pcpu_alloc(). Bisect points to commit a93ace487a33 ("percpu: move
+> region iterations out of pcpu_[de]populate_chunk()"). Code analysis
+> identifies the following relevant changes.
+> 
+> -       rs = page_start;
+> -       pcpu_next_pop(chunk, &rs, &re, page_end);
+> -
+> -       if (rs != page_start || re != page_end) {
+> +       pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
+> 
+> For unicore32, values were page_start==0, page_end==1, rs==0, re==1.
+> This worked fine with the old code. With the new code, however, the loop
+> is always entered. Debugging information added into the loop shows
+> an endless repetition of
+> 
+> in loop chunk c5c53100 populated 0xff rs 1 re 2 page start 0 page end 1
+> in loop chunk c5c53100 populated 0xff rs 1 re 2 page start 0 page end 1
+> in loop chunk c5c53100 populated 0xff rs 1 re 2 page start 0 page end 1
+> in loop chunk c5c53100 populated 0xff rs 1 re 2 page start 0 page end 1
 
-The patch below tries to recover some scalability for DAX by introducing
-per-mapping range lock.
+That's a bug in the find bit functions in unicore32.  If @offset >=
+@end, it should return @end, not @offset.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- fs/dax.c           | 30 +++++++++++++++++-------------
- fs/inode.c         |  1 +
- include/linux/fs.h |  2 ++
- mm/memory.c        | 35 +++++++++++++++++++++++------------
- mm/rmap.c          |  1 +
- 5 files changed, 44 insertions(+), 25 deletions(-)
+Thanks.
 
-diff --git a/fs/dax.c b/fs/dax.c
-index ed54efedade6..27a68eca698e 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -333,6 +333,7 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	struct inode *inode = mapping->host;
- 	struct page *page;
- 	struct buffer_head bh;
-+	struct range_lock mapping_lock;
- 	unsigned long vaddr = (unsigned long)vmf->virtual_address;
- 	unsigned blkbits = inode->i_blkbits;
- 	sector_t block;
-@@ -348,6 +349,11 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - blkbits);
- 	bh.b_size = PAGE_SIZE;
- 
-+	/* do_cow_fault() takes the lock */
-+	if (!vmf->cow_page) {
-+		range_lock_init(&mapping_lock, vmf->pgoff, vmf->pgoff);
-+		range_lock(&mapping->mapping_lock, &mapping_lock);
-+	}
-  repeat:
- 	page = find_get_page(mapping, vmf->pgoff);
- 	if (page) {
-@@ -369,8 +375,6 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 			error = -EIO;
- 			goto unlock;
- 		}
--	} else {
--		i_mmap_lock_write(mapping);
- 	}
- 
- 	error = get_block(inode, block, &bh, 0);
-@@ -390,8 +394,9 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 			if (error)
- 				goto unlock;
- 		} else {
--			i_mmap_unlock_write(mapping);
--			return dax_load_hole(mapping, page, vmf);
-+			error =  dax_load_hole(mapping, page, vmf);
-+			range_unlock(&mapping->mapping_lock, &mapping_lock);
-+			return error;
- 		}
- 	}
- 
-@@ -446,9 +451,9 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 			WARN_ON_ONCE(!(vmf->flags & FAULT_FLAG_WRITE));
- 	}
- 
--	if (!page)
--		i_mmap_unlock_write(mapping);
-  out:
-+	if (!vmf->cow_page)
-+		range_unlock(&mapping->mapping_lock, &mapping_lock);
- 	if (error == -ENOMEM)
- 		return VM_FAULT_OOM | major;
- 	/* -EBUSY is fine, somebody else faulted on the same PTE */
-@@ -460,10 +465,7 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	if (page) {
- 		unlock_page(page);
- 		page_cache_release(page);
--	} else {
--		i_mmap_unlock_write(mapping);
- 	}
--
- 	goto out;
- }
- EXPORT_SYMBOL(__dax_fault);
-@@ -510,6 +512,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	struct address_space *mapping = file->f_mapping;
- 	struct inode *inode = mapping->host;
- 	struct buffer_head bh;
-+	struct range_lock mapping_lock;
- 	unsigned blkbits = inode->i_blkbits;
- 	unsigned long pmd_addr = address & PMD_MASK;
- 	bool write = flags & FAULT_FLAG_WRITE;
-@@ -541,7 +544,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	block = (sector_t)pgoff << (PAGE_SHIFT - blkbits);
- 
- 	bh.b_size = PMD_SIZE;
--	i_mmap_lock_write(mapping);
-+	range_lock_init(&mapping_lock, pgoff, pgoff + HPAGE_PMD_NR - 1);
-+	range_lock(&mapping->mapping_lock, &mapping_lock);
- 	length = get_block(inode, block, &bh, write);
- 	if (length)
- 		return VM_FAULT_SIGBUS;
-@@ -568,9 +572,9 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	 * zero pages covering this hole
- 	 */
- 	if (buffer_new(&bh)) {
--		i_mmap_unlock_write(mapping);
-+		range_unlock(&mapping->mapping_lock, &mapping_lock);
- 		unmap_mapping_range(mapping, pgoff << PAGE_SHIFT, PMD_SIZE, 0);
--		i_mmap_lock_write(mapping);
-+		range_lock(&mapping->mapping_lock, &mapping_lock);
- 	}
- 
- 	/*
-@@ -624,7 +628,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	if (buffer_unwritten(&bh))
- 		complete_unwritten(&bh, !(result & VM_FAULT_ERROR));
- 
--	i_mmap_unlock_write(mapping);
-+	range_unlock(&mapping->mapping_lock, &mapping_lock);
- 
- 	return result;
- 
-diff --git a/fs/inode.c b/fs/inode.c
-index e560535706ff..6a24144d679f 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -343,6 +343,7 @@ void address_space_init_once(struct address_space *mapping)
- 	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
- 	spin_lock_init(&mapping->tree_lock);
- 	init_rwsem(&mapping->i_mmap_rwsem);
-+	range_lock_tree_init(&mapping->mapping_lock);
- 	INIT_LIST_HEAD(&mapping->private_list);
- 	spin_lock_init(&mapping->private_lock);
- 	mapping->i_mmap = RB_ROOT;
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index b6361e2e2a26..368e7208d4f2 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -30,6 +30,7 @@
- #include <linux/lockdep.h>
- #include <linux/percpu-rwsem.h>
- #include <linux/blk_types.h>
-+#include <linux/range_lock.h>
- 
- #include <asm/byteorder.h>
- #include <uapi/linux/fs.h>
-@@ -429,6 +430,7 @@ struct address_space {
- 	atomic_t		i_mmap_writable;/* count VM_SHARED mappings */
- 	struct rb_root		i_mmap;		/* tree of private and shared mappings */
- 	struct rw_semaphore	i_mmap_rwsem;	/* protect tree, count, list */
-+	struct range_lock_tree	mapping_lock;	/* lock_page() replacement for DAX */
- 	/* Protected by tree_lock together with the radix tree */
- 	unsigned long		nrpages;	/* number of total pages */
- 	unsigned long		nrshadows;	/* number of shadow entries */
-diff --git a/mm/memory.c b/mm/memory.c
-index 7f6a9563d5a6..b4898db7e4c4 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2409,6 +2409,7 @@ void unmap_mapping_range(struct address_space *mapping,
- 		loff_t const holebegin, loff_t const holelen, int even_cows)
- {
- 	struct zap_details details;
-+	struct range_lock mapping_lock;
- 	pgoff_t hba = holebegin >> PAGE_SHIFT;
- 	pgoff_t hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 
-@@ -2426,10 +2427,17 @@ void unmap_mapping_range(struct address_space *mapping,
- 	if (details.last_index < details.first_index)
- 		details.last_index = ULONG_MAX;
- 
-+	if (IS_DAX(mapping->host)) {
-+		/* Exclude fault under us */
-+		range_lock_init(&mapping_lock, hba, hba + hlen - 1);
-+		range_lock(&mapping->mapping_lock, &mapping_lock);
-+	}
- 	i_mmap_lock_write(mapping);
- 	if (unlikely(!RB_EMPTY_ROOT(&mapping->i_mmap)))
- 		unmap_mapping_range_tree(&mapping->i_mmap, &details);
- 	i_mmap_unlock_write(mapping);
-+	if (IS_DAX(mapping->host))
-+		range_unlock(&mapping->mapping_lock, &mapping_lock);
- }
- EXPORT_SYMBOL(unmap_mapping_range);
- 
-@@ -2978,6 +2986,8 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pmd_t *pmd,
- 		pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
- {
-+	struct address_space *mapping = vma->vm_file->f_mapping;
-+	struct range_lock mapping_lock;
- 	struct page *fault_page, *new_page;
- 	struct mem_cgroup *memcg;
- 	spinlock_t *ptl;
-@@ -2996,6 +3006,15 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		return VM_FAULT_OOM;
- 	}
- 
-+	if (IS_DAX(file_inode(vma->vm_file))) {
-+		/*
-+		 * The fault handler has no page to lock, so it holds
-+		 * mapping->mapping_lock to protect against truncate.
-+		 */
-+		range_lock_init(&mapping_lock, pgoff, pgoff);
-+		range_unlock(&mapping->mapping_lock, &mapping_lock);
-+	}
-+
- 	ret = __do_fault(vma, address, pgoff, flags, new_page, &fault_page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		goto uncharge_out;
-@@ -3010,12 +3029,6 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		if (fault_page) {
- 			unlock_page(fault_page);
- 			page_cache_release(fault_page);
--		} else {
--			/*
--			 * The fault handler has no page to lock, so it holds
--			 * i_mmap_lock for write to protect against truncate.
--			 */
--			i_mmap_unlock_write(vma->vm_file->f_mapping);
- 		}
- 		goto uncharge_out;
- 	}
-@@ -3026,15 +3039,13 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (fault_page) {
- 		unlock_page(fault_page);
- 		page_cache_release(fault_page);
--	} else {
--		/*
--		 * The fault handler has no page to lock, so it holds
--		 * i_mmap_lock for write to protect against truncate.
--		 */
--		i_mmap_unlock_write(vma->vm_file->f_mapping);
- 	}
-+	if (IS_DAX(file_inode(vma->vm_file)))
-+		range_unlock(&mapping->mapping_lock, &mapping_lock);
- 	return ret;
- uncharge_out:
-+	if (IS_DAX(file_inode(vma->vm_file)))
-+		range_unlock(&mapping->mapping_lock, &mapping_lock);
- 	mem_cgroup_cancel_charge(new_page, memcg);
- 	page_cache_release(new_page);
- 	return ret;
-diff --git a/mm/rmap.c b/mm/rmap.c
-index dcaad464aab0..3d509326d354 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -22,6 +22,7 @@
-  *
-  * inode->i_mutex	(while writing or truncating, not reading or faulting)
-  *   mm->mmap_sem
-+ *    mapping->mapping_lock
-  *     page->flags PG_locked (lock_page)
-  *       mapping->i_mmap_rwsem
-  *         anon_vma->rwsem
 -- 
-2.5.0
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
