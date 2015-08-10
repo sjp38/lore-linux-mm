@@ -1,98 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C78F6B0253
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E08336B0254
 	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 03:12:35 -0400 (EDT)
-Received: by pdrh1 with SMTP id h1so50270408pdr.0
+Received: by pacrr5 with SMTP id rr5so97474603pac.3
         for <linux-mm@kvack.org>; Mon, 10 Aug 2015 00:12:35 -0700 (PDT)
 Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id nh9si31777100pdb.77.2015.08.10.00.12.32
+        by mx.google.com with ESMTP id sn7si31674143pbc.78.2015.08.10.00.12.32
         for <linux-mm@kvack.org>;
         Mon, 10 Aug 2015 00:12:34 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC zsmalloc 0/4] meta diet
-Date: Mon, 10 Aug 2015 16:12:19 +0900
-Message-Id: <1439190743-13933-1-git-send-email-minchan@kernel.org>
+Subject: [RFC zsmalloc 1/4] zsmalloc: keep max_object in size_class
+Date: Mon, 10 Aug 2015 16:12:20 +0900
+Message-Id: <1439190743-13933-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1439190743-13933-1-git-send-email-minchan@kernel.org>
+References: <1439190743-13933-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: gioh.kim@lge.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
 
-Recently, Gioh worked to support non-LRU page migration[1].
-zRAM is one of customer to use that feature.
+Every zspage in a size_class has same max_objects so we could
+move it to a size_class.
 
-For working with that, drivers have to register own address_space
-via page->mapping and mark the page->_mapcount as MOBILE page.
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/zsmalloc.c | 22 ++++++++++------------
+ 1 file changed, 10 insertions(+), 12 deletions(-)
 
-Unfortunately, zram have been used those fields to keep own
-metadata so there is no room in struct page, which makes hard
-to work with the feature.
-
-This patchset try to diet so the goal is to make page->mapping
-and page->_mapcount empty.
-
-Trade-off is CPU vs MEMORY so this patchset would make it slow
-a bit. I did fio test with perf in my x86 mahchine.
-
-before:
-
- Performance counter stats for './zram_fio.sh' (6 runs):
-
-      11186.216003      task-clock (msec)         #    1.836 CPUs utilized          
-             1,059      context-switches          #    0.098 K/sec                  
-               299      cpu-migrations            #    0.028 K/sec                  
-           159,221      page-faults               #    0.015 M/sec                  
-    17,629,290,725      cycles                    #    1.627 GHz                      (83.56%)
-    12,375,796,782      stalled-cycles-frontend   #   69.95% frontend cycles idle     (83.34%)
-     8,566,377,800      stalled-cycles-backend    #   48.42% backend  cycles idle     (66.91%)
-    12,828,697,359      instructions              #    0.73  insns per cycle        
-                                                  #    0.96  stalled cycles per insn  (83.55%)
-     2,099,817,436      branches                  #  193.734 M/sec                    (83.66%)
-        20,327,794      branch-misses             #    0.96% of all branches          (83.89%)
-
-       6.092967906 seconds time elapsed                                          ( +-  1.49% )
-
-new:
-
- Performance counter stats for './zram_fio.sh' (6 runs):
-
-      10574.201402      task-clock (msec)         #    1.724 CPUs utilized          
-             1,157      context-switches          #    0.107 K/sec                  
-               319      cpu-migrations            #    0.030 K/sec                  
-           159,196      page-faults               #    0.015 M/sec                  
-    17,825,134,600      cycles                    #    1.652 GHz                      (83.61%)
-    12,462,671,915      stalled-cycles-frontend   #   69.98% frontend cycles idle     (83.18%)
-     8,699,972,776      stalled-cycles-backend    #   48.85% backend  cycles idle     (66.81%)
-    12,958,165,862      instructions              #    0.73  insns per cycle        
-                                                  #    0.96  stalled cycles per insn  (83.55%)
-     2,135,158,432      branches                  #  197.936 M/sec                    (83.80%)
-        20,226,663      branch-misses             #    0.95% of all branches          (83.93%)
-
-       6.133316214 seconds time elapsed                                          ( +-  1.80% )
-
-There is a regression under about 1~2% so I think it's reasonable trade-off.
-
-Notice: I marked it as RFC due to two things.
-
-1. I didn't check ./script/checkpatch
-2. If Gioh's work is dropped, there is no point to merge this patchset.
-
-If there is no big problem found during review process and Gioh respins
-new revision, I will implement migration functions based (this patchset +
-Gioh's new).
-
-Thanks.
-
-[1] http://lwn.net/Articles/650917/
-
-Minchan Kim (4):
-  zsmalloc: keep max_object in size_class
-  zsmalloc: squeeze inuse into page->mapping
-  zsmalloc: squeeze freelist into page->mapping
-  zsmalloc: move struct zs_meta from mapping to somewhere
-
- mm/zsmalloc.c | 346 +++++++++++++++++++++++++++++++++-------------------------
- 1 file changed, 197 insertions(+), 149 deletions(-)
-
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index f135b1b..491491a 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -33,8 +33,6 @@
+  *	page->freelist: points to the first free object in zspage.
+  *		Free objects are linked together using in-place
+  *		metadata.
+- *	page->objects: maximum number of objects we can store in this
+- *		zspage (class->zspage_order * PAGE_SIZE / class->size)
+  *	page->lru: links together first pages of various zspages.
+  *		Basically forming list of zspages in a fullness group.
+  *	page->mapping: class index and fullness group of the zspage
+@@ -206,6 +204,7 @@ struct size_class {
+ 	 * of ZS_ALIGN.
+ 	 */
+ 	int size;
++	int max_objects;
+ 	unsigned int index;
+ 
+ 	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
+@@ -606,14 +605,15 @@ static inline void zs_pool_stat_destroy(struct zs_pool *pool)
+  * the pool (not yet implemented). This function returns fullness
+  * status of the given page.
+  */
+-static enum fullness_group get_fullness_group(struct page *page)
++static enum fullness_group get_fullness_group(struct size_class *class,
++						struct page *page)
+ {
+ 	int inuse, max_objects;
+ 	enum fullness_group fg;
+ 	BUG_ON(!is_first_page(page));
+ 
+ 	inuse = page->inuse;
+-	max_objects = page->objects;
++	max_objects = class->max_objects;
+ 
+ 	if (inuse == 0)
+ 		fg = ZS_EMPTY;
+@@ -706,7 +706,7 @@ static enum fullness_group fix_fullness_group(struct size_class *class,
+ 	BUG_ON(!is_first_page(page));
+ 
+ 	get_zspage_mapping(page, &class_idx, &currfg);
+-	newfg = get_fullness_group(page);
++	newfg = get_fullness_group(class, page);
+ 	if (newfg == currfg)
+ 		goto out;
+ 
+@@ -985,9 +985,6 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 	init_zspage(first_page, class);
+ 
+ 	first_page->freelist = location_to_obj(first_page, 0);
+-	/* Maximum number of objects we can store in this zspage */
+-	first_page->objects = class->pages_per_zspage * PAGE_SIZE / class->size;
+-
+ 	error = 0; /* Success */
+ 
+ cleanup:
+@@ -1217,11 +1214,11 @@ static bool can_merge(struct size_class *prev, int size, int pages_per_zspage)
+ 	return true;
+ }
+ 
+-static bool zspage_full(struct page *page)
++static bool zspage_full(struct size_class *class, struct page *page)
+ {
+ 	BUG_ON(!is_first_page(page));
+ 
+-	return page->inuse == page->objects;
++	return page->inuse == class->max_objects;
+ }
+ 
+ unsigned long zs_get_total_pages(struct zs_pool *pool)
+@@ -1619,7 +1616,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+ 		}
+ 
+ 		/* Stop if there is no more space */
+-		if (zspage_full(d_page)) {
++		if (zspage_full(class, d_page)) {
+ 			unpin_tag(handle);
+ 			ret = -ENOMEM;
+ 			break;
+@@ -1673,7 +1670,7 @@ static enum fullness_group putback_zspage(struct zs_pool *pool,
+ 
+ 	BUG_ON(!is_first_page(first_page));
+ 
+-	fullness = get_fullness_group(first_page);
++	fullness = get_fullness_group(class, first_page);
+ 	insert_zspage(first_page, class, fullness);
+ 	set_zspage_mapping(first_page, class->index, fullness);
+ 
+@@ -1927,6 +1924,7 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
+ 		class->size = size;
+ 		class->index = i;
+ 		class->pages_per_zspage = pages_per_zspage;
++		class->max_objects = class->pages_per_zspage * PAGE_SIZE / class->size;
+ 		if (pages_per_zspage == 1 &&
+ 			get_maxobj_per_zspage(size, pages_per_zspage) == 1)
+ 			class->huge = true;
 -- 
 1.9.1
 
