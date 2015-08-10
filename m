@@ -1,77 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 913006B0253
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 05:43:18 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so15001709wic.0
-        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 02:43:18 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 285D66B0254
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 05:44:20 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so15033398wic.0
+        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 02:44:19 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o3si15178270wix.62.2015.08.10.02.43.16
+        by mx.google.com with ESMTPS id mn10si36661177wjc.72.2015.08.10.02.44.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 10 Aug 2015 02:43:16 -0700 (PDT)
-Date: Mon, 10 Aug 2015 11:43:15 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Warning at mm/truncate.c:740
-Message-ID: <20150810094315.GA3768@quack.suse.cz>
-References: <55C7687D.8070909@oracle.com>
+        Mon, 10 Aug 2015 02:44:18 -0700 (PDT)
+Subject: Re: [RFC v3 1/2] mm, compaction: introduce kcompactd
+References: <1438619141-22215-1-git-send-email-vbabka@suse.cz>
+ <1086308416.1472237.1439134679684.JavaMail.yahoo@mail.yahoo.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55C8726E.4090103@suse.cz>
+Date: Mon, 10 Aug 2015 11:44:14 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55C7687D.8070909@oracle.com>
+In-Reply-To: <1086308416.1472237.1439134679684.JavaMail.yahoo@mail.yahoo.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>
+To: PINTU KUMAR <pintu_agarwal@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pintu Kumar <pintu.k@samsung.com>
 
-  Hi,
+On 08/09/2015 05:37 PM, PINTU KUMAR wrote:
+>> Waking up of the kcompactd threads is also tied to kswapd activity and follows
+>> these rules:
+>> - we don't want to affect any fastpaths, so wake up kcompactd only from the
+>>    slowpath, as it's done for kswapd
+>> - if kswapd is doing reclaim, it's more important than compaction, so
+>> don't
+>>    invoke kcompactd until kswapd goes to sleep
+>> - the target order used for kswapd is passed to kcompactd
+>>
+>> The kswapd compact/reclaim loop for high-order pages is left alone for now
+>> and precedes kcompactd wakeup, but this might be revisited later.
+>
+> kcompactd, will be really nice thing to have, but I oppose calling it from kswapd.
+> Because, just after kswapd, we already have direct_compact.
 
-On Sun 09-08-15 10:49:33, Sasha Levin wrote:
-> I saw the following warning while fuzzing with trinity:
-> 
-> [385644.689209] WARNING: CPU: 1 PID: 23536 at mm/truncate.c:740 pagecache_isize_extended+0x124/0x180()
-> [385644.691780] Modules linked in:
-> [385644.692695] CPU: 1 PID: 23536 Comm: trinity-c242 Not tainted 4.2.0-rc5-next-20150806-sasha-00040-g1b47b00-dirty #2417
-> [385644.695636]  ffffffffb21300e0 ffff8800ba3cfc40 ffffffffb1e89dfc 0000000000000000
-> [385644.708128]  ffff8800ba3cfc80 ffffffffa8325106 ffffffffa869fdd4 ffff88006bbe1f10
-> [385644.710046]  0000000000001007 ffff88006bbe1f60 ffff88006bbe1f10 ffff8803daa965a0
-> [385644.722774] Call Trace:
-> [385644.723591] dump_stack (lib/dump_stack.c:52)
-> [385644.725180] warn_slowpath_common (kernel/panic.c:448)
-> [385644.728983] warn_slowpath_null (kernel/panic.c:482)
-> [385644.730679] pagecache_isize_extended (mm/truncate.c:740 (discriminator 1))
-> [385644.732630] truncate_setsize (mm/truncate.c:710)
-> [385644.734469] v9fs_vfs_setattr_dotl (fs/9p/v9fs_vfs.h:81 fs/9p/vfs_inode_dotl.c:593)
-> [385644.753009] notify_change (fs/attr.c:270)
-> [385644.754303] do_truncate (fs/open.c:64)
-> [385644.759181] do_sys_ftruncate.constprop.5 (fs/open.c:193)
-> [385644.760669] SyS_ftruncate (fs/open.c:201)
-> [385644.761818] entry_SYSCALL_64_fastpath (arch/x86/entry/entry_64.S:186)
-> 
-> But I'm not really sure how that happens... truncate_setsize() changes the inode
-> size before calling pagecache_isize_extended():
-> 
-> 	i_size_write(inode, newsize);
-> 	if (newsize > oldsize)
-> 		pagecache_isize_extended(inode, oldsize, newsize);
-> 	truncate_pagecache(inode, newsize);
-> 
-> And notify_change() is verifying that i_mutex is held:
-> 
-> 	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex));
-> 
-> So it doesn't look like a race either.
+Just to be clear, here you mean that kswapd already does the 
+compact/reclaim loop?
 
-Well, looking at the code it can be a race which is specific to 9p
-filesystem. It seems to me that 9p can update i_size from
-v9fs_refresh_inode_dotl(). That can be called v9fs_lookup_revalidate()
-without holding i_mutex. Now I'm not sure d_revalidate() can really race
-with truncate on the same inode (whether there isn't something else
-protecting this). Al should know better...
+> So it may end up in doing compaction 2 times.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+The compact/reclaim loop might already do multiple iterations. The point 
+is, kswapd will terminate the loop as soon as single page of desired 
+order becomes available. Kcompactd is meant to go beyond that.
+And having kcompactd run in parallel with kswapd's reclaim looks like 
+nonsense to me, so I don't see other way than have kswapd wake up 
+kcompactd when it's finished.
+
+> Or, is it like, with kcompactd, we dont need direct_compact?
+
+That will have to be evaluated. It would be nice to not need the 
+compact/reclaim loop, but I'm not sure it's always possible. We could 
+move it to kcompactd, but it would still mean that no daemon does 
+exclusively just reclaim or just compaction.
+
+> In embedded world situation is really worse.
+> As per my experience in embedded world, just compaction does not help always in longer run.
+>
+> As I know there are already some Android model in market, that already run background compaction (from user space).
+> But still there are sluggishness issues due to bad memory state in the long run.
+
+It should still be better with background compaction than without it. Of 
+course, avoiding a permanent fragmentation completely is not possible to 
+guarantee as it depends on the allocation patterns.
+
+> In embedded world, the major problems are related to camera and browser use cases that requires almost order-8 allocations.
+> Also, for low RAM configurations (less than 512M, 256M etc.), the rate of failure of compaction is much higher than the rate of success.
+
+I was under impression that CMA was introduced to deal with such 
+high-order requirements in the embedded world?
+
+> How can we guarantee that kcompactd is suitable for all situations?
+
+We can't :) we can only hope to improve the average case. Anything that 
+needs high-order *guarantees* has to rely on CMA or another kind of 
+reservation (yeah even CMA is a pageblock reservation in some sense).
+
+> In an case, we need large amount of testing to cover all scenarios.
+> It should be called at the right time.
+> I dont have any data to present right now.
+> May be I will try to capture some data, and present here.
+
+That would be nice. I'm going to collect some as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
