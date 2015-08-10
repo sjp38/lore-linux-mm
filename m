@@ -1,53 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 77B9D6B0253
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 02:15:49 -0400 (EDT)
-Received: by pdrh1 with SMTP id h1so49718637pdr.0
-        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 23:15:49 -0700 (PDT)
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com. [209.85.220.48])
-        by mx.google.com with ESMTPS id pa4si19787256pdb.151.2015.08.09.23.15.48
+Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A18806B0253
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 02:49:57 -0400 (EDT)
+Received: by oiev193 with SMTP id v193so52487687oie.3
+        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 23:49:57 -0700 (PDT)
+Received: from BLU004-OMC1S5.hotmail.com (blu004-omc1s5.hotmail.com. [65.55.116.16])
+        by mx.google.com with ESMTPS id cx4si13654040oeb.100.2015.08.09.23.49.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Aug 2015 23:15:48 -0700 (PDT)
-Received: by pacrr5 with SMTP id rr5so96397232pac.3
-        for <linux-mm@kvack.org>; Sun, 09 Aug 2015 23:15:48 -0700 (PDT)
-From: Viresh Kumar <viresh.kumar@linaro.org>
-Subject: [PATCH V1 Resend 10/11] mm: Drop unlikely before IS_ERR(_OR_NULL)
-Date: Mon, 10 Aug 2015 11:42:32 +0530
-Message-Id: <a4c1dcb64bd60a990ec7ac031835120bec548680.1439187003.git.viresh.kumar@linaro.org>
-In-Reply-To: <cover.1439187003.git.viresh.kumar@linaro.org>
-References: <cover.1439187003.git.viresh.kumar@linaro.org>
-In-Reply-To: <cover.1439187003.git.viresh.kumar@linaro.org>
-References: <cover.1439187003.git.viresh.kumar@linaro.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 09 Aug 2015 23:49:56 -0700 (PDT)
+Message-ID: <BLU436-SMTP188C7B16D46EEDEB4A9B9F980700@phx.gbl>
+From: Wanpeng Li <wanpeng.li@hotmail.com>
+Subject: [PATCH 1/2] mm/hwpoison: fix fail to split THP w/ refcount held
+Date: Mon, 10 Aug 2015 14:32:30 +0800
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linaro-kernel@lists.linaro.org, linux-kernel@vger.kernel.org, Viresh Kumar <viresh.kumar@linaro.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Matthew Wilcox <willy@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <wanpeng.li@hotmail.com>
 
-IS_ERR(_OR_NULL) already contain an 'unlikely' compiler flag and there
-is no need to do that again from its callers. Drop it.
+THP pages will get a refcount in madvise_hwpoison() w/ MF_COUNT_INCREASED 
+flag, however, the refcount is still held when fail to split THP pages.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+Fix it by reducing the refcount of THP pages when fail to split THP.
+
+Signed-off-by: Wanpeng Li <wanpeng.li@hotmail.com>
 ---
- mm/huge_memory.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/memory-failure.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 7109330c5911..97b8d5cd4550 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -151,7 +151,7 @@ static int start_stop_khugepaged(void)
- 		if (!khugepaged_thread)
- 			khugepaged_thread = kthread_run(khugepaged, NULL,
- 							"khugepaged");
--		if (unlikely(IS_ERR(khugepaged_thread))) {
-+		if (IS_ERR(khugepaged_thread)) {
- 			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
- 			err = PTR_ERR(khugepaged_thread);
- 			khugepaged_thread = NULL;
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 8077b1c..56b8a71 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1710,6 +1710,8 @@ int soft_offline_page(struct page *page, int flags)
+ 		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
+ 			pr_info("soft offline: %#lx: failed to split THP\n",
+ 				pfn);
++			if (flags & MF_COUNT_INCREASED)
++				put_page(page);
+ 			return -EBUSY;
+ 		}
+ 	}
 -- 
-2.4.0
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
