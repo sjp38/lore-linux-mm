@@ -1,108 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id EF37F6B0256
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 12:40:17 -0400 (EDT)
-Received: by pacrr5 with SMTP id rr5so131210460pac.3
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 09:40:17 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id gt1si4372879pac.153.2015.08.11.09.40.16
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id EEACD6B0259
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 12:51:25 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so85508366pdr.2
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 09:51:25 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id qe7si4406717pbb.233.2015.08.11.09.51.24
         for <linux-mm@kvack.org>;
-        Tue, 11 Aug 2015 09:40:17 -0700 (PDT)
-Date: Tue, 11 Aug 2015 17:40:11 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v5 2/6] x86/kasan, mm: introduce generic
- kasan_populate_zero_shadow()
-Message-ID: <20150811164010.GJ23307@e104818-lin.cambridge.arm.com>
-References: <1439259499-13913-1-git-send-email-ryabinin.a.a@gmail.com>
- <1439259499-13913-3-git-send-email-ryabinin.a.a@gmail.com>
- <20150811154117.GH23307@e104818-lin.cambridge.arm.com>
- <55CA21E8.2060704@gmail.com>
+        Tue, 11 Aug 2015 09:51:24 -0700 (PDT)
+From: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+Subject: RE: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
+Date: Tue, 11 Aug 2015 16:51:22 +0000
+Message-ID: <100D68C7BA14664A8938383216E40DE040914C3E@FMSMSX114.amr.corp.intel.com>
+References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150811081909.GD2650@quack.suse.cz> <20150811093708.GB906@dastard>
+ <20150811135004.GC2659@quack.suse.cz> <55CA0728.7060001@plexistor.com>
+In-Reply-To: <55CA0728.7060001@plexistor.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55CA21E8.2060704@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Yury <yury.norov@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Linus Walleij <linus.walleij@linaro.org>, x86@kernel.org, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, Alexey Klimov <klimov.linux@gmail.com>, Ingo Molnar <mingo@redhat.com>, Alexander Potapenko <glider@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Keitel <dkeitel@codeaurora.org>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org
+To: Boaz Harrosh <boaz@plexistor.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr
+ Bueso <dbueso@suse.de>
 
-On Tue, Aug 11, 2015 at 07:25:12PM +0300, Andrey Ryabinin wrote:
-> On 08/11/2015 06:41 PM, Catalin Marinas wrote:
-> > On Tue, Aug 11, 2015 at 05:18:15AM +0300, Andrey Ryabinin wrote:
-> >> --- /dev/null
-> >> +++ b/mm/kasan/kasan_init.c
-> > [...]
-> >> +#if CONFIG_PGTABLE_LEVELS > 3
-> >> +pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
-> >> +#endif
-> >> +#if CONFIG_PGTABLE_LEVELS > 2
-> >> +pmd_t kasan_zero_pmd[PTRS_PER_PMD] __page_aligned_bss;
-> >> +#endif
-> >> +pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
-> > 
-> > Is there any problem if you don't add the #ifs here? Wouldn't the linker
-> > remove them if they are not used?
-> 
-> > Original hunk copied here for easy comparison:
-> > 
-> >> -static int __init zero_pte_populate(pmd_t *pmd, unsigned long addr,
-> >> -				unsigned long end)
-> >> -{
-> >> -	pte_t *pte = pte_offset_kernel(pmd, addr);
-> >> -
-> >> -	while (addr + PAGE_SIZE <= end) {
-> >> -		WARN_ON(!pte_none(*pte));
-> >> -		set_pte(pte, __pte(__pa_nodebug(kasan_zero_page)
-> >> -					| __PAGE_KERNEL_RO));
-> >> -		addr += PAGE_SIZE;
-> >> -		pte = pte_offset_kernel(pmd, addr);
-> >> -	}
-> >> -	return 0;
-> >> -}
-> > [...]
-> >> +static void __init zero_pte_populate(pmd_t *pmd, unsigned long addr,
-> >> +				unsigned long end)
-> >> +{
-> >> +	pte_t *pte = pte_offset_kernel(pmd, addr);
-> >> +	pte_t zero_pte;
-> >> +
-> >> +	zero_pte = pfn_pte(PFN_DOWN(__pa(kasan_zero_page)), PAGE_KERNEL);
-> >> +	zero_pte = pte_wrprotect(zero_pte);
-> >> +
-> >> +	while (addr + PAGE_SIZE <= end) {
-> >> +		set_pte_at(&init_mm, addr, pte, zero_pte);
-> >> +		addr += PAGE_SIZE;
-> >> +		pte = pte_offset_kernel(pmd, addr);
-> >> +	}
-> >> +}
-> > 
-> > I think there are some differences with the original x86 code. The first
-> > one is the use of __pa_nodebug, does it cause any problems if
-> > CONFIG_DEBUG_VIRTUAL is enabled?
-> 
-> __pa_nodebug() should be used before kasan_early_init(), this piece of code
-> executed far later, so it's ok to use __pa() here.
-> This was actually a mistake in original code to use __pa_nodebug().
-
-OK. So please add a comment in the commit log.
-
-> > The second is the use of a read-only attribute when mapping
-> > kasan_zero_page on x86. Can it cope with a writable mapping?
-> > 
-> 
-> Did you miss this line:
-> 
-> +	zero_pte = pte_wrprotect(zero_pte);
-
-Ah, yes, I missed this.
-
-Anyway, for this patch:
-
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-
-Not sure how you plan to merge it though since there are x86
-dependencies. I could send the whole series via tip or the mm tree (and
-I guess it's pretty late for 4.3).
+VGhlIHJhY2UgdGhhdCB5b3UncmUgbm90IHNlZWluZyBpcyBwYWdlIGZhdWx0IHZzIHBhZ2UgZmF1
+bHQuICBUd28gdGhyZWFkcyBlYWNoIGF0dGVtcHQgdG8gc3RvcmUgYSBieXRlIHRvIGRpZmZlcmVu
+dCBsb2NhdGlvbnMgb24gdGhlIHNhbWUgcGFnZS4gIFdpdGggYSByZWFkLW11dGV4IHRvIGV4Y2x1
+ZGUgdHJ1bmNhdGVzLCBlYWNoIHRocmVhZCBjYWxscyAtPmdldF9ibG9jay4gIE9uZSBvZiB0aGUg
+dGhyZWFkcyBnZXRzIGJhY2sgYSBidWZmZXIgbWFya2VkIGFzIEJIX05ldyBhbmQgY2FsbHMgbWVt
+c2V0KCkgdG8gY2xlYXIgdGhlIHBhZ2UuICBUaGUgb3RoZXIgdGhyZWFkIGdldHMgYmFjayBhIGJ1
+ZmZlciB3aGljaCBpc24ndCBtYXJrZWQgYXMgQkhfTmV3IGFuZCBzaW1wbHkgaW5zZXJ0cyB0aGUg
+bWFwcGluZywgcmV0dXJuaW5nIHRvIHVzZXJzcGFjZSwgd2hpY2ggc3RvcmVzIHRoZSBieXRlIC4u
+LiBqdXN0IGluIHRpbWUgZm9yIHRoZSBvdGhlciB0aHJlYWQncyBtZW1zZXQoKSB0byB3cml0ZSBh
+IHplcm8gb3ZlciB0aGUgdG9wIG9mIGl0Lg0KDQpPaCwgYW5kIGlmIGl0J3MgYSBsb2FkIHJhY2lu
+ZyBhZ2FpbnN0IGEgc3RvcmUsIHlvdSBjb3VsZCByZWFkIGRhdGEgdGhhdCB1c2VkIHRvIGJlIGlu
+IHRoaXMgYmxvY2sgdGhlIGxhc3QgdGltZSBpdCB3YXMgdXNlZDsgbWF5YmUgdGhlIGNvbnRlbnRz
+IG9mIC9ldGMvc2hhZG93Lg0KDQpTbyBpZiB3ZSB3YW50IHRvIGJlIGFibGUgdG8gaGFuZGxlIG1v
+cmUgdGhhbiBvbmUgcGFnZSBmYXVsdCBhdCBhIHRpbWUgcGVyIGZpbGUgKC4uLiBhbmQgSSB0aGlu
+ayB3ZSBkbyAuLi4pLCB3ZSBuZWVkIHRvIGhhdmUgZXhjbHVzaXZlIGFjY2VzcyB0byBhIHJhbmdl
+IG9mIHRoZSBmaWxlIHdoaWxlIHdlJ3JlIGNhbGxpbmcgLT5nZXRfYmxvY2soKSwgYW5kIGZvciBh
+IGNlcnRhaW4gYW1vdW50IG9mIHRpbWUgYWZ0ZXJ3YXJkcy4gIFdpdGggbm9uLURBWCBmaWxlcywg
+dGhpcyBpcyB0aGUgcGFnZSBsb2NrLiAgTXkgb3JpZ2luYWwgcHJvcG9zYWwgZm9yIHNvbHZpbmcg
+dGhpcyB3YXMgdG8gZW5oYW5jZSB0aGUgcGFnZSBjYWNoZSByYWRpeCB0cmVlIHRvIGJlIGFibGUg
+dG8gbG9jayBzb21ldGhpbmcgb3RoZXIgdGhhbiBhIHBhZ2UsIGJ1dCB0aGF0IGFsc28gaGFzIGNv
+bXBsZXhpdGllcy4NCg0KLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZyb206IEJvYXogSGFy
+cm9zaCBbbWFpbHRvOmJvYXpAcGxleGlzdG9yLmNvbV0gDQpTZW50OiBUdWVzZGF5LCBBdWd1c3Qg
+MTEsIDIwMTUgNzozMSBBTQ0KVG86IEphbiBLYXJhOyBEYXZlIENoaW5uZXINCkNjOiBLaXJpbGwg
+QS4gU2h1dGVtb3Y7IEFuZHJldyBNb3J0b247IFdpbGNveCwgTWF0dGhldyBSOyBsaW51eC1tbUBr
+dmFjay5vcmc7IGxpbnV4LWZzZGV2ZWxAdmdlci5rZXJuZWwub3JnOyBsaW51eC1rZXJuZWxAdmdl
+ci5rZXJuZWwub3JnOyBEYXZpZGxvaHIgQnVlc28NClN1YmplY3Q6IFJlOiBbUEFUQ0gsIFJGQyAy
+LzJdIGRheDogdXNlIHJhbmdlX2xvY2sgaW5zdGVhZCBvZiBpX21tYXBfbG9jaw0KDQpPbiAwOC8x
+MS8yMDE1IDA0OjUwIFBNLCBKYW4gS2FyYSB3cm90ZToNCj4gT24gVHVlIDExLTA4LTE1IDE5OjM3
+OjA4LCBEYXZlIENoaW5uZXIgd3JvdGU6DQo+Pj4+IFRoZSBwYXRjaCBiZWxvdyB0cmllcyB0byBy
+ZWNvdmVyIHNvbWUgc2NhbGFiaWxpdHkgZm9yIERBWCBieSBpbnRyb2R1Y2luZw0KPj4+PiBwZXIt
+bWFwcGluZyByYW5nZSBsb2NrLg0KPj4+DQo+Pj4gU28gdGhpcyBncm93cyBub3RpY2VhYmx5ICgz
+IGxvbmdzIGlmIEknbSByaWdodCkgc3RydWN0IGFkZHJlc3Nfc3BhY2UgYW5kDQo+Pj4gdGh1cyBz
+dHJ1Y3QgaW5vZGUganVzdCBmb3IgREFYLiBUaGF0IGxvb2tzIGxpa2UgYSB3YXN0ZSBidXQgSSBk
+b24ndCBzZWUgYW4NCj4+PiBlYXN5IHNvbHV0aW9uLg0KPj4+DQo+Pj4gT1RPSCBmaWxlc3lzdGVt
+cyBpbiBub3JtYWwgbW9kZSBtaWdodCB3YW50IHRvIHVzZSB0aGUgcmFuZ2UgbG9jayBhcyB3ZWxs
+IHRvDQo+Pj4gcHJvdmlkZSB0cnVuY2F0ZSAvIHB1bmNoIGhvbGUgdnMgcGFnZSBmYXVsdCBleGNs
+dXNpb24gKFhGUyBhbHJlYWR5IGhhcyBhDQo+Pj4gcHJpdmF0ZSByd3NlbSBmb3IgdGhpcyBhbmQg
+ZXh0NCBuZWVkcyBzb21ldGhpbmcgYXMgd2VsbCkgYW5kIGF0IHRoYXQgcG9pbnQNCj4+PiBncm93
+aW5nIGdlbmVyaWMgc3RydWN0IGlub2RlIHdvdWxkIGJlIGFjY2VwdGFibGUgZm9yIG1lLg0KPj4N
+Cj4+IEl0IHNvdW5kcyB0byBtZSBsaWtlIHRoZSB3YXkgREFYIGhhcyB0cmllZCB0byBzb2x2ZSB0
+aGlzIHJhY2UgaXMgdGhlDQo+PiB3cm9uZyBkaXJlY3Rpb24uIFdlIHJlYWxseSBuZWVkIHRvIGRy
+aXZlIHRoZSB0cnVuY2F0ZS9wYWdlIGZhdWx0DQo+PiBzZXJpYWxpc2F0aW9uIGhpZ2hlciB1cCB0
+aGUgc3RhY2sgdG93YXJkcyB0aGUgZmlsZXN5c3RlbSwgbm90IGRlZXBlcg0KPj4gaW50byB0aGUg
+bW0gc3Vic3lzdGVtIHdoZXJlIGxvY2tpbmcgaXMgZ3JlYXRseSBsaW1pdGVkLg0KPj4NCj4+IEFz
+IEphbiBtZW50aW9ucywgd2UgYWxyZWFkeSBoYXZlIHRoaXMgc2VyaWFsaXNhdGlvbiBpbiBYRlMs
+IGFuZCBJDQo+PiB0aGluayBpdCB3b3VsZCBiZSBiZXR0ZXIgZmlyc3Qgc3RlcCB0byByZXBsaWNh
+dGUgdGhhdCBsb2NraW5nIG1vZGVsDQo+PiBpbiBlYWNoIGZpbGVzeXN0ZW0gdGhhdCBpcyBzdXBw
+b3J0cyBEQVguIEkgdGhpbmsgdGhpcyBpcyBhIGJldHRlcg0KPj4gZGlyZWN0aW9uIGJlY2F1c2Ug
+aXQgbW92ZXMgdG93YXJkcyBzb2x2aW5nIGEgd2hvbGUgY2xhc3Mgb2YgcHJvYmxlbXMNCj4+IGZp
+bGV5c3RlbSBmYWNlIHdpdGggcGFnZSBmYXVsdCBzZXJpYWxpc2F0aW9uLCBub3QganVzdCBmb3Ig
+REFYLg0KPiANCj4gV2VsbCwgYnV0IGF0IGxlYXN0IGluIFhGUyB5b3UgdGFrZSBYRlNfTU1BUExP
+Q0sgaW4gc2hhcmVkIG1vZGUgZm9yIHRoZQ0KPiBmYXVsdCAvIHBhZ2VfbWt3cml0ZSBjYWxsYmFj
+ayBzbyBpdCBkb2Vzbid0IHByb3ZpZGUgdGhlIGV4Y2x1c2lvbiBuZWNlc3NhcnkNCj4gZm9yIERB
+WCB3aGljaCBuZWVkcyBleGNsdXNpdmUgYWNjZXNzIHRvIHRoZSBwYWdlIGdpdmVuIHJhbmdlIGlu
+IHRoZSBwYWdlDQo+IGNhY2hlLiBBbmQgcmVwbGFjaW5nIGlfbW1hcF9sb2NrIHdpdGggZnMtcHJp
+dmF0ZSBtbWFwIHJ3c2VtIGlzIGEgbW9vdA0KPiBleGNlcmNpc2UgKGF0IGxlYXN0IGZyb20gREFY
+IFBPVikuDQo+IA0KDQpIaSBKYW4uIFNvIHlvdSBnb3QgbWUgY29uZnVzZWQgYWJvdmUuIFlvdSBz
+YXk6DQoJIkRBWCB3aGljaCBuZWVkcyBleGNsdXNpdmUgYWNjZXNzIHRvIHRoZSBwYWdlIGdpdmVu
+IHJhbmdlIGluIHRoZSBwYWdlIGNhY2hlIg0KDQpidXQgREFYIGFuZCBwYWdlLWNhY2hlIGFyZSBt
+dXR1YWxseSBleGNsdXNpdmUuIEkgZ3Vlc3MgeW91IG1lYW50IHRoZSBWTUENCnJhbmdlLCBvciB0
+aGUgaW5vZGUtPm1hcHBpbmcgcmFuZ2UgKHdoaWNoIG9uZSBpcyBpdCkNCg0KQWN0dWFsbHkgSSBk
+byBub3QgdW5kZXJzdGFuZCB0aGlzIHJhY2UgeW91IGd1eXMgZm91bmQgYXQgYWxsLiAoUGxlYXNl
+IGJlYXIgd2l0aA0KbWUgc29ycnkgZm9yIGJlaW5nIHNsb3cpDQoNCklmIHR3byB0aHJlYWRzIG9m
+IHRoZSBzYW1lIFZNQSBmYXVsdCBvbiB0aGUgc2FtZSBwdGUNCihJJ20gbm90IHN1cmUgaG93IHlv
+dSBjYWxsIGl0IEkgbWVhbiBhIHNpbmdsZSA0ayBlbnRyeSBhdCBlYWNoIFZNQXMgcGFnZS10YWJs
+ZSkNCnRoZW4gdGhlIG1tIGtub3dzIGhvdyB0byBoYW5kbGUgdGhpcyBqdXN0IGZpbmUuDQoNCklm
+IHR3byBwcm9jZXNzZXMsIGllIHR3byBWTUFzIGZhdWx0IG9uIHRoZSBzYW1lIGlub2RlLT5tYXBw
+aW5nLiBUaGVuIGFuIGlub2RlDQp3aWRlIGxvY2sgbGlrZSBYRlMncyB0byBwcm90ZWN0IGFnYWlu
+c3QgaV9zaXplLWNoYW5nZSAvIHRydW5jYXRlIGlzIG1vcmUgdGhhbg0KZW5vdWdoLg0KQmVjYXVz
+ZSB3aXRoIERBWCB0aGVyZSBpcyBubyBpbm9kZS0+bWFwcGluZyAibWFwcGluZyIgYXQgYWxsLiBZ
+b3UgaGF2ZSB0aGUgY2FsbA0KaW50byB0aGUgRlMgd2l0aCBnZXRfYmxvY2soKSB0byByZXBsYWNl
+ICJob2xlcyIgKHplcm8gcGFnZXMpIHdpdGggcmVhbCBhbGxvY2F0ZWQNCmJsb2Nrcywgb24gV1JJ
+VEUgZmF1bHRzLCBidXQgdGhpcyBjb252ZXJzaW9uIHNob3VsZCBiZSBwcm90ZWN0ZWQgaW5zaWRl
+IHRoZSBGUw0KYWxyZWFkeS4gVGhlbiB0aGVyZSBpcyB0aGUgYXRvbWljIGV4Y2hhbmdlIG9mIHRo
+ZSBQVEUgd2hpY2ggaXMgZmluZS4NCihBbmQgdmlzIHZlcnNhIHdpdGggaG9sZXMgbWFwcGluZyBh
+bmQgd3JpdGVzKQ0KDQpUaGVyZSBpcyBubyBnbG9iYWwgIm1hcHBpbmciIHJhZGl4LXRyZWUgc2hh
+cmVkIGJldHdlZW4gVk1BcyBsaWtlIHdlIGFyZQ0KdXNlZCB0by4NCg0KUGxlYXNlIGV4cGxhaW4g
+dG8gbWUgdGhlIHJhY2VzIHlvdSBhcmUgc2VlaW5nLiBJIHdvdWxkIGxvdmUgdG8gYWxzbyBzZWUg
+dGhlbQ0Kd2l0aCB4ZnMuIEkgdGhpbmsgdGhlcmUgdGhleSBzaG91bGQgbm90IGhhcHBlbi4NCg0K
+PiBTbyByZWdhcmRsZXNzIHdoZXRoZXIgdGhlIGxvY2sgd2lsbCBiZSBhIGZzLXByaXZhdGUgb25l
+IG9yIGluDQo+IGFkZHJlc3Nfc3BhY2UsIERBWCBuZWVkcyBzb21ldGhpbmcgbGlrZSB0aGUgcmFu
+Z2UgbG9jayBLaXJpbGwgc3VnZ2VzdGVkLg0KPiBIYXZpbmcgdGhlIHJhbmdlIGxvY2sgaW4gZnMt
+cHJpdmF0ZSBwYXJ0IG9mIGlub2RlIGhhcyB0aGUgYWR2YW50YWdlIHRoYXQNCj4gb25seSBmaWxl
+c3lzdGVtcyBzdXBwb3J0aW5nIERBWCAvIHB1bmNoIGhvbGUgd2lsbCBwYXkgdGhlIG1lbW9yeSBv
+dmVyaGVhZC4NCj4gT1RPSCBtb3N0IG1ham9yIGZpbGVzeXN0ZW1zIG5lZWQgaXQgc28gdGhlIHNh
+dmluZ3Mgd291bGQgYmUgSU1PIG5vdGljZWFibGUNCg0KcHVuY2gtaG9sZSBpcyB0cnVuY2F0ZSBm
+b3IgbWUuIFdpdGggdGhlIHhmcyBtb2RlbCBvZiByZWFkLXdyaXRlIGxvY2sgd2hlcmUNCnRydW5j
+YXRlIHRha2VzIHdyaXRlLCBhbnkgZmF1bHQgdGFraW5nIHJlYWQgYmVmb3JlIGV4ZWN1dGluZyB0
+aGUgZmF1bHQgbG9va3MNCmdvb2QgZm9yIHRoZSBGUyBzaWRlIG9mIHRoaW5ncy4gSSBndWVzcyB5
+b3UgbWVhbiB0aGUgb3B0aW1pemF0aW9uIG9mIHRoZQ0KcmFkaXgtdHJlZSBsb2NrLiBCdXQgeW91
+IHNlZSBEQVggZG9lcyBub3QgaGF2ZSBhIHJhZGl4LXRyZWUsIGllIGl0IGlzIGVtcHR5Lg0KDQpQ
+bGVhc2UgZXhwbGFpbi4gRG8geW91IGhhdmUgYSByZXByb2R1Y2VyIG9mIHRoaXMgcmFjZS4gSSB3
+b3VsZCBuZWVkIHRvIHVuZGVyc3RhbmQNCnRoaXMuDQoNClRoYW5rcw0KQm9heg0KDQo+IG9ubHkg
+Zm9yIHRpbnkgc3lzdGVtcyB1c2luZyBzcGVjaWFsIGZzIGV0Yy4gU28gSSdtIHVuZGVjaWRlZCB3
+aGV0aGVyDQo+IHB1dHRpbmcgdGhlIGxvY2sgaW4gYWRkcmVzc19zcGFjZSBhbmQgZG9pbmcgdGhl
+IGxvY2tpbmcgaW4gZ2VuZXJpYw0KPiBwYWdlZmF1bHQgLyB0cnVuY2F0ZSBoZWxwZXJzIGlzIGEg
+YmV0dGVyIGNob2ljZSBvciBub3QuDQo+ICANCj4gCQkJCQkJCQlIb256YQ0KPiANCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
