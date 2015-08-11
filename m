@@ -1,116 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D4A8C6B0038
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 08:03:49 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so57733168wic.0
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 05:03:49 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
-        by mx.google.com with ESMTPS id bd2si3228228wjc.130.2015.08.11.05.03.47
+Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 186F66B0038
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 09:48:32 -0400 (EDT)
+Received: by ykeo23 with SMTP id o23so166411996yke.3
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 06:48:31 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 188si3435930qhy.1.2015.08.11.06.48.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Aug 2015 05:03:48 -0700 (PDT)
-Received: by wicne3 with SMTP id ne3so173718071wic.1
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 05:03:47 -0700 (PDT)
-Date: Tue, 11 Aug 2015 15:03:45 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
-Message-ID: <20150811120345.GA2245@node.dhcp.inet.fi>
-References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com>
- <20150811081909.GD2650@quack.suse.cz>
- <20150811093708.GB906@dastard>
+        Tue, 11 Aug 2015 06:48:31 -0700 (PDT)
+Date: Tue, 11 Aug 2015 15:48:26 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Qemu-devel] [PATCH 19/23] userfaultfd: activate syscall
+Message-ID: <20150811134826.GI4520@redhat.com>
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+ <1431624680-20153-20-git-send-email-aarcange@redhat.com>
+ <20150811100728.GB4587@in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150811093708.GB906@dastard>
+In-Reply-To: <20150811100728.GB4587@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
+To: Bharata B Rao <bharata@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, zhang.zhanghailiang@huawei.com, Pavel Emelyanov <xemul@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Andres Lagar-Cavilla <andreslc@google.com>, Mel Gorman <mgorman@suse.de>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Andy Lutomirski <luto@amacapital.net>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Feiner <pfeiner@google.com>
 
-On Tue, Aug 11, 2015 at 07:37:08PM +1000, Dave Chinner wrote:
-> On Tue, Aug 11, 2015 at 10:19:09AM +0200, Jan Kara wrote:
-> > On Mon 10-08-15 18:14:24, Kirill A. Shutemov wrote:
-> > > As we don't have struct pages for DAX memory, Matthew had to find an
-> > > replacement for lock_page() to avoid fault vs. truncate races.
-> > > i_mmap_lock was used for that.
-> > > 
-> > > Recently, Matthew had to convert locking to exclusive to address fault
-> > > vs. fault races. And this kills scalability completely.
+Hello Bharata,
+
+On Tue, Aug 11, 2015 at 03:37:29PM +0530, Bharata B Rao wrote:
+> May be it is a bit late to bring this up, but I needed the following fix
+> to userfault21 branch of your git tree to compile on powerpc.
+
+Not late, just in time. I increased the number of syscalls in earlier
+versions, it must have gotten lost during a rejecting rebase, sorry.
+
+I applied it to my tree and it can be applied to -mm and linux-next,
+thanks!
+
+The syscall for arm32 are also ready and on their way to the arm tree,
+the testsuite worked fine there. ppc also should work fine if you
+could confirm it'd be interesting, just beware that I got a typo in
+the testcase:
+
+diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
+index 76071b1..925c3c9 100644
+--- a/tools/testing/selftests/vm/userfaultfd.c
++++ b/tools/testing/selftests/vm/userfaultfd.c
+@@ -70,7 +70,7 @@
+ #define __NR_userfaultfd 323
+ #elif defined(__i386__)
+ #define __NR_userfaultfd 374
+-#elif defined(__powewrpc__)
++#elif defined(__powerpc__)
+ #define __NR_userfaultfd 364
+ #else
+ #error "missing __NR_userfaultfd definition"
+
+
+
+> ----
 > 
-> I'm assuming this locking change is in a for-next git tree branch
-> somewhere as there isn't anything that I can see in a 4.2-rc6
-> tree. Can you point me to the git tree that has these changes in it?
-
-It's in -mm tree. See e4261a3ed000 in mhocko/mm.git[1]. There are also two
-fixups for that commit[2][3]
-
-[1] git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-[2] http://lkml.kernel.org/g/1438948423-128882-1-git-send-email-kirill.shutemov@linux.intel.com
-[3] http://lkml.kernel.org/g/1438948482-129043-1-git-send-email-kirill.shutemov@linux.intel.com
-
-> > > The patch below tries to recover some scalability for DAX by introducing
-> > > per-mapping range lock.
-> > 
-> > So this grows noticeably (3 longs if I'm right) struct address_space and
-> > thus struct inode just for DAX. That looks like a waste but I don't see an
-> > easy solution.
-
-We can try to convert it to pointer instead of embedding it into
-struct address_space and make filesystems allocate it on S_DAX setting.
-Is it better?
-
-> > OTOH filesystems in normal mode might want to use the range lock as well to
-> > provide truncate / punch hole vs page fault exclusion (XFS already has a
-> > private rwsem for this and ext4 needs something as well) and at that point
-> > growing generic struct inode would be acceptable for me.
+> powerpc: Bump up __NR_syscalls to account for __NR_userfaultfd
 > 
-> It sounds to me like the way DAX has tried to solve this race is the
-> wrong direction. We really need to drive the truncate/page fault
-> serialisation higher up the stack towards the filesystem, not deeper
-> into the mm subsystem where locking is greatly limited.
-
-My understanding of fs locking is very limited, but I think we have
-problem with this approach in fault path: to dispatch page fault properly
-we need to take mmap_sem and find VMA. Only after that we have chance to
-obtain any fs lock. And that's the place where we take page lock which
-this range_lock intend to replace.
-
-I don't see how we can move any lock to serialize truncate vs. fault much
-higher.
-
-> As Jan mentions, we already have this serialisation in XFS, and I
-> think it would be better first step to replicate that locking model
-> in each filesystem that is supports DAX. I think this is a better
-> direction because it moves towards solving a whole class of problems
-> fileystem face with page fault serialisation, not just for DAX.
-
-Could you point me to that lock and locking rules for it?
- 
-> > My grand plan was to use the range lock to also simplify locking
-> > rules for read, write and esp. direct IO but that has issues with
-> > mmap_sem ordering because filesystems get called under mmap_sem in
-> > page fault path. So probably just fixing the worst issue with
-> > punch hole vs page fault would be good for now.
+> From: Bharata B Rao <bharata@linux.vnet.ibm.com>
 > 
-> Right, I think adding a rwsem to the ext4 inode to handle the
-> fault/truncate serialisation similar to XFS would be sufficient to
-> allow DAX to remove the i_mmap_lock serialisation...
+> With userfaultfd syscall, the number of syscalls will be 365 on PowerPC.
+> Reflect the same in __NR_syscalls.
 > 
-> > Also for a patch set like this, it would be good to show some numbers - how
-> > big hit do you take in the single-threaded case (the lock is more
-> > expensive) and how much scalability do you get in the multithreaded case?
+> Signed-off-by: Bharata B Rao <bharata@linux.vnet.ibm.com>
+> ---
+>  arch/powerpc/include/asm/unistd.h |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> And also, if you remove the serialisation and run the test on XFS,
-> what do you get in terms of performance and correctness?
+> diff --git a/arch/powerpc/include/asm/unistd.h b/arch/powerpc/include/asm/unistd.h
+> index f4f8b66..4a055b6 100644
+> --- a/arch/powerpc/include/asm/unistd.h
+> +++ b/arch/powerpc/include/asm/unistd.h
+> @@ -12,7 +12,7 @@
+>  #include <uapi/asm/unistd.h>
+>  
+>  
+> -#define __NR_syscalls		364
+> +#define __NR_syscalls		365
+>  
+>  #define __NR__exit __NR_exit
+>  #define NR_syscalls	__NR_syscalls
 
-I'll talk with Matthew on numbers.
-
-As we don't have any HW yet, the only numbers we can possibly provide is
-DAX over DRAM.
-
--- 
- Kirill A. Shutemov
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
