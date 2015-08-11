@@ -1,129 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id EEACD6B0259
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 12:51:25 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so85508366pdr.2
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 09:51:25 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id qe7si4406717pbb.233.2015.08.11.09.51.24
-        for <linux-mm@kvack.org>;
-        Tue, 11 Aug 2015 09:51:24 -0700 (PDT)
-From: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
-Subject: RE: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
-Date: Tue, 11 Aug 2015 16:51:22 +0000
-Message-ID: <100D68C7BA14664A8938383216E40DE040914C3E@FMSMSX114.amr.corp.intel.com>
-References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com>
- <20150811081909.GD2650@quack.suse.cz> <20150811093708.GB906@dastard>
- <20150811135004.GC2659@quack.suse.cz> <55CA0728.7060001@plexistor.com>
-In-Reply-To: <55CA0728.7060001@plexistor.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 473C36B0038
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 14:46:57 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so86066216wic.1
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 11:46:56 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id go10si5341037wjc.165.2015.08.11.11.46.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Aug 2015 11:46:55 -0700 (PDT)
+Received: by wicja10 with SMTP id ja10so86064837wic.1
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 11:46:54 -0700 (PDT)
+Message-ID: <55CA431B.4060105@plexistor.com>
+Date: Tue, 11 Aug 2015 21:46:51 +0300
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
+References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com> <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com> <20150811081909.GD2650@quack.suse.cz> <20150811093708.GB906@dastard> <20150811135004.GC2659@quack.suse.cz> <55CA0728.7060001@plexistor.com> <100D68C7BA14664A8938383216E40DE040914C3E@FMSMSX114.amr.corp.intel.com>
+In-Reply-To: <100D68C7BA14664A8938383216E40DE040914C3E@FMSMSX114.amr.corp.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr
- Bueso <dbueso@suse.de>
+To: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr Bueso <dbueso@suse.de>
 
-VGhlIHJhY2UgdGhhdCB5b3UncmUgbm90IHNlZWluZyBpcyBwYWdlIGZhdWx0IHZzIHBhZ2UgZmF1
-bHQuICBUd28gdGhyZWFkcyBlYWNoIGF0dGVtcHQgdG8gc3RvcmUgYSBieXRlIHRvIGRpZmZlcmVu
-dCBsb2NhdGlvbnMgb24gdGhlIHNhbWUgcGFnZS4gIFdpdGggYSByZWFkLW11dGV4IHRvIGV4Y2x1
-ZGUgdHJ1bmNhdGVzLCBlYWNoIHRocmVhZCBjYWxscyAtPmdldF9ibG9jay4gIE9uZSBvZiB0aGUg
-dGhyZWFkcyBnZXRzIGJhY2sgYSBidWZmZXIgbWFya2VkIGFzIEJIX05ldyBhbmQgY2FsbHMgbWVt
-c2V0KCkgdG8gY2xlYXIgdGhlIHBhZ2UuICBUaGUgb3RoZXIgdGhyZWFkIGdldHMgYmFjayBhIGJ1
-ZmZlciB3aGljaCBpc24ndCBtYXJrZWQgYXMgQkhfTmV3IGFuZCBzaW1wbHkgaW5zZXJ0cyB0aGUg
-bWFwcGluZywgcmV0dXJuaW5nIHRvIHVzZXJzcGFjZSwgd2hpY2ggc3RvcmVzIHRoZSBieXRlIC4u
-LiBqdXN0IGluIHRpbWUgZm9yIHRoZSBvdGhlciB0aHJlYWQncyBtZW1zZXQoKSB0byB3cml0ZSBh
-IHplcm8gb3ZlciB0aGUgdG9wIG9mIGl0Lg0KDQpPaCwgYW5kIGlmIGl0J3MgYSBsb2FkIHJhY2lu
-ZyBhZ2FpbnN0IGEgc3RvcmUsIHlvdSBjb3VsZCByZWFkIGRhdGEgdGhhdCB1c2VkIHRvIGJlIGlu
-IHRoaXMgYmxvY2sgdGhlIGxhc3QgdGltZSBpdCB3YXMgdXNlZDsgbWF5YmUgdGhlIGNvbnRlbnRz
-IG9mIC9ldGMvc2hhZG93Lg0KDQpTbyBpZiB3ZSB3YW50IHRvIGJlIGFibGUgdG8gaGFuZGxlIG1v
-cmUgdGhhbiBvbmUgcGFnZSBmYXVsdCBhdCBhIHRpbWUgcGVyIGZpbGUgKC4uLiBhbmQgSSB0aGlu
-ayB3ZSBkbyAuLi4pLCB3ZSBuZWVkIHRvIGhhdmUgZXhjbHVzaXZlIGFjY2VzcyB0byBhIHJhbmdl
-IG9mIHRoZSBmaWxlIHdoaWxlIHdlJ3JlIGNhbGxpbmcgLT5nZXRfYmxvY2soKSwgYW5kIGZvciBh
-IGNlcnRhaW4gYW1vdW50IG9mIHRpbWUgYWZ0ZXJ3YXJkcy4gIFdpdGggbm9uLURBWCBmaWxlcywg
-dGhpcyBpcyB0aGUgcGFnZSBsb2NrLiAgTXkgb3JpZ2luYWwgcHJvcG9zYWwgZm9yIHNvbHZpbmcg
-dGhpcyB3YXMgdG8gZW5oYW5jZSB0aGUgcGFnZSBjYWNoZSByYWRpeCB0cmVlIHRvIGJlIGFibGUg
-dG8gbG9jayBzb21ldGhpbmcgb3RoZXIgdGhhbiBhIHBhZ2UsIGJ1dCB0aGF0IGFsc28gaGFzIGNv
-bXBsZXhpdGllcy4NCg0KLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZyb206IEJvYXogSGFy
-cm9zaCBbbWFpbHRvOmJvYXpAcGxleGlzdG9yLmNvbV0gDQpTZW50OiBUdWVzZGF5LCBBdWd1c3Qg
-MTEsIDIwMTUgNzozMSBBTQ0KVG86IEphbiBLYXJhOyBEYXZlIENoaW5uZXINCkNjOiBLaXJpbGwg
-QS4gU2h1dGVtb3Y7IEFuZHJldyBNb3J0b247IFdpbGNveCwgTWF0dGhldyBSOyBsaW51eC1tbUBr
-dmFjay5vcmc7IGxpbnV4LWZzZGV2ZWxAdmdlci5rZXJuZWwub3JnOyBsaW51eC1rZXJuZWxAdmdl
-ci5rZXJuZWwub3JnOyBEYXZpZGxvaHIgQnVlc28NClN1YmplY3Q6IFJlOiBbUEFUQ0gsIFJGQyAy
-LzJdIGRheDogdXNlIHJhbmdlX2xvY2sgaW5zdGVhZCBvZiBpX21tYXBfbG9jaw0KDQpPbiAwOC8x
-MS8yMDE1IDA0OjUwIFBNLCBKYW4gS2FyYSB3cm90ZToNCj4gT24gVHVlIDExLTA4LTE1IDE5OjM3
-OjA4LCBEYXZlIENoaW5uZXIgd3JvdGU6DQo+Pj4+IFRoZSBwYXRjaCBiZWxvdyB0cmllcyB0byBy
-ZWNvdmVyIHNvbWUgc2NhbGFiaWxpdHkgZm9yIERBWCBieSBpbnRyb2R1Y2luZw0KPj4+PiBwZXIt
-bWFwcGluZyByYW5nZSBsb2NrLg0KPj4+DQo+Pj4gU28gdGhpcyBncm93cyBub3RpY2VhYmx5ICgz
-IGxvbmdzIGlmIEknbSByaWdodCkgc3RydWN0IGFkZHJlc3Nfc3BhY2UgYW5kDQo+Pj4gdGh1cyBz
-dHJ1Y3QgaW5vZGUganVzdCBmb3IgREFYLiBUaGF0IGxvb2tzIGxpa2UgYSB3YXN0ZSBidXQgSSBk
-b24ndCBzZWUgYW4NCj4+PiBlYXN5IHNvbHV0aW9uLg0KPj4+DQo+Pj4gT1RPSCBmaWxlc3lzdGVt
-cyBpbiBub3JtYWwgbW9kZSBtaWdodCB3YW50IHRvIHVzZSB0aGUgcmFuZ2UgbG9jayBhcyB3ZWxs
-IHRvDQo+Pj4gcHJvdmlkZSB0cnVuY2F0ZSAvIHB1bmNoIGhvbGUgdnMgcGFnZSBmYXVsdCBleGNs
-dXNpb24gKFhGUyBhbHJlYWR5IGhhcyBhDQo+Pj4gcHJpdmF0ZSByd3NlbSBmb3IgdGhpcyBhbmQg
-ZXh0NCBuZWVkcyBzb21ldGhpbmcgYXMgd2VsbCkgYW5kIGF0IHRoYXQgcG9pbnQNCj4+PiBncm93
-aW5nIGdlbmVyaWMgc3RydWN0IGlub2RlIHdvdWxkIGJlIGFjY2VwdGFibGUgZm9yIG1lLg0KPj4N
-Cj4+IEl0IHNvdW5kcyB0byBtZSBsaWtlIHRoZSB3YXkgREFYIGhhcyB0cmllZCB0byBzb2x2ZSB0
-aGlzIHJhY2UgaXMgdGhlDQo+PiB3cm9uZyBkaXJlY3Rpb24uIFdlIHJlYWxseSBuZWVkIHRvIGRy
-aXZlIHRoZSB0cnVuY2F0ZS9wYWdlIGZhdWx0DQo+PiBzZXJpYWxpc2F0aW9uIGhpZ2hlciB1cCB0
-aGUgc3RhY2sgdG93YXJkcyB0aGUgZmlsZXN5c3RlbSwgbm90IGRlZXBlcg0KPj4gaW50byB0aGUg
-bW0gc3Vic3lzdGVtIHdoZXJlIGxvY2tpbmcgaXMgZ3JlYXRseSBsaW1pdGVkLg0KPj4NCj4+IEFz
-IEphbiBtZW50aW9ucywgd2UgYWxyZWFkeSBoYXZlIHRoaXMgc2VyaWFsaXNhdGlvbiBpbiBYRlMs
-IGFuZCBJDQo+PiB0aGluayBpdCB3b3VsZCBiZSBiZXR0ZXIgZmlyc3Qgc3RlcCB0byByZXBsaWNh
-dGUgdGhhdCBsb2NraW5nIG1vZGVsDQo+PiBpbiBlYWNoIGZpbGVzeXN0ZW0gdGhhdCBpcyBzdXBw
-b3J0cyBEQVguIEkgdGhpbmsgdGhpcyBpcyBhIGJldHRlcg0KPj4gZGlyZWN0aW9uIGJlY2F1c2Ug
-aXQgbW92ZXMgdG93YXJkcyBzb2x2aW5nIGEgd2hvbGUgY2xhc3Mgb2YgcHJvYmxlbXMNCj4+IGZp
-bGV5c3RlbSBmYWNlIHdpdGggcGFnZSBmYXVsdCBzZXJpYWxpc2F0aW9uLCBub3QganVzdCBmb3Ig
-REFYLg0KPiANCj4gV2VsbCwgYnV0IGF0IGxlYXN0IGluIFhGUyB5b3UgdGFrZSBYRlNfTU1BUExP
-Q0sgaW4gc2hhcmVkIG1vZGUgZm9yIHRoZQ0KPiBmYXVsdCAvIHBhZ2VfbWt3cml0ZSBjYWxsYmFj
-ayBzbyBpdCBkb2Vzbid0IHByb3ZpZGUgdGhlIGV4Y2x1c2lvbiBuZWNlc3NhcnkNCj4gZm9yIERB
-WCB3aGljaCBuZWVkcyBleGNsdXNpdmUgYWNjZXNzIHRvIHRoZSBwYWdlIGdpdmVuIHJhbmdlIGlu
-IHRoZSBwYWdlDQo+IGNhY2hlLiBBbmQgcmVwbGFjaW5nIGlfbW1hcF9sb2NrIHdpdGggZnMtcHJp
-dmF0ZSBtbWFwIHJ3c2VtIGlzIGEgbW9vdA0KPiBleGNlcmNpc2UgKGF0IGxlYXN0IGZyb20gREFY
-IFBPVikuDQo+IA0KDQpIaSBKYW4uIFNvIHlvdSBnb3QgbWUgY29uZnVzZWQgYWJvdmUuIFlvdSBz
-YXk6DQoJIkRBWCB3aGljaCBuZWVkcyBleGNsdXNpdmUgYWNjZXNzIHRvIHRoZSBwYWdlIGdpdmVu
-IHJhbmdlIGluIHRoZSBwYWdlIGNhY2hlIg0KDQpidXQgREFYIGFuZCBwYWdlLWNhY2hlIGFyZSBt
-dXR1YWxseSBleGNsdXNpdmUuIEkgZ3Vlc3MgeW91IG1lYW50IHRoZSBWTUENCnJhbmdlLCBvciB0
-aGUgaW5vZGUtPm1hcHBpbmcgcmFuZ2UgKHdoaWNoIG9uZSBpcyBpdCkNCg0KQWN0dWFsbHkgSSBk
-byBub3QgdW5kZXJzdGFuZCB0aGlzIHJhY2UgeW91IGd1eXMgZm91bmQgYXQgYWxsLiAoUGxlYXNl
-IGJlYXIgd2l0aA0KbWUgc29ycnkgZm9yIGJlaW5nIHNsb3cpDQoNCklmIHR3byB0aHJlYWRzIG9m
-IHRoZSBzYW1lIFZNQSBmYXVsdCBvbiB0aGUgc2FtZSBwdGUNCihJJ20gbm90IHN1cmUgaG93IHlv
-dSBjYWxsIGl0IEkgbWVhbiBhIHNpbmdsZSA0ayBlbnRyeSBhdCBlYWNoIFZNQXMgcGFnZS10YWJs
-ZSkNCnRoZW4gdGhlIG1tIGtub3dzIGhvdyB0byBoYW5kbGUgdGhpcyBqdXN0IGZpbmUuDQoNCklm
-IHR3byBwcm9jZXNzZXMsIGllIHR3byBWTUFzIGZhdWx0IG9uIHRoZSBzYW1lIGlub2RlLT5tYXBw
-aW5nLiBUaGVuIGFuIGlub2RlDQp3aWRlIGxvY2sgbGlrZSBYRlMncyB0byBwcm90ZWN0IGFnYWlu
-c3QgaV9zaXplLWNoYW5nZSAvIHRydW5jYXRlIGlzIG1vcmUgdGhhbg0KZW5vdWdoLg0KQmVjYXVz
-ZSB3aXRoIERBWCB0aGVyZSBpcyBubyBpbm9kZS0+bWFwcGluZyAibWFwcGluZyIgYXQgYWxsLiBZ
-b3UgaGF2ZSB0aGUgY2FsbA0KaW50byB0aGUgRlMgd2l0aCBnZXRfYmxvY2soKSB0byByZXBsYWNl
-ICJob2xlcyIgKHplcm8gcGFnZXMpIHdpdGggcmVhbCBhbGxvY2F0ZWQNCmJsb2Nrcywgb24gV1JJ
-VEUgZmF1bHRzLCBidXQgdGhpcyBjb252ZXJzaW9uIHNob3VsZCBiZSBwcm90ZWN0ZWQgaW5zaWRl
-IHRoZSBGUw0KYWxyZWFkeS4gVGhlbiB0aGVyZSBpcyB0aGUgYXRvbWljIGV4Y2hhbmdlIG9mIHRo
-ZSBQVEUgd2hpY2ggaXMgZmluZS4NCihBbmQgdmlzIHZlcnNhIHdpdGggaG9sZXMgbWFwcGluZyBh
-bmQgd3JpdGVzKQ0KDQpUaGVyZSBpcyBubyBnbG9iYWwgIm1hcHBpbmciIHJhZGl4LXRyZWUgc2hh
-cmVkIGJldHdlZW4gVk1BcyBsaWtlIHdlIGFyZQ0KdXNlZCB0by4NCg0KUGxlYXNlIGV4cGxhaW4g
-dG8gbWUgdGhlIHJhY2VzIHlvdSBhcmUgc2VlaW5nLiBJIHdvdWxkIGxvdmUgdG8gYWxzbyBzZWUg
-dGhlbQ0Kd2l0aCB4ZnMuIEkgdGhpbmsgdGhlcmUgdGhleSBzaG91bGQgbm90IGhhcHBlbi4NCg0K
-PiBTbyByZWdhcmRsZXNzIHdoZXRoZXIgdGhlIGxvY2sgd2lsbCBiZSBhIGZzLXByaXZhdGUgb25l
-IG9yIGluDQo+IGFkZHJlc3Nfc3BhY2UsIERBWCBuZWVkcyBzb21ldGhpbmcgbGlrZSB0aGUgcmFu
-Z2UgbG9jayBLaXJpbGwgc3VnZ2VzdGVkLg0KPiBIYXZpbmcgdGhlIHJhbmdlIGxvY2sgaW4gZnMt
-cHJpdmF0ZSBwYXJ0IG9mIGlub2RlIGhhcyB0aGUgYWR2YW50YWdlIHRoYXQNCj4gb25seSBmaWxl
-c3lzdGVtcyBzdXBwb3J0aW5nIERBWCAvIHB1bmNoIGhvbGUgd2lsbCBwYXkgdGhlIG1lbW9yeSBv
-dmVyaGVhZC4NCj4gT1RPSCBtb3N0IG1ham9yIGZpbGVzeXN0ZW1zIG5lZWQgaXQgc28gdGhlIHNh
-dmluZ3Mgd291bGQgYmUgSU1PIG5vdGljZWFibGUNCg0KcHVuY2gtaG9sZSBpcyB0cnVuY2F0ZSBm
-b3IgbWUuIFdpdGggdGhlIHhmcyBtb2RlbCBvZiByZWFkLXdyaXRlIGxvY2sgd2hlcmUNCnRydW5j
-YXRlIHRha2VzIHdyaXRlLCBhbnkgZmF1bHQgdGFraW5nIHJlYWQgYmVmb3JlIGV4ZWN1dGluZyB0
-aGUgZmF1bHQgbG9va3MNCmdvb2QgZm9yIHRoZSBGUyBzaWRlIG9mIHRoaW5ncy4gSSBndWVzcyB5
-b3UgbWVhbiB0aGUgb3B0aW1pemF0aW9uIG9mIHRoZQ0KcmFkaXgtdHJlZSBsb2NrLiBCdXQgeW91
-IHNlZSBEQVggZG9lcyBub3QgaGF2ZSBhIHJhZGl4LXRyZWUsIGllIGl0IGlzIGVtcHR5Lg0KDQpQ
-bGVhc2UgZXhwbGFpbi4gRG8geW91IGhhdmUgYSByZXByb2R1Y2VyIG9mIHRoaXMgcmFjZS4gSSB3
-b3VsZCBuZWVkIHRvIHVuZGVyc3RhbmQNCnRoaXMuDQoNClRoYW5rcw0KQm9heg0KDQo+IG9ubHkg
-Zm9yIHRpbnkgc3lzdGVtcyB1c2luZyBzcGVjaWFsIGZzIGV0Yy4gU28gSSdtIHVuZGVjaWRlZCB3
-aGV0aGVyDQo+IHB1dHRpbmcgdGhlIGxvY2sgaW4gYWRkcmVzc19zcGFjZSBhbmQgZG9pbmcgdGhl
-IGxvY2tpbmcgaW4gZ2VuZXJpYw0KPiBwYWdlZmF1bHQgLyB0cnVuY2F0ZSBoZWxwZXJzIGlzIGEg
-YmV0dGVyIGNob2ljZSBvciBub3QuDQo+ICANCj4gCQkJCQkJCQlIb256YQ0KPiANCg0K
+On 08/11/2015 07:51 PM, Wilcox, Matthew R wrote:
+> The race that you're not seeing is page fault vs page fault. Two
+> threads each attempt to store a byte to different locations on the
+> same page. With a read-mutex to exclude truncates, each thread calls
+> ->get_block. One of the threads gets back a buffer marked as BH_New
+> and calls memset() to clear the page. The other thread gets back a
+> buffer which isn't marked as BH_New and simply inserts the mapping,
+> returning to userspace, which stores the byte ... just in time for
+> the other thread's memset() to write a zero over the top of it.
+> 
+
+So I guess all you need is to zero it at the FS allocator like a __GFP_ZERO
+Perhaps you invent a new flag to pass to ->get_block() like a __GB_FOR_MMAP
+that will make the FS zero the block in the case it was newly allocated.
+Sure there is some locking going on inside the FS so to not allocate two
+blocks for the same inode offset. Then memset_nt() inside or before
+that lock.
+
+ie. In the presence of __GB_FOR_MMAP the FS will internally convert any
+BH_New to a memset_nt() and regular return.
+
+> Oh, and if it's a load racing against a store, you could read data
+> that used to be in this block the last time it was used; maybe the
+> contents of /etc/shadow.
+> 
+
+Do you have any kind of test like this? I wish we could exercise this
+and see that we actually solved it.
+
+> So if we want to be able to handle more than one page fault at a time
+> per file (... and I think we do ...), we need to have exclusive
+> access to a range of the file while we're calling ->get_block(), and
+> for a certain amount of time afterwards. With non-DAX files, this is
+> the page lock. My original proposal for solving this was to enhance
+> the page cache radix tree to be able to lock something other than a
+> page, but that also has complexities.
+> 
+
+Yes this could be done with a bit-lock at the RADIX_TREE_EXCEPTIONAL_ENTRY bits
+of a radix_tree_exception() entry. These are only used by shmem radix-trees and will
+never conflict with DAX
+
+But it means you will need to populate the radix-tree with radix_tree_exception() entries
+for every block accessed which will be a great pity.
+
+I still think the above extra flag to ->get_block() taps into filesystem already
+existing infra, and will cost much less pain.
+
+(And is much more efficient say in hot path like application already did fallocate
+ for performance)
+
+Thanks
+Boaz
+
+> -----Original Message-----
+> From: Boaz Harrosh [mailto:boaz@plexistor.com] 
+> Sent: Tuesday, August 11, 2015 7:31 AM
+> To: Jan Kara; Dave Chinner
+> Cc: Kirill A. Shutemov; Andrew Morton; Wilcox, Matthew R; linux-mm@kvack.org; linux-fsdevel@vger.kernel.org; linux-kernel@vger.kernel.org; Davidlohr Bueso
+> Subject: Re: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
+> 
+> On 08/11/2015 04:50 PM, Jan Kara wrote:
+>> On Tue 11-08-15 19:37:08, Dave Chinner wrote:
+>>>>> The patch below tries to recover some scalability for DAX by introducing
+>>>>> per-mapping range lock.
+>>>>
+>>>> So this grows noticeably (3 longs if I'm right) struct address_space and
+>>>> thus struct inode just for DAX. That looks like a waste but I don't see an
+>>>> easy solution.
+>>>>
+>>>> OTOH filesystems in normal mode might want to use the range lock as well to
+>>>> provide truncate / punch hole vs page fault exclusion (XFS already has a
+>>>> private rwsem for this and ext4 needs something as well) and at that point
+>>>> growing generic struct inode would be acceptable for me.
+>>>
+>>> It sounds to me like the way DAX has tried to solve this race is the
+>>> wrong direction. We really need to drive the truncate/page fault
+>>> serialisation higher up the stack towards the filesystem, not deeper
+>>> into the mm subsystem where locking is greatly limited.
+>>>
+>>> As Jan mentions, we already have this serialisation in XFS, and I
+>>> think it would be better first step to replicate that locking model
+>>> in each filesystem that is supports DAX. I think this is a better
+>>> direction because it moves towards solving a whole class of problems
+>>> fileystem face with page fault serialisation, not just for DAX.
+>>
+>> Well, but at least in XFS you take XFS_MMAPLOCK in shared mode for the
+>> fault / page_mkwrite callback so it doesn't provide the exclusion necessary
+>> for DAX which needs exclusive access to the page given range in the page
+>> cache. And replacing i_mmap_lock with fs-private mmap rwsem is a moot
+>> excercise (at least from DAX POV).
+>>
+> 
+> Hi Jan. So you got me confused above. You say:
+> 	"DAX which needs exclusive access to the page given range in the page cache"
+> 
+> but DAX and page-cache are mutually exclusive. I guess you meant the VMA
+> range, or the inode->mapping range (which one is it)
+> 
+> Actually I do not understand this race you guys found at all. (Please bear with
+> me sorry for being slow)
+> 
+> If two threads of the same VMA fault on the same pte
+> (I'm not sure how you call it I mean a single 4k entry at each VMAs page-table)
+> then the mm knows how to handle this just fine.
+> 
+> If two processes, ie two VMAs fault on the same inode->mapping. Then an inode
+> wide lock like XFS's to protect against i_size-change / truncate is more than
+> enough.
+> Because with DAX there is no inode->mapping "mapping" at all. You have the call
+> into the FS with get_block() to replace "holes" (zero pages) with real allocated
+> blocks, on WRITE faults, but this conversion should be protected inside the FS
+> already. Then there is the atomic exchange of the PTE which is fine.
+> (And vis versa with holes mapping and writes)
+> 
+> There is no global "mapping" radix-tree shared between VMAs like we are
+> used to.
+> 
+> Please explain to me the races you are seeing. I would love to also see them
+> with xfs. I think there they should not happen.
+> 
+>> So regardless whether the lock will be a fs-private one or in
+>> address_space, DAX needs something like the range lock Kirill suggested.
+>> Having the range lock in fs-private part of inode has the advantage that
+>> only filesystems supporting DAX / punch hole will pay the memory overhead.
+>> OTOH most major filesystems need it so the savings would be IMO noticeable
+> 
+> punch-hole is truncate for me. With the xfs model of read-write lock where
+> truncate takes write, any fault taking read before executing the fault looks
+> good for the FS side of things. I guess you mean the optimization of the
+> radix-tree lock. But you see DAX does not have a radix-tree, ie it is empty.
+> 
+> Please explain. Do you have a reproducer of this race. I would need to understand
+> this.
+> 
+> Thanks
+> Boaz
+> 
+>> only for tiny systems using special fs etc. So I'm undecided whether
+>> putting the lock in address_space and doing the locking in generic
+>> pagefault / truncate helpers is a better choice or not.
+>>  
+>> 								Honza
+>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
