@@ -1,22 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BB956B0038
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 03:38:21 -0400 (EDT)
-Received: by qgj62 with SMTP id 62so109015504qgj.2
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 00:38:21 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id f23si1897742qge.2.2015.08.11.00.38.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Aug 2015 00:38:19 -0700 (PDT)
-Message-ID: <55C9A554.4090509@huawei.com>
-Date: Tue, 11 Aug 2015 15:33:40 +0800
+Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E1F866B0038
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 04:12:49 -0400 (EDT)
+Received: by qgj62 with SMTP id 62so109364034qgj.2
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 01:12:49 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTP id 21si2005503qhh.47.2015.08.11.01.12.46
+        for <linux-mm@kvack.org>;
+        Tue, 11 Aug 2015 01:12:48 -0700 (PDT)
+Message-ID: <55C9A3A9.5090300@huawei.com>
+Date: Tue, 11 Aug 2015 15:26:33 +0800
 From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/2] memory-hotplug: remove reset_node_managed_pages() and
- reset_node_managed_pages() in hotadd_new_pgdat()
-References: <55C9A3A9.5090300@huawei.com>
-In-Reply-To: <55C9A3A9.5090300@huawei.com>
+Subject: [PATCH 1/2] memory-hotplug: fix wrong edge when hot add a new node
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,60 +20,77 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>
 Cc: Xishi Qiu <qiuxishi@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-After hotadd_new_pgdat()->free_area_init_node(), the pgdat and zone's spanned/present 
-are both 0, so remove reset_node_managed_pages() and reset_node_managed_pages().
+When we add a new node, the edge of memory may be wrong.
+
+e.g. system has 4 nodes, and node3 is movable, node3 mem:[24G-32G],
+
+1. hotremove the node3,
+2. then hotadd node3 with a part of memory, mem:[26G-30G],
+3. call hotadd_new_pgdat()
+	free_area_init_node()
+		get_pfn_range_for_nid() 
+4. it will return wrong start_pfn and end_pfn, because we have not
+update the memblock.
+
+
+This patch also fix another bug, please see
+http://marc.info/?l=linux-kernel&m=142961156129456&w=2
 
 Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 ---
- mm/memory_hotplug.c | 25 -------------------------
- 1 file changed, 25 deletions(-)
+ mm/memory_hotplug.c | 3 +++
+ mm/page_alloc.c     | 8 ++++++++
+ 2 files changed, 11 insertions(+)
 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 11f26cc..997dfad 100644
+index 26fbba7..11f26cc 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -1065,16 +1065,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- }
- #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+@@ -1269,6 +1269,7 @@ int __ref add_memory(int nid, u64 start, u64 size)
  
--static void reset_node_present_pages(pg_data_t *pgdat)
--{
--	struct zone *z;
--
--	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
--		z->present_pages = 0;
--
--	pgdat->node_present_pages = 0;
--}
--
- /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
- static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+ 	/* create new memmap entry */
+ 	firmware_map_add_hotplug(start, start + size, "System RAM");
++	memblock_add_node(start, size, nid);
+ 
+ 	goto out;
+ 
+@@ -2005,6 +2006,8 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+ 
+ 	/* remove memmap entry */
+ 	firmware_map_remove(start, start + size, "System RAM");
++	memblock_free(start, size);
++	memblock_remove(start, size);
+ 
+ 	arch_remove_memory(start, size);
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1b91d37..7ca12b9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5050,6 +5050,10 @@ static unsigned long __meminit zone_spanned_pages_in_node(int nid,
  {
-@@ -1109,21 +1099,6 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 	build_all_zonelists(pgdat, NULL);
- 	mutex_unlock(&zonelists_mutex);
+ 	unsigned long zone_start_pfn, zone_end_pfn;
  
--	/*
--	 * zone->managed_pages is set to an approximate value in
--	 * free_area_init_core(), which will cause
--	 * /sys/device/system/node/nodeX/meminfo has wrong data.
--	 * So reset it to 0 before any memory is onlined.
--	 */
--	reset_node_managed_pages(pgdat);
--
--	/*
--	 * When memory is hot-added, all the memory is in offline state. So
--	 * clear all zones' present_pages because they will be updated in
--	 * online_pages() and offline_pages().
--	 */
--	reset_node_present_pages(pgdat);
--
- 	return pgdat;
- }
++	/* When hotadd a new node, the node should be empty */
++	if (!node_start_pfn && !node_end_pfn)
++		return 0;
++
+ 	/* Get the start and end of the zone */
+ 	zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+ 	zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
+@@ -5113,6 +5117,10 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
+ 	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
+ 	unsigned long zone_start_pfn, zone_end_pfn;
+ 
++	/* When hotadd a new node, the node should be empty */
++	if (!node_start_pfn && !node_end_pfn)
++		return 0;
++
+ 	zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
+ 	zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
  
 -- 
 2.0.0
-
 
 
 --
