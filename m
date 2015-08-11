@@ -1,45 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id F24076B0038
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 17:14:06 -0400 (EDT)
-Received: by qgdd90 with SMTP id d90so48274005qgd.3
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 14:14:06 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id w74si5774059qha.69.2015.08.11.14.14.05
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Aug 2015 14:14:06 -0700 (PDT)
-Date: Tue, 11 Aug 2015 14:14:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/hwpoison: fix panic due to split huge zero page
-Message-Id: <20150811141404.ecb19c1a66c32abf60d6663c@linux-foundation.org>
-In-Reply-To: <BLU437-SMTP5348473FAB81C31638A9A0807F0@phx.gbl>
-References: <BLU437-SMTP5348473FAB81C31638A9A0807F0@phx.gbl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 699F46B0038
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 17:48:28 -0400 (EDT)
+Received: by pdbfa8 with SMTP id fa8so47597054pdb.1
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 14:48:28 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id c3si5777553pat.101.2015.08.11.14.48.25
+        for <linux-mm@kvack.org>;
+        Tue, 11 Aug 2015 14:48:27 -0700 (PDT)
+Date: Wed, 12 Aug 2015 07:48:22 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
+Message-ID: <20150811214822.GA20596@dastard>
+References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150811081909.GD2650@quack.suse.cz>
+ <20150811093708.GB906@dastard>
+ <20150811135004.GC2659@quack.suse.cz>
+ <55CA0728.7060001@plexistor.com>
+ <100D68C7BA14664A8938383216E40DE040914C3E@FMSMSX114.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <100D68C7BA14664A8938383216E40DE040914C3E@FMSMSX114.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <wanpeng.li@hotmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+Cc: Boaz Harrosh <boaz@plexistor.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr Bueso <dbueso@suse.de>
 
-On Tue, 11 Aug 2015 18:47:57 +0800 Wanpeng Li <wanpeng.li@hotmail.com> wrote:
+On Tue, Aug 11, 2015 at 04:51:22PM +0000, Wilcox, Matthew R wrote:
+> The race that you're not seeing is page fault vs page fault.  Two
+> threads each attempt to store a byte to different locations on the
+> same page.  With a read-mutex to exclude truncates, each thread
+> calls ->get_block.  One of the threads gets back a buffer marked
+> as BH_New and calls memset() to clear the page.  The other thread
+> gets back a buffer which isn't marked as BH_New and simply inserts
+> the mapping, returning to userspace, which stores the byte ...
+> just in time for the other thread's memset() to write a zero over
+> the top of it.
 
-> 
-> ...
->
-> Huge zero page is allocated if page fault w/o FAULT_FLAG_WRITE flag. 
-> The get_user_pages_fast() which called in madvise_hwpoison() will get 
-> huge zero page if the page is not allocated before. Huge zero page is 
-> a tranparent huge page, however, it is not an anonymous page. memory_failure 
-> will split the huge zero page and trigger BUG_ON(is_huge_zero_page(page)); 
-> After commit (98ed2b0: mm/memory-failure: give up error handling for 
-> non-tail-refcounted thp), memory_failure will not catch non anon thp 
-> from madvise_hwpoison path and this bug occur.
+So, this is not a truncate race that the XFS MMAPLOCK solves.
 
-So I'm assuming this patch is needed for 4.2 but not in earlier
-kernels.
+However, that doesn't mean that the DAX code needs to add locking to
+solve it. The race here is caused by block initialisation being
+unserialised after a ->get_block call allocates the block (which the
+filesystem serialises via internal locking). Hence two simultaneous
+->get_block calls to the same block is guaranteed to have the DAX
+block initialisation race with the second ->get_block call that says
+the block is already allocated.
 
+IOWs, the way to handle this is to have the ->get_block call handle
+the block zeroing for new blocks instead of doing it after the fact
+in the generic DAX code where there is no fine-grained serialisation
+object available. By calling dax_clear_blocks() in the ->get_block
+callback, the filesystem can ensure that the second racing call will
+only make progress once the block has been fully initialised by the
+first call.
+
+IMO the fix is - again - to move the functionality into the
+filesystem where we already have the necessary exclusion in place to
+avoid this race condition entirely.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
