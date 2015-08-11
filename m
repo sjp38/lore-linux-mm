@@ -1,83 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 14C8F82F5F
-	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 18:23:11 -0400 (EDT)
-Received: by lbbsx3 with SMTP id sx3so19489279lbb.0
-        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 15:23:10 -0700 (PDT)
-Received: from mail-lb0-x244.google.com (mail-lb0-x244.google.com. [2a00:1450:4010:c04::244])
-        by mx.google.com with ESMTPS id z4si9640107lbk.72.2015.08.10.15.23.08
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C23A6B0038
+	for <linux-mm@kvack.org>; Mon, 10 Aug 2015 20:37:57 -0400 (EDT)
+Received: by pacrr5 with SMTP id rr5so114363543pac.3
+        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 17:37:57 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id fv2si542623pdb.209.2015.08.10.17.37.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Aug 2015 15:23:09 -0700 (PDT)
-Received: by lbcue2 with SMTP id ue2so1330809lbc.0
-        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 15:23:08 -0700 (PDT)
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Subject: [PATCH v5 6/6] ARM64: kasan: print memory assignment
-Date: Tue, 11 Aug 2015 05:18:19 +0300
-Message-Id: <1439259499-13913-7-git-send-email-ryabinin.a.a@gmail.com>
-In-Reply-To: <1439259499-13913-1-git-send-email-ryabinin.a.a@gmail.com>
-References: <1439259499-13913-1-git-send-email-ryabinin.a.a@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Aug 2015 17:37:56 -0700 (PDT)
+Received: by pacrr5 with SMTP id rr5so114363182pac.3
+        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 17:37:56 -0700 (PDT)
+Date: Mon, 10 Aug 2015 17:37:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2 1/2] smaps: fill missing fields for vma(VM_HUGETLB)
+In-Reply-To: <1438932278-7973-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.DEB.2.10.1508101727230.28691@chino.kir.corp.google.com>
+References: <20150806074443.GA7870@hori1.linux.bs1.fc.nec.co.jp> <1438932278-7973-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1438932278-7973-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
-Cc: Linus Walleij <linus.walleij@linaro.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Arnd Bergmann <arnd@arndb.de>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexey Klimov <klimov.linux@gmail.com>, Yury <yury.norov@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-From: Linus Walleij <linus.walleij@linaro.org>
+On Fri, 7 Aug 2015, Naoya Horiguchi wrote:
 
-This prints out the virtual memory assigned to KASan in the
-boot crawl along with other memory assignments, if and only
-if KASan is activated.
+> Currently smaps reports many zero fields for vma(VM_HUGETLB), which is
+> inconvenient when we want to know per-task or per-vma base hugetlb usage.
+> This patch enables these fields by introducing smaps_hugetlb_range().
+> 
+> before patch:
+> 
+>   Size:              20480 kB
+>   Rss:                   0 kB
+>   Pss:                   0 kB
+>   Shared_Clean:          0 kB
+>   Shared_Dirty:          0 kB
+>   Private_Clean:         0 kB
+>   Private_Dirty:         0 kB
+>   Referenced:            0 kB
+>   Anonymous:             0 kB
+>   AnonHugePages:         0 kB
+>   Swap:                  0 kB
+>   KernelPageSize:     2048 kB
+>   MMUPageSize:        2048 kB
+>   Locked:                0 kB
+>   VmFlags: rd wr mr mw me de ht
+> 
+> after patch:
+> 
+>   Size:              20480 kB
+>   Rss:               18432 kB
+>   Pss:               18432 kB
+>   Shared_Clean:          0 kB
+>   Shared_Dirty:          0 kB
+>   Private_Clean:         0 kB
+>   Private_Dirty:     18432 kB
+>   Referenced:        18432 kB
+>   Anonymous:         18432 kB
+>   AnonHugePages:         0 kB
+>   Swap:                  0 kB
+>   KernelPageSize:     2048 kB
+>   MMUPageSize:        2048 kB
+>   Locked:                0 kB
+>   VmFlags: rd wr mr mw me de ht
+> 
 
-Example dmesg from the Juno Development board:
+I think this will lead to breakage, unfortunately, specifically for users 
+who are concerned with resource management.
 
-Memory: 1691156K/2080768K available (5465K kernel code, 444K rwdata,
-2160K rodata, 340K init, 217K bss, 373228K reserved, 16384K cma-reserved)
-Virtual kernel memory layout:
-    kasan   : 0xffffff8000000000 - 0xffffff9000000000   (    64 GB)
-    vmalloc : 0xffffff9000000000 - 0xffffffbdbfff0000   (   182 GB)
-    vmemmap : 0xffffffbdc0000000 - 0xffffffbfc0000000   (     8 GB maximum)
-              0xffffffbdc2000000 - 0xffffffbdc3fc0000   (    31 MB actual)
-    fixed   : 0xffffffbffabfd000 - 0xffffffbffac00000   (    12 KB)
-    PCI I/O : 0xffffffbffae00000 - 0xffffffbffbe00000   (    16 MB)
-    modules : 0xffffffbffc000000 - 0xffffffc000000000   (    64 MB)
-    memory  : 0xffffffc000000000 - 0xffffffc07f000000   (  2032 MB)
-      .init : 0xffffffc0007f5000 - 0xffffffc00084a000   (   340 KB)
-      .text : 0xffffffc000080000 - 0xffffffc0007f45b4   (  7634 KB)
-      .data : 0xffffffc000850000 - 0xffffffc0008bf200   (   445 KB)
+An example: we use memcg hierarchies to charge memory for individual jobs, 
+specific users, and system overhead.  Memcg is a cgroup, so this is done 
+for an aggregate of processes, and we often have to monitor their memory 
+usage.  Each process isn't assigned to its own memcg, and I don't believe 
+common users of memcg assign individual processes to their own memcgs.  
 
-Signed-off-by: Linus Walleij <linus.walleij@linaro.org>
-Signed-off-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
----
- arch/arm64/mm/init.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+When a memcg is out of memory, we need to track the memory usage of 
+processes attached to its memcg hierarchy to determine what is unexpected, 
+either as a result of a new rollout or because of a memory leak.  To do 
+that, we use the rss exported by smaps that is now changed with this 
+patch.  By using smaps rather than /proc/pid/status, we can report where 
+memory usage is unexpected.
 
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index ad87ce8..3930692 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -298,6 +298,9 @@ void __init mem_init(void)
- #define MLK_ROUNDUP(b, t) b, t, DIV_ROUND_UP(((t) - (b)), SZ_1K)
- 
- 	pr_notice("Virtual kernel memory layout:\n"
-+#ifdef CONFIG_KASAN
-+		  "    kasan   : 0x%16lx - 0x%16lx   (%6ld GB)\n"
-+#endif
- 		  "    vmalloc : 0x%16lx - 0x%16lx   (%6ld GB)\n"
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- 		  "    vmemmap : 0x%16lx - 0x%16lx   (%6ld GB maximum)\n"
-@@ -310,6 +313,9 @@ void __init mem_init(void)
- 		  "      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n"
- 		  "      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n"
- 		  "      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",
-+#ifdef CONFIG_KASAN
-+		  MLG(KASAN_SHADOW_START, KASAN_SHADOW_END),
-+#endif
- 		  MLG(VMALLOC_START, VMALLOC_END),
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- 		  MLG((unsigned long)vmemmap,
--- 
-2.4.6
+This would cause our process that manages all memcgs on our systems to 
+break.  Perhaps I haven't been as convincing in my previous messages of 
+this, but it's quite an obvious userspace regression.
+
+This memory was not included in rss originally because memory in the 
+hugetlb persistent pool is always resident.  Unmapping the memory does not 
+free memory.  For this reason, hugetlb memory has always been treated as 
+its own type of memory.
+
+It would have been arguable back when hugetlbfs was introduced whether it 
+should be included.  I'm afraid the ship has sailed on that since a decade 
+has past and it would cause userspace to break if existing metrics are 
+used that already have cleared defined semantics.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
