@@ -1,315 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 31A6C6B0038
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 04:19:16 -0400 (EDT)
-Received: by wijp15 with SMTP id p15so165802522wij.0
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 01:19:15 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h4si2168998wiv.50.2015.08.11.01.19.13
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DE736B0038
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 04:51:16 -0400 (EDT)
+Received: by pabyb7 with SMTP id yb7so125830395pab.0
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 01:51:16 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id km1si2306138pdb.43.2015.08.11.01.51.14
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 11 Aug 2015 01:19:14 -0700 (PDT)
-Date: Tue, 11 Aug 2015 10:19:09 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
-Message-ID: <20150811081909.GD2650@quack.suse.cz>
-References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Aug 2015 01:51:15 -0700 (PDT)
+Received: from epcpsbgr5.samsung.com
+ (u145.gpu120.samsung.co.kr [203.254.230.145])
+ by mailout3.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0NSW02Y53TXC3Y00@mailout3.samsung.com> for linux-mm@kvack.org;
+ Tue, 11 Aug 2015 17:51:12 +0900 (KST)
+From: PINTU KUMAR <pintu.k@samsung.com>
+References: <1438619141-22215-1-git-send-email-vbabka@suse.cz>
+ <1086308416.1472237.1439134679684.JavaMail.yahoo@mail.yahoo.com>
+ <55C8726E.4090103@suse.cz>
+In-reply-to: <55C8726E.4090103@suse.cz>
+Subject: RE: [RFC v3 1/2] mm, compaction: introduce kcompactd
+Date: Tue, 11 Aug 2015 14:20:23 +0530
+Message-id: <03f801d0d412$d56cedd0$8046c970$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: quoted-printable
+Content-language: en-us
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, Jan Kara <jack@suse.cz>
+To: 'Vlastimil Babka' <vbabka@suse.cz>, 'PINTU KUMAR' <pintu_agarwal@yahoo.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, 'Andrew Morton' <akpm@linux-foundation.org>, 'Hugh Dickins' <hughd@google.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Rik van Riel' <riel@redhat.com>, 'Mel Gorman' <mgorman@suse.de>, 'David Rientjes' <rientjes@google.com>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, cpgs@samsung.com, pintu.k@outlook.com
 
-On Mon 10-08-15 18:14:24, Kirill A. Shutemov wrote:
-> As we don't have struct pages for DAX memory, Matthew had to find an
-> replacement for lock_page() to avoid fault vs. truncate races.
-> i_mmap_lock was used for that.
-> 
-> Recently, Matthew had to convert locking to exclusive to address fault
-> vs. fault races. And this kills scalability completely.
-> 
-> The patch below tries to recover some scalability for DAX by introducing
-> per-mapping range lock.
+Hi,
 
-So this grows noticeably (3 longs if I'm right) struct address_space and
-thus struct inode just for DAX. That looks like a waste but I don't see an
-easy solution.
+> -----Original Message-----
+> From: Vlastimil Babka [mailto:vbabka@suse.cz]
+> Sent: Monday, August 10, 2015 3:14 PM
+> To: PINTU KUMAR; linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org; Andrew Morton; Hugh Dickins; Andrea
+> Arcangeli; Kirill A. Shutemov; Rik van Riel; Mel Gorman; David =
+Rientjes; Joonsoo
+> Kim; Pintu Kumar
+> Subject: Re: [RFC v3 1/2] mm, compaction: introduce kcompactd
+>=20
+> On 08/09/2015 05:37 PM, PINTU KUMAR wrote:
+> >> Waking up of the kcompactd threads is also tied to kswapd activity
+> >> and follows these rules:
+> >> - we don't want to affect any fastpaths, so wake up kcompactd only =
+from the
+> >>    slowpath, as it's done for kswapd
+> >> - if kswapd is doing reclaim, it's more important than compaction, =
+so
+> >> don't
+> >>    invoke kcompactd until kswapd goes to sleep
+> >> - the target order used for kswapd is passed to kcompactd
+> >>
+> >> The kswapd compact/reclaim loop for high-order pages is left alone
+> >> for now and precedes kcompactd wakeup, but this might be revisited =
+later.
+> >
+> > kcompactd, will be really nice thing to have, but I oppose calling =
+it from
+> kswapd.
+> > Because, just after kswapd, we already have direct_compact.
+>=20
+> Just to be clear, here you mean that kswapd already does the =
+compact/reclaim
+> loop?
+>=20
+No, I mean in slowpath, after kswapd, there is already =
+direct_compact/reclaim.
 
-OTOH filesystems in normal mode might want to use the range lock as well to
-provide truncate / punch hole vs page fault exclusion (XFS already has a
-private rwsem for this and ext4 needs something as well) and at that point
-growing generic struct inode would be acceptable for me.
+> > So it may end up in doing compaction 2 times.
+>=20
+> The compact/reclaim loop might already do multiple iterations. The =
+point is,
+> kswapd will terminate the loop as soon as single page of desired order =
+becomes
+> available. Kcompactd is meant to go beyond that.
+> And having kcompactd run in parallel with kswapd's reclaim looks like =
+nonsense
+> to me, so I don't see other way than have kswapd wake up kcompactd =
+when it's
+> finished.
+>
+But, if kswapd is disabled then even kcompactd will not be called. Then =
+it will be same situation.
+Just a thought, how about creating a kworker thread for performing =
+kcompactd?
+May be schedule it on demand (based on current fragmentation level of =
+COSTLY_ORDER), from other sub-system.
+Or, may be invoke it when direct_reclaim fails.
+Because, as per my observation, running compaction, immediately after =
+reclaim gives more benefit.
+How about tracking all higher order in kernel and understand who =
+actually needs it.
 
-My grand plan was to use the range lock to also simplify locking rules for
-read, write and esp. direct IO but that has issues with mmap_sem ordering
-because filesystems get called under mmap_sem in page fault path. So
-probably just fixing the worst issue with punch hole vs page fault would be
-good for now.
+> > Or, is it like, with kcompactd, we dont need direct_compact?
+>=20
+> That will have to be evaluated. It would be nice to not need the =
+compact/reclaim
+> loop, but I'm not sure it's always possible. We could move it to =
+kcompactd, but it
+> would still mean that no daemon does exclusively just reclaim or just
+> compaction.
+>=20
+> > In embedded world situation is really worse.
+> > As per my experience in embedded world, just compaction does not =
+help
+> always in longer run.
+> >
+> > As I know there are already some Android model in market, that =
+already run
+> background compaction (from user space).
+> > But still there are sluggishness issues due to bad memory state in =
+the long run.
+>=20
+> It should still be better with background compaction than without it. =
+Of course,
+> avoiding a permanent fragmentation completely is not possible to =
+guarantee as it
+> depends on the allocation patterns.
+>=20
+> > In embedded world, the major problems are related to camera and =
+browser use
+> cases that requires almost order-8 allocations.
+> > Also, for low RAM configurations (less than 512M, 256M etc.), the =
+rate of
+> failure of compaction is much higher than the rate of success.
+>=20
+> I was under impression that CMA was introduced to deal with such =
+high-order
+> requirements in the embedded world?
+>=20
+CMA has its own limitations and drawbacks (because of movable pages =
+criteria).
+Please check this:
+https://lkml.org/lkml/2014/5/7/810=20
+So, for low RAM devices we try to make CMA as tight and low as possible.
+For IOMMU supported devices (camera etc.), we don=E2=80=99t need CMA.
+For Android case, they use ION system heap that rely on higher-order =
+(with fallback mechanism), then perform scatter/gather.
+For more information, please check this:
+drivers/staging/android/ion/ion_system_heap.c
 
-Also for a patch set like this, it would be good to show some numbers - how
-big hit do you take in the single-threaded case (the lock is more
-expensive) and how much scalability do you get in the multithreaded case?
+> > How can we guarantee that kcompactd is suitable for all situations?
+>=20
+> We can't :) we can only hope to improve the average case. Anything =
+that needs
+> high-order *guarantees* has to rely on CMA or another kind of =
+reservation (yeah
+> even CMA is a pageblock reservation in some sense).
+>=20
+> > In an case, we need large amount of testing to cover all scenarios.
+> > It should be called at the right time.
+> > I dont have any data to present right now.
+> > May be I will try to capture some data, and present here.
+>=20
+> That would be nice. I'm going to collect some as well.
 
-								Honza
-
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  fs/dax.c           | 30 +++++++++++++++++-------------
->  fs/inode.c         |  1 +
->  include/linux/fs.h |  2 ++
->  mm/memory.c        | 35 +++++++++++++++++++++++------------
->  mm/rmap.c          |  1 +
->  5 files changed, 44 insertions(+), 25 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index ed54efedade6..27a68eca698e 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -333,6 +333,7 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  	struct inode *inode = mapping->host;
->  	struct page *page;
->  	struct buffer_head bh;
-> +	struct range_lock mapping_lock;
->  	unsigned long vaddr = (unsigned long)vmf->virtual_address;
->  	unsigned blkbits = inode->i_blkbits;
->  	sector_t block;
-> @@ -348,6 +349,11 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - blkbits);
->  	bh.b_size = PAGE_SIZE;
->  
-> +	/* do_cow_fault() takes the lock */
-> +	if (!vmf->cow_page) {
-> +		range_lock_init(&mapping_lock, vmf->pgoff, vmf->pgoff);
-> +		range_lock(&mapping->mapping_lock, &mapping_lock);
-> +	}
->   repeat:
->  	page = find_get_page(mapping, vmf->pgoff);
->  	if (page) {
-> @@ -369,8 +375,6 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  			error = -EIO;
->  			goto unlock;
->  		}
-> -	} else {
-> -		i_mmap_lock_write(mapping);
->  	}
->  
->  	error = get_block(inode, block, &bh, 0);
-> @@ -390,8 +394,9 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  			if (error)
->  				goto unlock;
->  		} else {
-> -			i_mmap_unlock_write(mapping);
-> -			return dax_load_hole(mapping, page, vmf);
-> +			error =  dax_load_hole(mapping, page, vmf);
-> +			range_unlock(&mapping->mapping_lock, &mapping_lock);
-> +			return error;
->  		}
->  	}
->  
-> @@ -446,9 +451,9 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  			WARN_ON_ONCE(!(vmf->flags & FAULT_FLAG_WRITE));
->  	}
->  
-> -	if (!page)
-> -		i_mmap_unlock_write(mapping);
->   out:
-> +	if (!vmf->cow_page)
-> +		range_unlock(&mapping->mapping_lock, &mapping_lock);
->  	if (error == -ENOMEM)
->  		return VM_FAULT_OOM | major;
->  	/* -EBUSY is fine, somebody else faulted on the same PTE */
-> @@ -460,10 +465,7 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  	if (page) {
->  		unlock_page(page);
->  		page_cache_release(page);
-> -	} else {
-> -		i_mmap_unlock_write(mapping);
->  	}
-> -
->  	goto out;
->  }
->  EXPORT_SYMBOL(__dax_fault);
-> @@ -510,6 +512,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
->  	struct address_space *mapping = file->f_mapping;
->  	struct inode *inode = mapping->host;
->  	struct buffer_head bh;
-> +	struct range_lock mapping_lock;
->  	unsigned blkbits = inode->i_blkbits;
->  	unsigned long pmd_addr = address & PMD_MASK;
->  	bool write = flags & FAULT_FLAG_WRITE;
-> @@ -541,7 +544,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
->  	block = (sector_t)pgoff << (PAGE_SHIFT - blkbits);
->  
->  	bh.b_size = PMD_SIZE;
-> -	i_mmap_lock_write(mapping);
-> +	range_lock_init(&mapping_lock, pgoff, pgoff + HPAGE_PMD_NR - 1);
-> +	range_lock(&mapping->mapping_lock, &mapping_lock);
->  	length = get_block(inode, block, &bh, write);
->  	if (length)
->  		return VM_FAULT_SIGBUS;
-> @@ -568,9 +572,9 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
->  	 * zero pages covering this hole
->  	 */
->  	if (buffer_new(&bh)) {
-> -		i_mmap_unlock_write(mapping);
-> +		range_unlock(&mapping->mapping_lock, &mapping_lock);
->  		unmap_mapping_range(mapping, pgoff << PAGE_SHIFT, PMD_SIZE, 0);
-> -		i_mmap_lock_write(mapping);
-> +		range_lock(&mapping->mapping_lock, &mapping_lock);
->  	}
->  
->  	/*
-> @@ -624,7 +628,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
->  	if (buffer_unwritten(&bh))
->  		complete_unwritten(&bh, !(result & VM_FAULT_ERROR));
->  
-> -	i_mmap_unlock_write(mapping);
-> +	range_unlock(&mapping->mapping_lock, &mapping_lock);
->  
->  	return result;
->  
-> diff --git a/fs/inode.c b/fs/inode.c
-> index e560535706ff..6a24144d679f 100644
-> --- a/fs/inode.c
-> +++ b/fs/inode.c
-> @@ -343,6 +343,7 @@ void address_space_init_once(struct address_space *mapping)
->  	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
->  	spin_lock_init(&mapping->tree_lock);
->  	init_rwsem(&mapping->i_mmap_rwsem);
-> +	range_lock_tree_init(&mapping->mapping_lock);
->  	INIT_LIST_HEAD(&mapping->private_list);
->  	spin_lock_init(&mapping->private_lock);
->  	mapping->i_mmap = RB_ROOT;
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index b6361e2e2a26..368e7208d4f2 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -30,6 +30,7 @@
->  #include <linux/lockdep.h>
->  #include <linux/percpu-rwsem.h>
->  #include <linux/blk_types.h>
-> +#include <linux/range_lock.h>
->  
->  #include <asm/byteorder.h>
->  #include <uapi/linux/fs.h>
-> @@ -429,6 +430,7 @@ struct address_space {
->  	atomic_t		i_mmap_writable;/* count VM_SHARED mappings */
->  	struct rb_root		i_mmap;		/* tree of private and shared mappings */
->  	struct rw_semaphore	i_mmap_rwsem;	/* protect tree, count, list */
-> +	struct range_lock_tree	mapping_lock;	/* lock_page() replacement for DAX */
->  	/* Protected by tree_lock together with the radix tree */
->  	unsigned long		nrpages;	/* number of total pages */
->  	unsigned long		nrshadows;	/* number of shadow entries */
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 7f6a9563d5a6..b4898db7e4c4 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2409,6 +2409,7 @@ void unmap_mapping_range(struct address_space *mapping,
->  		loff_t const holebegin, loff_t const holelen, int even_cows)
->  {
->  	struct zap_details details;
-> +	struct range_lock mapping_lock;
->  	pgoff_t hba = holebegin >> PAGE_SHIFT;
->  	pgoff_t hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
->  
-> @@ -2426,10 +2427,17 @@ void unmap_mapping_range(struct address_space *mapping,
->  	if (details.last_index < details.first_index)
->  		details.last_index = ULONG_MAX;
->  
-> +	if (IS_DAX(mapping->host)) {
-> +		/* Exclude fault under us */
-> +		range_lock_init(&mapping_lock, hba, hba + hlen - 1);
-> +		range_lock(&mapping->mapping_lock, &mapping_lock);
-> +	}
->  	i_mmap_lock_write(mapping);
->  	if (unlikely(!RB_EMPTY_ROOT(&mapping->i_mmap)))
->  		unmap_mapping_range_tree(&mapping->i_mmap, &details);
->  	i_mmap_unlock_write(mapping);
-> +	if (IS_DAX(mapping->host))
-> +		range_unlock(&mapping->mapping_lock, &mapping_lock);
->  }
->  EXPORT_SYMBOL(unmap_mapping_range);
->  
-> @@ -2978,6 +2986,8 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  		unsigned long address, pmd_t *pmd,
->  		pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
->  {
-> +	struct address_space *mapping = vma->vm_file->f_mapping;
-> +	struct range_lock mapping_lock;
->  	struct page *fault_page, *new_page;
->  	struct mem_cgroup *memcg;
->  	spinlock_t *ptl;
-> @@ -2996,6 +3006,15 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  		return VM_FAULT_OOM;
->  	}
->  
-> +	if (IS_DAX(file_inode(vma->vm_file))) {
-> +		/*
-> +		 * The fault handler has no page to lock, so it holds
-> +		 * mapping->mapping_lock to protect against truncate.
-> +		 */
-> +		range_lock_init(&mapping_lock, pgoff, pgoff);
-> +		range_unlock(&mapping->mapping_lock, &mapping_lock);
-> +	}
-> +
->  	ret = __do_fault(vma, address, pgoff, flags, new_page, &fault_page);
->  	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
->  		goto uncharge_out;
-> @@ -3010,12 +3029,6 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  		if (fault_page) {
->  			unlock_page(fault_page);
->  			page_cache_release(fault_page);
-> -		} else {
-> -			/*
-> -			 * The fault handler has no page to lock, so it holds
-> -			 * i_mmap_lock for write to protect against truncate.
-> -			 */
-> -			i_mmap_unlock_write(vma->vm_file->f_mapping);
->  		}
->  		goto uncharge_out;
->  	}
-> @@ -3026,15 +3039,13 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  	if (fault_page) {
->  		unlock_page(fault_page);
->  		page_cache_release(fault_page);
-> -	} else {
-> -		/*
-> -		 * The fault handler has no page to lock, so it holds
-> -		 * i_mmap_lock for write to protect against truncate.
-> -		 */
-> -		i_mmap_unlock_write(vma->vm_file->f_mapping);
->  	}
-> +	if (IS_DAX(file_inode(vma->vm_file)))
-> +		range_unlock(&mapping->mapping_lock, &mapping_lock);
->  	return ret;
->  uncharge_out:
-> +	if (IS_DAX(file_inode(vma->vm_file)))
-> +		range_unlock(&mapping->mapping_lock, &mapping_lock);
->  	mem_cgroup_cancel_charge(new_page, memcg);
->  	page_cache_release(new_page);
->  	return ret;
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index dcaad464aab0..3d509326d354 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -22,6 +22,7 @@
->   *
->   * inode->i_mutex	(while writing or truncating, not reading or faulting)
->   *   mm->mmap_sem
-> + *    mapping->mapping_lock
->   *     page->flags PG_locked (lock_page)
->   *       mapping->i_mmap_rwsem
->   *         anon_vma->rwsem
-> -- 
-> 2.5.0
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Specially, I would like to see the results on low RAM (less than 512M).
+I will also share if I get anything interesting.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
