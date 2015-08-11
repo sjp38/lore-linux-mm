@@ -1,63 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 064866B0038
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 02:37:01 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so54816276wic.1
-        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 23:37:00 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id k1si1666127wie.76.2015.08.10.23.36.58
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BB956B0038
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 03:38:21 -0400 (EDT)
+Received: by qgj62 with SMTP id 62so109015504qgj.2
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 00:38:21 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id f23si1897742qge.2.2015.08.11.00.38.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Aug 2015 23:36:59 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so54815251wic.1
-        for <linux-mm@kvack.org>; Mon, 10 Aug 2015 23:36:58 -0700 (PDT)
-Date: Tue, 11 Aug 2015 08:36:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm/slub: don't wait for high-order page allocation
-Message-ID: <20150811063655.GC18998@dhcp22.suse.cz>
-References: <1438913403-3682-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20150807150501.GJ30785@dhcp22.suse.cz>
- <20150810004022.GC26074@js1304-P5Q-DELUXE>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Aug 2015 00:38:19 -0700 (PDT)
+Message-ID: <55C9A554.4090509@huawei.com>
+Date: Tue, 11 Aug 2015 15:33:40 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150810004022.GC26074@js1304-P5Q-DELUXE>
+Subject: [PATCH 2/2] memory-hotplug: remove reset_node_managed_pages() and
+ reset_node_managed_pages() in hotadd_new_pgdat()
+References: <55C9A3A9.5090300@huawei.com>
+In-Reply-To: <55C9A3A9.5090300@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Shaohua Li <shli@fb.com>, Vlastimil Babka <vbabka@suse.cz>, Eric Dumazet <edumazet@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 10-08-15 09:40:22, Joonsoo Kim wrote:
-> On Fri, Aug 07, 2015 at 05:05:01PM +0200, Michal Hocko wrote:
-> > On Fri 07-08-15 11:10:03, Joonsoo Kim wrote:
-> > [...]
-> > > diff --git a/mm/slub.c b/mm/slub.c
-> > > index 257283f..52b9025 100644
-> > > --- a/mm/slub.c
-> > > +++ b/mm/slub.c
-> > > @@ -1364,6 +1364,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
-> > >  	 * so we fall-back to the minimum order allocation.
-> > >  	 */
-> > >  	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
-> > > +	if ((alloc_gfp & __GFP_WAIT) && oo_order(oo) > oo_order(s->min))
-> > > +		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~__GFP_WAIT;
-> > 
-> > Wouldn't it be preferable to "fix" the __GFP_WAIT behavior than spilling
-> > __GFP_NOMEMALLOC around the kernel? GFP flags are getting harder and
-> > harder to use right and that is a signal we should thing about it and
-> > unclutter the current state.
-> 
-> Maybe, it is preferable. Could you try that?
+After hotadd_new_pgdat()->free_area_init_node(), the pgdat and zone's spanned/present 
+are both 0, so remove reset_node_managed_pages() and reset_node_managed_pages().
 
-I will try to cook up something during the week.
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/memory_hotplug.c | 25 -------------------------
+ 1 file changed, 25 deletions(-)
 
-> Anyway, it is separate issue so I don't want pending this patch until
-> that change.
-
-OK, fair enough, at least this one is in mm proper...
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 11f26cc..997dfad 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1065,16 +1065,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ }
+ #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+ 
+-static void reset_node_present_pages(pg_data_t *pgdat)
+-{
+-	struct zone *z;
+-
+-	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+-		z->present_pages = 0;
+-
+-	pgdat->node_present_pages = 0;
+-}
+-
+ /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+ {
+@@ -1109,21 +1099,6 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+ 	build_all_zonelists(pgdat, NULL);
+ 	mutex_unlock(&zonelists_mutex);
+ 
+-	/*
+-	 * zone->managed_pages is set to an approximate value in
+-	 * free_area_init_core(), which will cause
+-	 * /sys/device/system/node/nodeX/meminfo has wrong data.
+-	 * So reset it to 0 before any memory is onlined.
+-	 */
+-	reset_node_managed_pages(pgdat);
+-
+-	/*
+-	 * When memory is hot-added, all the memory is in offline state. So
+-	 * clear all zones' present_pages because they will be updated in
+-	 * online_pages() and offline_pages().
+-	 */
+-	reset_node_present_pages(pgdat);
+-
+ 	return pgdat;
+ }
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.0.0
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
