@@ -1,101 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id CF4E56B0253
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 12:00:40 -0400 (EDT)
-Received: by pawu10 with SMTP id u10so167074009paw.1
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 09:00:40 -0700 (PDT)
-Received: from mgwkm02.jp.fujitsu.com (mgwkm02.jp.fujitsu.com. [202.219.69.169])
-        by mx.google.com with ESMTPS id l4si4271946pde.60.2015.08.11.09.00.38
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C6286B0038
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 12:17:18 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so67878590wic.0
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 09:17:18 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
+        by mx.google.com with ESMTPS id d2si4533123wjw.157.2015.08.11.09.17.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Aug 2015 09:00:39 -0700 (PDT)
-Received: from kws-ab1.gw.nic.fujitsu.com (kws-ab1.gw.nic.fujitsu.com [133.161.11.10])
-	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id A12B2AC0225
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 01:00:35 +0900 (JST)
-Subject: Re: [PATCH 0/3] Make workingset detection logic memcg aware
-References: <cover.1438599199.git.vdavydov@parallels.com>
- <55C16842.9040505@jp.fujitsu.com> <20150806085911.GL11971@esperanza>
- <55C40C08.8010706@jp.fujitsu.com> <20150808130501.GA16760@esperanza>
- <55C75FC9.2060803@jp.fujitsu.com> <20150810081414.GB16760@esperanza>
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <55CA1BFB.5090408@jp.fujitsu.com>
-Date: Wed, 12 Aug 2015 00:59:55 +0900
+        Tue, 11 Aug 2015 09:17:16 -0700 (PDT)
+Received: by wicne3 with SMTP id ne3so67877331wic.0
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 09:17:16 -0700 (PDT)
+Message-ID: <55CA2008.7070702@plexistor.com>
+Date: Tue, 11 Aug 2015 19:17:12 +0300
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-In-Reply-To: <20150810081414.GB16760@esperanza>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Subject: Re: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
+References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com> <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com> <20150811081909.GD2650@quack.suse.cz> <20150811093708.GB906@dastard> <20150811135004.GC2659@quack.suse.cz> <55CA0728.7060001@plexistor.com> <20150811152850.GA2608@node.dhcp.inet.fi>
+In-Reply-To: <20150811152850.GA2608@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, Theodore Ts'o <tytso@mit.edu>
 
-On 2015/08/10 17:14, Vladimir Davydov wrote:
-> On Sun, Aug 09, 2015 at 11:12:25PM +0900, Kamezawa Hiroyuki wrote:
->> On 2015/08/08 22:05, Vladimir Davydov wrote:
->>> On Fri, Aug 07, 2015 at 10:38:16AM +0900, Kamezawa Hiroyuki wrote:
-> ...
->>>> All ? hmm. It seems that mixture of record of global memory pressure and of local memory
->>>> pressure is just wrong.
->>>
->>> What makes you think so? An example of misbehavior caused by this would
->>> be nice to have.
->>>
+On 08/11/2015 06:28 PM, Kirill A. Shutemov wrote:
+<>
+>> Hi Jan. So you got me confused above. You say:
+>> 	"DAX which needs exclusive access to the page given range in the page cache"
 >>
->> By design, memcg's LRU aging logic is independent from global memory allocation/pressure.
->>
->>
->> Assume there are 4 containers(using much page-cache) with 1GB limit on 4GB server,
->>    # contaienr A  workingset=600M   limit=1G (sleepy)
->>    # contaienr B  workingset=300M   limit=1G (work often)
->>    # container C  workingset=500M   limit=1G (work slowly)
->>    # container D  workingset=1.2G   limit=1G (work hard)
->> container D can drive the zone's distance counter because of local memory reclaim.
->> If active/inactive = 1:1, container D page can be activated.
->> At kswapd(global reclaim) runs, all container's LRU will rotate.
->>
->> Possibility of refault in A, B, C is reduced by conainer D's counter updates.
->
-> This does not necessarily mean we have to use different inactive_age
-> counter for global and local memory pressure. In your example, having
-> inactive_age per lruvec and using it for evictions on both global and
-> local memory pressure would work just fine.
->
+>> but DAX and page-cache are mutually exclusive. I guess you meant the VMA
+>> range, or the inode->mapping range (which one is it)
+> 
+> The second -- pgoff range within the inode->mapping.
+> 
 
-you're right.
+So yes this is what I do not understand with DAX the inode->mapping radix-tree is
+empty.
 
-  
+>> Actually I do not understand this race you guys found at all. (Please bear with
+>> me sorry for being slow)
 >>
+>> If two threads of the same VMA fault on the same pte
+>> (I'm not sure how you call it I mean a single 4k entry at each VMAs page-table)
+>> then the mm knows how to handle this just fine.
+> 
+> It does. But only if we have struct page. See lock_page_or_retry() in
+> filemap_fault(). Without lock_page() it's problematic.
+> 
+>> If two processes, ie two VMAs fault on the same inode->mapping. Then an inode
+>> wide lock like XFS's to protect against i_size-change / truncate is more than
+>> enough.
+> 
+> We also used lock_page() to make sure we shoot out all pages as we don't
+> exclude page faults during truncate. Consider this race:
+> 
+> 	<fault>			<truncate>
+> 	get_block
+> 	check i_size
+>     				update i_size
+> 				unmap
+> 	setup pte
+> 
+
+Please consider this senario then:
+
+ 	<fault>			<truncate>
+	read_lock(inode)
+
+ 	get_block
+ 	check i_size
+	
+	read_unlock(inode)
+
+				write_lock(inode)
+
+     				update i_size
+				* remove allocated blocks
+ 				unmap
+
+				write_unlock(inode)
+
+ 	setup pte
+
+IS what you suppose to do in xfs
+
+> With normal page cache we make sure that all pages beyond i_size is
+> dropped using lock_page() in truncate_inode_pages_range().
+> 
+
+Yes there is no truncate_inode_pages_range() in DAX again radix tree is
+empty.
+
+Please do you have a reproducer I would like to see this race and also
+experiment with xfs (I guess you saw it in ext4)
+
+> For DAX we need a way to stop all page faults to the pgoff range before
+> doing unmap.
+> 
+
+Why ?
+
+>> Because with DAX there is no inode->mapping "mapping" at all. You have the call
+>> into the FS with get_block() to replace "holes" (zero pages) with real allocated
+>> blocks, on WRITE faults, but this conversion should be protected inside the FS
+>> already. Then there is the atomic exchange of the PTE which is fine.
+>> (And vis versa with holes mapping and writes)
+> 
+> Having unmap_mapping_range() in PMD fault handling is very unfortunate.
+> Go to rmap just to solve page fault is very wrong.
+> BTW, we need to do it in write path too.
+> 
+
+Only the write path and only when we exchange a zero-page (hole) with
+a new allocated (written to) page. Both write fault and/or write-path
+
+> I'm not convinced that all these "let's avoid backing storage allocation"
+> in DAX code is not layering violation. I think the right place to solve
+> this is filesystem. And we have almost all required handles for this in
+> place.  We only need to change vm_ops->page_mkwrite() interface to be able
+> to return different page than what was given on input.
+> 
+
+What? there is no page returned for DAX page_mkwrite(), it is all insert_mixed
+with direct pmd.
+
+Ha I think I see what you are tumbling on. Maybe it is the zero-pages when
+read-mapping holes.
+
+A solution I have, (And is working for a year now) is have only a single
+zero-page per inode->mapping, inserted at all the holes. and again radix-tree
+is kept clean always. This both saves memory and avoids the race on the
+(always empty) radix tree.
+
+Tell me if you want that I send a patch there is a small trick I do
+at vm_ops->page_mkwrite():
+
+	/* our zero page doesn't really hold the correct offset to the file in
+	 * page->index so vmf->pgoff is incorrect, lets fix that */
+	vmf->pgoff = vma->vm_pgoff + (((unsigned long)vmf->virtual_address -
+			vma->vm_start) >> PAGE_SHIFT);
+
+	/* call fault handler to get a real page for writing */
+	return __page_fault(vma, vmf);
+
+Again the return from page_mkwrite() && __page_fault(WRITE_CASE) is always
+VM_FAULT_NOPAGE, right?
+
+>>> So regardless whether the lock will be a fs-private one or in
+>>> address_space, DAX needs something like the range lock Kirill suggested.
+>>> Having the range lock in fs-private part of inode has the advantage that
+>>> only filesystems supporting DAX / punch hole will pay the memory overhead.
+>>> OTOH most major filesystems need it so the savings would be IMO noticeable
 >>
->>>>                  if (current memcg == recorded memcg && eviction distance is okay)
->>>>                       activate page.
->>>>                  else
->>>>                       inactivate
->>>> At page-out
->>>>          if (global memory pressure)
->>>>                  record eviction id with using zone's counter.
->>>>          else if (memcg local memory pressure)
->>>>                  record eviction id with memcg's counter.
->>>>
->>>
->>> I don't understand how this is supposed to work when a memory cgroup
->>> experiences both local and global pressure simultaneously.
->>>
->>
->> I think updating global distance counter by local reclaim may update counter too much.
->
-> But if the inactive_age counter was per lruvec, then we wouldn't need to
-> bother about it.
->
-yes.
+>> punch-hole is truncate for me. With the xfs model of read-write lock where
+>> truncate takes write, any fault taking read before executing the fault looks
+>> good for the FS side of things. I guess you mean the optimization of the
+>> radix-tree lock. But you see DAX does not have a radix-tree, ie it is empty.
+> 
+> Hm. Where does XFS take this read-write lock in fault path?
+> 
+> IIUC, truncation vs. page fault serialization relies on i_size being
+> updated before doing truncate_pagecache() and checking i_size under
+> page_lock() on fault side. We don't have i_size fence for punch hole.
+> 
 
-Anyway, what I understand now is that we need to reduce influence from a memcg's behavior
-against other memcgs. Your way is dividing counter completely, my idea was implementing
-different counter. Doing it by calculation will be good because we can't have enough record
-space.
+again truncate_pagecache() is NONE.
+And yes the read-write locking will protect punch-hole just as truncate
+see my locking senario above.
 
+> BTW, how things like ext4_collapse_range() can be safe wrt parallel page
+> fault? Ted? 
+> 
 
-Thanks,
--Kame
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
