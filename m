@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 40BEF82F62
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 06:46:02 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so108017809wic.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 03:46:01 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id ex13si9855822wjc.39.2015.08.12.03.45.38
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DC2382F62
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 06:46:04 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so212626639wic.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 03:46:04 -0700 (PDT)
+Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
+        by mx.google.com with ESMTPS id c9si10810218wiw.58.2015.08.12.03.45.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Wed, 12 Aug 2015 03:45:39 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 6F10598FC6
+	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id E988B98942
 	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 10:45:38 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 08/10] mm, page_alloc: Remove MIGRATE_RESERVE
-Date: Wed, 12 Aug 2015 11:45:33 +0100
-Message-Id: <1439376335-17895-9-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 10/10] mm, page_alloc: Only enforce watermarks for order-0 allocations
+Date: Wed, 12 Aug 2015 11:45:35 +0100
+Message-Id: <1439376335-17895-11-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1439376335-17895-1-git-send-email-mgorman@techsingularity.net>
 References: <1439376335-17895-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,302 +23,120 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-MIGRATE_RESERVE preserves an old property of the buddy allocator that existed
-prior to fragmentation avoidance -- min_free_kbytes worth of pages tended to
-remain contiguous until the only alternative was to fail the allocation. At the
-time it was discovered that high-order atomic allocations relied on this
-property so MIGRATE_RESERVE was introduced. A later patch will introduce
-an alternative MIGRATE_HIGHATOMIC so this patch deletes MIGRATE_RESERVE
-and supporting code so it'll be easier to review. Note that this patch
-in isolation may look like a false regression if someone was bisecting
-high-order atomic allocation failures.
+The primary purpose of watermarks is to ensure that reclaim can always
+make forward progress in PF_MEMALLOC context (kswapd and direct reclaim).
+These assume that order-0 allocations are all that is necessary for
+forward progress.
+
+High-order watermarks serve a different purpose. Kswapd had no high-order
+awareness before they were introduced (https://lkml.org/lkml/2004/9/5/9).
+This was particularly important when there were high-order atomic requests.
+The watermarks both gave kswapd awareness and made a reserve for those
+atomic requests.
+
+There are two important side-effects of this. The most important is that
+a non-atomic high-order request can fail even though free pages are available
+and the order-0 watermarks are ok. The second is that high-order watermark
+checks are expensive as the free list counts up to the requested order must
+be examined.
+
+With the introduction of MIGRATE_HIGHATOMIC it is no longer necessary to
+have high-order watermarks. Kswapd and compaction still need high-order
+awareness which is handled by checking that at least one suitable high-order
+page is free.
+
+With the patch applied, there was little difference in the allocation
+failure rates as the atomic reserves are small relative to the number of
+allocation attempts. The expected impact is that there will never be an
+allocation failure report that shows suitable pages on the free lists.
+
+The one potential side-effect of this is that in a vanilla kernel, the
+watermark checks may have kept a free page for an atomic allocation. Now,
+we are 100% relying on the HighAtomic reserves and an early allocation to
+have allocated them.  If the first high-order atomic allocation is after
+the system is already heavily fragmented then it'll fail.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/mmzone.h |  10 +---
- mm/huge_memory.c       |   2 +-
- mm/page_alloc.c        | 148 +++----------------------------------------------
- mm/vmstat.c            |   1 -
- 4 files changed, 11 insertions(+), 150 deletions(-)
+ mm/page_alloc.c | 38 ++++++++++++++++++++++++--------------
+ 1 file changed, 24 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 79a0d033a2f3..874755ca0abc 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -39,8 +39,6 @@ enum {
- 	MIGRATE_UNMOVABLE,
- 	MIGRATE_MOVABLE,
- 	MIGRATE_RECLAIMABLE,
--	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
--	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
- #ifdef CONFIG_CMA
- 	/*
- 	 * MIGRATE_CMA migration type is designed to mimic the way
-@@ -63,6 +61,8 @@ enum {
- 	MIGRATE_TYPES
- };
- 
-+#define MIGRATE_PCPTYPES (MIGRATE_RECLAIMABLE+1)
-+
- #ifdef CONFIG_CMA
- #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
- #else
-@@ -425,12 +425,6 @@ struct zone {
- 
- 	const char		*name;
- 
--	/*
--	 * Number of MIGRATE_RESERVE page block. To maintain for just
--	 * optimization. Protected by zone->lock.
--	 */
--	int			nr_migrate_reserve_block;
--
- #ifdef CONFIG_MEMORY_ISOLATION
- 	/*
- 	 * Number of isolated pageblock. It is used to solve incorrect
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index f563473b5e99..ccf998194ae1 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -113,7 +113,7 @@ static int set_recommended_min_free_kbytes(void)
- 	for_each_populated_zone(zone)
- 		nr_zones++;
- 
--	/* Make sure at least 2 hugepages are free for MIGRATE_RESERVE */
-+	/* Ensure 2 pageblocks are free to assist fragmentation avoidance */
- 	recommended_min = pageblock_nr_pages * nr_zones * 2;
- 
- 	/*
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 17064a3f4909..4708dadeaadf 100644
+index c7f78a6cd708..862fdfe2d219 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -793,7 +793,6 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 			if (unlikely(has_isolate_pageblock(zone)))
- 				mt = get_pageblock_migratetype(page);
- 
--			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
- 			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
- 			trace_mm_page_pcpu_drain(page, 0, mt);
- 		} while (--to_free && --batch_free && !list_empty(list));
-@@ -1375,15 +1374,14 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
-  * the free lists for the desirable migrate type are depleted
-  */
- static int fallbacks[MIGRATE_TYPES][4] = {
--	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,     MIGRATE_RESERVE },
--	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_RESERVE },
--	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   MIGRATE_RESERVE },
-+	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,   MIGRATE_TYPES },
-+	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,   MIGRATE_TYPES },
-+	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_TYPES },
- #ifdef CONFIG_CMA
--	[MIGRATE_CMA]         = { MIGRATE_RESERVE }, /* Never used */
-+	[MIGRATE_CMA]         = { MIGRATE_TYPES }, /* Never used */
- #endif
--	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE }, /* Never used */
- #ifdef CONFIG_MEMORY_ISOLATION
--	[MIGRATE_ISOLATE]     = { MIGRATE_RESERVE }, /* Never used */
-+	[MIGRATE_ISOLATE]     = { MIGRATE_TYPES }, /* Never used */
- #endif
- };
- 
-@@ -1557,7 +1555,7 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
- 	*can_steal = false;
- 	for (i = 0;; i++) {
- 		fallback_mt = fallbacks[migratetype][i];
--		if (fallback_mt == MIGRATE_RESERVE)
-+		if (fallback_mt == MIGRATE_TYPES)
- 			break;
- 
- 		if (list_empty(&area->free_list[fallback_mt]))
-@@ -1636,25 +1634,13 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
- {
- 	struct page *page;
- 
--retry_reserve:
- 	page = __rmqueue_smallest(zone, order, migratetype);
--
--	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
-+	if (unlikely(!page)) {
- 		if (migratetype == MIGRATE_MOVABLE)
- 			page = __rmqueue_cma_fallback(zone, order);
- 
- 		if (!page)
- 			page = __rmqueue_fallback(zone, order, migratetype);
--
--		/*
--		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
--		 * is used because __rmqueue_smallest is an inline function
--		 * and we want just one call site
--		 */
--		if (!page) {
--			migratetype = MIGRATE_RESERVE;
--			goto retry_reserve;
--		}
- 	}
- 
- 	trace_mm_page_alloc_zone_locked(page, order, migratetype);
-@@ -3443,7 +3429,6 @@ static void show_migration_types(unsigned char type)
- 		[MIGRATE_UNMOVABLE]	= 'U',
- 		[MIGRATE_RECLAIMABLE]	= 'E',
- 		[MIGRATE_MOVABLE]	= 'M',
--		[MIGRATE_RESERVE]	= 'R',
- #ifdef CONFIG_CMA
- 		[MIGRATE_CMA]		= 'C',
- #endif
-@@ -4254,120 +4239,6 @@ static inline unsigned long wait_table_bits(unsigned long size)
- }
+@@ -2265,8 +2265,10 @@ static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+ #endif /* CONFIG_FAIL_PAGE_ALLOC */
  
  /*
-- * Check if a pageblock contains reserved pages
-- */
--static int pageblock_is_reserved(unsigned long start_pfn, unsigned long end_pfn)
--{
--	unsigned long pfn;
--
--	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
--		if (!pfn_valid_within(pfn) || PageReserved(pfn_to_page(pfn)))
--			return 1;
--	}
--	return 0;
--}
--
--/*
-- * Mark a number of pageblocks as MIGRATE_RESERVE. The number
-- * of blocks reserved is based on min_wmark_pages(zone). The memory within
-- * the reserve will tend to store contiguous free pages. Setting min_free_kbytes
-- * higher will lead to a bigger reserve which will get freed as contiguous
-- * blocks as reclaim kicks in
-- */
--static void setup_zone_migrate_reserve(struct zone *zone)
--{
--	unsigned long start_pfn, pfn, end_pfn, block_end_pfn;
--	struct page *page;
--	unsigned long block_migratetype;
--	int reserve;
--	int old_reserve;
--
--	/*
--	 * Get the start pfn, end pfn and the number of blocks to reserve
--	 * We have to be careful to be aligned to pageblock_nr_pages to
--	 * make sure that we always check pfn_valid for the first page in
--	 * the block.
--	 */
--	start_pfn = zone->zone_start_pfn;
--	end_pfn = zone_end_pfn(zone);
--	start_pfn = roundup(start_pfn, pageblock_nr_pages);
--	reserve = roundup(min_wmark_pages(zone), pageblock_nr_pages) >>
--							pageblock_order;
--
--	/*
--	 * Reserve blocks are generally in place to help high-order atomic
--	 * allocations that are short-lived. A min_free_kbytes value that
--	 * would result in more than 2 reserve blocks for atomic allocations
--	 * is assumed to be in place to help anti-fragmentation for the
--	 * future allocation of hugepages at runtime.
--	 */
--	reserve = min(2, reserve);
--	old_reserve = zone->nr_migrate_reserve_block;
--
--	/* When memory hot-add, we almost always need to do nothing */
--	if (reserve == old_reserve)
--		return;
--	zone->nr_migrate_reserve_block = reserve;
--
--	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
--		if (!early_page_nid_uninitialised(pfn, zone_to_nid(zone)))
--			return;
--
--		if (!pfn_valid(pfn))
--			continue;
--		page = pfn_to_page(pfn);
--
--		/* Watch out for overlapping nodes */
--		if (page_to_nid(page) != zone_to_nid(zone))
--			continue;
--
--		block_migratetype = get_pageblock_migratetype(page);
--
--		/* Only test what is necessary when the reserves are not met */
--		if (reserve > 0) {
--			/*
--			 * Blocks with reserved pages will never free, skip
--			 * them.
--			 */
--			block_end_pfn = min(pfn + pageblock_nr_pages, end_pfn);
--			if (pageblock_is_reserved(pfn, block_end_pfn))
--				continue;
--
--			/* If this block is reserved, account for it */
--			if (block_migratetype == MIGRATE_RESERVE) {
--				reserve--;
--				continue;
--			}
--
--			/* Suitable for reserving if this block is movable */
--			if (block_migratetype == MIGRATE_MOVABLE) {
--				set_pageblock_migratetype(page,
--							MIGRATE_RESERVE);
--				move_freepages_block(zone, page,
--							MIGRATE_RESERVE);
--				reserve--;
--				continue;
--			}
--		} else if (!old_reserve) {
--			/*
--			 * At boot time we don't need to scan the whole zone
--			 * for turning off MIGRATE_RESERVE.
--			 */
--			break;
--		}
--
--		/*
--		 * If the reserve is met and this is a previous reserved block,
--		 * take it back
--		 */
--		if (block_migratetype == MIGRATE_RESERVE) {
--			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
--			move_freepages_block(zone, page, MIGRATE_MOVABLE);
--		}
--	}
--}
--
--/*
-  * Initially all pages are reserved - free ones are freed
-  * up by free_all_bootmem() once the early boot process is
-  * done. Non-atomic initialization, single-pass.
-@@ -4406,9 +4277,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		 * movable at startup. This will force kernel allocations
- 		 * to reserve their blocks rather than leaking throughout
- 		 * the address space during boot when many long-lived
--		 * kernel allocations are made. Later some blocks near
--		 * the start are marked MIGRATE_RESERVE by
--		 * setup_zone_migrate_reserve()
-+		 * kernel allocations are made.
- 		 *
- 		 * bitmap is created for zone's valid pfn range. but memmap
- 		 * can be created for invalid pages (for alignment)
-@@ -5958,7 +5827,6 @@ static void __setup_per_zone_wmarks(void)
- 			high_wmark_pages(zone) - low_wmark_pages(zone) -
- 			atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]));
+- * Return true if free pages are above 'mark'. This takes into account the order
+- * of the allocation.
++ * Return true if free base pages are above 'mark'. For high-order checks it
++ * will return true of the order-0 watermark is reached and there is at least
++ * one free page of a suitable size. Checking now avoids taking the zone lock
++ * to check in the allocation paths if no pages are free.
+  */
+ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+ 			unsigned long mark, int classzone_idx, int alloc_flags,
+@@ -2274,7 +2276,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+ {
+ 	long min = mark;
+ 	int o;
+-	long free_cma = 0;
++	const bool atomic = (alloc_flags & ALLOC_HARDER);
  
--		setup_zone_migrate_reserve(zone);
- 		spin_unlock_irqrestore(&zone->lock, flags);
- 	}
- 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 4f5cd974e11a..49963aa2dff3 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -901,7 +901,6 @@ static char * const migratetype_names[MIGRATE_TYPES] = {
- 	"Unmovable",
- 	"Reclaimable",
- 	"Movable",
--	"Reserve",
+ 	/* free_pages may go negative - that's OK */
+ 	free_pages -= (1 << order) - 1;
+@@ -2286,7 +2288,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+ 	 * If the caller is not atomic then discount the reserves. This will
+ 	 * over-estimate how the atomic reserve but it avoids a search
+ 	 */
+-	if (likely(!(alloc_flags & ALLOC_HARDER)))
++	if (likely(!atomic))
+ 		free_pages -= z->nr_reserved_highatomic;
+ 	else
+ 		min -= min / 4;
+@@ -2294,22 +2296,30 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
  #ifdef CONFIG_CMA
- 	"CMA",
+ 	/* If allocation can't use CMA areas don't use free CMA pages */
+ 	if (!(alloc_flags & ALLOC_CMA))
+-		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
++		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
  #endif
+ 
+-	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
++	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
+ 		return false;
+-	for (o = 0; o < order; o++) {
+-		/* At the next order, this order's pages become unavailable */
+-		free_pages -= z->free_area[o].nr_free << o;
+ 
+-		/* Require fewer higher order pages to be free */
+-		min >>= 1;
++	/* order-0 watermarks are ok */
++	if (!order)
++		return true;
++
++	/* Check at least one high-order page is free */
++	for (o = order; o < MAX_ORDER; o++) {
++		struct free_area *area = &z->free_area[o];
++		int mt;
++
++		if (atomic && area->nr_free)
++			return true;
+ 
+-		if (free_pages <= min)
+-			return false;
++		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
++			if (!list_empty(&area->free_list[mt]))
++				return true;
++		}
+ 	}
+-	return true;
++	return false;
+ }
+ 
+ bool zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 -- 
 2.4.6
 
