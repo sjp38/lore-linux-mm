@@ -1,82 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 220369003C7
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 05:13:46 -0400 (EDT)
-Received: by igfj19 with SMTP id j19so9467312igf.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 02:13:45 -0700 (PDT)
-Received: from BLU004-OMC1S35.hotmail.com (blu004-omc1s35.hotmail.com. [65.55.116.46])
-        by mx.google.com with ESMTPS id f2si3481569igt.103.2015.08.12.02.13.45
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D0219003C7
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 05:14:14 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so209643864wic.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 02:14:14 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
+        by mx.google.com with ESMTPS id d3si10473448wiy.0.2015.08.12.02.14.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 12 Aug 2015 02:13:45 -0700 (PDT)
-Message-ID: <BLU436-SMTP111993C22274095EC6F2FAE807E0@phx.gbl>
-Subject: Re: [PATCH v2 5/5] mm/hwpoison: replace most of put_page in memory
- error handling by put_hwpoison_page
-References: <1439206103-86829-1-git-send-email-wanpeng.li@hotmail.com>
- <BLU436-SMTP12740A47B6EBB7DF2F12A9280700@phx.gbl>
- <20150812085525.GD32192@hori1.linux.bs1.fc.nec.co.jp>
-From: Wanpeng Li <wanpeng.li@hotmail.com>
-Date: Wed, 12 Aug 2015 17:13:39 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Aug 2015 02:14:13 -0700 (PDT)
+Received: by wicne3 with SMTP id ne3so91967667wic.0
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 02:14:13 -0700 (PDT)
+Date: Wed, 12 Aug 2015 11:14:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 4/8] jbd, jbd2: Do not fail journal because of
+ frozen_buffer allocation failure
+Message-ID: <20150812091411.GB14940@dhcp22.suse.cz>
+References: <1438768284-30927-1-git-send-email-mhocko@kernel.org>
+ <1438768284-30927-5-git-send-email-mhocko@kernel.org>
+ <xr93twsdwui3.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20150812085525.GD32192@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <xr93twsdwui3.fsf@gthelen.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, Jan Kara <jack@suse.cz>
 
-On 8/12/15 4:55 PM, Naoya Horiguchi wrote:
-> On Mon, Aug 10, 2015 at 07:28:23PM +0800, Wanpeng Li wrote:
->> Replace most of put_page in memory error handling by put_hwpoison_page,
->> except the ones at the front of soft_offline_page since the page maybe
->> THP page and the get refcount in madvise_hwpoison is against the single
->> 4KB page instead of the logic in get_hwpoison_page.
->>
->> Signed-off-by: Wanpeng Li <wanpeng.li@hotmail.com>
-> # Sorry for my late response.
->
-> If I read correctly, get_user_pages_fast() (called by madvise_hwpoison)
-> for a THP tail page takes a refcount from each of head and tail page.
-> gup_huge_pmd() does this in the fast path, and get_page_foll() does this
-> in the slow path (maybe via the following code path)
->
->   get_user_pages_unlocked
->     __get_user_pages_unlocked
->       __get_user_pages_locked
->         __get_user_pages
->           follow_page_mask
->             follow_trans_huge_pmd (with FOLL_GET set)
->               get_page_foll
->
-> So this should be equivalent to what get_hwpoison_page() does for thp pages
-> with regard to refcounting.
->
-> And I'm expecting that a refcount taken by get_hwpoison_page() is released
-> by put_hwpoison_page() even if the page's status is changed during error
-> handling (the typical (or only?) case is successful thp split.)
+On Wed 05-08-15 09:49:24, Greg Thelen wrote:
+> 
+> mhocko@kernel.org wrote:
+> 
+> > From: Michal Hocko <mhocko@suse.com>
+> >
+> > Journal transaction might fail prematurely because the frozen_buffer
+> > is allocated by GFP_NOFS request:
+> > [   72.440013] do_get_write_access: OOM for frozen_buffer
+> > [   72.440014] EXT4-fs: ext4_reserve_inode_write:4729: aborting transaction: Out of memory in __ext4_journal_get_write_access
+> > [   72.440015] EXT4-fs error (device sda1) in ext4_reserve_inode_write:4735: Out of memory
+> > (...snipped....)
+> > [   72.495559] do_get_write_access: OOM for frozen_buffer
+> > [   72.495560] EXT4-fs: ext4_reserve_inode_write:4729: aborting transaction: Out of memory in __ext4_journal_get_write_access
+> > [   72.496839] do_get_write_access: OOM for frozen_buffer
+> > [   72.496841] EXT4-fs: ext4_reserve_inode_write:4729: aborting transaction: Out of memory in __ext4_journal_get_write_access
+> > [   72.505766] Aborting journal on device sda1-8.
+> > [   72.505851] EXT4-fs (sda1): Remounting filesystem read-only
+> >
+> > This wasn't a problem until "mm: page_alloc: do not lock up GFP_NOFS
+> > allocations upon OOM" because small GPF_NOFS allocations never failed.
+> > This allocation seems essential for the journal and GFP_NOFS is too
+> > restrictive to the memory allocator so let's use __GFP_NOFAIL here to
+> > emulate the previous behavior.
+> >
+> > jbd code has the very same issue so let's do the same there as well.
+> >
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> >  fs/jbd/transaction.c  | 11 +----------
+> >  fs/jbd2/transaction.c | 14 +++-----------
+> >  2 files changed, 4 insertions(+), 21 deletions(-)
+> >
+> > diff --git a/fs/jbd/transaction.c b/fs/jbd/transaction.c
+> > index 1695ba8334a2..bf7474deda2f 100644
+> > --- a/fs/jbd/transaction.c
+> > +++ b/fs/jbd/transaction.c
+> > @@ -673,16 +673,7 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
+> >  				jbd_unlock_bh_state(bh);
+> >  				frozen_buffer =
+> >  					jbd_alloc(jh2bh(jh)->b_size,
+> > -							 GFP_NOFS);
+> > -				if (!frozen_buffer) {
+> > -					printk(KERN_ERR
+> > -					       "%s: OOM for frozen_buffer\n",
+> > -					       __func__);
+> > -					JBUFFER_TRACE(jh, "oom!");
+> > -					error = -ENOMEM;
+> > -					jbd_lock_bh_state(bh);
+> > -					goto done;
+> > -				}
+> > +							 GFP_NOFS|__GFP_NOFAIL);
+> >  				goto repeat;
+> >  			}
+> >  			jh->b_frozen_data = frozen_buffer;
+> > diff --git a/fs/jbd2/transaction.c b/fs/jbd2/transaction.c
+> > index ff2f2e6ad311..bff071e21553 100644
+> > --- a/fs/jbd2/transaction.c
+> > +++ b/fs/jbd2/transaction.c
+> > @@ -923,16 +923,7 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
+> >  				jbd_unlock_bh_state(bh);
+> >  				frozen_buffer =
+> >  					jbd2_alloc(jh2bh(jh)->b_size,
+> > -							 GFP_NOFS);
+> > -				if (!frozen_buffer) {
+> > -					printk(KERN_ERR
+> > -					       "%s: OOM for frozen_buffer\n",
+> > -					       __func__);
+> > -					JBUFFER_TRACE(jh, "oom!");
+> > -					error = -ENOMEM;
+> > -					jbd_lock_bh_state(bh);
+> > -					goto done;
+> > -				}
+> > +							 GFP_NOFS|__GFP_NOFAIL);
+> >  				goto repeat;
+> >  			}
+> >  			jh->b_frozen_data = frozen_buffer;
+> > @@ -1157,7 +1148,8 @@ int jbd2_journal_get_undo_access(handle_t *handle, struct buffer_head *bh)
+> >  
+> >  repeat:
+> >  	if (!jh->b_committed_data) {
+> > -		committed_data = jbd2_alloc(jh2bh(jh)->b_size, GFP_NOFS);
+> > +		committed_data = jbd2_alloc(jh2bh(jh)->b_size,
+> > +					    GFP_NOFS|__GFP_NOFAIL);
+> >  		if (!committed_data) {
+> >  			printk(KERN_ERR "%s: No memory for committed data\n",
+> >  				__func__);
+> 
+> Is this "if (!committed_data) {" check now dead code?
+> 
+> I also see other similar suspected dead sites in the rest of the series.
 
-Indeed. :-)
+You are absolutely right. I have updated the patches.
 
->
-> So I think you can apply put_hwpoison_page() for 3 more callsites in
-> mm/memory-failure.c.
->  - MF_MSG_POISONED_HUGE case
-
-I have already done this in my patch.
-
->  - "soft offline: %#lx page already poisoned" case (you mentioned above)
->  - "soft offline: %#lx: failed to split THP" case (you mentioned above)
-
-You are right, I will send a patch rebased on this one since they are
-merged.
-
-Regards,
-Wanpeng Li
-
->
-> Thanks,
-> Naoya Horiguchi
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
