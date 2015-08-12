@@ -1,61 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 83A1E6B0038
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 07:59:13 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so24539931wic.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 04:59:13 -0700 (PDT)
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
-        by mx.google.com with ESMTPS id t9si11106129wix.105.2015.08.12.04.59.11
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 447096B0038
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 08:19:06 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so215745873wic.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 05:19:05 -0700 (PDT)
+Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
+        by mx.google.com with ESMTPS id pi9si10237935wic.102.2015.08.12.05.19.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Aug 2015 04:59:11 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so110255055wic.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 04:59:11 -0700 (PDT)
-Date: Wed, 12 Aug 2015 13:59:09 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v7 3/6] mm: Introduce VM_LOCKONFAULT
-Message-ID: <20150812115909.GA5182@dhcp22.suse.cz>
-References: <1439097776-27695-1-git-send-email-emunson@akamai.com>
- <1439097776-27695-4-git-send-email-emunson@akamai.com>
+        Wed, 12 Aug 2015 05:19:04 -0700 (PDT)
+Received: by wicne3 with SMTP id ne3so215744591wic.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 05:19:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1439097776-27695-4-git-send-email-emunson@akamai.com>
+In-Reply-To: <20150812093701.GH22485@arm.com>
+References: <1439259499-13913-1-git-send-email-ryabinin.a.a@gmail.com>
+	<1439259499-13913-3-git-send-email-ryabinin.a.a@gmail.com>
+	<20150811154117.GH23307@e104818-lin.cambridge.arm.com>
+	<55CA21E8.2060704@gmail.com>
+	<20150811164010.GJ23307@e104818-lin.cambridge.arm.com>
+	<CAPAsAGwDNpRBLAvyCSpR9ZO9tAmHx-XYjVDZPECeQkU0WOw5jg@mail.gmail.com>
+	<20150812093701.GH22485@arm.com>
+Date: Wed, 12 Aug 2015 15:19:03 +0300
+Message-ID: <CAPAsAGwnhnqJCh=sc97-=qrYHNQnDSjVR-xGertoMiNWHDbhrw@mail.gmail.com>
+Subject: Re: [PATCH v5 2/6] x86/kasan, mm: introduce generic kasan_populate_zero_shadow()
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
+Cc: Catalin Marinas <Catalin.Marinas@arm.com>, Yury <yury.norov@gmail.com>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Walleij <linus.walleij@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Alexey Klimov <klimov.linux@gmail.com>, Alexander Potapenko <glider@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Keitel <dkeitel@codeaurora.org>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Sun 09-08-15 01:22:53, Eric B Munson wrote:
-> The cost of faulting in all memory to be locked can be very high when
-> working with large mappings.  If only portions of the mapping will be
-> used this can incur a high penalty for locking.
-> 
-> For the example of a large file, this is the usage pattern for a large
-> statical language model (probably applies to other statical or graphical
-> models as well).  For the security example, any application transacting
-> in data that cannot be swapped out (credit card data, medical records,
-> etc).
-> 
-> This patch introduces the ability to request that pages are not
-> pre-faulted, but are placed on the unevictable LRU when they are finally
-> faulted in.  The VM_LOCKONFAULT flag will be used together with
-> VM_LOCKED and has no effect when set without VM_LOCKED.
+2015-08-12 12:37 GMT+03:00 Will Deacon <will.deacon@arm.com>:
+> On Wed, Aug 12, 2015 at 10:30:37AM +0100, Andrey Ryabinin wrote:
+>> 2015-08-11 19:40 GMT+03:00 Catalin Marinas <catalin.marinas@arm.com>:
+>> >
+>> > Not sure how you plan to merge it though since there are x86
+>> > dependencies. I could send the whole series via tip or the mm tree (and
+>> > I guess it's pretty late for 4.3).
+>>
+>> Via mm tree, I guess.
+>> If this is too late for 4.3, then I'll update changelog and send v6
+>> after 4.3-rc1 release.
+>
+> That's probably the best bet, as I suspect we'll get some non-trivial
+> conflicts with the arm64 tree at this stage.
+>
+> Will
 
-I do not like this very much to be honest. We have only few bits
-left there and it seems this is not really necessary. I thought that
-LOCKONFAULT acts as a modifier to the mlock call to tell whether to
-poppulate or not. The only place we have to persist it is
-mlockall(MCL_FUTURE) AFAICS. And this can be handled by an additional
-field in the mm_struct. This could be handled at __mm_populate level.
-So unless I am missing something this would be much more easier
-in the end we no new bit in VM flags would be necessary.
-
-This would obviously mean that the LOCKONFAULT couldn't be exported to
-the userspace but is this really necessary?
--- 
-Michal Hocko
-SUSE Labs
+Or, if x86 maintainers are agree to take first 2 patches in 4.3,
+the rest of the series could go into arm64 tree later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
