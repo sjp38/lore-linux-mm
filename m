@@ -1,60 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ACDC9003C7
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 09:41:23 -0400 (EDT)
-Received: by pdbfa8 with SMTP id fa8so7577984pdb.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 06:41:23 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id dy3si9597717pab.108.2015.08.12.06.41.22
-        for <linux-mm@kvack.org>;
-        Wed, 12 Aug 2015 06:41:22 -0700 (PDT)
-Date: Wed, 12 Aug 2015 14:41:16 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v5 2/6] x86/kasan, mm: introduce generic
- kasan_populate_zero_shadow()
-Message-ID: <20150812134116.GB23540@arm.com>
-References: <1439259499-13913-1-git-send-email-ryabinin.a.a@gmail.com>
- <1439259499-13913-3-git-send-email-ryabinin.a.a@gmail.com>
- <20150811154117.GH23307@e104818-lin.cambridge.arm.com>
- <55CA21E8.2060704@gmail.com>
- <20150811164010.GJ23307@e104818-lin.cambridge.arm.com>
- <CAPAsAGwDNpRBLAvyCSpR9ZO9tAmHx-XYjVDZPECeQkU0WOw5jg@mail.gmail.com>
- <20150812093701.GH22485@arm.com>
- <CAPAsAGwnhnqJCh=sc97-=qrYHNQnDSjVR-xGertoMiNWHDbhrw@mail.gmail.com>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A6CF6B0038
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 10:35:27 -0400 (EDT)
+Received: by wibhh20 with SMTP id hh20so32280900wib.0
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 07:35:26 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
+        by mx.google.com with ESMTPS id bf10si10954226wib.3.2015.08.12.07.35.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Aug 2015 07:35:12 -0700 (PDT)
+Received: by wicne3 with SMTP id ne3so221133996wic.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 07:35:12 -0700 (PDT)
+Date: Wed, 12 Aug 2015 17:35:09 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: page-flags behavior on compound pages: a worry
+Message-ID: <20150812143509.GA12320@node.dhcp.inet.fi>
+References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.LSU.2.11.1508052001350.6404@eggly.anvils>
+ <20150806153259.GA2834@node.dhcp.inet.fi>
+ <alpine.LSU.2.11.1508061121120.7500@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPAsAGwnhnqJCh=sc97-=qrYHNQnDSjVR-xGertoMiNWHDbhrw@mail.gmail.com>
+In-Reply-To: <alpine.LSU.2.11.1508061121120.7500@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Catalin Marinas <Catalin.Marinas@arm.com>, Yury <yury.norov@gmail.com>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Walleij <linus.walleij@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Alexey Klimov <klimov.linux@gmail.com>, Alexander Potapenko <glider@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Keitel <dkeitel@codeaurora.org>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Aug 12, 2015 at 01:19:03PM +0100, Andrey Ryabinin wrote:
-> 2015-08-12 12:37 GMT+03:00 Will Deacon <will.deacon@arm.com>:
-> > On Wed, Aug 12, 2015 at 10:30:37AM +0100, Andrey Ryabinin wrote:
-> >> 2015-08-11 19:40 GMT+03:00 Catalin Marinas <catalin.marinas@arm.com>:
-> >> >
-> >> > Not sure how you plan to merge it though since there are x86
-> >> > dependencies. I could send the whole series via tip or the mm tree (and
-> >> > I guess it's pretty late for 4.3).
-> >>
-> >> Via mm tree, I guess.
-> >> If this is too late for 4.3, then I'll update changelog and send v6
-> >> after 4.3-rc1 release.
-> >
-> > That's probably the best bet, as I suspect we'll get some non-trivial
-> > conflicts with the arm64 tree at this stage.
-> >
-> Or, if x86 maintainers are agree to take first 2 patches in 4.3,
-> the rest of the series could go into arm64 tree later.
+On Thu, Aug 06, 2015 at 12:24:22PM -0700, Hugh Dickins wrote:
+> > IIUC, the only potentially problematic callsites left are physical memory
+> > scanners. This code requires audit. I'll do that.
+> 
+> Please.
 
-Yup, that would be even better for us!
-
-Will
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I haven't finished the exercise yet. But here's an issue I believe present
+in current *Linus* tree:
