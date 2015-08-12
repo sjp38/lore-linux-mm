@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E547782F62
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 06:45:47 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so22025300wic.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 03:45:47 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id qq4si9873566wjc.5.2015.08.12.03.45.37
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D9E2A82F62
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 06:45:49 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so212618868wic.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 03:45:49 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id mp10si9845548wjc.74.2015.08.12.03.45.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Aug 2015 03:45:37 -0700 (PDT)
+        Wed, 12 Aug 2015 03:45:38 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id D558499007
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 10:45:36 +0000 (UTC)
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 5B8B699024
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 10:45:37 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 02/10] mm, page_alloc: Remove unnecessary parameter from zone_watermark_ok_safe
-Date: Wed, 12 Aug 2015 11:45:27 +0100
-Message-Id: <1439376335-17895-3-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 05/10] mm, page_alloc: Use masks and shifts when converting GFP flags to migrate types
+Date: Wed, 12 Aug 2015 11:45:30 +0100
+Message-Id: <1439376335-17895-6-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1439376335-17895-1-git-send-email-mgorman@techsingularity.net>
 References: <1439376335-17895-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,82 +23,81 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-No user of zone_watermark_ok_safe() specifies alloc_flags. This patch
-removes the unnecessary parameter.
+This patch redefines which GFP bits are used for specifying mobility and
+the order of the migrate types. Once redefined it's possible to convert
+GFP flags to a migrate type with a simple mask and shift. The only downside
+is that readers of OOM kill messages and allocation failures may have been
+used to the existing values but scripts/gfp-translate will help.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: David Rientjes <rientjes@google.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/mmzone.h | 2 +-
- mm/page_alloc.c        | 5 +++--
- mm/vmscan.c            | 4 ++--
- 3 files changed, 6 insertions(+), 5 deletions(-)
+ include/linux/gfp.h    | 12 +++++++-----
+ include/linux/mmzone.h |  2 +-
+ 2 files changed, 8 insertions(+), 6 deletions(-)
 
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index ad35f300b9a4..43246850a85f 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -14,7 +14,7 @@ struct vm_area_struct;
+ #define ___GFP_HIGHMEM		0x02u
+ #define ___GFP_DMA32		0x04u
+ #define ___GFP_MOVABLE		0x08u
+-#define ___GFP_WAIT		0x10u
++#define ___GFP_RECLAIMABLE	0x10u
+ #define ___GFP_HIGH		0x20u
+ #define ___GFP_IO		0x40u
+ #define ___GFP_FS		0x80u
+@@ -29,7 +29,7 @@ struct vm_area_struct;
+ #define ___GFP_NOMEMALLOC	0x10000u
+ #define ___GFP_HARDWALL		0x20000u
+ #define ___GFP_THISNODE		0x40000u
+-#define ___GFP_RECLAIMABLE	0x80000u
++#define ___GFP_WAIT		0x80000u
+ #define ___GFP_NOACCOUNT	0x100000u
+ #define ___GFP_NOTRACK		0x200000u
+ #define ___GFP_NO_KSWAPD	0x400000u
+@@ -123,6 +123,7 @@ struct vm_area_struct;
+ 
+ /* This mask makes up all the page movable related flags */
+ #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
++#define GFP_MOVABLE_SHIFT 3
+ 
+ /* Control page allocator reclaim behavior */
+ #define GFP_RECLAIM_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS|\
+@@ -149,14 +150,15 @@ struct vm_area_struct;
+ /* Convert GFP flags to their corresponding migrate type */
+ static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
+ {
+-	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
++	VM_WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
++	BUILD_BUG_ON(1UL << GFP_MOVABLE_SHIFT != ___GFP_MOVABLE);
++	BUILD_BUG_ON(___GFP_MOVABLE >> GFP_MOVABLE_SHIFT != MIGRATE_MOVABLE);
+ 
+ 	if (unlikely(page_group_by_mobility_disabled))
+ 		return MIGRATE_UNMOVABLE;
+ 
+ 	/* Group based on mobility */
+-	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
+-		((gfp_flags & __GFP_RECLAIMABLE) != 0);
++	return (gfp_flags & GFP_MOVABLE_MASK) >> GFP_MOVABLE_SHIFT;
+ }
+ 
+ #ifdef CONFIG_HIGHMEM
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index decc99a007f5..8b86ec5df968 100644
+index 8b86ec5df968..79a0d033a2f3 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -731,7 +731,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
- bool zone_watermark_ok(struct zone *z, unsigned int order,
- 		unsigned long mark, int classzone_idx, int alloc_flags);
- bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
--		unsigned long mark, int classzone_idx, int alloc_flags);
-+		unsigned long mark, int classzone_idx);
- enum memmap_context {
- 	MEMMAP_EARLY,
- 	MEMMAP_HOTPLUG,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 41c0799b9049..5e1f6f4370bc 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2209,6 +2209,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 		min -= min / 2;
- 	if (alloc_flags & ALLOC_HARDER)
- 		min -= min / 4;
-+
+@@ -37,8 +37,8 @@
+ 
+ enum {
+ 	MIGRATE_UNMOVABLE,
+-	MIGRATE_RECLAIMABLE,
+ 	MIGRATE_MOVABLE,
++	MIGRATE_RECLAIMABLE,
+ 	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
+ 	MIGRATE_RESERVE = MIGRATE_PCPTYPES,
  #ifdef CONFIG_CMA
- 	/* If allocation can't use CMA areas don't use free CMA pages */
- 	if (!(alloc_flags & ALLOC_CMA))
-@@ -2238,14 +2239,14 @@ bool zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
- }
- 
- bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
--			unsigned long mark, int classzone_idx, int alloc_flags)
-+			unsigned long mark, int classzone_idx)
- {
- 	long free_pages = zone_page_state(z, NR_FREE_PAGES);
- 
- 	if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
- 		free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
- 
--	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
-+	return __zone_watermark_ok(z, order, mark, classzone_idx, 0,
- 								free_pages);
- }
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e61445dce04e..f1d8eae285f2 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2454,7 +2454,7 @@ static inline bool compaction_ready(struct zone *zone, int order)
- 	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
- 			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
- 	watermark = high_wmark_pages(zone) + balance_gap + (2UL << order);
--	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0, 0);
-+	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0);
- 
- 	/*
- 	 * If compaction is deferred, reclaim up to a point where
-@@ -2937,7 +2937,7 @@ static bool zone_balanced(struct zone *zone, int order,
- 			  unsigned long balance_gap, int classzone_idx)
- {
- 	if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone) +
--				    balance_gap, classzone_idx, 0))
-+				    balance_gap, classzone_idx))
- 		return false;
- 
- 	if (IS_ENABLED(CONFIG_COMPACTION) && order && compaction_suitable(zone,
 -- 
 2.4.6
 
