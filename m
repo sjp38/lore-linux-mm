@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 829AA6B0038
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 04:57:01 -0400 (EDT)
-Received: by oip136 with SMTP id 136so5652481oip.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 01:57:01 -0700 (PDT)
+Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FEFE6B0038
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 04:59:26 -0400 (EDT)
+Received: by qkcs67 with SMTP id s67so3099934qkc.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 01:59:26 -0700 (PDT)
 Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id m71si4013905oig.104.2015.08.12.01.57.00
+        by mx.google.com with ESMTPS id w199si8797998qha.64.2015.08.12.01.59.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Aug 2015 01:57:00 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 12 Aug 2015 01:59:25 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 5/5] mm/hwpoison: replace most of put_page in memory
- error handling by put_hwpoison_page
-Date: Wed, 12 Aug 2015 08:55:26 +0000
-Message-ID: <20150812085525.GD32192@hori1.linux.bs1.fc.nec.co.jp>
+Subject: Re: [PATCH v2 3/5] mm/hwpoison: introduce put_hwpoison_page to put
+ refcount for memory error handling
+Date: Wed, 12 Aug 2015 08:58:18 +0000
+Message-ID: <20150812085818.GE32192@hori1.linux.bs1.fc.nec.co.jp>
 References: <1439206103-86829-1-git-send-email-wanpeng.li@hotmail.com>
- <BLU436-SMTP12740A47B6EBB7DF2F12A9280700@phx.gbl>
-In-Reply-To: <BLU436-SMTP12740A47B6EBB7DF2F12A9280700@phx.gbl>
+ <BLU436-SMTP127AFDD347F96AC6BDED54C80700@phx.gbl>
+In-Reply-To: <BLU436-SMTP127AFDD347F96AC6BDED54C80700@phx.gbl>
 Content-Language: ja-JP
 Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <843CC0B960D5994BBFBAE8B5AC12A0CB@gisp.nec.co.jp>
+Content-ID: <DD8E3CC7B03BB048A03BD0C8586A19AC@gisp.nec.co.jp>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
@@ -27,44 +27,71 @@ List-ID: <linux-mm.kvack.org>
 To: Wanpeng Li <wanpeng.li@hotmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Aug 10, 2015 at 07:28:23PM +0800, Wanpeng Li wrote:
-> Replace most of put_page in memory error handling by put_hwpoison_page,
-> except the ones at the front of soft_offline_page since the page maybe
-> THP page and the get refcount in madvise_hwpoison is against the single
-> 4KB page instead of the logic in get_hwpoison_page.
->
+On Mon, Aug 10, 2015 at 07:28:21PM +0800, Wanpeng Li wrote:
+> Introduce put_hwpoison_page to put refcount for memory=20
+> error handling.=20
+>=20
+> Suggested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > Signed-off-by: Wanpeng Li <wanpeng.li@hotmail.com>
 
-# Sorry for my late response.
+Thanks!
 
-If I read correctly, get_user_pages_fast() (called by madvise_hwpoison)
-for a THP tail page takes a refcount from each of head and tail page.
-gup_huge_pmd() does this in the fast path, and get_page_foll() does this
-in the slow path (maybe via the following code path)
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-  get_user_pages_unlocked
-    __get_user_pages_unlocked
-      __get_user_pages_locked
-        __get_user_pages
-          follow_page_mask
-            follow_trans_huge_pmd (with FOLL_GET set)
-              get_page_foll
-
-So this should be equivalent to what get_hwpoison_page() does for thp pages
-with regard to refcounting.
-
-And I'm expecting that a refcount taken by get_hwpoison_page() is released
-by put_hwpoison_page() even if the page's status is changed during error
-handling (the typical (or only?) case is successful thp split.)
-
-So I think you can apply put_hwpoison_page() for 3 more callsites in
-mm/memory-failure.c.
- - MF_MSG_POISONED_HUGE case
- - "soft offline: %#lx page already poisoned" case (you mentioned above)
- - "soft offline: %#lx: failed to split THP" case (you mentioned above)
-
-Thanks,
-Naoya Horiguchi=
+> ---
+>  include/linux/mm.h  |    1 +
+>  mm/memory-failure.c |   21 +++++++++++++++++++++
+>  2 files changed, 22 insertions(+), 0 deletions(-)
+>=20
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 554b0f0..c0a0b9f 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2103,6 +2103,7 @@ extern int memory_failure(unsigned long pfn, int tr=
+apno, int flags);
+>  extern void memory_failure_queue(unsigned long pfn, int trapno, int flag=
+s);
+>  extern int unpoison_memory(unsigned long pfn);
+>  extern int get_hwpoison_page(struct page *page);
+> +extern void put_hwpoison_page(struct page *page);
+>  extern int sysctl_memory_failure_early_kill;
+>  extern int sysctl_memory_failure_recovery;
+>  extern void shake_page(struct page *p, int access);
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index e0eb7ab..fa9aa21 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -922,6 +922,27 @@ int get_hwpoison_page(struct page *page)
+>  }
+>  EXPORT_SYMBOL_GPL(get_hwpoison_page);
+> =20
+> +/**
+> + * put_hwpoison_page() - Put refcount for memory error handling:
+> + * @page:	raw error page (hit by memory error)
+> + */
+> +void put_hwpoison_page(struct page *page)
+> +{
+> +	struct page *head =3D compound_head(page);
+> +
+> +	if (PageHuge(head)) {
+> +		put_page(head);
+> +		return;
+> +	}
+> +
+> +	if (PageTransHuge(head))
+> +		if (page !=3D head)
+> +			put_page(head);
+> +
+> +	put_page(page);
+> +}
+> +EXPORT_SYMBOL_GPL(put_hwpoison_page);
+> +
+>  /*
+>   * Do all that is necessary to remove user space mappings. Unmap
+>   * the pages and send SIGBUS to the processes if the data was dirty.
+> --=20
+> 1.7.1
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
