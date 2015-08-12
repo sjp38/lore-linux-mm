@@ -1,109 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A230F6B0038
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 20:13:04 -0400 (EDT)
-Received: by pacgr6 with SMTP id gr6so1269194pac.2
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 17:13:04 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id f2si6329272pat.213.2015.08.11.17.13.02
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Aug 2015 17:13:03 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t7C0D0vF026935
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 09:13:00 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 3/3] Documentation/filesystems/proc.txt: document
- hugetlb RSS
-Date: Wed, 12 Aug 2015 00:03:37 +0000
-Message-ID: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150807155537.d483456f753355059f9ce10a@linux-foundation.org>
- <1439167624-17772-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1439167624-17772-4-git-send-email-n-horiguchi@ah.jp.nec.com>
- <alpine.DEB.2.10.1508101741020.28691@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1508101741020.28691@chino.kir.corp.google.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <7EA4607A9ADC294FB893116C028E679D@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E36B6B0038
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 21:53:57 -0400 (EDT)
+Received: by pacrr5 with SMTP id rr5so2922307pac.3
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 18:53:57 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id bm6si6759120pad.85.2015.08.11.18.53.56
+        for <linux-mm@kvack.org>;
+        Tue, 11 Aug 2015 18:53:56 -0700 (PDT)
+Subject: Re: [PATCH 1/5] x86, gfp: Cache best near node for memory allocation.
+References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1436261425-29881-2-git-send-email-tangchen@cn.fujitsu.com>
+ <20150715214802.GL15934@mtj.duckdns.org> <55C03332.2030808@cn.fujitsu.com>
+ <55C0725B.80201@linux.intel.com> <55C6EFFF.5070605@cn.fujitsu.com>
+From: Jiang Liu <jiang.liu@linux.intel.com>
+Message-ID: <55CAA72F.8050308@linux.intel.com>
+Date: Wed, 12 Aug 2015 09:53:51 +0800
 MIME-Version: 1.0
+In-Reply-To: <55C6EFFF.5070605@cn.fujitsu.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>
+Cc: mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, laijs@cn.fujitsu.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-T24gTW9uLCBBdWcgMTAsIDIwMTUgYXQgMDU6NDQ6NTRQTSAtMDcwMCwgRGF2aWQgUmllbnRqZXMg
-d3JvdGU6DQo+IE9uIE1vbiwgMTAgQXVnIDIwMTUsIE5hb3lhIEhvcmlndWNoaSB3cm90ZToNCj4g
-DQo+ID4gZGlmZiAtLWdpdCB2NC4yLXJjNC5vcmlnL0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMv
-cHJvYy50eHQgdjQuMi1yYzQvRG9jdW1lbnRhdGlvbi9maWxlc3lzdGVtcy9wcm9jLnR4dA0KPiA+
-IGluZGV4IDZmN2ZhZmRlMDg4NC4uY2I4NTY1ZTE1MGVkIDEwMDY0NA0KPiA+IC0tLSB2NC4yLXJj
-NC5vcmlnL0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMvcHJvYy50eHQNCj4gPiArKysgdjQuMi1y
-YzQvRG9jdW1lbnRhdGlvbi9maWxlc3lzdGVtcy9wcm9jLnR4dA0KPiA+IEBAIC0xNjgsNiArMTY4
-LDcgQEAgRm9yIGV4YW1wbGUsIHRvIGdldCB0aGUgc3RhdHVzIGluZm9ybWF0aW9uIG9mIGEgcHJv
-Y2VzcywgYWxsIHlvdSBoYXZlIHRvIGRvIGlzDQo+ID4gICAgVm1MY2s6ICAgICAgICAgMCBrQg0K
-PiA+ICAgIFZtSFdNOiAgICAgICA0NzYga0INCj4gPiAgICBWbVJTUzogICAgICAgNDc2IGtCDQo+
-ID4gKyAgVm1IdWdldGxiUlNTOiAgMCBrQg0KPiA+ICAgIFZtRGF0YTogICAgICAxNTYga0INCj4g
-PiAgICBWbVN0azogICAgICAgIDg4IGtCDQo+ID4gICAgVm1FeGU6ICAgICAgICA2OCBrQg0KPiA+
-IEBAIC0yMzAsNiArMjMxLDcgQEAgVGFibGUgMS0yOiBDb250ZW50cyBvZiB0aGUgc3RhdHVzIGZp
-bGVzIChhcyBvZiA0LjEpDQo+ID4gICBWbUxjayAgICAgICAgICAgICAgICAgICAgICAgbG9ja2Vk
-IG1lbW9yeSBzaXplDQo+ID4gICBWbUhXTSAgICAgICAgICAgICAgICAgICAgICAgcGVhayByZXNp
-ZGVudCBzZXQgc2l6ZSAoImhpZ2ggd2F0ZXIgbWFyayIpDQo+ID4gICBWbVJTUyAgICAgICAgICAg
-ICAgICAgICAgICAgc2l6ZSBvZiBtZW1vcnkgcG9ydGlvbnMNCj4gPiArIFZtSHVnZXRsYlJTUyAg
-ICAgICAgICAgICAgICBzaXplIG9mIGh1Z2V0bGIgbWVtb3J5IHBvcnRpb25zDQo+ID4gICBWbURh
-dGEgICAgICAgICAgICAgICAgICAgICAgc2l6ZSBvZiBkYXRhLCBzdGFjaywgYW5kIHRleHQgc2Vn
-bWVudHMNCj4gPiAgIFZtU3RrICAgICAgICAgICAgICAgICAgICAgICBzaXplIG9mIGRhdGEsIHN0
-YWNrLCBhbmQgdGV4dCBzZWdtZW50cw0KPiA+ICAgVm1FeGUgICAgICAgICAgICAgICAgICAgICAg
-IHNpemUgb2YgdGV4dCBzZWdtZW50DQo+ID4gQEAgLTQ0MCw4ICs0NDIsMTIgQEAgaW5kaWNhdGVz
-IHRoZSBhbW91bnQgb2YgbWVtb3J5IGN1cnJlbnRseSBtYXJrZWQgYXMgcmVmZXJlbmNlZCBvciBh
-Y2Nlc3NlZC4NCj4gPiAgIkFub255bW91cyIgc2hvd3MgdGhlIGFtb3VudCBvZiBtZW1vcnkgdGhh
-dCBkb2VzIG5vdCBiZWxvbmcgdG8gYW55IGZpbGUuICBFdmVuDQo+ID4gIGEgbWFwcGluZyBhc3Nv
-Y2lhdGVkIHdpdGggYSBmaWxlIG1heSBjb250YWluIGFub255bW91cyBwYWdlczogd2hlbiBNQVBf
-UFJJVkFURQ0KPiA+ICBhbmQgYSBwYWdlIGlzIG1vZGlmaWVkLCB0aGUgZmlsZSBwYWdlIGlzIHJl
-cGxhY2VkIGJ5IGEgcHJpdmF0ZSBhbm9ueW1vdXMgY29weS4NCj4gPiAtIlN3YXAiIHNob3dzIGhv
-dyBtdWNoIHdvdWxkLWJlLWFub255bW91cyBtZW1vcnkgaXMgYWxzbyB1c2VkLCBidXQgb3V0IG9u
-DQo+ID4gLXN3YXAuDQo+ID4gKyJTd2FwIiBzaG93cyBob3cgbXVjaCB3b3VsZC1iZS1hbm9ueW1v
-dXMgbWVtb3J5IGlzIGFsc28gdXNlZCwgYnV0IG91dCBvbiBzd2FwLg0KPiA+ICtTaW5jZSA0LjMs
-ICJSU1MiIGNvbnRhaW5zIHRoZSBhbW91bnQgb2YgbWFwcGluZ3MgZm9yIGh1Z2V0bGIgcGFnZXMu
-IEFsdGhvdWdoDQo+ID4gK1JTUyBvZiBodWdldGxiIG1hcHBpbmdzIGlzIG1haW50YWluZWQgc2Vw
-YXJhdGVseSBmcm9tIG5vcm1hbCBtYXBwaW5ncw0KPiA+ICsoZGlzcGxheWVkIGluICJWbUh1Z2V0
-bGJSU1MiIGZpZWxkIG9mIC9wcm9jL1BJRC9zdGF0dXMsKSAvcHJvYy9QSUQvc21hcHMgc2hvd3MN
-Cj4gPiArYm90aCBtYXBwaW5ncyBpbiAiUlNTIiBmaWVsZC4gVXNlcnNwYWNlIGFwcGxpY2F0aW9u
-cyBjbGVhcmx5IGRpc3Rpbmd1aXNoIHRoZQ0KPiA+ICt0eXBlIG9mIG1hcHBpbmcgd2l0aCAnaHQn
-IGZsYWcgaW4gIlZtRmxhZ3MiIGZpZWxkLg0KPiA+ICANCj4gPiAgIlZtRmxhZ3MiIGZpZWxkIGRl
-c2VydmVzIGEgc2VwYXJhdGUgZGVzY3JpcHRpb24uIFRoaXMgbWVtYmVyIHJlcHJlc2VudHMgdGhl
-IGtlcm5lbA0KPiA+ICBmbGFncyBhc3NvY2lhdGVkIHdpdGggdGhlIHBhcnRpY3VsYXIgdmlydHVh
-bCBtZW1vcnkgYXJlYSBpbiB0d28gbGV0dGVyIGVuY29kZWQNCj4gDQo+IE15IG9iamVjdGlvbiB0
-byBhZGRpbmcgaHVnZXRsYiBtZW1vcnkgdG8gdGhlIFJTUyBmaWVsZCBvZiAvcHJvYy9waWQvc21h
-cHMgDQo+IHN0aWxsIHN0YW5kcyBhbmQgY2FuIGJlIGFkZHJlc3NlZCBpbiB0aGUgdGhyZWFkIG9m
-IHRoZSBmaXJzdCBwYXRjaC4gIFNpbmNlIA0KPiB0aGlzIGluY2x1ZGVzIHdvcmRpbmcgdGhhdCBk
-ZXNjcmliZXMgdGhhdCBjaGFuZ2UsIHRoZW4gdGhlIG9iamVjdGlvbiB3b3VsZCANCj4gYWxzbyBj
-b3ZlciB0aGF0Lg0KDQpPSywgSSdsbCB1cGRhdGUgdGhpcyBpbiBhY2NvcmRhbmNlIHdpdGggdGhl
-IGNoYW5nZSBvbiB0aGUgZmlyc3QgcGF0Y2guDQoNCj4gV2l0aCByZWdhcmQgdG8gYWRkaW5nIFZt
-SHVnZXRsYlJTUywgSSB0aGluayB0aGUgY2hhbmdlIGlzIGZpbmUsIGFuZCBJIA0KPiBhcHByZWNp
-YXRlIHRoYXQgeW91IGNhbGwgaXQgVm1IdWdldGxiUlNTIGFuZCBub3QgVm1IdWdlUlNTIHNpbmNl
-IHRoYXQgDQo+IHdvdWxkIGJlIGNvbmZ1c2VkIHdpdGggdGhwLg0KDQpJIHBsYW4gdG8gcmVuYW1l
-IHRoZSBmaWVsZCwgdGhlbiB0aGUgbmV3IG5hbWUgd2lsbC9zaG91bGQgYmUgdW5jb25mdXNpbmcN
-CmJldHdlZW4gdGhwIGFuZCBodWdldGxiLg0KDQo+IE15IG9ubHkgY29uY2VybiByZWdhcmRpbmcg
-Vm1IdWdldGxiUlNTIHdvdWxkIGJlIGV4dGVuZGFiaWxpdHkgYW5kIHdoZXRoZXIgDQo+IHdlIHdp
-bGwgZXZlbnR1YWxseSwgb3IgZXZlbiB0b2RheSwgd2FudCB0byBkaWZmZXJlbnRpYXRlIGJldHdl
-ZW4gdmFyaW91cyANCj4gaHVnZXRsYiBwYWdlIHNpemVzLiAgRm9yIGV4YW1wbGUsIGlmIDFHQiBo
-dWdldGxiIHBhZ2VzIG9uIHg4NiBhcmUgYSANCj4gcHJlY2lvdXMgcmVzb3VyY2UsIHRoZW4gaG93
-IGRvIEkgZGV0ZXJtaW5lIHdoaWNoIHByb2Nlc3MgaGFzIG1hcHBlZCBpdCANCj4gcmF0aGVyIHRo
-YW4gNTEyIDJNQiBodWdldGxiIHBhZ2VzPw0KDQoiS2VybmVsUGFnZVNpemUiIGZpZWxkIGluIC9w
-cm9jL1BJRC9zbWFwcyBpcyBhd2FyZSBvZiBodWdldGxiIHBhZ2Ugc2l6ZXMsDQpzbyBJIGV4cGVj
-dGVkIHVzZXJzcGFjZSB0byBkZXRlY3QgdGhlIHNpemUgaXRzZWxmLiBCdXQgL3Byb2MvUElEL3N0
-YXR1cyBzaG93cw0Kb25seSBwcm9jY2Vzcy13aWRlIGluZm8sIHNvIHVzZXJzcGFjZSBhcHBsaWNh
-dGlvbnMgbXVzdCByZWFkIGJvdGggb2YgdGhlc2UNCmZpbGVzIHRvIGtub3cgdGhlIHVzYWdlIHBl
-ciBodWdlcGFnZSBzaXplLCB3aGljaCBtaWdodCBiZSBpbmNvbnZlbmllbnQuDQoNCk9uZSBpZGVh
-IGlzIHRvIHNob3cgdGhlIG5ldyBmaWVsZCBsaWtlICJWbUh1Z2V0bGJSU1M6IDJ4NTEya0IgMXgx
-R0IiIGZvcg0KYm90aCBvZiAvcHJvYy9QSUQve3N0YXR1cyxzbWFwc30sIHdoaWNoIHBhc3NlcyB0
-aGUgZnVsbCBodWdldGxiIGluZm8gaW4gYQ0Kc2luZ2xlIGxpbmUgc28gZWFzaWVyIHRvIHBhcnNl
-IGFuZCBwcm9jZXNzLiBPciBzb21lIG90aGVyIGZpZWxkcyBzaG93cyBpbg0KImtCIiwgc28gIlZt
-SHVnZXRsYlJTUzogMTA1MjY3MiBrQiAoMng1MTJrQiAxeDFHQikiIGlzIHBvc3NpYmxlIGZvciBo
-dW1hbg0KcmVhZGFiaWxpdHkuDQoNClRoYW5rIHlvdSB2ZXJ5IG11Y2ggZm9yIHRoZSBmZWVkYmFj
-aywgSSdsbCByZXBvc3Qgc29vbiwgYnV0IGFueSBhZGRpdGlvbmFsDQpjb21tZW50IGlzIGFwcHJl
-Y2lhdGVkLg0KDQpOYW95YQ==
+On 2015/8/9 14:15, Tang Chen wrote:
+> Hi Liu,
+> 
+> Have you posted your new patches ?
+> (I mean memory-less node support patches.)
+Hi Chen,
+	I have rebased my patches to v4.2-rc4, but unfortunately
+it breaks. Seems there are some changes in x86 NUMA support since
+3.17. I need some time to figure it out.
+
+> 
+> If you are going to post them, please cc me.
+Sure.
+
+> 
+> And BTW, how did you reproduce the memory-less node problem ?
+> Do you have a real memory-less node on your machine ?
+Yes, we have a system with memoryless nodes.
+Thanks!
+Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
