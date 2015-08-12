@@ -1,85 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CE7C6B0038
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 03:54:28 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so89499460wic.0
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 00:54:27 -0700 (PDT)
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com. [209.85.212.173])
-        by mx.google.com with ESMTPS id o3si9110390wix.62.2015.08.12.00.54.25
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F67C6B0038
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 03:58:04 -0400 (EDT)
+Received: by pdbfa8 with SMTP id fa8so4707159pdb.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 00:58:04 -0700 (PDT)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id ck5si8189565pdb.78.2015.08.12.00.58.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Aug 2015 00:54:26 -0700 (PDT)
-Received: by wicne3 with SMTP id ne3so89498233wic.0
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 00:54:25 -0700 (PDT)
-Message-ID: <55CAFBAF.104@plexistor.com>
-Date: Wed, 12 Aug 2015 10:54:23 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 12 Aug 2015 00:58:03 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t7C7w0vS012927
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 16:58:00 +0900 (JST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v4 1/2] mm: hugetlb: proc: add HugetlbPages field to
+ /proc/PID/smaps
+Date: Wed, 12 Aug 2015 07:45:27 +0000
+Message-ID: <1439365520-12605-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Subject: Re: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
-References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com> <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com> <20150811081909.GD2650@quack.suse.cz> <20150811093708.GB906@dastard> <20150811135004.GC2659@quack.suse.cz> <55CA0728.7060001@plexistor.com> <20150811152850.GA2608@node.dhcp.inet.fi> <55CA2008.7070702@plexistor.com> <20150811202639.GA1408@node.dhcp.inet.fi>
-In-Reply-To: <20150811202639.GA1408@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, Theodore Ts'o <tytso@mit.edu>
+To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On 08/11/2015 11:26 PM, Kirill A. Shutemov wrote:
-> On Tue, Aug 11, 2015 at 07:17:12PM +0300, Boaz Harrosh wrote:
->> On 08/11/2015 06:28 PM, Kirill A. Shutemov wrote:
->>> We also used lock_page() to make sure we shoot out all pages as we don't
->>> exclude page faults during truncate. Consider this race:
->>>
->>> 	<fault>			<truncate>
->>> 	get_block
->>> 	check i_size
->>>     				update i_size
->>> 				unmap
->>> 	setup pte
->>>
->>
->> Please consider this senario then:
->>
->>  	<fault>			<truncate>
->> 	read_lock(inode)
->>
->>  	get_block
->>  	check i_size
->> 	
->> 	read_unlock(inode)
->>
->> 				write_lock(inode)
->>
->>      				update i_size
->> 				* remove allocated blocks
->>  				unmap
->>
->> 				write_unlock(inode)
->>
->>  	setup pte
->>
->> IS what you suppose to do in xfs
-> 
-> Do you realize that you describe a race? :-P
-> 
-> Exactly in this scenario pfn your pte point to is not belong to the file
-> anymore. Have fun.
-> 
-
-Sorry yes I have written it wrong, I have now returned to read the actual code
-and the setup pte part is also part of the read lock inside the fault handler
-before the release of the r_lock.
-Da of course it is, it is the page_fault handler that does the
-vm_insert_mixed(vma,,pfn) and in the case of concurrent faults the second
-call to vm_insert_mixed will return -EBUSY which means all is well.
-
-So the only thing left is the fault-to-fault zero-the-page race as Matthew described
-and as Dave and me think we can make this part of the FS's get_block where it is
-more natural.
-
-Thanks
-Boaz
+Q3VycmVudGx5IC9wcm9jL1BJRC9zbWFwcyBwcm92aWRlcyBubyB1c2FnZSBpbmZvIGZvciB2bWEo
+Vk1fSFVHRVRMQiksIHdoaWNoDQppcyBpbmNvbnZlbmllbnQgd2hlbiB3ZSB3YW50IHRvIGtub3cg
+cGVyLXRhc2sgb3IgcGVyLXZtYSBiYXNlIGh1Z2V0bGIgdXNhZ2UuDQpUbyBzb2x2ZSB0aGlzLCB0
+aGlzIHBhdGNoIGFkZHMgYSBuZXcgbGluZSBmb3IgaHVnZXRsYiB1c2FnZSBsaWtlIGJlbG93Og0K
+DQogIFNpemU6ICAgICAgICAgICAgICAyMDQ4MCBrQg0KICBSc3M6ICAgICAgICAgICAgICAgICAg
+IDAga0INCiAgUHNzOiAgICAgICAgICAgICAgICAgICAwIGtCDQogIFNoYXJlZF9DbGVhbjogICAg
+ICAgICAgMCBrQg0KICBTaGFyZWRfRGlydHk6ICAgICAgICAgIDAga0INCiAgUHJpdmF0ZV9DbGVh
+bjogICAgICAgICAwIGtCDQogIFByaXZhdGVfRGlydHk6ICAgICAgICAgMCBrQg0KICBSZWZlcmVu
+Y2VkOiAgICAgICAgICAgIDAga0INCiAgQW5vbnltb3VzOiAgICAgICAgICAgICAwIGtCDQogIEFu
+b25IdWdlUGFnZXM6ICAgICAgICAgMCBrQg0KICBIdWdldGxiUGFnZXM6ICAgICAgMTg0MzIga0IN
+CiAgU3dhcDogICAgICAgICAgICAgICAgICAwIGtCDQogIEtlcm5lbFBhZ2VTaXplOiAgICAgMjA0
+OCBrQg0KICBNTVVQYWdlU2l6ZTogICAgICAgIDIwNDgga0INCiAgTG9ja2VkOiAgICAgICAgICAg
+ICAgICAwIGtCDQogIFZtRmxhZ3M6IHJkIHdyIG1yIG13IG1lIGRlIGh0DQoNClNpZ25lZC1vZmYt
+Ynk6IE5hb3lhIEhvcmlndWNoaSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbT4NCi0tLQ0KdjMg
+LT4gdjQ6DQotIHN1c3BlbmQgQWNrZWQtYnkgdGFnIGJlY2F1c2UgdjMtPnY0IGNoYW5nZSBpcyBu
+b3QgdHJpdmlhbA0KLSBJIHN0YXRlZCBpbiBwcmV2aW91cyBkaXNjdXNzaW9uIHRoYXQgSHVnZXRs
+YlBhZ2VzIGxpbmUgY2FuIGNvbnRhaW4gcGFnZQ0KICBzaXplIGluZm8sIGJ1dCB0aGF0J3Mgbm90
+IG5lY2Vzc2FyeSBiZWNhdXNlIHdlIGFscmVhZHkgaGF2ZSBLZXJuZWxQYWdlU2l6ZQ0KICBpbmZv
+Lg0KLSBtZXJnZWQgZG9jdW1lbnRhdGlvbiB1cGRhdGUsIHdoZXJlIHRoZSBjdXJyZW50IGRvY3Vt
+ZW50YXRpb24gZG9lc24ndCBtZW50aW9uDQogIEFub25IdWdlUGFnZXMsIHNvIGl0J3MgYWxzbyBh
+ZGRlZC4NCi0tLQ0KIERvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMvcHJvYy50eHQgfCAgNyArKysr
+Ky0tDQogZnMvcHJvYy90YXNrX21tdS5jICAgICAgICAgICAgICAgICB8IDI5ICsrKysrKysrKysr
+KysrKysrKysrKysrKysrKysrDQogMiBmaWxlcyBjaGFuZ2VkLCAzNCBpbnNlcnRpb25zKCspLCAy
+IGRlbGV0aW9ucygtKQ0KDQpkaWZmIC0tZ2l0IHY0LjItcmM0Lm9yaWcvRG9jdW1lbnRhdGlvbi9m
+aWxlc3lzdGVtcy9wcm9jLnR4dCB2NC4yLXJjNC9Eb2N1bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3By
+b2MudHh0DQppbmRleCA2ZjdmYWZkZTA4ODQuLjIyZTQwMjExZWY2NCAxMDA2NDQNCi0tLSB2NC4y
+LXJjNC5vcmlnL0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMvcHJvYy50eHQNCisrKyB2NC4yLXJj
+NC9Eb2N1bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3Byb2MudHh0DQpAQCAtNDIzLDYgKzQyMyw4IEBA
+IFByaXZhdGVfQ2xlYW46ICAgICAgICAgMCBrQg0KIFByaXZhdGVfRGlydHk6ICAgICAgICAgMCBr
+Qg0KIFJlZmVyZW5jZWQ6ICAgICAgICAgIDg5MiBrQg0KIEFub255bW91czogICAgICAgICAgICAg
+MCBrQg0KK0Fub25IdWdlUGFnZXM6ICAgICAgICAgMCBrQg0KK0h1Z2V0bGJQYWdlczogICAgICAg
+ICAgMCBrQg0KIFN3YXA6ICAgICAgICAgICAgICAgICAgMCBrQg0KIEtlcm5lbFBhZ2VTaXplOiAg
+ICAgICAgNCBrQg0KIE1NVVBhZ2VTaXplOiAgICAgICAgICAgNCBrQg0KQEAgLTQ0MCw4ICs0NDIs
+OSBAQCBpbmRpY2F0ZXMgdGhlIGFtb3VudCBvZiBtZW1vcnkgY3VycmVudGx5IG1hcmtlZCBhcyBy
+ZWZlcmVuY2VkIG9yIGFjY2Vzc2VkLg0KICJBbm9ueW1vdXMiIHNob3dzIHRoZSBhbW91bnQgb2Yg
+bWVtb3J5IHRoYXQgZG9lcyBub3QgYmVsb25nIHRvIGFueSBmaWxlLiAgRXZlbg0KIGEgbWFwcGlu
+ZyBhc3NvY2lhdGVkIHdpdGggYSBmaWxlIG1heSBjb250YWluIGFub255bW91cyBwYWdlczogd2hl
+biBNQVBfUFJJVkFURQ0KIGFuZCBhIHBhZ2UgaXMgbW9kaWZpZWQsIHRoZSBmaWxlIHBhZ2UgaXMg
+cmVwbGFjZWQgYnkgYSBwcml2YXRlIGFub255bW91cyBjb3B5Lg0KLSJTd2FwIiBzaG93cyBob3cg
+bXVjaCB3b3VsZC1iZS1hbm9ueW1vdXMgbWVtb3J5IGlzIGFsc28gdXNlZCwgYnV0IG91dCBvbg0K
+LXN3YXAuDQorIkFub25IdWdlUGFnZXMiIHNob3dzIHRoZSBhbW1vdW50IG9mIG1lbW9yeSBiYWNr
+ZWQgYnkgdHJhbnNwYXJlbnQgaHVnZXBhZ2UuDQorIkh1Z2V0bGJQYWdlcyIgc2hvd3MgdGhlIGFt
+bW91bnQgb2YgbWVtb3J5IGJhY2tlZCBieSBodWdldGxiZnMgcGFnZS4NCisiU3dhcCIgc2hvd3Mg
+aG93IG11Y2ggd291bGQtYmUtYW5vbnltb3VzIG1lbW9yeSBpcyBhbHNvIHVzZWQsIGJ1dCBvdXQg
+b24gc3dhcC4NCiANCiAiVm1GbGFncyIgZmllbGQgZGVzZXJ2ZXMgYSBzZXBhcmF0ZSBkZXNjcmlw
+dGlvbi4gVGhpcyBtZW1iZXIgcmVwcmVzZW50cyB0aGUga2VybmVsDQogZmxhZ3MgYXNzb2NpYXRl
+ZCB3aXRoIHRoZSBwYXJ0aWN1bGFyIHZpcnR1YWwgbWVtb3J5IGFyZWEgaW4gdHdvIGxldHRlciBl
+bmNvZGVkDQpkaWZmIC0tZ2l0IHY0LjItcmM0Lm9yaWcvZnMvcHJvYy90YXNrX21tdS5jIHY0LjIt
+cmM0L2ZzL3Byb2MvdGFza19tbXUuYw0KaW5kZXggY2ExZTA5MTg4MWQ0Li4yYzM3OTM4YjgyZWUg
+MTAwNjQ0DQotLS0gdjQuMi1yYzQub3JpZy9mcy9wcm9jL3Rhc2tfbW11LmMNCisrKyB2NC4yLXJj
+NC9mcy9wcm9jL3Rhc2tfbW11LmMNCkBAIC00NDUsNiArNDQ1LDcgQEAgc3RydWN0IG1lbV9zaXpl
+X3N0YXRzIHsNCiAJdW5zaWduZWQgbG9uZyBhbm9ueW1vdXM7DQogCXVuc2lnbmVkIGxvbmcgYW5v
+bnltb3VzX3RocDsNCiAJdW5zaWduZWQgbG9uZyBzd2FwOw0KKwl1bnNpZ25lZCBsb25nIGh1Z2V0
+bGI7DQogCXU2NCBwc3M7DQogfTsNCiANCkBAIC02MTAsMTIgKzYxMSwzOCBAQCBzdGF0aWMgdm9p
+ZCBzaG93X3NtYXBfdm1hX2ZsYWdzKHN0cnVjdCBzZXFfZmlsZSAqbSwgc3RydWN0IHZtX2FyZWFf
+c3RydWN0ICp2bWEpDQogCXNlcV9wdXRjKG0sICdcbicpOw0KIH0NCiANCisjaWZkZWYgQ09ORklH
+X0hVR0VUTEJfUEFHRQ0KK3N0YXRpYyBpbnQgc21hcHNfaHVnZXRsYl9yYW5nZShwdGVfdCAqcHRl
+LCB1bnNpZ25lZCBsb25nIGhtYXNrLA0KKwkJCQkgdW5zaWduZWQgbG9uZyBhZGRyLCB1bnNpZ25l
+ZCBsb25nIGVuZCwNCisJCQkJIHN0cnVjdCBtbV93YWxrICp3YWxrKQ0KK3sNCisJc3RydWN0IG1l
+bV9zaXplX3N0YXRzICptc3MgPSB3YWxrLT5wcml2YXRlOw0KKwlzdHJ1Y3Qgdm1fYXJlYV9zdHJ1
+Y3QgKnZtYSA9IHdhbGstPnZtYTsNCisJc3RydWN0IHBhZ2UgKnBhZ2UgPSBOVUxMOw0KKw0KKwlp
+ZiAocHRlX3ByZXNlbnQoKnB0ZSkpIHsNCisJCXBhZ2UgPSB2bV9ub3JtYWxfcGFnZSh2bWEsIGFk
+ZHIsICpwdGUpOw0KKwl9IGVsc2UgaWYgKGlzX3N3YXBfcHRlKCpwdGUpKSB7DQorCQlzd3BfZW50
+cnlfdCBzd3BlbnQgPSBwdGVfdG9fc3dwX2VudHJ5KCpwdGUpOw0KKw0KKwkJaWYgKGlzX21pZ3Jh
+dGlvbl9lbnRyeShzd3BlbnQpKQ0KKwkJCXBhZ2UgPSBtaWdyYXRpb25fZW50cnlfdG9fcGFnZShz
+d3BlbnQpOw0KKwl9DQorCWlmIChwYWdlKQ0KKwkJbXNzLT5odWdldGxiICs9IGh1Z2VfcGFnZV9z
+aXplKGhzdGF0ZV92bWEodm1hKSk7DQorCXJldHVybiAwOw0KK30NCisjZW5kaWYgLyogSFVHRVRM
+Ql9QQUdFICovDQorDQogc3RhdGljIGludCBzaG93X3NtYXAoc3RydWN0IHNlcV9maWxlICptLCB2
+b2lkICp2LCBpbnQgaXNfcGlkKQ0KIHsNCiAJc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEgPSB2
+Ow0KIAlzdHJ1Y3QgbWVtX3NpemVfc3RhdHMgbXNzOw0KIAlzdHJ1Y3QgbW1fd2FsayBzbWFwc193
+YWxrID0gew0KIAkJLnBtZF9lbnRyeSA9IHNtYXBzX3B0ZV9yYW5nZSwNCisjaWZkZWYgQ09ORklH
+X0hVR0VUTEJfUEFHRQ0KKwkJLmh1Z2V0bGJfZW50cnkgPSBzbWFwc19odWdldGxiX3JhbmdlLA0K
+KyNlbmRpZg0KIAkJLm1tID0gdm1hLT52bV9tbSwNCiAJCS5wcml2YXRlID0gJm1zcywNCiAJfTsN
+CkBAIC02MzcsNiArNjY0LDcgQEAgc3RhdGljIGludCBzaG93X3NtYXAoc3RydWN0IHNlcV9maWxl
+ICptLCB2b2lkICp2LCBpbnQgaXNfcGlkKQ0KIAkJICAgIlJlZmVyZW5jZWQ6ICAgICAlOGx1IGtC
+XG4iDQogCQkgICAiQW5vbnltb3VzOiAgICAgICU4bHUga0JcbiINCiAJCSAgICJBbm9uSHVnZVBh
+Z2VzOiAgJThsdSBrQlxuIg0KKwkJICAgIkh1Z2V0bGJQYWdlczogICAlOGx1IGtCXG4iDQogCQkg
+ICAiU3dhcDogICAgICAgICAgICU4bHUga0JcbiINCiAJCSAgICJLZXJuZWxQYWdlU2l6ZTogJThs
+dSBrQlxuIg0KIAkJICAgIk1NVVBhZ2VTaXplOiAgICAlOGx1IGtCXG4iDQpAQCAtNjUxLDYgKzY3
+OSw3IEBAIHN0YXRpYyBpbnQgc2hvd19zbWFwKHN0cnVjdCBzZXFfZmlsZSAqbSwgdm9pZCAqdiwg
+aW50IGlzX3BpZCkNCiAJCSAgIG1zcy5yZWZlcmVuY2VkID4+IDEwLA0KIAkJICAgbXNzLmFub255
+bW91cyA+PiAxMCwNCiAJCSAgIG1zcy5hbm9ueW1vdXNfdGhwID4+IDEwLA0KKwkJICAgbXNzLmh1
+Z2V0bGIgPj4gMTAsDQogCQkgICBtc3Muc3dhcCA+PiAxMCwNCiAJCSAgIHZtYV9rZXJuZWxfcGFn
+ZXNpemUodm1hKSA+PiAxMCwNCiAJCSAgIHZtYV9tbXVfcGFnZXNpemUodm1hKSA+PiAxMCwNCi0t
+IA0KMi40LjMNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
