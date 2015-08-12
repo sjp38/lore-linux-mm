@@ -1,50 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E36B6B0038
-	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 21:53:57 -0400 (EDT)
-Received: by pacrr5 with SMTP id rr5so2922307pac.3
-        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 18:53:57 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id bm6si6759120pad.85.2015.08.11.18.53.56
-        for <linux-mm@kvack.org>;
-        Tue, 11 Aug 2015 18:53:56 -0700 (PDT)
-Subject: Re: [PATCH 1/5] x86, gfp: Cache best near node for memory allocation.
-References: <1436261425-29881-1-git-send-email-tangchen@cn.fujitsu.com>
- <1436261425-29881-2-git-send-email-tangchen@cn.fujitsu.com>
- <20150715214802.GL15934@mtj.duckdns.org> <55C03332.2030808@cn.fujitsu.com>
- <55C0725B.80201@linux.intel.com> <55C6EFFF.5070605@cn.fujitsu.com>
-From: Jiang Liu <jiang.liu@linux.intel.com>
-Message-ID: <55CAA72F.8050308@linux.intel.com>
-Date: Wed, 12 Aug 2015 09:53:51 +0800
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id E56AC6B0038
+	for <linux-mm@kvack.org>; Tue, 11 Aug 2015 22:30:28 -0400 (EDT)
+Received: by igui7 with SMTP id i7so53166086igu.1
+        for <linux-mm@kvack.org>; Tue, 11 Aug 2015 19:30:28 -0700 (PDT)
+Received: from BLU004-OMC1S31.hotmail.com (blu004-omc1s31.hotmail.com. [65.55.116.42])
+        by mx.google.com with ESMTPS id h5si2924620igt.89.2015.08.11.19.30.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 11 Aug 2015 19:30:28 -0700 (PDT)
+Message-ID: <BLU436-SMTP2364526E166A607E08BB09807E0@phx.gbl>
+Subject: Re: [PATCH v2 3/5] mm/hwpoison: introduce put_hwpoison_page to put
+ refcount for memory error handling
+References: <1439206103-86829-1-git-send-email-wanpeng.li@hotmail.com>
+ <BLU436-SMTP127AFDD347F96AC6BDED54C80700@phx.gbl>
+ <20150811162449.77212ec2a80258f5aff8a224@linux-foundation.org>
+From: Wanpeng Li <wanpeng.li@hotmail.com>
+Date: Wed, 12 Aug 2015 10:30:21 +0800
 MIME-Version: 1.0
-In-Reply-To: <55C6EFFF.5070605@cn.fujitsu.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20150811162449.77212ec2a80258f5aff8a224@linux-foundation.org>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>
-Cc: mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, laijs@cn.fujitsu.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2015/8/9 14:15, Tang Chen wrote:
-> Hi Liu,
-> 
-> Have you posted your new patches ?
-> (I mean memory-less node support patches.)
-Hi Chen,
-	I have rebased my patches to v4.2-rc4, but unfortunately
-it breaks. Seems there are some changes in x86 NUMA support since
-3.17. I need some time to figure it out.
 
-> 
-> If you are going to post them, please cc me.
-Sure.
 
-> 
-> And BTW, how did you reproduce the memory-less node problem ?
-> Do you have a real memory-less node on your machine ?
-Yes, we have a system with memoryless nodes.
-Thanks!
-Gerry
+On 8/12/15 7:24 AM, Andrew Morton wrote:
+> On Mon, 10 Aug 2015 19:28:21 +0800 Wanpeng Li <wanpeng.li@hotmail.com> wrote:
+>
+>> Introduce put_hwpoison_page to put refcount for memory
+>> error handling.
+>>
+>> ...
+>>
+>> --- a/mm/memory-failure.c
+>> +++ b/mm/memory-failure.c
+>> @@ -922,6 +922,27 @@ int get_hwpoison_page(struct page *page)
+>>   }
+>>   EXPORT_SYMBOL_GPL(get_hwpoison_page);
+>>   
+>> +/**
+>> + * put_hwpoison_page() - Put refcount for memory error handling:
+>> + * @page:	raw error page (hit by memory error)
+>> + */
+>> +void put_hwpoison_page(struct page *page)
+>> +{
+>> +	struct page *head = compound_head(page);
+>> +
+>> +	if (PageHuge(head)) {
+>> +		put_page(head);
+>> +		return;
+>> +	}
+>> +
+>> +	if (PageTransHuge(head))
+>> +		if (page != head)
+>> +			put_page(head);
+>> +
+>> +	put_page(page);
+>> +}
+>> +EXPORT_SYMBOL_GPL(put_hwpoison_page);
+> I don't believe the export is needed?
+
+ERROR: "put_hwpoison_page" [mm/hwpoison-inject.ko] undefined!
+So I'm afraid it should be needed.
+
+Regards,
+Wanpeng Li
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
