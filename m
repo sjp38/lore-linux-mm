@@ -1,64 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 41D006B0038
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 16:30:30 -0400 (EDT)
-Received: by pabyb7 with SMTP id yb7so21493343pab.0
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 13:30:30 -0700 (PDT)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id eh4si11165109pac.140.2015.08.12.13.30.29
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id EFDA96B0038
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 17:16:47 -0400 (EDT)
+Received: by qged69 with SMTP id d69so19579327qge.0
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 14:16:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 195si154380qhb.5.2015.08.12.14.16.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Aug 2015 13:30:29 -0700 (PDT)
-Received: by pacrr5 with SMTP id rr5so21518850pac.3
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 13:30:29 -0700 (PDT)
-Date: Wed, 12 Aug 2015 13:30:27 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v4 2/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/status
-In-Reply-To: <1439365520-12605-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.DEB.2.10.1508121327290.5382@chino.kir.corp.google.com>
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp> <1439365520-12605-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1439365520-12605-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Aug 2015 14:16:46 -0700 (PDT)
+Date: Wed, 12 Aug 2015 14:16:44 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: page-flags behavior on compound pages: a worry
+Message-Id: <20150812141644.ceb541e5b52d76049339a243@linux-foundation.org>
+In-Reply-To: <20150812143509.GA12320@node.dhcp.inet.fi>
+References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1426784902-125149-5-git-send-email-kirill.shutemov@linux.intel.com>
+	<alpine.LSU.2.11.1508052001350.6404@eggly.anvils>
+	<20150806153259.GA2834@node.dhcp.inet.fi>
+	<alpine.LSU.2.11.1508061121120.7500@eggly.anvils>
+	<20150812143509.GA12320@node.dhcp.inet.fi>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 12 Aug 2015, Naoya Horiguchi wrote:
+On Wed, 12 Aug 2015 17:35:09 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-> Currently there's no easy way to get per-process usage of hugetlb pages, which
-> is inconvenient because userspace applications which use hugetlb typically want
-> to control their processes on the basis of how much memory (including hugetlb)
-> they use. So this patch simply provides easy access to the info via
-> /proc/PID/status.
+> On Thu, Aug 06, 2015 at 12:24:22PM -0700, Hugh Dickins wrote:
+> > > IIUC, the only potentially problematic callsites left are physical memory
+> > > scanners. This code requires audit. I'll do that.
+> > 
+> > Please.
 > 
-> With this patch, for example, /proc/PID/status shows a line like this:
+> I haven't finished the exercise yet. But here's an issue I believe present
+> in current *Linus* tree:
 > 
->   HugetlbPages:      20480 kB (10x2048kB)
+> >From e78eec7d7a8c4cba8b5952a997973f7741e704f4 Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Wed, 12 Aug 2015 17:09:16 +0300
+> Subject: [PATCH] mm: fix potential race in isolate_migratepages_block()
 > 
-> If your system supports and enables multiple hugepage sizes, the line looks
-> like this:
+> Hugh has pointed that compound_head() call can be unsafe in some context.
+> There's one example:
 > 
->   HugetlbPages:    1069056 kB (1x1048576kB 10x2048kB)
+> 	CPU0					CPU1
 > 
-> , so you can easily know how many hugepages in which pagesize are used by a
-> process.
+> isolate_migratepages_block()
+>   page_count()
+>     compound_head()
+>       !!PageTail() == true
+> 					put_page()
+> 					  tail->first_page = NULL
+>       head = tail->first_page
+> 					alloc_pages(__GFP_COMP)
+> 					   prep_compound_page()
+> 					     tail->first_page = head
+> 					     __SetPageTail(p);
+>       !!PageTail() == true
+>     <head == NULL dereferencing>
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> The race is pure theoretical. I don't it's possible to trigger it in
+> practice. But who knows.
+> 
+> This can be fixed by avoiding compound_head() in unsafe context.
 
-I'm happy with this and thanks very much for going the extra mile and 
-breaking the usage down by hstate size.
+This is nuts :( page_count() should Just Work without us having to
+worry about bizarre races against splitting.  Sigh.
 
-I'd be interested in the comments of others, though, to see if there is 
-any reservation about the hstate size breakdown.  It may actually find no 
-current customer who is interested in parsing it.  (If we keep it, I would 
-suggest the 'x' change to '*' similar to per-order breakdowns in 
-show_mem()).  It may also be possible to add it later if a definitive 
-usecase is presented.
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -787,7 +787,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>  		 * admittedly racy check.
+>  		 */
+>  		if (!page_mapping(page) &&
+> -		    page_count(page) > page_mapcount(page))
+> +		    atomic_read(&page->_count) > page_mapcount(page))
+>  			continue;
 
-But overall I'm very happy with the new addition and think it's a good 
-solution to the problem.
+If we're going to do this sort of thing, can we please do it in a more
+transparent manner?  Let's not sprinkle unexplained and
+incomprehensible direct accesses to ->_count all over the place.
+
+Create a formal function to do this, with an appropriate name and with
+documentation which fully explains what's going on.  Then use that
+here, and in has_unmovable_pages() (at least).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
