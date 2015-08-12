@@ -1,144 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DC2382F62
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 06:46:04 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so212626639wic.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 03:46:04 -0700 (PDT)
-Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
-        by mx.google.com with ESMTPS id c9si10810218wiw.58.2015.08.12.03.45.39
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 83A1E6B0038
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 07:59:13 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so24539931wic.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 04:59:13 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id t9si11106129wix.105.2015.08.12.04.59.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Aug 2015 03:45:39 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id E988B98942
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 10:45:38 +0000 (UTC)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 10/10] mm, page_alloc: Only enforce watermarks for order-0 allocations
-Date: Wed, 12 Aug 2015 11:45:35 +0100
-Message-Id: <1439376335-17895-11-git-send-email-mgorman@techsingularity.net>
-In-Reply-To: <1439376335-17895-1-git-send-email-mgorman@techsingularity.net>
-References: <1439376335-17895-1-git-send-email-mgorman@techsingularity.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Aug 2015 04:59:11 -0700 (PDT)
+Received: by wicja10 with SMTP id ja10so110255055wic.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 04:59:11 -0700 (PDT)
+Date: Wed, 12 Aug 2015 13:59:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v7 3/6] mm: Introduce VM_LOCKONFAULT
+Message-ID: <20150812115909.GA5182@dhcp22.suse.cz>
+References: <1439097776-27695-1-git-send-email-emunson@akamai.com>
+ <1439097776-27695-4-git-send-email-emunson@akamai.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1439097776-27695-4-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-The primary purpose of watermarks is to ensure that reclaim can always
-make forward progress in PF_MEMALLOC context (kswapd and direct reclaim).
-These assume that order-0 allocations are all that is necessary for
-forward progress.
+On Sun 09-08-15 01:22:53, Eric B Munson wrote:
+> The cost of faulting in all memory to be locked can be very high when
+> working with large mappings.  If only portions of the mapping will be
+> used this can incur a high penalty for locking.
+> 
+> For the example of a large file, this is the usage pattern for a large
+> statical language model (probably applies to other statical or graphical
+> models as well).  For the security example, any application transacting
+> in data that cannot be swapped out (credit card data, medical records,
+> etc).
+> 
+> This patch introduces the ability to request that pages are not
+> pre-faulted, but are placed on the unevictable LRU when they are finally
+> faulted in.  The VM_LOCKONFAULT flag will be used together with
+> VM_LOCKED and has no effect when set without VM_LOCKED.
 
-High-order watermarks serve a different purpose. Kswapd had no high-order
-awareness before they were introduced (https://lkml.org/lkml/2004/9/5/9).
-This was particularly important when there were high-order atomic requests.
-The watermarks both gave kswapd awareness and made a reserve for those
-atomic requests.
+I do not like this very much to be honest. We have only few bits
+left there and it seems this is not really necessary. I thought that
+LOCKONFAULT acts as a modifier to the mlock call to tell whether to
+poppulate or not. The only place we have to persist it is
+mlockall(MCL_FUTURE) AFAICS. And this can be handled by an additional
+field in the mm_struct. This could be handled at __mm_populate level.
+So unless I am missing something this would be much more easier
+in the end we no new bit in VM flags would be necessary.
 
-There are two important side-effects of this. The most important is that
-a non-atomic high-order request can fail even though free pages are available
-and the order-0 watermarks are ok. The second is that high-order watermark
-checks are expensive as the free list counts up to the requested order must
-be examined.
-
-With the introduction of MIGRATE_HIGHATOMIC it is no longer necessary to
-have high-order watermarks. Kswapd and compaction still need high-order
-awareness which is handled by checking that at least one suitable high-order
-page is free.
-
-With the patch applied, there was little difference in the allocation
-failure rates as the atomic reserves are small relative to the number of
-allocation attempts. The expected impact is that there will never be an
-allocation failure report that shows suitable pages on the free lists.
-
-The one potential side-effect of this is that in a vanilla kernel, the
-watermark checks may have kept a free page for an atomic allocation. Now,
-we are 100% relying on the HighAtomic reserves and an early allocation to
-have allocated them.  If the first high-order atomic allocation is after
-the system is already heavily fragmented then it'll fail.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/page_alloc.c | 38 ++++++++++++++++++++++++--------------
- 1 file changed, 24 insertions(+), 14 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c7f78a6cd708..862fdfe2d219 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2265,8 +2265,10 @@ static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
- #endif /* CONFIG_FAIL_PAGE_ALLOC */
- 
- /*
-- * Return true if free pages are above 'mark'. This takes into account the order
-- * of the allocation.
-+ * Return true if free base pages are above 'mark'. For high-order checks it
-+ * will return true of the order-0 watermark is reached and there is at least
-+ * one free page of a suitable size. Checking now avoids taking the zone lock
-+ * to check in the allocation paths if no pages are free.
-  */
- static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 			unsigned long mark, int classzone_idx, int alloc_flags,
-@@ -2274,7 +2276,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- {
- 	long min = mark;
- 	int o;
--	long free_cma = 0;
-+	const bool atomic = (alloc_flags & ALLOC_HARDER);
- 
- 	/* free_pages may go negative - that's OK */
- 	free_pages -= (1 << order) - 1;
-@@ -2286,7 +2288,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 	 * If the caller is not atomic then discount the reserves. This will
- 	 * over-estimate how the atomic reserve but it avoids a search
- 	 */
--	if (likely(!(alloc_flags & ALLOC_HARDER)))
-+	if (likely(!atomic))
- 		free_pages -= z->nr_reserved_highatomic;
- 	else
- 		min -= min / 4;
-@@ -2294,22 +2296,30 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- #ifdef CONFIG_CMA
- 	/* If allocation can't use CMA areas don't use free CMA pages */
- 	if (!(alloc_flags & ALLOC_CMA))
--		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
-+		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
- #endif
- 
--	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
-+	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
- 		return false;
--	for (o = 0; o < order; o++) {
--		/* At the next order, this order's pages become unavailable */
--		free_pages -= z->free_area[o].nr_free << o;
- 
--		/* Require fewer higher order pages to be free */
--		min >>= 1;
-+	/* order-0 watermarks are ok */
-+	if (!order)
-+		return true;
-+
-+	/* Check at least one high-order page is free */
-+	for (o = order; o < MAX_ORDER; o++) {
-+		struct free_area *area = &z->free_area[o];
-+		int mt;
-+
-+		if (atomic && area->nr_free)
-+			return true;
- 
--		if (free_pages <= min)
--			return false;
-+		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
-+			if (!list_empty(&area->free_list[mt]))
-+				return true;
-+		}
- 	}
--	return true;
-+	return false;
- }
- 
- bool zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+This would obviously mean that the LOCKONFAULT couldn't be exported to
+the userspace but is this really necessary?
 -- 
-2.4.6
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
