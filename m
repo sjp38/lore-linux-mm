@@ -1,71 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A9F726B0038
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 04:51:10 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so208862831wic.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 01:51:10 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id op3si9367798wjc.25.2015.08.12.01.51.08
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 829AA6B0038
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 04:57:01 -0400 (EDT)
+Received: by oip136 with SMTP id 136so5652481oip.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 01:57:01 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id m71si4013905oig.104.2015.08.12.01.57.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Aug 2015 01:51:08 -0700 (PDT)
-Received: by wicne3 with SMTP id ne3so208861722wic.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 01:51:08 -0700 (PDT)
-Message-ID: <55CB08F9.6030901@plexistor.com>
-Date: Wed, 12 Aug 2015 11:51:05 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        (version=TLS1 cipher=RC4-SHA bits=128/128);
+        Wed, 12 Aug 2015 01:57:00 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 5/5] mm/hwpoison: replace most of put_page in memory
+ error handling by put_hwpoison_page
+Date: Wed, 12 Aug 2015 08:55:26 +0000
+Message-ID: <20150812085525.GD32192@hori1.linux.bs1.fc.nec.co.jp>
+References: <1439206103-86829-1-git-send-email-wanpeng.li@hotmail.com>
+ <BLU436-SMTP12740A47B6EBB7DF2F12A9280700@phx.gbl>
+In-Reply-To: <BLU436-SMTP12740A47B6EBB7DF2F12A9280700@phx.gbl>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <843CC0B960D5994BBFBAE8B5AC12A0CB@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
-References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com> <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com> <20150811081909.GD2650@quack.suse.cz> <20150811093708.GB906@dastard> <20150811135004.GC2659@quack.suse.cz> <55CA0728.7060001@plexistor.com> <100D68C7BA14664A8938383216E40DE040914C3E@FMSMSX114.amr.corp.intel.com> <20150811214822.GA20596@dastard>
-In-Reply-To: <20150811214822.GA20596@dastard>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
-Cc: Boaz Harrosh <boaz@plexistor.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr Bueso <dbueso@suse.de>
+To: Wanpeng Li <wanpeng.li@hotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 08/12/2015 12:48 AM, Dave Chinner wrote:
-> On Tue, Aug 11, 2015 at 04:51:22PM +0000, Wilcox, Matthew R wrote:
->> The race that you're not seeing is page fault vs page fault.  Two
->> threads each attempt to store a byte to different locations on the
->> same page.  With a read-mutex to exclude truncates, each thread
->> calls ->get_block.  One of the threads gets back a buffer marked
->> as BH_New and calls memset() to clear the page.  The other thread
->> gets back a buffer which isn't marked as BH_New and simply inserts
->> the mapping, returning to userspace, which stores the byte ...
->> just in time for the other thread's memset() to write a zero over
->> the top of it.
-> 
-> So, this is not a truncate race that the XFS MMAPLOCK solves.
-> 
-> However, that doesn't mean that the DAX code needs to add locking to
-> solve it. The race here is caused by block initialisation being
-> unserialised after a ->get_block call allocates the block (which the
-> filesystem serialises via internal locking). Hence two simultaneous
-> ->get_block calls to the same block is guaranteed to have the DAX
-> block initialisation race with the second ->get_block call that says
-> the block is already allocated.
-> 
-> IOWs, the way to handle this is to have the ->get_block call handle
-> the block zeroing for new blocks instead of doing it after the fact
-> in the generic DAX code where there is no fine-grained serialisation
-> object available. By calling dax_clear_blocks() in the ->get_block
-> callback, the filesystem can ensure that the second racing call will
-> only make progress once the block has been fully initialised by the
-> first call.
-> 
-> IMO the fix is - again - to move the functionality into the
-> filesystem where we already have the necessary exclusion in place to
-> avoid this race condition entirely.
-> 
+On Mon, Aug 10, 2015 at 07:28:23PM +0800, Wanpeng Li wrote:
+> Replace most of put_page in memory error handling by put_hwpoison_page,
+> except the ones at the front of soft_offline_page since the page maybe
+> THP page and the get refcount in madvise_hwpoison is against the single
+> 4KB page instead of the logic in get_hwpoison_page.
+>
+> Signed-off-by: Wanpeng Li <wanpeng.li@hotmail.com>
 
-Exactly, thanks
+# Sorry for my late response.
 
-> Cheers,
-> 
-> Dave.
-> 
+If I read correctly, get_user_pages_fast() (called by madvise_hwpoison)
+for a THP tail page takes a refcount from each of head and tail page.
+gup_huge_pmd() does this in the fast path, and get_page_foll() does this
+in the slow path (maybe via the following code path)
+
+  get_user_pages_unlocked
+    __get_user_pages_unlocked
+      __get_user_pages_locked
+        __get_user_pages
+          follow_page_mask
+            follow_trans_huge_pmd (with FOLL_GET set)
+              get_page_foll
+
+So this should be equivalent to what get_hwpoison_page() does for thp pages
+with regard to refcounting.
+
+And I'm expecting that a refcount taken by get_hwpoison_page() is released
+by put_hwpoison_page() even if the page's status is changed during error
+handling (the typical (or only?) case is successful thp split.)
+
+So I think you can apply put_hwpoison_page() for 3 more callsites in
+mm/memory-failure.c.
+ - MF_MSG_POISONED_HUGE case
+ - "soft offline: %#lx page already poisoned" case (you mentioned above)
+ - "soft offline: %#lx: failed to split THP" case (you mentioned above)
+
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
