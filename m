@@ -1,149 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A7A29003C7
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 16:40:06 -0400 (EDT)
-Received: by qgdd90 with SMTP id d90so39484252qgd.3
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 13:40:06 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d92si76846qgf.119.2015.08.13.13.40.05
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id EE2596B0253
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 17:13:36 -0400 (EDT)
+Received: by paccq16 with SMTP id cq16so1411627pac.1
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 14:13:36 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id ml5si5488183pab.172.2015.08.13.14.13.36
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Aug 2015 13:40:05 -0700 (PDT)
-Date: Thu, 13 Aug 2015 13:40:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Xen-devel] [PATCHv3 01/10] mm: memory hotplug with an existing
- resource
-Message-Id: <20150813134003.895cd1ce421631fb55db21fb@linux-foundation.org>
-In-Reply-To: <55CC6FB7.4080600@citrix.com>
-References: <1438275792-5726-1-git-send-email-david.vrabel@citrix.com>
-	<1438275792-5726-2-git-send-email-david.vrabel@citrix.com>
-	<55CC6FB7.4080600@citrix.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Aug 2015 14:13:36 -0700 (PDT)
+Received: by pdrh1 with SMTP id h1so23733688pdr.0
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 14:13:36 -0700 (PDT)
+Date: Thu, 13 Aug 2015 14:13:33 -0700
+From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
+Subject: Re: [PATCH v4 2/2] mm: hugetlb: proc: add HugetlbPages field to
+ /proc/PID/status
+Message-ID: <20150813211333.GD8588@Sligo.logfs.org>
+References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
+ <1439365520-12605-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1439365520-12605-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <alpine.DEB.2.10.1508121327290.5382@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <alpine.DEB.2.10.1508121327290.5382@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, Daniel Kiper <daniel.kiper@oracle.com>, linux-mm@kvack.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, 13 Aug 2015 11:21:43 +0100 David Vrabel <david.vrabel@citrix.com> wrote:
-
-> On 30/07/15 18:03, David Vrabel wrote:
-> > Add add_memory_resource() to add memory using an existing "System RAM"
-> > resource.  This is useful if the memory region is being located by
-> > finding a free resource slot with allocate_resource().
-> > 
-> > Xen guests will make use of this in their balloon driver to hotplug
-> > arbitrary amounts of memory in response to toolstack requests.
+On Wed, Aug 12, 2015 at 01:30:27PM -0700, David Rientjes wrote:
 > 
-> Ping?  This enables a useful feature for Xen guests.
-> 
+> I'd be interested in the comments of others, though, to see if there is 
+> any reservation about the hstate size breakdown.  It may actually find no 
+> current customer who is interested in parsing it.  (If we keep it, I would 
+> suggest the 'x' change to '*' similar to per-order breakdowns in 
+> show_mem()).  It may also be possible to add it later if a definitive 
+> usecase is presented.
 
-Looks OK to me.  I've cc'ed some memory_hotplug.c developers.  If
-they're OK with it, please add the patch to the (Xen?) tree which uses
-it.
+I have no interest in parsing the size breakdown today.  I might change
+my mind tomorrow and having the extra information hurts very little, so
+I won't argue against it either.
 
+> But overall I'm very happy with the new addition and think it's a good 
+> solution to the problem.
 
+Agreed.  Thank you!
 
-
-Add add_memory_resource() to add memory using an existing "System RAM"
-resource.  This is useful if the memory region is being located by
-finding a free resource slot with allocate_resource().
-
-Xen guests will make use of this in their balloon driver to hotplug
-arbitrary amounts of memory in response to toolstack requests.
-
-Signed-off-by: David Vrabel <david.vrabel@citrix.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- include/linux/memory_hotplug.h |  2 ++
- mm/memory_hotplug.c            | 28 +++++++++++++++++++++-------
- 2 files changed, 23 insertions(+), 7 deletions(-)
-
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 6ffa0ac..c76d371 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -11,6 +11,7 @@ struct zone;
- struct pglist_data;
- struct mem_section;
- struct memory_block;
-+struct resource;
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
- 
-@@ -266,6 +267,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
- extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
- 		void *arg, int (*func)(struct memory_block *, void *));
- extern int add_memory(int nid, u64 start, u64 size);
-+extern int add_memory_resource(int nid, struct resource *resource);
- extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default);
- extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 003dbe4..169770a 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1224,23 +1224,21 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
- }
- 
- /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
--int __ref add_memory(int nid, u64 start, u64 size)
-+int __ref add_memory_resource(int nid, struct resource *res)
- {
-+	u64 start, size;
- 	pg_data_t *pgdat = NULL;
- 	bool new_pgdat;
- 	bool new_node;
--	struct resource *res;
- 	int ret;
- 
-+	start = res->start;
-+	size = resource_size(res);
-+
- 	ret = check_hotplug_memory_range(start, size);
- 	if (ret)
- 		return ret;
- 
--	res = register_memory_resource(start, size);
--	ret = -EEXIST;
--	if (!res)
--		return ret;
--
- 	{	/* Stupid hack to suppress address-never-null warning */
- 		void *p = NODE_DATA(nid);
- 		new_pgdat = !p;
-@@ -1290,6 +1288,22 @@ out:
- 	mem_hotplug_done();
- 	return ret;
- }
-+EXPORT_SYMBOL_GPL(add_memory_resource);
-+
-+int __ref add_memory(int nid, u64 start, u64 size)
-+{
-+	struct resource *res;
-+	int ret;
-+
-+	res = register_memory_resource(start, size);
-+	if (!res)
-+		return -EEXIST;
-+
-+	ret = add_memory_resource(nid, res);
-+	if (ret < 0)
-+		release_memory_resource(res);
-+	return ret;
-+}
- EXPORT_SYMBOL_GPL(add_memory);
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--- 
-2.1.4
+Jorn
 
 --
-To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-the body of a message to majordomo@vger.kernel.org
-More majordomo info at  http://vger.kernel.org/majordomo-info.html
-Please read the FAQ at  http://www.tux.org/lkml/
+One of the painful things about our time is that those who feel certainty
+are stupid, and those with any imagination and understanding are filled
+with doubt and indecision.
+-- Bertrand Russell
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
