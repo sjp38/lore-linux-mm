@@ -1,83 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FB356B0038
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 08:57:29 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so258212674wic.1
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 05:57:28 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id m8si3810752wjw.183.2015.08.13.05.57.26
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 41B226B0038
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 09:23:43 -0400 (EDT)
+Received: by lbbpu9 with SMTP id pu9so26976322lbb.3
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 06:23:42 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
+        by mx.google.com with ESMTPS id u10si3945525wiv.111.2015.08.13.06.23.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Aug 2015 05:57:27 -0700 (PDT)
-Received: by wijp15 with SMTP id p15so257576509wij.0
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 05:57:26 -0700 (PDT)
+        Thu, 13 Aug 2015 06:23:41 -0700 (PDT)
+Received: by wicja10 with SMTP id ja10so151405585wic.1
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 06:23:41 -0700 (PDT)
+Message-ID: <55CC9A5A.1020209@plexistor.com>
+Date: Thu, 13 Aug 2015 16:23:38 +0300
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-In-Reply-To: <55CC3222.5090503@plexistor.com>
-References: <20150813025112.36703.21333.stgit@otcpl-skl-sds-2.jf.intel.com>
-	<20150813030109.36703.21738.stgit@otcpl-skl-sds-2.jf.intel.com>
-	<55CC3222.5090503@plexistor.com>
-Date: Thu, 13 Aug 2015 05:57:26 -0700
-Message-ID: <CAPcyv4gwFD5F=k_qQyf68z74Opzf1t4DMqY+A9D2w_Fwsbzvew@mail.gmail.com>
-Subject: Re: [PATCH v5 2/5] allow mapping page-less memremaped areas into KVA
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v5 2/5] allow mapping page-less memremaped areas into
+ KVA
+References: <20150813025112.36703.21333.stgit@otcpl-skl-sds-2.jf.intel.com>	<20150813030109.36703.21738.stgit@otcpl-skl-sds-2.jf.intel.com>	<55CC3222.5090503@plexistor.com> <CAPcyv4gwFD5F=k_qQyf68z74Opzf1t4DMqY+A9D2w_Fwsbzvew@mail.gmail.com>
+In-Reply-To: <CAPcyv4gwFD5F=k_qQyf68z74Opzf1t4DMqY+A9D2w_Fwsbzvew@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
+To: Dan Williams <dan.j.williams@intel.com>, Boaz Harrosh <boaz@plexistor.com>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Rik van Riel <riel@redhat.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
 
-On Wed, Aug 12, 2015 at 10:58 PM, Boaz Harrosh <boaz@plexistor.com> wrote:
-> On 08/13/2015 06:01 AM, Dan Williams wrote:
-[..]
->> +void *kmap_atomic_pfn_t(__pfn_t pfn)
->> +{
->> +     struct page *page = __pfn_t_to_page(pfn);
->> +     resource_size_t addr;
->> +     struct kmap *kmap;
->> +
->> +     rcu_read_lock();
->> +     if (page)
->> +             return kmap_atomic(page);
->
-> Right even with pages I pay rcu_read_lock(); for every access?
->
->> +     addr = __pfn_t_to_phys(pfn);
->> +     list_for_each_entry_rcu(kmap, &ranges, list)
->> +             if (addr >= kmap->res->start && addr <= kmap->res->end)
->> +                     return kmap->base + addr - kmap->res->start;
->> +
->
-> Good god! This loop is a real *joke*. You have just dropped memory access
-> performance by 10 fold.
->
-> The all point of pages and memory_model.h was to have a one to one
-> relation-ships between Kernel-virtual vs physical vs page *
->
-> There is already an object that holds a relationship of physical
-> to Kernel-virtual. It is called a memory-section. Why not just
-> widen its definition?
->
-> If you are willing to accept this loop. In current Linux 2015 Kernel
-> Then I have nothing farther to say.
->
-> Boaz - go mourning for the death of the Linux Kernel alone in the corner ;-(
->
+On 08/13/2015 03:57 PM, Dan Williams wrote:
+<>
+> This is explicitly addressed in the changelog, repeated here:
+> 
+>> The __pfn_t to resource lookup is indeed inefficient walking of a linked list,
+>> but there are two mitigating factors:
+>>
+>> 1/ The number of persistent memory ranges is bounded by the number of
+>>    DIMMs which is on the order of 10s of DIMMs, not hundreds.
+>>
 
-This is explicitly addressed in the changelog, repeated here:
+You do not get where I'm comming from. It used to be a [ptr - ONE_BASE + OTHER_BASE]
+(In 64 bit) it is now a call and a loop and a search. how ever you will look at
+it is *not* the instantaneous address translation it is now.
 
-> The __pfn_t to resource lookup is indeed inefficient walking of a linked list,
-> but there are two mitigating factors:
->
-> 1/ The number of persistent memory ranges is bounded by the number of
->    DIMMs which is on the order of 10s of DIMMs, not hundreds.
->
-> 2/ The lookup yields the entire range, if it becomes inefficient to do a
->    kmap_atomic_pfn_t() a PAGE_SIZE at a time the caller can take
->    advantage of the fact that the lookup can be amortized for all kmap
->    operations it needs to perform in a given range.
+I have memory I want memory speeds. You keep thinking HD speeds, where what ever
+you do will not matter.
 
-DAX as is is races against pmem unbind.   A synchronization cost must
-be paid somewhere to make sure the memremap() mapping is still valid.
+>> 2/ The lookup yields the entire range, if it becomes inefficient to do a
+>>    kmap_atomic_pfn_t() a PAGE_SIZE at a time the caller can take
+>>    advantage of the fact that the lookup can be amortized for all kmap
+>>    operations it needs to perform in a given range.
+> 
+
+What "given range" how can a bdev assume that the all sg-list belongs to the
+same "range". In fact our code does multple-pmem devices for a long time.
+What about say md-of-pmems for example, or btrfs
+
+> DAX as is is races against pmem unbind.   A synchronization cost must
+> be paid somewhere to make sure the memremap() mapping is still valid.
+
+Sorry for being so slow, is what I asked. what is exactly "pmem unbind" ?
+
+Currently in my 4.1 Kernel the ioremap is done on modprobe time and
+released modprobe --remove time. the --remove can not happen with a mounted
+FS dax or not. So what is exactly "pmem unbind". And if there is a new knob
+then make it refuse with a raised refcount.
+
+Cheers
+Boaz
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
