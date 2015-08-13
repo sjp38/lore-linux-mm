@@ -1,80 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id DB5C86B0038
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 07:30:19 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so65851248wic.1
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 04:30:19 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j8si3426275wjn.105.2015.08.13.04.30.17
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FB356B0038
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 08:57:29 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so258212674wic.1
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 05:57:28 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
+        by mx.google.com with ESMTPS id m8si3810752wjw.183.2015.08.13.05.57.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 13 Aug 2015 04:30:18 -0700 (PDT)
-Date: Thu, 13 Aug 2015 13:30:12 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH, RFC 2/2] dax: use range_lock instead of i_mmap_lock
-Message-ID: <20150813113012.GK26599@quack.suse.cz>
-References: <1439219664-88088-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1439219664-88088-3-git-send-email-kirill.shutemov@linux.intel.com>
- <20150811081909.GD2650@quack.suse.cz>
- <20150811093708.GB906@dastard>
- <20150811135004.GC2659@quack.suse.cz>
- <55CA0728.7060001@plexistor.com>
- <100D68C7BA14664A8938383216E40DE040914C3E@FMSMSX114.amr.corp.intel.com>
- <20150811214822.GA20596@dastard>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Aug 2015 05:57:27 -0700 (PDT)
+Received: by wijp15 with SMTP id p15so257576509wij.0
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 05:57:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150811214822.GA20596@dastard>
+In-Reply-To: <55CC3222.5090503@plexistor.com>
+References: <20150813025112.36703.21333.stgit@otcpl-skl-sds-2.jf.intel.com>
+	<20150813030109.36703.21738.stgit@otcpl-skl-sds-2.jf.intel.com>
+	<55CC3222.5090503@plexistor.com>
+Date: Thu, 13 Aug 2015 05:57:26 -0700
+Message-ID: <CAPcyv4gwFD5F=k_qQyf68z74Opzf1t4DMqY+A9D2w_Fwsbzvew@mail.gmail.com>
+Subject: Re: [PATCH v5 2/5] allow mapping page-less memremaped areas into KVA
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Boaz Harrosh <boaz@plexistor.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr Bueso <dbueso@suse.de>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Rik van Riel <riel@redhat.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
 
-On Wed 12-08-15 07:48:22, Dave Chinner wrote:
-> On Tue, Aug 11, 2015 at 04:51:22PM +0000, Wilcox, Matthew R wrote:
-> > The race that you're not seeing is page fault vs page fault.  Two
-> > threads each attempt to store a byte to different locations on the
-> > same page.  With a read-mutex to exclude truncates, each thread
-> > calls ->get_block.  One of the threads gets back a buffer marked
-> > as BH_New and calls memset() to clear the page.  The other thread
-> > gets back a buffer which isn't marked as BH_New and simply inserts
-> > the mapping, returning to userspace, which stores the byte ...
-> > just in time for the other thread's memset() to write a zero over
-> > the top of it.
-> 
-> So, this is not a truncate race that the XFS MMAPLOCK solves.
-> 
-> However, that doesn't mean that the DAX code needs to add locking to
-> solve it. The race here is caused by block initialisation being
-> unserialised after a ->get_block call allocates the block (which the
-> filesystem serialises via internal locking). Hence two simultaneous
-> ->get_block calls to the same block is guaranteed to have the DAX
-> block initialisation race with the second ->get_block call that says
-> the block is already allocated.
-> 
-> IOWs, the way to handle this is to have the ->get_block call handle
-> the block zeroing for new blocks instead of doing it after the fact
-> in the generic DAX code where there is no fine-grained serialisation
-> object available. By calling dax_clear_blocks() in the ->get_block
-> callback, the filesystem can ensure that the second racing call will
-> only make progress once the block has been fully initialised by the
-> first call.
-> 
-> IMO the fix is - again - to move the functionality into the
-> filesystem where we already have the necessary exclusion in place to
-> avoid this race condition entirely.
+On Wed, Aug 12, 2015 at 10:58 PM, Boaz Harrosh <boaz@plexistor.com> wrote:
+> On 08/13/2015 06:01 AM, Dan Williams wrote:
+[..]
+>> +void *kmap_atomic_pfn_t(__pfn_t pfn)
+>> +{
+>> +     struct page *page = __pfn_t_to_page(pfn);
+>> +     resource_size_t addr;
+>> +     struct kmap *kmap;
+>> +
+>> +     rcu_read_lock();
+>> +     if (page)
+>> +             return kmap_atomic(page);
+>
+> Right even with pages I pay rcu_read_lock(); for every access?
+>
+>> +     addr = __pfn_t_to_phys(pfn);
+>> +     list_for_each_entry_rcu(kmap, &ranges, list)
+>> +             if (addr >= kmap->res->start && addr <= kmap->res->end)
+>> +                     return kmap->base + addr - kmap->res->start;
+>> +
+>
+> Good god! This loop is a real *joke*. You have just dropped memory access
+> performance by 10 fold.
+>
+> The all point of pages and memory_model.h was to have a one to one
+> relation-ships between Kernel-virtual vs physical vs page *
+>
+> There is already an object that holds a relationship of physical
+> to Kernel-virtual. It is called a memory-section. Why not just
+> widen its definition?
+>
+> If you are willing to accept this loop. In current Linux 2015 Kernel
+> Then I have nothing farther to say.
+>
+> Boaz - go mourning for the death of the Linux Kernel alone in the corner ;-(
+>
 
-I'm somewhat sad to add even more functionality into the already loaded
-block mapping interface - we can already allocate delalloc blocks, unwritten
-blocks, uninitialized blocks, and now also pre-zeroed blocks. But I agree
-fs already synchronizes block allocation for a given inode so adding the
-pre-zeroing there is pretty easy. Also getting rid of unwritten extent
-handling from DAX code is a nice bonus so all in all I'm for this approach.
+This is explicitly addressed in the changelog, repeated here:
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> The __pfn_t to resource lookup is indeed inefficient walking of a linked list,
+> but there are two mitigating factors:
+>
+> 1/ The number of persistent memory ranges is bounded by the number of
+>    DIMMs which is on the order of 10s of DIMMs, not hundreds.
+>
+> 2/ The lookup yields the entire range, if it becomes inefficient to do a
+>    kmap_atomic_pfn_t() a PAGE_SIZE at a time the caller can take
+>    advantage of the fact that the lookup can be amortized for all kmap
+>    operations it needs to perform in a given range.
+
+DAX as is is races against pmem unbind.   A synchronization cost must
+be paid somewhere to make sure the memremap() mapping is still valid.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
