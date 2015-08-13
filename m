@@ -1,46 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 958886B0038
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 01:37:43 -0400 (EDT)
-Received: by lbbtg9 with SMTP id tg9so21214381lbb.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 22:37:42 -0700 (PDT)
-Received: from mail-la0-x231.google.com (mail-la0-x231.google.com. [2a00:1450:4010:c03::231])
-        by mx.google.com with ESMTPS id dp7si1135348lbc.155.2015.08.12.22.37.41
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id F04D26B0038
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 01:37:45 -0400 (EDT)
+Received: by lahi9 with SMTP id i9so20188779lah.2
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 22:37:45 -0700 (PDT)
+Received: from mail-lb0-x22f.google.com (mail-lb0-x22f.google.com. [2a00:1450:4010:c04::22f])
+        by mx.google.com with ESMTPS id kt9si1170651lac.26.2015.08.12.22.37.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Aug 2015 22:37:41 -0700 (PDT)
-Received: by lagz9 with SMTP id z9so20273562lag.3
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 22:37:41 -0700 (PDT)
+        Wed, 12 Aug 2015 22:37:43 -0700 (PDT)
+Received: by lbcbn3 with SMTP id bn3so20928425lbc.2
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 22:37:43 -0700 (PDT)
 From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Subject: [PATCH 0/2] x86/KASAN updates for 4.3
-Date: Thu, 13 Aug 2015 08:37:22 +0300
-Message-Id: <1439444244-26057-1-git-send-email-ryabinin.a.a@gmail.com>
+Subject: [PATCH v6 1/2] x86/kasan: define KASAN_SHADOW_OFFSET per architecture
+Date: Thu, 13 Aug 2015 08:37:23 +0300
+Message-Id: <1439444244-26057-2-git-send-email-ryabinin.a.a@gmail.com>
+In-Reply-To: <1439444244-26057-1-git-send-email-ryabinin.a.a@gmail.com>
+References: <1439444244-26057-1-git-send-email-ryabinin.a.a@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org
 Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Arnd Bergmann <arnd@arndb.de>, Linus Walleij <linus.walleij@linaro.org>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexey Klimov <klimov.linux@gmail.com>, Yury <yury.norov@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-These 2 patches taken from v5 'KASAN for arm64' series.
-The only change is updated changelog in second patch.
+Current definition of  KASAN_SHADOW_OFFSET in include/linux/kasan.h
+will not work for upcomming arm64, so move it to the arch header.
 
-I hope this is not too late to queue these for 4.3,
-as this allow us to merge arm64/KASAN patches in v4.4
-through arm64 tree.
+Signed-off-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+---
+ arch/x86/include/asm/kasan.h | 3 +++
+ include/linux/kasan.h        | 1 -
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
-
-
-Andrey Ryabinin (2):
-  x86/kasan: define KASAN_SHADOW_OFFSET per architecture
-  x86/kasan, mm: introduce generic kasan_populate_zero_shadow()
-
- arch/x86/include/asm/kasan.h |   3 +
- arch/x86/mm/kasan_init_64.c  | 123 ++--------------------------------
- include/linux/kasan.h        |  10 ++-
- mm/kasan/Makefile            |   2 +-
- mm/kasan/kasan_init.c        | 152 +++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 170 insertions(+), 120 deletions(-)
- create mode 100644 mm/kasan/kasan_init.c
-
+diff --git a/arch/x86/include/asm/kasan.h b/arch/x86/include/asm/kasan.h
+index 74a2a8d..1410b56 100644
+--- a/arch/x86/include/asm/kasan.h
++++ b/arch/x86/include/asm/kasan.h
+@@ -1,6 +1,9 @@
+ #ifndef _ASM_X86_KASAN_H
+ #define _ASM_X86_KASAN_H
+ 
++#include <linux/const.h>
++#define KASAN_SHADOW_OFFSET _AC(CONFIG_KASAN_SHADOW_OFFSET, UL)
++
+ /*
+  * Compiler uses shadow offset assuming that addresses start
+  * from 0. Kernel addresses don't start from 0, so shadow
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index 5486d77..6fb1c7d 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -10,7 +10,6 @@ struct vm_struct;
+ #ifdef CONFIG_KASAN
+ 
+ #define KASAN_SHADOW_SCALE_SHIFT 3
+-#define KASAN_SHADOW_OFFSET _AC(CONFIG_KASAN_SHADOW_OFFSET, UL)
+ 
+ #include <asm/kasan.h>
+ #include <linux/sched.h>
 -- 
 2.4.6
 
