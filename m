@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B42082F61
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 15:38:01 -0400 (EDT)
-Received: by qgdd90 with SMTP id d90so38256651qgd.3
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 12:38:01 -0700 (PDT)
+Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 71A8A82F61
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 15:38:04 -0400 (EDT)
+Received: by qgj62 with SMTP id 62so38398421qgj.2
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 12:38:04 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 143si5461876qhc.39.2015.08.13.12.37.59
+        by mx.google.com with ESMTPS id i19si5435898qgd.117.2015.08.13.12.38.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Aug 2015 12:37:59 -0700 (PDT)
+        Thu, 13 Aug 2015 12:38:03 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH 06/15] HMM: mm add helper to update page table when migrating memory back v2.
-Date: Thu, 13 Aug 2015 15:37:22 -0400
-Message-Id: <1439494651-1255-7-git-send-email-jglisse@redhat.com>
+Subject: [PATCH 07/15] HMM: mm add helper to update page table when migrating memory v2.
+Date: Thu, 13 Aug 2015 15:37:23 -0400
+Message-Id: <1439494651-1255-8-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1439494651-1255-1-git-send-email-jglisse@redhat.com>
 References: <1439494651-1255-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -23,138 +23,269 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-To migrate memory back we first need to lock HMM special CPU page
-table entry so we know no one else might try to migrate those entry
-back. Helper also allocate new page where data will be copied back
-from the device. Then we can proceed with the device DMA operation.
+For doing memory migration to remote memory we need to unmap range
+of anonymous memory from CPU page table and replace page table entry
+with special HMM entry.
 
-Once DMA is done we can update again the CPU page table to point to
-the new page that holds the content copied back from device memory.
+This is a multi-stage process, first we save and replace page table
+entry with special HMM entry, also flushing tlb in the process. If
+we run into non allocated entry we either use the zero page or we
+allocate new page. For swaped entry we try to swap them in.
 
-Note that we do not need to invalidate the range are we are only
-modifying non present CPU page table entry.
+Once we have set the page table entry to the special entry we check
+the page backing each of the address to make sure that only page
+table mappings are holding reference on the page, which means we
+can safely migrate the page to device memory. Because the CPU page
+table entry are special entry, no get_user_pages() can reference
+the page anylonger. So we are safe from race on that front. Note
+that the page can still be referenced by get_user_pages() from
+other process but in that case the page is write protected and
+as we do not drop the mapcount nor the page count we know that
+all user of get_user_pages() are only doing read only access (on
+write access they would allocate a new page).
+
+Once we have identified all the page that are safe to migrate the
+first function return and let HMM schedule the migration with the
+device driver.
+
+Finaly there is a cleanup function that will drop the mapcount and
+reference count on all page that have been successfully migrated,
+or restore the page table entry otherwise.
 
 Changed since v1:
-  - Save memcg against which each page is precharge as it might
-    change along the way.
+  - Fix pmd/pte allocation when migrating.
+  - Fix reverse logic on mm_forbids_zeropage()
+  - Add comment on why we add to lru list new page.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- include/linux/mm.h |  12 +++
- mm/memory.c        | 257 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 269 insertions(+)
+ include/linux/mm.h |  14 ++
+ mm/memory.c        | 471 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 485 insertions(+)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 580fe65..eb1e9b2 100644
+index eb1e9b2..0a6a292 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -2249,6 +2249,18 @@ static inline void hmm_mm_init(struct mm_struct *mm)
- {
+@@ -2250,6 +2250,20 @@ static inline void hmm_mm_init(struct mm_struct *mm)
  	mm->hmm = NULL;
  }
+ 
++int mm_hmm_migrate(struct mm_struct *mm,
++		   struct vm_area_struct *vma,
++		   pte_t *save_pte,
++		   bool *backoff,
++		   const void *mmu_notifier_exclude,
++		   unsigned long start,
++		   unsigned long end);
++void mm_hmm_migrate_cleanup(struct mm_struct *mm,
++			    struct vm_area_struct *vma,
++			    pte_t *save_pte,
++			    dma_addr_t *hmm_pte,
++			    unsigned long start,
++			    unsigned long end);
 +
-+int mm_hmm_migrate_back(struct mm_struct *mm,
-+			struct vm_area_struct *vma,
-+			pte_t *new_pte,
-+			unsigned long start,
-+			unsigned long end);
-+void mm_hmm_migrate_back_cleanup(struct mm_struct *mm,
-+				 struct vm_area_struct *vma,
-+				 pte_t *new_pte,
-+				 dma_addr_t *hmm_pte,
-+				 unsigned long start,
-+				 unsigned long end);
- #else /* !CONFIG_HMM */
- static inline void hmm_mm_init(struct mm_struct *mm)
- {
+ int mm_hmm_migrate_back(struct mm_struct *mm,
+ 			struct vm_area_struct *vma,
+ 			pte_t *new_pte,
 diff --git a/mm/memory.c b/mm/memory.c
-index 33994a7..b2b3677 100644
+index b2b3677..d34e610 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -3469,6 +3469,263 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+@@ -54,6 +54,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/mmu_notifier.h>
+ #include <linux/hmm.h>
++#include <linux/hmm_pt.h>
+ #include <linux/kallsyms.h>
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
+@@ -3723,6 +3724,476 @@ void mm_hmm_migrate_back_cleanup(struct mm_struct *mm,
+ 	}
  }
- EXPORT_SYMBOL_GPL(handle_mm_fault);
- 
+ EXPORT_SYMBOL(mm_hmm_migrate_back_cleanup);
 +
-+#ifdef CONFIG_HMM
-+/* mm_hmm_migrate_back() - lock HMM CPU page table entry and allocate new page.
++/* mm_hmm_migrate() - unmap range and set special HMM pte for it.
 + *
 + * @mm: The mm struct.
 + * @vma: The vm area struct the range is in.
-+ * @new_pte: Array of new CPU page table entry value.
++ * @save_pte: array where to save current CPU page table entry value.
++ * @backoff: Pointer toward a boolean indicating that we need to stop.
++ * @exclude: The mmu_notifier listener to exclude from mmu_notifier callback.
 + * @start: Start address of the range (inclusive).
 + * @end: End address of the range (exclusive).
++ * Returns: 0 on success, -EINVAL if some argument where invalid, -ENOMEM if
++ * it failed allocating memory for performing the operation, -EFAULT if some
++ * memory backing the range is in bad state, -EAGAIN if backoff flag turned
++ * to true.
 + *
-+ * This function will lock HMM page table entry and allocate new page for entry
-+ * it successfully locked.
++ * The process of memory migration is bit involve, first we must set all CPU
++ * page table entry to the special HMM locked entry ensuring us exclusive
++ * control over the page table entry (ie no other process can change the page
++ * table but us).
++ *
++ * While doing that we must handle empty and swaped entry. For empty entry we
++ * either use the zero page or allocate a new page. For swap entry we call
++ * __handle_mm_fault() to try to faultin the page (swap entry can be a number
++ * of thing).
++ *
++ * Once we have unmapped we need to check that we can effectively migrate the
++ * page, by testing that no one is holding a reference on the page beside the
++ * reference taken by each page mapping.
++ *
++ * On success every valid entry inside save_pte array is an entry that can be
++ * migrated.
++ *
++ * Note that this function does not free any of the page, nor does it updates
++ * the various memcg counter (exception being for accounting new allocation).
++ * This happen inside the mm_hmm_migrate_cleanup() function.
++ *
 + */
-+int mm_hmm_migrate_back(struct mm_struct *mm,
-+			struct vm_area_struct *vma,
-+			pte_t *new_pte,
-+			unsigned long start,
-+			unsigned long end)
++int mm_hmm_migrate(struct mm_struct *mm,
++		   struct vm_area_struct *vma,
++		   pte_t *save_pte,
++		   bool *backoff,
++		   const void *mmu_notifier_exclude,
++		   unsigned long start,
++		   unsigned long end)
 +{
 +	pte_t hmm_entry = swp_entry_to_pte(make_hmm_entry_locked());
-+	unsigned long addr, i;
++	struct mmu_notifier_range range = {
++		.start = start,
++		.end = end,
++		.event = MMU_MIGRATE,
++	};
++	unsigned long addr = start, i;
++	struct mmu_gather tlb;
 +	int ret = 0;
 +
-+	VM_BUG_ON(vma->vm_ops || (vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
++	/* Only allow anonymous mapping and sanity check arguments. */
++	if (vma->vm_ops || unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)))
++		return -EINVAL;
++	start &= PAGE_MASK;
++	end = PAGE_ALIGN(end);
++	if (start >= end || end > vma->vm_end)
++		return -EINVAL;
 +
++	/* Only need to test on the last address of the range. */
++	if (check_stack_guard_page(vma, end) < 0)
++		return -EFAULT;
++
++	/* Try to fail early on. */
 +	if (unlikely(anon_vma_prepare(vma)))
 +		return -ENOMEM;
 +
-+	start &= PAGE_MASK;
-+	end = PAGE_ALIGN(end);
-+	memset(new_pte, 0, sizeof(pte_t) * ((end - start) >> PAGE_SHIFT));
-+
-+	for (addr = start; addr < end;) {
-+		unsigned long cstart, next;
++retry:
++	lru_add_drain();
++	tlb_gather_mmu(&tlb, mm, range.start, range.end);
++	update_hiwater_rss(mm);
++	mmu_notifier_invalidate_range_start_excluding(mm, &range,
++						      mmu_notifier_exclude);
++	tlb_start_vma(&tlb, vma);
++	for (addr = range.start, i = 0; addr < end && !ret;) {
++		unsigned long cstart, next, npages = 0;
 +		spinlock_t *ptl;
 +		pgd_t *pgdp;
 +		pud_t *pudp;
 +		pmd_t *pmdp;
 +		pte_t *ptep;
 +
-+		pgdp = pgd_offset(mm, addr);
-+		pudp = pud_offset(pgdp, addr);
 +		/*
-+		 * Some other thread might already have migrated back the entry
-+		 * and freed the page table. Unlikely thought.
++		 * Pretty much the exact same logic as __handle_mm_fault(),
++		 * exception being the handling of huge pmd.
 +		 */
-+		if (unlikely(!pudp)) {
-+			addr = min((addr + PUD_SIZE) & PUD_MASK, end);
-+			continue;
++		pgdp = pgd_offset(mm, addr);
++		pudp = pud_alloc(mm, pgdp, addr);
++		if (!pudp) {
++			ret = -ENOMEM;
++			break;
 +		}
-+		pmdp = pmd_offset(pudp, addr);
-+		if (unlikely(!pmdp || pmd_bad(*pmdp) || pmd_none(*pmdp) ||
-+			     pmd_trans_huge(*pmdp))) {
-+			addr = min((addr + PMD_SIZE) & PMD_MASK, end);
-+			continue;
++		pmdp = pmd_alloc(mm, pudp, addr);
++		if (!pmdp) {
++			ret = -ENOMEM;
++			break;
 +		}
++		if (unlikely(pmd_trans_splitting(*pmdp))) {
++			wait_split_huge_page(vma->anon_vma, pmdp);
++			ret = -EAGAIN;
++			break;
++		}
++		if (unlikely(pmd_none(*pmdp)) &&
++		    unlikely(__pte_alloc(mm, vma, pmdp, addr))) {
++			ret = -ENOMEM;
++			break;
++		}
++		/*
++		 * If an huge pmd materialized from under us split it and break
++		 * out of the loop to retry.
++		 */
++		if (unlikely(pmd_trans_huge(*pmdp))) {
++			split_huge_page_pmd(vma, addr, pmdp);
++			ret = -EAGAIN;
++			break;
++		}
++
++		/*
++		 * A regular pmd is established and it can't morph into a huge
++		 * pmd from under us anymore at this point because we hold the
++		 * mmap_sem read mode and khugepaged takes it in write mode. So
++		 * now it's safe to run pte_offset_map().
++		 */
 +		ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
-+		for (cstart = addr, i = (addr - start) >> PAGE_SHIFT,
++		for (i = (addr - start) >> PAGE_SHIFT, cstart = addr,
 +		     next = min((addr + PMD_SIZE) & PMD_MASK, end);
 +		     addr < next; addr += PAGE_SIZE, ptep++, i++) {
-+			swp_entry_t entry;
++			save_pte[i] = ptep_get_and_clear(mm, addr, ptep);
++			tlb_remove_tlb_entry(&tlb, ptep, addr);
++			set_pte_at(mm, addr, ptep, hmm_entry);
 +
-+			entry = pte_to_swp_entry(*ptep);
-+			if (pte_none(*ptep) || pte_present(*ptep) ||
-+			    !is_hmm_entry(entry) ||
-+			    is_hmm_entry_locked(entry))
++			if (pte_present(save_pte[i]))
 +				continue;
 +
-+			set_pte_at(mm, addr, ptep, hmm_entry);
-+			new_pte[i] = pte_mkspecial(pfn_pte(my_zero_pfn(addr),
-+						   vma->vm_page_prot));
++			if (!pte_none(save_pte[i])) {
++				set_pte_at(mm, addr, ptep, save_pte[i]);
++				ret = -ENOENT;
++				ptep++;
++				break;
++			}
++			/*
++			 * TODO: This mm_forbids_zeropage() really does not
++			 * apply to us. First it seems only S390 have it set,
++			 * second we are not even using the zero page entry
++			 * to populate the CPU page table, thought on error
++			 * we might use the save_pte entry to set the CPU
++			 * page table entry.
++			 *
++			 * Live with that oddity for now.
++			 */
++			if (mm_forbids_zeropage(mm)) {
++				pte_clear(mm, addr, &save_pte[i]);
++				npages++;
++				continue;
++			}
++			save_pte[i] = pte_mkspecial(pfn_pte(my_zero_pfn(addr),
++						    vma->vm_page_prot));
 +		}
 +		pte_unmap_unlock(ptep - 1, ptl);
 +
-+		for (addr = cstart, i = (addr - start) >> PAGE_SHIFT;
++		/*
++		 * So we must allocate pages before checking for error, which
++		 * here indicate that one entry is a swap entry. We need to
++		 * allocate first because otherwise there is no easy way to
++		 * know on retry or in error code path wether the CPU page
++		 * table locked HMM entry is ours or from some other thread.
++		 */
++
++		if (!npages)
++			continue;
++
++		for (next = addr, addr = cstart,
++		     i = (addr - start) >> PAGE_SHIFT;
 +		     addr < next; addr += PAGE_SIZE, i++) {
 +			struct mem_cgroup *memcg;
 +			struct page *page;
 +
-+			if (!pte_present(new_pte[i]))
++			if (pte_present(save_pte[i]) || !pte_none(save_pte[i]))
 +				continue;
 +
 +			page = alloc_zeroed_user_highpage_movable(vma, addr);
@@ -169,72 +300,77 @@ index 33994a7..b2b3677 100644
 +				ret = -ENOMEM;
 +				break;
 +			}
++			save_pte[i] = mk_pte(page, vma->vm_page_prot);
++			if (vma->vm_flags & VM_WRITE)
++				save_pte[i] = pte_mkwrite(save_pte[i]);
++			inc_mm_counter_fast(mm, MM_ANONPAGES);
 +			/*
-+			 * We can safely reuse the s_mem/mapping field of page
-+			 * struct to store the memcg as the page is only seen
-+			 * by HMM at this point and we can clear it before it
-+			 * is public see mm_hmm_migrate_back_cleanup().
++			 * Because we set the page table entry to the special
++			 * HMM locked entry we know no other process might do
++			 * anything with it and thus we can safely account the
++			 * page without holding any lock at this point.
 +			 */
-+			page->s_mem = memcg;
-+			new_pte[i] = mk_pte(page, vma->vm_page_prot);
-+			if (vma->vm_flags & VM_WRITE) {
-+				new_pte[i] = pte_mkdirty(new_pte[i]);
-+				new_pte[i] = pte_mkwrite(new_pte[i]);
-+			}
++			page_add_new_anon_rmap(page, vma, addr);
++			mem_cgroup_commit_charge(page, memcg, false);
++			/*
++			 * Add to active list so we know vmscan will not waste
++			 * its time with that page while we are still using it.
++			 */
++			lru_cache_add_active_or_unevictable(page, vma);
 +		}
-+
-+		if (!ret)
-+			continue;
-+
-+		hmm_entry = swp_entry_to_pte(make_hmm_entry());
-+		ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
-+		for (addr = cstart, i = (addr - start) >> PAGE_SHIFT;
-+		     addr < next; addr += PAGE_SIZE, ptep++, i++) {
-+			unsigned long pfn = pte_pfn(new_pte[i]);
-+
-+			if (!pte_present(new_pte[i]) || !is_zero_pfn(pfn))
-+				continue;
-+
-+			set_pte_at(mm, addr, ptep, hmm_entry);
-+			pte_clear(mm, addr, &new_pte[i]);
-+		}
-+		pte_unmap_unlock(ptep - 1, ptl);
-+		break;
 +	}
-+	return ret;
-+}
-+EXPORT_SYMBOL(mm_hmm_migrate_back);
++	tlb_end_vma(&tlb, vma);
++	mmu_notifier_invalidate_range_end_excluding(mm, &range,
++						    mmu_notifier_exclude);
++	tlb_finish_mmu(&tlb, range.start, range.end);
 +
-+/* mm_hmm_migrate_back_cleanup() - set CPU page table entry to new page.
-+ *
-+ * @mm: The mm struct.
-+ * @vma: The vm area struct the range is in.
-+ * @new_pte: Array of new CPU page table entry value.
-+ * @hmm_pte: Array of HMM table entry indicating if migration was successful.
-+ * @start: Start address of the range (inclusive).
-+ * @end: End address of the range (exclusive).
-+ *
-+ * This is call after mm_hmm_migrate_back() and after effective migration. It
-+ * will set CPU page table entry to new value pointing to newly allocated page
-+ * where the data was effectively copied back from device memory.
-+ *
-+ * Any failure will trigger a bug on.
-+ *
-+ * TODO: For copy failure we might simply set a new value for the HMM special
-+ * entry indicating poisonous entry.
-+ */
-+void mm_hmm_migrate_back_cleanup(struct mm_struct *mm,
-+				 struct vm_area_struct *vma,
-+				 pte_t *new_pte,
-+				 dma_addr_t *hmm_pte,
-+				 unsigned long start,
-+				 unsigned long end)
-+{
-+	pte_t hmm_poison = swp_entry_to_pte(make_hmm_entry_poisonous());
-+	unsigned long addr, i;
++	if (backoff && *backoff) {
++		/* Stick to the range we updated. */
++		ret = -EAGAIN;
++		end = addr;
++		goto out;
++	}
 +
-+	for (addr = start; addr < end;) {
-+		unsigned long cstart, next, free_pages;
++	/* Check if something is missing or something went wrong. */
++	if (ret == -ENOENT) {
++		int flags = FAULT_FLAG_ALLOW_RETRY;
++
++		do {
++			/*
++			 * Using __handle_mm_fault() as current->mm != mm ie we
++			 * might have been call from a kernel thread on behalf
++			 * of a driver and all accounting handle_mm_fault() is
++			 * pointless in our case.
++			 */
++			ret = __handle_mm_fault(mm, vma, addr, flags);
++			flags |= FAULT_FLAG_TRIED;
++		} while ((ret & VM_FAULT_RETRY));
++		if ((ret & VM_FAULT_ERROR)) {
++			/* Stick to the range we updated. */
++			end = addr;
++			ret = -EFAULT;
++			goto out;
++		}
++		range.start = addr;
++		goto retry;
++	}
++	if (ret == -EAGAIN) {
++		range.start = addr;
++		goto retry;
++	}
++	if (ret)
++		/* Stick to the range we updated. */
++		end = addr;
++
++	/*
++	 * At this point no one else can take a reference on the page from this
++	 * process CPU page table. So we can safely check wether we can migrate
++	 * or not the page.
++	 */
++
++out:
++	for (addr = start, i = 0; addr < end;) {
++		unsigned long next;
 +		spinlock_t *ptl;
 +		pgd_t *pgdp;
 +		pud_t *pudp;
@@ -256,85 +392,191 @@ index 33994a7..b2b3677 100644
 +
 +		ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
 +		for (next = min((addr + PMD_SIZE) & PMD_MASK, end),
-+		     cstart = addr, i = (addr - start) >> PAGE_SHIFT,
-+		     free_pages = 0; addr < next; addr += PAGE_SIZE,
-+		     ptep++, i++) {
-+			struct mem_cgroup *memcg;
-+			swp_entry_t entry;
++		     i = (addr - start) >> PAGE_SHIFT; addr < next;
++		     addr += PAGE_SIZE, ptep++, i++) {
 +			struct page *page;
++			swp_entry_t entry;
++			int swapped;
 +
-+			if (!pte_present(new_pte[i]))
-+				continue;
-+
-+			entry = pte_to_swp_entry(*ptep);
-+
-+			/*
-+			 * Sanity catch all the things that could go wrong but
-+			 * should not, no plan B here.
-+			 */
-+			VM_BUG_ON(pte_none(*ptep));
-+			VM_BUG_ON(pte_present(*ptep));
-+			VM_BUG_ON(!is_hmm_entry_locked(entry));
-+
-+			if (!hmm_pte_test_valid_dma(&hmm_pte[i]) &&
-+			    !hmm_pte_test_valid_pfn(&hmm_pte[i])) {
-+				set_pte_at(mm, addr, ptep, hmm_poison);
-+				free_pages++;
++			entry = pte_to_swp_entry(save_pte[i]);
++			if (is_hmm_entry(entry)) {
++				/*
++				 * Logic here is pretty involve. If save_pte is
++				 * an HMM special swap entry then it means that
++				 * we failed to swap in that page so error must
++				 * be set.
++				 *
++				 * If that's not the case than it means we are
++				 * seriously screw.
++				 */
++				VM_BUG_ON(!ret);
 +				continue;
 +			}
 +
-+			page = pte_page(new_pte[i]);
-+
 +			/*
-+			 * Up to now the s_mem/mapping field stored the memcg
-+			 * against which the page was pre-charged. Save it and
-+			 * clear field so PageAnon() return false.
++			 * This can not happen, no one else can replace our
++			 * special entry and as range end is re-ajusted on
++			 * error.
 +			 */
-+			memcg = page->s_mem;
-+			page->s_mem = NULL;
++			entry = pte_to_swp_entry(*ptep);
++			VM_BUG_ON(!is_hmm_entry_locked(entry));
 +
-+			inc_mm_counter_fast(mm, MM_ANONPAGES);
-+			page_add_new_anon_rmap(page, vma, addr);
-+			mem_cgroup_commit_charge(page, memcg, false);
-+			lru_cache_add_active_or_unevictable(page, vma);
-+			set_pte_at(mm, addr, ptep, new_pte[i]);
-+			update_mmu_cache(vma, addr, ptep);
-+			pte_clear(mm, addr, &new_pte[i]);
-+		}
-+		pte_unmap_unlock(ptep - 1, ptl);
++			/* On error or backoff restore all the saved pte. */
++			if (ret)
++				goto restore;
 +
-+		if (!free_pages)
-+			continue;
-+
-+		for (addr = cstart, i = (addr - start) >> PAGE_SHIFT;
-+		     addr < next; addr += PAGE_SIZE, i++) {
-+			struct mem_cgroup *memcg;
-+			struct page *page;
-+
-+			if (!pte_present(new_pte[i]))
++			page = vm_normal_page(vma, addr, save_pte[i]);
++			/* The zero page is fine to migrate. */
++			if (!page)
 +				continue;
 +
-+			page = pte_page(new_pte[i]);
++			/*
++			 * Check that only CPU mapping hold a reference on the
++			 * page. To make thing simpler we just refuse bail out
++			 * if page_mapcount() != page_count() (also accounting
++			 * for swap cache).
++			 *
++			 * There is a small window here where wp_page_copy()
++			 * might have decremented mapcount but have not yet
++			 * decremented the page count. This is not an issue as
++			 * we backoff in that case.
++			 */
++			swapped = PageSwapCache(page);
++			if (page_mapcount(page) + swapped == page_count(page))
++				continue;
++
++restore:
++			/* Ok we have to restore that page. */
++			set_pte_at(mm, addr, ptep, save_pte[i]);
++			/*
++			 * No need to invalidate - it was non-present
++			 * before.
++			 */
++			update_mmu_cache(vma, addr, ptep);
++			pte_clear(mm, addr, &save_pte[i]);
++		}
++		pte_unmap_unlock(ptep - 1, ptl);
++	}
++	return ret;
++}
++EXPORT_SYMBOL(mm_hmm_migrate);
++
++/* mm_hmm_migrate_cleanup() - unmap range cleanup.
++ *
++ * @mm: The mm struct.
++ * @vma: The vm area struct the range is in.
++ * @save_pte: Array where to save current CPU page table entry value.
++ * @hmm_pte: Array of HMM table entry indicating if migration was successful.
++ * @start: Start address of the range (inclusive).
++ * @end: End address of the range (exclusive).
++ *
++ * This is call after mm_hmm_migrate() and after effective migration. It will
++ * restore CPU page table entry for page that not been migrated or in case of
++ * failure.
++ *
++ * It will free pages that have been migrated and updates appropriate counters,
++ * it will also "unlock" special HMM pte entry.
++ */
++void mm_hmm_migrate_cleanup(struct mm_struct *mm,
++			    struct vm_area_struct *vma,
++			    pte_t *save_pte,
++			    dma_addr_t *hmm_pte,
++			    unsigned long start,
++			    unsigned long end)
++{
++	pte_t hmm_entry = swp_entry_to_pte(make_hmm_entry());
++	struct page *pages[MMU_GATHER_BUNDLE];
++	unsigned long addr, c, i;
++
++	for (addr = start, i = 0; addr < end;) {
++		unsigned long next;
++		spinlock_t *ptl;
++		pgd_t *pgdp;
++		pud_t *pudp;
++		pmd_t *pmdp;
++		pte_t *ptep;
++
++		/*
++		 * We know for certain that we did set special swap entry for
++		 * the range and HMM entry are mark as locked so it means that
++		 * no one beside us can modify them which apply that all level
++		 * of the CPU page table are valid.
++		 */
++		pgdp = pgd_offset(mm, addr);
++		pudp = pud_offset(pgdp, addr);
++		VM_BUG_ON(!pudp);
++		pmdp = pmd_offset(pudp, addr);
++		VM_BUG_ON(!pmdp || pmd_bad(*pmdp) || pmd_none(*pmdp) ||
++			  pmd_trans_huge(*pmdp));
++
++		ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
++		for (next = min((addr + PMD_SIZE) & PMD_MASK, end),
++		     i = (addr - start) >> PAGE_SHIFT; addr < next;
++		     addr += PAGE_SIZE, ptep++, i++) {
++			struct page *page;
++			swp_entry_t entry;
 +
 +			/*
-+			 * Up to now the s_mem/mapping field stored the memcg
-+			 * against which the page was pre-charged.
++			 * This can't happen no one else can replace our
++			 * precious special entry.
 +			 */
-+			memcg = page->s_mem;
-+			page->s_mem = NULL;
++			entry = pte_to_swp_entry(*ptep);
++			VM_BUG_ON(!is_hmm_entry_locked(entry));
 +
-+			mem_cgroup_cancel_charge(page, memcg);
-+			page_cache_release(page);
++			if (!hmm_pte_test_valid_dev(&hmm_pte[i])) {
++				/* Ok we have to restore that page. */
++				set_pte_at(mm, addr, ptep, save_pte[i]);
++				/*
++				 * No need to invalidate - it was non-present
++				 * before.
++				 */
++				update_mmu_cache(vma, addr, ptep);
++				pte_clear(mm, addr, &save_pte[i]);
++				continue;
++			}
++
++			/* Set unlocked entry. */
++			set_pte_at(mm, addr, ptep, hmm_entry);
++			/*
++			 * No need to invalidate - it was non-present
++			 * before.
++			 */
++			update_mmu_cache(vma, addr, ptep);
++
++			page = vm_normal_page(vma, addr, save_pte[i]);
++			/* The zero page is fine to migrate. */
++			if (!page)
++				continue;
++
++			page_remove_rmap(page);
++			dec_mm_counter_fast(mm, MM_ANONPAGES);
 +		}
++		pte_unmap_unlock(ptep - 1, ptl);
++	}
++
++	/* Free pages. */
++	for (addr = start, i = 0, c = 0; addr < end; i++, addr += PAGE_SIZE) {
++		if (pte_none(save_pte[i]))
++			continue;
++		if (c >= MMU_GATHER_BUNDLE) {
++			/*
++			 * TODO: What we really want to do is keep the memory
++			 * accounted inside the memory group and inside rss
++			 * while still freeing the page. So that migration
++			 * back from device memory will not fail because we
++			 * go over memory group limit.
++			 */
++			free_pages_and_swap_cache(pages, c);
++			c = 0;
++		}
++		pages[c] = vm_normal_page(vma, addr, save_pte[i]);
++		c = pages[c] ? c + 1 : c;
 +	}
 +}
-+EXPORT_SYMBOL(mm_hmm_migrate_back_cleanup);
-+#endif
-+
-+
- #ifndef __PAGETABLE_PUD_FOLDED
- /*
-  * Allocate page upper directory.
++EXPORT_SYMBOL(mm_hmm_migrate_cleanup);
+ #endif
+ 
+ 
 -- 
 1.9.3
 
