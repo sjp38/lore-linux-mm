@@ -1,192 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 844FD6B0038
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 20:48:05 -0400 (EDT)
-Received: by pawu10 with SMTP id u10so25350342paw.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 17:48:05 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id yb7si796570pbc.53.2015.08.12.17.48.03
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E8DBB6B0038
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 22:14:21 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so13507591pdr.2
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 19:14:21 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id l3si1110298pdp.109.2015.08.12.19.14.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Aug 2015 17:48:04 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t7D0m0tt023867
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 09:48:01 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v4 2/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/status
-Date: Thu, 13 Aug 2015 00:45:33 +0000
-Message-ID: <20150813004533.GA24716@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
- <1439365520-12605-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1439365520-12605-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <alpine.DEB.2.10.1508121327290.5382@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1508121327290.5382@chino.kir.corp.google.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <163CD780FD3DF245858B03FC42A5E5D5@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Aug 2015 19:14:21 -0700 (PDT)
+Received: by pabyb7 with SMTP id yb7so26599985pab.0
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 19:14:20 -0700 (PDT)
+Date: Wed, 12 Aug 2015 19:13:08 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm, vmscan: Do not wait for page writeback for GFP_NOFS
+ allocations
+In-Reply-To: <55C463B4.2050904@kyup.com>
+Message-ID: <alpine.LSU.2.11.1508121833220.3648@eggly.anvils>
+References: <1435677437-16717-1-git-send-email-mhocko@suse.cz> <20150701061731.GB6286@dhcp22.suse.cz> <20150701133715.GA6287@dhcp22.suse.cz> <20150702142551.GB9456@thunk.org> <20150702151321.GE12547@dhcp22.suse.cz> <alpine.LSU.2.11.1508032227050.5070@eggly.anvils>
+ <55C463B4.2050904@kyup.com>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Nikolay Borisov <kernel@kyup.com>
+Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Marian Marinov <mm@1h.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org
 
-T24gV2VkLCBBdWcgMTIsIDIwMTUgYXQgMDE6MzA6MjdQTSAtMDcwMCwgRGF2aWQgUmllbnRqZXMg
-d3JvdGU6DQo+IE9uIFdlZCwgMTIgQXVnIDIwMTUsIE5hb3lhIEhvcmlndWNoaSB3cm90ZToNCj4g
-DQo+ID4gQ3VycmVudGx5IHRoZXJlJ3Mgbm8gZWFzeSB3YXkgdG8gZ2V0IHBlci1wcm9jZXNzIHVz
-YWdlIG9mIGh1Z2V0bGIgcGFnZXMsIHdoaWNoDQo+ID4gaXMgaW5jb252ZW5pZW50IGJlY2F1c2Ug
-dXNlcnNwYWNlIGFwcGxpY2F0aW9ucyB3aGljaCB1c2UgaHVnZXRsYiB0eXBpY2FsbHkgd2FudA0K
-PiA+IHRvIGNvbnRyb2wgdGhlaXIgcHJvY2Vzc2VzIG9uIHRoZSBiYXNpcyBvZiBob3cgbXVjaCBt
-ZW1vcnkgKGluY2x1ZGluZyBodWdldGxiKQ0KPiA+IHRoZXkgdXNlLiBTbyB0aGlzIHBhdGNoIHNp
-bXBseSBwcm92aWRlcyBlYXN5IGFjY2VzcyB0byB0aGUgaW5mbyB2aWENCj4gPiAvcHJvYy9QSUQv
-c3RhdHVzLg0KPiA+IA0KPiA+IFdpdGggdGhpcyBwYXRjaCwgZm9yIGV4YW1wbGUsIC9wcm9jL1BJ
-RC9zdGF0dXMgc2hvd3MgYSBsaW5lIGxpa2UgdGhpczoNCj4gPiANCj4gPiAgIEh1Z2V0bGJQYWdl
-czogICAgICAyMDQ4MCBrQiAoMTB4MjA0OGtCKQ0KPiA+IA0KPiA+IElmIHlvdXIgc3lzdGVtIHN1
-cHBvcnRzIGFuZCBlbmFibGVzIG11bHRpcGxlIGh1Z2VwYWdlIHNpemVzLCB0aGUgbGluZSBsb29r
-cw0KPiA+IGxpa2UgdGhpczoNCj4gPiANCj4gPiAgIEh1Z2V0bGJQYWdlczogICAgMTA2OTA1NiBr
-QiAoMXgxMDQ4NTc2a0IgMTB4MjA0OGtCKQ0KPiA+IA0KPiA+ICwgc28geW91IGNhbiBlYXNpbHkg
-a25vdyBob3cgbWFueSBodWdlcGFnZXMgaW4gd2hpY2ggcGFnZXNpemUgYXJlIHVzZWQgYnkgYQ0K
-PiA+IHByb2Nlc3MuDQo+ID4gDQo+ID4gU2lnbmVkLW9mZi1ieTogTmFveWEgSG9yaWd1Y2hpIDxu
-LWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KPiANCj4gSSdtIGhhcHB5IHdpdGggdGhpcyBhbmQg
-dGhhbmtzIHZlcnkgbXVjaCBmb3IgZ29pbmcgdGhlIGV4dHJhIG1pbGUgYW5kIA0KPiBicmVha2lu
-ZyB0aGUgdXNhZ2UgZG93biBieSBoc3RhdGUgc2l6ZS4NCg0KR3JlYXQgdG8gaGVhciB0aGF0Lg0K
-DQo+IEknZCBiZSBpbnRlcmVzdGVkIGluIHRoZSBjb21tZW50cyBvZiBvdGhlcnMsIHRob3VnaCwg
-dG8gc2VlIGlmIHRoZXJlIGlzIA0KPiBhbnkgcmVzZXJ2YXRpb24gYWJvdXQgdGhlIGhzdGF0ZSBz
-aXplIGJyZWFrZG93bi4gIEl0IG1heSBhY3R1YWxseSBmaW5kIG5vIA0KPiBjdXJyZW50IGN1c3Rv
-bWVyIHdobyBpcyBpbnRlcmVzdGVkIGluIHBhcnNpbmcgaXQuICAoSWYgd2Uga2VlcCBpdCwgSSB3
-b3VsZCANCj4gc3VnZ2VzdCB0aGUgJ3gnIGNoYW5nZSB0byAnKicgc2ltaWxhciB0byBwZXItb3Jk
-ZXIgYnJlYWtkb3ducyBpbiANCj4gc2hvd19tZW0oKSkuICBJdCBtYXkgYWxzbyBiZSBwb3NzaWJs
-ZSB0byBhZGQgaXQgbGF0ZXIgaWYgYSBkZWZpbml0aXZlIA0KPiB1c2VjYXNlIGlzIHByZXNlbnRl
-ZC4NCg0KSSdtIGZpbmUgdG8gY2hhbmdlIHRvICcqJy4NCg0KVGhhbmtzLA0KTmFveWEgSG9yaWd1
-Y2hpDQotLS0NCkZyb206IE5hb3lhIEhvcmlndWNoaSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNv
-bT4NClN1YmplY3Q6IFtQQVRDSF0gbW06IGh1Z2V0bGI6IHByb2M6IGFkZCBIdWdldGxiUGFnZXMg
-ZmllbGQgdG8gL3Byb2MvUElEL3N0YXR1cw0KDQpDdXJyZW50bHkgdGhlcmUncyBubyBlYXN5IHdh
-eSB0byBnZXQgcGVyLXByb2Nlc3MgdXNhZ2Ugb2YgaHVnZXRsYiBwYWdlcywgd2hpY2gNCmlzIGlu
-Y29udmVuaWVudCBiZWNhdXNlIHVzZXJzcGFjZSBhcHBsaWNhdGlvbnMgd2hpY2ggdXNlIGh1Z2V0
-bGIgdHlwaWNhbGx5IHdhbnQNCnRvIGNvbnRyb2wgdGhlaXIgcHJvY2Vzc2VzIG9uIHRoZSBiYXNp
-cyBvZiBob3cgbXVjaCBtZW1vcnkgKGluY2x1ZGluZyBodWdldGxiKQ0KdGhleSB1c2UuIFNvIHRo
-aXMgcGF0Y2ggc2ltcGx5IHByb3ZpZGVzIGVhc3kgYWNjZXNzIHRvIHRoZSBpbmZvIHZpYQ0KL3By
-b2MvUElEL3N0YXR1cy4NCg0KV2l0aCB0aGlzIHBhdGNoLCBmb3IgZXhhbXBsZSwgL3Byb2MvUElE
-L3N0YXR1cyBzaG93cyBhIGxpbmUgbGlrZSB0aGlzOg0KDQogIEh1Z2V0bGJQYWdlczogICAgICAy
-MDQ4MCBrQiAoMTAqMjA0OGtCKQ0KDQpJZiB5b3VyIHN5c3RlbSBzdXBwb3J0cyBhbmQgZW5hYmxl
-cyBtdWx0aXBsZSBodWdlcGFnZSBzaXplcywgdGhlIGxpbmUgbG9va3MNCmxpa2UgdGhpczoNCg0K
-ICBIdWdldGxiUGFnZXM6ICAgIDEwNjkwNTYga0IgKDEqMTA0ODU3NmtCIDEwKjIwNDhrQikNCg0K
-LCBzbyB5b3UgY2FuIGVhc2lseSBrbm93IGhvdyBtYW55IGh1Z2VwYWdlcyBpbiB3aGljaCBwYWdl
-c2l6ZSBhcmUgdXNlZCBieSBhDQpwcm9jZXNzLg0KDQpTaWduZWQtb2ZmLWJ5OiBOYW95YSBIb3Jp
-Z3VjaGkgPG4taG9yaWd1Y2hpQGFoLmpwLm5lYy5jb20+DQotLS0NCiBEb2N1bWVudGF0aW9uL2Zp
-bGVzeXN0ZW1zL3Byb2MudHh0IHwgIDMgKysrDQogZnMvcHJvYy90YXNrX21tdS5jICAgICAgICAg
-ICAgICAgICB8ICAxICsNCiBpbmNsdWRlL2xpbnV4L2h1Z2V0bGIuaCAgICAgICAgICAgIHwgMjAg
-KysrKysrKysrKysrKysrKysrKysNCiBpbmNsdWRlL2xpbnV4L21tX3R5cGVzLmggICAgICAgICAg
-IHwgMTAgKysrKysrKysrKw0KIG1tL2h1Z2V0bGIuYyAgICAgICAgICAgICAgICAgICAgICAgfCAy
-NyArKysrKysrKysrKysrKysrKysrKysrKysrKysNCiBtbS9ybWFwLmMgICAgICAgICAgICAgICAg
-ICAgICAgICAgIHwgIDQgKysrLQ0KIDYgZmlsZXMgY2hhbmdlZCwgNjQgaW5zZXJ0aW9ucygrKSwg
-MSBkZWxldGlvbigtKQ0KDQpkaWZmIC0tZ2l0IGEvRG9jdW1lbnRhdGlvbi9maWxlc3lzdGVtcy9w
-cm9jLnR4dCBiL0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMvcHJvYy50eHQNCmluZGV4IDIyZTQw
-MjExZWY2NC4uZjU2MWZjNDZlNDFiIDEwMDY0NA0KLS0tIGEvRG9jdW1lbnRhdGlvbi9maWxlc3lz
-dGVtcy9wcm9jLnR4dA0KKysrIGIvRG9jdW1lbnRhdGlvbi9maWxlc3lzdGVtcy9wcm9jLnR4dA0K
-QEAgLTE3NCw2ICsxNzQsNyBAQCBGb3IgZXhhbXBsZSwgdG8gZ2V0IHRoZSBzdGF0dXMgaW5mb3Jt
-YXRpb24gb2YgYSBwcm9jZXNzLCBhbGwgeW91IGhhdmUgdG8gZG8gaXMNCiAgIFZtTGliOiAgICAg
-IDE0MTIga0INCiAgIFZtUFRFOiAgICAgICAgMjAga2INCiAgIFZtU3dhcDogICAgICAgIDAga0IN
-CisgIEh1Z2V0bGJQYWdlczogICAgICAgICAgMCBrQiAoMCoyMDQ4a0IpDQogICBUaHJlYWRzOiAg
-ICAgICAgMQ0KICAgU2lnUTogICAwLzI4NTc4DQogICBTaWdQbmQ6IDAwMDAwMDAwMDAwMDAwMDAN
-CkBAIC0yMzcsNiArMjM4LDggQEAgVGFibGUgMS0yOiBDb250ZW50cyBvZiB0aGUgc3RhdHVzIGZp
-bGVzIChhcyBvZiA0LjEpDQogIFZtUFRFICAgICAgICAgICAgICAgICAgICAgICBzaXplIG9mIHBh
-Z2UgdGFibGUgZW50cmllcw0KICBWbVBNRCAgICAgICAgICAgICAgICAgICAgICAgc2l6ZSBvZiBz
-ZWNvbmQgbGV2ZWwgcGFnZSB0YWJsZXMNCiAgVm1Td2FwICAgICAgICAgICAgICAgICAgICAgIHNp
-emUgb2Ygc3dhcCB1c2FnZSAodGhlIG51bWJlciBvZiByZWZlcnJlZCBzd2FwZW50cykNCisgSHVn
-ZXRsYlBhZ2VzICAgICAgICAgICAgICAgIHNpemUgb2YgaHVnZXRsYiBtZW1vcnkgcG9ydGlvbnMg
-KHdpdGggYWRkaXRpb25hbCBpbmZvDQorICAgICAgICAgICAgICAgICAgICAgICAgICAgICBhYm91
-dCBudW1iZXIgb2YgbWFwcGVkIGh1Z2VwYWdlcyBmb3IgZWFjaCBwYWdlIHNpemUpDQogIFRocmVh
-ZHMgICAgICAgICAgICAgICAgICAgICBudW1iZXIgb2YgdGhyZWFkcw0KICBTaWdRICAgICAgICAg
-ICAgICAgICAgICAgICAgbnVtYmVyIG9mIHNpZ25hbHMgcXVldWVkL21heC4gbnVtYmVyIGZvciBx
-dWV1ZQ0KICBTaWdQbmQgICAgICAgICAgICAgICAgICAgICAgYml0bWFwIG9mIHBlbmRpbmcgc2ln
-bmFscyBmb3IgdGhlIHRocmVhZA0KZGlmZiAtLWdpdCBhL2ZzL3Byb2MvdGFza19tbXUuYyBiL2Zz
-L3Byb2MvdGFza19tbXUuYw0KaW5kZXggMmMzNzkzOGI4MmVlLi5iM2NmN2ZhOWVmNmMgMTAwNjQ0
-DQotLS0gYS9mcy9wcm9jL3Rhc2tfbW11LmMNCisrKyBiL2ZzL3Byb2MvdGFza19tbXUuYw0KQEAg
-LTY5LDYgKzY5LDcgQEAgdm9pZCB0YXNrX21lbShzdHJ1Y3Qgc2VxX2ZpbGUgKm0sIHN0cnVjdCBt
-bV9zdHJ1Y3QgKm1tKQ0KIAkJcHRlcyA+PiAxMCwNCiAJCXBtZHMgPj4gMTAsDQogCQlzd2FwIDw8
-IChQQUdFX1NISUZULTEwKSk7DQorCWh1Z2V0bGJfcmVwb3J0X3VzYWdlKG0sIG1tKTsNCiB9DQog
-DQogdW5zaWduZWQgbG9uZyB0YXNrX3ZzaXplKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tKQ0KZGlmZiAt
-LWdpdCBhL2luY2x1ZGUvbGludXgvaHVnZXRsYi5oIGIvaW5jbHVkZS9saW51eC9odWdldGxiLmgN
-CmluZGV4IGQ4OTFmOTQ5NDY2YS4uNjRhYTRkYjAxZjQ4IDEwMDY0NA0KLS0tIGEvaW5jbHVkZS9s
-aW51eC9odWdldGxiLmgNCisrKyBiL2luY2x1ZGUvbGludXgvaHVnZXRsYi5oDQpAQCAtNDY5LDYg
-KzQ2OSwxOCBAQCBzdGF0aWMgaW5saW5lIHNwaW5sb2NrX3QgKmh1Z2VfcHRlX2xvY2twdHIoc3Ry
-dWN0IGhzdGF0ZSAqaCwNCiAjZGVmaW5lIGh1Z2VwYWdlc19zdXBwb3J0ZWQoKSAoSFBBR0VfU0hJ
-RlQgIT0gMCkNCiAjZW5kaWYNCiANCit2b2lkIGh1Z2V0bGJfcmVwb3J0X3VzYWdlKHN0cnVjdCBz
-ZXFfZmlsZSAqbSwgc3RydWN0IG1tX3N0cnVjdCAqbW0pOw0KKw0KK3N0YXRpYyBpbmxpbmUgdm9p
-ZCBpbmNfaHVnZXRsYl9jb3VudChzdHJ1Y3QgbW1fc3RydWN0ICptbSwgc3RydWN0IGhzdGF0ZSAq
-aCkNCit7DQorCWF0b21pY19sb25nX2luYygmbW0tPmh1Z2V0bGJfdXNhZ2UuY291bnRbaHN0YXRl
-X2luZGV4KGgpXSk7DQorfQ0KKw0KK3N0YXRpYyBpbmxpbmUgdm9pZCBkZWNfaHVnZXRsYl9jb3Vu
-dChzdHJ1Y3QgbW1fc3RydWN0ICptbSwgc3RydWN0IGhzdGF0ZSAqaCkNCit7DQorCWF0b21pY19s
-b25nX2RlYygmbW0tPmh1Z2V0bGJfdXNhZ2UuY291bnRbaHN0YXRlX2luZGV4KGgpXSk7DQorfQ0K
-Kw0KICNlbHNlCS8qIENPTkZJR19IVUdFVExCX1BBR0UgKi8NCiBzdHJ1Y3QgaHN0YXRlIHt9Ow0K
-ICNkZWZpbmUgYWxsb2NfaHVnZV9wYWdlX25vZGUoaCwgbmlkKSBOVUxMDQpAQCAtNTA0LDYgKzUx
-NiwxNCBAQCBzdGF0aWMgaW5saW5lIHNwaW5sb2NrX3QgKmh1Z2VfcHRlX2xvY2twdHIoc3RydWN0
-IGhzdGF0ZSAqaCwNCiB7DQogCXJldHVybiAmbW0tPnBhZ2VfdGFibGVfbG9jazsNCiB9DQorDQor
-c3RhdGljIGlubGluZSB2b2lkIGh1Z2V0bGJfcmVwb3J0X3VzYWdlKHN0cnVjdCBzZXFfZmlsZSAq
-Ziwgc3RydWN0IG1tX3N0cnVjdCAqbSkNCit7DQorfQ0KKw0KK3N0YXRpYyBpbmxpbmUgdm9pZCBk
-ZWNfaHVnZXRsYl9jb3VudChzdHJ1Y3QgbW1fc3RydWN0ICptbSwgc3RydWN0IGhzdGF0ZSAqaCkN
-Cit7DQorfQ0KICNlbmRpZgkvKiBDT05GSUdfSFVHRVRMQl9QQUdFICovDQogDQogc3RhdGljIGlu
-bGluZSBzcGlubG9ja190ICpodWdlX3B0ZV9sb2NrKHN0cnVjdCBoc3RhdGUgKmgsDQpkaWZmIC0t
-Z2l0IGEvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oIGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5o
-DQppbmRleCAwMDM4YWM3NDY2ZmQuLmU5NWM1ZmUxZWI3ZCAxMDA2NDQNCi0tLSBhL2luY2x1ZGUv
-bGludXgvbW1fdHlwZXMuaA0KKysrIGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oDQpAQCAtMzY0
-LDYgKzM2NCwxMiBAQCBzdHJ1Y3QgbW1fcnNzX3N0YXQgew0KIAlhdG9taWNfbG9uZ190IGNvdW50
-W05SX01NX0NPVU5URVJTXTsNCiB9Ow0KIA0KKyNpZmRlZiBDT05GSUdfSFVHRVRMQl9QQUdFDQor
-c3RydWN0IGh1Z2V0bGJfdXNhZ2Ugew0KKwlhdG9taWNfbG9uZ190IGNvdW50W0hVR0VfTUFYX0hT
-VEFURV07DQorfTsNCisjZW5kaWYNCisNCiBzdHJ1Y3Qga2lvY3R4X3RhYmxlOw0KIHN0cnVjdCBt
-bV9zdHJ1Y3Qgew0KIAlzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKm1tYXA7CQkvKiBsaXN0IG9mIFZN
-QXMgKi8NCkBAIC00ODQsNiArNDkwLDEwIEBAIHN0cnVjdCBtbV9zdHJ1Y3Qgew0KIAkvKiBhZGRy
-ZXNzIG9mIHRoZSBib3VuZHMgZGlyZWN0b3J5ICovDQogCXZvaWQgX191c2VyICpiZF9hZGRyOw0K
-ICNlbmRpZg0KKw0KKyNpZmRlZiBDT05GSUdfSFVHRVRMQl9QQUdFDQorCXN0cnVjdCBodWdldGxi
-X3VzYWdlIGh1Z2V0bGJfdXNhZ2U7DQorI2VuZGlmDQogfTsNCiANCiBzdGF0aWMgaW5saW5lIHZv
-aWQgbW1faW5pdF9jcHVtYXNrKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tKQ0KZGlmZiAtLWdpdCBhL21t
-L2h1Z2V0bGIuYyBiL21tL2h1Z2V0bGIuYw0KaW5kZXggYThjMzA4NzA4OWQ4Li4yMzM4Yzk3MTNi
-N2EgMTAwNjQ0DQotLS0gYS9tbS9odWdldGxiLmMNCisrKyBiL21tL2h1Z2V0bGIuYw0KQEAgLTI1
-NjIsNiArMjU2MiwzMCBAQCB2b2lkIGh1Z2V0bGJfc2hvd19tZW1pbmZvKHZvaWQpDQogCQkJCTFV
-TCA8PCAoaHVnZV9wYWdlX29yZGVyKGgpICsgUEFHRV9TSElGVCAtIDEwKSk7DQogfQ0KIA0KK3Zv
-aWQgaHVnZXRsYl9yZXBvcnRfdXNhZ2Uoc3RydWN0IHNlcV9maWxlICptLCBzdHJ1Y3QgbW1fc3Ry
-dWN0ICptbSkNCit7DQorCWludCBpOw0KKwl1bnNpZ25lZCBsb25nIHRvdGFsX3VzYWdlID0gMDsN
-CisNCisJZm9yIChpID0gMDsgaSA8IEhVR0VfTUFYX0hTVEFURTsgaSsrKSB7DQorCQl0b3RhbF91
-c2FnZSArPSBhdG9taWNfbG9uZ19yZWFkKCZtbS0+aHVnZXRsYl91c2FnZS5jb3VudFtpXSkgKg0K
-KwkJCShodWdlX3BhZ2Vfc2l6ZSgmaHN0YXRlc1tpXSkgPj4gMTApOw0KKwl9DQorDQorCXNlcV9w
-cmludGYobSwgIkh1Z2V0bGJQYWdlczpcdCU4bHUga0IgKCIsIHRvdGFsX3VzYWdlKTsNCisJZm9y
-IChpID0gMDsgaSA8IEhVR0VfTUFYX0hTVEFURTsgaSsrKSB7DQorCQlpZiAoaHVnZV9wYWdlX29y
-ZGVyKCZoc3RhdGVzW2ldKSA9PSAwKQ0KKwkJCWJyZWFrOw0KKwkJaWYgKGkgPiAwKQ0KKwkJCXNl
-cV9wdXRzKG0sICIgIik7DQorDQorCQlzZXFfcHJpbnRmKG0sICIlbGQqJWRrQiIsDQorCQkJYXRv
-bWljX2xvbmdfcmVhZCgmbW0tPmh1Z2V0bGJfdXNhZ2UuY291bnRbaV0pLA0KKwkJCWh1Z2VfcGFn
-ZV9zaXplKCZoc3RhdGVzW2ldKSA+PiAxMCk7DQorCX0NCisJc2VxX3B1dHMobSwgIilcbiIpOw0K
-K30NCisNCiAvKiBSZXR1cm4gdGhlIG51bWJlciBwYWdlcyBvZiBtZW1vcnkgd2UgcGh5c2ljYWxs
-eSBoYXZlLCBpbiBQQUdFX1NJWkUgdW5pdHMuICovDQogdW5zaWduZWQgbG9uZyBodWdldGxiX3Rv
-dGFsX3BhZ2VzKHZvaWQpDQogew0KQEAgLTI3OTcsNiArMjgyMSw3IEBAIGludCBjb3B5X2h1Z2V0
-bGJfcGFnZV9yYW5nZShzdHJ1Y3QgbW1fc3RydWN0ICpkc3QsIHN0cnVjdCBtbV9zdHJ1Y3QgKnNy
-YywNCiAJCQlnZXRfcGFnZShwdGVwYWdlKTsNCiAJCQlwYWdlX2R1cF9ybWFwKHB0ZXBhZ2UpOw0K
-IAkJCXNldF9odWdlX3B0ZV9hdChkc3QsIGFkZHIsIGRzdF9wdGUsIGVudHJ5KTsNCisJCQlpbmNf
-aHVnZXRsYl9jb3VudChkc3QsIGgpOw0KIAkJfQ0KIAkJc3Bpbl91bmxvY2soc3JjX3B0bCk7DQog
-CQlzcGluX3VubG9jayhkc3RfcHRsKTsNCkBAIC0yODc3LDYgKzI5MDIsNyBAQCB2b2lkIF9fdW5t
-YXBfaHVnZXBhZ2VfcmFuZ2Uoc3RydWN0IG1tdV9nYXRoZXIgKnRsYiwgc3RydWN0IHZtX2FyZWFf
-c3RydWN0ICp2bWEsDQogCQlpZiAoaHVnZV9wdGVfZGlydHkocHRlKSkNCiAJCQlzZXRfcGFnZV9k
-aXJ0eShwYWdlKTsNCiANCisJCWRlY19odWdldGxiX2NvdW50KG1tLCBoKTsNCiAJCXBhZ2VfcmVt
-b3ZlX3JtYXAocGFnZSk7DQogCQlmb3JjZV9mbHVzaCA9ICFfX3RsYl9yZW1vdmVfcGFnZSh0bGIs
-IHBhZ2UpOw0KIAkJaWYgKGZvcmNlX2ZsdXNoKSB7DQpAQCAtMzI2MSw2ICszMjg3LDcgQEAgc3Rh
-dGljIGludCBodWdldGxiX25vX3BhZ2Uoc3RydWN0IG1tX3N0cnVjdCAqbW0sIHN0cnVjdCB2bV9h
-cmVhX3N0cnVjdCAqdm1hLA0KIAkJCQkmJiAodm1hLT52bV9mbGFncyAmIFZNX1NIQVJFRCkpKTsN
-CiAJc2V0X2h1Z2VfcHRlX2F0KG1tLCBhZGRyZXNzLCBwdGVwLCBuZXdfcHRlKTsNCiANCisJaW5j
-X2h1Z2V0bGJfY291bnQobW0sIGgpOw0KIAlpZiAoKGZsYWdzICYgRkFVTFRfRkxBR19XUklURSkg
-JiYgISh2bWEtPnZtX2ZsYWdzICYgVk1fU0hBUkVEKSkgew0KIAkJLyogT3B0aW1pemF0aW9uLCBk
-byB0aGUgQ09XIHdpdGhvdXQgYSBzZWNvbmQgZmF1bHQgKi8NCiAJCXJldCA9IGh1Z2V0bGJfY293
-KG1tLCB2bWEsIGFkZHJlc3MsIHB0ZXAsIG5ld19wdGUsIHBhZ2UsIHB0bCk7DQpkaWZmIC0tZ2l0
-IGEvbW0vcm1hcC5jIGIvbW0vcm1hcC5jDQppbmRleCAxNzFiNjg3NjhkZjEuLmIzMzI3OGJjNGRk
-YiAxMDA2NDQNCi0tLSBhL21tL3JtYXAuYw0KKysrIGIvbW0vcm1hcC5jDQpAQCAtMTIzMCw3ICsx
-MjMwLDkgQEAgc3RhdGljIGludCB0cnlfdG9fdW5tYXBfb25lKHN0cnVjdCBwYWdlICpwYWdlLCBz
-dHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnZtYSwNCiAJdXBkYXRlX2hpd2F0ZXJfcnNzKG1tKTsNCiAN
-CiAJaWYgKFBhZ2VIV1BvaXNvbihwYWdlKSAmJiAhKGZsYWdzICYgVFRVX0lHTk9SRV9IV1BPSVNP
-TikpIHsNCi0JCWlmICghUGFnZUh1Z2UocGFnZSkpIHsNCisJCWlmIChQYWdlSHVnZShwYWdlKSkg
-ew0KKwkJCWRlY19odWdldGxiX2NvdW50KG1tLCBwYWdlX2hzdGF0ZShwYWdlKSk7DQorCQl9IGVs
-c2Ugew0KIAkJCWlmIChQYWdlQW5vbihwYWdlKSkNCiAJCQkJZGVjX21tX2NvdW50ZXIobW0sIE1N
-X0FOT05QQUdFUyk7DQogCQkJZWxzZQ0KLS0gDQoyLjQuMw0K
+On Fri, 7 Aug 2015, Nikolay Borisov wrote:
+> On 08/04/2015 09:32 AM, Hugh Dickins wrote:
+> > 
+> > And I've done quite a bit of testing.  The loads that hung at the
+> > weekend have been running nicely for 24 hours now, no problem with the
+> > writeback hang and no problem with the dcache ENOTDIR issue.  Though
+> > I've no idea of what recent VM change turned this into a hot issue.
+> > 
+> 
+> Are these production loads you are referring to that have been able to
+> reproduce the issue or are they some synthetic ones which? So far I
+> haven't been able to reproduce the issue using artifical loads so I'm
+> interested in incorporating this into my test set setup if it's available?
+
+Not production loads, no, just an artificial load.  But not very good
+at reproducing the hang: variable, but took hours, and only showed up
+on one faster machine; I had to run the load for 2 days, then again 2
+days, to feel confident that this hang was fixed.
+
+And I'm sorry, but describing it in full detail is not something I find
+time to do, in days or in years - partly because once I try to detail it,
+I need to simplify this and streamline that, and it turns into something
+else.  As happened when I sent it, offlist, to someone in 2009: I looked
+back at that with a view to forwarding to you, but a lot of the details
+don't match what I reverted to or advanced to doing since.
+
+Broadly, it's a pair of repeated make -j20 kernel builds, one in tmpfs,
+one in ext4 over loop over tmpfs, in limited memory 700M with 1.5G swap.
+And to test this particular hang, it needed to use memcg (of what's now
+branded an "insane" variety, CONFIG_CGROUP_WRITEBACK=n): I was using 1G
+not 700M ram for this, but 300M memcg limit and 250M soft limit on each
+memcg that was hosting one of the pair of repeated builds.  It can be
+difficult to tune the right balance, swapping heavily but not OOMing:
+it's a 2.6.24 tree I've gone back to building, because that's so much
+smaller than current, with a greater proportion active in the build.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
