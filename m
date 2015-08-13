@@ -1,85 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 9935A6B0038
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 14:51:53 -0400 (EDT)
-Received: by wibhh20 with SMTP id hh20so86306542wib.0
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 11:51:53 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id lk14si5534319wic.120.2015.08.13.11.51.51
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id D92D76B0253
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 15:15:41 -0400 (EDT)
+Received: by qkbm65 with SMTP id m65so18758667qkb.2
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 12:15:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 33si5379737qgl.25.2015.08.13.12.15.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Aug 2015 11:51:52 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so80264464wic.1
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 11:51:51 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Aug 2015 12:15:41 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Subject: HMM (Heterogeneous Memory Management) v10
+Date: Thu, 13 Aug 2015 15:15:13 -0400
+Message-Id: <1439493328-1028-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <55CCC6FB.1020901@plexistor.com>
-References: <20150813025112.36703.21333.stgit@otcpl-skl-sds-2.jf.intel.com>
-	<20150813030119.36703.48416.stgit@otcpl-skl-sds-2.jf.intel.com>
-	<55CC38B0.70502@plexistor.com>
-	<CAPcyv4iscepUm6EDe5iRR273Rbe-h5MAmVepix=gEZ0NtzRgJA@mail.gmail.com>
-	<55CCC6FB.1020901@plexistor.com>
-Date: Thu, 13 Aug 2015 11:51:51 -0700
-Message-ID: <CAPcyv4i+gufdFJ7hP4QUyQ_Z3MsjAMsFCC+-2bXtUEWVUZyrAA@mail.gmail.com>
-Subject: Re: [PATCH v5 4/5] dax: fix mapping lifetime handling, convert to
- __pfn_t + kmap_atomic_pfn_t()
-From: Dan Williams <dan.j.williams@intel.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Rik van Riel <riel@redhat.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jeff Law <law@redhat.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>
 
-On Thu, Aug 13, 2015 at 9:34 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
-> On 08/13/2015 06:21 PM, Dan Williams wrote:
->> On Wed, Aug 12, 2015 at 11:26 PM, Boaz Harrosh <boaz@plexistor.com> wrote:
-> <>
->>
->> Hmm, that's not the same block layer I've been working with for the
->> past several years:
->>
->> $ mount /dev/pmem0 /mnt
->> $ echo namespace0.0 > ../drivers/nd_pmem/unbind # succeeds
->>
->> Unbind always proceeds unconditionally.  See the recent kernel summit
->> topic discussion around devm vs unbind [1].  While kmap_atomic_pfn_t()
->> does not implement revoke semantics it at least forces re-validation
->> and time bounded references.  For the unplug case we'll need to go
->> shootdown those DAX mappings in userspace so that they return SIGBUS
->> on access, or something along those lines.
->>
->
-> Then fix unbind to refuse. What is the point of unbind when it trashes
-> the hot path so badly and makes the code so fat.
+Minor fixes since last post (1), apply on top of 4.2-rc6 done
+that because conflict in infiniband are harder to solve then
+conflict with mm tree.
 
-What? The DAX hot path avoids the kernel entirely.
+Tree with the patchset:
+git://people.freedesktop.org/~glisse/linux hmm-v10 branch
 
-> Who uses it and what for?
+Previous cover letter :
 
-The device driver core.  We simply can't hold off remove indefinitely.
-If the administrator wants the device disabled we need to tear down
-and revoke active mappings, or at very least guarantee time bounded
-removal.
 
-> First I ever heard of it and I do use Linux a little bit.
->
->> [1]: http://www.spinics.net/lists/kernel/msg2032864.html
->>
-> Hm...
->
-> OK I hate it. I would just make sure to override and refuse unbinding with an
-> elevated ref count. Is not a good reason for me to trash the hotpath.
 
-Again, the current usages are not in hot paths.  If it becomes part of
-a hot path *and* shows up in a profile we can look to implement
-something with less overhead.  Until then we should plan to honor the
-lifetime as defined by ->probe() and ->remove().
+HMM (Heterogeneous Memory Management) is an helper layer for device
+that want to mirror a process address space into their own mmu. Main
+target is GPU but other hardware, like network device can take also
+use HMM.
 
-In fact I proposed the same as you, but then changed my mind based on
-Tejun's response [1].  So please reconsider this idea to solve the
-problem by blocking ->remove().  PMEM is new and special, but not
-*that* special as to justify breaking basic guarantees.
+There is two side to HMM, first one is mirroring of process address
+space on behalf of a device. HMM will manage a secondary page table
+for the device and keep it synchronize with the CPU page table. HMM
+also do DMA mapping on behalf of the device (which would allow new
+kind of optimization further down the road (2)).
 
-[1]: https://lkml.org/lkml/2015/7/15/731
+Second side is allowing to migrate process memory to device memory
+where device memory is unmappable by the CPU. Any CPU access will
+trigger special fault that will migrate memory back. This patchset
+does not deal with remote memory migration.
+
+
+Why doing this ?
+
+Mirroring a process address space is mandatory with OpenCL 2.0 and
+with other GPU compute API. OpenCL 2.0 allow different level of
+implementation and currently only the lowest 2 are supported on
+Linux. To implement the highest level, where CPU and GPU access
+can happen concurently and are cache coherent, HMM is needed, or
+something providing same functionality, for instance through
+platform hardware.
+
+Hardware solution such as PCIE ATS/PASID is limited to mirroring
+system memory and does not provide way to migrate memory to device
+memory (which offer significantly more bandwidth up to 10 times
+faster than regular system memory with discret GPU, also have
+lower latency than PCIE transaction).
+
+Current CPU with GPU on same die (AMD or Intel) use the ATS/PASID
+and for Intel a special level of cache (backed by a large pool of
+fast memory).
+
+For foreseeable futur, discrete GPU will remain releveant as they
+can have a large quantity of faster memory than integrated GPU.
+
+Thus we believe HMM will allow to leverage discret GPU memory in
+a transparent fashion to the application, with minimum disruption
+to the linux kernel mm code. Also HMM can work along hardware
+solution such as PCIE ATS/PASID (leaving regular case to ATS/PASID
+while HMM handles the migrated memory case).
+
+
+Design :
+
+The patch 1, 2, 3 and 4 augment the mmu notifier API with new
+informations to more efficiently mirror CPU page table updates.
+
+The first side of HMM, process address space mirroring, is
+implemented in patch 5 through 14. This use a secondary page
+table, in which HMM mirror memory actively use by the device.
+HMM does not take a reference on any of the page, it use the
+mmu notifier API to track changes to the CPU page table and to
+update the mirror page table. All this while providing a simple
+API to device driver.
+
+To implement this we use a "generic" page table and not a radix
+tree because we need to store more flags than radix allows and
+we need to store dma address (sizeof(dma_addr_t) > sizeof(long)
+on some platform). All this is
+
+
+(1) Previous patchset posting :
+    v1 http://lwn.net/Articles/597289/
+    v2 https://lkml.org/lkml/2014/6/12/559
+    v3 https://lkml.org/lkml/2014/6/13/633
+    v4 https://lkml.org/lkml/2014/8/29/423
+    v5 https://lkml.org/lkml/2014/11/3/759
+    v6 http://lwn.net/Articles/619737/
+    v7 http://lwn.net/Articles/627316/
+    v8 https://lwn.net/Articles/645515/
+    v9 https://lwn.net/Articles/651553/
+
+(2) Because HMM keeps a secondary page table which keeps track of
+    DMA mapping, there is room for new optimization. We want to
+    add a new DMA API to allow to manage DMA page table mapping
+    at directory level. This would allow to minimize memory
+    consumption of mirror page table and also over head of doing
+    DMA mapping page per page. This is a future feature we want
+    to work on and hope the idea will proove usefull not only to
+    HMM users.
+
+
+Cheers,
+JA(C)rA'me
+
+To: "Andrew Morton" <akpm@linux-foundation.org>,
+To: <linux-kernel@vger.kernel.org>,
+To: linux-mm <linux-mm@kvack.org>,
+Cc: "Linus Torvalds" <torvalds@linux-foundation.org>,
+Cc: "Mel Gorman" <mgorman@suse.de>,
+Cc: "H. Peter Anvin" <hpa@zytor.com>,
+Cc: "Peter Zijlstra" <peterz@infradead.org>,
+Cc: "Linda Wang" <lwang@redhat.com>,
+Cc: "Kevin E Martin" <kem@redhat.com>,
+Cc: "Andrea Arcangeli" <aarcange@redhat.com>,
+Cc: "Johannes Weiner" <jweiner@redhat.com>,
+Cc: "Larry Woodman" <lwoodman@redhat.com>,
+Cc: "Rik van Riel" <riel@redhat.com>,
+Cc: "Dave Airlie" <airlied@redhat.com>,
+Cc: "Jeff Law" <law@redhat.com>,
+Cc: "Brendan Conoboy" <blc@redhat.com>,
+Cc: "Joe Donohue" <jdonohue@redhat.com>,
+Cc: "Christophe Harle" <charle@nvidia.com>,
+Cc: "Duncan Poole" <dpoole@nvidia.com>,
+Cc: "Sherry Cheung" <SCheung@nvidia.com>,
+Cc: "Subhash Gutti" <sgutti@nvidia.com>,
+Cc: "John Hubbard" <jhubbard@nvidia.com>,
+Cc: "Mark Hairgrove" <mhairgrove@nvidia.com>,
+Cc: "Lucien Dunning" <ldunning@nvidia.com>,
+Cc: "Cameron Buschardt" <cabuschardt@nvidia.com>,
+Cc: "Arvind Gopalakrishnan" <arvindg@nvidia.com>,
+Cc: "Haggai Eran" <haggaie@mellanox.com>,
+Cc: "Or Gerlitz" <ogerlitz@mellanox.com>,
+Cc: "Sagi Grimberg" <sagig@mellanox.com>
+Cc: "Shachar Raindel" <raindel@mellanox.com>,
+Cc: "Liran Liss" <liranl@mellanox.com>,
+Cc: "Roland Dreier" <roland@purestorage.com>,
+Cc: "Sander, Ben" <ben.sander@amd.com>,
+Cc: "Stoner, Greg" <Greg.Stoner@amd.com>,
+Cc: "Bridgman, John" <John.Bridgman@amd.com>,
+Cc: "Mantor, Michael" <Michael.Mantor@amd.com>,
+Cc: "Blinzer, Paul" <Paul.Blinzer@amd.com>,
+Cc: "Morichetti, Laurent" <Laurent.Morichetti@amd.com>,
+Cc: "Deucher, Alexander" <Alexander.Deucher@amd.com>,
+Cc: "Leonid Shamis" <Leonid.Shamis@amd.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
