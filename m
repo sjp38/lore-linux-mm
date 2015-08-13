@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 83D436B0257
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 23:56:07 -0400 (EDT)
-Received: by pdrh1 with SMTP id h1so14452029pdr.0
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 20:56:07 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id dp6si1489242pdb.233.2015.08.12.20.56.06
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 024CA6B0258
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 23:56:13 -0400 (EDT)
+Received: by pawu10 with SMTP id u10so28484992paw.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 20:56:12 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id by6si1516895pdb.89.2015.08.12.20.56.11
         for <linux-mm@kvack.org>;
-        Wed, 12 Aug 2015 20:56:06 -0700 (PDT)
-Subject: [RFC PATCH 4/7] mm: register_dev_memmap()
+        Wed, 12 Aug 2015 20:56:11 -0700 (PDT)
+Subject: [RFC PATCH 5/7] libnvdimm,
+ e820: make CONFIG_X86_PMEM_LEGACY a tristate option
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 12 Aug 2015 23:50:23 -0400
-Message-ID: <20150813035023.36913.56455.stgit@otcpl-skl-sds-2.jf.intel.com>
+Date: Wed, 12 Aug 2015 23:50:29 -0400
+Message-ID: <20150813035028.36913.25267.stgit@otcpl-skl-sds-2.jf.intel.com>
 In-Reply-To: <20150813031253.36913.29580.stgit@otcpl-skl-sds-2.jf.intel.com>
 References: <20150813031253.36913.29580.stgit@otcpl-skl-sds-2.jf.intel.com>
 MIME-Version: 1.0
@@ -20,341 +21,303 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: boaz@plexistor.com, riel@redhat.com, linux-nvdimm@lists.01.org, Dave Hansen <dave.hansen@linux.intel.com>, david@fromorbit.com, mingo@kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, mgorman@suse.de, "H. Peter Anvin" <hpa@zytor.com>, ross.zwisler@linux.intel.com, torvalds@linux-foundation.org, hch@lst.de
+Cc: boaz@plexistor.com, riel@redhat.com, linux-nvdimm@lists.01.org, david@fromorbit.com, mingo@kernel.org, linux-mm@kvack.org, mgorman@suse.de, ross.zwisler@linux.intel.com, torvalds@linux-foundation.org, hch@lst.de
 
-Provide an interface for device drivers to register physical memory
+Purely for ease of testing, with this in place we can run the unit test
+alongside any tests that depend on the memmap=ss!nn kernel parameter.
+The unit test mocking implementation requires that libnvdimm be a module
+and not built-in.
 
-The register_dev_memmap() api enables a device driver like pmem to setup
-struct page entries for the memory it has discovered.  While this
-mechanism is motivated by the desire to use persistent memory outside of
-the block I/O and direct access (DAX) paths, this mechanism is generic
-for any physical range that is not marked as RAM at boot.
+A nice side effect is the implementation is a bit more generic as it no
+longer depends on <asm/e820.h>.
 
-Given capacities for the registered memory range may be too large to
-house the memmap in RAM, this interface allows for the memmap to be
-allocated from the new range being registered.  The pmem driver uses
-this capability to let userspace policy determine the placement of the
-memmap for peristent memory.
-
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org
+Cc: Christoph Hellwig <hch@lst.de>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- include/linux/kmap_pfn.h |   33 ++++++++
- include/linux/mm.h       |    4 +
- mm/kmap_pfn.c            |  195 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 231 insertions(+), 1 deletion(-)
+ arch/x86/Kconfig                 |    6 ++-
+ arch/x86/include/uapi/asm/e820.h |    2 -
+ arch/x86/kernel/Makefile         |    2 -
+ arch/x86/kernel/pmem.c           |   79 ++++-------------------------------
+ drivers/nvdimm/Makefile          |    3 +
+ drivers/nvdimm/e820.c            |   86 ++++++++++++++++++++++++++++++++++++++
+ tools/testing/nvdimm/Kbuild      |    4 ++
+ 7 files changed, 108 insertions(+), 74 deletions(-)
+ create mode 100644 drivers/nvdimm/e820.c
 
-diff --git a/include/linux/kmap_pfn.h b/include/linux/kmap_pfn.h
-index fa44971d8e95..2dfad83337ba 100644
---- a/include/linux/kmap_pfn.h
-+++ b/include/linux/kmap_pfn.h
-@@ -4,7 +4,9 @@
- #include <linux/highmem.h>
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 64829b17980b..5d6994f62c4d 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1439,10 +1439,14 @@ config ILLEGAL_POINTER_VALUE
  
- struct device;
-+struct dev_map;
- struct resource;
-+struct vmem_altmap;
- #ifdef CONFIG_KMAP_PFN
- extern void *kmap_atomic_pfn_t(__pfn_t pfn);
- extern void kunmap_atomic_pfn_t(void *addr);
-@@ -28,4 +30,35 @@ static inline int devm_register_kmap_pfn_range(struct device *dev,
- }
- #endif /* CONFIG_KMAP_PFN */
+ source "mm/Kconfig"
  
-+#ifdef CONFIG_ZONE_DEVICE
-+struct dev_map *__register_dev_memmap(struct device *dev, struct resource *res,
-+		struct vmem_altmap *altmap, struct module *mod);
-+void unregister_dev_memmap(struct dev_map *dev_map);
-+struct dev_map * __must_check try_pin_devpfn_range(__pfn_t pfn);
-+void unpin_devpfn_range(struct dev_map *dev_map);
-+#else
-+static inline struct dev_map *__register_dev_memmap(struct device *dev,
-+		struct resource *res, struct vmem_altmap *altmap,
-+		struct module *mod)
-+{
-+	return NULL;
-+}
++config X86_PMEM_LEGACY_DEVICE
++	bool
 +
-+static inline void unregister_dev_memmap(struct dev_map *dev_map)
-+{
-+}
-+
-+static inline struct dev_map * __must_check try_pin_devpfn_range(__pfn_t pfn)
-+{
-+	return NULL;
-+}
-+
-+static inline void unpin_devpfn_range(struct dev_map *dev_map)
-+{
-+}
-+#endif
-+
-+#define register_dev_memmap(d, r, a) \
-+__register_dev_memmap((d), (r), (a), THIS_MODULE)
-+
- #endif /* _LINUX_KMAP_PFN_H */
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 8a4f24d7fdb0..07152a54b841 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -939,6 +939,7 @@ typedef struct {
-  * PFN_SG_CHAIN - pfn is a pointer to the next scatterlist entry
-  * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
-  * PFN_DEV - pfn is not covered by system memmap
-+ * PFN_MAP - pfn is covered by a device specific memmap
+ config X86_PMEM_LEGACY
+-	bool "Support non-standard NVDIMMs and ADR protected memory"
++	tristate "Support non-standard NVDIMMs and ADR protected memory"
+ 	depends on PHYS_ADDR_T_64BIT
+ 	depends on BLK_DEV
++	select X86_PMEM_LEGACY_DEVICE
+ 	select LIBNVDIMM
+ 	help
+ 	  Treat memory marked using the non-standard e820 type of 12 as used
+diff --git a/arch/x86/include/uapi/asm/e820.h b/arch/x86/include/uapi/asm/e820.h
+index 0f457e6eab18..9dafe59cf6e2 100644
+--- a/arch/x86/include/uapi/asm/e820.h
++++ b/arch/x86/include/uapi/asm/e820.h
+@@ -37,7 +37,7 @@
+ /*
+  * This is a non-standardized way to represent ADR or NVDIMM regions that
+  * persist over a reboot.  The kernel will ignore their special capabilities
+- * unless the CONFIG_X86_PMEM_LEGACY=y option is set.
++ * unless the CONFIG_X86_PMEM_LEGACY option is set.
+  *
+  * ( Note that older platforms also used 6 for the same type of memory,
+  *   but newer versions switched to 12 as 6 was assigned differently.  Some
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 0f15af41bd80..ac2bb7e28ba2 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -92,7 +92,7 @@ obj-$(CONFIG_KVM_GUEST)		+= kvm.o kvmclock.o
+ obj-$(CONFIG_PARAVIRT)		+= paravirt.o paravirt_patch_$(BITS).o
+ obj-$(CONFIG_PARAVIRT_SPINLOCKS)+= paravirt-spinlocks.o
+ obj-$(CONFIG_PARAVIRT_CLOCK)	+= pvclock.o
+-obj-$(CONFIG_X86_PMEM_LEGACY)	+= pmem.o
++obj-$(CONFIG_X86_PMEM_LEGACY_DEVICE) += pmem.o
+ 
+ obj-$(CONFIG_PCSPKR_PLATFORM)	+= pcspeaker.o
+ 
+diff --git a/arch/x86/kernel/pmem.c b/arch/x86/kernel/pmem.c
+index 64f90f53bb85..4f00b63d7ff3 100644
+--- a/arch/x86/kernel/pmem.c
++++ b/arch/x86/kernel/pmem.c
+@@ -3,80 +3,17 @@
+  * Copyright (c) 2015, Intel Corporation.
   */
- enum {
- 	PFN_MASK = (1UL << PAGE_SHIFT) - 1,
-@@ -949,6 +950,7 @@ enum {
- #else
- 	PFN_DEV = 0,
- #endif
-+	PFN_MAP = (1UL << 3),
- };
+ #include <linux/platform_device.h>
+-#include <linux/libnvdimm.h>
+ #include <linux/module.h>
+-#include <asm/e820.h>
+-
+-static void e820_pmem_release(struct device *dev)
+-{
+-	struct nvdimm_bus *nvdimm_bus = dev->platform_data;
+-
+-	if (nvdimm_bus)
+-		nvdimm_bus_unregister(nvdimm_bus);
+-}
+-
+-static struct platform_device e820_pmem = {
+-	.name = "e820_pmem",
+-	.id = -1,
+-	.dev = {
+-		.release = e820_pmem_release,
+-	},
+-};
+-
+-static const struct attribute_group *e820_pmem_attribute_groups[] = {
+-	&nvdimm_bus_attribute_group,
+-	NULL,
+-};
+-
+-static const struct attribute_group *e820_pmem_region_attribute_groups[] = {
+-	&nd_region_attribute_group,
+-	&nd_device_attribute_group,
+-	NULL,
+-};
  
- static inline __pfn_t pfn_to_pfn_t(unsigned long pfn, unsigned long flags)
-@@ -965,7 +967,7 @@ static inline __pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags)
- 
- static inline bool __pfn_t_has_page(__pfn_t pfn)
+ static __init int register_e820_pmem(void)
  {
--	return (pfn.val & PFN_DEV) == 0;
-+	return (pfn.val & PFN_DEV) == 0 || (pfn.val & PFN_MAP) == PFN_MAP;
+-	static struct nvdimm_bus_descriptor nd_desc;
+-	struct device *dev = &e820_pmem.dev;
+-	struct nvdimm_bus *nvdimm_bus;
+-	int rc, i;
+-
+-	rc = platform_device_register(&e820_pmem);
+-	if (rc)
+-		return rc;
+-
+-	nd_desc.attr_groups = e820_pmem_attribute_groups;
+-	nd_desc.provider_name = "e820";
+-	nvdimm_bus = nvdimm_bus_register(dev, &nd_desc);
+-	if (!nvdimm_bus)
+-		goto err;
+-	dev->platform_data = nvdimm_bus;
+-
+-	for (i = 0; i < e820.nr_map; i++) {
+-		struct e820entry *ei = &e820.map[i];
+-		struct resource res = {
+-			.flags	= IORESOURCE_MEM,
+-			.start	= ei->addr,
+-			.end	= ei->addr + ei->size - 1,
+-		};
+-		struct nd_region_desc ndr_desc;
+-
+-		if (ei->type != E820_PRAM)
+-			continue;
+-
+-		memset(&ndr_desc, 0, sizeof(ndr_desc));
+-		ndr_desc.res = &res;
+-		ndr_desc.attr_groups = e820_pmem_region_attribute_groups;
+-		ndr_desc.numa_node = NUMA_NO_NODE;
+-		if (!nvdimm_pmem_region_create(nvdimm_bus, &ndr_desc))
+-			goto err;
+-	}
+-
+-	return 0;
+-
+- err:
+-	dev_err(dev, "failed to register legacy persistent memory ranges\n");
+-	platform_device_unregister(&e820_pmem);
+-	return -ENXIO;
++	struct platform_device *pdev;
++
++	/*
++	 * See drivers/nvdimm/e820.c for the implementation, this is
++	 * simply here to trigger the module to load on demand.
++	 */
++	pdev = platform_device_alloc("e820_pmem", -1);
++	return platform_device_add(pdev);
  }
+ device_initcall(register_e820_pmem);
+diff --git a/drivers/nvdimm/Makefile b/drivers/nvdimm/Makefile
+index 594bb97c867a..9bf15db52dee 100644
+--- a/drivers/nvdimm/Makefile
++++ b/drivers/nvdimm/Makefile
+@@ -2,6 +2,7 @@ obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
+ obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
+ obj-$(CONFIG_ND_BTT) += nd_btt.o
+ obj-$(CONFIG_ND_BLK) += nd_blk.o
++obj-$(CONFIG_X86_PMEM_LEGACY) += nd_e820.o
  
- static inline unsigned long __pfn_t_to_pfn(__pfn_t pfn)
-diff --git a/mm/kmap_pfn.c b/mm/kmap_pfn.c
-index 2d58e167dfbc..d60ac7463454 100644
---- a/mm/kmap_pfn.c
-+++ b/mm/kmap_pfn.c
-@@ -10,16 +10,36 @@
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  * General Public License for more details.
-  */
-+#include <linux/percpu-refcount.h>
-+#include <linux/kmap_pfn.h>
- #include <linux/rcupdate.h>
- #include <linux/rculist.h>
- #include <linux/highmem.h>
- #include <linux/device.h>
+ nd_pmem-y := pmem.o
+ 
+@@ -9,6 +10,8 @@ nd_btt-y := btt.o
+ 
+ nd_blk-y := blk.o
+ 
++nd_e820-y := e820.o
++
+ libnvdimm-y := core.o
+ libnvdimm-y += bus.o
+ libnvdimm-y += dimm_devs.o
+diff --git a/drivers/nvdimm/e820.c b/drivers/nvdimm/e820.c
+new file mode 100644
+index 000000000000..1b5743ad92db
+--- /dev/null
++++ b/drivers/nvdimm/e820.c
+@@ -0,0 +1,86 @@
++/*
++ * Copyright (c) 2015, Christoph Hellwig.
++ * Copyright (c) 2015, Intel Corporation.
++ */
++#include <linux/platform_device.h>
++#include <linux/libnvdimm.h>
 +#include <linux/module.h>
- #include <linux/mutex.h>
- #include <linux/slab.h>
- #include <linux/mm.h>
- 
- static LIST_HEAD(ranges);
-+static LIST_HEAD(dev_maps);
- static DEFINE_MUTEX(register_lock);
-+static DECLARE_WAIT_QUEUE_HEAD(dev_map_wq);
 +
-+#ifndef CONFIG_MEMORY_HOTPLUG
-+int __weak arch_add_dev_memory(int nid, u64 start, u64 size,
-+		struct vmem_altmap *altmap)
-+{
-+	return -ENXIO;
-+}
-+#endif
-+
-+#ifndef CONFIG_MEMORY_HOTREMOVE
-+int __weak arch_remove_dev_memory(u64 start, u64 size)
-+{
-+	return -ENXIO;
-+}
-+#endif
- 
- struct kmap {
- 	struct list_head list;
-@@ -28,6 +48,22 @@ struct kmap {
- 	void *base;
- };
- 
-+enum {
-+	DEV_MAP_LIVE,
-+	DEV_MAP_CONFIRM,
++static const struct attribute_group *e820_pmem_attribute_groups[] = {
++	&nvdimm_bus_attribute_group,
++	NULL,
 +};
 +
-+struct dev_map {
-+	struct list_head list;
-+	resource_size_t base;
-+	resource_size_t end;
-+	struct percpu_ref percpu_ref;
-+	struct device *dev;
-+	struct module *module;
-+	struct vmem_altmap *altmap;
-+	unsigned long flags;
++static const struct attribute_group *e820_pmem_region_attribute_groups[] = {
++	&nd_region_attribute_group,
++	&nd_device_attribute_group,
++	NULL,
 +};
 +
- static void teardown_kmap(void *data)
- {
- 	struct kmap *kmap = data;
-@@ -115,3 +151,162 @@ void kunmap_atomic_pfn_t(void *addr)
- 	rcu_read_unlock();
- }
- EXPORT_SYMBOL(kunmap_atomic_pfn_t);
-+
-+#ifdef CONFIG_ZONE_DEVICE
-+static struct dev_map *to_dev_map(struct percpu_ref *ref)
++static int e820_pmem_remove(struct platform_device *pdev)
 +{
-+	return container_of(ref, struct dev_map, percpu_ref);
++	struct nvdimm_bus *nvdimm_bus = platform_get_drvdata(pdev);
++
++	nvdimm_bus_unregister(nvdimm_bus);
++	return 0;
 +}
 +
-+static void dev_map_release(struct percpu_ref *ref)
++static int e820_pmem_probe(struct platform_device *pdev)
 +{
-+	struct dev_map *dev_map = to_dev_map(ref);
++	static struct nvdimm_bus_descriptor nd_desc;
++	struct device *dev = &pdev->dev;
++	struct nvdimm_bus *nvdimm_bus;
++	struct resource *p;
 +
-+	/* signal dev_map is idle (no more refs) */
-+	clear_bit(DEV_MAP_LIVE, &dev_map->flags);
-+	wake_up_all(&dev_map_wq);
-+}
++	nd_desc.attr_groups = e820_pmem_attribute_groups;
++	nd_desc.provider_name = "e820";
++	nvdimm_bus = nvdimm_bus_register(dev, &nd_desc);
++	if (!nvdimm_bus)
++		goto err;
++	platform_set_drvdata(pdev, nvdimm_bus);
 +
-+static void dev_map_confirm(struct percpu_ref *ref)
-+{
-+	struct dev_map *dev_map = to_dev_map(ref);
++	for (p = iomem_resource.child; p ; p = p->sibling) {
++		struct nd_region_desc ndr_desc;
 +
-+	/* signal dev_map is confirmed dead (slow path ref mode) */
-+	set_bit(DEV_MAP_CONFIRM, &dev_map->flags);
-+	wake_up_all(&dev_map_wq);
-+}
++		if (strncmp(p->name, "Persistent Memory (legacy)", 26) != 0)
++			continue;
 +
-+static void kill_dev_map(struct dev_map *dev_map)
-+{
-+	percpu_ref_kill_and_confirm(&dev_map->percpu_ref, dev_map_confirm);
-+	wait_event(dev_map_wq, test_bit(DEV_MAP_CONFIRM, &dev_map->flags));
-+}
-+
-+struct dev_map *__register_dev_memmap(struct device *dev, struct resource *res,
-+		struct vmem_altmap *altmap, struct module *mod)
-+{
-+	struct dev_map *dev_map;
-+	int rc, nid;
-+
-+	if (IS_ENABLED(CONFIG_MEMORY_HOTPLUG)
-+			&& IS_ENABLED(CONFIG_MEMORY_HOTREMOVE))
-+		/* pass */;
-+	else
-+		return NULL;
-+
-+	dev_map = kzalloc(sizeof(*dev_map), GFP_KERNEL);
-+	if (!dev_map)
-+		return NULL;
-+
-+	if (altmap) {
-+		dev_map->altmap = kmemdup(altmap, sizeof(*altmap), GFP_KERNEL);
-+		if (!dev_map->altmap)
-+			goto err_altmap;
++		memset(&ndr_desc, 0, sizeof(ndr_desc));
++		ndr_desc.res = p;
++		ndr_desc.attr_groups = e820_pmem_region_attribute_groups;
++		ndr_desc.numa_node = NUMA_NO_NODE;
++		if (!nvdimm_pmem_region_create(nvdimm_bus, &ndr_desc))
++			goto err;
 +	}
 +
-+	if (!try_module_get(mod))
-+		goto err_mod;
++	return 0;
 +
-+	nid = dev_to_node(dev);
-+	if (nid < 0)
-+		nid = 0;
-+	INIT_LIST_HEAD(&dev_map->list);
-+	dev_map->dev = dev;
-+	dev_map->base = res->start;
-+	dev_map->end = res->end;
-+	dev_map->module = mod;
-+	set_bit(DEV_MAP_LIVE, &dev_map->flags);
-+	if (percpu_ref_init(&dev_map->percpu_ref, dev_map_release, 0,
-+				GFP_KERNEL))
-+		goto err_ref;
-+
-+	mutex_lock(&register_lock);
-+	list_add_rcu(&dev_map->list, &dev_maps);
-+	mutex_unlock(&register_lock);
-+
-+	rc = arch_add_dev_memory(nid, res->start, resource_size(res), altmap);
-+	if (rc) {
-+		/*
-+		 * It is safe to delete here without checking percpu_ref
-+		 * since this dev_map is established before
-+		 * ->direct_access() has advertised this pfn range to
-+		 *  other parts of the kernel.
-+		 */
-+		mutex_lock(&register_lock);
-+		list_del_rcu(&dev_map->list);
-+		mutex_unlock(&register_lock);
-+		synchronize_rcu();
-+		goto err_add;
-+	}
-+
-+	return dev_map;
-+
-+ err_add:
-+	kill_dev_map(dev_map);
-+ err_ref:
-+	module_put(mod);
-+ err_mod:
-+	kfree(dev_map->altmap);
-+ err_altmap:
-+	kfree(dev_map);
-+	return NULL;
-+
++ err:
++	nvdimm_bus_unregister(nvdimm_bus);
++	dev_err(dev, "failed to register legacy persistent memory ranges\n");
++	return -ENXIO;
 +}
-+EXPORT_SYMBOL_GPL(__register_dev_memmap);
 +
-+void unregister_dev_memmap(struct dev_map *dev_map)
++static struct platform_driver e820_pmem_driver = {
++	.probe = e820_pmem_probe,
++	.remove = e820_pmem_remove,
++	.driver = {
++		.name = "e820_pmem",
++	},
++};
++
++static __init int e820_pmem_init(void)
 +{
-+	u64 size;
-+
-+	if (!dev_map)
-+		return;
-+
-+	/* block new references */
-+	kill_dev_map(dev_map);
-+
-+	/* block new lookups */
-+	mutex_lock(&register_lock);
-+	list_del_rcu(&dev_map->list);
-+	mutex_unlock(&register_lock);
-+
-+	/* flush pending lookups, and wait for pinned ranges */
-+	synchronize_rcu();
-+	wait_event(dev_map_wq, !test_bit(DEV_MAP_LIVE, &dev_map->flags));
-+
-+	/* pages are dead and unused, undo the arch mapping */
-+	size = dev_map->end - dev_map->base + 1;
-+	arch_remove_dev_memory(dev_map->base, size, dev_map->altmap);
-+	module_put(dev_map->module);
-+	kfree(dev_map->altmap);
-+	kfree(dev_map);
++	return platform_driver_register(&e820_pmem_driver);
 +}
-+EXPORT_SYMBOL_GPL(unregister_dev_memmap);
 +
-+struct dev_map * __must_check try_pin_devpfn_range(__pfn_t pfn)
++static __exit void e820_pmem_exit(void)
 +{
-+	phys_addr_t addr = __pfn_t_to_phys(pfn);
-+	struct dev_map *ret = NULL;
-+	struct dev_map *dev_map;
-+
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(dev_map, &dev_maps, list) {
-+		if (addr >= dev_map->base && addr <= dev_map->end) {
-+			if (percpu_ref_tryget_live(&dev_map->percpu_ref))
-+				ret = dev_map;
-+			break;
-+		}
-+	}
-+	rcu_read_unlock();
-+
-+	return ret;
++	platform_driver_unregister(&e820_pmem_driver);
 +}
-+EXPORT_SYMBOL_GPL(try_pin_devpfn_range);
 +
-+void unpin_devpfn_range(struct dev_map *dev_map)
-+{
-+	if (dev_map)
-+		percpu_ref_put(&dev_map->percpu_ref);
++MODULE_ALIAS("platform:e820_pmem*");
++MODULE_LICENSE("GPL v2");
++MODULE_AUTHOR("Intel Corporation");
++module_init(e820_pmem_init);
++module_exit(e820_pmem_exit);
+diff --git a/tools/testing/nvdimm/Kbuild b/tools/testing/nvdimm/Kbuild
+index 04c5fc09576d..e667579d38a0 100644
+--- a/tools/testing/nvdimm/Kbuild
++++ b/tools/testing/nvdimm/Kbuild
+@@ -15,6 +15,7 @@ obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
+ obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
+ obj-$(CONFIG_ND_BTT) += nd_btt.o
+ obj-$(CONFIG_ND_BLK) += nd_blk.o
++obj-$(CONFIG_X86_PMEM_LEGACY) += nd_e820.o
+ obj-$(CONFIG_ACPI_NFIT) += nfit.o
+ 
+ nfit-y := $(ACPI_SRC)/nfit.o
+@@ -29,6 +30,9 @@ nd_btt-y += config_check.o
+ nd_blk-y := $(NVDIMM_SRC)/blk.o
+ nd_blk-y += config_check.o
+ 
++nd_e820-y := $(NVDIMM_SRC)/e820.o
++nd_e820-y += config_check.o
 +
-+}
-+EXPORT_SYMBOL_GPL(unpin_devpfn_range);
-+#endif /* ZONE_DEVICE */
+ libnvdimm-y := $(NVDIMM_SRC)/core.o
+ libnvdimm-y += $(NVDIMM_SRC)/bus.o
+ libnvdimm-y += $(NVDIMM_SRC)/dimm_devs.o
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
