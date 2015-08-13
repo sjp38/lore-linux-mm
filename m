@@ -1,74 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A9E829003C7
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 11:21:03 -0400 (EDT)
-Received: by wijp15 with SMTP id p15so263267423wij.0
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 08:21:03 -0700 (PDT)
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
-        by mx.google.com with ESMTPS id y19si4592346wiv.10.2015.08.13.08.21.01
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id CFB0D6B0038
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 11:29:38 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so74453544wic.1
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 08:29:38 -0700 (PDT)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com. [209.85.212.178])
+        by mx.google.com with ESMTPS id gc7si4596121wib.89.2015.08.13.08.29.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Aug 2015 08:21:02 -0700 (PDT)
-Received: by wijp15 with SMTP id p15so263266498wij.0
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 08:21:01 -0700 (PDT)
+        Thu, 13 Aug 2015 08:29:35 -0700 (PDT)
+Received: by wicne3 with SMTP id ne3so264256573wic.1
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 08:29:35 -0700 (PDT)
+Message-ID: <55CCB7DD.7080005@plexistor.com>
+Date: Thu, 13 Aug 2015 18:29:33 +0300
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-In-Reply-To: <55CC38B0.70502@plexistor.com>
-References: <20150813025112.36703.21333.stgit@otcpl-skl-sds-2.jf.intel.com>
-	<20150813030119.36703.48416.stgit@otcpl-skl-sds-2.jf.intel.com>
-	<55CC38B0.70502@plexistor.com>
-Date: Thu, 13 Aug 2015 08:21:01 -0700
-Message-ID: <CAPcyv4iscepUm6EDe5iRR273Rbe-h5MAmVepix=gEZ0NtzRgJA@mail.gmail.com>
-Subject: Re: [PATCH v5 4/5] dax: fix mapping lifetime handling, convert to
- __pfn_t + kmap_atomic_pfn_t()
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v5 2/5] allow mapping page-less memremaped areas into
+ KVA
+References: <20150813025112.36703.21333.stgit@otcpl-skl-sds-2.jf.intel.com> <20150813030109.36703.21738.stgit@otcpl-skl-sds-2.jf.intel.com> <55CC3222.5090503@plexistor.com> <20150813143744.GA17375@lst.de> <55CCAE57.20009@plexistor.com>
+In-Reply-To: <55CCAE57.20009@plexistor.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Rik van Riel <riel@redhat.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org, axboe@kernel.dk, riel@redhat.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, mgorman@suse.de, torvalds@linux-foundation.org
 
-On Wed, Aug 12, 2015 at 11:26 PM, Boaz Harrosh <boaz@plexistor.com> wrote:
-> Boooo. Here this all set is a joke. The all "pmem disable vs still-in-use" argument is mute
-> here below you have inserted a live, used for ever, pfn into a process vm without holding
-> a map.
+On 08/13/2015 05:48 PM, Boaz Harrosh wrote:
+<>
+> There is already an object that holds a relationship of physical
+> to Kernel-virtual. It is called a memory-section. Why not just
+> widen its definition?
+> 
 
-Careful, don't confuse "unbind" with "unplug".  "Unbind" invalidates
-the driver's mapping (ioremap) while "unplug" would invalidate the
-pfn.  DAX is indeed broken with respect to unplug and we'll need to go
-solve that separately.  I expect "unplug" support will be needed for
-hot provisioning pmem to/from virtual machines.
+BTW: Regarding the "widen its definition"
 
-> The all "pmem disable vs still-in-use" is a joke. The FS loaded has a reference on the bdev
-> and the filehadle has a reference on the FS. So what is exactly this "pmem disable" you are
-> talking about?
+I was thinking of two possible new models here:
+[1-A page-less memory section]
+- Keep the 64bit phisical-to-kernel_virtual hard coded relationship
+- Allocate a section-object, but this section object does not have any
+  pages, its only the header. (You need it for the pmd/pmt thing)
 
-Hmm, that's not the same block layer I've been working with for the
-past several years:
+  Lots of things just work now if you make sure you do not go through
+  a page struct. This needs no extra work I have done this in the past
+  all you need is to do your ioremap through the map_kernel_range_noflush(__va(), ....)
 
-$ mount /dev/pmem0 /mnt
-$ echo namespace0.0 > ../drivers/nd_pmem/unbind # succeeds
+[2- Small pages-struct]
 
-Unbind always proceeds unconditionally.  See the recent kernel summit
-topic discussion around devm vs unbind [1].  While kmap_atomic_pfn_t()
-does not implement revoke semantics it at least forces re-validation
-and time bounded references.  For the unplug case we'll need to go
-shootdown those DAX mappings in userspace so that they return SIGBUS
-on access, or something along those lines.
+- Like above, but each entry in the new section object is small one-ulong size
+  holding just flags.
 
-[1]: http://www.spinics.net/lists/kernel/msg2032864.html
+ Then if !(p->flags & PAGE_SPECIAL) page = container_of(p, struct page, flags)
 
-> And for god sake. I have a bdev I call bdev_direct_access(sector), the bdev calculated the
-> exact address for me (base + sector). Now I get back this __pfn_t and I need to call
-> kmap_atomic_pfn_t() which does a loop to search for my range and again base+offset ?
->
-> This all model is broken, sorry?
+ This model is good because you actually have your pfn_to_page and page_to_pfn
+ and need not touch sg-list or bio. But only 8 bytes per frame instead of 64 bytes
 
-I think you are confused about the lifetime of the userspace DAX
-mapping vs the kernel's mapping and the frequency of calls to
-kmap_atomic_pfn_t().  I'm sure you can make this loop look bad with a
-micro-benchmark, but the whole point of DAX is to get the kernel out
-of the I/O path, so I'm not sure this overhead shows up in any real
-way in practice.
+
+But I still think that the best long-term model is the variable size pages
+where a page* can be 2M or 1G. Again an extra flag and a widen section definition.
+Is about time we move to bigger pages, throughout but still keep the 4k
+page-cache-dirty granularity.
+
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
