@@ -1,68 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CFB0D6B0038
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 11:29:38 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so74453544wic.1
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 08:29:38 -0700 (PDT)
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com. [209.85.212.178])
-        by mx.google.com with ESMTPS id gc7si4596121wib.89.2015.08.13.08.29.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Aug 2015 08:29:35 -0700 (PDT)
-Received: by wicne3 with SMTP id ne3so264256573wic.1
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 08:29:35 -0700 (PDT)
-Message-ID: <55CCB7DD.7080005@plexistor.com>
-Date: Thu, 13 Aug 2015 18:29:33 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 2/5] allow mapping page-less memremaped areas into
- KVA
-References: <20150813025112.36703.21333.stgit@otcpl-skl-sds-2.jf.intel.com> <20150813030109.36703.21738.stgit@otcpl-skl-sds-2.jf.intel.com> <55CC3222.5090503@plexistor.com> <20150813143744.GA17375@lst.de> <55CCAE57.20009@plexistor.com>
-In-Reply-To: <55CCAE57.20009@plexistor.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 2848A6B0038
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 11:55:03 -0400 (EDT)
+Received: by pdbfa8 with SMTP id fa8so20958535pdb.1
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 08:55:02 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id tr10si4394566pac.236.2015.08.13.08.55.02
+        for <linux-mm@kvack.org>;
+        Thu, 13 Aug 2015 08:55:02 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 0/2] Fix compound_head() race
+Date: Thu, 13 Aug 2015 18:54:44 +0300
+Message-Id: <1439481286-81093-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org, axboe@kernel.dk, riel@redhat.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, mgorman@suse.de, torvalds@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 08/13/2015 05:48 PM, Boaz Harrosh wrote:
-<>
-> There is already an object that holds a relationship of physical
-> to Kernel-virtual. It is called a memory-section. Why not just
-> widen its definition?
-> 
+Here's my attempt on fixing recently discovered race in compound_head().
+It should make compound_head() reliable in all contexts.
 
-BTW: Regarding the "widen its definition"
+The patchset is against Linus' tree. Let me know if it need to be rebased
+onto different baseline.
 
-I was thinking of two possible new models here:
-[1-A page-less memory section]
-- Keep the 64bit phisical-to-kernel_virtual hard coded relationship
-- Allocate a section-object, but this section object does not have any
-  pages, its only the header. (You need it for the pmd/pmt thing)
+It's expected to have conflicts with my page-flags patchset and probably
+should be applied before it.
 
-  Lots of things just work now if you make sure you do not go through
-  a page struct. This needs no extra work I have done this in the past
-  all you need is to do your ioremap through the map_kernel_range_noflush(__va(), ....)
+Kirill A. Shutemov (2):
+  zsmalloc: use page->private instead of page->first_page
+  mm: make compound_head() robust
 
-[2- Small pages-struct]
+ Documentation/vm/split_page_table_lock |  4 +-
+ arch/xtensa/configs/iss_defconfig      |  1 -
+ include/linux/mm.h                     | 53 ++--------------------
+ include/linux/mm_types.h               | 15 ++++---
+ include/linux/page-flags.h             | 80 ++++++++--------------------------
+ mm/Kconfig                             | 12 -----
+ mm/debug.c                             |  7 ---
+ mm/hugetlb.c                           |  8 +---
+ mm/internal.h                          |  4 +-
+ mm/memory-failure.c                    |  7 ---
+ mm/page_alloc.c                        | 36 +++++++--------
+ mm/swap.c                              |  4 +-
+ mm/zsmalloc.c                          | 11 +++--
+ 13 files changed, 61 insertions(+), 181 deletions(-)
 
-- Like above, but each entry in the new section object is small one-ulong size
-  holding just flags.
-
- Then if !(p->flags & PAGE_SPECIAL) page = container_of(p, struct page, flags)
-
- This model is good because you actually have your pfn_to_page and page_to_pfn
- and need not touch sg-list or bio. But only 8 bytes per frame instead of 64 bytes
-
-
-But I still think that the best long-term model is the variable size pages
-where a page* can be 2M or 1G. Again an extra flag and a widen section definition.
-Is about time we move to bigger pages, throughout but still keep the 4k
-page-cache-dirty granularity.
-
-Thanks
-Boaz
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
