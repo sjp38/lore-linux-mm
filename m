@@ -1,68 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E8DBB6B0038
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 22:14:21 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so13507591pdr.2
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 19:14:21 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id l3si1110298pdp.109.2015.08.12.19.14.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Aug 2015 19:14:21 -0700 (PDT)
-Received: by pabyb7 with SMTP id yb7so26599985pab.0
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 19:14:20 -0700 (PDT)
-Date: Wed, 12 Aug 2015 19:13:08 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm, vmscan: Do not wait for page writeback for GFP_NOFS
- allocations
-In-Reply-To: <55C463B4.2050904@kyup.com>
-Message-ID: <alpine.LSU.2.11.1508121833220.3648@eggly.anvils>
-References: <1435677437-16717-1-git-send-email-mhocko@suse.cz> <20150701061731.GB6286@dhcp22.suse.cz> <20150701133715.GA6287@dhcp22.suse.cz> <20150702142551.GB9456@thunk.org> <20150702151321.GE12547@dhcp22.suse.cz> <alpine.LSU.2.11.1508032227050.5070@eggly.anvils>
- <55C463B4.2050904@kyup.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E85D76B0038
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 23:06:42 -0400 (EDT)
+Received: by pacrr5 with SMTP id rr5so27542765pac.3
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 20:06:42 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id hp8si1280618pac.226.2015.08.12.20.06.41
+        for <linux-mm@kvack.org>;
+        Wed, 12 Aug 2015 20:06:42 -0700 (PDT)
+Subject: [PATCH v5 0/5] introduce __pfn_t for unmapped pfn I/O and DAX
+ lifetime
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 12 Aug 2015 23:00:59 -0400
+Message-ID: <20150813025112.36703.21333.stgit@otcpl-skl-sds-2.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <kernel@kyup.com>
-Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Marian Marinov <mm@1h.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-ext4@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: axboe@kernel.dk, riel@redhat.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, mgorman@suse.de, torvalds@linux-foundation.org, hch@lst.de
 
-On Fri, 7 Aug 2015, Nikolay Borisov wrote:
-> On 08/04/2015 09:32 AM, Hugh Dickins wrote:
-> > 
-> > And I've done quite a bit of testing.  The loads that hung at the
-> > weekend have been running nicely for 24 hours now, no problem with the
-> > writeback hang and no problem with the dcache ENOTDIR issue.  Though
-> > I've no idea of what recent VM change turned this into a hot issue.
-> > 
-> 
-> Are these production loads you are referring to that have been able to
-> reproduce the issue or are they some synthetic ones which? So far I
-> haven't been able to reproduce the issue using artifical loads so I'm
-> interested in incorporating this into my test set setup if it's available?
+Changes since v4 [1]:
 
-Not production loads, no, just an artificial load.  But not very good
-at reproducing the hang: variable, but took hours, and only showed up
-on one faster machine; I had to run the load for 2 days, then again 2
-days, to feel confident that this hang was fixed.
+1/ Allow up to PAGE_SHIFT bits in PFN_ flags.  Previously the __pfn_t
+   value was a union with a 'struct page *', but now __pfn_t_to_page()
+   internally does a pfn_to_page() instead of type-punning the value.
+   (Linus, Matthew)
 
-And I'm sorry, but describing it in full detail is not something I find
-time to do, in days or in years - partly because once I try to detail it,
-I need to simplify this and streamline that, and it turns into something
-else.  As happened when I sent it, offlist, to someone in 2009: I looked
-back at that with a view to forwarding to you, but a lot of the details
-don't match what I reverted to or advanced to doing since.
+2/ Move the definition to include/linux/mm.h and squash the
+   kmap_atomic_pfn_t() definition into the same patch. (Christoph)
 
-Broadly, it's a pair of repeated make -j20 kernel builds, one in tmpfs,
-one in ext4 over loop over tmpfs, in limited memory 700M with 1.5G swap.
-And to test this particular hang, it needed to use memcg (of what's now
-branded an "insane" variety, CONFIG_CGROUP_WRITEBACK=n): I was using 1G
-not 700M ram for this, but 300M memcg limit and 250M soft limit on each
-memcg that was hosting one of the pair of repeated builds.  It can be
-difficult to tune the right balance, swapping heavily but not OOMing:
-it's a 2.6.24 tree I've gone back to building, because that's so much
-smaller than current, with a greater proportion active in the build.
+3/ Kill dax_get_pfn().  Now replaced with dax_map_bh() (Matthew)
 
-Hugh
+4/ The scatterlist cleanup patches are moved to their own series being
+   carried by Christoph.
+
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-June/001094.html
+
+---
+
+We want persistent memory to have 4 modes of access:
+
+1/ Block device: persistent memory treated as a ram disk (done)
+
+2/ DAX: userspace mmap (done)
+
+3/ Kernel "page-less". (this series)
+
+4/ Kernel and userspace references to page-mapped persistent memory
+   (future series)
+
+The "kernel 'page-less'" case leverages the fact that a 'struct page'
+object is not necessarily required for describing a DMA transfer from a
+device to a persistent memory address.  A pfn will do, but code needs to
+be careful to not perform a pfn_to_page() operation on unmapped
+persistent memory. The __pfn_t type enforces that safety and
+kmap_atomic_pfn_t() covers cases where the I/O stack needs to touch the
+buffer on its way to the low-level-device-driver (i.e. current usages of
+kmap_atomic() in the block-layer).
+
+A subsequent patch series will add struct page coverage for persistent,
+"device", memory.
+
+We also use kmap_atomic_pfn_t() to solve races of pmem driver unbind vs
+usage in DAX. rcu_read_lock() protects the driver from unbinding while a
+mapping is held.
+
+---
+
+Christoph Hellwig (1):
+      mm: move __phys_to_pfn and __pfn_to_phys to asm/generic/memory_model.h
+
+Dan Williams (4):
+      allow mapping page-less memremaped areas into KVA
+      dax: drop size parameter to ->direct_access()
+      dax: fix mapping lifetime handling, convert to __pfn_t + kmap_atomic_pfn_t()
+      scatterlist: convert to __pfn_t
+
+
+ arch/arm/include/asm/memory.h       |    6 --
+ arch/arm64/include/asm/memory.h     |    6 --
+ arch/powerpc/platforms/Kconfig      |    1 
+ arch/powerpc/sysdev/axonram.c       |   24 +++++--
+ arch/unicore32/include/asm/memory.h |    6 --
+ drivers/block/brd.c                 |    9 +--
+ drivers/nvdimm/Kconfig              |    1 
+ drivers/nvdimm/pmem.c               |   24 ++++---
+ drivers/s390/block/Kconfig          |    1 
+ drivers/s390/block/dcssblk.c        |   23 ++++++-
+ fs/Kconfig                          |    1 
+ fs/block_dev.c                      |    4 +
+ fs/dax.c                            |   79 +++++++++++++++++-------
+ include/asm-generic/memory_model.h  |    6 ++
+ include/linux/blkdev.h              |    7 +-
+ include/linux/kmap_pfn.h            |   31 +++++++++
+ include/linux/mm.h                  |   78 +++++++++++++++++++++++
+ include/linux/scatterlist.h         |  111 +++++++++++++++++++++++----------
+ mm/Kconfig                          |    3 +
+ mm/Makefile                         |    1 
+ mm/kmap_pfn.c                       |  117 +++++++++++++++++++++++++++++++++++
+ samples/kfifo/dma-example.c         |    8 +-
+ 22 files changed, 435 insertions(+), 112 deletions(-)
+ create mode 100644 include/linux/kmap_pfn.h
+ create mode 100644 mm/kmap_pfn.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
