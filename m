@@ -1,40 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B5D866B0038
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 19:52:15 -0400 (EDT)
-Received: by pdrg1 with SMTP id g1so12366339pdr.2
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 16:52:15 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id a5si581801pdg.240.2015.08.12.16.52.14
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C5FD6B0038
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 20:01:40 -0400 (EDT)
+Received: by pdbfa8 with SMTP id fa8so12423157pdb.1
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 17:01:40 -0700 (PDT)
+Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com. [2607:f8b0:400e:c02::234])
+        by mx.google.com with ESMTPS id bw2si623840pbb.162.2015.08.12.17.01.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Aug 2015 16:52:14 -0700 (PDT)
-Received: by pacgr6 with SMTP id gr6so24390745pac.2
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 16:52:14 -0700 (PDT)
-Date: Wed, 12 Aug 2015 16:52:12 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2 1/4] mm: Add support for __GFP_ZERO flag to
- dma_pool_alloc()
-In-Reply-To: <1438371404-3219-2-git-send-email-sean.stalley@intel.com>
-Message-ID: <alpine.DEB.2.10.1508121649310.30617@chino.kir.corp.google.com>
-References: <1438371404-3219-1-git-send-email-sean.stalley@intel.com> <1438371404-3219-2-git-send-email-sean.stalley@intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 12 Aug 2015 17:01:39 -0700 (PDT)
+Received: by pdrg1 with SMTP id g1so12437998pdr.2
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 17:01:39 -0700 (PDT)
+From: Gregory Fong <gregory.0xf0@gmail.com>
+Subject: [PATCH] mm: cma: mark cma_bitmap_maxno() inline in header
+Date: Wed, 12 Aug 2015 17:01:21 -0700
+Message-Id: <1439424082-12356-1-git-send-email-gregory.0xf0@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Sean O. Stalley" <sean.stalley@intel.com>
-Cc: corbet@lwn.net, vinod.koul@intel.com, bhelgaas@google.com, Julia.Lawall@lip6.fr, Gilles.Muller@lip6.fr, nicolas.palix@imag.fr, mmarek@suse.cz, akpm@linux-foundation.org, bigeasy@linutronix.de, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, dmaengine@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, cocci@systeme.lip6.fr
+To: linux-mm@kvack.org
+Cc: Gregory Fong <gregory.0xf0@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>
 
-On Fri, 31 Jul 2015, Sean O. Stalley wrote:
+cma_bitmap_maxno() was marked as static and not static inline, which
+can cause warnings about this function not being used if this file is
+included in a file that does not call that function, and violates the
+conventions used elsewhere.  The two options are to move the function
+implementation back to mm/cma.c or make it inline here, and it's
+simple enough for the latter to make sense.
 
-> Currently the __GFP_ZERO flag is ignored by dma_pool_alloc().
-> Make dma_pool_alloc() zero the memory if this flag is set.
-> 
-> Signed-off-by: Sean O. Stalley <sean.stalley@intel.com>
+Signed-off-by: Gregory Fong <gregory.0xf0@gmail.com>
+---
+ mm/cma.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Acked-by: David Rientjes <rientjes@google.com>
-
-This has impacted us as well, and I'm glad to see it fixed.
+diff --git a/mm/cma.h b/mm/cma.h
+index 1132d73..17c75a4 100644
+--- a/mm/cma.h
++++ b/mm/cma.h
+@@ -16,7 +16,7 @@ struct cma {
+ extern struct cma cma_areas[MAX_CMA_AREAS];
+ extern unsigned cma_area_count;
+ 
+-static unsigned long cma_bitmap_maxno(struct cma *cma)
++static inline unsigned long cma_bitmap_maxno(struct cma *cma)
+ {
+ 	return cma->count >> cma->order_per_bit;
+ }
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
