@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 024CA6B0258
-	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 23:56:13 -0400 (EDT)
-Received: by pawu10 with SMTP id u10so28484992paw.1
-        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 20:56:12 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id by6si1516895pdb.89.2015.08.12.20.56.11
+	by kanga.kvack.org (Postfix) with ESMTP id A6DBB6B0259
+	for <linux-mm@kvack.org>; Wed, 12 Aug 2015 23:56:18 -0400 (EDT)
+Received: by pacrr5 with SMTP id rr5so28377701pac.3
+        for <linux-mm@kvack.org>; Wed, 12 Aug 2015 20:56:18 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id ot10si1519820pdb.76.2015.08.12.20.56.16
         for <linux-mm@kvack.org>;
-        Wed, 12 Aug 2015 20:56:11 -0700 (PDT)
-Subject: [RFC PATCH 5/7] libnvdimm,
- e820: make CONFIG_X86_PMEM_LEGACY a tristate option
+        Wed, 12 Aug 2015 20:56:17 -0700 (PDT)
+Subject: [RFC PATCH 6/7] libnvdimm,
+ pfn: 'struct page' provider infrastructure
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 12 Aug 2015 23:50:29 -0400
-Message-ID: <20150813035028.36913.25267.stgit@otcpl-skl-sds-2.jf.intel.com>
+Date: Wed, 12 Aug 2015 23:50:34 -0400
+Message-ID: <20150813035034.36913.30049.stgit@otcpl-skl-sds-2.jf.intel.com>
 In-Reply-To: <20150813031253.36913.29580.stgit@otcpl-skl-sds-2.jf.intel.com>
 References: <20150813031253.36913.29580.stgit@otcpl-skl-sds-2.jf.intel.com>
 MIME-Version: 1.0
@@ -23,301 +23,1221 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: boaz@plexistor.com, riel@redhat.com, linux-nvdimm@lists.01.org, david@fromorbit.com, mingo@kernel.org, linux-mm@kvack.org, mgorman@suse.de, ross.zwisler@linux.intel.com, torvalds@linux-foundation.org, hch@lst.de
 
-Purely for ease of testing, with this in place we can run the unit test
-alongside any tests that depend on the memmap=ss!nn kernel parameter.
-The unit test mocking implementation requires that libnvdimm be a module
-and not built-in.
+Implement the base infrastructure for libnvdimm PFN devices. Similar to
+BTT devices they take a namespace as a backing device and layer
+functionality on top. In this case the functionality is reserving space
+for an array of 'struct page' entries to be handed out through
+pfn_to_page(). For now this is just the basic libnvdimm-device-model for
+configuring the base PFN device.
 
-A nice side effect is the implementation is a bit more generic as it no
-longer depends on <asm/e820.h>.
+As the namespace claiming mechanism for PFN devices is mostly identical
+to BTT devices drivers/nvdimm/claim.c is created to house the common
+bits.
 
-Cc: Christoph Hellwig <hch@lst.de>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/x86/Kconfig                 |    6 ++-
- arch/x86/include/uapi/asm/e820.h |    2 -
- arch/x86/kernel/Makefile         |    2 -
- arch/x86/kernel/pmem.c           |   79 ++++-------------------------------
- drivers/nvdimm/Makefile          |    3 +
- drivers/nvdimm/e820.c            |   86 ++++++++++++++++++++++++++++++++++++++
- tools/testing/nvdimm/Kbuild      |    4 ++
- 7 files changed, 108 insertions(+), 74 deletions(-)
- create mode 100644 drivers/nvdimm/e820.c
+ drivers/nvdimm/Kconfig          |   22 +++
+ drivers/nvdimm/Makefile         |    2 
+ drivers/nvdimm/btt.c            |    8 -
+ drivers/nvdimm/btt_devs.c       |  172 +-------------------
+ drivers/nvdimm/claim.c          |  201 ++++++++++++++++++++++++
+ drivers/nvdimm/namespace_devs.c |   34 +++-
+ drivers/nvdimm/nd-core.h        |    9 +
+ drivers/nvdimm/nd.h             |   59 +++++++
+ drivers/nvdimm/pfn.h            |   35 ++++
+ drivers/nvdimm/pfn_devs.c       |  333 +++++++++++++++++++++++++++++++++++++++
+ drivers/nvdimm/region.c         |    2 
+ drivers/nvdimm/region_devs.c    |   19 ++
+ tools/testing/nvdimm/Kbuild     |    2 
+ 13 files changed, 720 insertions(+), 178 deletions(-)
+ create mode 100644 drivers/nvdimm/claim.c
+ create mode 100644 drivers/nvdimm/pfn.h
+ create mode 100644 drivers/nvdimm/pfn_devs.c
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 64829b17980b..5d6994f62c4d 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1439,10 +1439,14 @@ config ILLEGAL_POINTER_VALUE
+diff --git a/drivers/nvdimm/Kconfig b/drivers/nvdimm/Kconfig
+index 0d8c6bda7a41..7e05f2657d09 100644
+--- a/drivers/nvdimm/Kconfig
++++ b/drivers/nvdimm/Kconfig
+@@ -22,6 +22,7 @@ config BLK_DEV_PMEM
+ 	depends on HAS_IOMEM
+ 	select KMAP_PFN
+ 	select ND_BTT if BTT
++	select ND_PFN if NVDIMM_PFN
+ 	help
+ 	  Memory ranges for PMEM are described by either an NFIT
+ 	  (NVDIMM Firmware Interface Table, see CONFIG_NFIT_ACPI), a
+@@ -48,12 +49,16 @@ config ND_BLK
+ 	  (CONFIG_ACPI_NFIT), or otherwise exposes BLK-mode
+ 	  capabilities.
  
- source "mm/Kconfig"
- 
-+config X86_PMEM_LEGACY_DEVICE
++config ND_CLAIM
 +	bool
 +
- config X86_PMEM_LEGACY
--	bool "Support non-standard NVDIMMs and ADR protected memory"
-+	tristate "Support non-standard NVDIMMs and ADR protected memory"
- 	depends on PHYS_ADDR_T_64BIT
- 	depends on BLK_DEV
-+	select X86_PMEM_LEGACY_DEVICE
- 	select LIBNVDIMM
+ config ND_BTT
+ 	tristate
+ 
+ config BTT
+ 	bool "BTT: Block Translation Table (atomic sector updates)"
+ 	default y if LIBNVDIMM
++	select ND_CLAIM
  	help
- 	  Treat memory marked using the non-standard e820 type of 12 as used
-diff --git a/arch/x86/include/uapi/asm/e820.h b/arch/x86/include/uapi/asm/e820.h
-index 0f457e6eab18..9dafe59cf6e2 100644
---- a/arch/x86/include/uapi/asm/e820.h
-+++ b/arch/x86/include/uapi/asm/e820.h
-@@ -37,7 +37,7 @@
- /*
-  * This is a non-standardized way to represent ADR or NVDIMM regions that
-  * persist over a reboot.  The kernel will ignore their special capabilities
-- * unless the CONFIG_X86_PMEM_LEGACY=y option is set.
-+ * unless the CONFIG_X86_PMEM_LEGACY option is set.
-  *
-  * ( Note that older platforms also used 6 for the same type of memory,
-  *   but newer versions switched to 12 as 6 was assigned differently.  Some
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index 0f15af41bd80..ac2bb7e28ba2 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -92,7 +92,7 @@ obj-$(CONFIG_KVM_GUEST)		+= kvm.o kvmclock.o
- obj-$(CONFIG_PARAVIRT)		+= paravirt.o paravirt_patch_$(BITS).o
- obj-$(CONFIG_PARAVIRT_SPINLOCKS)+= paravirt-spinlocks.o
- obj-$(CONFIG_PARAVIRT_CLOCK)	+= pvclock.o
--obj-$(CONFIG_X86_PMEM_LEGACY)	+= pmem.o
-+obj-$(CONFIG_X86_PMEM_LEGACY_DEVICE) += pmem.o
+ 	  The Block Translation Table (BTT) provides atomic sector
+ 	  update semantics for persistent memory devices, so that
+@@ -66,4 +71,21 @@ config BTT
  
- obj-$(CONFIG_PCSPKR_PLATFORM)	+= pcspeaker.o
+ 	  Select Y if unsure
  
-diff --git a/arch/x86/kernel/pmem.c b/arch/x86/kernel/pmem.c
-index 64f90f53bb85..4f00b63d7ff3 100644
---- a/arch/x86/kernel/pmem.c
-+++ b/arch/x86/kernel/pmem.c
-@@ -3,80 +3,17 @@
-  * Copyright (c) 2015, Intel Corporation.
-  */
- #include <linux/platform_device.h>
--#include <linux/libnvdimm.h>
- #include <linux/module.h>
--#include <asm/e820.h>
--
--static void e820_pmem_release(struct device *dev)
--{
--	struct nvdimm_bus *nvdimm_bus = dev->platform_data;
--
--	if (nvdimm_bus)
--		nvdimm_bus_unregister(nvdimm_bus);
--}
--
--static struct platform_device e820_pmem = {
--	.name = "e820_pmem",
--	.id = -1,
--	.dev = {
--		.release = e820_pmem_release,
--	},
--};
--
--static const struct attribute_group *e820_pmem_attribute_groups[] = {
--	&nvdimm_bus_attribute_group,
--	NULL,
--};
--
--static const struct attribute_group *e820_pmem_region_attribute_groups[] = {
--	&nd_region_attribute_group,
--	&nd_device_attribute_group,
--	NULL,
--};
- 
- static __init int register_e820_pmem(void)
- {
--	static struct nvdimm_bus_descriptor nd_desc;
--	struct device *dev = &e820_pmem.dev;
--	struct nvdimm_bus *nvdimm_bus;
--	int rc, i;
--
--	rc = platform_device_register(&e820_pmem);
--	if (rc)
--		return rc;
--
--	nd_desc.attr_groups = e820_pmem_attribute_groups;
--	nd_desc.provider_name = "e820";
--	nvdimm_bus = nvdimm_bus_register(dev, &nd_desc);
--	if (!nvdimm_bus)
--		goto err;
--	dev->platform_data = nvdimm_bus;
--
--	for (i = 0; i < e820.nr_map; i++) {
--		struct e820entry *ei = &e820.map[i];
--		struct resource res = {
--			.flags	= IORESOURCE_MEM,
--			.start	= ei->addr,
--			.end	= ei->addr + ei->size - 1,
--		};
--		struct nd_region_desc ndr_desc;
--
--		if (ei->type != E820_PRAM)
--			continue;
--
--		memset(&ndr_desc, 0, sizeof(ndr_desc));
--		ndr_desc.res = &res;
--		ndr_desc.attr_groups = e820_pmem_region_attribute_groups;
--		ndr_desc.numa_node = NUMA_NO_NODE;
--		if (!nvdimm_pmem_region_create(nvdimm_bus, &ndr_desc))
--			goto err;
--	}
--
--	return 0;
--
-- err:
--	dev_err(dev, "failed to register legacy persistent memory ranges\n");
--	platform_device_unregister(&e820_pmem);
--	return -ENXIO;
-+	struct platform_device *pdev;
++config ND_PFN
++	tristate
 +
-+	/*
-+	 * See drivers/nvdimm/e820.c for the implementation, this is
-+	 * simply here to trigger the module to load on demand.
-+	 */
-+	pdev = platform_device_alloc("e820_pmem", -1);
-+	return platform_device_add(pdev);
- }
- device_initcall(register_e820_pmem);
++config NVDIMM_PFN
++	bool "PFN: Map persistent (device) memory"
++	default LIBNVDIMM
++	select ND_CLAIM
++	help
++	  Map persistent memory, i.e. advertise it to the memory
++	  management sub-system.  By default persistent memory does
++	  not support direct I/O, RDMA, or any other usage that
++	  requires a 'struct page' to mediate an I/O request.  This
++	  driver allocates and initializes the infrastructure needed
++	  to support those use cases.
++
++	  Select Y if unsure
++
+ endif
 diff --git a/drivers/nvdimm/Makefile b/drivers/nvdimm/Makefile
-index 594bb97c867a..9bf15db52dee 100644
+index 9bf15db52dee..ea84d3c4e8e5 100644
 --- a/drivers/nvdimm/Makefile
 +++ b/drivers/nvdimm/Makefile
-@@ -2,6 +2,7 @@ obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
- obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
- obj-$(CONFIG_ND_BTT) += nd_btt.o
- obj-$(CONFIG_ND_BLK) += nd_blk.o
-+obj-$(CONFIG_X86_PMEM_LEGACY) += nd_e820.o
+@@ -20,4 +20,6 @@ libnvdimm-y += region_devs.o
+ libnvdimm-y += region.o
+ libnvdimm-y += namespace_devs.o
+ libnvdimm-y += label.o
++libnvdimm-$(CONFIG_ND_CLAIM) += claim.o
+ libnvdimm-$(CONFIG_BTT) += btt_devs.o
++libnvdimm-$(CONFIG_NVDIMM_PFN) += pfn_devs.o
+diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
+index 552f1c4f4dc6..a0db65788a92 100644
+--- a/drivers/nvdimm/btt.c
++++ b/drivers/nvdimm/btt.c
+@@ -595,7 +595,7 @@ static int arena_is_valid(struct arena_info *arena, struct btt_sb *super,
  
- nd_pmem-y := pmem.o
+ 	checksum = le64_to_cpu(super->checksum);
+ 	super->checksum = 0;
+-	if (checksum != nd_btt_sb_checksum(super))
++	if (checksum != nd_sb_checksum((struct nd_gen_sb *) super))
+ 		return 0;
+ 	super->checksum = cpu_to_le64(checksum);
  
-@@ -9,6 +10,8 @@ nd_btt-y := btt.o
+@@ -759,6 +759,7 @@ static int create_arenas(struct btt *btt)
+ static int btt_arena_write_layout(struct arena_info *arena, u8 *uuid)
+ {
+ 	int ret;
++	u64 sum;
+ 	struct btt_sb *super;
  
- nd_blk-y := blk.o
+ 	ret = btt_map_init(arena);
+@@ -795,7 +796,8 @@ static int btt_arena_write_layout(struct arena_info *arena, u8 *uuid)
+ 	super->info2off = cpu_to_le64(arena->info2off - arena->infooff);
  
-+nd_e820-y := e820.o
+ 	super->flags = 0;
+-	super->checksum = cpu_to_le64(nd_btt_sb_checksum(super));
++	sum = nd_sb_checksum((struct nd_gen_sb *) super);
++	super->checksum = cpu_to_le64(sum);
+ 
+ 	ret = btt_info_write(arena, super);
+ 
+@@ -1447,8 +1449,6 @@ static int __init nd_btt_init(void)
+ {
+ 	int rc;
+ 
+-	BUILD_BUG_ON(sizeof(struct btt_sb) != SZ_4K);
+-
+ 	btt_major = register_blkdev(0, "btt");
+ 	if (btt_major < 0)
+ 		return btt_major;
+diff --git a/drivers/nvdimm/btt_devs.c b/drivers/nvdimm/btt_devs.c
+index 6ac8c0fea3ec..8256c481762b 100644
+--- a/drivers/nvdimm/btt_devs.c
++++ b/drivers/nvdimm/btt_devs.c
+@@ -21,63 +21,13 @@
+ #include "btt.h"
+ #include "nd.h"
+ 
+-static void __nd_btt_detach_ndns(struct nd_btt *nd_btt)
+-{
+-	struct nd_namespace_common *ndns = nd_btt->ndns;
+-
+-	dev_WARN_ONCE(&nd_btt->dev, !mutex_is_locked(&ndns->dev.mutex)
+-			|| ndns->claim != &nd_btt->dev,
+-			"%s: invalid claim\n", __func__);
+-	ndns->claim = NULL;
+-	nd_btt->ndns = NULL;
+-	put_device(&ndns->dev);
+-}
+-
+-static void nd_btt_detach_ndns(struct nd_btt *nd_btt)
+-{
+-	struct nd_namespace_common *ndns = nd_btt->ndns;
+-
+-	if (!ndns)
+-		return;
+-	get_device(&ndns->dev);
+-	device_lock(&ndns->dev);
+-	__nd_btt_detach_ndns(nd_btt);
+-	device_unlock(&ndns->dev);
+-	put_device(&ndns->dev);
+-}
+-
+-static bool __nd_btt_attach_ndns(struct nd_btt *nd_btt,
+-		struct nd_namespace_common *ndns)
+-{
+-	if (ndns->claim)
+-		return false;
+-	dev_WARN_ONCE(&nd_btt->dev, !mutex_is_locked(&ndns->dev.mutex)
+-			|| nd_btt->ndns,
+-			"%s: invalid claim\n", __func__);
+-	ndns->claim = &nd_btt->dev;
+-	nd_btt->ndns = ndns;
+-	get_device(&ndns->dev);
+-	return true;
+-}
+-
+-static bool nd_btt_attach_ndns(struct nd_btt *nd_btt,
+-		struct nd_namespace_common *ndns)
+-{
+-	bool claimed;
+-
+-	device_lock(&ndns->dev);
+-	claimed = __nd_btt_attach_ndns(nd_btt, ndns);
+-	device_unlock(&ndns->dev);
+-	return claimed;
+-}
+-
+ static void nd_btt_release(struct device *dev)
+ {
+ 	struct nd_region *nd_region = to_nd_region(dev->parent);
+ 	struct nd_btt *nd_btt = to_nd_btt(dev);
+ 
+ 	dev_dbg(dev, "%s\n", __func__);
+-	nd_btt_detach_ndns(nd_btt);
++	nd_detach_ndns(&nd_btt->dev, &nd_btt->ndns);
+ 	ida_simple_remove(&nd_region->btt_ida, nd_btt->id);
+ 	kfree(nd_btt->uuid);
+ 	kfree(nd_btt);
+@@ -172,104 +122,15 @@ static ssize_t namespace_show(struct device *dev,
+ 	return rc;
+ }
+ 
+-static int namespace_match(struct device *dev, void *data)
+-{
+-	char *name = data;
+-
+-	return strcmp(name, dev_name(dev)) == 0;
+-}
+-
+-static bool is_nd_btt_idle(struct device *dev)
+-{
+-	struct nd_region *nd_region = to_nd_region(dev->parent);
+-	struct nd_btt *nd_btt = to_nd_btt(dev);
+-
+-	if (nd_region->btt_seed == dev || nd_btt->ndns || dev->driver)
+-		return false;
+-	return true;
+-}
+-
+-static ssize_t __namespace_store(struct device *dev,
+-		struct device_attribute *attr, const char *buf, size_t len)
+-{
+-	struct nd_btt *nd_btt = to_nd_btt(dev);
+-	struct nd_namespace_common *ndns;
+-	struct device *found;
+-	char *name;
+-
+-	if (dev->driver) {
+-		dev_dbg(dev, "%s: -EBUSY\n", __func__);
+-		return -EBUSY;
+-	}
+-
+-	name = kstrndup(buf, len, GFP_KERNEL);
+-	if (!name)
+-		return -ENOMEM;
+-	strim(name);
+-
+-	if (strncmp(name, "namespace", 9) == 0 || strcmp(name, "") == 0)
+-		/* pass */;
+-	else {
+-		len = -EINVAL;
+-		goto out;
+-	}
+-
+-	ndns = nd_btt->ndns;
+-	if (strcmp(name, "") == 0) {
+-		/* detach the namespace and destroy / reset the btt device */
+-		nd_btt_detach_ndns(nd_btt);
+-		if (is_nd_btt_idle(dev))
+-			nd_device_unregister(dev, ND_ASYNC);
+-		else {
+-			nd_btt->lbasize = 0;
+-			kfree(nd_btt->uuid);
+-			nd_btt->uuid = NULL;
+-		}
+-		goto out;
+-	} else if (ndns) {
+-		dev_dbg(dev, "namespace already set to: %s\n",
+-				dev_name(&ndns->dev));
+-		len = -EBUSY;
+-		goto out;
+-	}
+-
+-	found = device_find_child(dev->parent, name, namespace_match);
+-	if (!found) {
+-		dev_dbg(dev, "'%s' not found under %s\n", name,
+-				dev_name(dev->parent));
+-		len = -ENODEV;
+-		goto out;
+-	}
+-
+-	ndns = to_ndns(found);
+-	if (__nvdimm_namespace_capacity(ndns) < SZ_16M) {
+-		dev_dbg(dev, "%s too small to host btt\n", name);
+-		len = -ENXIO;
+-		goto out_attach;
+-	}
+-
+-	WARN_ON_ONCE(!is_nvdimm_bus_locked(&nd_btt->dev));
+-	if (!nd_btt_attach_ndns(nd_btt, ndns)) {
+-		dev_dbg(dev, "%s already claimed\n",
+-				dev_name(&ndns->dev));
+-		len = -EBUSY;
+-	}
+-
+- out_attach:
+-	put_device(&ndns->dev); /* from device_find_child */
+- out:
+-	kfree(name);
+-	return len;
+-}
+-
+ static ssize_t namespace_store(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t len)
+ {
++	struct nd_btt *nd_btt = to_nd_btt(dev);
+ 	ssize_t rc;
+ 
+ 	nvdimm_bus_lock(dev);
+ 	device_lock(dev);
+-	rc = __namespace_store(dev, attr, buf, len);
++	rc = nd_namespace_store(dev, &nd_btt->ndns, buf, len);
+ 	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
+ 			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
+ 	device_unlock(dev);
+@@ -324,7 +185,7 @@ static struct device *__nd_btt_create(struct nd_region *nd_region,
+ 	dev->type = &nd_btt_device_type;
+ 	dev->groups = nd_btt_attribute_groups;
+ 	device_initialize(&nd_btt->dev);
+-	if (ndns && !__nd_btt_attach_ndns(nd_btt, ndns)) {
++	if (ndns && !__nd_attach_ndns(&nd_btt->dev, ndns, &nd_btt->ndns)) {
+ 		dev_dbg(&ndns->dev, "%s failed, already claimed by %s\n",
+ 				__func__, dev_name(ndns->claim));
+ 		put_device(dev);
+@@ -342,25 +203,6 @@ struct device *nd_btt_create(struct nd_region *nd_region)
+ 	return dev;
+ }
+ 
+-/*
+- * nd_btt_sb_checksum: compute checksum for btt info block
+- *
+- * Returns a fletcher64 checksum of everything in the given info block
+- * except the last field (since that's where the checksum lives).
+- */
+-u64 nd_btt_sb_checksum(struct btt_sb *btt_sb)
+-{
+-	u64 sum;
+-	__le64 sum_save;
+-
+-	sum_save = btt_sb->checksum;
+-	btt_sb->checksum = 0;
+-	sum = nd_fletcher64(btt_sb, sizeof(*btt_sb), 1);
+-	btt_sb->checksum = sum_save;
+-	return sum;
+-}
+-EXPORT_SYMBOL(nd_btt_sb_checksum);
+-
+ static int __nd_btt_probe(struct nd_btt *nd_btt,
+ 		struct nd_namespace_common *ndns, struct btt_sb *btt_sb)
+ {
+@@ -380,7 +222,7 @@ static int __nd_btt_probe(struct nd_btt *nd_btt,
+ 
+ 	checksum = le64_to_cpu(btt_sb->checksum);
+ 	btt_sb->checksum = 0;
+-	if (checksum != nd_btt_sb_checksum(btt_sb))
++	if (checksum != nd_sb_checksum((struct nd_gen_sb *) btt_sb))
+ 		return -ENODEV;
+ 	btt_sb->checksum = cpu_to_le64(checksum);
+ 
+@@ -416,7 +258,9 @@ int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata)
+ 	dev_dbg(&ndns->dev, "%s: btt: %s\n", __func__,
+ 			rc == 0 ? dev_name(dev) : "<none>");
+ 	if (rc < 0) {
+-		__nd_btt_detach_ndns(to_nd_btt(dev));
++		struct nd_btt *nd_btt = to_nd_btt(dev);
 +
- libnvdimm-y := core.o
- libnvdimm-y += bus.o
- libnvdimm-y += dimm_devs.o
-diff --git a/drivers/nvdimm/e820.c b/drivers/nvdimm/e820.c
++		__nd_detach_ndns(dev, &nd_btt->ndns);
+ 		put_device(dev);
+ 	}
+ 
+diff --git a/drivers/nvdimm/claim.c b/drivers/nvdimm/claim.c
 new file mode 100644
-index 000000000000..1b5743ad92db
+index 000000000000..e8f03b0e95e4
 --- /dev/null
-+++ b/drivers/nvdimm/e820.c
-@@ -0,0 +1,86 @@
++++ b/drivers/nvdimm/claim.c
+@@ -0,0 +1,201 @@
 +/*
-+ * Copyright (c) 2015, Christoph Hellwig.
-+ * Copyright (c) 2015, Intel Corporation.
++ * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of version 2 of the GNU General Public License as
++ * published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
 + */
-+#include <linux/platform_device.h>
-+#include <linux/libnvdimm.h>
-+#include <linux/module.h>
++#include <linux/device.h>
++#include <linux/sizes.h>
++#include "nd-core.h"
++#include "pfn.h"
++#include "btt.h"
++#include "nd.h"
 +
-+static const struct attribute_group *e820_pmem_attribute_groups[] = {
-+	&nvdimm_bus_attribute_group,
-+	NULL,
-+};
-+
-+static const struct attribute_group *e820_pmem_region_attribute_groups[] = {
-+	&nd_region_attribute_group,
-+	&nd_device_attribute_group,
-+	NULL,
-+};
-+
-+static int e820_pmem_remove(struct platform_device *pdev)
++void __nd_detach_ndns(struct device *dev, struct nd_namespace_common **_ndns)
 +{
-+	struct nvdimm_bus *nvdimm_bus = platform_get_drvdata(pdev);
++	struct nd_namespace_common *ndns = *_ndns;
 +
-+	nvdimm_bus_unregister(nvdimm_bus);
-+	return 0;
++	dev_WARN_ONCE(dev, !mutex_is_locked(&ndns->dev.mutex)
++			|| ndns->claim != dev,
++			"%s: invalid claim\n", __func__);
++	ndns->claim = NULL;
++	*_ndns = NULL;
++	put_device(&ndns->dev);
 +}
 +
-+static int e820_pmem_probe(struct platform_device *pdev)
++void nd_detach_ndns(struct device *dev,
++		struct nd_namespace_common **_ndns)
 +{
-+	static struct nvdimm_bus_descriptor nd_desc;
-+	struct device *dev = &pdev->dev;
-+	struct nvdimm_bus *nvdimm_bus;
-+	struct resource *p;
++	struct nd_namespace_common *ndns = *_ndns;
 +
-+	nd_desc.attr_groups = e820_pmem_attribute_groups;
-+	nd_desc.provider_name = "e820";
-+	nvdimm_bus = nvdimm_bus_register(dev, &nd_desc);
-+	if (!nvdimm_bus)
-+		goto err;
-+	platform_set_drvdata(pdev, nvdimm_bus);
++	if (!ndns)
++		return;
++	get_device(&ndns->dev);
++	device_lock(&ndns->dev);
++	__nd_detach_ndns(dev, _ndns);
++	device_unlock(&ndns->dev);
++	put_device(&ndns->dev);
++}
 +
-+	for (p = iomem_resource.child; p ; p = p->sibling) {
-+		struct nd_region_desc ndr_desc;
++bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
++		struct nd_namespace_common **_ndns)
++{
++	if (attach->claim)
++		return false;
++	dev_WARN_ONCE(dev, !mutex_is_locked(&attach->dev.mutex)
++			|| *_ndns,
++			"%s: invalid claim\n", __func__);
++	attach->claim = dev;
++	*_ndns = attach;
++	get_device(&attach->dev);
++	return true;
++}
 +
-+		if (strncmp(p->name, "Persistent Memory (legacy)", 26) != 0)
-+			continue;
++bool nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
++		struct nd_namespace_common **_ndns)
++{
++	bool claimed;
 +
-+		memset(&ndr_desc, 0, sizeof(ndr_desc));
-+		ndr_desc.res = p;
-+		ndr_desc.attr_groups = e820_pmem_region_attribute_groups;
-+		ndr_desc.numa_node = NUMA_NO_NODE;
-+		if (!nvdimm_pmem_region_create(nvdimm_bus, &ndr_desc))
-+			goto err;
++	device_lock(&attach->dev);
++	claimed = __nd_attach_ndns(dev, attach, _ndns);
++	device_unlock(&attach->dev);
++	return claimed;
++}
++
++static int namespace_match(struct device *dev, void *data)
++{
++	char *name = data;
++
++	return strcmp(name, dev_name(dev)) == 0;
++}
++
++static bool is_idle(struct device *dev, struct nd_namespace_common *ndns)
++{
++	struct nd_region *nd_region = to_nd_region(dev->parent);
++	struct device *seed = NULL;
++
++	if (is_nd_btt(dev))
++		seed = nd_region->btt_seed;
++	else if (is_nd_pfn(dev))
++		seed = nd_region->pfn_seed;
++
++	if (seed == dev || ndns || dev->driver)
++		return false;
++	return true;
++}
++
++static void nd_detach_and_reset(struct device *dev,
++		struct nd_namespace_common **_ndns)
++{
++	/* detach the namespace and destroy / reset the device */
++	nd_detach_ndns(dev, _ndns);
++	if (is_idle(dev, *_ndns)) {
++		nd_device_unregister(dev, ND_ASYNC);
++	} else if (is_nd_btt(dev)) {
++		struct nd_btt *nd_btt = to_nd_btt(dev);
++
++		nd_btt->lbasize = 0;
++		kfree(nd_btt->uuid);
++		nd_btt->uuid = NULL;
++	} else if (is_nd_pfn(dev)) {
++		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
++
++		kfree(nd_pfn->uuid);
++		nd_pfn->uuid = NULL;
++		nd_pfn->mode = PFN_MODE_NONE;
++	}
++}
++
++ssize_t nd_namespace_store(struct device *dev,
++		struct nd_namespace_common **_ndns, const char *buf,
++		size_t len)
++{
++	struct nd_namespace_common *ndns;
++	struct device *found;
++	char *name;
++
++	if (dev->driver) {
++		dev_dbg(dev, "%s: -EBUSY\n", __func__);
++		return -EBUSY;
++	}
++
++	name = kstrndup(buf, len, GFP_KERNEL);
++	if (!name)
++		return -ENOMEM;
++	strim(name);
++
++	if (strncmp(name, "namespace", 9) == 0 || strcmp(name, "") == 0)
++		/* pass */;
++	else {
++		len = -EINVAL;
++		goto out;
++	}
++
++	ndns = *_ndns;
++	if (strcmp(name, "") == 0) {
++		nd_detach_and_reset(dev, _ndns);
++		goto out;
++	} else if (ndns) {
++		dev_dbg(dev, "namespace already set to: %s\n",
++				dev_name(&ndns->dev));
++		len = -EBUSY;
++		goto out;
++	}
++
++	found = device_find_child(dev->parent, name, namespace_match);
++	if (!found) {
++		dev_dbg(dev, "'%s' not found under %s\n", name,
++				dev_name(dev->parent));
++		len = -ENODEV;
++		goto out;
++	}
++
++	ndns = to_ndns(found);
++	if (__nvdimm_namespace_capacity(ndns) < SZ_16M) {
++		dev_dbg(dev, "%s too small to host\n", name);
++		len = -ENXIO;
++		goto out_attach;
++	}
++
++	WARN_ON_ONCE(!is_nvdimm_bus_locked(dev));
++	if (!nd_attach_ndns(dev, ndns, _ndns)) {
++		dev_dbg(dev, "%s already claimed\n",
++				dev_name(&ndns->dev));
++		len = -EBUSY;
++	}
++
++ out_attach:
++	put_device(&ndns->dev); /* from device_find_child */
++ out:
++	kfree(name);
++	return len;
++}
++
++/*
++ * nd_sb_checksum: compute checksum for a generic info block
++ *
++ * Returns a fletcher64 checksum of everything in the given info block
++ * except the last field (since that's where the checksum lives).
++ */
++u64 nd_sb_checksum(struct nd_gen_sb *nd_gen_sb)
++{
++	u64 sum;
++	__le64 sum_save;
++
++	BUILD_BUG_ON(sizeof(struct btt_sb) != SZ_4K);
++	BUILD_BUG_ON(sizeof(struct nd_pfn_sb) != SZ_4K);
++	BUILD_BUG_ON(sizeof(struct nd_gen_sb) != SZ_4K);
++
++	sum_save = nd_gen_sb->checksum;
++	nd_gen_sb->checksum = 0;
++	sum = nd_fletcher64(nd_gen_sb, sizeof(*nd_gen_sb), 1);
++	nd_gen_sb->checksum = sum_save;
++	return sum;
++}
++EXPORT_SYMBOL(nd_sb_checksum);
+diff --git a/drivers/nvdimm/namespace_devs.c b/drivers/nvdimm/namespace_devs.c
+index fef0dd80d4ad..74e128eccbed 100644
+--- a/drivers/nvdimm/namespace_devs.c
++++ b/drivers/nvdimm/namespace_devs.c
+@@ -82,8 +82,16 @@ const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
+ 	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
+ 	const char *suffix = "";
+ 
+-	if (ndns->claim && is_nd_btt(ndns->claim))
+-		suffix = "s";
++	if (ndns->claim) {
++		if (is_nd_btt(ndns->claim))
++			suffix = "s";
++		else if (is_nd_pfn(ndns->claim))
++			suffix = "m";
++		else
++			dev_WARN_ONCE(&ndns->dev, 1,
++					"unknown claim type by %s\n",
++					dev_name(ndns->claim));
++	}
+ 
+ 	if (is_namespace_pmem(&ndns->dev) || is_namespace_io(&ndns->dev))
+ 		sprintf(name, "pmem%d%s", nd_region->id, suffix);
+@@ -1235,12 +1243,22 @@ static const struct attribute_group *nd_namespace_attribute_groups[] = {
+ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
+ {
+ 	struct nd_btt *nd_btt = is_nd_btt(dev) ? to_nd_btt(dev) : NULL;
++	struct nd_pfn *nd_pfn = is_nd_pfn(dev) ? to_nd_pfn(dev) : NULL;
+ 	struct nd_namespace_common *ndns;
+ 	resource_size_t size;
+ 
+-	if (nd_btt) {
+-		ndns = nd_btt->ndns;
+-		if (!ndns)
++	if (nd_btt || nd_pfn) {
++		struct device *host = NULL;
++
++		if (nd_btt) {
++			host = &nd_btt->dev;
++			ndns = nd_btt->ndns;
++		} else if (nd_pfn) {
++			host = &nd_pfn->dev;
++			ndns = nd_pfn->ndns;
++		}
++
++		if (!ndns || !host)
+ 			return ERR_PTR(-ENODEV);
+ 
+ 		/*
+@@ -1251,12 +1269,12 @@ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
+ 		device_unlock(&ndns->dev);
+ 		if (ndns->dev.driver) {
+ 			dev_dbg(&ndns->dev, "is active, can't bind %s\n",
+-					dev_name(&nd_btt->dev));
++					dev_name(host));
+ 			return ERR_PTR(-EBUSY);
+ 		}
+-		if (dev_WARN_ONCE(&ndns->dev, ndns->claim != &nd_btt->dev,
++		if (dev_WARN_ONCE(&ndns->dev, ndns->claim != host,
+ 					"host (%s) vs claim (%s) mismatch\n",
+-					dev_name(&nd_btt->dev),
++					dev_name(host),
+ 					dev_name(ndns->claim)))
+ 			return ERR_PTR(-ENXIO);
+ 	} else {
+diff --git a/drivers/nvdimm/nd-core.h b/drivers/nvdimm/nd-core.h
+index e1970c71ad1c..159aed532042 100644
+--- a/drivers/nvdimm/nd-core.h
++++ b/drivers/nvdimm/nd-core.h
+@@ -80,4 +80,13 @@ struct resource *nsblk_add_resource(struct nd_region *nd_region,
+ int nvdimm_num_label_slots(struct nvdimm_drvdata *ndd);
+ void get_ndd(struct nvdimm_drvdata *ndd);
+ resource_size_t __nvdimm_namespace_capacity(struct nd_namespace_common *ndns);
++void nd_detach_ndns(struct device *dev, struct nd_namespace_common **_ndns);
++void __nd_detach_ndns(struct device *dev, struct nd_namespace_common **_ndns);
++bool nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
++		struct nd_namespace_common **_ndns);
++bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
++		struct nd_namespace_common **_ndns);
++ssize_t nd_namespace_store(struct device *dev,
++		struct nd_namespace_common **_ndns, const char *buf,
++		size_t len);
+ #endif /* __ND_CORE_H__ */
+diff --git a/drivers/nvdimm/nd.h b/drivers/nvdimm/nd.h
+index 835263e47bb8..372334835a13 100644
+--- a/drivers/nvdimm/nd.h
++++ b/drivers/nvdimm/nd.h
+@@ -29,6 +29,8 @@ enum {
+ 	ND_MAX_LANES = 256,
+ 	SECTOR_SHIFT = 9,
+ 	INT_LBASIZE_ALIGNMENT = 64,
++	ND_PFN_ALIGN = PAGES_PER_SECTION * PAGE_SIZE,
++	ND_PFN_MASK = ND_PFN_ALIGN - 1,
+ };
+ 
+ struct nvdimm_drvdata {
+@@ -92,8 +94,10 @@ struct nd_region {
+ 	struct device dev;
+ 	struct ida ns_ida;
+ 	struct ida btt_ida;
++	struct ida pfn_ida;
+ 	struct device *ns_seed;
+ 	struct device *btt_seed;
++	struct device *pfn_seed;
+ 	u16 ndr_mappings;
+ 	u64 ndr_size;
+ 	u64 ndr_start;
+@@ -133,6 +137,24 @@ struct nd_btt {
+ 	int id;
+ };
+ 
++enum nd_pfn_mode {
++	PFN_MODE_NONE,
++	PFN_MODE_RAM,
++	PFN_MODE_PMEM,
++};
++
++struct dev_map;
++struct nd_pfn {
++	int id;
++	u8 *uuid;
++	struct device dev;
++	struct dev_map *dev_map;
++	unsigned long npfns;
++	enum nd_pfn_mode mode;
++	struct nd_pfn_sb *pfn_sb;
++	struct nd_namespace_common *ndns;
++};
++
+ enum nd_async_mode {
+ 	ND_SYNC,
+ 	ND_ASYNC,
+@@ -159,8 +181,13 @@ int nvdimm_init_config_data(struct nvdimm_drvdata *ndd);
+ int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
+ 		void *buf, size_t len);
+ struct nd_btt *to_nd_btt(struct device *dev);
+-struct btt_sb;
+-u64 nd_btt_sb_checksum(struct btt_sb *btt_sb);
++
++struct nd_gen_sb {
++	char reserved[SZ_4K - 8];
++	__le64 checksum;
++};
++
++u64 nd_sb_checksum(struct nd_gen_sb *sb);
+ #if IS_ENABLED(CONFIG_BTT)
+ int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata);
+ bool is_nd_btt(struct device *dev);
+@@ -180,8 +207,36 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
+ {
+ 	return NULL;
+ }
++#endif
++
++struct nd_pfn *to_nd_pfn(struct device *dev);
++#if IS_ENABLED(CONFIG_NVDIMM_PFN)
++int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata);
++bool is_nd_pfn(struct device *dev);
++struct device *nd_pfn_create(struct nd_region *nd_region);
++int nd_pfn_validate(struct nd_pfn *nd_pfn);
++#else
++static inline int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata)
++{
++	return -ENODEV;
++}
++
++static inline bool is_nd_pfn(struct device *dev)
++{
++	return false;
++}
++
++static inline struct device *nd_pfn_create(struct nd_region *nd_region)
++{
++	return NULL;
++}
+ 
++static inline int nd_pfn_validate(struct nd_pfn *nd_pfn)
++{
++	return -ENXIO;
++}
+ #endif
++
+ struct nd_region *to_nd_region(struct device *dev);
+ int nd_region_to_nstype(struct nd_region *nd_region);
+ int nd_region_register_namespaces(struct nd_region *nd_region, int *err);
+diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
+new file mode 100644
+index 000000000000..cc243754acef
+--- /dev/null
++++ b/drivers/nvdimm/pfn.h
+@@ -0,0 +1,35 @@
++/*
++ * Copyright (c) 2014-2015, Intel Corporation.
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ */
++
++#ifndef __NVDIMM_PFN_H
++#define __NVDIMM_PFN_H
++
++#include <linux/types.h>
++
++#define PFN_SIG_LEN 16
++#define PFN_SIG "NVDIMM_PFN_INFO\0"
++
++struct nd_pfn_sb {
++	u8 signature[PFN_SIG_LEN];
++	u8 uuid[16];
++	u8 parent_uuid[16];
++	__le32 flags;
++	__le16 version_major;
++	__le16 version_minor;
++	__le64 dataoff;
++	__le64 npfns;
++	__le32 mode;
++	u8 padding[4012];
++	__le64 checksum;
++};
++#endif /* __NVDIMM_PFN_H */
+diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+new file mode 100644
+index 000000000000..41824b3bf0d2
+--- /dev/null
++++ b/drivers/nvdimm/pfn_devs.c
+@@ -0,0 +1,333 @@
++/*
++ * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of version 2 of the GNU General Public License as
++ * published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ */
++#include <linux/blkdev.h>
++#include <linux/device.h>
++#include <linux/genhd.h>
++#include <linux/sizes.h>
++#include <linux/slab.h>
++#include <linux/fs.h>
++#include <linux/mm.h>
++#include "nd-core.h"
++#include "pfn.h"
++#include "nd.h"
++
++static void nd_pfn_release(struct device *dev)
++{
++	struct nd_region *nd_region = to_nd_region(dev->parent);
++	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
++
++	dev_dbg(dev, "%s\n", __func__);
++	nd_detach_ndns(&nd_pfn->dev, &nd_pfn->ndns);
++	ida_simple_remove(&nd_region->pfn_ida, nd_pfn->id);
++	kfree(nd_pfn->uuid);
++	kfree(nd_pfn);
++}
++
++static struct device_type nd_pfn_device_type = {
++	.name = "nd_pfn",
++	.release = nd_pfn_release,
++};
++
++bool is_nd_pfn(struct device *dev)
++{
++	return dev ? dev->type == &nd_pfn_device_type : false;
++}
++EXPORT_SYMBOL(is_nd_pfn);
++
++struct nd_pfn *to_nd_pfn(struct device *dev)
++{
++	struct nd_pfn *nd_pfn = container_of(dev, struct nd_pfn, dev);
++
++	WARN_ON(!is_nd_pfn(dev));
++	return nd_pfn;
++}
++EXPORT_SYMBOL(to_nd_pfn);
++
++static ssize_t mode_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
++
++	switch (nd_pfn->mode) {
++	case PFN_MODE_RAM:
++		return sprintf(buf, "ram\n");
++	case PFN_MODE_PMEM:
++		return sprintf(buf, "pmem\n");
++	default:
++		return sprintf(buf, "none\n");
++	}
++}
++
++static ssize_t mode_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t len)
++{
++	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
++	ssize_t rc = 0;
++
++	device_lock(dev);
++	nvdimm_bus_lock(dev);
++	if (dev->driver)
++		rc = -EBUSY;
++	else {
++		size_t n = len - 1;
++
++		if (strncmp(buf, "pmem\n", n) == 0
++				|| strncmp(buf, "pmem", n) == 0)
++			nd_pfn->mode = PFN_MODE_PMEM;
++		else if (strncmp(buf, "ram\n", n) == 0
++				|| strncmp(buf, "ram", n) == 0)
++			nd_pfn->mode = PFN_MODE_RAM;
++		else if (strncmp(buf, "none\n", n) == 0
++				|| strncmp(buf, "none", n) == 0)
++			nd_pfn->mode = PFN_MODE_NONE;
++		else
++			rc = -EINVAL;
++	}
++	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
++			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
++	nvdimm_bus_unlock(dev);
++	device_unlock(dev);
++
++	return rc ? rc : len;
++}
++static DEVICE_ATTR_RW(mode);
++
++static ssize_t uuid_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
++
++	if (nd_pfn->uuid)
++		return sprintf(buf, "%pUb\n", nd_pfn->uuid);
++	return sprintf(buf, "\n");
++}
++
++static ssize_t uuid_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t len)
++{
++	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
++	ssize_t rc;
++
++	device_lock(dev);
++	rc = nd_uuid_store(dev, &nd_pfn->uuid, buf, len);
++	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
++			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
++	device_unlock(dev);
++
++	return rc ? rc : len;
++}
++static DEVICE_ATTR_RW(uuid);
++
++static ssize_t namespace_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
++	ssize_t rc;
++
++	nvdimm_bus_lock(dev);
++	rc = sprintf(buf, "%s\n", nd_pfn->ndns
++			? dev_name(&nd_pfn->ndns->dev) : "");
++	nvdimm_bus_unlock(dev);
++	return rc;
++}
++
++static ssize_t namespace_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t len)
++{
++	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
++	ssize_t rc;
++
++	nvdimm_bus_lock(dev);
++	device_lock(dev);
++	rc = nd_namespace_store(dev, &nd_pfn->ndns, buf, len);
++	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
++			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
++	device_unlock(dev);
++	nvdimm_bus_unlock(dev);
++
++	return rc;
++}
++static DEVICE_ATTR_RW(namespace);
++
++static struct attribute *nd_pfn_attributes[] = {
++	&dev_attr_mode.attr,
++	&dev_attr_namespace.attr,
++	&dev_attr_uuid.attr,
++	NULL,
++};
++
++static struct attribute_group nd_pfn_attribute_group = {
++	.attrs = nd_pfn_attributes,
++};
++
++static const struct attribute_group *nd_pfn_attribute_groups[] = {
++	&nd_pfn_attribute_group,
++	&nd_device_attribute_group,
++	&nd_numa_attribute_group,
++	NULL,
++};
++
++static struct device *__nd_pfn_create(struct nd_region *nd_region,
++		u8 *uuid, enum nd_pfn_mode mode,
++		struct nd_namespace_common *ndns)
++{
++	struct nd_pfn *nd_pfn;
++	struct device *dev;
++
++	/* we can only create pages for contiguous ranged of pmem */
++	if (!is_nd_pmem(&nd_region->dev))
++		return NULL;
++
++	nd_pfn = kzalloc(sizeof(*nd_pfn), GFP_KERNEL);
++	if (!nd_pfn)
++		return NULL;
++
++	nd_pfn->id = ida_simple_get(&nd_region->pfn_ida, 0, 0, GFP_KERNEL);
++	if (nd_pfn->id < 0) {
++		kfree(nd_pfn);
++		return NULL;
++	}
++
++	nd_pfn->mode = mode;
++	if (uuid)
++		uuid = kmemdup(uuid, 16, GFP_KERNEL);
++	nd_pfn->uuid = uuid;
++	dev = &nd_pfn->dev;
++	dev_set_name(dev, "pfn%d.%d", nd_region->id, nd_pfn->id);
++	dev->parent = &nd_region->dev;
++	dev->type = &nd_pfn_device_type;
++	dev->groups = nd_pfn_attribute_groups;
++	device_initialize(&nd_pfn->dev);
++	if (ndns && !__nd_attach_ndns(&nd_pfn->dev, ndns, &nd_pfn->ndns)) {
++		dev_dbg(&ndns->dev, "%s failed, already claimed by %s\n",
++				__func__, dev_name(ndns->claim));
++		put_device(dev);
++		return NULL;
++	}
++	return dev;
++}
++
++struct device *nd_pfn_create(struct nd_region *nd_region)
++{
++	struct device *dev = __nd_pfn_create(nd_region, NULL, PFN_MODE_NONE,
++			NULL);
++
++	if (dev)
++		__nd_device_register(dev);
++	return dev;
++}
++
++static int nd_pfn_validate(struct nd_pfn *nd_pfn)
++{
++	struct nd_namespace_common *ndns = nd_pfn->ndns;
++	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
++	struct nd_namespace_io *nsio;
++	u64 checksum, offset;
++
++	if (!pfn_sb || !ndns)
++		return -ENODEV;
++
++	if (!is_nd_pmem(nd_pfn->dev.parent))
++		return -ENODEV;
++
++	/* section alignment for simple hotplug */
++	if (nvdimm_namespace_capacity(ndns) < ND_PFN_ALIGN)
++		return -ENODEV;
++
++	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb)))
++		return -ENXIO;
++
++	if (memcmp(pfn_sb->signature, PFN_SIG, PFN_SIG_LEN) != 0)
++		return -ENODEV;
++
++	checksum = le64_to_cpu(pfn_sb->checksum);
++	pfn_sb->checksum = 0;
++	if (checksum != nd_sb_checksum((struct nd_gen_sb *) pfn_sb))
++		return -ENODEV;
++	pfn_sb->checksum = cpu_to_le64(checksum);
++
++	switch (le32_to_cpu(pfn_sb->mode)) {
++	case PFN_MODE_RAM:
++	case PFN_MODE_PMEM:
++		break;
++	default:
++		return -ENXIO;
++	}
++
++	if (!nd_pfn->uuid) {
++		/* from probe we allocate */
++		nd_pfn->uuid = kmemdup(pfn_sb->uuid, 16, GFP_KERNEL);
++		if (!nd_pfn->uuid)
++			return -ENOMEM;
++	} else {
++		/* from init we validate */
++		if (memcmp(nd_pfn->uuid, pfn_sb->uuid, 16) != 0)
++			return -EINVAL;
++	}
++
++	/*
++	 * These warnings are verbose because they can only trigger in
++	 * the case where the physical address alignment of the
++	 * namespace has changed since the pfn superblock was
++	 * established.
++	 */
++	offset = le64_to_cpu(pfn_sb->dataoff);
++	nsio = to_nd_namespace_io(&ndns->dev);
++	if ((nsio->res.start + offset) & (ND_PFN_ALIGN - 1)) {
++		dev_err(&nd_pfn->dev,
++				"init failed: %s with offset %#llx not section aligned\n",
++				dev_name(&ndns->dev), offset);
++		return -EBUSY;
++	} else if (offset >= resource_size(&nsio->res)) {
++		dev_err(&nd_pfn->dev, "pfn array size exceeds capacity of %s\n",
++				dev_name(&ndns->dev));
++		return -EBUSY;
 +	}
 +
 +	return 0;
-+
-+ err:
-+	nvdimm_bus_unregister(nvdimm_bus);
-+	dev_err(dev, "failed to register legacy persistent memory ranges\n");
-+	return -ENXIO;
 +}
 +
-+static struct platform_driver e820_pmem_driver = {
-+	.probe = e820_pmem_probe,
-+	.remove = e820_pmem_remove,
-+	.driver = {
-+		.name = "e820_pmem",
-+	},
-+};
-+
-+static __init int e820_pmem_init(void)
++int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata)
 +{
-+	return platform_driver_register(&e820_pmem_driver);
-+}
++	int rc;
++	struct device *dev;
++	struct nd_pfn *nd_pfn;
++	struct nd_pfn_sb *pfn_sb;
++	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
 +
-+static __exit void e820_pmem_exit(void)
++	if (ndns->force_raw)
++		return -ENODEV;
++
++	nvdimm_bus_lock(&ndns->dev);
++	dev = __nd_pfn_create(nd_region, NULL, PFN_MODE_NONE, ndns);
++	nvdimm_bus_unlock(&ndns->dev);
++	if (!dev)
++		return -ENOMEM;
++	dev_set_drvdata(dev, drvdata);
++	pfn_sb = kzalloc(sizeof(*pfn_sb), GFP_KERNEL);
++	nd_pfn = to_nd_pfn(dev);
++	nd_pfn->pfn_sb = pfn_sb;
++	rc = nd_pfn_validate(nd_pfn);
++	nd_pfn->pfn_sb = NULL;
++	kfree(pfn_sb);
++	dev_dbg(&ndns->dev, "%s: pfn: %s\n", __func__,
++			rc == 0 ? dev_name(dev) : "<none>");
++	if (rc < 0) {
++		__nd_detach_ndns(dev, &nd_pfn->ndns);
++		put_device(dev);
++	} else
++		__nd_device_register(&nd_pfn->dev);
++
++	return rc;
++}
++EXPORT_SYMBOL(nd_pfn_probe);
+diff --git a/drivers/nvdimm/region.c b/drivers/nvdimm/region.c
+index f28f78ccff19..7da63eac78ee 100644
+--- a/drivers/nvdimm/region.c
++++ b/drivers/nvdimm/region.c
+@@ -53,6 +53,7 @@ static int nd_region_probe(struct device *dev)
+ 		return -ENODEV;
+ 
+ 	nd_region->btt_seed = nd_btt_create(nd_region);
++	nd_region->pfn_seed = nd_pfn_create(nd_region);
+ 	if (err == 0)
+ 		return 0;
+ 
+@@ -84,6 +85,7 @@ static int nd_region_remove(struct device *dev)
+ 	nvdimm_bus_lock(dev);
+ 	nd_region->ns_seed = NULL;
+ 	nd_region->btt_seed = NULL;
++	nd_region->pfn_seed = NULL;
+ 	dev_set_drvdata(dev, NULL);
+ 	nvdimm_bus_unlock(dev);
+ 
+diff --git a/drivers/nvdimm/region_devs.c b/drivers/nvdimm/region_devs.c
+index 7384455792bf..da4338154ad2 100644
+--- a/drivers/nvdimm/region_devs.c
++++ b/drivers/nvdimm/region_devs.c
+@@ -345,6 +345,23 @@ static ssize_t btt_seed_show(struct device *dev,
+ }
+ static DEVICE_ATTR_RO(btt_seed);
+ 
++static ssize_t pfn_seed_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
 +{
-+	platform_driver_unregister(&e820_pmem_driver);
-+}
++	struct nd_region *nd_region = to_nd_region(dev);
++	ssize_t rc;
 +
-+MODULE_ALIAS("platform:e820_pmem*");
-+MODULE_LICENSE("GPL v2");
-+MODULE_AUTHOR("Intel Corporation");
-+module_init(e820_pmem_init);
-+module_exit(e820_pmem_exit);
++	nvdimm_bus_lock(dev);
++	if (nd_region->pfn_seed)
++		rc = sprintf(buf, "%s\n", dev_name(nd_region->pfn_seed));
++	else
++		rc = sprintf(buf, "\n");
++	nvdimm_bus_unlock(dev);
++
++	return rc;
++}
++static DEVICE_ATTR_RO(pfn_seed);
++
+ static ssize_t read_only_show(struct device *dev,
+ 		struct device_attribute *attr, char *buf)
+ {
+@@ -373,6 +390,7 @@ static struct attribute *nd_region_attributes[] = {
+ 	&dev_attr_nstype.attr,
+ 	&dev_attr_mappings.attr,
+ 	&dev_attr_btt_seed.attr,
++	&dev_attr_pfn_seed.attr,
+ 	&dev_attr_read_only.attr,
+ 	&dev_attr_set_cookie.attr,
+ 	&dev_attr_available_size.attr,
+@@ -744,6 +762,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
+ 	nd_region->numa_node = ndr_desc->numa_node;
+ 	ida_init(&nd_region->ns_ida);
+ 	ida_init(&nd_region->btt_ida);
++	ida_init(&nd_region->pfn_ida);
+ 	dev = &nd_region->dev;
+ 	dev_set_name(dev, "region%d", nd_region->id);
+ 	dev->parent = &nvdimm_bus->dev;
 diff --git a/tools/testing/nvdimm/Kbuild b/tools/testing/nvdimm/Kbuild
-index 04c5fc09576d..e667579d38a0 100644
+index e667579d38a0..22d4d19a49bc 100644
 --- a/tools/testing/nvdimm/Kbuild
 +++ b/tools/testing/nvdimm/Kbuild
-@@ -15,6 +15,7 @@ obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
- obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
- obj-$(CONFIG_ND_BTT) += nd_btt.o
- obj-$(CONFIG_ND_BLK) += nd_blk.o
-+obj-$(CONFIG_X86_PMEM_LEGACY) += nd_e820.o
- obj-$(CONFIG_ACPI_NFIT) += nfit.o
+@@ -41,7 +41,9 @@ libnvdimm-y += $(NVDIMM_SRC)/region_devs.o
+ libnvdimm-y += $(NVDIMM_SRC)/region.o
+ libnvdimm-y += $(NVDIMM_SRC)/namespace_devs.o
+ libnvdimm-y += $(NVDIMM_SRC)/label.o
++libnvdimm-$(CONFIG_ND_CLAIM) += $(NVDIMM_SRC)/claim.o
+ libnvdimm-$(CONFIG_BTT) += $(NVDIMM_SRC)/btt_devs.o
++libnvdimm-$(CONFIG_NVDIMM_PFN) += $(NVDIMM_SRC)/pfn_devs.o
+ libnvdimm-y += config_check.o
  
- nfit-y := $(ACPI_SRC)/nfit.o
-@@ -29,6 +30,9 @@ nd_btt-y += config_check.o
- nd_blk-y := $(NVDIMM_SRC)/blk.o
- nd_blk-y += config_check.o
- 
-+nd_e820-y := $(NVDIMM_SRC)/e820.o
-+nd_e820-y += config_check.o
-+
- libnvdimm-y := $(NVDIMM_SRC)/core.o
- libnvdimm-y += $(NVDIMM_SRC)/bus.o
- libnvdimm-y += $(NVDIMM_SRC)/dimm_devs.o
+ obj-m += test/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
