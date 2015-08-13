@@ -1,72 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 41B226B0038
-	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 09:23:43 -0400 (EDT)
-Received: by lbbpu9 with SMTP id pu9so26976322lbb.3
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 06:23:42 -0700 (PDT)
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
-        by mx.google.com with ESMTPS id u10si3945525wiv.111.2015.08.13.06.23.41
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BF5C6B0038
+	for <linux-mm@kvack.org>; Thu, 13 Aug 2015 09:45:58 -0400 (EDT)
+Received: by pacgr6 with SMTP id gr6so37709857pac.2
+        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 06:45:57 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id zl8si3907415pac.37.2015.08.13.06.45.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Aug 2015 06:23:41 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so151405585wic.1
-        for <linux-mm@kvack.org>; Thu, 13 Aug 2015 06:23:41 -0700 (PDT)
-Message-ID: <55CC9A5A.1020209@plexistor.com>
-Date: Thu, 13 Aug 2015 16:23:38 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 13 Aug 2015 06:45:57 -0700 (PDT)
+Date: Thu, 13 Aug 2015 15:45:40 +0200
+From: Sylvain Jeaugey <sjeaugey@nvidia.com>
+Subject: Re: [PATCH 15/15] hmm/dummy: dummy driver for testing and showcasing
+ the HMM API
+In-Reply-To: <1437159145-6548-16-git-send-email-jglisse@redhat.com>
+Message-ID: <alpine.DEB.2.10.1508131016070.9016@lenovo>
+References: <1437159145-6548-1-git-send-email-jglisse@redhat.com> <1437159145-6548-16-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 2/5] allow mapping page-less memremaped areas into
- KVA
-References: <20150813025112.36703.21333.stgit@otcpl-skl-sds-2.jf.intel.com>	<20150813030109.36703.21738.stgit@otcpl-skl-sds-2.jf.intel.com>	<55CC3222.5090503@plexistor.com> <CAPcyv4gwFD5F=k_qQyf68z74Opzf1t4DMqY+A9D2w_Fwsbzvew@mail.gmail.com>
-In-Reply-To: <CAPcyv4gwFD5F=k_qQyf68z74Opzf1t4DMqY+A9D2w_Fwsbzvew@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="8323329-583387059-1439453849=:9016"
+Content-ID: <alpine.DEB.2.10.1508131018071.9016@lenovo>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, Boaz Harrosh <boaz@plexistor.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Rik van Riel <riel@redhat.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron
+ Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jeff Law <law@redhat.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>
 
-On 08/13/2015 03:57 PM, Dan Williams wrote:
-<>
-> This is explicitly addressed in the changelog, repeated here:
-> 
->> The __pfn_t to resource lookup is indeed inefficient walking of a linked list,
->> but there are two mitigating factors:
->>
->> 1/ The number of persistent memory ranges is bounded by the number of
->>    DIMMs which is on the order of 10s of DIMMs, not hundreds.
->>
+--8323329-583387059-1439453849=:9016
+Content-Type: text/plain; charset="ISO-8859-15"
+Content-Transfer-Encoding: 8BIT
+Content-ID: <alpine.DEB.2.10.1508131018072.9016@lenovo>
 
-You do not get where I'm comming from. It used to be a [ptr - ONE_BASE + OTHER_BASE]
-(In 64 bit) it is now a call and a loop and a search. how ever you will look at
-it is *not* the instantaneous address translation it is now.
+Hi Jerome,
 
-I have memory I want memory speeds. You keep thinking HD speeds, where what ever
-you do will not matter.
+I get a compilation error when building the hmm_dummy module (undefined 
+function hmm_pte_test_select).
 
->> 2/ The lookup yields the entire range, if it becomes inefficient to do a
->>    kmap_atomic_pfn_t() a PAGE_SIZE at a time the caller can take
->>    advantage of the fact that the lookup can be amortized for all kmap
->>    operations it needs to perform in a given range.
-> 
+On Fri, 17 Jul 2015, Jerome Glisse wrote:
+> +static int dummy_mirror_pt_populate(struct hmm_mirror *mirror,
+> +                                 struct hmm_event *event)
+> [ snip ]
+> +             if (!mpte || !hmm_pte_test_valid_pfn(mpte) ||
+> +                 !hmm_pte_test_select(mpte)) {
+>From what I understand, the select flag no longer exists in HMM PTE, 
+hence hmm_pte_test_select is missing.
+Removing this sanity check, the module compiles and loads correctly.
 
-What "given range" how can a bdev assume that the all sg-list belongs to the
-same "range". In fact our code does multple-pmem devices for a long time.
-What about say md-of-pmems for example, or btrfs
+Aside from that problem, is there a userspace test available which 
+interfaces with the dummy module ?
 
-> DAX as is is races against pmem unbind.   A synchronization cost must
-> be paid somewhere to make sure the memremap() mapping is still valid.
-
-Sorry for being so slow, is what I asked. what is exactly "pmem unbind" ?
-
-Currently in my 4.1 Kernel the ioremap is done on modprobe time and
-released modprobe --remove time. the --remove can not happen with a mounted
-FS dax or not. So what is exactly "pmem unbind". And if there is a new knob
-then make it refuse with a raised refcount.
-
-Cheers
-Boaz
-
+Thanks,
+Sylvain
+--8323329-583387059-1439453849=:9016--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
