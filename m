@@ -1,64 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id BD3196B0257
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2015 03:57:23 -0400 (EDT)
-Received: by iodt126 with SMTP id t126so77482542iod.2
-        for <linux-mm@kvack.org>; Fri, 14 Aug 2015 00:57:23 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id h6si877635igg.4.2015.08.14.00.57.22
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 17A236B0258
+	for <linux-mm@kvack.org>; Fri, 14 Aug 2015 03:59:28 -0400 (EDT)
+Received: by oio137 with SMTP id 137so40361969oio.0
+        for <linux-mm@kvack.org>; Fri, 14 Aug 2015 00:59:27 -0700 (PDT)
+Received: from BLU004-OMC1S2.hotmail.com (blu004-omc1s2.hotmail.com. [65.55.116.13])
+        by mx.google.com with ESMTPS id oq12si3631219oeb.82.2015.08.14.00.59.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 14 Aug 2015 00:57:23 -0700 (PDT)
-Message-ID: <55CD9EDF.5090707@huawei.com>
-Date: Fri, 14 Aug 2015 15:55:11 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 14 Aug 2015 00:59:27 -0700 (PDT)
+Message-ID: <BLU436-SMTP11907D46F39F24F62D7E440807C0@phx.gbl>
+Subject: Re: [PATCH] mm/hwpoison: fix race between soft_offline_page and
+ unpoison_memory
+References: <BLU436-SMTP256072767311DFB0FD3AE1B807D0@phx.gbl>
+ <20150813085332.GA30163@hori1.linux.bs1.fc.nec.co.jp>
+ <BLU437-SMTP1006340696EDBC91961809807D0@phx.gbl>
+ <20150813100407.GA2993@hori1.linux.bs1.fc.nec.co.jp>
+ <BLU436-SMTP1366B3FB4A3904EBDAE6BF9807D0@phx.gbl>
+ <20150814041939.GA9951@hori1.linux.bs1.fc.nec.co.jp>
+ <BLU436-SMTP110412F310BD1723C6F1C3E807C0@phx.gbl>
+ <20150814072649.GA31021@hori1.linux.bs1.fc.nec.co.jp>
+ <BLU437-SMTP24AA9CF28EF66D040D079B807C0@phx.gbl>
+From: Wanpeng Li <wanpeng.li@hotmail.com>
+Date: Fri, 14 Aug 2015 15:59:21 +0800
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add the block to the tail of the list in expand()
-References: <55BB4027.7080200@huawei.com> <55BC0392.2070205@intel.com> <55BECC85.7050206@huawei.com> <55BEE99E.8090901@intel.com> <55C011A6.1090003@huawei.com> <55C0CBC3.2000602@intel.com> <55C1C132.2010805@huawei.com> <55C221EB.7060500@intel.com>
-In-Reply-To: <55C221EB.7060500@intel.com>
-Content-Type: text/plain; charset="windows-1252"
+In-Reply-To: <BLU437-SMTP24AA9CF28EF66D040D079B807C0@phx.gbl>
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, iamjoonsoo.kim@lge.com, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 2015/8/5 22:47, Dave Hansen wrote:
+On 8/14/15 3:54 PM, Wanpeng Li wrote:
+> [...]
+>> OK, then I rethink of handling the race in unpoison_memory().
+>>
+>> Currently properly contained/hwpoisoned pages should have page refcount 1
+>> (when the memory error hits LRU pages or hugetlb pages) or refcount 0
+>> (when the memory error hits the buddy page.) And current unpoison_memory()
+>> implicitly assumes this because otherwise the unpoisoned page has no place
+>> to go and it's just leaked.
+>> So to avoid the kernel panic, adding prechecks of refcount and mapcount
+>> to limit the page to unpoison for only unpoisonable pages looks OK to me.
+>> The page under soft offlining always has refcount >=2 and/or mapcount > 0,
+>> so such pages should be filtered out.
+>>
+>> Here's a patch. In my testing (run soft offline stress testing then repeat
+>> unpoisoning in background,) the reported (or similar) bug doesn't happen.
+>> Can I have your comments?
+> As page_action() prints out page maybe still referenced by some users,
+> however, PageHWPoison has already set. So you will leak many poison pages.
+>
 
-> On 08/05/2015 12:54 AM, Xishi Qiu wrote:
->> I add some debug code like this, but it doesn't trigger the dump_stack().
-> ...
->> +         if (!list_empty(&area->free_list[migratetype])) {
->> +                 printk("expand(), the list is not empty\n");
->> +                 dump_stack();
->> +         }
->> +
-> 
-> That will probably not trigger unless you have allocations that are
-> falling back and converting other pageblocks from other migratetypes.
-> 
+Anyway, the bug is still there.
 
-Hi Dave,
+[  944.387559] BUG: Bad page state in process expr  pfn:591e3
+[  944.393053] page:ffffea00016478c0 count:-1 mapcount:0 
+mapping:          (null) index:0x2
+[  944.401147] flags: 0x1fffff80000000()
+[  944.404819] page dumped because: nonzero _count
 
-I run some stress test, and trigger the print, it shows that the list 
-is not empty. The reason is than fallback will find the largest possible
-block of pages in the other list, 
-
-e.g. 
-1. we alloc order=2 block, and call __rmqueue_fallback().
-2. we find other list current_order=7 is not empty, and the lists(in the
-same pageblock) that order from 3~6 are not empty too.
-3. then expand() will find the list is not empty.
-
-right?
-
-Thanks,
-Xishi Qiu
-
-> .
-> 
-
-
+Regards,
+Wanpeng Li
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
