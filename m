@@ -1,51 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 758146B0038
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2015 09:26:51 -0400 (EDT)
-Received: by lbbpu9 with SMTP id pu9so45477445lbb.3
-        for <linux-mm@kvack.org>; Fri, 14 Aug 2015 06:26:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f8si10061414wjr.70.2015.08.14.06.26.48
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 303126B0038
+	for <linux-mm@kvack.org>; Fri, 14 Aug 2015 15:03:54 -0400 (EDT)
+Received: by lbcbn3 with SMTP id bn3so50488312lbc.2
+        for <linux-mm@kvack.org>; Fri, 14 Aug 2015 12:03:53 -0700 (PDT)
+Received: from mail-la0-x22a.google.com (mail-la0-x22a.google.com. [2a00:1450:4010:c03::22a])
+        by mx.google.com with ESMTPS id tk5si6527419lbb.14.2015.08.14.12.03.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 14 Aug 2015 06:26:49 -0700 (PDT)
-Subject: Re: [PATCH] mm: make page pfmemalloc check more robust
-References: <1439456364-4530-1-git-send-email-mhocko@kernel.org>
- <55CC5FA0.300@suse.cz>
- <1439476856.7960.8.camel@edumazet-glaptop2.roam.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55CDEC95.5050307@suse.cz>
-Date: Fri, 14 Aug 2015 15:26:45 +0200
-MIME-Version: 1.0
-In-Reply-To: <1439476856.7960.8.camel@edumazet-glaptop2.roam.corp.google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Aug 2015 12:03:52 -0700 (PDT)
+Received: by lalv9 with SMTP id v9so48973372lal.0
+        for <linux-mm@kvack.org>; Fri, 14 Aug 2015 12:03:51 -0700 (PDT)
+From: Alexander Kuleshov <kuleshovmail@gmail.com>
+Subject: [PATCH] mm/memblock: validate the creation of debugfs files
+Date: Sat, 15 Aug 2015 01:03:31 +0600
+Message-Id: <1439579011-14918-1-git-send-email-kuleshovmail@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: mhocko@kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Jiri Bohac <jbohac@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, LKML <linux-kernel@vger.kernel.org>, netdev@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Baoquan He <bhe@redhat.com>, Tang Chen <tangchen@cn.fujitsu.com>, Robin Holt <holt@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Kuleshov <kuleshovmail@gmail.com>
 
-On 08/13/2015 04:40 PM, Eric Dumazet wrote:
-> On Thu, 2015-08-13 at 11:13 +0200, Vlastimil Babka wrote:
->
->> Given that this apparently isn't the first case of this localhost issue,
->> I wonder if network code should just clear skb->pfmemalloc during send
->> (or maybe just send over localhost). That would be probably easier than
->> distinguish the __skb_fill_page_desc() callers for send vs receive.
->
-> Would this still needed after this patch ?
+Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
+---
+ mm/memblock.c | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)
 
-Not until another corner case is discovered :) Or something passes a 
-genuine pfmemalloc page to a socket (sending contents of some slab 
-objects perhaps, where the slab page was allocated as pfmemalloc? Dunno 
-if that can happen right now).
-
-> It is sad we do not have a SNMP counter to at least count how often we
-> drop skb because pfmemalloc is set.
->
-> I'll provide such a patch.
->
->
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 87108e7..c09e911 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1692,16 +1692,34 @@ static const struct file_operations memblock_debug_fops = {
+ 
+ static int __init memblock_init_debugfs(void)
+ {
++	struct dentry *f;
+ 	struct dentry *root = debugfs_create_dir("memblock", NULL);
+ 	if (!root)
+ 		return -ENXIO;
+-	debugfs_create_file("memory", S_IRUGO, root, &memblock.memory, &memblock_debug_fops);
+-	debugfs_create_file("reserved", S_IRUGO, root, &memblock.reserved, &memblock_debug_fops);
++
++	f = debugfs_create_file("memory", S_IRUGO, root, &memblock.memory, &memblock_debug_fops);
++	if (!f) {
++		pr_err("Failed to create memory debugfs file\n");
++		goto err_out;
++	}
++
++	f = debugfs_create_file("reserved", S_IRUGO, root, &memblock.reserved, &memblock_debug_fops);
++	if (!f) {
++		pr_err("Failed to create reserved debugfs file\n");
++		goto err_out;
++	}
++
+ #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
+-	debugfs_create_file("physmem", S_IRUGO, root, &memblock.physmem, &memblock_debug_fops);
++	f = debugfs_create_file("physmem", S_IRUGO, root, &memblock.physmem, &memblock_debug_fops);
++	if (!f) {
++		pr_err("Failed to create physmem debugfs file\n");
++		goto err_out;
++	}
+ #endif
+ 
+ 	return 0;
++err_out:
++	return -ENOMEM;
+ }
+ __initcall(memblock_init_debugfs);
+ 
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
