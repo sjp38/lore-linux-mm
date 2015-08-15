@@ -1,68 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C1DE56B0038
-	for <linux-mm@kvack.org>; Fri, 14 Aug 2015 22:11:28 -0400 (EDT)
-Received: by igxp17 with SMTP id p17so23766280igx.1
-        for <linux-mm@kvack.org>; Fri, 14 Aug 2015 19:11:28 -0700 (PDT)
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com. [209.85.223.179])
-        by mx.google.com with ESMTPS id a21si2536095ioa.153.2015.08.14.19.11.27
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 19E886B0038
+	for <linux-mm@kvack.org>; Sat, 15 Aug 2015 03:27:01 -0400 (EDT)
+Received: by lbbtg9 with SMTP id tg9so57092692lbb.1
+        for <linux-mm@kvack.org>; Sat, 15 Aug 2015 00:27:00 -0700 (PDT)
+Received: from mail-la0-x229.google.com (mail-la0-x229.google.com. [2a00:1450:4010:c03::229])
+        by mx.google.com with ESMTPS id sc4si7527743lbb.99.2015.08.15.00.26.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Aug 2015 19:11:27 -0700 (PDT)
-Received: by iodv127 with SMTP id v127so86612666iod.3
-        for <linux-mm@kvack.org>; Fri, 14 Aug 2015 19:11:27 -0700 (PDT)
+        Sat, 15 Aug 2015 00:26:59 -0700 (PDT)
+Received: by lahi9 with SMTP id i9so54505295lah.2
+        for <linux-mm@kvack.org>; Sat, 15 Aug 2015 00:26:58 -0700 (PDT)
+Date: Sat, 15 Aug 2015 13:26:36 +0600
+From: Alexander Kuleshov <kuleshovmail@gmail.com>
+Subject: Re: [PATCH] mm/memblock: validate the creation of debugfs files
+Message-ID: <20150815072636.GA2539@localhost>
+References: <1439579011-14918-1-git-send-email-kuleshovmail@gmail.com>
+ <20150814141944.4172fee6c9d7ae02a6258c80@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4gEPum_qq7PH0oNx3ntiWTP_1fp4EU+CAj8tm1Oeg-E9w@mail.gmail.com>
-References: <20150813031253.36913.29580.stgit@otcpl-skl-sds-2.jf.intel.com>
-	<20150813035005.36913.77364.stgit@otcpl-skl-sds-2.jf.intel.com>
-	<20150814213714.GA3265@gmail.com>
-	<CAPcyv4ib244VMSdhHDWHRnmCvYdteUEzT+ehTzitSY42m2Tt=w@mail.gmail.com>
-	<20150814220605.GB3265@gmail.com>
-	<CAPcyv4gEPum_qq7PH0oNx3ntiWTP_1fp4EU+CAj8tm1Oeg-E9w@mail.gmail.com>
-Date: Fri, 14 Aug 2015 19:11:27 -0700
-Message-ID: <CAPcyv4i-5RWTLK8FQFCBuFKwY0_HShbW7PVTHudSk4sF35xosA@mail.gmail.com>
-Subject: Re: [RFC PATCH 1/7] x86, mm: ZONE_DEVICE for "device memory"
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150814141944.4172fee6c9d7ae02a6258c80@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Boaz Harrosh <boaz@plexistor.com>, Rik van Riel <riel@redhat.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, david <david@fromorbit.com>, Ingo Molnar <mingo@kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Baoquan He <bhe@redhat.com>, Tang Chen <tangchen@cn.fujitsu.com>, Robin Holt <holt@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Aug 14, 2015 at 3:33 PM, Dan Williams <dan.j.williams@intel.com> wrote:
-> On Fri, Aug 14, 2015 at 3:06 PM, Jerome Glisse <j.glisse@gmail.com> wrote:
->> On Fri, Aug 14, 2015 at 02:52:15PM -0700, Dan Williams wrote:
->>> On Fri, Aug 14, 2015 at 2:37 PM, Jerome Glisse <j.glisse@gmail.com> wrote:
->>> > On Wed, Aug 12, 2015 at 11:50:05PM -0400, Dan Williams wrote:
-> [..]
->>> > What is the rational for not updating max_pfn, max_low_pfn, ... ?
->>> >
->>>
->>> The idea is that this memory is not meant to be available to the page
->>> allocator and should not count as new memory capacity.  We're only
->>> hotplugging it to get struct page coverage.
->>
->> But this sounds bogus to me to rely on max_pfn to stay smaller than
->> first_dev_pfn.  For instance you might plug a device that register
->> dev memory and then some regular memory might be hotplug, effectively
->> updating max_pfn to a value bigger than first_dev_pfn.
->>
->
-> True.
->
->> Also i do not think that the buddy allocator use max_pfn or max_low_pfn
->> to consider page/zone for allocation or not.
->
-> Yes, I took it out with no effects.  I'll investigate further whether
-> we should be touching those variables or not for this new usage.
+Hello Andrew,
 
-Although it does not offer perfect protection if device memory is at a
-physically lower address than RAM, skipping the update of these
-variables does seem to be what we want.  For example /dev/mem would
-fail to allow write access to persistent memory if it fails a
-valid_phys_addr_range() check.  Since /dev/mem does not know how to
-write to PMEM in a reliably persistent way, it should not treat a
-PMEM-pfn like RAM.
+On 08-14-15, Andrew Morton wrote:
+> On Sat, 15 Aug 2015 01:03:31 +0600 Alexander Kuleshov <kuleshovmail@gmail.com> wrote:
+> 
+> > Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
+> 
+> There's no changelog.
+
+Yes, will add it if there will be sense in the patch.
+
+> 
+> Why?  Ignoring the debugfs API return values is standard practice.
+> 
+
+Yes, but I saw many places where this practice is applicable (for example
+in the kernel/kprobes and etc.), besides this, the memblock API is used
+mostly at early stage, so we will have some output if something going wrong.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
