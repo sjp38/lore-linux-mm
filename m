@@ -1,142 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 570BE6B0255
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2015 09:24:55 -0400 (EDT)
-Received: by pdbmi9 with SMTP id mi9so5714546pdb.3
-        for <linux-mm@kvack.org>; Sun, 16 Aug 2015 06:24:55 -0700 (PDT)
-Received: from mail1.protonmail.ch (mail1.protonmail.ch. [185.70.40.18])
-        by mx.google.com with ESMTPS id v6si17853311pdj.152.2015.08.16.06.24.53
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 93DF59003C8
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2015 10:04:41 -0400 (EDT)
+Received: by pacgr6 with SMTP id gr6so89956236pac.2
+        for <linux-mm@kvack.org>; Sun, 16 Aug 2015 07:04:41 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id xj2si19792888pbc.48.2015.08.16.07.04.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Aug 2015 06:24:54 -0700 (PDT)
-Subject: Re: ========== Re: RAM encryption and key storing in CPU ==========
-Date: Sun, 16 Aug 2015 09:24:51 -0400
-From: ngabor <ngabor@protonmail.ch>
-Reply-To: ngabor <ngabor@protonmail.ch>
-Message-ID: <fc9f5533bba68f48975369d3755af6a3@protonmail.ch>
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="b1_fc9f5533bba68f48975369d3755af6a3"
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 16 Aug 2015 07:04:40 -0700 (PDT)
+Subject: Re: [RFC 3/8] mm: page_alloc: do not lock up GFP_NOFS allocations upon OOM
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1438768284-30927-4-git-send-email-mhocko@kernel.org>
+	<201508052128.FIJ56269.QHSFOVFLOJOMFt@I-love.SAKURA.ne.jp>
+	<20150805140230.GF11176@dhcp22.suse.cz>
+	<201508062050.CAF21340.FJSOQOHVOLMtFF@I-love.SAKURA.ne.jp>
+	<20150812091104.GA14940@dhcp22.suse.cz>
+In-Reply-To: <20150812091104.GA14940@dhcp22.suse.cz>
+Message-Id: <201508162304.FID17148.SOJHOFFtMVLOQF@I-love.SAKURA.ne.jp>
+Date: Sun, 16 Aug 2015 23:04:22 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org
 
-This is a multi-part message in MIME format.
+Michal Hocko wrote:
+> > Therefore, I worry that, under nearly OOM condition where waiting for kswapd
+> > kernel threads for a few seconds will reclaim FS memory which will be enough
+> > to succeed the !__GFP_FS allocations, GFP_NOFS allocations start failing
+> > prematurely. The toehold (reliability by __GFP_WAIT) is almost gone.
+> 
+> GFP_NOFS had to go through the full reclaim process to end up in the oom
+> path. All that without making _any_ progress. kswapd should be running
+> in the background so talking about waiting for few seconds doesn't solve
+> much once we have hit the oom path. You can be lucky under some very
+> specific conditions but in general we _are_ OOM.
 
---b1_fc9f5533bba68f48975369d3755af6a3
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+As a GFP_NOFS user from syscalls than filesystem's writebacks (some of LSM
+hooks are called with fs locks held), I'm happy to give up upon SIGKILL but
+I'm not happy to return -ENOMEM without retrying hard. Returning -ENOMEM to
+user space is nearly equals to terminating that process because what user
+space programs likely do upon unexpected -ENOMEM is to call exit(). Therefore,
+I prefer OOM killing some memory hog process than potentially terminating
+important processes which can be controlled via /proc/pid/oom_score_adj .
 
-SXMgYW55b25lIHJlYWRpbmcgdGhpcz8KCgoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0t
-LS0tLS0KClN1YmplY3Q6IFJlOiA9PT09PT09PT09IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5
-IHN0b3JpbmcgaW4gQ1BVID09PT09PT09PT0KClRpbWUgKFVUQyk6IEF1Z3VzdCA0IDIwMTUgNzo0
-MiBhbQoKRnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFjay5vcmcs
-YnBAYWxpZW44LmRlLGxpemVmYW5AaHVhd2VpLmNvbSx0akBrZXJuZWwub3JnLGNsQGxpbnV4LWZv
-dW5kYXRpb24ub3JnCgpDQzoKCkhhbGxvPwoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0t
-LS0tLS0KClN1YmplY3Q6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3Rv
-cmluZyBpbiBDUFUgPT09PT09PT09PQoKVGltZSAoR01UKTogSnVuIDIzIDIwMTUgMDQ6NDI6MzQK
-CkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoCgpUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBh
-bGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91
-bmRhdGlvbi5vcmcKCgoKSXMgYW55Ym9keSByZWFkaW5nIHRoaXM/CgoKLS0tLS0tLS0gT3JpZ2lu
-YWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDogUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkg
-c3RvcmluZyBpbiBDUFUKClRpbWUgKEdNVCk6IEp1biAxOSAyMDE1IDE3OjIyOjQ5CgpGcm9tOiBu
-Z2Fib3JAcHJvdG9ubWFpbC5jaAoKVG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRl
-LCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24u
-b3JnCgoKCkhhbGxvPyA6KQoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KClN1
-YmplY3Q6IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVCgpUaW1lIChH
-TVQpOiBNYXkgMjMgMjAxNSAwOTowMToyNgoKRnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2gKClRv
-OiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0
-akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZwoKCgpBbnkgY29tbWVudHM/CgoK
-LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDogUkFNIGVuY3J5cHRp
-b24gYW5kIGtleSBzdG9yaW5nIGluIENQVQoKVGltZSAoR01UKTogTWF5IDIxIDIwMTUgMTA6MTc6
-MjUKCkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoCgpUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBi
-cEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgt
-Zm91bmRhdGlvbi5vcmcKCgoKSGVsbG8sCgoKCj09PT09PT09PT0KClByb2JsZW06CgoKCkV2ZXJ5
-dGhpbmcgaXMgc3RvcmVkIGluIHBsYWludGV4dCBpbiB0aGUgTWVtb3J5LgoKCgpTbyBpZiBhbHRo
-b3VnaCBmdWxsIGRpc2MgZW5jcnlwdGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3RvcCwgaXQg
-aXMgcG9zc2libGUgdG8gY29weSB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGlsZSB0aGUg
-bm90ZWJvb2sgd2FzIG9uIHN1c3BlbmQgb3IgaXQgd2FzIHJ1bm5pbmc6CgoKCmh0dHBzOi8vY2l0
-cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNoL21lbW9yeS9tZWRpYS8KCgoKPT09PT09PT09PQoKU29s
-dXRpb246CgoKCkNhbiB3ZSAob3B0aW9uYWxseSopIGVuY3J5cHQgdGhlIGNvbnRlbnQgb2YgdGhl
-IG1lbW9yeSBhbmQgc3RvcmUgdGhlIGtleSBmb3IgZGVjcnlwdGlvbiBpbiB0aGUgQ1BVIHRvIGF2
-b2lkIGluIGdlbmVyYWwgdGhlc2Uga2luZCBvZiBhdHRhY2tzPwoKCgpodHRwczovL3d3dzEuaW5m
-b3JtYXRpay51bmktZXJsYW5nZW4uZGUvdHJlc29yCgoKCklzIHRoaXMgc29sdXRpb24gYWxyZWFk
-eSBpbiB0aGUgTGludXgga2VybmVsPyBJZiB5ZXMsIGhvdyBjYW4gYSBMaW51eCBlbmR1c2VyIHR1
-cm4gaXQgb24/IElmIG5vLCBob3cgY2FuIHdlIGdldCB0aGUgY29kZS9pZGVhIGluIHRoZSBtYWlu
-bGluZT8gV2hhdCBhcmUgdGhlIGFyZ3VtZW50cyBhZ2FpbnN0IGl0PwoKCgoqaWYgc29tZW9uZSB3
-b3VsZCB3YW50IHRvIGhhcmRlbiBpdCdzIExpbnV4IERlc2t0b3AgKHNpbmNlIG5vdGVib29rcyBj
-b3VsZCBiZSBzdG9sZW4uLikgaXQgY291bGQgdHVybiBvbiB0aGlzIGZlYXR1cmUgdG8gYXZvaWQg
-YSBwb2xpY3kgdG8gYWx3YXlzIHR1cm4gb2ZmIHRoZSBub3RlYm9vayB3aGlsZSBub3QgdXNpbmcg
-aXQuCgoKClRoYW5rIHlvdSBmb3IgeW91ciBjb21tZW50cy4=
-
-
---b1_fc9f5533bba68f48975369d3755af6a3
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: base64
-
-PGRpdj5JcyBhbnlvbmUgcmVhZGluZyB0aGlzPzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48Ymxv
-Y2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+
-PGRpdj5TdWJqZWN0OiBSZTogPT09PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBz
-dG9yaW5nIGluIENQVSA9PT09PT09PT09PGJyPjwvZGl2PjxkaXY+VGltZSAoVVRDKTogQXVndXN0
-IDQgMjAxNSA3OjQyIGFtPGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8
-YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLGJwQGFsaWVuOC5kZSxsaXplZmFu
-QGh1YXdlaS5jb20sdGpAa2VybmVsLm9yZyxjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rp
-dj48ZGl2PkNDOiA8YnI+PC9kaXY+PGRpdj5IYWxsbz8gPGJyPjwvZGl2PjxibG9ja3F1b3RlPjxk
-aXY+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1Ympl
-Y3Q6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUg
-PT09PT09PT09PTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6IEp1biAyMyAyMDE1IDA0OjQyOjM0
-PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5U
-bzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwg
-dGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+
-PC9kaXY+PGRpdj5JcyBhbnlib2R5IHJlYWRpbmcgdGhpcz8gPGJyPjwvZGl2PjxibG9ja3F1b3Rl
-PjxkaXY+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1
-YmplY3Q6IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2
-PjxkaXY+VGltZSAoR01UKTogSnVuIDE5IDIwMTUgMTc6MjI6NDk8YnI+PC9kaXY+PGRpdj5Gcm9t
-OiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5v
-cmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBs
-aW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkhhbGxvPyA6
-KTxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0t
-LS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBz
-dG9yaW5nIGluIENQVTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6IE1heSAyMyAyMDE1IDA5OjAx
-OjI2PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRp
-dj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNv
-bSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48
-YnI+PC9kaXY+PGRpdj5BbnkgY29tbWVudHM/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0t
-LS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBS
-QU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2PjxkaXY+VGltZSAo
-R01UKTogTWF5IDIxIDIwMTUgMTA6MTc6MjU8YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJv
-dG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVu
-OC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0
-aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkhlbGxvLCA8YnI+PC9kaXY+PGRp
-dj48YnI+PC9kaXY+PGRpdj49PT09PT09PT09PGJyPjwvZGl2PjxkaXY+PGI+UHJvYmxlbTwvYj46
-IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkV2ZXJ5dGhpbmcgaXMgc3RvcmVkIGluIHBs
-YWludGV4dCBpbiB0aGUgTWVtb3J5LiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5TbyBp
-ZiBhbHRob3VnaCBmdWxsIGRpc2MgZW5jcnlwdGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3Rv
-cCwgaXQgaXMgcG9zc2libGUgdG8gY29weSB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGls
-ZSB0aGUgbm90ZWJvb2sgd2FzIG9uIHN1c3BlbmQgb3IgaXQgd2FzIHJ1bm5pbmc6IDxicj48L2Rp
-dj48ZGl2Pjxicj48L2Rpdj48ZGl2PjxhIGhyZWY9Imh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1
-L3Jlc2VhcmNoL21lbW9yeS9tZWRpYS8iPmh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2Vh
-cmNoL21lbW9yeS9tZWRpYS88L2E+PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+PT09PT09
-PT09PTxicj48L2Rpdj48ZGl2PjxiPlNvbHV0aW9uPC9iPjogPGJyPjwvZGl2PjxkaXY+PGJyPjwv
-ZGl2PjxkaXY+Q2FuIHdlIChvcHRpb25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUg
-bWVtb3J5IGFuZCBzdG9yZSB0aGUga2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZv
-aWQgaW4gZ2VuZXJhbCB0aGVzZSBraW5kIG9mIGF0dGFja3M/IDxicj48L2Rpdj48ZGl2Pjxicj48
-L2Rpdj48ZGl2PjxhIGhyZWY9Imh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5k
-ZS90cmVzb3IiPmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVzb3I8
-L2E+PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5
-IGluIHRoZSBMaW51eCBrZXJuZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVy
-biBpdCBvbj8gSWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5s
-aW5lPyBXaGF0IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3QgaXQ/IDxicj48L2Rpdj48ZGl2Pjxi
-cj48L2Rpdj48ZGl2PippZiBzb21lb25lIHdvdWxkIHdhbnQgdG8gaGFyZGVuIGl0J3MgTGludXgg
-RGVza3RvcCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJlIHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJu
-IG9uIHRoaXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGljeSB0byBhbHdheXMgdHVybiBvZmYgdGhl
-IG5vdGVib29rIHdoaWxlIG5vdCB1c2luZyBpdC4gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2Pjxk
-aXY+VGhhbmsgeW91IGZvciB5b3VyIGNvbW1lbnRzLiA8YnI+PC9kaXY+PC9ibG9ja3F1b3RlPjwv
-YmxvY2txdW90ZT48L2Jsb2NrcXVvdGU+PC9ibG9ja3F1b3RlPjwvYmxvY2txdW90ZT4=
-
-
-
---b1_fc9f5533bba68f48975369d3755af6a3--
+As a troubleshooting staff, I wish that we have a mechanism for proving that
+the cause of silent hang up (hangups without the OOM killer messages) are not
+caused by mm subsystem's behavior. How can we prove if memory allocation
+requests stuck before reaching the oom path (e.g. inside shrinker functions
+or shrink_inactive_list())? I want to use something like khungtaskd.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
