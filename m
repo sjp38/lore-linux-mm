@@ -1,147 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E28B26B0253
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2015 07:42:44 -0400 (EDT)
-Received: by pacum4 with SMTP id um4so3292152pac.3
-        for <linux-mm@kvack.org>; Sun, 16 Aug 2015 04:42:44 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id ka15si19240495pbb.176.2015.08.16.04.42.42
-        for <linux-mm@kvack.org>;
-        Sun, 16 Aug 2015 04:42:43 -0700 (PDT)
-Message-ID: <55D076D5.8070601@cn.fujitsu.com>
-Date: Sun, 16 Aug 2015 19:41:09 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 570BE6B0255
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2015 09:24:55 -0400 (EDT)
+Received: by pdbmi9 with SMTP id mi9so5714546pdb.3
+        for <linux-mm@kvack.org>; Sun, 16 Aug 2015 06:24:55 -0700 (PDT)
+Received: from mail1.protonmail.ch (mail1.protonmail.ch. [185.70.40.18])
+        by mx.google.com with ESMTPS id v6si17853311pdj.152.2015.08.16.06.24.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 16 Aug 2015 06:24:54 -0700 (PDT)
+Subject: Re: ========== Re: RAM encryption and key storing in CPU ==========
+Date: Sun, 16 Aug 2015 09:24:51 -0400
+From: ngabor <ngabor@protonmail.ch>
+Reply-To: ngabor <ngabor@protonmail.ch>
+Message-ID: <fc9f5533bba68f48975369d3755af6a3@protonmail.ch>
 MIME-Version: 1.0
-Subject: Re: [Xen-devel] [PATCHv3 01/10] mm: memory hotplug with an existing
- resource
-References: <1438275792-5726-1-git-send-email-david.vrabel@citrix.com>	<1438275792-5726-2-git-send-email-david.vrabel@citrix.com>	<55CC6FB7.4080600@citrix.com> <20150813134003.895cd1ce421631fb55db21fb@linux-foundation.org>
-In-Reply-To: <20150813134003.895cd1ce421631fb55db21fb@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative;
+	boundary="b1_fc9f5533bba68f48975369d3755af6a3"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Vrabel <david.vrabel@citrix.com>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org, Daniel Kiper <daniel.kiper@oracle.com>, linux-mm@kvack.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, tangchen@cn.fujitsu.com
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
+
+This is a multi-part message in MIME format.
+
+--b1_fc9f5533bba68f48975369d3755af6a3
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+SXMgYW55b25lIHJlYWRpbmcgdGhpcz8KCgoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0t
+LS0tLS0KClN1YmplY3Q6IFJlOiA9PT09PT09PT09IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5
+IHN0b3JpbmcgaW4gQ1BVID09PT09PT09PT0KClRpbWUgKFVUQyk6IEF1Z3VzdCA0IDIwMTUgNzo0
+MiBhbQoKRnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFjay5vcmcs
+YnBAYWxpZW44LmRlLGxpemVmYW5AaHVhd2VpLmNvbSx0akBrZXJuZWwub3JnLGNsQGxpbnV4LWZv
+dW5kYXRpb24ub3JnCgpDQzoKCkhhbGxvPwoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0t
+LS0tLS0KClN1YmplY3Q6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3Rv
+cmluZyBpbiBDUFUgPT09PT09PT09PQoKVGltZSAoR01UKTogSnVuIDIzIDIwMTUgMDQ6NDI6MzQK
+CkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoCgpUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBh
+bGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91
+bmRhdGlvbi5vcmcKCgoKSXMgYW55Ym9keSByZWFkaW5nIHRoaXM/CgoKLS0tLS0tLS0gT3JpZ2lu
+YWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDogUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkg
+c3RvcmluZyBpbiBDUFUKClRpbWUgKEdNVCk6IEp1biAxOSAyMDE1IDE3OjIyOjQ5CgpGcm9tOiBu
+Z2Fib3JAcHJvdG9ubWFpbC5jaAoKVG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRl
+LCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24u
+b3JnCgoKCkhhbGxvPyA6KQoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KClN1
+YmplY3Q6IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVCgpUaW1lIChH
+TVQpOiBNYXkgMjMgMjAxNSAwOTowMToyNgoKRnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2gKClRv
+OiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0
+akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZwoKCgpBbnkgY29tbWVudHM/CgoK
+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDogUkFNIGVuY3J5cHRp
+b24gYW5kIGtleSBzdG9yaW5nIGluIENQVQoKVGltZSAoR01UKTogTWF5IDIxIDIwMTUgMTA6MTc6
+MjUKCkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoCgpUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBi
+cEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgt
+Zm91bmRhdGlvbi5vcmcKCgoKSGVsbG8sCgoKCj09PT09PT09PT0KClByb2JsZW06CgoKCkV2ZXJ5
+dGhpbmcgaXMgc3RvcmVkIGluIHBsYWludGV4dCBpbiB0aGUgTWVtb3J5LgoKCgpTbyBpZiBhbHRo
+b3VnaCBmdWxsIGRpc2MgZW5jcnlwdGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3RvcCwgaXQg
+aXMgcG9zc2libGUgdG8gY29weSB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGlsZSB0aGUg
+bm90ZWJvb2sgd2FzIG9uIHN1c3BlbmQgb3IgaXQgd2FzIHJ1bm5pbmc6CgoKCmh0dHBzOi8vY2l0
+cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNoL21lbW9yeS9tZWRpYS8KCgoKPT09PT09PT09PQoKU29s
+dXRpb246CgoKCkNhbiB3ZSAob3B0aW9uYWxseSopIGVuY3J5cHQgdGhlIGNvbnRlbnQgb2YgdGhl
+IG1lbW9yeSBhbmQgc3RvcmUgdGhlIGtleSBmb3IgZGVjcnlwdGlvbiBpbiB0aGUgQ1BVIHRvIGF2
+b2lkIGluIGdlbmVyYWwgdGhlc2Uga2luZCBvZiBhdHRhY2tzPwoKCgpodHRwczovL3d3dzEuaW5m
+b3JtYXRpay51bmktZXJsYW5nZW4uZGUvdHJlc29yCgoKCklzIHRoaXMgc29sdXRpb24gYWxyZWFk
+eSBpbiB0aGUgTGludXgga2VybmVsPyBJZiB5ZXMsIGhvdyBjYW4gYSBMaW51eCBlbmR1c2VyIHR1
+cm4gaXQgb24/IElmIG5vLCBob3cgY2FuIHdlIGdldCB0aGUgY29kZS9pZGVhIGluIHRoZSBtYWlu
+bGluZT8gV2hhdCBhcmUgdGhlIGFyZ3VtZW50cyBhZ2FpbnN0IGl0PwoKCgoqaWYgc29tZW9uZSB3
+b3VsZCB3YW50IHRvIGhhcmRlbiBpdCdzIExpbnV4IERlc2t0b3AgKHNpbmNlIG5vdGVib29rcyBj
+b3VsZCBiZSBzdG9sZW4uLikgaXQgY291bGQgdHVybiBvbiB0aGlzIGZlYXR1cmUgdG8gYXZvaWQg
+YSBwb2xpY3kgdG8gYWx3YXlzIHR1cm4gb2ZmIHRoZSBub3RlYm9vayB3aGlsZSBub3QgdXNpbmcg
+aXQuCgoKClRoYW5rIHlvdSBmb3IgeW91ciBjb21tZW50cy4=
 
 
-On 08/14/2015 04:40 AM, Andrew Morton wrote:
-> On Thu, 13 Aug 2015 11:21:43 +0100 David Vrabel <david.vrabel@citrix.com> wrote:
->
->> On 30/07/15 18:03, David Vrabel wrote:
->>> Add add_memory_resource() to add memory using an existing "System RAM"
->>> resource.  This is useful if the memory region is being located by
->>> finding a free resource slot with allocate_resource().
->>>
->>> Xen guests will make use of this in their balloon driver to hotplug
->>> arbitrary amounts of memory in response to toolstack requests.
->> Ping?  This enables a useful feature for Xen guests.
->>
-> Looks OK to me.  I've cc'ed some memory_hotplug.c developers.  If
-> they're OK with it, please add the patch to the (Xen?) tree which uses
-> it.
->
->
->
->
-> Add add_memory_resource() to add memory using an existing "System RAM"
-> resource.  This is useful if the memory region is being located by
-> finding a free resource slot with allocate_resource().
->
-> Xen guests will make use of this in their balloon driver to hotplug
-> arbitrary amounts of memory in response to toolstack requests.
->
-> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
->   include/linux/memory_hotplug.h |  2 ++
->   mm/memory_hotplug.c            | 28 +++++++++++++++++++++-------
->   2 files changed, 23 insertions(+), 7 deletions(-)
->
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index 6ffa0ac..c76d371 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -11,6 +11,7 @@ struct zone;
->   struct pglist_data;
->   struct mem_section;
->   struct memory_block;
-> +struct resource;
->   
->   #ifdef CONFIG_MEMORY_HOTPLUG
->   
-> @@ -266,6 +267,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
->   extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
->   		void *arg, int (*func)(struct memory_block *, void *));
->   extern int add_memory(int nid, u64 start, u64 size);
-> +extern int add_memory_resource(int nid, struct resource *resource);
->   extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default);
->   extern int arch_add_memory(int nid, u64 start, u64 size);
->   extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 003dbe4..169770a 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1224,23 +1224,21 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
->   }
->   
->   /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-> -int __ref add_memory(int nid, u64 start, u64 size)
-> +int __ref add_memory_resource(int nid, struct resource *res)
->   {
-> +	u64 start, size;
->   	pg_data_t *pgdat = NULL;
->   	bool new_pgdat;
->   	bool new_node;
-> -	struct resource *res;
->   	int ret;
->   
-> +	start = res->start;
-> +	size = resource_size(res);
-> +
->   	ret = check_hotplug_memory_range(start, size);
->   	if (ret)
->   		return ret;
->   
-> -	res = register_memory_resource(start, size);
-> -	ret = -EEXIST;
-> -	if (!res)
-> -		return ret;
-> -
->   	{	/* Stupid hack to suppress address-never-null warning */
->   		void *p = NODE_DATA(nid);
->   		new_pgdat = !p;
-> @@ -1290,6 +1288,22 @@ out:
->   	mem_hotplug_done();
->   	return ret;
->   }
-> +EXPORT_SYMBOL_GPL(add_memory_resource);
-> +
-> +int __ref add_memory(int nid, u64 start, u64 size)
-> +{
-> +	struct resource *res;
-> +	int ret;
-> +
-> +	res = register_memory_resource(start, size);
-> +	if (!res)
-> +		return -EEXIST;
-> +
-> +	ret = add_memory_resource(nid, res);
-> +	if (ret < 0)
+--b1_fc9f5533bba68f48975369d3755af6a3
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: base64
 
-Not a big deal, but I think  "if (ret)"  is enough.
+PGRpdj5JcyBhbnlvbmUgcmVhZGluZyB0aGlzPzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48Ymxv
+Y2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+
+PGRpdj5TdWJqZWN0OiBSZTogPT09PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBz
+dG9yaW5nIGluIENQVSA9PT09PT09PT09PGJyPjwvZGl2PjxkaXY+VGltZSAoVVRDKTogQXVndXN0
+IDQgMjAxNSA3OjQyIGFtPGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8
+YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLGJwQGFsaWVuOC5kZSxsaXplZmFu
+QGh1YXdlaS5jb20sdGpAa2VybmVsLm9yZyxjbEBsaW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rp
+dj48ZGl2PkNDOiA8YnI+PC9kaXY+PGRpdj5IYWxsbz8gPGJyPjwvZGl2PjxibG9ja3F1b3RlPjxk
+aXY+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1Ympl
+Y3Q6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUg
+PT09PT09PT09PTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6IEp1biAyMyAyMDE1IDA0OjQyOjM0
+PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5U
+bzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwg
+dGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+
+PC9kaXY+PGRpdj5JcyBhbnlib2R5IHJlYWRpbmcgdGhpcz8gPGJyPjwvZGl2PjxibG9ja3F1b3Rl
+PjxkaXY+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1
+YmplY3Q6IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2
+PjxkaXY+VGltZSAoR01UKTogSnVuIDE5IDIwMTUgMTc6MjI6NDk8YnI+PC9kaXY+PGRpdj5Gcm9t
+OiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5v
+cmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBs
+aW51eC1mb3VuZGF0aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkhhbGxvPyA6
+KTxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0t
+LS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBz
+dG9yaW5nIGluIENQVTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6IE1heSAyMyAyMDE1IDA5OjAx
+OjI2PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRp
+dj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNv
+bSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48
+YnI+PC9kaXY+PGRpdj5BbnkgY29tbWVudHM/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0t
+LS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBS
+QU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVPGJyPjwvZGl2PjxkaXY+VGltZSAo
+R01UKTogTWF5IDIxIDIwMTUgMTA6MTc6MjU8YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJv
+dG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVu
+OC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0
+aW9uLm9yZzxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkhlbGxvLCA8YnI+PC9kaXY+PGRp
+dj48YnI+PC9kaXY+PGRpdj49PT09PT09PT09PGJyPjwvZGl2PjxkaXY+PGI+UHJvYmxlbTwvYj46
+IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkV2ZXJ5dGhpbmcgaXMgc3RvcmVkIGluIHBs
+YWludGV4dCBpbiB0aGUgTWVtb3J5LiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5TbyBp
+ZiBhbHRob3VnaCBmdWxsIGRpc2MgZW5jcnlwdGlvbiBpcyB1c2VkIG9uIGEgTGludXggRGVza3Rv
+cCwgaXQgaXMgcG9zc2libGUgdG8gY29weSB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5LCB3aGls
+ZSB0aGUgbm90ZWJvb2sgd2FzIG9uIHN1c3BlbmQgb3IgaXQgd2FzIHJ1bm5pbmc6IDxicj48L2Rp
+dj48ZGl2Pjxicj48L2Rpdj48ZGl2PjxhIGhyZWY9Imh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1
+L3Jlc2VhcmNoL21lbW9yeS9tZWRpYS8iPmh0dHBzOi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2Vh
+cmNoL21lbW9yeS9tZWRpYS88L2E+PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+PT09PT09
+PT09PTxicj48L2Rpdj48ZGl2PjxiPlNvbHV0aW9uPC9iPjogPGJyPjwvZGl2PjxkaXY+PGJyPjwv
+ZGl2PjxkaXY+Q2FuIHdlIChvcHRpb25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUg
+bWVtb3J5IGFuZCBzdG9yZSB0aGUga2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZv
+aWQgaW4gZ2VuZXJhbCB0aGVzZSBraW5kIG9mIGF0dGFja3M/IDxicj48L2Rpdj48ZGl2Pjxicj48
+L2Rpdj48ZGl2PjxhIGhyZWY9Imh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5k
+ZS90cmVzb3IiPmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVzb3I8
+L2E+PGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5
+IGluIHRoZSBMaW51eCBrZXJuZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVy
+biBpdCBvbj8gSWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5s
+aW5lPyBXaGF0IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3QgaXQ/IDxicj48L2Rpdj48ZGl2Pjxi
+cj48L2Rpdj48ZGl2PippZiBzb21lb25lIHdvdWxkIHdhbnQgdG8gaGFyZGVuIGl0J3MgTGludXgg
+RGVza3RvcCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJlIHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJu
+IG9uIHRoaXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGljeSB0byBhbHdheXMgdHVybiBvZmYgdGhl
+IG5vdGVib29rIHdoaWxlIG5vdCB1c2luZyBpdC4gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2Pjxk
+aXY+VGhhbmsgeW91IGZvciB5b3VyIGNvbW1lbnRzLiA8YnI+PC9kaXY+PC9ibG9ja3F1b3RlPjwv
+YmxvY2txdW90ZT48L2Jsb2NrcXVvdGU+PC9ibG9ja3F1b3RlPjwvYmxvY2txdW90ZT4=
 
-The code looks good.
 
-Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
 
-Thanks.
-
-> +		release_memory_resource(res);
-> +	return ret;
-> +}
->   EXPORT_SYMBOL_GPL(add_memory);
->   
->   #ifdef CONFIG_MEMORY_HOTREMOVE
+--b1_fc9f5533bba68f48975369d3755af6a3--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
