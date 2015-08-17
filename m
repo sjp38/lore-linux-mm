@@ -1,50 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 94154280244
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2015 23:16:11 -0400 (EDT)
-Received: by pabyb7 with SMTP id yb7so98427482pab.0
-        for <linux-mm@kvack.org>; Sun, 16 Aug 2015 20:16:11 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id dn2si22343750pdb.103.2015.08.16.20.16.10
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 046EE280244
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2015 23:16:17 -0400 (EDT)
+Received: by pawq9 with SMTP id q9so460673paw.3
+        for <linux-mm@kvack.org>; Sun, 16 Aug 2015 20:16:16 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id wj6si22260743pbc.232.2015.08.16.20.16.15
         for <linux-mm@kvack.org>;
-        Sun, 16 Aug 2015 20:16:10 -0700 (PDT)
+        Sun, 16 Aug 2015 20:16:16 -0700 (PDT)
 From: Jiang Liu <jiang.liu@linux.intel.com>
-Subject: [Patch V3 4/9] openvswitch: Replace cpu_to_node() with cpu_to_mem() to support memoryless node
-Date: Mon, 17 Aug 2015 11:19:01 +0800
-Message-Id: <1439781546-7217-5-git-send-email-jiang.liu@linux.intel.com>
+Subject: [Patch V3 5/9] i40e: Use numa_mem_id() to better support memoryless node
+Date: Mon, 17 Aug 2015 11:19:02 +0800
+Message-Id: <1439781546-7217-6-git-send-email-jiang.liu@linux.intel.com>
 In-Reply-To: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
 References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Pravin Shelar <pshelar@nicira.com>, "David S. Miller" <davem@davemloft.net>
-Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org, netdev@vger.kernel.org, dev@openvswitch.org
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Jeff Kirsher <jeffrey.t.kirsher@intel.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>, Shannon Nelson <shannon.nelson@intel.com>, Carolyn Wyborny <carolyn.wyborny@intel.com>, Don Skidmore <donald.c.skidmore@intel.com>, Matthew Vick <matthew.vick@intel.com>, John Ronciak <john.ronciak@intel.com>, Mitch Williams <mitch.a.williams@intel.com>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org, intel-wired-lan@lists.osuosl.org, netdev@vger.kernel.org
 
-Function ovs_flow_stats_update() allocates memory with __GFP_THISNODE
-flag set, which may cause permanent memory allocation failure on
-memoryless node. So replace cpu_to_node() with cpu_to_mem() to better
-support memoryless node. For node with memory, cpu_to_mem() is the same
-as cpu_to_node().
+Function i40e_clean_rx_irq() tries to reuse memory pages allocated
+from the nearest node. To better support memoryless node, use
+numa_mem_id() instead of numa_node_id() to get the nearest node with
+memory.
 
-This change only affects performance and shouldn't affect functionality.
+This change should only affect performance.
 
 Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
 ---
- net/openvswitch/flow.c |    2 +-
+ drivers/net/ethernet/intel/i40e/i40e_txrx.c |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/net/openvswitch/flow.c b/net/openvswitch/flow.c
-index bc7b0aba994a..e50a5681d0c2 100644
---- a/net/openvswitch/flow.c
-+++ b/net/openvswitch/flow.c
-@@ -69,7 +69,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
- 			   const struct sk_buff *skb)
- {
- 	struct flow_stats *stats;
--	int node = numa_node_id();
-+	int node = numa_mem_id();
- 	int len = skb->len + (skb_vlan_tag_present(skb) ? VLAN_HLEN : 0);
- 
- 	stats = rcu_dereference(flow->stats[node]);
+diff --git a/drivers/net/ethernet/intel/i40e/i40e_txrx.c b/drivers/net/ethernet/intel/i40e/i40e_txrx.c
+index 9a4f2bc70cd2..a8f618cb8eb0 100644
+--- a/drivers/net/ethernet/intel/i40e/i40e_txrx.c
++++ b/drivers/net/ethernet/intel/i40e/i40e_txrx.c
+@@ -1516,7 +1516,7 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
+ 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
+ 	u16 rx_packet_len, rx_header_len, rx_sph, rx_hbo;
+ 	u16 cleaned_count = I40E_DESC_UNUSED(rx_ring);
+-	const int current_node = numa_node_id();
++	const int current_node = numa_mem_id();
+ 	struct i40e_vsi *vsi = rx_ring->vsi;
+ 	u16 i = rx_ring->next_to_clean;
+ 	union i40e_rx_desc *rx_desc;
 -- 
 1.7.10.4
 
