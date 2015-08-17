@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id C3B9A6B0254
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 13:01:20 -0400 (EDT)
-Received: by qged69 with SMTP id d69so97760580qge.0
-        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 10:01:20 -0700 (PDT)
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E6AFA6B0254
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 13:01:22 -0400 (EDT)
+Received: by qged69 with SMTP id d69so97761365qge.0
+        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 10:01:22 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x128si26068588qha.40.2015.08.17.10.01.18
+        by mx.google.com with ESMTPS id t26si2414570qkt.46.2015.08.17.10.01.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Aug 2015 10:01:19 -0700 (PDT)
+        Mon, 17 Aug 2015 10:01:20 -0700 (PDT)
 From: Mark Salter <msalter@redhat.com>
-Subject: [PATCH V4 1/3] mm: add utility for early copy from unmapped ram
-Date: Mon, 17 Aug 2015 13:01:05 -0400
-Message-Id: <1439830867-14935-2-git-send-email-msalter@redhat.com>
+Subject: [PATCH V4 2/3] arm64: support initrd outside kernel linear map
+Date: Mon, 17 Aug 2015 13:01:06 -0400
+Message-Id: <1439830867-14935-3-git-send-email-msalter@redhat.com>
 In-Reply-To: <1439830867-14935-1-git-send-email-msalter@redhat.com>
 References: <1439830867-14935-1-git-send-email-msalter@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,67 +20,97 @@ List-ID: <linux-mm.kvack.org>
 To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, x86@kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Mark Salter <msalter@redhat.com>
 
-In some early boot circumstances, it may be necessary to copy
-from RAM outside the kernel linear mapping to mapped RAM. The
-need to relocate an initrd is one example in the x86 code. This
-patch creates a helper function based on current x86 code.
+The use of mem= could leave part or all of the initrd outside of
+the kernel linear map. This will lead to an error when unpacking
+the initrd and a probable failure to boot. This patch catches that
+situation and relocates the initrd to be fully within the linear
+map.
 
 Signed-off-by: Mark Salter <msalter@redhat.com>
 ---
- include/asm-generic/early_ioremap.h |  6 ++++++
- mm/early_ioremap.c                  | 22 ++++++++++++++++++++++
- 2 files changed, 28 insertions(+)
+ arch/arm64/kernel/setup.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)
 
-diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
-index a5de55c..e539f27 100644
---- a/include/asm-generic/early_ioremap.h
-+++ b/include/asm-generic/early_ioremap.h
-@@ -33,6 +33,12 @@ extern void early_ioremap_setup(void);
-  */
- extern void early_ioremap_reset(void);
- 
-+/*
-+ * Early copy from unmapped memory to kernel mapped memory.
-+ */
-+extern void copy_from_early_mem(void *dest, phys_addr_t src,
-+				unsigned long size);
-+
- #else
- static inline void early_ioremap_init(void) { }
- static inline void early_ioremap_setup(void) { }
-diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-index e10ccd2..a0baeb4 100644
---- a/mm/early_ioremap.c
-+++ b/mm/early_ioremap.c
-@@ -217,6 +217,28 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
- 	return (__force void *)__early_ioremap(phys_addr, size,
- 					       FIXMAP_PAGE_NORMAL);
+diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
+index f3067d4..40a894e 100644
+--- a/arch/arm64/kernel/setup.c
++++ b/arch/arm64/kernel/setup.c
+@@ -359,6 +359,67 @@ static void __init request_standard_resources(void)
+ 	}
  }
-+
-+#define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
-+
-+void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
+ 
++#ifdef CONFIG_BLK_DEV_INITRD
++/*
++ * Relocate initrd if it is not completely within the linear mapping.
++ * This would be the case if mem= cuts out all or part of it.
++ */
++static void __init relocate_initrd(void)
 +{
-+	unsigned long slop, clen;
-+	char *p;
++	phys_addr_t orig_start = __virt_to_phys(initrd_start);
++	phys_addr_t orig_end = __virt_to_phys(initrd_end);
++	phys_addr_t ram_end = memblock_end_of_DRAM();
++	phys_addr_t new_start;
++	unsigned long size, to_free = 0;
++	void *dest;
 +
-+	while (size) {
-+		slop = src & ~PAGE_MASK;
-+		clen = size;
-+		if (clen > MAX_MAP_CHUNK - slop)
-+			clen = MAX_MAP_CHUNK - slop;
-+		p = early_memremap(src & PAGE_MASK, clen + slop);
-+		memcpy(dest, p + slop, clen);
-+		early_memunmap(p, clen + slop);
-+		dest += clen;
-+		src += clen;
-+		size -= clen;
++	if (orig_end <= ram_end)
++		return;
++
++	/*
++	 * Any of the original initrd which overlaps the linear map should
++	 * be freed after relocating.
++	 */
++	if (orig_start < ram_end)
++		to_free = ram_end - orig_start;
++
++	size = orig_end - orig_start;
++
++	/* initrd needs to be relocated completely inside linear mapping */
++	new_start = memblock_find_in_range(0, PFN_PHYS(max_pfn),
++					   size, PAGE_SIZE);
++	if (!new_start)
++		panic("Cannot relocate initrd of size %ld\n", size);
++	memblock_reserve(new_start, size);
++
++	initrd_start = __phys_to_virt(new_start);
++	initrd_end   = initrd_start + size;
++
++	pr_info("Moving initrd from [%llx-%llx] to [%llx-%llx]\n",
++		orig_start, orig_start + size - 1,
++		new_start, new_start + size - 1);
++
++	dest = (void *)initrd_start;
++
++	if (to_free) {
++		memcpy(dest, (void *)__phys_to_virt(orig_start), to_free);
++		dest += to_free;
++	}
++
++	copy_from_early_mem(dest, orig_start + to_free, size - to_free);
++
++	if (to_free) {
++		pr_info("Freeing original RAMDISK from [%llx-%llx]\n",
++			orig_start, orig_start + to_free - 1);
++		memblock_free(orig_start, to_free);
 +	}
 +}
++#else
++static inline void __init relocate_initrd(void)
++{
++}
++#endif
 +
- #else /* CONFIG_MMU */
+ u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
  
- void __init __iomem *
+ void __init setup_arch(char **cmdline_p)
+@@ -392,6 +453,7 @@ void __init setup_arch(char **cmdline_p)
+ 	acpi_boot_table_init();
+ 
+ 	paging_init();
++	relocate_initrd();
+ 	request_standard_resources();
+ 
+ 	early_ioremap_reset();
 -- 
 2.4.3
 
