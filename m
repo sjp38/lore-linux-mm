@@ -1,36 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E9B66B0253
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 11:02:01 -0400 (EDT)
-Received: by wijp15 with SMTP id p15so77345246wij.0
-        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 08:02:00 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id p11si21113354wik.60.2015.08.17.08.01.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Aug 2015 08:01:59 -0700 (PDT)
-Date: Mon, 17 Aug 2015 17:01:58 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [RFC PATCH 5/7] libnvdimm, e820: make CONFIG_X86_PMEM_LEGACY a
-	tristate option
-Message-ID: <20150817150158.GB2625@lst.de>
-References: <20150813031253.36913.29580.stgit@otcpl-skl-sds-2.jf.intel.com> <20150813035028.36913.25267.stgit@otcpl-skl-sds-2.jf.intel.com> <20150815090635.GF21033@lst.de> <CAPcyv4hMaRDOttcnvjq-aBXqgaPuB1d1XVi-dJFryC9pJ8PhMw@mail.gmail.com> <20150815155846.GA26248@lst.de> <CAPcyv4iN0BmipDfrsoCg2N2KnhX0+Hz2-ghr1i0H4US+bFe+Dw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4iN0BmipDfrsoCg2N2KnhX0+Hz2-ghr1i0H4US+bFe+Dw@mail.gmail.com>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id F1EF66B0253
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 11:09:13 -0400 (EDT)
+Received: by paccq16 with SMTP id cq16so66797244pac.1
+        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 08:09:13 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id w13si25032559pas.205.2015.08.17.08.09.12
+        for <linux-mm@kvack.org>;
+        Mon, 17 Aug 2015 08:09:12 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 2/4] zsmalloc: use page->private instead of page->first_page
+Date: Mon, 17 Aug 2015 18:09:03 +0300
+Message-Id: <1439824145-25397-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1439824145-25397-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1439824145-25397-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Boaz Harrosh <boaz@plexistor.com>, Rik van Riel <riel@redhat.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, david <david@fromorbit.com>, Ingo Molnar <mingo@kernel.org>, Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Sat, Aug 15, 2015 at 09:04:02AM -0700, Dan Williams wrote:
-> What other layer? /sys/devices/platform/e820_pmem is that exact same
-> device we had before this patch.  We just have a proper driver for it
-> now.
+We are going to rework how compound_head() work. It will not use
+page->first_page as we have it now.
 
-We're adding another layer of indirection between the old e820 file
-and the new module.
+The only other user of page->fisrt_page beyond compound pages is
+zsmalloc.
+
+Let's use page->private instead of page->first_page here. It occupies
+the same storage space.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/zsmalloc.c | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 0a7f81aa2249..a85754e69879 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -16,7 +16,7 @@
+  * struct page(s) to form a zspage.
+  *
+  * Usage of struct page fields:
+- *	page->first_page: points to the first component (0-order) page
++ *	page->private: points to the first component (0-order) page
+  *	page->index (union with page->freelist): offset of the first object
+  *		starting in this page. For the first page, this is
+  *		always 0, so we use this field (aka freelist) to point
+@@ -26,8 +26,7 @@
+  *
+  *	For _first_ page only:
+  *
+- *	page->private (union with page->first_page): refers to the
+- *		component page after the first page
++ *	page->private: refers to the component page after the first page
+  *		If the page is first_page for huge object, it stores handle.
+  *		Look at size_class->huge.
+  *	page->freelist: points to the first free object in zspage.
+@@ -770,7 +769,7 @@ static struct page *get_first_page(struct page *page)
+ 	if (is_first_page(page))
+ 		return page;
+ 	else
+-		return page->first_page;
++		return (struct page *)page_private(page);
+ }
+ 
+ static struct page *get_next_page(struct page *page)
+@@ -955,7 +954,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 	 * Allocate individual pages and link them together as:
+ 	 * 1. first page->private = first sub-page
+ 	 * 2. all sub-pages are linked together using page->lru
+-	 * 3. each sub-page is linked to the first page using page->first_page
++	 * 3. each sub-page is linked to the first page using page->private
+ 	 *
+ 	 * For each size class, First/Head pages are linked together using
+ 	 * page->lru. Also, we set PG_private to identify the first page
+@@ -980,7 +979,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 		if (i == 1)
+ 			set_page_private(first_page, (unsigned long)page);
+ 		if (i >= 1)
+-			page->first_page = first_page;
++			set_page_private(first_page, (unsigned long)first_page);
+ 		if (i >= 2)
+ 			list_add(&page->lru, &prev_page->lru);
+ 		if (i == class->pages_per_zspage - 1)	/* last page */
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
