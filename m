@@ -1,92 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CFFF06B0253
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 07:58:47 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so72941697wic.1
-        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 04:58:47 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id d4si4717789wjn.153.2015.08.17.04.58.45
+Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 258826B0253
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 09:32:32 -0400 (EDT)
+Received: by qkfj126 with SMTP id j126so46348451qkf.0
+        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 06:32:31 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h184si25181901qhc.21.2015.08.17.06.32.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=RC4-SHA bits=128/128);
-        Mon, 17 Aug 2015 04:58:46 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 63F1998426
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 11:58:45 +0000 (UTC)
-Date: Mon, 17 Aug 2015 12:58:17 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 04/10] mm, page_alloc: Remove unnecessary taking of a
- seqlock when cpusets are disabled
-Message-ID: <20150817115817.GA9912@techsingularity.net>
-References: <1439376335-17895-1-git-send-email-mgorman@techsingularity.net>
- <1439376335-17895-5-git-send-email-mgorman@techsingularity.net>
- <alpine.DEB.2.10.1508121714290.19264@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1508121714290.19264@chino.kir.corp.google.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Aug 2015 06:32:30 -0700 (PDT)
+Message-ID: <1439818347.3153.95.camel@redhat.com>
+Subject: Re: [PATCH V3 2/3] arm64: support initrd outside kernel linear map
+From: Mark Salter <msalter@redhat.com>
+Date: Mon, 17 Aug 2015 09:32:27 -0400
+In-Reply-To: <20150817112256.GH1688@arm.com>
+References: <1439758168-29427-1-git-send-email-msalter@redhat.com>
+	 <1439758168-29427-3-git-send-email-msalter@redhat.com>
+	 <20150817112256.GH1688@arm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Catalin Marinas <Catalin.Marinas@arm.com>, "x86@kernel.org" <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <Mark.Rutland@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-On Wed, Aug 12, 2015 at 05:16:50PM -0700, David Rientjes wrote:
-> On Wed, 12 Aug 2015, Mel Gorman wrote:
+On Mon, 2015-08-17 at 12:22 +0100, Will Deacon wrote:
+> Hi Mark,
 > 
-> > There is a seqcounter that protects against spurious allocation failures
-> > when a task is changing the allowed nodes in a cpuset. There is no need
-> > to check the seqcounter until a cpuset exists.
+> On Sun, Aug 16, 2015 at 09:49:27PM +0100, Mark Salter wrote:
+> > The use of mem= could leave part or all of the initrd outside of
+> > the kernel linear map. This will lead to an error when unpacking
+> > the initrd and a probable failure to boot. This patch catches that
+> > situation and relocates the initrd to be fully within the linear
+> > map.
 > > 
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> > Acked-by: David Rientjes <rientjes@google.com>
-> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > Signed-off-by: Mark Salter <msalter@redhat.com>
 > > ---
-> >  include/linux/cpuset.h | 6 ++++++
-> >  1 file changed, 6 insertions(+)
+> >  arch/arm64/kernel/setup.c | 59 
+> > +++++++++++++++++++++++++++++++++++++++++++++++
+> >  1 file changed, 59 insertions(+)
 > > 
-> > diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
-> > index 1b357997cac5..6eb27cb480b7 100644
-> > --- a/include/linux/cpuset.h
-> > +++ b/include/linux/cpuset.h
-> > @@ -104,6 +104,9 @@ extern void cpuset_print_task_mems_allowed(struct task_struct *p);
-> >   */
-> >  static inline unsigned int read_mems_allowed_begin(void)
-> >  {
-> > +	if (!cpusets_enabled())
-> > +		return 0;
-> > +
-> >  	return read_seqcount_begin(&current->mems_allowed_seq);
+> > diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
+> > index f3067d4..5f45fd9 100644
+> > --- a/arch/arm64/kernel/setup.c
+> > +++ b/arch/arm64/kernel/setup.c
+> > @@ -359,6 +359,64 @@ static void __init 
+> > request_standard_resources(void)
+> >  	}
 > >  }
 > >  
-> > @@ -115,6 +118,9 @@ static inline unsigned int read_mems_allowed_begin(void)
-> >   */
-> >  static inline bool read_mems_allowed_retry(unsigned int seq)
-> >  {
-> > +	if (!cpusets_enabled())
-> > +		return false;
+> > +#ifdef CONFIG_BLK_DEV_INITRD
+> > +/*
+> > + * Relocate initrd if it is not completely within the linear mapping.
+> > + * This would be the case if mem= cuts out all or part of it.
+> > + */
+> > +static void __init relocate_initrd(void)
+> > +{
+> > +	phys_addr_t orig_start = __virt_to_phys(initrd_start);
+> > +	phys_addr_t orig_end = __virt_to_phys(initrd_end);
+> 
+> Any particular reason to use the __* variants here?
+
+To avoid need to cast initrd_{start,end} to pointer.
+
+> 
+> > +	phys_addr_t ram_end = memblock_end_of_DRAM();
+> > +	phys_addr_t new_start;
+> > +	unsigned long size, to_free = 0;
+> > +	void *dest;
 > > +
-> >  	return read_seqcount_retry(&current->mems_allowed_seq, seq);
-> >  }
-> >  
+> > +	if (orig_end <= ram_end)
+> > +		return;
+> > +
+> > +	/* Note if any of original initrd will freeing below */
 > 
-> This patch is an obvious improvement, but I think it's also possible to 
-> change this to be
+> The comment doesn't make sense.
+
+No it doesn't.
+
 > 
-> 	if (nr_cpusets() <= 1)
-> 		return false;
+> > +	if (orig_start < ram_end)
+> > +		to_free = ram_end - orig_start;
+> > +
+> > +	size = orig_end - orig_start;
+> > +
+> > +	/* initrd needs to be relocated completely inside linear 
+> > mapping */
+> > +	new_start = memblock_find_in_range(0, PFN_PHYS(max_pfn),
+> > +					   size, PAGE_SIZE);
+> > +	if (!new_start)
+> > +		panic("Cannot relocate initrd of size %ld\n", size);
+> > +	memblock_reserve(new_start, size);
+> > +
+> > +	initrd_start = __phys_to_virt(new_start);
+> > +	initrd_end   = initrd_start + size;
+> > +
+> > +	pr_info("Moving initrd from [%llx-%llx] to [%llx-%llx]\n",
+> > +		orig_start, orig_start + size - 1,
+> > +		new_start, new_start + size - 1);
+> > +
+> > +	dest = (void *)initrd_start;
+> > +
+> > +	if (to_free) {
+> > +		memcpy(dest, (void *)__phys_to_virt(orig_start), 
+> > to_free);
+> > +		dest += to_free;
+> > +	}
+> > +
+> > +	copy_from_early_mem(dest, orig_start + to_free, size - 
+> > to_free);
+> > +
+> > +	if (to_free) {
+> > +		pr_info("Freeing original RAMDISK from [%llx-%llx]\n",
+> > +			orig_start, orig_start + to_free - 1);
+> > +		memblock_free(orig_start, to_free);
+> > +	}
+> > +}
+> > +#else
+> > +static inline void __init reserve_initrd(void)
 > 
-> and likewise in the existing cpusets_enabled() check in 
-> get_page_from_freelist().  A root cpuset may not exclude mems on the 
-> system so, even if mounted, there's no need to check or be worried about 
-> concurrent change when there is only one cpuset.
+> relocate_initrd ?
 
-Good idea. I'll make this a separate patch on top and rename cpuset_enabled
-to cpuset_mems_enabled to be clear about what it's checking.
+Yes
 
-Thanks.
+Thanks, will fix that and the comment.
 
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
