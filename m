@@ -1,140 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A6B16B0253
-	for <linux-mm@kvack.org>; Sun, 16 Aug 2015 21:41:37 -0400 (EDT)
-Received: by paccq16 with SMTP id cq16so53192740pac.1
-        for <linux-mm@kvack.org>; Sun, 16 Aug 2015 18:41:37 -0700 (PDT)
-Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com. [2607:f8b0:400e:c02::230])
-        by mx.google.com with ESMTPS id d15si4364738pbu.155.2015.08.16.18.41.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Aug 2015 18:41:36 -0700 (PDT)
-Received: by pdrg1 with SMTP id g1so49982345pdr.2
-        for <linux-mm@kvack.org>; Sun, 16 Aug 2015 18:41:36 -0700 (PDT)
-Date: Sun, 16 Aug 2015 18:40:16 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/2] mm: make compound_head() robust
-In-Reply-To: <1439481286-81093-3-git-send-email-kirill.shutemov@linux.intel.com>
-Message-ID: <alpine.LSU.2.11.1508161751150.1299@eggly.anvils>
-References: <1439481286-81093-1-git-send-email-kirill.shutemov@linux.intel.com> <1439481286-81093-3-git-send-email-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C0656B0253
+	for <linux-mm@kvack.org>; Sun, 16 Aug 2015 23:15:52 -0400 (EDT)
+Received: by pdrg1 with SMTP id g1so50759068pdr.2
+        for <linux-mm@kvack.org>; Sun, 16 Aug 2015 20:15:51 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id xg7si22329483pab.119.2015.08.16.20.15.50
+        for <linux-mm@kvack.org>;
+        Sun, 16 Aug 2015 20:15:51 -0700 (PDT)
+From: Jiang Liu <jiang.liu@linux.intel.com>
+Subject: [Patch V3 0/9] Enable memoryless node support for x86
+Date: Mon, 17 Aug 2015 11:18:57 +0800
+Message-Id: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Thu, 13 Aug 2015, Kirill A. Shutemov wrote:
+This is the third version to enable memoryless node support on x86
+platforms. The previous version (https://lkml.org/lkml/2014/7/11/75)
+blindly replaces numa_node_id()/cpu_to_node() with numa_mem_id()/
+cpu_to_mem(). That's not the right solution as pointed out by Tejun
+and Peter due to:
+1) We shouldn't shift the burden to normal slab users.
+2) Details of memoryless node should be hidden in arch and mm code
+   as much as possible.
 
-> Hugh has pointed that compound_head() call can be unsafe in some
-> context. There's one example:
-> 
-> 	CPU0					CPU1
-> 
-> isolate_migratepages_block()
->   page_count()
->     compound_head()
->       !!PageTail() == true
-> 					put_page()
-> 					  tail->first_page = NULL
->       head = tail->first_page
-> 					alloc_pages(__GFP_COMP)
-> 					   prep_compound_page()
-> 					     tail->first_page = head
-> 					     __SetPageTail(p);
->       !!PageTail() == true
->     <head == NULL dereferencing>
-> 
-> The race is pure theoretical. I don't it's possible to trigger it in
-> practice. But who knows.
-> 
-> We can fix the race by chaging how encode PageTail() and compound_head()
-> within struct page to be able to update them in one shot.
-> 
-> The patch introduces page->compound_head into union with
-> page->mem_cgroup.
-> 
-> Set bit 0 of page->compound_head means that the page is tail. If the bit
-> set, rest of the page->compound_head is pointer to head page. Otherwise,
-> the field is NULL or pointer to memory cgroup.
-> 
-> page->mem_cgroup currenly only used for small or head pages, so there
-> shouldn't be any conflicts.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> ---
->  Documentation/vm/split_page_table_lock |  4 +-
->  arch/xtensa/configs/iss_defconfig      |  1 -
->  include/linux/mm.h                     | 53 ++--------------------
->  include/linux/mm_types.h               | 15 ++++---
->  include/linux/page-flags.h             | 80 ++++++++--------------------------
->  mm/Kconfig                             | 12 -----
->  mm/debug.c                             |  7 ---
->  mm/hugetlb.c                           |  8 +---
->  mm/internal.h                          |  4 +-
->  mm/memory-failure.c                    |  7 ---
->  mm/page_alloc.c                        | 36 +++++++--------
->  mm/swap.c                              |  4 +-
->  12 files changed, 56 insertions(+), 175 deletions(-)
+After digging into more code and documentation, we found the rules to
+deal with memoryless node should be:
+1) Arch code should online corresponding NUMA node before onlining any
+   CPU or memory, otherwise it may cause invalid memory access when
+   accessing NODE_DATA(nid).
+2) For normal memory allocations without __GFP_THISNODE setting in the
+   gfp_flags, we should prefer numa_node_id()/cpu_to_node() instead of
+   numa_mem_id()/cpu_to_mem() because the latter loses hardware topology
+   information as pointed out by Tejun:
+	   A - B - X - C - D
+	Where X is the memless node.  numa_mem_id() on X would return
+	either B or C, right?  If B or C can't satisfy the allocation,
+	the allocator would fallback to A from B and D for C, both of
+	which aren't optimal. It should first fall back to C or B
+	respectively, which the allocator can't do anymoe because the
+	information is lost when the caller side performs numa_mem_id().
+3) For memory allocation with __GFP_THISNODE setting in gfp_flags,
+   numa_node_id()/cpu_to_node() should be used if caller only wants to
+   allocate from local memory, otherwise numa_mem_id()/cpu_to_mem()
+   should be used if caller wants to allocate from the nearest node
+   with memory.
+4) numa_mem_id()/cpu_to_mem() should be used if caller wants to check
+   whether a page is allocated from the nearest node.
 
-Mostly I like this: especially those deletions,
-and removing the unloved CONFIG_PAGEFLAGS_EXTENDED.
+Based on above rules, this patch set
+1) Patch 1 is a bugfix to resolve a crash caused by socket hot-addition
+2) Patch 2 replaces numa_mem_id() with numa_node_id() when __GFP_THISNODE
+   isn't set in gfp_flags.
+3) Patch 3-6 replaces numa_node_id()/cpu_to_node() with numa_mem_id()/
+   cpu_to_mem() if caller wants to allocate from local node only.
+4) Patch 7-9 enables support of memoryless node on x86.
 
-But I do disagree with:
+With this patch set applied, on a system with two sockets enabled at boot,
+one with memory and the other without memory, we got following numa
+topology after boot:
+root@bkd04sdp:~# numactl --hardware
+available: 2 nodes (0-1)
+node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44
+node 0 size: 15940 MB
+node 0 free: 15397 MB
+node 1 cpus: 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59
+node 1 size: 0 MB
+node 1 free: 0 MB
+node distances:
+node   0   1
+  0:  10  21
+  1:  21  10
 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 0038ac7466fd..e0c4c0a8ec3d 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -172,13 +172,17 @@ struct page {
->  #endif
->  #endif
->  		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
-> -		struct page *first_page;	/* Compound tail pages */
->  	};
->  
-> -#ifdef CONFIG_MEMCG
-> -	struct mem_cgroup *mem_cgroup;
-> -#endif
-> +	union {
-> +		/* Bit zero of the word encode PageTail() */
-> +		struct mem_cgroup *mem_cgroup;	/* If bit zero is clear */
-> +		unsigned long compound_head;	/* If bit zero is set */
-> +	};
+After hot-adding the third socket without memory, we got:
+root@bkd04sdp:~# numactl --hardware
+available: 3 nodes (0-2)
+node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44
+node 0 size: 15940 MB
+node 0 free: 15142 MB
+node 1 cpus: 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59
+node 1 size: 0 MB
+node 1 free: 0 MB
+node 2 cpus:
+node 2 size: 0 MB
+node 2 free: 0 MB
+node distances:
+node   0   1   2
+  0:  10  21  21
+  1:  21  10  21
+  2:  21  21  10
 
-On 32-bit, I think the addition of that mem_cgroup pointer enlarged
-struct page from 32 bytes to 36 (SLAB or SLOB) or 40 (SLUB) bytes.
-I can well imagine people wanting to cut that bloat by turning off
-CONFIG_MEMCG, but now you would be thwarting them.  (I can also
-imagine memcg people might want to add flag bits of their own to it.)
+Jiang Liu (9):
+  x86, NUMA, ACPI: Online node earlier when doing CPU hot-addition
+  kernel/profile.c: Replace cpu_to_mem() with cpu_to_node()
+  sgi-xp: Replace cpu_to_node() with cpu_to_mem() to support memoryless
+    node
+  openvswitch: Replace cpu_to_node() with cpu_to_mem() to support
+    memoryless node
+  i40e: Use numa_mem_id() to better support memoryless node
+  i40evf: Use numa_mem_id() to better support memoryless node
+  x86, numa: Kill useless code to improve code readability
+  mm: Update _mem_id_[] for every possible CPU when memory
+    configuration changes
+  mm, x86: Enable memoryless node support to better support CPU/memory
+    hotplug
 
-My own preference (Andrew might disagree) would be to give up on
-compound_page_dtor *compound_dtor: in all the years it's been there,
-it has only been assigned two possibilities, and I think you'd do
-well to hard code those in the one or two places they're needed -
-moving PageHuge to be a second bit alongside your PageTail (but of
-course it could only be set in the first tail page, not the head).
+ arch/x86/Kconfig                              |    3 ++
+ arch/x86/kernel/acpi/boot.c                   |    9 +++-
+ arch/x86/kernel/smpboot.c                     |    2 +
+ arch/x86/mm/numa.c                            |   59 +++++++++++++++----------
+ drivers/misc/sgi-xp/xpc_uv.c                  |    2 +-
+ drivers/net/ethernet/intel/i40e/i40e_txrx.c   |    2 +-
+ drivers/net/ethernet/intel/i40evf/i40e_txrx.c |    2 +-
+ kernel/profile.c                              |    2 +-
+ mm/page_alloc.c                               |   10 ++---
+ net/openvswitch/flow.c                        |    2 +-
+ 10 files changed, 59 insertions(+), 34 deletions(-)
 
-But as far as fixing the isolate_migratepages_block() bug you
-discovered, I think your original atomic_read(&page->_count) fix
-was good enough, or a page_count_raw(page) if Andrew prefers -
-though I'm not so keen on dressing these things up myself, such
-raw scans are exceptional and face very special problems, I like
-to see exactly what's going on in them.
-
-And even when a race between PageTail and first_page is resolved
-by your READ_ONCE, it still leaves races of whether the head page
-still agrees with the tail.  Safer races now because first_page is
-reliably a recent first_page pointer: which might be all that's needed
-to make your refcounting patches' wider use of compound_head() safe -
-this patch does look like a good step for those.
-
-Hugh
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
