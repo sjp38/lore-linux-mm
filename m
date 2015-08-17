@@ -1,51 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id DEE346B0253
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 17:28:15 -0400 (EDT)
-Received: by pabyb7 with SMTP id yb7so116446681pab.0
-        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 14:28:15 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id o2si23363073pdg.24.2015.08.17.14.28.15
+Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 13EBA6B0253
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 17:35:48 -0400 (EDT)
+Received: by qkdv3 with SMTP id v3so51469592qkd.3
+        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 14:35:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id p91si27395308qkh.66.2015.08.17.14.35.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Aug 2015 14:28:15 -0700 (PDT)
-Received: by pawq9 with SMTP id q9so18842150paw.3
-        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 14:28:14 -0700 (PDT)
-Date: Mon, 17 Aug 2015 14:28:13 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v4 2/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/status
-In-Reply-To: <alpine.DEB.2.10.1508121327290.5382@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1508171427560.23237@chino.kir.corp.google.com>
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp> <1439365520-12605-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1439365520-12605-2-git-send-email-n-horiguchi@ah.jp.nec.com> <alpine.DEB.2.10.1508121327290.5382@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Mon, 17 Aug 2015 14:35:47 -0700 (PDT)
+Date: Mon, 17 Aug 2015 14:35:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Patch V3 0/9] Enable memoryless node support for x86
+Message-Id: <20150817143545.577a1758d29cf137d5c3d345@linux-foundation.org>
+In-Reply-To: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
+References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Jiang Liu <jiang.liu@linux.intel.com>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Wed, 12 Aug 2015, David Rientjes wrote:
+On Mon, 17 Aug 2015 11:18:57 +0800 Jiang Liu <jiang.liu@linux.intel.com> wrote:
 
-> I'm happy with this and thanks very much for going the extra mile and 
-> breaking the usage down by hstate size.
-> 
-> I'd be interested in the comments of others, though, to see if there is 
-> any reservation about the hstate size breakdown.  It may actually find no 
-> current customer who is interested in parsing it.  (If we keep it, I would 
-> suggest the 'x' change to '*' similar to per-order breakdowns in 
-> show_mem()).  It may also be possible to add it later if a definitive 
-> usecase is presented.
-> 
-> But overall I'm very happy with the new addition and think it's a good 
-> solution to the problem.
-> 
+> This is the third version to enable memoryless node support on x86
+> platforms.
 
-No objections from anybody else, so
+I'll grab this for inclusion in linux-next after the 4.2 release.
 
-Acked-by: David Rientjes <rientjes@google.com>
-
-Thanks Naoya!
+It's basically an x86 patch so if someone else was planning on looking
+after it, please tell me off.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
