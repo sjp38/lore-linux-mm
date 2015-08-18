@@ -1,132 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F6626B0253
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 04:56:32 -0400 (EDT)
-Received: by qgj62 with SMTP id 62so112251806qgj.2
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 01:56:32 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p71si30232792qkh.27.2015.08.18.01.56.31
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 471166B0253
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 06:08:43 -0400 (EDT)
+Received: by pabyb7 with SMTP id yb7so129668494pab.0
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 03:08:43 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id a9si9410781pdn.109.2015.08.18.03.05.27
         for <linux-mm@kvack.org>;
-        Tue, 18 Aug 2015 01:56:31 -0700 (PDT)
-Date: Tue, 18 Aug 2015 09:56:26 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH V4 2/3] arm64: support initrd outside kernel linear map
-Message-ID: <20150818085626.GD10301@arm.com>
-References: <1439830867-14935-1-git-send-email-msalter@redhat.com>
- <1439830867-14935-3-git-send-email-msalter@redhat.com>
+        Tue, 18 Aug 2015 03:08:42 -0700 (PDT)
+Message-ID: <55D302CA.9010703@cn.fujitsu.com>
+Date: Tue, 18 Aug 2015 18:02:50 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1439830867-14935-3-git-send-email-msalter@redhat.com>
+Subject: Re: [Patch V3 0/9] Enable memoryless node support for x86
+References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
+In-Reply-To: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Salter <msalter@redhat.com>
-Cc: Catalin Marinas <Catalin.Marinas@arm.com>, "x86@kernel.org" <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <Mark.Rutland@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
+To: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tejun Heo <tj@kernel.org>
+Cc: Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org, tangchen@cn.fujitsu.com
 
-On Mon, Aug 17, 2015 at 06:01:06PM +0100, Mark Salter wrote:
-> The use of mem= could leave part or all of the initrd outside of
-> the kernel linear map. This will lead to an error when unpacking
-> the initrd and a probable failure to boot. This patch catches that
-> situation and relocates the initrd to be fully within the linear
-> map.
-> 
-> Signed-off-by: Mark Salter <msalter@redhat.com>
-> ---
->  arch/arm64/kernel/setup.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 62 insertions(+)
 
-Looks good to me:
+On 08/17/2015 11:18 AM, Jiang Liu wrote:
+> This is the third version to enable memoryless node support on x86
+> platforms. The previous version (https://lkml.org/lkml/2014/7/11/75)
+> blindly replaces numa_node_id()/cpu_to_node() with numa_mem_id()/
+> cpu_to_mem(). That's not the right solution as pointed out by Tejun
+> and Peter due to:
+> 1) We shouldn't shift the burden to normal slab users.
+> 2) Details of memoryless node should be hidden in arch and mm code
+>     as much as possible.
+>
+> After digging into more code and documentation, we found the rules to
+> deal with memoryless node should be:
+> 1) Arch code should online corresponding NUMA node before onlining any
+>     CPU or memory, otherwise it may cause invalid memory access when
+>     accessing NODE_DATA(nid).
+> 2) For normal memory allocations without __GFP_THISNODE setting in the
+>     gfp_flags, we should prefer numa_node_id()/cpu_to_node() instead of
+>     numa_mem_id()/cpu_to_mem() because the latter loses hardware topology
+>     information as pointed out by Tejun:
+> 	   A - B - X - C - D
+> 	Where X is the memless node.  numa_mem_id() on X would return
+> 	either B or C, right?  If B or C can't satisfy the allocation,
+> 	the allocator would fallback to A from B and D for C, both of
+> 	which aren't optimal. It should first fall back to C or B
+> 	respectively, which the allocator can't do anymoe because the
+> 	information is lost when the caller side performs numa_mem_id().
 
-  Acked-by: Will Deacon <will.deacon@arm.com>
+Hi Liu,
 
-This series should replace the version that Andrew has currently got in
-linux-next.
+BTW, how is this A - B - X - C - D problem solved ?
+I don't quite follow this.
 
-Will
+I cannot tell the difference between numa_node_id()/cpu_to_node() and
+numa_mem_id()/cpu_to_mem() on this point. Even with hardware topology
+info, how could it avoid this problem ?
 
-> diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
-> index f3067d4..40a894e 100644
-> --- a/arch/arm64/kernel/setup.c
-> +++ b/arch/arm64/kernel/setup.c
-> @@ -359,6 +359,67 @@ static void __init request_standard_resources(void)
->  	}
->  }
->  
-> +#ifdef CONFIG_BLK_DEV_INITRD
-> +/*
-> + * Relocate initrd if it is not completely within the linear mapping.
-> + * This would be the case if mem= cuts out all or part of it.
-> + */
-> +static void __init relocate_initrd(void)
-> +{
-> +	phys_addr_t orig_start = __virt_to_phys(initrd_start);
-> +	phys_addr_t orig_end = __virt_to_phys(initrd_end);
-> +	phys_addr_t ram_end = memblock_end_of_DRAM();
-> +	phys_addr_t new_start;
-> +	unsigned long size, to_free = 0;
-> +	void *dest;
-> +
-> +	if (orig_end <= ram_end)
-> +		return;
-> +
-> +	/*
-> +	 * Any of the original initrd which overlaps the linear map should
-> +	 * be freed after relocating.
-> +	 */
-> +	if (orig_start < ram_end)
-> +		to_free = ram_end - orig_start;
-> +
-> +	size = orig_end - orig_start;
-> +
-> +	/* initrd needs to be relocated completely inside linear mapping */
-> +	new_start = memblock_find_in_range(0, PFN_PHYS(max_pfn),
-> +					   size, PAGE_SIZE);
-> +	if (!new_start)
-> +		panic("Cannot relocate initrd of size %ld\n", size);
-> +	memblock_reserve(new_start, size);
-> +
-> +	initrd_start = __phys_to_virt(new_start);
-> +	initrd_end   = initrd_start + size;
-> +
-> +	pr_info("Moving initrd from [%llx-%llx] to [%llx-%llx]\n",
-> +		orig_start, orig_start + size - 1,
-> +		new_start, new_start + size - 1);
-> +
-> +	dest = (void *)initrd_start;
-> +
-> +	if (to_free) {
-> +		memcpy(dest, (void *)__phys_to_virt(orig_start), to_free);
-> +		dest += to_free;
-> +	}
-> +
-> +	copy_from_early_mem(dest, orig_start + to_free, size - to_free);
-> +
-> +	if (to_free) {
-> +		pr_info("Freeing original RAMDISK from [%llx-%llx]\n",
-> +			orig_start, orig_start + to_free - 1);
-> +		memblock_free(orig_start, to_free);
-> +	}
-> +}
-> +#else
-> +static inline void __init relocate_initrd(void)
-> +{
-> +}
-> +#endif
-> +
->  u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
->  
->  void __init setup_arch(char **cmdline_p)
-> @@ -392,6 +453,7 @@ void __init setup_arch(char **cmdline_p)
->  	acpi_boot_table_init();
->  
->  	paging_init();
-> +	relocate_initrd();
->  	request_standard_resources();
->  
->  	early_ioremap_reset();
-> -- 
-> 2.4.3
-> 
+Isn't it still possible falling back to A from B and D for C ?
+
+Thanks.
+
+> 3) For memory allocation with __GFP_THISNODE setting in gfp_flags,
+>     numa_node_id()/cpu_to_node() should be used if caller only wants to
+>     allocate from local memory, otherwise numa_mem_id()/cpu_to_mem()
+>     should be used if caller wants to allocate from the nearest node
+>     with memory.
+> 4) numa_mem_id()/cpu_to_mem() should be used if caller wants to check
+>     whether a page is allocated from the nearest node.
+>
+> Based on above rules, this patch set
+> 1) Patch 1 is a bugfix to resolve a crash caused by socket hot-addition
+> 2) Patch 2 replaces numa_mem_id() with numa_node_id() when __GFP_THISNODE
+>     isn't set in gfp_flags.
+> 3) Patch 3-6 replaces numa_node_id()/cpu_to_node() with numa_mem_id()/
+>     cpu_to_mem() if caller wants to allocate from local node only.
+> 4) Patch 7-9 enables support of memoryless node on x86.
+>
+> With this patch set applied, on a system with two sockets enabled at boot,
+> one with memory and the other without memory, we got following numa
+> topology after boot:
+> root@bkd04sdp:~# numactl --hardware
+> available: 2 nodes (0-1)
+> node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44
+> node 0 size: 15940 MB
+> node 0 free: 15397 MB
+> node 1 cpus: 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59
+> node 1 size: 0 MB
+> node 1 free: 0 MB
+> node distances:
+> node   0   1
+>    0:  10  21
+>    1:  21  10
+>
+> After hot-adding the third socket without memory, we got:
+> root@bkd04sdp:~# numactl --hardware
+> available: 3 nodes (0-2)
+> node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44
+> node 0 size: 15940 MB
+> node 0 free: 15142 MB
+> node 1 cpus: 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59
+> node 1 size: 0 MB
+> node 1 free: 0 MB
+> node 2 cpus:
+> node 2 size: 0 MB
+> node 2 free: 0 MB
+> node distances:
+> node   0   1   2
+>    0:  10  21  21
+>    1:  21  10  21
+>    2:  21  21  10
+>
+> Jiang Liu (9):
+>    x86, NUMA, ACPI: Online node earlier when doing CPU hot-addition
+>    kernel/profile.c: Replace cpu_to_mem() with cpu_to_node()
+>    sgi-xp: Replace cpu_to_node() with cpu_to_mem() to support memoryless
+>      node
+>    openvswitch: Replace cpu_to_node() with cpu_to_mem() to support
+>      memoryless node
+>    i40e: Use numa_mem_id() to better support memoryless node
+>    i40evf: Use numa_mem_id() to better support memoryless node
+>    x86, numa: Kill useless code to improve code readability
+>    mm: Update _mem_id_[] for every possible CPU when memory
+>      configuration changes
+>    mm, x86: Enable memoryless node support to better support CPU/memory
+>      hotplug
+>
+>   arch/x86/Kconfig                              |    3 ++
+>   arch/x86/kernel/acpi/boot.c                   |    9 +++-
+>   arch/x86/kernel/smpboot.c                     |    2 +
+>   arch/x86/mm/numa.c                            |   59 +++++++++++++++----------
+>   drivers/misc/sgi-xp/xpc_uv.c                  |    2 +-
+>   drivers/net/ethernet/intel/i40e/i40e_txrx.c   |    2 +-
+>   drivers/net/ethernet/intel/i40evf/i40e_txrx.c |    2 +-
+>   kernel/profile.c                              |    2 +-
+>   mm/page_alloc.c                               |   10 ++---
+>   net/openvswitch/flow.c                        |    2 +-
+>   10 files changed, 59 insertions(+), 34 deletions(-)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
