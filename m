@@ -1,89 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DAE56B0038
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 15:06:40 -0400 (EDT)
-Received: by qkfj126 with SMTP id j126so61952379qkf.0
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 12:06:40 -0700 (PDT)
-Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
-        by mx.google.com with ESMTPS id 73si32671149qhs.77.2015.08.18.12.06.39
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E33496B0253
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 15:07:19 -0400 (EDT)
+Received: by qged69 with SMTP id d69so124261755qge.0
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 12:07:19 -0700 (PDT)
+Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com. [2607:f8b0:400d:c04::236])
+        by mx.google.com with ESMTPS id 129si32654173qhs.119.2015.08.18.12.07.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Aug 2015 12:06:39 -0700 (PDT)
-Received: by qgeb6 with SMTP id b6so6426878qge.3
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 12:06:38 -0700 (PDT)
-Date: Tue, 18 Aug 2015 15:06:36 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [RFC PATCH 1/7] x86, mm: ZONE_DEVICE for "device memory"
-Message-ID: <20150818190634.GB7424@gmail.com>
-References: <20150813035005.36913.77364.stgit@otcpl-skl-sds-2.jf.intel.com>
- <20150814213714.GA3265@gmail.com>
- <CAPcyv4ib244VMSdhHDWHRnmCvYdteUEzT+ehTzitSY42m2Tt=w@mail.gmail.com>
- <20150814220605.GB3265@gmail.com>
- <CAPcyv4gEPum_qq7PH0oNx3ntiWTP_1fp4EU+CAj8tm1Oeg-E9w@mail.gmail.com>
- <CAPcyv4i-5RWTLK8FQFCBuFKwY0_HShbW7PVTHudSk4sF35xosA@mail.gmail.com>
- <20150817214554.GA5976@gmail.com>
- <CAPcyv4jPezPAy9gMMtenBH1U526N3cwQY02823jfqWPyuRMouw@mail.gmail.com>
- <20150818165532.GA7424@gmail.com>
- <CAPcyv4hpKHH924B-Udvii5L8xFr04snEA+CLwSMk8mpzsPihkw@mail.gmail.com>
+        Tue, 18 Aug 2015 12:07:17 -0700 (PDT)
+Received: by qged69 with SMTP id d69so124260730qge.0
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 12:07:17 -0700 (PDT)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH] zswap: update docs for runtime-changeable attributes
+Date: Tue, 18 Aug 2015 15:07:10 -0400
+Message-Id: <1439924830-29275-1-git-send-email-ddstreet@ieee.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4hpKHH924B-Udvii5L8xFr04snEA+CLwSMk8mpzsPihkw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Boaz Harrosh <boaz@plexistor.com>, Rik van Riel <riel@redhat.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, david <david@fromorbit.com>, Ingo Molnar <mingo@kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Jonathan Corbet <corbet@lwn.net>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Streetman <ddstreet@ieee.org>
 
-On Tue, Aug 18, 2015 at 10:23:38AM -0700, Dan Williams wrote:
-> On Tue, Aug 18, 2015 at 9:55 AM, Jerome Glisse <j.glisse@gmail.com> wrote:
-> > On Mon, Aug 17, 2015 at 05:46:43PM -0700, Dan Williams wrote:
-> >> On Mon, Aug 17, 2015 at 2:45 PM, Jerome Glisse <j.glisse@gmail.com> wrote:
-> >> > On Fri, Aug 14, 2015 at 07:11:27PM -0700, Dan Williams wrote:
-> >> >> Although it does not offer perfect protection if device memory is at a
-> >> >> physically lower address than RAM, skipping the update of these
-> >> >> variables does seem to be what we want.  For example /dev/mem would
-> >> >> fail to allow write access to persistent memory if it fails a
-> >> >> valid_phys_addr_range() check.  Since /dev/mem does not know how to
-> >> >> write to PMEM in a reliably persistent way, it should not treat a
-> >> >> PMEM-pfn like RAM.
-> >> >
-> >> > So i attach is a patch that should keep ZONE_DEVICE out of consideration
-> >> > for the buddy allocator. You might also want to keep page reserved and not
-> >> > free inside the zone, you could replace the generic_online_page() using
-> >> > set_online_page_callback() while hotpluging device memory.
-> >> >
-> >>
-> >> Hmm, are we already protected by the fact that ZONE_DEVICE is not
-> >> represented in the GFP_ZONEMASK?
-> >
-> > Yeah seems you right, high_zoneidx (which is derive using gfp_zone()) will
-> > always limit which zones are considered. I thought that under memory presure
-> > it would go over all of the zonelist entry and eventualy consider the device
-> > zone. But it doesn't seems to be that way.
-> >
-> > Keeping the device zone out of the zonelist might still be a good idea, if
-> > only to avoid pointless iteration for the page allocator. Unless someone can
-> > think of a reason why this would be bad.
-> >
-> 
-> The other question I have is whether disabling ZONE_DMA is a realistic
-> tradeoff for enabling ZONE_DEVICE?  I.e. can ZONE_DMA default to off
-> going forward, lose some ISA device support, or do we need to figure
-> out how to enable > 4 zones.
+Change the Documentation/vm/zswap.txt doc to indicate that the "zpool"
+and "compressor" params are now changeable at runtime.
 
-That require some auditing a quick look and it seems to matter for s390
-arch and there is still few driver that use it. I think we can forget
-about ISA bus, i would be surprise if you could still run a recent kernel
-on a computer that has ISA bus.
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+---
+ Documentation/vm/zswap.txt | 31 +++++++++++++++++++++++--------
+ 1 file changed, 23 insertions(+), 8 deletions(-)
 
-Thought maybe you don't need a new ZONE_DEV and all you need is valid
-struct page for this device memory, and you don't want this page to be
-useable by the general memory allocator. There is surely other ways to
-achieve that like marking all as reserved when you hotplug them.
-
-Cheers,
-Jerome
+diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
+index 8458c08..06f7ce2 100644
+--- a/Documentation/vm/zswap.txt
++++ b/Documentation/vm/zswap.txt
+@@ -32,7 +32,7 @@ can also be enabled and disabled at runtime using the sysfs interface.
+ An example command to enable zswap at runtime, assuming sysfs is mounted
+ at /sys, is:
+ 
+-echo 1 > /sys/modules/zswap/parameters/enabled
++echo 1 > /sys/module/zswap/parameters/enabled
+ 
+ When zswap is disabled at runtime it will stop storing pages that are
+ being swapped out.  However, it will _not_ immediately write out or fault
+@@ -49,14 +49,27 @@ Zswap receives pages for compression through the Frontswap API and is able to
+ evict pages from its own compressed pool on an LRU basis and write them back to
+ the backing swap device in the case that the compressed pool is full.
+ 
+-Zswap makes use of zbud for the managing the compressed memory pool.  Each
+-allocation in zbud is not directly accessible by address.  Rather, a handle is
++Zswap makes use of zpool for the managing the compressed memory pool.  Each
++allocation in zpool is not directly accessible by address.  Rather, a handle is
+ returned by the allocation routine and that handle must be mapped before being
+ accessed.  The compressed memory pool grows on demand and shrinks as compressed
+-pages are freed.  The pool is not preallocated.
++pages are freed.  The pool is not preallocated.  By default, a zpool of type
++zbud is created, but it can be selected at boot time by setting the "zpool"
++attribute, e.g. zswap.zpool=zbud.  It can also be changed at runtime using the
++sysfs "zpool" attribute, e.g.
++
++echo zbud > /sys/module/zswap/parameters/zpool
++
++The zbud type zpool allocates exactly 1 page to store 2 compressed pages, which
++means the compression ratio will always be exactly 2:1 (not including half-full
++zbud pages), and any page that compresses to more than 1/2 page in size will be
++rejected (and written to the swap disk).  The zsmalloc type zpool has a more
++complex compressed page storage method, and it can achieve greater storage
++densities.  However, zsmalloc does not implement compressed page eviction, so
++once zswap fills it cannot evict the oldest page, it can only reject new pages.
+ 
+ When a swap page is passed from frontswap to zswap, zswap maintains a mapping
+-of the swap entry, a combination of the swap type and swap offset, to the zbud
++of the swap entry, a combination of the swap type and swap offset, to the zpool
+ handle that references that compressed swap page.  This mapping is achieved
+ with a red-black tree per swap type.  The swap offset is the search key for the
+ tree nodes.
+@@ -74,9 +87,11 @@ controlled policy:
+ * max_pool_percent - The maximum percentage of memory that the compressed
+     pool can occupy.
+ 
+-Zswap allows the compressor to be selected at kernel boot time by setting the
+-a??compressora?? attribute.  The default compressor is lzo.  e.g.
+-zswap.compressor=deflate
++The default compressor is lzo, but it can be selected at boot time by setting
++the a??compressora?? attribute, e.g. zswap.compressor=lzo.  It can also be changed
++at runtime using the sysfs "compressor" attribute, e.g.
++
++echo lzo > /sys/module/zswap/parameters/compressor
+ 
+ A debugfs interface is provided for various statistic about pool size, number
+ of pages stored, and various counters for the reasons pages are rejected.
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
