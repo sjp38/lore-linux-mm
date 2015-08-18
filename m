@@ -1,47 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 80D436B0254
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 07:29:48 -0400 (EDT)
-Received: by pabyb7 with SMTP id yb7so131046675pab.0
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 04:29:48 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id s13si29957479pdi.27.2015.08.18.04.29.46
-        for <linux-mm@kvack.org>;
-        Tue, 18 Aug 2015 04:29:47 -0700 (PDT)
-Message-ID: <55D316CB.3010509@cn.fujitsu.com>
-Date: Tue, 18 Aug 2015 19:28:11 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id E305F6B0253
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 11:43:05 -0400 (EDT)
+Received: by wibhh20 with SMTP id hh20so112482425wib.0
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 08:43:05 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
+        by mx.google.com with ESMTPS id kb8si31025055wjb.134.2015.08.18.08.43.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Aug 2015 08:43:04 -0700 (PDT)
+Received: by wijp15 with SMTP id p15so104114299wij.0
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 08:43:03 -0700 (PDT)
+Date: Tue, 18 Aug 2015 17:43:00 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCHv2 3/4] mm: pack compound_dtor and compound_order into one
+ word in struct page
+Message-ID: <20150818154259.GL5033@dhcp22.suse.cz>
+References: <1439824145-25397-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1439824145-25397-4-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [Patch V3 9/9] mm, x86: Enable memoryless node support to better
- support CPU/memory hotplug
-References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com> <1439781546-7217-10-git-send-email-jiang.liu@linux.intel.com> <55D2CC76.4020100@cn.fujitsu.com> <55D2D7C2.3090109@linux.intel.com>
-In-Reply-To: <55D2D7C2.3090109@linux.intel.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1439824145-25397-4-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Pavel Machek <pavel@ucw.cz>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@amacapital.net>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dave Hansen <dave.hansen@linux.intel.com>, =?windows-1252?Q?=22Jan_H=2E?= =?windows-1252?Q?_Sch=F6nherr=22?= <jschoenh@amazon.de>, Igor Mammedov <imammedo@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Xishi Qiu <qiuxishi@huawei.com>, Luiz Capitulino <lcapitulino@redhat.com>, Dave Young <dyoung@redhat.com>
-Cc: Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, linux-pm@vger.kernel.org, tangchen@cn.fujitsu.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
-On 08/18/2015 02:59 PM, Jiang Liu wrote:
+On Mon 17-08-15 18:09:04, Kirill A. Shutemov wrote:
+> The patch halves space occupied by compound_dtor and compound_order in
+> struct page.
+> 
+> For compound_order, it's trivial long -> int/short conversion.
+> 
+> For get_compound_page_dtor(), we now use hardcoded table for destructor
+> lookup and store its index in the struct page instead of direct pointer
+> to destructor. It shouldn't be a big trouble to maintain the table: we
+> have only two destructor and NULL currently.
+> 
+> This patch free up one word in tail pages for reuse. This is preparation
+> for the next patch.
 >
-> ...
->>>        }
->>> @@ -739,6 +746,22 @@ void __init init_cpu_to_node(void)
->>>            if (!node_online(node))
->>>                node = find_near_online_node(node);
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Hi Liu,
+Reviewed-by: Michal Hocko <mhocko@suse.com>
 
-If cpu-less, memory-less and normal node will all be online anyway,
-I think we don't need to find_near_online_node() any more for
-CPUs on offline nodes.
+[...]
+> @@ -145,8 +143,13 @@ struct page {
+>  						 */
+>  		/* First tail page of compound page */
+>  		struct {
+> -			compound_page_dtor *compound_dtor;
+> -			unsigned long compound_order;
+> +#ifdef CONFIG_64BIT
+> +			unsigned int compound_dtor;
+> +			unsigned int compound_order;
+> +#else
+> +			unsigned short int compound_dtor;
+> +			unsigned short int compound_order;
+> +#endif
+>  		};
 
-Or is there any other case ?
+Why do we need this ifdef? We can go with short for both 32b and 64b
+AFAICS. We do not use compound_order for anything else than the order,
+right?
 
-Thanks.
-
+While I am looking at this, it seems we are jugling with type for order
+quite a lot - int, unsing int and even unsigned long.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
