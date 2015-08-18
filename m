@@ -1,64 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 9717C6B0253
-	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 20:35:43 -0400 (EDT)
-Received: by paccq16 with SMTP id cq16so75561383pac.1
-        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 17:35:43 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id ad1si27023056pbc.245.2015.08.17.17.35.42
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BA76A6B0253
+	for <linux-mm@kvack.org>; Mon, 17 Aug 2015 20:35:51 -0400 (EDT)
+Received: by pabyb7 with SMTP id yb7so119262985pab.0
+        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 17:35:51 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id n3si24487487pdp.202.2015.08.17.17.35.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Aug 2015 17:35:42 -0700 (PDT)
-Received: by paccq16 with SMTP id cq16so75561190pac.1
-        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 17:35:42 -0700 (PDT)
-Date: Mon, 17 Aug 2015 17:35:41 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [Patch V3 5/9] i40e: Use numa_mem_id() to better support memoryless
- node
-In-Reply-To: <1439781546-7217-6-git-send-email-jiang.liu@linux.intel.com>
-Message-ID: <alpine.DEB.2.10.1508171734560.5527@chino.kir.corp.google.com>
-References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com> <1439781546-7217-6-git-send-email-jiang.liu@linux.intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Aug 2015 17:35:50 -0700 (PDT)
+Received: by pawq9 with SMTP id q9so21719893paw.3
+        for <linux-mm@kvack.org>; Mon, 17 Aug 2015 17:35:50 -0700 (PDT)
+Date: Mon, 17 Aug 2015 17:34:27 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] mm: fix potential data race in SyS_swapon
+In-Reply-To: <alpine.LSU.2.11.1508171610190.2618@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1508171729420.3404@eggly.anvils>
+References: <CAAeHK+w7bQtAUAWFrcqE5Gf8t8nZoHim6iXg1axXdC_bVmrNDw@mail.gmail.com> <alpine.LSU.2.11.1508171610190.2618@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Jeff Kirsher <jeffrey.t.kirsher@intel.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>, Shannon Nelson <shannon.nelson@intel.com>, Carolyn Wyborny <carolyn.wyborny@intel.com>, Don Skidmore <donald.c.skidmore@intel.com>, Matthew Vick <matthew.vick@intel.com>, John Ronciak <john.ronciak@intel.com>, Mitch Williams <mitch.a.williams@intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org, intel-wired-lan@lists.osuosl.org, netdev@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, Jason Low <jason.low2@hp.com>, Cesar Eduardo Barros <cesarb@cesarb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
 
-On Mon, 17 Aug 2015, Jiang Liu wrote:
+While running KernelThreadSanitizer (ktsan) on upstream kernel with
+trinity, we got a few reports from SyS_swapon, here is one of them:
 
-> Function i40e_clean_rx_irq() tries to reuse memory pages allocated
+Read of size 8 by thread T307 (K7621):
+ [<     inlined    >] SyS_swapon+0x3c0/0x1850 SYSC_swapon mm/swapfile.c:2395
+ [<ffffffff812242c0>] SyS_swapon+0x3c0/0x1850 mm/swapfile.c:2345
+ [<ffffffff81e97c8a>] ia32_do_call+0x1b/0x25
 
-s/i40e_clean_rx_irq/i40e_clean_rx_irq_ps/
+Looks like the swap_lock should be taken when iterating through the
+swap_info array on lines 2392 - 2401: q->swap_file may be reset to
+NULL by another thread before it is dereferenced for f_mapping.
 
-> from the nearest node. To better support memoryless node, use
-> numa_mem_id() instead of numa_node_id() to get the nearest node with
-> memory.
-> 
+But why is that iteration needed at all?  Doesn't the claim_swapfile()
+which follows do all that is needed to check for a duplicate entry -
+FMODE_EXCL on a bdev, testing IS_SWAPFILE under i_mutex on a regfile?
 
-Out of curiosity, what prevents the cpu to be preempted and current_node 
-to no longer match numa_mem_id()?
+Well, not quite: bd_may_claim() allows the same "holder" to claim the
+bdev again, so we do need to use a different holder than "sys_swapon";
+and we should not replace appropriate -EBUSY by inappropriate -EINVAL.
 
-> This change should only affect performance.
-> 
-> Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
-> ---
->  drivers/net/ethernet/intel/i40e/i40e_txrx.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/drivers/net/ethernet/intel/i40e/i40e_txrx.c b/drivers/net/ethernet/intel/i40e/i40e_txrx.c
-> index 9a4f2bc70cd2..a8f618cb8eb0 100644
-> --- a/drivers/net/ethernet/intel/i40e/i40e_txrx.c
-> +++ b/drivers/net/ethernet/intel/i40e/i40e_txrx.c
-> @@ -1516,7 +1516,7 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
->  	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
->  	u16 rx_packet_len, rx_header_len, rx_sph, rx_hbo;
->  	u16 cleaned_count = I40E_DESC_UNUSED(rx_ring);
-> -	const int current_node = numa_node_id();
-> +	const int current_node = numa_mem_id();
->  	struct i40e_vsi *vsi = rx_ring->vsi;
->  	u16 i = rx_ring->next_to_clean;
->  	union i40e_rx_desc *rx_desc;
+Index i was reused in a cpu loop further down: renamed cpu there.
+
+Reported-by: Andrey Konovalov <andreyknvl@google.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/swapfile.c |   25 +++++++------------------
+ 1 file changed, 7 insertions(+), 18 deletions(-)
+
+--- 4.2-rc7/mm/swapfile.c	2015-07-05 19:25:02.852131158 -0700
++++ linux/mm/swapfile.c	2015-08-16 21:30:22.694123923 -0700
+@@ -2143,11 +2143,10 @@ static int claim_swapfile(struct swap_in
+ 	if (S_ISBLK(inode->i_mode)) {
+ 		p->bdev = bdgrab(I_BDEV(inode));
+ 		error = blkdev_get(p->bdev,
+-				   FMODE_READ | FMODE_WRITE | FMODE_EXCL,
+-				   sys_swapon);
++				   FMODE_READ | FMODE_WRITE | FMODE_EXCL, p);
+ 		if (error < 0) {
+ 			p->bdev = NULL;
+-			return -EINVAL;
++			return error;
+ 		}
+ 		p->old_block_size = block_size(p->bdev);
+ 		error = set_blocksize(p->bdev, PAGE_SIZE);
+@@ -2348,7 +2347,6 @@ SYSCALL_DEFINE2(swapon, const char __use
+ 	struct filename *name;
+ 	struct file *swap_file = NULL;
+ 	struct address_space *mapping;
+-	int i;
+ 	int prio;
+ 	int error;
+ 	union swap_header *swap_header;
+@@ -2388,19 +2386,8 @@ SYSCALL_DEFINE2(swapon, const char __use
+ 
+ 	p->swap_file = swap_file;
+ 	mapping = swap_file->f_mapping;
+-
+-	for (i = 0; i < nr_swapfiles; i++) {
+-		struct swap_info_struct *q = swap_info[i];
+-
+-		if (q == p || !q->swap_file)
+-			continue;
+-		if (mapping == q->swap_file->f_mapping) {
+-			error = -EBUSY;
+-			goto bad_swap;
+-		}
+-	}
+-
+ 	inode = mapping->host;
++
+ 	/* If S_ISREG(inode->i_mode) will do mutex_lock(&inode->i_mutex); */
+ 	error = claim_swapfile(p, inode);
+ 	if (unlikely(error))
+@@ -2433,6 +2420,8 @@ SYSCALL_DEFINE2(swapon, const char __use
+ 		goto bad_swap;
+ 	}
+ 	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
++		int cpu;
++
+ 		p->flags |= SWP_SOLIDSTATE;
+ 		/*
+ 		 * select a random position to start with to help wear leveling
+@@ -2451,9 +2440,9 @@ SYSCALL_DEFINE2(swapon, const char __use
+ 			error = -ENOMEM;
+ 			goto bad_swap;
+ 		}
+-		for_each_possible_cpu(i) {
++		for_each_possible_cpu(cpu) {
+ 			struct percpu_cluster *cluster;
+-			cluster = per_cpu_ptr(p->percpu_cluster, i);
++			cluster = per_cpu_ptr(p->percpu_cluster, cpu);
+ 			cluster_set_null(&cluster->index);
+ 		}
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
