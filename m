@@ -1,73 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f49.google.com (mail-vk0-f49.google.com [209.85.213.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 343806B0255
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 13:23:40 -0400 (EDT)
-Received: by vkao123 with SMTP id o123so11721272vka.3
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 10:23:39 -0700 (PDT)
-Received: from mail-vk0-f45.google.com (mail-vk0-f45.google.com. [209.85.213.45])
-        by mx.google.com with ESMTPS id bq9si22272021vdb.79.2015.08.18.10.23.38
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 480596B0255
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 13:29:18 -0400 (EDT)
+Received: by wijp15 with SMTP id p15so106437130wij.0
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 10:29:17 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
+        by mx.google.com with ESMTPS id kz6si34676142wjc.27.2015.08.18.10.29.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Aug 2015 10:23:39 -0700 (PDT)
-Received: by vkfi73 with SMTP id i73so72683081vkf.2
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 10:23:38 -0700 (PDT)
+        Tue, 18 Aug 2015 10:29:16 -0700 (PDT)
+Received: by wicne3 with SMTP id ne3so101002981wic.0
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 10:29:16 -0700 (PDT)
+Date: Tue, 18 Aug 2015 19:29:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC -v2 7/8] btrfs: Prevent from early transaction abort
+Message-ID: <20150818172914.GO5033@dhcp22.suse.cz>
+References: <1438768284-30927-1-git-send-email-mhocko@kernel.org>
+ <1438768284-30927-8-git-send-email-mhocko@kernel.org>
+ <20150818104031.GF5033@dhcp22.suse.cz>
+ <20150818171144.GA5206@ret.DHCP.TheFacebook.com>
 MIME-Version: 1.0
-In-Reply-To: <20150818165532.GA7424@gmail.com>
-References: <20150813031253.36913.29580.stgit@otcpl-skl-sds-2.jf.intel.com>
-	<20150813035005.36913.77364.stgit@otcpl-skl-sds-2.jf.intel.com>
-	<20150814213714.GA3265@gmail.com>
-	<CAPcyv4ib244VMSdhHDWHRnmCvYdteUEzT+ehTzitSY42m2Tt=w@mail.gmail.com>
-	<20150814220605.GB3265@gmail.com>
-	<CAPcyv4gEPum_qq7PH0oNx3ntiWTP_1fp4EU+CAj8tm1Oeg-E9w@mail.gmail.com>
-	<CAPcyv4i-5RWTLK8FQFCBuFKwY0_HShbW7PVTHudSk4sF35xosA@mail.gmail.com>
-	<20150817214554.GA5976@gmail.com>
-	<CAPcyv4jPezPAy9gMMtenBH1U526N3cwQY02823jfqWPyuRMouw@mail.gmail.com>
-	<20150818165532.GA7424@gmail.com>
-Date: Tue, 18 Aug 2015 10:23:38 -0700
-Message-ID: <CAPcyv4hpKHH924B-Udvii5L8xFr04snEA+CLwSMk8mpzsPihkw@mail.gmail.com>
-Subject: Re: [RFC PATCH 1/7] x86, mm: ZONE_DEVICE for "device memory"
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150818171144.GA5206@ret.DHCP.TheFacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Boaz Harrosh <boaz@plexistor.com>, Rik van Riel <riel@redhat.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, david <david@fromorbit.com>, Ingo Molnar <mingo@kernel.org>, Linux MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Chris Mason <clm@fb.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, Jan Kara <jack@suse.cz>
 
-On Tue, Aug 18, 2015 at 9:55 AM, Jerome Glisse <j.glisse@gmail.com> wrote:
-> On Mon, Aug 17, 2015 at 05:46:43PM -0700, Dan Williams wrote:
->> On Mon, Aug 17, 2015 at 2:45 PM, Jerome Glisse <j.glisse@gmail.com> wrote:
->> > On Fri, Aug 14, 2015 at 07:11:27PM -0700, Dan Williams wrote:
->> >> Although it does not offer perfect protection if device memory is at a
->> >> physically lower address than RAM, skipping the update of these
->> >> variables does seem to be what we want.  For example /dev/mem would
->> >> fail to allow write access to persistent memory if it fails a
->> >> valid_phys_addr_range() check.  Since /dev/mem does not know how to
->> >> write to PMEM in a reliably persistent way, it should not treat a
->> >> PMEM-pfn like RAM.
->> >
->> > So i attach is a patch that should keep ZONE_DEVICE out of consideration
->> > for the buddy allocator. You might also want to keep page reserved and not
->> > free inside the zone, you could replace the generic_online_page() using
->> > set_online_page_callback() while hotpluging device memory.
->> >
->>
->> Hmm, are we already protected by the fact that ZONE_DEVICE is not
->> represented in the GFP_ZONEMASK?
->
-> Yeah seems you right, high_zoneidx (which is derive using gfp_zone()) will
-> always limit which zones are considered. I thought that under memory presure
-> it would go over all of the zonelist entry and eventualy consider the device
-> zone. But it doesn't seems to be that way.
->
-> Keeping the device zone out of the zonelist might still be a good idea, if
-> only to avoid pointless iteration for the page allocator. Unless someone can
-> think of a reason why this would be bad.
->
+On Tue 18-08-15 13:11:44, Chris Mason wrote:
+> On Tue, Aug 18, 2015 at 12:40:32PM +0200, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > Btrfs relies on GFP_NOFS allocation when commiting the transaction but
+> > since "mm: page_alloc: do not lock up GFP_NOFS allocations upon OOM"
+> > those allocations are allowed to fail which can lead to a pre-mature
+> > transaction abort:
+> 
+> I can either put the btrfs nofail ones on my pull for Linus, or you can
+> add my sob and send as one unit.  Just let me know how you'd rather do
+> it.
 
-The other question I have is whether disabling ZONE_DMA is a realistic
-tradeoff for enabling ZONE_DEVICE?  I.e. can ZONE_DMA default to off
-going forward, lose some ISA device support, or do we need to figure
-out how to enable > 4 zones.
+OK, I will rephrase the changelogs (tomorrow) to not refer to an
+unmerged patch and would appreciate if you can take them and route them
+through your tree. I will then drop them from my pile.
+
+Thanks.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
