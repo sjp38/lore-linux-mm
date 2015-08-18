@@ -1,98 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 625596B0038
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 17:34:38 -0400 (EDT)
-Received: by paccq16 with SMTP id cq16so97341991pac.1
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 14:34:38 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id qp7si11923676pbc.93.2015.08.18.14.34.29
-        for <linux-mm@kvack.org>;
-        Tue, 18 Aug 2015 14:34:29 -0700 (PDT)
-Message-ID: <1439933668.3006.20.camel@intel.com>
-Subject: Re: [Intel-wired-lan] [Patch V3 6/9] i40evf: Use numa_mem_id() to
- better support memoryless node
-From: Jeff Kirsher <jeffrey.t.kirsher@intel.com>
-Date: Tue, 18 Aug 2015 14:34:28 -0700
-In-Reply-To: <4197C471DCF8714FBA1FE32565271C148FFF786A@ORSMSX103.amr.corp.intel.com>
-References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
-	 <1439781546-7217-7-git-send-email-jiang.liu@linux.intel.com>
-	 <4197C471DCF8714FBA1FE32565271C148FFF786A@ORSMSX103.amr.corp.intel.com>
-Content-Type: multipart/signed; micalg="pgp-sha512";
-	protocol="application/pgp-signature"; boundary="=-RI84y0u0A0e3tUw0RGcA"
-Mime-Version: 1.0
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 827A76B0038
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 18:26:15 -0400 (EDT)
+Received: by oiew67 with SMTP id w67so90838568oie.2
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 15:26:15 -0700 (PDT)
+Received: from BLU004-OMC1S16.hotmail.com (blu004-omc1s16.hotmail.com. [65.55.116.27])
+        by mx.google.com with ESMTPS id v7si8747409oei.65.2015.08.18.15.26.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 18 Aug 2015 15:26:14 -0700 (PDT)
+Message-ID: <BLU436-SMTP37E3EE1A24E7A3EEEDBFA7B9780@phx.gbl>
+Date: Wed, 19 Aug 2015 06:27:58 +0800
+From: Chen Gang <xili_gchen_5257@hotmail.com>
+MIME-Version: 1.0
+Subject: [PATCH] mm: mmap: Simplify the failure return working flow
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Patil, Kiran" <kiran.patil@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "intel-wired-lan@lists.osuosl.org" <intel-wired-lan@lists.osuosl.org>
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, riel@redhat.com, Michal Hocko <mhocko@suse.cz>, sasha.levin@oracle.com
+Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
+__split_vma() doesn't need out_err label, neither need initializing err.
 
---=-RI84y0u0A0e3tUw0RGcA
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+copy_vma() can return NULL directly when kmem_cache_alloc() fails.
 
-On Mon, 2015-08-17 at 12:03 -0700, Patil, Kiran wrote:
-> ACK.
->=20
+Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
+---
+ mm/mmap.c | 39 +++++++++++++++++++--------------------
+ 1 file changed, 19 insertions(+), 20 deletions(-)
 
-Just an FYI, top posting is frowned upon in the Linux public mailing
-lists.  Also, if you really want your ACK to be added to the patch, you
-need to reply with:
-
-Acked-by: Kiran Patil <kiran.patil@intel.com>
-
-> -----Original Message-----
-> From: Intel-wired-lan
-> [mailto:intel-wired-lan-bounces@lists.osuosl.org] On Behalf Of Jiang
-> Liu
-> Sent: Sunday, August 16, 2015 8:19 PM
-> To: Andrew Morton; Mel Gorman; David Rientjes; Mike Galbraith; Peter
-> Zijlstra; Wysocki, Rafael J; Tang Chen; Tejun Heo; Kirsher, Jeffrey T;
-> Brandeburg, Jesse; Nelson, Shannon; Wyborny, Carolyn; Skidmore, Donald
-> C; Vick, Matthew; Ronciak, John; Williams, Mitch A
-> Cc: Luck, Tony; netdev@vger.kernel.org; x86@kernel.org;
-> linux-hotplug@vger.kernel.org; linux-kernel@vger.kernel.org;
-> linux-mm@kvack.org; intel-wired-lan@lists.osuosl.org; Jiang Liu
-> Subject: [Intel-wired-lan] [Patch V3 6/9] i40evf: Use numa_mem_id() to
-> better support memoryless node
->=20
-> Function i40e_clean_rx_irq() tries to reuse memory pages allocated
-> from the nearest node. To better support memoryless node, use
-> numa_mem_id() instead of numa_node_id() to get the nearest node with
-> memory.
->=20
-> This change should only affect performance.
->=20
-> Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
-> ---
->  drivers/net/ethernet/intel/i40evf/i40e_txrx.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-
-
-
---=-RI84y0u0A0e3tUw0RGcA
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAABCgAGBQJV06TkAAoJEOVv75VaS+3OCxQP/2zKDLypd+yDET2EuNwV60s6
-w7eD7ZcbjLrE7IQyhEBrj9QKotbop8Dd/9+UwKoZURwjeuLxkIIIy8GacvacC4+x
-YVNai8LGSU55T1JfV+zYGXq0+iSBgJNputBVjjiZ7GxA9+mCTCMRaKgC6+eBdKRS
-SqFfQRnxD6wQHDWmoJz1C+OtJYZYmHvcw6wwjr2q8L0v+7uUw7O+LfQNhjl5ypZe
-tqP0a1XALdVlOz7RuoydnwYoY5Fgu/rePsW4z1DNcWG6CoyP9Xk1Fs7uwtLXRqCS
-17vltTuhf30uPaL7AUMsJVxVhwFzEEGwq/tocsopP8L5zIDktLS8KW1BeNrJfxkD
-N6xkUI0mi6E7j3oxDafAaCwaR7twBn3oClfEwwuWqQf+rheYFAYPTZUV4SoiQylq
-CgwsfpcHHrQH/N8sj/Nia0gCbky6l2yavHSKVSWvWxHOimGhX5ycT7AwWhAFTZuc
-4hjqUD7L7bE1/vsz5f1lg4mNgzVr1SoPSo/xwbBYSJxa4k2540o5ddRChry93GSx
-w4090tWm8y4lTOLpMB6lZ7hQ/K2j5AWhDVo5FiaiAp1bmC2cBuApEnpuZ3JyTUb7
-O1zrT72Vzma1EiuQ6PU8q8xn46DBJ4SMfqL/r/67yHu0OfUnqlRq+U8obsMdO+BT
-v5zISHIwCeASYadtWlip
-=KtHN
------END PGP SIGNATURE-----
-
---=-RI84y0u0A0e3tUw0RGcA--
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 8e0366e..35a4376 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2461,7 +2461,7 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	      unsigned long addr, int new_below)
+ {
+ 	struct vm_area_struct *new;
+-	int err = -ENOMEM;
++	int err;
+ 
+ 	if (is_vm_hugetlb_page(vma) && (addr &
+ 					~(huge_page_mask(hstate_vma(vma)))))
+@@ -2469,7 +2469,7 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+ 
+ 	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+ 	if (!new)
+-		goto out_err;
++		return -ENOMEM;
+ 
+ 	/* most fields are the same, copy all, and then fixup */
+ 	*new = *vma;
+@@ -2517,7 +2517,6 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	mpol_put(vma_policy(new));
+  out_free_vma:
+ 	kmem_cache_free(vm_area_cachep, new);
+- out_err:
+ 	return err;
+ }
+ 
+@@ -2958,23 +2957,23 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 		*need_rmap_locks = (new_vma->vm_pgoff <= vma->vm_pgoff);
+ 	} else {
+ 		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+-		if (new_vma) {
+-			*new_vma = *vma;
+-			new_vma->vm_start = addr;
+-			new_vma->vm_end = addr + len;
+-			new_vma->vm_pgoff = pgoff;
+-			if (vma_dup_policy(vma, new_vma))
+-				goto out_free_vma;
+-			INIT_LIST_HEAD(&new_vma->anon_vma_chain);
+-			if (anon_vma_clone(new_vma, vma))
+-				goto out_free_mempol;
+-			if (new_vma->vm_file)
+-				get_file(new_vma->vm_file);
+-			if (new_vma->vm_ops && new_vma->vm_ops->open)
+-				new_vma->vm_ops->open(new_vma);
+-			vma_link(mm, new_vma, prev, rb_link, rb_parent);
+-			*need_rmap_locks = false;
+-		}
++		if (!new_vma)
++			return NULL;
++		*new_vma = *vma;
++		new_vma->vm_start = addr;
++		new_vma->vm_end = addr + len;
++		new_vma->vm_pgoff = pgoff;
++		if (vma_dup_policy(vma, new_vma))
++			goto out_free_vma;
++		INIT_LIST_HEAD(&new_vma->anon_vma_chain);
++		if (anon_vma_clone(new_vma, vma))
++			goto out_free_mempol;
++		if (new_vma->vm_file)
++			get_file(new_vma->vm_file);
++		if (new_vma->vm_ops && new_vma->vm_ops->open)
++			new_vma->vm_ops->open(new_vma);
++		vma_link(mm, new_vma, prev, rb_link, rb_parent);
++		*need_rmap_locks = false;
+ 	}
+ 	return new_vma;
+ 
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
