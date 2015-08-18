@@ -1,108 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 827A76B0038
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 18:26:15 -0400 (EDT)
-Received: by oiew67 with SMTP id w67so90838568oie.2
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 15:26:15 -0700 (PDT)
-Received: from BLU004-OMC1S16.hotmail.com (blu004-omc1s16.hotmail.com. [65.55.116.27])
-        by mx.google.com with ESMTPS id v7si8747409oei.65.2015.08.18.15.26.14
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id E906F6B0255
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 18:38:19 -0400 (EDT)
+Received: by igui7 with SMTP id i7so91518287igu.0
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 15:38:19 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 98si13210512ioi.193.2015.08.18.15.38.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 18 Aug 2015 15:26:14 -0700 (PDT)
-Message-ID: <BLU436-SMTP37E3EE1A24E7A3EEEDBFA7B9780@phx.gbl>
-Date: Wed, 19 Aug 2015 06:27:58 +0800
-From: Chen Gang <xili_gchen_5257@hotmail.com>
-MIME-Version: 1.0
-Subject: [PATCH] mm: mmap: Simplify the failure return working flow
-Content-Type: text/plain; charset="utf-8"
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Aug 2015 15:38:19 -0700 (PDT)
+Date: Tue, 18 Aug 2015 15:38:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] zpool: define and use max type length
+Message-Id: <20150818153818.cab58a99f60113c2aca2f006@linux-foundation.org>
+In-Reply-To: <1439928361-31294-1-git-send-email-ddstreet@ieee.org>
+References: <1439928361-31294-1-git-send-email-ddstreet@ieee.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, riel@redhat.com, Michal Hocko <mhocko@suse.cz>, sasha.levin@oracle.com
-Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, kbuild test robot <fengguang.wu@intel.com>
 
-__split_vma() doesn't need out_err label, neither need initializing err.
+On Tue, 18 Aug 2015 16:06:00 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
 
-copy_vma() can return NULL directly when kmem_cache_alloc() fails.
+> Add ZPOOL_MAX_TYPE_NAME define, and change zpool_driver *type field to
+> type[ZPOOL_MAX_TYPE_NAME].  Remove redundant type field from struct zpool
+> and use zpool->driver->type instead.
+> 
+> The define will be used by zswap for its zpool param type name length.
+> 
 
-Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
----
- mm/mmap.c | 39 +++++++++++++++++++--------------------
- 1 file changed, 19 insertions(+), 20 deletions(-)
+Patchset is fugly.  All this putzing around with fixed-length strings,
+worrying about overflow and is-it-null-terminated-or-isnt-it.  Shudder.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 8e0366e..35a4376 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2461,7 +2461,7 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
- 	      unsigned long addr, int new_below)
- {
- 	struct vm_area_struct *new;
--	int err = -ENOMEM;
-+	int err;
- 
- 	if (is_vm_hugetlb_page(vma) && (addr &
- 					~(huge_page_mask(hstate_vma(vma)))))
-@@ -2469,7 +2469,7 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
- 	if (!new)
--		goto out_err;
-+		return -ENOMEM;
- 
- 	/* most fields are the same, copy all, and then fixup */
- 	*new = *vma;
-@@ -2517,7 +2517,6 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
- 	mpol_put(vma_policy(new));
-  out_free_vma:
- 	kmem_cache_free(vm_area_cachep, new);
-- out_err:
- 	return err;
- }
- 
-@@ -2958,23 +2957,23 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 		*need_rmap_locks = (new_vma->vm_pgoff <= vma->vm_pgoff);
- 	} else {
- 		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
--		if (new_vma) {
--			*new_vma = *vma;
--			new_vma->vm_start = addr;
--			new_vma->vm_end = addr + len;
--			new_vma->vm_pgoff = pgoff;
--			if (vma_dup_policy(vma, new_vma))
--				goto out_free_vma;
--			INIT_LIST_HEAD(&new_vma->anon_vma_chain);
--			if (anon_vma_clone(new_vma, vma))
--				goto out_free_mempol;
--			if (new_vma->vm_file)
--				get_file(new_vma->vm_file);
--			if (new_vma->vm_ops && new_vma->vm_ops->open)
--				new_vma->vm_ops->open(new_vma);
--			vma_link(mm, new_vma, prev, rb_link, rb_parent);
--			*need_rmap_locks = false;
--		}
-+		if (!new_vma)
-+			return NULL;
-+		*new_vma = *vma;
-+		new_vma->vm_start = addr;
-+		new_vma->vm_end = addr + len;
-+		new_vma->vm_pgoff = pgoff;
-+		if (vma_dup_policy(vma, new_vma))
-+			goto out_free_vma;
-+		INIT_LIST_HEAD(&new_vma->anon_vma_chain);
-+		if (anon_vma_clone(new_vma, vma))
-+			goto out_free_mempol;
-+		if (new_vma->vm_file)
-+			get_file(new_vma->vm_file);
-+		if (new_vma->vm_ops && new_vma->vm_ops->open)
-+			new_vma->vm_ops->open(new_vma);
-+		vma_link(mm, new_vma, prev, rb_link, rb_parent);
-+		*need_rmap_locks = false;
- 	}
- 	return new_vma;
- 
--- 
-1.9.3
+It's much better to use variable-length strings everywhere.  We're not
+operating in contexts which can't use kmalloc, we're not
+performance-intensive and these strings aren't being written to
+fixed-size fields on disk or anything.  Why do we need any fixed-length
+strings?
+
+IOW, why not just replace that alloca with a kstrdup()?
+
+> --- a/include/linux/zpool.h
+> +++ b/include/linux/zpool.h
+>
+> ...
+>
+> @@ -79,7 +77,7 @@ static struct zpool_driver *zpool_get_driver(char *type)
+>  
+>  	spin_lock(&drivers_lock);
+>  	list_for_each_entry(driver, &drivers_head, list) {
+> -		if (!strcmp(driver->type, type)) {
+> +		if (!strncmp(driver->type, type, ZPOOL_MAX_TYPE_NAME)) {
+
+Why strncmp?  Please tell me these strings are always null-terminated.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
