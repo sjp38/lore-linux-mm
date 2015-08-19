@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id F33BF6B0253
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 05:22:02 -0400 (EDT)
-Received: by pawq9 with SMTP id q9so56928052paw.3
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 02:22:02 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id tl1si150627pac.65.2015.08.19.02.22.01
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id C6B196B0038
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 05:27:06 -0400 (EDT)
+Received: by pdob1 with SMTP id b1so23360832pdo.2
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 02:27:06 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id di10si182147pdb.34.2015.08.19.02.27.05
         for <linux-mm@kvack.org>;
-        Wed, 19 Aug 2015 02:22:01 -0700 (PDT)
+        Wed, 19 Aug 2015 02:27:05 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 5/5] mm: use 'unsigned int' for page order
-Date: Wed, 19 Aug 2015 12:21:46 +0300
-Message-Id: <1439976106-137226-6-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 4/5] mm: make compound_head() robust
+Date: Wed, 19 Aug 2015 12:21:45 +0300
+Message-Id: <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,256 +19,547 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Let's try to be consistent about data type of page order.
+Hugh has pointed that compound_head() call can be unsafe in some
+context. There's one example:
+
+	CPU0					CPU1
+
+isolate_migratepages_block()
+  page_count()
+    compound_head()
+      !!PageTail() == true
+					put_page()
+					  tail->first_page = NULL
+      head = tail->first_page
+					alloc_pages(__GFP_COMP)
+					   prep_compound_page()
+					     tail->first_page = head
+					     __SetPageTail(p);
+      !!PageTail() == true
+    <head == NULL dereferencing>
+
+The race is pure theoretical. I don't it's possible to trigger it in
+practice. But who knows.
+
+We can fix the race by changing how encode PageTail() and compound_head()
+within struct page to be able to update them in one shot.
+
+The patch introduces page->compound_head into third double word block in
+front of compound_dtor and compound_order. That means it shares storage
+space with:
+
+ - page->lru.next;
+ - page->next;
+ - page->rcu_head.next;
+ - page->pmd_huge_pte;
+
+That's too long list to be absolutely sure, but looks like nobody uses
+bit 0 of the word. It can be used to encode PageTail(). And if the bit
+set, rest of the word is pointer to head page.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/mm.h |  5 +++--
- mm/hugetlb.c       | 19 ++++++++++---------
- mm/internal.h      |  4 ++--
- mm/page_alloc.c    | 27 +++++++++++++++------------
- 4 files changed, 30 insertions(+), 25 deletions(-)
+ Documentation/vm/split_page_table_lock |  4 +-
+ arch/xtensa/configs/iss_defconfig      |  1 -
+ include/linux/mm.h                     | 53 ++--------------------
+ include/linux/mm_types.h               |  9 +++-
+ include/linux/page-flags.h             | 80 ++++++++--------------------------
+ mm/Kconfig                             | 12 -----
+ mm/debug.c                             |  5 ---
+ mm/huge_memory.c                       |  3 +-
+ mm/hugetlb.c                           |  8 +---
+ mm/internal.h                          |  4 +-
+ mm/memory-failure.c                    |  7 ---
+ mm/page_alloc.c                        | 38 ++++++++--------
+ mm/swap.c                              |  4 +-
+ 13 files changed, 58 insertions(+), 170 deletions(-)
 
+diff --git a/Documentation/vm/split_page_table_lock b/Documentation/vm/split_page_table_lock
+index 6dea4fd5c961..62842a857dab 100644
+--- a/Documentation/vm/split_page_table_lock
++++ b/Documentation/vm/split_page_table_lock
+@@ -54,8 +54,8 @@ everything required is done by pgtable_page_ctor() and pgtable_page_dtor(),
+ which must be called on PTE table allocation / freeing.
+ 
+ Make sure the architecture doesn't use slab allocator for page table
+-allocation: slab uses page->slab_cache and page->first_page for its pages.
+-These fields share storage with page->ptl.
++allocation: slab uses page->slab_cache for its pages.
++This field shares storage with page->ptl.
+ 
+ PMD split lock only makes sense if you have more than two page table
+ levels.
+diff --git a/arch/xtensa/configs/iss_defconfig b/arch/xtensa/configs/iss_defconfig
+index e4d193e7a300..5c7c385f21c4 100644
+--- a/arch/xtensa/configs/iss_defconfig
++++ b/arch/xtensa/configs/iss_defconfig
+@@ -169,7 +169,6 @@ CONFIG_FLATMEM_MANUAL=y
+ # CONFIG_SPARSEMEM_MANUAL is not set
+ CONFIG_FLATMEM=y
+ CONFIG_FLAT_NODE_MEM_MAP=y
+-CONFIG_PAGEFLAGS_EXTENDED=y
+ CONFIG_SPLIT_PTLOCK_CPUS=4
+ # CONFIG_PHYS_ADDR_T_64BIT is not set
+ CONFIG_ZONE_DMA_FLAG=1
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a4c4b7d07473..a75bbb3f7142 100644
+index 0735bc0a351a..a4c4b7d07473 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -557,7 +557,7 @@ static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
- 	return compound_page_dtors[page[1].compound_dtor];
+@@ -437,46 +437,6 @@ static inline void compound_unlock_irqrestore(struct page *page,
+ #endif
  }
  
--static inline int compound_order(struct page *page)
-+static inline unsigned int compound_order(struct page *page)
+-static inline struct page *compound_head_by_tail(struct page *tail)
+-{
+-	struct page *head = tail->first_page;
+-
+-	/*
+-	 * page->first_page may be a dangling pointer to an old
+-	 * compound page, so recheck that it is still a tail
+-	 * page before returning.
+-	 */
+-	smp_rmb();
+-	if (likely(PageTail(tail)))
+-		return head;
+-	return tail;
+-}
+-
+-/*
+- * Since either compound page could be dismantled asynchronously in THP
+- * or we access asynchronously arbitrary positioned struct page, there
+- * would be tail flag race. To handle this race, we should call
+- * smp_rmb() before checking tail flag. compound_head_by_tail() did it.
+- */
+-static inline struct page *compound_head(struct page *page)
+-{
+-	if (unlikely(PageTail(page)))
+-		return compound_head_by_tail(page);
+-	return page;
+-}
+-
+-/*
+- * If we access compound page synchronously such as access to
+- * allocated page, there is no need to handle tail flag race, so we can
+- * check tail flag directly without any synchronization primitive.
+- */
+-static inline struct page *compound_head_fast(struct page *page)
+-{
+-	if (unlikely(PageTail(page)))
+-		return page->first_page;
+-	return page;
+-}
+-
+ /*
+  * The atomic page->_mapcount, starts from -1: so that transitions
+  * both from it and to it can be tracked, using atomic_inc_and_test
+@@ -525,7 +485,7 @@ static inline void get_huge_page_tail(struct page *page)
+ 	VM_BUG_ON_PAGE(!PageTail(page), page);
+ 	VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
+ 	VM_BUG_ON_PAGE(atomic_read(&page->_count) != 0, page);
+-	if (compound_tail_refcounted(page->first_page))
++	if (compound_tail_refcounted(compound_head(page)))
+ 		atomic_inc(&page->_mapcount);
+ }
+ 
+@@ -548,13 +508,7 @@ static inline struct page *virt_to_head_page(const void *x)
  {
- 	if (!PageHead(page))
- 		return 0;
-@@ -1718,7 +1718,8 @@ extern void si_meminfo(struct sysinfo * val);
- extern void si_meminfo_node(struct sysinfo *val, int nid);
+ 	struct page *page = virt_to_page(x);
  
- extern __printf(3, 4)
--void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
-+void warn_alloc_failed(gfp_t gfp_mask, unsigned int order,
-+		const char *fmt, ...);
+-	/*
+-	 * We don't need to worry about synchronization of tail flag
+-	 * when we call virt_to_head_page() since it is only called for
+-	 * already allocated page and this page won't be freed until
+-	 * this virt_to_head_page() is finished. So use _fast variant.
+-	 */
+-	return compound_head_fast(page);
++	return compound_head(page);
+ }
  
- extern void setup_per_cpu_pageset(void);
+ /*
+@@ -1496,8 +1450,7 @@ static inline bool ptlock_init(struct page *page)
+ 	 * with 0. Make sure nobody took it in use in between.
+ 	 *
+ 	 * It can happen if arch try to use slab for page table allocation:
+-	 * slab code uses page->slab_cache and page->first_page (for tail
+-	 * pages), which share storage with page->ptl.
++	 * slab code uses page->slab_cache, which share storage with page->ptl.
+ 	 */
+ 	VM_BUG_ON_PAGE(*(unsigned long *)&page->ptl, page);
+ 	if (!ptlock_alloc(page))
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 63cdfe7ec336..e324768b6cc7 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -120,7 +120,12 @@ struct page {
+ 		};
+ 	};
  
+-	/* Third double word block */
++	/*
++	 * Third double word block
++	 *
++	 * WARNING: bit 0 of the first word encode PageTail and *must* be 0
++	 * for non-tail pages.
++	 */
+ 	union {
+ 		struct list_head lru;	/* Pageout list, eg. active_list
+ 					 * protected by zone->lru_lock !
+@@ -143,6 +148,7 @@ struct page {
+ 						 */
+ 		/* First tail page of compound page */
+ 		struct {
++			unsigned long compound_head; /* If bit zero is set */
+ #ifdef CONFIG_64BIT
+ 			unsigned int compound_dtor;
+ 			unsigned int compound_order;
+@@ -174,7 +180,6 @@ struct page {
+ #endif
+ #endif
+ 		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
+-		struct page *first_page;	/* Compound tail pages */
+ 	};
+ 
+ #ifdef CONFIG_MEMCG
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 41c93844fb1d..9b865158e452 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -86,12 +86,7 @@ enum pageflags {
+ 	PG_private,		/* If pagecache, has fs-private data */
+ 	PG_private_2,		/* If pagecache, has fs aux data */
+ 	PG_writeback,		/* Page is under writeback */
+-#ifdef CONFIG_PAGEFLAGS_EXTENDED
+ 	PG_head,		/* A head page */
+-	PG_tail,		/* A tail page */
+-#else
+-	PG_compound,		/* A compound page */
+-#endif
+ 	PG_swapcache,		/* Swap page: swp_entry_t in private */
+ 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
+ 	PG_reclaim,		/* To be reclaimed asap */
+@@ -387,85 +382,46 @@ static inline void set_page_writeback_keepwrite(struct page *page)
+ 	test_set_page_writeback_keepwrite(page);
+ }
+ 
+-#ifdef CONFIG_PAGEFLAGS_EXTENDED
+-/*
+- * System with lots of page flags available. This allows separate
+- * flags for PageHead() and PageTail() checks of compound pages so that bit
+- * tests can be used in performance sensitive paths. PageCompound is
+- * generally not used in hot code paths except arch/powerpc/mm/init_64.c
+- * and arch/powerpc/kvm/book3s_64_vio_hv.c which use it to detect huge pages
+- * and avoid handling those in real mode.
+- */
+ __PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
+-__PAGEFLAG(Tail, tail)
+ 
+-static inline int PageCompound(struct page *page)
+-{
+-	return page->flags & ((1L << PG_head) | (1L << PG_tail));
+-
+-}
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-static inline void ClearPageCompound(struct page *page)
++static inline int PageTail(struct page *page)
+ {
+-	BUG_ON(!PageHead(page));
+-	ClearPageHead(page);
++	return READ_ONCE(page->compound_head) & 1;
+ }
+-#endif
+-
+-#define PG_head_mask ((1L << PG_head))
+ 
+-#else
+-/*
+- * Reduce page flag use as much as possible by overlapping
+- * compound page flags with the flags used for page cache pages. Possible
+- * because PageCompound is always set for compound pages and not for
+- * pages on the LRU and/or pagecache.
+- */
+-TESTPAGEFLAG(Compound, compound)
+-__SETPAGEFLAG(Head, compound)  __CLEARPAGEFLAG(Head, compound)
+-
+-/*
+- * PG_reclaim is used in combination with PG_compound to mark the
+- * head and tail of a compound page. This saves one page flag
+- * but makes it impossible to use compound pages for the page cache.
+- * The PG_reclaim bit would have to be used for reclaim or readahead
+- * if compound pages enter the page cache.
+- *
+- * PG_compound & PG_reclaim	=> Tail page
+- * PG_compound & ~PG_reclaim	=> Head page
+- */
+-#define PG_head_mask ((1L << PG_compound))
+-#define PG_head_tail_mask ((1L << PG_compound) | (1L << PG_reclaim))
+-
+-static inline int PageHead(struct page *page)
++static inline void set_compound_head(struct page *page, struct page *head)
+ {
+-	return ((page->flags & PG_head_tail_mask) == PG_head_mask);
++	WRITE_ONCE(page->compound_head, (unsigned long)head + 1);
+ }
+ 
+-static inline int PageTail(struct page *page)
++static inline void clear_compound_head(struct page *page)
+ {
+-	return ((page->flags & PG_head_tail_mask) == PG_head_tail_mask);
++	WRITE_ONCE(page->compound_head, 0);
+ }
+ 
+-static inline void __SetPageTail(struct page *page)
++static inline struct page *compound_head(struct page *page)
+ {
+-	page->flags |= PG_head_tail_mask;
++	unsigned long head = READ_ONCE(page->compound_head);
++
++	if (unlikely(head & 1))
++		return (struct page *) (head - 1);
++	return page;
+ }
+ 
+-static inline void __ClearPageTail(struct page *page)
++static inline int PageCompound(struct page *page)
+ {
+-	page->flags &= ~PG_head_tail_mask;
+-}
++	return PageHead(page) || PageTail(page);
+ 
++}
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ static inline void ClearPageCompound(struct page *page)
+ {
+-	BUG_ON((page->flags & PG_head_tail_mask) != (1 << PG_compound));
+-	clear_bit(PG_compound, &page->flags);
++	BUG_ON(!PageHead(page));
++	ClearPageHead(page);
+ }
+ #endif
+ 
+-#endif /* !PAGEFLAGS_EXTENDED */
++#define PG_head_mask ((1L << PG_head))
+ 
+ #ifdef CONFIG_HUGETLB_PAGE
+ int PageHuge(struct page *page);
+diff --git a/mm/Kconfig b/mm/Kconfig
+index e79de2bd12cd..454579d31081 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -200,18 +200,6 @@ config MEMORY_HOTREMOVE
+ 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+ 	depends on MIGRATION
+ 
+-#
+-# If we have space for more page flags then we can enable additional
+-# optimizations and functionality.
+-#
+-# Regular Sparsemem takes page flag bits for the sectionid if it does not
+-# use a virtual memmap. Disable extended page flags for 32 bit platforms
+-# that require the use of a sectionid in the page flags.
+-#
+-config PAGEFLAGS_EXTENDED
+-	def_bool y
+-	depends on 64BIT || SPARSEMEM_VMEMMAP || !SPARSEMEM
+-
+ # Heavily threaded applications may benefit from splitting the mm-wide
+ # page_table_lock, so that faults on different parts of the user address
+ # space can be handled with less contention: split it at this NR_CPUS.
+diff --git a/mm/debug.c b/mm/debug.c
+index 76089ddf99ea..205e5ef957ab 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -25,12 +25,7 @@ static const struct trace_print_flags pageflag_names[] = {
+ 	{1UL << PG_private,		"private"	},
+ 	{1UL << PG_private_2,		"private_2"	},
+ 	{1UL << PG_writeback,		"writeback"	},
+-#ifdef CONFIG_PAGEFLAGS_EXTENDED
+ 	{1UL << PG_head,		"head"		},
+-	{1UL << PG_tail,		"tail"		},
+-#else
+-	{1UL << PG_compound,		"compound"	},
+-#endif
+ 	{1UL << PG_swapcache,		"swapcache"	},
+ 	{1UL << PG_mappedtodisk,	"mappedtodisk"	},
+ 	{1UL << PG_reclaim,		"reclaim"	},
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 097c7a4bfbd9..330377f83ac7 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1686,8 +1686,7 @@ static void __split_huge_page_refcount(struct page *page,
+ 				      (1L << PG_unevictable)));
+ 		page_tail->flags |= (1L << PG_dirty);
+ 
+-		/* clear PageTail before overwriting first_page */
+-		smp_wmb();
++		clear_compound_head(page_tail);
+ 
+ 		/*
+ 		 * __split_huge_page_splitting() already set the
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 53c0709fd87b..bf64bfebc473 100644
+index 8ea74caa1fa8..53c0709fd87b 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -817,7 +817,7 @@ static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
+@@ -824,9 +824,8 @@ static void destroy_compound_gigantic_page(struct page *page,
+ 	struct page *p = page + 1;
  
- #if defined(CONFIG_CMA) && defined(CONFIG_X86_64)
- static void destroy_compound_gigantic_page(struct page *page,
--					unsigned long order)
-+					unsigned int order)
- {
- 	int i;
- 	int nr_pages = 1 << order;
-@@ -832,7 +832,7 @@ static void destroy_compound_gigantic_page(struct page *page,
- 	__ClearPageHead(page);
+ 	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
+-		__ClearPageTail(p);
++		clear_compound_head(p);
+ 		set_page_refcounted(p);
+-		p->first_page = NULL;
+ 	}
+ 
+ 	set_compound_order(page, 0);
+@@ -1099,10 +1098,7 @@ static void prep_compound_gigantic_page(struct page *page, unsigned long order)
+ 		 */
+ 		__ClearPageReserved(p);
+ 		set_page_count(p, 0);
+-		p->first_page = page;
+-		/* Make sure p->first_page is always valid for PageTail() */
+-		smp_wmb();
+-		__SetPageTail(p);
++		set_compound_head(p, page);
+ 	}
  }
  
--static void free_gigantic_page(struct page *page, unsigned order)
-+static void free_gigantic_page(struct page *page, unsigned int order)
- {
- 	free_contig_range(page_to_pfn(page), 1 << order);
- }
-@@ -876,7 +876,7 @@ static bool zone_spans_last_pfn(const struct zone *zone,
- 	return zone_spans_pfn(zone, last_pfn);
- }
- 
--static struct page *alloc_gigantic_page(int nid, unsigned order)
-+static struct page *alloc_gigantic_page(int nid, unsigned int order)
- {
- 	unsigned long nr_pages = 1 << order;
- 	unsigned long ret, pfn, flags;
-@@ -912,7 +912,7 @@ static struct page *alloc_gigantic_page(int nid, unsigned order)
- }
- 
- static void prep_new_huge_page(struct hstate *h, struct page *page, int nid);
--static void prep_compound_gigantic_page(struct page *page, unsigned long order);
-+static void prep_compound_gigantic_page(struct page *page, unsigned int order);
- 
- static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
- {
-@@ -945,9 +945,9 @@ static int alloc_fresh_gigantic_page(struct hstate *h,
- static inline bool gigantic_page_supported(void) { return true; }
- #else
- static inline bool gigantic_page_supported(void) { return false; }
--static inline void free_gigantic_page(struct page *page, unsigned order) { }
-+static inline void free_gigantic_page(struct page *page, unsigned int order) { }
- static inline void destroy_compound_gigantic_page(struct page *page,
--						unsigned long order) { }
-+						unsigned int order) { }
- static inline int alloc_fresh_gigantic_page(struct hstate *h,
- 					nodemask_t *nodes_allowed) { return 0; }
- #endif
-@@ -1073,7 +1073,7 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
- 	put_page(page); /* free it into the hugepage allocator */
- }
- 
--static void prep_compound_gigantic_page(struct page *page, unsigned long order)
-+static void prep_compound_gigantic_page(struct page *page, unsigned int order)
- {
- 	int i;
- 	int nr_pages = 1 << order;
-@@ -1640,7 +1640,8 @@ found:
- 	return 1;
- }
- 
--static void __init prep_compound_huge_page(struct page *page, int order)
-+static void __init prep_compound_huge_page(struct page *page,
-+		unsigned int order)
- {
- 	if (unlikely(order > (MAX_ORDER - 1)))
- 		prep_compound_gigantic_page(page, order);
-@@ -2351,7 +2352,7 @@ static int __init hugetlb_init(void)
- module_init(hugetlb_init);
- 
- /* Should be called on processing a hugepagesz=... option */
--void __init hugetlb_add_hstate(unsigned order)
-+void __init hugetlb_add_hstate(unsigned int order)
- {
- 	struct hstate *h;
- 	unsigned long i;
 diff --git a/mm/internal.h b/mm/internal.h
-index 89e21a07080a..9a9fc497593f 100644
+index 36b23f1e2ca6..89e21a07080a 100644
 --- a/mm/internal.h
 +++ b/mm/internal.h
-@@ -157,7 +157,7 @@ __find_buddy_index(unsigned long page_idx, unsigned int order)
- extern int __isolate_free_page(struct page *page, unsigned int order);
- extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
- 					unsigned int order);
--extern void prep_compound_page(struct page *page, unsigned long order);
-+extern void prep_compound_page(struct page *page, unsigned int order);
- #ifdef CONFIG_MEMORY_FAILURE
- extern bool is_free_buddy_page(struct page *page);
- #endif
-@@ -214,7 +214,7 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
-  * page cannot be allocated or merged in parallel. Alternatively, it must
-  * handle invalid values gracefully, and use page_order_unsafe() below.
-  */
--static inline unsigned long page_order(struct page *page)
-+static inline unsigned int page_order(struct page *page)
- {
- 	/* PageBuddy() must be checked by the caller */
- 	return page_private(page);
+@@ -61,9 +61,9 @@ static inline void __get_page_tail_foll(struct page *page,
+ 	 * speculative page access (like in
+ 	 * page_cache_get_speculative()) on tail pages.
+ 	 */
+-	VM_BUG_ON_PAGE(atomic_read(&page->first_page->_count) <= 0, page);
++	VM_BUG_ON_PAGE(atomic_read(&compound_head(page)->_count) <= 0, page);
+ 	if (get_page_head)
+-		atomic_inc(&page->first_page->_count);
++		atomic_inc(&compound_head(page)->_count);
+ 	get_huge_page_tail(page);
+ }
+ 
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 1f4446a90cef..4d1a5de9653d 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -787,8 +787,6 @@ static int me_huge_page(struct page *p, unsigned long pfn)
+ #define lru		(1UL << PG_lru)
+ #define swapbacked	(1UL << PG_swapbacked)
+ #define head		(1UL << PG_head)
+-#define tail		(1UL << PG_tail)
+-#define compound	(1UL << PG_compound)
+ #define slab		(1UL << PG_slab)
+ #define reserved	(1UL << PG_reserved)
+ 
+@@ -811,12 +809,7 @@ static struct page_state {
+ 	 */
+ 	{ slab,		slab,		MF_MSG_SLAB,	me_kernel },
+ 
+-#ifdef CONFIG_PAGEFLAGS_EXTENDED
+ 	{ head,		head,		MF_MSG_HUGE,		me_huge_page },
+-	{ tail,		tail,		MF_MSG_HUGE,		me_huge_page },
+-#else
+-	{ compound,	compound,	MF_MSG_HUGE,		me_huge_page },
+-#endif
+ 
+ 	{ sc|dirty,	sc|dirty,	MF_MSG_DIRTY_SWAPCACHE,	me_swapcache_dirty },
+ 	{ sc|dirty,	sc,		MF_MSG_CLEAN_SWAPCACHE,	me_swapcache_clean },
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 78859d47aaf4..347724850665 100644
+index c6733cc3cbce..78859d47aaf4 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -163,7 +163,7 @@ bool pm_suspended_storage(void)
- #endif /* CONFIG_PM_SLEEP */
- 
- #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
--int pageblock_order __read_mostly;
-+unsigned int pageblock_order __read_mostly;
- #endif
- 
- static void __free_pages_ok(struct page *page, unsigned int order);
-@@ -441,7 +441,7 @@ static void free_compound_page(struct page *page)
- 	__free_pages_ok(page, compound_order(page));
- }
- 
--void prep_compound_page(struct page *page, unsigned long order)
-+void prep_compound_page(struct page *page, unsigned int order)
- {
- 	int i;
- 	int nr_pages = 1 << order;
-@@ -641,7 +641,7 @@ static inline void __free_one_page(struct page *page,
- 	unsigned long combined_idx;
- 	unsigned long uninitialized_var(buddy_idx);
- 	struct page *buddy;
--	int max_order = MAX_ORDER;
-+	unsigned int max_order = MAX_ORDER;
- 
- 	VM_BUG_ON(!zone_is_initialized(zone));
- 	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
-@@ -1436,7 +1436,7 @@ int move_freepages(struct zone *zone,
- 			  int migratetype)
- {
- 	struct page *page;
--	unsigned long order;
-+	unsigned int order;
- 	int pages_moved = 0;
- 
- #ifndef CONFIG_HOLES_IN_ZONE
-@@ -1550,7 +1550,7 @@ static bool can_steal_fallback(unsigned int order, int start_mt)
- static void steal_suitable_fallback(struct zone *zone, struct page *page,
- 							  int start_type)
- {
--	int current_order = page_order(page);
-+	unsigned int current_order = page_order(page);
- 	int pages;
- 
- 	/* Take ownership for orders >= pageblock_order */
-@@ -2657,7 +2657,7 @@ static DEFINE_RATELIMIT_STATE(nopage_rs,
- 		DEFAULT_RATELIMIT_INTERVAL,
- 		DEFAULT_RATELIMIT_BURST);
- 
--void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
-+void warn_alloc_failed(gfp_t gfp_mask, unsigned int order, const char *fmt, ...)
- {
- 	unsigned int filter = SHOW_MEM_FILTER_NODES;
- 
-@@ -2691,7 +2691,7 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
- 		va_end(args);
- 	}
- 
--	pr_warn("%s: page allocation failure: order:%d, mode:0x%x\n",
-+	pr_warn("%s: page allocation failure: order:%u, mode:0x%x\n",
- 		current->comm, order, gfp_mask);
- 
- 	dump_stack();
-@@ -3450,7 +3450,8 @@ void free_kmem_pages(unsigned long addr, unsigned int order)
- 	}
- }
- 
--static void *make_alloc_exact(unsigned long addr, unsigned order, size_t size)
-+static void *make_alloc_exact(unsigned long addr, unsigned int order,
-+		size_t size)
- {
- 	if (addr) {
- 		unsigned long alloc_end = addr + (PAGE_SIZE << order);
-@@ -3502,7 +3503,7 @@ EXPORT_SYMBOL(alloc_pages_exact);
+@@ -424,15 +424,15 @@ out:
+ /*
+  * Higher-order pages are called "compound pages".  They are structured thusly:
+  *
+- * The first PAGE_SIZE page is called the "head page".
++ * The first PAGE_SIZE page is called the "head page" and have PG_head set.
+  *
+- * The remaining PAGE_SIZE pages are called "tail pages".
++ * The remaining PAGE_SIZE pages are called "tail pages". PageTail() is encoded
++ * in bit 0 of page->compound_head. The rest of bits is pointer to head page.
+  *
+- * All pages have PG_compound set.  All tail pages have their ->first_page
+- * pointing at the head page.
++ * The first tail page's ->compound_dtor holds the offset in array of compound
++ * page destructors. See compound_page_dtors.
+  *
+- * The first tail page's ->lru.next holds the address of the compound page's
+- * put_page() function.  Its ->lru.prev holds the order of allocation.
++ * The first tail page's ->compound_order holds the order of allocation.
+  * This usage means that zero-order pages may not be compound.
   */
- void * __meminit alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask)
- {
--	unsigned order = get_order(size);
-+	unsigned int order = get_order(size);
- 	struct page *p = alloc_pages_node(nid, gfp_mask, order);
- 	if (!p)
- 		return NULL;
-@@ -3804,7 +3805,8 @@ void show_free_areas(unsigned int filter)
+ 
+@@ -452,10 +452,7 @@ void prep_compound_page(struct page *page, unsigned long order)
+ 	for (i = 1; i < nr_pages; i++) {
+ 		struct page *p = page + i;
+ 		set_page_count(p, 0);
+-		p->first_page = page;
+-		/* Make sure p->first_page is always valid for PageTail() */
+-		smp_wmb();
+-		__SetPageTail(p);
++		set_compound_head(p, page);
  	}
+ }
  
- 	for_each_populated_zone(zone) {
--		unsigned long nr[MAX_ORDER], flags, order, total = 0;
-+		unsigned int order;
-+		unsigned long nr[MAX_ORDER], flags, total = 0;
- 		unsigned char types[MAX_ORDER];
+@@ -830,17 +827,24 @@ static void free_one_page(struct zone *zone,
  
- 		if (skip_free_areas_node(filter, zone_to_nid(zone)))
-@@ -4153,7 +4155,7 @@ static void build_zonelists(pg_data_t *pgdat)
- 	nodemask_t used_mask;
- 	int local_node, prev_node;
- 	struct zonelist *zonelist;
--	int order = current_zonelist_order;
-+	unsigned int order = current_zonelist_order;
- 
- 	/* initialize zonelists */
- 	for (i = 0; i < MAX_ZONELISTS; i++) {
-@@ -6818,7 +6820,8 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 		       unsigned migratetype)
+ static int free_tail_pages_check(struct page *head_page, struct page *page)
  {
- 	unsigned long outer_start, outer_end;
--	int ret = 0, order;
-+	unsigned int order;
-+	int ret = 0;
+-	if (!IS_ENABLED(CONFIG_DEBUG_VM))
+-		return 0;
++	int ret = 1;
++
++	if (!IS_ENABLED(CONFIG_DEBUG_VM)) {
++		ret = 0;
++		goto out;
++	}
+ 	if (unlikely(!PageTail(page))) {
+ 		bad_page(page, "PageTail not set", 0);
+-		return 1;
++		goto out;
+ 	}
+-	if (unlikely(page->first_page != head_page)) {
+-		bad_page(page, "first_page not consistent", 0);
+-		return 1;
++	if (unlikely(compound_head(page) != head_page)) {
++		bad_page(page, "compound_head not consistent", 0);
++		goto out;
+ 	}
+-	return 0;
++	ret = 0;
++out:
++	clear_compound_head(page);
++	return ret;
+ }
  
- 	struct compact_control cc = {
- 		.nr_migratepages = 0,
+ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+diff --git a/mm/swap.c b/mm/swap.c
+index a3a0a2f1f7c3..faa9e1687dea 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -200,7 +200,7 @@ out_put_single:
+ 				__put_single_page(page);
+ 			return;
+ 		}
+-		VM_BUG_ON_PAGE(page_head != page->first_page, page);
++		VM_BUG_ON_PAGE(page_head != compound_head(page), page);
+ 		/*
+ 		 * We can release the refcount taken by
+ 		 * get_page_unless_zero() now that
+@@ -261,7 +261,7 @@ static void put_compound_page(struct page *page)
+ 	 *  Case 3 is possible, as we may race with
+ 	 *  __split_huge_page_refcount tearing down a THP page.
+ 	 */
+-	page_head = compound_head_by_tail(page);
++	page_head = compound_head(page);
+ 	if (!__compound_tail_refcounted(page_head))
+ 		put_unrefcounted_compound_page(page_head, page);
+ 	else
 -- 
 2.5.0
 
