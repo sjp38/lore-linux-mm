@@ -1,114 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EAE26B0255
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 18:57:10 -0400 (EDT)
-Received: by igui7 with SMTP id i7so91778464igu.0
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 15:57:10 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id be5si613189igb.82.2015.08.18.15.57.09
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id EC1656B0038
+	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 22:20:43 -0400 (EDT)
+Received: by igfj19 with SMTP id j19so94861504igf.1
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 19:20:43 -0700 (PDT)
+Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
+        by mx.google.com with ESMTPS id s20si13550445ioi.117.2015.08.18.19.20.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Aug 2015 15:57:09 -0700 (PDT)
-Date: Tue, 18 Aug 2015 15:57:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: mmap: Simplify the failure return working flow
-Message-Id: <20150818155708.8d10dac3736d547083c44500@linux-foundation.org>
-In-Reply-To: <BLU436-SMTP37E3EE1A24E7A3EEEDBFA7B9780@phx.gbl>
-References: <BLU436-SMTP37E3EE1A24E7A3EEEDBFA7B9780@phx.gbl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 18 Aug 2015 19:20:43 -0700 (PDT)
+Received: by igui7 with SMTP id i7so94442912igu.0
+        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 19:20:43 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150818153818.cab58a99f60113c2aca2f006@linux-foundation.org>
+References: <1439928361-31294-1-git-send-email-ddstreet@ieee.org> <20150818153818.cab58a99f60113c2aca2f006@linux-foundation.org>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Tue, 18 Aug 2015 22:20:03 -0400
+Message-ID: <CALZtONCjUgUWxO6=SYui-cWE2m4hi9cJ-jKPHaRha707NimB0w@mail.gmail.com>
+Subject: Re: [PATCH 1/2] zpool: define and use max type length
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <xili_gchen_5257@hotmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, riel@redhat.com, Michal Hocko <mhocko@suse.cz>, sasha.levin@oracle.com, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, kbuild test robot <fengguang.wu@intel.com>
 
-On Wed, 19 Aug 2015 06:27:58 +0800 Chen Gang <xili_gchen_5257@hotmail.com> wrote:
+On Tue, Aug 18, 2015 at 6:38 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Tue, 18 Aug 2015 16:06:00 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+>
+>> Add ZPOOL_MAX_TYPE_NAME define, and change zpool_driver *type field to
+>> type[ZPOOL_MAX_TYPE_NAME].  Remove redundant type field from struct zpool
+>> and use zpool->driver->type instead.
+>>
+>> The define will be used by zswap for its zpool param type name length.
+>>
+>
+> Patchset is fugly.  All this putzing around with fixed-length strings,
+> worrying about overflow and is-it-null-terminated-or-isnt-it.  Shudder.
+>
+> It's much better to use variable-length strings everywhere.  We're not
+> operating in contexts which can't use kmalloc, we're not
+> performance-intensive and these strings aren't being written to
+> fixed-size fields on disk or anything.  Why do we need any fixed-length
+> strings?
+>
+> IOW, why not just replace that alloca with a kstrdup()?
 
-> From: Chen Gang <xili_gchen_5257@hotmail.com>
+for the zpool drivers (zbud and zsmalloc), the type is actually just
+statically assigned, e.g. .type = "zbud", so you're right the *type is
+better than type[].  I'll update it.
 
-As sent, this patch is From:you@hotmail and Signed-off-by:you@gmail.
+>
+>> --- a/include/linux/zpool.h
+>> +++ b/include/linux/zpool.h
+>>
+>> ...
+>>
+>> @@ -79,7 +77,7 @@ static struct zpool_driver *zpool_get_driver(char *type)
+>>
+>>       spin_lock(&drivers_lock);
+>>       list_for_each_entry(driver, &drivers_head, list) {
+>> -             if (!strcmp(driver->type, type)) {
+>> +             if (!strncmp(driver->type, type, ZPOOL_MAX_TYPE_NAME)) {
+>
+> Why strncmp?  Please tell me these strings are always null-terminated.
 
-This is peculiar.  I'm assuming that it should have been From:you@gmail and
-I have made that change to my copy of the patch.
+Yep, you're right.  The driver->type always is, and the type param is
+passed in from sysfs, which we can rely on to be null-terminated.
 
-You can do this yourself by putting an explicit From: line at the start
-of the changelog.
-
-
-> @@ -2958,23 +2957,23 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
->  		*need_rmap_locks = (new_vma->vm_pgoff <= vma->vm_pgoff);
->  	} else {
->  		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
-> -		if (new_vma) {
-> -			*new_vma = *vma;
-> -			new_vma->vm_start = addr;
-> -			new_vma->vm_end = addr + len;
-> -			new_vma->vm_pgoff = pgoff;
-> -			if (vma_dup_policy(vma, new_vma))
-> -				goto out_free_vma;
-> -			INIT_LIST_HEAD(&new_vma->anon_vma_chain);
-> -			if (anon_vma_clone(new_vma, vma))
-> -				goto out_free_mempol;
-> -			if (new_vma->vm_file)
-> -				get_file(new_vma->vm_file);
-> -			if (new_vma->vm_ops && new_vma->vm_ops->open)
-> -				new_vma->vm_ops->open(new_vma);
-> -			vma_link(mm, new_vma, prev, rb_link, rb_parent);
-> -			*need_rmap_locks = false;
-> -		}
-> +		if (!new_vma)
-> +			return NULL;
-> +		*new_vma = *vma;
-> +		new_vma->vm_start = addr;
-> +		new_vma->vm_end = addr + len;
-> +		new_vma->vm_pgoff = pgoff;
-> +		if (vma_dup_policy(vma, new_vma))
-> +			goto out_free_vma;
-> +		INIT_LIST_HEAD(&new_vma->anon_vma_chain);
-> +		if (anon_vma_clone(new_vma, vma))
-> +			goto out_free_mempol;
-> +		if (new_vma->vm_file)
-> +			get_file(new_vma->vm_file);
-> +		if (new_vma->vm_ops && new_vma->vm_ops->open)
-> +			new_vma->vm_ops->open(new_vma);
-> +		vma_link(mm, new_vma, prev, rb_link, rb_parent);
-> +		*need_rmap_locks = false;
->  	}
->  	return new_vma;
-
-Embedding a return deep inside the function isn't good.  It can lead to
-resource leaks, locking leaks etc as the code evolves.  This is the
-main reason why the kernel uses goto, IMO: single-entry, single-exit.
-
-So,
-
---- a/mm/mmap.c~mm-mmap-simplify-the-failure-return-working-flow-fix
-+++ a/mm/mmap.c
-@@ -2952,7 +2952,7 @@ struct vm_area_struct *copy_vma(struct v
- 	} else {
- 		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
- 		if (!new_vma)
--			return NULL;
-+			goto out;
- 		*new_vma = *vma;
- 		new_vma->vm_start = addr;
- 		new_vma->vm_end = addr + len;
-@@ -2971,10 +2971,11 @@ struct vm_area_struct *copy_vma(struct v
- 	}
- 	return new_vma;
- 
-- out_free_mempol:
-+out_free_mempol:
- 	mpol_put(vma_policy(new_vma));
-- out_free_vma:
-+out_free_vma:
- 	kmem_cache_free(vm_area_cachep, new_vma);
-+out:
- 	return NULL;
- }
- 
-_
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
