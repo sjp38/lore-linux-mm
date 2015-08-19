@@ -1,103 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E9CCF6B0253
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 17:33:49 -0400 (EDT)
-Received: by qkep139 with SMTP id p139so7594602qke.3
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 14:33:49 -0700 (PDT)
-Received: from prod-mail-xrelay06.akamai.com (prod-mail-xrelay06.akamai.com. [96.6.114.98])
-        by mx.google.com with ESMTP id n189si3576790qhb.34.2015.08.19.14.33.48
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 58DCE6B0038
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 18:38:13 -0400 (EDT)
+Received: by pawq9 with SMTP id q9so12450529paw.3
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 15:38:13 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id kn4si3850273pdb.200.2015.08.19.15.38.12
         for <linux-mm@kvack.org>;
-        Wed, 19 Aug 2015 14:33:48 -0700 (PDT)
-Date: Wed, 19 Aug 2015 17:33:45 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH v7 3/6] mm: Introduce VM_LOCKONFAULT
-Message-ID: <20150819213345.GB4536@akamai.com>
-References: <1439097776-27695-1-git-send-email-emunson@akamai.com>
- <1439097776-27695-4-git-send-email-emunson@akamai.com>
- <20150812115909.GA5182@dhcp22.suse.cz>
+        Wed, 19 Aug 2015 15:38:12 -0700 (PDT)
+From: "Patil, Kiran" <kiran.patil@intel.com>
+Subject: RE: [Intel-wired-lan] [Patch V3 5/9] i40e: Use numa_mem_id() to
+ better	support memoryless node
+Date: Wed, 19 Aug 2015 22:38:09 +0000
+Message-ID: <4197C471DCF8714FBA1FE32565271C148FFFF4D3@ORSMSX103.amr.corp.intel.com>
+References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
+ <1439781546-7217-6-git-send-email-jiang.liu@linux.intel.com>
+In-Reply-To: <1439781546-7217-6-git-send-email-jiang.liu@linux.intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="gj572EiMnwbLXET9"
-Content-Disposition: inline
-In-Reply-To: <20150812115909.GA5182@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter
+ Zijlstra <peterz@infradead.org>, "Wysocki, Rafael J" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, "Kirsher, Jeffrey T" <jeffrey.t.kirsher@intel.com>, "Brandeburg, Jesse" <jesse.brandeburg@intel.com>, "Nelson, Shannon" <shannon.nelson@intel.com>, "Wyborny, Carolyn" <carolyn.wyborny@intel.com>, "Skidmore, Donald C" <donald.c.skidmore@intel.com>, "Vick, Matthew" <matthew.vick@intel.com>, "Ronciak, John" <john.ronciak@intel.com>, "Williams, Mitch A" <mitch.a.williams@intel.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-hotplug@vger.kernel.org" <linux-hotplug@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "intel-wired-lan@lists.osuosl.org" <intel-wired-lan@lists.osuosl.org>
 
+Acked-by: Kiran Patil <kiran.patil@intel.com>
 
---gj572EiMnwbLXET9
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+-----Original Message-----
+From: Intel-wired-lan [mailto:intel-wired-lan-bounces@lists.osuosl.org] On =
+Behalf Of Jiang Liu
+Sent: Sunday, August 16, 2015 8:19 PM
+To: Andrew Morton; Mel Gorman; David Rientjes; Mike Galbraith; Peter Zijlst=
+ra; Wysocki, Rafael J; Tang Chen; Tejun Heo; Kirsher, Jeffrey T; Brandeburg=
+, Jesse; Nelson, Shannon; Wyborny, Carolyn; Skidmore, Donald C; Vick, Matth=
+ew; Ronciak, John; Williams, Mitch A
+Cc: Luck, Tony; netdev@vger.kernel.org; x86@kernel.org; linux-hotplug@vger.=
+kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; intel-wired-l=
+an@lists.osuosl.org; Jiang Liu
+Subject: [Intel-wired-lan] [Patch V3 5/9] i40e: Use numa_mem_id() to better=
+ support memoryless node
 
-On Wed, 12 Aug 2015, Michal Hocko wrote:
+Function i40e_clean_rx_irq() tries to reuse memory pages allocated from the=
+ nearest node. To better support memoryless node, use
+numa_mem_id() instead of numa_node_id() to get the nearest node with memory=
+.
 
-> On Sun 09-08-15 01:22:53, Eric B Munson wrote:
-> > The cost of faulting in all memory to be locked can be very high when
-> > working with large mappings.  If only portions of the mapping will be
-> > used this can incur a high penalty for locking.
-> >=20
-> > For the example of a large file, this is the usage pattern for a large
-> > statical language model (probably applies to other statical or graphical
-> > models as well).  For the security example, any application transacting
-> > in data that cannot be swapped out (credit card data, medical records,
-> > etc).
-> >=20
-> > This patch introduces the ability to request that pages are not
-> > pre-faulted, but are placed on the unevictable LRU when they are finally
-> > faulted in.  The VM_LOCKONFAULT flag will be used together with
-> > VM_LOCKED and has no effect when set without VM_LOCKED.
->=20
-> I do not like this very much to be honest. We have only few bits
-> left there and it seems this is not really necessary. I thought that
-> LOCKONFAULT acts as a modifier to the mlock call to tell whether to
-> poppulate or not. The only place we have to persist it is
-> mlockall(MCL_FUTURE) AFAICS. And this can be handled by an additional
-> field in the mm_struct. This could be handled at __mm_populate level.
-> So unless I am missing something this would be much more easier
-> in the end we no new bit in VM flags would be necessary.
->=20
-> This would obviously mean that the LOCKONFAULT couldn't be exported to
-> the userspace but is this really necessary?
+This change should only affect performance.
 
-Sorry for the latency here, I was on vacation and am now at plumbers.
+Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
+---
+ drivers/net/ethernet/intel/i40e/i40e_txrx.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-I am not sure that growing the mm_struct by another flags field instead
-of using available bits in the vm_flags is the right choice.  After this
-patch, we still have 3 free bits on 32 bit architectures (2 after the
-userfaultfd set IIRC).  The group which asked for this feature here
-wants the ability to distinguish between LOCKED and LOCKONFAULT regions
-and without the VMA flag there isn't a way to do that.
+diff --git a/drivers/net/ethernet/intel/i40e/i40e_txrx.c b/drivers/net/ethe=
+rnet/intel/i40e/i40e_txrx.c
+index 9a4f2bc70cd2..a8f618cb8eb0 100644
+--- a/drivers/net/ethernet/intel/i40e/i40e_txrx.c
++++ b/drivers/net/ethernet/intel/i40e/i40e_txrx.c
+@@ -1516,7 +1516,7 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_=
+ring, int budget)
+ 	unsigned int total_rx_bytes =3D 0, total_rx_packets =3D 0;
+ 	u16 rx_packet_len, rx_header_len, rx_sph, rx_hbo;
+ 	u16 cleaned_count =3D I40E_DESC_UNUSED(rx_ring);
+-	const int current_node =3D numa_node_id();
++	const int current_node =3D numa_mem_id();
+ 	struct i40e_vsi *vsi =3D rx_ring->vsi;
+ 	u16 i =3D rx_ring->next_to_clean;
+ 	union i40e_rx_desc *rx_desc;
+--
+1.7.10.4
 
-Do we know that these last two open flags are needed right now or is
-this speculation that they will be and that none of the other VMA flags
-can be reclaimed?
-
-
---gj572EiMnwbLXET9
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAEBAgAGBQJV1PY5AAoJELbVsDOpoOa9zsoP/3ahfihft1e+paDsTj5WiDeT
-StCcyumPdtkaY2lSmWziNJuddxSwuM+Epe+EUlnwSgS9H8GVd+ri4B/ULvVtE9qJ
-ilAHMTgWJScSODwYaI6n2NUn2ot2ONoQJTcdDx8YF5XiwDLeffFGe6roNIHDa+i2
-XvO3RutK3P3EbNx7Src92dYEmLlF/53ralTRBHkBQLAvVQx+bMCgL4G0Xmc938J+
-kB1IpZzZtl54zsVNNE2YUcrvQeRdLOSkevztFbOfS8bmFpN2vFIu1AjdVnKvm5Ql
-CwY84a9E3vDskCP+gY4Xy9/imrUUsp1B9lzPqbybgYcKULaxs8KFdS9BEhAaGbV2
-MmGCQ220uAaJDzWV1sw1VU8c51l7fwV6+gXnJPEVM5cMCoelewbQFnx9MF+uQ9Hx
-39z2UGBsMvsk8l8zI/bXmNaRyhnVhFo2Vle0Z0ugJBMVeOwt1otNIBN5rHIUYyBd
-7zek6EIPQm0oh6vKLbf7cqEXufl2v1fP09IFXt0oE7HoYipJV9iJ4r2flIXWoKcn
-bpxpvdvPZchZju79BWIGpmUbMIEd98GjeypByKJttD/I7+RB2WgT1nirDqsWDKtp
-1/FKjqDFP6ER9xUHIjbqgp1iYNveOmrx/r2toLoJiKX5C7zt5I4XYMQNy3j0GCPZ
-NElakxuNYzvrqmTPF+WW
-=BK2n
------END PGP SIGNATURE-----
-
---gj572EiMnwbLXET9--
+_______________________________________________
+Intel-wired-lan mailing list
+Intel-wired-lan@lists.osuosl.org
+http://lists.osuosl.org/mailman/listinfo/intel-wired-lan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
