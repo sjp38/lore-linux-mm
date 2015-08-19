@@ -1,75 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id EC1656B0038
-	for <linux-mm@kvack.org>; Tue, 18 Aug 2015 22:20:43 -0400 (EDT)
-Received: by igfj19 with SMTP id j19so94861504igf.1
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 19:20:43 -0700 (PDT)
-Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
-        by mx.google.com with ESMTPS id s20si13550445ioi.117.2015.08.18.19.20.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Aug 2015 19:20:43 -0700 (PDT)
-Received: by igui7 with SMTP id i7so94442912igu.0
-        for <linux-mm@kvack.org>; Tue, 18 Aug 2015 19:20:43 -0700 (PDT)
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA3B6B0038
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 03:19:05 -0400 (EDT)
+Received: by pdbfa8 with SMTP id fa8so77539130pdb.1
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 00:19:05 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id hj4si34766893pbb.12.2015.08.19.00.19.04
+        for <linux-mm@kvack.org>;
+        Wed, 19 Aug 2015 00:19:04 -0700 (PDT)
+Subject: Re: [Patch V3 2/9] kernel/profile.c: Replace cpu_to_mem() with
+ cpu_to_node()
+References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
+ <1439781546-7217-3-git-send-email-jiang.liu@linux.intel.com>
+ <alpine.DEB.2.10.1508171730260.5527@chino.kir.corp.google.com>
+From: Jiang Liu <jiang.liu@linux.intel.com>
+Message-ID: <55D42DE3.2040506@linux.intel.com>
+Date: Wed, 19 Aug 2015 15:18:59 +0800
 MIME-Version: 1.0
-In-Reply-To: <20150818153818.cab58a99f60113c2aca2f006@linux-foundation.org>
-References: <1439928361-31294-1-git-send-email-ddstreet@ieee.org> <20150818153818.cab58a99f60113c2aca2f006@linux-foundation.org>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 18 Aug 2015 22:20:03 -0400
-Message-ID: <CALZtONCjUgUWxO6=SYui-cWE2m4hi9cJ-jKPHaRha707NimB0w@mail.gmail.com>
-Subject: Re: [PATCH 1/2] zpool: define and use max type length
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <alpine.DEB.2.10.1508171730260.5527@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, kbuild test robot <fengguang.wu@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Tue, Aug 18, 2015 at 6:38 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 18 Aug 2015 16:06:00 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
->
->> Add ZPOOL_MAX_TYPE_NAME define, and change zpool_driver *type field to
->> type[ZPOOL_MAX_TYPE_NAME].  Remove redundant type field from struct zpool
->> and use zpool->driver->type instead.
+On 2015/8/18 8:31, David Rientjes wrote:
+> On Mon, 17 Aug 2015, Jiang Liu wrote:
+> 
+>> Function profile_cpu_callback() allocates memory without specifying
+>> __GFP_THISNODE flag, so replace cpu_to_mem() with cpu_to_node()
+>> because cpu_to_mem() may cause suboptimal memory allocation if
+>> there's no free memory on the node returned by cpu_to_mem().
 >>
->> The define will be used by zswap for its zpool param type name length.
->>
->
-> Patchset is fugly.  All this putzing around with fixed-length strings,
-> worrying about overflow and is-it-null-terminated-or-isnt-it.  Shudder.
->
-> It's much better to use variable-length strings everywhere.  We're not
-> operating in contexts which can't use kmalloc, we're not
-> performance-intensive and these strings aren't being written to
-> fixed-size fields on disk or anything.  Why do we need any fixed-length
-> strings?
->
-> IOW, why not just replace that alloca with a kstrdup()?
+> 
+> Why is cpu_to_node() better with regard to free memory and NUMA locality?
+Hi David,
+	Thanks for review. This is a special case pointed out by Tejun.
+For the imagined topology, A<->B<->X<->C<->D, where A, B, C, D has
+memory and X is memoryless.
+Possible fallback lists are:
+B: [ B, A, C, D]
+X: [ B, C, A, D]
+C: [ C, D, B, A]
 
-for the zpool drivers (zbud and zsmalloc), the type is actually just
-statically assigned, e.g. .type = "zbud", so you're right the *type is
-better than type[].  I'll update it.
+cpu_to_mem(X) will either return B or C. Let's assume it returns B.
+Then we will use "B: [ B, A, C, D]" to allocate memory for X, which
+is not the optimal fallback list for X. And cpu_to_node(X) returns
+X, and "X: [ B, C, A, D]" is the optimal fallback list for X.
+Thanks!
+Gerry
 
->
->> --- a/include/linux/zpool.h
->> +++ b/include/linux/zpool.h
+> 
+>> It's safe to use cpu_to_mem() because build_all_zonelists() also
+>> builds suitable fallback zonelist for memoryless node.
 >>
->> ...
->>
->> @@ -79,7 +77,7 @@ static struct zpool_driver *zpool_get_driver(char *type)
->>
->>       spin_lock(&drivers_lock);
->>       list_for_each_entry(driver, &drivers_head, list) {
->> -             if (!strcmp(driver->type, type)) {
->> +             if (!strncmp(driver->type, type, ZPOOL_MAX_TYPE_NAME)) {
->
-> Why strncmp?  Please tell me these strings are always null-terminated.
+> 
+> Why reference that cpu_to_mem() is safe if you're changing away from it?
+Sorry, it should be cpu_to_node() instead of cpu_to_mem().
 
-Yep, you're right.  The driver->type always is, and the type param is
-passed in from sysfs, which we can rely on to be null-terminated.
-
->
->
+> 
+>> Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
+>> ---
+>>  kernel/profile.c |    2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/kernel/profile.c b/kernel/profile.c
+>> index a7bcd28d6e9f..d14805bdcc4c 100644
+>> --- a/kernel/profile.c
+>> +++ b/kernel/profile.c
+>> @@ -336,7 +336,7 @@ static int profile_cpu_callback(struct notifier_block *info,
+>>  	switch (action) {
+>>  	case CPU_UP_PREPARE:
+>>  	case CPU_UP_PREPARE_FROZEN:
+>> -		node = cpu_to_mem(cpu);
+>> +		node = cpu_to_node(cpu);
+>>  		per_cpu(cpu_profile_flip, cpu) = 0;
+>>  		if (!per_cpu(cpu_profile_hits, cpu)[1]) {
+>>  			page = alloc_pages_exact_node(node,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
