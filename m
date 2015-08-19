@@ -1,57 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id AB4E86B0038
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 08:26:44 -0400 (EDT)
-Received: by wijp15 with SMTP id p15so125380749wij.0
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 05:26:44 -0700 (PDT)
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
-        by mx.google.com with ESMTPS id fn5si1713455wib.71.2015.08.19.05.26.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Aug 2015 05:26:43 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so118793715wic.1
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 05:26:41 -0700 (PDT)
-Date: Wed, 19 Aug 2015 14:26:40 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC -v2 7/8] btrfs: Prevent from early transaction abort
-Message-ID: <20150819122640.GA8541@dhcp22.suse.cz>
-References: <1438768284-30927-1-git-send-email-mhocko@kernel.org>
- <1438768284-30927-8-git-send-email-mhocko@kernel.org>
- <20150818104031.GF5033@dhcp22.suse.cz>
- <20150818171144.GA5206@ret.DHCP.TheFacebook.com>
- <20150818172914.GO5033@dhcp22.suse.cz>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D0B876B0038
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 08:45:20 -0400 (EDT)
+Received: by pawq9 with SMTP id q9so2630325paw.3
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 05:45:20 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id jv9si1006560pbb.201.2015.08.19.05.45.19
+        for <linux-mm@kvack.org>;
+        Wed, 19 Aug 2015 05:45:19 -0700 (PDT)
+Subject: Re: [Patch V3 3/9] sgi-xp: Replace cpu_to_node() with cpu_to_mem() to
+ support memoryless node
+References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
+ <1439781546-7217-4-git-send-email-jiang.liu@linux.intel.com>
+ <CAPp3RGoo3ZPTApwezua01Adjt1JaBraCTUCF0BcN=SKJfQO0iQ@mail.gmail.com>
+From: Jiang Liu <jiang.liu@linux.intel.com>
+Message-ID: <55D47A57.3030702@linux.intel.com>
+Date: Wed, 19 Aug 2015 20:45:11 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150818172914.GO5033@dhcp22.suse.cz>
+In-Reply-To: <CAPp3RGoo3ZPTApwezua01Adjt1JaBraCTUCF0BcN=SKJfQO0iQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Mason <clm@fb.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, Jan Kara <jack@suse.cz>
+To: Robin Holt <robinmholt@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Cliff Whickman <cpw@sgi.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, x86@kernel.org
 
-On Tue 18-08-15 19:29:14, Michal Hocko wrote:
-> On Tue 18-08-15 13:11:44, Chris Mason wrote:
-> > On Tue, Aug 18, 2015 at 12:40:32PM +0200, Michal Hocko wrote:
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > Btrfs relies on GFP_NOFS allocation when commiting the transaction but
-> > > since "mm: page_alloc: do not lock up GFP_NOFS allocations upon OOM"
-> > > those allocations are allowed to fail which can lead to a pre-mature
-> > > transaction abort:
-> > 
-> > I can either put the btrfs nofail ones on my pull for Linus, or you can
-> > add my sob and send as one unit.  Just let me know how you'd rather do
-> > it.
+On 2015/8/19 19:52, Robin Holt wrote:
+> On Sun, Aug 16, 2015 at 10:19 PM, Jiang Liu <jiang.liu@linux.intel.com> wrote:
+>> Function xpc_create_gru_mq_uv() allocates memory with __GFP_THISNODE
+>> flag set, which may cause permanent memory allocation failure on
+>> memoryless node. So replace cpu_to_node() with cpu_to_mem() to better
+>> support memoryless node. For node with memory, cpu_to_mem() is the same
+>> as cpu_to_node().
+>>
+>> Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
+>> ---
+>>  drivers/misc/sgi-xp/xpc_uv.c |    2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/drivers/misc/sgi-xp/xpc_uv.c b/drivers/misc/sgi-xp/xpc_uv.c
+>> index 95c894482fdd..9210981c0d5b 100644
+>> --- a/drivers/misc/sgi-xp/xpc_uv.c
+>> +++ b/drivers/misc/sgi-xp/xpc_uv.c
+>> @@ -238,7 +238,7 @@ xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
+>>
+>>         mq->mmr_blade = uv_cpu_to_blade_id(cpu);
+>>
+>> -       nid = cpu_to_node(cpu);
+>> +       nid = cpu_to_mem(cpu);
 > 
-> OK, I will rephrase the changelogs (tomorrow) to not refer to an
-> unmerged patch and would appreciate if you can take them and route them
-> through your tree. I will then drop them from my pile.
-
-Poste in a separate thread
-http://lkml.kernel.org/r/1439986661-15896-1-git-send-email-mhocko@kernel.org
--- 
-Michal Hocko
-SUSE Labs
+> I would recommend rejecting this.  First, SGI's UV system does not and
+> can not support memory-less nodes.  Additionally the hardware _REALLY_
+> wants the memory to be local to the CPU.  We will register this memory
+> region with the node firmware.  That will set the hardware up to watch
+> this memory block and raise an IRQ targeting the registered CPU when
+> anything is written into the memory block.  This is all part of how
+> cross-partition communications expects to work.
+> 
+> Additionally, the interrupt handler will read the memory region, so
+> having node-local memory is extremely helpful.
+Hi Robin,
+	Thanks for review, I will drop this patch in next version.
+Actually, if SGI UV systems don't support memoryless node, cpu_to_mem()
+is the same as cpu_to_node().
+Thanks!
+Gerry
+> 
+> Thanks,
+> Robin
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
