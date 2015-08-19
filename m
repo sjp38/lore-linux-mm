@@ -1,73 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 54A1B6B0038
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 11:45:00 -0400 (EDT)
-Received: by pawq9 with SMTP id q9so5783998paw.3
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 08:45:00 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id oq6si1816731pac.156.2015.08.19.08.44.58
-        for <linux-mm@kvack.org>;
-        Wed, 19 Aug 2015 08:44:59 -0700 (PDT)
-Message-ID: <55D4A462.3070505@internode.on.net>
-Date: Thu, 20 Aug 2015 01:14:34 +0930
-From: Arthur Marsh <arthur.marsh@internode.on.net>
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EAF76B0253
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 11:56:51 -0400 (EDT)
+Received: by igfj19 with SMTP id j19so9453524igf.1
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 08:56:51 -0700 (PDT)
+Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
+        by mx.google.com with ESMTPS id h16si922370ioh.200.2015.08.19.08.56.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Aug 2015 08:56:50 -0700 (PDT)
+Received: by iodv127 with SMTP id v127so13982489iod.3
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 08:56:50 -0700 (PDT)
 MIME-Version: 1.0
-Subject: difficult to pinpoint exhaustion of swap between 4.2.0-rc6 and 4.2.0-rc7
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <55D49A9F.7080105@suse.cz>
+References: <1439924830-29275-1-git-send-email-ddstreet@ieee.org>
+ <55D48C5E.7010004@suse.cz> <CALZtONB9LaMhYZNk7_aHp3iGigHLAmZ1uQLSKEni94RNOAKUSg@mail.gmail.com>
+ <55D49A9F.7080105@suse.cz>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 19 Aug 2015 11:56:10 -0400
+Message-ID: <CALZtONDfPBTJNjf+RZxFWtE_qX_dTaxX5c2tx9_D7wuuvju-CQ@mail.gmail.com>
+Subject: Re: [PATCH] zswap: update docs for runtime-changeable attributes
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Jonathan Corbet <corbet@lwn.net>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Hi, I've found that the Linus' git head kernel has had some unwelcome 
-behaviour where chromium browser would exhaust all swap space in the 
-course of a few hours. The behaviour appeared before the release of 
-4.2.0-rc7.
+On Wed, Aug 19, 2015 at 11:02 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 08/19/2015 04:21 PM, Dan Streetman wrote:
+>> On Wed, Aug 19, 2015 at 10:02 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>>> On 08/18/2015 09:07 PM, Dan Streetman wrote:
+>>>> +pages are freed.  The pool is not preallocated.  By default, a zpool of type
+>>>> +zbud is created, but it can be selected at boot time by setting the "zpool"
+>>>> +attribute, e.g. zswap.zpool=zbud.  It can also be changed at runtime using the
+>>>> +sysfs "zpool" attribute, e.g.
+>>>> +
+>>>> +echo zbud > /sys/module/zswap/parameters/zpool
+>>>
+>>> What exactly happens if zswap is already being used and has allocated pages in
+>>> one type of pool, and you're changing it to the other one?
+>>
+>> zswap has a rcu list where each entry contains a specific compressor
+>> and zpool.  When either the compressor or zpool is changed, a new
+>> entry is created with a new compressor and pool and put at the front
+>> of the list.  New pages always use the "current" (first) entry.  Any
+>> old (unused) entries are freed whenever all the pages they contain are
+>> removed.
+>>
+>> So when the compressor or zpool is changed, the only thing that
+>> happens is zswap creates a new compressor and zpool and places it at
+>> the front of the list, for new pages to use.  No existing pages are
+>> touched.
+>
+> Ugh that's madness. Still, a documented madness is better than an undocumented one.
 
-This does not happen with kernel 4.2.0-rc6.
+heh, i'm not sure why it's madness, the alternative of
+uncompressing/recompressing all pages into the new zpool and/or with
+the new compressor seems much worse ;-)
 
-When I tried a git-bisect, the results where not conclusive due to the 
-problem taking over an hour to appear after booting, the closest I came 
-was around this commit (the actual problem may be a few commits either 
-side):
+>
+>>>
+>>>> The zsmalloc type zpool has a more
+>>>> +complex compressed page storage method, and it can achieve greater storage
+>>>> +densities.  However, zsmalloc does not implement compressed page eviction, so
+>>>> +once zswap fills it cannot evict the oldest page, it can only reject new pages.
+>>>
+>>> I still wonder why anyone would use zsmalloc with zswap given this limitation.
+>>> It seems only fine for zram which has no real swap as fallback. And even zbud
+>>> doesn't have any shrinker interface that would react to memory pressure, so
+>>> there's a possibility of premature OOM... sigh.
+>>
+>> for situations where zswap isn't expected to ever fill up, zsmalloc
+>> will outperform zbud, since it has higher density.
+>
+> But then you could just use zram? :)
 
-git bisect good
-4f258a46346c03fa0bbb6199ffaf4e1f9f599660 is the first bad commit
-commit 4f258a46346c03fa0bbb6199ffaf4e1f9f599660
-Author: Martin K. Petersen <martin.petersen@oracle.com>
-Date:   Tue Jun 23 12:13:59 2015 -0400
+well not *expected* to fill up doesn't mean it *won't* fill up :)
 
-     sd: Fix maximum I/O size for BLOCK_PC requests
+>
+>> i'd argue that neither zbud nor zsmalloc are responsible for reacting
+>> to memory pressure, they just store the pages.  It's zswap that has to
+>> limit its size, which it does with max_percent_pool.
+>
+> Yeah but it's zbud that tracks the aging via LRU and reacts to reclaim requests
+> from zswap when zswap hits the limit. Zswap could easily add a shrinker that
+> would relay this requests in response to memory pressure as well. However,
+> zsmalloc doesn't implement the reclaim, or LRU tracking.
 
-     Commit bcdb247c6b6a ("sd: Limit transfer length") clamped the maximum
-     size of an I/O request to the MAXIMUM TRANSFER LENGTH field in the 
-BLOCK
-     LIMITS VPD. This had the unfortunate effect of also limiting the 
-maximum
-     size of non-filesystem requests sent to the device through sg/bsg.
+I wrote a patch for zsmalloc reclaim a while ago:
 
-     Avoid using blk_queue_max_hw_sectors() and set the max_sectors queue
-     limit directly.
+https://lwn.net/Articles/611713/
 
-     Also update the comment in blk_limits_max_hw_sectors() to clarify that
-     max_hw_sectors defines the limit for the I/O controller only.
+however it didn't make it in, due to the lack of zsmalloc LRU, or any
+proven benefit to zsmalloc reclaim.
 
-     Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
-     Reported-by: Brian King <brking@linux.vnet.ibm.com>
-     Tested-by: Brian King <brking@linux.vnet.ibm.com>
-     Cc: stable@vger.kernel.org # 3.17+
-     Signed-off-by: James Bottomley <JBottomley@Odin.com>
+It's not really possible to add LRU to zsmalloc, by the nature of its
+design, using the struct page fields directly; there's no extra field
+to use as a lru entry.
 
-:040000 040000 fbd0519d9ee0a8f92a7dab9a9c6d7b7868974fba 
-b4cf554c568813704993538008aed5b704624679 M      block
-:040000 040000 f2630c903cd36ede2619d173f9d1ea0d725ea111 
-ff6b6f732afbf6f4b6b26a827c463de50f0e356c M      drivers
 
-Has anyone seen a similar problem?
-I can supply .config and other information if requested.
+>
+> One could also argue that aging should be tracked in zswap, and it would just
+> tell zbud/zmalloc to drop a specific compressed page. But that wouldn't reliably
+> translate into freeing of page frames...
+>
 
-Arthur.
+Yep, that was Minchan's suggestion as well, which I agree with,
+although that would also require a new api function to free the entire
+page that a single compressed page is in.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
