@@ -1,122 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D7BBB6B0038
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 01:26:25 -0400 (EDT)
-Received: by pdbmi9 with SMTP id mi9so9882163pdb.3
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 22:26:25 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id y9si5576542pdl.108.2015.08.19.22.26.23
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 387AC6B0038
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 01:59:59 -0400 (EDT)
+Received: by qgeb6 with SMTP id b6so21899372qge.3
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 22:59:59 -0700 (PDT)
+Received: from bgp253.corp-email.cn (bgp253.corp-email.cn. [112.65.243.253])
+        by mx.google.com with ESMTPS id l74si5703935qkh.56.2015.08.19.22.59.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 19 Aug 2015 22:26:24 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [linux-next:master 9078/9582]
- arch/arm64/include/asm/pgtable.h:238:0: warning: "HUGE_MAX_HSTATE" redefined
-Date: Thu, 20 Aug 2015 05:24:11 +0000
-Message-ID: <20150820052410.GA1233@hori1.linux.bs1.fc.nec.co.jp>
-References: <201508192138.toXxw84b%fengguang.wu@intel.com>
- <20150819143305.fc1fbb979fee6e9b60c59d3c@linux-foundation.org>
- <20150820010148.GA859@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20150820010148.GA859@hori1.linux.bs1.fc.nec.co.jp>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <677703E96AC70849963EC8B5A2F4AD8D@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 19 Aug 2015 22:59:57 -0700 (PDT)
+Subject: Re: [PATCH] Memory hot added,The memory can not been added to movable
+ zone
+References: <1439972306-50845-1-git-send-email-liuchangsheng@inspur.com>
+ <20150819165029.665b89d7ab3228185460172c@linux-foundation.org>
+From: Changsheng Liu <liuchangsheng@inspur.com>
+Message-ID: <55D56CA9.5020005@inspur.com>
+Date: Thu, 20 Aug 2015 13:59:05 +0800
 MIME-Version: 1.0
+In-Reply-To: <20150819165029.665b89d7ab3228185460172c@linux-foundation.org>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, "kbuild-all@01.org" <kbuild-all@01.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: liuchangsheng@inspur.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yanxiaofeng@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
 
-T24gVGh1LCBBdWcgMjAsIDIwMTUgYXQgMDE6MDE6NDhBTSArMDAwMCwgSG9yaWd1Y2hpIE5hb3lh
-KOWggOWPoyDnm7TkuZ8pIHdyb3RlOg0KPiBPbiBXZWQsIEF1ZyAxOSwgMjAxNSBhdCAwMjozMzow
-NVBNIC0wNzAwLCBBbmRyZXcgTW9ydG9uIHdyb3RlOg0KPiA+IE9uIFdlZCwgMTkgQXVnIDIwMTUg
-MjE6MzI6NDAgKzA4MDAga2J1aWxkIHRlc3Qgcm9ib3QgPGZlbmdndWFuZy53dUBpbnRlbC5jb20+
-IHdyb3RlOg0KPiA+IA0KPiA+ID4gdHJlZTogICBnaXQ6Ly9naXQua2VybmVsLm9yZy9wdWIvc2Nt
-L2xpbnV4L2tlcm5lbC9naXQvbmV4dC9saW51eC1uZXh0LmdpdCBtYXN0ZXINCj4gPiA+IGhlYWQ6
-ICAgZGNhYTlhM2U4OGM0MDgyMDk2YmZlZDYyZDlkZTJkOWI2YWQ5ZTNkNg0KPiA+ID4gY29tbWl0
-OiA4NzhiNmY1YmNlZjhkZTY0YTVjMzliNjg1ZTc4NTE2NjM1N2JmMGRjIFs5MDc4Lzk1ODJdIG1t
-LWh1Z2V0bGItcHJvYy1hZGQtaHVnZXRsYnBhZ2VzLWZpZWxkLXRvLXByb2MtcGlkLXN0YXR1cy1m
-aXgtMw0KPiA+ID4gY29uZmlnOiBhcm02NC1hbGxtb2Rjb25maWcgKGF0dGFjaGVkIGFzIC5jb25m
-aWcpDQo+ID4gPiByZXByb2R1Y2U6DQo+ID4gPiAgIHdnZXQgaHR0cHM6Ly9naXQua2VybmVsLm9y
-Zy9jZ2l0L2xpbnV4L2tlcm5lbC9naXQvd2ZnL2xrcC10ZXN0cy5naXQvcGxhaW4vc2Jpbi9tYWtl
-LmNyb3NzIC1PIH4vYmluL21ha2UuY3Jvc3MNCj4gPiA+ICAgY2htb2QgK3ggfi9iaW4vbWFrZS5j
-cm9zcw0KPiA+ID4gICBnaXQgY2hlY2tvdXQgODc4YjZmNWJjZWY4ZGU2NGE1YzM5YjY4NWU3ODUx
-NjYzNTdiZjBkYw0KPiA+ID4gICAjIHNhdmUgdGhlIGF0dGFjaGVkIC5jb25maWcgdG8gbGludXgg
-YnVpbGQgdHJlZQ0KPiA+ID4gICBtYWtlLmNyb3NzIEFSQ0g9YXJtNjQgDQo+ID4gPiANCj4gPiA+
-IEFsbCB3YXJuaW5ncyAobmV3IG9uZXMgcHJlZml4ZWQgYnkgPj4pOg0KPiA+ID4gDQo+ID4gPiAg
-ICBJbiBmaWxlIGluY2x1ZGVkIGZyb20gaW5jbHVkZS9saW51eC9tbS5oOjU0OjAsDQo+ID4gPiAg
-ICAgICAgICAgICAgICAgICAgIGZyb20gYXJjaC9hcm02NC9rZXJuZWwvYXNtLW9mZnNldHMuYzoy
-MjoNCj4gPiA+ID4+IGFyY2gvYXJtNjQvaW5jbHVkZS9hc20vcGd0YWJsZS5oOjIzODowOiB3YXJu
-aW5nOiAiSFVHRV9NQVhfSFNUQVRFIiByZWRlZmluZWQNCj4gPiA+ICAgICAjZGVmaW5lIEhVR0Vf
-TUFYX0hTVEFURSAgMg0KPiA+ID4gICAgIF4NCj4gPiA+ICAgIEluIGZpbGUgaW5jbHVkZWQgZnJv
-bSBpbmNsdWRlL2xpbnV4L3NjaGVkLmg6Mjc6MCwNCj4gPiA+ICAgICAgICAgICAgICAgICAgICAg
-ZnJvbSBhcmNoL2FybTY0L2tlcm5lbC9hc20tb2Zmc2V0cy5jOjIxOg0KPiA+ID4gICAgaW5jbHVk
-ZS9saW51eC9tbV90eXBlcy5oOjM3MjowOiBub3RlOiB0aGlzIGlzIHRoZSBsb2NhdGlvbiBvZiB0
-aGUgcHJldmlvdXMgZGVmaW5pdGlvbg0KPiA+ID4gICAgICNkZWZpbmUgSFVHRV9NQVhfSFNUQVRF
-IDENCj4gPiANCj4gPiBJJ3ZlIHNwZW50IGZhciB0b28gbG9uZyB0cnlpbmcgdG8gY29tZSB1cCB3
-aXRoIGEgbmljZSBmaXggZm9yIHRoaXMgYW5kDQo+ID4gZXZlcnl0aGluZyBJIHRyeSBsZWFkcyBk
-b3duIGEgcGF0aCBvZiBob3Jyb3IuICBPdXIgaW5jbHVkZSBmaWxlcyBhcmUgYQ0KPiA+IGJpZyBt
-ZXNzLg0KPiANCj4gVGhhbmtzIGZvciBkaWdnaW5nIHRoaXMuIEkgYWdyZWUgdG8gdGhlIGRpcmVj
-dGlvbiBvZiBzcGxpdHRpbmcgaGVhZGVyIGZpbGVzDQo+IHRvIHJlZHVjZSB0aGUgY29tcGxleGl0
-eSBvZiBoZWFkZXIgZGVwZW5kZW5jeS4gQnV0IGlmIHdlIG5lZWQgYSBxdWljayBmaXgNCj4gdW50
-aWwgeW91ciB3b3JrIGluIGFub3RoZXIgZW1haWwgaXMgbWVyZ2VkLCB0aGUgZm9sbG93aW5nIHNo
-b3VsZCB3b3JrLg0KPiANCj4gIyBJJ2xsIHRha2UgYSBsb29rIG9uIHlvdXIgcGF0Y2guDQo+IA0K
-PiBUaGFua3MsDQo+IE5hb3lhIEhvcmlndWNoaQ0KPiAtLS0NCj4gRnJvbTogTmFveWEgSG9yaWd1
-Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KPiBTdWJqZWN0OiBbUEFUQ0hdIGh1Z2V0
-bGI6IG92ZXJ3cml0ZSBIVUdFX01BWF9IU1RBVEUgZGVmaW5pdGlvbg0KPiANCj4gVGhpcyBkaXJ0
-eSB3b3JrYXJvdW5kIHdpbGwgYmUgcmVtb3ZlZCB3aGVuIHRoZSBjaXJjdWxhciBkZXBlbmRlbmN5
-IG9mDQo+IGhlYWRlciBmaWxlcyBhcm91bmQgbW1fdHlwZXMuaCBhbmQgc2NoZWQuaCBpcyBmaXhl
-ZC4NCj4gDQo+IFNpZ25lZC1vZmYtYnk6IE5hb3lhIEhvcmlndWNoaSA8bi1ob3JpZ3VjaGlAYWgu
-anAubmVjLmNvbT4NCg0Kc29ycnksIHRoaXMgZG9lc24ndCB3b3JrIGJlY2F1c2Ugd2hlbiB3ZSBp
-bmNsdWRlIG1tX3R5cGVzLmggZmlyc3QsDQpzdHJ1Y3QgaHVnZXRsYl91c2FnZSBoYXMgb25seSBv
-bmUgY291bnRlciBldmVuIGlmIEhVR0VfTUFYX0hTVEFURSBpcw0Kb3ZlcndyaXR0ZW4gYWZ0ZXJ3
-YXJkLg0KSXQgbWlnaHQgYmUgZ29vZCB0byBhZGQganVzdCBhIHBvaW50ZXIgc3RydWN0IGh1Z2V0
-bGJfdXNhZ2UqIGluIG1tX3N0cnVjdCwNCndoaWNoIGRvZXNuJ3QgcmVxdWlyZSBIVUdFX01BWF9I
-U1RBVEUgaW4gaW5jbHVzaW9uIG9mIG1tX3R5cGVzLmguDQoNClRoYW5rcywNCk5hb3lhIEhvcmln
-dWNoaQ0KDQo+IC0tLQ0KPiAgYXJjaC9hcm02NC9pbmNsdWRlL2FzbS9wZ3RhYmxlLmggIHwgMyAr
-KysNCj4gIGFyY2gvcG93ZXJwYy9pbmNsdWRlL2FzbS9wYWdlLmggICB8IDMgKysrDQo+ICBhcmNo
-L3RpbGUvaW5jbHVkZS9hc20vcGFnZS5oICAgICAgfCAzICsrKw0KPiAgYXJjaC94ODYvaW5jbHVk
-ZS9hc20vcGFnZV90eXBlcy5oIHwgMyArKysNCj4gIDQgZmlsZXMgY2hhbmdlZCwgMTIgaW5zZXJ0
-aW9ucygrKQ0KPiANCj4gZGlmZiAtLWdpdCBhL2FyY2gvYXJtNjQvaW5jbHVkZS9hc20vcGd0YWJs
-ZS5oIGIvYXJjaC9hcm02NC9pbmNsdWRlL2FzbS9wZ3RhYmxlLmgNCj4gaW5kZXggNTYyODNmOGE2
-NzVjLi4wMTIwODIwNGRiYjMgMTAwNjQ0DQo+IC0tLSBhL2FyY2gvYXJtNjQvaW5jbHVkZS9hc20v
-cGd0YWJsZS5oDQo+ICsrKyBiL2FyY2gvYXJtNjQvaW5jbHVkZS9hc20vcGd0YWJsZS5oDQo+IEBA
-IC0yMzUsNiArMjM1LDkgQEAgc3RhdGljIGlubGluZSB2b2lkIHNldF9wdGVfYXQoc3RydWN0IG1t
-X3N0cnVjdCAqbW0sIHVuc2lnbmVkIGxvbmcgYWRkciwNCj4gIC8qDQo+ICAgKiBIdWdldGxiIGRl
-ZmluaXRpb25zLg0KPiAgICovDQo+ICsjaWYgZGVmaW5lZChIVUdFX01BWF9IU1RBVEUpICYmIEhV
-R0VfTUFYX0hTVEFURSA9PSAxDQo+ICsjdW5kZWYgSFVHRV9NQVhfSFNUQVRFDQo+ICsjZW5kaWYN
-Cj4gICNkZWZpbmUgSFVHRV9NQVhfSFNUQVRFCQkyDQo+ICAjZGVmaW5lIEhQQUdFX1NISUZUCQlQ
-TURfU0hJRlQNCj4gICNkZWZpbmUgSFBBR0VfU0laRQkJKF9BQygxLCBVTCkgPDwgSFBBR0VfU0hJ
-RlQpDQo+IGRpZmYgLS1naXQgYS9hcmNoL3Bvd2VycGMvaW5jbHVkZS9hc20vcGFnZS5oIGIvYXJj
-aC9wb3dlcnBjL2luY2x1ZGUvYXNtL3BhZ2UuaA0KPiBpbmRleCA3MTI5NGE2ZTk3NmUuLjE5ZWUw
-NTUyMDM1MyAxMDA2NDQNCj4gLS0tIGEvYXJjaC9wb3dlcnBjL2luY2x1ZGUvYXNtL3BhZ2UuaA0K
-PiArKysgYi9hcmNoL3Bvd2VycGMvaW5jbHVkZS9hc20vcGFnZS5oDQo+IEBAIC00NSw2ICs0NSw5
-IEBAIGV4dGVybiB1bnNpZ25lZCBpbnQgSFBBR0VfU0hJRlQ7DQo+ICAjZGVmaW5lIEhQQUdFX1NJ
-WkUJCSgoMVVMKSA8PCBIUEFHRV9TSElGVCkNCj4gICNkZWZpbmUgSFBBR0VfTUFTSwkJKH4oSFBB
-R0VfU0laRSAtIDEpKQ0KPiAgI2RlZmluZSBIVUdFVExCX1BBR0VfT1JERVIJKEhQQUdFX1NISUZU
-IC0gUEFHRV9TSElGVCkNCj4gKyNpZiBkZWZpbmVkKEhVR0VfTUFYX0hTVEFURSkgJiYgSFVHRV9N
-QVhfSFNUQVRFID09IDENCj4gKyN1bmRlZiBIVUdFX01BWF9IU1RBVEUNCj4gKyNlbmRpZg0KPiAg
-I2RlZmluZSBIVUdFX01BWF9IU1RBVEUJCShNTVVfUEFHRV9DT1VOVC0xKQ0KPiAgI2VuZGlmDQo+
-ICANCj4gZGlmZiAtLWdpdCBhL2FyY2gvdGlsZS9pbmNsdWRlL2FzbS9wYWdlLmggYi9hcmNoL3Rp
-bGUvaW5jbHVkZS9hc20vcGFnZS5oDQo+IGluZGV4IGEyMTNhOGQ4NGE5NS4uZGFjMzJiZDY1Yjk5
-IDEwMDY0NA0KPiAtLS0gYS9hcmNoL3RpbGUvaW5jbHVkZS9hc20vcGFnZS5oDQo+ICsrKyBiL2Fy
-Y2gvdGlsZS9pbmNsdWRlL2FzbS9wYWdlLmgNCj4gQEAgLTEzNiw2ICsxMzYsOSBAQCBzdGF0aWMg
-aW5saW5lIF9fYXR0cmlidXRlX2NvbnN0X18gaW50IGdldF9vcmRlcih1bnNpZ25lZCBsb25nIHNp
-emUpDQo+ICANCj4gICNkZWZpbmUgSFVHRVRMQl9QQUdFX09SREVSCShIUEFHRV9TSElGVCAtIFBB
-R0VfU0hJRlQpDQo+ICANCj4gKyNpZiBkZWZpbmVkKEhVR0VfTUFYX0hTVEFURSkgJiYgSFVHRV9N
-QVhfSFNUQVRFID09IDENCj4gKyN1bmRlZiBIVUdFX01BWF9IU1RBVEUNCj4gKyNlbmRpZg0KPiAg
-I2RlZmluZSBIVUdFX01BWF9IU1RBVEUJCTYNCj4gIA0KPiAgI2lmZGVmIENPTkZJR19IVUdFVExC
-X1BBR0UNCj4gZGlmZiAtLWdpdCBhL2FyY2gveDg2L2luY2x1ZGUvYXNtL3BhZ2VfdHlwZXMuaCBi
-L2FyY2gveDg2L2luY2x1ZGUvYXNtL3BhZ2VfdHlwZXMuaA0KPiBpbmRleCBjN2M3MTJmMjY0OGIu
-Ljc0N2ZhM2I1ZWEzZiAxMDA2NDQNCj4gLS0tIGEvYXJjaC94ODYvaW5jbHVkZS9hc20vcGFnZV90
-eXBlcy5oDQo+ICsrKyBiL2FyY2gveDg2L2luY2x1ZGUvYXNtL3BhZ2VfdHlwZXMuaA0KPiBAQCAt
-MjUsNiArMjUsOSBAQA0KPiAgI2RlZmluZSBIUEFHRV9NQVNLCQkofihIUEFHRV9TSVpFIC0gMSkp
-DQo+ICAjZGVmaW5lIEhVR0VUTEJfUEFHRV9PUkRFUgkoSFBBR0VfU0hJRlQgLSBQQUdFX1NISUZU
-KQ0KPiAgDQo+ICsjaWYgZGVmaW5lZChIVUdFX01BWF9IU1RBVEUpICYmIEhVR0VfTUFYX0hTVEFU
-RSA9PSAxDQo+ICsjdW5kZWYgSFVHRV9NQVhfSFNUQVRFDQo+ICsjZW5kaWYNCj4gICNkZWZpbmUg
-SFVHRV9NQVhfSFNUQVRFIDINCj4gIA0KPiAgI2RlZmluZSBQQUdFX09GRlNFVAkJKCh1bnNpZ25l
-ZCBsb25nKV9fUEFHRV9PRkZTRVQpDQo+IC0tIA0KPiAyLjQuMw==
+Hi Andrew Morton:
+First, thanks very much for your review, I will update codes according to  your suggestion
+     After the system startup, we hot added one memory. After some time 
+we wanted to hot remove the memroy that was hot added,
+     but we could not offline some memory blocks successfully because 
+the memory was added to normal zone defaultly and the value of the file 
+     named removable under some memory blocks is 0.
+     we checked the value of the file under some memory blocks as follows:
+     "cat /sys/devices/system/memory/ memory***/removable"
+     When memory being hot added we let the memory be added to movable 
+zone,
+     so we will be able to hot remove the memory that have been hot added
+
+On Wed, 20 Aug 2015 7:50, Andrew Morton wrote:
+
+> On Wed, 19 Aug 2015 04:18:26 -0400 Changsheng Liu <liuchangsheng@inspur.com> wrote:
+>
+>> From: Changsheng Liu <liuchangcheng@inspur.com>
+>>
+>> When memory hot added, the function should_add_memory_movable
+>> always return 0,because the movable zone is empty,
+>> so the memory that hot added will add to normal zone even if
+>> we want to remove the memory.
+>> So we change the function should_add_memory_movable,if the user
+>> config CONFIG_MOVABLE_NODE it will return 1 when
+>> movable zone is empty
+> I cleaned this up a bit:
+>
+> : Subject: mm: memory hot-add: memory can not been added to movable zone
+> :
+> : When memory is hot added, should_add_memory_movable() always returns 0
+> : because the movable zone is empty, so the memory that was hot added will
+> : add to the normal zone even if we want to remove the memory.
+> :
+> : So we change should_add_memory_movable(): if the user config
+> : CONFIG_MOVABLE_NODE it will return 1 when the movable zone is empty.
+>
+> But I don't understand the "even if we want to remove the memory".
+> This is hot-add, not hot-remove.  What do you mean here?
+>
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1198,9 +1198,13 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
+>>   	pg_data_t *pgdat = NODE_DATA(nid);
+>>   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+>>   
+>> -	if (zone_is_empty(movable_zone))
+>> +	if (zone_is_empty(movable_zone)) {
+>> +	#ifdef CONFIG_MOVABLE_NODE
+>> +		return 1;
+>> +	#else
+>>   		return 0;
+>> -
+>> +	#endif
+>> +	}
+>>   	if (movable_zone->zone_start_pfn <= start_pfn)
+>>   		return 1;
+> Cleaner:
+>
+> --- a/mm/memory_hotplug.c~memory-hot-addedthe-memory-can-not-been-added-to-movable-zone-fix
+> +++ a/mm/memory_hotplug.c
+> @@ -1181,13 +1181,9 @@ static int should_add_memory_movable(int
+>   	pg_data_t *pgdat = NODE_DATA(nid);
+>   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+>   
+> -	if (zone_is_empty(movable_zone)) {
+> -	#ifdef CONFIG_MOVABLE_NODE
+> -		return 1;
+> -	#else
+> -		return 0;
+> -	#endif
+> -	}
+> +	if (zone_is_empty(movable_zone))
+> +		return IS_ENABLED(CONFIG_MOVABLE_NODE);
+> +
+>   	if (movable_zone->zone_start_pfn <= start_pfn)
+>   		return 1;
+>   
+> _
+>
+> .
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
