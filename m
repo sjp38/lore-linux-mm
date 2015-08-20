@@ -1,154 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 943E06B0038
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 21:02:28 -0400 (EDT)
-Received: by paccq16 with SMTP id cq16so14716194pac.1
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 18:02:28 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id iv4si4461293pbc.82.2015.08.19.18.02.27
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A7FD6B0038
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 21:26:30 -0400 (EDT)
+Received: by paccq16 with SMTP id cq16so15151036pac.1
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 18:26:30 -0700 (PDT)
+Received: from COL004-OMC1S10.hotmail.com (col004-omc1s10.hotmail.com. [65.55.34.20])
+        by mx.google.com with ESMTPS id jc2si4588597pbb.1.2015.08.19.18.26.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 19 Aug 2015 18:02:27 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [linux-next:master 9078/9582]
- arch/arm64/include/asm/pgtable.h:238:0: warning: "HUGE_MAX_HSTATE" redefined
-Date: Thu, 20 Aug 2015 01:01:48 +0000
-Message-ID: <20150820010148.GA859@hori1.linux.bs1.fc.nec.co.jp>
-References: <201508192138.toXxw84b%fengguang.wu@intel.com>
- <20150819143305.fc1fbb979fee6e9b60c59d3c@linux-foundation.org>
-In-Reply-To: <20150819143305.fc1fbb979fee6e9b60c59d3c@linux-foundation.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <4E0049EB149EA34F8033F07C31C84D9B@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 19 Aug 2015 18:26:29 -0700 (PDT)
+Message-ID: <COL130-W42419C917737D318BC8E6DB9660@phx.gbl>
+From: gchen gchen <xili_gchen_5257@hotmail.com>
+Subject: Re: [PATCH] mm: mmap: Simplify the failure return working flow
+Date: Thu, 20 Aug 2015 09:26:28 +0800
+In-Reply-To: <55D52C9A.5060705@hotmail.com>
+References: <55D5275D.7020406@hotmail.com>
+ <COL130-W46B6A43FC26795B43939E0B9660@phx.gbl>,<55D52C9A.5060705@hotmail.com>
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, "kbuild-all@01.org" <kbuild-all@01.org>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: kernel mailing list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, Linux Memory <linux-mm@kvack.org>
 
-On Wed, Aug 19, 2015 at 02:33:05PM -0700, Andrew Morton wrote:
-> On Wed, 19 Aug 2015 21:32:40 +0800 kbuild test robot <fengguang.wu@intel.=
-com> wrote:
->=20
-> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.g=
-it master
-> > head:   dcaa9a3e88c4082096bfed62d9de2d9b6ad9e3d6
-> > commit: 878b6f5bcef8de64a5c39b685e785166357bf0dc [9078/9582] mm-hugetlb=
--proc-add-hugetlbpages-field-to-proc-pid-status-fix-3
-> > config: arm64-allmodconfig (attached as .config)
-> > reproduce:
-> >   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/p=
-lain/sbin/make.cross -O ~/bin/make.cross
-> >   chmod +x ~/bin/make.cross
-> >   git checkout 878b6f5bcef8de64a5c39b685e785166357bf0dc
-> >   # save the attached .config to linux build tree
-> >   make.cross ARCH=3Darm64=20
-> >=20
-> > All warnings (new ones prefixed by >>):
-> >=20
-> >    In file included from include/linux/mm.h:54:0,
-> >                     from arch/arm64/kernel/asm-offsets.c:22:
-> > >> arch/arm64/include/asm/pgtable.h:238:0: warning: "HUGE_MAX_HSTATE" r=
-edefined
-> >     #define HUGE_MAX_HSTATE  2
-> >     ^
-> >    In file included from include/linux/sched.h:27:0,
-> >                     from arch/arm64/kernel/asm-offsets.c:21:
-> >    include/linux/mm_types.h:372:0: note: this is the location of the pr=
-evious definition
-> >     #define HUGE_MAX_HSTATE 1
->=20
-> I've spent far too long trying to come up with a nice fix for this and
-> everything I try leads down a path of horror.  Our include files are a
-> big mess.
-
-Thanks for digging this. I agree to the direction of splitting header files
-to reduce the complexity of header dependency. But if we need a quick fix
-until your work in another email is merged, the following should work.
-
-# I'll take a look on your patch.
-
-Thanks,
-Naoya Horiguchi
----
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH] hugetlb: overwrite HUGE_MAX_HSTATE definition
-
-This dirty workaround will be removed when the circular dependency of
-header files around mm_types.h and sched.h is fixed.
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- arch/arm64/include/asm/pgtable.h  | 3 +++
- arch/powerpc/include/asm/page.h   | 3 +++
- arch/tile/include/asm/page.h      | 3 +++
- arch/x86/include/asm/page_types.h | 3 +++
- 4 files changed, 12 insertions(+)
-
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgta=
-ble.h
-index 56283f8a675c..01208204dbb3 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -235,6 +235,9 @@ static inline void set_pte_at(struct mm_struct *mm, uns=
-igned long addr,
- /*
-  * Hugetlb definitions.
-  */
-+#if defined(HUGE_MAX_HSTATE) && HUGE_MAX_HSTATE =3D=3D 1
-+#undef HUGE_MAX_HSTATE
-+#endif
- #define HUGE_MAX_HSTATE		2
- #define HPAGE_SHIFT		PMD_SHIFT
- #define HPAGE_SIZE		(_AC(1, UL) << HPAGE_SHIFT)
-diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/pag=
-e.h
-index 71294a6e976e..19ee05520353 100644
---- a/arch/powerpc/include/asm/page.h
-+++ b/arch/powerpc/include/asm/page.h
-@@ -45,6 +45,9 @@ extern unsigned int HPAGE_SHIFT;
- #define HPAGE_SIZE		((1UL) << HPAGE_SHIFT)
- #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
- #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
-+#if defined(HUGE_MAX_HSTATE) && HUGE_MAX_HSTATE =3D=3D 1
-+#undef HUGE_MAX_HSTATE
-+#endif
- #define HUGE_MAX_HSTATE		(MMU_PAGE_COUNT-1)
- #endif
-=20
-diff --git a/arch/tile/include/asm/page.h b/arch/tile/include/asm/page.h
-index a213a8d84a95..dac32bd65b99 100644
---- a/arch/tile/include/asm/page.h
-+++ b/arch/tile/include/asm/page.h
-@@ -136,6 +136,9 @@ static inline __attribute_const__ int get_order(unsigne=
-d long size)
-=20
- #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
-=20
-+#if defined(HUGE_MAX_HSTATE) && HUGE_MAX_HSTATE =3D=3D 1
-+#undef HUGE_MAX_HSTATE
-+#endif
- #define HUGE_MAX_HSTATE		6
-=20
- #ifdef CONFIG_HUGETLB_PAGE
-diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_=
-types.h
-index c7c712f2648b..747fa3b5ea3f 100644
---- a/arch/x86/include/asm/page_types.h
-+++ b/arch/x86/include/asm/page_types.h
-@@ -25,6 +25,9 @@
- #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
- #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
-=20
-+#if defined(HUGE_MAX_HSTATE) && HUGE_MAX_HSTATE =3D=3D 1
-+#undef HUGE_MAX_HSTATE
-+#endif
- #define HUGE_MAX_HSTATE 2
-=20
- #define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)
---=20
-2.4.3=
+PGJyPk9uIFR1ZSwgMTggQXVnIDIwMTUgMTU6NTc6MDggLTA3MDAgYWtwbUBsaW51eC1mb3VuZGF0
+aW9uLm9yZyB3cm90ZTo8YnI+Jmd0Ozxicj4mZ3Q7IE9uIFdlZCwgMTkgQXVnIDIwMTUgMDY6Mjc6
+NTggKzA4MDAgQ2hlbiBHYW5nPGJyPiZndDsgJmx0O3hpbGlfZ2NoZW5fNTI1N0Bob3RtYWlsLmNv
+bSZndDsgd3JvdGU6PGJyPiZndDs8YnI+Jmd0OyZndDsgRnJvbTogQ2hlbiBHYW5nICZsdDt4aWxp
+X2djaGVuXzUyNTdAaG90bWFpbC5jb20mZ3Q7PGJyPiZndDs8YnI+Jmd0OyBBcyBzZW50LCB0aGlz
+IHBhdGNoIGlzIEZyb206eW91QGhvdG1haWwgYW5kIFNpZ25lZC1vZmYtYnk6eW91QGdtYWlsLjxi
+cj4mZ3Q7PGJyPiZndDsgVGhpcyBpcyBwZWN1bGlhci4gIEknbSBhc3N1bWluZyB0aGF0IGl0IHNo
+b3VsZCBoYXZlIGJlZW4gRnJvbTp5b3VAZ21haWwgYW5kPGJyPiZndDsgSSBoYXZlIG1hZGUgdGhh
+dCBjaGFuZ2UgdG8gbXkgY29weSBvZiB0aGUgcGF0Y2guPGJyPiZndDs8YnI+Jmd0OyBZb3UgY2Fu
+IGRvIHRoaXMgeW91cnNlbGYgYnkgcHV0dGluZyBhbiBleHBsaWNpdCBGcm9tOiBsaW5lIGF0IHRo
+ZSBzdGFydDxicj4mZ3Q7IG9mIHRoZSBjaGFuZ2Vsb2cuPGJyPiZndDs8YnI+PGJyPlllcywgaXQg
+aXMgcmVhbGx5IHBlY3VsaWFyLCB0aGUgcmVhc29uIGlzIGdtYWlsIGlzIG5vdCBzdGFibGUgaW4g
+Q2hpbmEuPGJyPkkgaGF2ZSB0byBzZW5kIG1haWwgaW4gbXkgaG90bWFpbCBhZGRyZXNzLjxicj48
+YnI+QnV0IEkgc3RpbGwgd2FudCB0byB1c2UgbXkgZ21haWwgYXMgU2lnbmVkLW9mZi1ieSwgc2lu
+Y2UgSSBoYXZlIGFscmVhZHk8YnI+dXNlZCBpdCwgYW5kIGFsc28gaXRzIG5hbWUgaXMgYSBsaXR0
+bGUgZm9ybWFsIHRoYW4gbXkgaG90bWFpbC48YnI+PGJyPldlbGNvbWUgYW55IGlkZWFzLCBzdWdn
+ZXN0aW9ucyBhbmQgY29tcGxldGlvbnMgZm9yIGl0IChlLmcuIGlmIGl0IGlzPGJyPm5lY2Vzc2Fy
+eSB0byBsZXQgc2VuZCBtYWlsIGFuZCBTaWduZWQtb2ZmLWJ5IG1haWwgYmUgdGhlIHNhbWUsIEkg
+c2hhbGw8YnI+dHJ5KS48YnI+PGJyPlsuLi5dPGJyPjxicj4mZ3Q7IFNvLDxicj4mZ3Q7PGJyPiZn
+dDsgLS0tIGEvbW0vbW1hcC5jfm1tLW1tYXAtc2ltcGxpZnktdGhlLWZhaWx1cmUtcmV0dXJuLXdv
+cmtpbmctZmxvdy1maXg8YnI+Jmd0OyArKysgYS9tbS9tbWFwLmM8YnI+Jmd0OyBAQCAtMjk1Miw3
+ICsyOTUyLDcgQEAgc3RydWN0IHZtX2FyZWFfc3RydWN0ICpjb3B5X3ZtYShzdHJ1Y3Qgdjxicj4m
+Z3Q7ICAgICAgICAgfSBlbHNlIHs8YnI+Jmd0OyAgICAgICAgICAgICAgICAgbmV3X3ZtYSA9IGtt
+ZW1fY2FjaGVfYWxsb2Modm1fYXJlYV9jYWNoZXAsIEdGUF9LRVJORUwpOzxicj4mZ3Q7ICAgICAg
+ICAgICAgICAgICBpZiAoIW5ld192bWEpPGJyPiZndDsgLSAgICAgICAgICAgICAgICAgICAgICAg
+cmV0dXJuIE5VTEw7PGJyPiZndDsgKyAgICAgICAgICAgICAgICAgICAgICAgZ290byBvdXQ7PGJy
+PiZndDsgICAgICAgICAgICAgICAgICpuZXdfdm1hID0gKnZtYTs8YnI+Jmd0OyAgICAgICAgICAg
+ICAgICAgbmV3X3ZtYS0mZ3Q7dm1fc3RhcnQgPSBhZGRyOzxicj4mZ3Q7ICAgICAgICAgICAgICAg
+ICBuZXdfdm1hLSZndDt2bV9lbmQgPSBhZGRyICsgbGVuOzxicj4mZ3Q7IEBAIC0yOTcxLDEwICsy
+OTcxLDExIEBAIHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqY29weV92bWEoc3RydWN0IHY8YnI+Jmd0
+OyAgICAgICAgIH08YnI+Jmd0OyAgICAgICAgIHJldHVybiBuZXdfdm1hOzxicj4mZ3Q7PGJyPiZn
+dDsgLSBvdXRfZnJlZV9tZW1wb2w6PGJyPiZndDsgK291dF9mcmVlX21lbXBvbDo8YnI+Jmd0OyAg
+ICAgICAgIG1wb2xfcHV0KHZtYV9wb2xpY3kobmV3X3ZtYSkpOzxicj4mZ3Q7IC0gb3V0X2ZyZWVf
+dm1hOjxicj4mZ3Q7ICtvdXRfZnJlZV92bWE6PGJyPiZndDsgICAgICAgICBrbWVtX2NhY2hlX2Zy
+ZWUodm1fYXJlYV9jYWNoZXAsIG5ld192bWEpOzxicj4mZ3Q7ICtvdXQ6PGJyPiZndDsgICAgICAg
+ICByZXR1cm4gTlVMTDs8YnI+Jmd0OyAgfTxicj4mZ3Q7PGJyPjxicj5JdCBpcyBPSyB0byBtZSwg
+dGhhbmtzLjxicj48YnI+RHVyaW5nIHRoZXNlIGRheXMgKDItNCBtb250aHMpLCBJIHNoYWxsIHRy
+eSB0byBtYWtlIHNvbWUgcGF0Y2hlcyBmb3I8YnI+TGludXggbW06PGJyPjxicj4gLSBJIGFtIGxl
+YXJuaW5nIExpbnV4IGtlcm5lbCBtbXUsIHNvIEkgY2FuIHJlLXVzZSBwYXJ0IG9mIGNvZGUgdG8g
+dXNlcjxicj4gICBtb2RlIChhZGQgc29mdG1tdSB0byBxZW11IGxpbnV4IHVzZXIgaW4gbXkgd29y
+a2luZyB0aW1lKS4gVGhlbiBJIGNhbjxicj4gICB0cnkgc29tZSBtbSBwYXRjaGVzIHdoZW4gSSBh
+bSByZWFkaW5nIHJlbGF0ZWQgY29kZS48YnI+PGJyPiAtIEF0IHByZXNlbnQsIGNyb3NzLWJ1aWxk
+aW5nIHZhcmlvdXMgYXJjaHMgd2l0aCBhbGxtb2Rjb25maWcgbG9va3MgT0s8YnI+ICAgKGhhdmUg
+bm8gbWFueSBpc3N1ZXMpLCBzbyBmb3IgbWUsIEkgY2FuIHN0b3AgYW5kIHN0YXJ0IGFub3RoZXIg
+cGFydHM8YnI+ICAgKGUuZy4gbW11LCBsb29uZ3NvbiBtYWNoaW5lIG9mIG1pcHMgYXJjaCwgLi4u
+KS48YnI+PGJyPldlbGNvbWUgYW55IGlkZWFzLCBzdWdnZXN0aW9ucyBhbmQgY29tcGxldGlvbnMg
+Zm9yIGl0Ojxicj48YnI+IC0gQXNzdW1lIEkgYW0gbm90IHF1aXRlIGZhbWlsaWFyIHdpdGggbW11
+IC0tIGluIGhvbmVzdCwgSSBmZWVsIEkgYW08YnI+ICAgcmVhbGx5IG5vdC48YnI+PGJyPiAtIElz
+IGl0IHBvc3NpYmxlIHRvIGJ1aWxkIHRoZSByZWxhdGVkICdzb2Z0bW11JyBhcyBhIG1vZHVsZSB3
+aGljaCBjYW48YnI+ICAgYmUgdXNlZCBieSBib3RoIGtlcm5lbCBtb2RlIGFuZCB1c2VyIG1vZGUg
+KGlmIHJlYWxseSBpdCBpcywgSSBzaGFsbDxicj4gICB0cnkgdG8gcGVyZm9ybSBpdCAtLSBJIGNh
+biBkbyBpdCBpbiBteSB3b3JraW5nIHRpbWUpLjxicj48YnI+IC0gLi4uPGJyPjxicj5UaGFua3Mu
+PGJyPi0tPGJyPkNoZW4gR2FuZzxicj48YnI+T3Blbiwgc2hhcmUsIGFuZCBhdHRpdHVkZSBsaWtl
+IGFpciwgd2F0ZXIsIGFuZCBsaWZlIHdoaWNoIEdvZCBibGVzc2VkPGJyPiAJCSAJICAgCQkgIA==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
