@@ -1,84 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D79046B0038
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 04:09:36 -0400 (EDT)
-Received: by wibhh20 with SMTP id hh20so29013275wib.0
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 01:09:36 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A2586B0038
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 04:16:47 -0400 (EDT)
+Received: by wijp15 with SMTP id p15so8788272wij.0
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 01:16:46 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wb6si7026084wjc.121.2015.08.20.01.09.35
+        by mx.google.com with ESMTPS id fs15si11283362wic.53.2015.08.20.01.16.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Aug 2015 01:09:35 -0700 (PDT)
-Date: Thu, 20 Aug 2015 10:09:30 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm, vmscan: unlock page while waiting on writeback
-Message-ID: <20150820080929.GE4780@dhcp22.suse.cz>
-References: <alpine.LSU.2.11.1508191930390.2073@eggly.anvils>
+        Thu, 20 Aug 2015 01:16:45 -0700 (PDT)
+Subject: Re: difficult to pinpoint exhaustion of swap between 4.2.0-rc6 and
+ 4.2.0-rc7
+References: <55D4A462.3070505@internode.on.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55D58CEB.9070701@suse.cz>
+Date: Thu, 20 Aug 2015 10:16:43 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1508191930390.2073@eggly.anvils>
+In-Reply-To: <55D4A462.3070505@internode.on.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org
+To: Arthur Marsh <arthur.marsh@internode.on.net>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed 19-08-15 19:36:31, Hugh Dickins wrote:
-> This is merely a politeness: I've not found that shrink_page_list() leads
-> to deadlock with the page it holds locked across wait_on_page_writeback();
-> but nevertheless, why hold others off by keeping the page locked there?
+On 08/19/2015 05:44 PM, Arthur Marsh wrote:
+> Hi, I've found that the Linus' git head kernel has had some unwelcome
+> behaviour where chromium browser would exhaust all swap space in the
+> course of a few hours. The behaviour appeared before the release of
+> 4.2.0-rc7.
 
-OK, this makes sense to me. It is safer to wait without page locked.
-Maybe some fs will want to lock the page before clearing the page
-writeback in the future and we would be broken in a very subtle way.
+Do you have any more details about the memory/swap usage? Is it really 
+that chromium process(es) itself eats more memory and starts swapping, 
+or that something else (a graphics driver?) eats kernel memory, and 
+chromium as one of the biggest processes is driven to swap by that? Can 
+you provide e.g. top output with good/bad kernels?
 
-> And while we're at it: remove the mistaken "not " from the commentary
-> on this Case 3 (and a distracting blank line from Case 2, if I may).
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+Also what does /proc/meminfo and /proc/zoneinfo look like when it's 
+swapping?
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+To see which processes use swap, you can try [1] :
+for file in /proc/*/status ; do awk '/VmSwap|Name/{printf $2 " " $3}END{ 
+print ""}' $file; done | sort -k 2 -n -r | less
 
-> ---
-> I remembered this old patch when we were discussing the more important
-> ecf5fc6e9654 "mm, vmscan: Do not wait for page writeback for GFP_NOFS
-> allocations", and now retested it against mmotm.
-> 
->  mm/vmscan.c |    7 +++++--
->  1 file changed, 5 insertions(+), 2 deletions(-)
-> 
-> --- mmotm/mm/vmscan.c	2015-08-17 18:46:26.601521575 -0700
-> +++ linux/mm/vmscan.c	2015-08-17 18:53:41.335108240 -0700
-> @@ -991,7 +991,7 @@ static unsigned long shrink_page_list(st
->  		 *    __GFP_IO|__GFP_FS for this reason); but more thought
->  		 *    would probably show more reasons.
->  		 *
-> -		 * 3) Legacy memcg encounters a page that is not already marked
-> +		 * 3) Legacy memcg encounters a page that is already marked
->  		 *    PageReclaim. memcg does not have any dirty pages
->  		 *    throttling so we could easily OOM just because too many
->  		 *    pages are in writeback and there is nothing else to
-> @@ -1021,12 +1021,15 @@ static unsigned long shrink_page_list(st
->  				 */
->  				SetPageReclaim(page);
->  				nr_writeback++;
-> -
->  				goto keep_locked;
->  
->  			/* Case 3 above */
->  			} else {
-> +				unlock_page(page);
->  				wait_on_page_writeback(page);
-> +				/* then go back and try same page again */
-> +				list_add_tail(&page->lru, page_list);
-> +				continue;
->  			}
->  		}
->  
+Thanks
 
--- 
-Michal Hocko
-SUSE Labs
+[1] http://www.cyberciti.biz/faq/linux-which-process-is-using-swap/
+
+> This does not happen with kernel 4.2.0-rc6.
+>
+> When I tried a git-bisect, the results where not conclusive due to the
+> problem taking over an hour to appear after booting, the closest I came
+> was around this commit (the actual problem may be a few commits either
+> side):
+>
+> git bisect good
+> 4f258a46346c03fa0bbb6199ffaf4e1f9f599660 is the first bad commit
+> commit 4f258a46346c03fa0bbb6199ffaf4e1f9f599660
+> Author: Martin K. Petersen <martin.petersen@oracle.com>
+> Date:   Tue Jun 23 12:13:59 2015 -0400
+>
+>       sd: Fix maximum I/O size for BLOCK_PC requests
+>
+>       Commit bcdb247c6b6a ("sd: Limit transfer length") clamped the maximum
+>       size of an I/O request to the MAXIMUM TRANSFER LENGTH field in the
+> BLOCK
+>       LIMITS VPD. This had the unfortunate effect of also limiting the
+> maximum
+>       size of non-filesystem requests sent to the device through sg/bsg.
+>
+>       Avoid using blk_queue_max_hw_sectors() and set the max_sectors queue
+>       limit directly.
+>
+>       Also update the comment in blk_limits_max_hw_sectors() to clarify that
+>       max_hw_sectors defines the limit for the I/O controller only.
+>
+>       Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+>       Reported-by: Brian King <brking@linux.vnet.ibm.com>
+>       Tested-by: Brian King <brking@linux.vnet.ibm.com>
+>       Cc: stable@vger.kernel.org # 3.17+
+>       Signed-off-by: James Bottomley <JBottomley@Odin.com>
+>
+> :040000 040000 fbd0519d9ee0a8f92a7dab9a9c6d7b7868974fba
+> b4cf554c568813704993538008aed5b704624679 M      block
+> :040000 040000 f2630c903cd36ede2619d173f9d1ea0d725ea111
+> ff6b6f732afbf6f4b6b26a827c463de50f0e356c M      drivers
+>
+> Has anyone seen a similar problem?
+> I can supply .config and other information if requested.
+>
+> Arthur.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
