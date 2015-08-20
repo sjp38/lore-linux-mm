@@ -1,59 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id DB7B76B0038
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 07:00:08 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so142246246wic.1
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 04:00:08 -0700 (PDT)
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
-        by mx.google.com with ESMTPS id i10si40326711wij.0.2015.08.20.04.00.07
+Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5EC6B0038
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 07:17:31 -0400 (EDT)
+Received: by ykdt205 with SMTP id t205so33872142ykd.1
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 04:17:31 -0700 (PDT)
+Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com. [209.85.160.178])
+        by mx.google.com with ESMTPS id n131si2647185ykc.122.2015.08.20.04.17.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Aug 2015 04:00:07 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so142245585wic.1
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 04:00:07 -0700 (PDT)
-Date: Thu, 20 Aug 2015 13:00:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 2/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/status
-Message-ID: <20150820110004.GB4632@dhcp22.suse.cz>
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
- <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1440059182-19798-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1440059182-19798-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+        Thu, 20 Aug 2015 04:17:30 -0700 (PDT)
+Received: by ykdt205 with SMTP id t205so33871714ykd.1
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 04:17:30 -0700 (PDT)
+From: Jeff Layton <jlayton@poochiereds.net>
+Subject: [PATCH v3 03/20] list_lru: add list_lru_rotate
+Date: Thu, 20 Aug 2015 07:17:03 -0400
+Message-Id: <1440069440-27454-4-git-send-email-jeff.layton@primarydata.com>
+In-Reply-To: <1440069440-27454-1-git-send-email-jeff.layton@primarydata.com>
+References: <1440069440-27454-1-git-send-email-jeff.layton@primarydata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: bfields@fieldses.org
+Cc: linux-nfs@vger.kernel.org, hch@lst.de, kinglongmee@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org
 
-On Thu 20-08-15 08:26:27, Naoya Horiguchi wrote:
-> Currently there's no easy way to get per-process usage of hugetlb pages,
+Add a function that can move an entry to the MRU end of the list.
 
-Is this really the case after your previous patch? You have both 
-HugetlbPages and KernelPageSize which should be sufficient no?
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vladimir Davydov <vdavydov@parallels.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Jeff Layton <jeff.layton@primarydata.com>
+---
+ include/linux/list_lru.h | 13 +++++++++++++
+ mm/list_lru.c            | 15 +++++++++++++++
+ 2 files changed, 28 insertions(+)
 
-Reading a single file is, of course, easier but is it really worth the
-additional code? I haven't really looked at the patch so I might be
-missing something but what would be an advantage over reading
-/proc/<pid>/smaps and extracting the information from there?
-
-[...]
->  Documentation/filesystems/proc.txt |  3 +++
->  fs/hugetlbfs/inode.c               | 12 ++++++++++
->  fs/proc/task_mmu.c                 |  1 +
->  include/linux/hugetlb.h            | 36 +++++++++++++++++++++++++++++
->  include/linux/mm_types.h           |  7 ++++++
->  kernel/fork.c                      |  3 +++
->  mm/hugetlb.c                       | 46 ++++++++++++++++++++++++++++++++++++++
->  mm/mmap.c                          |  1 +
->  mm/rmap.c                          |  4 +++-
->  9 files changed, 112 insertions(+), 1 deletion(-)
-[...]
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index 2a6b9947aaa3..4534b1b34d2d 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -96,6 +96,19 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item);
+ bool list_lru_del(struct list_lru *lru, struct list_head *item);
+ 
+ /**
++ * list_lru_rotate: rotate an element to the end of an lru list
++ * @list_lru: the lru pointer
++ * @item: the item to be rotated
++ *
++ * This function moves an entry to the end of an LRU list. Should be used when
++ * an entry that is on the LRU is used, and should be moved to the MRU end of
++ * the list. If the item is not on a list, then this function has no effect.
++ * The comments about an element already pertaining to a list are also valid
++ * for list_lru_rotate.
++ */
++void list_lru_rotate(struct list_lru *lru, struct list_head *item);
++
++/**
+  * list_lru_count_one: return the number of objects currently held by @lru
+  * @lru: the lru pointer.
+  * @nid: the node id to count from.
+diff --git a/mm/list_lru.c b/mm/list_lru.c
+index e1da19fac1b3..66718c2a9a7b 100644
+--- a/mm/list_lru.c
++++ b/mm/list_lru.c
+@@ -130,6 +130,21 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
+ }
+ EXPORT_SYMBOL_GPL(list_lru_del);
+ 
++void list_lru_rotate(struct list_lru *lru, struct list_head *item)
++{
++	int nid = page_to_nid(virt_to_page(item));
++	struct list_lru_node *nlru = &lru->node[nid];
++	struct list_lru_one *l;
++
++	spin_lock(&nlru->lock);
++	if (!list_empty(item)) {
++		l = list_lru_from_kmem(nlru, item);
++		list_move_tail(item, &l->list);
++	}
++	spin_unlock(&nlru->lock);
++}
++EXPORT_SYMBOL_GPL(list_lru_rotate);
++
+ void list_lru_isolate(struct list_lru_one *list, struct list_head *item)
+ {
+ 	list_del_init(item);
 -- 
-Michal Hocko
-SUSE Labs
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
