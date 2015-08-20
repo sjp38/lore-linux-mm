@@ -1,55 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B4946B0038
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 04:48:04 -0400 (EDT)
-Received: by padfo6 with SMTP id fo6so17630332pad.0
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 01:48:04 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id fo16si6386278pdb.235.2015.08.20.01.48.02
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 60A126B0253
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 04:48:23 -0400 (EDT)
+Received: by pdrh1 with SMTP id h1so12120856pdr.0
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 01:48:23 -0700 (PDT)
+Received: from COL004-OMC2S11.hotmail.com (col004-omc2s11.hotmail.com. [65.55.34.85])
+        by mx.google.com with ESMTPS id rj13si6433120pdb.84.2015.08.20.01.48.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Aug 2015 01:48:03 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t7K8m0ow018822
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 17:48:00 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v5 0/2] hugetlb: display per-process/per-vma usage
-Date: Thu, 20 Aug 2015 08:26:26 +0000
-Message-ID: <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="utf-8"
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 20 Aug 2015 01:48:22 -0700 (PDT)
+Message-ID: <COL130-W93ACD1C6A54A0035AAF173B9660@phx.gbl>
+From: gchen gchen <xili_gchen_5257@hotmail.com>
+Subject: Re: [PATCH] mm: mmap: Simplify the failure return working flow
+Date: Thu, 20 Aug 2015 16:48:21 +0800
+In-Reply-To: <55D593C2.3040105@hotmail.com>
+References: <55D5275D.7020406@hotmail.com>
+ <COL130-W46B6A43FC26795B43939E0B9660@phx.gbl> <55D52CDE.8060700@hotmail.com>
+ <COL130-W42D1358B7EBBCA5F39DA3CB9660@phx.gbl>
+ <20150820074521.GC4780@dhcp22.suse.cz>,<55D593C2.3040105@hotmail.com>
+Content-Type: text/plain; charset="gb2312"
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kernel mailing list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, Linux Memory <linux-mm@kvack.org>
 
-VGhlIHByZXZpb3VzIHZlcnNpb24gaGFkIGJ1aWxkIGlzc3VlcyBpbiBzb21lIGFyY2hpdGVjdHVy
-ZXMsIGJlY2F1c2UgaXQNCnJlcXVpcmVkIHRvIG1vdmUgdGhlIGRlZmluaXRpb24gb2YgSFVHRV9N
-QVhfSFNUQVRFIGFjcm9zcyBoZWFkZXIgZmlsZXMNCmluIG9yZGVyIHRvIGVtYmVkIGEgbmV3IGRh
-dGEgc3RydWN0dXJlIHN0cnVjdCBodWdldGxiX3VzYWdlIGludG8gc3RydWN0DQptbV9zdHJ1Y3Qu
-IFRoaXMgd2FzIGEgaGFyZCBwcm9ibGVtIHRvIHNvbHZlLCBzbyBJIHRvb2sgYW5vdGhlciBhcHBy
-b2FjaA0KaW4gdGhpcyB2ZXJzaW9uLCB3aGVyZSBJIGFkZCBqdXN0IGEgcG9pbnRlciAoc3RydWN0
-IGh1Z2V0bGJfdXNhZ2UgKikgdG8NCnN0cnVjdCBtbV9zdHJ1Y3QgYW5kIGR5bmFtaWNhbGx5IGFs
-bG9jYXRlIGFuZCBsaW5rIGl0Lg0KVGhpcyBtYWtlcyB0aGUgY2hhbmdlcyBsYXJnZXIsIGJ1dCBu
-byBidWlsZCBpc3N1ZXMuDQoNClRoYW5rcywNCk5hb3lhIEhvcmlndWNoaQ0KLS0tDQpTdW1tYXJ5
-Og0KDQpOYW95YSBIb3JpZ3VjaGkgKDIpOg0KICAgICAgbW06IGh1Z2V0bGI6IHByb2M6IGFkZCBI
-dWdldGxiUGFnZXMgZmllbGQgdG8gL3Byb2MvUElEL3NtYXBzDQogICAgICBtbTogaHVnZXRsYjog
-cHJvYzogYWRkIEh1Z2V0bGJQYWdlcyBmaWVsZCB0byAvcHJvYy9QSUQvc3RhdHVzDQoNCiBEb2N1
-bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3Byb2MudHh0IHwgMTAgKysrKysrKy0tDQogZnMvaHVnZXRs
-YmZzL2lub2RlLmMgICAgICAgICAgICAgICB8IDEyICsrKysrKysrKysNCiBmcy9wcm9jL3Rhc2tf
-bW11LmMgICAgICAgICAgICAgICAgIHwgMzAgKysrKysrKysrKysrKysrKysrKysrKysrKw0KIGlu
-Y2x1ZGUvbGludXgvaHVnZXRsYi5oICAgICAgICAgICAgfCAzNiArKysrKysrKysrKysrKysrKysr
-KysrKysrKysrKw0KIGluY2x1ZGUvbGludXgvbW1fdHlwZXMuaCAgICAgICAgICAgfCAgNyArKysr
-KysNCiBrZXJuZWwvZm9yay5jICAgICAgICAgICAgICAgICAgICAgIHwgIDMgKysrDQogbW0vaHVn
-ZXRsYi5jICAgICAgICAgICAgICAgICAgICAgICB8IDQ2ICsrKysrKysrKysrKysrKysrKysrKysr
-KysrKysrKysrKysrKysrDQogbW0vbW1hcC5jICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAx
-ICsNCiBtbS9ybWFwLmMgICAgICAgICAgICAgICAgICAgICAgICAgIHwgIDQgKysrLQ0KIDkgZmls
-ZXMgY2hhbmdlZCwgMTQ2IGluc2VydGlvbnMoKyksIDMgZGVsZXRpb25zKC0p
+T24gMjAxNcTqMDjUwjIwyNUgMTU6NDUsIE1pY2hhbCBIb2NrbyB3cm90ZToKPiBPbiBUaHUgMjAt
+MDgtMTUgMDk6Mjc6NDIsIGdjaGVuIGdjaGVuIHdyb3RlOgo+IFsuLi5dCj4+IFllcywgaXQgaXMg
+cmVhbGx5IHBlY3VsaWFyLCB0aGUgcmVhc29uIGlzIGdtYWlsIGlzIG5vdCBzdGFibGUgaW4gQ2hp
+bmEuCj4+IEkgaGF2ZSB0byBzZW5kIG1haWwgaW4gbXkgaG90bWFpbCBhZGRyZXNzLgo+Pgo+PiBC
+dXQgSSBzdGlsbCB3YW50IHRvIHVzZSBteSBnbWFpbCBhcyBTaWduZWQtb2ZmLWJ5LCBzaW5jZSBJ
+IGhhdmUgYWxyZWFkeQo+PiB1c2VkIGl0LCBhbmQgYWxzbyBpdHMgbmFtZSBpcyBhIGxpdHRsZSBm
+b3JtYWwgdGhhbiBteSBob3RtYWlsLgo+Pgo+PiBXZWxjb21lIGFueSBpZGVhcywgc3VnZ2VzdGlv
+bnMgYW5kIGNvbXBsZXRpb25zIGZvciBpdCAoZS5nLiBpZiBpdCBpcwo+PiBuZWNlc3NhcnkgdG8g
+bGV0IHNlbmQgbWFpbCBhbmQgU2lnbmVkLW9mZi1ieSBtYWlsIGJlIHRoZSBzYW1lLCBJIHNoYWxs
+Cj4+IHRyeSkuCj4KPiBZb3UgY2FuIGRvIHRoZSBmb2xsb3dpbmcgaW4geW91ciAuZ2l0L2NvbmZp
+Zwo+Cj4gW3VzZXJdCj4gICAgICAgbmFtZSA9IFlPVVJfTkFNRV9GT1JfUy1PLUIKPiAgICAgICBl
+bWFpbCA9IFlPVVJfR01BSUxfQUREUkVTUwo+IFtzZW5kZW1haWxdCj4gICAgICAgZnJvbSA9IFlP
+VVJfU1RBQkxFX1NFTkRFUl9BRERSRVNTCj4gICAgICAgZW52ZWxvcGVzZW5kZXIgPSBZT1VSX1NU
+QUJMRV9TRU5ERVJfQUREUkVTUwo+ICAgICAgIHNtdHBzZXJ2ZXIgPSBZT1VSX1NUQUJMRV9TTVRQ
+Cj4KPiBbdXNlcl0gcGFydCB3aWxsIGJlIHVzZWQgZm9yIHMtby1iIGFuZCBBdXRob3IgZW1haWwg
+d2hpbGUgdGhlIHNlbmRlbWFpbAo+IHdpbGwgYmUgdXNlZCBmb3IgZ2l0IHNlbmQtZW1haWwgdG8g
+cm91dGUgdGhlIHBhdGNoIHByb3Blcmx5LiBJZiB0aGUgdHdvCj4gZGlmZmVyIGl0IHdpbGwgYWRk
+IEZyb206IHVzZXIubmFtZSA8dXNlci5lbWFpbD4gYXMgc3VnZ2VzdGVkIGJ5IEFuZHJldy4KPgoK
+T0ssIHRoYW5rIHlvdXIgdmVyeSBtdWNoIGZvciB5b3VyIGRldGFpbHMgaW5mb3JtYXRpb24uIDot
+KQoKSSBzaGFsbCB0cnkgdG8gdXNlIGdpdCB0byBzZW5kL3JlY3YgbWFpbHMgaW5zdGVhZCBvZiBj
+dXJyZW50IHRodW5kZXJiaXJkCmNsaWVudCAoaG9wZSBJIGNhbiBkbyBpdCBuZXh0IHRpbWUsIGFs
+dGhvdWdoIEkgYW0gbm90IHF1aXRlIHN1cmUpLgoKClRoYW5rcy4KLS0KQ2hlbiBHYW5nCgpPcGVu
+LCBzaGFyZSwgYW5kIGF0dGl0dWRlIGxpa2UgYWlyLCB3YXRlciwgYW5kIGxpZmUgd2hpY2ggR29k
+IGJsZXNzZWQKIAkJIAkgICAJCSAg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
