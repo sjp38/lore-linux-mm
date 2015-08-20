@@ -1,121 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 925F46B0253
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 04:53:05 -0400 (EDT)
-Received: by pacdd16 with SMTP id dd16so15308392pac.2
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 01:53:05 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id l4si6458116pde.60.2015.08.20.01.53.03
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A4AC96B0038
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 05:15:01 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so835697wid.0
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 02:15:01 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id s6si7260560wjr.193.2015.08.20.02.14.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Aug 2015 01:53:03 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t7K8r0jM019681
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 17:53:01 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v5 1/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/smaps
-Date: Thu, 20 Aug 2015 08:26:26 +0000
-Message-ID: <1440059182-19798-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
- <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        Thu, 20 Aug 2015 02:15:00 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 52864996BD
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 09:14:59 +0000 (UTC)
+Date: Thu, 20 Aug 2015 10:14:54 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 06/10] mm: page_alloc: Distinguish between being unable
+ to sleep, unwilling to unwilling and avoiding waking kswapd
+Message-ID: <20150820091159.GA12432@techsingularity.net>
+References: <1439376335-17895-1-git-send-email-mgorman@techsingularity.net>
+ <1439376335-17895-7-git-send-email-mgorman@techsingularity.net>
+ <55D49658.50802@suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <55D49658.50802@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-Q3VycmVudGx5IC9wcm9jL1BJRC9zbWFwcyBwcm92aWRlcyBubyB1c2FnZSBpbmZvIGZvciB2bWEo
-Vk1fSFVHRVRMQiksIHdoaWNoDQppcyBpbmNvbnZlbmllbnQgd2hlbiB3ZSB3YW50IHRvIGtub3cg
-cGVyLXRhc2sgb3IgcGVyLXZtYSBiYXNlIGh1Z2V0bGIgdXNhZ2UuDQpUbyBzb2x2ZSB0aGlzLCB0
-aGlzIHBhdGNoIGFkZHMgYSBuZXcgbGluZSBmb3IgaHVnZXRsYiB1c2FnZSBsaWtlIGJlbG93Og0K
-DQogIFNpemU6ICAgICAgICAgICAgICAyMDQ4MCBrQg0KICBSc3M6ICAgICAgICAgICAgICAgICAg
-IDAga0INCiAgUHNzOiAgICAgICAgICAgICAgICAgICAwIGtCDQogIFNoYXJlZF9DbGVhbjogICAg
-ICAgICAgMCBrQg0KICBTaGFyZWRfRGlydHk6ICAgICAgICAgIDAga0INCiAgUHJpdmF0ZV9DbGVh
-bjogICAgICAgICAwIGtCDQogIFByaXZhdGVfRGlydHk6ICAgICAgICAgMCBrQg0KICBSZWZlcmVu
-Y2VkOiAgICAgICAgICAgIDAga0INCiAgQW5vbnltb3VzOiAgICAgICAgICAgICAwIGtCDQogIEFu
-b25IdWdlUGFnZXM6ICAgICAgICAgMCBrQg0KICBIdWdldGxiUGFnZXM6ICAgICAgMTg0MzIga0IN
-CiAgU3dhcDogICAgICAgICAgICAgICAgICAwIGtCDQogIEtlcm5lbFBhZ2VTaXplOiAgICAgMjA0
-OCBrQg0KICBNTVVQYWdlU2l6ZTogICAgICAgIDIwNDgga0INCiAgTG9ja2VkOiAgICAgICAgICAg
-ICAgICAwIGtCDQogIFZtRmxhZ3M6IHJkIHdyIG1yIG13IG1lIGRlIGh0DQoNClNpZ25lZC1vZmYt
-Ynk6IE5hb3lhIEhvcmlndWNoaSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbT4NCkFja2VkLWJ5
-OiBKb2VybiBFbmdlbCA8am9lcm5AbG9nZnMub3JnPg0KQWNrZWQtYnk6IERhdmlkIFJpZW50amVz
-IDxyaWVudGplc0Bnb29nbGUuY29tPg0KLS0tDQp2MyAtPiB2NDoNCi0gc3VzcGVuZCBBY2tlZC1i
-eSB0YWcgYmVjYXVzZSB2My0+djQgY2hhbmdlIGlzIG5vdCB0cml2aWFsDQotIEkgc3RhdGVkIGlu
-IHByZXZpb3VzIGRpc2N1c3Npb24gdGhhdCBIdWdldGxiUGFnZXMgbGluZSBjYW4gY29udGFpbiBw
-YWdlDQogIHNpemUgaW5mbywgYnV0IHRoYXQncyBub3QgbmVjZXNzYXJ5IGJlY2F1c2Ugd2UgYWxy
-ZWFkeSBoYXZlIEtlcm5lbFBhZ2VTaXplDQogIGluZm8uDQotIG1lcmdlZCBkb2N1bWVudGF0aW9u
-IHVwZGF0ZSwgd2hlcmUgdGhlIGN1cnJlbnQgZG9jdW1lbnRhdGlvbiBkb2Vzbid0IG1lbnRpb24N
-CiAgQW5vbkh1Z2VQYWdlcywgc28gaXQncyBhbHNvIGFkZGVkLg0KLS0tDQogRG9jdW1lbnRhdGlv
-bi9maWxlc3lzdGVtcy9wcm9jLnR4dCB8ICA3ICsrKysrLS0NCiBmcy9wcm9jL3Rhc2tfbW11LmMg
-ICAgICAgICAgICAgICAgIHwgMjkgKysrKysrKysrKysrKysrKysrKysrKysrKysrKysNCiAyIGZp
-bGVzIGNoYW5nZWQsIDM0IGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1n
-aXQgdjQuMi1yYzQvRG9jdW1lbnRhdGlvbi9maWxlc3lzdGVtcy9wcm9jLnR4dCB2NC4yLXJjNF9w
-YXRjaGVkL0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMvcHJvYy50eHQNCmluZGV4IDZmN2ZhZmRl
-MDg4NC4uMjJlNDAyMTFlZjY0IDEwMDY0NA0KLS0tIHY0LjItcmM0L0RvY3VtZW50YXRpb24vZmls
-ZXN5c3RlbXMvcHJvYy50eHQNCisrKyB2NC4yLXJjNF9wYXRjaGVkL0RvY3VtZW50YXRpb24vZmls
-ZXN5c3RlbXMvcHJvYy50eHQNCkBAIC00MjMsNiArNDIzLDggQEAgUHJpdmF0ZV9DbGVhbjogICAg
-ICAgICAwIGtCDQogUHJpdmF0ZV9EaXJ0eTogICAgICAgICAwIGtCDQogUmVmZXJlbmNlZDogICAg
-ICAgICAgODkyIGtCDQogQW5vbnltb3VzOiAgICAgICAgICAgICAwIGtCDQorQW5vbkh1Z2VQYWdl
-czogICAgICAgICAwIGtCDQorSHVnZXRsYlBhZ2VzOiAgICAgICAgICAwIGtCDQogU3dhcDogICAg
-ICAgICAgICAgICAgICAwIGtCDQogS2VybmVsUGFnZVNpemU6ICAgICAgICA0IGtCDQogTU1VUGFn
-ZVNpemU6ICAgICAgICAgICA0IGtCDQpAQCAtNDQwLDggKzQ0Miw5IEBAIGluZGljYXRlcyB0aGUg
-YW1vdW50IG9mIG1lbW9yeSBjdXJyZW50bHkgbWFya2VkIGFzIHJlZmVyZW5jZWQgb3IgYWNjZXNz
-ZWQuDQogIkFub255bW91cyIgc2hvd3MgdGhlIGFtb3VudCBvZiBtZW1vcnkgdGhhdCBkb2VzIG5v
-dCBiZWxvbmcgdG8gYW55IGZpbGUuICBFdmVuDQogYSBtYXBwaW5nIGFzc29jaWF0ZWQgd2l0aCBh
-IGZpbGUgbWF5IGNvbnRhaW4gYW5vbnltb3VzIHBhZ2VzOiB3aGVuIE1BUF9QUklWQVRFDQogYW5k
-IGEgcGFnZSBpcyBtb2RpZmllZCwgdGhlIGZpbGUgcGFnZSBpcyByZXBsYWNlZCBieSBhIHByaXZh
-dGUgYW5vbnltb3VzIGNvcHkuDQotIlN3YXAiIHNob3dzIGhvdyBtdWNoIHdvdWxkLWJlLWFub255
-bW91cyBtZW1vcnkgaXMgYWxzbyB1c2VkLCBidXQgb3V0IG9uDQotc3dhcC4NCisiQW5vbkh1Z2VQ
-YWdlcyIgc2hvd3MgdGhlIGFtbW91bnQgb2YgbWVtb3J5IGJhY2tlZCBieSB0cmFuc3BhcmVudCBo
-dWdlcGFnZS4NCisiSHVnZXRsYlBhZ2VzIiBzaG93cyB0aGUgYW1tb3VudCBvZiBtZW1vcnkgYmFj
-a2VkIGJ5IGh1Z2V0bGJmcyBwYWdlLg0KKyJTd2FwIiBzaG93cyBob3cgbXVjaCB3b3VsZC1iZS1h
-bm9ueW1vdXMgbWVtb3J5IGlzIGFsc28gdXNlZCwgYnV0IG91dCBvbiBzd2FwLg0KIA0KICJWbUZs
-YWdzIiBmaWVsZCBkZXNlcnZlcyBhIHNlcGFyYXRlIGRlc2NyaXB0aW9uLiBUaGlzIG1lbWJlciBy
-ZXByZXNlbnRzIHRoZSBrZXJuZWwNCiBmbGFncyBhc3NvY2lhdGVkIHdpdGggdGhlIHBhcnRpY3Vs
-YXIgdmlydHVhbCBtZW1vcnkgYXJlYSBpbiB0d28gbGV0dGVyIGVuY29kZWQNCmRpZmYgLS1naXQg
-djQuMi1yYzQvZnMvcHJvYy90YXNrX21tdS5jIHY0LjItcmM0X3BhdGNoZWQvZnMvcHJvYy90YXNr
-X21tdS5jDQppbmRleCBjYTFlMDkxODgxZDQuLjJjMzc5MzhiODJlZSAxMDA2NDQNCi0tLSB2NC4y
-LXJjNC9mcy9wcm9jL3Rhc2tfbW11LmMNCisrKyB2NC4yLXJjNF9wYXRjaGVkL2ZzL3Byb2MvdGFz
-a19tbXUuYw0KQEAgLTQ0NSw2ICs0NDUsNyBAQCBzdHJ1Y3QgbWVtX3NpemVfc3RhdHMgew0KIAl1
-bnNpZ25lZCBsb25nIGFub255bW91czsNCiAJdW5zaWduZWQgbG9uZyBhbm9ueW1vdXNfdGhwOw0K
-IAl1bnNpZ25lZCBsb25nIHN3YXA7DQorCXVuc2lnbmVkIGxvbmcgaHVnZXRsYjsNCiAJdTY0IHBz
-czsNCiB9Ow0KIA0KQEAgLTYxMCwxMiArNjExLDM4IEBAIHN0YXRpYyB2b2lkIHNob3dfc21hcF92
-bWFfZmxhZ3Moc3RydWN0IHNlcV9maWxlICptLCBzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnZtYSkN
-CiAJc2VxX3B1dGMobSwgJ1xuJyk7DQogfQ0KIA0KKyNpZmRlZiBDT05GSUdfSFVHRVRMQl9QQUdF
-DQorc3RhdGljIGludCBzbWFwc19odWdldGxiX3JhbmdlKHB0ZV90ICpwdGUsIHVuc2lnbmVkIGxv
-bmcgaG1hc2ssDQorCQkJCSB1bnNpZ25lZCBsb25nIGFkZHIsIHVuc2lnbmVkIGxvbmcgZW5kLA0K
-KwkJCQkgc3RydWN0IG1tX3dhbGsgKndhbGspDQorew0KKwlzdHJ1Y3QgbWVtX3NpemVfc3RhdHMg
-Km1zcyA9IHdhbGstPnByaXZhdGU7DQorCXN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hID0gd2Fs
-ay0+dm1hOw0KKwlzdHJ1Y3QgcGFnZSAqcGFnZSA9IE5VTEw7DQorDQorCWlmIChwdGVfcHJlc2Vu
-dCgqcHRlKSkgew0KKwkJcGFnZSA9IHZtX25vcm1hbF9wYWdlKHZtYSwgYWRkciwgKnB0ZSk7DQor
-CX0gZWxzZSBpZiAoaXNfc3dhcF9wdGUoKnB0ZSkpIHsNCisJCXN3cF9lbnRyeV90IHN3cGVudCA9
-IHB0ZV90b19zd3BfZW50cnkoKnB0ZSk7DQorDQorCQlpZiAoaXNfbWlncmF0aW9uX2VudHJ5KHN3
-cGVudCkpDQorCQkJcGFnZSA9IG1pZ3JhdGlvbl9lbnRyeV90b19wYWdlKHN3cGVudCk7DQorCX0N
-CisJaWYgKHBhZ2UpDQorCQltc3MtPmh1Z2V0bGIgKz0gaHVnZV9wYWdlX3NpemUoaHN0YXRlX3Zt
-YSh2bWEpKTsNCisJcmV0dXJuIDA7DQorfQ0KKyNlbmRpZiAvKiBIVUdFVExCX1BBR0UgKi8NCisN
-CiBzdGF0aWMgaW50IHNob3dfc21hcChzdHJ1Y3Qgc2VxX2ZpbGUgKm0sIHZvaWQgKnYsIGludCBp
-c19waWQpDQogew0KIAlzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnZtYSA9IHY7DQogCXN0cnVjdCBt
-ZW1fc2l6ZV9zdGF0cyBtc3M7DQogCXN0cnVjdCBtbV93YWxrIHNtYXBzX3dhbGsgPSB7DQogCQku
-cG1kX2VudHJ5ID0gc21hcHNfcHRlX3JhbmdlLA0KKyNpZmRlZiBDT05GSUdfSFVHRVRMQl9QQUdF
-DQorCQkuaHVnZXRsYl9lbnRyeSA9IHNtYXBzX2h1Z2V0bGJfcmFuZ2UsDQorI2VuZGlmDQogCQku
-bW0gPSB2bWEtPnZtX21tLA0KIAkJLnByaXZhdGUgPSAmbXNzLA0KIAl9Ow0KQEAgLTYzNyw2ICs2
-NjQsNyBAQCBzdGF0aWMgaW50IHNob3dfc21hcChzdHJ1Y3Qgc2VxX2ZpbGUgKm0sIHZvaWQgKnYs
-IGludCBpc19waWQpDQogCQkgICAiUmVmZXJlbmNlZDogICAgICU4bHUga0JcbiINCiAJCSAgICJB
-bm9ueW1vdXM6ICAgICAgJThsdSBrQlxuIg0KIAkJICAgIkFub25IdWdlUGFnZXM6ICAlOGx1IGtC
-XG4iDQorCQkgICAiSHVnZXRsYlBhZ2VzOiAgICU4bHUga0JcbiINCiAJCSAgICJTd2FwOiAgICAg
-ICAgICAgJThsdSBrQlxuIg0KIAkJICAgIktlcm5lbFBhZ2VTaXplOiAlOGx1IGtCXG4iDQogCQkg
-ICAiTU1VUGFnZVNpemU6ICAgICU4bHUga0JcbiINCkBAIC02NTEsNiArNjc5LDcgQEAgc3RhdGlj
-IGludCBzaG93X3NtYXAoc3RydWN0IHNlcV9maWxlICptLCB2b2lkICp2LCBpbnQgaXNfcGlkKQ0K
-IAkJICAgbXNzLnJlZmVyZW5jZWQgPj4gMTAsDQogCQkgICBtc3MuYW5vbnltb3VzID4+IDEwLA0K
-IAkJICAgbXNzLmFub255bW91c190aHAgPj4gMTAsDQorCQkgICBtc3MuaHVnZXRsYiA+PiAxMCwN
-CiAJCSAgIG1zcy5zd2FwID4+IDEwLA0KIAkJICAgdm1hX2tlcm5lbF9wYWdlc2l6ZSh2bWEpID4+
-IDEwLA0KIAkJICAgdm1hX21tdV9wYWdlc2l6ZSh2bWEpID4+IDEwLA0KLS0gDQoyLjQuMw0K
+On Wed, Aug 19, 2015 at 04:44:40PM +0200, Vlastimil Babka wrote:
+> 
+> Unfortunately this is not as simple for all uses of GFP_TRANSHUGE.
+> Namely in __alloc_pages_slowpath() the checks could use __GFP_NO_KSWAPD as one
+> of the distinguishing flags, but to test for lack of __GFP_KSWAPD_RECLAIM, they
+> should be adjusted in order to be functionally equivalent.
+> Yes, it would be better if we could get rid of them, but that's out of scope
+> here. So, something like this?
+> 
+
+Nicely spotted. The only modification I made was to add a helper because
+the flags trick is sufficiently complex. That results in this;
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9617e79d6931..0f92d4d42e2e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2774,6 +2774,11 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	return !!(gfp_to_alloc_flags(gfp_mask) & ALLOC_NO_WATERMARKS);
+ }
+ 
++static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
++{
++	return (gfp_mask & (GFP_TRANSHUGE | __GFP_KSWAPD_RECLAIM)) == GFP_TRANSHUGE;
++}
++
+ static inline struct page *
+ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 						struct alloc_context *ac)
+@@ -2889,7 +2894,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		goto got_pg;
+ 
+ 	/* Checks for THP-specific high-order allocations */
+-	if ((gfp_mask & GFP_TRANSHUGE) == GFP_TRANSHUGE) {
++	if (is_thp_gfp_mask(gfp_mask)) {
+ 		/*
+ 		 * If compaction is deferred for high-order allocations, it is
+ 		 * because sync compaction recently failed. If this is the case
+@@ -2924,8 +2929,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 * fault, so use asynchronous memory compaction for THP unless it is
+ 	 * khugepaged trying to collapse.
+ 	 */
+-	if ((gfp_mask & GFP_TRANSHUGE) != GFP_TRANSHUGE ||
+-						(current->flags & PF_KTHREAD))
++	if (!is_thp_gfp_mask(gfp_mask) || (current->flags & PF_KTHREAD))
+ 		migration_mode = MIGRATE_SYNC_LIGHT;
+ 
+ 	/* Try direct reclaim and then allocating */
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
