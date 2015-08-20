@@ -1,71 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id C99546B0038
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 03:53:53 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so8271748wic.1
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 00:53:53 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fa6si11182638wid.57.2015.08.20.00.53.51
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A3B4C6B0038
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 03:56:14 -0400 (EDT)
+Received: by wijp15 with SMTP id p15so8326136wij.0
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 00:56:14 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
+        by mx.google.com with ESMTPS id mb10si7630164wic.100.2015.08.20.00.56.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Aug 2015 00:53:52 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Aug 2015 00:56:13 -0700 (PDT)
+Received: by wibhh20 with SMTP id hh20so28690049wib.0
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 00:56:12 -0700 (PDT)
+Date: Thu, 20 Aug 2015 09:56:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH v7 3/6] mm: Introduce VM_LOCKONFAULT
+Message-ID: <20150820075611.GD4780@dhcp22.suse.cz>
 References: <1439097776-27695-1-git-send-email-emunson@akamai.com>
  <1439097776-27695-4-git-send-email-emunson@akamai.com>
- <20150812115909.GA5182@dhcp22.suse.cz> <20150819213345.GB4536@akamai.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55D5878E.5030206@suse.cz>
-Date: Thu, 20 Aug 2015 09:53:50 +0200
+ <20150812115909.GA5182@dhcp22.suse.cz>
+ <20150819213345.GB4536@akamai.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20150819213345.GB4536@akamai.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On 08/19/2015 11:33 PM, Eric B Munson wrote:
-> On Wed, 12 Aug 2015, Michal Hocko wrote:
->
->> On Sun 09-08-15 01:22:53, Eric B Munson wrote:
->>
->> I do not like this very much to be honest. We have only few bits
->> left there and it seems this is not really necessary. I thought that
->> LOCKONFAULT acts as a modifier to the mlock call to tell whether to
->> poppulate or not. The only place we have to persist it is
->> mlockall(MCL_FUTURE) AFAICS. And this can be handled by an additional
->> field in the mm_struct. This could be handled at __mm_populate level.
->> So unless I am missing something this would be much more easier
->> in the end we no new bit in VM flags would be necessary.
->>
->> This would obviously mean that the LOCKONFAULT couldn't be exported to
->> the userspace but is this really necessary?
->
-> Sorry for the latency here, I was on vacation and am now at plumbers.
->
-> I am not sure that growing the mm_struct by another flags field instead
-> of using available bits in the vm_flags is the right choice.
-
-I was making the same objection on one of the earlier versions and since 
-you sticked with a new vm flag, I thought it doesn't matter, as we could 
-change it later if we run out of bits. But now I realize that since you 
-export this difference to userspace (and below you say that it's by 
-request), we won't be able to change it later. So it's a more difficult 
-choice.
-
-> After this
-> patch, we still have 3 free bits on 32 bit architectures (2 after the
-> userfaultfd set IIRC).  The group which asked for this feature here
+On Wed 19-08-15 17:33:45, Eric B Munson wrote:
+[...]
+> The group which asked for this feature here
 > wants the ability to distinguish between LOCKED and LOCKONFAULT regions
 > and without the VMA flag there isn't a way to do that.
->
+
+Could you be more specific on why this is needed?
+
 > Do we know that these last two open flags are needed right now or is
 > this speculation that they will be and that none of the other VMA flags
 > can be reclaimed?
 
-I think it's the latter, we can expect that flags will be added rather 
-than removed, as removal is hard or impossible.
+I do not think they are needed by anybody right now but that is not a
+reason why it should be used without a really strong justification.
+If the discoverability is really needed then fair enough but I haven't
+seen any justification for that yet.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
