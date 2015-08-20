@@ -1,42 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D02AF6B0253
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 15:47:28 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so2200236wic.1
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 12:47:28 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id mx11si14520998wic.49.2015.08.20.12.47.26
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 53CAA6B0253
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 15:50:03 -0400 (EDT)
+Received: by pdbmi9 with SMTP id mi9so17618456pdb.3
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 12:50:03 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id c2si8972025pdb.224.2015.08.20.12.50.01
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Aug 2015 12:47:27 -0700 (PDT)
-Date: Thu, 20 Aug 2015 21:46:50 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v3 1/10] x86/vdso32: Define PGTABLE_LEVELS to 32bit
- VDSO
-In-Reply-To: <1438811013-30983-2-git-send-email-toshi.kani@hp.com>
-Message-ID: <alpine.DEB.2.11.1508202145540.3873@nanos>
-References: <1438811013-30983-1-git-send-email-toshi.kani@hp.com> <1438811013-30983-2-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Aug 2015 12:50:02 -0700 (PDT)
+Received: by pawq9 with SMTP id q9so34866988paw.3
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 12:50:01 -0700 (PDT)
+Date: Thu, 20 Aug 2015 12:49:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v5 2/2] mm: hugetlb: proc: add HugetlbPages field to
+ /proc/PID/status
+In-Reply-To: <20150820110004.GB4632@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1508201249010.27169@chino.kir.corp.google.com>
+References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp> <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1440059182-19798-3-git-send-email-n-horiguchi@ah.jp.nec.com> <20150820110004.GB4632@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Wed, 5 Aug 2015, Toshi Kani wrote:
+On Thu, 20 Aug 2015, Michal Hocko wrote:
 
-> In case of CONFIG_X86_64, vdso32/vclock_gettime.c fakes a 32bit
-> kernel configuration by re-defining it to CONFIG_X86_32.  However,
-> it does not re-define CONFIG_PGTABLE_LEVELS leaving it as 4 levels.
-> Fix it by re-defining CONFIG_PGTABLE_LEVELS to 2 as X86_PAE is not
-> set.
+> On Thu 20-08-15 08:26:27, Naoya Horiguchi wrote:
+> > Currently there's no easy way to get per-process usage of hugetlb pages,
+> 
+> Is this really the case after your previous patch? You have both 
+> HugetlbPages and KernelPageSize which should be sufficient no?
+> 
+> Reading a single file is, of course, easier but is it really worth the
+> additional code? I haven't really looked at the patch so I might be
+> missing something but what would be an advantage over reading
+> /proc/<pid>/smaps and extracting the information from there?
+> 
 
-You fail to explain WHY this is required. I have not yet spotted any
-code in vclock_gettime.c which is affected by this.
-
-Thanks,
-
-	tglx
+/proc/pid/smaps requires root, /proc/pid/status doesn't.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
