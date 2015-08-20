@@ -1,99 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DB476B0253
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 08:31:12 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so34914244wic.1
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 05:31:11 -0700 (PDT)
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
-        by mx.google.com with ESMTPS id jf3si8169506wjb.131.2015.08.20.05.31.10
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F436B0038
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 08:45:31 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so144633572wic.1
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 05:45:30 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id p3si12454931wiy.86.2015.08.20.05.45.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Aug 2015 05:31:10 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so144302172wic.1
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 05:31:10 -0700 (PDT)
-Date: Thu, 20 Aug 2015 15:31:07 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 0/5] Fix compound_head() race
-Message-ID: <20150820123107.GA31768@node.dhcp.inet.fi>
-References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
+        Thu, 20 Aug 2015 05:45:29 -0700 (PDT)
+Received: by wicne3 with SMTP id ne3so15132000wic.1
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 05:45:29 -0700 (PDT)
+Date: Thu, 20 Aug 2015 14:45:27 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 03/10] mm, page_alloc: Remove unnecessary recalculations
+ for dirty zone balancing
+Message-ID: <20150820124526.GE20110@dhcp22.suse.cz>
+References: <1439376335-17895-1-git-send-email-mgorman@techsingularity.net>
+ <1439376335-17895-4-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="6TrnltStXW4iwmi0"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1439376335-17895-4-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
+On Wed 12-08-15 11:45:28, Mel Gorman wrote:
+> File-backed pages that will be immediately are balanced between zones but
+					    ^written to...
 
---6TrnltStXW4iwmi0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+> it's unnecessarily expensive.
 
-On Wed, Aug 19, 2015 at 12:21:41PM +0300, Kirill A. Shutemov wrote:
-> Here's my attempt on fixing recently discovered race in compound_head().
-> It should make compound_head() reliable in all contexts.
+to do WHAT? I guess you meant checking gfp_mask resp. alloc_mask? I
+doubt it would make a noticeable difference as this is a slow path
+already but I agree it doesn't make sense to check it again.
+
+> Move consider_zone_balanced into the alloc_context
+> instead of checking bitmaps multiple times. The patch also gives the parameter
+> a more meaningful name.
 > 
-> The patchset is against Linus' tree. Let me know if it need to be rebased
-> onto different baseline.
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/internal.h   |  1 +
+>  mm/page_alloc.c | 11 +++++++----
+>  2 files changed, 8 insertions(+), 4 deletions(-)
 > 
-> It's expected to have conflicts with my page-flags patchset and probably
-> should be applied before it.
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 36b23f1e2ca6..9331f802a067 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -129,6 +129,7 @@ struct alloc_context {
+>  	int classzone_idx;
+>  	int migratetype;
+>  	enum zone_type high_zoneidx;
+> +	bool spread_dirty_pages;
+>  };
+>  
+>  /*
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 5e1f6f4370bc..94f2f6bdd6d5 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2297,8 +2297,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+>  	struct zoneref *z;
+>  	struct page *page = NULL;
+>  	struct zone *zone;
+> -	bool consider_zone_dirty = (alloc_flags & ALLOC_WMARK_LOW) &&
+> -				(gfp_mask & __GFP_WRITE);
+>  	int nr_fair_skipped = 0;
+>  	bool zonelist_rescan;
+>  
+> @@ -2350,14 +2348,14 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+>  		 *
+>  		 * XXX: For now, allow allocations to potentially
+>  		 * exceed the per-zone dirty limit in the slowpath
+> -		 * (ALLOC_WMARK_LOW unset) before going into reclaim,
+> +		 * (spread_dirty_pages unset) before going into reclaim,
+>  		 * which is important when on a NUMA setup the allowed
+>  		 * zones are together not big enough to reach the
+>  		 * global limit.  The proper fix for these situations
+>  		 * will require awareness of zones in the
+>  		 * dirty-throttling and the flusher threads.
+>  		 */
+> -		if (consider_zone_dirty && !zone_dirty_ok(zone))
+> +		if (ac->spread_dirty_pages && !zone_dirty_ok(zone))
+>  			continue;
+>  
+>  		mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+> @@ -2997,6 +2995,10 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>  
+>  	/* We set it here, as __alloc_pages_slowpath might have changed it */
+>  	ac.zonelist = zonelist;
+> +
+> +	/* Dirty zone balancing only done in the fast path */
+> +	ac.spread_dirty_pages = (gfp_mask & __GFP_WRITE);
+> +
+>  	/* The preferred zone is used for statistics later */
+>  	preferred_zoneref = first_zones_zonelist(ac.zonelist, ac.high_zoneidx,
+>  				ac.nodemask, &ac.preferred_zone);
+> @@ -3014,6 +3016,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>  		 * complete.
+>  		 */
+>  		alloc_mask = memalloc_noio_flags(gfp_mask);
+> +		ac.spread_dirty_pages = false;
+>  
+>  		page = __alloc_pages_slowpath(alloc_mask, order, &ac);
+>  	}
+> -- 
+> 2.4.6
 > 
-> v3:
->    - Fix build without hugetlb;
->    - Drop page->first_page;
->    - Update comment for free_compound_page();
->    - Use 'unsigned int' for page order;
-> 
-> v2: Per Hugh's suggestion page->compound_head is moved into third double
->     word. This way we can avoid memory overhead which v1 had in some
->     cases.
-> 
->     This place in struct page is rather overloaded. More testing is
->     required to make sure we don't collide with anyone.
-
-Andrew, can we have the patchset applied, if nobody has objections?
-
-It applies cleanly into your patchstack just before my page-flags
-patchset.
-
-As expected, it causes few conflicts with patches:
-
- page-flags-introduce-page-flags-policies-wrt-compound-pages.patch
- mm-sanitize-page-mapping-for-tail-pages.patch
- include-linux-page-flagsh-rename-macros-to-avoid-collisions.patch
-
-Updated patches with solved conflicts are attached.
-
-Let me know if I need to do anything else about this.
-
-Hugh, does it address your worry wrt page-flags?
-
-Before you've mentioned races of whether the head page still agrees with
-the tail. I don't think it's an issue: you can get this kind of race only
-in very special environments like pfn scanner where you anyway need to
-re-validate the page after stabilizing it.
-
-Bloat from my page-flags is also reduced substantially. Size of your
-page_is_locked() example in allnoconfig case reduced from 32 to 17 bytes.
-With the patchset it look this way:
-
-00003070 <page_is_locked>:
-    3070:	8b 50 14             	mov    0x14(%eax),%edx
-    3073:	f6 c2 01             	test   $0x1,%dl
-    3076:	8d 4a ff             	lea    -0x1(%edx),%ecx
-    3079:	0f 45 c1             	cmovne %ecx,%eax
-    307c:	8b 00                	mov    (%eax),%eax
-    307e:	24 01                	and    $0x1,%al
-    3080:	c3                   	ret    
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
---6TrnltStXW4iwmi0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="include-linux-page-flagsh-rename-macros-to-avoid-collisions.patch"
-
-
---6TrnltStXW4iwmi0--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
