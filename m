@@ -1,71 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E98CE6B0038
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 22:37:57 -0400 (EDT)
-Received: by pacdd16 with SMTP id dd16so8107148pac.2
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 19:37:57 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id qn10si4864524pbc.109.2015.08.19.19.37.56
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id D7BBB6B0038
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 01:26:25 -0400 (EDT)
+Received: by pdbmi9 with SMTP id mi9so9882163pdb.3
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 22:26:25 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id y9si5576542pdl.108.2015.08.19.22.26.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Aug 2015 19:37:57 -0700 (PDT)
-Received: by paccq16 with SMTP id cq16so16452104pac.1
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 19:37:56 -0700 (PDT)
-Date: Wed, 19 Aug 2015 19:36:31 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] mm, vmscan: unlock page while waiting on writeback
-Message-ID: <alpine.LSU.2.11.1508191930390.2073@eggly.anvils>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 19 Aug 2015 22:26:24 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [linux-next:master 9078/9582]
+ arch/arm64/include/asm/pgtable.h:238:0: warning: "HUGE_MAX_HSTATE" redefined
+Date: Thu, 20 Aug 2015 05:24:11 +0000
+Message-ID: <20150820052410.GA1233@hori1.linux.bs1.fc.nec.co.jp>
+References: <201508192138.toXxw84b%fengguang.wu@intel.com>
+ <20150819143305.fc1fbb979fee6e9b60c59d3c@linux-foundation.org>
+ <20150820010148.GA859@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20150820010148.GA859@hori1.linux.bs1.fc.nec.co.jp>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <677703E96AC70849963EC8B5A2F4AD8D@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org
+Cc: kbuild test robot <fengguang.wu@intel.com>, "kbuild-all@01.org" <kbuild-all@01.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-This is merely a politeness: I've not found that shrink_page_list() leads
-to deadlock with the page it holds locked across wait_on_page_writeback();
-but nevertheless, why hold others off by keeping the page locked there?
-
-And while we're at it: remove the mistaken "not " from the commentary
-on this Case 3 (and a distracting blank line from Case 2, if I may).
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-I remembered this old patch when we were discussing the more important
-ecf5fc6e9654 "mm, vmscan: Do not wait for page writeback for GFP_NOFS
-allocations", and now retested it against mmotm.
-
- mm/vmscan.c |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
-
---- mmotm/mm/vmscan.c	2015-08-17 18:46:26.601521575 -0700
-+++ linux/mm/vmscan.c	2015-08-17 18:53:41.335108240 -0700
-@@ -991,7 +991,7 @@ static unsigned long shrink_page_list(st
- 		 *    __GFP_IO|__GFP_FS for this reason); but more thought
- 		 *    would probably show more reasons.
- 		 *
--		 * 3) Legacy memcg encounters a page that is not already marked
-+		 * 3) Legacy memcg encounters a page that is already marked
- 		 *    PageReclaim. memcg does not have any dirty pages
- 		 *    throttling so we could easily OOM just because too many
- 		 *    pages are in writeback and there is nothing else to
-@@ -1021,12 +1021,15 @@ static unsigned long shrink_page_list(st
- 				 */
- 				SetPageReclaim(page);
- 				nr_writeback++;
--
- 				goto keep_locked;
- 
- 			/* Case 3 above */
- 			} else {
-+				unlock_page(page);
- 				wait_on_page_writeback(page);
-+				/* then go back and try same page again */
-+				list_add_tail(&page->lru, page_list);
-+				continue;
- 			}
- 		}
- 
+T24gVGh1LCBBdWcgMjAsIDIwMTUgYXQgMDE6MDE6NDhBTSArMDAwMCwgSG9yaWd1Y2hpIE5hb3lh
+KOWggOWPoyDnm7TkuZ8pIHdyb3RlOg0KPiBPbiBXZWQsIEF1ZyAxOSwgMjAxNSBhdCAwMjozMzow
+NVBNIC0wNzAwLCBBbmRyZXcgTW9ydG9uIHdyb3RlOg0KPiA+IE9uIFdlZCwgMTkgQXVnIDIwMTUg
+MjE6MzI6NDAgKzA4MDAga2J1aWxkIHRlc3Qgcm9ib3QgPGZlbmdndWFuZy53dUBpbnRlbC5jb20+
+IHdyb3RlOg0KPiA+IA0KPiA+ID4gdHJlZTogICBnaXQ6Ly9naXQua2VybmVsLm9yZy9wdWIvc2Nt
+L2xpbnV4L2tlcm5lbC9naXQvbmV4dC9saW51eC1uZXh0LmdpdCBtYXN0ZXINCj4gPiA+IGhlYWQ6
+ICAgZGNhYTlhM2U4OGM0MDgyMDk2YmZlZDYyZDlkZTJkOWI2YWQ5ZTNkNg0KPiA+ID4gY29tbWl0
+OiA4NzhiNmY1YmNlZjhkZTY0YTVjMzliNjg1ZTc4NTE2NjM1N2JmMGRjIFs5MDc4Lzk1ODJdIG1t
+LWh1Z2V0bGItcHJvYy1hZGQtaHVnZXRsYnBhZ2VzLWZpZWxkLXRvLXByb2MtcGlkLXN0YXR1cy1m
+aXgtMw0KPiA+ID4gY29uZmlnOiBhcm02NC1hbGxtb2Rjb25maWcgKGF0dGFjaGVkIGFzIC5jb25m
+aWcpDQo+ID4gPiByZXByb2R1Y2U6DQo+ID4gPiAgIHdnZXQgaHR0cHM6Ly9naXQua2VybmVsLm9y
+Zy9jZ2l0L2xpbnV4L2tlcm5lbC9naXQvd2ZnL2xrcC10ZXN0cy5naXQvcGxhaW4vc2Jpbi9tYWtl
+LmNyb3NzIC1PIH4vYmluL21ha2UuY3Jvc3MNCj4gPiA+ICAgY2htb2QgK3ggfi9iaW4vbWFrZS5j
+cm9zcw0KPiA+ID4gICBnaXQgY2hlY2tvdXQgODc4YjZmNWJjZWY4ZGU2NGE1YzM5YjY4NWU3ODUx
+NjYzNTdiZjBkYw0KPiA+ID4gICAjIHNhdmUgdGhlIGF0dGFjaGVkIC5jb25maWcgdG8gbGludXgg
+YnVpbGQgdHJlZQ0KPiA+ID4gICBtYWtlLmNyb3NzIEFSQ0g9YXJtNjQgDQo+ID4gPiANCj4gPiA+
+IEFsbCB3YXJuaW5ncyAobmV3IG9uZXMgcHJlZml4ZWQgYnkgPj4pOg0KPiA+ID4gDQo+ID4gPiAg
+ICBJbiBmaWxlIGluY2x1ZGVkIGZyb20gaW5jbHVkZS9saW51eC9tbS5oOjU0OjAsDQo+ID4gPiAg
+ICAgICAgICAgICAgICAgICAgIGZyb20gYXJjaC9hcm02NC9rZXJuZWwvYXNtLW9mZnNldHMuYzoy
+MjoNCj4gPiA+ID4+IGFyY2gvYXJtNjQvaW5jbHVkZS9hc20vcGd0YWJsZS5oOjIzODowOiB3YXJu
+aW5nOiAiSFVHRV9NQVhfSFNUQVRFIiByZWRlZmluZWQNCj4gPiA+ICAgICAjZGVmaW5lIEhVR0Vf
+TUFYX0hTVEFURSAgMg0KPiA+ID4gICAgIF4NCj4gPiA+ICAgIEluIGZpbGUgaW5jbHVkZWQgZnJv
+bSBpbmNsdWRlL2xpbnV4L3NjaGVkLmg6Mjc6MCwNCj4gPiA+ICAgICAgICAgICAgICAgICAgICAg
+ZnJvbSBhcmNoL2FybTY0L2tlcm5lbC9hc20tb2Zmc2V0cy5jOjIxOg0KPiA+ID4gICAgaW5jbHVk
+ZS9saW51eC9tbV90eXBlcy5oOjM3MjowOiBub3RlOiB0aGlzIGlzIHRoZSBsb2NhdGlvbiBvZiB0
+aGUgcHJldmlvdXMgZGVmaW5pdGlvbg0KPiA+ID4gICAgICNkZWZpbmUgSFVHRV9NQVhfSFNUQVRF
+IDENCj4gPiANCj4gPiBJJ3ZlIHNwZW50IGZhciB0b28gbG9uZyB0cnlpbmcgdG8gY29tZSB1cCB3
+aXRoIGEgbmljZSBmaXggZm9yIHRoaXMgYW5kDQo+ID4gZXZlcnl0aGluZyBJIHRyeSBsZWFkcyBk
+b3duIGEgcGF0aCBvZiBob3Jyb3IuICBPdXIgaW5jbHVkZSBmaWxlcyBhcmUgYQ0KPiA+IGJpZyBt
+ZXNzLg0KPiANCj4gVGhhbmtzIGZvciBkaWdnaW5nIHRoaXMuIEkgYWdyZWUgdG8gdGhlIGRpcmVj
+dGlvbiBvZiBzcGxpdHRpbmcgaGVhZGVyIGZpbGVzDQo+IHRvIHJlZHVjZSB0aGUgY29tcGxleGl0
+eSBvZiBoZWFkZXIgZGVwZW5kZW5jeS4gQnV0IGlmIHdlIG5lZWQgYSBxdWljayBmaXgNCj4gdW50
+aWwgeW91ciB3b3JrIGluIGFub3RoZXIgZW1haWwgaXMgbWVyZ2VkLCB0aGUgZm9sbG93aW5nIHNo
+b3VsZCB3b3JrLg0KPiANCj4gIyBJJ2xsIHRha2UgYSBsb29rIG9uIHlvdXIgcGF0Y2guDQo+IA0K
+PiBUaGFua3MsDQo+IE5hb3lhIEhvcmlndWNoaQ0KPiAtLS0NCj4gRnJvbTogTmFveWEgSG9yaWd1
+Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KPiBTdWJqZWN0OiBbUEFUQ0hdIGh1Z2V0
+bGI6IG92ZXJ3cml0ZSBIVUdFX01BWF9IU1RBVEUgZGVmaW5pdGlvbg0KPiANCj4gVGhpcyBkaXJ0
+eSB3b3JrYXJvdW5kIHdpbGwgYmUgcmVtb3ZlZCB3aGVuIHRoZSBjaXJjdWxhciBkZXBlbmRlbmN5
+IG9mDQo+IGhlYWRlciBmaWxlcyBhcm91bmQgbW1fdHlwZXMuaCBhbmQgc2NoZWQuaCBpcyBmaXhl
+ZC4NCj4gDQo+IFNpZ25lZC1vZmYtYnk6IE5hb3lhIEhvcmlndWNoaSA8bi1ob3JpZ3VjaGlAYWgu
+anAubmVjLmNvbT4NCg0Kc29ycnksIHRoaXMgZG9lc24ndCB3b3JrIGJlY2F1c2Ugd2hlbiB3ZSBp
+bmNsdWRlIG1tX3R5cGVzLmggZmlyc3QsDQpzdHJ1Y3QgaHVnZXRsYl91c2FnZSBoYXMgb25seSBv
+bmUgY291bnRlciBldmVuIGlmIEhVR0VfTUFYX0hTVEFURSBpcw0Kb3ZlcndyaXR0ZW4gYWZ0ZXJ3
+YXJkLg0KSXQgbWlnaHQgYmUgZ29vZCB0byBhZGQganVzdCBhIHBvaW50ZXIgc3RydWN0IGh1Z2V0
+bGJfdXNhZ2UqIGluIG1tX3N0cnVjdCwNCndoaWNoIGRvZXNuJ3QgcmVxdWlyZSBIVUdFX01BWF9I
+U1RBVEUgaW4gaW5jbHVzaW9uIG9mIG1tX3R5cGVzLmguDQoNClRoYW5rcywNCk5hb3lhIEhvcmln
+dWNoaQ0KDQo+IC0tLQ0KPiAgYXJjaC9hcm02NC9pbmNsdWRlL2FzbS9wZ3RhYmxlLmggIHwgMyAr
+KysNCj4gIGFyY2gvcG93ZXJwYy9pbmNsdWRlL2FzbS9wYWdlLmggICB8IDMgKysrDQo+ICBhcmNo
+L3RpbGUvaW5jbHVkZS9hc20vcGFnZS5oICAgICAgfCAzICsrKw0KPiAgYXJjaC94ODYvaW5jbHVk
+ZS9hc20vcGFnZV90eXBlcy5oIHwgMyArKysNCj4gIDQgZmlsZXMgY2hhbmdlZCwgMTIgaW5zZXJ0
+aW9ucygrKQ0KPiANCj4gZGlmZiAtLWdpdCBhL2FyY2gvYXJtNjQvaW5jbHVkZS9hc20vcGd0YWJs
+ZS5oIGIvYXJjaC9hcm02NC9pbmNsdWRlL2FzbS9wZ3RhYmxlLmgNCj4gaW5kZXggNTYyODNmOGE2
+NzVjLi4wMTIwODIwNGRiYjMgMTAwNjQ0DQo+IC0tLSBhL2FyY2gvYXJtNjQvaW5jbHVkZS9hc20v
+cGd0YWJsZS5oDQo+ICsrKyBiL2FyY2gvYXJtNjQvaW5jbHVkZS9hc20vcGd0YWJsZS5oDQo+IEBA
+IC0yMzUsNiArMjM1LDkgQEAgc3RhdGljIGlubGluZSB2b2lkIHNldF9wdGVfYXQoc3RydWN0IG1t
+X3N0cnVjdCAqbW0sIHVuc2lnbmVkIGxvbmcgYWRkciwNCj4gIC8qDQo+ICAgKiBIdWdldGxiIGRl
+ZmluaXRpb25zLg0KPiAgICovDQo+ICsjaWYgZGVmaW5lZChIVUdFX01BWF9IU1RBVEUpICYmIEhV
+R0VfTUFYX0hTVEFURSA9PSAxDQo+ICsjdW5kZWYgSFVHRV9NQVhfSFNUQVRFDQo+ICsjZW5kaWYN
+Cj4gICNkZWZpbmUgSFVHRV9NQVhfSFNUQVRFCQkyDQo+ICAjZGVmaW5lIEhQQUdFX1NISUZUCQlQ
+TURfU0hJRlQNCj4gICNkZWZpbmUgSFBBR0VfU0laRQkJKF9BQygxLCBVTCkgPDwgSFBBR0VfU0hJ
+RlQpDQo+IGRpZmYgLS1naXQgYS9hcmNoL3Bvd2VycGMvaW5jbHVkZS9hc20vcGFnZS5oIGIvYXJj
+aC9wb3dlcnBjL2luY2x1ZGUvYXNtL3BhZ2UuaA0KPiBpbmRleCA3MTI5NGE2ZTk3NmUuLjE5ZWUw
+NTUyMDM1MyAxMDA2NDQNCj4gLS0tIGEvYXJjaC9wb3dlcnBjL2luY2x1ZGUvYXNtL3BhZ2UuaA0K
+PiArKysgYi9hcmNoL3Bvd2VycGMvaW5jbHVkZS9hc20vcGFnZS5oDQo+IEBAIC00NSw2ICs0NSw5
+IEBAIGV4dGVybiB1bnNpZ25lZCBpbnQgSFBBR0VfU0hJRlQ7DQo+ICAjZGVmaW5lIEhQQUdFX1NJ
+WkUJCSgoMVVMKSA8PCBIUEFHRV9TSElGVCkNCj4gICNkZWZpbmUgSFBBR0VfTUFTSwkJKH4oSFBB
+R0VfU0laRSAtIDEpKQ0KPiAgI2RlZmluZSBIVUdFVExCX1BBR0VfT1JERVIJKEhQQUdFX1NISUZU
+IC0gUEFHRV9TSElGVCkNCj4gKyNpZiBkZWZpbmVkKEhVR0VfTUFYX0hTVEFURSkgJiYgSFVHRV9N
+QVhfSFNUQVRFID09IDENCj4gKyN1bmRlZiBIVUdFX01BWF9IU1RBVEUNCj4gKyNlbmRpZg0KPiAg
+I2RlZmluZSBIVUdFX01BWF9IU1RBVEUJCShNTVVfUEFHRV9DT1VOVC0xKQ0KPiAgI2VuZGlmDQo+
+ICANCj4gZGlmZiAtLWdpdCBhL2FyY2gvdGlsZS9pbmNsdWRlL2FzbS9wYWdlLmggYi9hcmNoL3Rp
+bGUvaW5jbHVkZS9hc20vcGFnZS5oDQo+IGluZGV4IGEyMTNhOGQ4NGE5NS4uZGFjMzJiZDY1Yjk5
+IDEwMDY0NA0KPiAtLS0gYS9hcmNoL3RpbGUvaW5jbHVkZS9hc20vcGFnZS5oDQo+ICsrKyBiL2Fy
+Y2gvdGlsZS9pbmNsdWRlL2FzbS9wYWdlLmgNCj4gQEAgLTEzNiw2ICsxMzYsOSBAQCBzdGF0aWMg
+aW5saW5lIF9fYXR0cmlidXRlX2NvbnN0X18gaW50IGdldF9vcmRlcih1bnNpZ25lZCBsb25nIHNp
+emUpDQo+ICANCj4gICNkZWZpbmUgSFVHRVRMQl9QQUdFX09SREVSCShIUEFHRV9TSElGVCAtIFBB
+R0VfU0hJRlQpDQo+ICANCj4gKyNpZiBkZWZpbmVkKEhVR0VfTUFYX0hTVEFURSkgJiYgSFVHRV9N
+QVhfSFNUQVRFID09IDENCj4gKyN1bmRlZiBIVUdFX01BWF9IU1RBVEUNCj4gKyNlbmRpZg0KPiAg
+I2RlZmluZSBIVUdFX01BWF9IU1RBVEUJCTYNCj4gIA0KPiAgI2lmZGVmIENPTkZJR19IVUdFVExC
+X1BBR0UNCj4gZGlmZiAtLWdpdCBhL2FyY2gveDg2L2luY2x1ZGUvYXNtL3BhZ2VfdHlwZXMuaCBi
+L2FyY2gveDg2L2luY2x1ZGUvYXNtL3BhZ2VfdHlwZXMuaA0KPiBpbmRleCBjN2M3MTJmMjY0OGIu
+Ljc0N2ZhM2I1ZWEzZiAxMDA2NDQNCj4gLS0tIGEvYXJjaC94ODYvaW5jbHVkZS9hc20vcGFnZV90
+eXBlcy5oDQo+ICsrKyBiL2FyY2gveDg2L2luY2x1ZGUvYXNtL3BhZ2VfdHlwZXMuaA0KPiBAQCAt
+MjUsNiArMjUsOSBAQA0KPiAgI2RlZmluZSBIUEFHRV9NQVNLCQkofihIUEFHRV9TSVpFIC0gMSkp
+DQo+ICAjZGVmaW5lIEhVR0VUTEJfUEFHRV9PUkRFUgkoSFBBR0VfU0hJRlQgLSBQQUdFX1NISUZU
+KQ0KPiAgDQo+ICsjaWYgZGVmaW5lZChIVUdFX01BWF9IU1RBVEUpICYmIEhVR0VfTUFYX0hTVEFU
+RSA9PSAxDQo+ICsjdW5kZWYgSFVHRV9NQVhfSFNUQVRFDQo+ICsjZW5kaWYNCj4gICNkZWZpbmUg
+SFVHRV9NQVhfSFNUQVRFIDINCj4gIA0KPiAgI2RlZmluZSBQQUdFX09GRlNFVAkJKCh1bnNpZ25l
+ZCBsb25nKV9fUEFHRV9PRkZTRVQpDQo+IC0tIA0KPiAyLjQuMw==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
