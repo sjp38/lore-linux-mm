@@ -1,95 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 595546B0038
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 19:50:32 -0400 (EDT)
-Received: by pacdd16 with SMTP id dd16so5131865pac.2
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 16:50:32 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ad1si4123366pbc.245.2015.08.19.16.50.30
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 176E66B0253
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 20:00:25 -0400 (EDT)
+Received: by padfo6 with SMTP id fo6so7604025pad.0
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 17:00:24 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id w12si4196035pbs.108.2015.08.19.17.00.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Aug 2015 16:50:31 -0700 (PDT)
-Date: Wed, 19 Aug 2015 16:50:29 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Memory hot added,The memory can not been added to
- movable zone
-Message-Id: <20150819165029.665b89d7ab3228185460172c@linux-foundation.org>
-In-Reply-To: <1439972306-50845-1-git-send-email-liuchangsheng@inspur.com>
-References: <1439972306-50845-1-git-send-email-liuchangsheng@inspur.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 19 Aug 2015 17:00:24 -0700 (PDT)
+Received: by pawq9 with SMTP id q9so13719905paw.3
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 17:00:24 -0700 (PDT)
+Date: Wed, 19 Aug 2015 17:00:22 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [Patch V3 2/9] kernel/profile.c: Replace cpu_to_mem() with
+ cpu_to_node()
+In-Reply-To: <55D42DE3.2040506@linux.intel.com>
+Message-ID: <alpine.DEB.2.10.1508191657330.30666@chino.kir.corp.google.com>
+References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com> <1439781546-7217-3-git-send-email-jiang.liu@linux.intel.com> <alpine.DEB.2.10.1508171730260.5527@chino.kir.corp.google.com> <55D42DE3.2040506@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Changsheng Liu <liuchangsheng@inspur.com>
-Cc: isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yanxiaofeng@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
+To: Jiang Liu <jiang.liu@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Wed, 19 Aug 2015 04:18:26 -0400 Changsheng Liu <liuchangsheng@inspur.com> wrote:
+On Wed, 19 Aug 2015, Jiang Liu wrote:
 
-> From: Changsheng Liu <liuchangcheng@inspur.com>
+> On 2015/8/18 8:31, David Rientjes wrote:
+> > On Mon, 17 Aug 2015, Jiang Liu wrote:
+> > 
+> >> Function profile_cpu_callback() allocates memory without specifying
+> >> __GFP_THISNODE flag, so replace cpu_to_mem() with cpu_to_node()
+> >> because cpu_to_mem() may cause suboptimal memory allocation if
+> >> there's no free memory on the node returned by cpu_to_mem().
+> >>
+> > 
+> > Why is cpu_to_node() better with regard to free memory and NUMA locality?
+> Hi David,
+> 	Thanks for review. This is a special case pointed out by Tejun.
+> For the imagined topology, A<->B<->X<->C<->D, where A, B, C, D has
+> memory and X is memoryless.
+> Possible fallback lists are:
+> B: [ B, A, C, D]
+> X: [ B, C, A, D]
+> C: [ C, D, B, A]
 > 
-> When memory hot added, the function should_add_memory_movable
-> always return 0,because the movable zone is empty,
-> so the memory that hot added will add to normal zone even if
-> we want to remove the memory.
-> So we change the function should_add_memory_movable,if the user
-> config CONFIG_MOVABLE_NODE it will return 1 when
-> movable zone is empty
+> cpu_to_mem(X) will either return B or C. Let's assume it returns B.
+> Then we will use "B: [ B, A, C, D]" to allocate memory for X, which
+> is not the optimal fallback list for X. And cpu_to_node(X) returns
+> X, and "X: [ B, C, A, D]" is the optimal fallback list for X.
 
-I cleaned this up a bit:
+Ok, that makes sense, but I would prefer that this 
+alloc_pages_exact_node() change to alloc_pages_node() since, as you 
+mention in your commit message, __GFP_THISNODE is not set.
 
-: Subject: mm: memory hot-add: memory can not been added to movable zone
-: 
-: When memory is hot added, should_add_memory_movable() always returns 0
-: because the movable zone is empty, so the memory that was hot added will
-: add to the normal zone even if we want to remove the memory.
-: 
-: So we change should_add_memory_movable(): if the user config
-: CONFIG_MOVABLE_NODE it will return 1 when the movable zone is empty.
-
-But I don't understand the "even if we want to remove the memory". 
-This is hot-add, not hot-remove.  What do you mean here?
-
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1198,9 +1198,13 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
->  	pg_data_t *pgdat = NODE_DATA(nid);
->  	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
->  
-> -	if (zone_is_empty(movable_zone))
-> +	if (zone_is_empty(movable_zone)) {
-> +	#ifdef CONFIG_MOVABLE_NODE
-> +		return 1;
-> +	#else
->  		return 0;
-> -
-> +	#endif
-> +	}
->  	if (movable_zone->zone_start_pfn <= start_pfn)
->  		return 1;
-
-Cleaner:
-
---- a/mm/memory_hotplug.c~memory-hot-addedthe-memory-can-not-been-added-to-movable-zone-fix
-+++ a/mm/memory_hotplug.c
-@@ -1181,13 +1181,9 @@ static int should_add_memory_movable(int
- 	pg_data_t *pgdat = NODE_DATA(nid);
- 	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
- 
--	if (zone_is_empty(movable_zone)) {
--	#ifdef CONFIG_MOVABLE_NODE
--		return 1;
--	#else
--		return 0;
--	#endif
--	}
-+	if (zone_is_empty(movable_zone))
-+		return IS_ENABLED(CONFIG_MOVABLE_NODE);
-+
- 	if (movable_zone->zone_start_pfn <= start_pfn)
- 		return 1;
- 
-_
+In the longterm, if we setup both zonelists correctly (no __GFP_THISNODE 
+and with __GFP_THISNODE), then I'm not sure there's any reason to ever use 
+cpu_to_mem() for alloc_pages().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
