@@ -1,61 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C8A646B0253
-	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 03:45:25 -0400 (EDT)
-Received: by wibhh20 with SMTP id hh20so28441454wib.0
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 00:45:25 -0700 (PDT)
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
-        by mx.google.com with ESMTPS id hw4si6918997wjb.135.2015.08.20.00.45.23
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C99546B0038
+	for <linux-mm@kvack.org>; Thu, 20 Aug 2015 03:53:53 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so8271748wic.1
+        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 00:53:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fa6si11182638wid.57.2015.08.20.00.53.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Aug 2015 00:45:24 -0700 (PDT)
-Received: by wibhh20 with SMTP id hh20so28440913wib.0
-        for <linux-mm@kvack.org>; Thu, 20 Aug 2015 00:45:23 -0700 (PDT)
-Date: Thu, 20 Aug 2015 09:45:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: mmap: Simplify the failure return working flow
-Message-ID: <20150820074521.GC4780@dhcp22.suse.cz>
-References: <55D5275D.7020406@hotmail.com>
- <COL130-W46B6A43FC26795B43939E0B9660@phx.gbl>
- <55D52CDE.8060700@hotmail.com>
- <COL130-W42D1358B7EBBCA5F39DA3CB9660@phx.gbl>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 20 Aug 2015 00:53:52 -0700 (PDT)
+Subject: Re: [PATCH v7 3/6] mm: Introduce VM_LOCKONFAULT
+References: <1439097776-27695-1-git-send-email-emunson@akamai.com>
+ <1439097776-27695-4-git-send-email-emunson@akamai.com>
+ <20150812115909.GA5182@dhcp22.suse.cz> <20150819213345.GB4536@akamai.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55D5878E.5030206@suse.cz>
+Date: Thu, 20 Aug 2015 09:53:50 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <COL130-W42D1358B7EBBCA5F39DA3CB9660@phx.gbl>
+In-Reply-To: <20150819213345.GB4536@akamai.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gchen gchen <xili_gchen_5257@hotmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kernel mailing list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, Linux Memory <linux-mm@kvack.org>
+To: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Thu 20-08-15 09:27:42, gchen gchen wrote:
-[...]
-> Yes, it is really peculiar, the reason is gmail is not stable in China.
-> I have to send mail in my hotmail address.
-> 
-> But I still want to use my gmail as Signed-off-by, since I have already
-> used it, and also its name is a little formal than my hotmail.
-> 
-> Welcome any ideas, suggestions and completions for it (e.g. if it is
-> necessary to let send mail and Signed-off-by mail be the same, I shall
-> try).
+On 08/19/2015 11:33 PM, Eric B Munson wrote:
+> On Wed, 12 Aug 2015, Michal Hocko wrote:
+>
+>> On Sun 09-08-15 01:22:53, Eric B Munson wrote:
+>>
+>> I do not like this very much to be honest. We have only few bits
+>> left there and it seems this is not really necessary. I thought that
+>> LOCKONFAULT acts as a modifier to the mlock call to tell whether to
+>> poppulate or not. The only place we have to persist it is
+>> mlockall(MCL_FUTURE) AFAICS. And this can be handled by an additional
+>> field in the mm_struct. This could be handled at __mm_populate level.
+>> So unless I am missing something this would be much more easier
+>> in the end we no new bit in VM flags would be necessary.
+>>
+>> This would obviously mean that the LOCKONFAULT couldn't be exported to
+>> the userspace but is this really necessary?
+>
+> Sorry for the latency here, I was on vacation and am now at plumbers.
+>
+> I am not sure that growing the mm_struct by another flags field instead
+> of using available bits in the vm_flags is the right choice.
 
-You can do the following in your .git/config
+I was making the same objection on one of the earlier versions and since 
+you sticked with a new vm flag, I thought it doesn't matter, as we could 
+change it later if we run out of bits. But now I realize that since you 
+export this difference to userspace (and below you say that it's by 
+request), we won't be able to change it later. So it's a more difficult 
+choice.
 
-[user]
-	name = YOUR_NAME_FOR_S-O-B
-	email = YOUR_GMAIL_ADDRESS
-[sendemail]
-	from = YOUR_STABLE_SENDER_ADDRESS
-	envelopesender = YOUR_STABLE_SENDER_ADDRESS
-	smtpserver = YOUR_STABLE_SMTP
+> After this
+> patch, we still have 3 free bits on 32 bit architectures (2 after the
+> userfaultfd set IIRC).  The group which asked for this feature here
+> wants the ability to distinguish between LOCKED and LOCKONFAULT regions
+> and without the VMA flag there isn't a way to do that.
+>
+> Do we know that these last two open flags are needed right now or is
+> this speculation that they will be and that none of the other VMA flags
+> can be reclaimed?
 
-[user] part will be used for s-o-b and Author email while the sendemail
-will be used for git send-email to route the patch properly. If the two
-differ it will add From: user.name <user.email> as suggested by Andrew.
--- 
-Michal Hocko
-SUSE Labs
+I think it's the latter, we can expect that flags will be added rather 
+than removed, as removal is hard or impossible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
