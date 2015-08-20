@@ -1,76 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7794D6B0038
-	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 21:27:43 -0400 (EDT)
-Received: by pdob1 with SMTP id b1so7691760pdo.2
-        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 18:27:43 -0700 (PDT)
-Received: from COL004-OMC1S7.hotmail.com (col004-omc1s7.hotmail.com. [65.55.34.17])
-        by mx.google.com with ESMTPS id yr4si4558026pbc.140.2015.08.19.18.27.42
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E98CE6B0038
+	for <linux-mm@kvack.org>; Wed, 19 Aug 2015 22:37:57 -0400 (EDT)
+Received: by pacdd16 with SMTP id dd16so8107148pac.2
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 19:37:57 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id qn10si4864524pbc.109.2015.08.19.19.37.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 19 Aug 2015 18:27:42 -0700 (PDT)
-Message-ID: <COL130-W42D1358B7EBBCA5F39DA3CB9660@phx.gbl>
-From: gchen gchen <xili_gchen_5257@hotmail.com>
-Subject: Re: [PATCH] mm: mmap: Simplify the failure return working flow
-Date: Thu, 20 Aug 2015 09:27:42 +0800
-In-Reply-To: <55D52CDE.8060700@hotmail.com>
-References: <55D5275D.7020406@hotmail.com>
- <COL130-W46B6A43FC26795B43939E0B9660@phx.gbl>,<55D52CDE.8060700@hotmail.com>
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Aug 2015 19:37:57 -0700 (PDT)
+Received: by paccq16 with SMTP id cq16so16452104pac.1
+        for <linux-mm@kvack.org>; Wed, 19 Aug 2015 19:37:56 -0700 (PDT)
+Date: Wed, 19 Aug 2015 19:36:31 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] mm, vmscan: unlock page while waiting on writeback
+Message-ID: <alpine.LSU.2.11.1508191930390.2073@eggly.anvils>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel mailing list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, Linux Memory <linux-mm@kvack.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org
 
-Ck9uIFR1ZSwgMTggQXVnIDIwMTUgMTU6NTc6MDggLTA3MDAgYWtwbUBsaW51eC1mb3VuZGF0aW9u
-Lm9yZyB3cm90ZToKPgo+IE9uIFdlZCwgMTkgQXVnIDIwMTUgMDY6Mjc6NTggKzA4MDAgQ2hlbiBH
-YW5nCj4gPHhpbGlfZ2NoZW5fNTI1N0Bob3RtYWlsLmNvbT4gd3JvdGU6Cj4KPj4gRnJvbTogQ2hl
-biBHYW5nIDx4aWxpX2djaGVuXzUyNTdAaG90bWFpbC5jb20+Cj4KPiBBcyBzZW50LCB0aGlzIHBh
-dGNoIGlzIEZyb206eW91QGhvdG1haWwgYW5kIFNpZ25lZC1vZmYtYnk6eW91QGdtYWlsLgo+Cj4g
-VGhpcyBpcyBwZWN1bGlhci4gIEknbSBhc3N1bWluZyB0aGF0IGl0IHNob3VsZCBoYXZlIGJlZW4g
-RnJvbTp5b3VAZ21haWwgYW5kCj4gSSBoYXZlIG1hZGUgdGhhdCBjaGFuZ2UgdG8gbXkgY29weSBv
-ZiB0aGUgcGF0Y2guCj4KPiBZb3UgY2FuIGRvIHRoaXMgeW91cnNlbGYgYnkgcHV0dGluZyBhbiBl
-eHBsaWNpdCBGcm9tOiBsaW5lIGF0IHRoZSBzdGFydAo+IG9mIHRoZSBjaGFuZ2Vsb2cuCj4KClll
-cywgaXQgaXMgcmVhbGx5IHBlY3VsaWFyLCB0aGUgcmVhc29uIGlzIGdtYWlsIGlzIG5vdCBzdGFi
-bGUgaW4gQ2hpbmEuCkkgaGF2ZSB0byBzZW5kIG1haWwgaW4gbXkgaG90bWFpbCBhZGRyZXNzLgoK
-QnV0IEkgc3RpbGwgd2FudCB0byB1c2UgbXkgZ21haWwgYXMgU2lnbmVkLW9mZi1ieSwgc2luY2Ug
-SSBoYXZlIGFscmVhZHkKdXNlZCBpdCwgYW5kIGFsc28gaXRzIG5hbWUgaXMgYSBsaXR0bGUgZm9y
-bWFsIHRoYW4gbXkgaG90bWFpbC4KCldlbGNvbWUgYW55IGlkZWFzLCBzdWdnZXN0aW9ucyBhbmQg
-Y29tcGxldGlvbnMgZm9yIGl0IChlLmcuIGlmIGl0IGlzCm5lY2Vzc2FyeSB0byBsZXQgc2VuZCBt
-YWlsIGFuZCBTaWduZWQtb2ZmLWJ5IG1haWwgYmUgdGhlIHNhbWUsIEkgc2hhbGwKdHJ5KS4KClsu
-Li5dCgo+IFNvLAo+Cj4gLS0tIGEvbW0vbW1hcC5jfm1tLW1tYXAtc2ltcGxpZnktdGhlLWZhaWx1
-cmUtcmV0dXJuLXdvcmtpbmctZmxvdy1maXgKPiArKysgYS9tbS9tbWFwLmMKPiBAQCAtMjk1Miw3
-ICsyOTUyLDcgQEAgc3RydWN0IHZtX2FyZWFfc3RydWN0ICpjb3B5X3ZtYShzdHJ1Y3Qgdgo+ICAg
-ICAgICAgfSBlbHNlIHsKPiAgICAgICAgICAgICAgICAgbmV3X3ZtYSA9IGttZW1fY2FjaGVfYWxs
-b2Modm1fYXJlYV9jYWNoZXAsIEdGUF9LRVJORUwpOwo+ICAgICAgICAgICAgICAgICBpZiAoIW5l
-d192bWEpCj4gLSAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIE5VTEw7Cj4gKyAgICAgICAg
-ICAgICAgICAgICAgICAgZ290byBvdXQ7Cj4gICAgICAgICAgICAgICAgICpuZXdfdm1hID0gKnZt
-YTsKPiAgICAgICAgICAgICAgICAgbmV3X3ZtYS0+dm1fc3RhcnQgPSBhZGRyOwo+ICAgICAgICAg
-ICAgICAgICBuZXdfdm1hLT52bV9lbmQgPSBhZGRyICsgbGVuOwo+IEBAIC0yOTcxLDEwICsyOTcx
-LDExIEBAIHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqY29weV92bWEoc3RydWN0IHYKPiAgICAgICAg
-IH0KPiAgICAgICAgIHJldHVybiBuZXdfdm1hOwo+Cj4gLSBvdXRfZnJlZV9tZW1wb2w6Cj4gK291
-dF9mcmVlX21lbXBvbDoKPiAgICAgICAgIG1wb2xfcHV0KHZtYV9wb2xpY3kobmV3X3ZtYSkpOwo+
-IC0gb3V0X2ZyZWVfdm1hOgo+ICtvdXRfZnJlZV92bWE6Cj4gICAgICAgICBrbWVtX2NhY2hlX2Zy
-ZWUodm1fYXJlYV9jYWNoZXAsIG5ld192bWEpOwo+ICtvdXQ6Cj4gICAgICAgICByZXR1cm4gTlVM
-TDsKPiAgfQo+CgpJdCBpcyBPSyB0byBtZSwgdGhhbmtzLgoKRHVyaW5nIHRoZXNlIGRheXMgKDIt
-NCBtb250aHMpLCBJIHNoYWxsIHRyeSB0byBtYWtlIHNvbWUgcGF0Y2hlcyBmb3IKTGludXggbW06
-CgogLSBJIGFtIGxlYXJuaW5nIExpbnV4IGtlcm5lbCBtbXUsIHNvIEkgY2FuIHJlLXVzZSBwYXJ0
-IG9mIGNvZGUgdG8gdXNlcgogICBtb2RlIChhZGQgc29mdG1tdSB0byBxZW11IGxpbnV4IHVzZXIg
-aW4gbXkgd29ya2luZyB0aW1lKS4gVGhlbiBJIGNhbgogICB0cnkgc29tZSBtbSBwYXRjaGVzIHdo
-ZW4gSSBhbSByZWFkaW5nIHJlbGF0ZWQgY29kZS4KCiAtIEF0IHByZXNlbnQsIGNyb3NzLWJ1aWxk
-aW5nIHZhcmlvdXMgYXJjaHMgd2l0aCBhbGxtb2Rjb25maWcgbG9va3MgT0sKICAgKGhhdmUgbm8g
-bWFueSBpc3N1ZXMpLCBzbyBmb3IgbWUsIEkgY2FuIHN0b3AgYW5kIHN0YXJ0IGFub3RoZXIgcGFy
-dHMKICAgKGUuZy4gbW11LCBsb29uZ3NvbiBtYWNoaW5lIG9mIG1pcHMgYXJjaCwgLi4uKS4KCldl
-bGNvbWUgYW55IGlkZWFzLCBzdWdnZXN0aW9ucyBhbmQgY29tcGxldGlvbnMgZm9yIGl0OgoKIC0g
-QXNzdW1lIEkgYW0gbm90IHF1aXRlIGZhbWlsaWFyIHdpdGggbW11IC0tIGluIGhvbmVzdCwgSSBm
-ZWVsIEkgYW0KICAgcmVhbGx5IG5vdC4KCiAtIElzIGl0IHBvc3NpYmxlIHRvIGJ1aWxkIHRoZSBy
-ZWxhdGVkICdzb2Z0bW11JyBhcyBhIG1vZHVsZSB3aGljaCBjYW4KICAgYmUgdXNlZCBieSBib3Ro
-IGtlcm5lbCBtb2RlIGFuZCB1c2VyIG1vZGUgKGlmIHJlYWxseSBpdCBpcywgSSBzaGFsbAogICB0
-cnkgdG8gcGVyZm9ybSBpdCAtLSBJIGNhbiBkbyBpdCBpbiBteSB3b3JraW5nIHRpbWUpLgoKIC0g
-Li4uCgpUaGFua3MuCi0tCkNoZW4gR2FuZwoKT3Blbiwgc2hhcmUsIGFuZCBhdHRpdHVkZSBsaWtl
-IGFpciwgd2F0ZXIsIGFuZCBsaWZlIHdoaWNoIEdvZCBibGVzc2VkCiAJCSAJICAgCQkgIA==
+This is merely a politeness: I've not found that shrink_page_list() leads
+to deadlock with the page it holds locked across wait_on_page_writeback();
+but nevertheless, why hold others off by keeping the page locked there?
+
+And while we're at it: remove the mistaken "not " from the commentary
+on this Case 3 (and a distracting blank line from Case 2, if I may).
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+I remembered this old patch when we were discussing the more important
+ecf5fc6e9654 "mm, vmscan: Do not wait for page writeback for GFP_NOFS
+allocations", and now retested it against mmotm.
+
+ mm/vmscan.c |    7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+--- mmotm/mm/vmscan.c	2015-08-17 18:46:26.601521575 -0700
++++ linux/mm/vmscan.c	2015-08-17 18:53:41.335108240 -0700
+@@ -991,7 +991,7 @@ static unsigned long shrink_page_list(st
+ 		 *    __GFP_IO|__GFP_FS for this reason); but more thought
+ 		 *    would probably show more reasons.
+ 		 *
+-		 * 3) Legacy memcg encounters a page that is not already marked
++		 * 3) Legacy memcg encounters a page that is already marked
+ 		 *    PageReclaim. memcg does not have any dirty pages
+ 		 *    throttling so we could easily OOM just because too many
+ 		 *    pages are in writeback and there is nothing else to
+@@ -1021,12 +1021,15 @@ static unsigned long shrink_page_list(st
+ 				 */
+ 				SetPageReclaim(page);
+ 				nr_writeback++;
+-
+ 				goto keep_locked;
+ 
+ 			/* Case 3 above */
+ 			} else {
++				unlock_page(page);
+ 				wait_on_page_writeback(page);
++				/* then go back and try same page again */
++				list_add_tail(&page->lru, page_list);
++				continue;
+ 			}
+ 		}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
