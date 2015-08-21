@@ -1,59 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A23896B0253
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2015 15:35:00 -0400 (EDT)
-Received: by pacgr6 with SMTP id gr6so514833pac.0
-        for <linux-mm@kvack.org>; Fri, 21 Aug 2015 12:35:00 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y5si14282240pas.206.2015.08.21.12.34.59
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 993CE6B0253
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2015 16:21:26 -0400 (EDT)
+Received: by lbbsx3 with SMTP id sx3so50426416lbb.0
+        for <linux-mm@kvack.org>; Fri, 21 Aug 2015 13:21:26 -0700 (PDT)
+Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [2a02:6b8:0:801::10])
+        by mx.google.com with ESMTPS id xi9si7139053lbb.4.2015.08.21.13.21.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Aug 2015 12:34:59 -0700 (PDT)
-Date: Fri, 21 Aug 2015 12:34:58 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
-Message-Id: <20150821123458.b3a6947135d5b506a34abc61@linux-foundation.org>
-In-Reply-To: <20150821193109.GA14785@node.dhcp.inet.fi>
-References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
-	<20150820163643.dd87de0c1a73cb63866b2914@linux-foundation.org>
-	<20150821121028.GB12016@node.dhcp.inet.fi>
-	<alpine.DEB.2.11.1508211109460.27769@east.gentwo.org>
-	<20150821193109.GA14785@node.dhcp.inet.fi>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 21 Aug 2015 13:21:25 -0700 (PDT)
+From: Roman Gushchin <klamm@yandex-team.ru>
+In-Reply-To: <CA+55aFyc8bb=ASmQbhk72cFOOmGpNhowdWGtSn+biog69_f+LA@mail.gmail.com>
+References: <CA+55aFz64=vB5vRDj0N0jukWBNnVDd5vf27GL4is6vbYrM17LQ@mail.gmail.com>
+	<1440177121-12741-1-git-send-email-klamm@yandex-team.ru> <CA+55aFyc8bb=ASmQbhk72cFOOmGpNhowdWGtSn+biog69_f+LA@mail.gmail.com>
+Subject: Re: [PATCH] mm: use only per-device readahead limit
+MIME-Version: 1.0
+Message-Id: <197171440188481@webcorp01e.yandex-team.ru>
+Date: Fri, 21 Aug 2015 23:21:21 +0300
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=koi8-r
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 21 Aug 2015 22:31:09 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+21.08.2015, 21:17, "Linus Torvalds" <torvalds@linux-foundation.org>:
+> On Fri, Aug 21, 2015 at 10:12 AM, Roman Gushchin <klamm@yandex-team.ru> wrote:
+>> ?There are devices, which require custom readahead limit.
+>> ?For instance, for RAIDs it's calculated as number of devices
+>> ?multiplied by chunk size times 2.
+>
+> So afaik, the default read-ahead size is 128kB, which is actually
+> smaller than the old 512-page limit.
+>
+> Which means that you probably changed "ra_pages" somehow. Is it some
+> system tool that does that automatically, and if so based on what,
+> exactly?
 
-> On Fri, Aug 21, 2015 at 11:11:27AM -0500, Christoph Lameter wrote:
-> > On Fri, 21 Aug 2015, Kirill A. Shutemov wrote:
-> > 
-> > > > Is this really true?  For example if it's a slab page, will that page
-> > > > ever be inspected by code which is looking for the PageTail bit?
-> > >
-> > > +Christoph.
-> > >
-> > > What we know for sure is that space is not used in tail pages, otherwise
-> > > it would collide with current compound_dtor.
-> > 
-> > Sl*b allocators only do a virt_to_head_page on tail pages.
-> 
-> The question was whether it's safe to assume that the bit 0 is always zero
-> in the word as this bit will encode PageTail().
+It's just a raid driver. For instance, drivers/ms/raid5.c:6898 .
 
-That wasn't my question actually...
+On my setup I got unexpectedly even slight perfomance increase 
+over O_DIRECT case and over old memory-based readahead limit, 
+as you can see from numbers in the commit message (1.2GB/s vs 1.1 GB/s).
 
-What I'm wondering is: if this page is being used for slab, will any
-code path ever run PageTail() against it?  If not, we don't need to be
-concerned about that bit.
+So, I like an idea to delegate the readahead limit calculation to the underlying i/o level.
 
-And slab was just the example I chose.  The same question petains to
-all other uses of that union.
+> I'm also slightly worried about the fact that now the max read-ahead
+> may actually be zero, 
+
+For "normal" readahead nothing changes. Only readahead syscall and 
+madvise(MADV_WILL_NEED) cases are affected.
+I think, it's ok to do nothing, if readahead was deliberately disabled.
+
+> and/or basically infinite (there's a ioctl to
+> set it that only tests that it's not negative). Does everything react
+> ok to that?
+
+It's an open question, if we have to add some checks to avoid miss-configuration.
+In any case, we can check the limit on setting rather then adjust them dynamically.
+
+--
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
