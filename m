@@ -1,55 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 08F0D6B0253
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2015 16:44:24 -0400 (EDT)
-Received: by igfj19 with SMTP id j19so26347844igf.0
-        for <linux-mm@kvack.org>; Fri, 21 Aug 2015 13:44:23 -0700 (PDT)
-Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
-        by mx.google.com with ESMTPS id x3si2283820igl.101.2015.08.21.13.44.23
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A81AE6B0253
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2015 16:53:13 -0400 (EDT)
+Received: by qgeb6 with SMTP id b6so54117173qge.3
+        for <linux-mm@kvack.org>; Fri, 21 Aug 2015 13:53:13 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r137si10493731qha.16.2015.08.21.13.53.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Aug 2015 13:44:23 -0700 (PDT)
-Received: by iods203 with SMTP id s203so94634593iod.0
-        for <linux-mm@kvack.org>; Fri, 21 Aug 2015 13:44:23 -0700 (PDT)
+        Fri, 21 Aug 2015 13:53:13 -0700 (PDT)
+Message-ID: <55D78FB0.9040906@redhat.com>
+Date: Fri, 21 Aug 2015 16:53:04 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <197171440188481@webcorp01e.yandex-team.ru>
-References: <CA+55aFz64=vB5vRDj0N0jukWBNnVDd5vf27GL4is6vbYrM17LQ@mail.gmail.com>
-	<1440177121-12741-1-git-send-email-klamm@yandex-team.ru>
-	<CA+55aFyc8bb=ASmQbhk72cFOOmGpNhowdWGtSn+biog69_f+LA@mail.gmail.com>
-	<197171440188481@webcorp01e.yandex-team.ru>
-Date: Fri, 21 Aug 2015 13:44:23 -0700
-Message-ID: <CA+55aFy8kOomnL-C5GwSpHTn+g5R7dY78C9=h-J_Rb_u=iASpg@mail.gmail.com>
-Subject: Re: [PATCH] mm: use only per-device readahead limit
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: is this a problem of numactl in RedHat7.0 ?
+References: <55D6EEEB.7050701@huawei.com>
+In-Reply-To: <55D6EEEB.7050701@huawei.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <klamm@yandex-team.ru>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Xishi Qiu <qiuxishi@huawei.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+Cc: Xiexiuqi <xiexiuqi@huawei.com>
 
-On Fri, Aug 21, 2015 at 1:21 PM, Roman Gushchin <klamm@yandex-team.ru> wrote:
->
-> It's just a raid driver. For instance, drivers/md/raid5.c:6898 .
+On 08/21/2015 05:27 AM, Xishi Qiu wrote:
+> I use numactl(--localalloc) tool run a test case, but it shows that
+> the numa policy is prefer, I don't know why.
 
-Ok. That makes me a bit less nervous. I was worried there was some
-admin program out there that just ups the readahead on peoples
-devices, which would mean that ra_pages is some random value chosen by
-crazy user space people.
+The kernel implements MPOL_PREFERRED and MPOL_LOCAL
+in the same way. Look at this code in mpol_new(),
+in mm/mempolicy.c:
 
-> So, I like an idea to delegate the readahead limit calculation to the underlying i/o level.
+         /*
+          * MPOL_PREFERRED cannot be used with MPOL_F_STATIC_NODES or
+          * MPOL_F_RELATIVE_NODES if the nodemask is empty (local 
+allocation).
+          * All other modes require a valid pointer to a non-empty nodemask.
+          */
+         if (mode == MPOL_PREFERRED) {
+                 if (nodes_empty(*nodes)) {
+                         if (((flags & MPOL_F_STATIC_NODES) ||
+                              (flags & MPOL_F_RELATIVE_NODES)))
+                                 return ERR_PTR(-EINVAL);
+                 }
+         } else if (mode == MPOL_LOCAL) {
+                 if (!nodes_empty(*nodes))
+                         return ERR_PTR(-EINVAL);
+                 mode = MPOL_PREFERRED;
+         } else if (nodes_empty(*nodes))
+                 return ERR_PTR(-EINVAL);
 
-Yeah, I'm not against it either. It's just that historically we've had
-some issues with people over-doing readahead (because it often helps
-some made-up microbenchmark), and then we end up with latency issues
-when somebody does a multi-gigabyte readahead... Iirc, we had exactly
-that problem with the readahead() system call at some point (long
-ago).
-
-But if it's just the default ra_pages, then that should be ok. I think
-the kernel defaults are generally sane, and I hope there isn't some
-crazy distro that ends up mucking with this.
-
-                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
