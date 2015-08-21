@@ -1,64 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 45F906B0253
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2015 04:17:49 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so9528645wic.1
-        for <linux-mm@kvack.org>; Fri, 21 Aug 2015 01:17:48 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
-        by mx.google.com with ESMTPS id kf4si2967990wic.48.2015.08.21.01.17.47
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A4BC76B0253
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2015 04:42:46 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so13513429wic.1
+        for <linux-mm@kvack.org>; Fri, 21 Aug 2015 01:42:46 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id l10si3061750wij.50.2015.08.21.01.42.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Aug 2015 01:17:47 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so9528088wic.1
-        for <linux-mm@kvack.org>; Fri, 21 Aug 2015 01:17:47 -0700 (PDT)
-Date: Fri, 21 Aug 2015 10:17:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch -mm] mm, oom: add global access to memory reserves on
- livelock
-Message-ID: <20150821081745.GG23723@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Aug 2015 01:42:44 -0700 (PDT)
+Date: Fri, 21 Aug 2015 10:42:38 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm, vmscan: unlock page while waiting on writeback
+Message-ID: <20150821084237.GA6619@cmpxchg.org>
+References: <alpine.LSU.2.11.1508191930390.2073@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com>
+In-Reply-To: <alpine.LSU.2.11.1508191930390.2073@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org
 
-[CCing Tetsuo - he was really concerned about the oom deadlocks and he
- was proposing a timeout based solution as well]
-
-On Thu 20-08-15 14:00:36, David Rientjes wrote:
-> On system oom, a process may fail to exit if its thread depends on a lock
-> held by another allocating process.
+On Wed, Aug 19, 2015 at 07:36:31PM -0700, Hugh Dickins wrote:
+> This is merely a politeness: I've not found that shrink_page_list() leads
+> to deadlock with the page it holds locked across wait_on_page_writeback();
+> but nevertheless, why hold others off by keeping the page locked there?
 > 
-> In this case, we can detect an oom kill livelock that requires memory
-> allocation to be successful to resolve.
+> And while we're at it: remove the mistaken "not " from the commentary
+> on this Case 3 (and a distracting blank line from Case 2, if I may).
 > 
-> This patch introduces an oom expiration, set to 5s, that defines how long
-> a thread has to exit after being oom killed.
-> 
-> When this period elapses, it is assumed that the thread cannot make
-> forward progress without help.  The only help the VM may provide is to
-> allow pending allocations to succeed, so it grants all allocators access
-> to memory reserves after reclaim and compaction have failed.
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-There might be many threads waiting for the allocation and this can lead
-to quick oom reserves depletion without releasing resources which are
-holding back the oom victim. As Tetsuo has shown, such a load can be
-generated from the userspace without root privileges so it is much
-easier to make the system _completely_ unusable with this patch. Not that
-having an OOM deadlock would be great but you still have emergency tools
-like sysrq triggered OOM killer to attempt to sort the situation out.
-Once your are out of reserves nothing will help you, though. So I think it
-is a bad idea to give access to reserves without any throttling.
-
-Johannes' idea to give a partial access to memory reserves to the task
-which has invoked the OOM killer was much better IMO.
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
