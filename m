@@ -1,53 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7306B0253
-	for <linux-mm@kvack.org>; Fri, 21 Aug 2015 08:43:10 -0400 (EDT)
-Received: by pdbmi9 with SMTP id mi9so26418494pdb.3
-        for <linux-mm@kvack.org>; Fri, 21 Aug 2015 05:43:09 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id t5si12760080pdi.57.2015.08.21.05.43.08
-        for <linux-mm@kvack.org>;
-        Fri, 21 Aug 2015 05:43:09 -0700 (PDT)
-Message-ID: <55D71CD9.8000109@internode.on.net>
-Date: Fri, 21 Aug 2015 22:13:05 +0930
-From: Arthur Marsh <arthur.marsh@internode.on.net>
-MIME-Version: 1.0
-Subject: Re: difficult to pinpoint exhaustion of swap between 4.2.0-rc6 and
- 4.2.0-rc7
-References: <55D4A462.3070505@internode.on.net> <55D58CEB.9070701@suse.cz> <55D6ECBD.60303@internode.on.net> <55D70D80.5060009@suse.cz> <55D71021.7030803@suse.cz>
-In-Reply-To: <55D71021.7030803@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B62586B0253
+	for <linux-mm@kvack.org>; Fri, 21 Aug 2015 09:29:52 -0400 (EDT)
+Received: by pawq9 with SMTP id q9so53019664paw.3
+        for <linux-mm@kvack.org>; Fri, 21 Aug 2015 06:29:52 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id ge2si12855814pbb.254.2015.08.21.06.29.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 21 Aug 2015 06:29:51 -0700 (PDT)
+Subject: Re: [patch -mm] mm, oom: add global access to memory reserves on livelock
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com>
+	<20150821081745.GG23723@dhcp22.suse.cz>
+In-Reply-To: <20150821081745.GG23723@dhcp22.suse.cz>
+Message-Id: <201508212229.GIC00036.tVFMQLOOFJOFSH@I-love.SAKURA.ne.jp>
+Date: Fri, 21 Aug 2015 22:29:38 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: mhocko@kernel.org, rientjes@google.com
+Cc: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, oleg@redhat.com, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+Michal Hocko wrote:
+> [CCing Tetsuo - he was really concerned about the oom deadlocks and he
+>  was proposing a timeout based solution as well]
 
+Thank you for CCing me.
+My proposal is http://lkml.kernel.org/r/201505232339.DAB00557.VFFLHMSOJFOOtQ@I-love.SAKURA.ne.jp .
 
-Vlastimil Babka wrote on 21/08/15 21:18:
-> On 08/21/2015 01:37 PM, Vlastimil Babka wrote:
->>
->> That, said, looking at the memory values:
->>
->> rc6: Free+Buffers+A/I(Anon)+A/I(File)+Slab = 6769MB
->> rc7: ...                                   = 4714MB
->>
->> That's 2GB unaccounted for.
->
-> So one brute-force way to see who allocated those 2GB is to use the
-> page_owner debug feature. You need to enable CONFIG_PAGE_OWNER and then
-> follow the Usage part of Documentation/vm/page_owner.txt
-> If you can do that, please send the sorted_page_owner.txt for rc7 when
-> it's semi-nearing the exhausted swap. Then you could start doing a
-> comparison run with rc6, but maybe it will be easy to figure from the
-> rc7 log already. Thanks.
->
+> 
+> On Thu 20-08-15 14:00:36, David Rientjes wrote:
+> > On system oom, a process may fail to exit if its thread depends on a lock
+> > held by another allocating process.
+> > 
+> > In this case, we can detect an oom kill livelock that requires memory
+> > allocation to be successful to resolve.
+> > 
+> > This patch introduces an oom expiration, set to 5s, that defines how long
+> > a thread has to exit after being oom killed.
+> > 
+> > When this period elapses, it is assumed that the thread cannot make
+> > forward progress without help.  The only help the VM may provide is to
+> > allow pending allocations to succeed, so it grants all allocators access
+> > to memory reserves after reclaim and compaction have failed.
 
-I'm currently rebuilding the rc7 kernel with CONFIG_PAGE_OWNER=y and 
-will test that.
+Why can't we think about choosing more OOM victims instead of granting access
+to memory reserves?
 
-Arthur.
+> 
+> There might be many threads waiting for the allocation and this can lead
+> to quick oom reserves depletion without releasing resources which are
+> holding back the oom victim. As Tetsuo has shown, such a load can be
+> generated from the userspace without root privileges so it is much
+> easier to make the system _completely_ unusable with this patch. Not that
+> having an OOM deadlock would be great but you still have emergency tools
+> like sysrq triggered OOM killer to attempt to sort the situation out.
+
+Like I described in my proposal, the administrator might not be ready to use
+SysRq. Automatic recovery based on timeout is useful for such cases than
+manual emergency tools.
+
+Also, SysRq might not be usable under OOM because workqueues can get stuck.
+The panic_on_oom_timeout was first proposed using a workqueue but was
+updated to use a timer because there is no guarantee that workqueues work
+as expected under OOM.
+
+> Once your are out of reserves nothing will help you, though. So I think it
+> is a bad idea to give access to reserves without any throttling.
+
+I agree.
+But I also think that it is a bad idea to cling to only memory reserves.
+
+> 
+> Johannes' idea to give a partial access to memory reserves to the task
+> which has invoked the OOM killer was much better IMO.
+
+In a different thread, we are planning to change !__GFP_FS allocations.
+Some of !__GFP_FS allocations are about to acquire __GFP_NOFAIL which could
+in turn suffer from OOM deadlock because the possibility of hitting
+"__GFP_NOFAIL allocations not only start calling out_of_memory() but also
+start triggering OOM deadlock when out_of_memory() cannot choose next OOM
+victim" is increased.
+
+The panic_on_oom_timeout will be overkilling when choosing next OOM victim
+can make forward progress. If a local unprivileged user discovers a method
+for keeping the OOM state for panic_on_oom_timeout seconds, we will allow
+that user to kill the system _completely_.
+
+I think that "out_of_memory() cannot choose next OOM victim" problem
+should be addressed before addressing "how to manage memory reserves"
+problem.
+
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
