@@ -1,87 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 550216B0256
-	for <linux-mm@kvack.org>; Sat, 22 Aug 2015 06:45:37 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so10524390wid.1
-        for <linux-mm@kvack.org>; Sat, 22 Aug 2015 03:45:37 -0700 (PDT)
-Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
-        by mx.google.com with ESMTPS id hw4si20814303wjb.135.2015.08.22.03.45.32
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 238606B0038
+	for <linux-mm@kvack.org>; Sat, 22 Aug 2015 08:51:06 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so35310580wic.1
+        for <linux-mm@kvack.org>; Sat, 22 Aug 2015 05:51:05 -0700 (PDT)
+Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
+        by mx.google.com with ESMTPS id dx2si10778969wib.2.2015.08.22.05.51.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 22 Aug 2015 03:45:33 -0700 (PDT)
-Received: by widdq5 with SMTP id dq5so33786908wid.0
-        for <linux-mm@kvack.org>; Sat, 22 Aug 2015 03:45:32 -0700 (PDT)
-From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 3/3] mm/vmalloc: Cache the vmalloc memory info
-Date: Sat, 22 Aug 2015 12:45:00 +0200
-Message-Id: <1440240300-6206-4-git-send-email-mingo@kernel.org>
-In-Reply-To: <1440240300-6206-1-git-send-email-mingo@kernel.org>
-References: <1440240300-6206-1-git-send-email-mingo@kernel.org>
+        Sat, 22 Aug 2015 05:51:04 -0700 (PDT)
+Received: by wicja10 with SMTP id ja10so35147781wic.1
+        for <linux-mm@kvack.org>; Sat, 22 Aug 2015 05:51:03 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150822100922.GA25039@gmail.com>
+References: <1439444244-26057-1-git-send-email-ryabinin.a.a@gmail.com>
+	<20150813065040.GA17983@gmail.com>
+	<20150813081641.GA14402@gmail.com>
+	<20150813090119.GA10280@arm.com>
+	<CAPAsAGxk2+v5VG77cOHAThsXyWx-_UJ1XVeJProaa0gQWH5jvA@mail.gmail.com>
+	<20150813112428.GG10280@arm.com>
+	<20150813172310.GK10280@arm.com>
+	<20150822100922.GA25039@gmail.com>
+Date: Sat, 22 Aug 2015 15:51:03 +0300
+Message-ID: <CAPAsAGz7Ew3oomDnYvHbq-ANhp5bhZGeUtc-iHXJX4PW5ZUcyg@mail.gmail.com>
+Subject: Re: [PATCH 0/2] x86/KASAN updates for 4.3
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Dave Hansen <dave@sr71.net>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Will Deacon <will.deacon@arm.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Arnd Bergmann <arnd@arndb.de>, Linus Walleij <linus.walleij@linaro.org>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Alexey Klimov <klimov.linux@gmail.com>, Yury <yury.norov@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Linus reported that glibc (rather stupidly) reads /proc/meminfo
-for every sysinfo() call, which causes the Git build to use
-a surprising amount of CPU time, mostly due to the overhead
-of get_vmalloc_info() - which walks a long list to do its
-statistics.
+2015-08-22 13:09 GMT+03:00 Ingo Molnar <mingo@kernel.org>:
+>
+> * Will Deacon <will.deacon@arm.com> wrote:
+>
+>> On Thu, Aug 13, 2015 at 12:24:28PM +0100, Will Deacon wrote:
+>> > On Thu, Aug 13, 2015 at 12:02:26PM +0100, Andrey Ryabinin wrote:
+>> > > 2015-08-13 12:01 GMT+03:00 Will Deacon <will.deacon@arm.com>:
+>> > > > Yes please, works for me! If we're targetting 4.3, then please can you base
+>> > > > on 4.2-rc4, as that's what our current arm64 queue is using?
+>> > > >
+>> > >
+>> > > Does this mean that we are targeting arm64 part for 4.3 too?
+>> >
+>> > It depends on how well it merges with our current queue and whether it
+>> > holds up to regression testing. The patches have been reviewed, so I'm
+>> > comfortable with the content, but we're not at a stage where we can debug
+>> > and fix any failures that might crop up from the merge.
+>>
+>> Scratch that :(
+>>
+>> I tried this out under EFI and it dies horribly in the stub code because
+>> we're missing at least one KASAN_SANITIZE_ Makefile entry.
+>>
+>> So I think this needs longer to stew before hitting mainline. By all means
+>> get the x86 dependencies in for 4.3, but the arm64 port can probably use
+>> another cycle to iron out the bugs.
+>
+> Is there any known problem with the two patches in this series, or can I apply
+> them?
+>
 
-Modify Linus's jiffies based patch to use the newly introduced
-vmap_info_changed flag instead: when we cache the vmalloc-info,
-we clear the flag. If the flag gets re-set then we'll calculate
-the information again.
+None, as far as I know.
 
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
----
- mm/vmalloc.c | 22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+BTW, the second patch was  Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+(https://lkml.org/lkml/2015/8/11/546). I just forgot to add this into changelog.
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index d21febaa557a..ef48e557df5a 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -2702,7 +2702,7 @@ static int __init proc_vmalloc_init(void)
- }
- module_init(proc_vmalloc_init);
- 
--void get_vmalloc_info(struct vmalloc_info *vmi)
-+static void calc_vmalloc_info(struct vmalloc_info *vmi)
- {
- 	struct vmap_area *va;
- 	unsigned long free_area_size;
-@@ -2749,5 +2749,23 @@ void get_vmalloc_info(struct vmalloc_info *vmi)
- out:
- 	rcu_read_unlock();
- }
--#endif
- 
-+void get_vmalloc_info(struct vmalloc_info *vmi)
-+{
-+	static struct vmalloc_info cached_info;
-+
-+	if (!vmap_info_changed) {
-+		*vmi = cached_info;
-+		return;
-+	}
-+
-+	WRITE_ONCE(vmap_info_changed, 0);
-+	barrier();
-+
-+	calc_vmalloc_info(vmi);
-+
-+	barrier();
-+	cached_info = *vmi;
-+}
-+
-+#endif
--- 
-2.1.4
+
+
+> Thanks,
+>
+>         Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
