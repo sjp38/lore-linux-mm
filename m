@@ -1,59 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A89F6B0038
-	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 17:56:31 -0400 (EDT)
-Received: by labia3 with SMTP id ia3so2291955lab.3
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 14:56:30 -0700 (PDT)
-Received: from mail-la0-x22f.google.com (mail-la0-x22f.google.com. [2a00:1450:4010:c03::22f])
-        by mx.google.com with ESMTPS id qo3si11533813lbb.122.2015.08.23.14.56.28
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A18B6B0038
+	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 19:59:53 -0400 (EDT)
+Received: by pdob1 with SMTP id b1so46202862pdo.2
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 16:59:52 -0700 (PDT)
+Received: from mail-pd0-f193.google.com (mail-pd0-f193.google.com. [209.85.192.193])
+        by mx.google.com with ESMTPS id q1si12027433pdg.31.2015.08.23.16.59.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Aug 2015 14:56:28 -0700 (PDT)
-Received: by lalv9 with SMTP id v9so66616794lal.0
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 14:56:28 -0700 (PDT)
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: Re: [PATCH 3/3 v3] mm/vmalloc: Cache the vmalloc memory info
-References: <20150823060443.GA9882@gmail.com>
-	<20150823064603.14050.qmail@ns.horizon.com>
-	<20150823081750.GA28349@gmail.com>
-Date: Sun, 23 Aug 2015 23:56:24 +0200
-In-Reply-To: <20150823081750.GA28349@gmail.com> (Ingo Molnar's message of
-	"Sun, 23 Aug 2015 10:17:51 +0200")
-Message-ID: <87h9npwtx3.fsf@rasmusvillemoes.dk>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 23 Aug 2015 16:59:51 -0700 (PDT)
+Received: by pdbpd5 with SMTP id pd5so4952891pdb.2
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 16:59:51 -0700 (PDT)
+Date: Mon, 24 Aug 2015 01:59:45 +0200
+From: Jesper Dangaard Brouer <netdev@brouer.com>
+Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
+Message-ID: <20150824015945.58b25f3a@brouer.com>
+In-Reply-To: <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: George Spelvin <linux@horizon.com>, dave@sr71.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, riel@redhat.com, rientjes@google.com, torvalds@linux-foundation.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-I was curious why these fields were ever added to /proc/meminfo, and dug
-up this:
+On Wed, 19 Aug 2015 12:21:45 +0300
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-commit d262ee3ee6ba4f5f6125571d93d9d63191d2ef76
-Author: Andrew Morton <akpm@digeo.com>
-Date:   Sat Apr 12 12:59:04 2003 -0700
+> Hugh has pointed that compound_head() call can be unsafe in some
+> context. There's one example:
+> 
+[...]
 
-    [PATCH] vmalloc stats in /proc/meminfo
-    
-    From: Matt Porter <porter@cox.net>
-    
-    There was a thread a while back on lkml where Dave Hansen proposed this
-    simple vmalloc usage reporting patch.  The thread pretty much died out as
-    most people seemed focused on what VM loading type bugs it could solve.  I
-    had posted that this type of information was really valuable in debugging
-    embedded Linux board ports.  A common example is where people do arch
-    specific setup that limits there vmalloc space and then they find modules
-    won't load.  ;) Having the Vmalloc* info readily available is real useful in
-    helping folks to fix their kernel ports.
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0735bc0a351a..a4c4b7d07473 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
 
-That thread is at <http://thread.gmane.org/gmane.linux.kernel/53360>.
+[...]
+> -/*
+> - * If we access compound page synchronously such as access to
+> - * allocated page, there is no need to handle tail flag race, so we can
+> - * check tail flag directly without any synchronization primitive.
+> - */
+> -static inline struct page *compound_head_fast(struct page *page)
+> -{
+> -	if (unlikely(PageTail(page)))
+> -		return page->first_page;
+> -	return page;
+> -}
+> -
+[...]
 
-[Maybe one could just remove the fields and see if anybody actually
-notices/cares any longer. Or, if they are only used by kernel
-developers, put them in their own file.]
+> @@ -548,13 +508,7 @@ static inline struct page *virt_to_head_page(const void *x)
+>  {
+>  	struct page *page = virt_to_page(x);
+>  
+> -	/*
+> -	 * We don't need to worry about synchronization of tail flag
+> -	 * when we call virt_to_head_page() since it is only called for
+> -	 * already allocated page and this page won't be freed until
+> -	 * this virt_to_head_page() is finished. So use _fast variant.
+> -	 */
+> -	return compound_head_fast(page);
+> +	return compound_head(page);
+>  }
 
-Rasmus
+I hope this does not slow down the SLAB/slub allocator?
+(which calls virt_to_head_page() frequently)
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
