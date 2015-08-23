@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 27BE36B0038
-	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 12:58:06 -0400 (EDT)
-Received: by pdrh1 with SMTP id h1so44938912pdr.0
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 09:58:05 -0700 (PDT)
-Received: from smtpbg63.qq.com (smtpbg63.qq.com. [103.7.29.150])
-        by mx.google.com with ESMTPS id io6si23082149pbc.117.2015.08.23.09.58.04
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D8C46B0038
+	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 12:59:49 -0400 (EDT)
+Received: by pacdd16 with SMTP id dd16so78666381pac.2
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 09:59:49 -0700 (PDT)
+Received: from smtpbg302.qq.com (smtpbg302.qq.com. [184.105.206.27])
+        by mx.google.com with ESMTPS id z2si23149994pdc.186.2015.08.23.09.59.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 23 Aug 2015 09:58:05 -0700 (PDT)
-From: gang.chen.5i5j@gmail.com
+        (version=TLS1 cipher=RC4-SHA bits=128/128);
+        Sun, 23 Aug 2015 09:59:48 -0700 (PDT)
+From: gang.chen.5i5j@qq.com
 Subject: [PATCH] mm: mmap: Check all failures before set values
-Date: Mon, 24 Aug 2015 00:57:49 +0800
-Message-Id: <1440349069-18253-1-git-send-email-gang.chen.5i5j@gmail.com>
+Date: Mon, 24 Aug 2015 00:59:39 +0800
+Message-Id: <1440349179-18304-1-git-send-email-gang.chen.5i5j@qq.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, riel@redhat.com, mhocko@suse.cz, sasha.levin@oracle.com, gang.chen.5i5j@gmail.com
@@ -61,7 +61,6 @@ index 8e0366e..b5a6f09 100644
  	return 0;
 -- 
 1.9.3
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
