@@ -1,97 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E63946B0038
-	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 13:09:37 -0400 (EDT)
-Received: by pacgr6 with SMTP id gr6so326410pac.1
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 10:09:37 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id hb9si23093577pbd.230.2015.08.23.10.09.36
-        for <linux-mm@kvack.org>;
-        Sun, 23 Aug 2015 10:09:37 -0700 (PDT)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 1/1] memhp: Add hot-added memory ranges to memblock before allocate node_data for a node.
-Date: Mon, 24 Aug 2015 01:06:13 +0800
-Message-ID: <1440349573-24260-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AE5B6B0038
+	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 13:28:56 -0400 (EDT)
+Received: by pdob1 with SMTP id b1so44287629pdo.2
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 10:28:56 -0700 (PDT)
+Received: from COL004-OMC2S11.hotmail.com (col004-omc2s11.hotmail.com. [65.55.34.85])
+        by mx.google.com with ESMTPS id le8si23240153pab.136.2015.08.23.10.28.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 23 Aug 2015 10:28:55 -0700 (PDT)
+Message-ID: <COL130-W243DFFC807CCFA53BF26BCB9630@phx.gbl>
+From: Chen Gang <xili_gchen_5257@hotmail.com>
+Subject: RE: [PATCH] mm: mmap: Simplify the failure return working flow
+Date: Mon, 24 Aug 2015 01:28:54 +0800
+In-Reply-To: <COL130-W93ACD1C6A54A0035AAF173B9660@phx.gbl>
+References: 
+ <55D5275D.7020406@hotmail.com>,<COL130-W46B6A43FC26795B43939E0B9660@phx.gbl>,<55D52CDE.8060700@hotmail.com>,<COL130-W42D1358B7EBBCA5F39DA3CB9660@phx.gbl>,<20150820074521.GC4780@dhcp22.suse.cz>,<55D593C2.3040105@hotmail.com>,<COL130-W93ACD1C6A54A0035AAF173B9660@phx.gbl>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: qiuxishi@huawei.com, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, n-horiguchi@ah.jp.nec.com, tangchen@cn.fujitsu.com, vbabka@suse.cz, mgorman@techsingularity.net, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, yasu.isimatu@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kernel mailing list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, Linux Memory <linux-mm@kvack.org>
 
-The commit below adds hot-added memory range to memblock, after
-creating pgdat for new node.
-
-commit f9126ab9241f66562debf69c2c9d8fee32ddcc53
-Author: Xishi Qiu <qiuxishi@huawei.com>
-Date:   Fri Aug 14 15:35:16 2015 -0700
-
-    memory-hotplug: fix wrong edge when hot add a new node
-
-But there is a problem:
-
-add_memory()
-|--> hotadd_new_pgdat()
-     |--> free_area_init_node()
-          |--> get_pfn_range_for_nid()
-               |--> find start_pfn and end_pfn in memblock
-|--> ......
-|--> memblock_add_node(start, size, nid)    --------    Here, just too late.
-
-get_pfn_range_for_nid() will find that start_pfn and end_pfn are both 0.
-As a result, when adding memory, dmesg will give the following wrong message.
-
-[ 2007.577000] Initmem setup node 5 [mem 0x0000000000000000-0xffffffffffffffff]
-[ 2007.584000] On node 5 totalpages: 0
-[ 2007.585000] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 32588823
-[ 2007.594000] Policy zone: Normal
-[ 2007.598000] init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
-
-The solution is simple, just add the memory range to memblock a little earlier,
-before hotadd_new_pgdat().
-
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
----
- mm/memory_hotplug.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6da82bc..9b78aff 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1248,6 +1248,14 @@ int __ref add_memory(int nid, u64 start, u64 size)
- 
- 	mem_hotplug_begin();
- 
-+	/*
-+	 * Add new range to memblock so that when hotadd_new_pgdat() is called to
-+	 * allocate new pgdat, get_pfn_range_for_nid() will be able to find this
-+	 * new range and calculate total pages correctly. The range will be remove
-+	 * at hot-remove time.
-+	 */
-+	memblock_add_node(start, size, nid);
-+
- 	new_node = !node_online(nid);
- 	if (new_node) {
- 		pgdat = hotadd_new_pgdat(nid, start);
-@@ -1277,7 +1285,6 @@ int __ref add_memory(int nid, u64 start, u64 size)
- 
- 	/* create new memmap entry */
- 	firmware_map_add_hotplug(start, start + size, "System RAM");
--	memblock_add_node(start, size, nid);
- 
- 	goto out;
- 
-@@ -1286,6 +1293,7 @@ error:
- 	if (new_pgdat)
- 		rollback_node_hotadd(nid, pgdat);
- 	release_memory_resource(res);
-+	memblock_remove(start, size);
- 
- out:
- 	mem_hotplug_done();
--- 
-1.8.3.1
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQo+IEZyb206IHhpbGlfZ2No
+ZW5fNTI1N0Bob3RtYWlsLmNvbQo+IFRvOiBtaG9ja29Aa2VybmVsLm9yZwo+IENDOiBha3BtQGxp
+bnV4LWZvdW5kYXRpb24ub3JnOyBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBraXJpbGwu
+c2h1dGVtb3ZAbGludXguaW50ZWwuY29tOyByaWVsQHJlZGhhdC5jb207IHNhc2hhLmxldmluQG9y
+YWNsZS5jb207IGxpbnV4LW1tQGt2YWNrLm9yZwo+IFN1YmplY3Q6IFJlOiBbUEFUQ0hdIG1tOiBt
+bWFwOiBTaW1wbGlmeSB0aGUgZmFpbHVyZSByZXR1cm4gd29ya2luZyBmbG93Cj4gRGF0ZTogVGh1
+LCAyMCBBdWcgMjAxNSAxNjo0ODoyMSArMDgwMAo+Cj4gT24gMjAxNeW5tDA45pyIMjDml6UgMTU6
+NDUsIE1pY2hhbCBIb2NrbyB3cm90ZToKPj4gT24gVGh1IDIwLTA4LTE1IDA5OjI3OjQyLCBnY2hl
+biBnY2hlbiB3cm90ZToKPj4gWy4uLl0KPj4+IFllcywgaXQgaXMgcmVhbGx5IHBlY3VsaWFyLCB0
+aGUgcmVhc29uIGlzIGdtYWlsIGlzIG5vdCBzdGFibGUgaW4gQ2hpbmEuCj4+PiBJIGhhdmUgdG8g
+c2VuZCBtYWlsIGluIG15IGhvdG1haWwgYWRkcmVzcy4KPj4+Cj4+PiBCdXQgSSBzdGlsbCB3YW50
+IHRvIHVzZSBteSBnbWFpbCBhcyBTaWduZWQtb2ZmLWJ5LCBzaW5jZSBJIGhhdmUgYWxyZWFkeQo+
+Pj4gdXNlZCBpdCwgYW5kIGFsc28gaXRzIG5hbWUgaXMgYSBsaXR0bGUgZm9ybWFsIHRoYW4gbXkg
+aG90bWFpbC4KPj4+Cj4+PiBXZWxjb21lIGFueSBpZGVhcywgc3VnZ2VzdGlvbnMgYW5kIGNvbXBs
+ZXRpb25zIGZvciBpdCAoZS5nLiBpZiBpdCBpcwo+Pj4gbmVjZXNzYXJ5IHRvIGxldCBzZW5kIG1h
+aWwgYW5kIFNpZ25lZC1vZmYtYnkgbWFpbCBiZSB0aGUgc2FtZSwgSSBzaGFsbAo+Pj4gdHJ5KS4K
+Pj4KPj4gWW91IGNhbiBkbyB0aGUgZm9sbG93aW5nIGluIHlvdXIgLmdpdC9jb25maWcKPj4KPj4g
+W3VzZXJdCj4+IG5hbWUgPSBZT1VSX05BTUVfRk9SX1MtTy1CCj4+IGVtYWlsID0gWU9VUl9HTUFJ
+TF9BRERSRVNTCj4+IFtzZW5kZW1haWxdCj4+IGZyb20gPSBZT1VSX1NUQUJMRV9TRU5ERVJfQURE
+UkVTUwo+PiBlbnZlbG9wZXNlbmRlciA9IFlPVVJfU1RBQkxFX1NFTkRFUl9BRERSRVNTCj4+IHNt
+dHBzZXJ2ZXIgPSBZT1VSX1NUQUJMRV9TTVRQCj4+Cj4+IFt1c2VyXSBwYXJ0IHdpbGwgYmUgdXNl
+ZCBmb3Igcy1vLWIgYW5kIEF1dGhvciBlbWFpbCB3aGlsZSB0aGUgc2VuZGVtYWlsCj4+IHdpbGwg
+YmUgdXNlZCBmb3IgZ2l0IHNlbmQtZW1haWwgdG8gcm91dGUgdGhlIHBhdGNoIHByb3Blcmx5LiBJ
+ZiB0aGUgdHdvCj4+IGRpZmZlciBpdCB3aWxsIGFkZCBGcm9tOiB1c2VyLm5hbWUgPHVzZXIuZW1h
+aWw+IGFzIHN1Z2dlc3RlZCBieSBBbmRyZXcuCj4+Cj4KCk9oLCBzb3JyeSwgaXQgc2VlbXMsIEkg
+aGF2ZSB0byBzZW5kIG1haWwgaW4gaG90bWFpbCB3ZWJzaXRlIChJIGNhbiBzZW5kIGdtYWlsCm5l
+aXRoZXIgdW5kZXIgY2xpZW50IG5vciB1bmRlciB3ZWJzaXRlKS4KCmxpbnV4IGtlcm5lbCBtYWls
+aW5nIGxpc3QgZG9lcyBub3QgYWNjZXB0IFFRIG1haWwuIEVpdGhlciBhdCBwcmVzZW50LCBJIGNh
+bgpub3Qgc2VuZCBob3RtYWlsIGZyb20gY2xpZW50ICh0aHVuZGVyYmlyZCBjbGllbnQsIGdpdCBj
+bGllbnQpLCBJIGd1ZXNzIHRoZQpyZWFzb24gaXMgdGhlIGhvdG1haWwgaXMgYmxvY2tlZCBpbiBD
+aGluYSAoYnV0IFFRIGlzIG9mIGNhdXNlIE9LwqBpbiBDaGluYSkuCgpTbyAuLi4gaXQgaXMgYSBi
+YWQgbmV3cyB0byB1cyBhbGwuIDotKCDCoFdlbGNvbWUgYW55IHJlbGF0ZWQgaWRlYXMsIHN1Z2dl
+c3Rpb25zCmFuIGNvbXBsZXRpb25zLgoKVGhhbmtzLgoKPiBPSywgdGhhbmsgeW91ciB2ZXJ5IG11
+Y2ggZm9yIHlvdXIgZGV0YWlscyBpbmZvcm1hdGlvbi4gOi0pCj4KPiBJIHNoYWxsIHRyeSB0byB1
+c2UgZ2l0IHRvIHNlbmQvcmVjdiBtYWlscyBpbnN0ZWFkIG9mIGN1cnJlbnQgdGh1bmRlcmJpcmQK
+PiBjbGllbnQgKGhvcGUgSSBjYW4gZG8gaXQgbmV4dCB0aW1lLCBhbHRob3VnaCBJIGFtIG5vdCBx
+dWl0ZSBzdXJlKS4KPgo+Cj4gVGhhbmtzLgo+IC0tCj4gQ2hlbiBHYW5nCj4KPiBPcGVuLCBzaGFy
+ZSwgYW5kIGF0dGl0dWRlIGxpa2UgYWlyLCB3YXRlciwgYW5kIGxpZmUgd2hpY2ggR29kIGJsZXNz
+ZWQKPgogCQkgCSAgIAkJICA=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
