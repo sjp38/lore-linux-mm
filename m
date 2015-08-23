@@ -1,83 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 03BFF6B0038
-	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 03:23:49 -0400 (EDT)
-Received: by pdob1 with SMTP id b1so41440352pdo.2
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 00:23:48 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id ot10si21497757pdb.76.2015.08.23.00.23.47
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BE606B0038
+	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 04:17:57 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so46412813wic.1
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 01:17:56 -0700 (PDT)
+Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
+        by mx.google.com with ESMTPS id gs3si14837682wib.29.2015.08.23.01.17.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 23 Aug 2015 00:23:48 -0700 (PDT)
-Subject: [REPOST] [PATCH 2/2] mm: Fix potentially scheduling in GFP_ATOMIC allocations.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-Id: <201508231623.DED13020.tFOHFVFQOSOLMJ@I-love.SAKURA.ne.jp>
-Date: Sun, 23 Aug 2015 16:23:37 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 23 Aug 2015 01:17:55 -0700 (PDT)
+Received: by widdq5 with SMTP id dq5so46680437wid.0
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 01:17:54 -0700 (PDT)
+Date: Sun, 23 Aug 2015 10:17:51 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [PATCH 3/3 v3] mm/vmalloc: Cache the vmalloc memory info
+Message-ID: <20150823081750.GA28349@gmail.com>
+References: <20150823060443.GA9882@gmail.com>
+ <20150823064603.14050.qmail@ns.horizon.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150823064603.14050.qmail@ns.horizon.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, rientjes@google.com, hannes@cmpxchg.org
-Cc: linux-mm@kvack.org
+To: George Spelvin <linux@horizon.com>
+Cc: dave@sr71.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@rasmusvillemoes.dk, peterz@infradead.org, riel@redhat.com, rientjes@google.com, torvalds@linux-foundation.org
 
->From 08a638e04351386ab03cd1223988ac7940d4d3aa Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sat, 1 Aug 2015 22:46:12 +0900
-Subject: [PATCH 2/2] mm: Fix potentially scheduling in GFP_ATOMIC
- allocations.
 
-Currently, if somebody does GFP_ATOMIC | __GFP_NOFAIL allocation,
-wait_iff_congested() might be called via __alloc_pages_high_priority()
-before reaching
+* George Spelvin <linux@horizon.com> wrote:
 
-  if (!wait) {
-    WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
-    goto nopage;
-  }
+> Ingo Molnar <mingo@kernel.org> wrote:
+> > I think this is too complex.
+> > 
+> > How about something simple like the patch below (on top of the third patch)?
+> 
+> > It makes the vmalloc info transactional - /proc/meminfo will always print a 
+> > consistent set of numbers. (Not that we really care about races there, but it 
+> > looks really simple to solve so why not.)
+> 
+> Looks like a huge simplification!
+> 
+> It needs a comment about the approximate nature of the locking and
+> the obvious race conditions:
+> 1) The first caller to get_vmalloc_info() clears vmap_info_changed
+>    before updating vmap_info_cache, so a second caller is likely to
+>    get stale data for the duration of a calc_vmalloc_info call.
+> 2) Although unlikely, it's possible for two threads to race calling
+>    calc_vmalloc_info, and the one that computes fresher data updates
+>    the cache first, so the later write leaves stale data.
+> 
+> Other issues:
+> 3) Me, I'd make vmap_info_changed a bool, for documentation more than
+>    any space saving.
+> 4) I wish there were a trylock version of write_seqlock, so we could
+>    avoid blocking entirely.  (You *could* hand-roll it, but that eats
+>    into the simplicity.)
 
-because gfp_to_alloc_flags() includes ALLOC_NO_WATERMARKS if TIF_MEMDIE
-was set.
+Ok, fair enough - so how about the attached approach instead, which uses a 64-bit 
+generation counter to track changes to the vmalloc state.
 
-We need to check for __GFP_WAIT flag at __alloc_pages_high_priority()
-in order to make sure that we won't schedule.
+This is still very simple, but should not suffer from stale data being returned 
+indefinitely in /proc/meminfo. We might race - but that was true before as well 
+due to the lock-less RCU list walk - but we'll always return a correct and 
+consistent version of the information.
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/page_alloc.c | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+Lightly tested. This is a replacement patch to make it easier to read via email.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 37a0390..f9f09fa 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2917,16 +2917,15 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
- {
- 	struct page *page;
- 
--	do {
-+	for (;;) {
- 		page = get_page_from_freelist(gfp_mask, order,
- 						ALLOC_NO_WATERMARKS, ac);
- 
--		if (!page && gfp_mask & __GFP_NOFAIL)
--			wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC,
--									HZ/50);
--	} while (!page && (gfp_mask & __GFP_NOFAIL));
--
--	return page;
-+		if (page || (gfp_mask & (__GFP_NOFAIL | __GFP_WAIT)) !=
-+		    (__GFP_NOFAIL | __GFP_WAIT))
-+			return page;
-+		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
-+	}
- }
- 
- static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
--- 
-1.8.3.1
+I also made sure there's no extra overhead in the !CONFIG_PROC_FS case.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Note that there's an even simpler variant possible I think: we could use just the 
+two generation counters and barriers to remove the seqlock.
+
+Thanks,
+
+	Ingo
+
+==============================>
