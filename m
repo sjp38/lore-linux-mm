@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id DD1936B0254
-	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 12:28:50 -0400 (EDT)
-Received: by pdrh1 with SMTP id h1so44796239pdr.0
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 09:28:50 -0700 (PDT)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 27BE36B0038
+	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 12:58:06 -0400 (EDT)
+Received: by pdrh1 with SMTP id h1so44938912pdr.0
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 09:58:05 -0700 (PDT)
 Received: from smtpbg63.qq.com (smtpbg63.qq.com. [103.7.29.150])
-        by mx.google.com with ESMTPS id pk3si23042955pdb.160.2015.08.23.09.28.49
+        by mx.google.com with ESMTPS id io6si23082149pbc.117.2015.08.23.09.58.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 23 Aug 2015 09:28:50 -0700 (PDT)
+        Sun, 23 Aug 2015 09:58:05 -0700 (PDT)
 From: gang.chen.5i5j@gmail.com
-Subject: Re: [PATCH] mm: mmap: Simplify the failure return working flow
-Date: Mon, 24 Aug 2015 00:28:30 +0800
-Message-Id: <1440347310-17925-1-git-send-email-gang.chen.5i5j@gmail.com>
+Subject: [PATCH] mm: mmap: Check all failures before set values
+Date: Mon, 24 Aug 2015 00:57:49 +0800
+Message-Id: <1440349069-18253-1-git-send-email-gang.chen.5i5j@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: gang.chen.5i5j@qq.com, Chen Gang <gang.chen.5i5j@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, kernel mailing list <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, Linux Memory <linux-mm@kvack.org>
+To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, riel@redhat.com, mhocko@suse.cz, sasha.levin@oracle.com, gang.chen.5i5j@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 8/20/15 15:45, Michal Hocko wrote:
-> On Thu 20-08-15 09:27:42, gchen gchen wrote:
-> [...]
->> Yes, it is really peculiar, the reason is gmail is not stable in China.
->> I have to send mail in my hotmail address.
->>
->> But I still want to use my gmail as Signed-off-by, since I have already
->> used it, and also its name is a little formal than my hotmail.
->>
->> Welcome any ideas, suggestions and completions for it (e.g. if it is
->> necessary to let send mail and Signed-off-by mail be the same, I shall
->> try).
-> 
-> You can do the following in your .git/config
-> 
-> [user]
-> 	name = YOUR_NAME_FOR_S-O-B
-> 	email = YOUR_GMAIL_ADDRESS
-> [sendemail]
-> 	from = YOUR_STABLE_SENDER_ADDRESS
+From: Chen Gang <gang.chen.5i5j@gmail.com>
 
-After trying, I guess, from = YOUR_GMAIL_ADDRESS
+When failure occurs and return, vma->vm_pgoff is already set, which is
+not a good idea.
 
-> 	envelopesender = YOUR_STABLE_SENDER_ADDRESS
-> 	smtpserver = YOUR_STABLE_SMTP
-> 
-> [user] part will be used for s-o-b and Author email while the sendemail
-> will be used for git send-email to route the patch properly. If the two
-> differ it will add From: user.name <user.email> as suggested by Andrew.
-> 
+Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
+---
+ mm/mmap.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
-OK, thanks. I finished the configuration, and give a test (send and
-receive test mail between my 2 mail address), it is OK.
-
-I shall send patches in this way :-).
-
-Thanks.
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 8e0366e..b5a6f09 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2878,6 +2878,13 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
+ 	struct vm_area_struct *prev;
+ 	struct rb_node **rb_link, *rb_parent;
+ 
++	if (find_vma_links(mm, vma->vm_start, vma->vm_end,
++			   &prev, &rb_link, &rb_parent))
++		return -ENOMEM;
++	if ((vma->vm_flags & VM_ACCOUNT) &&
++	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
++		return -ENOMEM;
++
+ 	/*
+ 	 * The vm_pgoff of a purely anonymous vma should be irrelevant
+ 	 * until its first write fault, when page's anon_vma and index
+@@ -2894,12 +2901,6 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
+ 		BUG_ON(vma->anon_vma);
+ 		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
+ 	}
+-	if (find_vma_links(mm, vma->vm_start, vma->vm_end,
+-			   &prev, &rb_link, &rb_parent))
+-		return -ENOMEM;
+-	if ((vma->vm_flags & VM_ACCOUNT) &&
+-	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
+-		return -ENOMEM;
+ 
+ 	vma_link(mm, vma, prev, rb_link, rb_parent);
+ 	return 0;
 -- 
-Chen Gang
+1.9.3
 
-Open, share, and attitude like air, water, and life which God blessed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
