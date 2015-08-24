@@ -1,64 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 00CAA6B0255
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 09:16:22 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so72037144wic.1
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:16:21 -0700 (PDT)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id gp2si3520719wib.13.2015.08.24.06.16.19
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AB3E6B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 09:20:11 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so72095681wic.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:20:10 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id l18si21424047wie.104.2015.08.24.06.20.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 24 Aug 2015 06:16:20 -0700 (PDT)
-Date: Mon, 24 Aug 2015 14:15:57 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH v2 5/5] arm64: add KASan support
-Message-ID: <20150824131557.GB7557@n2100.arm.linux.org.uk>
-References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
- <1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
- <CACRpkdaRJJjCXR=vK1M2YhR26JZfGoBB+jcqz8r2MhERfxRzqA@mail.gmail.com>
- <CAPAsAGy-r8Z2N09wKV+e0kLfbwxd-eWK6N5Xajsnqq9jfyWqcQ@mail.gmail.com>
- <CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
- <CAPAsAGw-iawTpjJh66rQN5fqBFT6UBZCcv2eKx7JTqCXzhzpsw@mail.gmail.com>
- <CACRpkdY2i2M27gP_fXawkFrC_GFgWaKr5rEn6d47refNPiEk=g@mail.gmail.com>
- <55AE56DB.4040607@samsung.com>
- <CACRpkdYaqK8upK-3b01JbO_y+sHnk4-Hm1MfvjSy0tKUkFREtQ@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Aug 2015 06:20:09 -0700 (PDT)
+Received: by wicne3 with SMTP id ne3so72094807wic.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:20:08 -0700 (PDT)
+Date: Mon, 24 Aug 2015 15:20:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [REPOST] [PATCH 1/2] mm: Fix race between setting TIF_MEMDIE and
+ __alloc_pages_high_priority().
+Message-ID: <20150824132006.GN17078@dhcp22.suse.cz>
+References: <201508231621.EGJ17658.FFQJtFSLVOOHMO@I-love.SAKURA.ne.jp>
+ <20150824100319.GG17078@dhcp22.suse.cz>
+ <201508242152.HHB69241.OFJLFVtFHQOMSO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACRpkdYaqK8upK-3b01JbO_y+sHnk4-Hm1MfvjSy0tKUkFREtQ@mail.gmail.com>
+In-Reply-To: <201508242152.HHB69241.OFJLFVtFHQOMSO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Walleij <linus.walleij@linaro.org>
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, David Keitel <dkeitel@codeaurora.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Alexander Potapenko <glider@google.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Tue, Jul 21, 2015 at 11:27:56PM +0200, Linus Walleij wrote:
-> On Tue, Jul 21, 2015 at 4:27 PM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+On Mon 24-08-15 21:52:08, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > The comment above the check is misleading but now you are allowing to
+> > fail all ALLOC_NO_WATERMARKS (without __GFP_NOFAIL) allocations before
+> > entering the direct reclaim and compaction. This seems incorrect. What
+> > about __GFP_MEMALLOC requests?
 > 
-> > I used vexpress. Anyway, it doesn't matter now, since I have an update
-> > with a lot of stuff fixed, and it works on hardware.
-> > I still need to do some work on it and tomorrow, probably, I will share.
-> 
-> Ah awesome. I have a stash of ARM boards so I can test it on a
-> range of hardware once you feel it's ready.
-> 
-> Sorry for pulling stuff out of your hands, people are excited about
-> KASan ARM32 as it turns out.
+> So, you want __GPP_MEMALLOC to retry forever unless TIF_MEMDIE is set, don't
+> you?
 
-People may be excited about it because it's a new feature, but we really
-need to consider whether gobbling up 512MB of userspace for it is a good
-idea or not.  There are programs around which like to map large amounts
-of memory into their process space, and the more we steal from them, the
-more likely these programs are to fail.
+I am not saying that. I was just pointing out that you have changed the
+behavior of this gfp flag.
 
-The other thing which I'm not happy about is having a 16K allocation per
-thread - the 16K allocation for the PGD is already prone to invoking the
-OOM killer after memory fragmentation has set in, we don't need another
-16K allocation.  We're going from one 16K allocation per process to that
-_and_ one 16K allocation per thread.
+> > I think the check for TIF_MEMDIE makes more sense here.
+> 
+> Since we already failed to allocate from memory reserves, I don't know if
+> direct reclaim and compaction can work as expected under such situation.
+
+Yes the allocation has failed and the reclaim might not do any
+progress. Withtout trying to the reclaim we simply do not know that,
+though.
+The TIF_MEMDIE check was explicit for a good reason IMO. The race is not
+really that important AFAICS because we would only fail the allocation
+sooner for the OOM victim and that one might fail already. I might be
+missing something of course but your change has a higher risk of
+undesired behavior than the original code.
 
 -- 
-FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-according to speedtest.net.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
