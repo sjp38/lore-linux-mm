@@ -1,18 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 643C76B0038
-	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 20:58:20 -0400 (EDT)
-Received: by qkbm65 with SMTP id m65so59264523qkb.2
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 17:58:20 -0700 (PDT)
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id D369A6B0038
+	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 20:58:53 -0400 (EDT)
+Received: by qkbm65 with SMTP id m65so59269183qkb.2
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 17:58:53 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v9si5958184qkv.29.2015.08.23.17.58.19
+        by mx.google.com with ESMTPS id f138si25722969qka.28.2015.08.23.17.58.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Aug 2015 17:58:19 -0700 (PDT)
-Subject: [PATCH V2 0/3] slub: introducing detached freelist
+        Sun, 23 Aug 2015 17:58:53 -0700 (PDT)
+Subject: [PATCH V2 1/3] slub: extend slowpath __slab_free() to handle bulk
+ free
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Mon, 24 Aug 2015 02:58:15 +0200
-Message-ID: <20150824005727.2947.36065.stgit@localhost>
+Date: Mon, 24 Aug 2015 02:58:48 +0200
+Message-ID: <20150824005823.2947.19259.stgit@localhost>
+In-Reply-To: <20150824005727.2947.36065.stgit@localhost>
+References: <20150824005727.2947.36065.stgit@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -21,61 +24,89 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org
 Cc: aravinda@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
-REPOST:
- * Only updated comment in patch01 per request of Christoph Lameter.
- * No other objections have been made
- * Prev post: http://thread.gmane.org/gmane.linux.kernel.mm/135704
+Make it possible to free a freelist with several objects by extending
+__slab_free() with two arguments: a freelist_head pointer and objects
+counter (cnt).  If freelist_head pointer is set, then the object must
+be the freelist tail pointer.
 
-NEW use-cases for this API is RCU-free (and still for network NICs).
+This allows a freelist with several objects (all within the same
+slab-page) to be free'ed using a single locked cmpxchg_double.
 
-Introducing what I call detached freelist, for improving the
-performance of object freeing in the "slowpath" of kmem_cache_free_bulk,
-which calls __slab_free().
+Micro benchmarking showed no performance reduction due to this change.
 
-The benchmarking tool are avail here:
- https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm
- See: slab_bulk_test0{1,2,3}.c
-
-Compared against existing bulk-API (in AKPMs tree), we see a small
-regression for small size bulking (between 2-5 cycles), but a huge
-improvement for the slowpath.
-
-bulk- Bulk-API-before           - Bulk-API with patchset
-  1 -  42 cycles(tsc) 10.520 ns - 47 cycles(tsc) 11.931 ns - improved -11.9%
-  2 -  26 cycles(tsc)  6.697 ns - 29 cycles(tsc)  7.368 ns - improved -11.5%
-  3 -  22 cycles(tsc)  5.589 ns - 24 cycles(tsc)  6.003 ns - improved -9.1%
-  4 -  19 cycles(tsc)  4.921 ns - 22 cycles(tsc)  5.543 ns - improved -15.8%
-  8 -  17 cycles(tsc)  4.499 ns - 20 cycles(tsc)  5.047 ns - improved -17.6%
- 16 -  69 cycles(tsc) 17.424 ns - 20 cycles(tsc)  5.015 ns - improved 71.0%
- 30 -  88 cycles(tsc) 22.075 ns - 20 cycles(tsc)  5.062 ns - improved 77.3%
- 32 -  83 cycles(tsc) 20.965 ns - 20 cycles(tsc)  5.089 ns - improved 75.9%
- 34 -  80 cycles(tsc) 20.039 ns - 28 cycles(tsc)  7.006 ns - improved 65.0%
- 48 -  76 cycles(tsc) 19.252 ns - 31 cycles(tsc)  7.755 ns - improved 59.2%
- 64 -  86 cycles(tsc) 21.523 ns - 68 cycles(tsc) 17.203 ns - improved 20.9%
-128 -  97 cycles(tsc) 24.444 ns - 72 cycles(tsc) 18.195 ns - improved 25.8%
-158 -  96 cycles(tsc) 24.036 ns - 73 cycles(tsc) 18.372 ns - improved 24.0%
-250 - 100 cycles(tsc) 25.007 ns - 73 cycles(tsc) 18.430 ns - improved 27.0%
-
-Patchset based on top of commit aefbef10e3ae with previous accepted
-bulk patchset(V2) applied (avail in AKPMs quilt).
-
-Small note, benchmark run with kernel compiled with .config
-CONFIG_FTRACE in-order to use the perf probes to measure the amount of
-page bulking into __slab_free().  While running the "worse-case"
-testing module slab_bulk_test03.c
+Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
 
 ---
+V2: Per request of Christoph Lameter
+ * Made it more clear that freelist objs must exist within same page
 
-Jesper Dangaard Brouer (3):
-      slub: extend slowpath __slab_free() to handle bulk free
-      slub: optimize bulk slowpath free by detached freelist
-      slub: build detached freelist with look-ahead
+ mm/slub.c |   16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
 
-
- mm/slub.c |  142 ++++++++++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 112 insertions(+), 30 deletions(-)
-
---
+diff --git a/mm/slub.c b/mm/slub.c
+index c9305f525004..10b57a3bb895 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2573,9 +2573,14 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
+  * So we still attempt to reduce cache line usage. Just take the slab
+  * lock and free the item. If there is no additional partial page
+  * handling required then we can return immediately.
++ *
++ * Bulk free of a freelist with several objects (all pointing to the
++ * same page) possible by specifying freelist_head ptr and object as
++ * tail ptr, plus objects count (cnt).
+  */
+ static void __slab_free(struct kmem_cache *s, struct page *page,
+-			void *x, unsigned long addr)
++			void *x, unsigned long addr,
++			void *freelist_head, int cnt)
+ {
+ 	void *prior;
+ 	void **object = (void *)x;
+@@ -2584,6 +2589,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 	unsigned long counters;
+ 	struct kmem_cache_node *n = NULL;
+ 	unsigned long uninitialized_var(flags);
++	void *new_freelist = (!freelist_head) ? object : freelist_head;
+ 
+ 	stat(s, FREE_SLOWPATH);
+ 
+@@ -2601,7 +2607,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 		set_freepointer(s, object, prior);
+ 		new.counters = counters;
+ 		was_frozen = new.frozen;
+-		new.inuse--;
++		new.inuse -= cnt;
+ 		if ((!new.inuse || !prior) && !was_frozen) {
+ 
+ 			if (kmem_cache_has_cpu_partial(s) && !prior) {
+@@ -2632,7 +2638,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 
+ 	} while (!cmpxchg_double_slab(s, page,
+ 		prior, counters,
+-		object, new.counters,
++		new_freelist, new.counters,
+ 		"__slab_free"));
+ 
+ 	if (likely(!n)) {
+@@ -2736,7 +2742,7 @@ redo:
+ 		}
+ 		stat(s, FREE_FASTPATH);
+ 	} else
+-		__slab_free(s, page, x, addr);
++		__slab_free(s, page, x, addr, NULL, 1);
+ 
+ }
+ 
+@@ -2780,7 +2786,7 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+ 			c->tid = next_tid(c->tid);
+ 			local_irq_enable();
+ 			/* Slowpath: overhead locked cmpxchg_double_slab */
+-			__slab_free(s, page, object, _RET_IP_);
++			__slab_free(s, page, object, _RET_IP_, NULL, 1);
+ 			local_irq_disable();
+ 			c = this_cpu_ptr(s->cpu_slab);
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
