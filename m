@@ -1,63 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AB3E6B0038
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 09:20:11 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so72095681wic.0
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:20:10 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id l18si21424047wie.104.2015.08.24.06.20.09
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C8956B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 09:30:34 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so72393010wic.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:30:34 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gw2si21488288wib.72.2015.08.24.06.30.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Aug 2015 06:20:09 -0700 (PDT)
-Received: by wicne3 with SMTP id ne3so72094807wic.0
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:20:08 -0700 (PDT)
-Date: Mon, 24 Aug 2015 15:20:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [REPOST] [PATCH 1/2] mm: Fix race between setting TIF_MEMDIE and
- __alloc_pages_high_priority().
-Message-ID: <20150824132006.GN17078@dhcp22.suse.cz>
-References: <201508231621.EGJ17658.FFQJtFSLVOOHMO@I-love.SAKURA.ne.jp>
- <20150824100319.GG17078@dhcp22.suse.cz>
- <201508242152.HHB69241.OFJLFVtFHQOMSO@I-love.SAKURA.ne.jp>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 24 Aug 2015 06:30:33 -0700 (PDT)
+Subject: Re: [PATCH v7 3/6] mm: Introduce VM_LOCKONFAULT
+References: <1439097776-27695-1-git-send-email-emunson@akamai.com>
+ <1439097776-27695-4-git-send-email-emunson@akamai.com>
+ <20150812115909.GA5182@dhcp22.suse.cz> <20150819213345.GB4536@akamai.com>
+ <20150820075611.GD4780@dhcp22.suse.cz> <20150820170309.GA11557@akamai.com>
+ <20150821072552.GF23723@dhcp22.suse.cz> <20150821183132.GA12835@akamai.com>
+ <CALYGNiPcruTM+2KKNZr7ebCVCPsqytSrW8rSzSmj+1Qp4OqXEw@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55DB1C77.8070705@suse.cz>
+Date: Mon, 24 Aug 2015 15:30:31 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201508242152.HHB69241.OFJLFVtFHQOMSO@I-love.SAKURA.ne.jp>
+In-Reply-To: <CALYGNiPcruTM+2KKNZr7ebCVCPsqytSrW8rSzSmj+1Qp4OqXEw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>, Eric B Munson <emunson@akamai.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, dri-devel <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
 
-On Mon 24-08-15 21:52:08, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > The comment above the check is misleading but now you are allowing to
-> > fail all ALLOC_NO_WATERMARKS (without __GFP_NOFAIL) allocations before
-> > entering the direct reclaim and compaction. This seems incorrect. What
-> > about __GFP_MEMALLOC requests?
-> 
-> So, you want __GPP_MEMALLOC to retry forever unless TIF_MEMDIE is set, don't
-> you?
+On 08/24/2015 12:17 PM, Konstantin Khlebnikov wrote:
+>>
+>> I am in the middle of implementing lock on fault this way, but I cannot
+>> see how we will hanlde mremap of a lock on fault region.  Say we have
+>> the following:
+>>
+>>      addr = mmap(len, MAP_ANONYMOUS, ...);
+>>      mlock(addr, len, MLOCK_ONFAULT);
+>>      ...
+>>      mremap(addr, len, 2 * len, ...)
+>>
+>> There is no way for mremap to know that the area being remapped was lock
+>> on fault so it will be locked and prefaulted by remap.  How can we avoid
+>> this without tracking per vma if it was locked with lock or lock on
+>> fault?
+>
+> remap can count filled ptes and prefault only completely populated areas.
 
-I am not saying that. I was just pointing out that you have changed the
-behavior of this gfp flag.
+Does (and should) mremap really prefault non-present pages? Shouldn't it 
+just prepare the page tables and that's it?
 
-> > I think the check for TIF_MEMDIE makes more sense here.
-> 
-> Since we already failed to allocate from memory reserves, I don't know if
-> direct reclaim and compaction can work as expected under such situation.
+> There might be a problem after failed populate: remap will handle them
+> as lock on fault. In this case we can fill ptes with swap-like non-present
+> entries to remember that fact and count them as should-be-locked pages.
 
-Yes the allocation has failed and the reclaim might not do any
-progress. Withtout trying to the reclaim we simply do not know that,
-though.
-The TIF_MEMDIE check was explicit for a good reason IMO. The race is not
-really that important AFAICS because we would only fail the allocation
-sooner for the OOM victim and that one might fail already. I might be
-missing something of course but your change has a higher risk of
-undesired behavior than the original code.
-
--- 
-Michal Hocko
-SUSE Labs
+I don't think we should strive to have mremap try to fix the inherent 
+unreliability of mmap (MAP_POPULATE)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
