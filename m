@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B7656B0038
-	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 23:31:49 -0400 (EDT)
-Received: by qkfh127 with SMTP id h127so60710820qkf.1
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 20:31:49 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id m84si26211277qki.115.2015.08.23.20.31.46
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 66C686B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 00:23:42 -0400 (EDT)
+Received: by pacdd16 with SMTP id dd16so87101275pac.2
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 21:23:42 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id ae4si25462537pac.2.2015.08.23.21.18.27
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 23 Aug 2015 20:31:48 -0700 (PDT)
-Message-ID: <55DA8F59.1050700@huawei.com>
-Date: Mon, 24 Aug 2015 11:28:25 +0800
+        Sun, 23 Aug 2015 21:23:41 -0700 (PDT)
+Message-ID: <55DA9A4B.10203@huawei.com>
+Date: Mon, 24 Aug 2015 12:15:07 +0800
 From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
 Subject: Re: is this a problem of numactl in RedHat7.0 ?
@@ -33,6 +33,24 @@ On 2015/8/22 4:53, Rik van Riel wrote:
 > in the same way. Look at this code in mpol_new(),
 > in mm/mempolicy.c:
 > 
+
+user:
+"numactl --localalloc" wil call
+	main()
+	  numa_set_localalloc()
+	    setpol(MPOL_DEFAULT, numa_no_nodes_ptr);
+	      set_mempolicy()
+	        syscall(__NR_set_mempolicy,mode,nmask,maxnode);
+
+kernel:
+	do_set_mempolicy()
+	  mpol_new()
+		if (mode == MPOL_DEFAULT) {
+			if (nodes && !nodes_empty(*nodes))
+				return ERR_PTR(-EINVAL);
+			return NULL;  // return from here
+		}
+
 >         /*
 >          * MPOL_PREFERRED cannot be used with MPOL_F_STATIC_NODES or
 >          * MPOL_F_RELATIVE_NODES if the nodemask is empty (local allocation).
@@ -51,31 +69,6 @@ On 2015/8/22 4:53, Rik van Riel wrote:
 >         } else if (nodes_empty(*nodes))
 >                 return ERR_PTR(-EINVAL);
 > 
-
-Hi Rik,
-
-Thank you for your reply. I find the reason is this patch,
-and it is not backport to RedHat 7.0
-
-8790c71a18e5d2d93532ae250bcf5eddbba729cd
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 873de7e..ae3c8f3 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2930,7 +2930,7 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
-        unsigned short mode = MPOL_DEFAULT;
-        unsigned short flags = 0;
-
--       if (pol && pol != &default_policy) {
-+       if (pol && pol != &default_policy && !(pol->flags & MPOL_F_MORON)) {
-                mode = pol->mode;
-                flags = pol->flags;
-        }
-
-Thanks,
-Xishi Qiu
-
 > 
 > 
 > 
