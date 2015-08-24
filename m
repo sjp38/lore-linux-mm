@@ -1,43 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id C892D6B0253
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 17:58:06 -0400 (EDT)
-Received: by padfo6 with SMTP id fo6so2650476pad.3
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 14:58:06 -0700 (PDT)
-Received: from COL004-OMC1S15.hotmail.com (col004-omc1s15.hotmail.com. [65.55.34.25])
-        by mx.google.com with ESMTPS id ha3si12103241pac.129.2015.08.24.14.58.05
+Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
+	by kanga.kvack.org (Postfix) with ESMTP id F2E946B0253
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 18:15:46 -0400 (EDT)
+Received: by ykll84 with SMTP id l84so136680067ykl.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 15:15:46 -0700 (PDT)
+Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
+        by mx.google.com with ESMTPS id p6si11293981yka.42.2015.08.24.15.15.45
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 24 Aug 2015 14:58:05 -0700 (PDT)
-Message-ID: <COL130-W465CD26C1EF1D52CAD2FB4B9620@phx.gbl>
-From: Chen Gang <xili_gchen_5257@hotmail.com>
-Subject: Re: [PATCH] mm: mmap: Check all failures before set values
-Date: Tue, 25 Aug 2015 05:58:05 +0800
-In-Reply-To: <55DB93B2.9010705@hotmail.com>
-References: <1440349179-18304-1-git-send-email-gang.chen.5i5j@qq.com>
-	<20150824113212.GL17078@dhcp22.suse.cz>
- <20150824142555.76d9cf840dcbf8bbd9489b8c@linux-foundation.org>,<55DB93B2.9010705@hotmail.com>
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+        (version=TLSv1.1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 24 Aug 2015 15:15:45 -0700 (PDT)
+From: Paul Gortmaker <paul.gortmaker@windriver.com>
+Subject: [PATCH 01/10] mm: make cleancache.c explicitly non-modular
+Date: Mon, 24 Aug 2015 18:14:33 -0400
+Message-ID: <1440454482-12250-2-git-send-email-paul.gortmaker@windriver.com>
+In-Reply-To: <1440454482-12250-1-git-send-email-paul.gortmaker@windriver.com>
+References: <1440454482-12250-1-git-send-email-paul.gortmaker@windriver.com>
 MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
-Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "gang.chen.5i5j@gmail.com" <gang.chen.5i5j@gmail.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Gortmaker <paul.gortmaker@windriver.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-T24gOC8yNS8xNSAwNToyNSwgQW5kcmV3IE1vcnRvbiB3cm90ZToKPiBPbiBNb24sIDI0IEF1ZyAy
-MDE1IDEzOjMyOjEzICswMjAwIE1pY2hhbCBIb2NrbyA8bWhvY2tvQGtlcm5lbC5vcmc+IHdyb3Rl
-Ogo+Cj4+IE9uIE1vbiAyNC0wOC0xNSAwMDo1OTozOSwgZ2FuZy5jaGVuLjVpNWpAcXEuY29tIHdy
-b3RlOgo+Pj4gRnJvbTogQ2hlbiBHYW5nIDxnYW5nLmNoZW4uNWk1akBnbWFpbC5jb20+Cj4+Pgo+
-Pj4gV2hlbiBmYWlsdXJlIG9jY3VycyBhbmQgcmV0dXJuLCB2bWEtPnZtX3Bnb2ZmIGlzIGFscmVh
-ZHkgc2V0LCB3aGljaCBpcwo+Pj4gbm90IGEgZ29vZCBpZGVhLgo+Pgo+PiBXaHk/IFRoZSB2bWEg
-aXMgbm90IGluc2VydGVkIGFueXdoZXJlIGFuZCB0aGUgZmFpbHVyZSBwYXRoIGlzIHN1cHBvc2Vk
-Cj4+IHRvIHNpbXBseSBmcmVlIHRoZSB2bWEuCj4KPiBZZXMsIGl0J3MgcHJldHR5IG1hcmdpbmFs
-IGJ1dCBJIHN1cHBvc2UgdGhlIGNvZGUgaXMgYSBiaXQgYmV0dGVyIHdpdGgKPiB0aGUgcGF0Y2gg
-dGhhbiB3aXRob3V0LiBJIGRpZCB0aGlzOgo+CgpPSywgdGhhbmtzLiBUaGUgY29tbWVudHMgcmVh
-bGx5IG5lZWQgdG8gYmUgaW1wcm92ZWQsIGp1c3QgbGlrZSBNaWNoYWwKSG9ja28gc2FpZCBiZWZv
-cmUuCgoKVGhhbmtzLgotLQpDaGVuIEdhbmcKCk9wZW4sIHNoYXJlLCBhbmQgYXR0aXR1ZGUgbGlr
-ZSBhaXIsIHdhdGVyLCBhbmQgbGlmZSB3aGljaCBHb2QgYmxlc3NlZAogCQkgCSAgIAkJICA=
+The Kconfig currently controlling compilation of this code is:
+
+config CLEANCACHE
+        bool "Enable cleancache driver to cache clean pages if tmem is present"
+
+...meaning that it currently is not being built as a module by anyone.
+
+Lets remove the couple traces of modularity so that when reading the
+driver there is no doubt it is builtin-only.
+
+Since module_init translates to device_initcall in the non-modular
+case, the init ordering remains unchanged with this commit.
+
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
+---
+ mm/cleancache.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/cleancache.c b/mm/cleancache.c
+index 8fc50811119b..ee0646d1c2fa 100644
+--- a/mm/cleancache.c
++++ b/mm/cleancache.c
+@@ -11,7 +11,7 @@
+  * This work is licensed under the terms of the GNU GPL, version 2.
+  */
+ 
+-#include <linux/module.h>
++#include <linux/init.h>
+ #include <linux/fs.h>
+ #include <linux/exportfs.h>
+ #include <linux/mm.h>
+@@ -316,4 +316,4 @@ static int __init init_cleancache(void)
+ #endif
+ 	return 0;
+ }
+-module_init(init_cleancache)
++device_initcall(init_cleancache)
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
