@@ -1,79 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 66C686B0038
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 00:23:42 -0400 (EDT)
-Received: by pacdd16 with SMTP id dd16so87101275pac.2
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 21:23:42 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id ae4si25462537pac.2.2015.08.23.21.18.27
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 8871C6B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 02:58:14 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so62460476wic.0
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 23:58:14 -0700 (PDT)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id f5si19767479wiz.82.2015.08.23.23.58.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 23 Aug 2015 21:23:41 -0700 (PDT)
-Message-ID: <55DA9A4B.10203@huawei.com>
-Date: Mon, 24 Aug 2015 12:15:07 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 23 Aug 2015 23:58:13 -0700 (PDT)
+Received: by wijp15 with SMTP id p15so67651966wij.0
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 23:58:12 -0700 (PDT)
+Date: Mon, 24 Aug 2015 08:58:09 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 3/3 v3] mm/vmalloc: Cache the vmalloc memory info
+Message-ID: <20150824065809.GA13082@gmail.com>
+References: <20150823060443.GA9882@gmail.com>
+ <20150823064603.14050.qmail@ns.horizon.com>
+ <20150823081750.GA28349@gmail.com>
+ <87lhd1wwtz.fsf@rasmusvillemoes.dk>
 MIME-Version: 1.0
-Subject: Re: is this a problem of numactl in RedHat7.0 ?
-References: <55D6EEEB.7050701@huawei.com> <55D78FB0.9040906@redhat.com>
-In-Reply-To: <55D78FB0.9040906@redhat.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87lhd1wwtz.fsf@rasmusvillemoes.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Xiexiuqi <xiexiuqi@huawei.com>
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: George Spelvin <linux@horizon.com>, dave@sr71.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, riel@redhat.com, rientjes@google.com, torvalds@linux-foundation.org
 
-On 2015/8/22 4:53, Rik van Riel wrote:
 
-> On 08/21/2015 05:27 AM, Xishi Qiu wrote:
->> I use numactl(--localalloc) tool run a test case, but it shows that
->> the numa policy is prefer, I don't know why.
+* Rasmus Villemoes <linux@rasmusvillemoes.dk> wrote:
+
+> On Sun, Aug 23 2015, Ingo Molnar <mingo@kernel.org> wrote:
 > 
-> The kernel implements MPOL_PREFERRED and MPOL_LOCAL
-> in the same way. Look at this code in mpol_new(),
-> in mm/mempolicy.c:
+> > Ok, fair enough - so how about the attached approach instead, which
+> > uses a 64-bit generation counter to track changes to the vmalloc
+> > state.
 > 
+> How does this invalidation approach compare to the jiffies approach? In
+> other words, how often does the vmalloc info actually change (or rather,
+> in this approximation, how often is vmap_area_lock taken)? In
+> particular, does it also solve the problem with git's test suite and
+> similar situations with lots of short-lived processes?
 
-user:
-"numactl --localalloc" wil call
-	main()
-	  numa_set_localalloc()
-	    setpol(MPOL_DEFAULT, numa_no_nodes_ptr);
-	      set_mempolicy()
-	        syscall(__NR_set_mempolicy,mode,nmask,maxnode);
+The two approaches are pretty similar, and in a typical distro with typical 
+workload vmalloc() is mostly a boot time affair.
 
-kernel:
-	do_set_mempolicy()
-	  mpol_new()
-		if (mode == MPOL_DEFAULT) {
-			if (nodes && !nodes_empty(*nodes))
-				return ERR_PTR(-EINVAL);
-			return NULL;  // return from here
-		}
+But vmalloc() can be used more often in certain corner cases - neither of the 
+patches makes that in any way slower, just the optimization won't trigger that 
+often.
 
->         /*
->          * MPOL_PREFERRED cannot be used with MPOL_F_STATIC_NODES or
->          * MPOL_F_RELATIVE_NODES if the nodemask is empty (local allocation).
->          * All other modes require a valid pointer to a non-empty nodemask.
->          */
->         if (mode == MPOL_PREFERRED) {
->                 if (nodes_empty(*nodes)) {
->                         if (((flags & MPOL_F_STATIC_NODES) ||
->                              (flags & MPOL_F_RELATIVE_NODES)))
->                                 return ERR_PTR(-EINVAL);
->                 }
->         } else if (mode == MPOL_LOCAL) {
->                 if (!nodes_empty(*nodes))
->                         return ERR_PTR(-EINVAL);
->                 mode = MPOL_PREFERRED;
->         } else if (nodes_empty(*nodes))
->                 return ERR_PTR(-EINVAL);
+Since vmalloc() use is suboptimal for several reasons (it does not use large pages 
+for kernel space allocations, etc.), this is all pretty OK IMHO.
+
+> > ==============================>
+> > From f9fd770e75e2edb4143f32ced0b53d7a77969c94 Mon Sep 17 00:00:00 2001
+> > From: Ingo Molnar <mingo@kernel.org>
+> > Date: Sat, 22 Aug 2015 12:28:01 +0200
+> > Subject: [PATCH] mm/vmalloc: Cache the vmalloc memory info
+> >
+> > Linus reported that glibc (rather stupidly) reads /proc/meminfo
+> > for every sysinfo() call,
 > 
+> Not quite: It is done by the two functions get_{av,}phys_pages
+> functions; and get_phys_pages is called (once per process) by glibc's
+> qsort implementation. In fact, sysinfo() is (at least part of) the cure,
+> not the disease. Whether qsort should care about the total amount of
+> memory is another discussion.
 > 
-> 
-> 
+> <http://thread.gmane.org/gmane.comp.lib.glibc.alpha/54342/focus=54558>
 
+Thanks, is the fixed up changelog below better?
 
+	Ingo
+
+===============>
+
+mm/vmalloc: Cache the vmalloc memory info
+
+Linus reported that for scripting-intense workloads such as the
+Git build, glibc's qsort will read /proc/meminfo for every process
+created (by way of get_phys_pages()), which causes the Git build 
+to generate a surprising amount of kernel overhead.
+
+A fair chunk of the overhead is due to get_vmalloc_info() - which 
+walks a potentially long list to do its statistics.
+
+Modify Linus's jiffies based patch to use generation counters
+to cache the vmalloc info: vmap_unlock() increases the generation
+counter, and the get_vmalloc_info() reads it and compares it
+against a cached generation counter.
+
+Also use a seqlock to make sure we always print a consistent
+set of vmalloc statistics.
+
+Reported-by: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
