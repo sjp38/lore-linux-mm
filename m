@@ -1,148 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A36482F5F
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 08:30:19 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so70784329wic.1
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 05:30:19 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id jg6si21243453wid.4.2015.08.24.05.30.17
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CF2126B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 08:37:44 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so70888013wid.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 05:37:44 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id er3si1384025wib.114.2015.08.24.05.37.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 24 Aug 2015 05:30:17 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 3D9EDF4012
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 12:30:17 +0000 (UTC)
-Date: Mon, 24 Aug 2015 13:30:15 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 12/12] mm, page_alloc: Only enforce watermarks for order-0
- allocations
-Message-ID: <20150824123015.GJ12432@techsingularity.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 24 Aug 2015 05:37:43 -0700 (PDT)
+Subject: Re: [PATCH 04/12] mm, page_alloc: Only check cpusets when one exists
+ that can be mem-controlled
 References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
+ <1440418191-10894-5-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55DB1015.4080103@suse.cz>
+Date: Mon, 24 Aug 2015 14:37:41 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <1440418191-10894-5-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-The primary purpose of watermarks is to ensure that reclaim can always
-make forward progress in PF_MEMALLOC context (kswapd and direct reclaim).
-These assume that order-0 allocations are all that is necessary for
-forward progress.
+On 08/24/2015 02:09 PM, Mel Gorman wrote:
+> David Rientjes correctly pointed out that the "root cpuset may not exclude
+> mems on the system so, even if mounted, there's no need to check or be
+> worried about concurrent change when there is only one cpuset".
+>
+> The three checks for cpusets_enabled() care whether a cpuset exists that
+> can limit memory, not that cpuset is enabled as such. This patch replaces
+> cpusets_enabled() with cpusets_mems_enabled() which checks if at least one
+> cpuset exists that can limit memory and updates the appropriate call sites.
+>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>   include/linux/cpuset.h | 16 +++++++++-------
+>   mm/page_alloc.c        |  2 +-
+>   2 files changed, 10 insertions(+), 8 deletions(-)
+>
+> diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+> index 6eb27cb480b7..1e823870987e 100644
+> --- a/include/linux/cpuset.h
+> +++ b/include/linux/cpuset.h
+> @@ -17,10 +17,6 @@
+>   #ifdef CONFIG_CPUSETS
+>
+>   extern struct static_key cpusets_enabled_key;
+> -static inline bool cpusets_enabled(void)
+> -{
+> -	return static_key_false(&cpusets_enabled_key);
+> -}
+>
+>   static inline int nr_cpusets(void)
+>   {
+> @@ -28,6 +24,12 @@ static inline int nr_cpusets(void)
+>   	return static_key_count(&cpusets_enabled_key) + 1;
+>   }
+>
+> +/* Returns true if a cpuset exists that can set cpuset.mems */
+> +static inline bool cpusets_mems_enabled(void)
+> +{
+> +	return nr_cpusets() > 1;
+> +}
+> +
 
-High-order watermarks serve a different purpose. Kswapd had no high-order
-awareness before they were introduced (https://lkml.org/lkml/2004/9/5/9).
-This was particularly important when there were high-order atomic requests.
-The watermarks both gave kswapd awareness and made a reserve for those
-atomic requests.
+Hm, but this loses the benefits of static key branches?
+How about something like:
 
-There are two important side-effects of this. The most important is that
-a non-atomic high-order request can fail even though free pages are available
-and the order-0 watermarks are ok. The second is that high-order watermark
-checks are expensive as the free list counts up to the requested order must
-be examined.
+   if (static_key_false(&cpusets_enabled_key))
+	return nr_cpusets() > 1
+   else
+	return false;
 
-With the introduction of MIGRATE_HIGHATOMIC it is no longer necessary to
-have high-order watermarks. Kswapd and compaction still need high-order
-awareness which is handled by checking that at least one suitable high-order
-page is free.
 
-With the patch applied, there was little difference in the allocation
-failure rates as the atomic reserves are small relative to the number of
-allocation attempts. The expected impact is that there will never be an
-allocation failure report that shows suitable pages on the free lists.
 
-The one potential side-effect of this is that in a vanilla kernel, the
-watermark checks may have kept a free page for an atomic allocation. Now,
-we are 100% relying on the HighAtomic reserves and an early allocation to
-have allocated them.  If the first high-order atomic allocation is after
-the system is already heavily fragmented then it'll fail.
+>   static inline void cpuset_inc(void)
+>   {
+>   	static_key_slow_inc(&cpusets_enabled_key);
+> @@ -104,7 +106,7 @@ extern void cpuset_print_task_mems_allowed(struct task_struct *p);
+>    */
+>   static inline unsigned int read_mems_allowed_begin(void)
+>   {
+> -	if (!cpusets_enabled())
+> +	if (!cpusets_mems_enabled())
+>   		return 0;
+>
+>   	return read_seqcount_begin(&current->mems_allowed_seq);
+> @@ -118,7 +120,7 @@ static inline unsigned int read_mems_allowed_begin(void)
+>    */
+>   static inline bool read_mems_allowed_retry(unsigned int seq)
+>   {
+> -	if (!cpusets_enabled())
+> +	if (!cpusets_mems_enabled())
+>   		return false;
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/page_alloc.c | 38 ++++++++++++++++++++++++--------------
- 1 file changed, 24 insertions(+), 14 deletions(-)
+Actually I doubt it's much of benefit for these usages, even if the 
+static key benefits are restored. If there's a single root cpuset, we 
+would check the seqlock prior to this patch, now we'll check static key 
+value (which should have the same cost?). With >1 cpusets, we would 
+check seqlock prior to this patch, now we'll check static key value 
+*and* the seqlock...
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2415f882b89c..35dc578730d1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2280,8 +2280,10 @@ static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
- #endif /* CONFIG_FAIL_PAGE_ALLOC */
- 
- /*
-- * Return true if free pages are above 'mark'. This takes into account the order
-- * of the allocation.
-+ * Return true if free base pages are above 'mark'. For high-order checks it
-+ * will return true of the order-0 watermark is reached and there is at least
-+ * one free page of a suitable size. Checking now avoids taking the zone lock
-+ * to check in the allocation paths if no pages are free.
-  */
- static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 			unsigned long mark, int classzone_idx, int alloc_flags,
-@@ -2289,7 +2291,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- {
- 	long min = mark;
- 	int o;
--	long free_cma = 0;
-+	const bool atomic = (alloc_flags & ALLOC_HARDER);
- 
- 	/* free_pages may go negative - that's OK */
- 	free_pages -= (1 << order) - 1;
-@@ -2301,7 +2303,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 	 * If the caller is not atomic then discount the reserves. This will
- 	 * over-estimate how the atomic reserve but it avoids a search
- 	 */
--	if (likely(!(alloc_flags & ALLOC_HARDER)))
-+	if (likely(!atomic))
- 		free_pages -= z->nr_reserved_highatomic;
- 	else
- 		min -= min / 4;
-@@ -2309,22 +2311,30 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- #ifdef CONFIG_CMA
- 	/* If allocation can't use CMA areas don't use free CMA pages */
- 	if (!(alloc_flags & ALLOC_CMA))
--		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
-+		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
- #endif
- 
--	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
-+	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
- 		return false;
--	for (o = 0; o < order; o++) {
--		/* At the next order, this order's pages become unavailable */
--		free_pages -= z->free_area[o].nr_free << o;
- 
--		/* Require fewer higher order pages to be free */
--		min >>= 1;
-+	/* order-0 watermarks are ok */
-+	if (!order)
-+		return true;
-+
-+	/* Check at least one high-order page is free */
-+	for (o = order; o < MAX_ORDER; o++) {
-+		struct free_area *area = &z->free_area[o];
-+		int mt;
-+
-+		if (atomic && area->nr_free)
-+			return true;
- 
--		if (free_pages <= min)
--			return false;
-+		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
-+			if (!list_empty(&area->free_list[mt]))
-+				return true;
-+		}
- 	}
--	return true;
-+	return false;
- }
- 
- bool zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
--- 
-2.4.6
+>
+>   	return read_seqcount_retry(&current->mems_allowed_seq, seq);
+> @@ -139,7 +141,7 @@ static inline void set_mems_allowed(nodemask_t nodemask)
+>
+>   #else /* !CONFIG_CPUSETS */
+>
+> -static inline bool cpusets_enabled(void) { return false; }
+> +static inline bool cpusets_mems_enabled(void) { return false; }
+>
+>   static inline int cpuset_init(void) { return 0; }
+>   static inline void cpuset_init_smp(void) {}
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 62ae28d8ae8d..2c1c3bf54d15 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2470,7 +2470,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+>   		if (IS_ENABLED(CONFIG_NUMA) && zlc_active &&
+>   			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+>   				continue;
+> -		if (cpusets_enabled() &&
+> +		if (cpusets_mems_enabled() &&
+>   			(alloc_flags & ALLOC_CPUSET) &&
+>   			!cpuset_zone_allowed(zone, gfp_mask))
+>   				continue;
+
+Here the benefits are less clear. I guess cpuset_zone_allowed() is 
+potentially costly...
+
+Heck, shouldn't we just start the static key on -1 (if possible), so 
+that it's enabled only when there's 2+ cpusets?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
