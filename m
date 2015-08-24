@@ -1,182 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id AC44F6B0038
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 05:42:25 -0400 (EDT)
-Received: by pacti10 with SMTP id ti10so20180486pac.0
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 02:42:25 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id k12si26553211pbq.59.2015.08.24.02.42.23
-        for <linux-mm@kvack.org>;
-        Mon, 24 Aug 2015 02:42:24 -0700 (PDT)
-Message-ID: <55DAE666.5020302@cn.fujitsu.com>
-Date: Mon, 24 Aug 2015 17:39:50 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id E97E26B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 05:47:21 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so66588258wic.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 02:47:21 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id w15si20448849wie.113.2015.08.24.02.47.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Aug 2015 02:47:20 -0700 (PDT)
+Received: by wicja10 with SMTP id ja10so66382980wic.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 02:47:19 -0700 (PDT)
+Date: Mon, 24 Aug 2015 11:47:18 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [REPOST] [PATCH 2/2] mm,oom: Reverse the order of setting
+ TIF_MEMDIE and sending SIGKILL.
+Message-ID: <20150824094718.GF17078@dhcp22.suse.cz>
+References: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] memory-hotplug: remove reset_node_managed_pages()
- and reset_node_managed_pages() in hotadd_new_pgdat()
-References: <55C9A3A9.5090300@huawei.com> <55C9A554.4090509@huawei.com> <55D9A036.7060506@cn.fujitsu.com> <55DAE113.20503@huawei.com>
-In-Reply-To: <55DAE113.20503@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
 
+On Sun 23-08-15 16:19:38, Tetsuo Handa wrote:
+[...]
+> I tried to reproducing what I worried at
+> http://www.spinics.net/lists/linux-mm/msg82342.html . I confirmed that a
+> local unprivileged user can consume all memory reserves using the time lag.
 
-On 08/24/2015 05:17 PM, Xishi Qiu wrote:
-> On 2015/8/23 18:28, Tang Chen wrote:
->
->> Hi Shi,
->>
->> Sorry for the late reply. I hope it won't be too late.
->>
->> NON-ACK by me, I think.
->>
->> I noticed that your first has been merged. But it won't fix the problem
->> these code intended to fix.
->>
->> After your patch 1, zone's spanned/present won't be set to 0 because:
->>
->> free_area_init_node()
->>   |--> get_pfn_range_for_nid(&start_pfn, &end_pfn)
->>   |--> calculate_node_totalpages(pgdat, start_pfn, end_pfn, ...)
->>           | --> zone_spanned_pages_in_node()
->>                    | --> if (!node_start_pfn && !node_end_pfn) return 0;    --------    false, won't return 0
->>           | --> zone_absent_pages_in_node()
->>                    | --> if (!node_start_pfn && !node_end_pfn) return 0;    --------    false, won't return 0
->>
-> Hi Tang,
->
-> Thank you for your reply. When we add a new node, it is not included in the
-> memblock, I have no idea why zone_spanned_pages_in_node() and zone_absent_pages_in_node()
-> won't return 0. Do you add some debug code and print it?
+You were right!
 
-Sorry, I didn't say it clearly since I was in a hurry.
+> >From 2945dffb8d602947800348d44d317bae152f890c Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Fri, 31 Jul 2015 19:06:28 +0900
+> Subject: [PATCH 2/2] mm,oom: Reverse the order of setting TIF_MEMDIE and
+>  sending SIGKILL.
+> 
+> It is observed that a multi-threaded program can deplete memory reserves
+> using time lag between the OOM killer sets TIF_MEMDIE and the OOM killer
+> sends SIGKILL. This is because a thread group leader who gets TIF_MEMDIE
+> received SIGKILL too lately when there is a lot of child threads sharing
+> the same memory due to doing a lot of printk() inside for_each_process()
+> loop which can take many seconds.
+> 
+> Before starting oom-depleter process:
+> 
+>     Node 0 DMA: 3*4kB (UM) 6*8kB (U) 4*16kB (UEM) 0*32kB 0*64kB 1*128kB (M) 2*256kB (EM) 2*512kB (UE) 2*1024kB (EM) 1*2048kB (E) 1*4096kB (M) = 9980kB
+>     Node 0 DMA32: 31*4kB (UEM) 27*8kB (UE) 32*16kB (UE) 13*32kB (UE) 14*64kB (UM) 7*128kB (UM) 8*256kB (UM) 8*512kB (UM) 3*1024kB (U) 4*2048kB (UM) 362*4096kB (UM) = 1503220kB
+> 
+> As of invoking the OOM killer:
+> 
+>     Node 0 DMA: 11*4kB (UE) 8*8kB (UEM) 6*16kB (UE) 2*32kB (EM) 0*64kB 1*128kB (U) 3*256kB (UEM) 2*512kB (UE) 3*1024kB (UEM) 1*2048kB (U) 0*4096kB = 7308kB
+>     Node 0 DMA32: 1049*4kB (UEM) 507*8kB (UE) 151*16kB (UE) 53*32kB (UEM) 83*64kB (UEM) 52*128kB (EM) 25*256kB (UEM) 11*512kB (M) 6*1024kB (UM) 1*2048kB (M) 0*4096kB = 44556kB
+> 
+> Between the thread group leader got TIF_MEMDIE and receives SIGKILL:
+> 
+>     Node 0 DMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+>     Node 0 DMA32: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+> 
+> The oom-depleter's thread group leader which got TIF_MEMDIE started
+> memset() in user space after the OOM killer set TIF_MEMDIE, and it
+> was free to abuse ALLOC_NO_WATERMARKS by TIF_MEMDIE for memset()
+> in user space until SIGKILL is delivered. If SIGKILL is delivered
+> before TIF_MEMDIE is set, the oom-depleter can terminate without
+> touching memory reserves.
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> ---
+>  mm/oom_kill.c | 8 ++++++--
+>  1 file changed, 6 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 5249e7e..c0a5a69 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -555,12 +555,17 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+>  	/* Get a reference to safely compare mm after task_unlock(victim) */
+>  	mm = victim->mm;
+>  	atomic_inc(&mm->mm_users);
+> -	mark_oom_victim(victim);
+>  	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+>  		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+>  		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+>  		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
+>  	task_unlock(victim);
+> +	/* Send SIGKILL before setting TIF_MEMDIE. */
+> +	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+> +	task_lock(victim);
+> +	if (victim->mm)
+> +		mark_oom_victim(victim);
+> +	task_unlock(victim);
 
-If we move memblock_add_node() forward before hotadd_new_pgdat(),
-then node_start_pfn and node_end_pfn won't be 0. And
-zone_spanned_pages_in_node() and zone_absent_pages_in_node() won't
-return 0.
+Why cannot you simply move do_send_sig_info without touching
+mark_oom_victim? Are you still able to trigger the issue if you just
+kill before crawling through all the tasks sharing the mm?
 
-In your patch, they will return 0. And that leads to the print problem.
+The code would be easier then and the race window much smaller. If we
+really needed to prevent from preemption then preempt_{enable,disable}
+aournd the whole task_lock region + do_send_sig_info would be still
+easier to follow than re-taking task_lock.
 
->
->> This is caused by a little bug in your patch 1.
->>
->> You should put memblock_add_node(start, size, nid) before hotadd_new_pgdat()
->> because:
->>
-> My patch is just add an empty node first, later __add_zone() will update the size.
-> But it is all right put here, and it can fix the print bug.
+>  
+>  	/*
+>  	 * Kill all user processes sharing victim->mm in other thread groups, if
+> @@ -586,7 +591,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+>  		}
+>  	rcu_read_unlock();
+>  
+> -	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+>  	mmput(mm);
+>  	put_task_struct(victim);
+>  }
+> -- 
+> 1.8.3.1
 
-Yes. I just found this bug in the log.
-
->
->> hotadd_new_pgdat()
->>   | --> free_area_init_node()
->>            | --> get_pfn_range_for_nid()
->>                     | --> find memory ranges in memblock.
->>
->> | --> memblock_add_node(start, size, nid) -------------------    if you add it here, it doesn't work.
->>
->> The result will be like below if we hotadd node 5.
->> [ 2007.577000] Initmem setup node 5 [mem 0x0000000000000000-0xffffffffffffffff]
-> 	pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
-> 		(u64)start_pfn << PAGE_SHIFT, ((u64)end_pfn << PAGE_SHIFT) - 1);
-> start_pfn and end_pfn are both 0, and 0-1 -> 0xffffffffffffffff, right?
-
-Yes.
-
->
->> [ 2007.584000] On node 5 totalpages: 0
->> [ 2007.585000] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 32588823
->> [ 2007.594000] Policy zone: Normal
->> [ 2007.598000] init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
->>
->>
->> And also, if we merge this patch, /sys/devices/system/node/nodeX/meminfo will break.
->>
-> trigger call trace?
-
-No. There is no error output. But if you see 
-/sys/devices/system/node/nodeX/meminfo,
-memory size will double because totalpages is calculated once here, and 
-one more time
-when onlining memory.
-
-I think reset it to 0 in add_memory() is just a temporary solution. Will 
-improve it in the
-future.
-
-Thanks.
-
->
->> Since this patch is not merged, I think let's just drop it.
->>
->> And about the little bug in your patch 1, since I'm in a hurry, I have already send a patch to fix it.
->>
->>
->> Thanks. :)
->>
->>
->> On 08/11/2015 03:33 PM, Xishi Qiu wrote:
->>> After hotadd_new_pgdat()->free_area_init_node(), the pgdat and zone's spanned/present
->>> are both 0, so remove reset_node_managed_pages() and reset_node_managed_pages().
->>>
->>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->>> ---
->>>    mm/memory_hotplug.c | 25 -------------------------
->>>    1 file changed, 25 deletions(-)
->>>
->>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->>> index 11f26cc..997dfad 100644
->>> --- a/mm/memory_hotplug.c
->>> +++ b/mm/memory_hotplug.c
->>> @@ -1065,16 +1065,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
->>>    }
->>>    #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
->>>    -static void reset_node_present_pages(pg_data_t *pgdat)
->>> -{
->>> -    struct zone *z;
->>> -
->>> -    for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
->>> -        z->present_pages = 0;
->>> -
->>> -    pgdat->node_present_pages = 0;
->>> -}
->>> -
->>>    /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
->>>    static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->>>    {
->>> @@ -1109,21 +1099,6 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->>>        build_all_zonelists(pgdat, NULL);
->>>        mutex_unlock(&zonelists_mutex);
->>>    -    /*
->>> -     * zone->managed_pages is set to an approximate value in
->>> -     * free_area_init_core(), which will cause
->>> -     * /sys/device/system/node/nodeX/meminfo has wrong data.
->>> -     * So reset it to 0 before any memory is onlined.
->>> -     */
->>> -    reset_node_managed_pages(pgdat);
->>> -
->>> -    /*
->>> -     * When memory is hot-added, all the memory is in offline state. So
->>> -     * clear all zones' present_pages because they will be updated in
->>> -     * online_pages() and offline_pages().
->>> -     */
->>> -    reset_node_present_pages(pgdat);
->>> -
->>>        return pgdat;
->>>    }
->>>    
->>
->> .
->>
->
->
-> .
->
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
