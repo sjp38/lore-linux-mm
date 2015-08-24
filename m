@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
-	by kanga.kvack.org (Postfix) with ESMTP id F2E946B0253
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 18:15:46 -0400 (EDT)
-Received: by ykll84 with SMTP id l84so136680067ykl.0
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 15:15:46 -0700 (PDT)
-Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
-        by mx.google.com with ESMTPS id p6si11293981yka.42.2015.08.24.15.15.45
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 944566B0254
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 18:15:48 -0400 (EDT)
+Received: by pdbmi9 with SMTP id mi9so58090168pdb.3
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 15:15:48 -0700 (PDT)
+Received: from mail1.windriver.com (mail1.windriver.com. [147.11.146.13])
+        by mx.google.com with ESMTPS id fu2si29555709pbb.257.2015.08.24.15.15.47
         for <linux-mm@kvack.org>
         (version=TLSv1.1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Aug 2015 15:15:45 -0700 (PDT)
+        Mon, 24 Aug 2015 15:15:47 -0700 (PDT)
 From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Subject: [PATCH 01/10] mm: make cleancache.c explicitly non-modular
-Date: Mon, 24 Aug 2015 18:14:33 -0400
-Message-ID: <1440454482-12250-2-git-send-email-paul.gortmaker@windriver.com>
+Subject: [PATCH 02/10] mm: make slab_common.c explicitly non-modular
+Date: Mon, 24 Aug 2015 18:14:34 -0400
+Message-ID: <1440454482-12250-3-git-send-email-paul.gortmaker@windriver.com>
 In-Reply-To: <1440454482-12250-1-git-send-email-paul.gortmaker@windriver.com>
 References: <1440454482-12250-1-git-send-email-paul.gortmaker@windriver.com>
 MIME-Version: 1.0
@@ -20,47 +20,51 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Gortmaker <paul.gortmaker@windriver.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Gortmaker <paul.gortmaker@windriver.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-The Kconfig currently controlling compilation of this code is:
-
-config CLEANCACHE
-        bool "Enable cleancache driver to cache clean pages if tmem is present"
-
-...meaning that it currently is not being built as a module by anyone.
+The Makefile currently controlling compilation of this code is obj-y
+meaning that it currently is not being built as a module by anyone.
 
 Lets remove the couple traces of modularity so that when reading the
-driver there is no doubt it is builtin-only.
+code there is no doubt it is builtin-only.
 
 Since module_init translates to device_initcall in the non-modular
-case, the init ordering remains unchanged with this commit.
+case, the init ordering remains unchanged with this commit.  However
+one could argue that subsys_initcall() might make more sense here.
 
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org
 Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
 ---
- mm/cleancache.c | 4 ++--
+ mm/slab_common.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/cleancache.c b/mm/cleancache.c
-index 8fc50811119b..ee0646d1c2fa 100644
---- a/mm/cleancache.c
-+++ b/mm/cleancache.c
-@@ -11,7 +11,7 @@
-  * This work is licensed under the terms of the GNU GPL, version 2.
-  */
- 
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 5ce4faeb16fb..a27aff8d7cdc 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -10,7 +10,7 @@
+ #include <linux/interrupt.h>
+ #include <linux/memory.h>
+ #include <linux/compiler.h>
 -#include <linux/module.h>
 +#include <linux/init.h>
- #include <linux/fs.h>
- #include <linux/exportfs.h>
- #include <linux/mm.h>
-@@ -316,4 +316,4 @@ static int __init init_cleancache(void)
- #endif
+ #include <linux/cpu.h>
+ #include <linux/uaccess.h>
+ #include <linux/seq_file.h>
+@@ -1113,7 +1113,7 @@ static int __init slab_proc_init(void)
+ 						&proc_slabinfo_operations);
  	return 0;
  }
--module_init(init_cleancache)
-+device_initcall(init_cleancache)
+-module_init(slab_proc_init);
++device_initcall(slab_proc_init);
+ #endif /* CONFIG_SLABINFO */
+ 
+ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
 -- 
 2.5.0
 
