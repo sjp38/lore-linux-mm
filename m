@@ -1,102 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3758C6B0038
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 10:14:00 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so73561471wid.0
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 07:13:59 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id eu8si21699928wib.94.2015.08.24.07.13.58
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id E7B859003C8
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 10:15:24 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so73602242wid.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 07:15:24 -0700 (PDT)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id ey16si32294481wjc.79.2015.08.24.07.15.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Aug 2015 07:13:59 -0700 (PDT)
-Subject: Re: [PATCH V2] mm:memory hot-add: memory can not been added to
- movable zone
-References: <1440055685-6083-1-git-send-email-liuchangsheng@inspur.com>
- <55D584C7.7060101@suse.cz> <55D68632.1030004@inspur.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55DB26A4.9060302@suse.cz>
-Date: Mon, 24 Aug 2015 16:13:56 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Aug 2015 07:15:23 -0700 (PDT)
+Received: by widdq5 with SMTP id dq5so51771293wid.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 07:15:22 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <55D68632.1030004@inspur.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CACRpkdYwpucRiXM05y00RQY=gKv8W6YjCNspYFRMGaM605cU0w@mail.gmail.com>
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+	<1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
+	<CACRpkdaRJJjCXR=vK1M2YhR26JZfGoBB+jcqz8r2MhERfxRzqA@mail.gmail.com>
+	<CAPAsAGy-r8Z2N09wKV+e0kLfbwxd-eWK6N5Xajsnqq9jfyWqcQ@mail.gmail.com>
+	<CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
+	<CAPAsAGw-iawTpjJh66rQN5fqBFT6UBZCcv2eKx7JTqCXzhzpsw@mail.gmail.com>
+	<CACRpkdY2i2M27gP_fXawkFrC_GFgWaKr5rEn6d47refNPiEk=g@mail.gmail.com>
+	<55AE56DB.4040607@samsung.com>
+	<CACRpkdYaqK8upK-3b01JbO_y+sHnk4-Hm1MfvjSy0tKUkFREtQ@mail.gmail.com>
+	<20150824131557.GB7557@n2100.arm.linux.org.uk>
+	<CACRpkdYwpucRiXM05y00RQY=gKv8W6YjCNspYFRMGaM605cU0w@mail.gmail.com>
+Date: Mon, 24 Aug 2015 17:15:22 +0300
+Message-ID: <CAPAsAGwji7FpUJK9O=FWYN15-rJkYMQyOt9W9ncdY9uLybxkiA@mail.gmail.com>
+Subject: Re: [PATCH v2 5/5] arm64: add KASan support
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Changsheng Liu <liuchangsheng@inspur.com>, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
+To: Linus Walleij <linus.walleij@linaro.org>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
 
-On 08/21/2015 04:00 AM, Changsheng Liu wrote:
+2015-08-24 16:45 GMT+03:00 Linus Walleij <linus.walleij@linaro.org>:
+> On Mon, Aug 24, 2015 at 3:15 PM, Russell King - ARM Linux
+> <linux@arm.linux.org.uk> wrote:
+>> On Tue, Jul 21, 2015 at 11:27:56PM +0200, Linus Walleij wrote:
+>>> On Tue, Jul 21, 2015 at 4:27 PM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+>>>
+>>> > I used vexpress. Anyway, it doesn't matter now, since I have an update
+>>> > with a lot of stuff fixed, and it works on hardware.
+>>> > I still need to do some work on it and tomorrow, probably, I will share.
+>>>
+>>> Ah awesome. I have a stash of ARM boards so I can test it on a
+>>> range of hardware once you feel it's ready.
+>>>
+>>> Sorry for pulling stuff out of your hands, people are excited about
+>>> KASan ARM32 as it turns out.
+>>
+>> People may be excited about it because it's a new feature, but we really
+>> need to consider whether gobbling up 512MB of userspace for it is a good
+>> idea or not.  There are programs around which like to map large amounts
+>> of memory into their process space, and the more we steal from them, the
+>> more likely these programs are to fail.
 >
-> On 08/20/201515:41, Vlastimil Babka wrote:
->> On 08/20/2015 09:28 AM, Changsheng Liu wrote:
->>> From: Changsheng Liu <liuchangcheng@inspur.com>
->>>
->>> When memory is hot added, should_add_memory_movable() always returns 0
->>> because the movable zone is empty, so the memory that was hot added will
->>> add to the normal zone even if we want to remove the memory.
->>
->> I'm not expert on memory hot-plug, but since you CC'd me, I wonder...
->> the function has this comment: " * If movable zone has already been
->> setup, newly added memory should be check."
->>
->> So I read it like "if you want movable memory *at all*, you should do
->> some setup first" (but don't ask me what setup). After your patch,
->> every hot-added memory would be automatically movable? Isn't that
->> silently changing behavior against user expectations? What about those
->> that don't want to hot-remove and don't want movable zones (which
->> limit what kind of allocations are possible), is there a way to
->> prevent memory being movable after your patch?
->       After the system startup, we hot added one cpu with memory, The
-> function arch_add_memory() will add the memory to
->       normal zone defaultly but now all zones including normal zone and
-> movable zone are empty.So If we want to add the memory
->       to movable zone we need change should_add_memory_movable().
-
-I have poked a bit at the code and documentation, and I may still not 
-have the complete picture.
-
-Are you using movable_node kernel option to expect all hotpluggable 
-memory to be movable? Then it's probably a bug. But then your patch 
-should probably use movable_node_is_enabled() instead of checking just 
-the config. Otherwise it would be making zone movable also for those who 
-enabled the config, but don't pass the kernel option, and that would be 
-wrong?
-
-Or are you onlining memory by "echo online_movable > 
-/sys/devices/system/memory/memoryXXX/state" without node_movable kernel 
-option?
-
->>
->>> So we change should_add_memory_movable(): if the user config
->>> CONFIG_MOVABLE_NODE it will return 1 when the movable zone is empty.
->>>
->>> Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
->>> Signed-off-by: Changsheng Liu <liuchangcheng@inspur.com>
->>> Tested-by: Dongdong Fan <fandd@inspur.com>
->>> ---
->>>    mm/memory_hotplug.c |    3 +--
->>>    1 files changed, 1 insertions(+), 2 deletions(-)
->>>
->>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->>> index 26fbba7..ff658f2 100644
->>> --- a/mm/memory_hotplug.c
->>> +++ b/mm/memory_hotplug.c
->>> @@ -1199,8 +1199,7 @@ static int should_add_memory_movable(int nid,
->>> u64 start, u64 size)
->>>        struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
->>>
->>>        if (zone_is_empty(movable_zone))
->>> -        return 0;
->>> -
->>> +        return IS_ENABLED(CONFIG_MOVABLE_NODE);
->>>        if (movable_zone->zone_start_pfn <= start_pfn)
->>>            return 1;
->>>
->>>
->>
->> .
->>
+> I looked at some different approaches over the last weeks for this
+> when playing around with KASan.
 >
+> It seems since KASan was developed on 64bit systems, this was
+> not much of an issue for them as they could take their shadow
+> memory from the vmalloc space.
+>
+> I think it is possible to actually just steal as much memory as is
+> needed to cover the kernel, and not 1/8 of the entire addressable
+> 32bit space. So instead of covering all from 0x0-0xffffffff
+> at least just MODULES_VADDR thru 0xffffffff should be enough.
+> So if that is 0xbf000000-0xffffffff in most cases, 0x41000000
+> bytes, then 1/8 of that, 0x8200000, 130MB should be enough.
+> (Andrey need to say if this is possible.)
+>
+
+Yes, ~130Mb (3G/1G split) should work. 512Mb shadow is optional.
+The only advantage of 512Mb shadow is better handling of user memory
+accesses bugs
+(access to user memory without copy_from_user/copy_to_user/strlen_user etc API).
+In case of 512Mb shadow we could to not map anything in shadow for
+user addresses, so such bug will
+guarantee  to crash the kernel.
+In case of 130Mb, the behavior will depend on memory layout of the
+current process.
+So, I think it's fine to keep shadow only for kernel addresses.
+
+> That will probably miss some usecases I'm not familiar with, where
+> the kernel is actually executing something below 0xbf000000...
+>
+> I looked at taking memory from vmalloc instead, but ran into
+> problems since this is subject to the highmem split and KASan
+> need to have it's address offset at compile time. On
+> Ux500 I managed to remove all the static maps and steal memory
+> from the top of the vmalloc area instead of the beginning, but
+> that is probably not generally feasible.
+>
+> I suspect you have better ideas than what I can come up
+> with though.
+>
+> Yours,
+> Linus Walleij
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
