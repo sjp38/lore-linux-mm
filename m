@@ -1,120 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id E97E26B0038
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 05:47:21 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so66588258wic.0
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 02:47:21 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id w15si20448849wie.113.2015.08.24.02.47.19
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id DAB106B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:03:22 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so66795846wic.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 03:03:22 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
+        by mx.google.com with ESMTPS id o5si20555995wiz.39.2015.08.24.03.03.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Aug 2015 02:47:20 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so66382980wic.1
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 02:47:19 -0700 (PDT)
-Date: Mon, 24 Aug 2015 11:47:18 +0200
+        Mon, 24 Aug 2015 03:03:21 -0700 (PDT)
+Received: by wicne3 with SMTP id ne3so67005610wic.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 03:03:20 -0700 (PDT)
+Date: Mon, 24 Aug 2015 12:03:19 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [REPOST] [PATCH 2/2] mm,oom: Reverse the order of setting
- TIF_MEMDIE and sending SIGKILL.
-Message-ID: <20150824094718.GF17078@dhcp22.suse.cz>
-References: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
+Subject: Re: [REPOST] [PATCH 1/2] mm: Fix race between setting TIF_MEMDIE and
+ __alloc_pages_high_priority().
+Message-ID: <20150824100319.GG17078@dhcp22.suse.cz>
+References: <201508231621.EGJ17658.FFQJtFSLVOOHMO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
+In-Reply-To: <201508231621.EGJ17658.FFQJtFSLVOOHMO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Sun 23-08-15 16:19:38, Tetsuo Handa wrote:
-[...]
-> I tried to reproducing what I worried at
-> http://www.spinics.net/lists/linux-mm/msg82342.html . I confirmed that a
-> local unprivileged user can consume all memory reserves using the time lag.
-
-You were right!
-
-> >From 2945dffb8d602947800348d44d317bae152f890c Mon Sep 17 00:00:00 2001
+On Sun 23-08-15 16:21:41, Tetsuo Handa wrote:
+> >From 4a3cf5be07a66cf3906a380e77ba5e2ac1b2b3d5 Mon Sep 17 00:00:00 2001
 > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Fri, 31 Jul 2015 19:06:28 +0900
-> Subject: [PATCH 2/2] mm,oom: Reverse the order of setting TIF_MEMDIE and
->  sending SIGKILL.
+> Date: Sat, 1 Aug 2015 22:39:30 +0900
+> Subject: [PATCH 1/2] mm: Fix race between setting TIF_MEMDIE and
+>  __alloc_pages_high_priority().
 > 
-> It is observed that a multi-threaded program can deplete memory reserves
-> using time lag between the OOM killer sets TIF_MEMDIE and the OOM killer
-> sends SIGKILL. This is because a thread group leader who gets TIF_MEMDIE
-> received SIGKILL too lately when there is a lot of child threads sharing
-> the same memory due to doing a lot of printk() inside for_each_process()
-> loop which can take many seconds.
+> Currently, TIF_MEMDIE is checked at gfp_to_alloc_flags() which is before
+> calling __alloc_pages_high_priority() and at
 > 
-> Before starting oom-depleter process:
+>   /* Avoid allocations with no watermarks from looping endlessly */
+>   if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
 > 
->     Node 0 DMA: 3*4kB (UM) 6*8kB (U) 4*16kB (UEM) 0*32kB 0*64kB 1*128kB (M) 2*256kB (EM) 2*512kB (UE) 2*1024kB (EM) 1*2048kB (E) 1*4096kB (M) = 9980kB
->     Node 0 DMA32: 31*4kB (UEM) 27*8kB (UE) 32*16kB (UE) 13*32kB (UE) 14*64kB (UM) 7*128kB (UM) 8*256kB (UM) 8*512kB (UM) 3*1024kB (U) 4*2048kB (UM) 362*4096kB (UM) = 1503220kB
+> which is after returning from __alloc_pages_high_priority(). This means
+> that if TIF_MEMDIE is set between returning from gfp_to_alloc_flags() and
+> checking test_thread_flag(TIF_MEMDIE), the allocation can fail without
+> calling __alloc_pages_high_priority(). We need to replace
+> "test_thread_flag(TIF_MEMDIE)" with "whether TIF_MEMDIE was already set
+> as of calling gfp_to_alloc_flags()" in order to close this race window.
 > 
-> As of invoking the OOM killer:
+> Since gfp_to_alloc_flags() includes ALLOC_NO_WATERMARKS for several cases,
+> it will be more correct to replace "test_thread_flag(TIF_MEMDIE)" with
+> "whether gfp_to_alloc_flags() included ALLOC_NO_WATERMARKS" because the
+> purpose of test_thread_flag(TIF_MEMDIE) is to give up immediately if
+> __alloc_pages_high_priority() failed.
+
+Yes TIF_MEMDIE setting is inherently racy. We will fail the allocation
+without diving into reserves. Why is that a problem?
+The comment above the check is misleading but now you are allowing to
+fail all ALLOC_NO_WATERMARKS (without __GFP_NOFAIL) allocations before
+entering the direct reclaim and compaction. This seems incorrect. What
+about __GFP_MEMALLOC requests?
+
+I think the check for TIF_MEMDIE makes more sense here.
+
 > 
->     Node 0 DMA: 11*4kB (UE) 8*8kB (UEM) 6*16kB (UE) 2*32kB (EM) 0*64kB 1*128kB (U) 3*256kB (UEM) 2*512kB (UE) 3*1024kB (UEM) 1*2048kB (U) 0*4096kB = 7308kB
->     Node 0 DMA32: 1049*4kB (UEM) 507*8kB (UE) 151*16kB (UE) 53*32kB (UEM) 83*64kB (UEM) 52*128kB (EM) 25*256kB (UEM) 11*512kB (M) 6*1024kB (UM) 1*2048kB (M) 0*4096kB = 44556kB
+> Note that we could simply do
 > 
-> Between the thread group leader got TIF_MEMDIE and receives SIGKILL:
+>   if (alloc_flags & ALLOC_NO_WATERMARKS) {
+>     ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+>     page = __alloc_pages_high_priority(gfp_mask, order, ac);
+>     if (page)
+>       goto got_pg;
+>     WARN_ON_ONCE(!wait && (gfp_mask & __GFP_NOFAIL));
+>     goto nopage;
+>   }
 > 
->     Node 0 DMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
->     Node 0 DMA32: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+> instead of changing to
 > 
-> The oom-depleter's thread group leader which got TIF_MEMDIE started
-> memset() in user space after the OOM killer set TIF_MEMDIE, and it
-> was free to abuse ALLOC_NO_WATERMARKS by TIF_MEMDIE for memset()
-> in user space until SIGKILL is delivered. If SIGKILL is delivered
-> before TIF_MEMDIE is set, the oom-depleter can terminate without
-> touching memory reserves.
+>   if ((alloc_flags & ALLOC_NO_WATERMARKS) && !(gfp_mask & __GFP_NOFAIL))
+>     goto nopage;
+> 
+> if we can duplicate
+> 
+>   if (!wait) {
+>     WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
+>     goto nopage;
+>   }
+> 
+> .
 > 
 > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 > ---
->  mm/oom_kill.c | 8 ++++++--
->  1 file changed, 6 insertions(+), 2 deletions(-)
+>  mm/page_alloc.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 5249e7e..c0a5a69 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -555,12 +555,17 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  	/* Get a reference to safely compare mm after task_unlock(victim) */
->  	mm = victim->mm;
->  	atomic_inc(&mm->mm_users);
-> -	mark_oom_victim(victim);
->  	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
->  		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
->  		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
->  		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
->  	task_unlock(victim);
-> +	/* Send SIGKILL before setting TIF_MEMDIE. */
-> +	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
-> +	task_lock(victim);
-> +	if (victim->mm)
-> +		mark_oom_victim(victim);
-> +	task_unlock(victim);
-
-Why cannot you simply move do_send_sig_info without touching
-mark_oom_victim? Are you still able to trigger the issue if you just
-kill before crawling through all the tasks sharing the mm?
-
-The code would be easier then and the race window much smaller. If we
-really needed to prevent from preemption then preempt_{enable,disable}
-aournd the whole task_lock region + do_send_sig_info would be still
-easier to follow than re-taking task_lock.
-
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 4b220cb..37a0390 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3085,7 +3085,7 @@ retry:
+>  		goto nopage;
+>  
+>  	/* Avoid allocations with no watermarks from looping endlessly */
+> -	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+> +	if ((alloc_flags & ALLOC_NO_WATERMARKS) && !(gfp_mask & __GFP_NOFAIL))
+>  		goto nopage;
 >  
 >  	/*
->  	 * Kill all user processes sharing victim->mm in other thread groups, if
-> @@ -586,7 +591,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  		}
->  	rcu_read_unlock();
->  
-> -	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
->  	mmput(mm);
->  	put_task_struct(victim);
->  }
 > -- 
 > 1.8.3.1
 
