@@ -1,82 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A18B6B0038
-	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 19:59:53 -0400 (EDT)
-Received: by pdob1 with SMTP id b1so46202862pdo.2
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 16:59:52 -0700 (PDT)
-Received: from mail-pd0-f193.google.com (mail-pd0-f193.google.com. [209.85.192.193])
-        by mx.google.com with ESMTPS id q1si12027433pdg.31.2015.08.23.16.59.51
+Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 643C76B0038
+	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 20:58:20 -0400 (EDT)
+Received: by qkbm65 with SMTP id m65so59264523qkb.2
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 17:58:20 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v9si5958184qkv.29.2015.08.23.17.58.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Aug 2015 16:59:51 -0700 (PDT)
-Received: by pdbpd5 with SMTP id pd5so4952891pdb.2
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 16:59:51 -0700 (PDT)
-Date: Mon, 24 Aug 2015 01:59:45 +0200
-From: Jesper Dangaard Brouer <netdev@brouer.com>
-Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
-Message-ID: <20150824015945.58b25f3a@brouer.com>
-In-Reply-To: <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 23 Aug 2015 17:58:19 -0700 (PDT)
+Subject: [PATCH V2 0/3] slub: introducing detached freelist
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Mon, 24 Aug 2015 02:58:15 +0200
+Message-ID: <20150824005727.2947.36065.stgit@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+To: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org
+Cc: aravinda@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Wed, 19 Aug 2015 12:21:45 +0300
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+REPOST:
+ * Only updated comment in patch01 per request of Christoph Lameter.
+ * No other objections have been made
+ * Prev post: http://thread.gmane.org/gmane.linux.kernel.mm/135704
 
-> Hugh has pointed that compound_head() call can be unsafe in some
-> context. There's one example:
-> 
-[...]
+NEW use-cases for this API is RCU-free (and still for network NICs).
 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 0735bc0a351a..a4c4b7d07473 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
+Introducing what I call detached freelist, for improving the
+performance of object freeing in the "slowpath" of kmem_cache_free_bulk,
+which calls __slab_free().
 
-[...]
-> -/*
-> - * If we access compound page synchronously such as access to
-> - * allocated page, there is no need to handle tail flag race, so we can
-> - * check tail flag directly without any synchronization primitive.
-> - */
-> -static inline struct page *compound_head_fast(struct page *page)
-> -{
-> -	if (unlikely(PageTail(page)))
-> -		return page->first_page;
-> -	return page;
-> -}
-> -
-[...]
+The benchmarking tool are avail here:
+ https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm
+ See: slab_bulk_test0{1,2,3}.c
 
-> @@ -548,13 +508,7 @@ static inline struct page *virt_to_head_page(const void *x)
->  {
->  	struct page *page = virt_to_page(x);
->  
-> -	/*
-> -	 * We don't need to worry about synchronization of tail flag
-> -	 * when we call virt_to_head_page() since it is only called for
-> -	 * already allocated page and this page won't be freed until
-> -	 * this virt_to_head_page() is finished. So use _fast variant.
-> -	 */
-> -	return compound_head_fast(page);
-> +	return compound_head(page);
->  }
+Compared against existing bulk-API (in AKPMs tree), we see a small
+regression for small size bulking (between 2-5 cycles), but a huge
+improvement for the slowpath.
 
-I hope this does not slow down the SLAB/slub allocator?
-(which calls virt_to_head_page() frequently)
+bulk- Bulk-API-before           - Bulk-API with patchset
+  1 -  42 cycles(tsc) 10.520 ns - 47 cycles(tsc) 11.931 ns - improved -11.9%
+  2 -  26 cycles(tsc)  6.697 ns - 29 cycles(tsc)  7.368 ns - improved -11.5%
+  3 -  22 cycles(tsc)  5.589 ns - 24 cycles(tsc)  6.003 ns - improved -9.1%
+  4 -  19 cycles(tsc)  4.921 ns - 22 cycles(tsc)  5.543 ns - improved -15.8%
+  8 -  17 cycles(tsc)  4.499 ns - 20 cycles(tsc)  5.047 ns - improved -17.6%
+ 16 -  69 cycles(tsc) 17.424 ns - 20 cycles(tsc)  5.015 ns - improved 71.0%
+ 30 -  88 cycles(tsc) 22.075 ns - 20 cycles(tsc)  5.062 ns - improved 77.3%
+ 32 -  83 cycles(tsc) 20.965 ns - 20 cycles(tsc)  5.089 ns - improved 75.9%
+ 34 -  80 cycles(tsc) 20.039 ns - 28 cycles(tsc)  7.006 ns - improved 65.0%
+ 48 -  76 cycles(tsc) 19.252 ns - 31 cycles(tsc)  7.755 ns - improved 59.2%
+ 64 -  86 cycles(tsc) 21.523 ns - 68 cycles(tsc) 17.203 ns - improved 20.9%
+128 -  97 cycles(tsc) 24.444 ns - 72 cycles(tsc) 18.195 ns - improved 25.8%
+158 -  96 cycles(tsc) 24.036 ns - 73 cycles(tsc) 18.372 ns - improved 24.0%
+250 - 100 cycles(tsc) 25.007 ns - 73 cycles(tsc) 18.430 ns - improved 27.0%
 
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Patchset based on top of commit aefbef10e3ae with previous accepted
+bulk patchset(V2) applied (avail in AKPMs quilt).
+
+Small note, benchmark run with kernel compiled with .config
+CONFIG_FTRACE in-order to use the perf probes to measure the amount of
+page bulking into __slab_free().  While running the "worse-case"
+testing module slab_bulk_test03.c
+
+---
+
+Jesper Dangaard Brouer (3):
+      slub: extend slowpath __slab_free() to handle bulk free
+      slub: optimize bulk slowpath free by detached freelist
+      slub: build detached freelist with look-ahead
+
+
+ mm/slub.c |  142 ++++++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 112 insertions(+), 30 deletions(-)
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
