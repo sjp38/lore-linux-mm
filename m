@@ -1,82 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id BF7656B0038
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 09:50:45 -0400 (EDT)
-Received: by labia3 with SMTP id ia3so13415431lab.3
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:50:45 -0700 (PDT)
-Received: from mail-la0-x22d.google.com (mail-la0-x22d.google.com. [2a00:1450:4010:c03::22d])
-        by mx.google.com with ESMTPS id n5si1835102lbl.45.2015.08.24.06.50.44
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 3758C6B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 10:14:00 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so73561471wid.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 07:13:59 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id eu8si21699928wib.94.2015.08.24.07.13.58
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Aug 2015 06:50:44 -0700 (PDT)
-Received: by lalv9 with SMTP id v9so77728013lal.0
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:50:44 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 24 Aug 2015 07:13:59 -0700 (PDT)
+Subject: Re: [PATCH V2] mm:memory hot-add: memory can not been added to
+ movable zone
+References: <1440055685-6083-1-git-send-email-liuchangsheng@inspur.com>
+ <55D584C7.7060101@suse.cz> <55D68632.1030004@inspur.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55DB26A4.9060302@suse.cz>
+Date: Mon, 24 Aug 2015 16:13:56 +0200
 MIME-Version: 1.0
-In-Reply-To: <55DB1C77.8070705@suse.cz>
-References: <1439097776-27695-1-git-send-email-emunson@akamai.com>
-	<1439097776-27695-4-git-send-email-emunson@akamai.com>
-	<20150812115909.GA5182@dhcp22.suse.cz>
-	<20150819213345.GB4536@akamai.com>
-	<20150820075611.GD4780@dhcp22.suse.cz>
-	<20150820170309.GA11557@akamai.com>
-	<20150821072552.GF23723@dhcp22.suse.cz>
-	<20150821183132.GA12835@akamai.com>
-	<CALYGNiPcruTM+2KKNZr7ebCVCPsqytSrW8rSzSmj+1Qp4OqXEw@mail.gmail.com>
-	<55DB1C77.8070705@suse.cz>
-Date: Mon, 24 Aug 2015 16:50:44 +0300
-Message-ID: <CALYGNiNuZgQFzZ+_dQsPOvSJAX7QfZ38zbabn4wRc=oC5Lb9wA@mail.gmail.com>
-Subject: Re: [PATCH v7 3/6] mm: Introduce VM_LOCKONFAULT
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <55D68632.1030004@inspur.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, dri-devel <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
+To: Changsheng Liu <liuchangsheng@inspur.com>, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
 
-On Mon, Aug 24, 2015 at 4:30 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 08/24/2015 12:17 PM, Konstantin Khlebnikov wrote:
+On 08/21/2015 04:00 AM, Changsheng Liu wrote:
+>
+> On 08/20/201515:41, Vlastimil Babka wrote:
+>> On 08/20/2015 09:28 AM, Changsheng Liu wrote:
+>>> From: Changsheng Liu <liuchangcheng@inspur.com>
 >>>
->>>
->>> I am in the middle of implementing lock on fault this way, but I cannot
->>> see how we will hanlde mremap of a lock on fault region.  Say we have
->>> the following:
->>>
->>>      addr = mmap(len, MAP_ANONYMOUS, ...);
->>>      mlock(addr, len, MLOCK_ONFAULT);
->>>      ...
->>>      mremap(addr, len, 2 * len, ...)
->>>
->>> There is no way for mremap to know that the area being remapped was lock
->>> on fault so it will be locked and prefaulted by remap.  How can we avoid
->>> this without tracking per vma if it was locked with lock or lock on
->>> fault?
+>>> When memory is hot added, should_add_memory_movable() always returns 0
+>>> because the movable zone is empty, so the memory that was hot added will
+>>> add to the normal zone even if we want to remove the memory.
 >>
+>> I'm not expert on memory hot-plug, but since you CC'd me, I wonder...
+>> the function has this comment: " * If movable zone has already been
+>> setup, newly added memory should be check."
 >>
->> remap can count filled ptes and prefault only completely populated areas.
->
->
-> Does (and should) mremap really prefault non-present pages? Shouldn't it
-> just prepare the page tables and that's it?
+>> So I read it like "if you want movable memory *at all*, you should do
+>> some setup first" (but don't ask me what setup). After your patch,
+>> every hot-added memory would be automatically movable? Isn't that
+>> silently changing behavior against user expectations? What about those
+>> that don't want to hot-remove and don't want movable zones (which
+>> limit what kind of allocations are possible), is there a way to
+>> prevent memory being movable after your patch?
+>       After the system startup, we hot added one cpu with memory, The
+> function arch_add_memory() will add the memory to
+>       normal zone defaultly but now all zones including normal zone and
+> movable zone are empty.So If we want to add the memory
+>       to movable zone we need change should_add_memory_movable().
 
-As I see mremap prefaults pages when it extends mlocked area.
+I have poked a bit at the code and documentation, and I may still not 
+have the complete picture.
 
-Also quote from manpage
-: If  the memory segment specified by old_address and old_size is locked
-: (using mlock(2) or similar), then this lock is maintained when the segment is
-: resized and/or relocated.  As a  consequence, the amount of memory locked
-: by the process may change.
+Are you using movable_node kernel option to expect all hotpluggable 
+memory to be movable? Then it's probably a bug. But then your patch 
+should probably use movable_node_is_enabled() instead of checking just 
+the config. Otherwise it would be making zone movable also for those who 
+enabled the config, but don't pass the kernel option, and that would be 
+wrong?
 
->
->> There might be a problem after failed populate: remap will handle them
->> as lock on fault. In this case we can fill ptes with swap-like non-present
->> entries to remember that fact and count them as should-be-locked pages.
->
->
-> I don't think we should strive to have mremap try to fix the inherent
-> unreliability of mmap (MAP_POPULATE)?
+Or are you onlining memory by "echo online_movable > 
+/sys/devices/system/memory/memoryXXX/state" without node_movable kernel 
+option?
 
-I don't think so. MAP_POPULATE works only when mmap happens.
-Flag MREMAP_POPULATE might be a good idea. Just for symmetry.
+>>
+>>> So we change should_add_memory_movable(): if the user config
+>>> CONFIG_MOVABLE_NODE it will return 1 when the movable zone is empty.
+>>>
+>>> Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+>>> Signed-off-by: Changsheng Liu <liuchangcheng@inspur.com>
+>>> Tested-by: Dongdong Fan <fandd@inspur.com>
+>>> ---
+>>>    mm/memory_hotplug.c |    3 +--
+>>>    1 files changed, 1 insertions(+), 2 deletions(-)
+>>>
+>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>> index 26fbba7..ff658f2 100644
+>>> --- a/mm/memory_hotplug.c
+>>> +++ b/mm/memory_hotplug.c
+>>> @@ -1199,8 +1199,7 @@ static int should_add_memory_movable(int nid,
+>>> u64 start, u64 size)
+>>>        struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+>>>
+>>>        if (zone_is_empty(movable_zone))
+>>> -        return 0;
+>>> -
+>>> +        return IS_ENABLED(CONFIG_MOVABLE_NODE);
+>>>        if (movable_zone->zone_start_pfn <= start_pfn)
+>>>            return 1;
+>>>
+>>>
+>>
+>> .
+>>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
