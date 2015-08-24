@@ -1,59 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 874AB6B0254
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 04:51:33 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so42868232wid.1
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 01:51:33 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id at3si10695785wjc.201.2015.08.24.01.51.31
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id B96326B0255
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 04:54:22 -0400 (EDT)
+Received: by wijp15 with SMTP id p15so70526419wij.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 01:54:22 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
+        by mx.google.com with ESMTPS id y6si6752292wix.78.2015.08.24.01.54.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Aug 2015 01:51:32 -0700 (PDT)
-Subject: Re: [PATCH] mm/compaction: correct to flush migrated pages if
- pageblock skip happens
-References: <1440129419-30023-1-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55DADB11.6070000@suse.cz>
-Date: Mon, 24 Aug 2015 10:51:29 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Aug 2015 01:54:21 -0700 (PDT)
+Received: by wijp15 with SMTP id p15so70525793wij.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 01:54:20 -0700 (PDT)
+Date: Mon, 24 Aug 2015 10:54:19 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [REPOST] [PATCH 2/2] mm: Fix potentially scheduling in
+ GFP_ATOMIC allocations.
+Message-ID: <20150824085419.GD17078@dhcp22.suse.cz>
+References: <201508231623.DED13020.tFOHFVFQOSOLMJ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <1440129419-30023-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201508231623.DED13020.tFOHFVFQOSOLMJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On 08/21/2015 05:56 AM, Joonsoo Kim wrote:
-> We cache isolate_start_pfn before entering isolate_migratepages().
-> If pageblock is skipped in isolate_migratepages() due to whatever reason,
-> cc->migrate_pfn could be far from isolate_start_pfn hence flushing pages
-> that were freed happens. For example, following scenario can be possible.
->
-> - assume order-9 compaction, pageblock order is 9
-> - start_isolate_pfn is 0x200
-> - isolate_migratepages()
->    - skip a number of pageblocks
->    - start to isolate from pfn 0x600
->    - cc->migrate_pfn = 0x620
->    - return
-> - last_migrated_pfn is set to 0x200
-> - check flushing condition
->    - current_block_start is set to 0x600
->    - last_migrated_pfn < current_block_start then do useless flush
->
-> This wrong flush would not help the performance and success rate so
-> this patch try to fix it. One simple way to know exact position
-> where we start to isolate migratable pages is that we cache it
-> in isolate_migratepages() before entering actual isolation. This patch
-> implements it and fix the problem.
+On Sun 23-08-15 16:23:37, Tetsuo Handa wrote:
+> >From 08a638e04351386ab03cd1223988ac7940d4d3aa Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sat, 1 Aug 2015 22:46:12 +0900
+> Subject: [PATCH 2/2] mm: Fix potentially scheduling in GFP_ATOMIC
+>  allocations.
+> 
+> Currently, if somebody does GFP_ATOMIC | __GFP_NOFAIL allocation,
 
-Yeah, that should work.
+This combination of flags is broken by definition and I fail to see it
+being used anywhere in the kernel.
 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> wait_iff_congested() might be called via __alloc_pages_high_priority()
+> before reaching
+> 
+>   if (!wait) {
+>     WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
+>     goto nopage;
+>   }
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> because gfp_to_alloc_flags() includes ALLOC_NO_WATERMARKS if TIF_MEMDIE
+> was set.
+> 
+> We need to check for __GFP_WAIT flag at __alloc_pages_high_priority()
+> in order to make sure that we won't schedule.
 
+I do not think this is an improvement. It is true we are already failing
+__GFP_NOFAIL & ~__GFP_WAIT but I believe it doesn't make much sense
+to replace one buggy behavior (sleeping in atomic context) by another
+(failing __GFP_NOFAIL). It is the caller which should be fixed here. We
+should get "scheduling while atomic:" and the trace with the current
+code so we are not loosing any debugging options.
+
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> ---
+>  mm/page_alloc.c | 13 ++++++-------
+>  1 file changed, 6 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 37a0390..f9f09fa 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2917,16 +2917,15 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+>  {
+>  	struct page *page;
+>  
+> -	do {
+> +	for (;;) {
+>  		page = get_page_from_freelist(gfp_mask, order,
+>  						ALLOC_NO_WATERMARKS, ac);
+>  
+> -		if (!page && gfp_mask & __GFP_NOFAIL)
+> -			wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC,
+> -									HZ/50);
+> -	} while (!page && (gfp_mask & __GFP_NOFAIL));
+> -
+> -	return page;
+> +		if (page || (gfp_mask & (__GFP_NOFAIL | __GFP_WAIT)) !=
+> +		    (__GFP_NOFAIL | __GFP_WAIT))
+> +			return page;
+> +		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
+> +	}
+>  }
+>  
+>  static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
+> -- 
+> 1.8.3.1
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
