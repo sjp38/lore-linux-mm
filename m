@@ -1,115 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 413C96B0254
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 05:31:19 -0400 (EDT)
-Received: by qkbm65 with SMTP id m65so63712247qkb.2
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 02:31:19 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTP id n81si4914139qki.6.2015.08.24.02.31.15
-        for <linux-mm@kvack.org>;
-        Mon, 24 Aug 2015 02:31:18 -0700 (PDT)
-Message-ID: <55DAE26E.1050302@huawei.com>
-Date: Mon, 24 Aug 2015 17:22:54 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 372796B0254
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 05:36:11 -0400 (EDT)
+Received: by wijp15 with SMTP id p15so71661728wij.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 02:36:10 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
+        by mx.google.com with ESMTPS id en7si31014150wjd.61.2015.08.24.02.36.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Aug 2015 02:36:10 -0700 (PDT)
+Received: by widdq5 with SMTP id dq5so44071873wid.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 02:36:09 -0700 (PDT)
+Date: Mon, 24 Aug 2015 12:36:07 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv3 0/5] Fix compound_head() race
+Message-ID: <20150824093607.GB1994@node.dhcp.inet.fi>
+References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150820123107.GA31768@node.dhcp.inet.fi>
+ <20150820163836.b3b69f2bf36dba7020bdc893@linux-foundation.org>
+ <alpine.LSU.2.11.1508221204060.10507@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] memhp: Add hot-added memory ranges to memblock before
- allocate node_data for a node.
-References: <1440349573-24260-1-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1440349573-24260-1-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1508221204060.10507@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, n-horiguchi@ah.jp.nec.com, vbabka@suse.cz, mgorman@techsingularity.net, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2015/8/24 1:06, Tang Chen wrote:
+On Sat, Aug 22, 2015 at 01:13:19PM -0700, Hugh Dickins wrote:
+> Yes, I did think the compound destructor enum stuff over-engineered,
+> and would have preferred just direct calls to free_compound_page()
+> or free_huge_page() myself.  But when I tried to make a patch on
+> top to do that, even when I left PageHuge out-of-line (which had
+> certainly not been my intention), it still generated more kernel
+> text than Kirill's enum version (maybe his "- 1" in compound_head
+> works better in some places than masking out 3, I didn't study);
+> so let's forget about that.
 
-> The commit below adds hot-added memory range to memblock, after
-> creating pgdat for new node.
-> 
-> commit f9126ab9241f66562debf69c2c9d8fee32ddcc53
-> Author: Xishi Qiu <qiuxishi@huawei.com>
-> Date:   Fri Aug 14 15:35:16 2015 -0700
-> 
->     memory-hotplug: fix wrong edge when hot add a new node
-> 
-> But there is a problem:
-> 
-> add_memory()
-> |--> hotadd_new_pgdat()
->      |--> free_area_init_node()
->           |--> get_pfn_range_for_nid()
->                |--> find start_pfn and end_pfn in memblock
-> |--> ......
-> |--> memblock_add_node(start, size, nid)    --------    Here, just too late.
-> 
-> get_pfn_range_for_nid() will find that start_pfn and end_pfn are both 0.
-> As a result, when adding memory, dmesg will give the following wrong message.
-> 
-> [ 2007.577000] Initmem setup node 5 [mem 0x0000000000000000-0xffffffffffffffff]
-> [ 2007.584000] On node 5 totalpages: 0
-> [ 2007.585000] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 32588823
-> [ 2007.594000] Policy zone: Normal
-> [ 2007.598000] init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
-> 
-> The solution is simple, just add the memory range to memblock a little earlier,
-> before hotadd_new_pgdat().
-> 
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> ---
->  mm/memory_hotplug.c | 10 +++++++++-
->  1 file changed, 9 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 6da82bc..9b78aff 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1248,6 +1248,14 @@ int __ref add_memory(int nid, u64 start, u64 size)
->  
->  	mem_hotplug_begin();
->  
-> +	/*
-> +	 * Add new range to memblock so that when hotadd_new_pgdat() is called to
-> +	 * allocate new pgdat, get_pfn_range_for_nid() will be able to find this
-> +	 * new range and calculate total pages correctly. The range will be remove
-> +	 * at hot-remove time.
-> +	 */
-> +	memblock_add_node(start, size, nid);
-> +
+I had my agenda on ->compound_dtor: my refcounting patchset introduces
+one more compound destructor. I wanted to avoid hardcoding them here.
 
-Hi Tang,
-
-Looks fine to me.
-
-If we add memblock_add_node() here, we should reset the managed pages and present pages,
-so please revert my patch which Andrew has already merged into mm-tree.
-"[PATCH 2/2] memory-hotplug: remove reset_node_managed_pages() and reset_node_managed_pages() in hotadd_new_pgdat()"
-
-Thanks,
-Xishi Qiu
-
->  	new_node = !node_online(nid);
->  	if (new_node) {
->  		pgdat = hotadd_new_pgdat(nid, start);
-> @@ -1277,7 +1285,6 @@ int __ref add_memory(int nid, u64 start, u64 size)
->  
->  	/* create new memmap entry */
->  	firmware_map_add_hotplug(start, start + size, "System RAM");
-> -	memblock_add_node(start, size, nid);
->  
->  	goto out;
->  
-> @@ -1286,6 +1293,7 @@ error:
->  	if (new_pgdat)
->  		rollback_node_hotadd(nid, pgdat);
->  	release_memory_resource(res);
-> +	memblock_remove(start, size);
->  
->  out:
->  	mem_hotplug_done();
-
-
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
