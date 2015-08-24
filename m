@@ -1,186 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E25F96B0038
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 08:42:05 -0400 (EDT)
-Received: by labgv11 with SMTP id gv11so8702201lab.2
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 05:42:05 -0700 (PDT)
-Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [5.255.216.100])
-        by mx.google.com with ESMTPS id jj4si13009258lbc.66.2015.08.24.05.42.03
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 190146B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 08:52:27 -0400 (EDT)
+Received: by pdbfa8 with SMTP id fa8so53397748pdb.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 05:52:26 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id br3si27221416pbd.231.2015.08.24.05.52.25
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Aug 2015 05:42:03 -0700 (PDT)
-Message-ID: <55DB1116.2090900@yandex-team.ru>
-Date: Mon, 24 Aug 2015 15:41:58 +0300
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: use only per-device readahead limit
-References: <CA+55aFy8kOomnL-C5GwSpHTn+g5R7dY78C9=h-J_Rb_u=iASpg@mail.gmail.com> <1440417438-12578-1-git-send-email-klamm@yandex-team.ru>
-In-Reply-To: <1440417438-12578-1-git-send-email-klamm@yandex-team.ru>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Aug 2015 05:52:26 -0700 (PDT)
+Subject: Re: [REPOST] [PATCH 1/2] mm: Fix race between setting TIF_MEMDIE and __alloc_pages_high_priority().
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201508231621.EGJ17658.FFQJtFSLVOOHMO@I-love.SAKURA.ne.jp>
+	<20150824100319.GG17078@dhcp22.suse.cz>
+In-Reply-To: <20150824100319.GG17078@dhcp22.suse.cz>
+Message-Id: <201508242152.HHB69241.OFJLFVtFHQOMSO@I-love.SAKURA.ne.jp>
+Date: Mon, 24 Aug 2015 21:52:08 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <klamm@yandex-team.ru>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: mhocko@kernel.org
+Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On 24.08.2015 14:57, Roman Gushchin wrote:
-> Maximal readahead size is limited now by two values:
-> 1) by global 2Mb constant (MAX_READAHEAD in max_sane_readahead())
-> 2) by configurable per-device value* (bdi->ra_pages)
->
-> There are devices, which require custom readahead limit.
-> For instance, for RAIDs it's calculated as number of devices
-> multiplied by chunk size times 2.
->
-> Readahead size can never be larger than bdi->ra_pages * 2 value
-> (POSIX_FADV_SEQUNTIAL doubles readahead size).
->
-> If so, why do we need two limits?
-> I suggest to completely remove this max_sane_readahead() stuff and
-> use per-device readahead limit everywhere.
->
-> Also, using right readahead size for RAID disks can significantly
-> increase i/o performance:
->
-> before:
-> dd if=/dev/md2 of=/dev/null bs=100M count=100
-> 100+0 records in
-> 100+0 records out
-> 10485760000 bytes (10 GB) copied, 12.9741 s, 808 MB/s
->
-> after:
-> $ dd if=/dev/md2 of=/dev/null bs=100M count=100
-> 100+0 records in
-> 100+0 records out
-> 10485760000 bytes (10 GB) copied, 8.91317 s, 1.2 GB/s
->
-> (It's an 8-disks RAID5 storage).
->
-> This patch doesn't change sys_readahead and madvise(MADV_WILLNEED)
-> behavior introduced by commit
-> 6d2be915e589b58cb11418cbe1f22ff90732b6ac ("mm/readahead.c: fix
-> readahead failure for memoryless NUMA nodes and limit readahead pages").
->
-> V2:
-> Konstantin Khlebnikov noticed, that if readahead is completely
-> disabled, force_page_cache_readahead() will not read anything.
-> This function is used for sync reads (if FMODE_RANDOM flag is set).
-> So, to guarantee read progress it's necessary to read at least 1 page.
+Michal Hocko wrote:
+> The comment above the check is misleading but now you are allowing to
+> fail all ALLOC_NO_WATERMARKS (without __GFP_NOFAIL) allocations before
+> entering the direct reclaim and compaction. This seems incorrect. What
+> about __GFP_MEMALLOC requests?
 
-After second thought: this isn't important. V1 is fine.
+So, you want __GPP_MEMALLOC to retry forever unless TIF_MEMDIE is set, don't
+you?
 
-page_cache_sync_readahead checks "if (!ra->ra_pages)" before and
-never calls force_page_cache_readahead if readahead is disabled.
+> I think the check for TIF_MEMDIE makes more sense here.
 
-Anyway, this function doesn't return references to pages. All
-users must be ready to handle non-present or non-uptodate pages.
-But this probably never happened before so all callsites should
-be reviewed: for example splice always re-lookups pages after
-->readpage() (I guess page can be truncated here) while some
-other users use the same page reference.
-
->
-> Signed-off-by: Roman Gushchin <klamm@yandex-team.ru>
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> ---
->   include/linux/mm.h |  2 --
->   mm/filemap.c       |  8 +++-----
->   mm/readahead.c     | 18 ++++++------------
->   3 files changed, 9 insertions(+), 19 deletions(-)
->
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 2e872f9..a62abdd 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1942,8 +1942,6 @@ void page_cache_async_readahead(struct address_space *mapping,
->   				pgoff_t offset,
->   				unsigned long size);
->
-> -unsigned long max_sane_readahead(unsigned long nr);
-> -
->   /* Generic expand stack which grows the stack according to GROWS{UP,DOWN} */
->   extern int expand_stack(struct vm_area_struct *vma, unsigned long address);
->
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 1283fc8..0e1ebef 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1807,7 +1807,6 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
->   				   struct file *file,
->   				   pgoff_t offset)
->   {
-> -	unsigned long ra_pages;
->   	struct address_space *mapping = file->f_mapping;
->
->   	/* If we don't want any read-ahead, don't bother */
-> @@ -1836,10 +1835,9 @@ static void do_sync_mmap_readahead(struct vm_area_struct *vma,
->   	/*
->   	 * mmap read-around
->   	 */
-> -	ra_pages = max_sane_readahead(ra->ra_pages);
-> -	ra->start = max_t(long, 0, offset - ra_pages / 2);
-> -	ra->size = ra_pages;
-> -	ra->async_size = ra_pages / 4;
-> +	ra->start = max_t(long, 0, offset - ra->ra_pages / 2);
-> +	ra->size = ra->ra_pages;
-> +	ra->async_size = ra->ra_pages / 4;
->   	ra_submit(ra, mapping, file);
->   }
->
-> diff --git a/mm/readahead.c b/mm/readahead.c
-> index 60cd846..7eb844c 100644
-> --- a/mm/readahead.c
-> +++ b/mm/readahead.c
-> @@ -213,7 +213,11 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
->   	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
->   		return -EINVAL;
->
-> -	nr_to_read = max_sane_readahead(nr_to_read);
-> +	/*
-> +	 * Read at least 1 page, even if readahead is completely disabled.
-> +	 */
-> +	nr_to_read = min(nr_to_read, max(inode_to_bdi(mapping->host)->ra_pages,
-> +					 1ul));
->   	while (nr_to_read) {
->   		int err;
->
-> @@ -232,16 +236,6 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
->   	return 0;
->   }
->
-> -#define MAX_READAHEAD   ((512*4096)/PAGE_CACHE_SIZE)
-> -/*
-> - * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
-> - * sensible upper limit.
-> - */
-> -unsigned long max_sane_readahead(unsigned long nr)
-> -{
-> -	return min(nr, MAX_READAHEAD);
-> -}
-> -
->   /*
->    * Set the initial window size, round to next power of 2 and square
->    * for small size, x 4 for medium, and x 2 for large
-> @@ -380,7 +374,7 @@ ondemand_readahead(struct address_space *mapping,
->   		   bool hit_readahead_marker, pgoff_t offset,
->   		   unsigned long req_size)
->   {
-> -	unsigned long max = max_sane_readahead(ra->ra_pages);
-> +	unsigned long max = ra->ra_pages;
->   	pgoff_t prev_offset;
->
->   	/*
->
-
-
--- 
-Konstantin
+Since we already failed to allocate from memory reserves, I don't know if
+direct reclaim and compaction can work as expected under such situation.
+Maybe the OOM killer is invoked, but I worry that the OOM victim gets stuck
+because we already failed to allocate from memory reserves. Unless next OOM
+victims are chosen via timeout, I think that this can be one of triggers
+that lead to silent hangup... (Just my suspect. I can't prove it because I
+can't go to in front of customers' servers and check SysRq.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
