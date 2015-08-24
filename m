@@ -1,74 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 77D096B0038
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 11:56:24 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so54690824wid.1
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 08:56:23 -0700 (PDT)
-Received: from mailrelay.lanline.com (mailrelay.lanline.com. [216.187.10.16])
-        by mx.google.com with ESMTPS id lo6si22241893wic.41.2015.08.24.08.56.22
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 47DCF6B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 12:00:22 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so76582722wic.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 09:00:21 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id m9si13786561wiz.29.2015.08.24.09.00.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 24 Aug 2015 08:56:23 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Aug 2015 09:00:20 -0700 (PDT)
+Received: by wicja10 with SMTP id ja10so76529978wic.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 09:00:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <21979.15999.82965.295320@quad.stoffel.home>
-Date: Mon, 24 Aug 2015 11:55:43 -0400
-From: "John Stoffel" <john@stoffel.org>
-Subject: Re: [PATCH 3/3 v4] mm/vmalloc: Cache the vmalloc memory info
-In-Reply-To: <20150824151114.18743.qmail@ns.horizon.com>
-References: <21979.6150.929309.800457@quad.stoffel.home>
-	<20150824151114.18743.qmail@ns.horizon.com>
+In-Reply-To: <55DB3BD3.7030202@arm.com>
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+	<1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
+	<CACRpkdaRJJjCXR=vK1M2YhR26JZfGoBB+jcqz8r2MhERfxRzqA@mail.gmail.com>
+	<CAPAsAGy-r8Z2N09wKV+e0kLfbwxd-eWK6N5Xajsnqq9jfyWqcQ@mail.gmail.com>
+	<CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
+	<CAPAsAGw-iawTpjJh66rQN5fqBFT6UBZCcv2eKx7JTqCXzhzpsw@mail.gmail.com>
+	<CACRpkdY2i2M27gP_fXawkFrC_GFgWaKr5rEn6d47refNPiEk=g@mail.gmail.com>
+	<55AE56DB.4040607@samsung.com>
+	<CACRpkdYaqK8upK-3b01JbO_y+sHnk4-Hm1MfvjSy0tKUkFREtQ@mail.gmail.com>
+	<20150824131557.GB7557@n2100.arm.linux.org.uk>
+	<CACRpkdYwpucRiXM05y00RQY=gKv8W6YjCNspYFRMGaM605cU0w@mail.gmail.com>
+	<CAPAsAGwji7FpUJK9O=FWYN15-rJkYMQyOt9W9ncdY9uLybxkiA@mail.gmail.com>
+	<55DB3BD3.7030202@arm.com>
+Date: Mon, 24 Aug 2015 19:00:19 +0300
+Message-ID: <CAPAsAGyg_oUvUrfSSQccVMcGtY_bwR8n6tf3tFsnh43YT6-b4w@mail.gmail.com>
+Subject: Re: [PATCH v2 5/5] arm64: add KASan support
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: George Spelvin <linux@horizon.com>
-Cc: john@stoffel.org, mingo@kernel.org, dave@sr71.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@rasmusvillemoes.dk, peterz@infradead.org, riel@redhat.com, rientjes@google.com, torvalds@linux-foundation.org
+To: Vladimir Murzin <vladimir.murzin@arm.com>
+Cc: Linus Walleij <linus.walleij@linaro.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <Will.Deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
 
+2015-08-24 18:44 GMT+03:00 Vladimir Murzin <vladimir.murzin@arm.com>:
+>
+> Another option would be having "sparse" shadow memory based on page
+> extension. I did play with that some time ago based on ideas from
+> original v1 KASan support for x86/arm - it is how 614be38 "irqchip:
+> gic-v3: Fix out of bounds access to cpu_logical_map" was caught.
+> It doesn't require any VA reservations, only some contiguous memory for
+> the page_ext itself, which serves as indirection level for the 0-order
+> shadow pages.
 
-George> John Stoffel <john@stoffel.org> wrote:
->>> vmap_info_gen should be initialized to 1 to force an initial
->>> cache update.
+We won't be able to use inline instrumentation (I could live with that),
+and most importantly, we won't be able to use stack instrumentation.
+GCC needs to know shadow address for inline and/or stack instrumentation
+to generate correct code.
 
->> Blech, it should be initialized with a proper #define
->> VMAP_CACHE_NEEDS_UPDATE 1, instead of more magic numbers.
-
-George> Er... this is a joke, right?
-
-Not really.  The comment made before was that by setting this variable
-to zero, it wasn't properly initialized.  Which implies that either
-the API is wrong... or we should be documenting it better.   I just
-went in the direction of the #define instead of a comment. 
-
-George> First, this number is used exactly once, and it's not part of
-George> a collection of similar numbers.  And the definition would be
-George> adjacent to the use.
-
-George> We have easier ways of accomplishing that, called "comments".
-
-Sure, that would be the better solution in this case.  
-
-George> Second, your proposed name is misleading.  "needs update" is defined
-George> as vmap_info_gen != vmap_info_cache_gen.  There is no particular value
-George> of either that has this meaning.
-
-George> For example, initializing vmap_info_cache_gen to -1 would do just as well.
-George> (I actually considered that before deciding that +1 was "simpler" than -1.)
-
-See, I just threw out a dumb suggestion without reading the patch
-properly.  My fault.
-
-George> (John, my apologies if I went over the top and am contributing to LKML's
-George> reputation for flaming.  I *did* actually laugh, and *do* think it's a
-George> dumb idea, but my annoyance is really directed at unpleasant memories of
-George> mindless application of coding style guidelines.  In this case, I suspect
-George> you just posted before reading carefully enough to see the subtle logic.)
-
-Nope, I'm in the wrong here.  And your comment here is wonderful, I
-really do appreciate how you handled my ham fisted attempt to
-contribute.  But I've got thick skin and I'll keep trying in my free
-time to comment on patches when I can.
-
-John
+> In theory such design can be reused by others 32-bit arches and, I
+> think, nommu too. Additionally, the shadow pages might be movable with
+> help of driver-page migration patch series [1].
+> The cost is obvious - performance drop, although I didn't bother
+> measuring it.
+>
+> [1] https://lwn.net/Articles/650917/
+>
+> Cheers
+> Vladimir
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
