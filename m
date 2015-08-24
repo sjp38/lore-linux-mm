@@ -1,66 +1,31 @@
-From: Michal Hocko <mhocko@kernel.org>
+From: Chen Gang <xili_gchen_5257@hotmail.com>
 Subject: Re: [PATCH] mm: mmap: Check all failures before set values
-Date: Mon, 24 Aug 2015 13:32:13 +0200
-Message-ID: <20150824113212.GL17078@dhcp22.suse.cz>
+Date: Mon, 24 Aug 2015 21:34:25 +0800
+Message-ID: <COL130-W527FEAA0BEC780957B6B18B9620@phx.gbl>
 References: <1440349179-18304-1-git-send-email-gang.chen.5i5j@qq.com>
+ <20150824113212.GL17078@dhcp22.suse.cz>,<55DB1D94.3050404@hotmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <1440349179-18304-1-git-send-email-gang.chen.5i5j@qq.com>
+In-Reply-To: <55DB1D94.3050404@hotmail.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: gang.chen.5i5j@qq.com
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, riel@redhat.com, sasha.levin@oracle.com, gang.chen.5i5j@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "gang.chen.5i5j@gmail.com" <gang.chen.5i5j@gmail.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-On Mon 24-08-15 00:59:39, gang.chen.5i5j@qq.com wrote:
-> From: Chen Gang <gang.chen.5i5j@gmail.com>
-> 
-> When failure occurs and return, vma->vm_pgoff is already set, which is
-> not a good idea.
-
-Why? The vma is not inserted anywhere and the failure path is supposed
-to simply free the vma.
-
-> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
-> ---
->  mm/mmap.c | 13 +++++++------
->  1 file changed, 7 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 8e0366e..b5a6f09 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2878,6 +2878,13 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
->  	struct vm_area_struct *prev;
->  	struct rb_node **rb_link, *rb_parent;
->  
-> +	if (find_vma_links(mm, vma->vm_start, vma->vm_end,
-> +			   &prev, &rb_link, &rb_parent))
-> +		return -ENOMEM;
-> +	if ((vma->vm_flags & VM_ACCOUNT) &&
-> +	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
-> +		return -ENOMEM;
-> +
->  	/*
->  	 * The vm_pgoff of a purely anonymous vma should be irrelevant
->  	 * until its first write fault, when page's anon_vma and index
-> @@ -2894,12 +2901,6 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
->  		BUG_ON(vma->anon_vma);
->  		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
->  	}
-> -	if (find_vma_links(mm, vma->vm_start, vma->vm_end,
-> -			   &prev, &rb_link, &rb_parent))
-> -		return -ENOMEM;
-> -	if ((vma->vm_flags & VM_ACCOUNT) &&
-> -	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
-> -		return -ENOMEM;
->  
->  	vma_link(mm, vma, prev, rb_link, rb_parent);
->  	return 0;
-> -- 
-> 1.9.3
-
--- 
-Michal Hocko
-SUSE Labs
+T24gOC8yNC8xNSAxOTozMiwgTWljaGFsIEhvY2tvIHdyb3RlOgo+IE9uIE1vbiAyNC0wOC0xNSAw
+MDo1OTozOSwgZ2FuZy5jaGVuLjVpNWpAcXEuY29tIHdyb3RlOgo+Pj4gRnJvbTogQ2hlbiBHYW5n
+IDxnYW5nLmNoZW4uNWk1akBnbWFpbC5jb20+Cj4+Pgo+Pj4gV2hlbiBmYWlsdXJlIG9jY3VycyBh
+bmQgcmV0dXJuLCB2bWEtPnZtX3Bnb2ZmIGlzIGFscmVhZHkgc2V0LCB3aGljaCBpcwo+Pj4gbm90
+IGEgZ29vZCBpZGVhLgo+IFdoeT8gVGhlIHZtYSBpcyBub3QgaW5zZXJ0ZWQgYW55d2hlcmUgYW5k
+IHRoZSBmYWlsdXJlIHBhdGggaXMgc3VwcG9zZWQKPiB0byBzaW1wbHkgZnJlZSB0aGUgdm1hLgo+
+CgpJdCBjYW4gc2F2ZSBzZXZlcmFsIGluc25zIHdoZW4gZmFpbHVyZSBvY2N1cnMuCgpJdCBpcyBh
+bHdheXMgYSBsaXR0bGUgYmV0dGVyIHRvIGxldCB0aGUgZXh0ZXJuYWwgZnVuY3Rpb24gc3VwcG9z
+ZSBmZXdlcgpjYWxsZXJzJyBiZWhhbGYuCgpJdCBjYW4gc2F2ZSB0aGUgY29kZSByZWFkZXJzJyAo
+ZXNwZWNpYWxseSBuZXcgcmVhZGVycycpIHRpbWUgcmVzb3VyY2UKdG8gYXZvaWQgdG8gYW5hbHl6
+ZSB3aHkgc2V0ICd2bWEtPnZtX3Bnb2ZmJyBiZWZvcmUgY2hlY2tpbmcgJy1FTk9NRU0nCihtYXkg
+aXQgY2F1c2UgaXNzdWU/IG9yIGlzICd2bV9wZ29mZicgcmVsYXRlZCB3aXRoIHRoZSBuZXh0IGNo
+ZWNraW5nPykuCgoKVGhhbmtzLgotLQpDaGVuIEdhbmcKCk9wZW4sIHNoYXJlLCBhbmQgYXR0aXR1
+ZGUgbGlrZSBhaXIsIHdhdGVyLCBhbmQgbGlmZSB3aGljaCBHb2QgYmxlc3NlZAogCQkgCSAgIAkJ
+ICA=
