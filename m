@@ -1,132 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D75B06B0254
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 08:54:04 -0400 (EDT)
-Received: by ykfw73 with SMTP id w73so133276244ykf.3
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 05:54:04 -0700 (PDT)
-Received: from ns.horizon.com (ns.horizon.com. [71.41.210.147])
-        by mx.google.com with SMTP id j189si10131863ykj.32.2015.08.24.05.54.03
-        for <linux-mm@kvack.org>;
-        Mon, 24 Aug 2015 05:54:03 -0700 (PDT)
-Date: 24 Aug 2015 08:54:02 -0400
-Message-ID: <20150824125402.28806.qmail@ns.horizon.com>
-From: "George Spelvin" <linux@horizon.com>
-Subject: Re: [PATCH 3/3 v5] mm/vmalloc: Cache the vmalloc memory info
-In-Reply-To: <20150824075018.GB20106@gmail.com>
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id A3B5B6B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 09:02:54 -0400 (EDT)
+Received: by obbhe7 with SMTP id he7so112237834obb.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:02:54 -0700 (PDT)
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com. [209.85.214.181])
+        by mx.google.com with ESMTPS id f3si11341509obt.30.2015.08.24.06.02.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Aug 2015 06:02:53 -0700 (PDT)
+Received: by obbfr1 with SMTP id fr1so111964233obb.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:02:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <55D497FC.9060506@gmail.com>
+References: <1431698344-28054-1-git-send-email-a.ryabinin@samsung.com>
+	<1431698344-28054-6-git-send-email-a.ryabinin@samsung.com>
+	<CACRpkdaRJJjCXR=vK1M2YhR26JZfGoBB+jcqz8r2MhERfxRzqA@mail.gmail.com>
+	<CAPAsAGy-r8Z2N09wKV+e0kLfbwxd-eWK6N5Xajsnqq9jfyWqcQ@mail.gmail.com>
+	<CACRpkdZmHLMxosLXjyOPdkavo=UNzmTcHOLF5vV4cS1ULfbq6A@mail.gmail.com>
+	<CAPAsAGw-iawTpjJh66rQN5fqBFT6UBZCcv2eKx7JTqCXzhzpsw@mail.gmail.com>
+	<CACRpkdY2i2M27gP_fXawkFrC_GFgWaKr5rEn6d47refNPiEk=g@mail.gmail.com>
+	<55AE56DB.4040607@samsung.com>
+	<CACRpkdYaqK8upK-3b01JbO_y+sHnk4-Hm1MfvjSy0tKUkFREtQ@mail.gmail.com>
+	<55AFD8D0.9020308@samsung.com>
+	<CACRpkdaJVRuLTCh585rLEjua2TpnLsALhLdu0ma56TBA=C+EiQ@mail.gmail.com>
+	<55D497FC.9060506@gmail.com>
+Date: Mon, 24 Aug 2015 15:02:53 +0200
+Message-ID: <CACRpkdYL7R+WKfGZwmM7NGqvY8Arc_B3ekbUhkr7VPbQzAdZVg@mail.gmail.com>
+Subject: Re: [PATCH v2 5/5] arm64: add KASan support
+From: Linus Walleij <linus.walleij@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@horizon.com, mingo@kernel.org
-Cc: dave@sr71.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@rasmusvillemoes.dk, peterz@infradead.org, riel@redhat.com, rientjes@google.com, torvalds@linux-foundation.org
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, David Keitel <dkeitel@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-(I hope I'm not annoying you by bikeshedding this too much, although I
-think this is improving.)
+On Wed, Aug 19, 2015 at 4:51 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+> On 08/19/2015 03:14 PM, Linus Walleij wrote:
 
-You've sort of re-invented spinlocks, but after thinking a bit,
-it all works.
+>> Integrator/AP (ARMv5):
+>>
+>> This one mounted with an ARMv5 ARM926 tile. It boots nicely
+>> (but takes forever) with KASan and run all test cases (!) just like
+>> for the other platforms but before reaching userspace this happens:
+>
+> THREAD_SIZE hardcoded in act_mm macro.
+>
+> This hack should help:
+>
+> diff --git a/arch/arm/mm/proc-macros.S b/arch/arm/mm/proc-macros.S
+> index c671f34..b1765f2 100644
+> --- a/arch/arm/mm/proc-macros.S
+> +++ b/arch/arm/mm/proc-macros.S
+> @@ -32,6 +32,9 @@
+>         .macro  act_mm, rd
+>         bic     \rd, sp, #8128
+>         bic     \rd, \rd, #63
+> +#ifdef CONFIG_KASAN
+> +       bic     \rd, \rd, #8192
+> +#endif
+>         ldr     \rd, [\rd, #TI_TASK]
+>         ldr     \rd, [\rd, #TSK_ACTIVE_MM]
+>         .endm
 
-Rather than using a single word, which is incremented to an odd number
-at the start of an update and an even number at the end, there are
-two.  An update is in progress when they're unequal.
+Yes this work, thanks! I now get to userspace.
+Tested-by: Linus Walleij <linus.walleij@linaro.org>
 
-vmap_info_gen is incremented early, when the cache needs updating, and
-read late (after the cache is copied).
+I have compiled Trinity and running some stress on different boards.
+The ARMv7 seems to rather die from random nasty stuff from the
+syscall or OOM rather than any KASan-detected bugs, but I'll
+keep hammering at it a big.
 
-vmap_info_cache_gen is incremented after the cache is updated, and read
-early (before the cache is copied).
+I have some odd patch I'll pass along.
 
-
-This is logically equivalent to my complicated scheme with atomic updates
-to various bits in a single generation word, but greatly simplified by
-having two separate words.  In particular, there's no longer a need to
-distinguish "vmap has updated list" from "calc_vmalloc_info in progress".
-
-I particularly like the "gen - vmap_info_cache_gen > 0" test.
-You *must* test for inequality to prevent tearing of a valid cache
-(...grr...English heteronyms...), and given that, might as well
-require it be fresher.
-
-
-Anyway, suggested changes for v6 (sigh...):
-
-First: you do a second read of vmap_info_gen to optimize out the copy
-of vmalloc_info if it's easily seen as pointless, but given how small
-vmalloc_info is (two words!), i'd be inclined to omit that optimization.
-
-Copy always, *then* see if it's worth keeping.  Smaller code, faster
-fast path, and is barely noticeable on the slow path.
-
-
-Second, and this is up to you, I'd be inclined to go fully non-blocking and
-only spin_trylock().  If that fails, just skip the cache update.
-
-
-Third, ANSI C rules allow a compiler to assume that signed integer
-overflow does not occur.  That means that gcc is allowed to optimize
-"if (x - y > 0)" to "if (x > y)".
-
-Given that gcc has annoyed us by using this optimization in other
-contexts, It might be safer to make them unsigned (which is required to
-wrap properly) and cast to integer after subtraction.
-
-
-Basically, the following (untested, but pretty damn simple):
-
-+/*
-+ * Return a consistent snapshot of the current vmalloc allocation
-+ * statistics, for /proc/meminfo:
-+ */
-+void get_vmalloc_info(struct vmalloc_info *vmi)
-+{
-+	unsigned gen, cache_gen = READ_ONCE(vmap_info_cache_gen);
-+
-+	/*
-+	 * The two read barriers make sure that we read
-+	 * 'cache_gen', 'vmap_info_cache' and 'gen' in
-+	 * precisely that order:
-+	 */
-+	smp_rmb();
-+	*vmi = vmap_info_cache;
-+
-+	smp_rmb();
-+	gen = READ_ONCE(vmap_info_gen);
-+
-+	/*
-+	 * If the generation counter of the cache matches that of
-+	 * the vmalloc generation counter then return the cache:
-+	 */
-+	if (gen == cache_gen)
-+		return;
-+
-+	/* Make sure 'gen' is read before the vmalloc info */
-+	smp_rmb();
-+	calc_vmalloc_info(vmi);
-+
-+	/*
-+	 * All updates to vmap_info_cache_gen go through this spinlock,
-+	 * so when the cache got invalidated, we'll only mark it valid
-+	 * again if we first fully write the new vmap_info_cache.
-+	 *
-+	 * This ensures that partial results won't be used.
-+	 */
-+	if (spin_trylock(&vmap_info_lock)) {
-+		if ((int)(gen - vmap_info_cache_gen) > 0) {
-+			vmap_info_cache = *vmi;
-+			/*
-+			 * Make sure the new cached data is visible before
-+			 * the generation counter update:
-+			 */
-+			smp_wmb();
-+			WRITE_ONCE(vmap_info_cache_gen, gen);
-+		}
-+		spin_unlock(&vmap_info_lock);
-+	}
-+}
-+
-+#endif /* CONFIG_PROC_FS */
-
-The only remaining *very small* nit is that this function is a mix of
-"return early" and "wrap it in an if()" style.  If you want to make that
-"if (!spin_trylock(...)) return;", I leave that you your esthetic judgement.
+Yours,
+Linus Walleij
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
