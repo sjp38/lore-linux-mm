@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C734382F5F
-	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 22:20:15 -0400 (EDT)
-Received: by pacti10 with SMTP id ti10so11680910pac.0
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 19:20:15 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id kk7si21117155pab.28.2015.08.23.19.20.14
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DC4482F5F
+	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 22:20:21 -0400 (EDT)
+Received: by pacgr6 with SMTP id gr6so6518040pac.1
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 19:20:20 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id l3si658468pdg.217.2015.08.23.19.20.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Aug 2015 19:20:15 -0700 (PDT)
-Received: by pdob1 with SMTP id b1so47328218pdo.2
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 19:20:14 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 23 Aug 2015 19:20:20 -0700 (PDT)
+Received: by pacdd16 with SMTP id dd16so84908460pac.2
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 19:20:20 -0700 (PDT)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH v2 5/9] mm/compaction: allow to scan nonmovable pageblock when depleted state
-Date: Mon, 24 Aug 2015 11:19:29 +0900
-Message-Id: <1440382773-16070-6-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 6/9] mm/compaction: manage separate skip-bits for migration and free scanner
+Date: Mon, 24 Aug 2015 11:19:30 +0900
+Message-Id: <1440382773-16070-7-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,149 +22,212 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Currently, freescanner doesn't scan non-movable pageblock, because if
-freepages in non-movable pageblock are exhausted, another movable
-pageblock would be used for non-movable allocation and it could cause
-fragmentation.
+Currently, just one skip-bit is used for migration and free scanner
+at the sametime. This has problem if migrate scanner go into
+the region where free scanner marks the skip-bit. Free scanner
+just checks if there is freepage or not, so there would be migratable
+page. But, due to skip-bit, migrate scanner would skip scanning.
 
-But, we should know that watermark check for compaction doesn't
-distinguish where freepage is. If all freepages are in non-movable
-pageblock, although, system has enough freepages and watermark check
-is passed, freepage scanner can't get any freepage and compaction will
-be failed. There is no way to get precise number of freepage on movable
-pageblock and no way to reclaim only used pages in movable pageblock.
-Therefore, I think that best way to overcome this situation is
-to use freepage in non-movable pageblock in compaction.
+Currently, this doesn't result in any problem because migration scanner
+and free scanner always meets similar position in the zone and
+stops scanning at that position.
 
-My test setup for this situation is:
+But, following patch will change compaction algorithm that migration
+scanner scans whole zone range in order to get much better success rate.
+In this case, skip-bit marked from freepage scanner should be ignored
+but at the sametime we need to check if there is migratable page and
+skip that pageblock in next time. This cannot be achived by just one
+skip-bit so this patch add one more skip-bit and use each one
+for migrate and free scanner, respectively.
 
-Memory is artificially fragmented to make order 3 allocation hard. And,
-most of pageblocks are changed to unmovable migratetype.
+This patch incrases memory usage that each pageblock uses 4 bit more than
+before. This means that if we have 1GB memory system we lose another
+256 bytes. I think this is really marginal overhead.
 
-  System: 512 MB with 32 MB Zram
-  Memory: 25% memory is allocated to make fragmentation and kernel build
-  	is running on background.
-  Fragmentation: Successful order 3 allocation candidates may be around
-  	1500 roughly.
-  Allocation attempts: Roughly 3000 order 3 allocation attempts
-  	with GFP_NORETRY. This value is determined to saturate allocation
-  	success.
-
-Below is the result of this test.
-
-Test: build-frag-unmovable
-
-Kernel:	Base vs Nonmovable
-
-Success(N)                    37              64
-compact_stall                624            5056
-compact_success              103             419
-compact_fail                 521            4637
-pgmigrate_success          22004          277106
-compact_isolated           61021         1056863
-compact_migrate_scanned  2609360        70252458
-compact_free_scanned     4808989        23091292
-
-Column 'Success(N) are calculated by following equations.
-
-Success(N) = successful allocation * 100 / order 3 candidates
-
-Result shows that success rate is roughly doubled in this case
-because we can search more area.
-
-Because we just allow freepage scanner to scan non-movable pageblock
-in very limited situation, more scanning events happen. But, allowing
-in very limited situation results in a very important benefit that
-memory isn't fragmented more than before. Fragmentation effect is
-measured on following patch so please refer it.
+Motivation for compaction algorithm change will be mentioned
+on following patch. Please refer it.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/mmzone.h |  1 +
- mm/compaction.c        | 27 +++++++++++++++++++++++++--
- 2 files changed, 26 insertions(+), 2 deletions(-)
+ include/linux/mmzone.h          |  3 ---
+ include/linux/pageblock-flags.h | 37 +++++++++++++++++++++++++++----------
+ mm/compaction.c                 | 25 ++++++++++++++++---------
+ mm/page_alloc.c                 |  3 ++-
+ 4 files changed, 45 insertions(+), 23 deletions(-)
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index e13b732..5cae0ad 100644
+index 5cae0ad..e641fd1 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -545,6 +545,7 @@ enum zone_flags {
- 					 */
- 	ZONE_FAIR_DEPLETED,		/* fair zone policy batch depleted */
- 	ZONE_COMPACTION_DEPLETED,	/* compaction possiblity depleted */
-+	ZONE_COMPACTION_SCANALLFREE,	/* scan all kinds of pageblocks */
+@@ -75,9 +75,6 @@ enum {
+ 
+ extern int page_group_by_mobility_disabled;
+ 
+-#define NR_MIGRATETYPE_BITS (PB_migrate_end - PB_migrate + 1)
+-#define MIGRATETYPE_MASK ((1UL << NR_MIGRATETYPE_BITS) - 1)
+-
+ #define get_pageblock_migratetype(page)					\
+ 	get_pfnblock_flags_mask(page, page_to_pfn(page),		\
+ 			PB_migrate_end, MIGRATETYPE_MASK)
+diff --git a/include/linux/pageblock-flags.h b/include/linux/pageblock-flags.h
+index 2baeee1..de6997e 100644
+--- a/include/linux/pageblock-flags.h
++++ b/include/linux/pageblock-flags.h
+@@ -30,8 +30,13 @@ enum pageblock_bits {
+ 	PB_migrate,
+ 	PB_migrate_end = PB_migrate + 3 - 1,
+ 			/* 3 bits required for migrate types */
+-	PB_migrate_skip,/* If set the block is skipped by compaction */
++	PB_padding1,	/* Padding for 4 byte aligned migrate types */
++	NR_MIGRATETYPE_BITS,
+ 
++	PB_skip_migratescan = 4,/* If set the block is skipped by compaction */
++	PB_skip_freescan,
++	PB_padding2,
++	PB_padding3,
+ 	/*
+ 	 * Assume the bits will always align on a word. If this assumption
+ 	 * changes then get/set pageblock needs updating.
+@@ -39,6 +44,8 @@ enum pageblock_bits {
+ 	NR_PAGEBLOCK_BITS
  };
  
- static inline unsigned long zone_end_pfn(const struct zone *zone)
++#define MIGRATETYPE_MASK ((1UL << NR_MIGRATETYPE_BITS) - 1)
++
+ #ifdef CONFIG_HUGETLB_PAGE
+ 
+ #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
+@@ -87,15 +94,25 @@ void set_pfnblock_flags_mask(struct page *page,
+ 			(1 << (end_bitidx - start_bitidx + 1)) - 1)
+ 
+ #ifdef CONFIG_COMPACTION
+-#define get_pageblock_skip(page) \
+-			get_pageblock_flags_group(page, PB_migrate_skip,     \
+-							PB_migrate_skip)
+-#define clear_pageblock_skip(page) \
+-			set_pageblock_flags_group(page, 0, PB_migrate_skip,  \
+-							PB_migrate_skip)
+-#define set_pageblock_skip(page) \
+-			set_pageblock_flags_group(page, 1, PB_migrate_skip,  \
+-							PB_migrate_skip)
++#define get_pageblock_skip_migratescan(page) \
++		get_pageblock_flags_group(page, PB_skip_migratescan,	\
++						PB_skip_migratescan)
++#define clear_pageblock_skip_migratescan(page) \
++		set_pageblock_flags_group(page, 0, PB_skip_migratescan,	\
++						PB_skip_migratescan)
++#define set_pageblock_skip_migratescan(page) \
++		set_pageblock_flags_group(page, 1, PB_skip_migratescan,	\
++						PB_skip_migratescan)
++#define get_pageblock_skip_freescan(page) \
++		get_pageblock_flags_group(page, PB_skip_freescan,	\
++						PB_skip_freescan)
++#define clear_pageblock_skip_freescan(page) \
++		set_pageblock_flags_group(page, 0, PB_skip_freescan,	\
++						PB_skip_freescan)
++#define set_pageblock_skip_freescan(page) \
++		set_pageblock_flags_group(page, 1, PB_skip_freescan,	\
++						PB_skip_freescan)
++
+ #endif /* CONFIG_COMPACTION */
+ 
+ #endif	/* PAGEBLOCK_FLAGS_H */
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 1817564..b58f162 100644
+index b58f162..a259608 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -243,9 +243,17 @@ static void __reset_isolation_suitable(struct zone *zone)
- 	zone->compact_cached_free_pfn = end_pfn;
- 	zone->compact_blockskip_flush = false;
+@@ -219,12 +219,15 @@ bool compaction_restarting(struct zone *zone, int order)
  
-+	clear_bit(ZONE_COMPACTION_SCANALLFREE, &zone->flags);
- 	if (compaction_depleted(zone)) {
- 		if (test_bit(ZONE_COMPACTION_DEPLETED, &zone->flags))
- 			zone->compact_depletion_depth++;
-+
-+			/* Last resort to make high-order page */
-+			if (!zone->compact_success) {
-+				set_bit(ZONE_COMPACTION_SCANALLFREE,
-+					&zone->flags);
-+			}
-+
- 		else {
- 			set_bit(ZONE_COMPACTION_DEPLETED, &zone->flags);
- 			zone->compact_depletion_depth = 0;
-@@ -914,7 +922,8 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
- #ifdef CONFIG_COMPACTION
- 
- /* Returns true if the page is within a block suitable for migration to */
--static bool suitable_migration_target(struct page *page)
-+static bool suitable_migration_target(struct compact_control *cc,
-+					struct page *page)
+ /* Returns true if the pageblock should be scanned for pages to isolate. */
+ static inline bool isolation_suitable(struct compact_control *cc,
+-					struct page *page)
++					struct page *page, bool migrate_scanner)
  {
- 	/* If the page is a large free page, then disallow migration */
- 	if (PageBuddy(page)) {
-@@ -931,6 +940,16 @@ static bool suitable_migration_target(struct page *page)
- 	if (migrate_async_suitable(get_pageblock_migratetype(page)))
+ 	if (cc->ignore_skip_hint)
  		return true;
  
-+	/*
-+	 * Allow to scan all kinds of pageblock. Without this relaxation,
-+	 * all freepage could be in non-movable pageblock and compaction
-+	 * can be satuarated and cannot make high-order page even if there
-+	 * is enough freepage in the system.
-+	 */
-+	if (cc->mode != MIGRATE_ASYNC &&
-+		test_bit(ZONE_COMPACTION_SCANALLFREE, &cc->zone->flags))
-+		return true;
-+
- 	/* Otherwise skip the block */
- 	return false;
+-	return !get_pageblock_skip(page);
++	if (migrate_scanner)
++		return !get_pageblock_skip_migratescan(page);
++	else
++		return !get_pageblock_skip_freescan(page);
  }
-@@ -992,7 +1011,7 @@ static void isolate_freepages(struct compact_control *cc)
+ 
+ /*
+@@ -275,7 +278,8 @@ static void __reset_isolation_suitable(struct zone *zone)
+ 		if (zone != page_zone(page))
  			continue;
  
- 		/* Check the block is suitable for migration */
--		if (!suitable_migration_target(page))
-+		if (!suitable_migration_target(cc, page))
+-		clear_pageblock_skip(page);
++		clear_pageblock_skip_migratescan(page);
++		clear_pageblock_skip_freescan(page);
+ 	}
+ }
+ 
+@@ -317,24 +321,27 @@ static void update_pageblock_skip(struct compact_control *cc,
+ 	if (cc->migration_scan_limit == LONG_MAX && nr_isolated)
+ 		return;
+ 
+-	if (!nr_isolated)
+-		set_pageblock_skip(page);
+-
+ 	/* Update where async and sync compaction should restart */
+ 	if (migrate_scanner) {
++		if (!nr_isolated)
++			set_pageblock_skip_migratescan(page);
++
+ 		if (pfn > zone->compact_cached_migrate_pfn[0])
+ 			zone->compact_cached_migrate_pfn[0] = pfn;
+ 		if (cc->mode != MIGRATE_ASYNC &&
+ 		    pfn > zone->compact_cached_migrate_pfn[1])
+ 			zone->compact_cached_migrate_pfn[1] = pfn;
+ 	} else {
++		if (!nr_isolated)
++			set_pageblock_skip_freescan(page);
++
+ 		if (pfn < zone->compact_cached_free_pfn)
+ 			zone->compact_cached_free_pfn = pfn;
+ 	}
+ }
+ #else
+ static inline bool isolation_suitable(struct compact_control *cc,
+-					struct page *page)
++					struct page *page, bool migrate_scanner)
+ {
+ 	return true;
+ }
+@@ -1015,7 +1022,7 @@ static void isolate_freepages(struct compact_control *cc)
  			continue;
  
  		/* If isolation recently failed, do not retry */
-@@ -1494,6 +1513,10 @@ out:
- 	if (test_bit(ZONE_COMPACTION_DEPLETED, &zone->flags)) {
- 		if (!compaction_depleted(zone))
- 			clear_bit(ZONE_COMPACTION_DEPLETED, &zone->flags);
-+
-+		if (zone->compact_success &&
-+			test_bit(ZONE_COMPACTION_SCANALLFREE, &zone->flags))
-+			clear_bit(ZONE_COMPACTION_SCANALLFREE, &zone->flags);
- 	}
+-		if (!isolation_suitable(cc, page))
++		if (!isolation_suitable(cc, page, false))
+ 			continue;
  
- 	return ret;
+ 		/* Found a block suitable for isolating free pages from. */
+@@ -1154,7 +1161,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 			continue;
+ 
+ 		/* If isolation recently failed, do not retry */
+-		if (!isolation_suitable(cc, page))
++		if (!isolation_suitable(cc, page, true))
+ 			continue;
+ 
+ 		/*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c67f853..a9a78d1 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6623,7 +6623,8 @@ void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
+ 	unsigned long bitidx, word_bitidx;
+ 	unsigned long old_word, word;
+ 
+-	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
++	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 8);
++	BUILD_BUG_ON(NR_MIGRATETYPE_BITS != 4);
+ 
+ 	zone = page_zone(page);
+ 	bitmap = get_pageblock_bitmap(zone, pfn);
 -- 
 1.9.1
 
