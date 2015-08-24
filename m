@@ -1,72 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F1C56B0254
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 11:11:16 -0400 (EDT)
-Received: by qkch123 with SMTP id h123so64829115qkc.0
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 08:11:16 -0700 (PDT)
-Received: from ns.horizon.com (ns.horizon.com. [71.41.210.147])
-        by mx.google.com with SMTP id u205si10370676ywa.76.2015.08.24.08.11.15
-        for <linux-mm@kvack.org>;
-        Mon, 24 Aug 2015 08:11:15 -0700 (PDT)
-Date: 24 Aug 2015 11:11:14 -0400
-Message-ID: <20150824151114.18743.qmail@ns.horizon.com>
-From: "George Spelvin" <linux@horizon.com>
-Subject: Re: [PATCH 3/3 v4] mm/vmalloc: Cache the vmalloc memory info
-In-Reply-To: <21979.6150.929309.800457@quad.stoffel.home>
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C3D2B6B0254
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 11:13:38 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so75226150wid.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 08:13:38 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jd3si303516wic.54.2015.08.24.08.13.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 24 Aug 2015 08:13:37 -0700 (PDT)
+From: Petr Mladek <pmladek@suse.com>
+Subject: [PATCH] mm/khugepaged: Allow to interrupt allocation sleep again
+Date: Mon, 24 Aug 2015 17:13:23 +0200
+Message-Id: <1440429203-4039-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john@stoffel.org, mingo@kernel.org
-Cc: dave@sr71.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@horizon.com, linux@rasmusvillemoes.dk, peterz@infradead.org, riel@redhat.com, rientjes@google.com, torvalds@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-pm@vger.kernel.org, Jiri Kosina <jkosina@suse.cz>, Petr Mladek <pmladek@suse.com>
 
-John Stoffel <john@stoffel.org> wrote:
->> vmap_info_gen should be initialized to 1 to force an initial
->> cache update.
+The commit 1dfb059b9438633b0546 ("thp: reduce khugepaged freezing
+latency") fixed khugepaged to do not block a system suspend. But
+the result is that it could not get interrupted before the given
+timeout because the condition for the wait event is "false".
 
-> Blech, it should be initialized with a proper #define
-> VMAP_CACHE_NEEDS_UPDATE 1, instead of more magic numbers.
+This patch puts back the original approach but it uses
+freezable_schedule_timeout_interruptible() instead of
+schedule_timeout_interruptible(). It does the right thing.
+I am pretty sure that the freezable variant was not used in
+the original fix only because it was not available at that time.
 
-Er... this is a joke, right?
+The regression has been there for ages. It was not critical. It just
+did the allocation throttling a little bit more aggressively.
 
-First, this number is used exactly once, and it's not part of a collection
-of similar numbers.  And the definition would be adjacent to the use.
+I found this problem when converting the kthread to kthread worker API
+and trying to understand the code.
 
-We have easier ways of accomplishing that, called "comments".
+Signed-off-by: Petr Mladek <pmladek@suse.com>
+---
+ mm/huge_memory.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-
-Second, your proposed name is misleading.  "needs update" is defined
-as vmap_info_gen != vmap_info_cache_gen.  There is no particular value
-of either that has this meaning.
-
-For example, initializing vmap_info_cache_gen to -1 would do just as well.
-(I actually considered that before deciding that +1 was "simpler" than -1.)
-
-For some versions of the code, an *arbitrary* difference is okay.
-You could set one ot 0xDEADBEEF and the other to 0xFEEDFACE.
-
-For other versions, the magnitude matters, but not *too* much.
-Initializing it to 42 would be perfectly correct, but waste time doing
-42 cache updates before settling down.
-
-Singling out the value 1 as VMAP_CACHE_NEEDS_UPDATE is actively misleading.
-
-
-> This will help keep bugs like this out in the future... I hope!
-
-And this is the punchline, right?
-
-The problem was not realizing that non-default initialization was required;
-what we *call* the non-default value is irrelevant.
-
-I doubt it would ever have been a real (i.e. noticeable) bug, actually;
-the first bit of vmap activity in very early boot would have invalidated
-the cache.
-
-
-(John, my apologies if I went over the top and am contributing to LKML's
-reputation for flaming.  I *did* actually laugh, and *do* think it's a
-dumb idea, but my annoyance is really directed at unpleasant memories of
-mindless application of coding style guidelines.  In this case, I suspect
-you just posted before reading carefully enough to see the subtle logic.)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 7109330c5911..eb115aaa429c 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2368,8 +2368,12 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
+ 
+ static void khugepaged_alloc_sleep(void)
+ {
+-	wait_event_freezable_timeout(khugepaged_wait, false,
+-			msecs_to_jiffies(khugepaged_alloc_sleep_millisecs));
++	DEFINE_WAIT(wait);
++
++	add_wait_queue(&khugepaged_wait, &wait);
++	freezable_schedule_timeout_interruptible(
++		msecs_to_jiffies(khugepaged_alloc_sleep_millisecs));
++	remove_wait_queue(&khugepaged_wait, &wait);
+ }
+ 
+ static int khugepaged_node_load[MAX_NUMNODES];
+-- 
+1.8.5.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
