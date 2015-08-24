@@ -1,107 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A0CCF6B0038
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:17:52 -0400 (EDT)
-Received: by laba3 with SMTP id a3so74402709lab.1
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 03:17:52 -0700 (PDT)
-Received: from mail-lb0-x230.google.com (mail-lb0-x230.google.com. [2a00:1450:4010:c04::230])
-        by mx.google.com with ESMTPS id bf12si1041398lab.77.2015.08.24.03.17.50
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C90B6B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:18:00 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so67171055wic.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 03:17:59 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id b4si20569711wic.119.2015.08.24.03.17.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Aug 2015 03:17:50 -0700 (PDT)
-Received: by lbbtg9 with SMTP id tg9so77075024lbb.1
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 03:17:50 -0700 (PDT)
+        Mon, 24 Aug 2015 03:17:58 -0700 (PDT)
+Received: by wicja10 with SMTP id ja10so67170250wic.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 03:17:58 -0700 (PDT)
+Date: Mon, 24 Aug 2015 13:17:56 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
+Message-ID: <20150824101755.GA2370@node.dhcp.inet.fi>
+References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20150821183132.GA12835@akamai.com>
-References: <1439097776-27695-1-git-send-email-emunson@akamai.com>
-	<1439097776-27695-4-git-send-email-emunson@akamai.com>
-	<20150812115909.GA5182@dhcp22.suse.cz>
-	<20150819213345.GB4536@akamai.com>
-	<20150820075611.GD4780@dhcp22.suse.cz>
-	<20150820170309.GA11557@akamai.com>
-	<20150821072552.GF23723@dhcp22.suse.cz>
-	<20150821183132.GA12835@akamai.com>
-Date: Mon, 24 Aug 2015 13:17:49 +0300
-Message-ID: <CALYGNiPcruTM+2KKNZr7ebCVCPsqytSrW8rSzSmj+1Qp4OqXEw@mail.gmail.com>
-Subject: Re: [PATCH v7 3/6] mm: Introduce VM_LOCKONFAULT
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, dri-devel <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Aug 21, 2015 at 9:31 PM, Eric B Munson <emunson@akamai.com> wrote:
-> On Fri, 21 Aug 2015, Michal Hocko wrote:
->
->> On Thu 20-08-15 13:03:09, Eric B Munson wrote:
->> > On Thu, 20 Aug 2015, Michal Hocko wrote:
->> >
->> > > On Wed 19-08-15 17:33:45, Eric B Munson wrote:
->> > > [...]
->> > > > The group which asked for this feature here
->> > > > wants the ability to distinguish between LOCKED and LOCKONFAULT regions
->> > > > and without the VMA flag there isn't a way to do that.
->> > >
->> > > Could you be more specific on why this is needed?
->> >
->> > They want to keep metrics on the amount of memory used in a LOCKONFAULT
->> > region versus the address space of the region.
->>
->> /proc/<pid>/smaps already exports that information AFAICS. It exports
->> VMA flags including VM_LOCKED and if rss < size then this is clearly
->> LOCKONFAULT because the standard mlock semantic is to populate. Would
->> that be sufficient?
->>
->> Now, it is true that LOCKONFAULT wouldn't be distinguishable from
->> MAP_LOCKED which failed to populate but does that really matter? It is
->> LOCKONFAULT in a way as well.
->
-> Does that matter to my users?  No, they do not use MAP_LOCKED at all so
-> any VMA with VM_LOCKED set and rss < size is lock on fault.  Will it
-> matter to others?  I suspect so, but these are likely to be the same
-> group of users which will be suprised to learn that MAP_LOCKED does not
-> guarantee that the entire range is faulted in on return from mmap.
->
->>
->> > > > Do we know that these last two open flags are needed right now or is
->> > > > this speculation that they will be and that none of the other VMA flags
->> > > > can be reclaimed?
->> > >
->> > > I do not think they are needed by anybody right now but that is not a
->> > > reason why it should be used without a really strong justification.
->> > > If the discoverability is really needed then fair enough but I haven't
->> > > seen any justification for that yet.
->> >
->> > To be completely clear you believe that if the metrics collection is
->> > not a strong enough justification, it is better to expand the mm_struct
->> > by another unsigned long than to use one of these bits right?
->>
->> A simple bool is sufficient for that. And yes I think we should go with
->> per mm_struct flag rather than the additional vma flag if it has only
->> the global (whole address space) scope - which would be the case if the
->> LOCKONFAULT is always an mlock modifier and the persistance is needed
->> only for MCL_FUTURE. Which is imho a sane semantic.
->
-> I am in the middle of implementing lock on fault this way, but I cannot
-> see how we will hanlde mremap of a lock on fault region.  Say we have
-> the following:
->
->     addr = mmap(len, MAP_ANONYMOUS, ...);
->     mlock(addr, len, MLOCK_ONFAULT);
->     ...
->     mremap(addr, len, 2 * len, ...)
->
-> There is no way for mremap to know that the area being remapped was lock
-> on fault so it will be locked and prefaulted by remap.  How can we avoid
-> this without tracking per vma if it was locked with lock or lock on
-> fault?
+On Wed, Aug 19, 2015 at 12:21:45PM +0300, Kirill A. Shutemov wrote:
+> Hugh has pointed that compound_head() call can be unsafe in some
+> context. There's one example:
+> 
+> 	CPU0					CPU1
+> 
+> isolate_migratepages_block()
+>   page_count()
+>     compound_head()
+>       !!PageTail() == true
+> 					put_page()
+> 					  tail->first_page = NULL
+>       head = tail->first_page
+> 					alloc_pages(__GFP_COMP)
+> 					   prep_compound_page()
+> 					     tail->first_page = head
+> 					     __SetPageTail(p);
+>       !!PageTail() == true
+>     <head == NULL dereferencing>
+> 
+> The race is pure theoretical. I don't it's possible to trigger it in
+> practice. But who knows.
+> 
+> We can fix the race by changing how encode PageTail() and compound_head()
+> within struct page to be able to update them in one shot.
+> 
+> The patch introduces page->compound_head into third double word block in
+> front of compound_dtor and compound_order. That means it shares storage
+> space with:
+> 
+>  - page->lru.next;
+>  - page->next;
+>  - page->rcu_head.next;
+>  - page->pmd_huge_pte;
+> 
+> That's too long list to be absolutely sure, but looks like nobody uses
+> bit 0 of the word. It can be used to encode PageTail(). And if the bit
+> set, rest of the word is pointer to head page.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
 
-remap can count filled ptes and prefault only completely populated areas.
+If DEFERRED_STRUCT_PAGE_INIT=n, combining this patchset with my page-flags
+patches causes oops in SetPageReserved() called from
+reserve_bootmem_region().
 
-There might be a problem after failed populate: remap will handle them
-as lock on fault. In this case we can fill ptes with swap-like non-present
-entries to remember that fact and count them as should-be-locked pages.
+It happens because we haven't yet initilized the word in struct page and
+PageTail() inside SetPageReserved() can give false-positive, which leads
+to bogus compound_head() result.
+
+IIUC, we initialize the word only on first allocation of the page. It can
+be too late: pfn scanner can see false-positive PageTail() from not yet
+allocated pages too.
+
+Here's fixlet for patch to address the issue.
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 347724850665..d0e3fca830f8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -892,6 +892,8 @@ static void init_reserved_page(unsigned long pfn)
+ #else
+ static inline void init_reserved_page(unsigned long pfn)
+ {
++	/* Avoid false-positive PageTail() */
++	INIT_LIST_HEAD(&pfn_to_page(pfn)->lru);
+ }
+ #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+ 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
