@@ -1,90 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B7B16B0253
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 17:25:57 -0400 (EDT)
-Received: by pacdd16 with SMTP id dd16so105599496pac.2
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 14:25:57 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b6si29393184pbu.118.2015.08.24.14.25.56
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E4366B0253
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 17:50:08 -0400 (EDT)
+Received: by obkg7 with SMTP id g7so125847873obk.3
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 14:50:08 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id m130si13295131oif.99.2015.08.24.14.50.07
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Aug 2015 14:25:56 -0700 (PDT)
-Date: Mon, 24 Aug 2015 14:25:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: mmap: Check all failures before set values
-Message-Id: <20150824142555.76d9cf840dcbf8bbd9489b8c@linux-foundation.org>
-In-Reply-To: <20150824113212.GL17078@dhcp22.suse.cz>
-References: <1440349179-18304-1-git-send-email-gang.chen.5i5j@qq.com>
-	<20150824113212.GL17078@dhcp22.suse.cz>
+        Mon, 24 Aug 2015 14:50:07 -0700 (PDT)
+Message-ID: <1440452880.14237.13.camel@hp.com>
+Subject: Re: [PATCH v3 1/10] x86/vdso32: Define PGTABLE_LEVELS to 32bit VDSO
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 24 Aug 2015 15:48:00 -0600
+In-Reply-To: <55D65CF7.1020903@hp.com>
+References: <1438811013-30983-1-git-send-email-toshi.kani@hp.com>
+	 <1438811013-30983-2-git-send-email-toshi.kani@hp.com>
+	 <alpine.DEB.2.11.1508202145540.3873@nanos> <55D65CF7.1020903@hp.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: gang.chen.5i5j@qq.com, kirill.shutemov@linux.intel.com, riel@redhat.com, sasha.levin@oracle.com, gang.chen.5i5j@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com
 
-On Mon, 24 Aug 2015 13:32:13 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Mon 24-08-15 00:59:39, gang.chen.5i5j@qq.com wrote:
-> > From: Chen Gang <gang.chen.5i5j@gmail.com>
+On Thu, 2015-08-20 at 17:04 -0600, Toshi Kani wrote:
+> On 8/20/2015 1:46 PM, Thomas Gleixner wrote:
+> > On Wed, 5 Aug 2015, Toshi Kani wrote:
 > > 
-> > When failure occurs and return, vma->vm_pgoff is already set, which is
-> > not a good idea.
+> > > In case of CONFIG_X86_64, vdso32/vclock_gettime.c fakes a 32bit
+> > > kernel configuration by re-defining it to CONFIG_X86_32.  However,
+> > > it does not re-define CONFIG_PGTABLE_LEVELS leaving it as 4 levels.
+> > > Fix it by re-defining CONFIG_PGTABLE_LEVELS to 2 as X86_PAE is not
+> > > set.
+> > You fail to explain WHY this is required. I have not yet spotted any
+> > code in vclock_gettime.c which is affected by this.
 > 
-> Why? The vma is not inserted anywhere and the failure path is supposed
-> to simply free the vma.
+> Sorry about that.  Without this patch 01, applying patch 02 & 03 causes 
+> the following compile errors in vclock_gettime.c.  This is because it 
+> includes pgtable_type.h (see blow), which now requires PUD_SHIFT and 
+> PMD_SHIFT defined properly.  In case of X86_32, pgtable_type.h includes 
+> pgtable_nopud.h and pgtable-nopmd.h, which define these SHIFTs when 
+> CONFIG_PGTABLE_LEVEL is set to 2 (or 3 if PAE is also defined).
+>  :
 
-Yes, it's pretty marginal but I suppose the code is a bit better with
-the patch than without.  I did this:
+Attached is patch 01/10 with updated descriptions.  The rest of the patchset
+still applies cleanly.
 
+Please let me know if you have any further comments.
+Thanks,
+-Toshi
 
-From: Chen Gang <gang.chen.5i5j@gmail.com>
-Subject: mm/mmap.c:insert_vm_struct(): check for failure before setting values
+----
+Subject: [PATCH v3 UPDATE 1/10] x86/vdso32: Define PGTABLE_LEVELS to 32bit
+VDSO
 
-There's no point in initializing vma->vm_pgoff if the insertion attempt
-will be failing anyway.  Run the checks before performing the initialization.
+In case of CONFIG_X86_64, vdso32/vclock_gettime.c fakes a 32-bit
+non-PAE kernel configuration by re-defining it to CONFIG_X86_32.
+However, it does not re-define CONFIG_PGTABLE_LEVELS leaving it
+as 4 levels.
 
-Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+This mismatch leads <asm/pgtable_type.h> to NOT include <asm-generic/
+pgtable-nopud.h> and <asm-generic/pgtable-nopmd.h>, which will cause
+compile errors when a later patch enhances <asm/pgtable_type.h> to
+use PUD_SHIFT and PMD_SHIFT.  These -nopud & -nopmd headers define
+these SHIFTs for the 32-bit non-PAE kernel.
+
+Fix it by re-defining CONFIG_PGTABLE_LEVELS to 2 levels.
+
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Borislav Petkov <bp@alien8.de>
 ---
+ arch/x86/entry/vdso/vdso32/vclock_gettime.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
- mm/mmap.c |   13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
-
-diff -puN mm/mmap.c~mm-mmap-check-all-failures-before-set-values mm/mmap.c
---- a/mm/mmap.c~mm-mmap-check-all-failures-before-set-values
-+++ a/mm/mmap.c
-@@ -2859,6 +2859,13 @@ int insert_vm_struct(struct mm_struct *m
- 	struct vm_area_struct *prev;
- 	struct rb_node **rb_link, *rb_parent;
+diff --git a/arch/x86/entry/vdso/vdso32/vclock_gettime.c
+b/arch/x86/entry/vdso/vdso32/vclock_gettime.c
+index 175cc72..87a86e0 100644
+--- a/arch/x86/entry/vdso/vdso32/vclock_gettime.c
++++ b/arch/x86/entry/vdso/vdso32/vclock_gettime.c
+@@ -14,11 +14,13 @@
+  */
+ #undef CONFIG_64BIT
+ #undef CONFIG_X86_64
++#undef CONFIG_PGTABLE_LEVELS
+ #undef CONFIG_ILLEGAL_POINTER_VALUE
+ #undef CONFIG_SPARSEMEM_VMEMMAP
+ #undef CONFIG_NR_CPUS
  
-+	if (find_vma_links(mm, vma->vm_start, vma->vm_end,
-+			   &prev, &rb_link, &rb_parent))
-+		return -ENOMEM;
-+	if ((vma->vm_flags & VM_ACCOUNT) &&
-+	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
-+		return -ENOMEM;
-+
- 	/*
- 	 * The vm_pgoff of a purely anonymous vma should be irrelevant
- 	 * until its first write fault, when page's anon_vma and index
-@@ -2875,12 +2882,6 @@ int insert_vm_struct(struct mm_struct *m
- 		BUG_ON(vma->anon_vma);
- 		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
- 	}
--	if (find_vma_links(mm, vma->vm_start, vma->vm_end,
--			   &prev, &rb_link, &rb_parent))
--		return -ENOMEM;
--	if ((vma->vm_flags & VM_ACCOUNT) &&
--	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
--		return -ENOMEM;
- 
- 	vma_link(mm, vma, prev, rb_link, rb_parent);
- 	return 0;
-_
-
+ #define CONFIG_X86_32 1
++#define CONFIG_PGTABLE_LEVELS 2
+ #define CONFIG_PAGE_OFFSET 0
+ #define CONFIG_ILLEGAL_POINTER_VALUE 0
+ #define CONFIG_NR_CPUS 1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
