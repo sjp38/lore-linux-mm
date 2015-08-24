@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 51E8382F5F
-	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 22:20:31 -0400 (EDT)
-Received: by pacti10 with SMTP id ti10so11685476pac.0
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 19:20:31 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id j3si24975733pdl.212.2015.08.23.19.20.30
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B24882F5F
+	for <linux-mm@kvack.org>; Sun, 23 Aug 2015 22:20:36 -0400 (EDT)
+Received: by pacgr6 with SMTP id gr6so6522429pac.1
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 19:20:36 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id n5si24994269pda.156.2015.08.23.19.20.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Aug 2015 19:20:30 -0700 (PDT)
-Received: by pacti10 with SMTP id ti10so11685280pac.0
-        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 19:20:30 -0700 (PDT)
+        Sun, 23 Aug 2015 19:20:35 -0700 (PDT)
+Received: by pacdd16 with SMTP id dd16so84912936pac.2
+        for <linux-mm@kvack.org>; Sun, 23 Aug 2015 19:20:35 -0700 (PDT)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH v2 8/9] mm/compaction: don't use higher order freepage than compaction aims at
-Date: Mon, 24 Aug 2015 11:19:32 +0900
-Message-Id: <1440382773-16070-9-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 9/9] mm/compaction: new threshold for compaction depleted zone
+Date: Mon, 24 Aug 2015 11:19:33 +0900
+Message-Id: <1440382773-16070-10-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,61 +22,118 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Purpose of compaction is to make high order page. To achive this purpose,
-it is the best strategy that compaction migrates contiguous used pages
-to fragmented unused freepages. Currently, freepage scanner don't
-distinguish whether freepage is fragmented or not and blindly use
-any freepage for migration target regardless of freepage's order.
+Now, compaction algorithm become powerful. Migration scanner traverses
+whole zone range. So, old threshold for depleted zone which is designed
+to imitate compaction deferring approach isn't appropriate for current
+compaction algorithm. If we adhere to current threshold, 1, we can't
+avoid excessive overhead caused by compaction, because one compaction
+for low order allocation would be easily successful in any situation.
 
-Using higher order freepage than compaction aims at is not good because
-what we do here is breaking high order freepage at somewhere and migrating
-used pages from elsewhere to this broken high order freepages in order to
-make new high order freepage. That is just position change of high order
-freepage.
+This patch re-implements threshold calculation based on zone size and
+allocation requested order. We judge whther compaction possibility is
+depleted or not by number of successful compaction. Roughly, 1/100
+of future scanned area should be allocated for high order page during
+one comaction iteration in order to determine whether zone's compaction
+possiblity is depleted or not.
 
-This is useless effort and doesn't help to make more high order freepages
-because we can't be sure that migrating used pages makes high order
-freepage. So, this patch makes freepage scanner only uses the ordered
-freepage lower than compaction order.
+Below is test result with following setup.
+
+Memory is artificially fragmented to make order 3 allocation hard. And,
+most of pageblocks are changed to movable migratetype.
+
+  System: 512 MB with 32 MB Zram
+  Memory: 25% memory is allocated to make fragmentation and 200 MB is
+  	occupied by memory hogger. Most pageblocks are movable
+  	migratetype.
+  Fragmentation: Successful order 3 allocation candidates may be around
+  	1500 roughly.
+  Allocation attempts: Roughly 3000 order 3 allocation attempts
+  	with GFP_NORETRY. This value is determined to saturate allocation
+  	success.
+
+Test: hogger-frag-movable
+
+Success(N)                    94              83
+compact_stall               3642            4048
+compact_success              144             212
+compact_fail                3498            3835
+pgmigrate_success       15897219          216387
+compact_isolated        31899553          487712
+compact_migrate_scanned 59146745         2513245
+compact_free_scanned    49566134         4124319
+
+This change results in greatly decreasing compaction overhead when
+zone's compaction possibility is nearly depleted. But, I should admit
+that it's not perfect because compaction success rate is decreased.
+More precise tuning threshold would restore this regression, but,
+it highly depends on workload so I'm not doing it here.
+
+Other test doesn't show big regression.
+
+  System: 512 MB with 32 MB Zram
+  Memory: 25% memory is allocated to make fragmentation and kernel
+  	build is running on background. Most pageblocks are movable
+  	migratetype.
+  Fragmentation: Successful order 3 allocation candidates may be around
+  	1500 roughly.
+  Allocation attempts: Roughly 3000 order 3 allocation attempts
+  	with GFP_NORETRY. This value is determined to saturate allocation
+  	success.
+
+Test: build-frag-movable
+
+Success(N)                    89              87
+compact_stall               4053            3642
+compact_success              264             202
+compact_fail                3788            3440
+pgmigrate_success        6497642          153413
+compact_isolated        13292640          353445
+compact_migrate_scanned 69714502         2307433
+compact_free_scanned    20243121         2325295
+
+This looks like reasonable trade-off.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/compaction.c | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ mm/compaction.c | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index ca4d6d1..e61ee77 100644
+index e61ee77..e1b44a5 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -455,6 +455,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
- 	unsigned long flags = 0;
- 	bool locked = false;
- 	unsigned long blockpfn = *start_pfn;
-+	unsigned long freepage_order;
+@@ -129,19 +129,24 @@ static struct page *pageblock_pfn_to_page(unsigned long start_pfn,
  
- 	cursor = pfn_to_page(blockpfn);
+ /* Do not skip compaction more than 64 times */
+ #define COMPACT_MAX_FAILED 4
+-#define COMPACT_MIN_DEPLETE_THRESHOLD 1UL
++#define COMPACT_MIN_DEPLETE_THRESHOLD 4UL
+ #define COMPACT_MIN_SCAN_LIMIT (pageblock_nr_pages)
  
-@@ -482,6 +483,20 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
- 		if (!PageBuddy(page))
- 			goto isolate_fail;
+ static bool compaction_depleted(struct zone *zone)
+ {
+-	unsigned long threshold;
++	unsigned long nr_possible;
+ 	unsigned long success = zone->compact_success;
++	unsigned long threshold;
  
-+		if (!strict && cc->order != -1) {
-+			freepage_order = page_order_unsafe(page);
+-	/*
+-	 * Now, to imitate current compaction deferring approach,
+-	 * choose threshold to 1. It will be changed in the future.
+-	 */
+-	threshold = COMPACT_MIN_DEPLETE_THRESHOLD;
++	nr_possible = zone->managed_pages >> zone->compact_order_failed;
 +
-+			if (freepage_order > 0 && freepage_order < MAX_ORDER) {
-+				/*
-+				 * Do not use high order freepage for migration
-+				 * taret. It would not be beneficial for
-+				 * compaction success rate.
-+				 */
-+				if (freepage_order >= cc->order)
-+					goto isolate_fail;
-+			}
-+		}
++	/* Migration scanner normally scans less than 1/4 range of zone */
++	nr_possible >>= 2;
 +
- 		/*
- 		 * If we already hold the lock, we can skip some rechecking.
- 		 * Note that if we hold the lock now, checked_pageblock was
++	/* We hope to succeed more than 1/100 roughly */
++	threshold = nr_possible >> 7;
++
++	threshold = max(threshold, COMPACT_MIN_DEPLETE_THRESHOLD);
+ 	if (success >= threshold)
+ 		return false;
+ 
 -- 
 1.9.1
 
