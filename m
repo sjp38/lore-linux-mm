@@ -1,105 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C90B6B0038
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:18:00 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so67171055wic.1
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 03:17:59 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id b4si20569711wic.119.2015.08.24.03.17.58
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 79F4B6B0038
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 06:44:12 -0400 (EDT)
+Received: by wijp15 with SMTP id p15so73456752wij.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 03:44:12 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id pu2si31282397wjc.109.2015.08.24.03.44.10
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Aug 2015 03:17:58 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so67170250wic.1
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 03:17:58 -0700 (PDT)
-Date: Mon, 24 Aug 2015 13:17:56 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
-Message-ID: <20150824101755.GA2370@node.dhcp.inet.fi>
-References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Aug 2015 03:44:11 -0700 (PDT)
+Received: by wijp15 with SMTP id p15so73456075wij.0
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 03:44:10 -0700 (PDT)
+Date: Mon, 24 Aug 2015 12:44:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/3] mm/page_alloc: fix a terrible misleading comment
+Message-ID: <20150824104408.GI17078@dhcp22.suse.cz>
+References: <1440229212-8737-1-git-send-email-bywxiaobai@163.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1440229212-8737-1-git-send-email-bywxiaobai@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yaowei Bai <bywxiaobai@163.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 19, 2015 at 12:21:45PM +0300, Kirill A. Shutemov wrote:
-> Hugh has pointed that compound_head() call can be unsafe in some
-> context. There's one example:
-> 
-> 	CPU0					CPU1
-> 
-> isolate_migratepages_block()
->   page_count()
->     compound_head()
->       !!PageTail() == true
-> 					put_page()
-> 					  tail->first_page = NULL
->       head = tail->first_page
-> 					alloc_pages(__GFP_COMP)
-> 					   prep_compound_page()
-> 					     tail->first_page = head
-> 					     __SetPageTail(p);
->       !!PageTail() == true
->     <head == NULL dereferencing>
-> 
-> The race is pure theoretical. I don't it's possible to trigger it in
-> practice. But who knows.
-> 
-> We can fix the race by changing how encode PageTail() and compound_head()
-> within struct page to be able to update them in one shot.
-> 
-> The patch introduces page->compound_head into third double word block in
-> front of compound_dtor and compound_order. That means it shares storage
-> space with:
-> 
->  - page->lru.next;
->  - page->next;
->  - page->rcu_head.next;
->  - page->pmd_huge_pte;
-> 
-> That's too long list to be absolutely sure, but looks like nobody uses
-> bit 0 of the word. It can be used to encode PageTail(). And if the bit
-> set, rest of the word is pointer to head page.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
+On Sat 22-08-15 15:40:10, Yaowei Bai wrote:
+> The comment says that the per-cpu batchsize and zone watermarks
+> are determined by present_pages which is definitely wrong, they
+> are both calculated from managed_pages. Fix it.
 
-If DEFERRED_STRUCT_PAGE_INIT=n, combining this patchset with my page-flags
-patches causes oops in SetPageReserved() called from
-reserve_bootmem_region().
+This seems to be missed in b40da04946aa ("mm: use zone->present_pages
+instead of zone->managed_pages where appropriate")
+> 
+> Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
 
-It happens because we haven't yet initilized the word in struct page and
-PageTail() inside SetPageReserved() can give false-positive, which leads
-to bogus compound_head() result.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-IIUC, we initialize the word only on first allocation of the page. It can
-be too late: pfn scanner can see false-positive PageTail() from not yet
-allocated pages too.
+> ---
+>  mm/page_alloc.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 5b5240b..c22b133 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6003,7 +6003,7 @@ void __init mem_init_print_info(const char *str)
+>   * set_dma_reserve - set the specified number of pages reserved in the first zone
+>   * @new_dma_reserve: The number of pages to mark reserved
+>   *
+> - * The per-cpu batchsize and zone watermarks are determined by present_pages.
+> + * The per-cpu batchsize and zone watermarks are determined by managed_pages.
+>   * In the DMA zone, a significant percentage may be consumed by kernel image
+>   * and other unfreeable allocations which can skew the watermarks badly. This
+>   * function may optionally be used to account for unfreeable pages in the
+> -- 
+> 1.9.1
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-Here's fixlet for patch to address the issue.
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 347724850665..d0e3fca830f8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -892,6 +892,8 @@ static void init_reserved_page(unsigned long pfn)
- #else
- static inline void init_reserved_page(unsigned long pfn)
- {
-+	/* Avoid false-positive PageTail() */
-+	INIT_LIST_HEAD(&pfn_to_page(pfn)->lru);
- }
- #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
- 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
