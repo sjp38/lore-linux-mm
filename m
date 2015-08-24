@@ -1,103 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E4366B0253
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 17:50:08 -0400 (EDT)
-Received: by obkg7 with SMTP id g7so125847873obk.3
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 14:50:08 -0700 (PDT)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id m130si13295131oif.99.2015.08.24.14.50.07
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E557F6B0253
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 17:52:34 -0400 (EDT)
+Received: by pabzx8 with SMTP id zx8so15502288pab.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 14:52:34 -0700 (PDT)
+Received: from smtpbg63.qq.com (smtpbg63.qq.com. [103.7.29.150])
+        by mx.google.com with ESMTPS id wy5si29602773pac.14.2015.08.24.14.52.33
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Aug 2015 14:50:07 -0700 (PDT)
-Message-ID: <1440452880.14237.13.camel@hp.com>
-Subject: Re: [PATCH v3 1/10] x86/vdso32: Define PGTABLE_LEVELS to 32bit VDSO
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 24 Aug 2015 15:48:00 -0600
-In-Reply-To: <55D65CF7.1020903@hp.com>
-References: <1438811013-30983-1-git-send-email-toshi.kani@hp.com>
-	 <1438811013-30983-2-git-send-email-toshi.kani@hp.com>
-	 <alpine.DEB.2.11.1508202145540.3873@nanos> <55D65CF7.1020903@hp.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Aug 2015 14:52:34 -0700 (PDT)
+Message-ID: <55DB9278.2020603@qq.com>
+Date: Tue, 25 Aug 2015 05:54:00 +0800
+From: Chen Gang <gang.chen.5i5j@qq.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: mmap: Check all failures before set values
+References: <1440349179-18304-1-git-send-email-gang.chen.5i5j@qq.com> <20150824113212.GL17078@dhcp22.suse.cz> <55DB1D94.3050404@hotmail.com> <COL130-W527FEAA0BEC780957B6B18B9620@phx.gbl> <20150824135716.GO17078@dhcp22.suse.cz>
+In-Reply-To: <20150824135716.GO17078@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com
+To: Michal Hocko <mhocko@kernel.org>, Chen Gang <xili_gchen_5257@hotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "gang.chen.5i5j@gmail.com" <gang.chen.5i5j@gmail.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
 
-On Thu, 2015-08-20 at 17:04 -0600, Toshi Kani wrote:
-> On 8/20/2015 1:46 PM, Thomas Gleixner wrote:
-> > On Wed, 5 Aug 2015, Toshi Kani wrote:
-> > 
-> > > In case of CONFIG_X86_64, vdso32/vclock_gettime.c fakes a 32bit
-> > > kernel configuration by re-defining it to CONFIG_X86_32.  However,
-> > > it does not re-define CONFIG_PGTABLE_LEVELS leaving it as 4 levels.
-> > > Fix it by re-defining CONFIG_PGTABLE_LEVELS to 2 as X86_PAE is not
-> > > set.
-> > You fail to explain WHY this is required. I have not yet spotted any
-> > code in vclock_gettime.c which is affected by this.
+On 8/24/15 21:57, Michal Hocko wrote:
+> On Mon 24-08-15 21:34:25, Chen Gang wrote:
+
+[...]
+
+
+>> It is always a little better to let the external function suppose fewer
+>> callers' behalf.
 > 
-> Sorry about that.  Without this patch 01, applying patch 02 & 03 causes 
-> the following compile errors in vclock_gettime.c.  This is because it 
-> includes pgtable_type.h (see blow), which now requires PUD_SHIFT and 
-> PMD_SHIFT defined properly.  In case of X86_32, pgtable_type.h includes 
-> pgtable_nopud.h and pgtable-nopmd.h, which define these SHIFTs when 
-> CONFIG_PGTABLE_LEVEL is set to 2 (or 3 if PAE is also defined).
->  :
+> I am sorry but I do not understand what you are saying here.
+> 
 
-Attached is patch 01/10 with updated descriptions.  The rest of the patchset
-still applies cleanly.
+Execuse me, my English maybe be still not quite well, my meaning is:
 
-Please let me know if you have any further comments.
-Thanks,
--Toshi
+ - For the external functions (e.g. insert_vm_struct in our case), as a
+   callee, it may have to supose something from the caller.
 
-----
-Subject: [PATCH v3 UPDATE 1/10] x86/vdso32: Define PGTABLE_LEVELS to 32bit
-VDSO
+ - If we can keep callee's functional contents no touch, a little fewer
+   supposing will let callee a little more independent from caller.
 
-In case of CONFIG_X86_64, vdso32/vclock_gettime.c fakes a 32-bit
-non-PAE kernel configuration by re-defining it to CONFIG_X86_32.
-However, it does not re-define CONFIG_PGTABLE_LEVELS leaving it
-as 4 levels.
+ - If can keep functional contens no touch, the lower dependency between
+   caller and callee is always better.
 
-This mismatch leads <asm/pgtable_type.h> to NOT include <asm-generic/
-pgtable-nopud.h> and <asm-generic/pgtable-nopmd.h>, which will cause
-compile errors when a later patch enhances <asm/pgtable_type.h> to
-use PUD_SHIFT and PMD_SHIFT.  These -nopud & -nopmd headers define
-these SHIFTs for the 32-bit non-PAE kernel.
 
-Fix it by re-defining CONFIG_PGTABLE_LEVELS to 2 levels.
+>> It can save the code readers' (especially new readers') time resource
+>> to avoid to analyze why set 'vma->vm_pgoff' before checking '-ENOMEM'
+>> (may it cause issue? or is 'vm_pgoff' related with the next checking?).
+> 
+> Then your changelog should be specific about these reasons. "not a good
+> idea" is definitely not a good justification for a patch. I am not
+> saying the patch is incorrect I just do not sure it is worth it. The
+> code is marginally better. But others might think otherwise. The
+> changelog needs some more work for sure.
+> 
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Borislav Petkov <bp@alien8.de>
----
- arch/x86/entry/vdso/vdso32/vclock_gettime.c |    2 ++
- 1 file changed, 2 insertions(+)
+OK, thanks. The comments needs to be improved.
 
-diff --git a/arch/x86/entry/vdso/vdso32/vclock_gettime.c
-b/arch/x86/entry/vdso/vdso32/vclock_gettime.c
-index 175cc72..87a86e0 100644
---- a/arch/x86/entry/vdso/vdso32/vclock_gettime.c
-+++ b/arch/x86/entry/vdso/vdso32/vclock_gettime.c
-@@ -14,11 +14,13 @@
-  */
- #undef CONFIG_64BIT
- #undef CONFIG_X86_64
-+#undef CONFIG_PGTABLE_LEVELS
- #undef CONFIG_ILLEGAL_POINTER_VALUE
- #undef CONFIG_SPARSEMEM_VMEMMAP
- #undef CONFIG_NR_CPUS
- 
- #define CONFIG_X86_32 1
-+#define CONFIG_PGTABLE_LEVELS 2
- #define CONFIG_PAGE_OFFSET 0
- #define CONFIG_ILLEGAL_POINTER_VALUE 0
- #define CONFIG_NR_CPUS 1
+
+Thanks.
+-- 
+Chen Gang
+
+Open, share, and attitude like air, water, and life which God blessed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
