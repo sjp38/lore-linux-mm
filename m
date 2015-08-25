@@ -1,148 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 25FC89003C7
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 10:17:39 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so16769039wic.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:17:38 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
-        by mx.google.com with ESMTPS id x6si39123055wjx.11.2015.08.25.07.17.37
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 29F489003C7
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 10:18:02 -0400 (EDT)
+Received: by oiev193 with SMTP id v193so101359124oie.3
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:18:01 -0700 (PDT)
+Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
+        by mx.google.com with ESMTPS id mn3si13745577oeb.66.2015.08.25.07.17.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 07:17:37 -0700 (PDT)
-Received: by wicne3 with SMTP id ne3so16768305wic.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:17:37 -0700 (PDT)
-Date: Tue, 25 Aug 2015 16:17:35 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [REPOST] [PATCH 2/2] mm,oom: Reverse the order of setting
- TIF_MEMDIE and sending SIGKILL.
-Message-ID: <20150825141735.GD6285@dhcp22.suse.cz>
-References: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
- <20150824094718.GF17078@dhcp22.suse.cz>
- <201508252106.JIE81718.FHOOFSJFMQLtOV@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201508252106.JIE81718.FHOOFSJFMQLtOV@I-love.SAKURA.ne.jp>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Aug 2015 07:18:01 -0700 (PDT)
+Message-ID: <1440512146.14237.15.camel@hp.com>
+Subject: Re: [PATCH v3 3/10] x86/asm: Fix pud/pmd interfaces to handle large
+ PAT bit
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 25 Aug 2015 08:15:46 -0600
+In-Reply-To: <alpine.DEB.2.11.1508251015180.15006@nanos>
+References: <1438811013-30983-1-git-send-email-toshi.kani@hp.com>
+	 <1438811013-30983-4-git-send-email-toshi.kani@hp.com>
+	 <alpine.DEB.2.11.1508251015180.15006@nanos>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com
 
-On Tue 25-08-15 21:06:36, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > index 5249e7e..c0a5a69 100644
-> > > --- a/mm/oom_kill.c
-> > > +++ b/mm/oom_kill.c
-> > > @@ -555,12 +555,17 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
-> > >  	/* Get a reference to safely compare mm after task_unlock(victim) */
-> > >  	mm = victim->mm;
-> > >  	atomic_inc(&mm->mm_users);
-> > > -	mark_oom_victim(victim);
-> > >  	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
-> > >  		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
-> > >  		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
-> > >  		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
-> > >  	task_unlock(victim);
-> > > +	/* Send SIGKILL before setting TIF_MEMDIE. */
-> > > +	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
-> > > +	task_lock(victim);
-> > > +	if (victim->mm)
-> > > +		mark_oom_victim(victim);
-> > > +	task_unlock(victim);
+On Tue, 2015-08-25 at 10:16 +0200, Thomas Gleixner wrote:
+> On Wed, 5 Aug 2015, Toshi Kani wrote:
+> 
+> > The PAT bit gets relocated to bit 12 when PUD and PMD mappings are
+> > used.  This bit 12, however, is not covered by PTE_FLAGS_MASK, which
+> > is corrently used for masking pfn and flags for all cases.
 > > 
-> > Why cannot you simply move do_send_sig_info without touching
-> > mark_oom_victim? Are you still able to trigger the issue if you just
-> > kill before crawling through all the tasks sharing the mm?
+> > Fix pud/pmd interfaces to handle pfn and flags properly by using
+> > P?D_PAGE_MASK when PUD/PMD mappings are used, i.e. PSE bit is set.
 > 
-> If you meant
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 1ecc0bc..ea578fb 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -560,6 +560,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->                 K(get_mm_counter(victim->mm, MM_ANONPAGES)),
->                 K(get_mm_counter(victim->mm, MM_FILEPAGES)));
->         task_unlock(victim);
-> +       do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
-> 
->         /*
->          * Kill all user processes sharing victim->mm in other thread groups, if
-> @@ -585,7 +586,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->                 }
->         rcu_read_unlock();
-> 
-> -       do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
->         put_task_struct(victim);
->  }
->  #undef K
-> 
-> then yes I still can trigger the issue under very limited condition (i.e.
-> ran as root user for polling kernel messages with realtime priority, after
-> killing all processes using SysRq-i).
+> Can you please split that into a patch introducing and describing the
+> new mask helper functions and a second one making use of it?
 
-Yes, that's why I also said that preempt_{enable,disable} around could
-be used:
+Will do.  I will send out v4 patchset today with this update (and the patch
+01 update). 
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 1ecc0bcaecc5..331c8ac23cc6 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -542,8 +542,15 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	}
- 	read_unlock(&tasklist_lock);
- 
-+	/*
-+	 * Make sure that nobody will preempt us between the victim gets access
-+	 * to memory reserves and it gets killed. It could depleat the memory
-+	 * reserves otherwise.
-+	 */
-+	preempt_disable();
- 	p = find_lock_task_mm(victim);
- 	if (!p) {
-+		preempt_enable();
- 		put_task_struct(victim);
- 		return;
- 	} else if (victim != p) {
-@@ -560,6 +567,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
- 		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
- 	task_unlock(victim);
-+	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
-+	preempt_enable();
- 
- 	/*
- 	 * Kill all user processes sharing victim->mm in other thread groups, if
-@@ -585,7 +594,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 		}
- 	rcu_read_unlock();
- 
--	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
- 	put_task_struct(victim);
- }
- #undef K
-
-[...]
-
-> > The code would be easier then and the race window much smaller. If we
-> > really needed to prevent from preemption then preempt_{enable,disable}
-> > aournd the whole task_lock region + do_send_sig_info would be still
-> > easier to follow than re-taking task_lock.
-> 
-> What's wrong with re-taking task_lock? It seems to me that re-taking
-> task_lock is more straightforward and easier to follow.
-
-I dunno it looks more awkward to me. You have to re-check the victim->mm
-after retaking the lock because situation might have changed while the
-lock was dropped. If the mark_oom_victim & do_send_sig_info are in the
-same preempt region then nothing like that is needed. But this is
-probably a matter of taste. I find the above more readable but let's see
-what others think.
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
