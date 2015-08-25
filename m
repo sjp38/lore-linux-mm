@@ -1,81 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E6E436B0253
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 10:25:08 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so16725288wic.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:25:08 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id xy9si39147863wjc.44.2015.08.25.07.25.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 07:25:07 -0700 (PDT)
-Received: by widdq5 with SMTP id dq5so16745151wid.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:25:06 -0700 (PDT)
-Date: Tue, 25 Aug 2015 16:25:04 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch -mm] mm, oom: add global access to memory reserves on
- livelock
-Message-ID: <20150825142503.GE6285@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com>
- <20150821081745.GG23723@dhcp22.suse.cz>
- <alpine.DEB.2.10.1508241358230.32561@chino.kir.corp.google.com>
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id DA0816B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 10:29:03 -0400 (EDT)
+Received: by qkda128 with SMTP id a128so51474681qkd.3
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:29:03 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com ([23.79.238.175])
+        by mx.google.com with ESMTP id d64si33685423qhc.93.2015.08.25.07.29.02
+        for <linux-mm@kvack.org>;
+        Tue, 25 Aug 2015 07:29:03 -0700 (PDT)
+Date: Tue, 25 Aug 2015 10:29:02 -0400
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: [PATCH v7 3/6] mm: Introduce VM_LOCKONFAULT
+Message-ID: <20150825142902.GF17005@akamai.com>
+References: <1439097776-27695-1-git-send-email-emunson@akamai.com>
+ <1439097776-27695-4-git-send-email-emunson@akamai.com>
+ <20150812115909.GA5182@dhcp22.suse.cz>
+ <20150819213345.GB4536@akamai.com>
+ <20150820075611.GD4780@dhcp22.suse.cz>
+ <20150820170309.GA11557@akamai.com>
+ <20150821072552.GF23723@dhcp22.suse.cz>
+ <20150821183132.GA12835@akamai.com>
+ <20150825134154.GB6285@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="lIrNkN/7tmsD/ALM"
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1508241358230.32561@chino.kir.corp.google.com>
+In-Reply-To: <20150825134154.GB6285@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Mon 24-08-15 14:04:28, David Rientjes wrote:
-> On Fri, 21 Aug 2015, Michal Hocko wrote:
-> 
-> > There might be many threads waiting for the allocation and this can lead
-> > to quick oom reserves depletion without releasing resources which are
-> > holding back the oom victim. As Tetsuo has shown, such a load can be
-> > generated from the userspace without root privileges so it is much
-> > easier to make the system _completely_ unusable with this patch. Not that
-> > having an OOM deadlock would be great but you still have emergency tools
-> > like sysrq triggered OOM killer to attempt to sort the situation out.
-> > Once your are out of reserves nothing will help you, though. So I think it
-> > is a bad idea to give access to reserves without any throttling.
-> > 
-> 
-> I don't believe a solution that requires admin intervention is 
-> maintainable.
 
-Why?
+--lIrNkN/7tmsD/ALM
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> It would be better to reboot when memory reserves are fully depleted.
+On Tue, 25 Aug 2015, Michal Hocko wrote:
 
-The question is when are the reserves depleted without any way to
-replenish them. While playing with GFP_NOFS patch set which gives
-__GFP_NOFAIL allocations access to memory reserves
-(http://marc.info/?l=linux-mm&m=143876830916540&w=2) I could see the
-warning hit while the system still resurrected from the memory pressure.
+> On Fri 21-08-15 14:31:32, Eric B Munson wrote:
+> [...]
+> > I am in the middle of implementing lock on fault this way, but I cannot
+> > see how we will hanlde mremap of a lock on fault region.  Say we have
+> > the following:
+> >=20
+> >     addr =3D mmap(len, MAP_ANONYMOUS, ...);
+> >     mlock(addr, len, MLOCK_ONFAULT);
+> >     ...
+> >     mremap(addr, len, 2 * len, ...)
+> >=20
+> > There is no way for mremap to know that the area being remapped was lock
+> > on fault so it will be locked and prefaulted by remap.  How can we avoid
+> > this without tracking per vma if it was locked with lock or lock on
+> > fault?
+>=20
+> Yes mremap is a problem and it is very much similar to mmap(MAP_LOCKED).
+> It doesn't guarantee the full mlock semantic because it leaves partially
+> populated ranges behind without reporting any error.
 
-> > Johannes' idea to give a partial access to memory reserves to the task
-> > which has invoked the OOM killer was much better IMO.
-> 
-> That's what this patch does, just without the "partial."  Processes are 
-> required to reclaim and then invoke the oom killler every time an 
-> allocation is made using memory reserves with this approach after the 
-> expiration has lapsed.
-> 
-> We can discuss only allowing partial access to memory reserves equal to 
-> ALLOC_HARD | ALLOC_HARDER, or defining a new watermark, but I'm concerned 
-> about what happens when that threshold is reached and the oom killer is 
-> still livelocked.  It would seem better to attempt recovery at whatever 
-> cost and then panic if fully depleted.
+This was not my concern.  Instead, I was wondering how to keep lock on
+fault sematics with mremap if we do not have a VMA flag.  As a user, it
+would surprise me if a region I mlocked with lock on fault and then
+remapped to a larger size was fully populated and locked by the mremap
+call.
 
-I think an OOM reserve/watermark makes more sense. It will not solve the
-livelock but neithere granting the full access to reserves will. But the
-partial access has a potential to leave some others means to intervene.
+>=20
+> Considering the current behavior I do not thing it would be terrible
+> thing to do what Konstantin was suggesting and populate only the full
+> ranges in a best effort mode (it is done so anyway) and document the
+> behavior properly.
+> "
+>        If the memory segment specified by old_address and old_size is
+>        locked (using mlock(2) or similar), then this lock is maintained
+>        when the segment is resized and/or relocated. As a consequence,
+>        the amount of memory locked by the process may change.
+>=20
+>        If the range is already fully populated and the range is
+>        enlarged the new range is attempted to be fully populated
+>        as well to preserve the full mlock semantic but there is no
+>        guarantee this will succeed. Partially populated (e.g. created by
+>        mlock(MLOCK_ONFAULT)) ranges do not have the full mlock semantic
+>        so they are not populated on resize.
+> "
 
--- 
-Michal Hocko
-SUSE Labs
+You are proposing that mremap would scan the PTEs as Vlastimil has
+suggested?
+
+>=20
+> So what we have as a result is that partially populated ranges are
+> preserved and fully populated ones work in the best effort mode the same
+> way as they are now.
+>=20
+> Does that sound at least remotely reasonably?
+>=20
+>=20
+> --=20
+> Michal Hocko
+> SUSE Labs
+
+--lIrNkN/7tmsD/ALM
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJV3HuuAAoJELbVsDOpoOa9xgUP/iDghwvjECoUNFleJc4l26sq
++Yanrhihzid4A8zgeidyR3beWoEHodffHBFL2FzbGG3ToGrsBspvKf2aqBpDB4bM
+tfYnogH1/eH3kUAhurXz67JXDiULGAxF7JKu+lnYshHizl1pn0gWBTcrorOb+NSY
+kKICWnGJ8pC/45Ax2/6TkpOJJzPXMWr7Jj5OaNxqMX/SMgrnA8xtUHLgE+rLuUf8
+nfD9h5XEHJKhq9Z6hs7mZuF1tBPyPh5leJ0JZFW0hb+cc9VdRCgOqQijSiRCUjZP
+VUpWM73BKIkoJ8BjibhMDcYKQOWNcWtqMbPNfxctR7DAhmnEpSn902o1A1rilQtL
+VeQT5u9I0GdYbUhZHgAPyT7ZxTffJl+CPa/UYXL5HPBHzEajPR9ADgGPpTQ0xRC9
+BEmq8URldlwFfkgsNIk39vBsQLWrt8rIpZyqlY2HNUnKyvyj8U7jFfzExzn1A+Yb
+S6bU7Kftz2e0FIFmUOD6SirPX7tF5YQqBJyRPZsSMeJTcIERbejp0YLwaudfX1z8
+DlS8P44sRQHYrzN4utTqTtqfbLKXcmfNYBonKgnjVDGs+dM0gtiYy5sUUmPXjEHo
+czcXzUddR6GO3UDP2X0T3YWgX2ed471RP3Qkmd5uyibS8zessvZGzL3QER3Y3jxz
+NAro2mMA5lQjl+GfxdvO
+=ex5r
+-----END PGP SIGNATURE-----
+
+--lIrNkN/7tmsD/ALM--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
