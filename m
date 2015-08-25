@@ -1,64 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 727219003C7
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 10:20:04 -0400 (EDT)
-Received: by laba3 with SMTP id a3so99369239lab.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:20:03 -0700 (PDT)
-Received: from mail-la0-x230.google.com (mail-la0-x230.google.com. [2a00:1450:4010:c03::230])
-        by mx.google.com with ESMTPS id oa2si16116359lbb.128.2015.08.25.07.20.02
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id E6E436B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 10:25:08 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so16725288wic.1
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:25:08 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
+        by mx.google.com with ESMTPS id xy9si39147863wjc.44.2015.08.25.07.25.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 07:20:02 -0700 (PDT)
-Received: by labgv11 with SMTP id gv11so31471925lab.2
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:20:02 -0700 (PDT)
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: Re: [PATCH 3/3 v6] mm/vmalloc: Cache the vmalloc memory info
-References: <20150824075018.GB20106@gmail.com>
-	<20150824125402.28806.qmail@ns.horizon.com>
-	<20150825095638.GA24750@gmail.com>
-Date: Tue, 25 Aug 2015 16:19:59 +0200
-In-Reply-To: <20150825095638.GA24750@gmail.com> (Ingo Molnar's message of
-	"Tue, 25 Aug 2015 11:56:38 +0200")
-Message-ID: <87io83wiuo.fsf@rasmusvillemoes.dk>
+        Tue, 25 Aug 2015 07:25:07 -0700 (PDT)
+Received: by widdq5 with SMTP id dq5so16745151wid.0
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:25:06 -0700 (PDT)
+Date: Tue, 25 Aug 2015 16:25:04 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch -mm] mm, oom: add global access to memory reserves on
+ livelock
+Message-ID: <20150825142503.GE6285@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com>
+ <20150821081745.GG23723@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1508241358230.32561@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1508241358230.32561@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: George Spelvin <linux@horizon.com>, dave@sr71.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, riel@redhat.com, rientjes@google.com, torvalds@linux-foundation.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-On Tue, Aug 25 2015, Ingo Molnar <mingo@kernel.org> wrote:
+On Mon 24-08-15 14:04:28, David Rientjes wrote:
+> On Fri, 21 Aug 2015, Michal Hocko wrote:
+> 
+> > There might be many threads waiting for the allocation and this can lead
+> > to quick oom reserves depletion without releasing resources which are
+> > holding back the oom victim. As Tetsuo has shown, such a load can be
+> > generated from the userspace without root privileges so it is much
+> > easier to make the system _completely_ unusable with this patch. Not that
+> > having an OOM deadlock would be great but you still have emergency tools
+> > like sysrq triggered OOM killer to attempt to sort the situation out.
+> > Once your are out of reserves nothing will help you, though. So I think it
+> > is a bad idea to give access to reserves without any throttling.
+> > 
+> 
+> I don't believe a solution that requires admin intervention is 
+> maintainable.
 
-> * George Spelvin <linux@horizon.com> wrote:
->
->> (I hope I'm not annoying you by bikeshedding this too much, although I
->> think this is improving.)
->
-> [ I don't mind, although I wish other, more critical parts of the kernel got this
->   much attention as well ;-) ]
->
+Why?
 
-Since we're beating dead horses, let me point out one possibly
-unintentional side-effect of initializing just one of vmap_info{,_cache}_gen:
+> It would be better to reboot when memory reserves are fully depleted.
 
-$ nm -n vmlinux | grep -E 'vmap_info(_cache)?_gen'
-ffffffff81e4e5e0 d vmap_info_gen
-ffffffff820d5700 b vmap_info_cache_gen
+The question is when are the reserves depleted without any way to
+replenish them. While playing with GFP_NOFS patch set which gives
+__GFP_NOFAIL allocations access to memory reserves
+(http://marc.info/?l=linux-mm&m=143876830916540&w=2) I could see the
+warning hit while the system still resurrected from the memory pressure.
 
-[Up-thread, you wrote "I also moved the function-static cache next to the
-flag and seqlock - this should further compress the cache footprint."]
+> > Johannes' idea to give a partial access to memory reserves to the task
+> > which has invoked the OOM killer was much better IMO.
+> 
+> That's what this patch does, just without the "partial."  Processes are 
+> required to reclaim and then invoke the oom killler every time an 
+> allocation is made using memory reserves with this approach after the 
+> expiration has lapsed.
+> 
+> We can discuss only allowing partial access to memory reserves equal to 
+> ALLOC_HARD | ALLOC_HARDER, or defining a new watermark, but I'm concerned 
+> about what happens when that threshold is reached and the oom killer is 
+> still livelocked.  It would seem better to attempt recovery at whatever 
+> cost and then panic if fully depleted.
 
-One should probably ensure that they end up in the same cacheline if one
-wants the fast-path to be as fast as possible - the easiest way to
-ensure that is to put them in a small struct, and that might as well
-contain the spinlock and the cache itself as well.
+I think an OOM reserve/watermark makes more sense. It will not solve the
+livelock but neithere granting the full access to reserves will. But the
+partial access has a potential to leave some others means to intervene.
 
-It's been fun seeing this evolve, but overall, I tend to agree with
-Peter: It's a lot of complexity for little gain. If we're not going to
-just kill the Vmalloc* fields (which is probably too controversial)
-I'd prefer Linus' simpler version.
-
-Rasmus
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
