@@ -1,97 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D34566B0253
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 05:56:39 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so9760470wic.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 02:56:39 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ga1si2256860wib.101.2015.08.25.02.56.38
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CA1F96B0254
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 05:56:43 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so9721438wic.1
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 02:56:43 -0700 (PDT)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id b19si2312699wiw.16.2015.08.25.02.56.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Aug 2015 02:56:38 -0700 (PDT)
-Subject: Re: Can we disable transparent hugepages for lack of a legitimate use
- case please?
-References: <BLUPR02MB1698DD8F0D1550366489DF8CCD620@BLUPR02MB1698.namprd02.prod.outlook.com>
- <CALYGNiOg_Zq8Fz-VWskH7LVGdExuq=03+56dpCsDiZ6eAq2A4Q@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55DC3BD4.6020602@suse.cz>
-Date: Tue, 25 Aug 2015 11:56:36 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Aug 2015 02:56:42 -0700 (PDT)
+Received: by wicja10 with SMTP id ja10so9673725wic.1
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 02:56:41 -0700 (PDT)
+Date: Tue, 25 Aug 2015 11:56:38 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [PATCH 3/3 v6] mm/vmalloc: Cache the vmalloc memory info
+Message-ID: <20150825095638.GA24750@gmail.com>
+References: <20150824075018.GB20106@gmail.com>
+ <20150824125402.28806.qmail@ns.horizon.com>
 MIME-Version: 1.0
-In-Reply-To: <CALYGNiOg_Zq8Fz-VWskH7LVGdExuq=03+56dpCsDiZ6eAq2A4Q@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150824125402.28806.qmail@ns.horizon.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>, James Hartshorn <jhartshorn@connexity.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>
+To: George Spelvin <linux@horizon.com>
+Cc: dave@sr71.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@rasmusvillemoes.dk, peterz@infradead.org, riel@redhat.com, rientjes@google.com, torvalds@linux-foundation.org
 
-On 08/25/2015 11:25 AM, Konstantin Khlebnikov wrote:
-> On Mon, Aug 24, 2015 at 11:12 PM, James Hartshorn
-> <jhartshorn@connexity.com> wrote:
->> Hi,
->>
->>
->> I've been struggling with transparent hugepage performance issues, and can't
->> seem to find anyone who actually uses it intentionally.  Virtually every
->> database that runs on linux however recommends disabling it or setting it to
->> madvise.  I'm referring to:
->>
->>
->> /sys/kernel/mm/transparent_hugepage/enabled
->>
->>
->> I asked on the internet
->> http://unix.stackexchange.com/questions/201906/does-anyone-actually-use-and-benefit-from-transparent-huge-pages
->> and got no responses there.
->>
->>
->>
->> Independently I noticed
->>
->>
->> "sysctl: The scan_unevictable_pages sysctl/node-interface has been disabled
->> for lack of a legitimate use case.  If you have one, please send an email to
->> linux-mm@kvack.org."
->>
->>
->> And thought wow that's exactly what should be done to transparent hugepages.
->>
->>
->> Thoughts?
 
-[+ Cc's]
+* George Spelvin <linux@horizon.com> wrote:
 
-> THP works very well when system has a lot of free memory.
-> Probably default should be weakened to "only if we have tons of free memory".
-> For example allocate THP pages atomically, only if buddy allocator already
-> has huge pages. Also them could be pre-zeroed in background.
+> (I hope I'm not annoying you by bikeshedding this too much, although I
+> think this is improving.)
 
-I've been proposing series that try to move more THP allocation activity 
-from the page faults into khugepaged, but no success yet.
+[ I don't mind, although I wish other, more critical parts of the kernel got this
+  much attention as well ;-) ]
 
-Maybe we should just start with changing the default of
-/sys/kernel/mm/transparent_hugepage/defrag to "madvise". This would 
-remove the reclaim and compaction for page faults and quickly fallback 
-to order-0 pages. The compaction is already crippled enough there with 
-the GFP_TRANSHUGE specific decisions in __alloc_pages_slowpath(). I've 
-noticed it failing miserably in the transhuge-stress recently, so it 
-seems it's not worth to try at all. With changing the default we can 
-kill those GFP_TRANSHUGE checks and assume that whoever uses the madvise 
-does actually want to try harder.
+> Anyway, suggested changes for v6 (sigh...):
+> 
+> First: you do a second read of vmap_info_gen to optimize out the copy
+> of vmalloc_info if it's easily seen as pointless, but given how small
+> vmalloc_info is (two words!), i'd be inclined to omit that optimization.
+> 
+> Copy always, *then* see if it's worth keeping.  Smaller code, faster
+> fast path, and is barely noticeable on the slow path.
 
-Of course that does nothing about zeroing. I don't know how huge issue 
-is that one?
+Ok, done.
 
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+> Second, and this is up to you, I'd be inclined to go fully non-blocking and
+> only spin_trylock().  If that fails, just skip the cache update.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+So I'm not sure about this one: we have no guarantee of the order every updater 
+reaches the spinlock, and we want the 'freshest' updater to do the update. The 
+trylock might cause us to drop the 'freshest' update erroneously - so this change 
+would introduce a 'stale data' bug I think.
+
+> Third, ANSI C rules allow a compiler to assume that signed integer
+> overflow does not occur.  That means that gcc is allowed to optimize
+> "if (x - y > 0)" to "if (x > y)".
+
+That's annoying ...
+
+> Given that gcc has annoyed us by using this optimization in other
+> contexts, It might be safer to make them unsigned (which is required to
+> wrap properly) and cast to integer after subtraction.
+
+Ok, done.
+
+> Basically, the following (untested, but pretty damn simple):
+
+I've attached v6 which applies your first and last suggestion, but not the trylock 
+one.
+
+I also removed _ONCE() accesses from the places that didn't need them.
+
+I added your Reviewed-by optimistically, saving a v7 submission hopefully ;-)
+
+Lightly tested.
+
+Thanks,
+
+	Ingo
+
+==============================>
