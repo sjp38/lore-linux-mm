@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 281F86B0253
+Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7730F82F63
 	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 17:57:55 -0400 (EDT)
-Received: by iodb91 with SMTP id b91so203573425iod.1
+Received: by iods203 with SMTP id s203so204445700iod.0
         for <linux-mm@kvack.org>; Tue, 25 Aug 2015 14:57:55 -0700 (PDT)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id k84si10797000iod.180.2015.08.25.14.57.23
+Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
+        by mx.google.com with ESMTPS id ck2si2106321igc.25.2015.08.25.14.57.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 25 Aug 2015 14:57:24 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v4 4/11] x86/asm: Fix pud/pmd interfaces to handle large PAT bit
-Date: Tue, 25 Aug 2015 15:55:04 -0600
-Message-Id: <1440539711-2985-5-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v4 5/11] x86/asm: Add pud_pgprot() and pmd_pgprot()
+Date: Tue, 25 Aug 2015 15:55:05 -0600
+Message-Id: <1440539711-2985-6-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1440539711-2985-1-git-send-email-toshi.kani@hp.com>
 References: <1440539711-2985-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,102 +20,38 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
 Cc: akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com, Toshi Kani <toshi.kani@hp.com>
 
-Now that we have pud/pmd mask interfaces, which handle pfn & flags
-mask properly for the large PAT bit.
+pte_pgprot() returns a pgprot_t value by calling pte_flags().  Now
+that pud_flags() and pmd_flags() work specifically for the pud/pmd
+levels, define pud_pgprot() and pmd_pgprot() for PUD/PMD.
 
-Fix pud/pmd pfn & flags interfaces by replacing PTE_PFN_MASK and
-PTE_FLAGS_MASK with the pud/pmd mask interfaces.
+Also update pte_pgprot() to remove the unnecessary mask with
+PTE_FLAGS_MASK as pte_flags() takes care of it.
 
-Suggested-by: Juergen Gross <jgross@suse.com>
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 Cc: Juergen Gross <jgross@suse.com>
-Cc: Konrad Wilk <konrad.wilk@oracle.com>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Borislav Petkov <bp@alien8.de>
 ---
- arch/x86/include/asm/pgtable.h       |   14 ++++++++------
- arch/x86/include/asm/pgtable_types.h |    4 ++--
- 2 files changed, 10 insertions(+), 8 deletions(-)
+ arch/x86/include/asm/pgtable.h |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 8338c81..714ad06 100644
+index 714ad06..40a9ffa 100644
 --- a/arch/x86/include/asm/pgtable.h
 +++ b/arch/x86/include/asm/pgtable.h
-@@ -139,12 +139,12 @@ static inline unsigned long pte_pfn(pte_t pte)
- 
- static inline unsigned long pmd_pfn(pmd_t pmd)
- {
--	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
-+	return (pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
+@@ -376,7 +376,9 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
+ 	return __pgprot(preservebits | addbits);
  }
  
- static inline unsigned long pud_pfn(pud_t pud)
- {
--	return (pud_val(pud) & PTE_PFN_MASK) >> PAGE_SHIFT;
-+	return (pud_val(pud) & pud_pfn_mask(pud)) >> PAGE_SHIFT;
- }
+-#define pte_pgprot(x) __pgprot(pte_flags(x) & PTE_FLAGS_MASK)
++#define pte_pgprot(x) __pgprot(pte_flags(x))
++#define pmd_pgprot(x) __pgprot(pmd_flags(x))
++#define pud_pgprot(x) __pgprot(pud_flags(x))
  
- #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
-@@ -499,14 +499,15 @@ static inline int pmd_none(pmd_t pmd)
+ #define canon_pgprot(p) __pgprot(massage_pgprot(p))
  
- static inline unsigned long pmd_page_vaddr(pmd_t pmd)
- {
--	return (unsigned long)__va(pmd_val(pmd) & PTE_PFN_MASK);
-+	return (unsigned long)__va(pmd_val(pmd) & pmd_pfn_mask(pmd));
- }
- 
- /*
-  * Currently stuck as a macro due to indirect forward reference to
-  * linux/mmzone.h's __section_mem_map_addr() definition:
-  */
--#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
-+#define pmd_page(pmd)		\
-+	pfn_to_page((pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT)
- 
- /*
-  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
-@@ -567,14 +568,15 @@ static inline int pud_present(pud_t pud)
- 
- static inline unsigned long pud_page_vaddr(pud_t pud)
- {
--	return (unsigned long)__va((unsigned long)pud_val(pud) & PTE_PFN_MASK);
-+	return (unsigned long)__va(pud_val(pud) & pud_pfn_mask(pud));
- }
- 
- /*
-  * Currently stuck as a macro due to indirect forward reference to
-  * linux/mmzone.h's __section_mem_map_addr() definition:
-  */
--#define pud_page(pud)		pfn_to_page(pud_val(pud) >> PAGE_SHIFT)
-+#define pud_page(pud)		\
-+	pfn_to_page((pud_val(pud) & pud_pfn_mask(pud)) >> PAGE_SHIFT)
- 
- /* Find an entry in the second-level page table.. */
- static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index 7c8f797..dd5b0aa 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -294,7 +294,7 @@ static inline pudval_t pud_flags_mask(pud_t pud)
- 
- static inline pudval_t pud_flags(pud_t pud)
- {
--	return native_pud_val(pud) & PTE_FLAGS_MASK;
-+	return native_pud_val(pud) & pud_flags_mask(pud);
- }
- 
- static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
-@@ -315,7 +315,7 @@ static inline pmdval_t pmd_flags_mask(pmd_t pmd)
- 
- static inline pmdval_t pmd_flags(pmd_t pmd)
- {
--	return native_pmd_val(pmd) & PTE_FLAGS_MASK;
-+	return native_pmd_val(pmd) & pmd_flags_mask(pmd);
- }
- 
- static inline pte_t native_make_pte(pteval_t val)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
