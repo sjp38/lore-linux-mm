@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 7730F82F63
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 17:57:55 -0400 (EDT)
-Received: by iods203 with SMTP id s203so204445700iod.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 14:57:55 -0700 (PDT)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id ck2si2106321igc.25.2015.08.25.14.57.24
+Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FD1F6B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 17:57:57 -0400 (EDT)
+Received: by iods203 with SMTP id s203so204446479iod.0
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 14:57:57 -0700 (PDT)
+Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
+        by mx.google.com with ESMTPS id z37si10817197ioi.18.2015.08.25.14.57.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 14:57:24 -0700 (PDT)
+        Tue, 25 Aug 2015 14:57:26 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v4 5/11] x86/asm: Add pud_pgprot() and pmd_pgprot()
-Date: Tue, 25 Aug 2015 15:55:05 -0600
-Message-Id: <1440539711-2985-6-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v4 6/11] x86/mm: Fix page table dump to show PAT bit
+Date: Tue, 25 Aug 2015 15:55:06 -0600
+Message-Id: <1440539711-2985-7-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1440539711-2985-1-git-send-email-toshi.kani@hp.com>
 References: <1440539711-2985-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,37 +20,145 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
 Cc: akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com, Toshi Kani <toshi.kani@hp.com>
 
-pte_pgprot() returns a pgprot_t value by calling pte_flags().  Now
-that pud_flags() and pmd_flags() work specifically for the pud/pmd
-levels, define pud_pgprot() and pmd_pgprot() for PUD/PMD.
+/sys/kernel/debug/kernel_page_tables does not show the PAT bit for
+PUD/PMD mappings.  This is because walk_pud_level(), walk_pmd_level()
+and note_page() mask the flags with PTE_FLAGS_MASK, which does not
+cover their PAT bit, _PAGE_PAT_LARGE.
 
-Also update pte_pgprot() to remove the unnecessary mask with
-PTE_FLAGS_MASK as pte_flags() takes care of it.
+Fix it by replacing the use of PTE_FLAGS_MASK with p?d_flags(),
+which masks the flags properly.
 
+Also change to show the PAT bit as "PAT" to be consistent with
+other bits.
+
+Reported-by: Robert Elliott <elliott@hp.com>
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 Cc: Juergen Gross <jgross@suse.com>
+Cc: Robert Elliott <elliott@hp.com>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Borislav Petkov <bp@alien8.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- arch/x86/include/asm/pgtable.h |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ arch/x86/mm/dump_pagetables.c |   39 +++++++++++++++++++++------------------
+ 1 file changed, 21 insertions(+), 18 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 714ad06..40a9ffa 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -376,7 +376,9 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
- 	return __pgprot(preservebits | addbits);
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index f0cedf3..71ab2d7 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -155,7 +155,7 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
+ 			pt_dump_cont_printf(m, dmsg, "    ");
+ 		if ((level == 4 && pr & _PAGE_PAT) ||
+ 		    ((level == 3 || level == 2) && pr & _PAGE_PAT_LARGE))
+-			pt_dump_cont_printf(m, dmsg, "pat ");
++			pt_dump_cont_printf(m, dmsg, "PAT ");
+ 		else
+ 			pt_dump_cont_printf(m, dmsg, "    ");
+ 		if (pr & _PAGE_GLOBAL)
+@@ -198,8 +198,8 @@ static void note_page(struct seq_file *m, struct pg_state *st,
+ 	 * we have now. "break" is either changing perms, levels or
+ 	 * address space marker.
+ 	 */
+-	prot = pgprot_val(new_prot) & PTE_FLAGS_MASK;
+-	cur = pgprot_val(st->current_prot) & PTE_FLAGS_MASK;
++	prot = pgprot_val(new_prot);
++	cur = pgprot_val(st->current_prot);
+ 
+ 	if (!st->level) {
+ 		/* First entry */
+@@ -269,13 +269,13 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
+ {
+ 	int i;
+ 	pte_t *start;
++	pgprotval_t prot;
+ 
+ 	start = (pte_t *) pmd_page_vaddr(addr);
+ 	for (i = 0; i < PTRS_PER_PTE; i++) {
+-		pgprot_t prot = pte_pgprot(*start);
+-
++		prot = pte_flags(*start);
+ 		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
+-		note_page(m, st, prot, 4);
++		note_page(m, st, __pgprot(prot), 4);
+ 		start++;
+ 	}
  }
+@@ -287,18 +287,19 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
+ {
+ 	int i;
+ 	pmd_t *start;
++	pgprotval_t prot;
  
--#define pte_pgprot(x) __pgprot(pte_flags(x) & PTE_FLAGS_MASK)
-+#define pte_pgprot(x) __pgprot(pte_flags(x))
-+#define pmd_pgprot(x) __pgprot(pmd_flags(x))
-+#define pud_pgprot(x) __pgprot(pud_flags(x))
+ 	start = (pmd_t *) pud_page_vaddr(addr);
+ 	for (i = 0; i < PTRS_PER_PMD; i++) {
+ 		st->current_address = normalize_addr(P + i * PMD_LEVEL_MULT);
+ 		if (!pmd_none(*start)) {
+-			pgprotval_t prot = pmd_val(*start) & PTE_FLAGS_MASK;
+-
+-			if (pmd_large(*start) || !pmd_present(*start))
++			if (pmd_large(*start) || !pmd_present(*start)) {
++				prot = pmd_flags(*start);
+ 				note_page(m, st, __pgprot(prot), 3);
+-			else
++			} else {
+ 				walk_pte_level(m, st, *start,
+ 					       P + i * PMD_LEVEL_MULT);
++			}
+ 		} else
+ 			note_page(m, st, __pgprot(0), 3);
+ 		start++;
+@@ -318,19 +319,20 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
+ {
+ 	int i;
+ 	pud_t *start;
++	pgprotval_t prot;
  
- #define canon_pgprot(p) __pgprot(massage_pgprot(p))
+ 	start = (pud_t *) pgd_page_vaddr(addr);
+ 
+ 	for (i = 0; i < PTRS_PER_PUD; i++) {
+ 		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
+ 		if (!pud_none(*start)) {
+-			pgprotval_t prot = pud_val(*start) & PTE_FLAGS_MASK;
+-
+-			if (pud_large(*start) || !pud_present(*start))
++			if (pud_large(*start) || !pud_present(*start)) {
++				prot = pud_flags(*start);
+ 				note_page(m, st, __pgprot(prot), 2);
+-			else
++			} else {
+ 				walk_pmd_level(m, st, *start,
+ 					       P + i * PUD_LEVEL_MULT);
++			}
+ 		} else
+ 			note_page(m, st, __pgprot(0), 2);
+ 
+@@ -351,6 +353,7 @@ void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
+ #else
+ 	pgd_t *start = swapper_pg_dir;
+ #endif
++	pgprotval_t prot;
+ 	int i;
+ 	struct pg_state st = {};
+ 
+@@ -362,13 +365,13 @@ void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
+ 	for (i = 0; i < PTRS_PER_PGD; i++) {
+ 		st.current_address = normalize_addr(i * PGD_LEVEL_MULT);
+ 		if (!pgd_none(*start)) {
+-			pgprotval_t prot = pgd_val(*start) & PTE_FLAGS_MASK;
+-
+-			if (pgd_large(*start) || !pgd_present(*start))
++			if (pgd_large(*start) || !pgd_present(*start)) {
++				prot = pgd_flags(*start);
+ 				note_page(m, &st, __pgprot(prot), 1);
+-			else
++			} else {
+ 				walk_pud_level(m, &st, *start,
+ 					       i * PGD_LEVEL_MULT);
++			}
+ 		} else
+ 			note_page(m, &st, __pgprot(0), 1);
  
 
 --
