@@ -1,78 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7C16B0253
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 21:14:53 -0400 (EDT)
-Received: by pdbmi9 with SMTP id mi9so59638337pdb.3
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 18:14:53 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id uw7si30312231pac.8.2015.08.24.18.14.51
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 33D7F6B0253
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 21:48:56 -0400 (EDT)
+Received: by pdbfa8 with SMTP id fa8so60181854pdb.1
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 18:48:55 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id aa9si30333867pbd.56.2015.08.24.18.48.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 24 Aug 2015 18:14:52 -0700 (PDT)
-Message-ID: <55DBC061.8040508@huawei.com>
-Date: Tue, 25 Aug 2015 09:09:53 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Aug 2015 18:48:55 -0700 (PDT)
+Received: by padfo6 with SMTP id fo6so6738010pad.3
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 18:48:55 -0700 (PDT)
+Date: Tue, 25 Aug 2015 10:49:34 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCHv2 2/4] zsmalloc: use page->private instead of
+ page->first_page
+Message-ID: <20150825014934.GA532@swordfish>
+References: <1439824145-25397-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1439824145-25397-3-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] memhp: Add hot-added memory ranges to memblock before
- allocate node_data for a node.
-References: <1440349573-24260-1-git-send-email-tangchen@cn.fujitsu.com> <55DAE26E.1050302@huawei.com>
-In-Reply-To: <55DAE26E.1050302@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1439824145-25397-3-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, n-horiguchi@ah.jp.nec.com, vbabka@suse.cz, mgorman@techsingularity.net, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2015/8/24 17:22, Xishi Qiu wrote:
+Add Minchan to the thread.
 
-> On 2015/8/24 1:06, Tang Chen wrote:
+	-ss
+
+On (08/17/15 18:09), Kirill A. Shutemov wrote:
+> We are going to rework how compound_head() work. It will not use
+> page->first_page as we have it now.
 > 
->> The commit below adds hot-added memory range to memblock, after
->> creating pgdat for new node.
->>
->> commit f9126ab9241f66562debf69c2c9d8fee32ddcc53
->> Author: Xishi Qiu <qiuxishi@huawei.com>
->> Date:   Fri Aug 14 15:35:16 2015 -0700
->>
->>     memory-hotplug: fix wrong edge when hot add a new node
->>
->> But there is a problem:
->>
->> add_memory()
->> |--> hotadd_new_pgdat()
->>      |--> free_area_init_node()
->>           |--> get_pfn_range_for_nid()
->>                |--> find start_pfn and end_pfn in memblock
->> |--> ......
->> |--> memblock_add_node(start, size, nid)    --------    Here, just too late.
->>
->> get_pfn_range_for_nid() will find that start_pfn and end_pfn are both 0.
->> As a result, when adding memory, dmesg will give the following wrong message.
->>
-
-Hi Tang,
-
-Another question, if we add cpu first, there will be print error too.
-
-cpu_up()
-	try_online_node()
-		hotadd_new_pgdat()
-
-So how about just skip the print if the size is empty or just print 
-"node xx is empty now, will update when online memory"? 
-
-Thanks,
-Xishi Qiu
-
->> [ 2007.577000] Initmem setup node 5 [mem 0x0000000000000000-0xffffffffffffffff]
->> [ 2007.584000] On node 5 totalpages: 0
->> [ 2007.585000] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 32588823
->> [ 2007.594000] Policy zone: Normal
->> [ 2007.598000] init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
->>
-
-
+> The only other user of page->fisrt_page beyond compound pages is
+> zsmalloc.
+> 
+> Let's use page->private instead of page->first_page here. It occupies
+> the same storage space.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/zsmalloc.c | 11 +++++------
+>  1 file changed, 5 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index 0a7f81aa2249..a85754e69879 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -16,7 +16,7 @@
+>   * struct page(s) to form a zspage.
+>   *
+>   * Usage of struct page fields:
+> - *	page->first_page: points to the first component (0-order) page
+> + *	page->private: points to the first component (0-order) page
+>   *	page->index (union with page->freelist): offset of the first object
+>   *		starting in this page. For the first page, this is
+>   *		always 0, so we use this field (aka freelist) to point
+> @@ -26,8 +26,7 @@
+>   *
+>   *	For _first_ page only:
+>   *
+> - *	page->private (union with page->first_page): refers to the
+> - *		component page after the first page
+> + *	page->private: refers to the component page after the first page
+>   *		If the page is first_page for huge object, it stores handle.
+>   *		Look at size_class->huge.
+>   *	page->freelist: points to the first free object in zspage.
+> @@ -770,7 +769,7 @@ static struct page *get_first_page(struct page *page)
+>  	if (is_first_page(page))
+>  		return page;
+>  	else
+> -		return page->first_page;
+> +		return (struct page *)page_private(page);
+>  }
+>  
+>  static struct page *get_next_page(struct page *page)
+> @@ -955,7 +954,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+>  	 * Allocate individual pages and link them together as:
+>  	 * 1. first page->private = first sub-page
+>  	 * 2. all sub-pages are linked together using page->lru
+> -	 * 3. each sub-page is linked to the first page using page->first_page
+> +	 * 3. each sub-page is linked to the first page using page->private
+>  	 *
+>  	 * For each size class, First/Head pages are linked together using
+>  	 * page->lru. Also, we set PG_private to identify the first page
+> @@ -980,7 +979,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+>  		if (i == 1)
+>  			set_page_private(first_page, (unsigned long)page);
+>  		if (i >= 1)
+> -			page->first_page = first_page;
+> +			set_page_private(first_page, (unsigned long)first_page);
+>  		if (i >= 2)
+>  			list_add(&page->lru, &prev_page->lru);
+>  		if (i == class->pages_per_zspage - 1)	/* last page */
+> -- 
+> 2.5.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
