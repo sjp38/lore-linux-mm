@@ -1,121 +1,434 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 253316B0253
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:44:19 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so13020106wid.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 04:44:18 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id eg9si38335065wjd.184.2015.08.25.04.44.16
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EB616B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:49:38 -0400 (EDT)
+Received: by pacdd16 with SMTP id dd16so121886130pac.2
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 04:49:38 -0700 (PDT)
+Received: from sg02.corpemail.net (sg02.corpemail.net. [128.199.154.28])
+        by mx.google.com with ESMTPS id zb2si32578226pbb.152.2015.08.25.04.49.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Aug 2015 04:44:17 -0700 (PDT)
-Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
-References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
- <20150820163643.dd87de0c1a73cb63866b2914@linux-foundation.org>
- <20150821121028.GB12016@node.dhcp.inet.fi>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55DC550D.5060501@suse.cz>
-Date: Tue, 25 Aug 2015 13:44:13 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Aug 2015 04:49:37 -0700 (PDT)
+Received: from bgp253.corp-email.cn ([112.65.243.253])
+        by sg02.corpemail.net ((B_Out)) with ESMTP (SSL) id NLX00032
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 19:49:32 +0800
+Subject: Re: [PATCH] Memory hot added,The memory can not been added to movable
+ zone
+References: <1439972306-50845-1-git-send-email-liuchangsheng@inspur.com>
+ <20150819165029.665b89d7ab3228185460172c@linux-foundation.org>
+ <55D57071.1080901@inspur.com> <55db6d6d.82d1370a.dd0ff.6055@mx.google.com>
+ <55DC4294.2020407@inspur.com> <55DC4DC3.30509@suse.cz>
+From: Changsheng Liu <liuchangsheng@inspur.com>
+Message-ID: <55DC5641.1090903@inspur.com>
+Date: Tue, 25 Aug 2015 19:49:21 +0800
 MIME-Version: 1.0
-In-Reply-To: <20150821121028.GB12016@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <55DC4DC3.30509@suse.cz>
+Content-Type: multipart/alternative;
+	boundary="------------050001070409050300020603"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+To: Vlastimil Babka <vbabka@suse.cz>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yanxiaofeng@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
 
-On 08/21/2015 02:10 PM, Kirill A. Shutemov wrote:
-> On Thu, Aug 20, 2015 at 04:36:43PM -0700, Andrew Morton wrote:
->> On Wed, 19 Aug 2015 12:21:45 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+--------------050001070409050300020603
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
+
+
+
+a?? 2015/8/25 19:13, Vlastimil Babka a??e??:
+> On 08/25/2015 12:25 PM, Changsheng Liu wrote:
+>> Thanks very much for your review, I can move the memory from normal zone
+>> to movable zone succesfully.
+>> And thank you for let me understand the memory mechanism better.
+>> a?? 2015/8/25 3:15, Yasuaki Ishimatsu a??e??:
+>
+> So you agree to drop the patch from -mm?
+     The patch using movable_node_is_enabled() will provide a more 
+direct approach to add the hot-added memory to movable zone If we want 
+to remove the whole node.
+>>> Hi
+>>> On Thu, 20 Aug 2015 14:15:13 +0800
+>>> Changsheng Liu <liuchangsheng@inspur.com> wrote:
+>>>
+>>>> Hi Andrew Morton:
+>>>> First, thanks very much for your review, I will update codes according
+>>>> to  your suggestio
+>>>>
+>>>> a?? 2015/8/20 7:50, Andrew Morton a??e??:
+>>>>> On Wed, 19 Aug 2015 04:18:26 -0400 Changsheng Liu 
+>>>>> <liuchangsheng@inspur.com> wrote:
+>>>>>
+>>>>>> From: Changsheng Liu <liuchangcheng@inspur.com>
+>>>>>>
+>>>>>> When memory hot added, the function should_add_memory_movable
+>>>>>> always return 0,because the movable zone is empty,
+>>>>>> so the memory that hot added will add to normal zone even if
+>>>>>> we want to remove the memory.
+>>>>>> So we change the function should_add_memory_movable,if the user
+>>>>>> config CONFIG_MOVABLE_NODE it will return 1 when
+>>>>>> movable zone is empty
+>>>>> I cleaned this up a bit:
+>>>>>
+>>>>> : Subject: mm: memory hot-add: memory can not been added to 
+>>>>> movable zone
+>>>>> :
+>>>>> : When memory is hot added, should_add_memory_movable() always 
+>>>>> returns 0
+>>>>> : because the movable zone is empty, so the memory that was hot 
+>>>>> added will
+>>>>> : add to the normal zone even if we want to remove the memory.
+>>>>> :
+>>>>> : So we change should_add_memory_movable(): if the user config
+>>>>> : CONFIG_MOVABLE_NODE it will return 1 when the movable zone is 
+>>>>> empty.
+>>>>>
+>>>>> But I don't understand the "even if we want to remove the memory".
+>>>>> This is hot-add, not hot-remove.  What do you mean here?
+>>>>        After the system startup, we hot added one memory. After 
+>>>> some time
+>>>> we wanted to hot remove the memroy that was hot added,
+>>>>        but we could not offline some memory blocks successfully 
+>>>> because
+>>>> the memory was added to normal zone defaultly and the value of the 
+>>>> file
+>>>>        named removable under some memory blocks is 0.
+>>> For this, we prepared online_movable. When memory is onlined by 
+>>> online_movable,
+>>> the memory move from ZONE_NORMAL to ZONE_MOVABLE.
+>>>
+>>> Ex.
+>>> # echo online_movable > /sys/devices/system/memory/memoryXXX/state
+>>>
+>>> Thanks,
+>>> Yasuaki Ishimatsu
+>>>
+>>>>        we checked the value of the file under some memory blocks as 
+>>>> follows:
+>>>>        "cat /sys/devices/system/memory/ memory***/removable"
+>>>>        When memory being hot added we let the memory be added to 
+>>>> movable
+>>>> zone,
+>>>>        so we will be able to hot remove the memory that have been 
+>>>> hot added
+>>>>>> --- a/mm/memory_hotplug.c
+>>>>>> +++ b/mm/memory_hotplug.c
+>>>>>> @@ -1198,9 +1198,13 @@ static int should_add_memory_movable(int 
+>>>>>> nid, u64 start, u64 size)
+>>>>>>         pg_data_t *pgdat = NODE_DATA(nid);
+>>>>>>         struct zone *movable_zone = pgdat->node_zones + 
+>>>>>> ZONE_MOVABLE;
+>>>>>>
+>>>>>> -    if (zone_is_empty(movable_zone))
+>>>>>> +    if (zone_is_empty(movable_zone)) {
+>>>>>> +    #ifdef CONFIG_MOVABLE_NODE
+>>>>>> +        return 1;
+>>>>>> +    #else
+>>>>>>             return 0;
+>>>>>> -
+>>>>>> +    #endif
+>>>>>> +    }
+>>>>>>         if (movable_zone->zone_start_pfn <= start_pfn)
+>>>>>>             return 1;
+>>>>> Cleaner:
+>>>>>
+>>>>> --- 
+>>>>> a/mm/memory_hotplug.c~memory-hot-addedthe-memory-can-not-been-added-to-movable-zone-fix
+>>>>> +++ a/mm/memory_hotplug.c
+>>>>> @@ -1181,13 +1181,9 @@ static int should_add_memory_movable(int
+>>>>>         pg_data_t *pgdat = NODE_DATA(nid);
+>>>>>         struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+>>>>>
+>>>>> -    if (zone_is_empty(movable_zone)) {
+>>>>> -    #ifdef CONFIG_MOVABLE_NODE
+>>>>> -        return 1;
+>>>>> -    #else
+>>>>> -        return 0;
+>>>>> -    #endif
+>>>>> -    }
+>>>>> +    if (zone_is_empty(movable_zone))
+>>>>> +        return IS_ENABLED(CONFIG_MOVABLE_NODE);
+>>>>> +
+>>>>>         if (movable_zone->zone_start_pfn <= start_pfn)
+>>>>>             return 1;
+>>>>>
+>>>>> _
+>>>>>
+>>>>> .
+>>>>>
+>>> .
+>>>
 >>
->>> The patch introduces page->compound_head into third double word block in
->>> front of compound_dtor and compound_order. That means it shares storage
->>> space with:
->>>
->>>   - page->lru.next;
->>>   - page->next;
->>>   - page->rcu_head.next;
->>>   - page->pmd_huge_pte;
->>>
+>
+> .
+>
 
-We should probably ask Paul about the chances that rcu_head.next would 
-like to use the bit too one day?
-For pgtable_t I can't think of anything better than a warning in the 
-generic definition in include/asm-generic/page.h and hope that anyone 
-reimplementing it for a new arch will look there first.
-The lru part is probably the hardest to prevent danger. It can be used 
-for any private purposes. Hopefully everyone currently uses only 
-standard list operations here, and the list poison values don't set bit 
-0. But I see there can be some arbitrary CONFIG_ILLEGAL_POINTER_VALUE 
-added to the poisons, so maybe that's worth some build error check? 
-Anyway we would be imposing restrictions on types that are not ours, so 
-there might be some resistance...
 
->
->> Anyway, this is quite subtle and there's a risk that people will
->> accidentally break it later on.  I don't think the patch puts
->> sufficient documentation in place to prevent this.
->
-> I would appreciate for suggestion on place and form of documentation.
->
->> And even documentation might not be enough to prevent accidents.
->
-> The only think I can propose is VM_BUG_ON() in PageTail() and
-> compound_head() which would ensure that page->compound_page points to
-> place within MAX_ORDER_NR_PAGES before the current page if bit 0 is set.
+--------------050001070409050300020603
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 
-That should probably catch some bad stuff, but probably only moments 
-before it would crash anyway if the pointer was bogus. But I also don't 
-see better way, because we can't proactively put checks in those who 
-would "misbehave", as we don't know who they are. Putting more debug 
-checks in e.g. page freeing might help, but probably not much.
+<html>
+  <head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <br>
+    <br>
+    <div class="moz-cite-prefix">a?? 2015/8/25 19:13, Vlastimil Babka a??e??:<br>
+    </div>
+    <blockquote cite="mid:55DC4DC3.30509@suse.cz" type="cite">On
+      08/25/2015 12:25 PM, Changsheng Liu wrote:
+      <br>
+      <blockquote type="cite">Thanks very much for your review, I can
+        move the memory from normal zone
+        <br>
+        to movable zone succesfully.
+        <br>
+        And thank you for let me understand the memory mechanism better.
+        <br>
+        a?? 2015/8/25 3:15, Yasuaki Ishimatsu a??e??:
+        <br>
+      </blockquote>
+      <br>
+      So you agree to drop the patch from -mm?
+      <br>
+    </blockquote>
+    A A A  The patch using movable_node_is_enabled() will provide a more
+    direct approach to add the hot-added memory to movable zone If we
+    want to remove the whole node.<span style="color: rgb(67, 67, 67);
+      font-family: Tahoma, Arial; font-size: 12px; font-style: normal;
+      font-variant: normal; font-weight: normal; letter-spacing: normal;
+      line-height: 24px; orphans: auto; text-align: start; text-indent:
+      0px; text-transform: none; white-space: normal; widows: auto;
+      word-spacing: 0px; -webkit-text-stroke-width: 0px;
+      background-color: rgb(242, 242, 242); display: inline !important;
+      float: none;"></span>
+    <blockquote cite="mid:55DC4DC3.30509@suse.cz" type="cite">
+      <blockquote type="cite">
+        <blockquote type="cite">Hi
+          <br>
+          On Thu, 20 Aug 2015 14:15:13 +0800
+          <br>
+          Changsheng Liu <a class="moz-txt-link-rfc2396E" href="mailto:liuchangsheng@inspur.com">&lt;liuchangsheng@inspur.com&gt;</a> wrote:
+          <br>
+          <br>
+          <blockquote type="cite">Hi Andrew Morton:
+            <br>
+            First, thanks very much for your review, I will update codes
+            according
+            <br>
+            toA  your suggestio
+            <br>
+            <br>
+            a?? 2015/8/20 7:50, Andrew Morton a??e??:
+            <br>
+            <blockquote type="cite">On Wed, 19 Aug 2015 04:18:26 -0400
+              Changsheng Liu <a class="moz-txt-link-rfc2396E" href="mailto:liuchangsheng@inspur.com">&lt;liuchangsheng@inspur.com&gt;</a> wrote:
+              <br>
+              <br>
+              <blockquote type="cite">From: Changsheng Liu
+                <a class="moz-txt-link-rfc2396E" href="mailto:liuchangcheng@inspur.com">&lt;liuchangcheng@inspur.com&gt;</a>
+                <br>
+                <br>
+                When memory hot added, the function
+                should_add_memory_movable
+                <br>
+                always return 0,because the movable zone is empty,
+                <br>
+                so the memory that hot added will add to normal zone
+                even if
+                <br>
+                we want to remove the memory.
+                <br>
+                So we change the function should_add_memory_movable,if
+                the user
+                <br>
+                config CONFIG_MOVABLE_NODE it will return 1 when
+                <br>
+                movable zone is empty
+                <br>
+              </blockquote>
+              I cleaned this up a bit:
+              <br>
+              <br>
+              : Subject: mm: memory hot-add: memory can not been added
+              to movable zone
+              <br>
+              :
+              <br>
+              : When memory is hot added, should_add_memory_movable()
+              always returns 0
+              <br>
+              : because the movable zone is empty, so the memory that
+              was hot added will
+              <br>
+              : add to the normal zone even if we want to remove the
+              memory.
+              <br>
+              :
+              <br>
+              : So we change should_add_memory_movable(): if the user
+              config
+              <br>
+              : CONFIG_MOVABLE_NODE it will return 1 when the movable
+              zone is empty.
+              <br>
+              <br>
+              But I don't understand the "even if we want to remove the
+              memory".
+              <br>
+              This is hot-add, not hot-remove.A  What do you mean here?
+              <br>
+            </blockquote>
+            A A A A A A  After the system startup, we hot added one memory.
+            After some time
+            <br>
+            we wanted to hot remove the memroy that was hot added,
+            <br>
+            A A A A A A  but we could not offline some memory blocks
+            successfully because
+            <br>
+            the memory was added to normal zone defaultly and the value
+            of the file
+            <br>
+            A A A A A A  named removable under some memory blocks is 0.
+            <br>
+          </blockquote>
+          For this, we prepared online_movable. When memory is onlined
+          by online_movable,
+          <br>
+          the memory move from ZONE_NORMAL to ZONE_MOVABLE.
+          <br>
+          <br>
+          Ex.
+          <br>
+          # echo online_movable &gt;
+          /sys/devices/system/memory/memoryXXX/state
+          <br>
+          <br>
+          Thanks,
+          <br>
+          Yasuaki Ishimatsu
+          <br>
+          <br>
+          <blockquote type="cite">A A A A A A  we checked the value of the
+            file under some memory blocks as follows:
+            <br>
+            A A A A A A  "cat /sys/devices/system/memory/ memory***/removable"
+            <br>
+            A A A A A A  When memory being hot added we let the memory be
+            added to movable
+            <br>
+            zone,
+            <br>
+            A A A A A A  so we will be able to hot remove the memory that have
+            been hot added
+            <br>
+            <blockquote type="cite">
+              <blockquote type="cite">--- a/mm/memory_hotplug.c
+                <br>
+                +++ b/mm/memory_hotplug.c
+                <br>
+                @@ -1198,9 +1198,13 @@ static int
+                should_add_memory_movable(int nid, u64 start, u64 size)
+                <br>
+                A A A A A A A  pg_data_t *pgdat = NODE_DATA(nid);
+                <br>
+                A A A A A A A  struct zone *movable_zone = pgdat-&gt;node_zones
+                + ZONE_MOVABLE;
+                <br>
+                <br>
+                -A A A  if (zone_is_empty(movable_zone))
+                <br>
+                +A A A  if (zone_is_empty(movable_zone)) {
+                <br>
+                +A A A  #ifdef CONFIG_MOVABLE_NODE
+                <br>
+                +A A A A A A A  return 1;
+                <br>
+                +A A A  #else
+                <br>
+                A A A A A A A A A A A  return 0;
+                <br>
+                -
+                <br>
+                +A A A  #endif
+                <br>
+                +A A A  }
+                <br>
+                A A A A A A A  if (movable_zone-&gt;zone_start_pfn &lt;=
+                start_pfn)
+                <br>
+                A A A A A A A A A A A  return 1;
+                <br>
+              </blockquote>
+              Cleaner:
+              <br>
+              <br>
+              ---
+a/mm/memory_hotplug.c~memory-hot-addedthe-memory-can-not-been-added-to-movable-zone-fix<br>
+              +++ a/mm/memory_hotplug.c
+              <br>
+              @@ -1181,13 +1181,9 @@ static int
+              should_add_memory_movable(int
+              <br>
+              A A A A A A A  pg_data_t *pgdat = NODE_DATA(nid);
+              <br>
+              A A A A A A A  struct zone *movable_zone = pgdat-&gt;node_zones +
+              ZONE_MOVABLE;
+              <br>
+              <br>
+              -A A A  if (zone_is_empty(movable_zone)) {
+              <br>
+              -A A A  #ifdef CONFIG_MOVABLE_NODE
+              <br>
+              -A A A A A A A  return 1;
+              <br>
+              -A A A  #else
+              <br>
+              -A A A A A A A  return 0;
+              <br>
+              -A A A  #endif
+              <br>
+              -A A A  }
+              <br>
+              +A A A  if (zone_is_empty(movable_zone))
+              <br>
+              +A A A A A A A  return IS_ENABLED(CONFIG_MOVABLE_NODE);
+              <br>
+              +
+              <br>
+              A A A A A A A  if (movable_zone-&gt;zone_start_pfn &lt;=
+              start_pfn)
+              <br>
+              A A A A A A A A A A A  return 1;
+              <br>
+              <br>
+              _
+              <br>
+              <br>
+              .
+              <br>
+              <br>
+            </blockquote>
+          </blockquote>
+          .
+          <br>
+          <br>
+        </blockquote>
+        <br>
+      </blockquote>
+      <br>
+      .
+      <br>
+      <br>
+    </blockquote>
+    <br>
+  </body>
+</html>
 
-> Do you consider this helpful?
->
->>>
->>> ...
->>>
->>> --- a/include/linux/mm_types.h
->>> +++ b/include/linux/mm_types.h
->>> @@ -120,7 +120,12 @@ struct page {
->>>   		};
->>>   	};
->>>
->>> -	/* Third double word block */
->>> +	/*
->>> +	 * Third double word block
->>> +	 *
->>> +	 * WARNING: bit 0 of the first word encode PageTail and *must* be 0
->>> +	 * for non-tail pages.
->>> +	 */
->>>   	union {
->>>   		struct list_head lru;	/* Pageout list, eg. active_list
->>>   					 * protected by zone->lru_lock !
->>> @@ -143,6 +148,7 @@ struct page {
->>>   						 */
->>>   		/* First tail page of compound page */
-
-Note that compound_head is not just in the *first* tail page. Only the 
-rest is.
-
->>>   		struct {
->>> +			unsigned long compound_head; /* If bit zero is set */
->>
->> I think the comments around here should have more details and should
->> be louder!
->
-> I'm always bad when it comes to documentation. Is it enough?
->
-> 	/*
-> 	 * Third double word block
-> 	 *
-> 	 * WARNING: bit 0 of the first word encode PageTail(). That means
-> 	 * the rest users of the storage space MUST NOT use the bit to
-> 	 * avoid collision and false-positive PageTail().
-> 	 */
->
+--------------050001070409050300020603--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
