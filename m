@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F4C96B0253
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 11:20:03 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so18534734wic.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 08:20:02 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id kb8si39381175wjb.134.2015.08.25.08.20.01
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 23A0A6B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 11:26:55 -0400 (EDT)
+Received: by wijp15 with SMTP id p15so19528354wij.0
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 08:26:54 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com. [209.85.212.176])
+        by mx.google.com with ESMTPS id jd10si2199791wjb.208.2015.08.25.08.26.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 08:20:02 -0700 (PDT)
-Received: by widdq5 with SMTP id dq5so18260799wid.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 08:20:01 -0700 (PDT)
-Date: Tue, 25 Aug 2015 17:20:00 +0200
+        Tue, 25 Aug 2015 08:26:53 -0700 (PDT)
+Received: by wijp15 with SMTP id p15so19527707wij.0
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 08:26:53 -0700 (PDT)
+Date: Tue, 25 Aug 2015 17:26:51 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [REPOST] [PATCH 2/2] mm,oom: Reverse the order of setting
- TIF_MEMDIE and sending SIGKILL.
-Message-ID: <20150825152000.GH6285@dhcp22.suse.cz>
-References: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
- <20150824094718.GF17078@dhcp22.suse.cz>
- <201508252106.JIE81718.FHOOFSJFMQLtOV@I-love.SAKURA.ne.jp>
- <20150825141735.GD6285@dhcp22.suse.cz>
- <201508252337.IHC12433.OFHFFOtQOSLJVM@I-love.SAKURA.ne.jp>
+Subject: Re: [patch -mm] mm, oom: add global access to memory reserves on
+ livelock
+Message-ID: <20150825152650.GI6285@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com>
+ <20150821081745.GG23723@dhcp22.suse.cz>
+ <201508212229.GIC00036.tVFMQLOOFJOFSH@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1508241404380.32561@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201508252337.IHC12433.OFHFFOtQOSLJVM@I-love.SAKURA.ne.jp>
+In-Reply-To: <alpine.DEB.2.10.1508241404380.32561@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, oleg@redhat.com, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 25-08-15 23:37:27, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > > > The code would be easier then and the race window much smaller. If we
-> > > > really needed to prevent from preemption then preempt_{enable,disable}
-> > > > aournd the whole task_lock region + do_send_sig_info would be still
-> > > > easier to follow than re-taking task_lock.
-> > > 
-> > > What's wrong with re-taking task_lock? It seems to me that re-taking
-> > > task_lock is more straightforward and easier to follow.
+On Mon 24-08-15 14:10:10, David Rientjes wrote:
+> On Fri, 21 Aug 2015, Tetsuo Handa wrote:
+> 
+> > Why can't we think about choosing more OOM victims instead of granting access
+> > to memory reserves?
 > > 
-> > I dunno it looks more awkward to me. You have to re-check the victim->mm
-> > after retaking the lock because situation might have changed while the
-> > lock was dropped. If the mark_oom_victim & do_send_sig_info are in the
-> > same preempt region then nothing like that is needed. But this is
-> > probably a matter of taste. I find the above more readable but let's see
-> > what others think.
 > 
-> Disabling preemption does not guarantee that the race window is small enough.
+> We have no indication of which thread is holding a mutex that would need 
+> to be killed, so we'd be randomly killing processes waiting for forward 
+> progress.  A worst-case scenario would be the thread is OOM_DISABLE and we 
+> kill every process on the system needlessly.  This problem obviously 
+> occurs often enough that killing all userspace isnt going to be a viable 
+> solution.
 > 
-> If we set TIF_MEMDIE before sending SIGKILL, long interrupts (an extreme
-> example is SysRq-t from keyboard which would last many seconds) can step
-> between. We will spend some percent (the worst case is 100 percent) of memory
-> reserves for allocations which are not needed for termination.
+> > Also, SysRq might not be usable under OOM because workqueues can get stuck.
+> > The panic_on_oom_timeout was first proposed using a workqueue but was
+> > updated to use a timer because there is no guarantee that workqueues work
+> > as expected under OOM.
+> > 
+> 
+> I don't know anything about a panic_on_oom_timeout,
 
-I wouldn't be worried about sysrq+t because that requires the
-administrator. And IRQs shouldn't take too long normally. But I guess
-you are right that this will be inherently less fragile long term. All
-other callers of mark_oom_victim except for lowmem_scan are safe. Could
-you update the lmk as well please?
+You were CCed on the discussion
+http://lkml.kernel.org/r/20150609170310.GA8990%40dhcp22.suse.cz
+
+> but panicking would 
+> only be a reasonable action if memory reserves were fully depleted.  That 
+> could easily be dealt with in the page allocator so there's no timeout 
+> involved.
+
+As noted in other email. Just depletion is not a good indicator. The
+system can still make a forward progress even when reserves are
+depleted.
 
 -- 
 Michal Hocko
