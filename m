@@ -1,84 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CA1F96B0254
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 05:56:43 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so9721438wic.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 02:56:43 -0700 (PDT)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id b19si2312699wiw.16.2015.08.25.02.56.41
+Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D06896B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 06:26:15 -0400 (EDT)
+Received: by ykll84 with SMTP id l84so150208869ykl.0
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 03:26:15 -0700 (PDT)
+Received: from bgp253.corp-email.cn (bgp253.corp-email.cn. [112.65.243.253])
+        by mx.google.com with ESMTPS id g63si3848235qgf.12.2015.08.25.03.26.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 02:56:42 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so9673725wic.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 02:56:41 -0700 (PDT)
-Date: Tue, 25 Aug 2015 11:56:38 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 3/3 v6] mm/vmalloc: Cache the vmalloc memory info
-Message-ID: <20150825095638.GA24750@gmail.com>
-References: <20150824075018.GB20106@gmail.com>
- <20150824125402.28806.qmail@ns.horizon.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 25 Aug 2015 03:26:14 -0700 (PDT)
+Subject: Re: [PATCH] Memory hot added,The memory can not been added to movable
+ zone
+References: <1439972306-50845-1-git-send-email-liuchangsheng@inspur.com>
+ <20150819165029.665b89d7ab3228185460172c@linux-foundation.org>
+ <55D57071.1080901@inspur.com> <55db6d6d.82d1370a.dd0ff.6055@mx.google.com>
+From: Changsheng Liu <liuchangsheng@inspur.com>
+Message-ID: <55DC4294.2020407@inspur.com>
+Date: Tue, 25 Aug 2015 18:25:24 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150824125402.28806.qmail@ns.horizon.com>
+In-Reply-To: <55db6d6d.82d1370a.dd0ff.6055@mx.google.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: George Spelvin <linux@horizon.com>
-Cc: dave@sr71.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@rasmusvillemoes.dk, peterz@infradead.org, riel@redhat.com, rientjes@google.com, torvalds@linux-foundation.org
+To: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yanxiaofeng@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
 
+Thanks very much for your review, I can move the memory from normal zone 
+to movable zone succesfully.
+And thank you for let me understand the memory mechanism better.
+a?? 2015/8/25 3:15, Yasuaki Ishimatsu a??e??:
+> Hi
+> On Thu, 20 Aug 2015 14:15:13 +0800
+> Changsheng Liu <liuchangsheng@inspur.com> wrote:
+>
+>> Hi Andrew Morton:
+>> First, thanks very much for your review, I will update codes according
+>> to  your suggestio
+>>
+>> a?? 2015/8/20 7:50, Andrew Morton a??e??:
+>>> On Wed, 19 Aug 2015 04:18:26 -0400 Changsheng Liu <liuchangsheng@inspur.com> wrote:
+>>>
+>>>> From: Changsheng Liu <liuchangcheng@inspur.com>
+>>>>
+>>>> When memory hot added, the function should_add_memory_movable
+>>>> always return 0,because the movable zone is empty,
+>>>> so the memory that hot added will add to normal zone even if
+>>>> we want to remove the memory.
+>>>> So we change the function should_add_memory_movable,if the user
+>>>> config CONFIG_MOVABLE_NODE it will return 1 when
+>>>> movable zone is empty
+>>> I cleaned this up a bit:
+>>>
+>>> : Subject: mm: memory hot-add: memory can not been added to movable zone
+>>> :
+>>> : When memory is hot added, should_add_memory_movable() always returns 0
+>>> : because the movable zone is empty, so the memory that was hot added will
+>>> : add to the normal zone even if we want to remove the memory.
+>>> :
+>>> : So we change should_add_memory_movable(): if the user config
+>>> : CONFIG_MOVABLE_NODE it will return 1 when the movable zone is empty.
+>>>
+>>> But I don't understand the "even if we want to remove the memory".
+>>> This is hot-add, not hot-remove.  What do you mean here?
+>>       After the system startup, we hot added one memory. After some time
+>> we wanted to hot remove the memroy that was hot added,
+>>       but we could not offline some memory blocks successfully because
+>> the memory was added to normal zone defaultly and the value of the file
+>>       named removable under some memory blocks is 0.
+> For this, we prepared online_movable. When memory is onlined by online_movable,
+> the memory move from ZONE_NORMAL to ZONE_MOVABLE.
+>
+> Ex.
+> # echo online_movable > /sys/devices/system/memory/memoryXXX/state
+>
+> Thanks,
+> Yasuaki Ishimatsu
+>
+>>       we checked the value of the file under some memory blocks as follows:
+>>       "cat /sys/devices/system/memory/ memory***/removable"
+>>       When memory being hot added we let the memory be added to movable
+>> zone,
+>>       so we will be able to hot remove the memory that have been hot added
+>>>> --- a/mm/memory_hotplug.c
+>>>> +++ b/mm/memory_hotplug.c
+>>>> @@ -1198,9 +1198,13 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
+>>>>    	pg_data_t *pgdat = NODE_DATA(nid);
+>>>>    	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+>>>>    
+>>>> -	if (zone_is_empty(movable_zone))
+>>>> +	if (zone_is_empty(movable_zone)) {
+>>>> +	#ifdef CONFIG_MOVABLE_NODE
+>>>> +		return 1;
+>>>> +	#else
+>>>>    		return 0;
+>>>> -
+>>>> +	#endif
+>>>> +	}
+>>>>    	if (movable_zone->zone_start_pfn <= start_pfn)
+>>>>    		return 1;
+>>> Cleaner:
+>>>
+>>> --- a/mm/memory_hotplug.c~memory-hot-addedthe-memory-can-not-been-added-to-movable-zone-fix
+>>> +++ a/mm/memory_hotplug.c
+>>> @@ -1181,13 +1181,9 @@ static int should_add_memory_movable(int
+>>>    	pg_data_t *pgdat = NODE_DATA(nid);
+>>>    	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+>>>    
+>>> -	if (zone_is_empty(movable_zone)) {
+>>> -	#ifdef CONFIG_MOVABLE_NODE
+>>> -		return 1;
+>>> -	#else
+>>> -		return 0;
+>>> -	#endif
+>>> -	}
+>>> +	if (zone_is_empty(movable_zone))
+>>> +		return IS_ENABLED(CONFIG_MOVABLE_NODE);
+>>> +
+>>>    	if (movable_zone->zone_start_pfn <= start_pfn)
+>>>    		return 1;
+>>>    
+>>> _
+>>>
+>>> .
+>>>
+> .
+>
 
-* George Spelvin <linux@horizon.com> wrote:
-
-> (I hope I'm not annoying you by bikeshedding this too much, although I
-> think this is improving.)
-
-[ I don't mind, although I wish other, more critical parts of the kernel got this
-  much attention as well ;-) ]
-
-> Anyway, suggested changes for v6 (sigh...):
-> 
-> First: you do a second read of vmap_info_gen to optimize out the copy
-> of vmalloc_info if it's easily seen as pointless, but given how small
-> vmalloc_info is (two words!), i'd be inclined to omit that optimization.
-> 
-> Copy always, *then* see if it's worth keeping.  Smaller code, faster
-> fast path, and is barely noticeable on the slow path.
-
-Ok, done.
-
-> Second, and this is up to you, I'd be inclined to go fully non-blocking and
-> only spin_trylock().  If that fails, just skip the cache update.
-
-So I'm not sure about this one: we have no guarantee of the order every updater 
-reaches the spinlock, and we want the 'freshest' updater to do the update. The 
-trylock might cause us to drop the 'freshest' update erroneously - so this change 
-would introduce a 'stale data' bug I think.
-
-> Third, ANSI C rules allow a compiler to assume that signed integer
-> overflow does not occur.  That means that gcc is allowed to optimize
-> "if (x - y > 0)" to "if (x > y)".
-
-That's annoying ...
-
-> Given that gcc has annoyed us by using this optimization in other
-> contexts, It might be safer to make them unsigned (which is required to
-> wrap properly) and cast to integer after subtraction.
-
-Ok, done.
-
-> Basically, the following (untested, but pretty damn simple):
-
-I've attached v6 which applies your first and last suggestion, but not the trylock 
-one.
-
-I also removed _ONCE() accesses from the places that didn't need them.
-
-I added your Reviewed-by optimistically, saving a v7 submission hopefully ;-)
-
-Lightly tested.
-
-Thanks,
-
-	Ingo
-
-==============================>
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
