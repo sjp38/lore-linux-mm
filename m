@@ -1,58 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id A7DFE6B0254
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 17:58:06 -0400 (EDT)
-Received: by igfj19 with SMTP id j19so22591537igf.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 14:58:06 -0700 (PDT)
-Received: from g1t5424.austin.hp.com (g1t5424.austin.hp.com. [15.216.225.54])
-        by mx.google.com with ESMTPS id l6si2101919igv.47.2015.08.25.14.57.32
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C6376B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 19:23:37 -0400 (EDT)
+Received: by pacti10 with SMTP id ti10so65830338pac.0
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 16:23:37 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id v2si35412211pdl.59.2015.08.25.16.23.36
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 14:57:32 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v4 11/11] x86/mm: Fix no-change case in try_preserve_large_page()
-Date: Tue, 25 Aug 2015 15:55:11 -0600
-Message-Id: <1440539711-2985-12-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1440539711-2985-1-git-send-email-toshi.kani@hp.com>
-References: <1440539711-2985-1-git-send-email-toshi.kani@hp.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Aug 2015 16:23:36 -0700 (PDT)
+Received: by pacgr6 with SMTP id gr6so5522738pac.3
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 16:23:36 -0700 (PDT)
+Date: Tue, 25 Aug 2015 16:23:34 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v5 2/2] mm: hugetlb: proc: add HugetlbPages field to
+ /proc/PID/status
+In-Reply-To: <20150824085127.GB17078@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1508251620570.10653@chino.kir.corp.google.com>
+References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp> <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1440059182-19798-3-git-send-email-n-horiguchi@ah.jp.nec.com> <20150820110004.GB4632@dhcp22.suse.cz> <20150820233450.GB10807@hori1.linux.bs1.fc.nec.co.jp>
+ <20150821065321.GD23723@dhcp22.suse.cz> <20150821163033.GA4600@Sligo.logfs.org> <20150824085127.GB17078@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
-Cc: akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com, Toshi Kani <toshi.kani@hp.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@purestorage.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-try_preserve_large_page() checks if new_prot is the same as
-old_prot.  If so, it simply sets do_split to 0, and returns
-with no-operation.  However, old_prot is set as a 4KB pgprot
-value while new_prot is a large page pgprot value.
+On Mon, 24 Aug 2015, Michal Hocko wrote:
 
-Now that old_prot is initially set from p?d_pgprot() as a
-large page pgprot value, fix it by not overwriting old_prot
-with a 4KB pgprot value.
+> The current implementation makes me worry. Is the per hstate break down
+> really needed? The implementation would be much more easier without it.
+> 
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- arch/x86/mm/pageattr.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Yes, it's needed.  It provides a complete picture of what statically 
+reserved hugepages are in use and we're not going to change the 
+implementation when it is needed to differentiate between variable hugetlb 
+page sizes that risk breaking existing userspace parsers.
 
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index b64a451..97735f4 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -536,7 +536,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
- 	 * up accordingly.
- 	 */
- 	old_pte = *kpte;
--	old_prot = req_prot = pgprot_large_2_4k(old_prot);
-+	req_prot = pgprot_large_2_4k(old_prot);
- 
- 	pgprot_val(req_prot) &= ~pgprot_val(cpa->mask_clr);
- 	pgprot_val(req_prot) |= pgprot_val(cpa->mask_set);
+> If you have 99% of hugetlb pages then your load is rather specific and I
+> would argue that /proc/<pid>/smaps (after patch 1) is a much better way to
+> get what you want.
+> 
+
+Some distributions change the permissions of smaps, as already stated, for 
+pretty clear security reasons since it can be used to defeat existing 
+protection.  There's no reason why hugetlb page usage should not be 
+exported in the same manner and location as memory usage.
+
+Sheesh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
