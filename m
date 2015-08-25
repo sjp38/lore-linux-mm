@@ -1,101 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C3BAE6B0253
-	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 21:10:46 -0400 (EDT)
-Received: by ykll84 with SMTP id l84so140192445ykl.0
-        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 18:10:46 -0700 (PDT)
-Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
-        by mx.google.com with ESMTPS id t188si11571955ykc.59.2015.08.24.18.10.44
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F7C16B0253
+	for <linux-mm@kvack.org>; Mon, 24 Aug 2015 21:14:53 -0400 (EDT)
+Received: by pdbmi9 with SMTP id mi9so59638337pdb.3
+        for <linux-mm@kvack.org>; Mon, 24 Aug 2015 18:14:53 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id uw7si30312231pac.8.2015.08.24.18.14.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Aug 2015 18:10:45 -0700 (PDT)
-Date: Mon, 24 Aug 2015 21:10:40 -0400
-From: Paul Gortmaker <paul.gortmaker@windriver.com>
-Subject: Re: [PATCH 01/10] mm: make cleancache.c explicitly non-modular
-Message-ID: <20150825011040.GA3560@windriver.com>
-References: <1440454482-12250-1-git-send-email-paul.gortmaker@windriver.com>
- <1440454482-12250-2-git-send-email-paul.gortmaker@windriver.com>
- <F91A372A-4443-41C6-880F-5F6B66990FFA@oracle.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Aug 2015 18:14:52 -0700 (PDT)
+Message-ID: <55DBC061.8040508@huawei.com>
+Date: Tue, 25 Aug 2015 09:09:53 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <F91A372A-4443-41C6-880F-5F6B66990FFA@oracle.com>
+Subject: Re: [PATCH 1/1] memhp: Add hot-added memory ranges to memblock before
+ allocate node_data for a node.
+References: <1440349573-24260-1-git-send-email-tangchen@cn.fujitsu.com> <55DAE26E.1050302@huawei.com>
+In-Reply-To: <55DAE26E.1050302@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, n-horiguchi@ah.jp.nec.com, vbabka@suse.cz, mgorman@techsingularity.net, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[Re: [PATCH 01/10] mm: make cleancache.c explicitly non-modular] On 24/08/2015 (Mon 20:10) Konrad Rzeszutek Wilk wrote:
+On 2015/8/24 17:22, Xishi Qiu wrote:
 
-> On August 24, 2015 6:14:33 PM EDT, Paul Gortmaker <paul.gortmaker@windriver.com> wrote:
-> >The Kconfig currently controlling compilation of this code is:
-> >
-> >config CLEANCACHE
-> >bool "Enable cleancache driver to cache clean pages if tmem is present"
-> >
-> >...meaning that it currently is not being built as a module by anyone.
+> On 2015/8/24 1:06, Tang Chen wrote:
 > 
-> Why not make it a tristate?
+>> The commit below adds hot-added memory range to memblock, after
+>> creating pgdat for new node.
+>>
+>> commit f9126ab9241f66562debf69c2c9d8fee32ddcc53
+>> Author: Xishi Qiu <qiuxishi@huawei.com>
+>> Date:   Fri Aug 14 15:35:16 2015 -0700
+>>
+>>     memory-hotplug: fix wrong edge when hot add a new node
+>>
+>> But there is a problem:
+>>
+>> add_memory()
+>> |--> hotadd_new_pgdat()
+>>      |--> free_area_init_node()
+>>           |--> get_pfn_range_for_nid()
+>>                |--> find start_pfn and end_pfn in memblock
+>> |--> ......
+>> |--> memblock_add_node(start, size, nid)    --------    Here, just too late.
+>>
+>> get_pfn_range_for_nid() will find that start_pfn and end_pfn are both 0.
+>> As a result, when adding memory, dmesg will give the following wrong message.
+>>
 
-Simple.  I'm making the code consistent with its current behaviour.
-I'm not looking to extend functionality in code that I don't know
-intimately.  I can't do that and do it reliably and guarantee it
-works as a module when it has never been used as such before.
+Hi Tang,
 
-I've got about 130 of these and counting.  Some of them have been bool
-since before git history ; before the turn of the century.  If there was
-demand for them to be tristate, then it would have happened by now.  So
-clearly there is no point in looking at making _those_ tristate.
+Another question, if we add cpu first, there will be print error too.
 
-I did have one uart driver author indicate that he _meant_ his code to
-be tristate, and he tested it as such, and asked if I would convert it
-to tristate on his behalf.  And that was fine and I did exactly that.
+cpu_up()
+	try_online_node()
+		hotadd_new_pgdat()
 
-But unless there are interested users who want their code tristate and
-can vouch that their code works OK as such, I can only make the code
-consistent with the implicit non-modular behaviour that the Kconfig and
-Makefiles have dictated up to now.  Are there such users for CLEANCACHE?
+So how about just skip the print if the size is empty or just print 
+"node xx is empty now, will update when online memory"? 
 
-Paul.
---
+Thanks,
+Xishi Qiu
 
-> 
-> 
-> >
-> >Lets remove the couple traces of modularity so that when reading the
-> >driver there is no doubt it is builtin-only.
-> >
-> >Since module_init translates to device_initcall in the non-modular
-> >case, the init ordering remains unchanged with this commit.
-> >
-> >Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> >Cc: linux-mm@kvack.org
-> >Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
-> >---
-> > mm/cleancache.c | 4 ++--
-> > 1 file changed, 2 insertions(+), 2 deletions(-)
-> >
-> >diff --git a/mm/cleancache.c b/mm/cleancache.c
-> >index 8fc50811119b..ee0646d1c2fa 100644
-> >--- a/mm/cleancache.c
-> >+++ b/mm/cleancache.c
-> >@@ -11,7 +11,7 @@
-> >  * This work is licensed under the terms of the GNU GPL, version 2.
-> >  */
-> > 
-> >-#include <linux/module.h>
-> >+#include <linux/init.h>
-> > #include <linux/fs.h>
-> > #include <linux/exportfs.h>
-> > #include <linux/mm.h>
-> >@@ -316,4 +316,4 @@ static int __init init_cleancache(void)
-> > #endif
-> > 	return 0;
-> > }
-> >-module_init(init_cleancache)
-> >+device_initcall(init_cleancache)
-> 
-> 
+>> [ 2007.577000] Initmem setup node 5 [mem 0x0000000000000000-0xffffffffffffffff]
+>> [ 2007.584000] On node 5 totalpages: 0
+>> [ 2007.585000] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 32588823
+>> [ 2007.594000] Policy zone: Normal
+>> [ 2007.598000] init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
+>>
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
