@@ -1,67 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 23A0A6B0253
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 11:26:55 -0400 (EDT)
-Received: by wijp15 with SMTP id p15so19528354wij.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 08:26:54 -0700 (PDT)
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com. [209.85.212.176])
-        by mx.google.com with ESMTPS id jd10si2199791wjb.208.2015.08.25.08.26.53
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id F2BBC6B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 11:28:26 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so18765131wic.0
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 08:28:26 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
+        by mx.google.com with ESMTPS id gc6si3856603wic.19.2015.08.25.08.28.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 08:26:53 -0700 (PDT)
-Received: by wijp15 with SMTP id p15so19527707wij.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 08:26:53 -0700 (PDT)
-Date: Tue, 25 Aug 2015 17:26:51 +0200
+        Tue, 25 Aug 2015 08:28:26 -0700 (PDT)
+Received: by widdq5 with SMTP id dq5so19589980wid.1
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 08:28:25 -0700 (PDT)
+Date: Tue, 25 Aug 2015 17:28:23 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch -mm] mm, oom: add global access to memory reserves on
- livelock
-Message-ID: <20150825152650.GI6285@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com>
- <20150821081745.GG23723@dhcp22.suse.cz>
- <201508212229.GIC00036.tVFMQLOOFJOFSH@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1508241404380.32561@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/2] mm/page_alloc: change
+ sysctl_lower_zone_reserve_ratio to sysctl_lowmem_reserve_ratio
+Message-ID: <20150825152822.GJ6285@dhcp22.suse.cz>
+References: <1440511291-3990-1-git-send-email-bywxiaobai@163.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1508241404380.32561@chino.kir.corp.google.com>
+In-Reply-To: <1440511291-3990-1-git-send-email-bywxiaobai@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, oleg@redhat.com, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yaowei Bai <bywxiaobai@163.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 24-08-15 14:10:10, David Rientjes wrote:
-> On Fri, 21 Aug 2015, Tetsuo Handa wrote:
-> 
-> > Why can't we think about choosing more OOM victims instead of granting access
-> > to memory reserves?
-> > 
-> 
-> We have no indication of which thread is holding a mutex that would need 
-> to be killed, so we'd be randomly killing processes waiting for forward 
-> progress.  A worst-case scenario would be the thread is OOM_DISABLE and we 
-> kill every process on the system needlessly.  This problem obviously 
-> occurs often enough that killing all userspace isnt going to be a viable 
-> solution.
-> 
-> > Also, SysRq might not be usable under OOM because workqueues can get stuck.
-> > The panic_on_oom_timeout was first proposed using a workqueue but was
-> > updated to use a timer because there is no guarantee that workqueues work
-> > as expected under OOM.
-> > 
-> 
-> I don't know anything about a panic_on_oom_timeout,
+On Tue 25-08-15 22:01:30, Yaowei Bai wrote:
+> We use sysctl_lowmem_reserve_ratio rather than sysctl_lower_zone_reserve_ratio to
+> determine how aggressive the kernel is in defending lowmem from the possibility of
+> being captured into pinned user memory. To avoid misleading, correct it in some
+> comments.
 
-You were CCed on the discussion
-http://lkml.kernel.org/r/20150609170310.GA8990%40dhcp22.suse.cz
+We never had a sysctl like that AFAICS in git history.
 
-> but panicking would 
-> only be a reasonable action if memory reserves were fully depleted.  That 
-> could easily be dealt with in the page allocator so there's no timeout 
-> involved.
+> Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
 
-As noted in other email. Just depletion is not a good indicator. The
-system can still make a forward progress even when reserves are
-depleted.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/page_alloc.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 0a0acdb..b730f7d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6043,7 +6043,7 @@ void __init page_alloc_init(void)
+>  }
+>  
+>  /*
+> - * calculate_totalreserve_pages - called when sysctl_lower_zone_reserve_ratio
+> + * calculate_totalreserve_pages - called when sysctl_lowmem_reserve_ratio
+>   *	or min_free_kbytes changes.
+>   */
+>  static void calculate_totalreserve_pages(void)
+> @@ -6087,7 +6087,7 @@ static void calculate_totalreserve_pages(void)
+>  
+>  /*
+>   * setup_per_zone_lowmem_reserve - called whenever
+> - *	sysctl_lower_zone_reserve_ratio changes.  Ensures that each zone
+> + *	sysctl_lowmem_reserve_ratio changes.  Ensures that each zone
+>   *	has a correct pages reserved value, so an adequate number of
+>   *	pages are left in the zone after a successful __alloc_pages().
+>   */
+> -- 
+> 1.9.1
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
 Michal Hocko
