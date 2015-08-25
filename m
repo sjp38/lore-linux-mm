@@ -1,51 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B25196B0255
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 17:33:44 -0400 (EDT)
-Received: by pabzx8 with SMTP id zx8so45553993pab.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 14:33:44 -0700 (PDT)
-Received: from COL004-OMC2S12.hotmail.com (col004-omc2s12.hotmail.com. [65.55.34.86])
-        by mx.google.com with ESMTPS id f4si34992828pas.118.2015.08.25.14.33.43
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 77C976B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 17:57:22 -0400 (EDT)
+Received: by igui7 with SMTP id i7so22421985igu.0
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 14:57:22 -0700 (PDT)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id i3si10808733ioi.144.2015.08.25.14.57.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 25 Aug 2015 14:33:43 -0700 (PDT)
-Message-ID: <COL130-W94C27965E980E171892A4B9610@phx.gbl>
-From: Chen Gang <xili_gchen_5257@hotmail.com>
-Subject: Re: [PATCH] mm: mmap: Check all failures before set values
-Date: Wed, 26 Aug 2015 05:33:42 +0800
-In-Reply-To: <55DCDF7E.6080402@hotmail.com>
-References: <1440349179-18304-1-git-send-email-gang.chen.5i5j@qq.com>
- <20150824113212.GL17078@dhcp22.suse.cz> <55DB1D94.3050404@hotmail.com>
- <COL130-W527FEAA0BEC780957B6B18B9620@phx.gbl>
- <20150824135716.GO17078@dhcp22.suse.cz> <55DB9278.2020603@qq.com>
- <20150825113521.GA6285@dhcp22.suse.cz>,<55DCDF7E.6080402@hotmail.com>
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Aug 2015 14:57:20 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH v4 1/11] x86/vdso32: Define PGTABLE_LEVELS to 32bit VDSO
+Date: Tue, 25 Aug 2015 15:55:01 -0600
+Message-Id: <1440539711-2985-2-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <1440539711-2985-1-git-send-email-toshi.kani@hp.com>
+References: <1440539711-2985-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Chen Gang <gang.chen.5i5j@qq.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "gang.chen.5i5j@gmail.com" <gang.chen.5i5j@gmail.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
+To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
+Cc: akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com, Toshi Kani <toshi.kani@hp.com>
 
-T24gOC8yNS8xNSAxOTozNSwgTWljaGFsIEhvY2tvIHdyb3RlOgo+Cj4gT0ssIEkgZ3Vlc3MgSSB1
-bmRlcnN0YW5kIHdoYXQgeW91IG1lYW4uIFlvdSBhcmUgY2VydGFpbmx5IHJpZ2h0IHRoYXQgYQo+
-IHBhcnRpYWwgaW5pdGlhbGl6YXRpb24gZm9yIHRoZSBmYWlsdXJlIGNhc2UgaXMgbm90IG5pY2Ug
-aW4gZ2VuZXJhbC4gSQo+IHdhcyBqdXN0IG9iamVjdGluZyB0aGF0IHRoZSBjYWxsZXJzIGFyZSBz
-dXBwb3NlZCB0byBmcmVlIHRoZSB2bWEgaW4KPiB0aGUgZmFpbHVyZSBjYXNlIHNvIGFueSBwYXJ0
-aWFsIGluaXRpYWxpemF0aW9uIGRvZXNuJ3QgbWF0dGVyIGluIHRoaXMKPiBwYXJ0aWN1bGFyIGNh
-c2UuCj4KPiBZb3VyIHBhdGNoIHdvdWxkIGJlIG1vcmUgc2Vuc2libGUgaWYgdGhlIGZhaWx1cmUg
-Y2FzZSB3YXMgbW9yZQo+IGxpa2VseS4gQnV0IHRoaXMgZnVuY3Rpb24gaXMgdXNlZCBmb3Igc3Bl
-Y2lhbCBtYXBwaW5ncyAodmRzbywgdGVtcG9yYXJ5Cj4gdmRzbyBzdGFjaykgd2hpY2ggYXJlIGNy
-ZWF0ZWQgZWFybHkgaW4gdGhlIHByb2Nlc3MgbGlmZSB0aW1lIHNvIGJvdGgKPiBmYWlsdXJlIHBh
-dGhzIGFyZSBoaWdobHkgdW5saWtlbHkuIElmIHRoaXMgd2FzIGEgcGFydCBvZiBhIGxhcmdlcgo+
-IGNoYW5nZXMgd2hlcmUgdGhlIGZ1bmN0aW9uIHdvdWxkIGJlIHVzZWQgZWxzZXdoZXJlIEkgd291
-bGRuJ3Qgb2JqZWN0IGF0Cj4gYWxsLgo+CgpPSy4KCj4gVGhlIHJlYXNvbiBJIGFtIHNrZXB0aWNh
-bCBhYm91dCBzdWNoIGNoYW5nZXMgaW4gZ2VuZXJhbCBpcyB0aGF0Cj4gdGhlIGVmZmVjdCBpcyB2
-ZXJ5IG1hcmdpbmFsIHdoaWxlIGl0IGluY3JlYXNlcyBjaGFuY2VzIG9mIHRoZSBjb2RlCj4gY29u
-ZmxpY3RzLgo+Cj4gQnV0IGFzIEkndmUgc2FpZCwgaWYgb3RoZXJzIGZlZWwgdGhpcyBpcyB3b3J0
-aHdoaWxlIEkgd2lsbCBub3Qgb2JqZWN0Lgo+CgpPSywgSSBjYW4gdW5kZXJzdGFuZC4KCgpUaGFu
-a3MuCi0tCkNoZW4gR2FuZwoKT3Blbiwgc2hhcmUsIGFuZCBhdHRpdHVkZSBsaWtlIGFpciwgd2F0
-ZXIsIGFuZCBsaWZlIHdoaWNoIEdvZCBibGVzc2VkCiAJCSAJICAgCQkgIA==
+In case of CONFIG_X86_64, vdso32/vclock_gettime.c fakes a 32-bit
+non-PAE kernel configuration by re-defining it to CONFIG_X86_32.
+However, it does not re-define CONFIG_PGTABLE_LEVELS leaving it
+as 4 levels.
+
+This mismatch leads <asm/pgtable_type.h> to NOT include <asm-generic/
+pgtable-nopud.h> and <asm-generic/pgtable-nopmd.h>, which will cause
+compile errors when a later patch enhances <asm/pgtable_type.h> to
+use PUD_SHIFT and PMD_SHIFT.  These -nopud & -nopmd headers define
+these SHIFTs for the 32-bit non-PAE kernel.
+
+Fix it by re-defining CONFIG_PGTABLE_LEVELS to 2 levels.
+
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Borislav Petkov <bp@alien8.de>
+---
+ arch/x86/entry/vdso/vdso32/vclock_gettime.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/x86/entry/vdso/vdso32/vclock_gettime.c b/arch/x86/entry/vdso/vdso32/vclock_gettime.c
+index 175cc72..87a86e0 100644
+--- a/arch/x86/entry/vdso/vdso32/vclock_gettime.c
++++ b/arch/x86/entry/vdso/vdso32/vclock_gettime.c
+@@ -14,11 +14,13 @@
+  */
+ #undef CONFIG_64BIT
+ #undef CONFIG_X86_64
++#undef CONFIG_PGTABLE_LEVELS
+ #undef CONFIG_ILLEGAL_POINTER_VALUE
+ #undef CONFIG_SPARSEMEM_VMEMMAP
+ #undef CONFIG_NR_CPUS
+ 
+ #define CONFIG_X86_32 1
++#define CONFIG_PGTABLE_LEVELS 2
+ #define CONFIG_PAGE_OFFSET 0
+ #define CONFIG_ILLEGAL_POINTER_VALUE 0
+ #define CONFIG_NR_CPUS 1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
