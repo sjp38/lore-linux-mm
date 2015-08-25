@@ -1,49 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 29F489003C7
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 10:18:02 -0400 (EDT)
-Received: by oiev193 with SMTP id v193so101359124oie.3
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:18:01 -0700 (PDT)
-Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
-        by mx.google.com with ESMTPS id mn3si13745577oeb.66.2015.08.25.07.17.56
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 727219003C7
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 10:20:04 -0400 (EDT)
+Received: by laba3 with SMTP id a3so99369239lab.1
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:20:03 -0700 (PDT)
+Received: from mail-la0-x230.google.com (mail-la0-x230.google.com. [2a00:1450:4010:c03::230])
+        by mx.google.com with ESMTPS id oa2si16116359lbb.128.2015.08.25.07.20.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 07:18:01 -0700 (PDT)
-Message-ID: <1440512146.14237.15.camel@hp.com>
-Subject: Re: [PATCH v3 3/10] x86/asm: Fix pud/pmd interfaces to handle large
- PAT bit
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 25 Aug 2015 08:15:46 -0600
-In-Reply-To: <alpine.DEB.2.11.1508251015180.15006@nanos>
-References: <1438811013-30983-1-git-send-email-toshi.kani@hp.com>
-	 <1438811013-30983-4-git-send-email-toshi.kani@hp.com>
-	 <alpine.DEB.2.11.1508251015180.15006@nanos>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 25 Aug 2015 07:20:02 -0700 (PDT)
+Received: by labgv11 with SMTP id gv11so31471925lab.2
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:20:02 -0700 (PDT)
+From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Subject: Re: [PATCH 3/3 v6] mm/vmalloc: Cache the vmalloc memory info
+References: <20150824075018.GB20106@gmail.com>
+	<20150824125402.28806.qmail@ns.horizon.com>
+	<20150825095638.GA24750@gmail.com>
+Date: Tue, 25 Aug 2015 16:19:59 +0200
+In-Reply-To: <20150825095638.GA24750@gmail.com> (Ingo Molnar's message of
+	"Tue, 25 Aug 2015 11:56:38 +0200")
+Message-ID: <87io83wiuo.fsf@rasmusvillemoes.dk>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hp.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: George Spelvin <linux@horizon.com>, dave@sr71.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, riel@redhat.com, rientjes@google.com, torvalds@linux-foundation.org
 
-On Tue, 2015-08-25 at 10:16 +0200, Thomas Gleixner wrote:
-> On Wed, 5 Aug 2015, Toshi Kani wrote:
-> 
-> > The PAT bit gets relocated to bit 12 when PUD and PMD mappings are
-> > used.  This bit 12, however, is not covered by PTE_FLAGS_MASK, which
-> > is corrently used for masking pfn and flags for all cases.
-> > 
-> > Fix pud/pmd interfaces to handle pfn and flags properly by using
-> > P?D_PAGE_MASK when PUD/PMD mappings are used, i.e. PSE bit is set.
-> 
-> Can you please split that into a patch introducing and describing the
-> new mask helper functions and a second one making use of it?
+On Tue, Aug 25 2015, Ingo Molnar <mingo@kernel.org> wrote:
 
-Will do.  I will send out v4 patchset today with this update (and the patch
-01 update). 
+> * George Spelvin <linux@horizon.com> wrote:
+>
+>> (I hope I'm not annoying you by bikeshedding this too much, although I
+>> think this is improving.)
+>
+> [ I don't mind, although I wish other, more critical parts of the kernel got this
+>   much attention as well ;-) ]
+>
 
-Thanks,
--Toshi
+Since we're beating dead horses, let me point out one possibly
+unintentional side-effect of initializing just one of vmap_info{,_cache}_gen:
+
+$ nm -n vmlinux | grep -E 'vmap_info(_cache)?_gen'
+ffffffff81e4e5e0 d vmap_info_gen
+ffffffff820d5700 b vmap_info_cache_gen
+
+[Up-thread, you wrote "I also moved the function-static cache next to the
+flag and seqlock - this should further compress the cache footprint."]
+
+One should probably ensure that they end up in the same cacheline if one
+wants the fast-path to be as fast as possible - the easiest way to
+ensure that is to put them in a small struct, and that might as well
+contain the spinlock and the cache itself as well.
+
+It's been fun seeing this evolve, but overall, I tend to agree with
+Peter: It's a lot of complexity for little gain. If we're not going to
+just kill the Vmalloc* fields (which is probably too controversial)
+I'd prefer Linus' simpler version.
+
+Rasmus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
