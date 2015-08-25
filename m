@@ -1,101 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CEAD6B0253
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 09:12:23 -0400 (EDT)
-Received: by qkda128 with SMTP id a128so50050367qkd.3
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 06:12:22 -0700 (PDT)
-Received: from mail-qg0-x22d.google.com (mail-qg0-x22d.google.com. [2607:f8b0:400d:c04::22d])
-        by mx.google.com with ESMTPS id n63si18774233qkh.4.2015.08.25.06.12.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 06:12:22 -0700 (PDT)
-Received: by qgeg42 with SMTP id g42so106166490qge.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 06:12:22 -0700 (PDT)
-Message-ID: <55dc69b5.46268c0a.faa78.24eb@mx.google.com>
-Date: Tue, 25 Aug 2015 06:12:21 -0700 (PDT)
-From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Subject: Re: [PATCH V2] mm:memory hot-add: memory can not been added to
- movable zone
-In-Reply-To: <1440055685-6083-1-git-send-email-liuchangsheng@inspur.com>
-References: <1440055685-6083-1-git-send-email-liuchangsheng@inspur.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 03DDB6B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 09:30:37 -0400 (EDT)
+Received: by qgeb6 with SMTP id b6so106013560qge.3
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 06:30:36 -0700 (PDT)
+Received: from m12-11.163.com (m12-11.163.com. [220.181.12.11])
+        by mx.google.com with ESMTP id r19si33477292qha.4.2015.08.25.06.30.34
+        for <linux-mm@kvack.org>;
+        Tue, 25 Aug 2015 06:30:36 -0700 (PDT)
+From: Yaowei Bai <bywxiaobai@163.com>
+Subject: [PATCH v2] mm/page_alloc: add a helper function to check page before alloc/free
+Date: Tue, 25 Aug 2015 21:26:30 +0800
+Message-Id: <1440509190-3622-1-git-send-email-bywxiaobai@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Changsheng Liu <liuchangsheng@inspur.com>
-Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
+To: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, mhocko@kernel.org, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+The major portion of check_new_page() and free_pages_check() are same,
+introduce a helper function check_one_page() for simplification.
 
-On Thu, 20 Aug 2015 03:28:05 -0400
-Changsheng Liu <liuchangsheng@inspur.com> wrote:
+Change in v2:
+	- use bad_flags as parameter directly per Michal Hocko
 
-> From: Changsheng Liu <liuchangcheng@inspur.com>
-> 
-> When memory is hot added, should_add_memory_movable() always returns 0
-> because the movable zone is empty, so the memory that was hot added will
-> add to the normal zone even if we want to remove the memory.
-> 
-> So we change should_add_memory_movable(): if the user config
-> CONFIG_MOVABLE_NODE it will return 1 when the movable zone is empty.
-> 
-> Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Changsheng Liu <liuchangcheng@inspur.com>
-> Tested-by: Dongdong Fan <fandd@inspur.com>
-> ---
->  mm/memory_hotplug.c |    3 +--
->  1 files changed, 1 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 26fbba7..ff658f2 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1199,8 +1199,7 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
->  	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
->  
+Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
+---
+ mm/page_alloc.c | 49 ++++++++++++++++++-------------------------------
+ 1 file changed, 18 insertions(+), 31 deletions(-)
 
->  	if (zone_is_empty(movable_zone))
-> -		return 0;
-> -
-> +		return IS_ENABLED(CONFIG_MOVABLE_NODE);
->  	if (movable_zone->zone_start_pfn <= start_pfn)
->  		return 1;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5b5240b..0a0acdb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -707,10 +707,9 @@ out:
+ 	zone->free_area[order].nr_free++;
+ }
+ 
+-static inline int free_pages_check(struct page *page)
++static inline int check_one_page(struct page *page, unsigned long bad_flags)
+ {
+ 	const char *bad_reason = NULL;
+-	unsigned long bad_flags = 0;
+ 
+ 	if (unlikely(page_mapcount(page)))
+ 		bad_reason = "nonzero mapcount";
+@@ -718,9 +717,11 @@ static inline int free_pages_check(struct page *page)
+ 		bad_reason = "non-NULL mapping";
+ 	if (unlikely(atomic_read(&page->_count) != 0))
+ 		bad_reason = "nonzero _count";
+-	if (unlikely(page->flags & PAGE_FLAGS_CHECK_AT_FREE)) {
+-		bad_reason = "PAGE_FLAGS_CHECK_AT_FREE flag(s) set";
+-		bad_flags = PAGE_FLAGS_CHECK_AT_FREE;
++	if (unlikely(page->flags & bad_flags)) {
++		if (bad_flags == PAGE_FLAGS_CHECK_AT_PREP)
++			bad_reason = "PAGE_FLAGS_CHECK_AT_PREP flag set";
++		else if (bad_flags == PAGE_FLAGS_CHECK_AT_FREE)
++			bad_reason = "PAGE_FLAGS_CHECK_AT_FREE flag set";
+ 	}
+ #ifdef CONFIG_MEMCG
+ 	if (unlikely(page->mem_cgroup))
+@@ -730,6 +731,17 @@ static inline int free_pages_check(struct page *page)
+ 		bad_page(page, bad_reason, bad_flags);
+ 		return 1;
+ 	}
++	return 0;
++}
++
++static inline int free_pages_check(struct page *page)
++{
++	int ret = 0;
++
++	ret = check_one_page(page, PAGE_FLAGS_CHECK_AT_FREE);
++	if (ret)
++		return ret;
++
+ 	page_cpupid_reset_last(page);
+ 	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
+ 		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+@@ -1287,32 +1299,7 @@ static inline void expand(struct zone *zone, struct page *page,
+  */
+ static inline int check_new_page(struct page *page)
+ {
+-	const char *bad_reason = NULL;
+-	unsigned long bad_flags = 0;
+-
+-	if (unlikely(page_mapcount(page)))
+-		bad_reason = "nonzero mapcount";
+-	if (unlikely(page->mapping != NULL))
+-		bad_reason = "non-NULL mapping";
+-	if (unlikely(atomic_read(&page->_count) != 0))
+-		bad_reason = "nonzero _count";
+-	if (unlikely(page->flags & __PG_HWPOISON)) {
+-		bad_reason = "HWPoisoned (hardware-corrupted)";
+-		bad_flags = __PG_HWPOISON;
+-	}
+-	if (unlikely(page->flags & PAGE_FLAGS_CHECK_AT_PREP)) {
+-		bad_reason = "PAGE_FLAGS_CHECK_AT_PREP flag set";
+-		bad_flags = PAGE_FLAGS_CHECK_AT_PREP;
+-	}
+-#ifdef CONFIG_MEMCG
+-	if (unlikely(page->mem_cgroup))
+-		bad_reason = "page still charged to cgroup";
+-#endif
+-	if (unlikely(bad_reason)) {
+-		bad_page(page, bad_reason, bad_flags);
+-		return 1;
+-	}
+-	return 0;
++	return check_one_page(page, PAGE_FLAGS_CHECK_AT_PREP);
+ }
+ 
+ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+-- 
+1.9.1
 
-Currently, kernel allows to create ZONE_MOVABLE after ZONE_NORMAL as follows:
- PFN low                                 high 
-       ---|-------------|-------------|---
-            ZONE_NORMAL   ZONE_MOVABLE
-
-But kernel does not allow to create ZONE_MOVABLE before ZONE_NORMAL as follows:
- PFN low                                 high 
-       ---|-------------|-------------|---
-            ZONE_MOVABLE  ZONE_NORMAL
-
-Also, kernel does not allow to create ZONE_MOVABLE in ZOME_NORMAL as follows:
- PFN low                                              high 
-       ---|-------------|-------------|-------------|---
-            ZONE_NORMAL   ZONE_MOVABLE  ZONE_NORMAL
-
-So should_add_memory_movable() checks them.
-
-Accoring to your patch, when movable_zone is empty, the hot added memory is
-always managed to ZONE_MOVABLE. It means that ZONE_MOVALBE will puts before/in
-ZONE_NORMAL.
-
-You must prevent from creating ZONE_MOVABLE before/in ZONE_NORMAL.
-
-Thanks,
-Yasuaki Ishimatsu
-
->  
-> -- 
-> 1.7.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
