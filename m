@@ -1,90 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3530F6B0253
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:09:40 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so11554100wic.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 04:09:39 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 792896B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:13:11 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so11693267wic.0
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 04:13:10 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e1si38224805wjp.38.2015.08.25.04.09.38
+        by mx.google.com with ESMTPS id ma1si38245975wjb.20.2015.08.25.04.13.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Aug 2015 04:09:38 -0700 (PDT)
-Subject: Re: [PATCH 04/12] mm, page_alloc: Only check cpusets when one exists
- that can be mem-controlled
-References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
- <1440418191-10894-5-git-send-email-mgorman@techsingularity.net>
- <55DB1015.4080103@suse.cz> <20150824131616.GK12432@techsingularity.net>
- <55DB8451.4000102@suse.cz> <20150825103300.GM12432@techsingularity.net>
+        Tue, 25 Aug 2015 04:13:10 -0700 (PDT)
+Subject: Re: [PATCH] Memory hot added,The memory can not been added to movable
+ zone
+References: <1439972306-50845-1-git-send-email-liuchangsheng@inspur.com>
+ <20150819165029.665b89d7ab3228185460172c@linux-foundation.org>
+ <55D57071.1080901@inspur.com> <55db6d6d.82d1370a.dd0ff.6055@mx.google.com>
+ <55DC4294.2020407@inspur.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55DC4CEF.7060104@suse.cz>
-Date: Tue, 25 Aug 2015 13:09:35 +0200
+Message-ID: <55DC4DC3.30509@suse.cz>
+Date: Tue, 25 Aug 2015 13:13:07 +0200
 MIME-Version: 1.0
-In-Reply-To: <20150825103300.GM12432@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <55DC4294.2020407@inspur.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Changsheng Liu <liuchangsheng@inspur.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yanxiaofeng@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
 
-On 08/25/2015 12:33 PM, Mel Gorman wrote:
-> On Mon, Aug 24, 2015 at 10:53:37PM +0200, Vlastimil Babka wrote:
->> On 24.8.2015 15:16, Mel Gorman wrote:
->>>>>
->>>>>   	return read_seqcount_retry(&current->mems_allowed_seq, seq);
->>>>> @@ -139,7 +141,7 @@ static inline void set_mems_allowed(nodemask_t nodemask)
->>>>>
->>>>>   #else /* !CONFIG_CPUSETS */
->>>>>
->>>>> -static inline bool cpusets_enabled(void) { return false; }
->>>>> +static inline bool cpusets_mems_enabled(void) { return false; }
->>>>>
->>>>>   static inline int cpuset_init(void) { return 0; }
->>>>>   static inline void cpuset_init_smp(void) {}
->>>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>>>> index 62ae28d8ae8d..2c1c3bf54d15 100644
->>>>> --- a/mm/page_alloc.c
->>>>> +++ b/mm/page_alloc.c
->>>>> @@ -2470,7 +2470,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
->>>>>   		if (IS_ENABLED(CONFIG_NUMA) && zlc_active &&
->>>>>   			!zlc_zone_worth_trying(zonelist, z, allowednodes))
->>>>>   				continue;
->>>>> -		if (cpusets_enabled() &&
->>>>> +		if (cpusets_mems_enabled() &&
->>>>>   			(alloc_flags & ALLOC_CPUSET) &&
->>>>>   			!cpuset_zone_allowed(zone, gfp_mask))
->>>>>   				continue;
+On 08/25/2015 12:25 PM, Changsheng Liu wrote:
+> Thanks very much for your review, I can move the memory from normal zone
+> to movable zone succesfully.
+> And thank you for let me understand the memory mechanism better.
+> a?? 2015/8/25 3:15, Yasuaki Ishimatsu a??e??:
+
+So you agree to drop the patch from -mm?
+
+>> Hi
+>> On Thu, 20 Aug 2015 14:15:13 +0800
+>> Changsheng Liu <liuchangsheng@inspur.com> wrote:
+>>
+>>> Hi Andrew Morton:
+>>> First, thanks very much for your review, I will update codes according
+>>> to  your suggestio
+>>>
+>>> a?? 2015/8/20 7:50, Andrew Morton a??e??:
+>>>> On Wed, 19 Aug 2015 04:18:26 -0400 Changsheng Liu <liuchangsheng@inspur.com> wrote:
 >>>>
->>>> Here the benefits are less clear. I guess cpuset_zone_allowed() is
->>>> potentially costly...
+>>>>> From: Changsheng Liu <liuchangcheng@inspur.com>
+>>>>>
+>>>>> When memory hot added, the function should_add_memory_movable
+>>>>> always return 0,because the movable zone is empty,
+>>>>> so the memory that hot added will add to normal zone even if
+>>>>> we want to remove the memory.
+>>>>> So we change the function should_add_memory_movable,if the user
+>>>>> config CONFIG_MOVABLE_NODE it will return 1 when
+>>>>> movable zone is empty
+>>>> I cleaned this up a bit:
 >>>>
->>>> Heck, shouldn't we just start the static key on -1 (if possible), so that
->>>> it's enabled only when there's 2+ cpusets?
+>>>> : Subject: mm: memory hot-add: memory can not been added to movable zone
+>>>> :
+>>>> : When memory is hot added, should_add_memory_movable() always returns 0
+>>>> : because the movable zone is empty, so the memory that was hot added will
+>>>> : add to the normal zone even if we want to remove the memory.
+>>>> :
+>>>> : So we change should_add_memory_movable(): if the user config
+>>>> : CONFIG_MOVABLE_NODE it will return 1 when the movable zone is empty.
+>>>>
+>>>> But I don't understand the "even if we want to remove the memory".
+>>>> This is hot-add, not hot-remove.  What do you mean here?
+>>>        After the system startup, we hot added one memory. After some time
+>>> we wanted to hot remove the memroy that was hot added,
+>>>        but we could not offline some memory blocks successfully because
+>>> the memory was added to normal zone defaultly and the value of the file
+>>>        named removable under some memory blocks is 0.
+>> For this, we prepared online_movable. When memory is onlined by online_movable,
+>> the memory move from ZONE_NORMAL to ZONE_MOVABLE.
 >>
->> Hm wait a minute, that's what already happens:
+>> Ex.
+>> # echo online_movable > /sys/devices/system/memory/memoryXXX/state
 >>
->> static inline int nr_cpusets(void)
->> {
->>          /* jump label reference count + the top-level cpuset */
->>          return static_key_count(&cpusets_enabled_key) + 1;
->> }
+>> Thanks,
+>> Yasuaki Ishimatsu
 >>
->> I.e. if there's only the root cpuset, static key is disabled, so I think this
->> patch is moot after all?
+>>>        we checked the value of the file under some memory blocks as follows:
+>>>        "cat /sys/devices/system/memory/ memory***/removable"
+>>>        When memory being hot added we let the memory be added to movable
+>>> zone,
+>>>        so we will be able to hot remove the memory that have been hot added
+>>>>> --- a/mm/memory_hotplug.c
+>>>>> +++ b/mm/memory_hotplug.c
+>>>>> @@ -1198,9 +1198,13 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
+>>>>>     	pg_data_t *pgdat = NODE_DATA(nid);
+>>>>>     	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+>>>>>
+>>>>> -	if (zone_is_empty(movable_zone))
+>>>>> +	if (zone_is_empty(movable_zone)) {
+>>>>> +	#ifdef CONFIG_MOVABLE_NODE
+>>>>> +		return 1;
+>>>>> +	#else
+>>>>>     		return 0;
+>>>>> -
+>>>>> +	#endif
+>>>>> +	}
+>>>>>     	if (movable_zone->zone_start_pfn <= start_pfn)
+>>>>>     		return 1;
+>>>> Cleaner:
+>>>>
+>>>> --- a/mm/memory_hotplug.c~memory-hot-addedthe-memory-can-not-been-added-to-movable-zone-fix
+>>>> +++ a/mm/memory_hotplug.c
+>>>> @@ -1181,13 +1181,9 @@ static int should_add_memory_movable(int
+>>>>     	pg_data_t *pgdat = NODE_DATA(nid);
+>>>>     	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+>>>>
+>>>> -	if (zone_is_empty(movable_zone)) {
+>>>> -	#ifdef CONFIG_MOVABLE_NODE
+>>>> -		return 1;
+>>>> -	#else
+>>>> -		return 0;
+>>>> -	#endif
+>>>> -	}
+>>>> +	if (zone_is_empty(movable_zone))
+>>>> +		return IS_ENABLED(CONFIG_MOVABLE_NODE);
+>>>> +
+>>>>     	if (movable_zone->zone_start_pfn <= start_pfn)
+>>>>     		return 1;
+>>>>
+>>>> _
+>>>>
+>>>> .
+>>>>
+>> .
 >>
 >
-> static_key_count is an atomic read on a field in struct static_key where
-> as static_key_false is a arch_static_branch which can be eliminated. The
-> patch eliminates an atomic read so I didn't think it was moot.
-
-Sorry I wasn't clear enough. My point is that AFAICS cpusets_enabled() 
-will only return true if there are more cpusets than the root 
-(top-level) one.
-So the current cpusets_enabled() checks should be enough. Checking that 
-"nr_cpusets() > 1" only duplicates what is already covered by 
-cpusets_enabled() - see the nr_cpusets() listing above. I.e. David's 
-premise was wrong.
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
