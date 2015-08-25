@@ -1,81 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B2176B0253
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:35:25 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so12140193wid.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 04:35:24 -0700 (PDT)
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
-        by mx.google.com with ESMTPS id c4si2748946wiy.27.2015.08.25.04.35.22
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 253316B0253
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 07:44:19 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so13020106wid.1
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 04:44:18 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id eg9si38335065wjd.184.2015.08.25.04.44.16
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 04:35:23 -0700 (PDT)
-Received: by wijp15 with SMTP id p15so12792591wij.0
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 04:35:22 -0700 (PDT)
-Date: Tue, 25 Aug 2015 13:35:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: mmap: Check all failures before set values
-Message-ID: <20150825113521.GA6285@dhcp22.suse.cz>
-References: <1440349179-18304-1-git-send-email-gang.chen.5i5j@qq.com>
- <20150824113212.GL17078@dhcp22.suse.cz>
- <55DB1D94.3050404@hotmail.com>
- <COL130-W527FEAA0BEC780957B6B18B9620@phx.gbl>
- <20150824135716.GO17078@dhcp22.suse.cz>
- <55DB9278.2020603@qq.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 25 Aug 2015 04:44:17 -0700 (PDT)
+Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
+References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150820163643.dd87de0c1a73cb63866b2914@linux-foundation.org>
+ <20150821121028.GB12016@node.dhcp.inet.fi>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55DC550D.5060501@suse.cz>
+Date: Tue, 25 Aug 2015 13:44:13 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55DB9278.2020603@qq.com>
+In-Reply-To: <20150821121028.GB12016@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <gang.chen.5i5j@qq.com>
-Cc: Chen Gang <xili_gchen_5257@hotmail.com>, Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "gang.chen.5i5j@gmail.com" <gang.chen.5i5j@gmail.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-On Tue 25-08-15 05:54:00, Chen Gang wrote:
-> On 8/24/15 21:57, Michal Hocko wrote:
-> > On Mon 24-08-15 21:34:25, Chen Gang wrote:
-> 
-> [...]
-> 
-> 
-> >> It is always a little better to let the external function suppose fewer
-> >> callers' behalf.
-> > 
-> > I am sorry but I do not understand what you are saying here.
-> > 
-> 
-> Execuse me, my English maybe be still not quite well, my meaning is:
-> 
->  - For the external functions (e.g. insert_vm_struct in our case), as a
->    callee, it may have to supose something from the caller.
-> 
->  - If we can keep callee's functional contents no touch, a little fewer
->    supposing will let callee a little more independent from caller.
-> 
->  - If can keep functional contens no touch, the lower dependency between
->    caller and callee is always better.
+On 08/21/2015 02:10 PM, Kirill A. Shutemov wrote:
+> On Thu, Aug 20, 2015 at 04:36:43PM -0700, Andrew Morton wrote:
+>> On Wed, 19 Aug 2015 12:21:45 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+>>
+>>> The patch introduces page->compound_head into third double word block in
+>>> front of compound_dtor and compound_order. That means it shares storage
+>>> space with:
+>>>
+>>>   - page->lru.next;
+>>>   - page->next;
+>>>   - page->rcu_head.next;
+>>>   - page->pmd_huge_pte;
+>>>
 
-OK, I guess I understand what you mean. You are certainly right that a
-partial initialization for the failure case is not nice in general. I
-was just objecting that the callers are supposed to free the vma in
-the failure case so any partial initialization doesn't matter in this
-particular case.
+We should probably ask Paul about the chances that rcu_head.next would 
+like to use the bit too one day?
+For pgtable_t I can't think of anything better than a warning in the 
+generic definition in include/asm-generic/page.h and hope that anyone 
+reimplementing it for a new arch will look there first.
+The lru part is probably the hardest to prevent danger. It can be used 
+for any private purposes. Hopefully everyone currently uses only 
+standard list operations here, and the list poison values don't set bit 
+0. But I see there can be some arbitrary CONFIG_ILLEGAL_POINTER_VALUE 
+added to the poisons, so maybe that's worth some build error check? 
+Anyway we would be imposing restrictions on types that are not ours, so 
+there might be some resistance...
 
-Your patch would be more sensible if the failure case was more
-likely. But this function is used for special mappings (vdso, temporary
-vdso stack) which are created early in the process life time so both
-failure paths are highly unlikely. If this was a part of a larger
-changes where the function would be used elsewhere I wouldn't object at
-all.
+>
+>> Anyway, this is quite subtle and there's a risk that people will
+>> accidentally break it later on.  I don't think the patch puts
+>> sufficient documentation in place to prevent this.
+>
+> I would appreciate for suggestion on place and form of documentation.
+>
+>> And even documentation might not be enough to prevent accidents.
+>
+> The only think I can propose is VM_BUG_ON() in PageTail() and
+> compound_head() which would ensure that page->compound_page points to
+> place within MAX_ORDER_NR_PAGES before the current page if bit 0 is set.
 
-The reason I am skeptical about such changes in general is that
-the effect is very marginal while it increases chances of the code
-conflicts.
+That should probably catch some bad stuff, but probably only moments 
+before it would crash anyway if the pointer was bogus. But I also don't 
+see better way, because we can't proactively put checks in those who 
+would "misbehave", as we don't know who they are. Putting more debug 
+checks in e.g. page freeing might help, but probably not much.
 
-But as I've said, if others feel this is worthwhile I will not object.
+> Do you consider this helpful?
+>
+>>>
+>>> ...
+>>>
+>>> --- a/include/linux/mm_types.h
+>>> +++ b/include/linux/mm_types.h
+>>> @@ -120,7 +120,12 @@ struct page {
+>>>   		};
+>>>   	};
+>>>
+>>> -	/* Third double word block */
+>>> +	/*
+>>> +	 * Third double word block
+>>> +	 *
+>>> +	 * WARNING: bit 0 of the first word encode PageTail and *must* be 0
+>>> +	 * for non-tail pages.
+>>> +	 */
+>>>   	union {
+>>>   		struct list_head lru;	/* Pageout list, eg. active_list
+>>>   					 * protected by zone->lru_lock !
+>>> @@ -143,6 +148,7 @@ struct page {
+>>>   						 */
+>>>   		/* First tail page of compound page */
 
--- 
-Michal Hocko
-SUSE Labs
+Note that compound_head is not just in the *first* tail page. Only the 
+rest is.
+
+>>>   		struct {
+>>> +			unsigned long compound_head; /* If bit zero is set */
+>>
+>> I think the comments around here should have more details and should
+>> be louder!
+>
+> I'm always bad when it comes to documentation. Is it enough?
+>
+> 	/*
+> 	 * Third double word block
+> 	 *
+> 	 * WARNING: bit 0 of the first word encode PageTail(). That means
+> 	 * the rest users of the storage space MUST NOT use the bit to
+> 	 * avoid collision and false-positive PageTail().
+> 	 */
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
