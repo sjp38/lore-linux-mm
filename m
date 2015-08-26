@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 637D59003C7
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 21:33:46 -0400 (EDT)
-Received: by pacdd16 with SMTP id dd16so142024597pac.2
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 18:33:46 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id o1si35806288pdk.179.2015.08.25.18.33.45
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C25E9003C7
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 21:33:51 -0400 (EDT)
+Received: by pabzx8 with SMTP id zx8so51367890pab.1
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 18:33:51 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id rv7si35737730pbb.39.2015.08.25.18.33.50
         for <linux-mm@kvack.org>;
-        Tue, 25 Aug 2015 18:33:45 -0700 (PDT)
-Subject: [PATCH v2 7/9] libnvdimm, pmem: 'struct page' for pmem
+        Tue, 25 Aug 2015 18:33:50 -0700 (PDT)
+Subject: [PATCH v2 8/9] libnvdimm, pmem: direct map legacy pmem by default
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 25 Aug 2015 21:28:02 -0400
-Message-ID: <20150826012802.8851.58822.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 25 Aug 2015 21:28:07 -0400
+Message-ID: <20150826012807.8851.43035.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -20,428 +20,169 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: boaz@plexistor.com, david@fromorbit.com, linux-kernel@vger.kernel.org, mingo@kernel.org, linux-mm@kvack.org, hpa@zytor.com, ross.zwisler@linux.intel.com, hch@lst.de
+Cc: boaz@plexistor.com, david@fromorbit.com, linux-kernel@vger.kernel.org, hch@lst.de, linux-mm@kvack.org, hpa@zytor.com, ross.zwisler@linux.intel.com, mingo@kernel.org
 
-Enable the pmem driver to handle PFN device instances.  Attaching a pmem
-namespace to a pfn device triggers the driver to allocate and initialize
-struct page entries for pmem.  Memory capacity for this allocation comes
-exclusively from RAM for now which is suitable for low PMEM to RAM
-ratios.  This mechanism will be expanded later for setting an "allocate
-from PMEM" policy.
+The expectation is that the legacy / non-standard pmem discovery method
+(e820 type-12) will only ever be used to describe small quantities of
+persistent memory.  Larger capacities will be described via the ACPI
+NFIT.  When "allocate struct page from pmem" support is added this default
+policy can be overridden by assigning a legacy pmem namespace to a pfn
+device, however this would be only be necessary if a platform used the
+legacy mechanism to define a very large range.
 
-Cc: Boaz Harrosh <boaz@plexistor.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Cc: Christoph Hellwig <hch@lst.de>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/nvdimm/Kconfig            |    1 
- drivers/nvdimm/nd.h               |    6 +
- drivers/nvdimm/pfn_devs.c         |    9 +-
- drivers/nvdimm/pmem.c             |  203 +++++++++++++++++++++++++++++++++++--
- tools/testing/nvdimm/Kbuild       |    1 
- tools/testing/nvdimm/test/iomap.c |   13 ++
- 6 files changed, 216 insertions(+), 17 deletions(-)
+ drivers/nvdimm/e820.c           |    1 +
+ drivers/nvdimm/namespace_devs.c |   28 ++++++++++++++++++++++++++--
+ drivers/nvdimm/nd.h             |    2 ++
+ drivers/nvdimm/pmem.c           |   13 ++++++++++---
+ drivers/nvdimm/region_devs.c    |    1 +
+ include/linux/libnvdimm.h       |    4 ++++
+ 6 files changed, 44 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/nvdimm/Kconfig b/drivers/nvdimm/Kconfig
-index ace25b53b755..53c11621d5b1 100644
---- a/drivers/nvdimm/Kconfig
-+++ b/drivers/nvdimm/Kconfig
-@@ -76,6 +76,7 @@ config ND_PFN
- config NVDIMM_PFN
- 	bool "PFN: Map persistent (device) memory"
- 	default LIBNVDIMM
-+	depends on ZONE_DEVICE
- 	select ND_CLAIM
- 	help
- 	  Map persistent memory, i.e. advertise it to the memory
+diff --git a/drivers/nvdimm/e820.c b/drivers/nvdimm/e820.c
+index 1b5743ad92db..8282db2ef99e 100644
+--- a/drivers/nvdimm/e820.c
++++ b/drivers/nvdimm/e820.c
+@@ -49,6 +49,7 @@ static int e820_pmem_probe(struct platform_device *pdev)
+ 		ndr_desc.res = p;
+ 		ndr_desc.attr_groups = e820_pmem_region_attribute_groups;
+ 		ndr_desc.numa_node = NUMA_NO_NODE;
++		set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);
+ 		if (!nvdimm_pmem_region_create(nvdimm_bus, &ndr_desc))
+ 			goto err;
+ 	}
+diff --git a/drivers/nvdimm/namespace_devs.c b/drivers/nvdimm/namespace_devs.c
+index 9303ca29be9b..500bfb2825b3 100644
+--- a/drivers/nvdimm/namespace_devs.c
++++ b/drivers/nvdimm/namespace_devs.c
+@@ -13,6 +13,7 @@
+ #include <linux/module.h>
+ #include <linux/device.h>
+ #include <linux/slab.h>
++#include <linux/pmem.h>
+ #include <linux/nd.h>
+ #include "nd-core.h"
+ #include "nd.h"
+@@ -76,6 +77,27 @@ static bool is_namespace_io(struct device *dev)
+ 	return dev ? dev->type == &namespace_io_device_type : false;
+ }
+ 
++bool pmem_should_map_pages(struct device *dev)
++{
++	struct nd_region *nd_region = to_nd_region(dev->parent);
++
++	if (!IS_ENABLED(CONFIG_ZONE_DEVICE))
++		return false;
++
++	if (!test_bit(ND_REGION_PAGEMAP, &nd_region->flags))
++		return false;
++
++	if (is_nd_pfn(dev) || is_nd_btt(dev))
++		return false;
++
++#ifdef ARCH_MEMREMAP_PMEM
++	return ARCH_MEMREMAP_PMEM == MEMREMAP_WB;
++#else
++	return false;
++#endif
++}
++EXPORT_SYMBOL(pmem_should_map_pages);
++
+ const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
+ 		char *name)
+ {
+@@ -93,9 +115,11 @@ const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
+ 					dev_name(ndns->claim));
+ 	}
+ 
+-	if (is_namespace_pmem(&ndns->dev) || is_namespace_io(&ndns->dev))
++	if (is_namespace_pmem(&ndns->dev) || is_namespace_io(&ndns->dev)) {
++		if (pmem_should_map_pages(&ndns->dev))
++			suffix = "m";
+ 		sprintf(name, "pmem%d%s", nd_region->id, suffix);
+-	else if (is_namespace_blk(&ndns->dev)) {
++	} else if (is_namespace_blk(&ndns->dev)) {
+ 		struct nd_namespace_blk *nsblk;
+ 
+ 		nsblk = to_nd_namespace_blk(&ndns->dev);
 diff --git a/drivers/nvdimm/nd.h b/drivers/nvdimm/nd.h
-index 95f7efc7fed9..0fe939c42ce5 100644
+index 0fe939c42ce5..182eb64f6081 100644
 --- a/drivers/nvdimm/nd.h
 +++ b/drivers/nvdimm/nd.h
-@@ -212,6 +212,7 @@ struct nd_pfn *to_nd_pfn(struct device *dev);
- int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata);
- bool is_nd_pfn(struct device *dev);
- struct device *nd_pfn_create(struct nd_region *nd_region);
-+int nd_pfn_validate(struct nd_pfn *nd_pfn);
- #else
- static inline int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata)
- {
-@@ -227,6 +228,11 @@ static inline struct device *nd_pfn_create(struct nd_region *nd_region)
- {
- 	return NULL;
- }
-+
-+static inline int nd_pfn_validate(struct nd_pfn *nd_pfn)
-+{
-+	return -ENODEV;
-+}
- #endif
- 
- struct nd_region *to_nd_region(struct device *dev);
-diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index f708d63709a5..3fd7d0d81a47 100644
---- a/drivers/nvdimm/pfn_devs.c
-+++ b/drivers/nvdimm/pfn_devs.c
-@@ -228,7 +228,7 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
- 	return dev;
- }
- 
--static int nd_pfn_validate(struct nd_pfn *nd_pfn)
-+int nd_pfn_validate(struct nd_pfn *nd_pfn)
- {
- 	struct nd_namespace_common *ndns = nd_pfn->ndns;
- 	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
-@@ -286,10 +286,10 @@ static int nd_pfn_validate(struct nd_pfn *nd_pfn)
- 	 */
- 	offset = le64_to_cpu(pfn_sb->dataoff);
- 	nsio = to_nd_namespace_io(&ndns->dev);
--	if ((nsio->res.start + offset) & (ND_PFN_ALIGN - 1)) {
-+	if (nsio->res.start & ND_PFN_MASK) {
- 		dev_err(&nd_pfn->dev,
--				"init failed: %s with offset %#llx not section aligned\n",
--				dev_name(&ndns->dev), offset);
-+				"init failed: %s not section aligned\n",
-+				dev_name(&ndns->dev));
- 		return -EBUSY;
- 	} else if (offset >= resource_size(&nsio->res)) {
- 		dev_err(&nd_pfn->dev, "pfn array size exceeds capacity of %s\n",
-@@ -299,6 +299,7 @@ static int nd_pfn_validate(struct nd_pfn *nd_pfn)
- 
- 	return 0;
- }
-+EXPORT_SYMBOL(nd_pfn_validate);
- 
- int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata)
- {
+@@ -95,6 +95,7 @@ struct nd_region {
+ 	struct ida ns_ida;
+ 	struct ida btt_ida;
+ 	struct ida pfn_ida;
++	unsigned long flags;
+ 	struct device *ns_seed;
+ 	struct device *btt_seed;
+ 	struct device *pfn_seed;
+@@ -271,4 +272,5 @@ static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
+ void nd_iostat_end(struct bio *bio, unsigned long start);
+ resource_size_t nd_namespace_blk_validate(struct nd_namespace_blk *nsblk);
+ const u8 *nd_dev_to_uuid(struct device *dev);
++bool pmem_should_map_pages(struct device *dev);
+ #endif /* __ND_H__ */
 diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 20bf122328da..13cee46a7b8b 100644
+index 13cee46a7b8b..6ea2ead35fb2 100644
 --- a/drivers/nvdimm/pmem.c
 +++ b/drivers/nvdimm/pmem.c
-@@ -21,18 +21,24 @@
- #include <linux/init.h>
- #include <linux/platform_device.h>
- #include <linux/module.h>
-+#include <linux/memory_hotplug.h>
- #include <linux/moduleparam.h>
-+#include <linux/vmalloc.h>
- #include <linux/slab.h>
- #include <linux/pmem.h>
- #include <linux/nd.h>
-+#include "pfn.h"
- #include "nd.h"
+@@ -148,9 +148,16 @@ static struct pmem_device *pmem_alloc(struct device *dev,
+ 		return ERR_PTR(-EBUSY);
+ 	}
  
- struct pmem_device {
- 	struct request_queue	*pmem_queue;
- 	struct gendisk		*pmem_disk;
-+	struct nd_namespace_common *ndns;
- 
- 	/* One contiguous memory region per device */
- 	phys_addr_t		phys_addr;
-+	/* when non-zero this device is hosting a 'pfn' instance */
-+	phys_addr_t		data_offset;
- 	void __pmem		*virt_addr;
- 	size_t			size;
- };
-@@ -44,7 +50,7 @@ static void pmem_do_bvec(struct pmem_device *pmem, struct page *page,
- 			sector_t sector)
- {
- 	void *mem = kmap_atomic(page);
--	size_t pmem_off = sector << 9;
-+	phys_addr_t pmem_off = sector * 512 + pmem->data_offset;
- 	void __pmem *pmem_addr = pmem->virt_addr + pmem_off;
- 
- 	if (rw == READ) {
-@@ -95,16 +101,23 @@ static long pmem_direct_access(struct block_device *bdev, sector_t sector,
- 		      void __pmem **kaddr, unsigned long *pfn)
- {
- 	struct pmem_device *pmem = bdev->bd_disk->private_data;
--	size_t offset = sector << 9;
--
--	if (!pmem)
--		return -ENODEV;
-+	resource_size_t offset = sector * 512 + pmem->data_offset;
-+	resource_size_t size;
-+
-+	if (pmem->data_offset) {
-+		/*
-+		 * Limit the direct_access() size to what is covered by
-+		 * the memmap
-+		 */
-+		size = (pmem->size - offset) & ~ND_PFN_MASK;
-+	} else
-+		size = pmem->size - offset;
- 
- 	/* FIXME convert DAX to comprehend that this mapping has a lifetime */
- 	*kaddr = pmem->virt_addr + offset;
- 	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
- 
--	return pmem->size - offset;
-+	return size;
- }
- 
- static const struct block_device_operations pmem_fops = {
-@@ -144,13 +157,16 @@ static struct pmem_device *pmem_alloc(struct device *dev,
- 
- static void pmem_detach_disk(struct pmem_device *pmem)
- {
-+	if (!pmem->pmem_disk)
-+		return;
-+
- 	del_gendisk(pmem->pmem_disk);
- 	put_disk(pmem->pmem_disk);
- 	blk_cleanup_queue(pmem->pmem_queue);
- }
- 
--static int pmem_attach_disk(struct nd_namespace_common *ndns,
--		struct pmem_device *pmem)
-+static int pmem_attach_disk(struct device *dev,
-+		struct nd_namespace_common *ndns, struct pmem_device *pmem)
- {
- 	struct gendisk *disk;
- 
-@@ -177,8 +193,8 @@ static int pmem_attach_disk(struct nd_namespace_common *ndns,
- 	disk->queue		= pmem->pmem_queue;
- 	disk->flags		= GENHD_FL_EXT_DEVT;
- 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
--	disk->driverfs_dev = &ndns->dev;
--	set_capacity(disk, pmem->size >> 9);
-+	disk->driverfs_dev = dev;
-+	set_capacity(disk, (pmem->size - pmem->data_offset) / 512);
- 	pmem->pmem_disk = disk;
- 
- 	add_disk(disk);
-@@ -207,6 +223,154 @@ static int pmem_rw_bytes(struct nd_namespace_common *ndns,
- 	return 0;
- }
- 
-+static int nd_pfn_init(struct nd_pfn *nd_pfn)
-+{
-+	struct nd_pfn_sb *pfn_sb = kzalloc(sizeof(*pfn_sb), GFP_KERNEL);
-+	struct pmem_device *pmem = dev_get_drvdata(&nd_pfn->dev);
-+	struct nd_namespace_common *ndns = nd_pfn->ndns;
-+	struct nd_region *nd_region;
-+	unsigned long npfns;
-+	phys_addr_t offset;
-+	u64 checksum;
-+	int rc;
-+
-+	if (!pfn_sb)
-+		return -ENOMEM;
-+
-+	nd_pfn->pfn_sb = pfn_sb;
-+	rc = nd_pfn_validate(nd_pfn);
-+	if (rc == 0 || rc == -EBUSY)
-+		return rc;
-+
-+	/* section alignment for simple hotplug */
-+	if (nvdimm_namespace_capacity(ndns) < ND_PFN_ALIGN
-+			|| pmem->phys_addr & ND_PFN_MASK)
-+		return -ENODEV;
-+
-+	nd_region = to_nd_region(nd_pfn->dev.parent);
-+	if (nd_region->ro) {
-+		dev_info(&nd_pfn->dev,
-+				"%s is read-only, unable to init metadata\n",
-+				dev_name(&nd_region->dev));
-+		goto err;
-+	}
-+
-+	memset(pfn_sb, 0, sizeof(*pfn_sb));
-+	npfns = (pmem->size - SZ_8K) / SZ_4K;
-+	/*
-+	 * Note, we use 64 here for the standard size of struct page,
-+	 * debugging options may cause it to be larger in which case the
-+	 * implementation will limit the pfns advertised through
-+	 * ->direct_access() to those that are included in the memmap.
-+	 */
-+	if (nd_pfn->mode == PFN_MODE_PMEM)
-+		offset = ALIGN(SZ_8K + 64 * npfns, PMD_SIZE);
-+	else if (nd_pfn->mode == PFN_MODE_RAM)
-+		offset = SZ_8K;
-+	else
-+		goto err;
-+
-+	npfns = (pmem->size - offset) / SZ_4K;
-+	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
-+	pfn_sb->dataoff = cpu_to_le64(offset);
-+	pfn_sb->npfns = cpu_to_le64(npfns);
-+	memcpy(pfn_sb->signature, PFN_SIG, PFN_SIG_LEN);
-+	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
-+	pfn_sb->version_major = le16_to_cpu(1);
-+	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
-+	pfn_sb->checksum = cpu_to_le64(checksum);
-+
-+	rc = nvdimm_write_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb));
-+	if (rc)
-+		goto err;
-+
-+	return 0;
-+ err:
-+	nd_pfn->pfn_sb = NULL;
-+	kfree(pfn_sb);
-+	return -ENXIO;
-+}
-+
-+static int nvdimm_namespace_detach_pfn(struct nd_namespace_common *ndns)
-+{
-+	struct nd_pfn *nd_pfn = to_nd_pfn(ndns->claim);
-+	struct pmem_device *pmem;
-+
-+	/* free pmem disk */
-+	pmem = dev_get_drvdata(&nd_pfn->dev);
-+	pmem_detach_disk(pmem);
-+
-+	/* release nd_pfn resources */
-+	kfree(nd_pfn->pfn_sb);
-+	nd_pfn->pfn_sb = NULL;
-+
-+	return 0;
-+}
-+
-+static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
-+{
-+	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
-+	struct nd_pfn *nd_pfn = to_nd_pfn(ndns->claim);
-+	struct device *dev = &nd_pfn->dev;
-+	struct vmem_altmap *altmap;
-+	struct nd_region *nd_region;
-+	struct nd_pfn_sb *pfn_sb;
-+	struct pmem_device *pmem;
-+	phys_addr_t offset;
-+	int rc;
-+
-+	if (!nd_pfn->uuid || !nd_pfn->ndns)
-+		return -ENODEV;
-+
-+	nd_region = to_nd_region(dev->parent);
-+	rc = nd_pfn_init(nd_pfn);
-+	if (rc)
-+		return rc;
-+
-+	if (PAGE_SIZE != SZ_4K) {
-+		dev_err(dev, "only supported on systems with 4K PAGE_SIZE\n");
-+		return -ENXIO;
-+	}
-+	if (nsio->res.start & ND_PFN_MASK) {
-+		dev_err(dev, "%s not memory hotplug section aligned\n",
-+				dev_name(&ndns->dev));
-+		return -ENXIO;
-+	}
-+
-+	pfn_sb = nd_pfn->pfn_sb;
-+	offset = le64_to_cpu(pfn_sb->dataoff);
-+	nd_pfn->mode = le32_to_cpu(nd_pfn->pfn_sb->mode);
-+	if (nd_pfn->mode == PFN_MODE_RAM) {
-+		if (offset != SZ_8K)
-+			return -EINVAL;
-+		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
-+		altmap = NULL;
+-	pmem->virt_addr = memremap_pmem(dev, pmem->phys_addr, pmem->size);
+-	if (!pmem->virt_addr)
+-		return ERR_PTR(-ENXIO);
++	if (pmem_should_map_pages(dev)) {
++		pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, res);
++		if (IS_ERR(pmem->virt_addr))
++			return pmem->virt_addr;
 +	} else {
-+		rc = -ENXIO;
-+		goto err;
++		pmem->virt_addr = memremap_pmem(dev, pmem->phys_addr,
++				pmem->size);
++		if (!pmem->virt_addr)
++			return ERR_PTR(-ENXIO);
 +	}
-+
-+	/* establish pfn range for lookup, and switch to direct map */
-+	pmem = dev_get_drvdata(dev);
-+	memunmap_pmem(dev, pmem->virt_addr);
-+	pmem->virt_addr = (void __pmem *)devm_memremap_pages(dev, &nsio->res);
-+	if (IS_ERR(pmem->virt_addr)) {
-+		rc = PTR_ERR(pmem->virt_addr);
-+		goto err;
-+	}
-+
-+	/* attach pmem disk in "pfn-mode" */
-+	pmem->data_offset = offset;
-+	rc = pmem_attach_disk(dev, ndns, pmem);
-+	if (rc)
-+		goto err;
-+
-+	return rc;
-+ err:
-+	nvdimm_namespace_detach_pfn(ndns);
-+	return rc;
-+}
-+
- static int nd_pmem_probe(struct device *dev)
- {
- 	struct nd_region *nd_region = to_nd_region(dev->parent);
-@@ -223,16 +387,27 @@ static int nd_pmem_probe(struct device *dev)
- 	if (IS_ERR(pmem))
- 		return PTR_ERR(pmem);
  
-+	pmem->ndns = ndns;
- 	dev_set_drvdata(dev, pmem);
- 	ndns->rw_bytes = pmem_rw_bytes;
- 
- 	if (is_nd_btt(dev))
- 		return nvdimm_namespace_attach_btt(ndns);
- 
--	if (nd_btt_probe(ndns, pmem) == 0)
-+	if (is_nd_pfn(dev))
-+		return nvdimm_namespace_attach_pfn(ndns);
-+
-+	if (nd_btt_probe(ndns, pmem) == 0) {
- 		/* we'll come back as btt-pmem */
- 		return -ENXIO;
--	return pmem_attach_disk(ndns, pmem);
-+	}
-+
-+	if (nd_pfn_probe(ndns, pmem) == 0) {
-+		/* we'll come back as pfn-pmem */
-+		return -ENXIO;
-+	}
-+
-+	return pmem_attach_disk(dev, ndns, pmem);
+ 	return pmem;
  }
+diff --git a/drivers/nvdimm/region_devs.c b/drivers/nvdimm/region_devs.c
+index da4338154ad2..529f3f02e7b2 100644
+--- a/drivers/nvdimm/region_devs.c
++++ b/drivers/nvdimm/region_devs.c
+@@ -758,6 +758,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
+ 	nd_region->provider_data = ndr_desc->provider_data;
+ 	nd_region->nd_set = ndr_desc->nd_set;
+ 	nd_region->num_lanes = ndr_desc->num_lanes;
++	nd_region->flags = ndr_desc->flags;
+ 	nd_region->ro = ro;
+ 	nd_region->numa_node = ndr_desc->numa_node;
+ 	ida_init(&nd_region->ns_ida);
+diff --git a/include/linux/libnvdimm.h b/include/linux/libnvdimm.h
+index 75e3af01ee32..3f021dc5da8c 100644
+--- a/include/linux/libnvdimm.h
++++ b/include/linux/libnvdimm.h
+@@ -31,6 +31,9 @@ enum {
+ 	ND_CMD_ARS_STATUS_MAX = SZ_4K,
+ 	ND_MAX_MAPPINGS = 32,
  
- static int nd_pmem_remove(struct device *dev)
-@@ -240,7 +415,9 @@ static int nd_pmem_remove(struct device *dev)
- 	struct pmem_device *pmem = dev_get_drvdata(dev);
- 
- 	if (is_nd_btt(dev))
--		nvdimm_namespace_detach_btt(to_nd_btt(dev)->ndns);
-+		nvdimm_namespace_detach_btt(pmem->ndns);
-+	else if (is_nd_pfn(dev))
-+		nvdimm_namespace_detach_pfn(pmem->ndns);
- 	else
- 		pmem_detach_disk(pmem);
- 
-diff --git a/tools/testing/nvdimm/Kbuild b/tools/testing/nvdimm/Kbuild
-index 22d4d19a49bc..eff633f8b6db 100644
---- a/tools/testing/nvdimm/Kbuild
-+++ b/tools/testing/nvdimm/Kbuild
-@@ -1,6 +1,7 @@
- ldflags-y += --wrap=ioremap_wc
- ldflags-y += --wrap=devm_ioremap_nocache
- ldflags-y += --wrap=devm_memremap
-+ldflags-y += --wrap=devm_memunmap
- ldflags-y += --wrap=ioremap_nocache
- ldflags-y += --wrap=iounmap
- ldflags-y += --wrap=__devm_request_region
-diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
-index ff1e00458864..3609f6713075 100644
---- a/tools/testing/nvdimm/test/iomap.c
-+++ b/tools/testing/nvdimm/test/iomap.c
-@@ -95,6 +95,19 @@ void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
- }
- EXPORT_SYMBOL(__wrap_devm_memremap);
- 
-+void __wrap_devm_memunmap(struct device *dev, void *addr)
-+{
-+	struct nfit_test_resource *nfit_res;
++	/* region flag indicating to direct-map persistent memory by default */
++	ND_REGION_PAGEMAP = 0,
 +
-+	rcu_read_lock();
-+	nfit_res = get_nfit_res((unsigned long) addr);
-+	rcu_read_unlock();
-+	if (nfit_res)
-+		return;
-+	return devm_memunmap(dev, addr);
-+}
-+EXPORT_SYMBOL(__wrap_devm_memunmap);
-+
- void __iomem *__wrap_ioremap_nocache(resource_size_t offset, unsigned long size)
- {
- 	return __nfit_test_ioremap(offset, size, ioremap_nocache);
+ 	/* mark newly adjusted resources as requiring a label update */
+ 	DPA_RESOURCE_ADJUSTED = 1 << 0,
+ };
+@@ -91,6 +94,7 @@ struct nd_region_desc {
+ 	void *provider_data;
+ 	int num_lanes;
+ 	int numa_node;
++	unsigned long flags;
+ };
+ 
+ struct nvdimm_bus;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
