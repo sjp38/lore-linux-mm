@@ -1,309 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D3DB66B0259
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 14:24:40 -0400 (EDT)
-Received: by ykbi184 with SMTP id i184so195655057ykb.2
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 11:24:40 -0700 (PDT)
-Received: from prod-mail-xrelay05.akamai.com ([23.79.238.179])
-        by mx.google.com with ESMTP id 78si39869022qgh.16.2015.08.26.11.24.28
-        for <linux-mm@kvack.org>;
-        Wed, 26 Aug 2015 11:24:28 -0700 (PDT)
-From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH v8 4/6] mm: mlock: Add mlock flags to enable VM_LOCKONFAULT usage
-Date: Wed, 26 Aug 2015 14:24:23 -0400
-Message-Id: <1440613465-30393-5-git-send-email-emunson@akamai.com>
-In-Reply-To: <1440613465-30393-1-git-send-email-emunson@akamai.com>
-References: <1440613465-30393-1-git-send-email-emunson@akamai.com>
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D98FD6B0253
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 14:26:20 -0400 (EDT)
+Received: by qkda128 with SMTP id a128so74864385qkd.3
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 11:26:20 -0700 (PDT)
+Received: from mail-qk0-x233.google.com (mail-qk0-x233.google.com. [2607:f8b0:400d:c09::233])
+        by mx.google.com with ESMTPS id r19si39782711qha.4.2015.08.26.11.26.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Aug 2015 11:26:20 -0700 (PDT)
+Received: by qkfh127 with SMTP id h127so125041928qkf.1
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 11:26:20 -0700 (PDT)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH] zpool: remove redundant zpool->type string, const-ify zpool_get_type
+Date: Wed, 26 Aug 2015 14:26:12 -0400
+Message-Id: <1440613572-23521-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-alpha@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-parisc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-xtensa@linux-xtensa.org, linux-arch@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dan Streetman <ddstreet@ieee.org>
 
-The previous patch introduced a flag that specified pages in a VMA
-should be placed on the unevictable LRU, but they should not be made
-present when the area is created.  This patch adds the ability to set
-this state via the new mlock system calls.
+Make the return type of zpool_get_type const; the string belongs to the
+zpool driver and should not be modified.  Remove the redundant type
+field in the struct zpool; it is private to zpool.c and isn't needed
+since ->driver->type can be used directly.  Add comments indicating
+strings must be null-terminated.
 
-We add MLOCK_ONFAULT for mlock2 and MCL_ONFAULT for mlockall.
-MLOCK_ONFAULT will set the VM_LOCKONFAULT modifier for VM_LOCKED.
-MCL_ONFAULT should be used as a modifier to the two other mlockall
-flags.  When used with MCL_CURRENT, all current mappings will be marked
-with VM_LOCKED | VM_LOCKONFAULT.  When used with MCL_FUTURE, the
-mm->def_flags will be marked with VM_LOCKED | VM_LOCKONFAULT.  When used
-with both MCL_CURRENT and MCL_FUTURE, all current mappings and
-mm->def_flags will be marked with VM_LOCKED | VM_LOCKONFAULT.
-
-Prior to this patch, mlockall() will unconditionally clear the
-mm->def_flags any time it is called without MCL_FUTURE.  This behavior
-is maintained after adding MCL_ONFAULT.  If a call to
-mlockall(MCL_FUTURE) is followed by mlockall(MCL_CURRENT), the
-mm->def_flags will be cleared and new VMAs will be unlocked.  This
-remains true with or without MCL_ONFAULT in either mlockall()
-invocation.
-
-munlock() will unconditionally clear both vma flags.  munlockall()
-unconditionally clears for VMA flags on all VMAs and in the
-mm->def_flags field.
-
-Signed-off-by: Eric B Munson <emunson@akamai.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Jonathan Corbet <corbet@lwn.net>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-alpha@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mips@linux-mips.org
-Cc: linux-parisc@vger.kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: sparclinux@vger.kernel.org
-Cc: linux-xtensa@linux-xtensa.org
-Cc: linux-arch@vger.kernel.org
-Cc: linux-api@vger.kernel.org
-Cc: linux-mm@kvack.org
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
 ---
- arch/alpha/include/uapi/asm/mman.h     |  3 ++
- arch/mips/include/uapi/asm/mman.h      |  6 ++++
- arch/parisc/include/uapi/asm/mman.h    |  3 ++
- arch/powerpc/include/uapi/asm/mman.h   |  1 +
- arch/sparc/include/uapi/asm/mman.h     |  1 +
- arch/tile/include/uapi/asm/mman.h      |  1 +
- arch/xtensa/include/uapi/asm/mman.h    |  6 ++++
- include/uapi/asm-generic/mman-common.h |  5 ++++
- include/uapi/asm-generic/mman.h        |  1 +
- mm/mlock.c                             | 52 +++++++++++++++++++++++++---------
- 10 files changed, 66 insertions(+), 13 deletions(-)
+ include/linux/zpool.h |  2 +-
+ mm/zpool.c            | 14 ++++++++------
+ 2 files changed, 9 insertions(+), 7 deletions(-)
 
-diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-index 0086b47..f2f9496 100644
---- a/arch/alpha/include/uapi/asm/mman.h
-+++ b/arch/alpha/include/uapi/asm/mman.h
-@@ -37,6 +37,9 @@
+diff --git a/include/linux/zpool.h b/include/linux/zpool.h
+index 42f8ec9..1f405be 100644
+--- a/include/linux/zpool.h
++++ b/include/linux/zpool.h
+@@ -41,7 +41,7 @@ bool zpool_has_pool(char *type);
+ struct zpool *zpool_create_pool(char *type, char *name,
+ 			gfp_t gfp, const struct zpool_ops *ops);
  
- #define MCL_CURRENT	 8192		/* lock all currently mapped pages */
- #define MCL_FUTURE	16384		/* lock all additions to address space */
-+#define MCL_ONFAULT	32768		/* lock all pages that are faulted in */
-+
-+#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do not prefault */
+-char *zpool_get_type(struct zpool *pool);
++const char *zpool_get_type(struct zpool *pool);
  
- #define MADV_NORMAL	0		/* no further special treatment */
- #define MADV_RANDOM	1		/* expect random page references */
-diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-index cfcb876..97c03f4 100644
---- a/arch/mips/include/uapi/asm/mman.h
-+++ b/arch/mips/include/uapi/asm/mman.h
-@@ -61,6 +61,12 @@
-  */
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-+#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
-+
-+/*
-+ * Flags for mlock
-+ */
-+#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do not prefault */
+ void zpool_destroy_pool(struct zpool *pool);
  
- #define MADV_NORMAL	0		/* no further special treatment */
- #define MADV_RANDOM	1		/* expect random page references */
-diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-index 294d251..ecc3ae1 100644
---- a/arch/parisc/include/uapi/asm/mman.h
-+++ b/arch/parisc/include/uapi/asm/mman.h
-@@ -31,6 +31,9 @@
+diff --git a/mm/zpool.c b/mm/zpool.c
+index 8f670d3..13f524d 100644
+--- a/mm/zpool.c
++++ b/mm/zpool.c
+@@ -18,8 +18,6 @@
+ #include <linux/zpool.h>
  
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-+#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
-+
-+#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do not prefault */
+ struct zpool {
+-	char *type;
+-
+ 	struct zpool_driver *driver;
+ 	void *pool;
+ 	const struct zpool_ops *ops;
+@@ -73,6 +71,7 @@ int zpool_unregister_driver(struct zpool_driver *driver)
+ }
+ EXPORT_SYMBOL(zpool_unregister_driver);
  
- #define MADV_NORMAL     0               /* no further special treatment */
- #define MADV_RANDOM     1               /* expect random page references */
-diff --git a/arch/powerpc/include/uapi/asm/mman.h b/arch/powerpc/include/uapi/asm/mman.h
-index 6ea26df..03c06ba 100644
---- a/arch/powerpc/include/uapi/asm/mman.h
-+++ b/arch/powerpc/include/uapi/asm/mman.h
-@@ -22,6 +22,7 @@
- 
- #define MCL_CURRENT     0x2000          /* lock all currently mapped pages */
- #define MCL_FUTURE      0x4000          /* lock all additions to address space */
-+#define MCL_ONFAULT	0x8000		/* lock all pages that are faulted in */
- 
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-diff --git a/arch/sparc/include/uapi/asm/mman.h b/arch/sparc/include/uapi/asm/mman.h
-index 0b14df3..9765896 100644
---- a/arch/sparc/include/uapi/asm/mman.h
-+++ b/arch/sparc/include/uapi/asm/mman.h
-@@ -17,6 +17,7 @@
- 
- #define MCL_CURRENT     0x2000          /* lock all currently mapped pages */
- #define MCL_FUTURE      0x4000          /* lock all additions to address space */
-+#define MCL_ONFAULT	0x8000		/* lock all pages that are faulted in */
- 
- #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
-diff --git a/arch/tile/include/uapi/asm/mman.h b/arch/tile/include/uapi/asm/mman.h
-index 81b8fc3..63ee13f 100644
---- a/arch/tile/include/uapi/asm/mman.h
-+++ b/arch/tile/include/uapi/asm/mman.h
-@@ -36,6 +36,7 @@
-  */
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-+#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
- 
- 
- #endif /* _ASM_TILE_MMAN_H */
-diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index 201aec0..360944e 100644
---- a/arch/xtensa/include/uapi/asm/mman.h
-+++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -74,6 +74,12 @@
-  */
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-+#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
-+
-+/*
-+ * Flags for mlock
-+ */
-+#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do not prefault */
- 
- #define MADV_NORMAL	0		/* no further special treatment */
- #define MADV_RANDOM	1		/* expect random page references */
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index ddc3b36..a74dd84 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -25,6 +25,11 @@
- # define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
- #endif
- 
-+/*
-+ * Flags for mlock
-+ */
-+#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do not prefault */
-+
- #define MS_ASYNC	1		/* sync memory asynchronously */
- #define MS_INVALIDATE	2		/* invalidate the caches */
- #define MS_SYNC		4		/* synchronous memory sync */
-diff --git a/include/uapi/asm-generic/mman.h b/include/uapi/asm-generic/mman.h
-index e9fe6fd..7162cd4 100644
---- a/include/uapi/asm-generic/mman.h
-+++ b/include/uapi/asm-generic/mman.h
-@@ -17,5 +17,6 @@
- 
- #define MCL_CURRENT	1		/* lock all current mappings */
- #define MCL_FUTURE	2		/* lock all future mappings */
-+#define MCL_ONFAULT	4		/* lock all pages that are faulted in */
- 
- #endif /* __ASM_GENERIC_MMAN_H */
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 7efe27d..0747663 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -506,7 +506,8 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 
- 	if (newflags == vma->vm_flags || (vma->vm_flags & VM_SPECIAL) ||
- 	    is_vm_hugetlb_page(vma) || vma == get_gate_vma(current->mm))
--		goto out;	/* don't set VM_LOCKED,  don't count */
-+		/* don't set VM_LOCKED or VM_LOCKONFAULT and don't count */
-+		goto out;
- 
- 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
- 	*prev = vma_merge(mm, *prev, start, end, newflags, vma->anon_vma,
-@@ -576,7 +577,7 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
- 		prev = vma;
- 
- 	for (nstart = start ; ; ) {
--		vm_flags_t newflags = vma->vm_flags & ~VM_LOCKED;
-+		vm_flags_t newflags = vma->vm_flags & VM_LOCKED_CLEAR_MASK;
- 
- 		newflags |= flags;
- 
-@@ -645,10 +646,15 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
- 
- SYSCALL_DEFINE3(mlock2, unsigned long, start, size_t, len, int, flags)
++/* this assumes @type is null-terminated. */
+ static struct zpool_driver *zpool_get_driver(char *type)
  {
--	if (flags)
-+	vm_flags_t vm_flags = VM_LOCKED;
-+
-+	if (flags & ~MLOCK_ONFAULT)
- 		return -EINVAL;
- 
--	return do_mlock(start, len, VM_LOCKED);
-+	if (flags & MLOCK_ONFAULT)
-+		vm_flags |= VM_LOCKONFAULT;
-+
-+	return do_mlock(start, len, vm_flags);
- }
- 
- SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
-@@ -665,24 +671,43 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
- 	return ret;
- }
- 
-+/*
-+ * Take the MCL_* flags passed into mlockall (or 0 if called from munlockall)
-+ * and translate into the appropriate modifications to mm->def_flags and/or the
-+ * flags for all current VMAs.
+ 	struct zpool_driver *driver;
+@@ -113,6 +112,8 @@ static void zpool_put_driver(struct zpool_driver *driver)
+  * not be loaded, and calling @zpool_create_pool() with the pool type will
+  * fail.
+  *
++ * The @type string must be null-terminated.
 + *
-+ * There are a couple of subtleties with this.  If mlockall() is called multiple
-+ * times with different flags, the values do not necessarily stack.  If mlockall
-+ * is called once including the MCL_FUTURE flag and then a second time without
-+ * it, VM_LOCKED and VM_LOCKONFAULT will be cleared from mm->def_flags.
-+ */
- static int apply_mlockall_flags(int flags)
+  * Returns: true if @type pool is available, false if not
+  */
+ bool zpool_has_pool(char *type)
+@@ -145,6 +146,8 @@ EXPORT_SYMBOL(zpool_has_pool);
+  *
+  * Implementations must guarantee this to be thread-safe.
+  *
++ * The @type and @name strings must be null-terminated.
++ *
+  * Returns: New zpool on success, NULL on failure.
+  */
+ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
+@@ -174,7 +177,6 @@ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
+ 		return NULL;
+ 	}
+ 
+-	zpool->type = driver->type;
+ 	zpool->driver = driver;
+ 	zpool->pool = driver->create(name, gfp, ops, zpool);
+ 	zpool->ops = ops;
+@@ -208,7 +210,7 @@ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
+  */
+ void zpool_destroy_pool(struct zpool *zpool)
  {
- 	struct vm_area_struct * vma, * prev = NULL;
-+	vm_flags_t to_add = 0;
+-	pr_debug("destroying pool type %s\n", zpool->type);
++	pr_debug("destroying pool type %s\n", zpool->driver->type);
  
--	if (flags & MCL_FUTURE)
-+	current->mm->def_flags &= VM_LOCKED_CLEAR_MASK;
-+	if (flags & MCL_FUTURE) {
- 		current->mm->def_flags |= VM_LOCKED;
--	else
--		current->mm->def_flags &= ~VM_LOCKED;
+ 	spin_lock(&pools_lock);
+ 	list_del(&zpool->list);
+@@ -228,9 +230,9 @@ void zpool_destroy_pool(struct zpool *zpool)
+  *
+  * Returns: The type of zpool.
+  */
+-char *zpool_get_type(struct zpool *zpool)
++const char *zpool_get_type(struct zpool *zpool)
+ {
+-	return zpool->type;
++	return zpool->driver->type;
+ }
  
--	if (flags == MCL_FUTURE)
--		goto out;
-+		if (flags & MCL_ONFAULT)
-+			current->mm->def_flags |= VM_LOCKONFAULT;
-+
-+		if (!(flags & MCL_CURRENT))
-+			goto out;
-+	}
-+
-+	if (flags & MCL_CURRENT) {
-+		to_add |= VM_LOCKED;
-+		if (flags & MCL_ONFAULT)
-+			to_add |= VM_LOCKONFAULT;
-+	}
- 
- 	for (vma = current->mm->mmap; vma ; vma = prev->vm_next) {
- 		vm_flags_t newflags;
- 
--		newflags = vma->vm_flags & ~VM_LOCKED;
--		if (flags & MCL_CURRENT)
--			newflags |= VM_LOCKED;
-+		newflags = vma->vm_flags & VM_LOCKED_CLEAR_MASK;
-+		newflags |= to_add;
- 
- 		/* Ignore errors */
- 		mlock_fixup(vma, &prev, vma->vm_start, vma->vm_end, newflags);
-@@ -697,7 +722,8 @@ SYSCALL_DEFINE1(mlockall, int, flags)
- 	unsigned long lock_limit;
- 	int ret = -EINVAL;
- 
--	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE)))
-+	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT)) ||
-+	    flags == MCL_ONFAULT)
- 		goto out;
- 
- 	ret = -EPERM;
+ /**
 -- 
-1.9.1
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
