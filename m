@@ -1,95 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 40F016B0253
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 08:18:31 -0400 (EDT)
-Received: by pacti10 with SMTP id ti10so86836451pac.0
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 05:18:31 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id ad8si38345597pad.109.2015.08.26.05.18.29
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 19DED6B0254
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 08:19:16 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so42808409wic.1
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 05:19:15 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q8si9553356wiz.6.2015.08.26.05.19.13
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 26 Aug 2015 05:18:30 -0700 (PDT)
-Subject: [PATCH 1/2] android, lmk: Protect task->comm with task_lock.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-Id: <201508262117.FAH43726.tOFMVJSLQOFHFO@I-love.SAKURA.ne.jp>
-Date: Wed, 26 Aug 2015 21:17:54 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 26 Aug 2015 05:19:14 -0700 (PDT)
+Subject: Re: [PATCH 08/12] mm, page_alloc: Rename __GFP_WAIT to __GFP_RECLAIM
+References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
+ <1440418191-10894-9-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55DDAEBE.8090708@suse.cz>
+Date: Wed, 26 Aug 2015 14:19:10 +0200
+MIME-Version: 1.0
+In-Reply-To: <1440418191-10894-9-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org, arve@android.com, riandrews@android.com
-Cc: devel@driverdev.osuosl.org, linux-mm@kvack.org, mhocko@kernel.org, rientjes@google.com, hannes@cmpxchg.org
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello.
+On 08/24/2015 02:09 PM, Mel Gorman wrote:
+> __GFP_WAIT was used to signal that the caller was in atomic context and
+> could not sleep.  Now it is possible to distinguish between true atomic
+> context and callers that are not willing to sleep. The latter should clear
+> __GFP_DIRECT_RECLAIM so kswapd will still wake. As clearing __GFP_WAIT
+> behaves differently, there is a risk that people will clear the wrong
+> flags. This patch renames __GFP_WAIT to __GFP_RECLAIM to clearly indicate
+> what it does -- setting it allows all reclaim activity, clearing them
+> prevents it.
+>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-Next patch is mm-related but this patch is not.
-Via which tree should these patches go?
-----------------------------------------
->From 48c1b457eb32d7a029e9a078ee0a67974ada9261 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Wed, 26 Aug 2015 20:49:17 +0900
-Subject: [PATCH 1/2] android, lmk: Protect task->comm with task_lock.
-
-Passing task->comm to printk() wants task_lock() protection in order
-to avoid potentially emitting garbage bytes.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- drivers/staging/android/lowmemorykiller.c | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
-
-diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
-index 872bd60..d5d25e4 100644
---- a/drivers/staging/android/lowmemorykiller.c
-+++ b/drivers/staging/android/lowmemorykiller.c
-@@ -134,26 +134,25 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 			return 0;
- 		}
- 		oom_score_adj = p->signal->oom_score_adj;
--		if (oom_score_adj < min_score_adj) {
--			task_unlock(p);
--			continue;
--		}
-+		if (oom_score_adj < min_score_adj)
-+			goto next;
- 		tasksize = get_mm_rss(p->mm);
--		task_unlock(p);
- 		if (tasksize <= 0)
--			continue;
-+			goto next;
- 		if (selected) {
- 			if (oom_score_adj < selected_oom_score_adj)
--				continue;
-+				goto next;
- 			if (oom_score_adj == selected_oom_score_adj &&
- 			    tasksize <= selected_tasksize)
--				continue;
-+				goto next;
- 		}
- 		selected = p;
- 		selected_tasksize = tasksize;
- 		selected_oom_score_adj = oom_score_adj;
- 		lowmem_print(2, "select %d (%s), adj %hd, size %d, to kill\n",
- 			     p->pid, p->comm, oom_score_adj, tasksize);
-+next:
-+		task_unlock(p);
- 	}
- 	if (selected) {
- 		task_lock(selected);
-@@ -168,10 +167,10 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 		 * task should have access to the memory reserves.
- 		 */
- 		mark_oom_victim(selected);
--		task_unlock(selected);
- 		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
- 			     selected->pid, selected->comm,
- 			     selected_oom_score_adj, selected_tasksize);
-+		task_unlock(selected);
- 		lowmem_deathpending_timeout = jiffies + HZ;
- 		send_sig(SIGKILL, selected, 0);
- 		rem += selected_tasksize;
--- 
-1.8.3.1
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
