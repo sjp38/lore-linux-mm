@@ -1,93 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 80C236B0254
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 11:03:30 -0400 (EDT)
-Received: by pacgr6 with SMTP id gr6so11474996pac.3
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 08:03:30 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id yg9si5138074pab.235.2015.08.26.08.03.28
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 4654A6B0254
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 11:04:17 -0400 (EDT)
+Received: by wicja10 with SMTP id ja10so18144489wic.1
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 08:04:16 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id nb13si10314545wic.58.2015.08.26.08.04.15
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 26 Aug 2015 08:03:29 -0700 (PDT)
-Subject: Re: [REPOST] [PATCH 2/2] mm,oom: Reverse the order of setting TIF_MEMDIE and sending SIGKILL.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
-In-Reply-To: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
-Message-Id: <201508270003.FCD17618.FFVOFJHOQMSOtL@I-love.SAKURA.ne.jp>
-Date: Thu, 27 Aug 2015 00:03:13 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Aug 2015 08:04:15 -0700 (PDT)
+Received: by widdq5 with SMTP id dq5so18188409wid.0
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 08:04:15 -0700 (PDT)
+Date: Wed, 26 Aug 2015 18:04:12 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
+Message-ID: <20150826150412.GA16412@node.dhcp.inet.fi>
+References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150820163643.dd87de0c1a73cb63866b2914@linux-foundation.org>
+ <20150821121028.GB12016@node.dhcp.inet.fi>
+ <55DC550D.5060501@suse.cz>
+ <20150825183354.GC4881@node.dhcp.inet.fi>
+ <20150825201113.GK11078@linux.vnet.ibm.com>
+ <55DCD434.9000704@suse.cz>
+ <20150825211954.GN11078@linux.vnet.ibm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150825211954.GN11078@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, rientjes@google.com, hannes@cmpxchg.org
-Cc: linux-mm@kvack.org
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-Reposting updated version as it turned out that we can call do_send_sig_info()
-with task_lock held. ;-) ( http://marc.info/?l=linux-mm&m=144059948628905&w=2 )
-----------------------------------------
->From 69489b37171d9a84ccbb00e7441f8f73bc526e11 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Wed, 26 Aug 2015 23:54:12 +0900
-Subject: [PATCH] mm,oom: Reverse the order of setting TIF_MEMDIE and sending
- SIGKILL.
+On Tue, Aug 25, 2015 at 02:19:54PM -0700, Paul E. McKenney wrote:
+> On Tue, Aug 25, 2015 at 10:46:44PM +0200, Vlastimil Babka wrote:
+> > On 25.8.2015 22:11, Paul E. McKenney wrote:
+> > > On Tue, Aug 25, 2015 at 09:33:54PM +0300, Kirill A. Shutemov wrote:
+> > >> On Tue, Aug 25, 2015 at 01:44:13PM +0200, Vlastimil Babka wrote:
+> > >>> On 08/21/2015 02:10 PM, Kirill A. Shutemov wrote:
+> > >>>> On Thu, Aug 20, 2015 at 04:36:43PM -0700, Andrew Morton wrote:
+> > >>>>> On Wed, 19 Aug 2015 12:21:45 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> > >>>>>
+> > >>>>>> The patch introduces page->compound_head into third double word block in
+> > >>>>>> front of compound_dtor and compound_order. That means it shares storage
+> > >>>>>> space with:
+> > >>>>>>
+> > >>>>>>  - page->lru.next;
+> > >>>>>>  - page->next;
+> > >>>>>>  - page->rcu_head.next;
+> > >>>>>>  - page->pmd_huge_pte;
+> > >>>>>>
+> > >>>
+> > >>> We should probably ask Paul about the chances that rcu_head.next would like
+> > >>> to use the bit too one day?
+> > >>
+> > >> +Paul.
+> > > 
+> > > The call_rcu() function does stomp that bit, but if you stop using that
+> > > bit before you invoke call_rcu(), no problem.
+> > 
+> > You mean that it sets the bit 0 of rcu_head.next during its processing?
+> 
+> Not at the moment, though RCU will splat if given a misaligned rcu_head
+> structure because of the possibility to use that bit to flag callbacks
+> that do nothing but free memory.  If RCU needs to do that (e.g., to
+> promote energy efficiency), then that bit might well be set during
+> RCU grace-period processing.
 
-It is observed that a multi-threaded program can deplete memory reserves
-using time lag between the OOM killer sets TIF_MEMDIE and the OOM killer
-sends SIGKILL. This is because a thread group leader who gets TIF_MEMDIE
-received SIGKILL too lately when there is a lot of child threads sharing
-the same memory due to doing a lot of printk() inside for_each_process()
-loop which can take many seconds.
+Ugh.. :-/
 
-Before starting oom-depleter process:
+> >                                                                         That's
+> > bad news then. It's not that we would trigger that bit when the rcu_head part of
+> > the union is "active". It's that pfn scanners could inspect such page at
+> > arbitrary time, see the bit 0 set (due to RCU processing) and think that it's a
+> > tail page of a compound page, and interpret the rest of the pointer as a pointer
+> > to the head page (to test it for flags etc).
+> 
+> On the other hand, if you avoid scanning rcu_head structures for pages
+> that are currently waiting for a grace period, no problem.  RCU does
+> not use the rcu_head structure at all except for during the time between
+> when call_rcu() is invoked on that rcu_head structure and the time that
+> the callback is invoked.
+> 
+> Is there some other page state that indicates that the page is waiting
+> for a grace period?  If so, you could simply avoid testing that bit in
+> that case.
 
-    Node 0 DMA: 3*4kB (UM) 6*8kB (U) 4*16kB (UEM) 0*32kB 0*64kB 1*128kB (M) 2*256kB (EM) 2*512kB (UE) 2*1024kB (EM) 1*2048kB (E) 1*4096kB (M) = 9980kB
-    Node 0 DMA32: 31*4kB (UEM) 27*8kB (UE) 32*16kB (UE) 13*32kB (UE) 14*64kB (UM) 7*128kB (UM) 8*256kB (UM) 8*512kB (UM) 3*1024kB (U) 4*2048kB (UM) 362*4096kB (UM) = 1503220kB
+No, I don't think so.
 
-As of invoking the OOM killer:
+For compound pages most of info of its state is stored in head page (e.g.
+page_count(), flags, etc). So if we examine random page (pfn scanner case)
+the very first thing we want to know if we stepped on tail page.
+PageTail() is what I wanted to encode in the bit...
 
-    Node 0 DMA: 11*4kB (UE) 8*8kB (UEM) 6*16kB (UE) 2*32kB (EM) 0*64kB 1*128kB (U) 3*256kB (UEM) 2*512kB (UE) 3*1024kB (UEM) 1*2048kB (U) 0*4096kB = 7308kB
-    Node 0 DMA32: 1049*4kB (UEM) 507*8kB (UE) 151*16kB (UE) 53*32kB (UEM) 83*64kB (UEM) 52*128kB (EM) 25*256kB (UEM) 11*512kB (M) 6*1024kB (UM) 1*2048kB (M) 0*4096kB = 44556kB
+What if we change order of fields within rcu_head and put ->func first?
+Can we expect this pointer to have bit 0 always clear?
 
-Between the thread group leader got TIF_MEMDIE and receives SIGKILL:
-
-    Node 0 DMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
-    Node 0 DMA32: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
-
-The oom-depleter's thread group leader which got TIF_MEMDIE started
-memset() in user space after the OOM killer set TIF_MEMDIE, and it
-was free to abuse ALLOC_NO_WATERMARKS by TIF_MEMDIE for memset()
-in user space until SIGKILL is delivered. If SIGKILL is delivered
-before TIF_MEMDIE is set, the oom-depleter can terminate without
-touching memory reserves.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/oom_kill.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5249e7e..408aa8e 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -555,6 +555,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	/* Get a reference to safely compare mm after task_unlock(victim) */
- 	mm = victim->mm;
- 	atomic_inc(&mm->mm_users);
-+	/* Send SIGKILL before setting TIF_MEMDIE. */
-+	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
- 	mark_oom_victim(victim);
- 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
- 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
-@@ -586,7 +588,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 		}
- 	rcu_read_unlock();
- 
--	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
- 	mmput(mm);
- 	put_task_struct(victim);
- }
 -- 
-1.8.3.1
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
