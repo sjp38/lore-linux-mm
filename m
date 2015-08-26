@@ -1,61 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A58016B0253
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 03:20:20 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so6117577wid.0
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 00:20:20 -0700 (PDT)
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
-        by mx.google.com with ESMTPS id q8si3589196wju.0.2015.08.26.00.20.18
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Aug 2015 00:20:19 -0700 (PDT)
-Received: by widdq5 with SMTP id dq5so36929849wid.1
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 00:20:18 -0700 (PDT)
-Date: Wed, 26 Aug 2015 09:20:16 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v7 3/6] mm: Introduce VM_LOCKONFAULT
-Message-ID: <20150826072016.GD25196@dhcp22.suse.cz>
-References: <20150812115909.GA5182@dhcp22.suse.cz>
- <20150819213345.GB4536@akamai.com>
- <20150820075611.GD4780@dhcp22.suse.cz>
- <20150820170309.GA11557@akamai.com>
- <20150821072552.GF23723@dhcp22.suse.cz>
- <20150821183132.GA12835@akamai.com>
- <20150825134154.GB6285@dhcp22.suse.cz>
- <20150825142902.GF17005@akamai.com>
- <20150825185829.GA10222@dhcp22.suse.cz>
- <20150825190300.GG17005@akamai.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F8DB6B0254
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 03:20:55 -0400 (EDT)
+Received: by pabzx8 with SMTP id zx8so60931547pab.1
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 00:20:54 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id w7si37030482pbt.197.2015.08.26.00.20.53
+        for <linux-mm@kvack.org>;
+        Wed, 26 Aug 2015 00:20:54 -0700 (PDT)
+Message-ID: <55DD6877.6080709@cn.fujitsu.com>
+Date: Wed, 26 Aug 2015 15:19:19 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150825190300.GG17005@akamai.com>
+Subject: Re: [PATCH 2/2] memory-hotplug: remove reset_node_managed_pages()
+ and reset_node_managed_pages() in hotadd_new_pgdat()
+References: <55C9A3A9.5090300@huawei.com> <55C9A554.4090509@huawei.com> <55D9A036.7060506@cn.fujitsu.com> <55DAE113.20503@huawei.com> <55DAE666.5020302@cn.fujitsu.com> <55DAFEEB.4050601@huawei.com>
+In-Reply-To: <55DAFEEB.4050601@huawei.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, izumi.taku@jp.fujitsu.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
 
-On Tue 25-08-15 15:03:00, Eric B Munson wrote:
-[...]
-> Would you drop your objections to the VMA flag if I drop the portions of
-> the patch that expose it to userspace?
-> 
-> The rework to not use the VMA flag is pretty sizeable and is much more
-> ugly IMO.  I know that you are not wild about using bit 30 of 32 for
-> this, but perhaps we can settle on not exporting it to userspace so we
-> can reclaim it if we really need it in the future?
 
-Yes, that would be definitely more acceptable for me. I do understand
-that you are not wild about changing mremap behavior.
+On 08/24/2015 07:24 PM, Xishi Qiu wrote:
+> ......
+>>>> [ 2007.584000] On node 5 totalpages: 0
+>>>> [ 2007.585000] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 32588823
+>>>> [ 2007.594000] Policy zone: Normal
+>>>> [ 2007.598000] init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
+>>>>
+>>>>
+>>>> And also, if we merge this patch, /sys/devices/system/node/nodeX/meminfo will break.
+>>>>
+>>> trigger call trace?
+>> No. There is no error output. But if you see /sys/devices/system/node/nodeX/meminfo,
+>> memory size will double because totalpages is calculated once here, and one more time
+>> when onlining memory.
+>>
+> Hi Tang,
+>
+> Do you mean si_meminfo_node() -> val->totalram = managed_pages; will be added double?
+> But my patch will keep it 0 in hotadd_new_pgdat(), so it will not be double, right?
+>
 
-Anyway, I would really prefer if the vma flag was really used only at
-few places - when we are clearing it along with VM_LOCKED (which could
-be hidden in VM_LOCKED_CLEAR_MASK or something like that) and when we
-decide whether the populate or not (this should be __mm_populate). But
-maybe I am missing some call paths where gup is called unconditionally,
-I haven't checked that.
--- 
-Michal Hocko
-SUSE Labs
+Hi,
+
+I mean this:
+
+online_pages()
+|--> zone->zone_pgdat->node_present_pages += onlined_pages;
+
+It will be double.
+
+Since meminfo data is retrieved from these kernel structures, /proc/meminfo
+will be broken.
+
+
+Actually speaking, reset it when hot-adding memory is not a good idea.
+We should make the memory init code be suitable for both boot code and
+memory hot-plug code.
+
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
