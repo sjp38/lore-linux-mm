@@ -1,102 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EECA36B0253
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 17:29:21 -0400 (EDT)
-Received: by igui7 with SMTP id i7so22391122igu.0
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 14:29:21 -0700 (PDT)
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
-        by mx.google.com with ESMTPS id 16si283763iop.167.2015.08.26.14.29.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Aug 2015 14:29:21 -0700 (PDT)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 26 Aug 2015 15:29:20 -0600
-Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 2D7CC1FF0049
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 15:20:27 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t7QLSYT938666362
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 14:28:34 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t7QLTG0i019103
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 15:29:17 -0600
-Date: Wed, 26 Aug 2015 14:29:16 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
-Message-ID: <20150826212916.GG11078@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
- <20150820163643.dd87de0c1a73cb63866b2914@linux-foundation.org>
- <20150821121028.GB12016@node.dhcp.inet.fi>
- <55DC550D.5060501@suse.cz>
- <20150825183354.GC4881@node.dhcp.inet.fi>
- <20150825201113.GK11078@linux.vnet.ibm.com>
- <55DCD434.9000704@suse.cz>
- <20150825211954.GN11078@linux.vnet.ibm.com>
- <alpine.LSU.2.11.1508261104000.1975@eggly.anvils>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 611FB9003C7
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 17:34:26 -0400 (EDT)
+Received: by pacti10 with SMTP id ti10so409373pac.0
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 14:34:26 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id uk5si3829pbc.60.2015.08.26.14.34.21
+        for <linux-mm@kvack.org>;
+        Wed, 26 Aug 2015 14:34:22 -0700 (PDT)
+From: "Williams, Dan J" <dan.j.williams@intel.com>
+Subject: Re: [PATCH v2 5/9] x86, pmem: push fallback handling to arch code
+Date: Wed, 26 Aug 2015 21:34:20 +0000
+Message-ID: <1440624859.31365.17.camel@intel.com>
+References: <20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <20150826012751.8851.78564.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <20150826124124.GA7613@lst.de>
+In-Reply-To: <20150826124124.GA7613@lst.de>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <453DD6BA4F29B541A82ABDFACA8189F2@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1508261104000.1975@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+To: "hch@lst.de" <hch@lst.de>
+Cc: "toshi.kani@hp.com" <toshi.kani@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@kernel.org" <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "hpa@zytor.com" <hpa@zytor.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "mingo@redhat.com" <mingo@redhat.com>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "boaz@plexistor.com" <boaz@plexistor.com>, "david@fromorbit.com" <david@fromorbit.com>
 
-On Wed, Aug 26, 2015 at 11:18:45AM -0700, Hugh Dickins wrote:
-> On Tue, 25 Aug 2015, Paul E. McKenney wrote:
-> > On Tue, Aug 25, 2015 at 10:46:44PM +0200, Vlastimil Babka wrote:
-> > > On 25.8.2015 22:11, Paul E. McKenney wrote:
-> > > > On Tue, Aug 25, 2015 at 09:33:54PM +0300, Kirill A. Shutemov wrote:
-> > > >> On Tue, Aug 25, 2015 at 01:44:13PM +0200, Vlastimil Babka wrote:
-> > > >>> On 08/21/2015 02:10 PM, Kirill A. Shutemov wrote:
-> > > >>>> On Thu, Aug 20, 2015 at 04:36:43PM -0700, Andrew Morton wrote:
-> > > >>>>> On Wed, 19 Aug 2015 12:21:45 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > > >>>>>
-> > > >>>>>> The patch introduces page->compound_head into third double word block in
-> > > >>>>>> front of compound_dtor and compound_order. That means it shares storage
-> > > >>>>>> space with:
-> > > >>>>>>
-> > > >>>>>>  - page->lru.next;
-> > > >>>>>>  - page->next;
-> > > >>>>>>  - page->rcu_head.next;
-> > > >>>>>>  - page->pmd_huge_pte;
-> > > >>>>>>
-> > > >>>
-> > > >>> We should probably ask Paul about the chances that rcu_head.next would like
-> > > >>> to use the bit too one day?
-> > > >>
-> > > >> +Paul.
-> > > > 
-> > > > The call_rcu() function does stomp that bit, but if you stop using that
-> > > > bit before you invoke call_rcu(), no problem.
-> > > 
-> > > You mean that it sets the bit 0 of rcu_head.next during its processing?
-> > 
-> > Not at the moment, though RCU will splat if given a misaligned rcu_head
-> > structure because of the possibility to use that bit to flag callbacks
-> > that do nothing but free memory.  If RCU needs to do that (e.g., to
-> > promote energy efficiency), then that bit might well be set during
-> > RCU grace-period processing.
-> 
-> But if you do one day implement that, wouldn't sl?b.c have to use
-> call_rcu_with_added_meaning() instead of call_rcu(), to be in danger
-> of getting that bit set?  (No rcu_head is placed in a PageTail page.)
-
-Good point, call_rcu_lazy(), but yes.
-
-> So although it might be a little strange not to use a variant intended
-> for freeing memory when indeed that's what it's doing, it would not be
-> the end of the world for SLAB_DESTROY_BY_RCU to carry on using straight
-> call_rcu(), in defence of the struct page safety Kirill is proposing.
-
-As long as you are OK with the bottom bit being zero throughout the RCU
-processing, yes.
-
-							Thanx, Paul
+T24gV2VkLCAyMDE1LTA4LTI2IGF0IDE0OjQxICswMjAwLCBDaHJpc3RvcGggSGVsbHdpZyB3cm90
+ZToNCj4gSSBsaWtlIHRoZSBpbnRlbnQgYmVoaW5kIHRoaXMsIGJ1dCBub3QgdGhlIGltcGxlbWVu
+dGF0aW9uLg0KPiANCj4gSSB0aGluayB0aGUgcmlnaHQgYXBwcm9hY2ggaXMgdG8ga2VlcCB0aGUg
+ZGVmYXVsdHMgaW4gbGludXgvcG1lbS5oDQo+IGFuZCBzaW1wbHkgbm90IHNldCBDT05GSUdfQVJD
+SF9IQVNfUE1FTV9BUEkgZm9yIHg4Ni0zMi4NCg0KWWVzLCB0aGF0IG1ha2VzIHRoaW5ncyBtdWNo
+IGNsZWFuZXIuICBSZXZpc2VkIHBhdGNoIGFuZCBjaGFuZ2Vsb2cgYmVsb3c6DQoNCjg8LS0tLQ0K
+U3ViamVjdDogeDg2LCBwbWVtOiBjbGFyaWZ5IHRoYXQgQVJDSF9IQVNfUE1FTV9BUEkgaW1wbGll
+cyBQTUVNIG1hcHBlZCBXQg0KDQpGcm9tOiBEYW4gV2lsbGlhbXMgPGRhbi5qLndpbGxpYW1zQGlu
+dGVsLmNvbT4NCg0KR2l2ZW4gdGhhdCBhIHdyaXRlLWJhY2sgKFdCKSBtYXBwaW5nIHBsdXMgbm9u
+LXRlbXBvcmFsIHN0b3JlcyBpcw0KZXhwZWN0ZWQgdG8gYmUgdGhlIG1vc3QgZWZmaWNpZW50IHdh
+eSB0byBhY2Nlc3MgUE1FTSwgdXBkYXRlIHRoZQ0KZGVmaW5pdGlvbiBvZiBBUkNIX0hBU19QTUVN
+X0FQSSB0byBpbXBseSBhcmNoIHN1cHBvcnQgZm9yDQpXQi1tYXBwZWQtUE1FTS4gIFRoaXMgaXMg
+bmVlZGVkIGFzIGEgcHJlLXJlcXVpc2l0ZSBmb3IgYWRkaW5nIFBNRU0gdG8NCnRoZSBkaXJlY3Qg
+bWFwIGFuZCBtYXBwaW5nIGl0IHdpdGggc3RydWN0IHBhZ2UuDQoNClRoZSBhYm92ZSBjbGFyaWZp
+Y2F0aW9uIGZvciBYODZfNjQgbWVhbnMgdGhhdCBtZW1jcHlfdG9fcG1lbSgpIGlzDQpwZXJtaXR0
+ZWQgdG8gdXNlIHRoZSBub24tdGVtcG9yYWwgYXJjaF9tZW1jcHlfdG9fcG1lbSgpIHJhdGhlciB0
+aGFuDQpuZWVkbGVzc2x5IGZhbGwgYmFjayB0byBkZWZhdWx0X21lbWNweV90b19wbWVtKCkgd2hl
+biB0aGUgcGNvbW1pdA0KaW5zdHJ1Y3Rpb24gaXMgbm90IGF2YWlsYWJsZS4gIFdoZW4gYXJjaF9t
+ZW1jcHlfdG9fcG1lbSgpIGlzIG5vdA0KZ3VhcmFudGVlZCB0byBmbHVzaCB3cml0ZXMgb3V0IG9m
+IGNhY2hlLCBpLmUuIG9uIG9sZGVyIFg4Nl8zMg0KaW1wbGVtZW50YXRpb25zIHdoZXJlIG5vbi10
+ZW1wb3JhbCBzdG9yZXMgbWF5IGp1c3QgZGlydHkgY2FjaGUsDQpBUkNIX0hBU19QTUVNX0FQSSBp
+cyBzaW1wbHkgZGlzYWJsZWQuDQoNClRoZSBkZWZhdWx0IGZhbGwgYmFjayBmb3IgcGVyc2lzdGVu
+dCBtZW1vcnkgaGFuZGxpbmcgcmVtYWlucy4gIE5hbWVseSwNCm1hcCBpdCB3aXRoIHRoZSBXVCAo
+d3JpdGUtdGhyb3VnaCkgY2FjaGUtdHlwZSBhbmQgaG9wZSBmb3IgdGhlIGJlc3QuDQoNCmFyY2hf
+aGFzX3BtZW1fYXBpKCkgaXMgdXBkYXRlZCB0byBvbmx5IGluZGljYXRlIHdoZXRoZXIgdGhlIGFy
+Y2gNCnByb3ZpZGVzIHRoZSBwcm9wZXIgaGVscGVycyB0byBtZWV0IHRoZSBtaW5pbXVtICJ3cml0
+ZXMgYXJlIHZpc2libGUNCm91dHNpZGUgdGhlIGNhY2hlIGhpZXJhcmNoeSBhZnRlciBtZW1jcHlf
+dG9fcG1lbSgpICsgd21iX3BtZW0oKSIuICBDb2RlDQp0aGF0IGNhcmVzIHdoZXRoZXIgd21iX3Bt
+ZW0oKSBhY3R1YWxseSBmbHVzaGVzIHdyaXRlcyB0byBwbWVtIG11c3Qgbm93DQpjYWxsIGFyY2hf
+aGFzX3dtYl9wbWVtKCkgZGlyZWN0bHkuDQoNCkNjOiBUaG9tYXMgR2xlaXhuZXIgPHRnbHhAbGlu
+dXRyb25peC5kZT4NCkNjOiBJbmdvIE1vbG5hciA8bWluZ29AcmVkaGF0LmNvbT4NCkNjOiAiSC4g
+UGV0ZXIgQW52aW4iIDxocGFAenl0b3IuY29tPg0KQ2M6IFRvc2hpIEthbmkgPHRvc2hpLmthbmlA
+aHAuY29tPg0KQ2M6IFJvc3MgWndpc2xlciA8cm9zcy56d2lzbGVyQGxpbnV4LmludGVsLmNvbT4N
+CkNjOiBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGxzdC5kZT4NCltoY2g6IHNldCBBUkNIX0hBU19Q
+TUVNX0FQST1uIG9uIFg4Nl8zMl0NClNpZ25lZC1vZmYtYnk6IERhbiBXaWxsaWFtcyA8ZGFuLmou
+d2lsbGlhbXNAaW50ZWwuY29tPg0KLS0tDQogYXJjaC94ODYvS2NvbmZpZyAgICAgICAgICAgIHwg
+ICAgMiArLQ0KIGFyY2gveDg2L2luY2x1ZGUvYXNtL2lvLmggICB8ICAgIDIgLS0NCiBhcmNoL3g4
+Ni9pbmNsdWRlL2FzbS9wbWVtLmggfCAgICA4ICsrLS0tLS0tDQogZHJpdmVycy9hY3BpL25maXQu
+YyAgICAgICAgIHwgICAgMiArLQ0KIGRyaXZlcnMvbnZkaW1tL3BtZW0uYyAgICAgICB8ICAgIDIg
+Ky0NCiBpbmNsdWRlL2xpbnV4L3BtZW0uaCAgICAgICAgfCAgIDI4ICsrKysrKysrKysrKysrKysr
+LS0tLS0tLS0tLS0NCiA2IGZpbGVzIGNoYW5nZWQsIDIyIGluc2VydGlvbnMoKyksIDIyIGRlbGV0
+aW9ucygtKQ0KDQpkaWZmIC0tZ2l0IGEvYXJjaC94ODYvS2NvbmZpZyBiL2FyY2gveDg2L0tjb25m
+aWcNCmluZGV4IDc2YzYxMTU0ZWQ1MC4uNTkxMjg1OWRmNTMzIDEwMDY0NA0KLS0tIGEvYXJjaC94
+ODYvS2NvbmZpZw0KKysrIGIvYXJjaC94ODYvS2NvbmZpZw0KQEAgLTI3LDcgKzI3LDcgQEAgY29u
+ZmlnIFg4Ng0KIAlzZWxlY3QgQVJDSF9IQVNfRUxGX1JBTkRPTUlaRQ0KIAlzZWxlY3QgQVJDSF9I
+QVNfRkFTVF9NVUxUSVBMSUVSDQogCXNlbGVjdCBBUkNIX0hBU19HQ09WX1BST0ZJTEVfQUxMDQot
+CXNlbGVjdCBBUkNIX0hBU19QTUVNX0FQSQ0KKwlzZWxlY3QgQVJDSF9IQVNfUE1FTV9BUEkJCWlm
+IFg4Nl82NA0KIAlzZWxlY3QgQVJDSF9IQVNfU0dfQ0hBSU4NCiAJc2VsZWN0IEFSQ0hfSEFWRV9O
+TUlfU0FGRV9DTVBYQ0hHDQogCXNlbGVjdCBBUkNIX01JR0hUX0hBVkVfQUNQSV9QREMJCWlmIEFD
+UEkNCmRpZmYgLS1naXQgYS9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9pby5oIGIvYXJjaC94ODYvaW5j
+bHVkZS9hc20vaW8uaA0KaW5kZXggZDI0MWZiZDVjODdiLi44M2VjOWIxZDc3Y2MgMTAwNjQ0DQot
+LS0gYS9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9pby5oDQorKysgYi9hcmNoL3g4Ni9pbmNsdWRlL2Fz
+bS9pby5oDQpAQCAtMjQ4LDggKzI0OCw2IEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBmbHVzaF93cml0
+ZV9idWZmZXJzKHZvaWQpDQogI2VuZGlmDQogfQ0KIA0KLSNkZWZpbmUgQVJDSF9NRU1SRU1BUF9Q
+TUVNIE1FTVJFTUFQX1dCDQotDQogI2VuZGlmIC8qIF9fS0VSTkVMX18gKi8NCiANCiBleHRlcm4g
+dm9pZCBuYXRpdmVfaW9fZGVsYXkodm9pZCk7DQpkaWZmIC0tZ2l0IGEvYXJjaC94ODYvaW5jbHVk
+ZS9hc20vcG1lbS5oIGIvYXJjaC94ODYvaW5jbHVkZS9hc20vcG1lbS5oDQppbmRleCBhM2EwZGY2
+NTQ1ZWUuLjUxMTFmMWYwNTNhNCAxMDA2NDQNCi0tLSBhL2FyY2gveDg2L2luY2x1ZGUvYXNtL3Bt
+ZW0uaA0KKysrIGIvYXJjaC94ODYvaW5jbHVkZS9hc20vcG1lbS5oDQpAQCAtMTksNiArMTksNyBA
+QA0KICNpbmNsdWRlIDxhc20vc3BlY2lhbF9pbnNucy5oPg0KIA0KICNpZmRlZiBDT05GSUdfQVJD
+SF9IQVNfUE1FTV9BUEkNCisjZGVmaW5lIEFSQ0hfTUVNUkVNQVBfUE1FTSBNRU1SRU1BUF9XQg0K
+IC8qKg0KICAqIGFyY2hfbWVtY3B5X3RvX3BtZW0gLSBjb3B5IGRhdGEgdG8gcGVyc2lzdGVudCBt
+ZW1vcnkNCiAgKiBAZHN0OiBkZXN0aW5hdGlvbiBidWZmZXIgZm9yIHRoZSBjb3B5DQpAQCAtMTQx
+LDE4ICsxNDIsMTMgQEAgc3RhdGljIGlubGluZSB2b2lkIGFyY2hfY2xlYXJfcG1lbSh2b2lkIF9f
+cG1lbSAqYWRkciwgc2l6ZV90IHNpemUpDQogCV9fYXJjaF93Yl9jYWNoZV9wbWVtKHZhZGRyLCBz
+aXplKTsNCiB9DQogDQotc3RhdGljIGlubGluZSBib29sIGFyY2hfaGFzX3dtYl9wbWVtKHZvaWQp
+DQorc3RhdGljIGlubGluZSBib29sIF9fYXJjaF9oYXNfd21iX3BtZW0odm9pZCkNCiB7DQotI2lm
+ZGVmIENPTkZJR19YODZfNjQNCiAJLyoNCiAJICogV2UgcmVxdWlyZSB0aGF0IHdtYigpIGJlIGFu
+ICdzZmVuY2UnLCB0aGF0IGlzIG9ubHkgZ3VhcmFudGVlZCBvbg0KIAkgKiA2NC1iaXQgYnVpbGRz
+DQogCSAqLw0KIAlyZXR1cm4gc3RhdGljX2NwdV9oYXMoWDg2X0ZFQVRVUkVfUENPTU1JVCk7DQot
+I2Vsc2UNCi0JcmV0dXJuIGZhbHNlOw0KLSNlbmRpZg0KIH0NCiAjZW5kaWYgLyogQ09ORklHX0FS
+Q0hfSEFTX1BNRU1fQVBJICovDQotDQogI2VuZGlmIC8qIF9fQVNNX1g4Nl9QTUVNX0hfXyAqLw0K
+ZGlmZiAtLWdpdCBhL2RyaXZlcnMvYWNwaS9uZml0LmMgYi9kcml2ZXJzL2FjcGkvbmZpdC5jDQpp
+bmRleCA3YzI2MzhmOTE0YTkuLmMzZmUyMDYzNTU2MiAxMDA2NDQNCi0tLSBhL2RyaXZlcnMvYWNw
+aS9uZml0LmMNCisrKyBiL2RyaXZlcnMvYWNwaS9uZml0LmMNCkBAIC0xMzY0LDcgKzEzNjQsNyBA
+QCBzdGF0aWMgaW50IGFjcGlfbmZpdF9ibGtfcmVnaW9uX2VuYWJsZShzdHJ1Y3QgbnZkaW1tX2J1
+cyAqbnZkaW1tX2J1cywNCiAJCQlyZXR1cm4gLUVOT01FTTsNCiAJfQ0KIA0KLQlpZiAoIWFyY2hf
+aGFzX3BtZW1fYXBpKCkgJiYgIW5maXRfYmxrLT5udmRpbW1fZmx1c2gpDQorCWlmICghYXJjaF9o
+YXNfd21iX3BtZW0oKSAmJiAhbmZpdF9ibGstPm52ZGltbV9mbHVzaCkNCiAJCWRldl93YXJuKGRl
+diwgInVuYWJsZSB0byBndWFyYW50ZWUgcGVyc2lzdGVuY2Ugb2Ygd3JpdGVzXG4iKTsNCiANCiAJ
+aWYgKG1taW8tPmxpbmVfc2l6ZSA9PSAwKQ0KZGlmZiAtLWdpdCBhL2RyaXZlcnMvbnZkaW1tL3Bt
+ZW0uYyBiL2RyaXZlcnMvbnZkaW1tL3BtZW0uYw0KaW5kZXggM2I1YjljYjc1OGI2Li4yMGJmMTIy
+MzI4ZGEgMTAwNjQ0DQotLS0gYS9kcml2ZXJzL252ZGltbS9wbWVtLmMNCisrKyBiL2RyaXZlcnMv
+bnZkaW1tL3BtZW0uYw0KQEAgLTEyNSw3ICsxMjUsNyBAQCBzdGF0aWMgc3RydWN0IHBtZW1fZGV2
+aWNlICpwbWVtX2FsbG9jKHN0cnVjdCBkZXZpY2UgKmRldiwNCiANCiAJcG1lbS0+cGh5c19hZGRy
+ID0gcmVzLT5zdGFydDsNCiAJcG1lbS0+c2l6ZSA9IHJlc291cmNlX3NpemUocmVzKTsNCi0JaWYg
+KCFhcmNoX2hhc19wbWVtX2FwaSgpKQ0KKwlpZiAoIWFyY2hfaGFzX3dtYl9wbWVtKCkpDQogCQlk
+ZXZfd2FybihkZXYsICJ1bmFibGUgdG8gZ3VhcmFudGVlIHBlcnNpc3RlbmNlIG9mIHdyaXRlc1xu
+Iik7DQogDQogCWlmICghZGV2bV9yZXF1ZXN0X21lbV9yZWdpb24oZGV2LCBwbWVtLT5waHlzX2Fk
+ZHIsIHBtZW0tPnNpemUsDQpkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9wbWVtLmggYi9pbmNs
+dWRlL2xpbnV4L3BtZW0uaA0KaW5kZXggYTlkODRiZjMzNWVlLi45ZWM0MjcxMDMxNWUgMTAwNjQ0
+DQotLS0gYS9pbmNsdWRlL2xpbnV4L3BtZW0uaA0KKysrIGIvaW5jbHVkZS9saW51eC9wbWVtLmgN
+CkBAIC0xOSwxMiArMTksMTIgQEANCiAjaWZkZWYgQ09ORklHX0FSQ0hfSEFTX1BNRU1fQVBJDQog
+I2luY2x1ZGUgPGFzbS9wbWVtLmg+DQogI2Vsc2UNCi1zdGF0aWMgaW5saW5lIHZvaWQgYXJjaF93
+bWJfcG1lbSh2b2lkKQ0KLXsNCi0JQlVHKCk7DQotfQ0KLQ0KLXN0YXRpYyBpbmxpbmUgYm9vbCBh
+cmNoX2hhc193bWJfcG1lbSh2b2lkKQ0KKy8qDQorICogVGhlc2UgYXJlIHNpbXBseSBoZXJlIHRv
+IGVuYWJsZSBjb21waWxhdGlvbiwgYWxsIGNhbGwgc2l0ZXMgZ2F0ZQ0KKyAqIGNhbGxpbmcgdGhl
+c2Ugc3ltYm9scyB3aXRoIGFyY2hfaGFzX3BtZW1fYXBpKCkgYW5kIHJlZGlyZWN0IHRvIHRoZQ0K
+KyAqIGltcGxlbWVudGF0aW9uIGluIGFzbS9wbWVtLmguDQorICovDQorc3RhdGljIGlubGluZSBi
+b29sIF9fYXJjaF9oYXNfd21iX3BtZW0odm9pZCkNCiB7DQogCXJldHVybiBmYWxzZTsNCiB9DQpA
+QCAtNTMsNyArNTMsNiBAQCBzdGF0aWMgaW5saW5lIHZvaWQgYXJjaF9jbGVhcl9wbWVtKHZvaWQg
+X19wbWVtICphZGRyLCBzaXplX3Qgc2l6ZSkNCiAgKiBpbXBsZW1lbnRhdGlvbnMgZm9yIGFyY2hf
+bWVtY3B5X3RvX3BtZW0oKSwgYXJjaF93bWJfcG1lbSgpLA0KICAqIGFyY2hfY29weV9mcm9tX2l0
+ZXJfcG1lbSgpLCBhcmNoX2NsZWFyX3BtZW0oKSBhbmQgYXJjaF9oYXNfd21iX3BtZW0oKS4NCiAg
+Ki8NCi0NCiBzdGF0aWMgaW5saW5lIHZvaWQgbWVtY3B5X2Zyb21fcG1lbSh2b2lkICpkc3QsIHZv
+aWQgX19wbWVtIGNvbnN0ICpzcmMsIHNpemVfdCBzaXplKQ0KIHsNCiAJbWVtY3B5KGRzdCwgKHZv
+aWQgX19mb3JjZSBjb25zdCAqKSBzcmMsIHNpemUpOw0KQEAgLTY0LDggKzYzLDEzIEBAIHN0YXRp
+YyBpbmxpbmUgdm9pZCBtZW11bm1hcF9wbWVtKHN0cnVjdCBkZXZpY2UgKmRldiwgdm9pZCBfX3Bt
+ZW0gKmFkZHIpDQogCWRldm1fbWVtdW5tYXAoZGV2LCAodm9pZCBfX2ZvcmNlICopIGFkZHIpOw0K
+IH0NCiANCitzdGF0aWMgaW5saW5lIGJvb2wgYXJjaF9oYXNfcG1lbV9hcGkodm9pZCkNCit7DQor
+CXJldHVybiBJU19FTkFCTEVEKENPTkZJR19BUkNIX0hBU19QTUVNX0FQSSk7DQorfQ0KKw0KIC8q
+Kg0KLSAqIGFyY2hfaGFzX3BtZW1fYXBpIC0gdHJ1ZSBpZiB3bWJfcG1lbSgpIGVuc3VyZXMgZHVy
+YWJpbGl0eQ0KKyAqIGFyY2hfaGFzX3dtYl9wbWVtIC0gdHJ1ZSBpZiB3bWJfcG1lbSgpIGVuc3Vy
+ZXMgZHVyYWJpbGl0eQ0KICAqDQogICogRm9yIGEgZ2l2ZW4gY3B1IGltcGxlbWVudGF0aW9uIHdp
+dGhpbiBhbiBhcmNoaXRlY3R1cmUgaXQgaXMgcG9zc2libGUNCiAgKiB0aGF0IHdtYl9wbWVtKCkg
+cmVzb2x2ZXMgdG8gYSBub3AuICBJbiB0aGUgY2FzZSB0aGlzIHJldHVybnMNCkBAIC03Myw5ICs3
+Nyw5IEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBtZW11bm1hcF9wbWVtKHN0cnVjdCBkZXZpY2UgKmRl
+diwgdm9pZCBfX3BtZW0gKmFkZHIpDQogICogZmFsbCBiYWNrIHRvIGEgZGlmZmVyZW50IGRhdGEg
+Y29uc2lzdGVuY3kgbW9kZWwsIG9yIG90aGVyd2lzZSBub3RpZnkNCiAgKiB0aGUgdXNlci4NCiAg
+Ki8NCi1zdGF0aWMgaW5saW5lIGJvb2wgYXJjaF9oYXNfcG1lbV9hcGkodm9pZCkNCitzdGF0aWMg
+aW5saW5lIGJvb2wgYXJjaF9oYXNfd21iX3BtZW0odm9pZCkNCiB7DQotCXJldHVybiBJU19FTkFC
+TEVEKENPTkZJR19BUkNIX0hBU19QTUVNX0FQSSkgJiYgYXJjaF9oYXNfd21iX3BtZW0oKTsNCisJ
+cmV0dXJuIGFyY2hfaGFzX3BtZW1fYXBpKCkgJiYgX19hcmNoX2hhc193bWJfcG1lbSgpOw0KIH0N
+CiANCiAvKg0KQEAgLTE1OCw4ICsxNjIsMTAgQEAgc3RhdGljIGlubGluZSB2b2lkIG1lbWNweV90
+b19wbWVtKHZvaWQgX19wbWVtICpkc3QsIGNvbnN0IHZvaWQgKnNyYywgc2l6ZV90IG4pDQogICov
+DQogc3RhdGljIGlubGluZSB2b2lkIHdtYl9wbWVtKHZvaWQpDQogew0KLQlpZiAoYXJjaF9oYXNf
+cG1lbV9hcGkoKSkNCisJaWYgKGFyY2hfaGFzX3dtYl9wbWVtKCkpDQogCQlhcmNoX3dtYl9wbWVt
+KCk7DQorCWVsc2UNCisJCXdtYigpOw0KIH0NCiANCiAvKioNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
