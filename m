@@ -1,126 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id C79256B0253
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 06:46:03 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so40441484wic.1
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 03:46:03 -0700 (PDT)
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
-        by mx.google.com with ESMTPS id db8si4449889wjc.63.2015.08.26.03.46.01
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 40F016B0253
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 08:18:31 -0400 (EDT)
+Received: by pacti10 with SMTP id ti10so86836451pac.0
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 05:18:31 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id ad8si38345597pad.109.2015.08.26.05.18.29
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Aug 2015 03:46:02 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so40440831wic.1
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 03:46:01 -0700 (PDT)
-Date: Wed, 26 Aug 2015 12:46:00 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 04/12] mm, page_alloc: Only check cpusets when one exists
- that can be mem-controlled
-Message-ID: <20150826104559.GG25196@dhcp22.suse.cz>
-References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
- <1440418191-10894-5-git-send-email-mgorman@techsingularity.net>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 26 Aug 2015 05:18:30 -0700 (PDT)
+Subject: [PATCH 1/2] android, lmk: Protect task->comm with task_lock.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201508262117.FAH43726.tOFMVJSLQOFHFO@I-love.SAKURA.ne.jp>
+Date: Wed, 26 Aug 2015 21:17:54 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1440418191-10894-5-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: gregkh@linuxfoundation.org, arve@android.com, riandrews@android.com
+Cc: devel@driverdev.osuosl.org, linux-mm@kvack.org, mhocko@kernel.org, rientjes@google.com, hannes@cmpxchg.org
 
-On Mon 24-08-15 13:09:43, Mel Gorman wrote:
-> David Rientjes correctly pointed out that the "root cpuset may not exclude
-> mems on the system so, even if mounted, there's no need to check or be
-> worried about concurrent change when there is only one cpuset".
+Hello.
 
-Hmm, but cpuset_inc() is called only from cpuset_css_online and only
-when it is called with non-NULL css->parent AFAICS. This means that the
-static key should be still false after the root cpuset is created.
+Next patch is mm-related but this patch is not.
+Via which tree should these patches go?
+----------------------------------------
+>From 48c1b457eb32d7a029e9a078ee0a67974ada9261 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Wed, 26 Aug 2015 20:49:17 +0900
+Subject: [PATCH 1/2] android, lmk: Protect task->comm with task_lock.
 
-> The three checks for cpusets_enabled() care whether a cpuset exists that
-> can limit memory, not that cpuset is enabled as such. This patch replaces
-> cpusets_enabled() with cpusets_mems_enabled() which checks if at least one
-> cpuset exists that can limit memory and updates the appropriate call sites.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  include/linux/cpuset.h | 16 +++++++++-------
->  mm/page_alloc.c        |  2 +-
->  2 files changed, 10 insertions(+), 8 deletions(-)
-> 
-> diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
-> index 6eb27cb480b7..1e823870987e 100644
-> --- a/include/linux/cpuset.h
-> +++ b/include/linux/cpuset.h
-> @@ -17,10 +17,6 @@
->  #ifdef CONFIG_CPUSETS
->  
->  extern struct static_key cpusets_enabled_key;
-> -static inline bool cpusets_enabled(void)
-> -{
-> -	return static_key_false(&cpusets_enabled_key);
-> -}
->  
->  static inline int nr_cpusets(void)
->  {
-> @@ -28,6 +24,12 @@ static inline int nr_cpusets(void)
->  	return static_key_count(&cpusets_enabled_key) + 1;
->  }
->  
-> +/* Returns true if a cpuset exists that can set cpuset.mems */
-> +static inline bool cpusets_mems_enabled(void)
-> +{
-> +	return nr_cpusets() > 1;
-> +}
-> +
->  static inline void cpuset_inc(void)
->  {
->  	static_key_slow_inc(&cpusets_enabled_key);
-> @@ -104,7 +106,7 @@ extern void cpuset_print_task_mems_allowed(struct task_struct *p);
->   */
->  static inline unsigned int read_mems_allowed_begin(void)
->  {
-> -	if (!cpusets_enabled())
-> +	if (!cpusets_mems_enabled())
->  		return 0;
->  
->  	return read_seqcount_begin(&current->mems_allowed_seq);
-> @@ -118,7 +120,7 @@ static inline unsigned int read_mems_allowed_begin(void)
->   */
->  static inline bool read_mems_allowed_retry(unsigned int seq)
->  {
-> -	if (!cpusets_enabled())
-> +	if (!cpusets_mems_enabled())
->  		return false;
->  
->  	return read_seqcount_retry(&current->mems_allowed_seq, seq);
-> @@ -139,7 +141,7 @@ static inline void set_mems_allowed(nodemask_t nodemask)
->  
->  #else /* !CONFIG_CPUSETS */
->  
-> -static inline bool cpusets_enabled(void) { return false; }
-> +static inline bool cpusets_mems_enabled(void) { return false; }
->  
->  static inline int cpuset_init(void) { return 0; }
->  static inline void cpuset_init_smp(void) {}
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 62ae28d8ae8d..2c1c3bf54d15 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2470,7 +2470,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
->  		if (IS_ENABLED(CONFIG_NUMA) && zlc_active &&
->  			!zlc_zone_worth_trying(zonelist, z, allowednodes))
->  				continue;
-> -		if (cpusets_enabled() &&
-> +		if (cpusets_mems_enabled() &&
->  			(alloc_flags & ALLOC_CPUSET) &&
->  			!cpuset_zone_allowed(zone, gfp_mask))
->  				continue;
-> -- 
-> 2.4.6
+Passing task->comm to printk() wants task_lock() protection in order
+to avoid potentially emitting garbage bytes.
 
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ drivers/staging/android/lowmemorykiller.c | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
+index 872bd60..d5d25e4 100644
+--- a/drivers/staging/android/lowmemorykiller.c
++++ b/drivers/staging/android/lowmemorykiller.c
+@@ -134,26 +134,25 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
+ 			return 0;
+ 		}
+ 		oom_score_adj = p->signal->oom_score_adj;
+-		if (oom_score_adj < min_score_adj) {
+-			task_unlock(p);
+-			continue;
+-		}
++		if (oom_score_adj < min_score_adj)
++			goto next;
+ 		tasksize = get_mm_rss(p->mm);
+-		task_unlock(p);
+ 		if (tasksize <= 0)
+-			continue;
++			goto next;
+ 		if (selected) {
+ 			if (oom_score_adj < selected_oom_score_adj)
+-				continue;
++				goto next;
+ 			if (oom_score_adj == selected_oom_score_adj &&
+ 			    tasksize <= selected_tasksize)
+-				continue;
++				goto next;
+ 		}
+ 		selected = p;
+ 		selected_tasksize = tasksize;
+ 		selected_oom_score_adj = oom_score_adj;
+ 		lowmem_print(2, "select %d (%s), adj %hd, size %d, to kill\n",
+ 			     p->pid, p->comm, oom_score_adj, tasksize);
++next:
++		task_unlock(p);
+ 	}
+ 	if (selected) {
+ 		task_lock(selected);
+@@ -168,10 +167,10 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
+ 		 * task should have access to the memory reserves.
+ 		 */
+ 		mark_oom_victim(selected);
+-		task_unlock(selected);
+ 		lowmem_print(1, "send sigkill to %d (%s), adj %hd, size %d\n",
+ 			     selected->pid, selected->comm,
+ 			     selected_oom_score_adj, selected_tasksize);
++		task_unlock(selected);
+ 		lowmem_deathpending_timeout = jiffies + HZ;
+ 		send_sig(SIGKILL, selected, 0);
+ 		rem += selected_tasksize;
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
