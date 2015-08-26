@@ -1,110 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id BC6E56B0254
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 10:53:22 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so49617179wid.1
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 07:53:22 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id d3si10293225wie.23.2015.08.26.07.53.20
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 821E16B0254
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 10:53:56 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so17890395wid.0
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 07:53:56 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id db8si5610332wjc.63.2015.08.26.07.53.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=RC4-SHA bits=128/128);
-        Wed, 26 Aug 2015 07:53:21 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 8C32A988C2
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 14:53:20 +0000 (UTC)
-Date: Wed, 26 Aug 2015 15:53:18 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 12/12] mm, page_alloc: Only enforce watermarks for
- order-0 allocations
-Message-ID: <20150826145318.GP12432@techsingularity.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Aug 2015 07:53:55 -0700 (PDT)
+Received: by widdq5 with SMTP id dq5so49633314wid.1
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 07:53:54 -0700 (PDT)
+Date: Wed, 26 Aug 2015 16:53:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 11/12] mm, page_alloc: Reserve pageblocks for high-order
+ atomic allocations on demand
+Message-ID: <20150826145352.GJ25196@dhcp22.suse.cz>
 References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
- <20150824123015.GJ12432@techsingularity.net>
- <55DDC23F.8020004@suse.cz>
+ <20150824122957.GI12432@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <55DDC23F.8020004@suse.cz>
+In-Reply-To: <20150824122957.GI12432@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Aug 26, 2015 at 03:42:23PM +0200, Vlastimil Babka wrote:
-> >@@ -2309,22 +2311,30 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
-> >  #ifdef CONFIG_CMA
-> >  	/* If allocation can't use CMA areas don't use free CMA pages */
-> >  	if (!(alloc_flags & ALLOC_CMA))
-> >-		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
-> >+		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
-> >  #endif
-> >
-> >-	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
-> >+	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
-> >  		return false;
-> >-	for (o = 0; o < order; o++) {
-> >-		/* At the next order, this order's pages become unavailable */
-> >-		free_pages -= z->free_area[o].nr_free << o;
-> >
-> >-		/* Require fewer higher order pages to be free */
-> >-		min >>= 1;
-> >+	/* order-0 watermarks are ok */
-> >+	if (!order)
-> >+		return true;
-> >+
-> >+	/* Check at least one high-order page is free */
-> >+	for (o = order; o < MAX_ORDER; o++) {
-> >+		struct free_area *area = &z->free_area[o];
-> >+		int mt;
-> >+
-> >+		if (atomic && area->nr_free)
-> >+			return true;
-> >
-> >-		if (free_pages <= min)
-> >-			return false;
-> >+		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
-> >+			if (!list_empty(&area->free_list[mt]))
-> >+				return true;
-> >+		}
+On Mon 24-08-15 13:29:57, Mel Gorman wrote:
+> High-order watermark checking exists for two reasons --  kswapd high-order
+> awareness and protection for high-order atomic requests. Historically the
+> kernel depended on MIGRATE_RESERVE to preserve min_free_kbytes as high-order
+> free pages for as long as possible. This patch introduces MIGRATE_HIGHATOMIC
+> that reserves pageblocks for high-order atomic allocations on demand and
+> avoids using those blocks for order-0 allocations. This is more flexible
+> and reliable than MIGRATE_RESERVE was.
 > 
-> I think we really need something like this here:
+> A MIGRATE_HIGHORDER pageblock is created when a high-order allocation
+> request steals a pageblock but limits the total number to 1% of the zone.
+> Callers that speculatively abuse atomic allocations for long-lived
+> high-order allocations to access the reserve will quickly fail. Note that
+> SLUB is currently not such an abuser as it reclaims at least once.  It is
+> possible that the pageblock stolen has few suitable high-order pages and
+> will need to steal again in the near future but there would need to be
+> strong justification to search all pageblocks for an ideal candidate.
 > 
-> #ifdef CONFIG_CMA
-> if (alloc_flags & ALLOC_CMA)) &&
-> 	!list_empty(&area->free_list[MIGRATE_CMA])
-> 		return true;
-> #endif
+> The pageblocks are unreserved if an allocation fails after a direct
+> reclaim attempt.
 > 
-> This is not about CMA and high-order atomic allocations being used at the
-> same time. This is about high-order MIGRATE_MOVABLE allocations (that set
-> ALLOC_CMA) failing to use MIGRATE_CMA pageblocks, which they should be
-> allowed to use. It's complementary to the existing free_pages adjustment
-> above.
+> The watermark checks account for the reserved pageblocks when the allocation
+> request is not a high-order atomic allocation.
 > 
-> Maybe there's not many high-order MIGRATE_MOVABLE allocations today, but
-> they might increase with the driver migration framework. So why set up us a
-> bomb.
+> The reserved pageblocks can not be used for order-0 allocations. This may
+> allow temporary wastage until a failed reclaim reassigns the pageblock. This
+> is deliberate as the intent of the reservation is to satisfy a limited
+> number of atomic high-order short-lived requests if the system requires them.
 > 
+> The stutter benchmark was used to evaluate this but while it was running
+> there was a systemtap script that randomly allocated between 1 high-order
+> page and 12.5% of memory's worth of order-3 pages using GFP_ATOMIC. This
+> is much larger than the potential reserve and it does not attempt to be
+> realistic.  It is intended to stress random high-order allocations from
+> an unknown source, show that there is a reduction in failures without
+> introducing an anomaly where atomic allocations are more reliable than
+> regular allocations.  The amount of memory reserved varied throughout the
+> workload as reserves were created and reclaimed under memory pressure. The
+> allocation failures once the workload warmed up were as follows;
+> 
+> 4.2-rc5-vanilla		70%
+> 4.2-rc5-atomic-reserve	56%
+> 
+> The failure rate was also measured while building multiple kernels. The
+> failure rate was 14% but is 6% with this patch applied.
+> 
+> Overall, this is a small reduction but the reserves are small relative to the
+> number of allocation requests. In early versions of the patch, the failure
+> rate reduced by a much larger amount but that required much larger reserves
+> and perversely made atomic allocations seem more reliable than regular allocations.
 
-Ok, that seems sensible. Will apply this hunk on top
+Have you considered a counter for vmstat/zoneinfo so that we have an overview
+about the memory consumed for this reserve?
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1a4169be1498..10f25bf18665 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2337,6 +2337,13 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 			if (!list_empty(&area->free_list[mt]))
- 				return true;
- 		}
-+
-+#ifdef CONFIG_CMA
-+		if ((alloc_flags & ALLOC_CMA) &&
-+		    !list_empty(&area->free_list[MIGRATE_CMA])) {
-+			return true;
-+		}
-+#endif
- 	}
- 	return false;
- }
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+[...]
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d5ce050ebe4f..2415f882b89c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+[...]
+> @@ -1645,10 +1725,16 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>   * Call me with the zone->lock already held.
+>   */
+>  static struct page *__rmqueue(struct zone *zone, unsigned int order,
+> -						int migratetype)
+> +				int migratetype, gfp_t gfp_flags)
+>  {
+>  	struct page *page;
+>  
+> +	if (unlikely(order && (gfp_flags & __GFP_ATOMIC))) {
+> +		page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+> +		if (page)
+> +			goto out;
+
+I guess you want to change migratetype to MIGRATE_HIGHATOMIC in the
+successful case so the tracepoint reports this properly.
+
+> +	}
+> +
+>  	page = __rmqueue_smallest(zone, order, migratetype);
+>  	if (unlikely(!page)) {
+>  		if (migratetype == MIGRATE_MOVABLE)
+> @@ -1658,6 +1744,7 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
+>  			page = __rmqueue_fallback(zone, order, migratetype);
+>  	}
+>  
+> +out:
+>  	trace_mm_page_alloc_zone_locked(page, order, migratetype);
+>  	return page;
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
