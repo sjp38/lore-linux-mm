@@ -1,94 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
-	by kanga.kvack.org (Postfix) with ESMTP id E86FC6B0254
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 10:29:25 -0400 (EDT)
-Received: by ykll84 with SMTP id l84so188189386ykl.0
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 07:29:25 -0700 (PDT)
-Received: from m12-16.163.com (m12-16.163.com. [220.181.12.16])
-        by mx.google.com with ESMTP id s103si16626448qgs.69.2015.08.26.07.29.23
+Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A35156B0255
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 10:31:05 -0400 (EDT)
+Received: by qkch123 with SMTP id h123so114520954qkc.0
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 07:31:05 -0700 (PDT)
+Received: from m12-12.163.com (m12-12.163.com. [220.181.12.12])
+        by mx.google.com with ESMTP id 186si38830734qhq.3.2015.08.26.07.31.03
         for <linux-mm@kvack.org>;
-        Wed, 26 Aug 2015 07:29:24 -0700 (PDT)
+        Wed, 26 Aug 2015 07:31:04 -0700 (PDT)
+Date: Wed, 26 Aug 2015 22:29:06 +0800
 From: Yaowei Bai <bywxiaobai@163.com>
-Subject: [PATCH] mm/page_alloc: remove unused parameter in init_currently_empty_zone()
-Date: Wed, 26 Aug 2015 22:26:00 +0800
-Message-Id: <1440599160-4156-1-git-send-email-bywxiaobai@163.com>
+Subject: Re: [PATCH 2/2] Documentation: clarify in calculating zone protection
+Message-ID: <20150826142906.GA4194@bbox>
+References: <1440511291-3990-1-git-send-email-bywxiaobai@163.com>
+ <1440511291-3990-2-git-send-email-bywxiaobai@163.com>
+ <20150825150633.GG6285@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150825150633.GG6285@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, mhocko@kernel.org, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Commit a2f3aa02576632cdb ("[PATCH] Fix sparsemem on Cell") fixed an oops
-experienced on the Cell architecture when init-time functions, early_*(),
-are called at runtime by introducing an 'enum memmap_context' parameter
-to memmap_init_zone() and init_currently_empty_zone(). This parameter is
-intended to be used to tell whether the call of these two functions is
-being made on behalf of a hotplug event, or happening at boot-time.
-However, init_currently_empty_zone() does not use this parameter at all,
-so remove it.
+On Tue, Aug 25, 2015 at 05:06:33PM +0200, Michal Hocko wrote:
+> On Tue 25-08-15 22:01:31, Yaowei Bai wrote:
+> > Every zone's protection is calculated from managed_pages not
+> > present_pages, to avoid misleading, correct it.
+> 
+> This can be folded in to your previous patch
+> http://marc.info/?l=linux-mm&m=144023106610358&w=2
 
-Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
----
- include/linux/mmzone.h | 3 +--
- mm/memory_hotplug.c    | 4 ++--
- mm/page_alloc.c        | 6 ++----
- 3 files changed, 5 insertions(+), 8 deletions(-)
+OK, thanks.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 754c259..4fdb8e3 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -808,8 +808,7 @@ enum memmap_context {
- 	MEMMAP_HOTPLUG,
- };
- extern int init_currently_empty_zone(struct zone *zone, unsigned long start_pfn,
--				     unsigned long size,
--				     enum memmap_context context);
-+				     unsigned long size);
- 
- extern void lruvec_init(struct lruvec *lruvec);
- 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6da82bc..7ae58a5 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -339,8 +339,8 @@ static int __ref ensure_zone_is_initialized(struct zone *zone,
- 			unsigned long start_pfn, unsigned long num_pages)
- {
- 	if (!zone_is_initialized(zone))
--		return init_currently_empty_zone(zone, start_pfn, num_pages,
--						 MEMMAP_HOTPLUG);
-+		return init_currently_empty_zone(zone, start_pfn, num_pages);
-+
- 	return 0;
- }
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5b5240b..c562d13 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4875,8 +4875,7 @@ static __meminit void zone_pcp_init(struct zone *zone)
- 
- int __meminit init_currently_empty_zone(struct zone *zone,
- 					unsigned long zone_start_pfn,
--					unsigned long size,
--					enum memmap_context context)
-+					unsigned long size)
- {
- 	struct pglist_data *pgdat = zone->zone_pgdat;
- 	int ret;
-@@ -5389,8 +5388,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 		set_pageblock_order();
- 		setup_usemap(pgdat, zone, zone_start_pfn, size);
--		ret = init_currently_empty_zone(zone, zone_start_pfn,
--						size, MEMMAP_EARLY);
-+		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
- 		BUG_ON(ret);
- 		memmap_init(size, nid, j, zone_start_pfn);
- 		zone_start_pfn += size;
--- 
-1.9.1
-
+> 
+> > 
+> > Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
+> > ---
+> >  Documentation/sysctl/vm.txt | 4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> > index 9832ec5..1739b31 100644
+> > --- a/Documentation/sysctl/vm.txt
+> > +++ b/Documentation/sysctl/vm.txt
+> > @@ -349,7 +349,7 @@ zone[i]'s protection[j] is calculated by following expression.
+> >  
+> >  (i < j):
+> >    zone[i]->protection[j]
+> > -  = (total sums of present_pages from zone[i+1] to zone[j] on the node)
+> > +  = (total sums of managed_pages from zone[i+1] to zone[j] on the node)
+> >      / lowmem_reserve_ratio[i];
+> >  (i = j):
+> >     (should not be protected. = 0;
+> > @@ -360,7 +360,7 @@ The default values of lowmem_reserve_ratio[i] are
+> >      256 (if zone[i] means DMA or DMA32 zone)
+> >      32  (others).
+> >  As above expression, they are reciprocal number of ratio.
+> > -256 means 1/256. # of protection pages becomes about "0.39%" of total present
+> > +256 means 1/256. # of protection pages becomes about "0.39%" of total managed
+> >  pages of higher zones on the node.
+> >  
+> >  If you would like to protect more pages, smaller values are effective.
+> > -- 
+> > 1.9.1
+> > 
+> > 
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
