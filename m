@@ -1,103 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F6449003C7
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 20:39:41 -0400 (EDT)
-Received: by qgeg42 with SMTP id g42so117909027qge.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 17:39:41 -0700 (PDT)
-Received: from bgp253.corp-email.cn (bgp253.corp-email.cn. [112.65.243.253])
-        by mx.google.com with ESMTPS id l84si35901802qhl.115.2015.08.25.17.39.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Aug 2015 17:39:40 -0700 (PDT)
-Subject: Re: [PATCH V2] mm:memory hot-add: memory can not been added to
- movable zone
-References: <1440055685-6083-1-git-send-email-liuchangsheng@inspur.com>
- <55dc69b5.46268c0a.faa78.24eb@mx.google.com>
-From: Changsheng Liu <liuchangsheng@inspur.com>
-Message-ID: <55DD0A99.5080803@inspur.com>
-Date: Wed, 26 Aug 2015 08:38:49 +0800
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C78069003C7
+	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 21:33:08 -0400 (EDT)
+Received: by pacdd16 with SMTP id dd16so142007107pac.2
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 18:33:08 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id xo9si22290027pab.125.2015.08.25.18.33.07
+        for <linux-mm@kvack.org>;
+        Tue, 25 Aug 2015 18:33:07 -0700 (PDT)
+Subject: [PATCH v2 0/9] initial struct page support for pmem
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 25 Aug 2015 21:27:24 -0400
+Message-ID: <20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <55dc69b5.46268c0a.faa78.24eb@mx.google.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
+To: linux-nvdimm@lists.01.org
+Cc: mingo@kernel.org, boaz@plexistor.com, Rik van Riel <riel@redhat.com>, Toshi Kani <toshi.kani@hp.com>, Dave Hansen <dave.hansen@linux.intel.com>, david@fromorbit.com, linux-kernel@vger.kernel.org, hch@lst.de, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, hpa@zytor.com, Jerome Glisse <j.glisse@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, ross.zwisler@linux.intel.com
 
-First, thanks very much for your review, I will update codes according 
-to your suggestion
+Changes since v1 [1]:
 
-On 2015/8/25 21:12, Yasuaki Ishimatsu wrote:
-> On Thu, 20 Aug 2015 03:28:05 -0400
-> Changsheng Liu <liuchangsheng@inspur.com> wrote:
->
->> From: Changsheng Liu <liuchangcheng@inspur.com>
->>
->> When memory is hot added, should_add_memory_movable() always returns 0
->> because the movable zone is empty, so the memory that was hot added will
->> add to the normal zone even if we want to remove the memory.
->>
->> So we change should_add_memory_movable(): if the user config
->> CONFIG_MOVABLE_NODE it will return 1 when the movable zone is empty.
->>
->> Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
->> Signed-off-by: Changsheng Liu <liuchangcheng@inspur.com>
->> Tested-by: Dongdong Fan <fandd@inspur.com>
->> ---
->>   mm/memory_hotplug.c |    3 +--
->>   1 files changed, 1 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index 26fbba7..ff658f2 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1199,8 +1199,7 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
->>   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
->>   
->>   	if (zone_is_empty(movable_zone))
->> -		return 0;
->> -
->> +		return IS_ENABLED(CONFIG_MOVABLE_NODE);
->>   	if (movable_zone->zone_start_pfn <= start_pfn)
->>   		return 1;
-> Currently, kernel allows to create ZONE_MOVABLE after ZONE_NORMAL as follows:
->   PFN low                                 high
->         ---|-------------|-------------|---
->              ZONE_NORMAL   ZONE_MOVABLE
->
-> But kernel does not allow to create ZONE_MOVABLE before ZONE_NORMAL as follows:
->   PFN low                                 high
->         ---|-------------|-------------|---
->              ZONE_MOVABLE  ZONE_NORMAL
->
-> Also, kernel does not allow to create ZONE_MOVABLE in ZOME_NORMAL as follows:
->   PFN low                                              high
->         ---|-------------|-------------|-------------|---
->              ZONE_NORMAL   ZONE_MOVABLE  ZONE_NORMAL
->
-> So should_add_memory_movable() checks them.
->
-> Accoring to your patch, when movable_zone is empty, the hot added memory is
-> always managed to ZONE_MOVABLE. It means that ZONE_MOVALBE will puts before/in
-> ZONE_NORMAL.
->
-> You must prevent from creating ZONE_MOVABLE before/in ZONE_NORMAL.
->
-> Thanks,
-> Yasuaki Ishimatsu
->
->>   
->> -- 
->> 1.7.1
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> .
->
+1/ Several simplifications from Christoph including dropping the __pfn_t
+   dependency, and merging ZONE_DEVICE into the base arch_add_memory()
+   implementation.
+
+2/ Drop the deeper changes to the memory hotplug code that enabled
+   allocating the backing 'struct page' array from pmem (struct
+   vmem_altmap).  This functionality is still needed when large capacity
+   PMEM devices arrive.  However, for now we can take this simple step to
+   enable struct page mapping in RAM and enable it by default for small
+   capacity CONFIG_X86_PMEM_LEGACY devices.
+
+3/ A rework of the PMEM api to allow usage of the non-temporal
+   memcpy_to_pmem() implementation even on platforms without pcommit
+   instruction support.
+
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-August/001809.html
+
+---
+
+When we last left this debate [2] it was becoming clear that the
+'page-less' approach left too many I/O scenarios off the table.  The
+page-less enabling is still useful for avoiding the overhead of struct
+page where it is not needed, but in the end, page-backed persistent
+memory seems to be a requirement.  We confirmed as much at the recently
+concluded Persistent Memory Microconference at Linux Plumbers.
+
+Whereas the initial RFC of this functionality enabled userspace to pick
+whether struct page is allocated from RAM or PMEM.  This new version
+only enables RAM-backed for now.  This is suitable for existing NVDIMM
+devices and a starting point to incrementally build "allocate struct
+page from PMEM" support.
+
+[2]: https://lists.01.org/pipermail/linux-nvdimm/2015-May/000748.html
+
+---
+
+Christoph Hellwig (2):
+      mm: move __phys_to_pfn and __pfn_to_phys to asm/generic/memory_model.h
+      add devm_memremap_pages
+
+Dan Williams (7):
+      dax: drop size parameter to ->direct_access()
+      mm: ZONE_DEVICE for "device memory"
+      x86, pmem: push fallback handling to arch code
+      libnvdimm, pfn: 'struct page' provider infrastructure
+      libnvdimm, pmem: 'struct page' for pmem
+      libnvdimm, pmem: direct map legacy pmem by default
+      devm_memremap_pages: protect against pmem device unbind
+
+
+ arch/arm/include/asm/memory.h       |    6 -
+ arch/arm64/include/asm/memory.h     |    6 -
+ arch/ia64/mm/init.c                 |    4 
+ arch/powerpc/mm/mem.c               |    4 
+ arch/powerpc/sysdev/axonram.c       |    2 
+ arch/s390/mm/init.c                 |    2 
+ arch/sh/mm/init.c                   |    5 -
+ arch/tile/mm/init.c                 |    2 
+ arch/unicore32/include/asm/memory.h |    6 -
+ arch/x86/include/asm/io.h           |    2 
+ arch/x86/include/asm/pmem.h         |   41 ++++
+ arch/x86/mm/init_32.c               |    4 
+ arch/x86/mm/init_64.c               |    4 
+ drivers/acpi/nfit.c                 |    2 
+ drivers/block/brd.c                 |    6 -
+ drivers/nvdimm/Kconfig              |   23 ++
+ drivers/nvdimm/Makefile             |    2 
+ drivers/nvdimm/btt.c                |    6 -
+ drivers/nvdimm/btt_devs.c           |  172 +-----------------
+ drivers/nvdimm/claim.c              |  201 +++++++++++++++++++++
+ drivers/nvdimm/e820.c               |    1 
+ drivers/nvdimm/namespace_devs.c     |   62 +++++-
+ drivers/nvdimm/nd-core.h            |    9 +
+ drivers/nvdimm/nd.h                 |   59 ++++++
+ drivers/nvdimm/pfn.h                |   35 ++++
+ drivers/nvdimm/pfn_devs.c           |  337 +++++++++++++++++++++++++++++++++++
+ drivers/nvdimm/pmem.c               |  220 +++++++++++++++++++++--
+ drivers/nvdimm/region.c             |    2 
+ drivers/nvdimm/region_devs.c        |   20 ++
+ drivers/s390/block/dcssblk.c        |    4 
+ fs/block_dev.c                      |    2 
+ include/asm-generic/memory_model.h  |    6 +
+ include/asm-generic/pmem.h          |   72 +++++++
+ include/linux/blkdev.h              |    2 
+ include/linux/io.h                  |   57 ++++++
+ include/linux/libnvdimm.h           |    4 
+ include/linux/memory_hotplug.h      |    5 -
+ include/linux/mmzone.h              |   23 ++
+ include/linux/pmem.h                |   73 +-------
+ kernel/memremap.c                   |  136 ++++++++++++++
+ mm/Kconfig                          |   17 ++
+ mm/memory_hotplug.c                 |   14 +
+ mm/page_alloc.c                     |    3 
+ tools/testing/nvdimm/Kbuild         |    3 
+ tools/testing/nvdimm/test/iomap.c   |   13 +
+ 45 files changed, 1369 insertions(+), 310 deletions(-)
+ create mode 100644 drivers/nvdimm/claim.c
+ create mode 100644 drivers/nvdimm/pfn.h
+ create mode 100644 drivers/nvdimm/pfn_devs.c
+ create mode 100644 include/asm-generic/pmem.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
