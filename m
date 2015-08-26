@@ -1,88 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B9D96B0038
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 10:52:44 -0400 (EDT)
-Received: by qgeh99 with SMTP id h99so68236941qge.0
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 07:52:43 -0700 (PDT)
-Received: from m12-14.163.com (m12-14.163.com. [220.181.12.14])
-        by mx.google.com with ESMTP id g205si38919574qhc.20.2015.08.26.07.52.41
-        for <linux-mm@kvack.org>;
-        Wed, 26 Aug 2015 07:52:42 -0700 (PDT)
-Date: Wed, 26 Aug 2015 22:50:46 +0800
-From: Yaowei Bai <bywxiaobai@163.com>
-Subject: Re: [PATCH v2] mm/page_alloc: add a helper function to check page
- before alloc/free
-Message-ID: <20150826145046.GB4194@bbox>
-References: <1440509190-3622-1-git-send-email-bywxiaobai@163.com>
- <20150825140322.GC6285@dhcp22.suse.cz>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id BC6E56B0254
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 10:53:22 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so49617179wid.1
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 07:53:22 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id d3si10293225wie.23.2015.08.26.07.53.20
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=RC4-SHA bits=128/128);
+        Wed, 26 Aug 2015 07:53:21 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 8C32A988C2
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 14:53:20 +0000 (UTC)
+Date: Wed, 26 Aug 2015 15:53:18 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 12/12] mm, page_alloc: Only enforce watermarks for
+ order-0 allocations
+Message-ID: <20150826145318.GP12432@techsingularity.net>
+References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
+ <20150824123015.GJ12432@techsingularity.net>
+ <55DDC23F.8020004@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20150825140322.GC6285@dhcp22.suse.cz>
+In-Reply-To: <55DDC23F.8020004@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 25, 2015 at 04:03:22PM +0200, Michal Hocko wrote:
-> On Tue 25-08-15 21:26:30, Yaowei Bai wrote:
-> [...]
-> >  static inline int check_new_page(struct page *page)
-> >  {
-> > -	const char *bad_reason = NULL;
-> > -	unsigned long bad_flags = 0;
-> > -
-> > -	if (unlikely(page_mapcount(page)))
-> > -		bad_reason = "nonzero mapcount";
-> > -	if (unlikely(page->mapping != NULL))
-> > -		bad_reason = "non-NULL mapping";
-> > -	if (unlikely(atomic_read(&page->_count) != 0))
-> > -		bad_reason = "nonzero _count";
-> > -	if (unlikely(page->flags & __PG_HWPOISON)) {
-> > -		bad_reason = "HWPoisoned (hardware-corrupted)";
-> > -		bad_flags = __PG_HWPOISON;
-> > -	}
+On Wed, Aug 26, 2015 at 03:42:23PM +0200, Vlastimil Babka wrote:
+> >@@ -2309,22 +2311,30 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+> >  #ifdef CONFIG_CMA
+> >  	/* If allocation can't use CMA areas don't use free CMA pages */
+> >  	if (!(alloc_flags & ALLOC_CMA))
+> >-		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
+> >+		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+> >  #endif
+> >
+> >-	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
+> >+	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
+> >  		return false;
+> >-	for (o = 0; o < order; o++) {
+> >-		/* At the next order, this order's pages become unavailable */
+> >-		free_pages -= z->free_area[o].nr_free << o;
+> >
+> >-		/* Require fewer higher order pages to be free */
+> >-		min >>= 1;
+> >+	/* order-0 watermarks are ok */
+> >+	if (!order)
+> >+		return true;
+> >+
+> >+	/* Check at least one high-order page is free */
+> >+	for (o = order; o < MAX_ORDER; o++) {
+> >+		struct free_area *area = &z->free_area[o];
+> >+		int mt;
+> >+
+> >+		if (atomic && area->nr_free)
+> >+			return true;
+> >
+> >-		if (free_pages <= min)
+> >-			return false;
+> >+		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
+> >+			if (!list_empty(&area->free_list[mt]))
+> >+				return true;
+> >+		}
 > 
-> You have removed this check AFAICS. Now looking at 39ad4f19671d ("mm:
-
-I missed that check mistakenly, it should be there.
-
-> check __PG_HWPOISON separately from PAGE_FLAGS_CHECK_AT_*") I am not
-> sure it is correct to check it in the free path as it was removed from
-> the mask by this commit.
-
-I investigated the commit you mentioned above. AFAICS, that commit assumes
-that __PG_HWPOISON check should be performed in the alloc path, while in
-the free path it doesn't need to. So there is a bit different in alloc/free
-paths.
-So Michal, do you think there is any obvious points to refactor these
-two functions still? Anyway, appreciate your reviewing.
-
+> I think we really need something like this here:
 > 
-> > -	if (unlikely(page->flags & PAGE_FLAGS_CHECK_AT_PREP)) {
-> > -		bad_reason = "PAGE_FLAGS_CHECK_AT_PREP flag set";
-> > -		bad_flags = PAGE_FLAGS_CHECK_AT_PREP;
-> > -	}
-> > -#ifdef CONFIG_MEMCG
-> > -	if (unlikely(page->mem_cgroup))
-> > -		bad_reason = "page still charged to cgroup";
-> > -#endif
-> > -	if (unlikely(bad_reason)) {
-> > -		bad_page(page, bad_reason, bad_flags);
-> > -		return 1;
-> > -	}
-> > -	return 0;
-> > +	return check_one_page(page, PAGE_FLAGS_CHECK_AT_PREP);
-> >  }
-> >  
-> >  static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
-> > -- 
-> > 1.9.1
-> > 
+> #ifdef CONFIG_CMA
+> if (alloc_flags & ALLOC_CMA)) &&
+> 	!list_empty(&area->free_list[MIGRATE_CMA])
+> 		return true;
+> #endif
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> This is not about CMA and high-order atomic allocations being used at the
+> same time. This is about high-order MIGRATE_MOVABLE allocations (that set
+> ALLOC_CMA) failing to use MIGRATE_CMA pageblocks, which they should be
+> allowed to use. It's complementary to the existing free_pages adjustment
+> above.
+> 
+> Maybe there's not many high-order MIGRATE_MOVABLE allocations today, but
+> they might increase with the driver migration framework. So why set up us a
+> bomb.
+> 
+
+Ok, that seems sensible. Will apply this hunk on top
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1a4169be1498..10f25bf18665 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2337,6 +2337,13 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+ 			if (!list_empty(&area->free_list[mt]))
+ 				return true;
+ 		}
++
++#ifdef CONFIG_CMA
++		if ((alloc_flags & ALLOC_CMA) &&
++		    !list_empty(&area->free_list[MIGRATE_CMA])) {
++			return true;
++		}
++#endif
+ 	}
+ 	return false;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
