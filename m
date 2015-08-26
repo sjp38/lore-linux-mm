@@ -1,111 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D64B6B0253
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 18:23:10 -0400 (EDT)
-Received: by pacti10 with SMTP id ti10so1570236pac.0
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 15:23:09 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id rl7si139528pab.173.2015.08.26.15.23.09
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5791C6B0253
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 18:28:48 -0400 (EDT)
+Received: by pacti10 with SMTP id ti10so1700294pac.0
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 15:28:48 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id g4si178344pdh.107.2015.08.26.15.28.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Aug 2015 15:23:09 -0700 (PDT)
-Received: by pabzx8 with SMTP id zx8so1533061pab.1
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 15:23:09 -0700 (PDT)
-Date: Wed, 26 Aug 2015 15:23:07 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm] mm, oom: add global access to memory reserves on
- livelock
-In-Reply-To: <20150826070127.GB25196@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1508261507270.2973@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com> <20150821081745.GG23723@dhcp22.suse.cz> <alpine.DEB.2.10.1508241358230.32561@chino.kir.corp.google.com> <20150825142503.GE6285@dhcp22.suse.cz> <alpine.DEB.2.10.1508251635560.10653@chino.kir.corp.google.com>
- <20150826070127.GB25196@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Aug 2015 15:28:47 -0700 (PDT)
+Received: by pacdd16 with SMTP id dd16so1627439pac.2
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 15:28:47 -0700 (PDT)
+Date: Wed, 26 Aug 2015 15:28:39 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
+In-Reply-To: <20150826212916.GG11078@linux.vnet.ibm.com>
+Message-ID: <alpine.LSU.2.11.1508261526260.2585@eggly.anvils>
+References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com> <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com> <20150820163643.dd87de0c1a73cb63866b2914@linux-foundation.org> <20150821121028.GB12016@node.dhcp.inet.fi>
+ <55DC550D.5060501@suse.cz> <20150825183354.GC4881@node.dhcp.inet.fi> <20150825201113.GK11078@linux.vnet.ibm.com> <55DCD434.9000704@suse.cz> <20150825211954.GN11078@linux.vnet.ibm.com> <alpine.LSU.2.11.1508261104000.1975@eggly.anvils>
+ <20150826212916.GG11078@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-On Wed, 26 Aug 2015, Michal Hocko wrote:
-
-> > Because the company I work for has far too many machines for that to be 
-> > possible.
+On Wed, 26 Aug 2015, Paul E. McKenney wrote:
+> On Wed, Aug 26, 2015 at 11:18:45AM -0700, Hugh Dickins wrote:
+> > On Tue, 25 Aug 2015, Paul E. McKenney wrote:
+> > > On Tue, Aug 25, 2015 at 10:46:44PM +0200, Vlastimil Babka wrote:
+> > > > On 25.8.2015 22:11, Paul E. McKenney wrote:
+> > > > > On Tue, Aug 25, 2015 at 09:33:54PM +0300, Kirill A. Shutemov wrote:
+> > > > >> On Tue, Aug 25, 2015 at 01:44:13PM +0200, Vlastimil Babka wrote:
+> > > > >>> On 08/21/2015 02:10 PM, Kirill A. Shutemov wrote:
+> > > > >>>> On Thu, Aug 20, 2015 at 04:36:43PM -0700, Andrew Morton wrote:
+> > > > >>>>> On Wed, 19 Aug 2015 12:21:45 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> > > > >>>>>
+> > > > >>>>>> The patch introduces page->compound_head into third double word block in
+> > > > >>>>>> front of compound_dtor and compound_order. That means it shares storage
+> > > > >>>>>> space with:
+> > > > >>>>>>
+> > > > >>>>>>  - page->lru.next;
+> > > > >>>>>>  - page->next;
+> > > > >>>>>>  - page->rcu_head.next;
+> > > > >>>>>>  - page->pmd_huge_pte;
+> > > > >>>>>>
+> > > > >>>
+> > > > >>> We should probably ask Paul about the chances that rcu_head.next would like
+> > > > >>> to use the bit too one day?
+> > > > >>
+> > > > >> +Paul.
+> > > > > 
+> > > > > The call_rcu() function does stomp that bit, but if you stop using that
+> > > > > bit before you invoke call_rcu(), no problem.
+> > > > 
+> > > > You mean that it sets the bit 0 of rcu_head.next during its processing?
+> > > 
+> > > Not at the moment, though RCU will splat if given a misaligned rcu_head
+> > > structure because of the possibility to use that bit to flag callbacks
+> > > that do nothing but free memory.  If RCU needs to do that (e.g., to
+> > > promote energy efficiency), then that bit might well be set during
+> > > RCU grace-period processing.
+> > 
+> > But if you do one day implement that, wouldn't sl?b.c have to use
+> > call_rcu_with_added_meaning() instead of call_rcu(), to be in danger
+> > of getting that bit set?  (No rcu_head is placed in a PageTail page.)
 > 
-> OK I can see that manual intervention for hundreds of machines is not
-> practical. But not everybody is that large and there are users who might
-> want to be be able to recover.
->  
-
-If Andrew would prefer moving in a direction where all Linux users are 
-required to have their admin use sysrq+f to manually trigger an oom kill, 
-which may or may not resolve the livelock since there's no way to 
-determine which process is holding the common mutex (or even which 
-processes are currently allocating), in such situations, then we can carry 
-this patch internally.  I disagree with that solution for upstream Linux.
-
-> > If there is a holder of a mutex that then allocates gigabytes of memory, 
-> > no amount of memory reserves is going to assist in resolving an oom killer 
-> > livelock, whether that's partial access to memory reserves or full access 
-> > to memory reserves.
+> Good point, call_rcu_lazy(), but yes.
 > 
-> Sure, but do we have something like that in the kernel? I would argue it
-> would be terribly broken and a clear bug which should be fixed.
+> > So although it might be a little strange not to use a variant intended
+> > for freeing memory when indeed that's what it's doing, it would not be
+> > the end of the world for SLAB_DESTROY_BY_RCU to carry on using straight
+> > call_rcu(), in defence of the struct page safety Kirill is proposing.
 > 
+> As long as you are OK with the bottom bit being zero throughout the RCU
+> processing, yes.
 
-This is also why my patch dumps the stack trace of both threads: so we can 
-evaluate the memory allocation of threads holding shared mutexes.  If it 
-is excessive, we can report that and show that it is a common offender and 
-see if we can mitigate that.
+That's exactly what we want: sounds like we have no problem, thanks Paul.
 
-The scenario described, the full or partial depletion of memory reserves, 
-does not need to be induced by a single user.  We don't control the order 
-in which the mutex is grabbed so it's multipled by the number of threads 
-that grab it, allocate memory, and drop it before the victim has a chance 
-to grab it.  In the past, the oom killer would also increase the 
-scheduling priority of a victim so it tried to resolve issues like this 
-faster.
-
-> > Unless the oom watermark was higher than the lowest access to memory 
-> > reserves other than ALLOC_NO_WATERMARKS, then no forward progress would be 
-> > made in this scenario.  I think it would be better to give access to that 
-> > crucial last page that may solve the livelock to make forward progress, or 
-> > panic as a result of complete depletion of memory reserves.  That panic() 
-> > is a very trivial patch that can be checked in the allocator slowpath and 
-> > addresses a problem that already exists today.
-> 
-> The panicing the system is really trivial, no question about that. The
-> question is whether that panic would be premature. And that is what
-> I've tried to tell you.
-
-My patch has defined that by OOM_EXPIRE_MSECS.  The premise is that an oom 
-victim with full access to memory reserves should never take more than 5s 
-to exit, which I consider a very long time.  If it's increased, we see 
-userspace responsiveness issues with our processes that monitor system 
-health which timeout.
-
-Sure, it's always possible that a process that requires no mutexes that 
-are held by allocators exits and frees a lot of memory 10s later, 5m 
-later, etc, and the system can recover.  We have no guarntee of that 
-happening, so the panic point needs to be defined where the VM gives up 
-and it's unlikely anything can make forward progress.  My suggestion would 
-be when memory reserves are fully depleted, but again, that is something 
-that can be shown to happen today and is a separate issue.
-
-> The patch I am referring to above gives the
-> __GFP_NOFAIL request the full access to memory reserves (throttled by
-> oom_lock) but it still failed temporarily. What is more important,
-> though, this state wasn't permanent and the system recovered after short
-> time so panicing at the time would be premature.
-> 
-
-I'm not addressing __GFP_NOFAIL in this patch, and __GFP_NOFAIL is not the 
-pain point that this patch is addressing, so I consider it a different 
-issue.  We don't allow atomic __GFP_NOFAIL allocations, so the context is 
-really saying "I need this memory, and I'm willing to wait until it's 
-available."  I only consider that to be significant to oom killer livelock 
-if it is holding a mutex that the victim depends on to handle its SIGKILL.  
-With my patch, that thread would also get access to memory reserves to 
-make forward progress after the expiration has lapsed.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
