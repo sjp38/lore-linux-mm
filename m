@@ -1,151 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 407F56B0038
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 12:50:34 -0400 (EDT)
-Received: by oiev193 with SMTP id v193so125317484oie.3
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 09:50:34 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id n4si17842950obq.58.2015.08.26.09.50.33
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id D59516B0253
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 14:10:45 -0400 (EDT)
+Received: by wijn1 with SMTP id n1so32536821wij.0
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 11:10:45 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id bv19si11183811wib.81.2015.08.26.11.10.43
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Aug 2015 09:50:33 -0700 (PDT)
-Subject: Re: [PATCH 03/10] mm: make hugetlb.c explicitly non-modular
-References: <1440454482-12250-1-git-send-email-paul.gortmaker@windriver.com>
- <1440454482-12250-4-git-send-email-paul.gortmaker@windriver.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <55DDED91.9050405@oracle.com>
-Date: Wed, 26 Aug 2015 09:47:13 -0700
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 26 Aug 2015 11:10:44 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id A199D98960
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 18:10:43 +0000 (UTC)
+Date: Wed, 26 Aug 2015 19:10:41 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 07/12] mm, page_alloc: Distinguish between being unable
+ to sleep, unwilling to sleep and avoiding waking kswapd
+Message-ID: <20150826181041.GR12432@techsingularity.net>
+References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
+ <1440418191-10894-8-git-send-email-mgorman@techsingularity.net>
+ <55DC8BD7.602@suse.cz>
+ <20150826144533.GO12432@techsingularity.net>
+ <55DDE842.8000103@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1440454482-12250-4-git-send-email-paul.gortmaker@windriver.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <55DDE842.8000103@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 08/24/2015 03:14 PM, Paul Gortmaker wrote:
-> The Kconfig currently controlling compilation of this code is:
+On Wed, Aug 26, 2015 at 06:24:34PM +0200, Vlastimil Babka wrote:
+> On 08/26/2015 04:45 PM, Mel Gorman wrote:
+> >On Tue, Aug 25, 2015 at 05:37:59PM +0200, Vlastimil Babka wrote:
+> >>>@@ -2158,7 +2158,7 @@ static bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+> >>>  		return false;
+> >>>  	if (fail_page_alloc.ignore_gfp_highmem && (gfp_mask & __GFP_HIGHMEM))
+> >>>  		return false;
+> >>>-	if (fail_page_alloc.ignore_gfp_wait && (gfp_mask & __GFP_WAIT))
+> >>>+	if (fail_page_alloc.ignore_gfp_wait && (gfp_mask & (__GFP_ATOMIC|__GFP_DIRECT_RECLAIM)))
+> >>>  		return false;
+> >>>
+> >>>  	return should_fail(&fail_page_alloc.attr, 1 << order);
+> >>
+> >>IIUC ignore_gfp_wait tells it to assume that reclaimers will eventually
+> >>succeed (for some reason?), so they shouldn't fail. Probably to focus the
+> >>testing on atomic allocations. But your change makes atomic allocation never
+> >>fail, so that goes against the knob IMHO?
+> >>
+> >
+> >Fair point, I'll remove the __GFP_ATOMIC check. I felt this was a sensible
+> >but then again deliberately failing allocations makes my brain twitch a
+> >bit. In retrospect, someone who cared should add a ignore_gfp_atomic knob.
 > 
-> config HUGETLBFS
->         bool "HugeTLB file system support"
+> Thanks.
 > 
-> ...meaning that it currently is not being built as a module by anyone.
+> >>>@@ -2660,7 +2660,7 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
+> >>>  		if (test_thread_flag(TIF_MEMDIE) ||
+> >>>  		    (current->flags & (PF_MEMALLOC | PF_EXITING)))
+> >>>  			filter &= ~SHOW_MEM_FILTER_NODES;
+> >>>-	if (in_interrupt() || !(gfp_mask & __GFP_WAIT))
+> >>>+	if (in_interrupt() || !(gfp_mask & __GFP_WAIT) || (gfp_mask & __GFP_ATOMIC))
+> >>>  		filter &= ~SHOW_MEM_FILTER_NODES;
+> >>>
+> >>>  	if (fmt) {
+> >>
+> >>This caught me previously and I convinced myself that it's OK, but now I'm
+> >>not anymore. IIUC this is to not filter nodes by mems_allowed during
+> >>printing, if the allocation itself wasn't limited? In that case it should
+> >>probably only look at __GFP_ATOMIC after this patch? As that's the only
+> >>thing that determines ALLOC_CPUSET.
+> >>I don't know where in_interrupt() comes from, but it was probably considered
+> >>in the past, as can be seen in zlc_setup()?
+> >>
+> >
+> >I assumed the in_interrupt() thing was simply because cpusets were the
+> >primary means of limiting allocations of interest to the author at the
+> >time.
 > 
-> Lets remove the modular code that is essentially orphaned, so that
-> when reading the file there is no doubt it is builtin-only.
+> IIUC this hunk is unrelated to the previous one - not about limiting
+> allocations, but printing allocation warnings. Which includes the state of
+> nodes where the allocation was allowed to try. And ~SHOW_MEM_FILTER_NODES
+> means it was allowed everywhere, so the printing won't filter by
+> mems_allowed.
 > 
-> Since module_init translates to device_initcall in the non-modular
-> case, the init ordering remains unchanged with this commit.  However
-> one could argue that fs_initcall() would make more sense here.
-
-I would prefer that it NOT be changed to fs_initcall() as this is more
-about generic mm code than fs code.  If this was in a hugetlbfs specific
-file, fs_initcall() might make more sense.
-
-More about changing initcall below.
-
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-> Cc: Davidlohr Bueso <dave@stgolabs.net>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
-> ---
->  mm/hugetlb.c | 39 +--------------------------------------
->  1 file changed, 1 insertion(+), 38 deletions(-)
+> >I guess now that I think about it more that a more sensible check would
+> >be against __GFP_DIRECT_RECLAIM because that covers the interesting
+> >cases.
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 586aa69df900..1154152c8b99 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4,7 +4,6 @@
->   */
->  #include <linux/list.h>
->  #include <linux/init.h>
-> -#include <linux/module.h>
->  #include <linux/mm.h>
->  #include <linux/seq_file.h>
->  #include <linux/sysctl.h>
-> @@ -2439,25 +2438,6 @@ static void hugetlb_unregister_node(struct node *node)
->  	nhs->hugepages_kobj = NULL;
->  }
->  
-> -/*
-> - * hugetlb module exit:  unregister hstate attributes from node devices
-> - * that have them.
-> - */
-> -static void hugetlb_unregister_all_nodes(void)
-> -{
-> -	int nid;
-> -
-> -	/*
-> -	 * disable node device registrations.
-> -	 */
-> -	register_hugetlbfs_with_node(NULL, NULL);
-> -
-> -	/*
-> -	 * remove hstate attributes from any nodes that have them.
-> -	 */
-> -	for (nid = 0; nid < nr_node_ids; nid++)
-> -		hugetlb_unregister_node(node_devices[nid]);
-> -}
->  
->  /*
->   * Register hstate attributes for a single node device.
-> @@ -2522,27 +2502,10 @@ static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
->  	return NULL;
->  }
->  
-> -static void hugetlb_unregister_all_nodes(void) { }
-> -
->  static void hugetlb_register_all_nodes(void) { }
->  
->  #endif
->  
-> -static void __exit hugetlb_exit(void)
-> -{
-> -	struct hstate *h;
-> -
-> -	hugetlb_unregister_all_nodes();
-> -
-> -	for_each_hstate(h) {
-> -		kobject_put(hstate_kobjs[hstate_index(h)]);
-> -	}
-> -
-> -	kobject_put(hugepages_kobj);
-> -	kfree(hugetlb_fault_mutex_table);
-> -}
-> -module_exit(hugetlb_exit);
-> -
->  static int __init hugetlb_init(void)
->  {
->  	int i;
-> @@ -2580,7 +2543,7 @@ static int __init hugetlb_init(void)
->  		mutex_init(&hugetlb_fault_mutex_table[i]);
->  	return 0;
->  }
+> I think the most robust check would be to rely on what was already prepared
+> by gfp_to_alloc_flags(), instead of repeating it here. So add alloc_flags
+> parameter to warn_alloc_failed(), and drop the filter when
+> - ALLOC_CPUSET is not set, as that disables the cpuset checks
+> - ALLOC_NO_WATERMARKS is set, as that allows calling
+>   __alloc_pages_high_priority() attempt which ignores cpusets
+> 
 
-I am all for removal of the module_exit and associated code.  It is
-dead and is not used today.  It would be a good idea to remove this
-in any case.
-
-> -module_init(hugetlb_init);
-> +device_initcall(hugetlb_init);
-
-Other more experienced people have opinions on your staged approach
-to changing these init calls.  If the consensus is to take this
-approach, I would have no objections.
+warn_alloc_failed is used outside of page_alloc.c in a context that does
+not have alloc_flags. It could be extended to take an extra parameter
+that is ALLOC_CPUSET for the other callers or else split it into
+__warn_alloc_failed (takes alloc_flags parameter) and warn_alloc_failed
+(calls __warn_alloc_failed with ALLOC_CPUSET) but is it really worth it?
 
 -- 
-Mike Kravetz
-
->  
->  /* Should be called on processing a hugepagesz=... option */
->  void __init hugetlb_add_hstate(unsigned order)
-> 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
