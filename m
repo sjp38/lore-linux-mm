@@ -1,64 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9388B6B0038
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 10:12:37 -0400 (EDT)
-Received: by wicja10 with SMTP id ja10so45999951wic.1
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 07:12:37 -0700 (PDT)
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com. [209.85.212.176])
-        by mx.google.com with ESMTPS id ev15si5386957wjd.117.2015.08.26.07.12.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Aug 2015 07:12:36 -0700 (PDT)
-Received: by wijn1 with SMTP id n1so25850616wij.0
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 07:12:35 -0700 (PDT)
-Date: Wed, 26 Aug 2015 16:12:33 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [REPOST] [PATCH 2/2] mm,oom: Reverse the order of setting
- TIF_MEMDIE and sending SIGKILL.
-Message-ID: <20150826141233.GI25196@dhcp22.suse.cz>
-References: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
+Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E86FC6B0254
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 10:29:25 -0400 (EDT)
+Received: by ykll84 with SMTP id l84so188189386ykl.0
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 07:29:25 -0700 (PDT)
+Received: from m12-16.163.com (m12-16.163.com. [220.181.12.16])
+        by mx.google.com with ESMTP id s103si16626448qgs.69.2015.08.26.07.29.23
+        for <linux-mm@kvack.org>;
+        Wed, 26 Aug 2015 07:29:24 -0700 (PDT)
+From: Yaowei Bai <bywxiaobai@163.com>
+Subject: [PATCH] mm/page_alloc: remove unused parameter in init_currently_empty_zone()
+Date: Wed, 26 Aug 2015 22:26:00 +0800
+Message-Id: <1440599160-4156-1-git-send-email-bywxiaobai@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, mhocko@kernel.org, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Oleg,
+Commit a2f3aa02576632cdb ("[PATCH] Fix sparsemem on Cell") fixed an oops
+experienced on the Cell architecture when init-time functions, early_*(),
+are called at runtime by introducing an 'enum memmap_context' parameter
+to memmap_init_zone() and init_currently_empty_zone(). This parameter is
+intended to be used to tell whether the call of these two functions is
+being made on behalf of a hotplug event, or happening at boot-time.
+However, init_currently_empty_zone() does not use this parameter at all,
+so remove it.
 
-On Sun 23-08-15 16:19:38, Tetsuo Handa wrote:
-[...]
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 5249e7e..c0a5a69 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -555,12 +555,17 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  	/* Get a reference to safely compare mm after task_unlock(victim) */
->  	mm = victim->mm;
->  	atomic_inc(&mm->mm_users);
-> -	mark_oom_victim(victim);
->  	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
->  		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
->  		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
->  		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
->  	task_unlock(victim);
-> +	/* Send SIGKILL before setting TIF_MEMDIE. */
-> +	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
-> +	task_lock(victim);
-> +	if (victim->mm)
-> +		mark_oom_victim(victim);
-> +	task_unlock(victim);
+Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
+---
+ include/linux/mmzone.h | 3 +--
+ mm/memory_hotplug.c    | 4 ++--
+ mm/page_alloc.c        | 6 ++----
+ 3 files changed, 5 insertions(+), 8 deletions(-)
 
-I cannot seem to find any explicit note about task_lock vs. signal
-nesting nor task_lock() anywhere in kernel/signal.c so I rather ask. Can
-we call do_send_sig_info with task_lock held?
-
-Thanks!
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 754c259..4fdb8e3 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -808,8 +808,7 @@ enum memmap_context {
+ 	MEMMAP_HOTPLUG,
+ };
+ extern int init_currently_empty_zone(struct zone *zone, unsigned long start_pfn,
+-				     unsigned long size,
+-				     enum memmap_context context);
++				     unsigned long size);
+ 
+ extern void lruvec_init(struct lruvec *lruvec);
+ 
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 6da82bc..7ae58a5 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -339,8 +339,8 @@ static int __ref ensure_zone_is_initialized(struct zone *zone,
+ 			unsigned long start_pfn, unsigned long num_pages)
+ {
+ 	if (!zone_is_initialized(zone))
+-		return init_currently_empty_zone(zone, start_pfn, num_pages,
+-						 MEMMAP_HOTPLUG);
++		return init_currently_empty_zone(zone, start_pfn, num_pages);
++
+ 	return 0;
+ }
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5b5240b..c562d13 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4875,8 +4875,7 @@ static __meminit void zone_pcp_init(struct zone *zone)
+ 
+ int __meminit init_currently_empty_zone(struct zone *zone,
+ 					unsigned long zone_start_pfn,
+-					unsigned long size,
+-					enum memmap_context context)
++					unsigned long size)
+ {
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
+ 	int ret;
+@@ -5389,8 +5388,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 
+ 		set_pageblock_order();
+ 		setup_usemap(pgdat, zone, zone_start_pfn, size);
+-		ret = init_currently_empty_zone(zone, zone_start_pfn,
+-						size, MEMMAP_EARLY);
++		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
+ 		BUG_ON(ret);
+ 		memmap_init(size, nid, j, zone_start_pfn);
+ 		zone_start_pfn += size;
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
