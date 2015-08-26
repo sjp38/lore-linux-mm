@@ -1,241 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E9319003C7
-	for <linux-mm@kvack.org>; Tue, 25 Aug 2015 21:33:57 -0400 (EDT)
-Received: by pacdd16 with SMTP id dd16so142029087pac.2
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 18:33:56 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id q2si35857477pdo.21.2015.08.25.18.33.56
-        for <linux-mm@kvack.org>;
-        Tue, 25 Aug 2015 18:33:56 -0700 (PDT)
-Subject: [PATCH v2 9/9] devm_memremap_pages: protect against pmem device
- unbind
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 25 Aug 2015 21:28:13 -0400
-Message-ID: <20150826012813.8851.35482.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 04A426B0253
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 02:12:44 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so35459288wid.1
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 23:12:43 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q7si7970434wiz.8.2015.08.25.23.12.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 25 Aug 2015 23:12:42 -0700 (PDT)
+Subject: Re: [PATCH] Memory hot added,The memory can not been added to movable
+ zone
+References: <1439972306-50845-1-git-send-email-liuchangsheng@inspur.com>
+ <20150819165029.665b89d7ab3228185460172c@linux-foundation.org>
+ <55D57071.1080901@inspur.com> <55db6d6d.82d1370a.dd0ff.6055@mx.google.com>
+ <55DC4294.2020407@inspur.com> <55DC4DC3.30509@suse.cz>
+ <55DD0A1B.4090700@inspur.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55DD58D8.1090508@suse.cz>
+Date: Wed, 26 Aug 2015 08:12:40 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <55DD0A1B.4090700@inspur.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: boaz@plexistor.com, david@fromorbit.com, linux-kernel@vger.kernel.org, hch@lst.de, linux-mm@kvack.org, hpa@zytor.com, ross.zwisler@linux.intel.com, mingo@kernel.org
+To: Changsheng Liu <liuchangsheng@inspur.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yanxiaofeng@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
 
-Given that:
+On 26.8.2015 2:36, Changsheng Liu wrote:
+> 
+> 
+> a?? 2015/8/25 19:13, Vlastimil Babka a??e??:
+>> On 08/25/2015 12:25 PM, Changsheng Liu wrote:
+>>> Thanks very much for your review, I can move the memory from normal zone
+>>> to movable zone succesfully.
+>>> And thank you for let me understand the memory mechanism better.
+>>> a?? 2015/8/25 3:15, Yasuaki Ishimatsu a??e??:
+>>
+>> So you agree to drop the patch from -mm?
+>      The system add memory to normal zone defaultly so that it can be 
+> used by kernel and then we can not move the memory to movable zone.
+>      The patch can add the memory to movable zone directlly.
 
-1/ device ->remove() can not be failed
+I thought that you confirmed that the following works?
+echo online_movable > /sys/devices/system/memory/memoryXXX/state
 
-2/ a pmem device may be unbound at any time
-
-3/ we do not know what other parts of the kernel are actively using a
-   'struct page' from devm_memremap_pages()
-
-...provide a facility for active usages of device memory to block pmem
-device unbind.  With a percpu_ref it should be feasible to take a
-reference on a per-I/O or other high frequency basis.
-
-Cc: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/io.h |   37 ++++++++++++++++++++++
- kernel/memremap.c  |   89 ++++++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 123 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/io.h b/include/linux/io.h
-index de64c1e53612..e20cc04f42b7 100644
---- a/include/linux/io.h
-+++ b/include/linux/io.h
-@@ -90,8 +90,31 @@ void devm_memunmap(struct device *dev, void *addr);
- void *__devm_memremap_pages(struct device *dev, struct resource *res);
- 
- #ifdef CONFIG_ZONE_DEVICE
-+#include <linux/percpu-refcount.h>
-+#include <linux/ioport.h>
-+#include <linux/list.h>
-+
-+struct page_map {
-+	struct resource res;
-+	struct list_head list;
-+	unsigned long flags;
-+	struct percpu_ref percpu_ref;
-+	struct device *dev;
-+};
-+
- void *devm_memremap_pages(struct device *dev, struct resource *res);
-+struct page_map * __must_check get_page_map(resource_size_t addr);
-+static inline void ref_page_map(struct page_map *page_map)
-+{
-+	percpu_ref_get(&page_map->percpu_ref);
-+}
-+
-+static inline void put_page_map(struct page_map *page_map)
-+{
-+	percpu_ref_put(&page_map->percpu_ref);
-+}
- #else
-+struct page_map;
- static inline void *devm_memremap_pages(struct device *dev, struct resource *res)
- {
- 	/*
-@@ -102,6 +125,20 @@ static inline void *devm_memremap_pages(struct device *dev, struct resource *res
- 	WARN_ON_ONCE(1);
- 	return ERR_PTR(-ENXIO);
- }
-+
-+static inline __must_check struct page_map *get_page_map(resource_size_t addr)
-+{
-+	return NULL;
-+}
-+
-+static inline void ref_page_map(struct page_map *page_map)
-+{
-+	return false;
-+}
-+
-+static inline void put_page_map(struct page_map *page_map)
-+{
-+}
- #endif
- 
- /*
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 72b0c66628b6..65a6c9396062 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -12,6 +12,8 @@
-  */
- #include <linux/device.h>
- #include <linux/types.h>
-+#include <linux/sched.h>
-+#include <linux/wait.h>
- #include <linux/io.h>
- #include <linux/mm.h>
- #include <linux/memory_hotplug.h>
-@@ -138,14 +140,66 @@ void devm_memunmap(struct device *dev, void *addr)
- EXPORT_SYMBOL(devm_memunmap);
- 
- #ifdef CONFIG_ZONE_DEVICE
--struct page_map {
--	struct resource res;
-+static DEFINE_MUTEX(page_map_lock);
-+static DECLARE_WAIT_QUEUE_HEAD(page_map_wait);
-+static LIST_HEAD(page_maps);
-+
-+enum {
-+	PAGE_MAP_LIVE,
-+	PAGE_MAP_CONFIRM,
- };
- 
-+static struct page_map *to_page_map(struct percpu_ref *ref)
-+{
-+	return container_of(ref, struct page_map, percpu_ref);
-+}
-+
-+static void page_map_release(struct percpu_ref *ref)
-+{
-+	struct page_map *page_map = to_page_map(ref);
-+
-+	/* signal page_map is idle (no more refs) */
-+	clear_bit(PAGE_MAP_LIVE, &page_map->flags);
-+	wake_up_all(&page_map_wait);
-+}
-+
-+static void page_map_confirm(struct percpu_ref *ref)
-+{
-+	struct page_map *page_map = to_page_map(ref);
-+
-+	/* signal page_map is confirmed dead (slow path ref mode) */
-+	set_bit(PAGE_MAP_CONFIRM, &page_map->flags);
-+	wake_up_all(&page_map_wait);
-+}
-+
-+static void page_map_destroy(struct page_map *page_map)
-+{
-+	long tmo;
-+
-+	/* flush new lookups */
-+	mutex_lock(&page_map_lock);
-+	list_del_rcu(&page_map->list);
-+	mutex_unlock(&page_map_lock);
-+	synchronize_rcu();
-+
-+	percpu_ref_kill_and_confirm(&page_map->percpu_ref, page_map_confirm);
-+	do {
-+		tmo = wait_event_interruptible_timeout(page_map_wait,
-+			!test_bit(PAGE_MAP_LIVE, &page_map->flags)
-+			&& test_bit(PAGE_MAP_CONFIRM, &page_map->flags), 5*HZ);
-+		if (tmo <= 0)
-+			dev_dbg(page_map->dev,
-+					"page map active, continuing to wait...\n");
-+	} while (tmo <= 0);
-+}
-+
- static void devm_memremap_pages_release(struct device *dev, void *res)
- {
- 	struct page_map *page_map = res;
- 
-+	if (test_bit(PAGE_MAP_LIVE, &page_map->flags))
-+		page_map_destroy(page_map);
-+
- 	/* pages are dead and unused, undo the arch mapping */
- 	arch_remove_memory(page_map->res.start, resource_size(&page_map->res));
- }
-@@ -155,7 +209,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
- 	int is_ram = region_intersects(res->start, resource_size(res),
- 			"System RAM");
- 	struct page_map *page_map;
--	int error, nid;
-+	int error, nid, rc;
- 
- 	if (is_ram == REGION_MIXED) {
- 		WARN_ONCE(1, "%s attempted on mixed region %pr\n",
-@@ -172,6 +226,12 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
- 		return ERR_PTR(-ENOMEM);
- 
- 	memcpy(&page_map->res, res, sizeof(*res));
-+	INIT_LIST_HEAD(&page_map->list);
-+	page_map->dev = dev;
-+	rc = percpu_ref_init(&page_map->percpu_ref, page_map_release, 0,
-+				GFP_KERNEL);
-+	if (rc)
-+		return ERR_PTR(rc);
- 
- 	nid = dev_to_node(dev);
- 	if (nid < 0)
-@@ -183,8 +243,31 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
- 		return ERR_PTR(error);
- 	}
- 
-+	set_bit(PAGE_MAP_LIVE, &page_map->flags);
-+	mutex_lock(&page_map_lock);
-+	list_add_rcu(&page_map->list, &page_maps);
-+	mutex_unlock(&page_map_lock);
-+
- 	devres_add(dev, page_map);
- 	return __va(res->start);
- }
- EXPORT_SYMBOL(devm_memremap_pages);
-+
-+struct page_map * __must_check get_page_map(resource_size_t addr)
-+{
-+	struct page_map *page_map, *ret = NULL;
-+
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(page_map, &page_maps, list) {
-+		if (addr >= page_map->res.start && addr <= page_map->res.end) {
-+			if (percpu_ref_tryget(&page_map->percpu_ref))
-+				ret = page_map;
-+			break;
-+		}
-+	}
-+	rcu_read_unlock();
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(get_page_map);
- #endif /* CONFIG_ZONE_DEVICE */
+If you want it to be the default, there's the node_movable kernel boot option.
+Does it work for you?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
