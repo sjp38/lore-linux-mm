@@ -1,78 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C2E46B0253
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 02:38:18 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so35966843wid.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 23:38:17 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id hj19si8080442wib.3.2015.08.25.23.38.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Aug 2015 23:38:16 -0700 (PDT)
-Received: by wicja10 with SMTP id ja10so34354311wic.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 23:38:15 -0700 (PDT)
-Date: Wed, 26 Aug 2015 08:38:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 2/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/status
-Message-ID: <20150826063813.GA25196@dhcp22.suse.cz>
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
- <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1440059182-19798-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20150820110004.GB4632@dhcp22.suse.cz>
- <20150820233450.GB10807@hori1.linux.bs1.fc.nec.co.jp>
- <20150821065321.GD23723@dhcp22.suse.cz>
- <20150821163033.GA4600@Sligo.logfs.org>
- <20150824085127.GB17078@dhcp22.suse.cz>
- <alpine.DEB.2.10.1508251620570.10653@chino.kir.corp.google.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 330E26B0253
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 02:48:02 -0400 (EDT)
+Received: by pabzx8 with SMTP id zx8so59991327pab.1
+        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 23:48:01 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id iu3si36924441pbc.96.2015.08.25.23.47.59
+        for <linux-mm@kvack.org>;
+        Tue, 25 Aug 2015 23:48:01 -0700 (PDT)
+Message-ID: <55DD609E.5050509@cn.fujitsu.com>
+Date: Wed, 26 Aug 2015 14:45:50 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.10.1508251620570.10653@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/1] memhp: Add hot-added memory ranges to memblock before
+ allocate node_data for a node.
+References: <1440349573-24260-1-git-send-email-tangchen@cn.fujitsu.com> <55DAE26E.1050302@huawei.com> <55DBC061.8040508@huawei.com>
+In-Reply-To: <55DBC061.8040508@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, n-horiguchi@ah.jp.nec.com, vbabka@suse.cz, mgorman@techsingularity.net, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <jiang.liu@linux.intel.com>
 
-On Tue 25-08-15 16:23:34, David Rientjes wrote:
-> On Mon, 24 Aug 2015, Michal Hocko wrote:
-> 
-> > The current implementation makes me worry. Is the per hstate break down
-> > really needed? The implementation would be much more easier without it.
-> > 
-> 
-> Yes, it's needed.  It provides a complete picture of what statically 
-> reserved hugepages are in use and we're not going to change the 
-> implementation when it is needed to differentiate between variable hugetlb 
-> page sizes that risk breaking existing userspace parsers.
 
-I thought the purpose was to give the amount of hugetlb based
-resident memory. At least this is what Jorn was asking for AFAIU.
-/proc/<pid>/status should be as lightweight as possible. The current
-implementation is quite heavy as already pointed out. So I am really
-curious whether this is _really_ needed. I haven't heard about a real
-usecase except for top displaying HRss which doesn't need the break
-down values. You have brought that up already
-http://marc.info/?l=linux-mm&m=143941143109335&w=2 and nobody actually
-asked for it. "I do not mind having it" is not an argument for inclusion
-especially when the implementation is more costly and touches hot paths.
+On 08/25/2015 09:09 AM, Xishi Qiu wrote:
+> On 2015/8/24 17:22, Xishi Qiu wrote:
+>
+>> On 2015/8/24 1:06, Tang Chen wrote:
+>>
+>>> The commit below adds hot-added memory range to memblock, after
+>>> creating pgdat for new node.
+>>>
+>>> commit f9126ab9241f66562debf69c2c9d8fee32ddcc53
+>>> Author: Xishi Qiu <qiuxishi@huawei.com>
+>>> Date:   Fri Aug 14 15:35:16 2015 -0700
+>>>
+>>>      memory-hotplug: fix wrong edge when hot add a new node
+>>>
+>>> But there is a problem:
+>>>
+>>> add_memory()
+>>> |--> hotadd_new_pgdat()
+>>>       |--> free_area_init_node()
+>>>            |--> get_pfn_range_for_nid()
+>>>                 |--> find start_pfn and end_pfn in memblock
+>>> |--> ......
+>>> |--> memblock_add_node(start, size, nid)    --------    Here, just too late.
+>>>
+>>> get_pfn_range_for_nid() will find that start_pfn and end_pfn are both 0.
+>>> As a result, when adding memory, dmesg will give the following wrong message.
+>>>
+> Hi Tang,
+>
+> Another question, if we add cpu first, there will be print error too.
+>
+> cpu_up()
+> 	try_online_node()
+> 		hotadd_new_pgdat()
+>
+> So how about just skip the print if the size is empty or just print
+> "node xx is empty now, will update when online memory"?
 
-> > If you have 99% of hugetlb pages then your load is rather specific and I
-> > would argue that /proc/<pid>/smaps (after patch 1) is a much better way to
-> > get what you want.
-> 
-> Some distributions change the permissions of smaps, as already stated, for 
-> pretty clear security reasons since it can be used to defeat existing 
-> protection.  There's no reason why hugetlb page usage should not be 
-> exported in the same manner and location as memory usage.
+As Liu Jiang said, memory-less node is not supported on x86 now.
+And he is working on it.
 
-/proc/<pid>/status provides only per-memory-type break down information
-(locked, data, stack, etc...). Different hugetlb sizes are still a
-hugetlb memory. So I am not sure I understand you argument here.
--- 
-Michal Hocko
-SUSE Labs
+Please refer to https://lkml.org/lkml/2015/8/16/130.
+
+About your question, now, node could only be onlined when it has some 
+memory.
+So the printed message is also about memory, and sis put in 
+hotadd_new_pgdat() .
+I think the author of the code didn't think about online a node when a 
+CPU is up.
+
+But now, memory-less will be supported. So, I think, as you said, the 
+message should
+be modified.
+
+But how it will go, I think we should refer to Liu Jiang's patch, and 
+make a decision.
+
+Thanks.
+
+>
+> Thanks,
+> Xishi Qiu
+>
+>>> [ 2007.577000] Initmem setup node 5 [mem 0x0000000000000000-0xffffffffffffffff]
+>>> [ 2007.584000] On node 5 totalpages: 0
+>>> [ 2007.585000] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 32588823
+>>> [ 2007.594000] Policy zone: Normal
+>>> [ 2007.598000] init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
+>>>
+>
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> .
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
