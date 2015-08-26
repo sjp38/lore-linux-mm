@@ -1,133 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 0328C6B0038
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 12:38:59 -0400 (EDT)
-Received: by qgeb6 with SMTP id b6so129687619qge.3
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 09:38:58 -0700 (PDT)
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com. [32.97.110.150])
-        by mx.google.com with ESMTPS id t83si1373583qki.51.2015.08.26.09.38.57
+Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 407F56B0038
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 12:50:34 -0400 (EDT)
+Received: by oiev193 with SMTP id v193so125317484oie.3
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 09:50:34 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id n4si17842950obq.58.2015.08.26.09.50.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Aug 2015 09:38:58 -0700 (PDT)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 26 Aug 2015 10:38:57 -0600
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 44B923E4003B
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 10:38:54 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t7QGbqwQ55443616
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 09:37:52 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t7QGcq6w026320
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 10:38:52 -0600
-Date: Wed, 26 Aug 2015 09:38:51 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
-Message-ID: <20150826163851.GF11078@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1439976106-137226-5-git-send-email-kirill.shutemov@linux.intel.com>
- <20150820163643.dd87de0c1a73cb63866b2914@linux-foundation.org>
- <20150821121028.GB12016@node.dhcp.inet.fi>
- <55DC550D.5060501@suse.cz>
- <20150825183354.GC4881@node.dhcp.inet.fi>
- <20150825201113.GK11078@linux.vnet.ibm.com>
- <55DCD434.9000704@suse.cz>
- <20150825211954.GN11078@linux.vnet.ibm.com>
- <20150826150412.GA16412@node.dhcp.inet.fi>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Aug 2015 09:50:33 -0700 (PDT)
+Subject: Re: [PATCH 03/10] mm: make hugetlb.c explicitly non-modular
+References: <1440454482-12250-1-git-send-email-paul.gortmaker@windriver.com>
+ <1440454482-12250-4-git-send-email-paul.gortmaker@windriver.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <55DDED91.9050405@oracle.com>
+Date: Wed, 26 Aug 2015 09:47:13 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150826150412.GA16412@node.dhcp.inet.fi>
+In-Reply-To: <1440454482-12250-4-git-send-email-paul.gortmaker@windriver.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+To: Paul Gortmaker <paul.gortmaker@windriver.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Davidlohr Bueso <dave@stgolabs.net>
 
-On Wed, Aug 26, 2015 at 06:04:12PM +0300, Kirill A. Shutemov wrote:
-> On Tue, Aug 25, 2015 at 02:19:54PM -0700, Paul E. McKenney wrote:
-> > On Tue, Aug 25, 2015 at 10:46:44PM +0200, Vlastimil Babka wrote:
-> > > On 25.8.2015 22:11, Paul E. McKenney wrote:
-> > > > On Tue, Aug 25, 2015 at 09:33:54PM +0300, Kirill A. Shutemov wrote:
-> > > >> On Tue, Aug 25, 2015 at 01:44:13PM +0200, Vlastimil Babka wrote:
-> > > >>> On 08/21/2015 02:10 PM, Kirill A. Shutemov wrote:
-> > > >>>> On Thu, Aug 20, 2015 at 04:36:43PM -0700, Andrew Morton wrote:
-> > > >>>>> On Wed, 19 Aug 2015 12:21:45 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > > >>>>>
-> > > >>>>>> The patch introduces page->compound_head into third double word block in
-> > > >>>>>> front of compound_dtor and compound_order. That means it shares storage
-> > > >>>>>> space with:
-> > > >>>>>>
-> > > >>>>>>  - page->lru.next;
-> > > >>>>>>  - page->next;
-> > > >>>>>>  - page->rcu_head.next;
-> > > >>>>>>  - page->pmd_huge_pte;
-> > > >>>>>>
-> > > >>>
-> > > >>> We should probably ask Paul about the chances that rcu_head.next would like
-> > > >>> to use the bit too one day?
-> > > >>
-> > > >> +Paul.
-> > > > 
-> > > > The call_rcu() function does stomp that bit, but if you stop using that
-> > > > bit before you invoke call_rcu(), no problem.
-> > > 
-> > > You mean that it sets the bit 0 of rcu_head.next during its processing?
-> > 
-> > Not at the moment, though RCU will splat if given a misaligned rcu_head
-> > structure because of the possibility to use that bit to flag callbacks
-> > that do nothing but free memory.  If RCU needs to do that (e.g., to
-> > promote energy efficiency), then that bit might well be set during
-> > RCU grace-period processing.
+On 08/24/2015 03:14 PM, Paul Gortmaker wrote:
+> The Kconfig currently controlling compilation of this code is:
 > 
-> Ugh.. :-/
+> config HUGETLBFS
+>         bool "HugeTLB file system support"
 > 
-> > > bad news then. It's not that we would trigger that bit when the rcu_head part of
-> > > the union is "active". It's that pfn scanners could inspect such page at
-> > > arbitrary time, see the bit 0 set (due to RCU processing) and think that it's a
-> > > tail page of a compound page, and interpret the rest of the pointer as a pointer
-> > > to the head page (to test it for flags etc).
-> > 
-> > On the other hand, if you avoid scanning rcu_head structures for pages
-> > that are currently waiting for a grace period, no problem.  RCU does
-> > not use the rcu_head structure at all except for during the time between
-> > when call_rcu() is invoked on that rcu_head structure and the time that
-> > the callback is invoked.
-> > 
-> > Is there some other page state that indicates that the page is waiting
-> > for a grace period?  If so, you could simply avoid testing that bit in
-> > that case.
+> ...meaning that it currently is not being built as a module by anyone.
 > 
-> No, I don't think so.
+> Lets remove the modular code that is essentially orphaned, so that
+> when reading the file there is no doubt it is builtin-only.
+> 
+> Since module_init translates to device_initcall in the non-modular
+> case, the init ordering remains unchanged with this commit.  However
+> one could argue that fs_initcall() would make more sense here.
 
-OK, I'll bite...  How do you know that it is safe to invoke call_rcu(),
-given that you are not allowed to invoke call_rcu() until the previous
-callback has been invoked?
+I would prefer that it NOT be changed to fs_initcall() as this is more
+about generic mm code than fs code.  If this was in a hugetlbfs specific
+file, fs_initcall() might make more sense.
 
-> For compound pages most of info of its state is stored in head page (e.g.
-> page_count(), flags, etc). So if we examine random page (pfn scanner case)
-> the very first thing we want to know if we stepped on tail page.
-> PageTail() is what I wanted to encode in the bit...
+More about changing initcall below.
 
-Ah, so that would require the page scanner to do reverse mapping or some
-such, then.  Which is perhaps what you are trying to avoid.
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Cc: Davidlohr Bueso <dave@stgolabs.net>
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
+> ---
+>  mm/hugetlb.c | 39 +--------------------------------------
+>  1 file changed, 1 insertion(+), 38 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 586aa69df900..1154152c8b99 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -4,7 +4,6 @@
+>   */
+>  #include <linux/list.h>
+>  #include <linux/init.h>
+> -#include <linux/module.h>
+>  #include <linux/mm.h>
+>  #include <linux/seq_file.h>
+>  #include <linux/sysctl.h>
+> @@ -2439,25 +2438,6 @@ static void hugetlb_unregister_node(struct node *node)
+>  	nhs->hugepages_kobj = NULL;
+>  }
+>  
+> -/*
+> - * hugetlb module exit:  unregister hstate attributes from node devices
+> - * that have them.
+> - */
+> -static void hugetlb_unregister_all_nodes(void)
+> -{
+> -	int nid;
+> -
+> -	/*
+> -	 * disable node device registrations.
+> -	 */
+> -	register_hugetlbfs_with_node(NULL, NULL);
+> -
+> -	/*
+> -	 * remove hstate attributes from any nodes that have them.
+> -	 */
+> -	for (nid = 0; nid < nr_node_ids; nid++)
+> -		hugetlb_unregister_node(node_devices[nid]);
+> -}
+>  
+>  /*
+>   * Register hstate attributes for a single node device.
+> @@ -2522,27 +2502,10 @@ static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
+>  	return NULL;
+>  }
+>  
+> -static void hugetlb_unregister_all_nodes(void) { }
+> -
+>  static void hugetlb_register_all_nodes(void) { }
+>  
+>  #endif
+>  
+> -static void __exit hugetlb_exit(void)
+> -{
+> -	struct hstate *h;
+> -
+> -	hugetlb_unregister_all_nodes();
+> -
+> -	for_each_hstate(h) {
+> -		kobject_put(hstate_kobjs[hstate_index(h)]);
+> -	}
+> -
+> -	kobject_put(hugepages_kobj);
+> -	kfree(hugetlb_fault_mutex_table);
+> -}
+> -module_exit(hugetlb_exit);
+> -
+>  static int __init hugetlb_init(void)
+>  {
+>  	int i;
+> @@ -2580,7 +2543,7 @@ static int __init hugetlb_init(void)
+>  		mutex_init(&hugetlb_fault_mutex_table[i]);
+>  	return 0;
+>  }
 
-> What if we change order of fields within rcu_head and put ->func first?
-> Can we expect this pointer to have bit 0 always clear?
+I am all for removal of the module_exit and associated code.  It is
+dead and is not used today.  It would be a good idea to remove this
+in any case.
 
-I asked that question some time back, and the answer was "no".  You
-can apparently have functions that start at odd addresses on some
-architectures.
+> -module_init(hugetlb_init);
+> +device_initcall(hugetlb_init);
 
-That said, there are likely to be reserved bits somewhere in the function
-address, perhaps varying depending on architecture and/or boot, in the
-case of address-space randomization.  Perhaps some way of identifying
-those bits with architecture-independent ways of querying and setting
-them?
+Other more experienced people have opinions on your staged approach
+to changing these init calls.  If the consensus is to take this
+approach, I would have no objections.
 
-							Thanx, Paul
+-- 
+Mike Kravetz
+
+>  
+>  /* Should be called on processing a hugepagesz=... option */
+>  void __init hugetlb_add_hstate(unsigned order)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
