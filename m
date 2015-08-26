@@ -1,107 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 330E26B0253
-	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 02:48:02 -0400 (EDT)
-Received: by pabzx8 with SMTP id zx8so59991327pab.1
-        for <linux-mm@kvack.org>; Tue, 25 Aug 2015 23:48:01 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id iu3si36924441pbc.96.2015.08.25.23.47.59
-        for <linux-mm@kvack.org>;
-        Tue, 25 Aug 2015 23:48:01 -0700 (PDT)
-Message-ID: <55DD609E.5050509@cn.fujitsu.com>
-Date: Wed, 26 Aug 2015 14:45:50 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 010926B0253
+	for <linux-mm@kvack.org>; Wed, 26 Aug 2015 03:01:31 -0400 (EDT)
+Received: by wicne3 with SMTP id ne3so35049215wic.0
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 00:01:30 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
+        by mx.google.com with ESMTPS id j8si3451285wjn.105.2015.08.26.00.01.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Aug 2015 00:01:29 -0700 (PDT)
+Received: by wijn1 with SMTP id n1so13992932wij.0
+        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 00:01:28 -0700 (PDT)
+Date: Wed, 26 Aug 2015 09:01:27 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch -mm] mm, oom: add global access to memory reserves on
+ livelock
+Message-ID: <20150826070127.GB25196@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com>
+ <20150821081745.GG23723@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1508241358230.32561@chino.kir.corp.google.com>
+ <20150825142503.GE6285@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1508251635560.10653@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] memhp: Add hot-added memory ranges to memblock before
- allocate node_data for a node.
-References: <1440349573-24260-1-git-send-email-tangchen@cn.fujitsu.com> <55DAE26E.1050302@huawei.com> <55DBC061.8040508@huawei.com>
-In-Reply-To: <55DBC061.8040508@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1508251635560.10653@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, n-horiguchi@ah.jp.nec.com, vbabka@suse.cz, mgorman@techsingularity.net, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jiang Liu <jiang.liu@linux.intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
+On Tue 25-08-15 16:41:29, David Rientjes wrote:
+> On Tue, 25 Aug 2015, Michal Hocko wrote:
+> 
+> > > I don't believe a solution that requires admin intervention is 
+> > > maintainable.
+> > 
+> > Why?
+> > 
+> 
+> Because the company I work for has far too many machines for that to be 
+> possible.
 
-On 08/25/2015 09:09 AM, Xishi Qiu wrote:
-> On 2015/8/24 17:22, Xishi Qiu wrote:
->
->> On 2015/8/24 1:06, Tang Chen wrote:
->>
->>> The commit below adds hot-added memory range to memblock, after
->>> creating pgdat for new node.
->>>
->>> commit f9126ab9241f66562debf69c2c9d8fee32ddcc53
->>> Author: Xishi Qiu <qiuxishi@huawei.com>
->>> Date:   Fri Aug 14 15:35:16 2015 -0700
->>>
->>>      memory-hotplug: fix wrong edge when hot add a new node
->>>
->>> But there is a problem:
->>>
->>> add_memory()
->>> |--> hotadd_new_pgdat()
->>>       |--> free_area_init_node()
->>>            |--> get_pfn_range_for_nid()
->>>                 |--> find start_pfn and end_pfn in memblock
->>> |--> ......
->>> |--> memblock_add_node(start, size, nid)    --------    Here, just too late.
->>>
->>> get_pfn_range_for_nid() will find that start_pfn and end_pfn are both 0.
->>> As a result, when adding memory, dmesg will give the following wrong message.
->>>
-> Hi Tang,
->
-> Another question, if we add cpu first, there will be print error too.
->
-> cpu_up()
-> 	try_online_node()
-> 		hotadd_new_pgdat()
->
-> So how about just skip the print if the size is empty or just print
-> "node xx is empty now, will update when online memory"?
+OK I can see that manual intervention for hundreds of machines is not
+practical. But not everybody is that large and there are users who might
+want to be be able to recover.
+ 
+> > > It would be better to reboot when memory reserves are fully depleted.
+> > 
+> > The question is when are the reserves depleted without any way to
+> > replenish them. While playing with GFP_NOFS patch set which gives
+> > __GFP_NOFAIL allocations access to memory reserves
+> > (http://marc.info/?l=linux-mm&m=143876830916540&w=2) I could see the
+> > warning hit while the system still resurrected from the memory pressure.
+> > 
+> 
+> If there is a holder of a mutex that then allocates gigabytes of memory, 
+> no amount of memory reserves is going to assist in resolving an oom killer 
+> livelock, whether that's partial access to memory reserves or full access 
+> to memory reserves.
 
-As Liu Jiang said, memory-less node is not supported on x86 now.
-And he is working on it.
+Sure, but do we have something like that in the kernel? I would argue it
+would be terribly broken and a clear bug which should be fixed.
 
-Please refer to https://lkml.org/lkml/2015/8/16/130.
+> You're referring to two different conditions:
+> 
+>  (1) oom livelock as a result of an oom kill victim waiting on a lock that
+>      is held by an allocator, and
+> 
+>  (2) depletion of memory reserves, which can also happen today without 
+>      this patchset and we have fixed in the past.
+> 
+> This patch addresses (1) by giving it a higher probability, absent the 
+> ability to determine which thread is holding the lock that the victim 
+> depends on, to make forward progress.  It would be fine to do (2) as a 
+> separate patch, since it is a separate problem, that I agree has a higher 
+> likelihood of happening now to panic when memory reserves have been 
+> depleted.
+> 
+> > I think an OOM reserve/watermark makes more sense. It will not solve the
+> > livelock but neithere granting the full access to reserves will. But the
+> > partial access has a potential to leave some others means to intervene.
+> > 
+> 
+> Unless the oom watermark was higher than the lowest access to memory 
+> reserves other than ALLOC_NO_WATERMARKS, then no forward progress would be 
+> made in this scenario.  I think it would be better to give access to that 
+> crucial last page that may solve the livelock to make forward progress, or 
+> panic as a result of complete depletion of memory reserves.  That panic() 
+> is a very trivial patch that can be checked in the allocator slowpath and 
+> addresses a problem that already exists today.
 
-About your question, now, node could only be onlined when it has some 
-memory.
-So the printed message is also about memory, and sis put in 
-hotadd_new_pgdat() .
-I think the author of the code didn't think about online a node when a 
-CPU is up.
+The panicing the system is really trivial, no question about that. The
+question is whether that panic would be premature. And that is what
+I've tried to tell you. The patch I am referring to above gives the
+__GFP_NOFAIL request the full access to memory reserves (throttled by
+oom_lock) but it still failed temporarily. What is more important,
+though, this state wasn't permanent and the system recovered after short
+time so panicing at the time would be premature.
 
-But now, memory-less will be supported. So, I think, as you said, the 
-message should
-be modified.
-
-But how it will go, I think we should refer to Liu Jiang's patch, and 
-make a decision.
-
-Thanks.
-
->
-> Thanks,
-> Xishi Qiu
->
->>> [ 2007.577000] Initmem setup node 5 [mem 0x0000000000000000-0xffffffffffffffff]
->>> [ 2007.584000] On node 5 totalpages: 0
->>> [ 2007.585000] Built 5 zonelists in Node order, mobility grouping on.  Total pages: 32588823
->>> [ 2007.594000] Policy zone: Normal
->>> [ 2007.598000] init_memory_mapping: [mem 0x60000000000-0x607ffffffff]
->>>
->
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> .
->
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
