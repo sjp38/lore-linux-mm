@@ -1,74 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 577806B0253
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 16:44:12 -0400 (EDT)
-Received: by pacdd16 with SMTP id dd16so36966366pac.2
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 13:44:12 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id pr10si5769563pbb.122.2015.08.27.13.44.10
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id DE58B6B0253
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 16:52:49 -0400 (EDT)
+Received: by pabzx8 with SMTP id zx8so37332779pab.1
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 13:52:49 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id e5si5838310pds.29.2015.08.27.13.52.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Aug 2015 13:44:10 -0700 (PDT)
-Received: by pacdd16 with SMTP id dd16so36965756pac.2
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 13:44:10 -0700 (PDT)
-Date: Thu, 27 Aug 2015 13:44:08 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Aug 2015 13:52:48 -0700 (PDT)
+Received: by pacdd16 with SMTP id dd16so37162210pac.2
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 13:52:48 -0700 (PDT)
+Date: Thu, 27 Aug 2015 13:52:47 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v5 2/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/status
-In-Reply-To: <20150827172351.GA29092@Sligo.logfs.org>
-Message-ID: <alpine.DEB.2.10.1508271338580.30543@chino.kir.corp.google.com>
-References: <1440059182-19798-3-git-send-email-n-horiguchi@ah.jp.nec.com> <20150820110004.GB4632@dhcp22.suse.cz> <20150820233450.GB10807@hori1.linux.bs1.fc.nec.co.jp> <20150821065321.GD23723@dhcp22.suse.cz> <20150821163033.GA4600@Sligo.logfs.org>
- <20150824085127.GB17078@dhcp22.suse.cz> <alpine.DEB.2.10.1508251620570.10653@chino.kir.corp.google.com> <20150826063813.GA25196@dhcp22.suse.cz> <alpine.DEB.2.10.1508261451540.19139@chino.kir.corp.google.com> <20150827064817.GB14367@dhcp22.suse.cz>
- <20150827172351.GA29092@Sligo.logfs.org>
+Subject: Re: [patch -mm] mm, oom: add global access to memory reserves on
+ livelock
+In-Reply-To: <20150827124122.GD27052@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1508271345330.30543@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com> <20150821081745.GG23723@dhcp22.suse.cz> <alpine.DEB.2.10.1508241358230.32561@chino.kir.corp.google.com> <20150825142503.GE6285@dhcp22.suse.cz> <alpine.DEB.2.10.1508251635560.10653@chino.kir.corp.google.com>
+ <20150826070127.GB25196@dhcp22.suse.cz> <alpine.DEB.2.10.1508261507270.2973@chino.kir.corp.google.com> <20150827124122.GD27052@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="397176738-220680865-1440708164=:30543"
-Content-ID: <alpine.DEB.2.10.1508271343110.30543@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?J=C3=B6rn_Engel?= <joern@purestorage.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Thu, 27 Aug 2015, Michal Hocko wrote:
 
---397176738-220680865-1440708164=:30543
-Content-Type: TEXT/PLAIN; CHARSET=UTF-8
-Content-Transfer-Encoding: 8BIT
-Content-ID: <alpine.DEB.2.10.1508271343111.30543@chino.kir.corp.google.com>
-
-On Thu, 27 Aug 2015, JA?rn Engel wrote:
-
-> On Thu, Aug 27, 2015 at 08:48:18AM +0200, Michal Hocko wrote:
-> > Can we go with the single and much simpler cumulative number first and
-> > only add the break down list if it is _really_ required? We can even
-> > document that the future version of /proc/<pid>/status might add an
-> > additional information to prepare all the parsers to be more careful.
+> > If Andrew would prefer moving in a direction where all Linux users are 
+> > required to have their admin use sysrq+f to manually trigger an oom kill, 
+> > which may or may not resolve the livelock since there's no way to 
+> > determine which process is holding the common mutex (or even which 
+> > processes are currently allocating), in such situations, then we can carry 
+> > this patch internally.  I disagree with that solution for upstream Linux.
 > 
-> I don't care much which way we decide.  But I find your reasoning a bit
-> worrying.  If someone asks for a by-size breakup of hugepages in a few
-> years, you might have existing binaries that depend on the _absence_ of
-> those extra characters on the line.
+> There are other possibilities than the manual sysrq intervention. E.g.
+> the already mentioned oom_{panic,reboot}_timeout which has a little
+> advantage that it allows admin to opt in into the policy rather than
+> having it hard coded into the kernel.
+>  
+
+This falls under my scenario (2) from Tuesday's message:
+
+ (2) depletion of memory reserves, which can also happen today without 
+     this patchset and we have fixed in the past.
+
+You can deplete memory reserves today without access to global reserves on 
+oom livelock.  I'm indifferent to whether the machine panics as soon as 
+memory reserves are fully depleted, independent of oom livelock and this 
+patch to address it, or whether there is a configurable timeout.  It's an 
+independent issue, though, since the oom killer is not the only way for 
+this to happen and it seems there will be additional possibilities in the 
+future (the __GFP_NOFAIL case you bring up).
+
+> > My patch has defined that by OOM_EXPIRE_MSECS.  The premise is that an oom 
+> > victim with full access to memory reserves should never take more than 5s 
+> > to exit, which I consider a very long time.  If it's increased, we see 
+> > userspace responsiveness issues with our processes that monitor system 
+> > health which timeout.
 > 
-> Compare:
->   HugetlbPages:      18432 kB
->   HugetlbPages:    1069056 kB (1*1048576kB 10*2048kB)
-> 
-> Once someone has written a script that greps for 'HugetlbPages:.*kB$',
-> you have lost the option of adding anything else to the line.  You have
-> created yet another ABI compatibility headache today in order to save
-> 112 lines of code.
+> Yes but it sounds very much like a policy which should better be defined
+> from the userspace because different users might have different
+> preferences.
 > 
 
-This is exactly the concern that I have brought up in this thread.  We 
-have no other way to sanely export the breakdown in hugepage size without 
-new fields being added later with the hstate size being embedded in the 
-name itself.
-
-I agree with the code as it stands in -mm today and I'm thankful to Naoya 
-that a long-term maintainable API has been established.  Respectfully, I 
-have no idea why we are still talking about this and I'm not going to be 
-responding further unless something changes in -mm.
---397176738-220680865-1440708164=:30543--
+My patch internally actually does make this configurable through yet 
+another VM sysctl and it defaults to what OOM_EXPIRE_MSECS does in my 
+patch.  We would probably never increase it, but may decrease it from the 
+default of 5000.  I was concerned about adding another sysctl that doesn't 
+have a clear user.  If you feel that OOM_EXPIRE_MSECS is too small and 
+believe there would be a user who desires their system to be livelocked 
+for 10s, 5m, 1h, etc, then I can add the sysctl upstream as well even it's 
+unjustified as far as I'm concerned.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
