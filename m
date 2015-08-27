@@ -1,107 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 63AA36B0253
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 08:41:27 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so76752577wid.1
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 05:41:27 -0700 (PDT)
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com. [209.85.212.176])
-        by mx.google.com with ESMTPS id o20si3804815wjr.199.2015.08.27.05.41.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Aug 2015 05:41:25 -0700 (PDT)
-Received: by wicne3 with SMTP id ne3so73678402wic.0
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 05:41:24 -0700 (PDT)
-Date: Thu, 27 Aug 2015 14:41:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch -mm] mm, oom: add global access to memory reserves on
- livelock
-Message-ID: <20150827124122.GD27052@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1508201358490.607@chino.kir.corp.google.com>
- <20150821081745.GG23723@dhcp22.suse.cz>
- <alpine.DEB.2.10.1508241358230.32561@chino.kir.corp.google.com>
- <20150825142503.GE6285@dhcp22.suse.cz>
- <alpine.DEB.2.10.1508251635560.10653@chino.kir.corp.google.com>
- <20150826070127.GB25196@dhcp22.suse.cz>
- <alpine.DEB.2.10.1508261507270.2973@chino.kir.corp.google.com>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 43EB36B0253
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 08:54:23 -0400 (EDT)
+Received: by pacdd16 with SMTP id dd16so25048105pac.2
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 05:54:23 -0700 (PDT)
+Received: from m12-16.163.com (m12-16.163.com. [220.181.12.16])
+        by mx.google.com with ESMTP id my7si3572903pbc.24.2015.08.27.05.52.03
+        for <linux-mm@kvack.org>;
+        Thu, 27 Aug 2015 05:54:22 -0700 (PDT)
+Date: Thu, 27 Aug 2015 20:50:31 +0800
+From: Yaowei Bai <bywxiaobai@163.com>
+Subject: Re: [PATCH v2] mm/page_alloc: add a helper function to check page
+ before alloc/free
+Message-ID: <20150827125031.GA3481@bbox>
+References: <1440509190-3622-1-git-send-email-bywxiaobai@163.com>
+ <20150825140322.GC6285@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1508261507270.2973@chino.kir.corp.google.com>
+In-Reply-To: <20150825140322.GC6285@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 26-08-15 15:23:07, David Rientjes wrote:
-> On Wed, 26 Aug 2015, Michal Hocko wrote:
+On Tue, Aug 25, 2015 at 04:03:22PM +0200, Michal Hocko wrote:
+> On Tue 25-08-15 21:26:30, Yaowei Bai wrote:
+> [...]
+> >  static inline int check_new_page(struct page *page)
+> >  {
+> > -	const char *bad_reason = NULL;
+> > -	unsigned long bad_flags = 0;
+> > -
+> > -	if (unlikely(page_mapcount(page)))
+> > -		bad_reason = "nonzero mapcount";
+> > -	if (unlikely(page->mapping != NULL))
+> > -		bad_reason = "non-NULL mapping";
+> > -	if (unlikely(atomic_read(&page->_count) != 0))
+> > -		bad_reason = "nonzero _count";
+> > -	if (unlikely(page->flags & __PG_HWPOISON)) {
+> > -		bad_reason = "HWPoisoned (hardware-corrupted)";
+> > -		bad_flags = __PG_HWPOISON;
+> > -	}
 > 
-> > > Because the company I work for has far too many machines for that to be 
-> > > possible.
-> > 
-> > OK I can see that manual intervention for hundreds of machines is not
-> > practical. But not everybody is that large and there are users who might
-> > want to be be able to recover.
+> You have removed this check AFAICS. Now looking at 39ad4f19671d ("mm:
+> check __PG_HWPOISON separately from PAGE_FLAGS_CHECK_AT_*") I am not
+> sure it is correct to check it in the free path as it was removed from
+> the mask by this commit.
+
+I just refactored these two function and it looks well, will resend it soon.
+
+> 
+> > -	if (unlikely(page->flags & PAGE_FLAGS_CHECK_AT_PREP)) {
+> > -		bad_reason = "PAGE_FLAGS_CHECK_AT_PREP flag set";
+> > -		bad_flags = PAGE_FLAGS_CHECK_AT_PREP;
+> > -	}
+> > -#ifdef CONFIG_MEMCG
+> > -	if (unlikely(page->mem_cgroup))
+> > -		bad_reason = "page still charged to cgroup";
+> > -#endif
+> > -	if (unlikely(bad_reason)) {
+> > -		bad_page(page, bad_reason, bad_flags);
+> > -		return 1;
+> > -	}
+> > -	return 0;
+> > +	return check_one_page(page, PAGE_FLAGS_CHECK_AT_PREP);
+> >  }
 > >  
-> 
-> If Andrew would prefer moving in a direction where all Linux users are 
-> required to have their admin use sysrq+f to manually trigger an oom kill, 
-> which may or may not resolve the livelock since there's no way to 
-> determine which process is holding the common mutex (or even which 
-> processes are currently allocating), in such situations, then we can carry 
-> this patch internally.  I disagree with that solution for upstream Linux.
-
-There are other possibilities than the manual sysrq intervention. E.g.
-the already mentioned oom_{panic,reboot}_timeout which has a little
-advantage that it allows admin to opt in into the policy rather than
-having it hard coded into the kernel.
- 
-> > > If there is a holder of a mutex that then allocates gigabytes of memory, 
-> > > no amount of memory reserves is going to assist in resolving an oom killer 
-> > > livelock, whether that's partial access to memory reserves or full access 
-> > > to memory reserves.
-> > 
-> > Sure, but do we have something like that in the kernel? I would argue it
-> > would be terribly broken and a clear bug which should be fixed.
+> >  static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+> > -- 
+> > 1.9.1
 > > 
 > 
-> This is also why my patch dumps the stack trace of both threads: so we can 
-> evaluate the memory allocation of threads holding shared mutexes.  If it 
-> is excessive, we can report that and show that it is a common offender and 
-> see if we can mitigate that.
-> 
-> The scenario described, the full or partial depletion of memory reserves, 
-> does not need to be induced by a single user.  We don't control the order 
-> in which the mutex is grabbed so it's multipled by the number of threads 
-> that grab it, allocate memory, and drop it before the victim has a chance 
-> to grab it.  In the past, the oom killer would also increase the 
-> scheduling priority of a victim so it tried to resolve issues like this 
-> faster.
-
-> > > Unless the oom watermark was higher than the lowest access to memory 
-> > > reserves other than ALLOC_NO_WATERMARKS, then no forward progress would be 
-> > > made in this scenario.  I think it would be better to give access to that 
-> > > crucial last page that may solve the livelock to make forward progress, or 
-> > > panic as a result of complete depletion of memory reserves.  That panic() 
-> > > is a very trivial patch that can be checked in the allocator slowpath and 
-> > > addresses a problem that already exists today.
-> > 
-> > The panicing the system is really trivial, no question about that. The
-> > question is whether that panic would be premature. And that is what
-> > I've tried to tell you.
-> 
-> My patch has defined that by OOM_EXPIRE_MSECS.  The premise is that an oom 
-> victim with full access to memory reserves should never take more than 5s 
-> to exit, which I consider a very long time.  If it's increased, we see 
-> userspace responsiveness issues with our processes that monitor system 
-> health which timeout.
-
-Yes but it sounds very much like a policy which should better be defined
-from the userspace because different users might have different
-preferences.
-
--- 
-Michal Hocko
-SUSE Labs
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
