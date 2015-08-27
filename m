@@ -1,82 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C324B6B0253
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 13:23:55 -0400 (EDT)
-Received: by pabzx8 with SMTP id zx8so32294143pab.1
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 10:23:55 -0700 (PDT)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id n9si4852351pdr.22.2015.08.27.10.23.54
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A7FC26B0253
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 13:28:57 -0400 (EDT)
+Received: by pabzx8 with SMTP id zx8so32419500pab.1
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 10:28:57 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id ks7si4847841pab.99.2015.08.27.10.28.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Aug 2015 10:23:54 -0700 (PDT)
-Received: by pabzx8 with SMTP id zx8so32293631pab.1
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 10:23:54 -0700 (PDT)
-Date: Thu, 27 Aug 2015 10:23:51 -0700
-From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
-Subject: Re: [PATCH v5 2/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/status
-Message-ID: <20150827172351.GA29092@Sligo.logfs.org>
-References: <1440059182-19798-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20150820110004.GB4632@dhcp22.suse.cz>
- <20150820233450.GB10807@hori1.linux.bs1.fc.nec.co.jp>
- <20150821065321.GD23723@dhcp22.suse.cz>
- <20150821163033.GA4600@Sligo.logfs.org>
- <20150824085127.GB17078@dhcp22.suse.cz>
- <alpine.DEB.2.10.1508251620570.10653@chino.kir.corp.google.com>
- <20150826063813.GA25196@dhcp22.suse.cz>
- <alpine.DEB.2.10.1508261451540.19139@chino.kir.corp.google.com>
- <20150827064817.GB14367@dhcp22.suse.cz>
+        Thu, 27 Aug 2015 10:28:56 -0700 (PDT)
+Received: by pacgr6 with SMTP id gr6so14502603pac.3
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 10:28:56 -0700 (PDT)
+Date: Thu, 27 Aug 2015 10:28:48 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCHv3 4/5] mm: make compound_head() robust
+In-Reply-To: <20150827160355.GI27052@dhcp22.suse.cz>
+Message-ID: <alpine.LSU.2.11.1508271004200.2999@eggly.anvils>
+References: <20150820163643.dd87de0c1a73cb63866b2914@linux-foundation.org> <20150821121028.GB12016@node.dhcp.inet.fi> <55DC550D.5060501@suse.cz> <20150825183354.GC4881@node.dhcp.inet.fi> <20150825201113.GK11078@linux.vnet.ibm.com> <55DCD434.9000704@suse.cz>
+ <20150825211954.GN11078@linux.vnet.ibm.com> <alpine.LSU.2.11.1508261104000.1975@eggly.anvils> <20150826212916.GG11078@linux.vnet.ibm.com> <20150827150917.GF27052@dhcp22.suse.cz> <20150827160355.GI27052@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20150827064817.GB14367@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-On Thu, Aug 27, 2015 at 08:48:18AM +0200, Michal Hocko wrote:
+On Thu, 27 Aug 2015, Michal Hocko wrote:
+> On Thu 27-08-15 17:09:17, Michal Hocko wrote:
+> [...]
+> > Btw. Do we need the same think for page::mapping and KSM?
 > 
-> > On x86, HUGE_MAX_HSTATE == 2.  I don't consider that to be expensive.
-> > 
-> > If you are concerned about the memory allocation of struct hugetlb_usage, 
-> > it could easily be embedded directly in struct mm_struct.
-> 
-> Yes I am concerned about that and
-> 9 files changed, 112 insertions(+), 1 deletion(-)
-> for something that is even not clear to be really required. And I still
-> haven't heard any strong usecase to justify it.
-> 
-> Can we go with the single and much simpler cumulative number first and
-> only add the break down list if it is _really_ required? We can even
-> document that the future version of /proc/<pid>/status might add an
-> additional information to prepare all the parsers to be more careful.
+> I guess we are safe here because the address for mappings comes from
+> kmalloc and that aligned properly, right?
 
-I don't care much which way we decide.  But I find your reasoning a bit
-worrying.  If someone asks for a by-size breakup of hugepages in a few
-years, you might have existing binaries that depend on the _absence_ of
-those extra characters on the line.
+Not quite right, in fact.  Because usually the struct address_space
+is embedded within the struct inode (at i_data), and the struct inode
+embedded within the fs-dependent inode, and that's what's kmalloc'ed.
 
-Compare:
-  HugetlbPages:      18432 kB
-  HugetlbPages:    1069056 kB (1*1048576kB 10*2048kB)
+What makes the mapping pointer low bits safe is include/linux/fs.h:
+struct address_space {
+	...
+} __attribute__((aligned(sizeof(long))));
 
-Once someone has written a script that greps for 'HugetlbPages:.*kB$',
-you have lost the option of adding anything else to the line.  You have
-created yet another ABI compatibility headache today in order to save
-112 lines of code.
+Which we first had to add in for the cris architecture, which stumbled
+not on a genuine allocated address_space, but on that funny statically
+declared swapper_space in mm/swap_state.c.
 
-That may be a worthwhile tradeoff, I don't know.  But at least I realize
-there is a cost, while you seem to ignore that component.  There is
-value in not painting yourself into a corner.
+But struct anon_vma and KSM's struct stable_node (which depend on
+the same scheme for low bits of page->mapping) have no such alignment
+attribute specified: those ones are indeed relying on the kmalloc
+guarantee as you suppose.
 
-Jorn
+Does struct rcu_head have no __attribute__((aligned(whatever)))?
+Perhaps that attribute should be added when it's needed.
 
---
-A quarrel is quickly settled when deserted by one party; there is
-no battle unless there be two.
--- Seneca
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
