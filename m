@@ -1,104 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E2979003C7
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 05:05:22 -0400 (EDT)
-Received: by pacgr6 with SMTP id gr6so1272280pac.3
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 02:05:21 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay4.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id ty5si2553810pac.54.2015.08.27.02.05.20
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E5AF49003C7
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 05:18:21 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so71518688wid.1
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 02:18:21 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x7si15217081wiy.106.2015.08.27.02.18.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Aug 2015 02:05:21 -0700 (PDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: [PATCH 11/11] ARCv2: Add a DT which enables THP
-Date: Thu, 27 Aug 2015 14:33:14 +0530
-Message-ID: <1440666194-21478-12-git-send-email-vgupta@synopsys.com>
-In-Reply-To: <1440666194-21478-1-git-send-email-vgupta@synopsys.com>
-References: <1440666194-21478-1-git-send-email-vgupta@synopsys.com>
+        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 27 Aug 2015 02:18:20 -0700 (PDT)
+Subject: Re: [PATCH 07/12] mm, page_alloc: Distinguish between being unable to
+ sleep, unwilling to sleep and avoiding waking kswapd
+References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
+ <1440418191-10894-8-git-send-email-mgorman@techsingularity.net>
+ <55DC8BD7.602@suse.cz> <20150826144533.GO12432@techsingularity.net>
+ <55DDE842.8000103@suse.cz> <20150826181041.GR12432@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55DED5D9.8@suse.cz>
+Date: Thu, 27 Aug 2015 11:18:17 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20150826181041.GR12432@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Matthew
- Wilcox <matthew.r.wilcox@intel.com>, Minchan Kim <minchan@kernel.org>
-Cc: linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arc-linux-dev@synopsys.com, Vineet Gupta <Vineet.Gupta1@synopsys.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-* Enable THP at bootup
-* More than 512M RAM (kernel auto-disabled THP for smaller systems)
+On 08/26/2015 08:10 PM, Mel Gorman wrote:
+>>
+>> I think the most robust check would be to rely on what was already prepared
+>> by gfp_to_alloc_flags(), instead of repeating it here. So add alloc_flags
+>> parameter to warn_alloc_failed(), and drop the filter when
+>> - ALLOC_CPUSET is not set, as that disables the cpuset checks
+>> - ALLOC_NO_WATERMARKS is set, as that allows calling
+>>    __alloc_pages_high_priority() attempt which ignores cpusets
+>>
+>
+> warn_alloc_failed is used outside of page_alloc.c in a context that does
+> not have alloc_flags. It could be extended to take an extra parameter
+> that is ALLOC_CPUSET for the other callers or else split it into
+> __warn_alloc_failed (takes alloc_flags parameter) and warn_alloc_failed
+> (calls __warn_alloc_failed with ALLOC_CPUSET) but is it really worth it?
 
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
----
- arch/arc/boot/dts/hs_thp.dts | 59 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 59 insertions(+)
- create mode 100644 arch/arc/boot/dts/hs_thp.dts
-
-diff --git a/arch/arc/boot/dts/hs_thp.dts b/arch/arc/boot/dts/hs_thp.dts
-new file mode 100644
-index 000000000000..818a8c968330
---- /dev/null
-+++ b/arch/arc/boot/dts/hs_thp.dts
-@@ -0,0 +1,59 @@
-+/*
-+ * Copyright (C) 2015 Synopsys, Inc. (www.synopsys.com)
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ */
-+/dts-v1/;
-+
-+/include/ "skeleton.dtsi"
-+
-+/ {
-+	compatible = "snps,nsim_hs";
-+	interrupt-parent = <&core_intc>;
-+
-+	chosen {
-+		bootargs = "earlycon=arc_uart,mmio32,0xc0fc1000,115200n8 console=ttyARC0,115200n8 transparent_hugepage=always";
-+	};
-+
-+	aliases {
-+		serial0 = &arcuart0;
-+	};
-+
-+	memory {
-+		device_type = "memory";
-+		/* reg = <0x00000000 0x28000000>; */
-+		reg = <0x00000000 0x40000000>;
-+	};
-+
-+	fpga {
-+		compatible = "simple-bus";
-+		#address-cells = <1>;
-+		#size-cells = <1>;
-+
-+		/* child and parent address space 1:1 mapped */
-+		ranges;
-+
-+		core_intc: core-interrupt-controller {
-+			compatible = "snps,archs-intc";
-+			interrupt-controller;
-+			#interrupt-cells = <1>;
-+		};
-+
-+		arcuart0: serial@c0fc1000 {
-+			compatible = "snps,arc-uart";
-+			reg = <0xc0fc1000 0x100>;
-+			interrupts = <24>;
-+			clock-frequency = <80000000>;
-+			current-speed = <115200>;
-+			status = "okay";
-+		};
-+
-+		arcpct0: pct {
-+			compatible = "snps,archs-pct";
-+			#interrupt-cells = <1>;
-+			interrupts = <20>;
-+		};
-+	};
-+};
--- 
-1.9.1
+Probably not. Testing lack of __GFP_DIRECT_RECLAIM is good enough until 
+somebody cares more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
