@@ -1,114 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 609E79003C7
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 10:04:02 -0400 (EDT)
-Received: by obbfr1 with SMTP id fr1so19229902obb.1
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 07:04:02 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id c206si844569oia.12.2015.08.27.07.04.00
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 1724D9003C7
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 10:20:49 -0400 (EDT)
+Received: by wicgk12 with SMTP id gk12so10313332wic.1
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 07:20:48 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k8si4398694wjn.1.2015.08.27.07.20.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 27 Aug 2015 07:04:01 -0700 (PDT)
-Subject: Re: [REPOST] [PATCH 2/2] mm,oom: Reverse the order of setting TIF_MEMDIE and sending SIGKILL.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201508231619.CGF82826.MJtVLSHOFFQOOF@I-love.SAKURA.ne.jp>
-	<201508270003.FCD17618.FFVOFJHOQMSOtL@I-love.SAKURA.ne.jp>
-	<20150827084045.GD14367@dhcp22.suse.cz>
-	<201508272011.ABJ26077.OOLJOtFHVQFFMS@I-love.SAKURA.ne.jp>
-	<20150827113444.GB27052@dhcp22.suse.cz>
-In-Reply-To: <20150827113444.GB27052@dhcp22.suse.cz>
-Message-Id: <201508272303.FJI04131.LVHMtFQOFOJFOS@I-love.SAKURA.ne.jp>
-Date: Thu, 27 Aug 2015 23:03:40 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 27 Aug 2015 07:20:47 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH] mm, migrate: count pages failing all retries in vmstat and tracepoint
+Date: Thu, 27 Aug 2015 16:20:27 +0200
+Message-Id: <1440685227-747-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Michal Hocko wrote:
-> On Thu 27-08-15 20:11:24, Tetsuo Handa wrote:
-> > Cc: stable <stable@vger.kernel.org> [4.0+]
-> 
-> Please also add
-> Fixes: 83363b917a29 ("oom: make sure that TIF_MEMDIE is set under
-> task_lock")
+Migration tries up to 10 times to migrate pages that return -EAGAIN until it
+gives up. If some pages fail all retries, they are counted towards the number
+of failed pages that migrate_pages() returns. They should also be counted in
+the /proc/vmstat pgmigrate_fail and in the mm_migrate_pages tracepoint.
 
-I think you can do it like some maintainers do...
-------------------------------------------------------------
->From e9077d84d9d1e32b91b8e44534dd6fab494bbbe2 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Thu, 27 Aug 2015 19:26:35 +0900
-Subject: [PATCH 2/2] mm,oom: Reverse the order of setting TIF_MEMDIE and sending SIGKILL.
-
-It was confirmed that a local unprivileged user can consume all memory
-reserves and hang up that system using time lag between the OOM killer
-sets TIF_MEMDIE on an OOM victim and sends SIGKILL to that victim, for
-printk() inside for_each_process() loop at oom_kill_process() can consume
-many seconds when there are many thread groups sharing the same memory.
-
-
-Before starting oom-depleter process:
-
-    Node 0 DMA: 3*4kB (UM) 6*8kB (U) 4*16kB (UEM) 0*32kB 0*64kB 1*128kB (M) 2*256kB (EM) 2*512kB (UE) 2*1024kB (EM) 1*2048kB (E) 1*4096kB (M) = 9980kB
-    Node 0 DMA32: 31*4kB (UEM) 27*8kB (UE) 32*16kB (UE) 13*32kB (UE) 14*64kB (UM) 7*128kB (UM) 8*256kB (UM) 8*512kB (UM) 3*1024kB (U) 4*2048kB (UM) 362*4096kB (UM) = 1503220kB
-
-As of invoking the OOM killer:
-
-    Node 0 DMA: 11*4kB (UE) 8*8kB (UEM) 6*16kB (UE) 2*32kB (EM) 0*64kB 1*128kB (U) 3*256kB (UEM) 2*512kB (UE) 3*1024kB (UEM) 1*2048kB (U) 0*4096kB = 7308kB
-    Node 0 DMA32: 1049*4kB (UEM) 507*8kB (UE) 151*16kB (UE) 53*32kB (UEM) 83*64kB (UEM) 52*128kB (EM) 25*256kB (UEM) 11*512kB (M) 6*1024kB (UM) 1*2048kB (M) 0*4096kB = 44556kB
-
-Between the thread group leader got TIF_MEMDIE and receives SIGKILL:
-
-    Node 0 DMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
-    Node 0 DMA32: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
-
-
-The oom-depleter's thread group leader which got TIF_MEMDIE started
-memset() in user space after the OOM killer set TIF_MEMDIE, and it
-was free to abuse ALLOC_NO_WATERMARKS by TIF_MEMDIE for memset()
-in user space until SIGKILL is delivered. If SIGKILL is delivered
-before TIF_MEMDIE is set, the oom-depleter can terminate without
-touching memory reserves.
-
-Although the possibility of hitting this time lag is very small for 3.19
-and earlier kernels because TIF_MEMDIE is set immediately before sending
-SIGKILL, preemption or long interrupts (an extreme example is SysRq-t)
-can step between and allow memory allocations which are not needed for
-terminating the OOM victim.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: stable <stable@vger.kernel.org> [4.0+]
-Fixes: 83363b917a29 ("oom: make sure that TIF_MEMDIE is set under task_lock")
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/oom_kill.c | 3 ++-
+ mm/migrate.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5249e7e..408aa8e 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -555,6 +555,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	/* Get a reference to safely compare mm after task_unlock(victim) */
- 	mm = victim->mm;
- 	atomic_inc(&mm->mm_users);
-+	/* Send SIGKILL before setting TIF_MEMDIE. */
-+	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
- 	mark_oom_victim(victim);
- 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
- 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
-@@ -586,7 +588,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+diff --git a/mm/migrate.c b/mm/migrate.c
+index eb42671..e705324 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1152,7 +1152,8 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 			}
  		}
- 	rcu_read_unlock();
- 
--	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
- 	mmput(mm);
- 	put_task_struct(victim);
- }
+ 	}
+-	rc = nr_failed + retry;
++	nr_failed += retry;
++	rc = nr_failed;
+ out:
+ 	if (nr_succeeded)
+ 		count_vm_events(PGMIGRATE_SUCCESS, nr_succeeded);
 -- 
-1.8.3.1
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
