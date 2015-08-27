@@ -1,83 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 146976B0253
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 02:48:23 -0400 (EDT)
-Received: by widdq5 with SMTP id dq5so34829897wid.0
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 23:48:22 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
-        by mx.google.com with ESMTPS id w2si14627026wiy.40.2015.08.26.23.48.20
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B3B9A6B0253
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 03:22:48 -0400 (EDT)
+Received: by widdq5 with SMTP id dq5so35573266wid.0
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 00:22:48 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bn5si2382164wjb.37.2015.08.27.00.22.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Aug 2015 23:48:21 -0700 (PDT)
-Received: by widdq5 with SMTP id dq5so34829232wid.0
-        for <linux-mm@kvack.org>; Wed, 26 Aug 2015 23:48:20 -0700 (PDT)
-Date: Thu, 27 Aug 2015 08:48:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 2/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/status
-Message-ID: <20150827064817.GB14367@dhcp22.suse.cz>
-References: <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1440059182-19798-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20150820110004.GB4632@dhcp22.suse.cz>
- <20150820233450.GB10807@hori1.linux.bs1.fc.nec.co.jp>
- <20150821065321.GD23723@dhcp22.suse.cz>
- <20150821163033.GA4600@Sligo.logfs.org>
- <20150824085127.GB17078@dhcp22.suse.cz>
- <alpine.DEB.2.10.1508251620570.10653@chino.kir.corp.google.com>
- <20150826063813.GA25196@dhcp22.suse.cz>
- <alpine.DEB.2.10.1508261451540.19139@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 27 Aug 2015 00:22:46 -0700 (PDT)
+Subject: Re: [PATCH v3 4/4] mm, procfs: Display VmAnon, VmFile and VmShm in
+ /proc/pid/status
+References: <1438779685-5227-1-git-send-email-vbabka@suse.cz>
+ <1438779685-5227-5-git-send-email-vbabka@suse.cz>
+ <55C20DDE.1080506@yandex-team.ru>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55DEBAC3.4050500@suse.cz>
+Date: Thu, 27 Aug 2015 09:22:43 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.10.1508261451540.19139@chino.kir.corp.google.com>
+In-Reply-To: <55C20DDE.1080506@yandex-team.ru>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrew Morton <akpm@linux-foundation.org>, Jerome Marchand <jmarchan@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Minchan Kim <minchan@kernel.org>
 
-On Wed 26-08-15 15:02:49, David Rientjes wrote:
-> On Wed, 26 Aug 2015, Michal Hocko wrote:
-> 
-> > I thought the purpose was to give the amount of hugetlb based
-> > resident memory.
-> 
-> Persistent hugetlb memory is always resident, the goal is to show what is 
-> currently mapped.
-> 
-> > At least this is what Jorn was asking for AFAIU.
-> > /proc/<pid>/status should be as lightweight as possible. The current
-> > implementation is quite heavy as already pointed out. So I am really
-> > curious whether this is _really_ needed. I haven't heard about a real
-> > usecase except for top displaying HRss which doesn't need the break
-> > down values. You have brought that up already
-> > http://marc.info/?l=linux-mm&m=143941143109335&w=2 and nobody actually
-> > asked for it. "I do not mind having it" is not an argument for inclusion
-> > especially when the implementation is more costly and touches hot paths.
-> > 
-> 
-> It iterates over HUGE_MAX_HSTATE and reads atomic usage counters twice.  
+On 08/05/2015 03:21 PM, Konstantin Khlebnikov wrote:
+> On 05.08.2015 16:01, Vlastimil Babka wrote:
+>> From: Jerome Marchand <jmarchan@redhat.com>
+>>
+>> It's currently inconvenient to retrieve MM_ANONPAGES value from status
+>> and statm files and there is no way to separate MM_FILEPAGES and
+>> MM_SHMEMPAGES. Add VmAnon, VmFile and VmShm lines in /proc/<pid>/status
+>> to solve these issues.
+>>
+>> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> ---
+>>    Documentation/filesystems/proc.txt | 10 +++++++++-
+>>    fs/proc/task_mmu.c                 | 13 +++++++++++--
+>>    2 files changed, 20 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+>> index fcf67c7..fadd1b3 100644
+>> --- a/Documentation/filesystems/proc.txt
+>> +++ b/Documentation/filesystems/proc.txt
+>> @@ -168,6 +168,9 @@ For example, to get the status information of a process, all you have to do is
+>>      VmLck:         0 kB
+>>      VmHWM:       476 kB
+>>      VmRSS:       476 kB
+>> +  VmAnon:      352 kB
+>> +  VmFile:      120 kB
+>> +  VmShm:         4 kB
+>>      VmData:      156 kB
+>>      VmStk:        88 kB
+>>      VmExe:        68 kB
+>> @@ -229,7 +232,12 @@ Table 1-2: Contents of the status files (as of 4.1)
+>>     VmSize                      total program size
+>>     VmLck                       locked memory size
+>>     VmHWM                       peak resident set size ("high water mark")
+>> - VmRSS                       size of memory portions
+>> + VmRSS                       size of memory portions. It contains the three
+>> +                             following parts (VmRSS = VmAnon + VmFile + VmShm)
+>> + VmAnon                      size of resident anonymous memory
+>> + VmFile                      size of resident file mappings
+>> + VmShm                       size of resident shmem memory (includes SysV shm,
+>> +                             mapping of tmpfs and shared anonymous mappings)
+>
+> "Vm" is an acronym for Virtual Memory, but all these are not virtual.
+> They are real pages. Let's leave VmRSS as is and invent better prefix
+> for new fields: something like "Mem", "Pg", or no prefix at all.
 
-I am not worried about /proc/<pid>/status read path. That one is indeed
-trivial.
-
-> On x86, HUGE_MAX_HSTATE == 2.  I don't consider that to be expensive.
-> 
-> If you are concerned about the memory allocation of struct hugetlb_usage, 
-> it could easily be embedded directly in struct mm_struct.
-
-Yes I am concerned about that and
-9 files changed, 112 insertions(+), 1 deletion(-)
-for something that is even not clear to be really required. And I still
-haven't heard any strong usecase to justify it.
-
-Can we go with the single and much simpler cumulative number first and
-only add the break down list if it is _really_ required? We can even
-document that the future version of /proc/<pid>/status might add an
-additional information to prepare all the parsers to be more careful.
--- 
-Michal Hocko
-SUSE Labs
+No prefix would be IMHO confusing. Mem could work, but it's not exactly 
+consistent with the rest. I think only VmPeak and VmSize talk about 
+virtual memory. The rest of existing counters is about physical memory 
+being mapped into that virtual memory or consumed by supporting it (PTE, 
+PMD) or swapped out. I don't see any difference for the new counters 
+here, they would just stand out oddly with some new prefix IMHO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
