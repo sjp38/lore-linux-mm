@@ -1,54 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 348FF6B0254
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 11:32:58 -0400 (EDT)
-Received: by wicge2 with SMTP id ge2so5714531wic.0
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 08:32:57 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id xs10si4755603wjc.81.2015.08.27.08.32.56
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A56A46B0254
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 11:38:17 -0400 (EDT)
+Received: by wicge2 with SMTP id ge2so5862852wic.0
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 08:38:17 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id bc8si4751795wjc.159.2015.08.27.08.38.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Aug 2015 08:32:57 -0700 (PDT)
-Received: by wicgk12 with SMTP id gk12so12423458wic.1
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 08:32:56 -0700 (PDT)
-Date: Thu, 27 Aug 2015 18:32:54 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 04/11] ARCv2: mm: THP support
-Message-ID: <20150827153254.GA21103@node.dhcp.inet.fi>
-References: <1440666194-21478-1-git-send-email-vgupta@synopsys.com>
- <1440666194-21478-5-git-send-email-vgupta@synopsys.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Aug 2015 08:38:16 -0700 (PDT)
+Received: by widdq5 with SMTP id dq5so49051082wid.0
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 08:38:16 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] mm/cma_debug: Check return value of the debugfs_create_dir()
+In-Reply-To: <1440489154-3470-1-git-send-email-kuleshovmail@gmail.com>
+References: <1440489154-3470-1-git-send-email-kuleshovmail@gmail.com>
+Date: Thu, 27 Aug 2015 17:38:13 +0200
+Message-ID: <xa1tsi74oi6y.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1440666194-21478-5-git-send-email-vgupta@synopsys.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Minchan Kim <minchan@kernel.org>, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arc-linux-dev@synopsys.com
+To: Alexander Kuleshov <kuleshovmail@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Stefan Strogin <stefan.strogin@gmail.com>, Dmitry Safonov <d.safonov@partner.samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 27, 2015 at 02:33:07PM +0530, Vineet Gupta wrote:
-> +pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
-> +{
-> +	struct list_head *lh;
-> +	pgtable_t pgtable;
-> +	pte_t *ptep;
+On Tue, Aug 25 2015, Alexander Kuleshov wrote:
+> The debugfs_create_dir() function may fail and return error. If the
+> root directory not created, we can't create anything inside it. This
+> patch adds check for this case.
+>
+> Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
+
+I=E2=80=99d also add a pr_warn but otherwise:
+
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
+> ---
+>  mm/cma_debug.c | 3 +++
+>  1 file changed, 3 insertions(+)
+>
+> diff --git a/mm/cma_debug.c b/mm/cma_debug.c
+> index f8e4b60..bfb46e2 100644
+> --- a/mm/cma_debug.c
+> +++ b/mm/cma_debug.c
+> @@ -171,6 +171,9 @@ static void cma_debugfs_add_one(struct cma *cma, int =
+idx)
+>=20=20
+>  	tmp =3D debugfs_create_dir(name, cma_debugfs_root);
+>=20=20
+> +	if (!tmp)
+> +		return;
 > +
-> +	assert_spin_locked(&mm->page_table_lock);
-> +
-> +	pgtable = pmd_huge_pte(mm, pmdp);
-> +	lh = (struct list_head *) pgtable;
-> +	if (list_empty(lh))
-> +		pmd_huge_pte(mm, pmdp) = (pgtable_t) NULL;
-> +	else {
-> +		pmd_huge_pte(mm, pmdp) = (pgtable_t) lh->next;
-> +		list_del(lh);
-> +	}
+>  	debugfs_create_file("alloc", S_IWUSR, tmp, cma,
+>  				&cma_alloc_fops);
+>=20=20
 
-Side question: why pgtable_t is unsigned long on ARC and not struct page *
-or pte_t *, like on other archs? We could avoid these casts.
-
--- 
- Kirill A. Shutemov
+--=20
+Best regards,                                            _     _
+.o. | Liege of Serenely Enlightened Majesty of         o' \,=3D./ `o
+..o | Computer Science,  =E3=83=9F=E3=83=8F=E3=82=A6 =E2=80=9Cmina86=E2=80=
+=9D =E3=83=8A=E3=82=B6=E3=83=AC=E3=83=B4=E3=82=A4=E3=83=84  (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
