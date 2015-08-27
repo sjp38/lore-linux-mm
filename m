@@ -1,63 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 067E46B0253
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 12:56:55 -0400 (EDT)
-Received: by pacdd16 with SMTP id dd16so31378977pac.2
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 09:56:54 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C324B6B0253
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 13:23:55 -0400 (EDT)
+Received: by pabzx8 with SMTP id zx8so32294143pab.1
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 10:23:55 -0700 (PDT)
 Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id uk5si4717086pbc.60.2015.08.27.09.56.53
+        by mx.google.com with ESMTPS id n9si4852351pdr.22.2015.08.27.10.23.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Aug 2015 09:56:54 -0700 (PDT)
-Received: by pabzx8 with SMTP id zx8so31580645pab.1
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 09:56:53 -0700 (PDT)
-Subject: Re: [PATCH 04/11] ARCv2: mm: THP support
-References: <1440666194-21478-1-git-send-email-vgupta@synopsys.com>
- <1440666194-21478-5-git-send-email-vgupta@synopsys.com>
- <20150827153254.GA21103@node.dhcp.inet.fi>
-From: Vineet Gupta <vgupta@synopsys.com>
-Message-ID: <55DF414C.6070601@synopsys.com>
-Date: Thu, 27 Aug 2015 22:26:44 +0530
+        Thu, 27 Aug 2015 10:23:54 -0700 (PDT)
+Received: by pabzx8 with SMTP id zx8so32293631pab.1
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 10:23:54 -0700 (PDT)
+Date: Thu, 27 Aug 2015 10:23:51 -0700
+From: =?iso-8859-1?Q?J=F6rn?= Engel <joern@purestorage.com>
+Subject: Re: [PATCH v5 2/2] mm: hugetlb: proc: add HugetlbPages field to
+ /proc/PID/status
+Message-ID: <20150827172351.GA29092@Sligo.logfs.org>
+References: <1440059182-19798-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20150820110004.GB4632@dhcp22.suse.cz>
+ <20150820233450.GB10807@hori1.linux.bs1.fc.nec.co.jp>
+ <20150821065321.GD23723@dhcp22.suse.cz>
+ <20150821163033.GA4600@Sligo.logfs.org>
+ <20150824085127.GB17078@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1508251620570.10653@chino.kir.corp.google.com>
+ <20150826063813.GA25196@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1508261451540.19139@chino.kir.corp.google.com>
+ <20150827064817.GB14367@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20150827153254.GA21103@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20150827064817.GB14367@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Minchan Kim <minchan@kernel.org>, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arc-linux-dev@synopsys.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thursday 27 August 2015 09:02 PM, Kirill A. Shutemov wrote:
-> On Thu, Aug 27, 2015 at 02:33:07PM +0530, Vineet Gupta wrote:
->> > +pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
->> > +{
->> > +	struct list_head *lh;
->> > +	pgtable_t pgtable;
->> > +	pte_t *ptep;
->> > +
->> > +	assert_spin_locked(&mm->page_table_lock);
->> > +
->> > +	pgtable = pmd_huge_pte(mm, pmdp);
->> > +	lh = (struct list_head *) pgtable;
->> > +	if (list_empty(lh))
->> > +		pmd_huge_pte(mm, pmdp) = (pgtable_t) NULL;
->> > +	else {
->> > +		pmd_huge_pte(mm, pmdp) = (pgtable_t) lh->next;
->> > +		list_del(lh);
->> > +	}
-> Side question: why pgtable_t is unsigned long on ARC and not struct page *
-> or pte_t *, like on other archs? We could avoid these casts.
+On Thu, Aug 27, 2015 at 08:48:18AM +0200, Michal Hocko wrote:
+> 
+> > On x86, HUGE_MAX_HSTATE == 2.  I don't consider that to be expensive.
+> > 
+> > If you are concerned about the memory allocation of struct hugetlb_usage, 
+> > it could easily be embedded directly in struct mm_struct.
+> 
+> Yes I am concerned about that and
+> 9 files changed, 112 insertions(+), 1 deletion(-)
+> for something that is even not clear to be really required. And I still
+> haven't heard any strong usecase to justify it.
+> 
+> Can we go with the single and much simpler cumulative number first and
+> only add the break down list if it is _really_ required? We can even
+> document that the future version of /proc/<pid>/status might add an
+> additional information to prepare all the parsers to be more careful.
 
-This goes back how I did this for ARC long back to avoid page_address() calls in
-general case. e.g. pte_alloc_one(), pmd_populate(), pte_free()... all needed to
-convert struct page to unsigned long. It was micro-optimization of sorts, but
-served us well.
+I don't care much which way we decide.  But I find your reasoning a bit
+worrying.  If someone asks for a by-size breakup of hugepages in a few
+years, you might have existing binaries that depend on the _absence_ of
+those extra characters on the line.
 
-I could perhaps see try making it pte *, that will certainly remove a bunch of
-other casts as well.
+Compare:
+  HugetlbPages:      18432 kB
+  HugetlbPages:    1069056 kB (1*1048576kB 10*2048kB)
 
--Vineet
+Once someone has written a script that greps for 'HugetlbPages:.*kB$',
+you have lost the option of adding anything else to the line.  You have
+created yet another ABI compatibility headache today in order to save
+112 lines of code.
 
+That may be a worthwhile tradeoff, I don't know.  But at least I realize
+there is a cost, while you seem to ignore that component.  There is
+value in not painting yourself into a corner.
+
+Jorn
+
+--
+A quarrel is quickly settled when deserted by one party; there is
+no battle unless there be two.
+-- Seneca
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
