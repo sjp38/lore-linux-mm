@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E36CB6B0256
-	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 05:04:29 -0400 (EDT)
-Received: by pacgr6 with SMTP id gr6so1246160pac.3
-        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 02:04:29 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id bn11si2545962pdb.69.2015.08.27.02.04.28
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id CD4776B0257
+	for <linux-mm@kvack.org>; Thu, 27 Aug 2015 05:04:39 -0400 (EDT)
+Received: by pacti10 with SMTP id ti10so19414496pac.0
+        for <linux-mm@kvack.org>; Thu, 27 Aug 2015 02:04:39 -0700 (PDT)
+Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
+        by mx.google.com with ESMTPS id rw10si2536261pab.108.2015.08.27.02.04.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Aug 2015 02:04:29 -0700 (PDT)
+        Thu, 27 Aug 2015 02:04:39 -0700 (PDT)
 From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: [PATCH 05/11] ARCv2: mm: THP: boot validation/reporting
-Date: Thu, 27 Aug 2015 14:33:08 +0530
-Message-ID: <1440666194-21478-6-git-send-email-vgupta@synopsys.com>
+Subject: [PATCH 06/11] Documentation/features/vm: THP now supported by ARC
+Date: Thu, 27 Aug 2015 14:33:09 +0530
+Message-ID: <1440666194-21478-7-git-send-email-vgupta@synopsys.com>
 In-Reply-To: <1440666194-21478-1-git-send-email-vgupta@synopsys.com>
 References: <1440666194-21478-1-git-send-email-vgupta@synopsys.com>
 MIME-Version: 1.0
@@ -25,35 +25,22 @@ Cc: linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
 ---
- arch/arc/mm/tlb.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ Documentation/features/vm/THP/arch-support.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/arc/mm/tlb.c b/arch/arc/mm/tlb.c
-index 337eebf0d6cf..211d59347047 100644
---- a/arch/arc/mm/tlb.c
-+++ b/arch/arc/mm/tlb.c
-@@ -706,7 +706,8 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
- 
- 	if (p_mmu->s_pg_sz_m)
- 		scnprintf(super_pg, 64, "%dM Super Page%s, ",
--			  p_mmu->s_pg_sz_m, " (not used)");
-+			  p_mmu->s_pg_sz_m,
-+			  IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) ? "" : " (not used)");
- 
- 	n += scnprintf(buf + n, len - n,
- 		      "MMU [v%x]\t: %dk PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d %s\n",
-@@ -741,6 +742,11 @@ void arc_mmu_init(void)
- 	if (mmu->pg_sz_k != TO_KB(PAGE_SIZE))
- 		panic("MMU pg size != PAGE_SIZE (%luk)\n", TO_KB(PAGE_SIZE));
- 
-+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
-+	    mmu->s_pg_sz_m != TO_MB(HPAGE_PMD_SIZE))
-+		panic("MMU Super pg size != Linux HPAGE_PMD_SIZE (%luM)\n",
-+		      (unsigned long)TO_MB(HPAGE_PMD_SIZE));
-+
- 	/* Enable the MMU */
- 	write_aux_reg(ARC_REG_PID, MMU_ENABLE);
- 
+diff --git a/Documentation/features/vm/THP/arch-support.txt b/Documentation/features/vm/THP/arch-support.txt
+index df384e3e845f..523f8307b9cd 100644
+--- a/Documentation/features/vm/THP/arch-support.txt
++++ b/Documentation/features/vm/THP/arch-support.txt
+@@ -7,7 +7,7 @@
+     |         arch |status|
+     -----------------------
+     |       alpha: | TODO |
+-    |         arc: |  ..  |
++    |         arc: |  ok  |
+     |         arm: |  ok  |
+     |       arm64: |  ok  |
+     |       avr32: |  ..  |
 -- 
 1.9.1
 
