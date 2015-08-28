@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f53.google.com (mail-vk0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B20F26B0253
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 17:47:19 -0400 (EDT)
-Received: by vkbc123 with SMTP id c123so15617644vkb.3
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 14:47:19 -0700 (PDT)
-Received: from mail-vk0-f45.google.com (mail-vk0-f45.google.com. [209.85.213.45])
-        by mx.google.com with ESMTPS id fa9si10010973vdb.66.2015.08.28.14.47.18
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4557C6B0253
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 17:50:37 -0400 (EDT)
+Received: by obbfr1 with SMTP id fr1so55662298obb.1
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 14:50:37 -0700 (PDT)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id r124si4945706oih.92.2015.08.28.14.50.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Aug 2015 14:47:18 -0700 (PDT)
-Received: by vkaw128 with SMTP id w128so15719681vka.2
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 14:47:18 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1440798084.14237.106.camel@hp.com>
-References: <20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20150826012751.8851.78564.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20150826124124.GA7613@lst.de>
-	<1440624859.31365.17.camel@intel.com>
-	<1440798084.14237.106.camel@hp.com>
-Date: Fri, 28 Aug 2015 14:47:18 -0700
-Message-ID: <CAPcyv4iaado-ARQ4z=4jCYH3n7x5+pNsbDjd9XkWyiu=aFyBWA@mail.gmail.com>
+        Fri, 28 Aug 2015 14:50:36 -0700 (PDT)
+Message-ID: <1440798506.14237.107.camel@hp.com>
 Subject: Re: [PATCH v2 5/9] x86, pmem: push fallback handling to arch code
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 28 Aug 2015 15:48:26 -0600
+In-Reply-To: <CAPcyv4iaado-ARQ4z=4jCYH3n7x5+pNsbDjd9XkWyiu=aFyBWA@mail.gmail.com>
+References: 
+	<20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <20150826012751.8851.78564.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <20150826124124.GA7613@lst.de> <1440624859.31365.17.camel@intel.com>
+	 <1440798084.14237.106.camel@hp.com>
+	 <CAPcyv4iaado-ARQ4z=4jCYH3n7x5+pNsbDjd9XkWyiu=aFyBWA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
+To: Dan Williams <dan.j.williams@intel.com>
 Cc: "hch@lst.de" <hch@lst.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@kernel.org" <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "hpa@zytor.com" <hpa@zytor.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "mingo@redhat.com" <mingo@redhat.com>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "boaz@plexistor.com" <boaz@plexistor.com>, "david@fromorbit.com" <david@fromorbit.com>
 
-On Fri, Aug 28, 2015 at 2:41 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> On Wed, 2015-08-26 at 21:34 +0000, Williams, Dan J wrote:
-[..]
->> -#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
->
-> Should it be better to do:
->
-> #else   /* !CONFIG_ARCH_HAS_PMEM_API */
-> #define ARCH_MEMREMAP_PMEM MEMREMAP_WT
->
-> so that you can remove all '#ifdef ARCH_MEMREMAP_PMEM' stuff?
+On Fri, 2015-08-28 at 14:47 -0700, Dan Williams wrote:
+> On Fri, Aug 28, 2015 at 2:41 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> > On Wed, 2015-08-26 at 21:34 +0000, Williams, Dan J wrote:
+> [..]
+> > > -#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
+> > 
+> > Should it be better to do:
+> > 
+> > #else   /* !CONFIG_ARCH_HAS_PMEM_API */
+> > #define ARCH_MEMREMAP_PMEM MEMREMAP_WT
+> > 
+> > so that you can remove all '#ifdef ARCH_MEMREMAP_PMEM' stuff?
+> 
+> Yeah, that seems like a nice incremental cleanup for memremap_pmem()
+> to just unconditionally use ARCH_MEMREMAP_PMEM, feel free to send it
+> along.
 
-Yeah, that seems like a nice incremental cleanup for memremap_pmem()
-to just unconditionally use ARCH_MEMREMAP_PMEM, feel free to send it
-along.
+OK. Will do.
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
