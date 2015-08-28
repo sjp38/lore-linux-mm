@@ -1,165 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 3215E6B0253
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 18:02:03 -0400 (EDT)
-Received: by ykay144 with SMTP id y144so13824095yka.2
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 15:02:02 -0700 (PDT)
-Received: from mail-yk0-x236.google.com (mail-yk0-x236.google.com. [2607:f8b0:4002:c07::236])
-        by mx.google.com with ESMTPS id r62si4966585yka.135.2015.08.28.15.02.01
+Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C4F036B0254
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 18:02:40 -0400 (EDT)
+Received: by ykek5 with SMTP id k5so15298528yke.3
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 15:02:40 -0700 (PDT)
+Received: from mail-yk0-x235.google.com (mail-yk0-x235.google.com. [2607:f8b0:4002:c07::235])
+        by mx.google.com with ESMTPS id r62si4957348ywe.153.2015.08.28.15.02.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Aug 2015 15:02:02 -0700 (PDT)
-Received: by ykdz80 with SMTP id z80so29138320ykd.0
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 15:02:01 -0700 (PDT)
-Date: Fri, 28 Aug 2015 18:01:58 -0400
+        Fri, 28 Aug 2015 15:02:39 -0700 (PDT)
+Received: by ykba134 with SMTP id a134so16193369ykb.1
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 15:02:39 -0700 (PDT)
+Date: Fri, 28 Aug 2015 18:02:37 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 1/2] memcg: flatten task_struct->memcg_oom
-Message-ID: <20150828220158.GD11089@htj.dyndns.org>
+Subject: [PATCH 2/2] memcg: always enable kmemcg on the default hierarchy
+Message-ID: <20150828220237.GE11089@htj.dyndns.org>
+References: <20150828220158.GD11089@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20150828220158.GD11089@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
 
-task_struct->memcg_oom is a sub-struct containing fields which are
-used for async memcg oom handling.  Most task_struct fields aren't
-packaged this way and it can lead to unnecessary alignment paddings.
-This patch flattens it.
+On the default hierarchy, all memory consumption will be accounted
+together and controlled by the same set of limits.  Enable kmemcg on
+the default hierarchy by default.  Boot parameter "disable_kmemcg" can
+be specified to turn it off.
 
-* task.memcg_oom.memcg          -> task.memcg_in_oom
-* task.memcg_oom.gfp_mask	-> task.memcg_oom_gfp_mask
-* task.memcg_oom.order          -> task.memcg_oom_order
-* task.memcg_oom.may_oom        -> task.memcg_may_oom
-
-In addition, task.memcg_may_oom is relocated to where other bitfields
-are which reduces the size of task_struct.
+v2: - v1 triggered oops on nested cgroup creations.  Moved enabling
+      mechanism to memcg_propagate_kmem().
+    - Bypass busy test on kmem activation as it's unnecessary and gets
+      confused by controller being enabled on a cgroup which already
+      has processes.
+    - "disable_kmemcg" boot param added.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 ---
-Hello,
+ mm/memcontrol.c |   43 ++++++++++++++++++++++++++++++-------------
+ 1 file changed, 30 insertions(+), 13 deletions(-)
 
-These two patches are what survived from the following patchset.
-
- http://lkml.kernel.org/g/1440775530-18630-1-git-send-email-tj@kernel.org
-
-Thanks.
-
- include/linux/memcontrol.h |   10 +++++-----
- include/linux/sched.h      |   13 ++++++-------
- mm/memcontrol.c            |   16 ++++++++--------
- 3 files changed, 19 insertions(+), 20 deletions(-)
-
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -407,19 +407,19 @@ void mem_cgroup_print_oom_info(struct me
- 
- static inline void mem_cgroup_oom_enable(void)
- {
--	WARN_ON(current->memcg_oom.may_oom);
--	current->memcg_oom.may_oom = 1;
-+	WARN_ON(current->memcg_may_oom);
-+	current->memcg_may_oom = 1;
- }
- 
- static inline void mem_cgroup_oom_disable(void)
- {
--	WARN_ON(!current->memcg_oom.may_oom);
--	current->memcg_oom.may_oom = 0;
-+	WARN_ON(!current->memcg_may_oom);
-+	current->memcg_may_oom = 0;
- }
- 
- static inline bool task_in_memcg_oom(struct task_struct *p)
- {
--	return p->memcg_oom.memcg;
-+	return p->memcg_in_oom;
- }
- 
- bool mem_cgroup_oom_synchronize(bool wait);
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1451,7 +1451,9 @@ struct task_struct {
- 	unsigned sched_reset_on_fork:1;
- 	unsigned sched_contributes_to_load:1;
- 	unsigned sched_migrated:1;
--
-+#ifdef CONFIG_MEMCG
-+	unsigned memcg_may_oom:1;
-+#endif
- #ifdef CONFIG_MEMCG_KMEM
- 	unsigned memcg_kmem_skip_account:1;
- #endif
-@@ -1782,12 +1784,9 @@ struct task_struct {
- 	unsigned long trace_recursion;
- #endif /* CONFIG_TRACING */
- #ifdef CONFIG_MEMCG
--	struct memcg_oom_info {
--		struct mem_cgroup *memcg;
--		gfp_t gfp_mask;
--		int order;
--		unsigned int may_oom:1;
--	} memcg_oom;
-+	struct mem_cgroup *memcg_in_oom;
-+	gfp_t memcg_oom_gfp_mask;
-+	int memcg_oom_order;
- #endif
- #ifdef CONFIG_UPROBES
- 	struct uprobe_task *utask;
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1652,7 +1652,7 @@ static void memcg_oom_recover(struct mem
+@@ -346,6 +346,17 @@ EXPORT_SYMBOL(tcp_proto_cgroup);
+ #endif
  
- static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
- {
--	if (!current->memcg_oom.may_oom)
-+	if (!current->memcg_may_oom)
- 		return;
+ #ifdef CONFIG_MEMCG_KMEM
++
++static bool kmemcg_disabled;
++
++static int __init disable_kmemcg(char *s)
++{
++	kmemcg_disabled = true;
++	pr_info("memcg: kernel memory support disabled on cgroup2");
++	return 0;
++}
++__setup("disable_kmemcg", disable_kmemcg);
++
+ /*
+  * This will be the memcg's index in each cache's ->memcg_params.memcg_caches.
+  * The main reason for not using cgroup id for this:
+@@ -2908,9 +2919,9 @@ static int memcg_activate_kmem(struct me
+ 	BUG_ON(memcg->kmem_acct_active);
+ 
  	/*
- 	 * We are in the middle of the charge context here, so we
-@@ -1669,9 +1669,9 @@ static void mem_cgroup_oom(struct mem_cg
- 	 * and when we know whether the fault was overall successful.
+-	 * For simplicity, we won't allow this to be disabled.  It also can't
+-	 * be changed if the cgroup has children already, or if tasks had
+-	 * already joined.
++	 * On traditional hierarchies, for simplicity, we won't allow this
++	 * to be disabled.  It also can't be changed if the cgroup has
++	 * children already, or if tasks had already joined.
+ 	 *
+ 	 * If tasks join before we set the limit, a person looking at
+ 	 * kmem.usage_in_bytes will have no way to determine when it took
+@@ -2919,13 +2930,15 @@ static int memcg_activate_kmem(struct me
+ 	 * After it first became limited, changes in the value of the limit are
+ 	 * of course permitted.
  	 */
- 	css_get(&memcg->css);
--	current->memcg_oom.memcg = memcg;
--	current->memcg_oom.gfp_mask = mask;
--	current->memcg_oom.order = order;
-+	current->memcg_in_oom = memcg;
-+	current->memcg_oom_gfp_mask = mask;
-+	current->memcg_oom_order = order;
- }
+-	mutex_lock(&memcg_create_mutex);
+-	if (cgroup_has_tasks(memcg->css.cgroup) ||
+-	    (memcg->use_hierarchy && memcg_has_children(memcg)))
+-		err = -EBUSY;
+-	mutex_unlock(&memcg_create_mutex);
+-	if (err)
+-		goto out;
++	if (!cgroup_on_dfl(memcg->css.cgroup)) {
++		mutex_lock(&memcg_create_mutex);
++		if (cgroup_has_tasks(memcg->css.cgroup) ||
++		    (memcg->use_hierarchy && memcg_has_children(memcg)))
++			err = -EBUSY;
++		mutex_unlock(&memcg_create_mutex);
++		if (err)
++			goto out;
++	}
  
- /**
-@@ -1693,7 +1693,7 @@ static void mem_cgroup_oom(struct mem_cg
-  */
- bool mem_cgroup_oom_synchronize(bool handle)
- {
--	struct mem_cgroup *memcg = current->memcg_oom.memcg;
-+	struct mem_cgroup *memcg = current->memcg_in_oom;
- 	struct oom_wait_info owait;
- 	bool locked;
+ 	memcg_id = memcg_alloc_cache_id();
+ 	if (memcg_id < 0) {
+@@ -2978,10 +2991,14 @@ static int memcg_propagate_kmem(struct m
  
-@@ -1721,8 +1721,8 @@ bool mem_cgroup_oom_synchronize(bool han
- 	if (locked && !memcg->oom_kill_disable) {
- 		mem_cgroup_unmark_under_oom(memcg);
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
--		mem_cgroup_out_of_memory(memcg, current->memcg_oom.gfp_mask,
--					 current->memcg_oom.order);
-+		mem_cgroup_out_of_memory(memcg, current->memcg_oom_gfp_mask,
-+					 current->memcg_oom_order);
- 	} else {
- 		schedule();
- 		mem_cgroup_unmark_under_oom(memcg);
-@@ -1739,7 +1739,7 @@ bool mem_cgroup_oom_synchronize(bool han
- 		memcg_oom_recover(memcg);
- 	}
- cleanup:
--	current->memcg_oom.memcg = NULL;
-+	current->memcg_in_oom = NULL;
- 	css_put(&memcg->css);
- 	return true;
- }
+ 	mutex_lock(&memcg_limit_mutex);
+ 	/*
+-	 * If the parent cgroup is not kmem-active now, it cannot be activated
+-	 * after this point, because it has at least one child already.
++	 * On the default hierarchy, automatically enable kmemcg unless
++	 * explicitly disabled by the boot param.  On traditional
++	 * hierarchies, inherit from the parent.  If the parent cgroup is
++	 * not kmem-active now, it cannot be activated after this point,
++	 * because it has at least one child already.
+ 	 */
+-	if (memcg_kmem_is_active(parent))
++	if ((!kmemcg_disabled && cgroup_on_dfl(memcg->css.cgroup)) ||
++	    memcg_kmem_is_active(parent))
+ 		ret = memcg_activate_kmem(memcg, PAGE_COUNTER_MAX);
+ 	mutex_unlock(&memcg_limit_mutex);
+ 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
