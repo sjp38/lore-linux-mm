@@ -1,118 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 728B36B0253
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 10:12:18 -0400 (EDT)
-Received: by wicne3 with SMTP id ne3so20793756wic.0
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 07:12:18 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id ha3si5577503wib.99.2015.08.28.07.12.16
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 790666B0253
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 10:18:34 -0400 (EDT)
+Received: by wiyy7 with SMTP id y7so387642wiy.1
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 07:18:34 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
+        by mx.google.com with ESMTPS id ev15si11442331wjd.117.2015.08.28.07.18.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 28 Aug 2015 07:12:17 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 9286899396
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 14:12:15 +0000 (UTC)
-Date: Fri, 28 Aug 2015 15:12:13 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 12/12] mm, page_alloc: Only enforce watermarks for
- order-0 allocations
-Message-ID: <20150828141213.GT12432@techsingularity.net>
-References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
- <20150824123015.GJ12432@techsingularity.net>
- <20150828121051.GC5301@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Aug 2015 07:18:32 -0700 (PDT)
+Received: by wieo17 with SMTP id o17so17384205wie.0
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 07:18:32 -0700 (PDT)
+Date: Fri, 28 Aug 2015 16:18:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v8 3/6] mm: Introduce VM_LOCKONFAULT
+Message-ID: <20150828141829.GD5301@dhcp22.suse.cz>
+References: <1440613465-30393-1-git-send-email-emunson@akamai.com>
+ <1440613465-30393-4-git-send-email-emunson@akamai.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150828121051.GC5301@dhcp22.suse.cz>
+In-Reply-To: <1440613465-30393-4-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Fri, Aug 28, 2015 at 02:10:51PM +0200, Michal Hocko wrote:
-> On Mon 24-08-15 13:30:15, Mel Gorman wrote:
-> > The primary purpose of watermarks is to ensure that reclaim can always
-> > make forward progress in PF_MEMALLOC context (kswapd and direct reclaim).
-> > These assume that order-0 allocations are all that is necessary for
-> > forward progress.
-> > 
-> > High-order watermarks serve a different purpose. Kswapd had no high-order
-> > awareness before they were introduced (https://lkml.org/lkml/2004/9/5/9).
+On Wed 26-08-15 14:24:22, Eric B Munson wrote:
+> The cost of faulting in all memory to be locked can be very high when
+> working with large mappings.  If only portions of the mapping will be
+> used this can incur a high penalty for locking.
 > 
-> lkml.org sucks. Could you plase replace it by something else e.g.
-> https://lkml.kernel.org/r/413AA7B2.4000907@yahoo.com.au?
+> For the example of a large file, this is the usage pattern for a large
+> statical language model (probably applies to other statical or graphical
+> models as well).  For the security example, any application transacting
+> in data that cannot be swapped out (credit card data, medical records,
+> etc).
 > 
+> This patch introduces the ability to request that pages are not
+> pre-faulted, but are placed on the unevictable LRU when they are finally
+> faulted in.  The VM_LOCKONFAULT flag will be used together with
+> VM_LOCKED and has no effect when set without VM_LOCKED.  Setting the
+> VM_LOCKONFAULT flag for a VMA will cause pages faulted into that VMA to
+> be added to the unevictable LRU when they are faulted or if they are
+> already present, but will not cause any missing pages to be faulted in.
 
-Done.
+OK, I can live with this. Thank you for removing the part which exports
+the flag to the userspace.
+ 
+> Exposing this new lock state means that we cannot overload the meaning
+> of the FOLL_POPULATE flag any longer.  Prior to this patch it was used
+> to mean that the VMA for a fault was locked.  This means we need the
+> new FOLL_MLOCK flag to communicate the locked state of a VMA.
+> FOLL_POPULATE will now only control if the VMA should be populated and
+> in the case of VM_LOCKONFAULT, it will not be set.
 
-> > This was particularly important when there were high-order atomic requests.
-> > The watermarks both gave kswapd awareness and made a reserve for those
-> > atomic requests.
-> > 
-> > There are two important side-effects of this. The most important is that
-> > a non-atomic high-order request can fail even though free pages are available
-> > and the order-0 watermarks are ok. The second is that high-order watermark
-> > checks are expensive as the free list counts up to the requested order must
-> > be examined.
-> > 
-> > With the introduction of MIGRATE_HIGHATOMIC it is no longer necessary to
-> > have high-order watermarks. Kswapd and compaction still need high-order
-> > awareness which is handled by checking that at least one suitable high-order
-> > page is free.
-> > 
-> > With the patch applied, there was little difference in the allocation
-> > failure rates as the atomic reserves are small relative to the number of
-> > allocation attempts. The expected impact is that there will never be an
-> > allocation failure report that shows suitable pages on the free lists.
-> > 
-> > The one potential side-effect of this is that in a vanilla kernel, the
-> > watermark checks may have kept a free page for an atomic allocation. Now,
-> > we are 100% relying on the HighAtomic reserves and an early allocation to
-> > have allocated them.  If the first high-order atomic allocation is after
-> > the system is already heavily fragmented then it'll fail.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+I thinking that this part is really unnecessary. populate_vma_page_range
+could have simply returned without calling gup for VM_LOCKONFAULT
+vmas. You would save the pte walk and the currently mapped pages would
+be still protected from the reclaim. The side effect would be that they
+would litter the regular LRUs and mlock/unevictable counters wouldn't be
+updated until those pages are encountered during the reclaim and culled
+to unevictable list.
+
+I would expect that mlock with this flag would be typically called
+on mostly unpopulated mappings so the side effects would be barely
+noticeable while the lack of pte walk would be really nice (especially
+for the large mappings).
+
+This would be a nice optimization and minor code reduction but I am not
+going to insist on it. I will leave the decision to you.
+
+> Signed-off-by: Eric B Munson <emunson@akamai.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Jonathan Corbet <corbet@lwn.net>
+> Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: linux-api@vger.kernel.org
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+One note below:
+
+> ---
+> Changes from v7:
+> *Drop entries in smaps and dri code to avoid exposing VM_LOCKONFAULT to
+>  userspace.  VM_LOCKONFAULT is still exposed via mm/debug.c
+> *Create VM_LOCKED_CLEAR_MASK to be used anywhere we want to clear all
+>  flags relating to locked VMAs
 > 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
+>  include/linux/mm.h |  5 +++++
+>  kernel/fork.c      |  2 +-
+>  mm/debug.c         |  1 +
+>  mm/gup.c           | 10 ++++++++--
+>  mm/huge_memory.c   |  2 +-
+>  mm/hugetlb.c       |  4 ++--
+>  mm/mlock.c         |  2 +-
+>  mm/mmap.c          |  2 +-
+>  mm/rmap.c          |  6 ++++--
+>  9 files changed, 24 insertions(+), 10 deletions(-)
+[...]
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 171b687..14ce002 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -744,7 +744,8 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+>  
+>  		if (vma->vm_flags & VM_LOCKED) {
+>  			spin_unlock(ptl);
+> -			pra->vm_flags |= VM_LOCKED;
+> +			pra->vm_flags |=
+> +				(vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT));
+>  			return SWAP_FAIL; /* To break the loop */
+>  		}
+>  
+> @@ -765,7 +766,8 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+>  
+>  		if (vma->vm_flags & VM_LOCKED) {
+>  			pte_unmap_unlock(pte, ptl);
+> -			pra->vm_flags |= VM_LOCKED;
+> +			pra->vm_flags |=
+> +				(vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT));
+>  			return SWAP_FAIL; /* To break the loop */
+>  		}
 
-Thanks.
-
-> [...]
-> > @@ -2289,7 +2291,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
-> >  {
-> >  	long min = mark;
-> >  	int o;
-> > -	long free_cma = 0;
-> > +	const bool atomic = (alloc_flags & ALLOC_HARDER);
-> 
-> I just find the naming a bit confusing. ALLOC_HARDER != __GFP_ATOMIC. RT tasks
-> might get access to this reserve as well.
-> 
-
-I'll just call it alloc_harder then.
-
-> [...]
-> > +	/* Check at least one high-order page is free */
-> > +	for (o = order; o < MAX_ORDER; o++) {
-> > +		struct free_area *area = &z->free_area[o];
-> > +		int mt;
-> > +
-> > +		if (atomic && area->nr_free)
-> > +			return true;
-> 
-> Didn't you want
-> 		if (atomic) {
-> 			if (area->nr_free)
-> 				return true;
-> 			continue;
-> 		}
-> 
-
-That is slightly more efficient so yes, I'll use it. Thanks.
-
+Why do we need to export this? Neither of the consumers care and should
+care. VM_LOCKONFAULT should never be set without VM_LOCKED which is the
+only thing that we should care about.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
