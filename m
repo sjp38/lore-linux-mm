@@ -1,75 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 55CBE6B0253
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 13:06:17 -0400 (EDT)
-Received: by wiae7 with SMTP id e7so2737710wia.0
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 10:06:16 -0700 (PDT)
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
-        by mx.google.com with ESMTPS id k10si6512878wix.84.2015.08.28.10.06.15
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B9A6B6B0253
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 13:11:29 -0400 (EDT)
+Received: by wibcx1 with SMTP id cx1so2492032wib.1
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 10:11:29 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
+        by mx.google.com with ESMTPS id ep10si12392431wjd.3.2015.08.28.10.11.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Aug 2015 10:06:15 -0700 (PDT)
-Received: by wiae7 with SMTP id e7so2737033wia.0
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 10:06:15 -0700 (PDT)
-Date: Fri, 28 Aug 2015 19:06:13 +0200
+        Fri, 28 Aug 2015 10:11:28 -0700 (PDT)
+Received: by wicfv10 with SMTP id fv10so13289384wic.1
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 10:11:27 -0700 (PDT)
+Date: Fri, 28 Aug 2015 19:11:26 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/4] memcg: fix over-high reclaim amount
-Message-ID: <20150828170612.GA21463@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/4] memcg: flatten task_struct->memcg_oom
+Message-ID: <20150828171125.GB21463@dhcp22.suse.cz>
 References: <1440775530-18630-1-git-send-email-tj@kernel.org>
- <1440775530-18630-2-git-send-email-tj@kernel.org>
+ <1440775530-18630-3-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1440775530-18630-2-git-send-email-tj@kernel.org>
+In-Reply-To: <1440775530-18630-3-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
 Cc: hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
 
-On Fri 28-08-15 11:25:27, Tejun Heo wrote:
-> When memory usage is over the high limit, try_charge() performs direct
-> reclaim; however, it uses the current charging amount @nr_pages as the
-> reclamation target which is incorrect as we want to reclaim down to
-> the high limit.  In practice, this doesn't matter all that much
-> because the minimum target pages that try_to_free_mem_cgroup_pages()
-> uses is SWAP_CLUSTER_MAX which is rather large.
+On Fri 28-08-15 11:25:28, Tejun Heo wrote:
+> task_struct->memcg_oom is a sub-struct containing fields which are
+> used for async memcg oom handling.  Most task_struct fields aren't
+> packaged this way and it can lead to unnecessary alignment paddings.
+> This patch flattens it.
 > 
-> Fix it by setting the target number of pages to the difference between
-> the current usage and the high limit.
+> * task.memcg_oom.memcg		-> task.memcg_in_oom
+> * task.memcg_oom.gfp_mask	-> task.memcg_oom_gfp_mask
+> * task.memcg_oom.order		-> task.memcg_oom_order
+> * task.memcg_oom.may_oom	-> task.memcg_may_oom
+> 
+> In addition, task.memcg_may_oom is relocated to where other bitfields
+> are which reduces the size of task_struct.
 
-I do not think this a better behavior. If you have parallel charges to
-the same memcg then you can easilly over-reclaim  because everybody
-will reclaim the maximum rather than its contribution.
-
-Sure we can fail to reclaim the target and slowly grow over high limit
-but that is to be expected. This is not the max limit which cannot be
-breached and external memory pressure/reclaim is there to mitigate that.
-
+OK we will save 8B AFAICS which probably doesn't make much different for
+this huge structure. But we already have memcg_kmem_skip_account bit
+field there so another one makes sense. That alone would be sufficient
+to save those bytes. Regarding the struct, I do not have a strong
+opinion. I do not mind removing it.
+ 
 > Signed-off-by: Tejun Heo <tj@kernel.org>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  mm/memcontrol.c | 7 +++++--
->  1 file changed, 5 insertions(+), 2 deletions(-)
+>  include/linux/memcontrol.h | 10 +++++-----
+>  include/linux/sched.h      | 13 ++++++-------
+>  mm/memcontrol.c            | 16 ++++++++--------
+>  3 files changed, 19 insertions(+), 20 deletions(-)
 > 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index ad800e6..3d28656 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -407,19 +407,19 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+>  
+>  static inline void mem_cgroup_oom_enable(void)
+>  {
+> -	WARN_ON(current->memcg_oom.may_oom);
+> -	current->memcg_oom.may_oom = 1;
+> +	WARN_ON(current->memcg_may_oom);
+> +	current->memcg_may_oom = 1;
+>  }
+>  
+>  static inline void mem_cgroup_oom_disable(void)
+>  {
+> -	WARN_ON(!current->memcg_oom.may_oom);
+> -	current->memcg_oom.may_oom = 0;
+> +	WARN_ON(!current->memcg_may_oom);
+> +	current->memcg_may_oom = 0;
+>  }
+>  
+>  static inline bool task_in_memcg_oom(struct task_struct *p)
+>  {
+> -	return p->memcg_oom.memcg;
+> +	return p->memcg_in_oom;
+>  }
+>  
+>  bool mem_cgroup_oom_synchronize(bool wait);
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index a4ab9da..ef73b54 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1451,7 +1451,9 @@ struct task_struct {
+>  	unsigned sched_reset_on_fork:1;
+>  	unsigned sched_contributes_to_load:1;
+>  	unsigned sched_migrated:1;
+> -
+> +#ifdef CONFIG_MEMCG
+> +	unsigned memcg_may_oom:1;
+> +#endif
+>  #ifdef CONFIG_MEMCG_KMEM
+>  	unsigned memcg_kmem_skip_account:1;
+>  #endif
+> @@ -1782,12 +1784,9 @@ struct task_struct {
+>  	unsigned long trace_recursion;
+>  #endif /* CONFIG_TRACING */
+>  #ifdef CONFIG_MEMCG
+> -	struct memcg_oom_info {
+> -		struct mem_cgroup *memcg;
+> -		gfp_t gfp_mask;
+> -		int order;
+> -		unsigned int may_oom:1;
+> -	} memcg_oom;
+> +	struct mem_cgroup *memcg_in_oom;
+> +	gfp_t memcg_oom_gfp_mask;
+> +	int memcg_oom_order;
+>  #endif
+>  #ifdef CONFIG_UPROBES
+>  	struct uprobe_task *utask;
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index aacc767..18ecf75 100644
+> index 18ecf75..74abb31 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -2078,10 +2078,13 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  	 * make the charging task trim their excess contribution.
+> @@ -1652,7 +1652,7 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
+>  
+>  static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+>  {
+> -	if (!current->memcg_oom.may_oom)
+> +	if (!current->memcg_may_oom)
+>  		return;
+>  	/*
+>  	 * We are in the middle of the charge context here, so we
+> @@ -1669,9 +1669,9 @@ static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+>  	 * and when we know whether the fault was overall successful.
 >  	 */
->  	do {
-> -		if (page_counter_read(&memcg->memory) <= memcg->high)
-> +		unsigned long usage = page_counter_read(&memcg->memory);
-> +		unsigned long high = ACCESS_ONCE(memcg->high);
-> +
-> +		if (usage <= high)
->  			continue;
->  		mem_cgroup_events(memcg, MEMCG_HIGH, 1);
-> -		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
-> +		try_to_free_mem_cgroup_pages(memcg, high - usage, gfp_mask, true);
->  	} while ((memcg = parent_mem_cgroup(memcg)));
->  done:
->  	return ret;
+>  	css_get(&memcg->css);
+> -	current->memcg_oom.memcg = memcg;
+> -	current->memcg_oom.gfp_mask = mask;
+> -	current->memcg_oom.order = order;
+> +	current->memcg_in_oom = memcg;
+> +	current->memcg_oom_gfp_mask = mask;
+> +	current->memcg_oom_order = order;
+>  }
+>  
+>  /**
+> @@ -1693,7 +1693,7 @@ static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+>   */
+>  bool mem_cgroup_oom_synchronize(bool handle)
+>  {
+> -	struct mem_cgroup *memcg = current->memcg_oom.memcg;
+> +	struct mem_cgroup *memcg = current->memcg_in_oom;
+>  	struct oom_wait_info owait;
+>  	bool locked;
+>  
+> @@ -1721,8 +1721,8 @@ bool mem_cgroup_oom_synchronize(bool handle)
+>  	if (locked && !memcg->oom_kill_disable) {
+>  		mem_cgroup_unmark_under_oom(memcg);
+>  		finish_wait(&memcg_oom_waitq, &owait.wait);
+> -		mem_cgroup_out_of_memory(memcg, current->memcg_oom.gfp_mask,
+> -					 current->memcg_oom.order);
+> +		mem_cgroup_out_of_memory(memcg, current->memcg_oom_gfp_mask,
+> +					 current->memcg_oom_order);
+>  	} else {
+>  		schedule();
+>  		mem_cgroup_unmark_under_oom(memcg);
+> @@ -1739,7 +1739,7 @@ bool mem_cgroup_oom_synchronize(bool handle)
+>  		memcg_oom_recover(memcg);
+>  	}
+>  cleanup:
+> -	current->memcg_oom.memcg = NULL;
+> +	current->memcg_in_oom = NULL;
+>  	css_put(&memcg->css);
+>  	return true;
+>  }
 > -- 
 > 2.4.3
 
