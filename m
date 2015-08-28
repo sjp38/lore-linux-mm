@@ -1,74 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 06B6C6B0253
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 12:56:08 -0400 (EDT)
-Received: by ykek5 with SMTP id k5so7523980yke.3
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 09:56:07 -0700 (PDT)
-Received: from mail-yk0-x22e.google.com (mail-yk0-x22e.google.com. [2607:f8b0:4002:c07::22e])
-        by mx.google.com with ESMTPS id q63si4411348ywc.180.2015.08.28.09.56.06
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 55CBE6B0253
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 13:06:17 -0400 (EDT)
+Received: by wiae7 with SMTP id e7so2737710wia.0
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 10:06:16 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id k10si6512878wix.84.2015.08.28.10.06.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Aug 2015 09:56:07 -0700 (PDT)
-Received: by ykek5 with SMTP id k5so7523567yke.3
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 09:56:06 -0700 (PDT)
-Date: Fri, 28 Aug 2015 12:56:04 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 4/4] memcg: always enable kmemcg on the default hierarchy
-Message-ID: <20150828165604.GM26785@mtj.duckdns.org>
+        Fri, 28 Aug 2015 10:06:15 -0700 (PDT)
+Received: by wiae7 with SMTP id e7so2737033wia.0
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 10:06:15 -0700 (PDT)
+Date: Fri, 28 Aug 2015 19:06:13 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/4] memcg: fix over-high reclaim amount
+Message-ID: <20150828170612.GA21463@dhcp22.suse.cz>
 References: <1440775530-18630-1-git-send-email-tj@kernel.org>
- <1440775530-18630-5-git-send-email-tj@kernel.org>
- <20150828164918.GJ9610@esperanza>
+ <1440775530-18630-2-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150828164918.GJ9610@esperanza>
+In-Reply-To: <1440775530-18630-2-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Tejun Heo <tj@kernel.org>
+Cc: hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
 
-Hello,
-
-On Fri, Aug 28, 2015 at 07:49:18PM +0300, Vladimir Davydov wrote:
-> On Fri, Aug 28, 2015 at 11:25:30AM -0400, Tejun Heo wrote:
-> > On the default hierarchy, all memory consumption will be accounted
-> > together and controlled by the same set of limits.  Always enable
-> > kmemcg on the default hierarchy.
+On Fri 28-08-15 11:25:27, Tejun Heo wrote:
+> When memory usage is over the high limit, try_charge() performs direct
+> reclaim; however, it uses the current charging amount @nr_pages as the
+> reclamation target which is incorrect as we want to reclaim down to
+> the high limit.  In practice, this doesn't matter all that much
+> because the minimum target pages that try_to_free_mem_cgroup_pages()
+> uses is SWAP_CLUSTER_MAX which is rather large.
 > 
-> IMO we should introduce a boot time knob for disabling it, because kmem
-> accounting is still not perfect, besides some users might prefer to go
-> w/o it for performance reasons.
+> Fix it by setting the target number of pages to the difference between
+> the current usage and the high limit.
 
-Yeah, fair enough.
+I do not think this a better behavior. If you have parallel charges to
+the same memcg then you can easilly over-reclaim  because everybody
+will reclaim the maximum rather than its contribution.
 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index c94b686..8a5dd01 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -4362,6 +4362,13 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
-> >  	if (ret)
-> >  		return ret;
-> >  
-> > +	/* kmem is always accounted together on the default hierarchy */
-> > +	if (cgroup_on_dfl(css->cgroup)) {
-> > +		ret = memcg_activate_kmem(memcg, PAGE_COUNTER_MAX);
-> > +		if (ret)
-> > +			return ret;
-> > +	}
-> > +
+Sure we can fail to reclaim the target and slowly grow over high limit
+but that is to be expected. This is not the max limit which cannot be
+breached and external memory pressure/reclaim is there to mitigate that.
+
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> ---
+>  mm/memcontrol.c | 7 +++++--
+>  1 file changed, 5 insertions(+), 2 deletions(-)
 > 
-> This is a wrong place for this. The kernel will panic on an attempt to
-> create a sub memcg, because memcg_init_kmem already enables kmem
-> accounting in this case. I guess we should add this hunk to
-> memcg_propagate_kmem instead.
-
-Yeap, bypassing "parent is active" test in memcg_propagate_kmem()
-seems like the right thing to do.
-
-Thanks.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index aacc767..18ecf75 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2078,10 +2078,13 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	 * make the charging task trim their excess contribution.
+>  	 */
+>  	do {
+> -		if (page_counter_read(&memcg->memory) <= memcg->high)
+> +		unsigned long usage = page_counter_read(&memcg->memory);
+> +		unsigned long high = ACCESS_ONCE(memcg->high);
+> +
+> +		if (usage <= high)
+>  			continue;
+>  		mem_cgroup_events(memcg, MEMCG_HIGH, 1);
+> -		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
+> +		try_to_free_mem_cgroup_pages(memcg, high - usage, gfp_mask, true);
+>  	} while ((memcg = parent_mem_cgroup(memcg)));
+>  done:
+>  	return ret;
+> -- 
+> 2.4.3
 
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
