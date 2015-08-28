@@ -1,58 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 990F86B0253
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 16:46:11 -0400 (EDT)
-Received: by pacdd16 with SMTP id dd16so73368712pac.2
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 13:46:11 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id v8si11775294pdm.155.2015.08.28.13.46.10
+Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D72E6B0253
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 16:53:05 -0400 (EDT)
+Received: by ykba134 with SMTP id a134so14681062ykb.1
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 13:53:04 -0700 (PDT)
+Received: from mail-yk0-x22f.google.com (mail-yk0-x22f.google.com. [2607:f8b0:4002:c07::22f])
+        by mx.google.com with ESMTPS id e185si3254049ywc.4.2015.08.28.13.53.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Aug 2015 13:46:10 -0700 (PDT)
-Date: Fri, 28 Aug 2015 23:45:54 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
+        Fri, 28 Aug 2015 13:53:04 -0700 (PDT)
+Received: by ykdz80 with SMTP id z80so27643447ykd.0
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 13:53:04 -0700 (PDT)
+Date: Fri, 28 Aug 2015 16:53:01 -0400
+From: Tejun Heo <tj@kernel.org>
 Subject: Re: [PATCH 3/4] memcg: punt high overage reclaim to
  return-to-userland path
-Message-ID: <20150828204554.GM9610@esperanza>
+Message-ID: <20150828205301.GB11089@htj.dyndns.org>
 References: <1440775530-18630-1-git-send-email-tj@kernel.org>
  <1440775530-18630-4-git-send-email-tj@kernel.org>
  <20150828171322.GC21463@dhcp22.suse.cz>
+ <20150828204554.GM9610@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150828171322.GC21463@dhcp22.suse.cz>
+In-Reply-To: <20150828204554.GM9610@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Michal Hocko <mhocko@kernel.org>, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-On Fri, Aug 28, 2015 at 07:13:22PM +0200, Michal Hocko wrote:
-...
-> > * If the allocation doesn't have __GFP_WAIT, direct reclaim is
-> >   skipped.  If a process performs only speculative allocations, it can
-> >   blow way past the high limit.  This is actually easily reproducible
-> >   by simply doing "find /".  VFS tries speculative !__GFP_WAIT
-> >   allocations first, so as long as there's memory which can be
-> >   consumed without blocking, it can keep allocating memory regardless
-> >   of the high limit.
+Hello, Vladmir.
+
+On Fri, Aug 28, 2015 at 11:45:54PM +0300, Vladimir Davydov wrote:
+> Actually, memory.high by itself *is* the protection against GFP_NOWAIT
+> allocations, similarly to zone watermarks. W/o it we would have no other
+> choice but fail a GFP_NOWAIT allocation on hitting memory.max. One
+> should just set it so that
 > 
-> It is a bit confusing that you are talking about direct reclaim but in
-> fact mean high limit reclaim. But yeah, you are right there is no
-> protection against GFP_NOWAIT allocations there.
+>   memory.max - memory.high > [max sum size of !__GFP_WAIT allocations
+>                               that can normally occur in a row]
 
-Actually, memory.high by itself *is* the protection against GFP_NOWAIT
-allocations, similarly to zone watermarks. W/o it we would have no other
-choice but fail a GFP_NOWAIT allocation on hitting memory.max. One
-should just set it so that
+While this would be true in many cases, I don't think this is the
+intention of the two knobs and the space between high and max can be
+filled up by anything which can't be reclaimed - e.g. too many dirty /
+writeback pages on a slow device or memlocked pages.  If it were
+really the buffer for GFP_NOWAIT, there's no reason to even make it a
+separate knob and we *may* change how over-high reclaim behaves in the
+future, so let's please not dig ourselves into something too specific.
 
-  memory.max - memory.high > [max sum size of !__GFP_WAIT allocations
-                              that can normally occur in a row]
+> That being said, currently I don't see any point in making memory.high
+> !__GFP_WAIT-safe.
 
-That being said, currently I don't see any point in making memory.high
-!__GFP_WAIT-safe.
+Yeah, as long as the blow up can't be triggered consistently, it
+should be fine.
 
-Thanks,
-Vladimir
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
