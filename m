@@ -1,54 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
-	by kanga.kvack.org (Postfix) with ESMTP id CF91E6B0253
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 17:14:28 -0400 (EDT)
-Received: by ykdz80 with SMTP id z80so28149308ykd.0
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 14:14:28 -0700 (PDT)
-Received: from mail-yk0-x231.google.com (mail-yk0-x231.google.com. [2607:f8b0:4002:c07::231])
-        by mx.google.com with ESMTPS id r126si4883237ywf.185.2015.08.28.14.14.26
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id D6C376B0253
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 17:43:36 -0400 (EDT)
+Received: by obcid8 with SMTP id id8so5092468obc.0
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 14:43:36 -0700 (PDT)
+Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
+        by mx.google.com with ESMTPS id ly15si4938503oeb.24.2015.08.28.14.43.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Aug 2015 14:14:28 -0700 (PDT)
-Received: by ykay144 with SMTP id y144so12835878yka.2
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 14:14:26 -0700 (PDT)
-Date: Fri, 28 Aug 2015 17:14:23 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/4] memcg: punt high overage reclaim to
- return-to-userland path
-Message-ID: <20150828211423.GC11089@htj.dyndns.org>
-References: <1440775530-18630-1-git-send-email-tj@kernel.org>
- <1440775530-18630-4-git-send-email-tj@kernel.org>
- <20150828171322.GC21463@dhcp22.suse.cz>
- <20150828204554.GM9610@esperanza>
- <20150828205301.GB11089@htj.dyndns.org>
- <20150828210704.GN9610@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150828210704.GN9610@esperanza>
+        Fri, 28 Aug 2015 14:43:36 -0700 (PDT)
+Message-ID: <1440798084.14237.106.camel@hp.com>
+Subject: Re: [PATCH v2 5/9] x86, pmem: push fallback handling to arch code
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 28 Aug 2015 15:41:24 -0600
+In-Reply-To: <1440624859.31365.17.camel@intel.com>
+References: 
+	<20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <20150826012751.8851.78564.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <20150826124124.GA7613@lst.de> <1440624859.31365.17.camel@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Michal Hocko <mhocko@kernel.org>, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: "Williams, Dan J" <dan.j.williams@intel.com>, "hch@lst.de" <hch@lst.de>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@kernel.org" <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "hpa@zytor.com" <hpa@zytor.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "mingo@redhat.com" <mingo@redhat.com>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "boaz@plexistor.com" <boaz@plexistor.com>, "david@fromorbit.com" <david@fromorbit.com>
 
-Hey,
+On Wed, 2015-08-26 at 21:34 +0000, Williams, Dan J wrote:
+> On Wed, 2015-08-26 at 14:41 +0200, Christoph Hellwig wrote:
+> > I like the intent behind this, but not the implementation.
+> > 
+> > I think the right approach is to keep the defaults in linux/pmem.h
+> > and simply not set CONFIG_ARCH_HAS_PMEM_API for x86-32.
+> 
+> Yes, that makes things much cleaner.  Revised patch and changelog below:
+> 
+> 8<----
+> Subject: x86, pmem: clarify that ARCH_HAS_PMEM_API implies PMEM mapped WB
+> 
+> From: Dan Williams <dan.j.williams@intel.com>
+> 
+> Given that a write-back (WB) mapping plus non-temporal stores is
+> expected to be the most efficient way to access PMEM, update the
+> definition of ARCH_HAS_PMEM_API to imply arch support for
+> WB-mapped-PMEM.  This is needed as a pre-requisite for adding PMEM to
+> the direct map and mapping it with struct page.
+> 
+> The above clarification for X86_64 means that memcpy_to_pmem() is
+> permitted to use the non-temporal arch_memcpy_to_pmem() rather than
+> needlessly fall back to default_memcpy_to_pmem() when the pcommit
+> instruction is not available.  When arch_memcpy_to_pmem() is not
+> guaranteed to flush writes out of cache, i.e. on older X86_32
+> implementations where non-temporal stores may just dirty cache,
+> ARCH_HAS_PMEM_API is simply disabled.
+> 
+> The default fall back for persistent memory handling remains.  Namely,
+> map it with the WT (write-through) cache-type and hope for the best.
+> 
+> arch_has_pmem_api() is updated to only indicate whether the arch
+> provides the proper helpers to meet the minimum "writes are visible
+> outside the cache hierarchy after memcpy_to_pmem() + wmb_pmem()".  Code
+> that cares whether wmb_pmem() actually flushes writes to pmem must now
+> call arch_has_wmb_pmem() directly.
+> 
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Toshi Kani <toshi.kani@hp.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> [hch: set ARCH_HAS_PMEM_API=n on X86_32]
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-On Sat, Aug 29, 2015 at 12:07:04AM +0300, Vladimir Davydov wrote:
-> We should probably think about introducing some kind of watermarks that
-> would trigger memcg reclaim, asynchronous or direct, on exceeding
-> them.
+Thanks for making this change!  It looks good.
 
-Yeah, for max + kmemcg case, we eventually should do something similar
-to the global case where we try to kick off async reclaim before we
-hit the hard wall.  Ultimately, I think punting reclaims to workqueue
-or return-path is a good idea anyway, so maybe it can be all part of
-the same mechanism.  Given that the high limit is the primary control
-mechanism on the default hierarchy, it should be fine for now.
+Reviewed-by: Toshi Kani <toshi.kani@hp.com>
 
-Thanks.
+I have one minor comment below:
 
--- 
-tejun
+> ---
+>  arch/x86/Kconfig            |    2 +-
+>  arch/x86/include/asm/io.h   |    2 --
+>  arch/x86/include/asm/pmem.h |    8 ++------
+>  drivers/acpi/nfit.c         |    2 +-
+>  drivers/nvdimm/pmem.c       |    2 +-
+>  include/linux/pmem.h        |   28 +++++++++++++++++-----------
+>  6 files changed, 22 insertions(+), 22 deletions(-)
+> 
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index 76c61154ed50..5912859df533 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -27,7 +27,7 @@ config X86
+>  	select ARCH_HAS_ELF_RANDOMIZE
+>  	select ARCH_HAS_FAST_MULTIPLIER
+>  	select ARCH_HAS_GCOV_PROFILE_ALL
+> -	select ARCH_HAS_PMEM_API
+> +	select ARCH_HAS_PMEM_API		if X86_64
+>  	select ARCH_HAS_SG_CHAIN
+>  	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+>  	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
+> diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
+> index d241fbd5c87b..83ec9b1d77cc 100644
+> --- a/arch/x86/include/asm/io.h
+> +++ b/arch/x86/include/asm/io.h
+> @@ -248,8 +248,6 @@ static inline void flush_write_buffers(void)
+>  #endif
+>  }
+>  
+> -#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
+
+Should it be better to do:
+
+#else	/* !CONFIG_ARCH_HAS_PMEM_API */
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WT
+
+so that you can remove all '#ifdef ARCH_MEMREMAP_PMEM' stuff?
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
