@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CA37B6B0253
-	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 12:48:22 -0400 (EDT)
-Received: by ykek5 with SMTP id k5so7310429yke.3
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 09:48:22 -0700 (PDT)
-Received: from mail-yk0-x233.google.com (mail-yk0-x233.google.com. [2607:f8b0:4002:c07::233])
-        by mx.google.com with ESMTPS id z188si4417397ykc.119.2015.08.28.09.48.21
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 530D26B0254
+	for <linux-mm@kvack.org>; Fri, 28 Aug 2015 12:49:36 -0400 (EDT)
+Received: by padfo6 with SMTP id fo6so29627282pad.0
+        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 09:49:36 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id d6si10830763pat.167.2015.08.28.09.49.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Aug 2015 09:48:21 -0700 (PDT)
-Received: by ykek5 with SMTP id k5so7310061yke.3
-        for <linux-mm@kvack.org>; Fri, 28 Aug 2015 09:48:21 -0700 (PDT)
-Date: Fri, 28 Aug 2015 12:48:19 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/4] memcg: punt high overage reclaim to
- return-to-userland path
-Message-ID: <20150828164819.GL26785@mtj.duckdns.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Aug 2015 09:49:35 -0700 (PDT)
+Date: Fri, 28 Aug 2015 19:49:18 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 4/4] memcg: always enable kmemcg on the default hierarchy
+Message-ID: <20150828164918.GJ9610@esperanza>
 References: <1440775530-18630-1-git-send-email-tj@kernel.org>
- <1440775530-18630-4-git-send-email-tj@kernel.org>
- <20150828163611.GI9610@esperanza>
+ <1440775530-18630-5-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20150828163611.GI9610@esperanza>
+In-Reply-To: <1440775530-18630-5-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
+To: Tejun Heo <tj@kernel.org>
 Cc: hannes@cmpxchg.org, mhocko@kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-Hello, Vladimir.
+On Fri, Aug 28, 2015 at 11:25:30AM -0400, Tejun Heo wrote:
+> On the default hierarchy, all memory consumption will be accounted
+> together and controlled by the same set of limits.  Always enable
+> kmemcg on the default hierarchy.
 
-On Fri, Aug 28, 2015 at 07:36:11PM +0300, Vladimir Davydov wrote:
-> > * try_charge() can be invoked from any in-kernel allocation site and
-> >   reclaim path may use considerable amount of stack.  This can lead to
-> >   stack overflows which are extremely difficult to reproduce.
+IMO we should introduce a boot time knob for disabling it, because kmem
+accounting is still not perfect, besides some users might prefer to go
+w/o it for performance reasons.
+
 > 
-> IMO this paragraph does not justify this patch at all, because one will
-> still invoke direct reclaim from try_charge() on hitting the hard limit.
-
-Ah... right, and we can't defer direct reclaim for hard limit.
-
-> > * If the allocation doesn't have __GFP_WAIT, direct reclaim is
-> >   skipped.  If a process performs only speculative allocations, it can
-> >   blow way past the high limit.  This is actually easily reproducible
-> >   by simply doing "find /".  VFS tries speculative !__GFP_WAIT
-> >   allocations first, so as long as there's memory which can be
-> >   consumed without blocking, it can keep allocating memory regardless
-> >   of the high limit.
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> ---
+>  mm/memcontrol.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
 > 
-> I think there shouldn't normally occur a lot of !__GFP_WAIT allocations
-> in a row - they should still alternate with normal __GFP_WAIT
-> allocations. Yes, that means we can breach memory.high threshold for a
-> short period of time, but it isn't a hard limit, so it looks perfectly
-> fine to me.
-> 
-> I tried to run `find /` over ext4 in a cgroup with memory.high set to
-> 32M and kmem accounting enabled. With such a setup memory.current never
-> got higher than 33152K, which is only 384K greater than the memory.high.
-> Which FS did you use?
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c94b686..8a5dd01 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4362,6 +4362,13 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+>  	if (ret)
+>  		return ret;
+>  
+> +	/* kmem is always accounted together on the default hierarchy */
+> +	if (cgroup_on_dfl(css->cgroup)) {
+> +		ret = memcg_activate_kmem(memcg, PAGE_COUNTER_MAX);
+> +		if (ret)
+> +			return ret;
+> +	}
+> +
 
-ext4.  Here, it goes onto happily consuming hundreds of megabytes with
-limit set at 32M.  We have quite a few places where !__GFP_WAIT
-allocations are performed speculatively in hot paths with fallback
-slow paths, so this is bound to happen somewhere.
+This is a wrong place for this. The kernel will panic on an attempt to
+create a sub memcg, because memcg_init_kmem already enables kmem
+accounting in this case. I guess we should add this hunk to
+memcg_propagate_kmem instead.
 
-Thanks.
-
--- 
-tejun
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
