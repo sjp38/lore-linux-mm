@@ -1,52 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AD196B0038
-	for <linux-mm@kvack.org>; Sat, 29 Aug 2015 03:37:40 -0400 (EDT)
-Received: by padhm10 with SMTP id hm10so29485621pad.3
-        for <linux-mm@kvack.org>; Sat, 29 Aug 2015 00:37:40 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id qv6si13997572pbb.35.2015.08.29.00.37.38
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 65AD26B0038
+	for <linux-mm@kvack.org>; Sat, 29 Aug 2015 03:59:24 -0400 (EDT)
+Received: by pabzx8 with SMTP id zx8so85650203pab.1
+        for <linux-mm@kvack.org>; Sat, 29 Aug 2015 00:59:24 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id lw2si14104628pdb.44.2015.08.29.00.59.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 29 Aug 2015 00:37:39 -0700 (PDT)
-From: Zhen Lei <thunder.leizhen@huawei.com>
-Subject: [PATCH 1/1] mm: fix type information of memoryless node
-Date: Sat, 29 Aug 2015 15:34:45 +0800
-Message-ID: <1440833685-32372-1-git-send-email-thunder.leizhen@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 29 Aug 2015 00:59:23 -0700 (PDT)
+Date: Sat, 29 Aug 2015 10:59:05 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 3/4] memcg: punt high overage reclaim to
+ return-to-userland path
+Message-ID: <20150829075905.GO9610@esperanza>
+References: <1440775530-18630-1-git-send-email-tj@kernel.org>
+ <1440775530-18630-4-git-send-email-tj@kernel.org>
+ <20150828163611.GI9610@esperanza>
+ <20150828164819.GL26785@mtj.duckdns.org>
+ <20150828203231.GL9610@esperanza>
+ <20150828204432.GA11089@htj.dyndns.org>
+ <20150828220632.GF11089@htj.dyndns.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150828220632.GF11089@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir
- Davydov <vdavydov@parallels.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
-Cc: Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong
- Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Zhen Lei <thunder.leizhen@huawei.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, hannes@cmpxchg.org, mhocko@kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>
 
-For a memoryless node, the output of get_pfn_range_for_nid are all zero.
-It will display mem from 0 to -1.
+On Fri, Aug 28, 2015 at 06:06:32PM -0400, Tejun Heo wrote:
+> On Fri, Aug 28, 2015 at 04:44:32PM -0400, Tejun Heo wrote:
+> > Ah, cool, so it was a bug from slub.  Punting to return path still has
+> > some niceties but if we can't consistently get rid of stack
+> > consumption it's not that attractive.  Let's revisit it later together
+> > with hard limit reclaim.
+> 
+> So, I can't check right now but I'm pretty sure I was using SLAB on my
+> test config, so this issue may exist there too.
 
-Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
----
- mm/page_alloc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Yeah, SLAB is broken too. It was accidentally broken by commit
+4167e9b2cf10 ("mm: remove GFP_THISNODE"), which among other things made
+SLAB filter out __GFP_WAIT from gfp flags when probing a NUMA node. I'll
+take a look what we can do with that.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5b5240b..5839f31 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5455,7 +5455,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
- 	pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
--		(u64)start_pfn << PAGE_SHIFT, ((u64)end_pfn << PAGE_SHIFT) - 1);
-+		(u64)start_pfn << PAGE_SHIFT,
-+		end_pfn ? ((u64)end_pfn << PAGE_SHIFT) - 1 : 0);
- #endif
- 	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
- 				  zones_size, zholes_size);
---
-2.5.0
-
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
