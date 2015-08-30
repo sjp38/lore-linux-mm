@@ -1,55 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id BEB556B0038
-	for <linux-mm@kvack.org>; Sat, 29 Aug 2015 09:57:16 -0400 (EDT)
-Received: by wicfv10 with SMTP id fv10so27702000wic.1
-        for <linux-mm@kvack.org>; Sat, 29 Aug 2015 06:57:16 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id ge8si11168074wic.115.2015.08.29.06.57.14
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E8846B0254
+	for <linux-mm@kvack.org>; Sun, 30 Aug 2015 11:52:18 -0400 (EDT)
+Received: by pacdd16 with SMTP id dd16so112127122pac.2
+        for <linux-mm@kvack.org>; Sun, 30 Aug 2015 08:52:17 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id n9si20045851pdr.22.2015.08.30.08.52.16
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Aug 2015 06:57:15 -0700 (PDT)
-Date: Sat, 29 Aug 2015 15:57:14 +0200
-From: "hch@lst.de" <hch@lst.de>
-Subject: Re: [PATCH v2 5/9] x86, pmem: push fallback handling to arch code
-Message-ID: <20150829135714.GC13103@lst.de>
-References: <20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com> <20150826012751.8851.78564.stgit@dwillia2-desk3.amr.corp.intel.com> <20150826124124.GA7613@lst.de> <1440624859.31365.17.camel@intel.com> <1440798084.14237.106.camel@hp.com> <CAPcyv4iaado-ARQ4z=4jCYH3n7x5+pNsbDjd9XkWyiu=aFyBWA@mail.gmail.com> <1440798506.14237.107.camel@hp.com> <1440821097.32027.2.camel@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 30 Aug 2015 08:52:17 -0700 (PDT)
+Date: Sun, 30 Aug 2015 18:52:01 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 3/4] memcg: punt high overage reclaim to
+ return-to-userland path
+Message-ID: <20150830155201.GQ9610@esperanza>
+References: <1440775530-18630-1-git-send-email-tj@kernel.org>
+ <1440775530-18630-4-git-send-email-tj@kernel.org>
+ <20150828163611.GI9610@esperanza>
+ <20150828164819.GL26785@mtj.duckdns.org>
+ <20150828203231.GL9610@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1440821097.32027.2.camel@intel.com>
+In-Reply-To: <20150828203231.GL9610@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Williams, Dan J" <dan.j.williams@intel.com>
-Cc: "toshi.kani@hp.com" <toshi.kani@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mingo@kernel.org" <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "hch@lst.de" <hch@lst.de>, "hpa@zytor.com" <hpa@zytor.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "mingo@redhat.com" <mingo@redhat.com>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "boaz@plexistor.com" <boaz@plexistor.com>, "david@fromorbit.com" <david@fromorbit.com>
+To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: hannes@cmpxchg.org, mhocko@kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>
 
-On Sat, Aug 29, 2015 at 04:04:58AM +0000, Williams, Dan J wrote:
-> On Fri, 2015-08-28 at 15:48 -0600, Toshi Kani wrote:
-> > On Fri, 2015-08-28 at 14:47 -0700, Dan Williams wrote:
-> > > On Fri, Aug 28, 2015 at 2:41 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> > > > On Wed, 2015-08-26 at 21:34 +0000, Williams, Dan J wrote:
-> > > [..]
-> > > > > -#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
-> > > > 
-> > > > Should it be better to do:
-> > > > 
-> > > > #else   /* !CONFIG_ARCH_HAS_PMEM_API */
-> > > > #define ARCH_MEMREMAP_PMEM MEMREMAP_WT
-> > > > 
-> > > > so that you can remove all '#ifdef ARCH_MEMREMAP_PMEM' stuff?
-> > > 
-> > > Yeah, that seems like a nice incremental cleanup for memremap_pmem()
-> > > to just unconditionally use ARCH_MEMREMAP_PMEM, feel free to send it
-> > > along.
-> > 
-> > OK. Will do.
-> > 
-> 
-> Here's the re-worked patch with Toshi's fixes folded in:
+On Fri, Aug 28, 2015 at 11:32:31PM +0300, Vladimir Davydov wrote:
+...
+> From: Vladimir Davydov <vdavydov@parallels.com>
+> Date: Fri, 28 Aug 2015 23:17:19 +0300
+> Subject: [PATCH] mm/slub: don't bypass memcg reclaim for high-order page
+>  allocation
 
-I like this in principle, but we'll have to be carefull now if we
-want to drop the fallbacks in mremap, as we will have to shift it into
-the pmem driver then.
+Please ignore this patch. I'll rework and resend.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
