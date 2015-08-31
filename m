@@ -1,54 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C1D6F6B0256
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 10:46:07 -0400 (EDT)
-Received: by ykap84 with SMTP id p84so4197518yka.3
-        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 07:46:07 -0700 (PDT)
-Received: from mail-yk0-x229.google.com (mail-yk0-x229.google.com. [2607:f8b0:4002:c07::229])
-        by mx.google.com with ESMTPS id d133si9473596yka.150.2015.08.31.07.46.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Aug 2015 07:46:07 -0700 (PDT)
-Received: by ykax124 with SMTP id x124so4364254yka.0
-        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 07:46:06 -0700 (PDT)
-Date: Mon, 31 Aug 2015 10:46:04 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
- enabled
-Message-ID: <20150831144604.GD2271@mtj.duckdns.org>
-References: <cover.1440960578.git.vdavydov@parallels.com>
- <20150831132414.GG29723@dhcp22.suse.cz>
- <20150831142049.GV9610@esperanza>
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C8AC46B0256
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 10:55:44 -0400 (EDT)
+Received: by igboj15 with SMTP id oj15so28695903igb.1
+        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 07:55:44 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0133.hostedemail.com. [216.40.44.133])
+        by mx.google.com with ESMTP id i188si11977889ioi.194.2015.08.31.07.55.43
+        for <linux-mm@kvack.org>;
+        Mon, 31 Aug 2015 07:55:43 -0700 (PDT)
+Date: Mon, 31 Aug 2015 10:55:38 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 1/3] mm, compaction: export tracepoints status strings
+ to userspace
+Message-ID: <20150831105538.2cf4b3ae@gandalf.local.home>
+In-Reply-To: <1440689044-2922-1-git-send-email-vbabka@suse.cz>
+References: <1440689044-2922-1-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150831142049.GV9610@esperanza>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
 
-Hello, Vladimir.
+On Thu, 27 Aug 2015 17:24:02 +0200
+Vlastimil Babka <vbabka@suse.cz> wrote:
 
-On Mon, Aug 31, 2015 at 05:20:49PM +0300, Vladimir Davydov wrote:
-...
-> That being said, this is the fix at the right layer.
+> Some compaction tracepoints convert the integer return values to strings using
+> the compaction_status_string array. This works for in-kernel printing, but not
+> userspace trace printing of raw captured trace such as via trace-cmd report.
+> 
+> This patch converts the private array to appropriate tracepoint macros that
+> result in proper userspace support.
+> 
+> trace-cmd output before:
+> transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
+>   zone=ffffffff81815d7a order=9 ret=
+> 
+> after:
+> transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
+>   zone=ffffffff81815d7a order=9 ret=partial
+> 
 
-While this *might* be a necessary workaround for the hard limit case
-right now, this is by no means the fix at the right layer.  The
-expectation is that mm keeps a reasonable amount of memory available
-for allocations which can't block.  These allocations may fail from
-time to time depending on luck and under extreme memory pressure but
-the caller should be able to depend on it as a speculative allocation
-mechanism which doesn't fail willy-nilly.
+Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
 
-Hardlimit breaking GFP_NOWAIT behavior is a bug on memcg side, not
-slab or slub.
+-- Steve
 
-Thanks.
-
--- 
-tejun
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Steven Rostedt <rostedt@goodmis.org>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: David Rientjes <rientjes@google.com>
+> ---
+>  include/trace/events/compaction.h | 33 +++++++++++++++++++++++++++++++--
+>  mm/compaction.c                   | 11 -----------
+>  2 files changed, 31 insertions(+), 13 deletions(-)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
