@@ -1,45 +1,268 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3839A6B0254
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 09:49:06 -0400 (EDT)
-Received: by wicjd9 with SMTP id jd9so860604wic.1
-        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 06:49:05 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id s3si21092490wis.64.2015.08.31.06.49.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Aug 2015 06:49:04 -0700 (PDT)
-Date: Mon, 31 Aug 2015 15:48:54 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC PATCH kernel vfio] mm: vfio: Move pages out of CMA before
- pinning
-Message-ID: <20150831134854.GN19282@twins.programming.kicks-ass.net>
-References: <1438762094-17747-1-git-send-email-aik@ozlabs.ru>
- <55D1910C.7070006@suse.cz>
- <55D1A525.5090706@ozlabs.ru>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55D1A525.5090706@ozlabs.ru>
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FCB96B0254
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 10:20:23 -0400 (EDT)
+Received: by qkfs65 with SMTP id s65so3880805qkf.2
+        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 07:20:23 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com ([23.79.238.175])
+        by mx.google.com with ESMTP id 76si17173183qhg.10.2015.08.31.07.20.21
+        for <linux-mm@kvack.org>;
+        Mon, 31 Aug 2015 07:20:22 -0700 (PDT)
+From: Eric B Munson <emunson@akamai.com>
+Subject: [PATCH v2] mlock.2: mlock2.2: Add entry to for new mlock2 syscall
+Date: Mon, 31 Aug 2015 10:20:20 -0400
+Message-Id: <1441030820-2960-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Kardashevskiy <aik@ozlabs.ru>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Alexander Duyck <alexander.h.duyck@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Gibson <david@gibson.dropbear.id.au>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <js1304@gmail.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Paul Mackerras <paulus@samba.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, Alex Williamson <alex.williamson@redhat.com>, Alexander Graf <agraf@suse.de>, Paolo Bonzini <pbonzini@redhat.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>
+To: mtk.manpages@gmail.com
+Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, linux-man@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 17, 2015 at 07:11:01PM +1000, Alexey Kardashevskiy wrote:
-> >OK such conversation should probably start by mentioning the VM_PINNED
-> >effort by Peter Zijlstra: https://lkml.org/lkml/2014/5/26/345
-> >
-> >It's more general approach to dealing with pinned pages, and moving them
-> >out of CMA area (and compacting them in general) prior pinning is one of
-> >the things that should be done within that framework.
-> 
-> 
-> And I assume these patches did not go anywhere, right?...
+Update the mlock.2 man page with information on mlock2() and the new
+mlockall() flag MCL_ONFAULT.
 
-I got lost in the IB code :/
+Signed-off-by: Eric B Munson <emunson@akamai.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: linux-man@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+---
+ man2/mlock.2  | 109 +++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ man2/mlock2.2 |   1 +
+ 2 files changed, 97 insertions(+), 13 deletions(-)
+ create mode 100644 man2/mlock2.2
 
-Its on the TODO pile somewhere
+diff --git a/man2/mlock.2 b/man2/mlock.2
+index 79c544d..8c88dc4 100644
+--- a/man2/mlock.2
++++ b/man2/mlock.2
+@@ -23,21 +23,23 @@
+ .\" <http://www.gnu.org/licenses/>.
+ .\" %%%LICENSE_END
+ .\"
+-.TH MLOCK 2 2015-07-23 "Linux" "Linux Programmer's Manual"
++.TH MLOCK 2 2015-08-28 "Linux" "Linux Programmer's Manual"
+ .SH NAME
+-mlock, munlock, mlockall, munlockall \- lock and unlock memory
++mlock, mlock2, munlock, mlockall, munlockall \- lock and unlock memory
+ .SH SYNOPSIS
+ .nf
+ .B #include <sys/mman.h>
+ .sp
+ .BI "int mlock(const void *" addr ", size_t " len );
++.BI "int mlock2(const void *" addr ", size_t " len ", int " flags );
+ .BI "int munlock(const void *" addr ", size_t " len );
+ .sp
+ .BI "int mlockall(int " flags );
+ .B int munlockall(void);
+ .fi
+ .SH DESCRIPTION
+-.BR mlock ()
++.BR mlock (),
++.BR mlock2 (),
+ and
+ .BR mlockall ()
+ respectively lock part or all of the calling process's virtual address
+@@ -51,7 +53,7 @@ respectively unlocking part or all of the calling process's virtual
+ address space, so that pages in the specified virtual address range may
+ once more to be swapped out if required by the kernel memory manager.
+ Memory locking and unlocking are performed in units of whole pages.
+-.SS mlock() and munlock()
++.SS mlock(), mlock2(), and munlock()
+ .BR mlock ()
+ locks pages in the address range starting at
+ .I addr
+@@ -62,6 +64,34 @@ All pages that contain a part of the specified address range are
+ guaranteed to be resident in RAM when the call returns successfully;
+ the pages are guaranteed to stay in RAM until later unlocked.
+ 
++.BR mlock2 ()
++also locks pages in the specified range starting at
++.I addr
++and continuing for
++.I len
++bytes.
++However, the state of the pages contained in that range after the call
++returns successfully will depend on the value in the
++.I flags
++argument.
++
++The
++.I flags
++argument can be either 0 or the following constant:
++.TP 1.2i
++.B MLOCK_ONFAULT
++Lock pages that are currently resident and mark the entire range to have
++pages locked when they are populated by the page fault.
++.PP
++
++If
++.I flags
++is 0,
++.BR mlock2 ()
++will function exactly as
++.BR mlock ()
++would.
++
+ .BR munlock ()
+ unlocks pages in the address range starting at
+ .I addr
+@@ -93,9 +123,33 @@ the process.
+ .B MCL_FUTURE
+ Lock all pages which will become mapped into the address space of the
+ process in the future.
+-These could be for instance new pages required
++These could be, for instance, new pages required
+ by a growing heap and stack as well as new memory-mapped files or
+ shared memory regions.
++.TP
++.BR MCL_ONFAULT " (since Linux 4.3)"
++Used together with
++.BR MCL_CURRENT ,
++.BR MCL_FUTURE ,
++or both.  Mark all current (with
++.BR MCL_CURRENT )
++or future (with
++.BR MCL_FUTURE )
++mappings to lock pages when they are faulted in.  When used with
++.BR MCL_CURRENT ,
++all present pages are locked, but
++.BR mlockall ()
++will not fault in non-present pages.  When used with
++.BR MCL_FUTURE ,
++all future mappings will be marked to lock pages when they are faulted
++in, but they will not be populated by the lock when the mapping is
++created.
++.B MCL_ONFAULT
++must be used with either
++.B MCL_CURRENT
++or
++.B MCL_FUTURE
++or both.
+ .PP
+ If
+ .B MCL_FUTURE
+@@ -148,7 +202,8 @@ to perform the requested operation.
+ .\"SVr4 documents an additional EAGAIN error code.
+ .LP
+ For
+-.BR mlock ()
++.BR mlock (),
++.BR mlock2 (),
+ and
+ .BR munlock ():
+ .TP
+@@ -157,9 +212,9 @@ Some or all of the specified address range could not be locked.
+ .TP
+ .B EINVAL
+ The result of the addition
+-.IR start + len
++.IR addr + len
+ was less than
+-.IR start
++.IR addr
+ (e.g., the addition may have resulted in an overflow).
+ .TP
+ .B EINVAL
+@@ -181,12 +236,23 @@ mapping would result in three mappings:
+ two locked mappings at each end and an unlocked mapping in the middle.)
+ .LP
+ For
+-.BR mlockall ():
++.BR mlock2 ():
+ .TP
+ .B EINVAL
+ Unknown \fIflags\fP were specified.
+ .LP
+ For
++.BR mlockall ():
++.TP
++.B EINVAL
++Unknown \fIflags\fP were specified or
++.B MCL_ONFAULT
++was specified without either
++.B MCL_FUTURE
++or
++.BR MCL_CURRENT .
++.LP
++For
+ .BR munlockall ():
+ .TP
+ .B EPERM
+@@ -259,9 +325,11 @@ or when the process terminates.
+ The
+ .BR mlockall ()
+ .B MCL_FUTURE
+-setting is not inherited by a child created via
++and
++.B MCL_FUTURE | MCL_ONFAULT
++settings are not inherited by a child created via
+ .BR fork (2)
+-and is cleared during an
++and are cleared during an
+ .BR execve (2).
+ 
+ The memory lock on an address range is automatically removed
+@@ -270,7 +338,8 @@ if the address range is unmapped via
+ 
+ Memory locks do not stack, that is, pages which have been locked several times
+ by calls to
+-.BR mlock ()
++.BR mlock (),
++.BR mlock2 (),
+ or
+ .BR mlockall ()
+ will be unlocked by a single call to
+@@ -280,9 +349,19 @@ for the corresponding range or by
+ Pages which are mapped to several locations or by several processes stay
+ locked into RAM as long as they are locked at least at one location or by
+ at least one process.
++
++If a call to
++.BR mlockall ()
++which uses the
++.B MCL_FUTURE
++flag is followed by another call that does not specify this flag, the
++changes made by the
++.B MCL_FUTURE
++call will be lost.
+ .SS Linux notes
+ Under Linux,
+-.BR mlock ()
++.BR mlock (),
++.BR mlock2 (),
+ and
+ .BR munlock ()
+ automatically round
+@@ -300,6 +379,7 @@ file shows how many kilobytes of memory the process with ID
+ .I PID
+ has locked using
+ .BR mlock (),
++.BR mlock2 (),
+ .BR mlockall (),
+ and
+ .BR mmap (2)
+@@ -342,6 +422,9 @@ resource limit is encountered.
+ .\" http://marc.theaimsgroup.com/?l=linux-kernel&m=113801392825023&w=2
+ .\" "Rationale for RLIMIT_MEMLOCK"
+ .\" 23 Jan 2006
++.SH VERSIONS
++.BR mlock2 (2)
++is available since Linux 4.3.
+ .SH SEE ALSO
+ .BR mmap (2),
+ .BR setrlimit (2),
+diff --git a/man2/mlock2.2 b/man2/mlock2.2
+new file mode 100644
+index 0000000..5e5b3c7
+--- /dev/null
++++ b/man2/mlock2.2
+@@ -0,0 +1 @@
++.so man2/mlock.2
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
