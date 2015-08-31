@@ -1,59 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 2686B6B0254
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 11:13:08 -0400 (EDT)
-Received: by igui7 with SMTP id i7so56297462igu.0
-        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 08:13:07 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0225.hostedemail.com. [216.40.44.225])
-        by mx.google.com with ESMTP id ph5si9328271igb.81.2015.08.31.08.13.07
-        for <linux-mm@kvack.org>;
-        Mon, 31 Aug 2015 08:13:07 -0700 (PDT)
-Date: Mon, 31 Aug 2015 11:13:04 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 2/3] mm, compaction: export tracepoints zone names to
- userspace
-Message-ID: <20150831111304.3888a8f6@gandalf.local.home>
-In-Reply-To: <55E46C8E.8070906@suse.cz>
-References: <1440689044-2922-1-git-send-email-vbabka@suse.cz>
-	<1440689044-2922-2-git-send-email-vbabka@suse.cz>
-	<20150831105834.34a5e69e@gandalf.local.home>
-	<55E46C8E.8070906@suse.cz>
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 973446B0256
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 11:18:33 -0400 (EDT)
+Received: by lbvd4 with SMTP id d4so26207217lbv.3
+        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 08:18:33 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id kw7si13373210lac.136.2015.08.31.08.18.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Aug 2015 08:18:32 -0700 (PDT)
+Date: Mon, 31 Aug 2015 18:18:14 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
+ enabled
+Message-ID: <20150831151814.GC13814@esperanza>
+References: <cover.1440960578.git.vdavydov@parallels.com>
+ <20150831132414.GG29723@dhcp22.suse.cz>
+ <20150831134335.GB2271@mtj.duckdns.org>
+ <20150831143007.GA13814@esperanza>
+ <20150831143939.GC2271@mtj.duckdns.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150831143939.GC2271@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 31 Aug 2015 17:02:38 +0200
-Vlastimil Babka <vbabka@suse.cz> wrote:
-
-
-> >> +#define ZONE_TYPE						\
-> >> +	IFDEF_ZONE_DMA(		EM (ZONE_DMA,	 "DMA"))	\
-> >> +	IFDEF_ZONE_DMA32(	EM (ZONE_DMA32,	 "DMA32"))	\
-> >> +				EM (ZONE_NORMAL, "Normal")	\
-> >> +	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
-> >> +				EMe(ZONE_MOVABLE,"Movable")
-> >> +
-> >
-> > Hmm, have you tried to compile this with CONFIG_ZONE_HIGHMEM disabled,
-> > and CONFIG_ZONE_DMA and/or CONFIG_ZONE_DMA32 enabled?
+On Mon, Aug 31, 2015 at 10:39:39AM -0400, Tejun Heo wrote:
+> On Mon, Aug 31, 2015 at 05:30:08PM +0300, Vladimir Davydov wrote:
+> > slab/slub can issue alloc_pages() any time with any flags they want and
+> > it won't be accounted to memcg, because kmem is accounted at slab/slub
+> > layer, not in buddy.
 > 
-> Yep, that's standard x86_64 situation (highmem disabled, dma+dma32 enabled).
-> 
-> > The EMe() macro must come last, as it doesn't have the ending comma and
-> > the __print_symbolic() can fail to compile due to it.
-> 
-> Thanks to ZONE_MOVABLE being unconditional, EMe(ZONE_MOVABLE...) is 
-> always last. Otherwise the macros would get even more ugly...
+> Hmmm?  I meant the eventual calling into try_charge w/ GFP_NOWAIT.
+> Speculative usage of GFP_NOWAIT is bound to increase and we don't want
+> to put on extra restrictions from memcg side. 
 
-Ah! My mistake was to see where the end parenthesis of
-IFDEF_ZONE_HIGHMEM() laid. It looked to me that it encompassed
-ZONE_MOVABLE. But obviously it does not.
+We already put restrictions on slab/slub from memcg side, because kmem
+accounting is a part of slab/slub. They have to cooperate in order to
+get things working. If slab/slub wants to make a speculative allocation
+for some reason, it should just put memcg_charge out of this speculative
+alloc section. This is what this patch set does.
 
--- Steve
+We have to be cautious about placing memcg_charge in slab/slub. To
+understand why, consider SLAB case, which first tries to allocate from
+all nodes in the order of preference w/o __GFP_WAIT and only if it fails
+falls back on an allocation from any node w/ __GFP_WAIT. This is its
+internal algorithm. If we blindly put memcg_charge to alloc_slab method,
+then, when we are near the memcg limit, we will go over all NUMA nodes
+in vain, then finally fall back to __GFP_WAIT allocation, which will get
+a slab from a random node. Not only we do more work than necessary due
+to walking over all NUMA nodes for nothing, but we also break SLAB
+internal logic! And you just can't fix it in memcg, because memcg knows
+nothing about the internal logic of SLAB, how it handles NUMA nodes.
+
+SLUB has a different problem. It tries to avoid high-order allocations
+if there is a risk of invoking costly memory compactor. It has nothing
+to do with memcg, because memcg does not care if the charge is for a
+high order page or not.
+
+Thanks,
+Vladimir
+
+> For memory.high,
+> punting to the return path is a pretty stright-forward solution which
+> should make the problem go away almost entirely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
