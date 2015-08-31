@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BA586B0256
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 11:33:01 -0400 (EDT)
-Received: by qkct7 with SMTP id t7so1788652qkc.1
-        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 08:33:01 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0031.hostedemail.com. [216.40.44.31])
-        by mx.google.com with ESMTP id p28si17428756qkh.92.2015.08.31.08.32.59
-        for <linux-mm@kvack.org>;
-        Mon, 31 Aug 2015 08:33:00 -0700 (PDT)
-Date: Mon, 31 Aug 2015 11:32:57 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 2/3] mm, compaction: export tracepoints zone names to
- userspace
-Message-ID: <20150831113257.54d7ca4b@gandalf.local.home>
-In-Reply-To: <1440689044-2922-2-git-send-email-vbabka@suse.cz>
-References: <1440689044-2922-1-git-send-email-vbabka@suse.cz>
-	<1440689044-2922-2-git-send-email-vbabka@suse.cz>
+Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A7C4E6B0254
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 11:47:59 -0400 (EDT)
+Received: by qkbp67 with SMTP id p67so2473684qkb.3
+        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 08:47:59 -0700 (PDT)
+Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
+        by mx.google.com with ESMTPS id u79si8997518qgd.88.2015.08.31.08.47.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Aug 2015 08:47:58 -0700 (PDT)
+Received: by qkct7 with SMTP id t7so2560766qkc.1
+        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 08:47:58 -0700 (PDT)
+Date: Mon, 31 Aug 2015 11:47:56 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
+ enabled
+Message-ID: <20150831154756.GE2271@mtj.duckdns.org>
+References: <cover.1440960578.git.vdavydov@parallels.com>
+ <20150831132414.GG29723@dhcp22.suse.cz>
+ <20150831134335.GB2271@mtj.duckdns.org>
+ <20150831143007.GA13814@esperanza>
+ <20150831143939.GC2271@mtj.duckdns.org>
+ <20150831151814.GC13814@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150831151814.GC13814@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 27 Aug 2015 17:24:03 +0200
-Vlastimil Babka <vbabka@suse.cz> wrote:
+Hello,
 
-> Some compaction tracepoints use zone->name to print which zone is being
-> compacted. This works for in-kernel printing, but not userspace trace printing
-> of raw captured trace such as via trace-cmd report.
+On Mon, Aug 31, 2015 at 06:18:14PM +0300, Vladimir Davydov wrote:
+> We have to be cautious about placing memcg_charge in slab/slub. To
+> understand why, consider SLAB case, which first tries to allocate from
+> all nodes in the order of preference w/o __GFP_WAIT and only if it fails
+> falls back on an allocation from any node w/ __GFP_WAIT. This is its
+> internal algorithm. If we blindly put memcg_charge to alloc_slab method,
+> then, when we are near the memcg limit, we will go over all NUMA nodes
+> in vain, then finally fall back to __GFP_WAIT allocation, which will get
+> a slab from a random node. Not only we do more work than necessary due
+> to walking over all NUMA nodes for nothing, but we also break SLAB
+> internal logic! And you just can't fix it in memcg, because memcg knows
+> nothing about the internal logic of SLAB, how it handles NUMA nodes.
 > 
-> This patch uses zone_idx() instead of zone->name as the raw value, and when
-> printing, converts the zone_type to string using the appropriate EM() macros
-> and some ugly tricks to overcome the problem that half the values depend on
-> CONFIG_ options and one does not simply use #ifdef inside of #define.
-> 
-> trace-cmd output before:
-> transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
-> zone=ffffffff81815d7a order=9 ret=partial
-> 
-> after:
-> transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
-> zone=Normal   order=9 ret=partial
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
+> SLUB has a different problem. It tries to avoid high-order allocations
+> if there is a risk of invoking costly memory compactor. It has nothing
+> to do with memcg, because memcg does not care if the charge is for a
+> high order page or not.
 
-Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
+Maybe I'm missing something but aren't both issues caused by memcg
+failing to provide headroom for NOWAIT allocations when the
+consumption gets close to the max limit?  Regardless of the specific
+usage, !__GFP_WAIT means "give me memory if it can be spared w/o
+inducing direct time-consuming maintenance work" and the contract
+around it is that such requests will mostly succeed under nominal
+conditions.  Also, slab/slub might not stay as the only user of
+try_charge().  I still think solving this from memcg side is the right
+direction.
 
--- Steve
+Thanks.
 
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: David Rientjes <rientjes@google.com>
-> ---
->  include/trace/events/compaction.h | 38 ++++++++++++++++++++++++++++++++------
->  1 file changed, 32 insertions(+), 6 deletions(-)
-> 
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
