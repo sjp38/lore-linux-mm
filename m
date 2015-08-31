@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C8AC46B0256
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 10:55:44 -0400 (EDT)
-Received: by igboj15 with SMTP id oj15so28695903igb.1
-        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 07:55:44 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0133.hostedemail.com. [216.40.44.133])
-        by mx.google.com with ESMTP id i188si11977889ioi.194.2015.08.31.07.55.43
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 6134B6B0257
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 10:58:37 -0400 (EDT)
+Received: by ioeu67 with SMTP id u67so18704783ioe.1
+        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 07:58:37 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0224.hostedemail.com. [216.40.44.224])
+        by mx.google.com with ESMTP id kl5si9319149igb.2.2015.08.31.07.58.36
         for <linux-mm@kvack.org>;
-        Mon, 31 Aug 2015 07:55:43 -0700 (PDT)
-Date: Mon, 31 Aug 2015 10:55:38 -0400
+        Mon, 31 Aug 2015 07:58:36 -0700 (PDT)
+Date: Mon, 31 Aug 2015 10:58:34 -0400
 From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 1/3] mm, compaction: export tracepoints status strings
- to userspace
-Message-ID: <20150831105538.2cf4b3ae@gandalf.local.home>
-In-Reply-To: <1440689044-2922-1-git-send-email-vbabka@suse.cz>
+Subject: Re: [PATCH 2/3] mm, compaction: export tracepoints zone names to
+ userspace
+Message-ID: <20150831105834.34a5e69e@gandalf.local.home>
+In-Reply-To: <1440689044-2922-2-git-send-email-vbabka@suse.cz>
 References: <1440689044-2922-1-git-send-email-vbabka@suse.cz>
+	<1440689044-2922-2-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -23,29 +24,26 @@ List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
 
-On Thu, 27 Aug 2015 17:24:02 +0200
+On Thu, 27 Aug 2015 17:24:03 +0200
 Vlastimil Babka <vbabka@suse.cz> wrote:
 
-> Some compaction tracepoints convert the integer return values to strings using
-> the compaction_status_string array. This works for in-kernel printing, but not
-> userspace trace printing of raw captured trace such as via trace-cmd report.
+> Some compaction tracepoints use zone->name to print which zone is being
+> compacted. This works for in-kernel printing, but not userspace trace printing
+> of raw captured trace such as via trace-cmd report.
 > 
-> This patch converts the private array to appropriate tracepoint macros that
-> result in proper userspace support.
+> This patch uses zone_idx() instead of zone->name as the raw value, and when
+> printing, converts the zone_type to string using the appropriate EM() macros
+> and some ugly tricks to overcome the problem that half the values depend on
+> CONFIG_ options and one does not simply use #ifdef inside of #define.
 > 
 > trace-cmd output before:
 > transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
->   zone=ffffffff81815d7a order=9 ret=
+> zone=ffffffff81815d7a order=9 ret=partial
 > 
 > after:
 > transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
->   zone=ffffffff81815d7a order=9 ret=partial
+> zone=Normal   order=9 ret=partial
 > 
-
-Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
-
--- Steve
-
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > Cc: Steven Rostedt <rostedt@goodmis.org>
@@ -53,10 +51,56 @@ Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
 > Cc: Mel Gorman <mgorman@suse.de>
 > Cc: David Rientjes <rientjes@google.com>
 > ---
->  include/trace/events/compaction.h | 33 +++++++++++++++++++++++++++++++--
->  mm/compaction.c                   | 11 -----------
->  2 files changed, 31 insertions(+), 13 deletions(-)
+>  include/trace/events/compaction.h | 38 ++++++++++++++++++++++++++++++++------
+>  1 file changed, 32 insertions(+), 6 deletions(-)
 > 
+> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+> index 1275a55..8daa8fa 100644
+> --- a/include/trace/events/compaction.h
+> +++ b/include/trace/events/compaction.h
+> @@ -18,6 +18,31 @@
+>  	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
+>  	EMe(COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")
+>  
+> +#ifdef CONFIG_ZONE_DMA
+> +#define IFDEF_ZONE_DMA(X) X
+> +#else
+> +#define IFDEF_ZONE_DMA(X)
+> +#endif
+> +
+> +#ifdef CONFIG_ZONE_DMA32
+> +#define IFDEF_ZONE_DMA32(X) X
+> +#else
+> +#define IFDEF_ZONE_DMA32(X)
+> +#endif
+> +
+> +#ifdef CONFIG_ZONE_HIGHMEM_
+> +#define IFDEF_ZONE_HIGHMEM(X) X
+> +#else
+> +#define IFDEF_ZONE_HIGHMEM(X)
+> +#endif
+> +
+> +#define ZONE_TYPE						\
+> +	IFDEF_ZONE_DMA(		EM (ZONE_DMA,	 "DMA"))	\
+> +	IFDEF_ZONE_DMA32(	EM (ZONE_DMA32,	 "DMA32"))	\
+> +				EM (ZONE_NORMAL, "Normal")	\
+> +	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
+> +				EMe(ZONE_MOVABLE,"Movable")
+> +
+
+Hmm, have you tried to compile this with CONFIG_ZONE_HIGHMEM disabled,
+and CONFIG_ZONE_DMA and/or CONFIG_ZONE_DMA32 enabled?
+
+The EMe() macro must come last, as it doesn't have the ending comma and
+the __print_symbolic() can fail to compile due to it.
+
+-- Steve
+
+
+>  /*
+>   * First define the enums in the above macros to be exported to userspace
+>   * via TRACE_DEFINE_ENUM().
+> @@ -28,6 +53,7 @@
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
