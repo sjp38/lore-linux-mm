@@ -1,63 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 1720B6B0254
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 18:54:26 -0400 (EDT)
-Received: by igui7 with SMTP id i7so66621778igu.1
-        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 15:54:25 -0700 (PDT)
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 334616B0254
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 18:58:24 -0400 (EDT)
+Received: by iod35 with SMTP id 35so45952491iod.3
+        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 15:58:24 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y22si5983254ioi.38.2015.08.31.15.54.25
+        by mx.google.com with ESMTPS id l2si650623igu.11.2015.08.31.15.58.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Aug 2015 15:54:25 -0700 (PDT)
-Date: Mon, 31 Aug 2015 15:54:23 -0700
+        Mon, 31 Aug 2015 15:58:23 -0700 (PDT)
+Date: Mon, 31 Aug 2015 15:58:22 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] memcg: always enable kmemcg on the default
- hierarchy
-Message-Id: <20150831155423.41fd128501c0e75ab1981a65@linux-foundation.org>
-In-Reply-To: <20150828220237.GE11089@htj.dyndns.org>
-References: <20150828220158.GD11089@htj.dyndns.org>
-	<20150828220237.GE11089@htj.dyndns.org>
+Subject: Re: [PATCH v1] mm/memblock: Add memblock_first_region_size() helper
+Message-Id: <20150831155822.20d35ce3c5101c940c4d0365@linux-foundation.org>
+In-Reply-To: <1440703185-16072-1-git-send-email-kuleshovmail@gmail.com>
+References: <1440703185-16072-1-git-send-email-kuleshovmail@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
+To: Alexander Kuleshov <kuleshovmail@gmail.com>
+Cc: Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Xishi Qiu <qiuxishi@huawei.com>, Baoquan He <bhe@redhat.com>, Robin Holt <holt@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 28 Aug 2015 18:02:37 -0400 Tejun Heo <tj@kernel.org> wrote:
+On Fri, 28 Aug 2015 01:19:45 +0600 Alexander Kuleshov <kuleshovmail@gmail.com> wrote:
 
-> On the default hierarchy, all memory consumption will be accounted
-> together and controlled by the same set of limits.  Enable kmemcg on
-> the default hierarchy by default.  Boot parameter "disable_kmemcg" can
-> be specified to turn it off.
+> Some architectures (like s390, microblaze and etc...) require size
+> of the first memory region. This patch provides new memblock_first_region_size()
+> helper for this case.
 > 
 > ...
 >
->  mm/memcontrol.c |   43 ++++++++++++++++++++++++++++++-------------
->  1 file changed, 30 insertions(+), 13 deletions(-)
-
-Some documentation updates will be needed?
- 
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -346,6 +346,17 @@ EXPORT_SYMBOL(tcp_proto_cgroup);
->  #endif
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -1463,6 +1463,11 @@ phys_addr_t __init_memblock memblock_end_of_DRAM(void)
+>  	return (memblock.memory.regions[idx].base + memblock.memory.regions[idx].size);
+>  }
 >  
->  #ifdef CONFIG_MEMCG_KMEM
-> +
-> +static bool kmemcg_disabled;
-> +
-> +static int __init disable_kmemcg(char *s)
+> +phys_addr_t __init_memblock memblock_first_region_size(void)
 > +{
-> +	kmemcg_disabled = true;
-> +	pr_info("memcg: kernel memory support disabled on cgroup2");
-
-typo?
-
-> +	return 0;
+> +	return memblock.memory.regions[0].size;
 > +}
-> +__setup("disable_kmemcg", disable_kmemcg);
+> +
+>  void __init memblock_enforce_memory_limit(phys_addr_t limit)
+>  {
+>  	phys_addr_t max_addr = (phys_addr_t)ULLONG_MAX;
+
+We tend to avoid merging functions which have no callers.  Some actual
+callsites should be included in the patch or patch series, please.
+
+This is so we know it's useful, that it's getting runtime tested and to
+aid review.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
