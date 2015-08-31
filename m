@@ -1,101 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F2A56B0254
-	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 15:26:34 -0400 (EDT)
-Received: by lbbtg9 with SMTP id tg9so66443580lbb.1
-        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 12:26:34 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id br8si14203364lbb.117.2015.08.31.12.26.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Aug 2015 12:26:31 -0700 (PDT)
-Date: Mon, 31 Aug 2015 22:26:12 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
- enabled
-Message-ID: <20150831192612.GE15420@esperanza>
-References: <cover.1440960578.git.vdavydov@parallels.com>
- <20150831132414.GG29723@dhcp22.suse.cz>
- <20150831134335.GB2271@mtj.duckdns.org>
- <20150831143007.GA13814@esperanza>
- <20150831143939.GC2271@mtj.duckdns.org>
- <20150831151814.GC13814@esperanza>
- <20150831154756.GE2271@mtj.duckdns.org>
- <20150831165131.GD15420@esperanza>
- <20150831170309.GF2271@mtj.duckdns.org>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B4D16B0255
+	for <linux-mm@kvack.org>; Mon, 31 Aug 2015 15:26:43 -0400 (EDT)
+Received: by pabpg12 with SMTP id pg12so16086075pab.3
+        for <linux-mm@kvack.org>; Mon, 31 Aug 2015 12:26:42 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id i7si14815469pdo.233.2015.08.31.12.26.42
+        for <linux-mm@kvack.org>;
+        Mon, 31 Aug 2015 12:26:42 -0700 (PDT)
+Date: Mon, 31 Aug 2015 13:26:40 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] dax, pmem: add support for msync
+Message-ID: <20150831192640.GA15717@linux.intel.com>
+References: <1441047584-14664-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20150831190619.GA27141@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150831170309.GF2271@mtj.duckdns.org>
+In-Reply-To: <20150831190619.GA27141@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@osdl.org>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org
 
-On Mon, Aug 31, 2015 at 01:03:09PM -0400, Tejun Heo wrote:
-> On Mon, Aug 31, 2015 at 07:51:32PM +0300, Vladimir Davydov wrote:
-> ...
-> > If we want to allow slab/slub implementation to invoke try_charge
-> > wherever it wants, we need to introduce an asynchronous thread doing
-> > reclaim when a memcg is approaching its limit (or teach kswapd do that).
-> 
-> In the long term, I think this is the way to go.
-
-Quite probably, or we can use task_work, or direct reclaim instead. It's
-not that obvious to me yet which one is the best.
-
-> 
-> > That's a way to go, but what's the point to complicate things
-> > prematurely while it seems we can fix the problem by using the technique
-> > similar to the one behind memory.high?
-> 
-> Cuz we're now scattering workarounds to multiple places and I'm sure
-> we'll add more try_charge() users (e.g. we want to fold in tcp memcg
-> under the same knobs) and we'll have to worry about the same problem
-> all over again and will inevitably miss some cases leading to subtle
-> failures.
-
-I don't think we will need to insert try_charge_kmem anywhere else,
-because all kmem users either allocate memory using kmalloc and friends
-or using alloc_pages. kmalloc is accounted. For those who prefer
-alloc_pages, there is alloc_kmem_pages helper.
-
-> 
-> > Nevertheless, even if we introduced such a thread, it'd be just insane
-> > to allow slab/slub blindly insert try_charge. Let me repeat the examples
-> > of SLAB/SLUB sub-optimal behavior caused by thoughtless usage of
-> > try_charge I gave above:
+On Mon, Aug 31, 2015 at 09:06:19PM +0200, Christoph Hellwig wrote:
+> On Mon, Aug 31, 2015 at 12:59:44PM -0600, Ross Zwisler wrote:
+> > For DAX msync we just need to flush the given range using
+> > wb_cache_pmem(), which is now a public part of the PMEM API.
 > > 
-> >  - memcg knows nothing about NUMA nodes, so what's the point in failing
-> >    !__GFP_WAIT allocations used by SLAB while inspecting NUMA nodes?
-> >  - memcg knows nothing about high order pages, so what's the point in
-> >    failing !__GFP_WAIT allocations used by SLUB to try to allocate a
-> >    high order page?
+> > The inclusion of <linux/dax.h> in fs/dax.c was done to make checkpatch
+> > happy.  Previously it was complaining about a bunch of undeclared
+> > functions that could be made static.
 > 
-> Both are optimistic speculative actions and as long as memcg can
-> guarantee that those requests will succeed under normal circumstances,
-> as does the system-wide mm does, it isn't a problem.
-> 
-> In general, we want to make sure inside-cgroup behaviors as close to
-> system-wide behaviors as possible, scoped but equivalent in kind.
-> Doing things differently, while inevitable in certain cases, is likely
-> to get messy in the long term.
+> Should this be abstracted by adding a ->msync method?  Maybe not
+> worth to do for now, but it might be worth to keep that in mind.
 
-I totally agree that we should strive to make a kmem user feel roughly
-the same in memcg as if it were running on a host with equal amount of
-RAM. There are two ways to achieve that:
-
- 1. Make the API functions, i.e. kmalloc and friends, behave inside
-    memcg roughly the same way as they do in the root cgroup.
- 2. Make the internal memcg functions, i.e. try_charge and friends,
-    behave roughly the same way as alloc_pages.
-
-I find way 1 more flexible, because we don't have to blindly follow
-heuristics used on global memory reclaim and therefore have more
-opportunities to achieve the same goal.
-
-Thanks,
-Vladimir
+Where would we add the ->msync method?  Do you mean to the PMEM API, or
+somewhere else?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
