@@ -1,70 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8788A6B0254
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 18:21:38 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so9248037pac.2
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 15:21:38 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id ry10si19117399pac.11.2015.09.01.15.21.36
-        for <linux-mm@kvack.org>;
-        Tue, 01 Sep 2015 15:21:37 -0700 (PDT)
-Date: Wed, 2 Sep 2015 08:21:20 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] dax, pmem: add support for msync
-Message-ID: <20150901222120.GQ3902@dastard>
-References: <1441047584-14664-1-git-send-email-ross.zwisler@linux.intel.com>
- <20150831233803.GO3902@dastard>
- <20150901070608.GA5482@lst.de>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B7C7D6B0255
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 18:21:41 -0400 (EDT)
+Received: by pacwi10 with SMTP id wi10so9153360pac.3
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 15:21:41 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id lg2si11568330pbc.60.2015.09.01.15.21.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Sep 2015 15:21:41 -0700 (PDT)
+Received: by pacfv12 with SMTP id fv12so9248930pac.2
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 15:21:40 -0700 (PDT)
+Date: Tue, 1 Sep 2015 15:21:38 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [REPOST] [PATCH 2/2] mm: Fix potentially scheduling in GFP_ATOMIC
+ allocations.
+In-Reply-To: <201508231623.DED13020.tFOHFVFQOSOLMJ@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.10.1509011519170.11913@chino.kir.corp.google.com>
+References: <201508231623.DED13020.tFOHFVFQOSOLMJ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150901070608.GA5482@lst.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@osdl.org>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Tue, Sep 01, 2015 at 09:06:08AM +0200, Christoph Hellwig wrote:
-> On Tue, Sep 01, 2015 at 09:38:03AM +1000, Dave Chinner wrote:
-> > On Mon, Aug 31, 2015 at 12:59:44PM -0600, Ross Zwisler wrote:
-> > > For DAX msync we just need to flush the given range using
-> > > wb_cache_pmem(), which is now a public part of the PMEM API.
-> > 
-> > This is wrong, because it still leaves fsync() broken on dax.
-> > 
-> > Flushing dirty data to stable storage is the responsibility of the
-> > writeback infrastructure, not the VMA/mm infrasrtucture. For non-dax
-> > configurations, msync defers all that to vfs_fsync_range(), because
-> > it has to be implemented there for fsync() to work.
-> > 
-> > Even for DAX, msync has to call vfs_fsync_range() for the filesystem to commit
-> > the backing store allocations to stable storage, so there's not
-> > getting around the fact msync is the wrong place to be flushing
-> > DAX mappings to persistent storage.
+On Sun, 23 Aug 2015, Tetsuo Handa wrote:
+
+> >From 08a638e04351386ab03cd1223988ac7940d4d3aa Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sat, 1 Aug 2015 22:46:12 +0900
+> Subject: [PATCH 2/2] mm: Fix potentially scheduling in GFP_ATOMIC
+>  allocations.
 > 
-> DAX does call ->fsync before and after this patch.  And with all
-> the recent fixes we take care to ensure data is written though the
-> cache for everything but mmap-access.  With this patch from Ross
-> we ensure msync writes back the cache before calling ->fsync so that
-> the filesystem can then do it's work like converting unwritten extents.
+> Currently, if somebody does GFP_ATOMIC | __GFP_NOFAIL allocation,
+> wait_iff_congested() might be called via __alloc_pages_high_priority()
+> before reaching
 > 
-> The only downside is that previously on Linux you could always use
-> fsync as a replaement for msymc, which isn't true anymore for DAX.
+>   if (!wait) {
+>     WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
+>     goto nopage;
+>   }
+> 
+> because gfp_to_alloc_flags() includes ALLOC_NO_WATERMARKS if TIF_MEMDIE
+> was set.
+> 
+> We need to check for __GFP_WAIT flag at __alloc_pages_high_priority()
+> in order to make sure that we won't schedule.
+> 
 
-Which means applications that should "just work" without
-modification on DAX are now subtly broken and don't actually
-guarantee data is safe after a crash. That's a pretty nasty
-landmine, and goes against *everything* we've claimed about using
-DAX with existing applications.
-
-That's wrong, and needs fixing.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I've brought the GFP_ATOMIC | __GFP_NOFAIL combination up before, which 
+resulted in the WARN_ON_ONCE() that you cited.  We don't support such a 
+combination.  Fixing up the documentation in any places you feel it is 
+deficient would be the best.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
