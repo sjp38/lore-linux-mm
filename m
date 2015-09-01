@@ -1,162 +1,257 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 862E26B0254
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 11:37:41 -0400 (EDT)
-Received: by qgz60 with SMTP id 60so38128544qgz.2
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:37:41 -0700 (PDT)
-Received: from mail-qk0-x233.google.com (mail-qk0-x233.google.com. [2607:f8b0:400d:c09::233])
-        by mx.google.com with ESMTPS id 87si21829725qkx.83.2015.09.01.08.37.40
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A7176B0254
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 12:56:39 -0400 (EDT)
+Received: by lbcao8 with SMTP id ao8so3249396lbc.3
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 09:56:38 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id k7si16905565lag.91.2015.09.01.09.56.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Sep 2015 08:37:40 -0700 (PDT)
-Received: by qkct7 with SMTP id t7so45650716qkc.1
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:37:40 -0700 (PDT)
-Message-ID: <55e5c643.04c0370a.45f82.58bb@mx.google.com>
-Date: Tue, 01 Sep 2015 08:37:39 -0700 (PDT)
-From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Subject: Re: [PATCH V4] mm: memory hot-add: memory can not be added to
- movable zone defaultly
-In-Reply-To: <1441000720-28506-1-git-send-email-liuchangsheng@inspur.com>
-References: <0bc3aaab6cea54112f1c444880f9b832@s.corp-email.com>
-	<1441000720-28506-1-git-send-email-liuchangsheng@inspur.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 01 Sep 2015 09:56:37 -0700 (PDT)
+Date: Tue, 1 Sep 2015 19:55:54 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
+ enabled
+Message-ID: <20150901165554.GG21226@esperanza>
+References: <cover.1440960578.git.vdavydov@parallels.com>
+ <20150831132414.GG29723@dhcp22.suse.cz>
+ <20150831142049.GV9610@esperanza>
+ <20150901123612.GB8810@dhcp22.suse.cz>
+ <20150901134003.GD21226@esperanza>
+ <20150901150119.GF8810@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150901150119.GF8810@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Changsheng Liu <liuchangsheng@inspur.com>
-Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-On Mon, 31 Aug 2015 01:58:40 -0400
-Changsheng Liu <liuchangsheng@inspur.com> wrote:
-
-> From: Changsheng Liu <liuchangcheng@inspur.com>
+On Tue, Sep 01, 2015 at 05:01:20PM +0200, Michal Hocko wrote:
+> On Tue 01-09-15 16:40:03, Vladimir Davydov wrote:
+> > On Tue, Sep 01, 2015 at 02:36:12PM +0200, Michal Hocko wrote:
+> > > On Mon 31-08-15 17:20:49, Vladimir Davydov wrote:
+> {...}
+> > > >  1. SLAB. Suppose someone calls kmalloc_node and there is enough free
+> > > >     memory on the preferred node. W/o memcg limit set, the allocation
+> > > >     will happen from the preferred node, which is OK. If there is memcg
+> > > >     limit, we can currently fail to allocate from the preferred node if
+> > > >     we are near the limit. We issue memcg reclaim and go to fallback
+> > > >     alloc then, which will most probably allocate from a different node,
+> > > >     although there is no reason for that. This is a bug.
+> > > 
+> > > I am not familiar with the SLAB internals much but how is it different
+> > > from the global case. If the preferred node is full then __GFP_THISNODE
+> > > request will make it fail early even without giving GFP_NOWAIT
+> > > additional access to atomic memory reserves. The fact that memcg case
+> > > fails earlier is perfectly expected because the restriction is tighter
+> > > than the global case.
+> > 
+> > memcg restrictions are orthogonal to NUMA: failing an allocation from a
+> > particular node does not mean failing memcg charge and vice versa.
 > 
-> After the user config CONFIG_MOVABLE_NODE and movable_node kernel option,
-> When the memory is hot added, should_add_memory_movable() return 0
-> because all zones including movable zone are empty,
-> so the memory that was hot added will be added  to the normal zone
-> and the normal zone will be created firstly.
-> But we want the whole node to be added to movable zone defaultly.
-> 
-> So we change should_add_memory_movable(): if the user config
-> CONFIG_MOVABLE_NODE and movable_node kernel option
-> it will always return 1 and all zones is empty at the same time,
-> so that the movable zone will be created firstly
-> and then the whole node will be added to movable zone defaultly.
-> If we want the node to be added to normal zone,
-> we can do it as follows:
-> "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
-> 
-> If the memory is added to movable zone defaultly,
-> the user can offline it and add it to other zone again.
-> But if the memory is added to normal zone defaultly,
-> the user will not offline the memory used by kernel.
-> 
-> Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-> Reviewed-by: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-> Reviewed-by: Vlastimil Babka <vbabka@suse.cz>
-> Reviewed-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
-> Signed-off-by: Changsheng Liu <liuchangcheng@inspur.com>
-> Tested-by: Dongdong Fan <fandd@inspur.com>
-> ---
->  mm/memory_hotplug.c |    5 +++++
->  1 files changed, 5 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 26fbba7..d1149ff 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1197,6 +1197,11 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
->  	unsigned long start_pfn = start >> PAGE_SHIFT;
->  	pg_data_t *pgdat = NODE_DATA(nid);
->  	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
-> +	struct zone *normal_zone = pgdat->node_zones + ZONE_NORMAL;
-> +
-> +	if (movable_node_is_enabled()
-> +	&& (zone_end_pfn(normal_zone) <= start_pfn))
-> +		return 1;
-
-If system boots up without movable_node, kernel behavior is changed by the patch.
-And you syould consider other zone.
-
-How about it. The patch is no build and test.
-
-
----
- mm/memory_hotplug.c |   36 ++++++++++++++++++++++++++++++++----
- 1 files changed, 32 insertions(+), 4 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6da82bc..321595d 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1198,6 +1198,8 @@ static int check_hotplug_memory_range(u64 start, u64 size)
- /*
-  * If movable zone has already been setup, newly added memory should be check.
-  * If its address is higher than movable zone, it should be added as movable.
-+ * And if system boots up with movable_zone and added memory does not overlap
-+ * other zone except for movable zone, the memory is added as movable.
-  * Without this check, movable zone may overlap with other zone.
-  */
- static int should_add_memory_movable(int nid, u64 start, u64 size)
-@@ -1205,14 +1207,40 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	pg_data_t *pgdat = NODE_DATA(nid);
- 	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
-+	struct zone *zone;
-+	enum zone_type zt = ZONE_MOVABLE - 1;
-+
-+	/*
-+	 * If memory is added after ZONE_MOVALBE, the memory is managed as
-+	 * movable.
-+	 */
-+	if (!zone_is_empty(movable_zone) &&
-+	    (movable_zone->zone_start_pfn <= start_pfn))
-+		return 1;
- 
--	if (zone_is_empty(movable_zone))
-+	if (!movable_node_is_enabled())
- 		return 0;
- 
--	if (movable_zone->zone_start_pfn <= start_pfn)
--		return 1;
-+	/*
-+	 * Find enabled zone and check the added memory.
-+	 * If the memory is added after the enabled zone, the memory is
-+	 * managed as movable.
-+	 *
-+	 * If all zones are empty, the memory is also managed as movable.
-+	 */
-+	for (; zt >= ZONE_DMA; zt--) {
-+		zone = pgdat->node_zones + zt;
- 
--	return 0;
-+		if (zone_is_empty(zone))
-+			continue;
-+
-+		if (zone_end_pfn(zone) <= start_pfn)
-+			return 1;
-+		else
-+			return 0;
-+	}
-+
-+	return 1;
- }
- 
- int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
--- 
-1.7.1
-
-
-
+> Sure memcg doesn't care about NUMA it just puts an additional constrain
+> on top of all existing ones. The point I've tried to make is that the
+> logic is currently same whether it is page allocator (with the node
+> restriction) or memcg (cumulative amount restriction) are behaving
+> consistently. Neither of them try to reclaim in order to achieve its
+> goals. How conservative is memcg about allowing GFP_NOWAIT allocation
+> is a separate issue and all those details belong to memcg proper same
+> as the allocation strategy for these allocations belongs to the page
+> allocator.
 >  
->  	if (zone_is_empty(movable_zone))
->  		return 0;
-> -- 
-> 1.7.1
+> > > How the fallback is implemented and whether trying other node before
+> > > reclaiming from the preferred one is reasonable I dunno. This is for
+> > > SLAB to decide. But ignoring GFP_NOWAIT for this path makes the behavior
+> > > for memcg enabled setups subtly different. And that is bad.
+> > 
+> > Quite the contrary. Trying to charge memcg w/o __GFP_WAIT while
+> > inspecting if a NUMA node has free pages makes SLAB behaviour subtly
+> > differently: SLAB will walk over all NUMA nodes for nothing instead of
+> > invoking memcg reclaim once a free page is found.
 > 
+> So you are saying that the SLAB kmem accounting in this particular path
+> is suboptimal because the fallback mode doesn't retry local node with
+> the reclaim enabled before falling back to other nodes?
+
+I'm just pointing out some subtle behavior changes in slab you were
+opposed to.
+
+> I would consider it quite surprising as well even for the global case
+> because __GFP_THISNODE doesn't wake up kswapd to make room on that node.
+> 
+> > You are talking about memcg/kmem accounting as if it were done in the
+> > buddy allocator on top of which the slab layer is built knowing nothing
+> > about memcg accounting on the lower layer. That's not true and that
+> > simply can't be true. Kmem accounting is implemented at the slab layer.
+> > Memcg provides its memcg_charge_slab/uncharge methods solely for
+> > slab core, so it's OK to have some calling conventions between them.
+> > What we are really obliged to do is to preserve behavior of slab's
+> > external API, i.e. kmalloc and friends.
+> 
+> I guess I understand what you are saying here but it sounds like special
+> casing which tries to be clever because the current code understands
+> both the lower level allocator and kmem charge paths to decide how to
+
+What do you mean by saying "it understands the lower level allocator"?
+AFAIK we have memcg callbacks only in special places, like page fault
+handler or kmalloc.
+
+> juggle with them. This is imho bad and hard to maintain long term.
+
+We already juggle. Just grep where and how we insert
+mem_cgroup_try_charge.
+
+> 
+> > > >  2. SLUB. Someone calls kmalloc and there is enough free high order
+> > > >     pages. If there is no memcg limit, we will allocate a high order
+> > > >     slab page, which is in accordance with SLUB internal logic. With
+> > > >     memcg limit set, we are likely to fail to charge high order page
+> > > >     (because we currently try to charge high order pages w/o __GFP_WAIT)
+> > > >     and fallback on a low order page. The latter is unexpected and
+> > > >     unjustified.
+> > > 
+> > > And this case very similar and I even argue that it shows more
+> > > brokenness with your patch. The SLUB allocator has _explicitly_ asked
+> > > for an allocation _without_ reclaim because that would be unnecessarily
+> > > too costly and there is other less expensive fallback. But memcg would
+> > 
+> > You are ignoring the fact that, in contrast to alloc_pages, for memcg
+> > there is practically no difference between charging a 4-order page or a
+> > 1-order page.
+> 
+> But this is an implementation details which might change anytime in
+> future.
+
+The fact that memcg reclaim does not invoke compactor is indeed an
+implementation detail, but how can it change?
+
+> 
+> > OTOH, using 1-order pages where we could go with 4-order
+> > pages increases page fragmentation at the global level. This subtly
+> > breaks internal SLUB optimization. Once again, kmem accounting is not
+> > something staying aside from slab core, it's a part of slab core.
+> 
+> This is certainly true and it is what you get when you put an additional
+> constrain on top of an existing one. You simply cannot get both the
+> great performance _and_ a local memory restriction.
+
+So what? We shouldn't even try?
+
+> 
+> > > be ignoring this with your patch AFAIU and break the optimization. There
+> > > are other cases like that. E.g. THP pages are allocated without GFP_WAIT
+> > > when defrag is disabled.
+> > 
+> > It might be wrong. If we can't find a continuous 2Mb page, we should
+> > probably give up instead of calling compactor. For memcg it might be
+> > better to reclaim some space for 2Mb page right now and map a 2Mb page
+> > instead of reclaiming space for 512 4Kb pages a moment later, because in
+> > memcg case there is absolutely no difference between reclaiming 2Mb for
+> > a huge page and 2Mb for 512 4Kb pages.
+> 
+> Or maybe the whole reclaim just doesn't pay off because the TLB savings
+> will never compensate for the reclaim. The defrag knob basically says
+> that we shouldn't try to opportunistically prepare a room for the THP
+> page.
+
+And why is it called "defrag" then?
+
+> 
+> > > > That being said, this is the fix at the right layer.
+> > > > 
+> > > > > Either we should start failing GFP_NOWAIT charges when we are above
+> > > > > high wmark or deploy an additional catchup mechanism as suggested by
+> > > > > Tejun.
+> > > > 
+> > > > The mechanism proposed by Tejun won't help us to avoid allocation
+> > > > failures if we are hitting memory.max w/o __GFP_WAIT or __GFP_FS.
+> > > 
+> > > Why would be that a problem. The _hard_ limit is reached and reclaim
+> > > cannot make any progress. An allocation failure is to be expected.
+> > > GFP_NOWAIT will fail normally and GFP_NOFS will attempt to reclaim
+> > > before failing.
+> > 
+> > Quoting my e-mail to Tejun explaining why using task_work won't help if
+> > we don't fix SLAB/SLUB:
+> > 
+> > : Generally speaking, handing over reclaim responsibility to task_work
+> > : won't help, because there might be cases when a process spends quite a
+> > : lot of time in kernel invoking lots of GFP_KERNEL allocations before
+> > : returning to userspace. Without fixing slab/slub, such a process will
+> > : charge w/o __GFP_WAIT and therefore can exceed memory.high and reach
+> > : memory.max. If there are no other active processes in the cgroup, the
+> > : cgroup can stay with memory.high excess for a relatively long time
+> > : (suppose the process was throttled in kernel), possibly hurting the rest
+> > : of the system. What is worse, if the process happens to invoke a real
+> > : GFP_NOWAIT allocation when it's about to hit the limit, it will fail.
+> > 
+> > For a kmalloc user that's completely unexpected.
+> 
+> We have the global reclaim which handles the global memory pressure. And
+> until the hard limit is enforced I do not see what is the huge problem
+> here. Sure we can have high limit in excess but that is to be expected.
+
+What exactly is to be expected? Is it OK if memory.high is just ignored?
+
+> Same as failing allocations for the hard limit enforcement.
+
+If a kmem allocation fails, your app is likely to fail too. Nobody
+expects write/read fail with ENOMEM if there seems to be enough
+reclaimable memory. If we try to fix the GFP_NOWAIT problem only by
+using task_work reclaim, it won't be a complete fix, because a failure
+may still occur as I described above.
+
+> 
+> Maybe moving whole high limit reclaim to the delayed context is not what
+> we will end up with and reduce this only for GFP_NOWAIT or other weak
+> reclaim contexts. This is to be discussed of course.
+
+Yeah, but w/o fixing kmalloc it may happen that *every* allocation will
+be GFP_NOWAIT. It'd complicate the implementation.
+
+> 
+> > > > To fix GFP_NOFS/GFP_NOWAIT failures we just need to start reclaim when
+> > > > the gap between limit and usage is getting too small. It may be done
+> > > > from a workqueue or from task_work, but currently I don't see any reason
+> > > > why complicate and not just start reclaim directly, just like
+> > > > memory.high does.
+> > > 
+> > > Yes we can do better than we do right now. But that doesn't mean we
+> > > should put hacks all over the place and lie about the allocation
+> > > context.
+> > 
+> > What do you mean by saying "all over the place"? It's a fix for kmem
+> > implementation, to be more exact for the part of it residing in the slab
+> > core.
+> 
+> I meant into two slab allocators currently because of the implementation
+> details which are spread into three different places - page allocator,
+> memcg charging code and the respective slab allocator specific details.
+
+If we remove kmem accounting, we will still have implementation details
+spread over page allocator, reclaimer, rmap, memcg. Slab is not the
+worst part of it IMO. Anyway, kmem accounting can't be implemented
+solely in memcg.
+
+> 
+> > Everyone else, except a couple of kmem users issuing alloc_page
+> > directly like threadinfo, will use kmalloc and know nothing what's going
+> > on there and how all this accounting stuff is handled - they will just
+> > use plain old convenient kmalloc, which works exactly as it does in the
+> > root cgroup.
+> 
+> If we ever grow more users and charge more kernel memory then they might
+> be doing similar assumptions and tweak allocation/charge context and we
+> would end up in a bigger mess. It makes much more sense to have
+> allocation and charge context consistent.
+
+What new users? Why can't they just call kmalloc?
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
