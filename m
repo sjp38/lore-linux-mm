@@ -1,113 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id C84C66B0254
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 08:18:47 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so10416897wic.0
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 05:18:47 -0700 (PDT)
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
-        by mx.google.com with ESMTPS id hs8si2859512wib.89.2015.09.01.05.18.44
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id A282F6B0254
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 08:36:15 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so5609883wic.0
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 05:36:15 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
+        by mx.google.com with ESMTPS id xy9si33073518wjc.44.2015.09.01.05.36.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Sep 2015 05:18:44 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so5068490wic.0
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 05:18:43 -0700 (PDT)
-Message-ID: <55E597A1.9090205@plexistor.com>
-Date: Tue, 01 Sep 2015 15:18:41 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        Tue, 01 Sep 2015 05:36:14 -0700 (PDT)
+Received: by wicjd9 with SMTP id jd9so31557509wic.1
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 05:36:13 -0700 (PDT)
+Date: Tue, 1 Sep 2015 14:36:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
+ enabled
+Message-ID: <20150901123612.GB8810@dhcp22.suse.cz>
+References: <cover.1440960578.git.vdavydov@parallels.com>
+ <20150831132414.GG29723@dhcp22.suse.cz>
+ <20150831142049.GV9610@esperanza>
 MIME-Version: 1.0
-Subject: Re: [PATCH] dax, pmem: add support for msync
-References: <1441047584-14664-1-git-send-email-ross.zwisler@linux.intel.com> <20150831233803.GO3902@dastard> <20150901070608.GA5482@lst.de>
-In-Reply-To: <20150901070608.GA5482@lst.de>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150831142049.GV9610@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@osdl.org>, x86@kernel.org, linux-nvdimm@lists.01.org, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/01/2015 10:06 AM, Christoph Hellwig wrote:
-> On Tue, Sep 01, 2015 at 09:38:03AM +1000, Dave Chinner wrote:
->> On Mon, Aug 31, 2015 at 12:59:44PM -0600, Ross Zwisler wrote:
->>> For DAX msync we just need to flush the given range using
->>> wb_cache_pmem(), which is now a public part of the PMEM API.
->>
->> This is wrong, because it still leaves fsync() broken on dax.
->>
->> Flushing dirty data to stable storage is the responsibility of the
->> writeback infrastructure, not the VMA/mm infrasrtucture. For non-dax
->> configurations, msync defers all that to vfs_fsync_range(), because
->> it has to be implemented there for fsync() to work.
->>
->> Even for DAX, msync has to call vfs_fsync_range() for the filesystem to commit
->> the backing store allocations to stable storage, so there's not
->> getting around the fact msync is the wrong place to be flushing
->> DAX mappings to persistent storage.
+On Mon 31-08-15 17:20:49, Vladimir Davydov wrote:
+> On Mon, Aug 31, 2015 at 03:24:15PM +0200, Michal Hocko wrote:
+> > On Sun 30-08-15 22:02:16, Vladimir Davydov wrote:
 > 
-> DAX does call ->fsync before and after this patch.  And with all
-> the recent fixes we take care to ensure data is written though the
-> cache for everything but mmap-access.  With this patch from Ross
-> we ensure msync writes back the cache before calling ->fsync so that
-> the filesystem can then do it's work like converting unwritten extents.
+> > > Tejun reported that sometimes memcg/memory.high threshold seems to be
+> > > silently ignored if kmem accounting is enabled:
+> > > 
+> > >   http://www.spinics.net/lists/linux-mm/msg93613.html
+> > > 
+> > > It turned out that both SLAB and SLUB try to allocate without __GFP_WAIT
+> > > first. As a result, if there is enough free pages, memcg reclaim will
+> > > not get invoked on kmem allocations, which will lead to uncontrollable
+> > > growth of memory usage no matter what memory.high is set to.
+> > 
+> > Right but isn't that what the caller explicitly asked for?
 > 
-> The only downside is that previously on Linux you could always use
-> fsync as a replaement for msymc, which isn't true anymore for DAX.
+> No. If the caller of kmalloc() asked for a __GFP_WAIT allocation, we
+> might ignore that and charge memcg w/o __GFP_WAIT.
+
+I was referring to the slab allocator as the caller. Sorry for not being
+clear about that.
+
+> > Why should we ignore that for kmem accounting? It seems like a fix at
+> > a wrong layer to me.
 > 
+> Let's forget about memory.high for a minute.
+>
+>  1. SLAB. Suppose someone calls kmalloc_node and there is enough free
+>     memory on the preferred node. W/o memcg limit set, the allocation
+>     will happen from the preferred node, which is OK. If there is memcg
+>     limit, we can currently fail to allocate from the preferred node if
+>     we are near the limit. We issue memcg reclaim and go to fallback
+>     alloc then, which will most probably allocate from a different node,
+>     although there is no reason for that. This is a bug.
 
-Hi Christoph
+I am not familiar with the SLAB internals much but how is it different
+from the global case. If the preferred node is full then __GFP_THISNODE
+request will make it fail early even without giving GFP_NOWAIT
+additional access to atomic memory reserves. The fact that memcg case
+fails earlier is perfectly expected because the restriction is tighter
+than the global case.
 
-So the approach we took was a bit different to exactly solve these
-problem, and to also not over flush too much. here is what we did.
+How the fallback is implemented and whether trying other node before
+reclaiming from the preferred one is reasonable I dunno. This is for
+SLAB to decide. But ignoring GFP_NOWAIT for this path makes the behavior
+for memcg enabled setups subtly different. And that is bad.
 
-* At vm_operations_struct we also override the .close vector (say call it dax_vm_close)
+>  2. SLUB. Someone calls kmalloc and there is enough free high order
+>     pages. If there is no memcg limit, we will allocate a high order
+>     slab page, which is in accordance with SLUB internal logic. With
+>     memcg limit set, we are likely to fail to charge high order page
+>     (because we currently try to charge high order pages w/o __GFP_WAIT)
+>     and fallback on a low order page. The latter is unexpected and
+>     unjustified.
 
-* At dax_vm_close() on writable files call ->fsync(,vma->vm_start, vma->vm_end,)
-  (We have an inode flag if the file was actually dirtied, but even if not, that will
-   not be that bad, so a file was opened for write, mmapped, but actually never
-   modified. Not a lot of these, and the do nothing cl_flushing is very fast)
+And this case very similar and I even argue that it shows more
+brokenness with your patch. The SLUB allocator has _explicitly_ asked
+for an allocation _without_ reclaim because that would be unnecessarily
+too costly and there is other less expensive fallback. But memcg would
+be ignoring this with your patch AFAIU and break the optimization. There
+are other cases like that. E.g. THP pages are allocated without GFP_WAIT
+when defrag is disabled.
 
-* At ->fsync() do the actual cl_flush for all cases but only iff
-	if (mapping_mapped(inode->i_mapping) == 0)
-		return 0;
+> That being said, this is the fix at the right layer.
+> 
+> > Either we should start failing GFP_NOWAIT charges when we are above
+> > high wmark or deploy an additional catchup mechanism as suggested by
+> > Tejun.
+> 
+> The mechanism proposed by Tejun won't help us to avoid allocation
+> failures if we are hitting memory.max w/o __GFP_WAIT or __GFP_FS.
 
-  This is because data written not through mmap is already persistent and we
-  do not need the cl_flushing
+Why would be that a problem. The _hard_ limit is reached and reclaim
+cannot make any progress. An allocation failure is to be expected.
+GFP_NOWAIT will fail normally and GFP_NOFS will attempt to reclaim
+before failing.
+ 
+> To fix GFP_NOFS/GFP_NOWAIT failures we just need to start reclaim when
+> the gap between limit and usage is getting too small. It may be done
+> from a workqueue or from task_work, but currently I don't see any reason
+> why complicate and not just start reclaim directly, just like
+> memory.high does.
 
-Apps expect all these to work:
-1. open mmap m-write msync ... close
-2. open mmap m-write fsync ... close
-3. open mmap m-write unmap ... fsync close
+Yes we can do better than we do right now. But that doesn't mean we
+should put hacks all over the place and lie about the allocation
+context.
 
-4. open mmap m-write sync ...
+> I mean, currently you can protect against GFP_NOWAIT failures by setting
+> memory.high to be 1-2 MB lower than memory.high and this *will* work,
+> because GFP_NOWAIT/GFP_NOFS allocations can't go on infinitely - they
+> will alternate with normal GFP_KERNEL allocations sooner or later. It
+> does not mean we should encourage users to set memory.high to protect
+> against such failures, because, as pointed out by Tejun, logic behind
+> memory.high is currently opaque and can change, but we can introduce
+> memcg-internal watermarks that would work exactly as memory.high and
+> hence help us against GFP_NOWAIT/GFP_NOFS failures.
 
-The first 3 are supported with above, because what happens is that at [3]
-the fsync actually happens on unmap and fsync is redundant in that case.
-
-The only broken scenario is [3]. We do not have a list of "dax-dirty" inodes
-per sb to iterate on and call inode-sync on. This cause problems mostly in
-freeze because with actual [3] scenario the file will be eventually closed
-and persistent, but after the call to sync returns.
-
-Its on my TODO to fix [3] based on instructions from Dave.
-The mmap call will put the inode on the list and the dax_vm_close will
-remove it. One of the regular dirty list should be used as suggested by
-Dave.
-
-> But given that we need the virtual address to write back the cache
-> I can't see how to do this differently given that clwb() needs the
-> user virtual address to flush the cache.
-
-On Intel or any systems that have physical-based caching this is not
-a problem you just iterate on all get_block() of the range and flush
-the Kernel's virt_addr of the block, this is easy.
-
-With ARCHs with per VM caching you need to go through the i_mapping VMAs list
-and flush like that. I guess there is a way to schedule yourself as a process VMA
-somehow.
-I'm not sure how to solve this split, perhaps two generic functions, that
-are selected through the ARCH.
-
-Just my $0.017
-Boaz
+I am not against something like watermarks and doing more pro-active
+reclaim but this is far from easy to do - which is one of the reason we
+do not have it yet. The idea from Tejun about the return to userspace
+reclaim is nice in that regards that it happens from a well defined
+context and helps to keep memory.high behavior much saner.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
