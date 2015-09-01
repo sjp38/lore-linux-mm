@@ -1,125 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4EE6B0254
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 10:58:20 -0400 (EDT)
-Received: by qkct7 with SMTP id t7so43532155qkc.1
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 07:58:20 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x143si21625528qha.126.2015.09.01.07.58.19
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 235B56B0254
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 11:01:27 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so15773751wic.0
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:01:26 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
+        by mx.google.com with ESMTPS id ez13si3617125wid.54.2015.09.01.08.01.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Sep 2015 07:58:19 -0700 (PDT)
-Date: Tue, 1 Sep 2015 10:58:11 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 02/15] mmu_notifier: keep track of active invalidation
- ranges v4
-Message-ID: <20150901145811.GA3058@redhat.com>
-References: <1439493328-1028-1-git-send-email-jglisse@redhat.com>
- <1439493328-1028-3-git-send-email-jglisse@redhat.com>
- <alpine.DEB.2.00.1508312003400.18393@mdh-linux64-2.nvidia.com>
+        Tue, 01 Sep 2015 08:01:23 -0700 (PDT)
+Received: by wiclp12 with SMTP id lp12so34005407wic.1
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:01:22 -0700 (PDT)
+Date: Tue, 1 Sep 2015 17:01:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
+ enabled
+Message-ID: <20150901150119.GF8810@dhcp22.suse.cz>
+References: <cover.1440960578.git.vdavydov@parallels.com>
+ <20150831132414.GG29723@dhcp22.suse.cz>
+ <20150831142049.GV9610@esperanza>
+ <20150901123612.GB8810@dhcp22.suse.cz>
+ <20150901134003.GD21226@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.00.1508312003400.18393@mdh-linux64-2.nvidia.com>
+In-Reply-To: <20150901134003.GD21226@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Hairgrove <mhairgrove@nvidia.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 31, 2015 at 08:27:17PM -0700, Mark Hairgrove wrote:
-> On Thu, 13 Aug 2015, Jerome Glisse wrote:
-
-[...]
-
-Will fix syntax.
-
-[...]
-
-> > +/* mmu_notifier_range_wait_valid() - wait for a range to have no conflict with
-> > + * active invalidation.
-> > + *
-> > + * @mm: The mm struct.
-> > + * @start: Start address of the range (inclusive).
-> > + * @end: End address of the range (exclusive).
-> > + *
-> > + * This function wait for any active range invalidation that conflict with the
-> > + * given range, to end.
-> > + *
-> > + * Note by the time this function return a new range invalidation that conflict
-> > + * might have started. So you need to atomically block new range and query
-> > + * again if range is still valid with mmu_notifier_range_is_valid(). So call
-> > + * sequence should be :
-> > + *
-> > + * again:
-> > + * mmu_notifier_range_wait_valid()
-> > + * // block new invalidation using that lock inside your range_start callback
-> > + * lock_block_new_invalidation()
-> > + * if (!mmu_notifier_range_is_valid())
-> > + *     goto again;
-> > + * unlock()
+On Tue 01-09-15 16:40:03, Vladimir Davydov wrote:
+> On Tue, Sep 01, 2015 at 02:36:12PM +0200, Michal Hocko wrote:
+> > On Mon 31-08-15 17:20:49, Vladimir Davydov wrote:
+{...}
+> > >  1. SLAB. Suppose someone calls kmalloc_node and there is enough free
+> > >     memory on the preferred node. W/o memcg limit set, the allocation
+> > >     will happen from the preferred node, which is OK. If there is memcg
+> > >     limit, we can currently fail to allocate from the preferred node if
+> > >     we are near the limit. We issue memcg reclaim and go to fallback
+> > >     alloc then, which will most probably allocate from a different node,
+> > >     although there is no reason for that. This is a bug.
+> > 
+> > I am not familiar with the SLAB internals much but how is it different
+> > from the global case. If the preferred node is full then __GFP_THISNODE
+> > request will make it fail early even without giving GFP_NOWAIT
+> > additional access to atomic memory reserves. The fact that memcg case
+> > fails earlier is perfectly expected because the restriction is tighter
+> > than the global case.
 > 
-> I think this example sequence can deadlock so I wouldn't want to encourage 
-> its use. New invalidation regions are added to the list before the 
-> range_start callback is invoked.
+> memcg restrictions are orthogonal to NUMA: failing an allocation from a
+> particular node does not mean failing memcg charge and vice versa.
+
+Sure memcg doesn't care about NUMA it just puts an additional constrain
+on top of all existing ones. The point I've tried to make is that the
+logic is currently same whether it is page allocator (with the node
+restriction) or memcg (cumulative amount restriction) are behaving
+consistently. Neither of them try to reclaim in order to achieve its
+goals. How conservative is memcg about allowing GFP_NOWAIT allocation
+is a separate issue and all those details belong to memcg proper same
+as the allocation strategy for these allocations belongs to the page
+allocator.
+ 
+> > How the fallback is implemented and whether trying other node before
+> > reclaiming from the preferred one is reasonable I dunno. This is for
+> > SLAB to decide. But ignoring GFP_NOWAIT for this path makes the behavior
+> > for memcg enabled setups subtly different. And that is bad.
 > 
-> Thread A                           Thread B
-> -----------------                  -----------------
-> mmu_notifier_range_wait_valid
-> // returns
->                                    __mmu_notifier_invalidate_range_start
->                                      list_add_tail
-> lock_block_new_invalidation
->                                      ->invalidate_range_start
->                                        // invalidation blocked in callback
-> mmu_notifier_range_is_valid // fails
-> goto again
-> mmu_notifier_range_wait_valid // deadlock
+> Quite the contrary. Trying to charge memcg w/o __GFP_WAIT while
+> inspecting if a NUMA node has free pages makes SLAB behaviour subtly
+> differently: SLAB will walk over all NUMA nodes for nothing instead of
+> invoking memcg reclaim once a free page is found.
+
+So you are saying that the SLAB kmem accounting in this particular path
+is suboptimal because the fallback mode doesn't retry local node with
+the reclaim enabled before falling back to other nodes?
+I would consider it quite surprising as well even for the global case
+because __GFP_THISNODE doesn't wake up kswapd to make room on that node.
+
+> You are talking about memcg/kmem accounting as if it were done in the
+> buddy allocator on top of which the slab layer is built knowing nothing
+> about memcg accounting on the lower layer. That's not true and that
+> simply can't be true. Kmem accounting is implemented at the slab layer.
+> Memcg provides its memcg_charge_slab/uncharge methods solely for
+> slab core, so it's OK to have some calling conventions between them.
+> What we are really obliged to do is to preserve behavior of slab's
+> external API, i.e. kmalloc and friends.
+
+I guess I understand what you are saying here but it sounds like special
+casing which tries to be clever because the current code understands
+both the lower level allocator and kmem charge paths to decide how to
+juggle with them. This is imho bad and hard to maintain long term.
+
+> > >  2. SLUB. Someone calls kmalloc and there is enough free high order
+> > >     pages. If there is no memcg limit, we will allocate a high order
+> > >     slab page, which is in accordance with SLUB internal logic. With
+> > >     memcg limit set, we are likely to fail to charge high order page
+> > >     (because we currently try to charge high order pages w/o __GFP_WAIT)
+> > >     and fallback on a low order page. The latter is unexpected and
+> > >     unjustified.
+> > 
+> > And this case very similar and I even argue that it shows more
+> > brokenness with your patch. The SLUB allocator has _explicitly_ asked
+> > for an allocation _without_ reclaim because that would be unnecessarily
+> > too costly and there is other less expensive fallback. But memcg would
 > 
-> mmu_notifier_range_wait_valid can't finish until thread B's callback 
-> returns, but thread B's callback can't return because it's blocked.
+> You are ignoring the fact that, in contrast to alloc_pages, for memcg
+> there is practically no difference between charging a 4-order page or a
+> 1-order page.
+
+But this is an implementation details which might change anytime in
+future.
+
+> OTOH, using 1-order pages where we could go with 4-order
+> pages increases page fragmentation at the global level. This subtly
+> breaks internal SLUB optimization. Once again, kmem accounting is not
+> something staying aside from slab core, it's a part of slab core.
+
+This is certainly true and it is what you get when you put an additional
+constrain on top of an existing one. You simply cannot get both the
+great performance _and_ a local memory restriction.
+
+> > be ignoring this with your patch AFAIU and break the optimization. There
+> > are other cases like that. E.g. THP pages are allocated without GFP_WAIT
+> > when defrag is disabled.
 > 
-> I see that HMM in later patches takes the approach of not holding the lock 
-> when mmu_notifier_range_is_valid returns false. Instead of stalling new 
-> invalidations it returns -EAGAIN to the caller. While that resolves the 
-> deadlock, it won't prevent the faulting thread from being starved in the 
-> pathological case.
+> It might be wrong. If we can't find a continuous 2Mb page, we should
+> probably give up instead of calling compactor. For memcg it might be
+> better to reclaim some space for 2Mb page right now and map a 2Mb page
+> instead of reclaiming space for 512 4Kb pages a moment later, because in
+> memcg case there is absolutely no difference between reclaiming 2Mb for
+> a huge page and 2Mb for 512 4Kb pages.
 
-The comment here is not clear, what HMM does is what is intended. If
-mmu_notifier_range_is_valid() return false then you drop lock and try
-again. I am not sure we should care about the starve case as it can
-not happen, it would mean that something keeps invalidating over and
-over the same range of address space of a process. I do not see how
-such thing would happen.
+Or maybe the whole reclaim just doesn't pay off because the TLB savings
+will never compensate for the reclaim. The defrag knob basically says
+that we shouldn't try to opportunistically prepare a room for the THP
+page.
 
+> > > That being said, this is the fix at the right layer.
+> > > 
+> > > > Either we should start failing GFP_NOWAIT charges when we are above
+> > > > high wmark or deploy an additional catchup mechanism as suggested by
+> > > > Tejun.
+> > > 
+> > > The mechanism proposed by Tejun won't help us to avoid allocation
+> > > failures if we are hitting memory.max w/o __GFP_WAIT or __GFP_FS.
+> > 
+> > Why would be that a problem. The _hard_ limit is reached and reclaim
+> > cannot make any progress. An allocation failure is to be expected.
+> > GFP_NOWAIT will fail normally and GFP_NOFS will attempt to reclaim
+> > before failing.
 > 
-> Is it out of the question to build a lock into the mmu notifier API 
-> directly? It's a little worrisome to me that the complexity for this 
-> locking is pushed into the callbacks rather than handled in the core. 
-> Something like this:
+> Quoting my e-mail to Tejun explaining why using task_work won't help if
+> we don't fix SLAB/SLUB:
 > 
->     mmu_notifier_range_lock(start, end)
->     mmu_notifier_range_unlock(start, end)
-
-If a range is about to be invalidated it is better to avoid faulting
-in memory in the device as that same memory is about to be invalidated.
-This is why i always have invalidation take precedence over device fault.
-
-
-> If that's not feasible and we have to stick with the current approach, 
-> then I suggest changing the "valid" name. "valid" doesn't have a clear 
-> meaning at first glance because the reader doesn't know what would make a 
-> range "valid." How about "active" instead? Then the names would look 
-> something like this, assuming the polarity matches their current versions:
+> : Generally speaking, handing over reclaim responsibility to task_work
+> : won't help, because there might be cases when a process spends quite a
+> : lot of time in kernel invoking lots of GFP_KERNEL allocations before
+> : returning to userspace. Without fixing slab/slub, such a process will
+> : charge w/o __GFP_WAIT and therefore can exceed memory.high and reach
+> : memory.max. If there are no other active processes in the cgroup, the
+> : cgroup can stay with memory.high excess for a relatively long time
+> : (suppose the process was throttled in kernel), possibly hurting the rest
+> : of the system. What is worse, if the process happens to invoke a real
+> : GFP_NOWAIT allocation when it's about to hit the limit, it will fail.
 > 
->     mmu_notifier_range_inactive_locked
->     mmu_notifier_range_inactive
->     mmu_notifier_range_wait_active
+> For a kmalloc user that's completely unexpected.
 
-Those names are better i will update the patch accordingly.
+We have the global reclaim which handles the global memory pressure. And
+until the hard limit is enforced I do not see what is the huge problem
+here. Sure we can have high limit in excess but that is to be expected.
+Same as failing allocations for the hard limit enforcement.
 
-Thanks for the review,
-Jerome
+Maybe moving whole high limit reclaim to the delayed context is not what
+we will end up with and reduce this only for GFP_NOWAIT or other weak
+reclaim contexts. This is to be discussed of course.
+
+> > > To fix GFP_NOFS/GFP_NOWAIT failures we just need to start reclaim when
+> > > the gap between limit and usage is getting too small. It may be done
+> > > from a workqueue or from task_work, but currently I don't see any reason
+> > > why complicate and not just start reclaim directly, just like
+> > > memory.high does.
+> > 
+> > Yes we can do better than we do right now. But that doesn't mean we
+> > should put hacks all over the place and lie about the allocation
+> > context.
+> 
+> What do you mean by saying "all over the place"? It's a fix for kmem
+> implementation, to be more exact for the part of it residing in the slab
+> core.
+
+I meant into two slab allocators currently because of the implementation
+details which are spread into three different places - page allocator,
+memcg charging code and the respective slab allocator specific details.
+
+> Everyone else, except a couple of kmem users issuing alloc_page
+> directly like threadinfo, will use kmalloc and know nothing what's going
+> on there and how all this accounting stuff is handled - they will just
+> use plain old convenient kmalloc, which works exactly as it does in the
+> root cgroup.
+
+If we ever grow more users and charge more kernel memory then they might
+be doing similar assumptions and tweak allocation/charge context and we
+would end up in a bigger mess. It makes much more sense to have
+allocation and charge context consistent.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
