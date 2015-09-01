@@ -1,209 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 235B56B0254
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 11:01:27 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so15773751wic.0
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:01:26 -0700 (PDT)
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
-        by mx.google.com with ESMTPS id ez13si3617125wid.54.2015.09.01.08.01.22
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C53EF6B0256
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 11:25:27 -0400 (EDT)
+Received: by wicjd9 with SMTP id jd9so37201919wic.1
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:25:27 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id fz6si3702257wic.116.2015.09.01.08.25.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Sep 2015 08:01:23 -0700 (PDT)
-Received: by wiclp12 with SMTP id lp12so34005407wic.1
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:01:22 -0700 (PDT)
-Date: Tue, 1 Sep 2015 17:01:20 +0200
+        Tue, 01 Sep 2015 08:25:22 -0700 (PDT)
+Received: by wicmc4 with SMTP id mc4so37135937wic.0
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:25:22 -0700 (PDT)
+Date: Tue, 1 Sep 2015 17:25:19 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
- enabled
-Message-ID: <20150901150119.GF8810@dhcp22.suse.cz>
-References: <cover.1440960578.git.vdavydov@parallels.com>
- <20150831132414.GG29723@dhcp22.suse.cz>
- <20150831142049.GV9610@esperanza>
- <20150901123612.GB8810@dhcp22.suse.cz>
- <20150901134003.GD21226@esperanza>
+Subject: Re: [PATCH 1/2] memcg: flatten task_struct->memcg_oom
+Message-ID: <20150901152519.GG8810@dhcp22.suse.cz>
+References: <20150828220158.GD11089@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150901134003.GD21226@esperanza>
+In-Reply-To: <20150828220158.GD11089@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
 
-On Tue 01-09-15 16:40:03, Vladimir Davydov wrote:
-> On Tue, Sep 01, 2015 at 02:36:12PM +0200, Michal Hocko wrote:
-> > On Mon 31-08-15 17:20:49, Vladimir Davydov wrote:
-{...}
-> > >  1. SLAB. Suppose someone calls kmalloc_node and there is enough free
-> > >     memory on the preferred node. W/o memcg limit set, the allocation
-> > >     will happen from the preferred node, which is OK. If there is memcg
-> > >     limit, we can currently fail to allocate from the preferred node if
-> > >     we are near the limit. We issue memcg reclaim and go to fallback
-> > >     alloc then, which will most probably allocate from a different node,
-> > >     although there is no reason for that. This is a bug.
-> > 
-> > I am not familiar with the SLAB internals much but how is it different
-> > from the global case. If the preferred node is full then __GFP_THISNODE
-> > request will make it fail early even without giving GFP_NOWAIT
-> > additional access to atomic memory reserves. The fact that memcg case
-> > fails earlier is perfectly expected because the restriction is tighter
-> > than the global case.
+On Fri 28-08-15 18:01:58, Tejun Heo wrote:
+> task_struct->memcg_oom is a sub-struct containing fields which are
+> used for async memcg oom handling.  Most task_struct fields aren't
+> packaged this way and it can lead to unnecessary alignment paddings.
+> This patch flattens it.
 > 
-> memcg restrictions are orthogonal to NUMA: failing an allocation from a
-> particular node does not mean failing memcg charge and vice versa.
-
-Sure memcg doesn't care about NUMA it just puts an additional constrain
-on top of all existing ones. The point I've tried to make is that the
-logic is currently same whether it is page allocator (with the node
-restriction) or memcg (cumulative amount restriction) are behaving
-consistently. Neither of them try to reclaim in order to achieve its
-goals. How conservative is memcg about allowing GFP_NOWAIT allocation
-is a separate issue and all those details belong to memcg proper same
-as the allocation strategy for these allocations belongs to the page
-allocator.
- 
-> > How the fallback is implemented and whether trying other node before
-> > reclaiming from the preferred one is reasonable I dunno. This is for
-> > SLAB to decide. But ignoring GFP_NOWAIT for this path makes the behavior
-> > for memcg enabled setups subtly different. And that is bad.
+> * task.memcg_oom.memcg          -> task.memcg_in_oom
+> * task.memcg_oom.gfp_mask	-> task.memcg_oom_gfp_mask
+> * task.memcg_oom.order          -> task.memcg_oom_order
+> * task.memcg_oom.may_oom        -> task.memcg_may_oom
 > 
-> Quite the contrary. Trying to charge memcg w/o __GFP_WAIT while
-> inspecting if a NUMA node has free pages makes SLAB behaviour subtly
-> differently: SLAB will walk over all NUMA nodes for nothing instead of
-> invoking memcg reclaim once a free page is found.
-
-So you are saying that the SLAB kmem accounting in this particular path
-is suboptimal because the fallback mode doesn't retry local node with
-the reclaim enabled before falling back to other nodes?
-I would consider it quite surprising as well even for the global case
-because __GFP_THISNODE doesn't wake up kswapd to make room on that node.
-
-> You are talking about memcg/kmem accounting as if it were done in the
-> buddy allocator on top of which the slab layer is built knowing nothing
-> about memcg accounting on the lower layer. That's not true and that
-> simply can't be true. Kmem accounting is implemented at the slab layer.
-> Memcg provides its memcg_charge_slab/uncharge methods solely for
-> slab core, so it's OK to have some calling conventions between them.
-> What we are really obliged to do is to preserve behavior of slab's
-> external API, i.e. kmalloc and friends.
-
-I guess I understand what you are saying here but it sounds like special
-casing which tries to be clever because the current code understands
-both the lower level allocator and kmem charge paths to decide how to
-juggle with them. This is imho bad and hard to maintain long term.
-
-> > >  2. SLUB. Someone calls kmalloc and there is enough free high order
-> > >     pages. If there is no memcg limit, we will allocate a high order
-> > >     slab page, which is in accordance with SLUB internal logic. With
-> > >     memcg limit set, we are likely to fail to charge high order page
-> > >     (because we currently try to charge high order pages w/o __GFP_WAIT)
-> > >     and fallback on a low order page. The latter is unexpected and
-> > >     unjustified.
-> > 
-> > And this case very similar and I even argue that it shows more
-> > brokenness with your patch. The SLUB allocator has _explicitly_ asked
-> > for an allocation _without_ reclaim because that would be unnecessarily
-> > too costly and there is other less expensive fallback. But memcg would
+> In addition, task.memcg_may_oom is relocated to where other bitfields
+> are which reduces the size of task_struct.
 > 
-> You are ignoring the fact that, in contrast to alloc_pages, for memcg
-> there is practically no difference between charging a 4-order page or a
-> 1-order page.
+> Signed-off-by: Tejun Heo <tj@kernel.org>
 
-But this is an implementation details which might change anytime in
-future.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-> OTOH, using 1-order pages where we could go with 4-order
-> pages increases page fragmentation at the global level. This subtly
-> breaks internal SLUB optimization. Once again, kmem accounting is not
-> something staying aside from slab core, it's a part of slab core.
-
-This is certainly true and it is what you get when you put an additional
-constrain on top of an existing one. You simply cannot get both the
-great performance _and_ a local memory restriction.
-
-> > be ignoring this with your patch AFAIU and break the optimization. There
-> > are other cases like that. E.g. THP pages are allocated without GFP_WAIT
-> > when defrag is disabled.
+> ---
+> Hello,
 > 
-> It might be wrong. If we can't find a continuous 2Mb page, we should
-> probably give up instead of calling compactor. For memcg it might be
-> better to reclaim some space for 2Mb page right now and map a 2Mb page
-> instead of reclaiming space for 512 4Kb pages a moment later, because in
-> memcg case there is absolutely no difference between reclaiming 2Mb for
-> a huge page and 2Mb for 512 4Kb pages.
-
-Or maybe the whole reclaim just doesn't pay off because the TLB savings
-will never compensate for the reclaim. The defrag knob basically says
-that we shouldn't try to opportunistically prepare a room for the THP
-page.
-
-> > > That being said, this is the fix at the right layer.
-> > > 
-> > > > Either we should start failing GFP_NOWAIT charges when we are above
-> > > > high wmark or deploy an additional catchup mechanism as suggested by
-> > > > Tejun.
-> > > 
-> > > The mechanism proposed by Tejun won't help us to avoid allocation
-> > > failures if we are hitting memory.max w/o __GFP_WAIT or __GFP_FS.
-> > 
-> > Why would be that a problem. The _hard_ limit is reached and reclaim
-> > cannot make any progress. An allocation failure is to be expected.
-> > GFP_NOWAIT will fail normally and GFP_NOFS will attempt to reclaim
-> > before failing.
+> These two patches are what survived from the following patchset.
 > 
-> Quoting my e-mail to Tejun explaining why using task_work won't help if
-> we don't fix SLAB/SLUB:
+>  http://lkml.kernel.org/g/1440775530-18630-1-git-send-email-tj@kernel.org
 > 
-> : Generally speaking, handing over reclaim responsibility to task_work
-> : won't help, because there might be cases when a process spends quite a
-> : lot of time in kernel invoking lots of GFP_KERNEL allocations before
-> : returning to userspace. Without fixing slab/slub, such a process will
-> : charge w/o __GFP_WAIT and therefore can exceed memory.high and reach
-> : memory.max. If there are no other active processes in the cgroup, the
-> : cgroup can stay with memory.high excess for a relatively long time
-> : (suppose the process was throttled in kernel), possibly hurting the rest
-> : of the system. What is worse, if the process happens to invoke a real
-> : GFP_NOWAIT allocation when it's about to hit the limit, it will fail.
+> Thanks.
 > 
-> For a kmalloc user that's completely unexpected.
-
-We have the global reclaim which handles the global memory pressure. And
-until the hard limit is enforced I do not see what is the huge problem
-here. Sure we can have high limit in excess but that is to be expected.
-Same as failing allocations for the hard limit enforcement.
-
-Maybe moving whole high limit reclaim to the delayed context is not what
-we will end up with and reduce this only for GFP_NOWAIT or other weak
-reclaim contexts. This is to be discussed of course.
-
-> > > To fix GFP_NOFS/GFP_NOWAIT failures we just need to start reclaim when
-> > > the gap between limit and usage is getting too small. It may be done
-> > > from a workqueue or from task_work, but currently I don't see any reason
-> > > why complicate and not just start reclaim directly, just like
-> > > memory.high does.
-> > 
-> > Yes we can do better than we do right now. But that doesn't mean we
-> > should put hacks all over the place and lie about the allocation
-> > context.
+>  include/linux/memcontrol.h |   10 +++++-----
+>  include/linux/sched.h      |   13 ++++++-------
+>  mm/memcontrol.c            |   16 ++++++++--------
+>  3 files changed, 19 insertions(+), 20 deletions(-)
 > 
-> What do you mean by saying "all over the place"? It's a fix for kmem
-> implementation, to be more exact for the part of it residing in the slab
-> core.
-
-I meant into two slab allocators currently because of the implementation
-details which are spread into three different places - page allocator,
-memcg charging code and the respective slab allocator specific details.
-
-> Everyone else, except a couple of kmem users issuing alloc_page
-> directly like threadinfo, will use kmalloc and know nothing what's going
-> on there and how all this accounting stuff is handled - they will just
-> use plain old convenient kmalloc, which works exactly as it does in the
-> root cgroup.
-
-If we ever grow more users and charge more kernel memory then they might
-be doing similar assumptions and tweak allocation/charge context and we
-would end up in a bigger mess. It makes much more sense to have
-allocation and charge context consistent.
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -407,19 +407,19 @@ void mem_cgroup_print_oom_info(struct me
+>  
+>  static inline void mem_cgroup_oom_enable(void)
+>  {
+> -	WARN_ON(current->memcg_oom.may_oom);
+> -	current->memcg_oom.may_oom = 1;
+> +	WARN_ON(current->memcg_may_oom);
+> +	current->memcg_may_oom = 1;
+>  }
+>  
+>  static inline void mem_cgroup_oom_disable(void)
+>  {
+> -	WARN_ON(!current->memcg_oom.may_oom);
+> -	current->memcg_oom.may_oom = 0;
+> +	WARN_ON(!current->memcg_may_oom);
+> +	current->memcg_may_oom = 0;
+>  }
+>  
+>  static inline bool task_in_memcg_oom(struct task_struct *p)
+>  {
+> -	return p->memcg_oom.memcg;
+> +	return p->memcg_in_oom;
+>  }
+>  
+>  bool mem_cgroup_oom_synchronize(bool wait);
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1451,7 +1451,9 @@ struct task_struct {
+>  	unsigned sched_reset_on_fork:1;
+>  	unsigned sched_contributes_to_load:1;
+>  	unsigned sched_migrated:1;
+> -
+> +#ifdef CONFIG_MEMCG
+> +	unsigned memcg_may_oom:1;
+> +#endif
+>  #ifdef CONFIG_MEMCG_KMEM
+>  	unsigned memcg_kmem_skip_account:1;
+>  #endif
+> @@ -1782,12 +1784,9 @@ struct task_struct {
+>  	unsigned long trace_recursion;
+>  #endif /* CONFIG_TRACING */
+>  #ifdef CONFIG_MEMCG
+> -	struct memcg_oom_info {
+> -		struct mem_cgroup *memcg;
+> -		gfp_t gfp_mask;
+> -		int order;
+> -		unsigned int may_oom:1;
+> -	} memcg_oom;
+> +	struct mem_cgroup *memcg_in_oom;
+> +	gfp_t memcg_oom_gfp_mask;
+> +	int memcg_oom_order;
+>  #endif
+>  #ifdef CONFIG_UPROBES
+>  	struct uprobe_task *utask;
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1652,7 +1652,7 @@ static void memcg_oom_recover(struct mem
+>  
+>  static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+>  {
+> -	if (!current->memcg_oom.may_oom)
+> +	if (!current->memcg_may_oom)
+>  		return;
+>  	/*
+>  	 * We are in the middle of the charge context here, so we
+> @@ -1669,9 +1669,9 @@ static void mem_cgroup_oom(struct mem_cg
+>  	 * and when we know whether the fault was overall successful.
+>  	 */
+>  	css_get(&memcg->css);
+> -	current->memcg_oom.memcg = memcg;
+> -	current->memcg_oom.gfp_mask = mask;
+> -	current->memcg_oom.order = order;
+> +	current->memcg_in_oom = memcg;
+> +	current->memcg_oom_gfp_mask = mask;
+> +	current->memcg_oom_order = order;
+>  }
+>  
+>  /**
+> @@ -1693,7 +1693,7 @@ static void mem_cgroup_oom(struct mem_cg
+>   */
+>  bool mem_cgroup_oom_synchronize(bool handle)
+>  {
+> -	struct mem_cgroup *memcg = current->memcg_oom.memcg;
+> +	struct mem_cgroup *memcg = current->memcg_in_oom;
+>  	struct oom_wait_info owait;
+>  	bool locked;
+>  
+> @@ -1721,8 +1721,8 @@ bool mem_cgroup_oom_synchronize(bool han
+>  	if (locked && !memcg->oom_kill_disable) {
+>  		mem_cgroup_unmark_under_oom(memcg);
+>  		finish_wait(&memcg_oom_waitq, &owait.wait);
+> -		mem_cgroup_out_of_memory(memcg, current->memcg_oom.gfp_mask,
+> -					 current->memcg_oom.order);
+> +		mem_cgroup_out_of_memory(memcg, current->memcg_oom_gfp_mask,
+> +					 current->memcg_oom_order);
+>  	} else {
+>  		schedule();
+>  		mem_cgroup_unmark_under_oom(memcg);
+> @@ -1739,7 +1739,7 @@ bool mem_cgroup_oom_synchronize(bool han
+>  		memcg_oom_recover(memcg);
+>  	}
+>  cleanup:
+> -	current->memcg_oom.memcg = NULL;
+> +	current->memcg_in_oom = NULL;
+>  	css_put(&memcg->css);
+>  	return true;
+>  }
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 -- 
 Michal Hocko
