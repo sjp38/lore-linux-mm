@@ -1,179 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C53EF6B0256
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 11:25:27 -0400 (EDT)
-Received: by wicjd9 with SMTP id jd9so37201919wic.1
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:25:27 -0700 (PDT)
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
-        by mx.google.com with ESMTPS id fz6si3702257wic.116.2015.09.01.08.25.22
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 862E26B0254
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 11:37:41 -0400 (EDT)
+Received: by qgz60 with SMTP id 60so38128544qgz.2
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:37:41 -0700 (PDT)
+Received: from mail-qk0-x233.google.com (mail-qk0-x233.google.com. [2607:f8b0:400d:c09::233])
+        by mx.google.com with ESMTPS id 87si21829725qkx.83.2015.09.01.08.37.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Sep 2015 08:25:22 -0700 (PDT)
-Received: by wicmc4 with SMTP id mc4so37135937wic.0
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:25:22 -0700 (PDT)
-Date: Tue, 1 Sep 2015 17:25:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] memcg: flatten task_struct->memcg_oom
-Message-ID: <20150901152519.GG8810@dhcp22.suse.cz>
-References: <20150828220158.GD11089@htj.dyndns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150828220158.GD11089@htj.dyndns.org>
+        Tue, 01 Sep 2015 08:37:40 -0700 (PDT)
+Received: by qkct7 with SMTP id t7so45650716qkc.1
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 08:37:40 -0700 (PDT)
+Message-ID: <55e5c643.04c0370a.45f82.58bb@mx.google.com>
+Date: Tue, 01 Sep 2015 08:37:39 -0700 (PDT)
+From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Subject: Re: [PATCH V4] mm: memory hot-add: memory can not be added to
+ movable zone defaultly
+In-Reply-To: <1441000720-28506-1-git-send-email-liuchangsheng@inspur.com>
+References: <0bc3aaab6cea54112f1c444880f9b832@s.corp-email.com>
+	<1441000720-28506-1-git-send-email-liuchangsheng@inspur.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
+To: Changsheng Liu <liuchangsheng@inspur.com>
+Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
 
-On Fri 28-08-15 18:01:58, Tejun Heo wrote:
-> task_struct->memcg_oom is a sub-struct containing fields which are
-> used for async memcg oom handling.  Most task_struct fields aren't
-> packaged this way and it can lead to unnecessary alignment paddings.
-> This patch flattens it.
-> 
-> * task.memcg_oom.memcg          -> task.memcg_in_oom
-> * task.memcg_oom.gfp_mask	-> task.memcg_oom_gfp_mask
-> * task.memcg_oom.order          -> task.memcg_oom_order
-> * task.memcg_oom.may_oom        -> task.memcg_may_oom
-> 
-> In addition, task.memcg_may_oom is relocated to where other bitfields
-> are which reduces the size of task_struct.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+On Mon, 31 Aug 2015 01:58:40 -0400
+Changsheng Liu <liuchangsheng@inspur.com> wrote:
 
+> From: Changsheng Liu <liuchangcheng@inspur.com>
+> 
+> After the user config CONFIG_MOVABLE_NODE and movable_node kernel option,
+> When the memory is hot added, should_add_memory_movable() return 0
+> because all zones including movable zone are empty,
+> so the memory that was hot added will be added  to the normal zone
+> and the normal zone will be created firstly.
+> But we want the whole node to be added to movable zone defaultly.
+> 
+> So we change should_add_memory_movable(): if the user config
+> CONFIG_MOVABLE_NODE and movable_node kernel option
+> it will always return 1 and all zones is empty at the same time,
+> so that the movable zone will be created firstly
+> and then the whole node will be added to movable zone defaultly.
+> If we want the node to be added to normal zone,
+> we can do it as follows:
+> "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
+> 
+> If the memory is added to movable zone defaultly,
+> the user can offline it and add it to other zone again.
+> But if the memory is added to normal zone defaultly,
+> the user will not offline the memory used by kernel.
+> 
+> Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+> Reviewed-by: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+> Reviewed-by: Vlastimil Babka <vbabka@suse.cz>
+> Reviewed-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
+> Signed-off-by: Changsheng Liu <liuchangcheng@inspur.com>
+> Tested-by: Dongdong Fan <fandd@inspur.com>
 > ---
-> Hello,
+>  mm/memory_hotplug.c |    5 +++++
+>  1 files changed, 5 insertions(+), 0 deletions(-)
 > 
-> These two patches are what survived from the following patchset.
-> 
->  http://lkml.kernel.org/g/1440775530-18630-1-git-send-email-tj@kernel.org
-> 
-> Thanks.
-> 
->  include/linux/memcontrol.h |   10 +++++-----
->  include/linux/sched.h      |   13 ++++++-------
->  mm/memcontrol.c            |   16 ++++++++--------
->  3 files changed, 19 insertions(+), 20 deletions(-)
-> 
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -407,19 +407,19 @@ void mem_cgroup_print_oom_info(struct me
->  
->  static inline void mem_cgroup_oom_enable(void)
->  {
-> -	WARN_ON(current->memcg_oom.may_oom);
-> -	current->memcg_oom.may_oom = 1;
-> +	WARN_ON(current->memcg_may_oom);
-> +	current->memcg_may_oom = 1;
->  }
->  
->  static inline void mem_cgroup_oom_disable(void)
->  {
-> -	WARN_ON(!current->memcg_oom.may_oom);
-> -	current->memcg_oom.may_oom = 0;
-> +	WARN_ON(!current->memcg_may_oom);
-> +	current->memcg_may_oom = 0;
->  }
->  
->  static inline bool task_in_memcg_oom(struct task_struct *p)
->  {
-> -	return p->memcg_oom.memcg;
-> +	return p->memcg_in_oom;
->  }
->  
->  bool mem_cgroup_oom_synchronize(bool wait);
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -1451,7 +1451,9 @@ struct task_struct {
->  	unsigned sched_reset_on_fork:1;
->  	unsigned sched_contributes_to_load:1;
->  	unsigned sched_migrated:1;
-> -
-> +#ifdef CONFIG_MEMCG
-> +	unsigned memcg_may_oom:1;
-> +#endif
->  #ifdef CONFIG_MEMCG_KMEM
->  	unsigned memcg_kmem_skip_account:1;
->  #endif
-> @@ -1782,12 +1784,9 @@ struct task_struct {
->  	unsigned long trace_recursion;
->  #endif /* CONFIG_TRACING */
->  #ifdef CONFIG_MEMCG
-> -	struct memcg_oom_info {
-> -		struct mem_cgroup *memcg;
-> -		gfp_t gfp_mask;
-> -		int order;
-> -		unsigned int may_oom:1;
-> -	} memcg_oom;
-> +	struct mem_cgroup *memcg_in_oom;
-> +	gfp_t memcg_oom_gfp_mask;
-> +	int memcg_oom_order;
->  #endif
->  #ifdef CONFIG_UPROBES
->  	struct uprobe_task *utask;
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1652,7 +1652,7 @@ static void memcg_oom_recover(struct mem
->  
->  static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
->  {
-> -	if (!current->memcg_oom.may_oom)
-> +	if (!current->memcg_may_oom)
->  		return;
->  	/*
->  	 * We are in the middle of the charge context here, so we
-> @@ -1669,9 +1669,9 @@ static void mem_cgroup_oom(struct mem_cg
->  	 * and when we know whether the fault was overall successful.
->  	 */
->  	css_get(&memcg->css);
-> -	current->memcg_oom.memcg = memcg;
-> -	current->memcg_oom.gfp_mask = mask;
-> -	current->memcg_oom.order = order;
-> +	current->memcg_in_oom = memcg;
-> +	current->memcg_oom_gfp_mask = mask;
-> +	current->memcg_oom_order = order;
->  }
->  
->  /**
-> @@ -1693,7 +1693,7 @@ static void mem_cgroup_oom(struct mem_cg
->   */
->  bool mem_cgroup_oom_synchronize(bool handle)
->  {
-> -	struct mem_cgroup *memcg = current->memcg_oom.memcg;
-> +	struct mem_cgroup *memcg = current->memcg_in_oom;
->  	struct oom_wait_info owait;
->  	bool locked;
->  
-> @@ -1721,8 +1721,8 @@ bool mem_cgroup_oom_synchronize(bool han
->  	if (locked && !memcg->oom_kill_disable) {
->  		mem_cgroup_unmark_under_oom(memcg);
->  		finish_wait(&memcg_oom_waitq, &owait.wait);
-> -		mem_cgroup_out_of_memory(memcg, current->memcg_oom.gfp_mask,
-> -					 current->memcg_oom.order);
-> +		mem_cgroup_out_of_memory(memcg, current->memcg_oom_gfp_mask,
-> +					 current->memcg_oom_order);
->  	} else {
->  		schedule();
->  		mem_cgroup_unmark_under_oom(memcg);
-> @@ -1739,7 +1739,7 @@ bool mem_cgroup_oom_synchronize(bool han
->  		memcg_oom_recover(memcg);
->  	}
->  cleanup:
-> -	current->memcg_oom.memcg = NULL;
-> +	current->memcg_in_oom = NULL;
->  	css_put(&memcg->css);
->  	return true;
->  }
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 26fbba7..d1149ff 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1197,6 +1197,11 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
+>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>  	pg_data_t *pgdat = NODE_DATA(nid);
+>  	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+> +	struct zone *normal_zone = pgdat->node_zones + ZONE_NORMAL;
+> +
+> +	if (movable_node_is_enabled()
+> +	&& (zone_end_pfn(normal_zone) <= start_pfn))
+> +		return 1;
 
+If system boots up without movable_node, kernel behavior is changed by the patch.
+And you syould consider other zone.
+
+How about it. The patch is no build and test.
+
+
+---
+ mm/memory_hotplug.c |   36 ++++++++++++++++++++++++++++++++----
+ 1 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 6da82bc..321595d 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1198,6 +1198,8 @@ static int check_hotplug_memory_range(u64 start, u64 size)
+ /*
+  * If movable zone has already been setup, newly added memory should be check.
+  * If its address is higher than movable zone, it should be added as movable.
++ * And if system boots up with movable_zone and added memory does not overlap
++ * other zone except for movable zone, the memory is added as movable.
+  * Without this check, movable zone may overlap with other zone.
+  */
+ static int should_add_memory_movable(int nid, u64 start, u64 size)
+@@ -1205,14 +1207,40 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	pg_data_t *pgdat = NODE_DATA(nid);
+ 	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
++	struct zone *zone;
++	enum zone_type zt = ZONE_MOVABLE - 1;
++
++	/*
++	 * If memory is added after ZONE_MOVALBE, the memory is managed as
++	 * movable.
++	 */
++	if (!zone_is_empty(movable_zone) &&
++	    (movable_zone->zone_start_pfn <= start_pfn))
++		return 1;
+ 
+-	if (zone_is_empty(movable_zone))
++	if (!movable_node_is_enabled())
+ 		return 0;
+ 
+-	if (movable_zone->zone_start_pfn <= start_pfn)
+-		return 1;
++	/*
++	 * Find enabled zone and check the added memory.
++	 * If the memory is added after the enabled zone, the memory is
++	 * managed as movable.
++	 *
++	 * If all zones are empty, the memory is also managed as movable.
++	 */
++	for (; zt >= ZONE_DMA; zt--) {
++		zone = pgdat->node_zones + zt;
+ 
+-	return 0;
++		if (zone_is_empty(zone))
++			continue;
++
++		if (zone_end_pfn(zone) <= start_pfn)
++			return 1;
++		else
++			return 0;
++	}
++
++	return 1;
+ }
+ 
+ int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
 -- 
-Michal Hocko
-SUSE Labs
+1.7.1
+
+
+
+>  
+>  	if (zone_is_empty(movable_zone))
+>  		return 0;
+> -- 
+> 1.7.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
