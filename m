@@ -1,45 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CE2F36B0256
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2015 07:45:53 -0400 (EDT)
-Received: by pacwi10 with SMTP id wi10so9239395pac.3
-        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 04:45:53 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id pr10si34957553pbb.122.2015.09.02.04.45.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Sep 2015 04:45:53 -0700 (PDT)
-Date: Wed, 2 Sep 2015 14:45:18 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 1/2] memcg: flatten task_struct->memcg_oom
-Message-ID: <20150902114518.GA1237@esperanza>
-References: <20150828220158.GD11089@htj.dyndns.org>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id E39896B0254
+	for <linux-mm@kvack.org>; Wed,  2 Sep 2015 10:23:33 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so13517484pac.2
+        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 07:23:33 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id ik2si18774095pbb.38.2015.09.02.07.23.32
+        for <linux-mm@kvack.org>;
+        Wed, 02 Sep 2015 07:23:32 -0700 (PDT)
+Subject: Re: [PATCH] dax, pmem: add support for msync
+References: <1441047584-14664-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20150831233803.GO3902@dastard> <20150901070608.GA5482@lst.de>
+ <20150901222120.GQ3902@dastard> <20150902031945.GA8916@linux.intel.com>
+ <20150902051711.GS3902@dastard> <55E6CF15.4070105@plexistor.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <55E70653.4090302@linux.intel.com>
+Date: Wed, 2 Sep 2015 07:23:15 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150828220158.GD11089@htj.dyndns.org>
+In-Reply-To: <55E6CF15.4070105@plexistor.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Boaz Harrosh <boaz@plexistor.com>, Dave Chinner <david@fromorbit.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@osdl.org>, "H. Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org
 
-On Fri, Aug 28, 2015 at 06:01:58PM -0400, Tejun Heo wrote:
-> task_struct->memcg_oom is a sub-struct containing fields which are
-> used for async memcg oom handling.  Most task_struct fields aren't
-> packaged this way and it can lead to unnecessary alignment paddings.
-> This patch flattens it.
+On 09/02/2015 03:27 AM, Boaz Harrosh wrote:
+>> > Yet you're ignoring the fact that flushing the entire range of the
+>> > relevant VMAs may not be very efficient. It may be a very
+>> > large mapping with only a few pages that need flushing from the
+>> > cache, but you still iterate the mappings flushing GB ranges from
+>> > the cache at a time.
+>> > 
+> So actually you are wrong about this. We have a working system and as part
+> of our testing rig we do performance measurements, constantly. Our random
+> mmap 4k writes test preforms very well and is in par with the random-direct-write
+> implementation even though on every unmap, we do a VMA->start/end cl_flushing.
 > 
-> * task.memcg_oom.memcg          -> task.memcg_in_oom
-> * task.memcg_oom.gfp_mask	-> task.memcg_oom_gfp_mask
-> * task.memcg_oom.order          -> task.memcg_oom_order
-> * task.memcg_oom.may_oom        -> task.memcg_may_oom
-> 
-> In addition, task.memcg_may_oom is relocated to where other bitfields
-> are which reduces the size of task_struct.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
+> The cl_flush operation is a no-op if the cacheline is not dirty and is a
+> memory bus storm with all the CLs that are dirty. So the only cost
+> is the iteration of vma->start-to-vma->end i+=64
 
-Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
+I'd be curious what the cost is in practice.  Do you have any actual
+numbers of the cost of doing it this way?
+
+Even if the instruction is a "noop", I'd really expect the overhead to
+really add up for a tens-of-gigabytes mapping, no matter how much the
+CPU optimizes it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
