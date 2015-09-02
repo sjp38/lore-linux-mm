@@ -1,109 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3023D6B0254
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2015 05:09:57 -0400 (EDT)
-Received: by qkcf65 with SMTP id f65so1620079qkc.3
-        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 02:09:56 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q29si24821188qkh.99.2015.09.02.02.09.56
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F0F86B0254
+	for <linux-mm@kvack.org>; Wed,  2 Sep 2015 05:13:25 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so33193979wic.0
+        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 02:13:24 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
+        by mx.google.com with ESMTPS id fx1si3214106wic.87.2015.09.02.02.13.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Sep 2015 02:09:56 -0700 (PDT)
-Date: Wed, 2 Sep 2015 11:09:50 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH] slub: Avoid irqoff/on in bulk allocation
-Message-ID: <20150902110950.4d407c0f@redhat.com>
-In-Reply-To: <alpine.DEB.2.11.1508281443290.11894@east.gentwo.org>
-References: <alpine.DEB.2.11.1508281443290.11894@east.gentwo.org>
+        Wed, 02 Sep 2015 02:13:24 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so10373209wic.1
+        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 02:13:23 -0700 (PDT)
+Date: Wed, 2 Sep 2015 12:13:21 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] dax, pmem: add support for msync
+Message-ID: <20150902091321.GA2323@node.dhcp.inet.fi>
+References: <1441047584-14664-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20150831233803.GO3902@dastard>
+ <20150901100804.GA7045@node.dhcp.inet.fi>
+ <20150901224922.GR3902@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150901224922.GR3902@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, brouer@redhat.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@lst.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org
 
-On Fri, 28 Aug 2015 14:44:20 -0500 (CDT)
-Christoph Lameter <cl@linux.com> wrote:
-
-> Use the new function that can do allocation while
-> interrupts are disabled.  Avoids irq on/off sequences.
+On Wed, Sep 02, 2015 at 08:49:22AM +1000, Dave Chinner wrote:
+> On Tue, Sep 01, 2015 at 01:08:04PM +0300, Kirill A. Shutemov wrote:
+> > On Tue, Sep 01, 2015 at 09:38:03AM +1000, Dave Chinner wrote:
+> > > On Mon, Aug 31, 2015 at 12:59:44PM -0600, Ross Zwisler wrote:
+> > > Even for DAX, msync has to call vfs_fsync_range() for the filesystem to commit
+> > > the backing store allocations to stable storage, so there's not
+> > > getting around the fact msync is the wrong place to be flushing
+> > > DAX mappings to persistent storage.
+> > 
+> > Why?
+> > IIUC, msync() doesn't have any requirements wrt metadata, right?
 > 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+> Of course it does. If the backing store allocation has not been
+> committed, then after a crash there will be a hole in file and
+> so it will read as zeroes regardless of what data was written and
+> flushed.
+
+Any reason why backing store allocation cannot be committed on *_mkwrite?
+
+> > > I pointed this out almost 6 months ago (i.e. that fsync was broken)
+> > > anf hinted at how to solve it. Fix fsync, and msync gets fixed for
+> > > free:
+> > > 
+> > > https://lists.01.org/pipermail/linux-nvdimm/2015-March/000341.html
+> > > 
+> > > I've also reported to Willy that DAX write page faults don't work
+> > > correctly, either. xfstests generic/080 exposes this: a read
+> > > from a page followed immediately by a write to that page does not
+> > > result in ->page_mkwrite being called on the write and so
+> > > backing store is not allocated for the page, nor are the timestamps
+> > > for the file updated. This will also result in fsync (and msync)
+> > > not working properly.
+> > 
+> > Is that because XFS doesn't provide vm_ops->pfn_mkwrite?
 > 
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c	2015-08-28 14:34:59.377234626 -0500
-> +++ linux/mm/slub.c	2015-08-28 14:34:59.377234626 -0500
-> @@ -2823,30 +2823,23 @@ bool kmem_cache_alloc_bulk(struct kmem_c
->  		void *object = c->freelist;
+> I didn't know that had been committed. I don't recall seeing a pull
+> request with that in it
+
+It went though -mm tree.
+
+> none of the XFS DAX patches conflicted
+> against it and there's been no runtime errors. I'll fix it up.
 > 
->  		if (unlikely(!object)) {
-> -			local_irq_enable();
->  			/*
->  			 * Invoking slow path likely have side-effect
->  			 * of re-populating per CPU c->freelist
->  			 */
-> -			p[i] = __slab_alloc(s, flags, NUMA_NO_NODE,
-> +			p[i] = ___slab_alloc(s, flags, NUMA_NO_NODE,
->  					    _RET_IP_, c);
-> -			if (unlikely(!p[i])) {
-> -				__kmem_cache_free_bulk(s, i, p);
-> -				return false;
-> -			}
-> -			local_irq_disable();
-> +			if (unlikely(!p[i]))
-> +				goto error;
-> +
->  			c = this_cpu_ptr(s->cpu_slab);
->  			continue; /* goto for-loop */
->  		}
-> 
->  		/* kmem_cache debug support */
->  		s = slab_pre_alloc_hook(s, flags);
-> -		if (unlikely(!s)) {
-> -			__kmem_cache_free_bulk(s, i, p);
-> -			c->tid = next_tid(c->tid);
-> -			local_irq_enable();
-> -			return false;
-> -		}
-> +		if (unlikely(!s))
-> +			goto error;
-> 
->  		c->freelist = get_freepointer(s, object);
->  		p[i] = object;
-> @@ -2866,6 +2859,11 @@ bool kmem_cache_alloc_bulk(struct kmem_c
->  	}
-> 
->  	return true;
-> +
-> +error:
-> +	__kmem_cache_free_bulk(s, i, p);
+> As such, shouldn't there be a check in the VM (in ->mmap callers)
+> that if we have the vma is returned with VM_MIXEDMODE enabled that
+> ->pfn_mkwrite is not NULL?  It's now clear to me that any filesystem
+> that sets VM_MIXEDMODE needs to support both page_mkwrite and
+> pfn_mkwrite, and such a check would have caught this immediately...
 
-Don't we need to update "tid" here, like:
+I guess it's "both or none" case. We have VM_MIXEDMAP users who don't care
+about *_mkwrite.
 
-  c->tid = next_tid(c->tid);
+I'm not yet sure it would be always correct, but something like this will
+catch the XFS case, without false-positive on other stuff in my KVM setup:
 
-Consider a call to the ordinary kmem_cache_alloc/slab_alloc_node was
-in-progress, which get PREEMPT'ed just before it's call to
-this_cpu_cmpxchg_double().
- Now, this function gets called and we modify c->freelist, but cannot
-get all objects and then fail (goto error).  Although we put-back
-objects (via __kmem_cache_free_bulk) don't we want to update c->tid
-in-order to make sure the call to this_cpu_cmpxchg_double() retry?
-
-> +	local_irq_enable();
-> +	return false;
->  }
->  EXPORT_SYMBOL(kmem_cache_alloc_bulk);
-
-
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3f78bceefe5a..f2e29a541e14 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1645,6 +1645,15 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+                        vma->vm_ops = &dummy_ops;
+                }
+ 
++               /*
++                * Make sure that for VM_MIXEDMAP VMA has both
++                * vm_ops->page_mkwrite and vm_ops->pfn_mkwrite or has none.
++                */
++               if ((vma->vm_ops->page_mkwrite || vma->vm_ops->pfn_mkwrite) &&
++                               vma->vm_flags & VM_MIXEDMAP) {
++                       VM_BUG_ON_VMA(!vma->vm_ops->page_mkwrite, vma);
++                       VM_BUG_ON_VMA(!vma->vm_ops->pfn_mkwrite, vma);
++               }
+                addr = vma->vm_start;
+                vm_flags = vma->vm_flags;
+        } else if (vm_flags & VM_SHARED) {
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
