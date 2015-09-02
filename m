@@ -1,78 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B5F236B0254
-	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 21:15:41 -0400 (EDT)
-Received: by pacwi10 with SMTP id wi10so13336891pac.3
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 18:15:41 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id uf1si32714308pab.210.2015.09.01.18.15.39
+	by kanga.kvack.org (Postfix) with ESMTP id E8A2C6B0254
+	for <linux-mm@kvack.org>; Tue,  1 Sep 2015 23:19:47 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so16965044pac.2
+        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 20:19:47 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id kv12si33196975pab.144.2015.09.01.20.19.46
         for <linux-mm@kvack.org>;
-        Tue, 01 Sep 2015 18:15:40 -0700 (PDT)
-Date: Wed, 2 Sep 2015 11:15:24 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/2] mm/slab_common: add SLAB_NO_MERGE flag for use when
- creating slabs
-Message-ID: <20150902011524.GM26895@dastard>
-References: <1441129890-25585-1-git-send-email-snitzer@redhat.com>
+        Tue, 01 Sep 2015 20:19:47 -0700 (PDT)
+Date: Tue, 1 Sep 2015 21:19:45 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] dax, pmem: add support for msync
+Message-ID: <20150902031945.GA8916@linux.intel.com>
+References: <1441047584-14664-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20150831233803.GO3902@dastard>
+ <20150901070608.GA5482@lst.de>
+ <20150901222120.GQ3902@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1441129890-25585-1-git-send-email-snitzer@redhat.com>
+In-Reply-To: <20150901222120.GQ3902@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Snitzer <snitzer@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, axboe@kernel.dk, dm-devel@redhat.com, anderson@redhat.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@osdl.org>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org
 
-On Tue, Sep 01, 2015 at 01:51:29PM -0400, Mike Snitzer wrote:
-> The slab aliasing/merging by default transition went unnoticed (at least
-> to the DM subsystem).  Add a new SLAB_NO_MERGE flag that allows
-> individual slabs to be created without slab merging.  This beats forcing
-> all slabs to be created in this fashion by specifying sl[au]b_nomerge on
-> the kernel commandline.
+On Wed, Sep 02, 2015 at 08:21:20AM +1000, Dave Chinner wrote:
+> Which means applications that should "just work" without
+> modification on DAX are now subtly broken and don't actually
+> guarantee data is safe after a crash. That's a pretty nasty
+> landmine, and goes against *everything* we've claimed about using
+> DAX with existing applications.
+> 
+> That's wrong, and needs fixing.
 
-I didn't realise that this merging had also been applied to SLAB - I
-thought it was just SLUB that did this.  Indeed, one of the prime
-reasons for using SLAB over SLUB was that it didn't merge caches and
-so still gave excellent visibility of runtime slab memory usage on
-production systems.
+I agree that we need to fix fsync as well, and that the fsync solution could
+be used to implement msync if we choose to go that route.  I think we might
+want to consider keeping the msync and fsync implementations separate, though,
+for two reasons.
 
-I had no idea that commit 12220de ("mm/slab: support slab merge")
-had made SLAB do this as well as it was not cc'd to any of the
-people/subsystems that maintain code that uses slab caches.  IMNSHO
-the commit message gives pretty flimsy justification for such a
-change, especially considering we need to deal with slab caches that
-individually grow to contain hundreds of millions of objects.
+1) The current msync implementation is much more efficient than what will be
+needed for fsync.  Fsync will need to call into the filesystem, traverse all
+the blocks, get kernel virtual addresses from those and then call
+wb_cache_pmem() on those kernel addresses.  I think this is a necessary evil
+for fsync since you don't have a VMA, but for msync we do and we can just
+flush using the user addresses without any fs lookups.
 
-> DM has historically taken care to have separate named slabs that each
-> devices' mempool_t are backed by.  These separate slabs are useful --
-> even if only to aid inspection of DM's memory use (via /proc/slabinfo)
-> on production systems.
+2) I believe that the near-term fsync code will rely on struct pages for
+PMEM, which I believe are possible but optional as of Dan's last patch set:
 
-Yup, that's one of the reasons XFS has 17 separate slab caches. The
-other main reason is that slab separation also helps keep memory
-corruption and use-after free issues contained; if you have a
-problem with the objects from one slab cache, the isolation of the
-slab makes it less likely that the problem propagates to other
-subsystems. Hence failures also tend to be isolated to the code that
-has the leak/corruption problem, making them easier to triage and
-debug on production systems...
+https://lkml.org/lkml/2015/8/25/841
 
-> I stumbled onto slab merging as a side-effect of a leak in dm-cache
-> being attributed to 'kmalloc-96' rather than the expected
-> 'dm_bio_prison_cell' named slab.  Moving forward DM will disable slab
-> merging for all of DM's slabs by using SLAB_NO_MERGE.
-
-Seems like a fine idea to me. I can apply it to various slabs in XFS
-once it's merged....
-
-Acked-by: Dave Chinner <dchinner@redhat.com>
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I believe that this means that if we don't have struct pages for PMEM (becuase
+ZONE_DEVICE et al. are turned off) fsync won't work.  I'd be nice not to lose
+msync as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
