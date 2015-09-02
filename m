@@ -1,101 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 14E696B0254
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2015 01:17:29 -0400 (EDT)
-Received: by padhy1 with SMTP id hy1so19961064pad.1
-        for <linux-mm@kvack.org>; Tue, 01 Sep 2015 22:17:28 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id pj2si33520589pbc.180.2015.09.01.22.17.26
-        for <linux-mm@kvack.org>;
-        Tue, 01 Sep 2015 22:17:27 -0700 (PDT)
-Date: Wed, 2 Sep 2015 15:17:11 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] dax, pmem: add support for msync
-Message-ID: <20150902051711.GS3902@dastard>
-References: <1441047584-14664-1-git-send-email-ross.zwisler@linux.intel.com>
- <20150831233803.GO3902@dastard>
- <20150901070608.GA5482@lst.de>
- <20150901222120.GQ3902@dastard>
- <20150902031945.GA8916@linux.intel.com>
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 92BFF6B0254
+	for <linux-mm@kvack.org>; Wed,  2 Sep 2015 04:55:27 -0400 (EDT)
+Received: by laeb10 with SMTP id b10so2429038lae.1
+        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 01:55:26 -0700 (PDT)
+Received: from mail-lb0-x22a.google.com (mail-lb0-x22a.google.com. [2a00:1450:4010:c04::22a])
+        by mx.google.com with ESMTPS id w4si848647lad.89.2015.09.02.01.55.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Sep 2015 01:55:25 -0700 (PDT)
+Received: by lbcjc2 with SMTP id jc2so2074275lbc.0
+        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 01:55:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150902031945.GA8916@linux.intel.com>
+In-Reply-To: <alpine.DEB.2.10.1509011522470.11913@chino.kir.corp.google.com>
+References: <BLUPR02MB1698DD8F0D1550366489DF8CCD620@BLUPR02MB1698.namprd02.prod.outlook.com>
+	<CALYGNiOg_Zq8Fz-VWskH7LVGdExuq=03+56dpCsDiZ6eAq2A4Q@mail.gmail.com>
+	<55DC3BD4.6020602@suse.cz>
+	<alpine.DEB.2.10.1509011522470.11913@chino.kir.corp.google.com>
+Date: Wed, 2 Sep 2015 11:55:24 +0300
+Message-ID: <CALYGNiNQBbV8BOVyBUFYHO8i2Hx15T_Zbb+efKMLH5KR93ZQMw@mail.gmail.com>
+Subject: Re: Can we disable transparent hugepages for lack of a legitimate use
+ case please?
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@osdl.org>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, James Hartshorn <jhartshorn@connexity.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On Tue, Sep 01, 2015 at 09:19:45PM -0600, Ross Zwisler wrote:
-> On Wed, Sep 02, 2015 at 08:21:20AM +1000, Dave Chinner wrote:
-> > Which means applications that should "just work" without
-> > modification on DAX are now subtly broken and don't actually
-> > guarantee data is safe after a crash. That's a pretty nasty
-> > landmine, and goes against *everything* we've claimed about using
-> > DAX with existing applications.
-> > 
-> > That's wrong, and needs fixing.
-> 
-> I agree that we need to fix fsync as well, and that the fsync solution could
-> be used to implement msync if we choose to go that route.  I think we might
-> want to consider keeping the msync and fsync implementations separate, though,
-> for two reasons.
-> 
-> 1) The current msync implementation is much more efficient than what will be
-> needed for fsync.  Fsync will need to call into the filesystem, traverse all
-> the blocks, get kernel virtual addresses from those and then call
-> wb_cache_pmem() on those kernel addresses.  I think this is a necessary evil
-> for fsync since you don't have a VMA, but for msync we do and we can just
-> flush using the user addresses without any fs lookups.
+On Wed, Sep 2, 2015 at 1:26 AM, David Rientjes <rientjes@google.com> wrote:
+> On Tue, 25 Aug 2015, Vlastimil Babka wrote:
+>
+>> > THP works very well when system has a lot of free memory.
+>> > Probably default should be weakened to "only if we have tons of free
+>> > memory".
+>> > For example allocate THP pages atomically, only if buddy allocator already
+>> > has huge pages. Also them could be pre-zeroed in background.
+>>
+>> I've been proposing series that try to move more THP allocation activity from
+>> the page faults into khugepaged, but no success yet.
+>>
+>> Maybe we should just start with changing the default of
+>> /sys/kernel/mm/transparent_hugepage/defrag to "madvise".
+>
+> I would need to revert this internally to avoid performance degradation, I
+> believe others would report the same.
 
-Yet you're ignoring the fact that flushing the entire range of the
-relevant VMAs may not be very efficient. It may be a very
-large mapping with only a few pages that need flushing from the
-cache, but you still iterate the mappings flushing GB ranges from
-the cache at a time.
+What about adding new mode "guess" -- something between always and madvise?
 
-We don't need struct pages to track page dirty state. We already
-have a method for doing this that does not rely on having a struct
-page and can be used for efficient lookup of exact dirty ranges. i.e
-the per-page dirty tag that is kept in the mapping radix tree. It's
-fine grained, and extremely efficient in terms of lookups to find
-dirty pages.
+In this mode kernel tries to avoid performance impact for non-madvised vmas and
+allocates 0-order pages if hugepages are not available right now.
+(for example do allocations with GFP_NOWAIT)
+I think we'll get all benefits without losing performance.
 
-Indeed, the mapping tree tags were specifically designed to avoid
-this "fsync doesn't know what range to flush" problem for normal
-files. That same problem still exists here for msync - these patches
-are just hitting it with a goddamn massive hammer "because it is
-easy" rather than attempting to do the flushing efficiently.
-
-> 2) I believe that the near-term fsync code will rely on struct pages for
-> PMEM, which I believe are possible but optional as of Dan's last patch set:
-> 
-> https://lkml.org/lkml/2015/8/25/841
-> 
-> I believe that this means that if we don't have struct pages for PMEM (becuase
-> ZONE_DEVICE et al. are turned off) fsync won't work.  I'd be nice not to lose
-> msync as well.
-
-I don't think this is an either-or situation. If we use struct pages
-for PMEM, then fsync will work without modification as DAX will need
-to use struct pages and hence we can insert them in the mapping
-radix tree directly and use the normal set/clear_page_dirty() calls
-to track dirty state. It will give us fine grained flush capability
-and we won't want msync() to be using the big hammer if we can avoid
-it.
-
-If we make the existing pfn-based DAX code track dirty pages via
-mapping radix tree tags right now, then we allow fsync to work by
-reusing most of the infrastructure we already have.  That means DAX
-and fsync will work exactly the same regardless of how we
-index/reference PMEM in future and we won't have to come back and
-fix it all up again.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+>
+>> This would remove the
+>> reclaim and compaction for page faults and quickly fallback to order-0 pages.
+>> The compaction is already crippled enough there with the GFP_TRANSHUGE
+>> specific decisions in __alloc_pages_slowpath(). I've noticed it failing
+>> miserably in the transhuge-stress recently, so it seems it's not worth to try
+>> at all. With changing the default we can kill those GFP_TRANSHUGE checks and
+>> assume that whoever uses the madvise does actually want to try harder.
+>>
+>
+> I think the work that is being done on moving compaction to khugepaged as
+> well as periodic synchronous compaction of all memory is the way to go to
+> avoid lengthy stalls during fault.
+>
+>> Of course that does nothing about zeroing. I don't know how huge issue is that
+>> one?
+>>
+>
+> I don't believe it is an issue that cannot be worked around in userspace
+> either with MADV_NOHUGEPAGE or PR_SET_THP_DISABLE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
