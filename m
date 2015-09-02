@@ -1,110 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F0F86B0254
-	for <linux-mm@kvack.org>; Wed,  2 Sep 2015 05:13:25 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so33193979wic.0
-        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 02:13:24 -0700 (PDT)
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
-        by mx.google.com with ESMTPS id fx1si3214106wic.87.2015.09.02.02.13.23
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id DD2756B0255
+	for <linux-mm@kvack.org>; Wed,  2 Sep 2015 05:15:49 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so5451806pac.2
+        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 02:15:49 -0700 (PDT)
+Received: from unicom154.biz-email.net (bgp252.corp-email.cn. [112.65.243.252])
+        by mx.google.com with ESMTPS id xo9si34479804pab.125.2015.09.02.02.15.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Sep 2015 02:13:24 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so10373209wic.1
-        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 02:13:23 -0700 (PDT)
-Date: Wed, 2 Sep 2015 12:13:21 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] dax, pmem: add support for msync
-Message-ID: <20150902091321.GA2323@node.dhcp.inet.fi>
-References: <1441047584-14664-1-git-send-email-ross.zwisler@linux.intel.com>
- <20150831233803.GO3902@dastard>
- <20150901100804.GA7045@node.dhcp.inet.fi>
- <20150901224922.GR3902@dastard>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Sep 2015 02:15:48 -0700 (PDT)
+Received: from unicom146.biz-email.net ([192.168.0.146])
+        by unicom154.biz-email.net ((Trust)) with ESMTP (SSL) id QKQ00035
+        for <linux-mm@kvack.org>; Wed, 02 Sep 2015 17:13:35 +0800
+Subject: Re: [PATCH V4] mm: memory hot-add: memory can not be added to movable
+ zone defaultly
+References: <0bc3aaab6cea54112f1c444880f9b832@s.corp-email.com>
+ <1441000720-28506-1-git-send-email-liuchangsheng@inspur.com>
+ <55e5c643.04c0370a.45f82.58bb@mx.google.com>
+From: Changsheng Liu <liuchangsheng@inspur.com>
+Message-ID: <55E6BC25.2080700@inspur.com>
+Date: Wed, 2 Sep 2015 17:06:45 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150901224922.GR3902@dastard>
+In-Reply-To: <55e5c643.04c0370a.45f82.58bb@mx.google.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@lst.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org
+To: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
 
-On Wed, Sep 02, 2015 at 08:49:22AM +1000, Dave Chinner wrote:
-> On Tue, Sep 01, 2015 at 01:08:04PM +0300, Kirill A. Shutemov wrote:
-> > On Tue, Sep 01, 2015 at 09:38:03AM +1000, Dave Chinner wrote:
-> > > On Mon, Aug 31, 2015 at 12:59:44PM -0600, Ross Zwisler wrote:
-> > > Even for DAX, msync has to call vfs_fsync_range() for the filesystem to commit
-> > > the backing store allocations to stable storage, so there's not
-> > > getting around the fact msync is the wrong place to be flushing
-> > > DAX mappings to persistent storage.
-> > 
-> > Why?
-> > IIUC, msync() doesn't have any requirements wrt metadata, right?
-> 
-> Of course it does. If the backing store allocation has not been
-> committed, then after a crash there will be a hole in file and
-> so it will read as zeroes regardless of what data was written and
-> flushed.
 
-Any reason why backing store allocation cannot be committed on *_mkwrite?
 
-> > > I pointed this out almost 6 months ago (i.e. that fsync was broken)
-> > > anf hinted at how to solve it. Fix fsync, and msync gets fixed for
-> > > free:
-> > > 
-> > > https://lists.01.org/pipermail/linux-nvdimm/2015-March/000341.html
-> > > 
-> > > I've also reported to Willy that DAX write page faults don't work
-> > > correctly, either. xfstests generic/080 exposes this: a read
-> > > from a page followed immediately by a write to that page does not
-> > > result in ->page_mkwrite being called on the write and so
-> > > backing store is not allocated for the page, nor are the timestamps
-> > > for the file updated. This will also result in fsync (and msync)
-> > > not working properly.
-> > 
-> > Is that because XFS doesn't provide vm_ops->pfn_mkwrite?
-> 
-> I didn't know that had been committed. I don't recall seeing a pull
-> request with that in it
-
-It went though -mm tree.
-
-> none of the XFS DAX patches conflicted
-> against it and there's been no runtime errors. I'll fix it up.
-> 
-> As such, shouldn't there be a check in the VM (in ->mmap callers)
-> that if we have the vma is returned with VM_MIXEDMODE enabled that
-> ->pfn_mkwrite is not NULL?  It's now clear to me that any filesystem
-> that sets VM_MIXEDMODE needs to support both page_mkwrite and
-> pfn_mkwrite, and such a check would have caught this immediately...
-
-I guess it's "both or none" case. We have VM_MIXEDMAP users who don't care
-about *_mkwrite.
-
-I'm not yet sure it would be always correct, but something like this will
-catch the XFS case, without false-positive on other stuff in my KVM setup:
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 3f78bceefe5a..f2e29a541e14 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1645,6 +1645,15 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
-                        vma->vm_ops = &dummy_ops;
-                }
- 
-+               /*
-+                * Make sure that for VM_MIXEDMAP VMA has both
-+                * vm_ops->page_mkwrite and vm_ops->pfn_mkwrite or has none.
-+                */
-+               if ((vma->vm_ops->page_mkwrite || vma->vm_ops->pfn_mkwrite) &&
-+                               vma->vm_flags & VM_MIXEDMAP) {
-+                       VM_BUG_ON_VMA(!vma->vm_ops->page_mkwrite, vma);
-+                       VM_BUG_ON_VMA(!vma->vm_ops->pfn_mkwrite, vma);
-+               }
-                addr = vma->vm_start;
-                vm_flags = vma->vm_flags;
-        } else if (vm_flags & VM_SHARED) {
--- 
- Kirill A. Shutemov
+On 9/1/2015 23:37, Yasuaki Ishimatsu wrote:
+> On Mon, 31 Aug 2015 01:58:40 -0400
+> Changsheng Liu <liuchangsheng@inspur.com> wrote:
+>
+>> From: Changsheng Liu <liuchangcheng@inspur.com>
+>>
+>> After the user config CONFIG_MOVABLE_NODE and movable_node kernel option,
+>> When the memory is hot added, should_add_memory_movable() return 0
+>> because all zones including movable zone are empty,
+>> so the memory that was hot added will be added  to the normal zone
+>> and the normal zone will be created firstly.
+>> But we want the whole node to be added to movable zone defaultly.
+>>
+>> So we change should_add_memory_movable(): if the user config
+>> CONFIG_MOVABLE_NODE and movable_node kernel option
+>> it will always return 1 and all zones is empty at the same time,
+>> so that the movable zone will be created firstly
+>> and then the whole node will be added to movable zone defaultly.
+>> If we want the node to be added to normal zone,
+>> we can do it as follows:
+>> "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
+>>
+>> If the memory is added to movable zone defaultly,
+>> the user can offline it and add it to other zone again.
+>> But if the memory is added to normal zone defaultly,
+>> the user will not offline the memory used by kernel.
+>>
+>> Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+>> Reviewed-by: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+>> Reviewed-by: Vlastimil Babka <vbabka@suse.cz>
+>> Reviewed-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
+>> Signed-off-by: Changsheng Liu <liuchangcheng@inspur.com>
+>> Tested-by: Dongdong Fan <fandd@inspur.com>
+>> ---
+>>   mm/memory_hotplug.c |    5 +++++
+>>   1 files changed, 5 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 26fbba7..d1149ff 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1197,6 +1197,11 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
+>>   	unsigned long start_pfn = start >> PAGE_SHIFT;
+>>   	pg_data_t *pgdat = NODE_DATA(nid);
+>>   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+>> +	struct zone *normal_zone = pgdat->node_zones + ZONE_NORMAL;
+>> +
+>> +	if (movable_node_is_enabled()
+>> +	&& (zone_end_pfn(normal_zone) <= start_pfn))
+>> +		return 1;
+> If system boots up without movable_node, kernel behavior is changed by the patch.
+> And you syould consider other zone.
+>
+> How about it. The patch is no build and test.
+     Thanks for your suggestion. We will test the patch on our platform
+>
+>
+> ---
+>   mm/memory_hotplug.c |   36 ++++++++++++++++++++++++++++++++----
+>   1 files changed, 32 insertions(+), 4 deletions(-)
+>
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 6da82bc..321595d 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1198,6 +1198,8 @@ static int check_hotplug_memory_range(u64 start, u64 size)
+>   /*
+>    * If movable zone has already been setup, newly added memory should be check.
+>    * If its address is higher than movable zone, it should be added as movable.
+> + * And if system boots up with movable_zone and added memory does not overlap
+> + * other zone except for movable zone, the memory is added as movable.
+>    * Without this check, movable zone may overlap with other zone.
+>    */
+>   static int should_add_memory_movable(int nid, u64 start, u64 size)
+> @@ -1205,14 +1207,40 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
+>   	unsigned long start_pfn = start >> PAGE_SHIFT;
+>   	pg_data_t *pgdat = NODE_DATA(nid);
+>   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+> +	struct zone *zone;
+> +	enum zone_type zt = ZONE_MOVABLE - 1;
+> +
+> +	/*
+> +	 * If memory is added after ZONE_MOVALBE, the memory is managed as
+> +	 * movable.
+> +	 */
+> +	if (!zone_is_empty(movable_zone) &&
+> +	    (movable_zone->zone_start_pfn <= start_pfn))
+> +		return 1;
+>   
+> -	if (zone_is_empty(movable_zone))
+> +	if (!movable_node_is_enabled())
+>   		return 0;
+>   
+> -	if (movable_zone->zone_start_pfn <= start_pfn)
+> -		return 1;
+> +	/*
+> +	 * Find enabled zone and check the added memory.
+> +	 * If the memory is added after the enabled zone, the memory is
+> +	 * managed as movable.
+> +	 *
+> +	 * If all zones are empty, the memory is also managed as movable.
+> +	 */
+> +	for (; zt >= ZONE_DMA; zt--) {
+> +		zone = pgdat->node_zones + zt;
+>   
+> -	return 0;
+> +		if (zone_is_empty(zone))
+> +			continue;
+> +
+> +		if (zone_end_pfn(zone) <= start_pfn)
+> +			return 1;
+> +		else
+> +			return 0;
+> +	}
+> +
+> +	return 1;
+>   }
+>   
+>   int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
