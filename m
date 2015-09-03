@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BB4B6B0263
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 10:48:14 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so55057841wic.0
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:14 -0700 (PDT)
-Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
-        by mx.google.com with ESMTPS id d3si11358358wie.23.2015.09.03.07.48.08
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EF696B0265
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 10:48:16 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so10955276wic.1
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:16 -0700 (PDT)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id p17si11308429wie.89.2015.09.03.07.48.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Sep 2015 07:48:09 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so76643523wic.0
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:08 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Sep 2015 07:48:10 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so22613018wic.1
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:09 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH 2/7] kasan: update reported bug types for kernel memory accesses
-Date: Thu,  3 Sep 2015 16:47:37 +0200
-Message-Id: <8e4af35aa9e69f3cfd84cce8b571cce91d04b992.1441290219.git.andreyknvl@google.com>
+Subject: [PATCH 6/7] kasan: move KASAN_SANITIZE in arch/x86/boot/Makefile
+Date: Thu,  3 Sep 2015 16:47:41 +0200
+Message-Id: <9a748d03d5a1dc5d18e69f8aff7073352ca310e3.1441290220.git.andreyknvl@google.com>
 In-Reply-To: <cover.1441290219.git.andreyknvl@google.com>
 References: <cover.1441290219.git.andreyknvl@google.com>
 In-Reply-To: <cover.1441290219.git.andreyknvl@google.com>
@@ -24,60 +24,34 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: dvyukov@google.com, glider@google.com, kcc@google.com, Andrey Konovalov <andreyknvl@google.com>
 
-Update the names of the bad access types to better reflect the type of
-the access that happended and make these error types "literals" that can
-be used for classification and deduplication in scripts.
+Move KASAN_SANITIZE in arch/x86/boot/Makefile above the comment
+related to SVGA_MODE, since the comment refers to 'the next line'.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- mm/kasan/report.c | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ arch/x86/boot/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 4d3551d..a30ca44 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -48,7 +48,7 @@ static const void *find_first_bad_addr(const void *addr, size_t size)
+diff --git a/arch/x86/boot/Makefile b/arch/x86/boot/Makefile
+index 0d553e5..2ee62db 100644
+--- a/arch/x86/boot/Makefile
++++ b/arch/x86/boot/Makefile
+@@ -9,13 +9,13 @@
+ # Changed by many, many contributors over the years.
+ #
  
- static void print_error_description(struct kasan_access_info *info)
- {
--	const char *bug_type = "unknown crash";
-+	const char *bug_type = "unknown-crash";
- 	u8 shadow_val;
++KASAN_SANITIZE := n
++
+ # If you want to preset the SVGA mode, uncomment the next line and
+ # set SVGA_MODE to whatever number you want.
+ # Set it to -DSVGA_MODE=NORMAL_VGA if you just want the EGA/VGA mode.
+ # The number is the same as you would ordinarily press at bootup.
  
- 	info->first_bad_addr = find_first_bad_addr(info->access_addr,
-@@ -57,21 +57,25 @@ static void print_error_description(struct kasan_access_info *info)
- 	shadow_val = *(u8 *)kasan_mem_to_shadow(info->first_bad_addr);
+-KASAN_SANITIZE := n
+-
+ SVGA_MODE	:= -DSVGA_MODE=NORMAL_VGA
  
- 	switch (shadow_val) {
--	case KASAN_FREE_PAGE:
--	case KASAN_KMALLOC_FREE:
--		bug_type = "use after free";
-+	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
-+		bug_type = "out-of-bounds";
- 		break;
- 	case KASAN_PAGE_REDZONE:
- 	case KASAN_KMALLOC_REDZONE:
-+		bug_type = "slab-out-of-bounds";
-+		break;
- 	case KASAN_GLOBAL_REDZONE:
--	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
--		bug_type = "out of bounds access";
-+		bug_type = "global-out-of-bounds";
- 		break;
- 	case KASAN_STACK_LEFT:
- 	case KASAN_STACK_MID:
- 	case KASAN_STACK_RIGHT:
- 	case KASAN_STACK_PARTIAL:
--		bug_type = "out of bounds on stack";
-+		bug_type = "stack-out-of-bounds";
-+		break;
-+	case KASAN_FREE_PAGE:
-+	case KASAN_KMALLOC_FREE:
-+		bug_type = "use-after-free";
- 		break;
- 	}
- 
+ targets		:= vmlinux.bin setup.bin setup.elf bzImage
 -- 
 2.5.0.457.gab17608
 
