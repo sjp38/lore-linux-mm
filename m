@@ -1,142 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id CED116B0255
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 10:29:07 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so76011931wic.0
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:29:07 -0700 (PDT)
-Received: from mail1.protonmail.ch (mail1.protonmail.ch. [185.70.40.18])
-        by mx.google.com with ESMTPS id bp2si8558217wjc.84.2015.09.03.07.29.06
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 5319C6B0255
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 10:48:07 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so10949719wic.1
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:06 -0700 (PDT)
+Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
+        by mx.google.com with ESMTPS id y14si11354997wiv.17.2015.09.03.07.48.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Sep 2015 07:29:06 -0700 (PDT)
-Subject: Re: ========== Re: RAM encryption and key storing in CPU ==========
-Date: Thu, 3 Sep 2015 10:29:05 -0400
-From: ngabor <ngabor@protonmail.ch>
-Reply-To: ngabor <ngabor@protonmail.ch>
-Message-ID: <eb0ae559371c0f8970c416fb5037274a@protonmail.ch>
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="b1_eb0ae559371c0f8970c416fb5037274a"
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Sep 2015 07:48:06 -0700 (PDT)
+Received: by wibz8 with SMTP id z8so101716050wib.1
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:05 -0700 (PDT)
+From: Andrey Konovalov <andreyknvl@google.com>
+Subject: [PATCH 4/7] kasan: update log messages
+Date: Thu,  3 Sep 2015 16:47:39 +0200
+Message-Id: <84eff5df162012da2d6161aa49054e89605012de.1441290220.git.andreyknvl@google.com>
+In-Reply-To: <cover.1441290219.git.andreyknvl@google.com>
+References: <cover.1441290219.git.andreyknvl@google.com>
+In-Reply-To: <cover.1441290219.git.andreyknvl@google.com>
+References: <cover.1441290219.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: dvyukov@google.com, glider@google.com, kcc@google.com, Andrey Konovalov <andreyknvl@google.com>
 
-This is a multi-part message in MIME format.
+We decided to use KASAN as the short name of the tool and
+KernelAddressSanitizer as the full one.
+Update log messages according to that.
 
---b1_eb0ae559371c0f8970c416fb5037274a
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
+ arch/x86/mm/kasan_init_64.c | 2 +-
+ mm/kasan/kasan.c            | 2 +-
+ mm/kasan/report.c           | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
-SXMgYW55Ym9keSBoZXJlPyA6KQoKCgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0t
-LQoKU3ViamVjdDogUmU6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3Rv
-cmluZyBpbiBDUFUgPT09PT09PT09PQoKVGltZSAoVVRDKTogQXVndXN0IDQgMjAxNSA3OjQyIGFt
-CgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaAoKVG86IGxpbnV4LW1tQGt2YWNrLm9yZyxicEBh
-bGllbjguZGUsbGl6ZWZhbkBodWF3ZWkuY29tLHRqQGtlcm5lbC5vcmcsY2xAbGludXgtZm91bmRh
-dGlvbi5vcmcKCgoKSGFsbG8/CgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQoK
-U3ViamVjdDogPT09PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGlu
-IENQVSA9PT09PT09PT09CgpUaW1lIChHTVQpOiBKdW4gMjMgMjAxNSAwNDo0MjozNAoKRnJvbTog
-bmdhYm9yQHByb3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5k
-ZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9u
-Lm9yZwoKCgpJcyBhbnlib2R5IHJlYWRpbmcgdGhpcz8KCgotLS0tLS0tLSBPcmlnaW5hbCBNZXNz
-YWdlIC0tLS0tLS0tCgpTdWJqZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5n
-IGluIENQVQoKVGltZSAoR01UKTogSnVuIDE5IDIwMTUgMTc6MjI6NDkKCkZyb206IG5nYWJvckBw
-cm90b25tYWlsLmNoCgpUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVm
-YW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmcKCgoK
-SGFsbG8/IDopCgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDog
-UmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUKClRpbWUgKEdNVCk6IE1h
-eSAyMyAyMDE1IDA5OjAxOjI2CgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaAoKVG86IGxpbnV4
-LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5l
-bC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgoKCkFueSBjb21tZW50cz8KCgotLS0tLS0t
-LSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tCgpTdWJqZWN0OiBSQU0gZW5jcnlwdGlvbiBhbmQg
-a2V5IHN0b3JpbmcgaW4gQ1BVCgpUaW1lIChHTVQpOiBNYXkgMjEgMjAxNSAxMDoxNzoyNQoKRnJv
-bTogbmdhYm9yQHByb3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVu
-OC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0
-aW9uLm9yZwoKCgpIZWxsbywKCgoKPT09PT09PT09PQoKUHJvYmxlbToKCgoKRXZlcnl0aGluZyBp
-cyBzdG9yZWQgaW4gcGxhaW50ZXh0IGluIHRoZSBNZW1vcnkuCgoKClNvIGlmIGFsdGhvdWdoIGZ1
-bGwgZGlzYyBlbmNyeXB0aW9uIGlzIHVzZWQgb24gYSBMaW51eCBEZXNrdG9wLCBpdCBpcyBwb3Nz
-aWJsZSB0byBjb3B5IHRoZSBjb250ZW50IG9mIHRoZSBtZW1vcnksIHdoaWxlIHRoZSBub3RlYm9v
-ayB3YXMgb24gc3VzcGVuZCBvciBpdCB3YXMgcnVubmluZzoKCgoKaHR0cHM6Ly9jaXRwLnByaW5j
-ZXRvbi5lZHUvcmVzZWFyY2gvbWVtb3J5L21lZGlhLwoKCgo9PT09PT09PT09CgpTb2x1dGlvbjoK
-CgoKQ2FuIHdlIChvcHRpb25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5
-IGFuZCBzdG9yZSB0aGUga2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4g
-Z2VuZXJhbCB0aGVzZSBraW5kIG9mIGF0dGFja3M/CgoKCmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlr
-LnVuaS1lcmxhbmdlbi5kZS90cmVzb3IKCgoKSXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5IGluIHRo
-ZSBMaW51eCBrZXJuZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVybiBpdCBv
-bj8gSWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5saW5lPyBX
-aGF0IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3QgaXQ/CgoKCippZiBzb21lb25lIHdvdWxkIHdh
-bnQgdG8gaGFyZGVuIGl0J3MgTGludXggRGVza3RvcCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJl
-IHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJuIG9uIHRoaXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGlj
-eSB0byBhbHdheXMgdHVybiBvZmYgdGhlIG5vdGVib29rIHdoaWxlIG5vdCB1c2luZyBpdC4KCgoK
-VGhhbmsgeW91IGZvciB5b3VyIGNvbW1lbnRzLg==
-
-
---b1_eb0ae559371c0f8970c416fb5037274a
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: base64
-
-PGRpdj5JcyBhbnlib2R5IGhlcmU/IDopPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxibG9ja3F1
-b3RlPjxkaXY+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2
-PlN1YmplY3Q6IFJlOiA9PT09PT09PT09IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3Jp
-bmcgaW4gQ1BVID09PT09PT09PT08YnI+PC9kaXY+PGRpdj5UaW1lIChVVEMpOiBBdWd1c3QgNCAy
-MDE1IDc6NDIgYW08YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48
-L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsYnBAYWxpZW44LmRlLGxpemVmYW5AaHVh
-d2VpLmNvbSx0akBrZXJuZWwub3JnLGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJyPjwvZGl2Pjxk
-aXY+PGJyPjwvZGl2PjxkaXY+SGFsbG8/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0t
-LS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiA9PT09
-PT09PT09IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVID09PT09PT09
-PT08YnI+PC9kaXY+PGRpdj5UaW1lIChHTVQpOiBKdW4gMjMgMjAxNSAwNDo0MjozNDxicj48L2Rp
-dj48ZGl2PkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoPGJyPjwvZGl2PjxkaXY+VG86IGxpbnV4
-LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5l
-bC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2Pjxk
-aXY+SXMgYW55Ym9keSByZWFkaW5nIHRoaXM/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0t
-LS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBS
-ZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVTxicj48L2Rpdj48ZGl2PlRp
-bWUgKEdNVCk6IEp1biAxOSAyMDE1IDE3OjIyOjQ5PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9y
-QHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBh
-bGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91
-bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5IYWxsbz8gOik8YnI+PC9k
-aXY+PGJsb2NrcXVvdGU+PGRpdj4tLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tPGJy
-PjwvZGl2PjxkaXY+U3ViamVjdDogUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBp
-biBDUFU8YnI+PC9kaXY+PGRpdj5UaW1lIChHTVQpOiBNYXkgMjMgMjAxNSAwOTowMToyNjxicj48
-L2Rpdj48ZGl2PkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoPGJyPjwvZGl2PjxkaXY+VG86IGxp
-bnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtl
-cm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2
-PjxkaXY+QW55IGNvbW1lbnRzPyA8YnI+PC9kaXY+PGJsb2NrcXVvdGU+PGRpdj4tLS0tLS0tLSBP
-cmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tPGJyPjwvZGl2PjxkaXY+U3ViamVjdDogUkFNIGVuY3J5
-cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6IE1h
-eSAyMSAyMDE1IDEwOjE3OjI1PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwu
-Y2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxp
-emVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmc8
-YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5IZWxsbywgPGJyPjwvZGl2PjxkaXY+PGJyPjwv
-ZGl2PjxkaXY+PT09PT09PT09PTxicj48L2Rpdj48ZGl2PjxiPlByb2JsZW08L2I+OiA8YnI+PC9k
-aXY+PGRpdj48YnI+PC9kaXY+PGRpdj5FdmVyeXRoaW5nIGlzIHN0b3JlZCBpbiBwbGFpbnRleHQg
-aW4gdGhlIE1lbW9yeS4gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+U28gaWYgYWx0aG91
-Z2ggZnVsbCBkaXNjIGVuY3J5cHRpb24gaXMgdXNlZCBvbiBhIExpbnV4IERlc2t0b3AsIGl0IGlz
-IHBvc3NpYmxlIHRvIGNvcHkgdGhlIGNvbnRlbnQgb2YgdGhlIG1lbW9yeSwgd2hpbGUgdGhlIG5v
-dGVib29rIHdhcyBvbiBzdXNwZW5kIG9yIGl0IHdhcyBydW5uaW5nOiA8YnI+PC9kaXY+PGRpdj48
-YnI+PC9kaXY+PGRpdj48YSBocmVmPSJodHRwczovL2NpdHAucHJpbmNldG9uLmVkdS9yZXNlYXJj
-aC9tZW1vcnkvbWVkaWEvIj5odHRwczovL2NpdHAucHJpbmNldG9uLmVkdS9yZXNlYXJjaC9tZW1v
-cnkvbWVkaWEvPC9hPjxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2Pj09PT09PT09PT08YnI+
-PC9kaXY+PGRpdj48Yj5Tb2x1dGlvbjwvYj46IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2
-PkNhbiB3ZSAob3B0aW9uYWxseSopIGVuY3J5cHQgdGhlIGNvbnRlbnQgb2YgdGhlIG1lbW9yeSBh
-bmQgc3RvcmUgdGhlIGtleSBmb3IgZGVjcnlwdGlvbiBpbiB0aGUgQ1BVIHRvIGF2b2lkIGluIGdl
-bmVyYWwgdGhlc2Uga2luZCBvZiBhdHRhY2tzPyA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRp
-dj48YSBocmVmPSJodHRwczovL3d3dzEuaW5mb3JtYXRpay51bmktZXJsYW5nZW4uZGUvdHJlc29y
-Ij5odHRwczovL3d3dzEuaW5mb3JtYXRpay51bmktZXJsYW5nZW4uZGUvdHJlc29yPC9hPjxicj48
-L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PklzIHRoaXMgc29sdXRpb24gYWxyZWFkeSBpbiB0aGUg
-TGludXgga2VybmVsPyBJZiB5ZXMsIGhvdyBjYW4gYSBMaW51eCBlbmR1c2VyIHR1cm4gaXQgb24/
-IElmIG5vLCBob3cgY2FuIHdlIGdldCB0aGUgY29kZS9pZGVhIGluIHRoZSBtYWlubGluZT8gV2hh
-dCBhcmUgdGhlIGFyZ3VtZW50cyBhZ2FpbnN0IGl0PyA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+
-PGRpdj4qaWYgc29tZW9uZSB3b3VsZCB3YW50IHRvIGhhcmRlbiBpdCdzIExpbnV4IERlc2t0b3Ag
-KHNpbmNlIG5vdGVib29rcyBjb3VsZCBiZSBzdG9sZW4uLikgaXQgY291bGQgdHVybiBvbiB0aGlz
-IGZlYXR1cmUgdG8gYXZvaWQgYSBwb2xpY3kgdG8gYWx3YXlzIHR1cm4gb2ZmIHRoZSBub3RlYm9v
-ayB3aGlsZSBub3QgdXNpbmcgaXQuIDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PlRoYW5r
-IHlvdSBmb3IgeW91ciBjb21tZW50cy4gPGJyPjwvZGl2PjwvYmxvY2txdW90ZT48L2Jsb2NrcXVv
-dGU+PC9ibG9ja3F1b3RlPjwvYmxvY2txdW90ZT48L2Jsb2NrcXVvdGU+
-
-
-
---b1_eb0ae559371c0f8970c416fb5037274a--
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index 9ce5da2..d470cf2 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -126,5 +126,5 @@ void __init kasan_init(void)
+ 	__flush_tlb_all();
+ 	init_task.kasan_depth = 0;
+ 
+-	pr_info("Kernel address sanitizer initialized\n");
++	pr_info("KernelAddressSanitizer initialized\n");
+ }
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 035f268..61c9620 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -519,7 +519,7 @@ static int kasan_mem_notifier(struct notifier_block *nb,
+ 
+ static int __init kasan_memhotplug_init(void)
+ {
+-	pr_err("WARNING: KASan doesn't support memory hot-add\n");
++	pr_err("WARNING: KASAN doesn't support memory hot-add\n");
+ 	pr_err("Memory hot-add will be disabled\n");
+ 
+ 	hotplug_memory_notifier(kasan_mem_notifier, 0);
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 6126272..31b91b9 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -90,7 +90,7 @@ static void print_error_description(struct kasan_access_info *info)
+ 		break;
+ 	}
+ 
+-	pr_err("BUG: KASan: %s in %pS at addr %p\n",
++	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
+ 		bug_type, (void *)info->ip,
+ 		info->access_addr);
+ 	pr_err("%s of size %zu by task %s/%d\n",
+@@ -213,7 +213,7 @@ static void kasan_report_error(struct kasan_access_info *info)
+ 			bug_type = "user-memory-access";
+ 		else
+ 			bug_type = "wild-memory-access";
+-		pr_err("BUG: KASan: %s on address %p\n",
++		pr_err("BUG: KASAN: %s on address %p\n",
+ 			bug_type, info->access_addr);
+ 		pr_err("%s of size %zu by task %s/%d\n",
+ 			info->is_write ? "Write" : "Read",
+-- 
+2.5.0.457.gab17608
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
