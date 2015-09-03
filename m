@@ -1,526 +1,477 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 27C749003CD
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:14:33 -0400 (EDT)
-Received: by pacwi10 with SMTP id wi10so49530867pac.3
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:14:32 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id yt4si41980763pab.103.2015.09.03.08.14.13
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 72F799003CD
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:14:35 -0400 (EDT)
+Received: by obcts10 with SMTP id ts10so35118508obc.1
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:14:35 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id hl7si2817623pdb.74.2015.09.03.08.14.29
         for <linux-mm@kvack.org>;
-        Thu, 03 Sep 2015 08:14:13 -0700 (PDT)
+        Thu, 03 Sep 2015 08:14:29 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv10 26/36] mm: rework mapcount accounting to enable 4k mapping of THPs
-Date: Thu,  3 Sep 2015 18:13:12 +0300
-Message-Id: <1441293202-137314-27-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv10 00/36] THP refcounting redesign
+Date: Thu,  3 Sep 2015 18:12:46 +0300
+Message-Id: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We're going to allow mapping of individual 4k pages of THP compound.
-It means we need to track mapcount on per small page basis.
+Hello everybody,
 
-Straight-forward approach is to use ->_mapcount in all subpages to track
-how many time this subpage is mapped with PMDs or PTEs combined. But
-this is rather expensive: mapping or unmapping of a THP page with PMD
-would require HPAGE_PMD_NR atomic operations instead of single we have
-now.
+The THP refcounting has been rebased onto newer -mm tree with
+compound_head patchset applied. This caused few conflicts.
 
-The idea is to store separately how many times the page was mapped as
-whole -- compound_mapcount. This frees up ->_mapcount in subpages to
-track PTE mapcount.
+Since page->lru in all tail pages occupied by page->compound_head, I had
+to adjust the code to use storage of ->mapping and ->index in the second
+tail page as list_head to link pages into deferred split queue.
 
-We use the same approach as with compound page destructor and compound
-order to store compound_mapcount: use space in first tail page,
-->mapping this time.
+The goal of patchset is to make refcounting on THP pages cheaper with
+simpler semantics and allow the same THP compound page to be mapped with
+PMD and PTEs. This is required to get reasonable THP-pagecache
+implementation.
 
-Any time we map/unmap whole compound page (THP or hugetlb) -- we
-increment/decrement compound_mapcount. When we map part of compound page
-with PTE we operate on ->_mapcount of the subpage.
+With the new refcounting design it's much easier to protect against
+split_huge_page(): simple reference on a page will make you the deal.
+It makes gup_fast() implementation simpler and doesn't require
+special-case in futex code to handle tail THP pages.
 
-page_mapcount() counts both: PTE and PMD mappings of the page.
+It should improve THP utilization over the system since splitting THP in
+one process doesn't necessary lead to splitting the page in all other
+processes have the page mapped.
 
-Basically, we have mapcount for a subpage spread over two counters.
-It makes tricky to detect when last mapcount for a page goes away.
+The patchset drastically lower complexity of get_page()/put_page()
+codepaths. I encourage people look on this code before-and-after to
+justify time budget on reviewing this patchset.
 
-We introduced PageDoubleMap() for this. When we split THP PMD for the
-first time and there's other PMD mapping left we offset up ->_mapcount
-in all subpages by one and set PG_double_map on the compound page.
-These additional references go away with last compound_mapcount.
+= Changelog =
 
-This approach provides a way to detect when last mapcount goes away on
-per small page basis without introducing new overhead for most common
-cases.
+v10:
+  - rebased onto newer -mm tree with compound_head patchset applied.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
----
- include/linux/mm.h         | 26 +++++++++++-
- include/linux/mm_types.h   |  1 +
- include/linux/page-flags.h | 37 +++++++++++++++++
- include/linux/rmap.h       |  4 +-
- mm/debug.c                 |  5 ++-
- mm/huge_memory.c           |  2 +-
- mm/hugetlb.c               |  4 +-
- mm/memory.c                |  2 +-
- mm/migrate.c               |  2 +-
- mm/page_alloc.c            | 13 ++++--
- mm/rmap.c                  | 99 +++++++++++++++++++++++++++++++++++-----------
- 11 files changed, 160 insertions(+), 35 deletions(-)
+v9:
+  - rebased to mmotm-2015-07-15-16-46: fix conflicts with DAX and pagemap
+    patchsets;
+  - simplify PG_double_map handling in __split_huge_pmd_locked();
+  - fix arm64 typo (Suzuki K. Poulose);
+  - fix build on !THP;
+  - checkpatch fixes;
+  - Tested-by/Reviewed-by Aneesh Kumar K.V;
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 9fc4367eb591..7f3bf78230b1 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -384,6 +384,19 @@ static inline int is_vmalloc_or_module_addr(const void *x)
- 
- extern void kvfree(const void *addr);
- 
-+static inline atomic_t *compound_mapcount_ptr(struct page *page)
-+{
-+	return &page[1].compound_mapcount;
-+}
-+
-+static inline int compound_mapcount(struct page *page)
-+{
-+	if (!PageCompound(page))
-+		return 0;
-+	page = compound_head(page);
-+	return atomic_read(compound_mapcount_ptr(page)) + 1;
-+}
-+
- /*
-  * The atomic page->_mapcount, starts from -1: so that transitions
-  * both from it and to it can be tracked, using atomic_inc_and_test
-@@ -396,8 +409,17 @@ static inline void page_mapcount_reset(struct page *page)
- 
- static inline int page_mapcount(struct page *page)
- {
-+	int ret;
- 	VM_BUG_ON_PAGE(PageSlab(page), page);
--	return atomic_read(&page->_mapcount) + 1;
-+
-+	ret = atomic_read(&page->_mapcount) + 1;
-+	if (PageCompound(page)) {
-+		page = compound_head(page);
-+		ret += atomic_read(compound_mapcount_ptr(page)) + 1;
-+		if (PageDoubleMap(page))
-+			ret--;
-+	}
-+	return ret;
- }
- 
- static inline int page_count(struct page *page)
-@@ -887,7 +909,7 @@ static inline pgoff_t page_file_index(struct page *page)
-  */
- static inline int page_mapped(struct page *page)
- {
--	return atomic_read(&(page)->_mapcount) >= 0;
-+	return atomic_read(&(page)->_mapcount) + compound_mapcount(page) >= 0;
- }
- 
- /*
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 6fa6682fc1ce..3779e8a2125c 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -54,6 +54,7 @@ struct page {
- 						 * see PAGE_MAPPING_ANON below.
- 						 */
- 		void *s_mem;			/* slab first object */
-+		atomic_t compound_mapcount;	/* first tail page */
- 	};
- 
- 	/* Second double word */
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 125f8cbf2c9a..4e8210c37cc9 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -126,6 +126,9 @@ enum pageflags {
- 
- 	/* SLOB */
- 	PG_slob_free = PG_private,
-+
-+	/* Compound pages. Stored in first tail page's flags */
-+	PG_double_map = PG_private_2,
- };
- 
- #ifndef __GENERATING_BOUNDS_H
-@@ -521,10 +524,44 @@ static inline int PageTransTail(struct page *page)
- 	return PageTail(page);
- }
- 
-+/*
-+ * PageDoubleMap indicates that the compound page is mapped with PTEs as well
-+ * as PMDs.
-+ *
-+ * This is required for optimization of rmap oprations for THP: we can postpone
-+ * per small page mapcount accounting (and its overhead from atomic operations)
-+ * until the first PMD split.
-+ *
-+ * For the page PageDoubleMap means ->_mapcount in all sub-pages is offset up
-+ * by one. This reference will go away with last compound_mapcount.
-+ *
-+ * See also __split_huge_pmd_locked() and page_remove_anon_compound_rmap().
-+ */
-+static inline int PageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	return test_bit(PG_double_map, &page[1].flags);
-+}
-+
-+static inline int TestSetPageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	return test_and_set_bit(PG_double_map, &page[1].flags);
-+}
-+
-+static inline int TestClearPageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	return test_and_clear_bit(PG_double_map, &page[1].flags);
-+}
-+
- #else
- TESTPAGEFLAG_FALSE(TransHuge)
- TESTPAGEFLAG_FALSE(TransCompound)
- TESTPAGEFLAG_FALSE(TransTail)
-+TESTPAGEFLAG_FALSE(DoubleMap)
-+	TESTSETFLAG_FALSE(DoubleMap)
-+	TESTCLEARFLAG_FALSE(DoubleMap)
- #endif
- 
- /*
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 082928aba785..6b6233fafb53 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -184,9 +184,9 @@ void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
- void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
- 				unsigned long);
- 
--static inline void page_dup_rmap(struct page *page)
-+static inline void page_dup_rmap(struct page *page, bool compound)
- {
--	atomic_inc(&page->_mapcount);
-+	atomic_inc(compound ? compound_mapcount_ptr(page) : &page->_mapcount);
- }
- 
- /*
-diff --git a/mm/debug.c b/mm/debug.c
-index afe95cf61456..836276586185 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -79,9 +79,12 @@ static void dump_flags(unsigned long flags,
- void dump_page_badflags(struct page *page, const char *reason,
- 		unsigned long badflags)
- {
--	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
-+	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
- 		  page, atomic_read(&page->_count), page_mapcount(page),
- 		  page->mapping, page->index);
-+	if (PageCompound(page))
-+		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
-+	pr_cont("\n");
- 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS);
- 	dump_flags(page->flags, pageflag_names, ARRAY_SIZE(pageflag_names));
- 	if (reason)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d24e4c131733..55b337f5a4a0 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -961,7 +961,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	src_page = pmd_page(pmd);
- 	VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
- 	get_page(src_page);
--	page_dup_rmap(src_page);
-+	page_dup_rmap(src_page, true);
- 	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
- 
- 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 2053a6775dd8..a8ce45cd64bc 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3063,7 +3063,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 			entry = huge_ptep_get(src_pte);
- 			ptepage = pte_page(entry);
- 			get_page(ptepage);
--			page_dup_rmap(ptepage);
-+			page_dup_rmap(ptepage, true);
- 			set_huge_pte_at(dst, addr, dst_pte, entry);
- 			inc_hugetlb_count(dst, h);
- 		}
-@@ -3538,7 +3538,7 @@ retry:
- 		ClearPagePrivate(page);
- 		hugepage_add_new_anon_rmap(page, vma, address);
- 	} else
--		page_dup_rmap(page);
-+		page_dup_rmap(page, true);
- 	new_pte = make_huge_pte(vma, page, ((vma->vm_flags & VM_WRITE)
- 				&& (vma->vm_flags & VM_SHARED)));
- 	set_huge_pte_at(mm, address, ptep, new_pte);
-diff --git a/mm/memory.c b/mm/memory.c
-index 24db58765b42..e42de24690af 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -867,7 +867,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	page = vm_normal_page(vma, addr, pte);
- 	if (page) {
- 		get_page(page);
--		page_dup_rmap(page);
-+		page_dup_rmap(page, false);
- 		if (PageAnon(page))
- 			rss[MM_ANONPAGES]++;
- 		else
-diff --git a/mm/migrate.c b/mm/migrate.c
-index aa7a2c446895..d63965e2733d 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -165,7 +165,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 		if (PageAnon(new))
- 			hugepage_add_anon_rmap(new, vma, addr);
- 		else
--			page_dup_rmap(new);
-+			page_dup_rmap(new, false);
- 	} else if (PageAnon(new))
- 		page_add_anon_rmap(new, vma, addr, false);
- 	else
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c627f021abfc..c86a18ddbcf2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -473,6 +473,7 @@ void prep_compound_page(struct page *page, unsigned int order)
- 		p->mapping = TAIL_MAPPING;
- 		set_compound_head(p, page);
- 	}
-+	atomic_set(compound_mapcount_ptr(page), -1);
- }
- 
- #ifdef CONFIG_DEBUG_PAGEALLOC
-@@ -737,7 +738,7 @@ static inline int free_pages_check(struct page *page)
- 	const char *bad_reason = NULL;
- 	unsigned long bad_flags = 0;
- 
--	if (unlikely(page_mapcount(page)))
-+	if (unlikely(atomic_read(&page->_mapcount) != -1))
- 		bad_reason = "nonzero mapcount";
- 	if (unlikely(page->mapping != NULL))
- 		bad_reason = "non-NULL mapping";
-@@ -862,7 +863,13 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
- 		ret = 0;
- 		goto out;
- 	}
--	if (page->mapping != TAIL_MAPPING) {
-+	/* mapping in first tail page is used for compound_mapcount() */
-+	if (page - head_page == 1) {
-+		if (unlikely(compound_mapcount(page))) {
-+			bad_page(page, "nonzero compound_mapcount", 0);
-+			goto out;
-+		}
-+	} else if (page->mapping != TAIL_MAPPING) {
- 		bad_page(page, "corrupted mapping in tail page", 0);
- 		goto out;
- 	}
-@@ -1338,7 +1345,7 @@ static inline int check_new_page(struct page *page)
- 	const char *bad_reason = NULL;
- 	unsigned long bad_flags = 0;
- 
--	if (unlikely(page_mapcount(page)))
-+	if (unlikely(atomic_read(&page->_mapcount) != -1))
- 		bad_reason = "nonzero mapcount";
- 	if (unlikely(page->mapping != NULL))
- 		bad_reason = "non-NULL mapping";
-diff --git a/mm/rmap.c b/mm/rmap.c
-index f631177bda98..b2680acdd01b 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1148,7 +1148,7 @@ static void __page_check_anon_rmap(struct page *page,
- 	 * over the call to page_add_new_anon_rmap.
- 	 */
- 	BUG_ON(page_anon_vma(page)->root != vma->anon_vma->root);
--	BUG_ON(page->index != linear_page_index(vma, address));
-+	BUG_ON(page_to_pgoff(page) != linear_page_index(vma, address));
- #endif
- }
- 
-@@ -1178,9 +1178,29 @@ void page_add_anon_rmap(struct page *page,
- void do_page_add_anon_rmap(struct page *page,
- 	struct vm_area_struct *vma, unsigned long address, int flags)
- {
--	int first = atomic_inc_and_test(&page->_mapcount);
-+	bool compound = flags & RMAP_COMPOUND;
-+	bool first;
-+
-+	if (PageTransCompound(page)) {
-+		VM_BUG_ON_PAGE(!PageLocked(page), page);
-+		if (compound) {
-+			atomic_t *mapcount;
-+
-+			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-+			mapcount = compound_mapcount_ptr(page);
-+			first = atomic_inc_and_test(mapcount);
-+		} else {
-+			/* Anon THP always mapped first with PMD */
-+			first = 0;
-+			VM_BUG_ON_PAGE(!page_mapcount(page), page);
-+			atomic_inc(&page->_mapcount);
-+		}
-+	} else {
-+		VM_BUG_ON_PAGE(compound, page);
-+		first = atomic_inc_and_test(&page->_mapcount);
-+	}
-+
- 	if (first) {
--		bool compound = flags & RMAP_COMPOUND;
- 		int nr = compound ? hpage_nr_pages(page) : 1;
- 		/*
- 		 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
-@@ -1199,6 +1219,7 @@ void do_page_add_anon_rmap(struct page *page,
- 		return;
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
-+
- 	/* address might be in next vma when migration races vma_adjust */
- 	if (first)
- 		__page_set_anon_rmap(page, vma, address,
-@@ -1225,10 +1246,16 @@ void page_add_new_anon_rmap(struct page *page,
- 
- 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
- 	SetPageSwapBacked(page);
--	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
- 	if (compound) {
- 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-+		/* increment count (starts at -1) */
-+		atomic_set(compound_mapcount_ptr(page), 0);
- 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+	} else {
-+		/* Anon THP always mapped first with PMD */
-+		VM_BUG_ON_PAGE(PageTransCompound(page), page);
-+		/* increment count (starts at -1) */
-+		atomic_set(&page->_mapcount, 0);
- 	}
- 	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
- 	__page_set_anon_rmap(page, vma, address, 1);
-@@ -1258,12 +1285,15 @@ static void page_remove_file_rmap(struct page *page)
- 
- 	memcg = mem_cgroup_begin_page_stat(page);
- 
--	/* page still mapped by someone else? */
--	if (!atomic_add_negative(-1, &page->_mapcount))
-+	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
-+	if (unlikely(PageHuge(page))) {
-+		/* hugetlb pages are always mapped with pmds */
-+		atomic_dec(compound_mapcount_ptr(page));
- 		goto out;
-+	}
- 
--	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
--	if (unlikely(PageHuge(page)))
-+	/* page still mapped by someone else? */
-+	if (!atomic_add_negative(-1, &page->_mapcount))
- 		goto out;
- 
- 	/*
-@@ -1280,6 +1310,39 @@ out:
- 	mem_cgroup_end_page_stat(memcg);
- }
- 
-+static void page_remove_anon_compound_rmap(struct page *page)
-+{
-+	int i, nr;
-+
-+	if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
-+		return;
-+
-+	/* Hugepages are not counted in NR_ANON_PAGES for now. */
-+	if (unlikely(PageHuge(page)))
-+		return;
-+
-+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-+		return;
-+
-+	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+
-+	if (TestClearPageDoubleMap(page)) {
-+		/*
-+		 * Subpages can be mapped with PTEs too. Check how many of
-+		 * themi are still mapped.
-+		 */
-+		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
-+			if (atomic_add_negative(-1, &page[i]._mapcount))
-+				nr++;
-+		}
-+	} else {
-+		nr = HPAGE_PMD_NR;
-+	}
-+
-+	if (nr)
-+		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
-+}
-+
- /**
-  * page_remove_rmap - take down pte mapping from a page
-  * @page:	page to remove mapping from
-@@ -1289,33 +1352,25 @@ out:
-  */
- void page_remove_rmap(struct page *page, bool compound)
- {
--	int nr = compound ? hpage_nr_pages(page) : 1;
--
- 	if (!PageAnon(page)) {
- 		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
- 		page_remove_file_rmap(page);
- 		return;
- 	}
- 
-+	if (compound)
-+		return page_remove_anon_compound_rmap(page);
-+
- 	/* page still mapped by someone else? */
- 	if (!atomic_add_negative(-1, &page->_mapcount))
- 		return;
- 
--	/* Hugepages are not counted in NR_ANON_PAGES for now. */
--	if (unlikely(PageHuge(page)))
--		return;
--
- 	/*
- 	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
- 	 * these counters are not modified in interrupt context, and
- 	 * pte lock(a spinlock) is held, which implies preemption disabled.
- 	 */
--	if (compound) {
--		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
--		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
--	}
--
--	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
-+	__dec_zone_page_state(page, NR_ANON_PAGES);
- 
- 	if (unlikely(PageMlocked(page)))
- 		clear_page_mlock(page);
-@@ -1771,7 +1826,7 @@ void hugepage_add_anon_rmap(struct page *page,
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(!anon_vma);
- 	/* address might be in next vma when migration races vma_adjust */
--	first = atomic_inc_and_test(&page->_mapcount);
-+	first = atomic_inc_and_test(compound_mapcount_ptr(page));
- 	if (first)
- 		__hugepage_set_anon_rmap(page, vma, address, 0);
- }
-@@ -1780,7 +1835,7 @@ void hugepage_add_new_anon_rmap(struct page *page,
- 			struct vm_area_struct *vma, unsigned long address)
- {
- 	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
--	atomic_set(&page->_mapcount, 0);
-+	atomic_set(compound_mapcount_ptr(page), 0);
- 	__hugepage_set_anon_rmap(page, vma, address, 1);
- }
- #endif /* CONFIG_HUGETLB_PAGE */
+v8:
+  - rebased to since-4.1;
+  - fix mmap10 from LTP: make check and clear PG_double_map atomic.
+
+v7:
+  - avoid situation during split_huge_pmd() where we can temporarily drop
+    page_mapcount() to zero. It can lead to races e.g. with unmap code;
+  - update documentation;
+  - fix NR_ANON_PAGES accounting in page_remove_rmap();
+  - fix page_mapped();
+  - optimize page_mapped() and page_mapcount();
+  - fix PSS calculation for non-shared pages;
+
+v6:
+  - rebase to since-4.0;
+  - optimize mapcount handling: significantely reduce overhead for most
+    common cases.
+  - split pages on migrate_pages();
+  - remove infrastructure for handling splitting PMDs on all architectures;
+  - fix page_mapcount() for hugetlb pages;
+
+v5:
+  - Tested-by: Sasha Levin!a?c
+  - re-split patchset in hope to improve readability;
+  - rebased on top of page flags and ->mapping sanitizing patchset;
+  - uncharge compound_mapcount rather than mapcount for hugetlb pages
+    during removing from rmap;
+  - differentiate page_mapped() from page_mapcount() for compound pages;
+  - rework deferred_split_huge_page() to use shrinker interface;
+  - fix race in page_remove_rmap();
+  - get rid of __get_page_tail();
+  - few random bug fixes;
+v4:
+  - fix sizes reported in smaps;
+  - defines instead of enum for RMAP_{EXCLUSIVE,COMPOUND};
+  - skip THP pages on munlock_vma_pages_range(): they are never mlocked;
+  - properly handle huge zero page on FOLL_SPLIT;
+  - fix lock_page() slow path on tail pages;
+  - account page_get_anon_vma() fail to THP_SPLIT_PAGE_FAILED;
+  - fix split_huge_page() on huge page with unmapped head page;
+  - fix transfering 'write' and 'young' from pmd to ptes on split_huge_pmd;
+  - call page_remove_rmap() in unfreeze_page under ptl.
+
+= Design overview =
+
+The main reason why we can't map THP with 4k is how refcounting on THP
+designed. It built around two requirements:
+
+  - split of huge page should never fail;
+  - we can't change interface of get_user_page();
+
+To be able to split huge page at any point we have to track which tail
+page was pinned. It leads to tricky and expensive get_page() on tail pages
+and also occupy tail_page->_mapcount.
+
+Most split_huge_page*() users want PMD to be split into table of PTEs and
+don't care whether compound page is going to be split or not.
+
+The plan is:
+
+ - allow split_huge_page() to fail if the page is pinned. It's trivial to
+   split non-pinned page and it doesn't require tail page refcounting, so
+   tail_page->_mapcount is free to be reused.
+
+ - introduce new routine -- split_huge_pmd() -- to split PMD into table of
+   PTEs. It splits only one PMD, not touching other PMDs the page is
+   mapped with or underlying compound page. Unlike new split_huge_page(),
+   split_huge_pmd() never fails.
+
+Fortunately, we have only few places where split_huge_page() is needed:
+swap out, memory failure, migration, KSM. And all of them can handle
+split_huge_page() fail.
+
+In new scheme we use page->_mapcount is used to account how many time
+the page is mapped with PTEs. We have separate compound_mapcount() to
+count mappings with PMD. page_mapcount() returns sum of PTE and PMD
+mappings of the page.
+
+Introducing split_huge_pmd() effectively allows THP to be mapped with 4k.
+It may be a surprise to some code to see a PTE which points to tail page
+or VMA start/end in the middle of compound page.
+
+munmap() part of THP will split PMD, but doesn't split the huge page. In
+order to take memory consumption under control we put partially unmapped
+huge page on list. The pages will be split by shrinker if memory pressure
+comes. This way we also avoid unnecessary split_huge_page() on exit(2) if
+a THP belong to more than one VMA.
+
+= Refcounts and transparent huge pages =
+
+  - get_page() and put_page() work *only* on head page's ->_count.
+    We don't touch tail pages at all for these oprations. We stopped
+    touching ->_mapcount in tail pages to store it's pins.
+
+  - ->_count in tail pages is always zero: get_page_unless_zero() never
+    succeed on tail pages. Nothing changed in this respect.
+
+  - map/unmap of the pages with PTE entry increment/decrement ->_mapcount
+    on relevent sub-page of the compound page.
+
+  - map/unmap of the whole compound page accounted in compound_mapcount
+    (stored in first tail page).
+
+  - PageDoubleMap() indicates that ->_mapcount in all subpages is offset
+    up by one. This additional reference is required to get race-free
+    detection of unmap of subpages when we have them mapped with both PMDs
+    and PTEs.
+
+    This is optimization required to lower overhead of per-subpage
+    mapcount tracking. The alternative is alter ->_mapcount in all
+    subpages on each map/unmap of the whole compound page.
+
+    We set PG_double_map when a PMD of the page got split for the first
+    time, but still have PMD mapping. The addtional references go away
+    with last compound_mapcount.
+
+= Benchmarks =
+
+Kernel build benchmark:
+
+			baseline		v6
+
+Amean    user-2       447.76 (  0.00%)      451.24 ( -0.78%)
+Amean    user-4       314.94 (  0.00%)      310.10 (  1.54%)
+Amean    user-8       388.91 (  0.00%)      388.95 ( -0.01%)
+Amean    user-16      518.68 (  0.00%)      518.60 (  0.02%)
+Amean    user-24      533.58 (  0.00%)      535.35 ( -0.33%)
+Amean    syst-2        77.52 (  0.00%)       70.16 (  9.49%)
+Amean    syst-4        51.21 (  0.00%)       44.55 ( 13.00%)
+Amean    syst-8        42.12 (  0.00%)       42.59 ( -1.12%)
+Amean    syst-16       50.29 (  0.00%)       50.14 (  0.30%)
+Amean    syst-24       49.36 (  0.00%)       48.54 (  1.65%)
+Amean    elsp-2       242.64 (  0.00%)      244.46 ( -0.75%)
+Amean    elsp-4        93.78 (  0.00%)       92.89 (  0.95%)
+Amean    elsp-8        61.51 (  0.00%)       61.92 ( -0.66%)
+Amean    elsp-16       53.95 (  0.00%)       53.80 (  0.29%)
+Amean    elsp-24       52.75 (  0.00%)       53.14 ( -0.74%)
+Stddev   user-2        15.49 (  0.00%)       13.75 ( 11.24%)
+Stddev   user-4         7.85 (  0.00%)        4.42 ( 43.68%)
+Stddev   user-8         1.29 (  0.00%)        2.77 (-114.28%)
+Stddev   user-16        2.56 (  0.00%)        1.54 ( 39.89%)
+Stddev   user-24        1.75 (  0.00%)        1.06 ( 39.75%)
+Stddev   syst-2         3.02 (  0.00%)        2.00 ( 33.86%)
+Stddev   syst-4         1.23 (  0.00%)        0.91 ( 26.65%)
+Stddev   syst-8         0.41 (  0.00%)        0.30 ( 28.32%)
+Stddev   syst-16        0.51 (  0.00%)        0.71 (-38.07%)
+Stddev   syst-24        0.92 (  0.00%)        0.70 ( 23.86%)
+Stddev   elsp-2         8.70 (  0.00%)        7.99 (  8.13%)
+Stddev   elsp-4         1.74 (  0.00%)        0.59 ( 66.08%)
+Stddev   elsp-8         0.40 (  0.00%)        0.30 ( 25.11%)
+Stddev   elsp-16        0.45 (  0.00%)        0.37 ( 17.73%)
+Stddev   elsp-24        0.57 (  0.00%)        0.38 ( 33.64%)
+
+Changes are mostly non-significant. The only noticble part is reduction of
+system time for -j2 and -j4: 9.49% and 13.00%.
+
+specjvm
+                                    base                    v6
+Ops compiler                   569.52 (  0.00%)       618.74 (  8.64%)
+Ops compress                   456.32 (  0.00%)       469.20 (  2.82%)
+Ops crypto                     424.34 (  0.00%)       413.64 ( -2.52%)
+Ops derby                      535.15 (  0.00%)       536.96 (  0.34%)
+Ops mpegaudio                  291.03 (  0.00%)       286.35 ( -1.61%)
+Ops scimark.large               75.91 (  0.00%)        77.21 (  1.71%)
+Ops scimark.small              529.19 (  0.00%)       527.07 ( -0.40%)
+Ops serial                     316.13 (  0.00%)       316.40 (  0.09%)
+Ops sunflow                    154.90 (  0.00%)       154.85 ( -0.03%)
+Ops xml                        612.94 (  0.00%)       575.20 ( -6.16%)
+Ops compiler.compiler          770.11 (  0.00%)       878.22 ( 14.04%)
+Ops compiler.sunflow           421.17 (  0.00%)       435.92 (  3.50%)
+Ops compress                   456.32 (  0.00%)       469.20 (  2.82%)
+Ops crypto.aes                 153.17 (  0.00%)       151.30 ( -1.22%)
+Ops crypto.rsa                 607.43 (  0.00%)       564.65 ( -7.04%)
+Ops crypto.signverify          821.23 (  0.00%)       828.40 (  0.87%)
+Ops derby                      535.15 (  0.00%)       536.96 (  0.34%)
+Ops mpegaudio                  291.03 (  0.00%)       286.35 ( -1.61%)
+Ops scimark.fft.large           69.59 (  0.00%)        69.81 (  0.32%)
+Ops scimark.lu.large            20.31 (  0.00%)        20.32 (  0.05%)
+Ops scimark.sor.large          114.57 (  0.00%)       113.99 ( -0.51%)
+Ops scimark.sparse.large        55.56 (  0.00%)        61.71 ( 11.07%)
+Ops scimark.monte_carlo        280.13 (  0.00%)       275.09 ( -1.80%)
+Ops scimark.fft.small          815.19 (  0.00%)       819.55 (  0.53%)
+Ops scimark.lu.small          1072.62 (  0.00%)      1081.47 (  0.83%)
+Ops scimark.sor.small          674.47 (  0.00%)       674.24 ( -0.03%)
+Ops scimark.sparse.small       251.20 (  0.00%)       247.43 ( -1.50%)
+Ops serial                     316.13 (  0.00%)       316.40 (  0.09%)
+Ops sunflow                    154.90 (  0.00%)       154.85 ( -0.03%)
+Ops xml.transform              538.16 (  0.00%)       519.64 ( -3.44%)
+Ops xml.validation             698.10 (  0.00%)       636.70 ( -8.80%)
+
+Results are mixed.
+
+= Patches overview =
+
+Patch 1:
+        We need to look on all subpages of compound page to calculate
+        correct PSS, because they can have different mapcount.
+
+Patch 2:
+        With PTE-mapeed THP, rmap cannot rely on PageTransHuge() check to
+        decide if map small page or THP. We need to get the info from
+        caller.
+
+Patch 3:
+        Make memcg aware about new refcounting. Validation needed.
+
+Patch 4:
+        Adjust conditions when we can re-use the page on write-protection
+        fault.
+
+Patch 5:
+        FOLL_SPLIT should be handled on PTE level too.
+
+Patch 6:
+	Make generic fast GUP implementation aware about PTE-mapped huge
+	pages.
+
+Patch 7:
+        Split all pages in mlocked VMA. That should be good enough for
+	now.
+
+Patch 8:
+        Make khugepaged aware about PTE-mapped huge pages.
+
+Patch 9:
+	Rename split_huge_page_pmd() to split_huge_pmd() to reflect that
+	page is not going to be split, only PMD.
+
+Patch 10:
+        New THP_SPLIT_* vmstats.
+
+Patch 11:
+	Up to this point we tried to keep patchset bisectable, but next
+	patches are going to change how core of THP refcounting work.
+	That's easier to review change if we would disable THP temporally
+	and bring it back once everything is ready.
+
+Patch 12:
+	Remove all split_huge_page()-related code. It also remove need in
+	tail page refcounting.
+
+Patch 13:
+	Drop tail page refcounting. Diffstat is nice! :)
+
+Patch 14:
+        Remove ugly special case if futex happened to be in tail THP page.
+        With new refcounting it much easier to protect against split.
+
+Patch 15:
+        Simplify KSM code which handle THP.
+
+Patch 16:
+	No need in compound_lock anymore.
+
+Patches 17-25:
+        Drop infrastructure for handling PMD splitting. We don't use it
+        anymore in split_huge_page().
+
+Patch 26:
+        Store mapcount for compound pages separately: in the first tail
+        page ->mapping.
+
+Patch 27:
+	Let's define page_mapped() to be true for compound pages if any
+	sub-pages of the compound page is mapped (with PMD or PTE).
+
+Patch 28:
+	Make numabalancing aware about PTE-mapped THP.
+
+Patch 29:
+	Implement new split_huge_pmd().
+
+Patch 30-32:
+	Implement new split_huge_page().
+
+Patch 33:
+	Split pages instaed of PMDs on migrate_pages.
+
+Patch 34:
+        Handle partial unmap of THP. We put partially unmapped huge page
+        list. Pages from list will split via shrinker if memory pressure
+	comes. This way we also avoid unnecessary split_huge_page() on
+        exit(2) if a THP belong to more than one VMA.
+
+Patch 35:
+	Everything is in place. Re-enable THP.
+
+Patch 36:
+        Documentation update.
+
+The patchset also available on git:
+
+git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git thp/refcounting/v10
+
+Please review and consider applying.
+Kirill A. Shutemov (36):
+  mm, proc: adjust PSS calculation
+  rmap: add argument to charge compound page
+  memcg: adjust to support new THP refcounting
+  mm, thp: adjust conditions when we can reuse the page on WP fault
+  mm: adjust FOLL_SPLIT for new refcounting
+  mm: handle PTE-mapped tail pages in gerneric fast gup implementaiton
+  thp, mlock: do not allow huge pages in mlocked area
+  khugepaged: ignore pmd tables with THP mapped with ptes
+  thp: rename split_huge_page_pmd() to split_huge_pmd()
+  mm, vmstats: new THP splitting event
+  mm: temporally mark THP broken
+  thp: drop all split_huge_page()-related code
+  mm: drop tail page refcounting
+  futex, thp: remove special case for THP in get_futex_key
+  ksm: prepare to new THP semantics
+  mm, thp: remove compound_lock
+  arm64, thp: remove infrastructure for handling splitting PMDs
+  arm, thp: remove infrastructure for handling splitting PMDs
+  mips, thp: remove infrastructure for handling splitting PMDs
+  powerpc, thp: remove infrastructure for handling splitting PMDs
+  s390, thp: remove infrastructure for handling splitting PMDs
+  sparc, thp: remove infrastructure for handling splitting PMDs
+  tile, thp: remove infrastructure for handling splitting PMDs
+  x86, thp: remove infrastructure for handling splitting PMDs
+  mm, thp: remove infrastructure for handling splitting PMDs
+  mm: rework mapcount accounting to enable 4k mapping of THPs
+  mm: differentiate page_mapped() from page_mapcount() for compound
+    pages
+  mm, numa: skip PTE-mapped THP on numa fault
+  thp: implement split_huge_pmd()
+  thp: add option to setup migration entries during PMD split
+  thp, mm: split_huge_page(): caller need to lock page
+  thp: reintroduce split_huge_page()
+  migrate_pages: try to split pages on qeueuing
+  thp: introduce deferred_split_huge_page()
+  mm: re-enable THP
+  thp: update documentation
+
+ Documentation/vm/transhuge.txt           |  151 ++--
+ arch/arc/mm/cache.c                      |    4 +-
+ arch/arm/include/asm/pgtable-3level.h    |   10 -
+ arch/arm/lib/uaccess_with_memcpy.c       |    5 +-
+ arch/arm/mm/flush.c                      |   17 +-
+ arch/arm64/include/asm/pgtable.h         |    8 -
+ arch/arm64/mm/flush.c                    |   16 -
+ arch/mips/include/asm/pgtable-bits.h     |    6 +-
+ arch/mips/include/asm/pgtable.h          |   18 -
+ arch/mips/mm/c-r4k.c                     |    3 +-
+ arch/mips/mm/cache.c                     |    2 +-
+ arch/mips/mm/gup.c                       |   17 +-
+ arch/mips/mm/init.c                      |    6 +-
+ arch/mips/mm/pgtable-64.c                |   14 -
+ arch/mips/mm/tlbex.c                     |    1 -
+ arch/powerpc/include/asm/pgtable-ppc64.h |   25 +-
+ arch/powerpc/mm/hugepage-hash64.c        |    3 -
+ arch/powerpc/mm/hugetlbpage.c            |   17 +-
+ arch/powerpc/mm/pgtable_64.c             |   49 --
+ arch/powerpc/mm/subpage-prot.c           |    2 +-
+ arch/s390/include/asm/pgtable.h          |   15 +-
+ arch/s390/mm/gup.c                       |   24 +-
+ arch/s390/mm/pgtable.c                   |   16 -
+ arch/sh/mm/cache-sh4.c                   |    2 +-
+ arch/sh/mm/cache.c                       |    8 +-
+ arch/sparc/include/asm/pgtable_64.h      |   16 -
+ arch/sparc/mm/fault_64.c                 |    3 -
+ arch/sparc/mm/gup.c                      |   16 +-
+ arch/tile/include/asm/pgtable.h          |   10 -
+ arch/x86/include/asm/pgtable.h           |    9 -
+ arch/x86/include/asm/pgtable_types.h     |    2 -
+ arch/x86/kernel/vm86_32.c                |    6 +-
+ arch/x86/mm/gup.c                        |   17 +-
+ arch/x86/mm/pgtable.c                    |   14 -
+ arch/xtensa/mm/tlb.c                     |    2 +-
+ fs/proc/page.c                           |    4 +-
+ fs/proc/task_mmu.c                       |   55 +-
+ include/asm-generic/pgtable.h            |    9 -
+ include/linux/huge_mm.h                  |   56 +-
+ include/linux/memcontrol.h               |   16 +-
+ include/linux/mm.h                       |  116 ++--
+ include/linux/mm_types.h                 |   20 +-
+ include/linux/page-flags.h               |   49 +-
+ include/linux/pagemap.h                  |   13 +-
+ include/linux/rmap.h                     |   16 +-
+ include/linux/swap.h                     |    3 +-
+ include/linux/vm_event_item.h            |    4 +-
+ kernel/events/uprobes.c                  |   11 +-
+ kernel/futex.c                           |   61 +-
+ mm/debug.c                               |    8 +-
+ mm/filemap.c                             |   10 +-
+ mm/gup.c                                 |  112 ++-
+ mm/huge_memory.c                         | 1100 +++++++++++++++++-------------
+ mm/hugetlb.c                             |   10 +-
+ mm/internal.h                            |   70 +-
+ mm/ksm.c                                 |   61 +-
+ mm/madvise.c                             |    2 +-
+ mm/memcontrol.c                          |   84 +--
+ mm/memory-failure.c                      |    8 +-
+ mm/memory.c                              |   73 +-
+ mm/mempolicy.c                           |   37 +-
+ mm/migrate.c                             |   19 +-
+ mm/mincore.c                             |    2 +-
+ mm/mlock.c                               |   51 +-
+ mm/mprotect.c                            |    2 +-
+ mm/mremap.c                              |   15 +-
+ mm/page_alloc.c                          |   34 +-
+ mm/pagewalk.c                            |    2 +-
+ mm/pgtable-generic.c                     |   14 -
+ mm/rmap.c                                |  163 +++--
+ mm/shmem.c                               |   21 +-
+ mm/swap.c                                |  273 +-------
+ mm/swapfile.c                            |   16 +-
+ mm/userfaultfd.c                         |    8 +-
+ mm/vmstat.c                              |    4 +-
+ 75 files changed, 1367 insertions(+), 1799 deletions(-)
+
 -- 
 2.5.0
 
