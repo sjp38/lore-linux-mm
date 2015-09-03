@@ -1,109 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id BAAFE6B0254
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 04:55:38 -0400 (EDT)
-Received: by igcrk20 with SMTP id rk20so44333195igc.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 01:55:38 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id s13si40395375pdi.27.2015.09.03.01.55.36
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C07716B0254
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 05:15:53 -0400 (EDT)
+Received: by lamp12 with SMTP id p12so22949983lam.0
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 02:15:53 -0700 (PDT)
+Received: from mail-la0-x231.google.com (mail-la0-x231.google.com. [2a00:1450:4010:c03::231])
+        by mx.google.com with ESMTPS id ay7si22537775lbc.60.2015.09.03.02.15.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 03 Sep 2015 01:55:38 -0700 (PDT)
-Subject: Re: [REPOST] [PATCH 2/2] mm: Fix potentially scheduling in GFP_ATOMIC allocations.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201508231623.DED13020.tFOHFVFQOSOLMJ@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.10.1509011519170.11913@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1509011519170.11913@chino.kir.corp.google.com>
-Message-Id: <201509031755.GGJ39045.JOFLOHOQtMVFSF@I-love.SAKURA.ne.jp>
-Date: Thu, 3 Sep 2015 17:55:22 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Sep 2015 02:15:52 -0700 (PDT)
+Received: by lamp12 with SMTP id p12so22949603lam.0
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 02:15:51 -0700 (PDT)
+Subject: Re: [PATCH 4/4] kasan: Prevent deadlock in kasan reporting
+References: <1441266863-5435-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1441266863-5435-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Message-ID: <55E80FCE.6010000@gmail.com>
+Date: Thu, 3 Sep 2015 12:15:58 +0300
+MIME-Version: 1.0
+In-Reply-To: <1441266863-5435-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: mhocko@kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-David Rientjes wrote:
-> On Sun, 23 Aug 2015, Tetsuo Handa wrote:
+On 09/03/2015 10:54 AM, Aneesh Kumar K.V wrote:
+> We we end up calling kasan_report in real mode, our shadow mapping
+
+s/We we/We
+
+> for even spinlock variable will show poisoned. This will result
+> in us calling kasan_report_error with lock_report spin lock held.
+> To prevent this disable kasan reporting when we are priting
+
+s/priting/printing 
+
+> error w.r.t kasan.
 > 
-> > >From 08a638e04351386ab03cd1223988ac7940d4d3aa Mon Sep 17 00:00:00 2001
-> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Date: Sat, 1 Aug 2015 22:46:12 +0900
-> > Subject: [PATCH 2/2] mm: Fix potentially scheduling in GFP_ATOMIC
-> >  allocations.
-> > 
-> > Currently, if somebody does GFP_ATOMIC | __GFP_NOFAIL allocation,
-> > wait_iff_congested() might be called via __alloc_pages_high_priority()
-> > before reaching
-> > 
-> >   if (!wait) {
-> >     WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
-> >     goto nopage;
-> >   }
-> > 
-> > because gfp_to_alloc_flags() includes ALLOC_NO_WATERMARKS if TIF_MEMDIE
-> > was set.
-> > 
-> > We need to check for __GFP_WAIT flag at __alloc_pages_high_priority()
-> > in order to make sure that we won't schedule.
-> > 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  mm/kasan/report.c | 12 ++++++++++--
+>  1 file changed, 10 insertions(+), 2 deletions(-)
 > 
-> I've brought the GFP_ATOMIC | __GFP_NOFAIL combination up before, which 
-> resulted in the WARN_ON_ONCE() that you cited.  We don't support such a 
-> combination.  Fixing up the documentation in any places you feel it is 
-> deficient would be the best.
-> 
-The purpose of this check is to warn about unassured combination, isn't it?
-Then, I think this check should be done like
 
-----------
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5b5240b..7358225 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3046,15 +3046,8 @@ retry:
- 	}
- 
- 	/* Atomic allocations - we can't balance anything */
--	if (!wait) {
--		/*
--		 * All existing users of the deprecated __GFP_NOFAIL are
--		 * blockable, so warn of any new users that actually allow this
--		 * type of allocation to fail.
--		 */
--		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
-+	if (!wait)
- 		goto nopage;
--	}
- 
- 	/* Avoid recursion of direct reclaim */
- 	if (current->flags & PF_MEMALLOC)
-@@ -3183,6 +3176,12 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 
- 	lockdep_trace_alloc(gfp_mask);
- 
-+	/*
-+	 * All existing users of the __GFP_NOFAIL have __GFP_WAIT.
-+	 * __GFP_NOFAIL allocations without __GFP_WAIT is unassured.
-+	 */
-+	WARN_ON_ONCE((gfp_mask & (__GFP_NOFAIL | __GFP_WAIT)) == __GFP_NOFAIL);
-+
- 	might_sleep_if(gfp_mask & __GFP_WAIT);
- 
- 	if (should_fail_alloc_page(gfp_mask, order))
-----------
-
-because such allocation requests can succeed at fast path or at
-
-  /* This is the last chance, in general, before the goto nopage. */
-
-. If unconditional WARN_ON_ONCE() is too wasteful, maybe we can do like
-
-  #ifdef CONFIG_DEBUG_SOMETHING
-    WARN_ON_ONCE((gfp_mask & (__GFP_NOFAIL | __GFP_WAIT)) == __GFP_NOFAIL);
-  #endif
-
-.
+Reviewed-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
