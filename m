@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 44DF06B0261
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:13:52 -0400 (EDT)
-Received: by igbkq10 with SMTP id kq10so51365211igb.0
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:13:52 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id q1si41977926pdg.31.2015.09.03.08.13.51
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C9EA6B0263
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:13:54 -0400 (EDT)
+Received: by pacwi10 with SMTP id wi10so49515683pac.3
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:13:54 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id pe7si19111930pbb.152.2015.09.03.08.13.51
         for <linux-mm@kvack.org>;
         Thu, 03 Sep 2015 08:13:51 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv10 19/36] mips, thp: remove infrastructure for handling splitting PMDs
-Date: Thu,  3 Sep 2015 18:13:05 +0300
-Message-Id: <1441293202-137314-20-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv10 04/36] mm, thp: adjust conditions when we can reuse the page on WP fault
+Date: Thu,  3 Sep 2015 18:12:50 +0300
+Message-Id: <1441293202-137314-5-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,136 +19,85 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting we don't need to mark PMDs splitting. Let's drop
-code to handle this.
+With new refcounting we will be able map the same compound page with
+PTEs and PMDs. It requires adjustment to conditions when we can reuse
+the page on write-protection fault.
 
-pmdp_splitting_flush() is not needed too: on splitting PMD we will do
-pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
-needed for fast_gup.
+For PTE fault we can't reuse the page if it's part of huge page.
+
+For PMD we can only reuse the page if nobody else maps the huge page or
+it's part. We can do it by checking page_mapcount() on each sub-page,
+but it's expensive.
+
+The cheaper way is to check page_count() to be equal 1: every mapcount
+takes page reference, so this way we can guarantee, that the PMD is the
+only mapping.
+
+This approach can give false negative if somebody pinned the page, but
+that doesn't affect correctness.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Sasha Levin <sasha.levin@oracle.com>
+Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Jerome Marchand <jmarchan@redhat.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- arch/mips/include/asm/pgtable-bits.h |  6 ++----
- arch/mips/include/asm/pgtable.h      | 18 ------------------
- arch/mips/mm/gup.c                   | 13 +------------
- arch/mips/mm/pgtable-64.c            | 14 --------------
- arch/mips/mm/tlbex.c                 |  1 -
- 5 files changed, 3 insertions(+), 49 deletions(-)
+ include/linux/swap.h |  3 ++-
+ mm/huge_memory.c     | 12 +++++++++++-
+ mm/swapfile.c        |  3 +++
+ 3 files changed, 16 insertions(+), 2 deletions(-)
 
-diff --git a/arch/mips/include/asm/pgtable-bits.h b/arch/mips/include/asm/pgtable-bits.h
-index c28a8499aec7..9bf8b2b87364 100644
---- a/arch/mips/include/asm/pgtable-bits.h
-+++ b/arch/mips/include/asm/pgtable-bits.h
-@@ -131,14 +131,12 @@
- /* Huge TLB page */
- #define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
- #define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
--#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
--#define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
- 
- /* Only R2 or newer cores have the XI bit */
- #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
--#define _PAGE_NO_EXEC_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
-+#define _PAGE_NO_EXEC_SHIFT	(_PAGE_HUGE_SHIFT + 1)
- #else
--#define _PAGE_GLOBAL_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
-+#define _PAGE_GLOBAL_SHIFT	(_PAGE_HUGE_SHIFT + 1)
- #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
- #endif	/* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
- 
-diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
-index ae8569475264..e70f13ab4303 100644
---- a/arch/mips/include/asm/pgtable.h
-+++ b/arch/mips/include/asm/pgtable.h
-@@ -480,27 +480,9 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
- 	return pmd;
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 9c7c4b418498..1184fdbd30ba 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -540,7 +540,8 @@ static inline int swp_swapcount(swp_entry_t entry)
+ 	return 0;
  }
  
--static inline int pmd_trans_splitting(pmd_t pmd)
--{
--	return !!(pmd_val(pmd) & _PAGE_SPLITTING);
--}
--
--static inline pmd_t pmd_mksplitting(pmd_t pmd)
--{
--	pmd_val(pmd) |= _PAGE_SPLITTING;
--
--	return pmd;
--}
--
- extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 		       pmd_t *pmdp, pmd_t pmd);
+-#define reuse_swap_page(page)	(page_mapcount(page) == 1)
++#define reuse_swap_page(page) \
++	(!PageTransCompound(page) && page_mapcount(page) == 1)
  
--#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
--/* Extern to avoid header file madness */
--extern void pmdp_splitting_flush(struct vm_area_struct *vma,
--					unsigned long address,
--					pmd_t *pmdp);
--
- #define __HAVE_ARCH_PMD_WRITE
- static inline int pmd_write(pmd_t pmd)
+ static inline int try_to_free_swap(struct page *page)
  {
-diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
-index 36a35115dc2e..1afd87c999b0 100644
---- a/arch/mips/mm/gup.c
-+++ b/arch/mips/mm/gup.c
-@@ -107,18 +107,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
- 		pmd_t pmd = *pmdp;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index ad7c378e1f8c..18931b8ef1e7 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1172,7 +1172,17 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
  
- 		next = pmd_addr_end(addr, end);
--		/*
--		 * The pmd_trans_splitting() check below explains why
--		 * pmdp_splitting_flush has to flush the tlb, to stop
--		 * this gup-fast code from running while we set the
--		 * splitting bit in the pmd. Returning zero will take
--		 * the slow path that will call wait_split_huge_page()
--		 * if the pmd is still in splitting state. gup-fast
--		 * can't because it has irq disabled and
--		 * wait_split_huge_page() would never return as the
--		 * tlb flush IPI wouldn't run.
--		 */
--		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
-+		if (pmd_none(pmd))
- 			return 0;
- 		if (unlikely(pmd_huge(pmd))) {
- 			if (!gup_huge_pmd(pmd, addr, next, write, pages,nr))
-diff --git a/arch/mips/mm/pgtable-64.c b/arch/mips/mm/pgtable-64.c
-index e8adc0069d66..ce4473e7c0d2 100644
---- a/arch/mips/mm/pgtable-64.c
-+++ b/arch/mips/mm/pgtable-64.c
-@@ -62,20 +62,6 @@ void pmd_init(unsigned long addr, unsigned long pagetable)
- }
- #endif
- 
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--
--void pmdp_splitting_flush(struct vm_area_struct *vma,
--			 unsigned long address,
--			 pmd_t *pmdp)
--{
--	if (!pmd_trans_splitting(*pmdp)) {
--		pmd_t pmd = pmd_mksplitting(*pmdp);
--		set_pmd_at(vma->vm_mm, address, pmdp, pmd);
--	}
--}
--
--#endif
--
- pmd_t mk_pmd(struct page *page, pgprot_t prot)
- {
- 	pmd_t pmd;
-diff --git a/arch/mips/mm/tlbex.c b/arch/mips/mm/tlbex.c
-index 323d1d302f2b..b190ae9fe909 100644
---- a/arch/mips/mm/tlbex.c
-+++ b/arch/mips/mm/tlbex.c
-@@ -240,7 +240,6 @@ static void output_pgtable_bits_defines(void)
- 	pr_define("_PAGE_MODIFIED_SHIFT %d\n", _PAGE_MODIFIED_SHIFT);
- #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
- 	pr_define("_PAGE_HUGE_SHIFT %d\n", _PAGE_HUGE_SHIFT);
--	pr_define("_PAGE_SPLITTING_SHIFT %d\n", _PAGE_SPLITTING_SHIFT);
- #endif
- #ifdef CONFIG_CPU_MIPSR2
- 	if (cpu_has_rixi) {
+ 	page = pmd_page(orig_pmd);
+ 	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
+-	if (page_mapcount(page) == 1) {
++	/*
++	 * We can only reuse the page if nobody else maps the huge page or it's
++	 * part. We can do it by checking page_mapcount() on each sub-page, but
++	 * it's expensive.
++	 * The cheaper way is to check page_count() to be equal 1: every
++	 * mapcount takes page reference reference, so this way we can
++	 * guarantee, that the PMD is the only mapping.
++	 * This can give false negative if somebody pinned the page, but that's
++	 * fine.
++	 */
++	if (page_mapcount(page) == 1 && page_count(page) == 1) {
+ 		pmd_t entry;
+ 		entry = pmd_mkyoung(orig_pmd);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index f131bc1838d3..c6aec93c8c0b 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -929,6 +929,9 @@ int reuse_swap_page(struct page *page)
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	if (unlikely(PageKsm(page)))
+ 		return 0;
++	/* The page is part of THP and cannot be reused */
++	if (PageTransCompound(page))
++		return 0;
+ 	count = page_mapcount(page);
+ 	if (count <= 1 && PageSwapCache(page)) {
+ 		count += page_swapcount(page);
 -- 
 2.5.0
 
