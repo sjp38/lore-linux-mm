@@ -1,80 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0152B6B0254
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 04:25:08 -0400 (EDT)
-Received: by lbpo4 with SMTP id o4so19984149lbp.2
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 01:25:07 -0700 (PDT)
-Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
-        by mx.google.com with ESMTPS id s8si22415641laa.81.2015.09.03.01.25.02
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 417626B0254
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 04:46:48 -0400 (EDT)
+Received: by padhy1 with SMTP id hy1so40413362pad.1
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 01:46:48 -0700 (PDT)
+Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.60.111])
+        by mx.google.com with ESMTPS id ts3si40350474pab.81.2015.09.03.01.46.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Sep 2015 01:25:02 -0700 (PDT)
-Received: by laeb10 with SMTP id b10so23775279lae.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 01:25:02 -0700 (PDT)
-Subject: Re: [PATCH 2/4] kasan: MODULE_VADDR is not available on all archs
-References: <1441266863-5435-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1441266863-5435-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Message-ID: <55E803E5.10809@gmail.com>
-Date: Thu, 3 Sep 2015 11:25:09 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Sep 2015 01:46:47 -0700 (PDT)
+Subject: Re: [PATCH 00/11] THP support for ARC
+References: <1440666194-21478-1-git-send-email-vgupta@synopsys.com>
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Message-ID: <55E808E2.2080102@synopsys.com>
+Date: Thu, 3 Sep 2015 14:16:26 +0530
 MIME-Version: 1.0
-In-Reply-To: <1441266863-5435-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <1440666194-21478-1-git-send-email-vgupta@synopsys.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Matthew
+ Wilcox <matthew.r.wilcox@intel.com>, Minchan Kim <minchan@kernel.org>
+Cc: linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arc-linux-dev@synopsys.com
 
+Hi all,
 
-
-On 09/03/2015 10:54 AM, Aneesh Kumar K.V wrote:
-> Use is_module_text_address instead
+On Thursday 27 August 2015 02:33 PM, Vineet Gupta wrote:
+> Hi,
 > 
-
-It should be is_module_address().
-
-We use kernel_or_module_addr() to determine whether this
-address belongs to some global variable or not.
-And variables are in .data section, .text is only code.
-
-Something like is_module_data_address() would be more precise here.
-But since we don't have it, we can just use is_module_address().
-Definitely not is_module_text_address().
-
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  mm/kasan/report.c | 9 ++++++---
->  1 file changed, 6 insertions(+), 3 deletions(-)
+> This series brings THP support to ARC. It also introduces an optional new
+> thp hook for arches to possibly optimize the TLB flush in thp regime.
 > 
-> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-> index 6c3f82b0240b..01d2efec8ea4 100644
-> --- a/mm/kasan/report.c
-> +++ b/mm/kasan/report.c
-> @@ -22,6 +22,7 @@
->  #include <linux/string.h>
->  #include <linux/types.h>
->  #include <linux/kasan.h>
-> +#include <linux/module.h>
->  
->  #include <asm/sections.h>
->  
-> @@ -85,9 +86,11 @@ static void print_error_description(struct kasan_access_info *info)
->  
->  static inline bool kernel_or_module_addr(const void *addr)
->  {
-> -	return (addr >= (void *)_stext && addr < (void *)_end)
-> -		|| (addr >= (void *)MODULES_VADDR
-> -			&& addr < (void *)MODULES_END);
-> +	if (addr >= (void *)_stext && addr < (void *)_end)
-> +		return true;
-> +	if (is_module_text_address((unsigned long)addr))
-> +		return true;
-> +	return false;
->  }
->  
->  static inline bool init_task_stack_addr(const void *addr)
+> Rebased against linux-next of today so includes new hook for Minchan's
+> madvise(MADV_FREE).
 > 
+> Please review !
+> 
+> Thx,
+> -Vineet
+
+I understand that this is busy time for people due to merge window. However is
+this series in a a review'able state or do people think more changes are needed
+before they can take a look.
+
+I already did the pgtable_t switch to pte_t * as requested by Kirill (as a
+separate precursor patch) and that does requires one patch in this series to be
+updated. I will spin this in v2 but was wondering if we are on the right track here.
+
+Thx,
+-Vineet
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
