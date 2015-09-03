@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C71276B0260
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:13:51 -0400 (EDT)
-Received: by igbut12 with SMTP id ut12so42465793igb.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:13:51 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 44DF06B0261
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:13:52 -0400 (EDT)
+Received: by igbkq10 with SMTP id kq10so51365211igb.0
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:13:52 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id q1si41977926pdg.31.2015.09.03.08.13.50
+        by mx.google.com with ESMTP id q1si41977926pdg.31.2015.09.03.08.13.51
         for <linux-mm@kvack.org>;
         Thu, 03 Sep 2015 08:13:51 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv10 14/36] futex, thp: remove special case for THP in get_futex_key
-Date: Thu,  3 Sep 2015 18:13:00 +0300
-Message-Id: <1441293202-137314-15-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv10 19/36] mips, thp: remove infrastructure for handling splitting PMDs
+Date: Thu,  3 Sep 2015 18:13:05 +0300
+Message-Id: <1441293202-137314-20-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,127 +19,136 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new THP refcounting, we don't need tricks to stabilize huge page.
-If we've got reference to tail page, it can't split under us.
+With new refcounting we don't need to mark PMDs splitting. Let's drop
+code to handle this.
 
-This patch effectively reverts a5b338f2b0b1.
+pmdp_splitting_flush() is not needed too: on splitting PMD we will do
+pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
+needed for fast_gup.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Tested-by: Sasha Levin <sasha.levin@oracle.com>
-Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- kernel/futex.c | 61 ++++++++++++----------------------------------------------
- 1 file changed, 12 insertions(+), 49 deletions(-)
+ arch/mips/include/asm/pgtable-bits.h |  6 ++----
+ arch/mips/include/asm/pgtable.h      | 18 ------------------
+ arch/mips/mm/gup.c                   | 13 +------------
+ arch/mips/mm/pgtable-64.c            | 14 --------------
+ arch/mips/mm/tlbex.c                 |  1 -
+ 5 files changed, 3 insertions(+), 49 deletions(-)
 
-diff --git a/kernel/futex.c b/kernel/futex.c
-index c4a182f5357e..f9d46c3d9be9 100644
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -399,7 +399,7 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
- {
- 	unsigned long address = (unsigned long)uaddr;
- 	struct mm_struct *mm = current->mm;
--	struct page *page, *page_head;
-+	struct page *page;
- 	int err, ro = 0;
+diff --git a/arch/mips/include/asm/pgtable-bits.h b/arch/mips/include/asm/pgtable-bits.h
+index c28a8499aec7..9bf8b2b87364 100644
+--- a/arch/mips/include/asm/pgtable-bits.h
++++ b/arch/mips/include/asm/pgtable-bits.h
+@@ -131,14 +131,12 @@
+ /* Huge TLB page */
+ #define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
+ #define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
+-#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+-#define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
  
- 	/*
-@@ -442,46 +442,9 @@ again:
- 	else
- 		err = 0;
+ /* Only R2 or newer cores have the XI bit */
+ #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
+-#define _PAGE_NO_EXEC_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
++#define _PAGE_NO_EXEC_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+ #else
+-#define _PAGE_GLOBAL_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
++#define _PAGE_GLOBAL_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+ #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
+ #endif	/* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
  
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--	page_head = page;
--	if (unlikely(PageTail(page))) {
--		put_page(page);
--		/* serialize against __split_huge_page_splitting() */
--		local_irq_disable();
--		if (likely(__get_user_pages_fast(address, 1, !ro, &page) == 1)) {
--			page_head = compound_head(page);
--			/*
--			 * page_head is valid pointer but we must pin
--			 * it before taking the PG_lock and/or
--			 * PG_compound_lock. The moment we re-enable
--			 * irqs __split_huge_page_splitting() can
--			 * return and the head page can be freed from
--			 * under us. We can't take the PG_lock and/or
--			 * PG_compound_lock on a page that could be
--			 * freed from under us.
--			 */
--			if (page != page_head) {
--				get_page(page_head);
--				put_page(page);
--			}
--			local_irq_enable();
--		} else {
--			local_irq_enable();
--			goto again;
--		}
--	}
--#else
--	page_head = compound_head(page);
--	if (page != page_head) {
--		get_page(page_head);
--		put_page(page);
--	}
--#endif
--
--	lock_page(page_head);
--
-+	lock_page(page);
- 	/*
--	 * If page_head->mapping is NULL, then it cannot be a PageAnon
-+	 * If page->mapping is NULL, then it cannot be a PageAnon
- 	 * page; but it might be the ZERO_PAGE or in the gate area or
- 	 * in a special mapping (all cases which we are happy to fail);
- 	 * or it may have been a good file page when get_user_pages_fast
-@@ -493,12 +456,12 @@ again:
- 	 *
- 	 * The case we do have to guard against is when memory pressure made
- 	 * shmem_writepage move it from filecache to swapcache beneath us:
--	 * an unlikely race, but we do need to retry for page_head->mapping.
-+	 * an unlikely race, but we do need to retry for page->mapping.
- 	 */
--	if (!page_head->mapping) {
--		int shmem_swizzled = PageSwapCache(page_head);
--		unlock_page(page_head);
--		put_page(page_head);
-+	if (!page->mapping) {
-+		int shmem_swizzled = PageSwapCache(page);
-+		unlock_page(page);
-+		put_page(page);
- 		if (shmem_swizzled)
- 			goto again;
- 		return -EFAULT;
-@@ -511,7 +474,7 @@ again:
- 	 * it's a read-only handle, it's expected that futexes attach to
- 	 * the object not the particular process.
- 	 */
--	if (PageAnon(page_head)) {
-+	if (PageAnon(page)) {
- 		/*
- 		 * A RO anonymous page will never change and thus doesn't make
- 		 * sense for futex operations.
-@@ -526,15 +489,15 @@ again:
- 		key->private.address = address;
- 	} else {
- 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
--		key->shared.inode = page_head->mapping->host;
-+		key->shared.inode = page->mapping->host;
- 		key->shared.pgoff = basepage_index(page);
- 	}
- 
- 	get_futex_key_refs(key); /* implies MB (B) */
- 
- out:
--	unlock_page(page_head);
--	put_page(page_head);
-+	unlock_page(page);
-+	put_page(page);
- 	return err;
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index ae8569475264..e70f13ab4303 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -480,27 +480,9 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
+ 	return pmd;
  }
  
+-static inline int pmd_trans_splitting(pmd_t pmd)
+-{
+-	return !!(pmd_val(pmd) & _PAGE_SPLITTING);
+-}
+-
+-static inline pmd_t pmd_mksplitting(pmd_t pmd)
+-{
+-	pmd_val(pmd) |= _PAGE_SPLITTING;
+-
+-	return pmd;
+-}
+-
+ extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+ 		       pmd_t *pmdp, pmd_t pmd);
+ 
+-#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+-/* Extern to avoid header file madness */
+-extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+-					unsigned long address,
+-					pmd_t *pmdp);
+-
+ #define __HAVE_ARCH_PMD_WRITE
+ static inline int pmd_write(pmd_t pmd)
+ {
+diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
+index 36a35115dc2e..1afd87c999b0 100644
+--- a/arch/mips/mm/gup.c
++++ b/arch/mips/mm/gup.c
+@@ -107,18 +107,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 		pmd_t pmd = *pmdp;
+ 
+ 		next = pmd_addr_end(addr, end);
+-		/*
+-		 * The pmd_trans_splitting() check below explains why
+-		 * pmdp_splitting_flush has to flush the tlb, to stop
+-		 * this gup-fast code from running while we set the
+-		 * splitting bit in the pmd. Returning zero will take
+-		 * the slow path that will call wait_split_huge_page()
+-		 * if the pmd is still in splitting state. gup-fast
+-		 * can't because it has irq disabled and
+-		 * wait_split_huge_page() would never return as the
+-		 * tlb flush IPI wouldn't run.
+-		 */
+-		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
++		if (pmd_none(pmd))
+ 			return 0;
+ 		if (unlikely(pmd_huge(pmd))) {
+ 			if (!gup_huge_pmd(pmd, addr, next, write, pages,nr))
+diff --git a/arch/mips/mm/pgtable-64.c b/arch/mips/mm/pgtable-64.c
+index e8adc0069d66..ce4473e7c0d2 100644
+--- a/arch/mips/mm/pgtable-64.c
++++ b/arch/mips/mm/pgtable-64.c
+@@ -62,20 +62,6 @@ void pmd_init(unsigned long addr, unsigned long pagetable)
+ }
+ #endif
+ 
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-
+-void pmdp_splitting_flush(struct vm_area_struct *vma,
+-			 unsigned long address,
+-			 pmd_t *pmdp)
+-{
+-	if (!pmd_trans_splitting(*pmdp)) {
+-		pmd_t pmd = pmd_mksplitting(*pmdp);
+-		set_pmd_at(vma->vm_mm, address, pmdp, pmd);
+-	}
+-}
+-
+-#endif
+-
+ pmd_t mk_pmd(struct page *page, pgprot_t prot)
+ {
+ 	pmd_t pmd;
+diff --git a/arch/mips/mm/tlbex.c b/arch/mips/mm/tlbex.c
+index 323d1d302f2b..b190ae9fe909 100644
+--- a/arch/mips/mm/tlbex.c
++++ b/arch/mips/mm/tlbex.c
+@@ -240,7 +240,6 @@ static void output_pgtable_bits_defines(void)
+ 	pr_define("_PAGE_MODIFIED_SHIFT %d\n", _PAGE_MODIFIED_SHIFT);
+ #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
+ 	pr_define("_PAGE_HUGE_SHIFT %d\n", _PAGE_HUGE_SHIFT);
+-	pr_define("_PAGE_SPLITTING_SHIFT %d\n", _PAGE_SPLITTING_SHIFT);
+ #endif
+ #ifdef CONFIG_CPU_MIPSR2
+ 	if (cpu_has_rixi) {
 -- 
 2.5.0
 
