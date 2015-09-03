@@ -1,102 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 53C816B0254
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:02:46 -0400 (EDT)
-Received: by iofb144 with SMTP id b144so61547574iof.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:02:46 -0700 (PDT)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id 90si8333083ioq.190.2015.09.03.08.02.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Sep 2015 08:02:42 -0700 (PDT)
-Received: by igbkq10 with SMTP id kq10so16582945igb.0
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:02:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150903060247.GV1933@devil.localdomain>
-References: <CA+55aFyepmdpbg9U2Pvp+aHjKmmGCrTK2ywzqfmaOTMXQasYNw@mail.gmail.com>
-	<20150903005115.GA27804@redhat.com>
-	<CA+55aFxpH6-XD97dOsuGvwozyV=28eBsxiKS901h8PFZrxaygw@mail.gmail.com>
-	<20150903060247.GV1933@devil.localdomain>
-Date: Thu, 3 Sep 2015 08:02:40 -0700
-Message-ID: <CA+55aFxftNVWVD7ujseqUDNgbVamrFWf0PVM+hPnrfmmACgE0Q@mail.gmail.com>
-Subject: Re: slab-nomerge (was Re: [git pull] device mapper changes for 4.3)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C3F46B0255
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:13:38 -0400 (EDT)
+Received: by pacwi10 with SMTP id wi10so49509222pac.3
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:13:37 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id ym6si22038018pac.59.2015.09.03.08.13.36
+        for <linux-mm@kvack.org>;
+        Thu, 03 Sep 2015 08:13:37 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv10 01/36] mm, proc: adjust PSS calculation
+Date: Thu,  3 Sep 2015 18:12:47 +0300
+Message-Id: <1441293202-137314-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <dchinner@redhat.com>
-Cc: Mike Snitzer <snitzer@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "dm-devel@redhat.com" <dm-devel@redhat.com>, Alasdair G Kergon <agk@redhat.com>, Joe Thornber <ejt@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, Sami Tolvanen <samitolvanen@google.com>, Viresh Kumar <viresh.kumar@linaro.org>, Heinz Mauelshagen <heinzm@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Sep 2, 2015 at 11:02 PM, Dave Chinner <dchinner@redhat.com> wrote:
-> On Wed, Sep 02, 2015 at 06:21:02PM -0700, Linus Torvalds wrote:
->> On Wed, Sep 2, 2015 at 5:51 PM, Mike Snitzer <snitzer@redhat.com> wrote:
->> >
->> > What I made possible with SLAB_NO_MERGE is for each subsystem to decide
->> > if they would prefer to not allow slab merging.
->>
->> .. and why is that a choice that even makes sense at that level?
->>
->> Seriously.
->>
->> THAT is the fundamental issue here.
->
-> It makes a lot more sense than you think, Linus.
+With new refcounting all subpages of the compound page are not necessary
+have the same mapcount. We need to take into account mapcount of every
+sub-page.
 
-Not really. Even your argument isn't at all arguing for doing things
-at a per-subsystem level - it's an argument about the potential sanity
-of marking _individual_ slab caches non-mergable, not an argument for
-something clearly insane like "mark all slabs for subsystem X
-unmergable".
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Sasha Levin <sasha.levin@oracle.com>
+Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Jerome Marchand <jmarchan@redhat.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ fs/proc/task_mmu.c | 47 +++++++++++++++++++++++++++++++----------------
+ 1 file changed, 31 insertions(+), 16 deletions(-)
 
-Can you just admit that that was insane? There is *no* sense in that
-kind of behavior.
-
-> Right, it's not xyzzy-specific where 'xyzzy' is a subsystem. The
-> flag application is actually *object specific*. That is, the use of
-> the individual objects that determines whether it should be merged
-> or not.
-
-Yes.
-
-I do agree that something like SLAB_NO_MERGE can make sense on an
-actual object-specific level, if you have very specific allocation
-pattern knowledge and can show that the merging actually hurts.
-
-But making the subsystem decide that all its slab caches should be
-"no-merge" is just BS. You know that. It makes no sense, just admit
-it.
-
-> e.g. Slab fragmentation levels are affected more than anything by
-> mixing objects with different life times in the same slab.  i.e. if
-> we free all the short lived objects from a page but there is one
-> long lived object on the page then that page is pinned and we free
-> no memory. Do that to enough pages in the slab, and we end up with a
-> badly fragmented slab.
-
-The thing is, *if* you can show that kind of behavior for a particular
-slab, and have numbers for it, then mark that slab as no-merge, and
-document why you did it.
-
-Even then, I'd personally probably prefer to name the bit differently:
-rather than talk about an internal implementation detail within slab
-("don't merge") it would probably be better to try to frame it in the
-semantic different you are looking for (ie in "I want a slab with
-private allocation patterns").
-
-But aside from that kind of naming issue, that's very obviously not
-what the patch series discussed was doing.
-
-And quite frankly, I don't actually think you have the numbers to show
-that theoretical bad behavior.  In contrast, there really *are*
-numbers to show the advantages of merging.
-
-So the fragmentation argument has been shown to generally be in favor
-of merging, _not_ in favor of that "no-merge" behavior. If you have an
-actual real load where that isn't the case, and can show it, then that
-would be interesting, but at no point is that "the subsystem just
-decided to mark all its slabs no-merge".
-
-               Linus
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 66954f5d753c..6b73be84271c 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -453,9 +453,10 @@ struct mem_size_stats {
+ };
+ 
+ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+-		unsigned long size, bool young, bool dirty)
++		bool compound, bool young, bool dirty)
+ {
+-	int mapcount;
++	int i, nr = compound ? HPAGE_PMD_NR : 1;
++	unsigned long size = nr * PAGE_SIZE;
+ 
+ 	if (PageAnon(page))
+ 		mss->anonymous += size;
+@@ -464,23 +465,37 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+ 	/* Accumulate the size in pages that have been accessed. */
+ 	if (young || page_is_young(page) || PageReferenced(page))
+ 		mss->referenced += size;
+-	mapcount = page_mapcount(page);
+-	if (mapcount >= 2) {
+-		u64 pss_delta;
+ 
+-		if (dirty || PageDirty(page))
+-			mss->shared_dirty += size;
+-		else
+-			mss->shared_clean += size;
+-		pss_delta = (u64)size << PSS_SHIFT;
+-		do_div(pss_delta, mapcount);
+-		mss->pss += pss_delta;
+-	} else {
++	/*
++	 * page_count(page) == 1 guarantees the page is mapped exactly once.
++	 * If any subpage of the compound page mapped with PTE it would elevate
++	 * page_count().
++	 */
++	if (page_count(page) == 1) {
+ 		if (dirty || PageDirty(page))
+ 			mss->private_dirty += size;
+ 		else
+ 			mss->private_clean += size;
+ 		mss->pss += (u64)size << PSS_SHIFT;
++		return;
++	}
++
++	for (i = 0; i < nr; i++, page++) {
++		int mapcount = page_mapcount(page);
++
++		if (mapcount >= 2) {
++			if (dirty || PageDirty(page))
++				mss->shared_dirty += PAGE_SIZE;
++			else
++				mss->shared_clean += PAGE_SIZE;
++			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
++		} else {
++			if (dirty || PageDirty(page))
++				mss->private_dirty += PAGE_SIZE;
++			else
++				mss->private_clean += PAGE_SIZE;
++			mss->pss += PAGE_SIZE << PSS_SHIFT;
++		}
+ 	}
+ }
+ 
+@@ -515,7 +530,8 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
+ 
+ 	if (!page)
+ 		return;
+-	smaps_account(mss, page, PAGE_SIZE, pte_young(*pte), pte_dirty(*pte));
++
++	smaps_account(mss, page, false, pte_young(*pte), pte_dirty(*pte));
+ }
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+@@ -531,8 +547,7 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
+ 	if (IS_ERR_OR_NULL(page))
+ 		return;
+ 	mss->anonymous_thp += HPAGE_PMD_SIZE;
+-	smaps_account(mss, page, HPAGE_PMD_SIZE,
+-			pmd_young(*pmd), pmd_dirty(*pmd));
++	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
+ }
+ #else
+ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
