@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 63E7B9003CD
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:19:14 -0400 (EDT)
-Received: by oiww128 with SMTP id w128so29487381oiw.2
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:19:14 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id nj6si8193469pdb.45.2015.09.03.08.14.05
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 331339003CD
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:19:36 -0400 (EDT)
+Received: by igbni9 with SMTP id ni9so42470302igb.0
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:19:36 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id lx10si42003925pdb.65.2015.09.03.08.14.08
         for <linux-mm@kvack.org>;
-        Thu, 03 Sep 2015 08:14:05 -0700 (PDT)
+        Thu, 03 Sep 2015 08:14:08 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv10 36/36] thp: update documentation
-Date: Thu,  3 Sep 2015 18:13:22 +0300
-Message-Id: <1441293202-137314-37-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv10 21/36] s390, thp: remove infrastructure for handling splitting PMDs
+Date: Thu,  3 Sep 2015 18:13:07 +0300
+Message-Id: <1441293202-137314-22-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,228 +19,123 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The patch updates Documentation/vm/transhuge.txt to reflect changes in
-THP design.
+With new refcounting we don't need to mark PMDs splitting. Let's drop
+code to handle this.
+
+pmdp_splitting_flush() is not needed too: on splitting PMD we will do
+pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
+needed for fast_gup.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- Documentation/vm/transhuge.txt | 151 ++++++++++++++++++++++++++---------------
- 1 file changed, 96 insertions(+), 55 deletions(-)
+ arch/s390/include/asm/pgtable.h | 15 +--------------
+ arch/s390/mm/gup.c              | 11 +----------
+ arch/s390/mm/pgtable.c          | 16 ----------------
+ 3 files changed, 2 insertions(+), 40 deletions(-)
 
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-index 8143b9e8373d..b0cc5f8f161f 100644
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -35,10 +35,10 @@ miss is going to run faster.
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index f66d82798a6a..dad92c3a5678 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -280,7 +280,6 @@ static inline int is_module_addr(void *addr)
  
- == Design ==
+ #define _SEGMENT_ENTRY_DIRTY	0x2000	/* SW segment dirty bit */
+ #define _SEGMENT_ENTRY_YOUNG	0x1000	/* SW segment young bit */
+-#define _SEGMENT_ENTRY_SPLIT	0x0800	/* THP splitting bit */
+ #define _SEGMENT_ENTRY_LARGE	0x0400	/* STE-format control, large page */
+ #define _SEGMENT_ENTRY_READ	0x0002	/* SW segment read bit */
+ #define _SEGMENT_ENTRY_WRITE	0x0001	/* SW segment write bit */
+@@ -306,8 +305,6 @@ static inline int is_module_addr(void *addr)
+  * SW-bits: y young, d dirty, r read, w write
+  */
  
--- "graceful fallback": mm components which don't have transparent
--  hugepage knowledge fall back to breaking a transparent hugepage and
--  working on the regular pages and their respective regular pmd/pte
--  mappings
-+- "graceful fallback": mm components which don't have transparent hugepage
-+  knowledge fall back to breaking huge pmd mapping into table of ptes and,
-+  if necessary, split a transparent hugepage. Therefore these components
-+  can continue working on the regular pages or regular pte mappings.
- 
- - if a hugepage allocation fails because of memory fragmentation,
-   regular pages should be gracefully allocated instead and mixed in
-@@ -211,9 +211,18 @@ thp_collapse_alloc_failed is incremented if khugepaged found a range
- 	of pages that should be collapsed into one huge page but failed
- 	the allocation.
- 
--thp_split is incremented every time a huge page is split into base
-+thp_split_page is incremented every time a huge page is split into base
- 	pages. This can happen for a variety of reasons but a common
- 	reason is that a huge page is old and is being reclaimed.
-+	This action implies splitting all PMD the page mapped with.
-+
-+thp_split_page_failed is is incremented if kernel fails to split huge
-+	page. This can happen if the page was pinned by somebody.
-+
-+thp_split_pmd is incremented every time a PMD split into table of PTEs.
-+	This can happen, for instance, when application calls mprotect() or
-+	munmap() on part of huge page. It doesn't split huge page, only
-+	page table entry.
- 
- thp_zero_page_alloc is incremented every time a huge zero page is
- 	successfully allocated. It includes allocations which where
-@@ -264,10 +273,8 @@ is complete, so they won't ever notice the fact the page is huge. But
- if any driver is going to mangle over the page structure of the tail
- page (like for checking page->mapping or other bits that are relevant
- for the head page and not the tail page), it should be updated to jump
--to check head page instead (while serializing properly against
--split_huge_page() to avoid the head and tail pages to disappear from
--under it, see the futex code to see an example of that, hugetlbfs also
--needed special handling in futex code for similar reasons).
-+to check head page instead. Taking reference on any head/tail page would
-+prevent page from being split by anyone.
- 
- NOTE: these aren't new constraints to the GUP API, and they match the
- same constrains that applies to hugetlbfs too, so any driver capable
-@@ -302,9 +309,9 @@ unaffected. libhugetlbfs will also work fine as usual.
- == Graceful fallback ==
- 
- Code walking pagetables but unware about huge pmds can simply call
--split_huge_page_pmd(vma, addr, pmd) where the pmd is the one returned by
-+split_huge_pmd(vma, pmd, addr) where the pmd is the one returned by
- pmd_offset. It's trivial to make the code transparent hugepage aware
--by just grepping for "pmd_offset" and adding split_huge_page_pmd where
-+by just grepping for "pmd_offset" and adding split_huge_pmd where
- missing after pmd_offset returns the pmd. Thanks to the graceful
- fallback design, with a one liner change, you can avoid to write
- hundred if not thousand of lines of complex code to make your code
-@@ -313,7 +320,8 @@ hugepage aware.
- If you're not walking pagetables but you run into a physical hugepage
- but you can't handle it natively in your code, you can split it by
- calling split_huge_page(page). This is what the Linux VM does before
--it tries to swapout the hugepage for example.
-+it tries to swapout the hugepage for example. split_huge_page() can fail
-+if the page is pinned and you must handle this correctly.
- 
- Example to make mremap.c transparent hugepage aware with a one liner
- change:
-@@ -325,14 +333,14 @@ diff --git a/mm/mremap.c b/mm/mremap.c
- 		return NULL;
- 
- 	pmd = pmd_offset(pud, addr);
--+	split_huge_page_pmd(vma, addr, pmd);
-++	split_huge_pmd(vma, pmd, addr);
- 	if (pmd_none_or_clear_bad(pmd))
- 		return NULL;
- 
- == Locking in hugepage aware code ==
- 
- We want as much code as possible hugepage aware, as calling
--split_huge_page() or split_huge_page_pmd() has a cost.
-+split_huge_page() or split_huge_pmd() has a cost.
- 
- To make pagetable walks huge pmd aware, all you need to do is to call
- pmd_trans_huge() on the pmd returned by pmd_offset. You must hold the
-@@ -341,47 +349,80 @@ created from under you by khugepaged (khugepaged collapse_huge_page
- takes the mmap_sem in write mode in addition to the anon_vma lock). If
- pmd_trans_huge returns false, you just fallback in the old code
- paths. If instead pmd_trans_huge returns true, you have to take the
--mm->page_table_lock and re-run pmd_trans_huge. Taking the
--page_table_lock will prevent the huge pmd to be converted into a
--regular pmd from under you (split_huge_page can run in parallel to the
-+page table lock (pmd_lock()) and re-run pmd_trans_huge. Taking the
-+page table lock will prevent the huge pmd to be converted into a
-+regular pmd from under you (split_huge_pmd can run in parallel to the
- pagetable walk). If the second pmd_trans_huge returns false, you
--should just drop the page_table_lock and fallback to the old code as
--before. Otherwise you should run pmd_trans_splitting on the pmd. In
--case pmd_trans_splitting returns true, it means split_huge_page is
--already in the middle of splitting the page. So if pmd_trans_splitting
--returns true it's enough to drop the page_table_lock and call
--wait_split_huge_page and then fallback the old code paths. You are
--guaranteed by the time wait_split_huge_page returns, the pmd isn't
--huge anymore. If pmd_trans_splitting returns false, you can proceed to
--process the huge pmd and the hugepage natively. Once finished you can
--drop the page_table_lock.
+-#define _SEGMENT_ENTRY_SPLIT_BIT 11	/* THP splitting bit number */
 -
--== compound_lock, get_user_pages and put_page ==
-+should just drop the page table lock and fallback to the old code as
-+before. Otherwise you can proceed to process the huge pmd and the
-+hugepage natively. Once finished you can drop the page table lock.
-+
-+== Refcounts and transparent huge pages ==
-+
-+Refcounting on THP is mostly consistent with refcounting on other compound
-+pages:
-+
-+  - get_page()/put_page() and GUP operate in head page's ->_count.
-+
-+  - ->_count in tail pages is always zero: get_page_unless_zero() never
-+    succeed on tail pages.
-+
-+  - map/unmap of the pages with PTE entry increment/decrement ->_mapcount
-+    on relevant sub-page of the compound page.
-+
-+  - map/unmap of the whole compound page accounted in compound_mapcount
-+    (stored in first tail page).
-+
-+PageDoubleMap() indicates that ->_mapcount in all subpages is offset up by one.
-+This additional reference is required to get race-free detection of unmap of
-+subpages when we have them mapped with both PMDs and PTEs.
-+
-+This is optimization required to lower overhead of per-subpage mapcount
-+tracking. The alternative is alter ->_mapcount in all subpages on each
-+map/unmap of the whole compound page.
-+
-+We set PG_double_map when a PMD of the page got split for the first time,
-+but still have PMD mapping. The addtional references go away with last
-+compound_mapcount.
+ /* Page status table bits for virtualization */
+ #define PGSTE_ACC_BITS	0xf000000000000000UL
+ #define PGSTE_FP_BIT	0x0800000000000000UL
+@@ -511,10 +508,6 @@ static inline int pmd_bad(pmd_t pmd)
+ 	return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS) != 0;
+ }
  
- split_huge_page internally has to distribute the refcounts in the head
--page to the tail pages before clearing all PG_head/tail bits from the
--page structures. It can do that easily for refcounts taken by huge pmd
--mappings. But the GUI API as created by hugetlbfs (that returns head
--and tail pages if running get_user_pages on an address backed by any
--hugepage), requires the refcount to be accounted on the tail pages and
--not only in the head pages, if we want to be able to run
--split_huge_page while there are gup pins established on any tail
--page. Failure to be able to run split_huge_page if there's any gup pin
--on any tail page, would mean having to split all hugepages upfront in
--get_user_pages which is unacceptable as too many gup users are
--performance critical and they must work natively on hugepages like
--they work natively on hugetlbfs already (hugetlbfs is simpler because
--hugetlbfs pages cannot be split so there wouldn't be requirement of
--accounting the pins on the tail pages for hugetlbfs). If we wouldn't
--account the gup refcounts on the tail pages during gup, we won't know
--anymore which tail page is pinned by gup and which is not while we run
--split_huge_page. But we still have to add the gup pin to the head page
--too, to know when we can free the compound page in case it's never
--split during its lifetime. That requires changing not just
--get_page, but put_page as well so that when put_page runs on a tail
--page (and only on a tail page) it will find its respective head page,
--and then it will decrease the head page refcount in addition to the
--tail page refcount. To obtain a head page reliably and to decrease its
--refcount without race conditions, put_page has to serialize against
--__split_huge_page_refcount using a special per-page lock called
--compound_lock.
-+page to the tail pages before clearing all PG_head/tail bits from the page
-+structures. It can be done easily for refcounts taken by page table
-+entries. But we don't have enough information on how to distribute any
-+additional pins (i.e. from get_user_pages). split_huge_page() fails any
-+requests to split pinned huge page: it expects page count to be equal to
-+sum of mapcount of all sub-pages plus one (split_huge_page caller must
-+have reference for head page).
-+
-+split_huge_page uses migration entries to stabilize page->_count and
-+page->_mapcount.
-+
-+We safe against physical memory scanners too: the only legitimate way
-+scanner can get reference to a page is get_page_unless_zero().
-+
-+All tail pages has zero ->_count until atomic_add(). It prevent scanner
-+from geting reference to tail page up to the point. After the atomic_add()
-+we don't care about ->_count value.  We already known how many references
-+with should uncharge from head page.
-+
-+For head page get_page_unless_zero() will succeed and we don't mind. It's
-+clear where reference should go after split: it will stay on head page.
-+
-+Note that split_huge_pmd() doesn't have any limitation on refcounting:
-+pmd can be split at any point and never fails.
-+
-+== Partial unmap and deferred_split_huge_page() ==
-+
-+Unmapping part of THP (with munmap() or other way) is not going to free
-+memory immediately. Instead, we detect that a subpage of THP is not in use
-+in page_remove_rmap() and queue the THP for splitting if memory pressure
-+comes. Splitting will free up unused subpages.
-+
-+Splitting the page right away is not an option due to locking context in
-+the place where we can detect partial unmap. It's also might be
-+counterproductive since in many cases partial unmap unmap happens during
-+exit(2) if an THP crosses VMA boundary.
-+
-+Function deferred_split_huge_page() is used to queue page for splitting.
-+The splitting itself will happen when we get memory pressure via shrinker
-+interface.
+-#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+-extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+-				 unsigned long addr, pmd_t *pmdp);
+-
+ #define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
+ extern int pmdp_set_access_flags(struct vm_area_struct *vma,
+ 				 unsigned long address, pmd_t *pmdp,
+@@ -1358,7 +1351,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+ 	if (pmd_large(pmd)) {
+ 		pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN_LARGE |
+ 			_SEGMENT_ENTRY_DIRTY | _SEGMENT_ENTRY_YOUNG |
+-			_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_SPLIT;
++			_SEGMENT_ENTRY_LARGE;
+ 		pmd_val(pmd) |= massage_pgprot_pmd(newprot);
+ 		if (!(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
+ 			pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
+@@ -1466,12 +1459,6 @@ extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+ #define __HAVE_ARCH_PGTABLE_WITHDRAW
+ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+ 
+-static inline int pmd_trans_splitting(pmd_t pmd)
+-{
+-	return (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) &&
+-		(pmd_val(pmd) & _SEGMENT_ENTRY_SPLIT);
+-}
+-
+ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+ 			      pmd_t *pmdp, pmd_t entry)
+ {
+diff --git a/arch/s390/mm/gup.c b/arch/s390/mm/gup.c
+index f8112899f6fe..0be19bae998e 100644
+--- a/arch/s390/mm/gup.c
++++ b/arch/s390/mm/gup.c
+@@ -102,16 +102,7 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
+ 		pmd = *pmdp;
+ 		barrier();
+ 		next = pmd_addr_end(addr, end);
+-		/*
+-		 * The pmd_trans_splitting() check below explains why
+-		 * pmdp_splitting_flush() has to serialize with
+-		 * smp_call_function() against our disabled IRQs, to stop
+-		 * this gup-fast code from running while we set the
+-		 * splitting bit in the pmd. Returning zero will take
+-		 * the slow path that will call wait_split_huge_page()
+-		 * if the pmd is still in splitting state.
+-		 */
+-		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
++		if (pmd_none(pmd))
+ 			return 0;
+ 		if (unlikely(pmd_large(pmd))) {
+ 			if (!gup_huge_pmd(pmdp, pmd, addr, next,
+diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
+index b33f66110ca9..4a2134ffc74f 100644
+--- a/arch/s390/mm/pgtable.c
++++ b/arch/s390/mm/pgtable.c
+@@ -1355,22 +1355,6 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
+ 	return 1;
+ }
+ 
+-static void pmdp_splitting_flush_sync(void *arg)
+-{
+-	/* Simply deliver the interrupt */
+-}
+-
+-void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
+-			  pmd_t *pmdp)
+-{
+-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+-	if (!test_and_set_bit(_SEGMENT_ENTRY_SPLIT_BIT,
+-			      (unsigned long *) pmdp)) {
+-		/* need to serialize against gup-fast (IRQ disabled) */
+-		smp_call_function(pmdp_splitting_flush_sync, NULL, 1);
+-	}
+-}
+-
+ void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+ 				pgtable_t pgtable)
+ {
 -- 
 2.5.0
 
