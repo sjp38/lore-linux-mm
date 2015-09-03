@@ -1,105 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A1E736B025A
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 12:32:46 -0400 (EDT)
-Received: by ykek143 with SMTP id k143so49083856yke.2
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 09:32:46 -0700 (PDT)
-Received: from mail-yk0-x232.google.com (mail-yk0-x232.google.com. [2607:f8b0:4002:c07::232])
-        by mx.google.com with ESMTPS id d78si4584160ykc.12.2015.09.03.09.32.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Sep 2015 09:32:46 -0700 (PDT)
-Received: by ykdg206 with SMTP id g206so48860434ykd.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 09:32:45 -0700 (PDT)
-Date: Thu, 3 Sep 2015 12:32:43 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
- enabled
-Message-ID: <20150903163243.GD10394@mtj.duckdns.org>
-References: <cover.1440960578.git.vdavydov@parallels.com>
- <20150831132414.GG29723@dhcp22.suse.cz>
- <20150831142049.GV9610@esperanza>
- <20150901123612.GB8810@dhcp22.suse.cz>
- <20150901134003.GD21226@esperanza>
- <20150901150119.GF8810@dhcp22.suse.cz>
- <20150901165554.GG21226@esperanza>
- <20150901183849.GA28824@dhcp22.suse.cz>
- <20150902093039.GA30160@esperanza>
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0B36B025C
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 12:45:13 -0400 (EDT)
+Received: by igbut12 with SMTP id ut12so44785372igb.1
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 09:45:13 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id os4si32674897pdb.152.2015.09.03.09.45.12
+        for <linux-mm@kvack.org>;
+        Thu, 03 Sep 2015 09:45:13 -0700 (PDT)
+Date: Thu, 3 Sep 2015 10:44:53 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] dax, pmem: add support for msync
+Message-ID: <20150903164453.GA10341@linux.intel.com>
+References: <1441047584-14664-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20150831233803.GO3902@dastard>
+ <20150901070608.GA5482@lst.de>
+ <55E597A1.9090205@plexistor.com>
+ <20150902190401.GC32255@linux.intel.com>
+ <55E7E962.2000607@plexistor.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150902093039.GA30160@esperanza>
+In-Reply-To: <55E7E962.2000607@plexistor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@osdl.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-nvdimm@lists.01.org, Peter Zijlstra <peterz@infradead.org>, x86@kernel.org, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, linux-fsdevel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hello, Vladimir.
-
-On Wed, Sep 02, 2015 at 12:30:39PM +0300, Vladimir Davydov wrote:
-...
-> To sum it up. Basically, there are two ways of handling kmemcg charges:
+On Thu, Sep 03, 2015 at 09:32:02AM +0300, Boaz Harrosh wrote:
+> On 09/02/2015 10:04 PM, Ross Zwisler wrote:
+> > On Tue, Sep 01, 2015 at 03:18:41PM +0300, Boaz Harrosh wrote:
+> <>
+> >> Apps expect all these to work:
+> >> 1. open mmap m-write msync ... close
+> >> 2. open mmap m-write fsync ... close
+> >> 3. open mmap m-write unmap ... fsync close
+> >>
+> >> 4. open mmap m-write sync ...
+> > 
+> > So basically you made close have an implicit fsync?  What about the flow that
+> > looks like this:
+> > 
+> > 5. open mmap close m-write
+> > 
 > 
->  1. Make the memcg try_charge mimic alloc_pages behavior.
->  2. Make API functions (kmalloc, etc) work in memcg as if they were
->     called from the root cgroup, while keeping interactions between the
->     low level subsys (slab) and memcg private.
+> What? no, close means ummap because you need a file* attached to your vma
 > 
-> Way 1 might look appealing at the first glance, but at the same time it
-> is much more complex, because alloc_pages has grown over the years to
-> handle a lot of subtle situations that may arise on global memory
-> pressure, but impossible in memcg. What does way 1 give us then? We
-> can't insert try_charge directly to alloc_pages and have to spread its
-> calls all over the code anyway, so why is it better? Easier to use it in
-> places where users depend on buddy allocator peculiarities? There are
-> not many such users.
+> And you miss-understood me, the vm_opts->close is the *unmap* operation not
+> the file::close() operation.
+> 
+> I meant memory-cl_flush on unmap before the vma goes away.
 
-Maybe this is from inexperience but wouldn't 1 also be simpler than
-the global case for the same reasons that doing 2 is simpler?  It's
-not like the fact that memory shortage inside memcg usually doesn't
-mean global shortage goes away depending on whether we take 1 or 2.
-
-That said, it is true that slab is an integral part of kmemcg and I
-can't see how it can be made oblivious of memcg operations, so yeah
-one way or the other slab has to know the details and we may have to
-do some unusual things at that layer.
-
-> I understand that the idea of way 1 is to provide a well-defined memcg
-> API independent of the rest of the code, but that's just impossible. You
-> need special casing anyway. E.g. you need those get/put_kmem_cache
-> helpers, which exist solely for SLAB/SLUB. You need all this special
-> stuff for growing per-memcg array in list_lru and kmem_cache, which
-> exists solely for memcg-vs-list_lru and memcg-vs-slab interactions. We
-> even handle kmem_cache destruction on memcg offline differently for SLAB
-> and SLUB for performance reasons.
-
-It isn't a black or white thing.  Sure, slab should be involved in
-kmemcg but at the same time if we can keep the amount of exposure in
-check, that's the better way to go.
-
-> Way 2 gives us more space to maneuver IMO. SLAB/SLUB may do weird tricks
-> for optimization, but their API is well defined, so we just make kmalloc
-> work as expected while providing inter-subsys calls, like
-> memcg_charge_slab, for SLAB/SLUB that have their own conventions. You
-> mentioned kmem users that allocate memory using alloc_pages. There is an
-> API function for them too, alloc_kmem_pages. Everything behind the API
-> is hidden and may be done in such a way to achieve optimal performance.
-
-Ditto.  Nobody is arguing that we can get it out completely but at the
-same time handling of GFP_NOWAIT seems like a pretty fundamental
-proprety that we'd wanna maintain at memcg boundary.
-
-You said elsewhere that GFP_NOWAIT happening back-to-back is unlikely.
-I'm not sure how much we can commit to that statement.  GFP_KERNEL
-allocating huge amount of memory in a single go is a kernel bug.
-GFP_NOWAIT optimization in a hot path which is accessible to userland
-isn't and we'll be growing more and more of them.  We need to be
-protected against back-to-back GFP_NOWAIT allocations.
-
-Thanks.
-
--- 
-tejun
+Ah, got it, thanks for the clarification.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
