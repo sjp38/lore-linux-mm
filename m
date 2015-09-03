@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 843E19003CD
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:14:24 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so44678431pac.0
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:14:24 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A27FC9003CD
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:14:26 -0400 (EDT)
+Received: by pacwi10 with SMTP id wi10so49528396pac.3
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:14:26 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
         by mx.google.com with ESMTP id ry8si41888265pbb.86.2015.09.03.08.14.04
         for <linux-mm@kvack.org>;
         Thu, 03 Sep 2015 08:14:04 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv10 31/36] thp, mm: split_huge_page(): caller need to lock page
-Date: Thu,  3 Sep 2015 18:13:17 +0300
-Message-Id: <1441293202-137314-32-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv10 30/36] thp: add option to setup migration entries during PMD split
+Date: Thu,  3 Sep 2015 18:13:16 +0300
+Message-Id: <1441293202-137314-31-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,12 +19,10 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We're going to use migration entries instead of compound_lock() to
-stabilize page refcounts. Setup and remove migration entries require
-page to be locked.
-
-Some of split_huge_page() callers already have the page locked. Let's
-require everybody to lock the page before calling split_huge_page().
+We are going to use migration PTE entries to stabilize page counts.
+If the page is mapped with PMDs we need to split the PMD and setup
+migration entries. It's reasonable to combine these operations to avoid
+double-scanning over the page table.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
@@ -32,64 +30,64 @@ Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- mm/memory-failure.c | 8 +++++++-
- mm/migrate.c        | 8 ++++++--
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ mm/huge_memory.c | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 39591cce45ca..216f1d4768ec 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1148,7 +1148,9 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	}
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index f30af16c2b16..932814605b8a 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -26,6 +26,7 @@
+ #include <linux/hashtable.h>
+ #include <linux/userfaultfd_k.h>
+ #include <linux/page_idle.h>
++#include <linux/swapops.h>
  
- 	if (!PageHuge(p) && PageTransHuge(hpage)) {
-+		lock_page(hpage);
- 		if (!PageAnon(hpage) || unlikely(split_huge_page(hpage))) {
-+			unlock_page(hpage);
- 			if (!PageAnon(hpage))
- 				pr_err("MCE: %#lx: non anonymous thp\n", pfn);
- 			else
-@@ -1158,6 +1160,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 			put_hwpoison_page(p);
- 			return -EBUSY;
- 		}
-+		unlock_page(hpage);
- 		VM_BUG_ON_PAGE(!page_count(p), p);
- 		hpage = compound_head(p);
- 	}
-@@ -1735,7 +1738,10 @@ int soft_offline_page(struct page *page, int flags)
- 		return -EBUSY;
- 	}
- 	if (!PageHuge(page) && PageTransHuge(hpage)) {
--		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
-+		lock_page(page);
-+		ret = split_huge_page(hpage);
-+		unlock_page(page);
-+		if (unlikely(ret)) {
- 			pr_info("soft offline: %#lx: failed to split THP\n",
- 				pfn);
- 			if (flags & MF_COUNT_INCREASED)
-diff --git a/mm/migrate.c b/mm/migrate.c
-index d63965e2733d..b8e968fab1d2 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -939,9 +939,13 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 		goto out;
- 	}
+ #include <asm/tlb.h>
+ #include <asm/pgalloc.h>
+@@ -2625,7 +2626,7 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
+ }
  
--	if (unlikely(PageTransHuge(page)))
--		if (unlikely(split_huge_page(page)))
-+	if (unlikely(PageTransHuge(page))) {
-+		lock_page(page);
-+		rc = split_huge_page(page);
-+		unlock_page(page);
-+		if (rc)
- 			goto out;
-+	}
- 
- 	rc = __unmap_and_move(page, newpage, force, mode);
- 
+ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+-		unsigned long haddr)
++		unsigned long haddr, bool freeze)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	struct page *page;
+@@ -2669,12 +2670,18 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 		 * transferred to avoid any possibility of altering
+ 		 * permissions across VMAs.
+ 		 */
+-		entry = mk_pte(page + i, vma->vm_page_prot);
+-		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+-		if (!write)
+-			entry = pte_wrprotect(entry);
+-		if (!young)
+-			entry = pte_mkold(entry);
++		if (freeze) {
++			swp_entry_t swp_entry;
++			swp_entry = make_migration_entry(page + i, write);
++			entry = swp_entry_to_pte(swp_entry);
++		} else {
++			entry = mk_pte(page + i, vma->vm_page_prot);
++			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++			if (!write)
++				entry = pte_wrprotect(entry);
++			if (!young)
++				entry = pte_mkold(entry);
++		}
+ 		pte = pte_offset_map(&_pmd, haddr);
+ 		BUG_ON(!pte_none(*pte));
+ 		set_pte_at(mm, haddr, pte, entry);
+@@ -2715,7 +2722,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
+ 	ptl = pmd_lock(mm, pmd);
+ 	if (likely(pmd_trans_huge(*pmd)))
+-		__split_huge_pmd_locked(vma, pmd, haddr);
++		__split_huge_pmd_locked(vma, pmd, haddr, false);
+ 	spin_unlock(ptl);
+ 	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
+ }
 -- 
 2.5.0
 
