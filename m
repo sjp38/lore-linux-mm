@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 5319C6B0255
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D1E136B0257
 	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 10:48:07 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so10949719wic.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:06 -0700 (PDT)
-Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
-        by mx.google.com with ESMTPS id y14si11354997wiv.17.2015.09.03.07.48.06
+Received: by wiclk2 with SMTP id lk2so10950119wic.1
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:07 -0700 (PDT)
+Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com. [2a00:1450:400c:c05::22b])
+        by mx.google.com with ESMTPS id c9si11323573wiw.58.2015.09.03.07.48.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 03 Sep 2015 07:48:06 -0700 (PDT)
-Received: by wibz8 with SMTP id z8so101716050wib.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:05 -0700 (PDT)
+Received: by wicge5 with SMTP id ge5so76642196wic.0
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:06 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH 4/7] kasan: update log messages
-Date: Thu,  3 Sep 2015 16:47:39 +0200
-Message-Id: <84eff5df162012da2d6161aa49054e89605012de.1441290220.git.andreyknvl@google.com>
+Subject: [PATCH 5/7] kasan: various fixes in documentation
+Date: Thu,  3 Sep 2015 16:47:40 +0200
+Message-Id: <86cc686f415fa4a47de1a0394a74390964450e48.1441290220.git.andreyknvl@google.com>
 In-Reply-To: <cover.1441290219.git.andreyknvl@google.com>
 References: <cover.1441290219.git.andreyknvl@google.com>
 In-Reply-To: <cover.1441290219.git.andreyknvl@google.com>
@@ -24,63 +24,101 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: dvyukov@google.com, glider@google.com, kcc@google.com, Andrey Konovalov <andreyknvl@google.com>
 
-We decided to use KASAN as the short name of the tool and
-KernelAddressSanitizer as the full one.
-Update log messages according to that.
-
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/x86/mm/kasan_init_64.c | 2 +-
- mm/kasan/kasan.c            | 2 +-
- mm/kasan/report.c           | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ Documentation/kasan.txt | 43 ++++++++++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 21 deletions(-)
 
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index 9ce5da2..d470cf2 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -126,5 +126,5 @@ void __init kasan_init(void)
- 	__flush_tlb_all();
- 	init_task.kasan_depth = 0;
+diff --git a/Documentation/kasan.txt b/Documentation/kasan.txt
+index 0d32355..d2f4c8f 100644
+--- a/Documentation/kasan.txt
++++ b/Documentation/kasan.txt
+@@ -1,32 +1,31 @@
+-Kernel address sanitizer
+-================
++KernelAddressSanitizer (KASAN)
++==============================
  
--	pr_info("Kernel address sanitizer initialized\n");
-+	pr_info("KernelAddressSanitizer initialized\n");
- }
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 035f268..61c9620 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -519,7 +519,7 @@ static int kasan_mem_notifier(struct notifier_block *nb,
+ 0. Overview
+ ===========
  
- static int __init kasan_memhotplug_init(void)
- {
--	pr_err("WARNING: KASan doesn't support memory hot-add\n");
-+	pr_err("WARNING: KASAN doesn't support memory hot-add\n");
- 	pr_err("Memory hot-add will be disabled\n");
+-Kernel Address sanitizer (KASan) is a dynamic memory error detector. It provides
++KernelAddressSANitizer (KASAN) is a dynamic memory error detector. It provides
+ a fast and comprehensive solution for finding use-after-free and out-of-bounds
+ bugs.
  
- 	hotplug_memory_notifier(kasan_mem_notifier, 0);
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 6126272..31b91b9 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -90,7 +90,7 @@ static void print_error_description(struct kasan_access_info *info)
- 		break;
- 	}
+-KASan uses compile-time instrumentation for checking every memory access,
+-therefore you will need a gcc version of 4.9.2 or later. KASan could detect out
+-of bounds accesses to stack or global variables, but only if gcc 5.0 or later was
+-used to built the kernel.
++KASAN uses compile-time instrumentation for checking every memory access,
++therefore you will need a GCC version 4.9.2 or later. GCC 5.0 or later is
++required for detection of out-of-bounds accesses to stack or global variables.
  
--	pr_err("BUG: KASan: %s in %pS at addr %p\n",
-+	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
- 		bug_type, (void *)info->ip,
- 		info->access_addr);
- 	pr_err("%s of size %zu by task %s/%d\n",
-@@ -213,7 +213,7 @@ static void kasan_report_error(struct kasan_access_info *info)
- 			bug_type = "user-memory-access";
- 		else
- 			bug_type = "wild-memory-access";
--		pr_err("BUG: KASan: %s on address %p\n",
-+		pr_err("BUG: KASAN: %s on address %p\n",
- 			bug_type, info->access_addr);
- 		pr_err("%s of size %zu by task %s/%d\n",
- 			info->is_write ? "Write" : "Read",
+-Currently KASan is supported only for x86_64 architecture and requires that the
+-kernel be built with the SLUB allocator.
++Currently KASAN is supported only for x86_64 architecture and requires the
++kernel to be built with the SLUB allocator.
+ 
+ 1. Usage
+-=========
++========
+ 
+ To enable KASAN configure kernel with:
+ 
+ 	  CONFIG_KASAN = y
+ 
+-and choose between CONFIG_KASAN_OUTLINE and CONFIG_KASAN_INLINE. Outline/inline
+-is compiler instrumentation types. The former produces smaller binary the
+-latter is 1.1 - 2 times faster. Inline instrumentation requires a gcc version
+-of 5.0 or later.
++and choose between CONFIG_KASAN_OUTLINE and CONFIG_KASAN_INLINE. Outline and
++inline are compiler instrumentation types. The former produces smaller binary
++the latter is 1.1 - 2 times faster. Inline instrumentation requires a GCC
++version 5.0 or later.
+ 
+ Currently KASAN works only with the SLUB memory allocator.
+ For better bug detection and nicer report, enable CONFIG_STACKTRACE and put
+@@ -42,7 +41,7 @@ similar to the following to the respective kernel Makefile:
+                 KASAN_SANITIZE := n
+ 
+ 1.1 Error reports
+-==========
++=================
+ 
+ A typical out of bounds access report looks like this:
+ 
+@@ -119,14 +118,16 @@ Memory state around the buggy address:
+  ffff8800693bc800: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+ ==================================================================
+ 
+-First sections describe slub object where bad access happened.
+-See 'SLUB Debug output' section in Documentation/vm/slub.txt for details.
++The header of the report discribe what kind of bug happend and what kind of
++access caused it. It's followed by the description of the accessed slub object
++(see 'SLUB Debug output' section in Documentation/vm/slub.txt for details) and
++the description of the accessed memory page.
+ 
+ In the last section the report shows memory state around the accessed address.
+-Reading this part requires some more understanding of how KASAN works.
++Reading this part requires some understanding of how KASAN works.
+ 
+-Each 8 bytes of memory are encoded in one shadow byte as accessible,
+-partially accessible, freed or they can be part of a redzone.
++The state of each 8 aligned bytes of memory is encoded in one shadow byte.
++Those 8 bytes can be accessible, partially accessible, freed or be a redzone.
+ We use the following encoding for each shadow byte: 0 means that all 8 bytes
+ of the corresponding memory region are accessible; number N (1 <= N <= 7) means
+ that the first N bytes are accessible, and other (8 - N) bytes are not;
+@@ -139,7 +140,7 @@ the accessed address is partially accessible.
+ 
+ 
+ 2. Implementation details
+-========================
++=========================
+ 
+ From a high level, our approach to memory error detection is similar to that
+ of kmemcheck: use shadow memory to record whether each byte of memory is safe
 -- 
 2.5.0.457.gab17608
 
