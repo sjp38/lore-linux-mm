@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 535399003CD
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:14:18 -0400 (EDT)
-Received: by pacwi10 with SMTP id wi10so49525207pac.3
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:14:18 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id qq3si41813262pbc.246.2015.09.03.08.13.58
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 715079003CD
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:14:20 -0400 (EDT)
+Received: by pacwi10 with SMTP id wi10so49526029pac.3
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:14:20 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id rm9si41952280pab.171.2015.09.03.08.13.59
         for <linux-mm@kvack.org>;
-        Thu, 03 Sep 2015 08:13:58 -0700 (PDT)
+        Thu, 03 Sep 2015 08:13:59 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv10 33/36] migrate_pages: try to split pages on qeueuing
-Date: Thu,  3 Sep 2015 18:13:19 +0300
-Message-Id: <1441293202-137314-34-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv10 11/36] mm: temporally mark THP broken
+Date: Thu,  3 Sep 2015 18:12:57 +0300
+Message-Id: <1441293202-137314-12-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,75 +19,37 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We are not able to migrate THPs. It means it's not enough to split only
-PMD on migration -- we need to split compound page under it too.
+Up to this point we tried to keep patchset bisectable, but next patches
+are going to change how core of THP refcounting work.
+
+It would be beneficial to split the change into several patches and make
+it more reviewable. Unfortunately, I don't see how we can achieve that
+while keeping THP working.
+
+Let's hide THP under CONFIG_BROKEN for now and bring it back when new
+refcounting get established.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Sasha Levin <sasha.levin@oracle.com>
 Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 Acked-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- mm/mempolicy.c | 37 +++++++++++++++++++++++++++++++++----
- 1 file changed, 33 insertions(+), 4 deletions(-)
+ mm/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 8102f30a3895..8f128379172e 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -489,14 +489,31 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
- 	struct page *page;
- 	struct queue_pages *qp = walk->private;
- 	unsigned long flags = qp->flags;
--	int nid;
-+	int nid, ret;
- 	pte_t *pte;
- 	spinlock_t *ptl;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index b9fb7a76a51d..45edc5a989ee 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -398,7 +398,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
  
--	split_huge_pmd(vma, pmd, addr);
--	if (pmd_trans_unstable(pmd))
--		return 0;
-+	if (pmd_trans_huge(*pmd)) {
-+		ptl = pmd_lock(walk->mm, pmd);
-+		if (pmd_trans_huge(*pmd)) {
-+			page = pmd_page(*pmd);
-+			if (is_huge_zero_page(page)) {
-+				spin_unlock(ptl);
-+				split_huge_pmd(vma, pmd, addr);
-+			} else {
-+				get_page(page);
-+				spin_unlock(ptl);
-+				lock_page(page);
-+				ret = split_huge_page(page);
-+				unlock_page(page);
-+				put_page(page);
-+				if (ret)
-+					return 0;
-+			}
-+		}
-+	}
- 
-+retry:
- 	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
- 	for (; addr != end; pte++, addr += PAGE_SIZE) {
- 		if (!pte_present(*pte))
-@@ -513,6 +530,18 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
- 		nid = page_to_nid(page);
- 		if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
- 			continue;
-+		if (PageTail(page) && PageAnon(page)) {
-+			get_page(page);
-+			pte_unmap_unlock(pte - 1, ptl);
-+			lock_page(page);
-+			ret = split_huge_page(page);
-+			unlock_page(page);
-+			put_page(page);
-+			/* Failed to split -- skip. */
-+			if (ret)
-+				continue;
-+			goto retry;
-+		}
- 
- 		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
- 			migrate_page_add(page, qp->pagelist, flags);
+ config TRANSPARENT_HUGEPAGE
+ 	bool "Transparent Hugepage Support"
+-	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
++	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE && BROKEN
+ 	select COMPACTION
+ 	help
+ 	  Transparent Hugepages allows the kernel to use huge pages and
 -- 
 2.5.0
 
