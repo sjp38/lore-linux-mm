@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 1670A6B0264
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:14:04 -0400 (EDT)
-Received: by padfa1 with SMTP id fa1so7177498pad.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:14:03 -0700 (PDT)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id EE3686B0264
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:14:05 -0400 (EDT)
+Received: by pacwi10 with SMTP id wi10so49520212pac.3
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:14:05 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id et1si10949813pbb.49.2015.09.03.08.13.52
+        by mx.google.com with ESMTP id q4si6730109pap.168.2015.09.03.08.13.54
         for <linux-mm@kvack.org>;
-        Thu, 03 Sep 2015 08:13:53 -0700 (PDT)
+        Thu, 03 Sep 2015 08:13:54 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv10 05/36] mm: adjust FOLL_SPLIT for new refcounting
-Date: Thu,  3 Sep 2015 18:12:51 +0300
-Message-Id: <1441293202-137314-6-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv10 23/36] tile, thp: remove infrastructure for handling splitting PMDs
+Date: Thu,  3 Sep 2015 18:13:09 +0300
+Message-Id: <1441293202-137314-24-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,109 +19,35 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We need to prepare kernel to allow transhuge pages to be mapped with
-ptes too. We need to handle FOLL_SPLIT in follow_page_pte().
-
-Also we use split_huge_page() directly instead of split_huge_page_pmd().
-split_huge_page_pmd() will gone.
+With new refcounting we don't need to mark PMDs splitting. Let's drop
+code to handle this.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Tested-by: Sasha Levin <sasha.levin@oracle.com>
-Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- mm/gup.c | 67 +++++++++++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 49 insertions(+), 18 deletions(-)
+ arch/tile/include/asm/pgtable.h | 10 ----------
+ 1 file changed, 10 deletions(-)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index deafa2c91b36..745a50f2d57d 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -116,6 +116,19 @@ retry:
- 		}
- 	}
+diff --git a/arch/tile/include/asm/pgtable.h b/arch/tile/include/asm/pgtable.h
+index 2b05ccbebed9..96cecf55522e 100644
+--- a/arch/tile/include/asm/pgtable.h
++++ b/arch/tile/include/asm/pgtable.h
+@@ -489,16 +489,6 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ #define has_transparent_hugepage() 1
+ #define pmd_trans_huge pmd_huge_page
+-
+-static inline pmd_t pmd_mksplitting(pmd_t pmd)
+-{
+-	return pte_pmd(hv_pte_set_client2(pmd_pte(pmd)));
+-}
+-
+-static inline int pmd_trans_splitting(pmd_t pmd)
+-{
+-	return hv_pte_get_client2(pmd_pte(pmd));
+-}
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
-+	if (flags & FOLL_SPLIT && PageTransCompound(page)) {
-+		int ret;
-+		get_page(page);
-+		pte_unmap_unlock(ptep, ptl);
-+		lock_page(page);
-+		ret = split_huge_page(page);
-+		unlock_page(page);
-+		put_page(page);
-+		if (ret)
-+			return ERR_PTR(ret);
-+		goto retry;
-+	}
-+
- 	if (flags & FOLL_GET)
- 		get_page_foll(page);
- 	if (flags & FOLL_TOUCH) {
-@@ -220,27 +233,45 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
- 	}
- 	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
- 		return no_page_table(vma, flags);
--	if (pmd_trans_huge(*pmd)) {
--		if (flags & FOLL_SPLIT) {
-+	if (likely(!pmd_trans_huge(*pmd)))
-+		return follow_page_pte(vma, address, pmd, flags);
-+
-+	ptl = pmd_lock(mm, pmd);
-+	if (unlikely(!pmd_trans_huge(*pmd))) {
-+		spin_unlock(ptl);
-+		return follow_page_pte(vma, address, pmd, flags);
-+	}
-+
-+	if (unlikely(pmd_trans_splitting(*pmd))) {
-+		spin_unlock(ptl);
-+		wait_split_huge_page(vma->anon_vma, pmd);
-+		return follow_page_pte(vma, address, pmd, flags);
-+	}
-+
-+	if (flags & FOLL_SPLIT) {
-+		int ret;
-+		page = pmd_page(*pmd);
-+		if (is_huge_zero_page(page)) {
-+			spin_unlock(ptl);
-+			ret = 0;
- 			split_huge_page_pmd(vma, address, pmd);
--			return follow_page_pte(vma, address, pmd, flags);
--		}
--		ptl = pmd_lock(mm, pmd);
--		if (likely(pmd_trans_huge(*pmd))) {
--			if (unlikely(pmd_trans_splitting(*pmd))) {
--				spin_unlock(ptl);
--				wait_split_huge_page(vma->anon_vma, pmd);
--			} else {
--				page = follow_trans_huge_pmd(vma, address,
--							     pmd, flags);
--				spin_unlock(ptl);
--				*page_mask = HPAGE_PMD_NR - 1;
--				return page;
--			}
--		} else
-+		} else {
-+			get_page(page);
- 			spin_unlock(ptl);
-+			lock_page(page);
-+			ret = split_huge_page(page);
-+			unlock_page(page);
-+			put_page(page);
-+		}
-+
-+		return ret ? ERR_PTR(ret) :
-+			follow_page_pte(vma, address, pmd, flags);
- 	}
--	return follow_page_pte(vma, address, pmd, flags);
-+
-+	page = follow_trans_huge_pmd(vma, address, pmd, flags);
-+	spin_unlock(ptl);
-+	*page_mask = HPAGE_PMD_NR - 1;
-+	return page;
- }
- 
- static int get_gate_page(struct mm_struct *mm, unsigned long address,
+ /*
 -- 
 2.5.0
 
