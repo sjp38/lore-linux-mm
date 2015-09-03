@@ -1,272 +1,239 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DA756B026A
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:22:22 -0400 (EDT)
-Received: by oixx17 with SMTP id x17so29612527oix.0
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:22:22 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id nj6si8193469pdb.45.2015.09.03.08.14.06
-        for <linux-mm@kvack.org>;
-        Thu, 03 Sep 2015 08:14:06 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv10 27/36] mm: differentiate page_mapped() from page_mapcount() for compound pages
-Date: Thu,  3 Sep 2015 18:13:13 +0300
-Message-Id: <1441293202-137314-28-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 26A2F6B027A
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 11:44:49 -0400 (EDT)
+Received: by ykcf206 with SMTP id f206so47350050ykc.3
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:44:48 -0700 (PDT)
+Received: from mail-yk0-x231.google.com (mail-yk0-x231.google.com. [2607:f8b0:4002:c07::231])
+        by mx.google.com with ESMTPS id g190si19069289ywf.175.2015.09.03.08.44.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Sep 2015 08:44:48 -0700 (PDT)
+Received: by ykdg206 with SMTP id g206so47310167ykd.1
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 08:44:47 -0700 (PDT)
+Date: Thu, 3 Sep 2015 11:44:45 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: [RFD] memory pressure and sizing problem
+Message-ID: <20150903154445.GA10394@mtj.duckdns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Let's define page_mapped() to be true for compound pages if any
-sub-pages of the compound page is mapped (with PMD or PTE).
+Hello,
 
-On other hand page_mapcount() return mapcount for this particular small
-page.
+It's bothering that we don't have a good mechanism to detect and
+expose memory pressure and it doesn't seem to be for want of trying.
+I've been thinking about it for several days and would like to find
+out whether it makes sense.  Not being a mm person, I'm likely
+mistaken in a lot of details, if not the core concept.  Please point
+out whenever I wander into the lala land.
 
-This will make cases like page_get_anon_vma() behave correctly once we
-allow huge pages to be mapped with PTE.
 
-Most users outside core-mm should use page_mapcount() instead of
-page_mapped().
+1. Background
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Tested-by: Sasha Levin <sasha.levin@oracle.com>
-Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
----
- arch/arc/mm/cache.c    |  4 ++--
- arch/arm/mm/flush.c    |  2 +-
- arch/mips/mm/c-r4k.c   |  3 ++-
- arch/mips/mm/cache.c   |  2 +-
- arch/mips/mm/init.c    |  6 +++---
- arch/sh/mm/cache-sh4.c |  2 +-
- arch/sh/mm/cache.c     |  8 ++++----
- arch/xtensa/mm/tlb.c   |  2 +-
- fs/proc/page.c         |  4 ++--
- include/linux/mm.h     | 15 +++++++++++++--
- mm/filemap.c           |  2 +-
- 11 files changed, 31 insertions(+), 19 deletions(-)
+AFAIK, there currently are two metrics in use.  One is scan ratio -
+how many pages are being scanned for reclaim per unit time.  This is
+what paces the different reclaimers.  While it is related to memory
+pressure, it involves enough of other factors to be useful as a
+measure of pressure - e.g. a high-bandwidth streaming workload would
+cause high scan ratio but can't be said to be under memory pressure.
 
-diff --git a/arch/arc/mm/cache.c b/arch/arc/mm/cache.c
-index 1cd6695b6ab5..9693f2e38734 100644
---- a/arch/arc/mm/cache.c
-+++ b/arch/arc/mm/cache.c
-@@ -557,7 +557,7 @@ void flush_dcache_page(struct page *page)
- 	 */
- 	if (!mapping_mapped(mapping)) {
- 		clear_bit(PG_dc_clean, &page->flags);
--	} else if (page_mapped(page)) {
-+	} else if (page_mapcount(page)) {
- 
- 		/* kernel reading from page with U-mapping */
- 		unsigned long paddr = (unsigned long)page_address(page);
-@@ -750,7 +750,7 @@ void copy_user_highpage(struct page *to, struct page *from,
- 	 * Note that while @u_vaddr refers to DST page's userspace vaddr, it is
- 	 * equally valid for SRC page as well
- 	 */
--	if (page_mapped(from) && addr_not_cache_congruent(kfrom, u_vaddr)) {
-+	if (page_mapcount(from) && addr_not_cache_congruent(kfrom, u_vaddr)) {
- 		__flush_dcache_page(kfrom, u_vaddr);
- 		clean_src_k_mappings = 1;
- 	}
-diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
-index 77f229302032..4da544aa25ef 100644
---- a/arch/arm/mm/flush.c
-+++ b/arch/arm/mm/flush.c
-@@ -315,7 +315,7 @@ void flush_dcache_page(struct page *page)
- 	mapping = page_mapping(page);
- 
- 	if (!cache_ops_need_broadcast() &&
--	    mapping && !page_mapped(page))
-+	    mapping && !page_mapcount(page))
- 		clear_bit(PG_dcache_clean, &page->flags);
- 	else {
- 		__flush_dcache_page(mapping, page);
-diff --git a/arch/mips/mm/c-r4k.c b/arch/mips/mm/c-r4k.c
-index fbea4432f3f2..e28d26b0bf23 100644
---- a/arch/mips/mm/c-r4k.c
-+++ b/arch/mips/mm/c-r4k.c
-@@ -587,7 +587,8 @@ static inline void local_r4k_flush_cache_page(void *args)
- 		 * another ASID than the current one.
- 		 */
- 		map_coherent = (cpu_has_dc_aliases &&
--				page_mapped(page) && !Page_dcache_dirty(page));
-+				page_mapcount(page) &&
-+				!Page_dcache_dirty(page));
- 		if (map_coherent)
- 			vaddr = kmap_coherent(page, addr);
- 		else
-diff --git a/arch/mips/mm/cache.c b/arch/mips/mm/cache.c
-index aab218c36e0d..3f159caf6dbc 100644
---- a/arch/mips/mm/cache.c
-+++ b/arch/mips/mm/cache.c
-@@ -106,7 +106,7 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
- 	unsigned long addr = (unsigned long) page_address(page);
- 
- 	if (pages_do_alias(addr, vmaddr)) {
--		if (page_mapped(page) && !Page_dcache_dirty(page)) {
-+		if (page_mapcount(page) && !Page_dcache_dirty(page)) {
- 			void *kaddr;
- 
- 			kaddr = kmap_coherent(page, vmaddr);
-diff --git a/arch/mips/mm/init.c b/arch/mips/mm/init.c
-index 198a3147dd7d..e31d256c9cda 100644
---- a/arch/mips/mm/init.c
-+++ b/arch/mips/mm/init.c
-@@ -163,7 +163,7 @@ void copy_user_highpage(struct page *to, struct page *from,
- 
- 	vto = kmap_atomic(to);
- 	if (cpu_has_dc_aliases &&
--	    page_mapped(from) && !Page_dcache_dirty(from)) {
-+	    page_mapcount(from) && !Page_dcache_dirty(from)) {
- 		vfrom = kmap_coherent(from, vaddr);
- 		copy_page(vto, vfrom);
- 		kunmap_coherent();
-@@ -185,7 +185,7 @@ void copy_to_user_page(struct vm_area_struct *vma,
- 	unsigned long len)
- {
- 	if (cpu_has_dc_aliases &&
--	    page_mapped(page) && !Page_dcache_dirty(page)) {
-+	    page_mapcount(page) && !Page_dcache_dirty(page)) {
- 		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
- 		memcpy(vto, src, len);
- 		kunmap_coherent();
-@@ -203,7 +203,7 @@ void copy_from_user_page(struct vm_area_struct *vma,
- 	unsigned long len)
- {
- 	if (cpu_has_dc_aliases &&
--	    page_mapped(page) && !Page_dcache_dirty(page)) {
-+	    page_mapcount(page) && !Page_dcache_dirty(page)) {
- 		void *vfrom = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
- 		memcpy(dst, vfrom, len);
- 		kunmap_coherent();
-diff --git a/arch/sh/mm/cache-sh4.c b/arch/sh/mm/cache-sh4.c
-index 51d8f7f31d1d..58aaa4f33b81 100644
---- a/arch/sh/mm/cache-sh4.c
-+++ b/arch/sh/mm/cache-sh4.c
-@@ -241,7 +241,7 @@ static void sh4_flush_cache_page(void *args)
- 		 */
- 		map_coherent = (current_cpu_data.dcache.n_aliases &&
- 			test_bit(PG_dcache_clean, &page->flags) &&
--			page_mapped(page));
-+			page_mapcount(page));
- 		if (map_coherent)
- 			vaddr = kmap_coherent(page, address);
- 		else
-diff --git a/arch/sh/mm/cache.c b/arch/sh/mm/cache.c
-index f770e3992620..e58cfbf45150 100644
---- a/arch/sh/mm/cache.c
-+++ b/arch/sh/mm/cache.c
-@@ -59,7 +59,7 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
- 		       unsigned long vaddr, void *dst, const void *src,
- 		       unsigned long len)
- {
--	if (boot_cpu_data.dcache.n_aliases && page_mapped(page) &&
-+	if (boot_cpu_data.dcache.n_aliases && page_mapcount(page) &&
- 	    test_bit(PG_dcache_clean, &page->flags)) {
- 		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
- 		memcpy(vto, src, len);
-@@ -78,7 +78,7 @@ void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
- 			 unsigned long vaddr, void *dst, const void *src,
- 			 unsigned long len)
- {
--	if (boot_cpu_data.dcache.n_aliases && page_mapped(page) &&
-+	if (boot_cpu_data.dcache.n_aliases && page_mapcount(page) &&
- 	    test_bit(PG_dcache_clean, &page->flags)) {
- 		void *vfrom = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
- 		memcpy(dst, vfrom, len);
-@@ -97,7 +97,7 @@ void copy_user_highpage(struct page *to, struct page *from,
- 
- 	vto = kmap_atomic(to);
- 
--	if (boot_cpu_data.dcache.n_aliases && page_mapped(from) &&
-+	if (boot_cpu_data.dcache.n_aliases && page_mapcount(from) &&
- 	    test_bit(PG_dcache_clean, &from->flags)) {
- 		vfrom = kmap_coherent(from, vaddr);
- 		copy_page(vto, vfrom);
-@@ -153,7 +153,7 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
- 	unsigned long addr = (unsigned long) page_address(page);
- 
- 	if (pages_do_alias(addr, vmaddr)) {
--		if (boot_cpu_data.dcache.n_aliases && page_mapped(page) &&
-+		if (boot_cpu_data.dcache.n_aliases && page_mapcount(page) &&
- 		    test_bit(PG_dcache_clean, &page->flags)) {
- 			void *kaddr;
- 
-diff --git a/arch/xtensa/mm/tlb.c b/arch/xtensa/mm/tlb.c
-index 5ece856c5725..35c822286bbe 100644
---- a/arch/xtensa/mm/tlb.c
-+++ b/arch/xtensa/mm/tlb.c
-@@ -245,7 +245,7 @@ static int check_tlb_entry(unsigned w, unsigned e, bool dtlb)
- 						page_mapcount(p));
- 				if (!page_count(p))
- 					rc |= TLB_INSANE;
--				else if (page_mapped(p))
-+				else if (page_mapcount(p))
- 					rc |= TLB_SUSPICIOUS;
- 			} else {
- 				rc |= TLB_INSANE;
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index 93484034a03d..b2855eea5405 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -103,9 +103,9 @@ u64 stable_page_flags(struct page *page)
- 	 * pseudo flags for the well known (anonymous) memory mapped pages
- 	 *
- 	 * Note that page->_mapcount is overloaded in SLOB/SLUB/SLQB, so the
--	 * simple test in page_mapped() is not enough.
-+	 * simple test in page_mapcount() is not enough.
- 	 */
--	if (!PageSlab(page) && page_mapped(page))
-+	if (!PageSlab(page) && page_mapcount(page))
- 		u |= 1 << KPF_MMAP;
- 	if (PageAnon(page))
- 		u |= 1 << KPF_ANON;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 7f3bf78230b1..64493b7bd9f7 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -906,10 +906,21 @@ static inline pgoff_t page_file_index(struct page *page)
- 
- /*
-  * Return true if this page is mapped into pagetables.
-+ * For compound page it returns true if any subpage of compound page is mapped.
-  */
--static inline int page_mapped(struct page *page)
-+static inline bool page_mapped(struct page *page)
- {
--	return atomic_read(&(page)->_mapcount) + compound_mapcount(page) >= 0;
-+	int i;
-+	if (likely(!PageCompound(page)))
-+		return atomic_read(&page->_mapcount) >= 0;
-+	page = compound_head(page);
-+	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
-+		return true;
-+	for (i = 0; i < hpage_nr_pages(page); i++) {
-+		if (atomic_read(&page[i]._mapcount) >= 0)
-+			return true;
-+	}
-+	return false;
- }
- 
- /*
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 98c5084ead24..c7b0cbbd31eb 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -204,7 +204,7 @@ void __delete_from_page_cache(struct page *page, void *shadow,
- 		__dec_zone_page_state(page, NR_FILE_PAGES);
- 	if (PageSwapBacked(page))
- 		__dec_zone_page_state(page, NR_SHMEM);
--	BUG_ON(page_mapped(page));
-+	VM_BUG_ON_PAGE(page_mapped(page), page);
- 
- 	/*
- 	 * At this point page must be either written or cleaned by truncate.
--- 
-2.5.0
+The other metric measures how much reclaimer is struggling - the ratio
+of the number of pages which couldn't be reclaimed against total
+scanned.  As memory requirement rises, more and more would try to
+allocate memory making reclaimer cycle faster and encounter more pages
+which can't be reclaimed yet.  This actually is a measure of pressure
+and what's exposed by vmpressure.
+
+However, what a specific number means is unclear.  The system would be
+struggling if 95% of pages couldn't be reclaimed but what would 20%
+mean?  How about 15%?  Also, depending on how often the reclaimer does
+its rounds, which in large part is dependent on implementation
+details, the resulting number can be widely different while the system
+is showing about the same behavior overall.  These are why vmpressure
+is exposed as a three-level state but even with such coarse scale, the
+semantics isn't clear and too much is left to implementation details.
+
+There also have been other attempts.  Vladimir recently posted a
+patchset which allows userland to monitor physical page usage -
+userland can clear used state on pages and then read it back after a
+while so that it can tell which pages have been used inbetween.  While
+this allows detecting unused pages, this doesn't represent memory
+pressure.  If we go back to the streamer example above, high-enough
+bandwidth streamer would happily consume all the memory that's given
+to it and looking at used bits won't tell much.
+
+
+2. Memory pressure and sizing problem
+
+Memory pressure sounds intuitive but isn't actually that well defined.
+It's closely tied to answering the sizing problem - "how much memory
+does a given workload need to run smoothly?" and answering that has
+become more important with cgroup and containerization.
+
+Sizing is inherently tricky because mm only tracks a small portion of
+all memory accesses.  We can't tell "this process referenced this page
+twice, 2mins and 18secs ago".  Deciding whether a page is actively
+used costs and we only track enough information to make reclaim work
+reasonably.  Consequently, it's impossible to tell the working set
+size of a workload without subjecting it to memory reclaim.
+
+Once a workload is subject to memory reclaim, we need a way to tell
+whether it needs more memory and that measure can be called memory
+pressure - a workload is under memory pressure if it needs more memory
+to execute smoothly.  More precisely, I think it can be defined as the
+following.
+
+
+3. Memory pressure
+
+  In a given amount of time, the proportion of time that the execution
+  duration of the workload has been lengthened due to lack of memory.
+
+I used "lengthened" instead of "delayed" because delays don't
+necessarily indicate that the workload can benefit from more memory.
+Consider the following execution pattern where '_' is idle and '+' is
+running.  Let's assume that each CPU burst is caused by receiving a
+request over network.
+
+  W0: ++____++____++____
+
+Let's say the workload now needs to fault in some memory during each
+CPU burst - represented by 'm'.
+
+  W1: +mm+__+mm+__+mm+__
+
+While delays due to memory shortage have occurred, the duration of the
+execution stayed the same.  In terms of amount of work done, the
+workload wouldn't have benefited from more memory.  Now, consider the
+following workload where 'i' represents direct IO from filesystem.
+
+  W2: ++iiii++iiii++iiii
+
+If the workload experiences the same page faults,
+
+  W3: +mm+iiii+mm+iiii+mm+iiii
+
+The entire workload has been lengthened by 6 slots or 25%.  According
+to the above definition, it's under 25% memory pressure.  This is a
+well-defined metric which doesn't depend on implementation details and
+enables immediate intuitive understanding of the current state.
+
+
+4. Inherent limitations
+
+It'd be great if we can calculate the proportion exactly;
+unfortunately, we can't because there are things we don't know about
+the workload.  Let's go back to W2.  Let's say it now accesses more
+memory and thus causes extra faults before each CPU burst.
+
+  W4: mm+mm+mm+mm+mm+mm+
+
+It still hasn't lost any amount of work; however, we can no longer
+tell that whether the pattern without faults would be W0 or
+
+  W5: ++++++++++++++++++
+
+Another issue is that W0's idle periods may not be collapsible.  For
+example, if the idle periods are latencies from executing RPC calls,
+injecting page faults would make it look like the following but it'd
+be difficult to tell the nature of the idle periods from outside.
+
+  W6: mm++____mm++____mm++____
+
+So, there are inherent limitations in what can be determined; however,
+even with the above inaccuracies, the proportion should be able to
+function as a pretty good indicator of whether the workload is likely
+to benefit from more memory.  Also, the incollapsible idle issue is
+likely to be much less of a problem for larger scalable workloads.
+
+
+5. Details
+
+We need to make more concessions to make it implementable.  I probably
+missed quite a bit but here are what I've thought about.
+
+
+5-1. Calculable definition
+
+ Running average of the proportion of CPU time a workload couldn't
+ consume due to memory shortage in a given time unit.
+
+A workload, whether a thread or multiple processes, can be in one of
+the following states on a CPU.
+
+  R1) READY or RUNNING
+  R2) IO
+  M1) READY or RUNNING due to memory shortage
+  M2) IO due to memory shortage
+  I ) IDLE
+
+R1 and R2 count as the execution time.  M1 and M2 are CPU time which
+couldn't be spent due to memory shortage which gets reset by I and the
+pressure P in a given time unit is calculated as
+
+  R = R1 + R2
+  M = M1 + M2 after the last I
+  P = M / (R + M)
+
+
+5-2. Telling Ms from Rs
+
+If a task is in one of the following states, it is in a M state.
+
+  * Performing or waiting for memory reclaim.
+
+  * Reading back pages from swap.
+
+  * Faulting in pages which have been faulted before.
+
+The first two are clear.  We can use refault distance for the last.
+I've flipped on this several times now but currently think that we
+want to set maximum refault distance beyond which a fault is
+considered new - e.g. if refault distance is larger than 4x currently
+available memory, count it as R2 instead of M2.  There are several
+things to consider.
+
+  * There are practical limits to tracking refault distance.  Once the
+    inode itself is reclaimed, we lose track of it.
+
+  * It likely isn't useful to indicate that more memory would be
+    beneficial for a workload which requires orders of magnitude more
+    memory than available.  That workload is either infeasible or
+    simply IO bound.
+
+  * The larger refault distance gets, the less precise its meaning
+    becomes.  A page at 8x distance may really need 8x memory to stay
+    in memory or just 10% more.
+
+This does create a boundary artifact although I doubt it's likely to
+be a problem in practice.  If anyone has a better idea, please be my
+guest.
+
+If a workload comprises multiple tasks, if any task is in a R state on
+a CPU, the workload is in R state on that CPU.  If none is in a R
+state and more than one are in a M, M.  If all are in I, I.
+
+
+5-3. IDLE
+
+Theoretically, we can consider all TASK_INTERRUPTIBLE sleeps as IDLE
+points and clear the accumulated M durations in that time unit;
+however, ignoring sleeps shorter than certain percentage of the unit
+time or accumulated R durations is likely to lead to better and more
+forgiving behavior while not really affecting the effectiveness of the
+metric.
+
+So, what do you think?
+
+Thanks.
+
+--
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
