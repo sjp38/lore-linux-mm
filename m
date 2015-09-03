@@ -1,49 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C71B6B0254
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 15:33:08 -0400 (EDT)
-Received: by padfa1 with SMTP id fa1so13063014pad.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 12:33:07 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id fo8si592123pad.223.2015.09.03.12.33.06
-        for <linux-mm@kvack.org>;
-        Thu, 03 Sep 2015 12:33:07 -0700 (PDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: Can we disable transparent hugepages for lack of a legitimate use case please?
-References: <BLUPR02MB1698DD8F0D1550366489DF8CCD620@BLUPR02MB1698.namprd02.prod.outlook.com>
-Date: Thu, 03 Sep 2015 12:33:06 -0700
-In-Reply-To: <BLUPR02MB1698DD8F0D1550366489DF8CCD620@BLUPR02MB1698.namprd02.prod.outlook.com>
-	(James Hartshorn's message of "Mon, 24 Aug 2015 20:12:24 +0000")
-Message-ID: <878u8n47t9.fsf@tassilo.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 179166B0254
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 16:52:06 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so2908065wic.0
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 13:52:05 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id v6si243217wiz.67.2015.09.03.13.52.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Sep 2015 13:52:04 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so2907442wic.0
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 13:52:04 -0700 (PDT)
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: [RESEND RFC v4 0/3] mm: make swapin readahead to gain more thp performance 
+Date: Thu,  3 Sep 2015 23:51:45 +0300
+Message-Id: <1441313508-4276-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Hartshorn <jhartshorn@connexity.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-James Hartshorn <jhartshorn@connexity.com> writes:
+This patch series makes swapin readahead up to a
+certain number to gain more thp performance and adds
+tracepoint for khugepaged_scan_pmd, collapse_huge_page,
+__collapse_huge_page_isolate.
 
-Your report seems to completely lack any detail, like
-kernel version, description of the problem, etc.
+This patch series was written to deal with programs
+that access most, but not all, of their memory after
+they get swapped out. Currently these programs do not
+get their memory collapsed into THPs after the system
+swapped their memory out, while they would get THPs
+before swapping happened.
 
-> I've been struggling with transparent hugepage performance issues, and
-> can't seem to find anyone who actually uses it intentionally.
-> Virtually every database that runs on linux however recommends
-> disabling it or setting it to madvise. I'm referring to:
+This patch series was tested with a test program,
+it allocates 800MB of memory, writes to it, and
+then sleeps. I force the system to swap out all.
+Afterwards, the test program touches the area by
+writing and leaves a piece of it without writing.
+This shows how much swap in readahead made by the
+patch.
 
-Please see if you can reproduce your problem on a recent mainline
-kernel (there were a lot of compaction improvements recently,
-which can be a source of issues with THP)
+Test results:
 
-If yes then please submit a test case and it can be investigated.
+                        After swapped out
+-------------------------------------------------------------------
+              | Anonymous | AnonHugePages | Swap      | Fraction  |
+-------------------------------------------------------------------
+With patch    | 253720 kB | 251904 kB     | 546284 kB |    %99    |
+-------------------------------------------------------------------
+Without patch | 238160 kB | 235520 kB     | 561844 kB |    %98    |
+-------------------------------------------------------------------
 
-If no then update.
+                        After swapped in
+-------------------------------------------------------------------
+              | Anonymous | AnonHugePages | Swap      | Fraction  |
+-------------------------------------------------------------------
+With patch    | 533532 kB | 528384 kB     | 266472 kB |    %90    |
+-------------------------------------------------------------------
+Without patch | 499956 kB | 235520 kB     | 300048 kB |    %47    |
+-------------------------------------------------------------------
 
--Andi
+Ebru Akagunduz (3):
+  mm: add tracepoint for scanning pages
+  mm: make optimistic check for swapin readahead
+  mm: make swapin readahead to improve thp collapse rate
+
+ include/linux/mm.h                 |   4 +
+ include/trace/events/huge_memory.h | 126 +++++++++++++++++
+ mm/huge_memory.c                   | 272 ++++++++++++++++++++++++++++++++-----
+ mm/memory.c                        |   2 +-
+ 4 files changed, 371 insertions(+), 33 deletions(-)
+ create mode 100644 include/trace/events/huge_memory.h
 
 -- 
-ak@linux.intel.com -- Speaking for myself only
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
