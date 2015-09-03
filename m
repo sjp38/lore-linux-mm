@@ -1,234 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A9356B025E
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 10:18:04 -0400 (EDT)
-Received: by pacwi10 with SMTP id wi10so48207154pac.3
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:18:04 -0700 (PDT)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id ps2si41614241pbb.193.2015.09.03.07.18.03
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id CED116B0255
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 10:29:07 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so76011931wic.0
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:29:07 -0700 (PDT)
+Received: from mail1.protonmail.ch (mail1.protonmail.ch. [185.70.40.18])
+        by mx.google.com with ESMTPS id bp2si8558217wjc.84.2015.09.03.07.29.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Sep 2015 07:18:03 -0700 (PDT)
-Received: by padfa1 with SMTP id fa1so5869268pad.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:18:03 -0700 (PDT)
-From: Hajime Tazaki <thehajime@gmail.com>
-Subject: [PATCH v6 10/10] lib: tools used for test scripts
-Date: Thu,  3 Sep 2015 23:16:32 +0900
-Message-Id: <1441289792-64064-11-git-send-email-thehajime@gmail.com>
-In-Reply-To: <1441289792-64064-1-git-send-email-thehajime@gmail.com>
-References: <1431494921-24746-1-git-send-email-tazaki@sfc.wide.ad.jp>
- <1441289792-64064-1-git-send-email-thehajime@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Sep 2015 07:29:06 -0700 (PDT)
+Subject: Re: ========== Re: RAM encryption and key storing in CPU ==========
+Date: Thu, 3 Sep 2015 10:29:05 -0400
+From: ngabor <ngabor@protonmail.ch>
+Reply-To: ngabor <ngabor@protonmail.ch>
+Message-ID: <eb0ae559371c0f8970c416fb5037274a@protonmail.ch>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="b1_eb0ae559371c0f8970c416fb5037274a"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arch@vger.kernel.org
-Cc: Hajime Tazaki <thehajime@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Christoph Lameter <cl@linux.com>, Jekka Enberg <penberg@kernel.org>, Javid Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jndrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Rusty Russell <rusty@rustcorp.com.au>, Ryo Nakamura <upa@haeena.net>, Christoph Paasch <christoph.paasch@gmail.com>, Mathieu Lacage <mathieu.lacage@gmail.com>, libos-nuse@googlegroups.com
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
 
-These auxiliary files are used for testing and debugging of net/ code
-with libos. a simple test is implemented with make test ARCH=lib.
+This is a multi-part message in MIME format.
 
-Signed-off-by: Hajime Tazaki <thehajime@gmail.com>
----
- tools/testing/libos/.gitignore   |  6 +++++
- tools/testing/libos/Makefile     | 38 +++++++++++++++++++++++++++
- tools/testing/libos/README       | 15 +++++++++++
- tools/testing/libos/bisect.sh    | 10 +++++++
- tools/testing/libos/dce-test.sh  | 23 ++++++++++++++++
- tools/testing/libos/nuse-test.sh | 57 ++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 149 insertions(+)
- create mode 100644 tools/testing/libos/.gitignore
- create mode 100644 tools/testing/libos/Makefile
- create mode 100644 tools/testing/libos/README
- create mode 100755 tools/testing/libos/bisect.sh
- create mode 100755 tools/testing/libos/dce-test.sh
- create mode 100755 tools/testing/libos/nuse-test.sh
+--b1_eb0ae559371c0f8970c416fb5037274a
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 
-diff --git a/tools/testing/libos/.gitignore b/tools/testing/libos/.gitignore
-new file mode 100644
-index 000000000000..57a74a05482c
---- /dev/null
-+++ b/tools/testing/libos/.gitignore
-@@ -0,0 +1,6 @@
-+*.pcap
-+files-*
-+bake
-+buildtop
-+core
-+exitprocs
-diff --git a/tools/testing/libos/Makefile b/tools/testing/libos/Makefile
-new file mode 100644
-index 000000000000..a27eb84e7712
---- /dev/null
-+++ b/tools/testing/libos/Makefile
-@@ -0,0 +1,38 @@
-+ADD_PARAM?=
-+
-+all: test
-+
-+bake:
-+	hg clone http://code.nsnam.org/bake
-+
-+check_pkgs:
-+	@./bake/bake.py check | grep Bazaar | grep OK || (echo "bzr is missing" && ./bake/bake.py check)
-+	@./bake/bake.py check | grep autoreconf | grep OK || (echo "autotools is missing" && ./bake/bake.py check && exit 1)
-+
-+testbin: bake check_pkgs
-+	@cp ../../../arch/lib/tools/bakeconf-linux.xml bake/bakeconf.xml
-+	@mkdir -p buildtop/build/bin_dce
-+	cd buildtop ; \
-+	../bake/bake.py configure -e dce-linux-inkernel $(BAKECONF_PARAMS)
-+	cd buildtop ; \
-+	../bake/bake.py show --enabledTree | grep -v  -E "pygoocanvas|graphviz|python-dev" | grep Missing && (echo "required packages are missing") || echo ""
-+	cd buildtop ; \
-+	../bake/bake.py download ; \
-+	../bake/bake.py update ; \
-+	../bake/bake.py build $(BAKEBUILD_PARAMS)
-+
-+test:
-+	@./dce-test.sh ADD_PARAM=$(ADD_PARAM)
-+
-+test-valgrind:
-+	@./dce-test.sh -g ADD_PARAM=$(ADD_PARAM)
-+
-+test-fault-injection:
-+	@./dce-test.sh -f ADD_PARAM=$(ADD_PARAM)
-+
-+clean:
-+#	@rm -rf buildtop
-+	@rm -f *.pcap
-+	@rm -rf files-*
-+	@rm -f exitprocs
-+	@rm -f core
-diff --git a/tools/testing/libos/README b/tools/testing/libos/README
-new file mode 100644
-index 000000000000..51ac5a52336e
---- /dev/null
-+++ b/tools/testing/libos/README
-@@ -0,0 +1,15 @@
-+
-+- bisect.sh
-+a sample script to bisect an issue of network stack code with the help
-+of LibOS (and ns-3 network simulator). This was used to detect the issue
-+for the following patch.
-+
-+http://patchwork.ozlabs.org/patch/436351/
-+
-+- dce-test.sh
-+a test script invoked by 'make test ARCH=lib'. The contents of test
-+scenario are implemented as test suites of ns-3 network simulator.
-+
-+- nuse-test.sh
-+a simple test script for Network Stack in Userspace (NUSE).
-+
-diff --git a/tools/testing/libos/bisect.sh b/tools/testing/libos/bisect.sh
-new file mode 100755
-index 000000000000..9377ac3214c1
---- /dev/null
-+++ b/tools/testing/libos/bisect.sh
-@@ -0,0 +1,10 @@
-+#!/bin/sh
-+
-+git merge origin/nuse --no-commit
-+make clean ARCH=lib
-+make library ARCH=lib OPT=no
-+make test ARCH=lib ADD_PARAM=" -s dce-umip"
-+RET=$?
-+git reset --hard
-+
-+exit $RET
-diff --git a/tools/testing/libos/dce-test.sh b/tools/testing/libos/dce-test.sh
-new file mode 100755
-index 000000000000..e81e2d84c156
---- /dev/null
-+++ b/tools/testing/libos/dce-test.sh
-@@ -0,0 +1,23 @@
-+#!/bin/sh
-+
-+set -e
-+#set -x
-+export LD_LOG=symbol-fail
-+#VERBOSE="-v"
-+VALGRIND=""
-+FAULT_INJECTION=""
-+
-+if [ "$1" = "-g" ] ; then
-+ VALGRIND="-g"
-+# Not implemneted yet.
-+#elif [ "$1" = "-f" ] ; then
-+# FAULT_INJECTION="-f"
-+fi
-+
-+# FIXME
-+#export NS_ATTRIBUTE_DEFAULT='ns3::DceManagerHelper::LoaderFactory=ns3::\
-+#DlmLoaderFactory[];ns3::TaskManager::FiberManagerType=UcontextFiberManager'
-+
-+cd buildtop/source/ns-3-dce
-+LD_LIBRARY_PATH=${srctree} ./test.py -n ${VALGRIND} ${FAULT_INJECTION}\
-+	   ${VERBOSE} ${ADD_PARAM}
-diff --git a/tools/testing/libos/nuse-test.sh b/tools/testing/libos/nuse-test.sh
-new file mode 100755
-index 000000000000..198e7e4c66ac
---- /dev/null
-+++ b/tools/testing/libos/nuse-test.sh
-@@ -0,0 +1,57 @@
-+#!/bin/bash -e
-+
-+LIBOS_TOOLS=arch/lib/tools
-+
-+IFNAME=`ip route |grep default | awk '{print $5}'`
-+GW=`ip route |grep default | awk '{print $3}'`
-+#XXX
-+IPADDR=`echo $GW | sed -r "s/([0-9]+\.[0-9]+\.[0-9]+\.)([0-9]+)$/\1\`expr \2 + 10\`/"`
-+
-+# ip route
-+# ip address
-+# ip link
-+
-+NUSE_CONF=/tmp/nuse.conf
-+
-+cat > ${NUSE_CONF} << ENDCONF
-+
-+interface ${IFNAME}
-+	address ${IPADDR}
-+	netmask 255.255.255.0
-+	macaddr 00:01:01:01:01:02
-+	viftype RAW
-+
-+route
-+	network 0.0.0.0
-+	netmask 0.0.0.0
-+	gateway ${GW}
-+
-+ENDCONF
-+
-+cd ${LIBOS_TOOLS}
-+sudo NUSECONF=${NUSE_CONF} ./nuse ping 127.0.0.1 -c 2
-+
-+# rump test
-+sudo NUSECONF=${NUSE_CONF} ./nuse sleep 5 &
-+
-+sleep 2
-+PID_SLEEP=`/bin/ls -ltr /tmp/rump-server-nuse.* | tail -1 | awk '{print $9}' | sed -e "s/.*rump-server-nuse\.//g" | sed "s/=//"`
-+RUMP_URL=unix:///tmp/rump-server-nuse.$PID_SLEEP
-+# ls -ltr /tmp/*
-+
-+sudo chmod 777 /tmp/rump-server-nuse.$PID_SLEEP
-+LD_PRELOAD=./libnuse-hijack.so  RUMPHIJACK=socket=all \
-+    RUMP_SERVER=$RUMP_URL ip addr show
-+
-+wait %1
-+
-+if [ "$1" == "--extended" ] ; then
-+sudo NUSECONF=${NUSE_CONF} ./nuse ping ${GW} -c 2
-+sudo NUSECONF=${NUSE_CONF} ./nuse iperf -c ${GW} -p 2000 -t 3
-+sudo NUSECONF=${NUSE_CONF} ./nuse iperf -c ${GW} -p 8 -u -t 3
-+sudo NUSECONF=${NUSE_CONF} ./nuse dig www.google.com
-+sudo NUSECONF=${NUSE_CONF} ./nuse host www.google.com
-+sudo NUSECONF=${NUSE_CONF} ./nuse nslookup www.google.com
-+#sudo NUSECONF=${NUSE_CONF} ./nuse nc www.google.com 80
-+sudo NUSECONF=${NUSE_CONF} ./nuse wget www.google.com -O -
-+fi
--- 
-2.1.0
+SXMgYW55Ym9keSBoZXJlPyA6KQoKCgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0t
+LQoKU3ViamVjdDogUmU6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3Rv
+cmluZyBpbiBDUFUgPT09PT09PT09PQoKVGltZSAoVVRDKTogQXVndXN0IDQgMjAxNSA3OjQyIGFt
+CgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaAoKVG86IGxpbnV4LW1tQGt2YWNrLm9yZyxicEBh
+bGllbjguZGUsbGl6ZWZhbkBodWF3ZWkuY29tLHRqQGtlcm5lbC5vcmcsY2xAbGludXgtZm91bmRh
+dGlvbi5vcmcKCgoKSGFsbG8/CgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQoK
+U3ViamVjdDogPT09PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGlu
+IENQVSA9PT09PT09PT09CgpUaW1lIChHTVQpOiBKdW4gMjMgMjAxNSAwNDo0MjozNAoKRnJvbTog
+bmdhYm9yQHByb3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5k
+ZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9u
+Lm9yZwoKCgpJcyBhbnlib2R5IHJlYWRpbmcgdGhpcz8KCgotLS0tLS0tLSBPcmlnaW5hbCBNZXNz
+YWdlIC0tLS0tLS0tCgpTdWJqZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5n
+IGluIENQVQoKVGltZSAoR01UKTogSnVuIDE5IDIwMTUgMTc6MjI6NDkKCkZyb206IG5nYWJvckBw
+cm90b25tYWlsLmNoCgpUbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVm
+YW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmcKCgoK
+SGFsbG8/IDopCgoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQoKU3ViamVjdDog
+UmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUKClRpbWUgKEdNVCk6IE1h
+eSAyMyAyMDE1IDA5OjAxOjI2CgpGcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaAoKVG86IGxpbnV4
+LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5l
+bC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnCgoKCkFueSBjb21tZW50cz8KCgotLS0tLS0t
+LSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tCgpTdWJqZWN0OiBSQU0gZW5jcnlwdGlvbiBhbmQg
+a2V5IHN0b3JpbmcgaW4gQ1BVCgpUaW1lIChHTVQpOiBNYXkgMjEgMjAxNSAxMDoxNzoyNQoKRnJv
+bTogbmdhYm9yQHByb3Rvbm1haWwuY2gKClRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVu
+OC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0
+aW9uLm9yZwoKCgpIZWxsbywKCgoKPT09PT09PT09PQoKUHJvYmxlbToKCgoKRXZlcnl0aGluZyBp
+cyBzdG9yZWQgaW4gcGxhaW50ZXh0IGluIHRoZSBNZW1vcnkuCgoKClNvIGlmIGFsdGhvdWdoIGZ1
+bGwgZGlzYyBlbmNyeXB0aW9uIGlzIHVzZWQgb24gYSBMaW51eCBEZXNrdG9wLCBpdCBpcyBwb3Nz
+aWJsZSB0byBjb3B5IHRoZSBjb250ZW50IG9mIHRoZSBtZW1vcnksIHdoaWxlIHRoZSBub3RlYm9v
+ayB3YXMgb24gc3VzcGVuZCBvciBpdCB3YXMgcnVubmluZzoKCgoKaHR0cHM6Ly9jaXRwLnByaW5j
+ZXRvbi5lZHUvcmVzZWFyY2gvbWVtb3J5L21lZGlhLwoKCgo9PT09PT09PT09CgpTb2x1dGlvbjoK
+CgoKQ2FuIHdlIChvcHRpb25hbGx5KikgZW5jcnlwdCB0aGUgY29udGVudCBvZiB0aGUgbWVtb3J5
+IGFuZCBzdG9yZSB0aGUga2V5IGZvciBkZWNyeXB0aW9uIGluIHRoZSBDUFUgdG8gYXZvaWQgaW4g
+Z2VuZXJhbCB0aGVzZSBraW5kIG9mIGF0dGFja3M/CgoKCmh0dHBzOi8vd3d3MS5pbmZvcm1hdGlr
+LnVuaS1lcmxhbmdlbi5kZS90cmVzb3IKCgoKSXMgdGhpcyBzb2x1dGlvbiBhbHJlYWR5IGluIHRo
+ZSBMaW51eCBrZXJuZWw/IElmIHllcywgaG93IGNhbiBhIExpbnV4IGVuZHVzZXIgdHVybiBpdCBv
+bj8gSWYgbm8sIGhvdyBjYW4gd2UgZ2V0IHRoZSBjb2RlL2lkZWEgaW4gdGhlIG1haW5saW5lPyBX
+aGF0IGFyZSB0aGUgYXJndW1lbnRzIGFnYWluc3QgaXQ/CgoKCippZiBzb21lb25lIHdvdWxkIHdh
+bnQgdG8gaGFyZGVuIGl0J3MgTGludXggRGVza3RvcCAoc2luY2Ugbm90ZWJvb2tzIGNvdWxkIGJl
+IHN0b2xlbi4uKSBpdCBjb3VsZCB0dXJuIG9uIHRoaXMgZmVhdHVyZSB0byBhdm9pZCBhIHBvbGlj
+eSB0byBhbHdheXMgdHVybiBvZmYgdGhlIG5vdGVib29rIHdoaWxlIG5vdCB1c2luZyBpdC4KCgoK
+VGhhbmsgeW91IGZvciB5b3VyIGNvbW1lbnRzLg==
+
+
+--b1_eb0ae559371c0f8970c416fb5037274a
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+PGRpdj5JcyBhbnlib2R5IGhlcmU/IDopPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxibG9ja3F1
+b3RlPjxkaXY+LS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2
+PlN1YmplY3Q6IFJlOiA9PT09PT09PT09IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3Jp
+bmcgaW4gQ1BVID09PT09PT09PT08YnI+PC9kaXY+PGRpdj5UaW1lIChVVEMpOiBBdWd1c3QgNCAy
+MDE1IDc6NDIgYW08YnI+PC9kaXY+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48
+L2Rpdj48ZGl2PlRvOiBsaW51eC1tbUBrdmFjay5vcmcsYnBAYWxpZW44LmRlLGxpemVmYW5AaHVh
+d2VpLmNvbSx0akBrZXJuZWwub3JnLGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJyPjwvZGl2Pjxk
+aXY+PGJyPjwvZGl2PjxkaXY+SGFsbG8/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0t
+LS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiA9PT09
+PT09PT09IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVID09PT09PT09
+PT08YnI+PC9kaXY+PGRpdj5UaW1lIChHTVQpOiBKdW4gMjMgMjAxNSAwNDo0MjozNDxicj48L2Rp
+dj48ZGl2PkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoPGJyPjwvZGl2PjxkaXY+VG86IGxpbnV4
+LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5l
+bC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2Pjxk
+aXY+SXMgYW55Ym9keSByZWFkaW5nIHRoaXM/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0t
+LS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBS
+ZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVTxicj48L2Rpdj48ZGl2PlRp
+bWUgKEdNVCk6IEp1biAxOSAyMDE1IDE3OjIyOjQ5PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9y
+QHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBh
+bGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91
+bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5IYWxsbz8gOik8YnI+PC9k
+aXY+PGJsb2NrcXVvdGU+PGRpdj4tLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tPGJy
+PjwvZGl2PjxkaXY+U3ViamVjdDogUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBp
+biBDUFU8YnI+PC9kaXY+PGRpdj5UaW1lIChHTVQpOiBNYXkgMjMgMjAxNSAwOTowMToyNjxicj48
+L2Rpdj48ZGl2PkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoPGJyPjwvZGl2PjxkaXY+VG86IGxp
+bnV4LW1tQGt2YWNrLm9yZywgYnBAYWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtl
+cm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2
+PjxkaXY+QW55IGNvbW1lbnRzPyA8YnI+PC9kaXY+PGJsb2NrcXVvdGU+PGRpdj4tLS0tLS0tLSBP
+cmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tPGJyPjwvZGl2PjxkaXY+U3ViamVjdDogUkFNIGVuY3J5
+cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6IE1h
+eSAyMSAyMDE1IDEwOjE3OjI1PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwu
+Y2g8YnI+PC9kaXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxp
+emVmYW5AaHVhd2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmc8
+YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5IZWxsbywgPGJyPjwvZGl2PjxkaXY+PGJyPjwv
+ZGl2PjxkaXY+PT09PT09PT09PTxicj48L2Rpdj48ZGl2PjxiPlByb2JsZW08L2I+OiA8YnI+PC9k
+aXY+PGRpdj48YnI+PC9kaXY+PGRpdj5FdmVyeXRoaW5nIGlzIHN0b3JlZCBpbiBwbGFpbnRleHQg
+aW4gdGhlIE1lbW9yeS4gPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+U28gaWYgYWx0aG91
+Z2ggZnVsbCBkaXNjIGVuY3J5cHRpb24gaXMgdXNlZCBvbiBhIExpbnV4IERlc2t0b3AsIGl0IGlz
+IHBvc3NpYmxlIHRvIGNvcHkgdGhlIGNvbnRlbnQgb2YgdGhlIG1lbW9yeSwgd2hpbGUgdGhlIG5v
+dGVib29rIHdhcyBvbiBzdXNwZW5kIG9yIGl0IHdhcyBydW5uaW5nOiA8YnI+PC9kaXY+PGRpdj48
+YnI+PC9kaXY+PGRpdj48YSBocmVmPSJodHRwczovL2NpdHAucHJpbmNldG9uLmVkdS9yZXNlYXJj
+aC9tZW1vcnkvbWVkaWEvIj5odHRwczovL2NpdHAucHJpbmNldG9uLmVkdS9yZXNlYXJjaC9tZW1v
+cnkvbWVkaWEvPC9hPjxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2Pj09PT09PT09PT08YnI+
+PC9kaXY+PGRpdj48Yj5Tb2x1dGlvbjwvYj46IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2
+PkNhbiB3ZSAob3B0aW9uYWxseSopIGVuY3J5cHQgdGhlIGNvbnRlbnQgb2YgdGhlIG1lbW9yeSBh
+bmQgc3RvcmUgdGhlIGtleSBmb3IgZGVjcnlwdGlvbiBpbiB0aGUgQ1BVIHRvIGF2b2lkIGluIGdl
+bmVyYWwgdGhlc2Uga2luZCBvZiBhdHRhY2tzPyA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRp
+dj48YSBocmVmPSJodHRwczovL3d3dzEuaW5mb3JtYXRpay51bmktZXJsYW5nZW4uZGUvdHJlc29y
+Ij5odHRwczovL3d3dzEuaW5mb3JtYXRpay51bmktZXJsYW5nZW4uZGUvdHJlc29yPC9hPjxicj48
+L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PklzIHRoaXMgc29sdXRpb24gYWxyZWFkeSBpbiB0aGUg
+TGludXgga2VybmVsPyBJZiB5ZXMsIGhvdyBjYW4gYSBMaW51eCBlbmR1c2VyIHR1cm4gaXQgb24/
+IElmIG5vLCBob3cgY2FuIHdlIGdldCB0aGUgY29kZS9pZGVhIGluIHRoZSBtYWlubGluZT8gV2hh
+dCBhcmUgdGhlIGFyZ3VtZW50cyBhZ2FpbnN0IGl0PyA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+
+PGRpdj4qaWYgc29tZW9uZSB3b3VsZCB3YW50IHRvIGhhcmRlbiBpdCdzIExpbnV4IERlc2t0b3Ag
+KHNpbmNlIG5vdGVib29rcyBjb3VsZCBiZSBzdG9sZW4uLikgaXQgY291bGQgdHVybiBvbiB0aGlz
+IGZlYXR1cmUgdG8gYXZvaWQgYSBwb2xpY3kgdG8gYWx3YXlzIHR1cm4gb2ZmIHRoZSBub3RlYm9v
+ayB3aGlsZSBub3QgdXNpbmcgaXQuIDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PlRoYW5r
+IHlvdSBmb3IgeW91ciBjb21tZW50cy4gPGJyPjwvZGl2PjwvYmxvY2txdW90ZT48L2Jsb2NrcXVv
+dGU+PC9ibG9ja3F1b3RlPjwvYmxvY2txdW90ZT48L2Jsb2NrcXVvdGU+
+
+
+
+--b1_eb0ae559371c0f8970c416fb5037274a--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
