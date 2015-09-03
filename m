@@ -1,129 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id AA5AC6B0254
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 04:53:27 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so41253154pac.2
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 01:53:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id bx12si40348267pdb.198.2015.09.03.01.53.26
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id BAAFE6B0254
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 04:55:38 -0400 (EDT)
+Received: by igcrk20 with SMTP id rk20so44333195igc.1
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 01:55:38 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id s13si40395375pdi.27.2015.09.03.01.55.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Sep 2015 01:53:26 -0700 (PDT)
-Date: Thu, 3 Sep 2015 18:53:14 +1000
-From: Dave Chinner <dchinner@redhat.com>
-Subject: Re: slab-nomerge (was Re: [git pull] device mapper changes for 4.3)
-Message-ID: <20150903085314.GW1933@devil.localdomain>
-References: <CA+55aFyepmdpbg9U2Pvp+aHjKmmGCrTK2ywzqfmaOTMXQasYNw@mail.gmail.com>
- <20150903005115.GA27804@redhat.com>
- <CA+55aFxpH6-XD97dOsuGvwozyV=28eBsxiKS901h8PFZrxaygw@mail.gmail.com>
- <20150903023125.GC27804@redhat.com>
- <alpine.DEB.2.11.1509022152470.18064@east.gentwo.org>
- <20150902215512.9d0d62e74fa2f0a460a42af9@linux-foundation.org>
- <CAOJsxLGa9fLWUrdjnm-A-Frxr1bzBvfNZRsmFFcjQSvGX48a4w@mail.gmail.com>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 03 Sep 2015 01:55:38 -0700 (PDT)
+Subject: Re: [REPOST] [PATCH 2/2] mm: Fix potentially scheduling in GFP_ATOMIC allocations.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201508231623.DED13020.tFOHFVFQOSOLMJ@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1509011519170.11913@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1509011519170.11913@chino.kir.corp.google.com>
+Message-Id: <201509031755.GGJ39045.JOFLOHOQtMVFSF@I-love.SAKURA.ne.jp>
+Date: Thu, 3 Sep 2015 17:55:22 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOJsxLGa9fLWUrdjnm-A-Frxr1bzBvfNZRsmFFcjQSvGX48a4w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Mike Snitzer <snitzer@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Heinz Mauelshagen <heinzm@redhat.com>, Viresh Kumar <viresh.kumar@linaro.org>, Joe Thornber <ejt@redhat.com>, linux-mm <linux-mm@kvack.org>, "dm-devel@redhat.com" <dm-devel@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, Sami Tolvanen <samitolvanen@google.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Alasdair G Kergon <agk@redhat.com>
+To: rientjes@google.com
+Cc: mhocko@kernel.org, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Thu, Sep 03, 2015 at 09:09:24AM +0300, Pekka Enberg wrote:
-> Hi Andrew,
+David Rientjes wrote:
+> On Sun, 23 Aug 2015, Tetsuo Handa wrote:
 > 
-> On Wed, 2 Sep 2015 22:10:12 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
-> >> > But I'd still like some pointers/help on what makes slab merging so
-> >> > beneficial.  I'm sure Christoph and others have justification.  But if
-> >> > not then yes the default to slab merging probably should be revisited.
-> >>
-> >> ...
-> >>
-> >> Check out the linux-mm archives for these dissussions.
+> > >From 08a638e04351386ab03cd1223988ac7940d4d3aa Mon Sep 17 00:00:00 2001
+> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Date: Sat, 1 Aug 2015 22:46:12 +0900
+> > Subject: [PATCH 2/2] mm: Fix potentially scheduling in GFP_ATOMIC
+> >  allocations.
+> > 
+> > Currently, if somebody does GFP_ATOMIC | __GFP_NOFAIL allocation,
+> > wait_iff_congested() might be called via __alloc_pages_high_priority()
+> > before reaching
+> > 
+> >   if (!wait) {
+> >     WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
+> >     goto nopage;
+> >   }
+> > 
+> > because gfp_to_alloc_flags() includes ALLOC_NO_WATERMARKS if TIF_MEMDIE
+> > was set.
+> > 
+> > We need to check for __GFP_WAIT flag at __alloc_pages_high_priority()
+> > in order to make sure that we won't schedule.
+> > 
 > 
-> On Thu, Sep 3, 2015 at 7:55 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > Somewhat OT, but...  The question Mike asks should be comprehensively
-> > answered right there in the switch-to-merging patch's changelog.
-> >
-> > The fact that it is not answered in the appropriate place and that
-> > we're reduced to vaguely waving at the list archives is a fail.  And a
-> > lesson!
+> I've brought the GFP_ATOMIC | __GFP_NOFAIL combination up before, which 
+> resulted in the WARN_ON_ONCE() that you cited.  We don't support such a 
+> combination.  Fixing up the documentation in any places you feel it is 
+> deficient would be the best.
 > 
-> Slab merging is a technique to reduce memory footprint and memory
-> fragmentation. Joonsoo reports 3% slab memory reduction after boot
-> when he added the feature to SLAB:
+The purpose of this check is to warn about unassured combination, isn't it?
+Then, I think this check should be done like
 
-I'm not sure whether you are trying to indicate that it was
-justified inteh commit message or indicate how little justification
-there was...
+----------
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5b5240b..7358225 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3046,15 +3046,8 @@ retry:
+ 	}
+ 
+ 	/* Atomic allocations - we can't balance anything */
+-	if (!wait) {
+-		/*
+-		 * All existing users of the deprecated __GFP_NOFAIL are
+-		 * blockable, so warn of any new users that actually allow this
+-		 * type of allocation to fail.
+-		 */
+-		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
++	if (!wait)
+ 		goto nopage;
+-	}
+ 
+ 	/* Avoid recursion of direct reclaim */
+ 	if (current->flags & PF_MEMALLOC)
+@@ -3183,6 +3176,12 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 
+ 	lockdep_trace_alloc(gfp_mask);
+ 
++	/*
++	 * All existing users of the __GFP_NOFAIL have __GFP_WAIT.
++	 * __GFP_NOFAIL allocations without __GFP_WAIT is unassured.
++	 */
++	WARN_ON_ONCE((gfp_mask & (__GFP_NOFAIL | __GFP_WAIT)) == __GFP_NOFAIL);
++
+ 	might_sleep_if(gfp_mask & __GFP_WAIT);
+ 
+ 	if (should_fail_alloc_page(gfp_mask, order))
+----------
 
-> commit 12220dea07f1ac6ac717707104773d771c3f3077
-> Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Date:   Thu Oct 9 15:26:24 2014 -0700
-> 
->     mm/slab: support slab merge
-> 
->     Slab merge is good feature to reduce fragmentation.  If new creating slab
->     have similar size and property with exsitent slab, this feature reuse it
->     rather than creating new one.  As a result, objects are packed into fewer
->     slabs so that fragmentation is reduced.
+because such allocation requests can succeed at fast path or at
 
-A partial page or two in a newly allocated slab in not
-"fragmentation". They are simply free objects in the cache that
-haven't been allocated yet. Fragmentation occurs when large numbers
-of objects are freed so the pages end up mostly empty but
-cannot be freed because there is still 1 or 2 objects in use of
-them. As such, if there was fragementation and slab merging fixed
-it, I'd expect to be seeing a much larger reduction in memory
-usage....
+  /* This is the last chance, in general, before the goto nopage. */
 
->     Below is result of my testing.
-> 
->     * After boot, sleep 20; cat /proc/meminfo | grep Slab
-> 
->     <Before>
->     Slab: 25136 kB
-> 
->     <After>
->     Slab: 24364 kB
-> 
->     We can save 3% memory used by slab.
+. If unconditional WARN_ON_ONCE() is too wasteful, maybe we can do like
 
-The numbers don't support the conclusion. Memory used from boot to
-boot always varies by a small amount - a slight difference in the
-number of files accessed by the boot process can account for this.
-Also, you can't 't measure slab fragmentation by measuring the
-amount of memory used. You have to look at object counts in each
-slab and work out the percentage of free vs allocated objects. So
-there's no evidence that this 772kb difference in memory footprint
-can even be attributed to slab merging.
+  #ifdef CONFIG_DEBUG_SOMETHING
+    WARN_ON_ONCE((gfp_mask & (__GFP_NOFAIL | __GFP_WAIT)) == __GFP_NOFAIL);
+  #endif
 
-What about the rest of the slab fragmentation problem space?  It's
-not even mentioned in the commit, but that's really what is
-important to long running machines.
-
-IOWs, where's description of the problem that needs fixing? What's
-the example workload that demonstrates the problem? What's the
-before and after measurements of the workloads that generate
-significant slab fragmentation?  What's the long term impact of the
-change (e.g.  a busy server with a uptime of several weeks)? is the
-fragmentation level reduced?  increased? not significant?  What
-impact does this have on subsystems with shrinkers that are now
-operating on shared slabs? Do the shrinkers still work as
-effectively as they used to?  Do they now cause slab fragmentation,
-and if they do, does it self correct under continued memory
-pressure?
-
-And with the patch being merged without a single reviewed-by or
-acked-by, I'm sitting here wondering how we managed to fail software
-engineering 101 so badly here?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-dchinner@redhat.com
+.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
