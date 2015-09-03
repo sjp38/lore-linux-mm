@@ -1,72 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AC036B0258
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 10:48:10 -0400 (EDT)
-Received: by wibz8 with SMTP id z8so101718508wib.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:09 -0700 (PDT)
-Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
-        by mx.google.com with ESMTPS id ay2si5102126wjb.121.2015.09.03.07.48.07
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 733E76B025E
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 10:48:12 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so76645273wic.0
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:11 -0700 (PDT)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id fk20si46733407wjc.82.2015.09.03.07.48.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Sep 2015 07:48:07 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so22611457wic.1
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Sep 2015 07:48:08 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so10950397wic.1
         for <linux-mm@kvack.org>; Thu, 03 Sep 2015 07:48:07 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH 3/7] kasan: accurately determine the type of the bad access
-Date: Thu,  3 Sep 2015 16:47:38 +0200
-Message-Id: <4bcaa6fdf682a746c0a58de2884aeee13dd2805f.1441290220.git.andreyknvl@google.com>
-In-Reply-To: <cover.1441290219.git.andreyknvl@google.com>
-References: <cover.1441290219.git.andreyknvl@google.com>
-In-Reply-To: <cover.1441290219.git.andreyknvl@google.com>
-References: <cover.1441290219.git.andreyknvl@google.com>
+Subject: [PATCH 0/7] kasan: various fixes
+Date: Thu,  3 Sep 2015 16:47:35 +0200
+Message-Id: <cover.1441290219.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: dvyukov@google.com, glider@google.com, kcc@google.com, Andrey Konovalov <andreyknvl@google.com>
 
-Makes KASAN accurately determine the type of the bad access. If the shadow
-byte value is in the [0, KASAN_SHADOW_SCALE_SIZE) range we can look at
-the next shadow byte to determine the type of the access.
+This patchset contains various fixes for KASAN. That includes:
 
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- mm/kasan/report.c | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+1. Improving reported bug types.
 
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index a30ca44..6126272 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -49,15 +49,26 @@ static const void *find_first_bad_addr(const void *addr, size_t size)
- static void print_error_description(struct kasan_access_info *info)
- {
- 	const char *bug_type = "unknown-crash";
--	u8 shadow_val;
-+	u8 *shadow_addr;
- 
- 	info->first_bad_addr = find_first_bad_addr(info->access_addr,
- 						info->access_size);
- 
--	shadow_val = *(u8 *)kasan_mem_to_shadow(info->first_bad_addr);
-+	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
- 
--	switch (shadow_val) {
-+	/*
-+	 * If shadow byte value is in [0, KASAN_SHADOW_SCALE_SIZE) we can look
-+	 * at the next shadow byte to determine the type of the bad access.
-+	 */
-+	if (*shadow_addr > 0 && *shadow_addr <= KASAN_SHADOW_SCALE_SIZE - 1)
-+		shadow_addr++;
-+
-+	switch (*shadow_addr) {
- 	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
-+		/*
-+		 * In theory it's still possible to see these shadow values
-+		 * due to a data race in the kernel code.
-+		 */
- 		bug_type = "out-of-bounds";
- 		break;
- 	case KASAN_PAGE_REDZONE:
+Making KASAN distinguish and report the following types of bugs:
+slab-out-of-bounds, stack-out-of-bounds, global-out-of-bounds
+use-after-free, null-ptr-deref, user-memory-access, wild-memory-access.
+
+2. Making references to the tool name consistent.
+
+We decided to use KASAN as the short name of the tool since a lot of
+people already use it, and KernelAddressSanitizer as the full name
+to be consistent with the userspace AddressSantizer.
+
+Andrey Konovalov (7):
+  kasan: update reported bug types for not user nor kernel memory
+    accesses
+  kasan: update reported bug types for kernel memory accesses
+  kasan: accurately determine the type of the bad access
+  kasan: update log messages
+  kasan: various fixes in documentation
+  kasan: move KASAN_SANITIZE in arch/x86/boot/Makefile
+  kasan: update reference to kasan prototype repo
+
+ Documentation/kasan.txt     | 43 +++++++++++------------
+ arch/x86/boot/Makefile      |  4 +--
+ arch/x86/mm/kasan_init_64.c |  2 +-
+ mm/kasan/kasan.c            | 12 ++-----
+ mm/kasan/kasan.h            |  3 --
+ mm/kasan/report.c           | 84 +++++++++++++++++++++++++++------------------
+ 6 files changed, 78 insertions(+), 70 deletions(-)
+
 -- 
 2.5.0.457.gab17608
 
