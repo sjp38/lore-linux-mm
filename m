@@ -1,91 +1,235 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B7106B0255
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 12:18:48 -0400 (EDT)
-Received: by ykek143 with SMTP id k143so25700367yke.2
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 09:18:48 -0700 (PDT)
-Received: from mail-yk0-x233.google.com (mail-yk0-x233.google.com. [2607:f8b0:4002:c07::233])
-        by mx.google.com with ESMTPS id i199si1780241ywc.101.2015.09.04.09.18.47
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B02F6B0254
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 12:44:46 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so23792107wic.0
+        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 09:44:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gk19si5213345wjc.187.2015.09.04.09.44.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Sep 2015 09:18:47 -0700 (PDT)
-Received: by ykei199 with SMTP id i199so25683376yke.0
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 09:18:47 -0700 (PDT)
-Date: Fri, 4 Sep 2015 12:18:45 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 4/4] memcg: always enable kmemcg on the default hierarchy
-Message-ID: <20150904161845.GB25329@mtj.duckdns.org>
-References: <1440775530-18630-1-git-send-email-tj@kernel.org>
- <1440775530-18630-5-git-send-email-tj@kernel.org>
- <20150828164918.GJ9610@esperanza>
- <20150828171438.GD21463@dhcp22.suse.cz>
- <20150828174140.GN26785@mtj.duckdns.org>
- <20150901124459.GC8810@dhcp22.suse.cz>
- <20150901185157.GD18956@htj.dyndns.org>
- <20150904133038.GC8220@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 04 Sep 2015 09:44:45 -0700 (PDT)
+Subject: Re: [RESEND RFC v4 3/3] mm: make swapin readahead to improve thp
+ collapse rate
+References: <1441313508-4276-1-git-send-email-ebru.akagunduz@gmail.com>
+ <1441313508-4276-4-git-send-email-ebru.akagunduz@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55E9CA79.7000103@suse.cz>
+Date: Fri, 4 Sep 2015 18:44:41 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150904133038.GC8220@dhcp22.suse.cz>
+In-Reply-To: <1441313508-4276-4-git-send-email-ebru.akagunduz@gmail.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
 
-Hello, Michal.
+On 09/03/2015 10:51 PM, Ebru Akagunduz wrote:
+> This patch makes swapin readahead to improve thp collapse rate.
+> When khugepaged scanned pages, there can be a few of the pages
+> in swap area.
+> 
+> With the patch THP can collapse 4kB pages into a THP when
+> there are up to max_ptes_swap swap ptes in a 2MB range.
+> 
+> The patch was tested with a test program that allocates
+> 800MB of memory, writes to it, and then sleeps. I force
+> the system to swap out all. Afterwards, the test program
+> touches the area by writing, it skips a page in each
+> 20 pages of the area.
+> 
+> Without the patch, system did not swap in readahead.
+> THP rate was %47 of the program of the memory, it
+> did not change over time.
+> 
+> With this patch, after 10 minutes of waiting khugepaged had
+> collapsed %90 of the program's memory.
+> 
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> ---
+> Changes in v2:
+>  - Use FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT flag
+>    instead of 0x0 when called do_swap_page from
+>    __collapse_huge_page_swapin (Rik van Riel)
+> 
+> Changes in v3:
+>  - Catch VM_FAULT_HWPOISON and VM_FAULT_OOM return cases
+>    in __collapse_huge_page_swapin (Kirill A. Shutemov)
+> 
+> Changes in v4:
+>  - Fix broken indentation reverting if (...) statement in
+>    __collapse_huge_page_swapin (Kirill A. Shutemov)
+>  - Fix check statement of ret (Kirill A. Shutemov)
+>  - Use swapped_in name instead of swap_pte
+> 
+> 			After swapped out
+> -------------------------------------------------------------------
+>               | Anonymous | AnonHugePages | Swap      | Fraction  |
+> -------------------------------------------------------------------
+> With patch    | 253720 kB | 251904 kB     | 546284 kB |    %99    |
+> -------------------------------------------------------------------
+> Without patch | 238160 kB | 235520 kB     | 561844 kB |    %98    |
+> -------------------------------------------------------------------
+> 
+>                         After swapped in
+> -------------------------------------------------------------------
+>               | Anonymous | AnonHugePages | Swap      | Fraction  |
+> -------------------------------------------------------------------
+> With patch    | 533532 kB | 528384 kB     | 266472 kB |    %90    |
+> -------------------------------------------------------------------
+> Without patch | 499956 kB | 235520 kB     | 300048 kB |    %47    |
+> -------------------------------------------------------------------
+> 
+> 
+>  include/linux/mm.h                 |  4 ++++
+>  include/trace/events/huge_memory.h | 24 +++++++++++++++++++++
+>  mm/huge_memory.c                   | 43 ++++++++++++++++++++++++++++++++++++++
+>  mm/memory.c                        |  2 +-
+>  4 files changed, 72 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index bf6f117..f28d98a 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -29,6 +29,10 @@ struct user_struct;
+>  struct writeback_control;
+>  struct bdi_writeback;
+>  
+> +extern int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> +			unsigned long address, pte_t *page_table, pmd_t *pmd,
+> +			unsigned int flags, pte_t orig_pte);
+> +
 
-On Fri, Sep 04, 2015 at 03:30:38PM +0200, Michal Hocko wrote:
-> The overhead was around 4% for the basic kbuild test without ever
-> triggering the [k]memcg limit last time I checked. This was quite some
-> time ago and things might have changed since then. Even when this got
-> better there will still be _some_ overhead because we have to track that
-> memory and that is not free.
+I'd rather use mm/internal.h here than export the function outside mm.
 
-So, I just ran small scale tests and I don't see any meaningful
-difference between kmemcg disabled and enabled for kbuild workload
-(limit is never reached in both cases, memory is reclaimed from global
-pressure).  The difference in kernel time usage.  I'm sure there's
-*some* overhead buried in the noise but given the current
-implementation, I can't see how enabling kmem would lead to 4%
-overhead in kbuild tests.  It isn't that kernel intensive to begin
-with.
+>  #ifndef CONFIG_NEED_MULTIPLE_NODES	/* Don't use mapnrs, do it properly */
+>  extern unsigned long max_mapnr;
+>  
+> diff --git a/include/trace/events/huge_memory.h b/include/trace/events/huge_memory.h
+> index c2112fd..e530210 100644
+> --- a/include/trace/events/huge_memory.h
+> +++ b/include/trace/events/huge_memory.h
+> @@ -97,6 +97,30 @@ TRACE_EVENT(mm_collapse_huge_page_isolate,
+>  		khugepaged_status_string[__entry->status])
+>  );
+>  
+> +TRACE_EVENT(mm_collapse_huge_page_swapin,
+> +
+> +	TP_PROTO(struct mm_struct *mm, int swapped_in, int ret),
+> +
+> +	TP_ARGS(mm, swapped_in, ret),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(struct mm_struct *, mm)
+> +		__field(int, swapped_in)
+> +		__field(int, ret)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->mm = mm;
+> +		__entry->swapped_in = swapped_in;
+> +		__entry->ret = ret;
+> +	),
+> +
+> +	TP_printk("mm=%p, swapped_in=%d, ret=%d",
+> +		__entry->mm,
+> +		__entry->swapped_in,
+> +		__entry->ret)
+> +);
+> +
+>  #endif /* __HUGE_MEMORY_H */
+>  #include <trace/define_trace.h>
+>  
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index cb9ab46..f420ef8 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2529,6 +2529,47 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+>  	return true;
+>  }
+>  
+> +/*
+> + * Bring missing pages in from swap, to complete THP collapse.
+> + * Only done if khugepaged_scan_pmd believes it is worthwhile.
+> + *
+> + * Called and returns without pte mapped or spinlocks held,
+> + * but with mmap_sem held to protect against vma changes.
+> + */
+> +
+> +static void __collapse_huge_page_swapin(struct mm_struct *mm,
+> +					struct vm_area_struct *vma,
+> +					unsigned long address, pmd_t *pmd,
+> +					pte_t *pte)
+> +{
+> +	unsigned long _address;
+> +	pte_t pteval = *pte;
+> +	int swapped_in = 0, ret = 0;
+> +
+> +	pte = pte_offset_map(pmd, address);
+> +	for (_address = address; _address < address + HPAGE_PMD_NR*PAGE_SIZE;
+> +	     pte++, _address += PAGE_SIZE) {
+> +		pteval = *pte;
+> +		if (!is_swap_pte(pteval))
+> +			continue;
+> +		swapped_in++;
+> +		ret = do_swap_page(mm, vma, _address, pte, pmd,
+> +				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
+> +				   pteval);
+> +		if (ret & VM_FAULT_ERROR) {
+> +			trace_mm_collapse_huge_page_swapin(mm, swapped_in, 0);
+> +			return;
+> +		}
+> +		/* pte is unmapped now, we need to map it */
+> +		pte = pte_offset_map(pmd, _address);
+> +	}
+> +	pte--;
+> +	pte_unmap(pte);
+> +	trace_mm_collapse_huge_page_swapin(mm, swapped_in, 1);
+> +}
+> +
+> +
+> +
+>  static void collapse_huge_page(struct mm_struct *mm,
+>  				   unsigned long address,
+>  				   struct page **hpage,
+> @@ -2600,6 +2641,8 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  
+>  	anon_vma_lock_write(vma->anon_vma);
+>  
+> +	__collapse_huge_page_swapin(mm, vma, address, pmd, pte);
 
-> The question really is whether kmem accounting is so generally useful
-> that the overhead is acceptable and it is should be enabled by
-> default. From my POV it is a useful mitigation of untrusted users but
-> many loads simply do not care because they only care about a certain
-> level of isolation.
+Hmm it seems rather wasteful to call this when no swap entries were detected.
+Also it seems pointless to try continue collapsing when we have just only issued
+async swap-in? What are the chances they would finish in time?
 
-I don't think that's the right way to approach the problem.  Given
-that the cost isn't prohibitive, no user only care about a certain
-level of isolation willingly.  Distributing memory is what it's all
-about after all and memory is memory, user or kernel.  We have kmem
-on/off situation for historical reasons and because the early
-implementation wasn't good enough to be enabled by default.  I get
-that there can be special cases, temporary or otherwise, where
-disabling kmem is desirable but that gotta be the exception, not the
-norm.
+I'm less sure about the relation vs khugepaged_alloc_page(). At this point, we
+have already succeeded the hugepage allocation. It makes sense not to swap-in if
+we can't allocate a hugepage. It makes also sense not to allocate a hugepage if
+we will just issue async swap-ins and then free the hugepage back. Swap-in means
+disk I/O that's best avoided if not useful. But the reclaim for hugepage
+allocation might also involve disk I/O. At worst, it could be creating new swap
+pte's in the very pmd we are scanning... Thoughts?
 
-> I might be wrong here of course but if the default should be switched it
-> would deserve a better justification with some numbers so that people
-> can see the possible drawbacks.
->
-> I agree that the per-cgroup knob is better than the global one. We
-> should also find consensus whether the legacy semantic of k < u limit
-> should be preserved. It made sense to me at the time it was introduced
-> but I recall that Vladimir found it not really helpful when we discussed
-> that at LSF. I found it interesting e.g. for the rough task count
-> limiting use case which people were asking for.
-
-Let's please not hinge major design decisions on short-sighted hacks
-and overhead considerations.  If task count is an actual resource
-which needs to be regulated separatley, we should add a proper
-controller for it and we did.
-
-Thanks.
-
--- 
-tejun
+> +
+>  	pte = pte_offset_map(pmd, address);
+>  	pte_ptl = pte_lockptr(mm, pmd);
+>  
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 388dcf9..d3a446c 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2442,7 +2442,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
+>   * We return with the mmap_sem locked or unlocked in the same cases
+>   * as does filemap_fault().
+>   */
+> -static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> +int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		unsigned long address, pte_t *page_table, pmd_t *pmd,
+>  		unsigned int flags, pte_t orig_pte)
+>  {
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
