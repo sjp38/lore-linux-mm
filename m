@@ -1,38 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 45C7B6B0038
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 14:55:26 -0400 (EDT)
-Received: by qgez77 with SMTP id z77so23482535qge.1
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 11:55:26 -0700 (PDT)
-Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
-        by mx.google.com with ESMTPS id g192si360152qhc.93.2015.09.04.11.55.25
+Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
+	by kanga.kvack.org (Postfix) with ESMTP id E764F6B0038
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 15:30:05 -0400 (EDT)
+Received: by ykdg206 with SMTP id g206so30767516ykd.1
+        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 12:30:05 -0700 (PDT)
+Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
+        by mx.google.com with ESMTPS id x138si2067896ywd.152.2015.09.04.12.30.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 04 Sep 2015 11:55:25 -0700 (PDT)
-Date: Fri, 4 Sep 2015 13:55:24 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 0/3] Network stack, first user of SLAB/kmem_cache
- bulk free API.
-In-Reply-To: <55E9DE51.7090109@gmail.com>
-Message-ID: <alpine.DEB.2.11.1509041354560.993@east.gentwo.org>
-References: <20150824005727.2947.36065.stgit@localhost> <20150904165944.4312.32435.stgit@devil> <55E9DE51.7090109@gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Sep 2015 12:30:04 -0700 (PDT)
+Received: by ykdg206 with SMTP id g206so30766359ykd.1
+        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 12:30:03 -0700 (PDT)
+Date: Fri, 4 Sep 2015 15:30:00 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
+ enabled
+Message-ID: <20150904193000.GG25329@mtj.duckdns.org>
+References: <20150901123612.GB8810@dhcp22.suse.cz>
+ <20150901134003.GD21226@esperanza>
+ <20150901150119.GF8810@dhcp22.suse.cz>
+ <20150901165554.GG21226@esperanza>
+ <20150901183849.GA28824@dhcp22.suse.cz>
+ <20150902093039.GA30160@esperanza>
+ <20150903163243.GD10394@mtj.duckdns.org>
+ <20150904111550.GB13699@esperanza>
+ <20150904154448.GA25329@mtj.duckdns.org>
+ <20150904182110.GE13699@esperanza>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150904182110.GE13699@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 4 Sep 2015, Alexander Duyck wrote:
+Hello, Vladimir.
 
-> were to create a per-cpu pool for skbs that could be freed and allocated in
-> NAPI context.  So for example we already have napi_alloc_skb, why not just add
-> a napi_free_skb and then make the array of objects to be freed part of a pool
-> that could be used for either allocation or freeing?  If the pool runs empty
-> you just allocate something like 8 or 16 new skb heads, and if you fill it you
-> just free half of the list?
+On Fri, Sep 04, 2015 at 09:21:11PM +0300, Vladimir Davydov wrote:
+> Now I think task_work reclaim initially proposed by Tejun would be a
+> much better fix.
 
-The slab allocators provide something like a per cpu pool for you to
-optimize object alloc and free.
+Cool, I'll update the patch.
+
+> I'm terribly sorry for being so annoying and stubborn and want to thank
+> you for all your feedback!
+
+Heh, I'm not all that confident about my position.  A lot of it could
+be from lack of experience and failing to see the gradients.  Please
+keep me in check if I get lost.
+
+Thanks a lot!
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
