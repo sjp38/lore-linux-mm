@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A66036B0256
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 13:01:09 -0400 (EDT)
-Received: by iofb144 with SMTP id b144so30846311iof.1
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 10:01:09 -0700 (PDT)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B0EF26B0257
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 13:01:23 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so29528281pac.0
+        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 10:01:23 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id na7si456183pdb.93.2015.09.04.10.01.08
+        by mx.google.com with ESMTPS id ml3si5210970pab.134.2015.09.04.10.01.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Sep 2015 10:01:09 -0700 (PDT)
-Subject: [RFC PATCH 2/3] net: NIC helper API for building array of skbs to
- free
+        Fri, 04 Sep 2015 10:01:23 -0700 (PDT)
+Subject: [RFC PATCH 3/3] ixgbe: bulk free SKBs during TX completion cleanup
+ cycle
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Fri, 04 Sep 2015 19:01:06 +0200
-Message-ID: <20150904170104.4312.47707.stgit@devil>
+Date: Fri, 04 Sep 2015 19:01:21 +0200
+Message-ID: <20150904170117.4312.97676.stgit@devil>
 In-Reply-To: <20150904165944.4312.32435.stgit@devil>
 References: <20150904165944.4312.32435.stgit@devil>
 MIME-Version: 1.0
@@ -24,97 +24,73 @@ List-ID: <linux-mm.kvack.org>
 To: netdev@vger.kernel.org, akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, aravinda@linux.vnet.ibm.com, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com
 
-The NIC device drivers are expected to use this small helper API, when
-building up an array of objects/skbs to bulk free, while (loop)
-processing objects to free.  Objects to be free'ed later is added
-(dev_free_waitlist_add) to an array and flushed if the array runs
-full.  After processing the array is flushed (dev_free_waitlist_flush).
-The array should be stored on the local stack.
+First user of the SKB bulk free API (namely kfree_skb_bulk() via
+waitlist helper add-and-flush API).
 
-Usage e.g. during TX completion loop the NIC driver can replace
-dev_consume_skb_any() with an "add" and after the loop a "flush".
-
-For performance reasons the compiler should inline most of these
-functions.
+There is an opportunity to bulk free SKBs during reclaiming of
+resources after DMA transmit completes in ixgbe_clean_tx_irq.  Thus,
+bulk freeing at this point does not introduce any added latency.
+Choosing bulk size 32 even-though budget usually is 64, due (1) to
+limit the stack usage and (2) as SLAB behind SKBs have 32 objects per
+slab.
 
 Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
 ---
- include/linux/netdevice.h |   62 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 62 insertions(+)
+ drivers/net/ethernet/intel/ixgbe/ixgbe_main.c |   13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index 05b9a694e213..d0133e778314 100644
---- a/include/linux/netdevice.h
-+++ b/include/linux/netdevice.h
-@@ -2935,6 +2935,68 @@ static inline void dev_consume_skb_any(struct sk_buff *skb)
- 	__dev_kfree_skb_any(skb, SKB_REASON_CONSUMED);
- }
+diff --git a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
+index 463ff47200f1..d35d6b47bae2 100644
+--- a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
++++ b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
+@@ -1075,6 +1075,7 @@ static void ixgbe_tx_timeout_reset(struct ixgbe_adapter *adapter)
+  * @q_vector: structure containing interrupt and ring information
+  * @tx_ring: tx ring to clean
+  **/
++#define BULK_FREE_SIZE 32
+ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
+ 			       struct ixgbe_ring *tx_ring)
+ {
+@@ -1084,6 +1085,11 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
+ 	unsigned int total_bytes = 0, total_packets = 0;
+ 	unsigned int budget = q_vector->tx.work_limit;
+ 	unsigned int i = tx_ring->next_to_clean;
++	struct sk_buff *skbs[BULK_FREE_SIZE];
++	struct dev_free_waitlist wl;
++
++	wl.skb_cnt = 0;
++	wl.skbs = skbs;
  
-+/* The NIC device drivers are expected to use this small helper API,
-+ * when building up an array of objects/skbs to bulk free, while
-+ * (loop) processing objects to free.  Objects to be free'ed later is
-+ * added (dev_free_waitlist_add) to an array and flushed if the array
-+ * runs full.  After processing the array is flushed (dev_free_waitlist_flush).
-+ * The array should be stored on the local stack.
-+ *
-+ * Usage e.g. during TX completion loop the NIC driver can replace
-+ * dev_consume_skb_any() with an "add" and after the loop a "flush".
-+ *
-+ * For performance reasons the compiler should inline most of these
-+ * functions.
-+ */
-+struct dev_free_waitlist {
-+	struct sk_buff **skbs;
-+	unsigned int skb_cnt;
-+};
+ 	if (test_bit(__IXGBE_DOWN, &adapter->state))
+ 		return true;
+@@ -1113,8 +1119,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
+ 		total_bytes += tx_buffer->bytecount;
+ 		total_packets += tx_buffer->gso_segs;
+ 
+-		/* free the skb */
+-		dev_consume_skb_any(tx_buffer->skb);
++		/* delay skb free and bulk free later */
++		dev_free_waitlist_add(&wl, tx_buffer->skb, BULK_FREE_SIZE);
+ 
+ 		/* unmap skb header data */
+ 		dma_unmap_single(tx_ring->dev,
+@@ -1164,6 +1170,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
+ 		budget--;
+ 	} while (likely(budget));
+ 
++	dev_free_waitlist_flush(&wl); /* free remaining SKBs on waitlist */
 +
-+static void __dev_free_waitlist_bulkfree(struct dev_free_waitlist *wl)
-+{
-+	/* Cannot bulk free from interrupt context or with IRQs
-+	 * disabled, due to how SLAB bulk API works (and gain it's
-+	 * speedup).  This can e.g. happen due to invocation from
-+	 * netconsole/netpoll.
-+	 */
-+	if (unlikely(in_irq() || irqs_disabled())) {
-+		int i;
-+
-+		for (i = 0; i < wl->skb_cnt; i++)
-+			dev_consume_skb_irq(wl->skbs[i]);
-+	} else {
-+		/* Likely fastpath, don't call with cnt == 0 */
-+		kfree_skb_bulk(wl->skbs, wl->skb_cnt);
-+	}
-+}
-+
-+static inline void dev_free_waitlist_flush(struct dev_free_waitlist *wl)
-+{
-+	/* Flush the waitlist, but only if any objects remain, as bulk
-+	 * freeing "zero" objects is not supported and plus it avoids
-+	 * pointless function calls.
-+	 */
-+	if (likely(wl->skb_cnt))
-+		__dev_free_waitlist_bulkfree(wl);
-+}
-+
-+static __always_inline void dev_free_waitlist_add(struct dev_free_waitlist *wl,
-+						  struct sk_buff *skb,
-+						  unsigned int max)
-+{
-+	/* It is recommended that max is a builtin constant, as this
-+	 * saves one register when inlined. Catch offenders with:
-+	 * BUILD_BUG_ON(!__builtin_constant_p(max));
-+	 */
-+	wl->skbs[wl->skb_cnt++] = skb;
-+	if (wl->skb_cnt == max) {
-+		/* Detect when waitlist array is full, then flush and reset */
-+		__dev_free_waitlist_bulkfree(wl);
-+		wl->skb_cnt = 0;
-+	}
-+}
-+
- int netif_rx(struct sk_buff *skb);
- int netif_rx_ni(struct sk_buff *skb);
- int netif_receive_skb_sk(struct sock *sk, struct sk_buff *skb);
+ 	i += tx_ring->count;
+ 	tx_ring->next_to_clean = i;
+ 	u64_stats_update_begin(&tx_ring->syncp);
+@@ -1224,6 +1232,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
+ 
+ 	return !!budget;
+ }
++#undef BULK_FREE_SIZE
+ 
+ #ifdef CONFIG_IXGBE_DCA
+ static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
