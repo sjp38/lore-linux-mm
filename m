@@ -1,201 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DD936B0038
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 17:00:14 -0400 (EDT)
-Received: by ykek143 with SMTP id k143so32943349yke.2
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 14:00:14 -0700 (PDT)
-Received: from mail-yk0-x233.google.com (mail-yk0-x233.google.com. [2607:f8b0:4002:c07::233])
-        by mx.google.com with ESMTPS id b82si2239371ykc.78.2015.09.04.14.00.13
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 641F46B0038
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 18:46:47 -0400 (EDT)
+Received: by pacwi10 with SMTP id wi10so36491371pac.3
+        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 15:46:47 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id ko10si6399885pbc.208.2015.09.04.15.46.45
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Sep 2015 14:00:13 -0700 (PDT)
-Received: by ykdg206 with SMTP id g206so32886127ykd.1
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 14:00:13 -0700 (PDT)
-Date: Fri, 4 Sep 2015 17:00:11 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH v2 3/2] memcg: punt high overage reclaim to
- return-to-userland path
-Message-ID: <20150904210011.GH25329@mtj.duckdns.org>
-References: <20150828220158.GD11089@htj.dyndns.org>
- <20150828220237.GE11089@htj.dyndns.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Sep 2015 15:46:46 -0700 (PDT)
+Date: Sat, 5 Sep 2015 08:46:35 +1000
+From: Dave Chinner <dchinner@redhat.com>
+Subject: Re: slab-nomerge (was Re: [git pull] device mapper changes for 4.3)
+Message-ID: <20150904224635.GA2562@devil.localdomain>
+References: <CA+55aFyepmdpbg9U2Pvp+aHjKmmGCrTK2ywzqfmaOTMXQasYNw@mail.gmail.com>
+ <20150903005115.GA27804@redhat.com>
+ <CA+55aFxpH6-XD97dOsuGvwozyV=28eBsxiKS901h8PFZrxaygw@mail.gmail.com>
+ <20150903060247.GV1933@devil.localdomain>
+ <CA+55aFxftNVWVD7ujseqUDNgbVamrFWf0PVM+hPnrfmmACgE0Q@mail.gmail.com>
+ <20150904032607.GX1933@devil.localdomain>
+ <alpine.DEB.2.11.1509040849460.30848@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150828220237.GE11089@htj.dyndns.org>
+In-Reply-To: <alpine.DEB.2.11.1509040849460.30848@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mike Snitzer <snitzer@redhat.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "dm-devel@redhat.com" <dm-devel@redhat.com>, Alasdair G Kergon <agk@redhat.com>, Joe Thornber <ejt@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, Sami Tolvanen <samitolvanen@google.com>, Viresh Kumar <viresh.kumar@linaro.org>, Heinz Mauelshagen <heinzm@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-Currently, try_charge() tries to reclaim memory synchronously when the
-high limit is breached; however, if the allocation doesn't have
-__GFP_WAIT, synchronous reclaim is skipped.  If a process performs
-only speculative allocations, it can blow way past the high limit.
-This is actually easily reproducible by simply doing "find /".
-slab/slub allocator tries speculative allocations first, so as long as
-there's memory which can be consumed without blocking, it can keep
-allocating memory regardless of the high limit.
+On Fri, Sep 04, 2015 at 08:55:25AM -0500, Christoph Lameter wrote:
+> On Fri, 4 Sep 2015, Dave Chinner wrote:
+> 
+> > There are generic cases where it hurts, so no justification should
+> > be needed for those cases...
+> 
+> Inodes and dentries have constructors. These slabs are not mergeable and
+> will never be because they have cache specific code to be executed on the
+> object.
 
-This patch makes try_charge() always punt the over-high reclaim to the
-return-to-userland path.  If try_charge() detects that high limit is
-breached, it adds the overage to current->memcg_nr_pages_over_high and
-schedules execution of mem_cgroup_handle_over_high() which performs
-synchronous reclaim from the return-to-userland path.
+I know - I said as much early on in this discussion. That's one of
+the generic cases I'm refering to.
 
-As long as kernel doesn't have a run-away allocation spree, this
-should provide enough protection while making kmemcg behave more
-consistently.
+I also said that the fact that they are not merged is really by
+chance, not by good management. They are not being merged because of
+the constructor, not because they have a shrinker. hell, I even said
+that if it comes down to it, we don't even need SLAB_NO_MERGE
+because we can create dummy constructors to prevent merging....
 
-v2: - Switched to reclaiming only the overage caused by current rather
-      than the difference between usage and high as suggested by
-      Michal.
-    - Don't record the memcg which went over high limit.  This makes
-      exit path handling unnecessary.  Dropped.
-    - Drop mentions of avoiding high stack usage from description as
-      suggested by Vladimir.  max limit still triggers direct reclaim.
+> > Really, we don't need some stupidly high bar to jump over here -
+> > whether merging should be allowed can easily be answered with a
+> > simple question: "Does the slab have a shrinker or does it back a
+> > mempool?" If the answer is yes then using SLAB_SHRINKER or
+> > SLAB_MEMPOOL to trigger the no-merge case doesn't need any more
+> > justification from subsystem maintainers at all.
+> 
+> The slab shrinkers do not use mergeable slab caches.
 
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>
----
-Hello,
+Please, go back and read what i've already said.
 
-Updated per previous discussions.
+*Some* shrinkers act on mergable slabs because they have no
+constructor. e.g. the xfs_dquot and xfs_buf shrinkers.  I want to
+keep them separate just like the inode cache is kept separate
+because they have workload based demand peaks in the millions of
+objects and LRU based shrinker reclaim, just like inode caches do.
 
-Thanks.
+That's what I want SLAB_SHRINKER for - to explicitly tell the slab
+cache creation that I have a shrinker on this slab and so it should
+not merge it with others. Every slab that has a shrinker should be
+marked with this flag - we should not be relying on constructors to
+prevent merging of critical slab caches with shrinkers....
 
- include/linux/memcontrol.h |    6 +++++
- include/linux/sched.h      |    3 ++
- include/linux/tracehook.h  |    3 ++
- mm/memcontrol.c            |   47 +++++++++++++++++++++++++++++++++++++--------
- 4 files changed, 51 insertions(+), 8 deletions(-)
+I really don't see the issue here - explicitly encoding and
+documenting the behaviour we've implicitly been relying on for years
+is something we do all the time. Code clarity and documented
+behaviour is a *good thing*.
 
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -402,6 +402,8 @@ static inline int mem_cgroup_inactive_an
- 	return inactive * inactive_ratio < active;
- }
- 
-+void mem_cgroup_handle_over_high(void);
-+
- void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
- 				struct task_struct *p);
- 
-@@ -621,6 +623,10 @@ static inline void mem_cgroup_end_page_s
- {
- }
- 
-+static inline void mem_cgroup_handle_over_high(void)
-+{
-+}
-+
- static inline void mem_cgroup_oom_enable(void)
- {
- }
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1787,6 +1787,9 @@ struct task_struct {
- 	struct mem_cgroup *memcg_in_oom;
- 	gfp_t memcg_oom_gfp_mask;
- 	int memcg_oom_order;
-+
-+	/* number of pages to reclaim on returning to userland */
-+	unsigned int memcg_nr_pages_over_high;
- #endif
- #ifdef CONFIG_UPROBES
- 	struct uprobe_task *utask;
---- a/include/linux/tracehook.h
-+++ b/include/linux/tracehook.h
-@@ -50,6 +50,7 @@
- #include <linux/ptrace.h>
- #include <linux/security.h>
- #include <linux/task_work.h>
-+#include <linux/memcontrol.h>
- struct linux_binprm;
- 
- /*
-@@ -188,6 +189,8 @@ static inline void tracehook_notify_resu
- 	smp_mb__after_atomic();
- 	if (unlikely(current->task_works))
- 		task_work_run();
-+
-+	mem_cgroup_handle_over_high();
- }
- 
- #endif	/* <linux/tracehook.h> */
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -62,6 +62,7 @@
- #include <linux/oom.h>
- #include <linux/lockdep.h>
- #include <linux/file.h>
-+#include <linux/tracehook.h>
- #include "internal.h"
- #include <net/sock.h>
- #include <net/ip.h>
-@@ -1974,6 +1975,31 @@ static int memcg_cpu_hotplug_callback(st
- 	return NOTIFY_OK;
- }
- 
-+/*
-+ * Scheduled by try_charge() to be executed from the userland return path
-+ * and reclaims memory over the high limit.
-+ */
-+void mem_cgroup_handle_over_high(void)
-+{
-+	unsigned int nr_pages = current->memcg_nr_pages_over_high;
-+	struct mem_cgroup *memcg, *pos;
-+
-+	if (likely(!nr_pages))
-+		return;
-+
-+	pos = memcg = get_mem_cgroup_from_mm(current->mm);
-+
-+	do {
-+		if (page_counter_read(&pos->memory) <= pos->high)
-+			continue;
-+		mem_cgroup_events(pos, MEMCG_HIGH, 1);
-+		try_to_free_mem_cgroup_pages(pos, nr_pages, GFP_KERNEL, true);
-+	} while ((pos = parent_mem_cgroup(pos)));
-+
-+	css_put(&memcg->css);
-+	current->memcg_nr_pages_over_high = 0;
-+}
-+
- static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 		      unsigned int nr_pages)
- {
-@@ -2082,17 +2108,22 @@ done_restock:
- 	css_get_many(&memcg->css, batch);
- 	if (batch > nr_pages)
- 		refill_stock(memcg, batch - nr_pages);
--	if (!(gfp_mask & __GFP_WAIT))
--		goto done;
-+
- 	/*
--	 * If the hierarchy is above the normal consumption range,
--	 * make the charging task trim their excess contribution.
-+	 * If the hierarchy is above the normal consumption range, schedule
-+	 * reclaim on returning to userland.  We can perform reclaim here
-+	 * if __GFP_WAIT but let's always punt for simplicity and so that
-+	 * GFP_KERNEL can consistently be used during reclaim.  @memcg is
-+	 * not recorded as it most likely matches current's and won't
-+	 * change in the meantime.  As high limit is checked again before
-+	 * reclaim, the cost of mismatch is negligible.
- 	 */
- 	do {
--		if (page_counter_read(&memcg->memory) <= memcg->high)
--			continue;
--		mem_cgroup_events(memcg, MEMCG_HIGH, 1);
--		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
-+		if (page_counter_read(&memcg->memory) > memcg->high) {
-+			current->memcg_nr_pages_over_high += nr_pages;
-+			set_notify_resume(current);
-+			break;
-+		}
- 	} while ((memcg = parent_mem_cgroup(memcg)));
- done:
- 	return ret;
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+dchinner@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
