@@ -1,110 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AEBC6B0038
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 14:09:24 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so31063313pac.0
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 11:09:23 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id ko10si5405926pbc.208.2015.09.04.11.09.23
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E72E6B0038
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 14:21:47 -0400 (EDT)
+Received: by pacwi10 with SMTP id wi10so31288713pac.3
+        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 11:21:47 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id b15si5436785pbu.250.2015.09.04.11.21.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Sep 2015 11:09:23 -0700 (PDT)
-Received: by pacfv12 with SMTP id fv12so31577283pac.2
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 11:09:23 -0700 (PDT)
-Subject: Re: [RFC PATCH 0/3] Network stack, first user of SLAB/kmem_cache bulk
- free API.
-References: <20150824005727.2947.36065.stgit@localhost>
- <20150904165944.4312.32435.stgit@devil>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Message-ID: <55E9DE51.7090109@gmail.com>
-Date: Fri, 4 Sep 2015 11:09:21 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Sep 2015 11:21:46 -0700 (PDT)
+Date: Fri, 4 Sep 2015 21:21:11 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
+ enabled
+Message-ID: <20150904182110.GE13699@esperanza>
+References: <20150831142049.GV9610@esperanza>
+ <20150901123612.GB8810@dhcp22.suse.cz>
+ <20150901134003.GD21226@esperanza>
+ <20150901150119.GF8810@dhcp22.suse.cz>
+ <20150901165554.GG21226@esperanza>
+ <20150901183849.GA28824@dhcp22.suse.cz>
+ <20150902093039.GA30160@esperanza>
+ <20150903163243.GD10394@mtj.duckdns.org>
+ <20150904111550.GB13699@esperanza>
+ <20150904154448.GA25329@mtj.duckdns.org>
 MIME-Version: 1.0
-In-Reply-To: <20150904165944.4312.32435.stgit@devil>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150904154448.GA25329@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>, netdev@vger.kernel.org, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com
+To: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/04/2015 10:00 AM, Jesper Dangaard Brouer wrote:
-> During TX DMA completion cleanup there exist an opportunity in the NIC
-> drivers to perform bulk free, without introducing additional latency.
->
-> For an IPv4 forwarding workload the network stack is hitting the
-> slowpath of the kmem_cache "slub" allocator.  This slowpath can be
-> mitigated by bulk free via the detached freelists patchset.
->
-> Depend on patchset:
->   http://thread.gmane.org/gmane.linux.kernel.mm/137469
->
-> Kernel based on MMOTM tag 2015-08-24-16-12 from git repo:
->   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
->   Also contains Christoph's patch "slub: Avoid irqoff/on in bulk allocation"
->
->
-> Benchmarking: Single CPU IPv4 forwarding UDP (generator pktgen):
->   * Before: 2043575 pps
->   * After : 2090522 pps
->   * Improvements: +46947 pps and -10.99 ns
->
-> In the before case, perf report shows slub free hits the slowpath:
->   1.98%  ksoftirqd/6  [kernel.vmlinux]  [k] __slab_free.isra.72
->   1.29%  ksoftirqd/6  [kernel.vmlinux]  [k] cmpxchg_double_slab.isra.71
->   0.95%  ksoftirqd/6  [kernel.vmlinux]  [k] kmem_cache_free
->   0.95%  ksoftirqd/6  [kernel.vmlinux]  [k] kmem_cache_alloc
->   0.20%  ksoftirqd/6  [kernel.vmlinux]  [k] __cmpxchg_double_slab.isra.60
->   0.17%  ksoftirqd/6  [kernel.vmlinux]  [k] ___slab_alloc.isra.68
->   0.09%  ksoftirqd/6  [kernel.vmlinux]  [k] __slab_alloc.isra.69
->
-> After the slowpath calls are almost gone:
->   0.22%  ksoftirqd/6  [kernel.vmlinux]  [k] __cmpxchg_double_slab.isra.60
->   0.18%  ksoftirqd/6  [kernel.vmlinux]  [k] ___slab_alloc.isra.68
->   0.14%  ksoftirqd/6  [kernel.vmlinux]  [k] __slab_free.isra.72
->   0.14%  ksoftirqd/6  [kernel.vmlinux]  [k] cmpxchg_double_slab.isra.71
->   0.08%  ksoftirqd/6  [kernel.vmlinux]  [k] __slab_alloc.isra.69
->
->
-> Extra info, tuning SLUB per CPU structures gives further improvements:
->   * slub-tuned: 2124217 pps
->   * patched increase: +33695 pps and  -7.59 ns
->   * before  increase: +80642 pps and -18.58 ns
->
-> Tuning done:
->   echo 256 > /sys/kernel/slab/skbuff_head_cache/cpu_partial
->   echo 9   > /sys/kernel/slab/skbuff_head_cache/min_partial
->
-> Without SLUB tuning, same performance comes with kernel cmdline "slab_nomerge":
->   * slab_nomerge: 2121824 pps
->
-> Test notes:
->   * Notice very fast CPU i7-4790K CPU @ 4.00GHz
->   * gcc version 4.8.3 20140911 (Red Hat 4.8.3-9) (GCC)
->   * kernel 4.1.0-mmotm-2015-08-24-16-12+ #271 SMP
->   * Generator pktgen UDP single flow (pktgen_sample03_burst_single_flow.sh)
->   * Tuned for forwarding:
->    - unloaded netfilter modules
->    - Sysctl settings:
->    - net/ipv4/conf/default/rp_filter = 0
->    - net/ipv4/conf/all/rp_filter = 0
->    - (Forwarding performance is affected by early demux)
->    - net/ipv4/ip_early_demux = 0
->    - net.ipv4.ip_forward = 1
->    - Disabled GRO on NICs
->    - ethtool -K ixgbe3 gro off tso off gso off
->
-> ---
+Hi Tejun, Michal
 
-This is an interesting start.  However I feel like it might work better 
-if you were to create a per-cpu pool for skbs that could be freed and 
-allocated in NAPI context.  So for example we already have 
-napi_alloc_skb, why not just add a napi_free_skb and then make the array 
-of objects to be freed part of a pool that could be used for either 
-allocation or freeing?  If the pool runs empty you just allocate 
-something like 8 or 16 new skb heads, and if you fill it you just free 
-half of the list?
+On Fri, Sep 04, 2015 at 11:44:48AM -0400, Tejun Heo wrote:
+...
+> > I admit I may be mistaken, but if I'm right, we may end up with really
+> > complex memcg reclaim logic trying to closely mimic behavior of buddy
+> > alloc with all its historic peculiarities. That's why I don't want to
+> > rush ahead "fixing" memcg reclaim before an agreement among all
+> > interested people is reached...
+> 
+> I think that's a bit out of proportion.  I'm not suggesting bringing
+> in all complexities of global reclaim.  There's no reason to and what
+> memcg deals with is inherently way simpler than actual memory
+> allocation.  The original patch was about fixing systematic failure
+> around GFP_NOWAIT close to the high limit.  We might want to do
+> background reclaim close to max but as long as high limit functions
+> correctly, that's much less of a problem at least on the v2 interface.
 
-- Alex
+Looking through this thread once again and weighting my arguments vs
+yours, I start to understand that I'm totally wrong and these patches
+are not proper fixes for the problem.
+
+Having these patches in the kernel only helps when we are hitting the
+hard limit, which shouldn't occur often if memory.high works properly.
+Even if memory.high is not used, the only negative effect we would get
+w/o them is allocating a slab from a wrong node or getting a low order
+page where we could get a high order one. Both should be rare and both
+aren't critical. I think I got carried away with all those obscure
+"reclaimer peculiarities" at some point.
+
+Now I think task_work reclaim initially proposed by Tejun would be a
+much better fix.
+
+I'm terribly sorry for being so annoying and stubborn and want to thank
+you for all your feedback!
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
