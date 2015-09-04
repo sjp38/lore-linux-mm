@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id E764F6B0038
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 15:30:05 -0400 (EDT)
-Received: by ykdg206 with SMTP id g206so30767516ykd.1
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 12:30:05 -0700 (PDT)
-Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
-        by mx.google.com with ESMTPS id x138si2067896ywd.152.2015.09.04.12.30.03
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AC576B0038
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 16:29:04 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so34532365pac.2
+        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 13:29:03 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id xi9si5864426pbc.214.2015.09.04.13.29.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Sep 2015 12:30:04 -0700 (PDT)
-Received: by ykdg206 with SMTP id g206so30766359ykd.1
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 12:30:03 -0700 (PDT)
-Date: Fri, 4 Sep 2015 15:30:00 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 0/2] Fix memcg/memory.high in case kmem accounting is
- enabled
-Message-ID: <20150904193000.GG25329@mtj.duckdns.org>
-References: <20150901123612.GB8810@dhcp22.suse.cz>
- <20150901134003.GD21226@esperanza>
- <20150901150119.GF8810@dhcp22.suse.cz>
- <20150901165554.GG21226@esperanza>
- <20150901183849.GA28824@dhcp22.suse.cz>
- <20150902093039.GA30160@esperanza>
- <20150903163243.GD10394@mtj.duckdns.org>
- <20150904111550.GB13699@esperanza>
- <20150904154448.GA25329@mtj.duckdns.org>
- <20150904182110.GE13699@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150904182110.GE13699@esperanza>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Sep 2015 13:29:03 -0700 (PDT)
+Date: Fri, 4 Sep 2015 13:29:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: slab:Fix the unexpected index mapping result of
+ kmalloc_size(INDEX_NODE + 1)
+Message-Id: <20150904132902.5d62a09077435d742d6f2f1b@linux-foundation.org>
+In-Reply-To: <20150807015609.GB15802@js1304-P5Q-DELUXE>
+References: <OF591717D2.930C6B40-ON48257E7D.0017016C-48257E7D.0020AFB4@zte.com.cn>
+	<20150729152803.67f593847050419a8696fe28@linux-foundation.org>
+	<20150731001827.GA15029@js1304-P5Q-DELUXE>
+	<alpine.DEB.2.11.1507310845440.11895@east.gentwo.org>
+	<20150807015609.GB15802@js1304-P5Q-DELUXE>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Christoph Lameter <cl@linux.com>, liu.hailong6@zte.com.cn, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, jiang.xuexin@zte.com.cn, David Rientjes <rientjes@google.com>
 
-Hello, Vladimir.
+On Fri, 7 Aug 2015 10:56:09 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 
-On Fri, Sep 04, 2015 at 09:21:11PM +0300, Vladimir Davydov wrote:
-> Now I think task_work reclaim initially proposed by Tejun would be a
-> much better fix.
+> On Fri, Jul 31, 2015 at 08:57:35AM -0500, Christoph Lameter wrote:
+> > On Fri, 31 Jul 2015, Joonsoo Kim wrote:
+> > 
+> > > I don't think that this fix is right.
+> > > Just "kmalloc_size(INDEX_NODE) * 2" looks insane because it means 192 * 2
+> > > = 384 on his platform. Why we need to check size is larger than 384?
+> > 
+> > Its an arbitrary boundary. Making it large ensures that the smaller caches
+> > stay operational and do not fall back to page sized allocations.
+> 
+> If it is an arbitrary boundary, it would be better to use static value
+> such as "256" rather than kmalloc_size(INDEX_NODE) * 2.
+> Value of kmalloc_size(INDEX_NODE) * 2 can be different in some archs
+> and it is difficult to manage such variation. It would cause this kinds of
+> bug again. I recommand following change. How about it?
+> 
+> -       if (size >= kmalloc_size(INDEX_NODE + 1)
+> +       if (!slab_early_init &&
+> +               size >= kmalloc_size(INDEX_NODE) &&
+> +               size >= 256
+> 
 
-Cool, I'll update the patch.
+Guys, can we please finish this off?  afaict Jianxuexin's original
+patch is considered undesirable, but his machine is still going BUG.
 
-> I'm terribly sorry for being so annoying and stubborn and want to thank
-> you for all your feedback!
-
-Heh, I'm not all that confident about my position.  A lot of it could
-be from lack of experience and failing to see the gradients.  Please
-keep me in check if I get lost.
-
-Thanks a lot!
-
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
