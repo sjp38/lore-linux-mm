@@ -1,216 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 145216B0257
-	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 16:52:14 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so759242wic.0
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 13:52:13 -0700 (PDT)
-Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com. [2a00:1450:400c:c05::22a])
-        by mx.google.com with ESMTPS id i19si75643wjr.127.2015.09.03.13.52.12
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E75F46B0254
+	for <linux-mm@kvack.org>; Thu,  3 Sep 2015 23:26:22 -0400 (EDT)
+Received: by qkcf65 with SMTP id f65so3927278qkc.3
+        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 20:26:22 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b9si1348064qgb.45.2015.09.03.20.26.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Sep 2015 13:52:12 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so2862342wic.1
-        for <linux-mm@kvack.org>; Thu, 03 Sep 2015 13:52:12 -0700 (PDT)
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: [RESEND RFC v4 3/3] mm: make swapin readahead to improve thp collapse rate
-Date: Thu,  3 Sep 2015 23:51:48 +0300
-Message-Id: <1441313508-4276-4-git-send-email-ebru.akagunduz@gmail.com>
-In-Reply-To: <1441313508-4276-1-git-send-email-ebru.akagunduz@gmail.com>
-References: <1441313508-4276-1-git-send-email-ebru.akagunduz@gmail.com>
+        Thu, 03 Sep 2015 20:26:21 -0700 (PDT)
+Date: Fri, 4 Sep 2015 13:26:07 +1000
+From: Dave Chinner <dchinner@redhat.com>
+Subject: Re: slab-nomerge (was Re: [git pull] device mapper changes for 4.3)
+Message-ID: <20150904032607.GX1933@devil.localdomain>
+References: <CA+55aFyepmdpbg9U2Pvp+aHjKmmGCrTK2ywzqfmaOTMXQasYNw@mail.gmail.com>
+ <20150903005115.GA27804@redhat.com>
+ <CA+55aFxpH6-XD97dOsuGvwozyV=28eBsxiKS901h8PFZrxaygw@mail.gmail.com>
+ <20150903060247.GV1933@devil.localdomain>
+ <CA+55aFxftNVWVD7ujseqUDNgbVamrFWf0PVM+hPnrfmmACgE0Q@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFxftNVWVD7ujseqUDNgbVamrFWf0PVM+hPnrfmmACgE0Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mike Snitzer <snitzer@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "dm-devel@redhat.com" <dm-devel@redhat.com>, Alasdair G Kergon <agk@redhat.com>, Joe Thornber <ejt@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, Sami Tolvanen <samitolvanen@google.com>, Viresh Kumar <viresh.kumar@linaro.org>, Heinz Mauelshagen <heinzm@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-This patch makes swapin readahead to improve thp collapse rate.
-When khugepaged scanned pages, there can be a few of the pages
-in swap area.
+On Thu, Sep 03, 2015 at 08:02:40AM -0700, Linus Torvalds wrote:
+> On Wed, Sep 2, 2015 at 11:02 PM, Dave Chinner <dchinner@redhat.com> wrote:
+> > On Wed, Sep 02, 2015 at 06:21:02PM -0700, Linus Torvalds wrote:
+> > Right, it's not xyzzy-specific where 'xyzzy' is a subsystem. The
+> > flag application is actually *object specific*. That is, the use of
+> > the individual objects that determines whether it should be merged
+> > or not.
+> 
+> Yes.
+> 
+> I do agree that something like SLAB_NO_MERGE can make sense on an
+> actual object-specific level, if you have very specific allocation
+> pattern knowledge and can show that the merging actually hurts.
 
-With the patch THP can collapse 4kB pages into a THP when
-there are up to max_ptes_swap swap ptes in a 2MB range.
+There are generic cases where it hurts, so no justification should
+be needed for those cases...
 
-The patch was tested with a test program that allocates
-800MB of memory, writes to it, and then sleeps. I force
-the system to swap out all. Afterwards, the test program
-touches the area by writing, it skips a page in each
-20 pages of the area.
+> > e.g. Slab fragmentation levels are affected more than anything by
+> > mixing objects with different life times in the same slab.  i.e. if
+> > we free all the short lived objects from a page but there is one
+> > long lived object on the page then that page is pinned and we free
+> > no memory. Do that to enough pages in the slab, and we end up with a
+> > badly fragmented slab.
+> 
+> The thing is, *if* you can show that kind of behavior for a particular
+> slab, and have numbers for it, then mark that slab as no-merge, and
+> document why you did it.
 
-Without the patch, system did not swap in readahead.
-THP rate was %47 of the program of the memory, it
-did not change over time.
+The double standard is the problem here. No notification, proof,
+discussion or review was needed to turn on slab merging for
+everyone, but you're setting a very high bar to jump if anyone wants
+to turn it off in their code.
 
-With this patch, after 10 minutes of waiting khugepaged had
-collapsed %90 of the program's memory.
+> And quite frankly, I don't actually think you have the numbers to show
+> that theoretical bad behavior.
 
-Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Acked-by: Rik van Riel <riel@redhat.com>
----
-Changes in v2:
- - Use FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT flag
-   instead of 0x0 when called do_swap_page from
-   __collapse_huge_page_swapin (Rik van Riel)
+I don't keep numbers close handy. I've been dealing with these
+problems for ten years, to I just know what workloads demonstrate
+this "theoretical bad behaviour" within specific slabs and test them
+when relevant. I'll do a couple of quick "merging is better"
+verification tests this afternoon, but other than that I don't have
+time in the next couple of weeks...
 
-Changes in v3:
- - Catch VM_FAULT_HWPOISON and VM_FAULT_OOM return cases
-   in __collapse_huge_page_swapin (Kirill A. Shutemov)
+But speaking of workloads, internal inode cache slab fragmentation
+is simple to reproduce on any filesystem. XFS just happens to be the
+only one that really actively manages it as a result of long term
+developer awareness of the problem. I first tripped over it in early
+2005 with SpecSFS, and then with other similar NFS benchmarks like
+filebench.  That's where Christoph Lameter was introduced to the
+problem, too:
 
-Changes in v4:
- - Fix broken indentation reverting if (...) statement in
-   __collapse_huge_page_swapin (Kirill A. Shutemov)
- - Fix check statement of ret (Kirill A. Shutemov)
- - Use swapped_in name instead of swap_pte
+https://lwn.net/Articles/371892/
 
-			After swapped out
--------------------------------------------------------------------
-              | Anonymous | AnonHugePages | Swap      | Fraction  |
--------------------------------------------------------------------
-With patch    | 253720 kB | 251904 kB     | 546284 kB |    %99    |
--------------------------------------------------------------------
-Without patch | 238160 kB | 235520 kB     | 561844 kB |    %98    |
--------------------------------------------------------------------
+" The problem is that sparse use of objects in slab caches can cause
+large amounts of memory to become unusable. The first ideas to
+address this were developed in 2005 by various people."
 
-                        After swapped in
--------------------------------------------------------------------
-              | Anonymous | AnonHugePages | Swap      | Fraction  |
--------------------------------------------------------------------
-With patch    | 533532 kB | 528384 kB     | 266472 kB |    %90    |
--------------------------------------------------------------------
-Without patch | 499956 kB | 235520 kB     | 300048 kB |    %47    |
--------------------------------------------------------------------
+FYI, with appropriate manual "drop slab" hacks during the benchmark,
+we could get 20-25% higher throughput from the NFS server because
+dropping the entire slab cache before the measurement phase meant we
+avoided the slab fragmentation issue and had ~50% more free memory
+to use for the page cache during the measurement period...
 
+Similar problems have been reported over the years by users with
+backup programs or scripts that used find, rsync and/or 'cp -R' on
+large filesystems. It used to be easy to cause these sorts of
+problems in the XFS inode cache. There's quite a few other
+workloads, but it easily to reproduce inode slab fragmetnation with
+find, bulkstat and cp. Basically all you need to do is populate the
+inode cache, randomise the LRU order, then trigger combined inode
+cache and memory demand.  It's that simple.
 
- include/linux/mm.h                 |  4 ++++
- include/trace/events/huge_memory.h | 24 +++++++++++++++++++++
- mm/huge_memory.c                   | 43 ++++++++++++++++++++++++++++++++++++++
- mm/memory.c                        |  2 +-
- 4 files changed, 72 insertions(+), 1 deletion(-)
+The biggest problem with using a workload like this to "prove" that
+slab merging degrades behaviour is that we don't know what slabs
+have been merged. Hence it's extremely hard to generate a workload
+definition that demonstrates it. Indeed, change kernel config
+options, structures change size and the slab is merged with
+different objects, so the workload that generates problems has to be
+changed, too.  And it doesn't even need to be a kernel with a
+different config - just a different set of modules loaded because
+the hardware and software config is different will change what slabs
+are merged.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index bf6f117..f28d98a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -29,6 +29,10 @@ struct user_struct;
- struct writeback_control;
- struct bdi_writeback;
- 
-+extern int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+			unsigned long address, pte_t *page_table, pmd_t *pmd,
-+			unsigned int flags, pte_t orig_pte);
-+
- #ifndef CONFIG_NEED_MULTIPLE_NODES	/* Don't use mapnrs, do it properly */
- extern unsigned long max_mapnr;
- 
-diff --git a/include/trace/events/huge_memory.h b/include/trace/events/huge_memory.h
-index c2112fd..e530210 100644
---- a/include/trace/events/huge_memory.h
-+++ b/include/trace/events/huge_memory.h
-@@ -97,6 +97,30 @@ TRACE_EVENT(mm_collapse_huge_page_isolate,
- 		khugepaged_status_string[__entry->status])
- );
- 
-+TRACE_EVENT(mm_collapse_huge_page_swapin,
-+
-+	TP_PROTO(struct mm_struct *mm, int swapped_in, int ret),
-+
-+	TP_ARGS(mm, swapped_in, ret),
-+
-+	TP_STRUCT__entry(
-+		__field(struct mm_struct *, mm)
-+		__field(int, swapped_in)
-+		__field(int, ret)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->mm = mm;
-+		__entry->swapped_in = swapped_in;
-+		__entry->ret = ret;
-+	),
-+
-+	TP_printk("mm=%p, swapped_in=%d, ret=%d",
-+		__entry->mm,
-+		__entry->swapped_in,
-+		__entry->ret)
-+);
-+
- #endif /* __HUGE_MEMORY_H */
- #include <trace/define_trace.h>
- 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index cb9ab46..f420ef8 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2529,6 +2529,47 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
- 	return true;
- }
- 
-+/*
-+ * Bring missing pages in from swap, to complete THP collapse.
-+ * Only done if khugepaged_scan_pmd believes it is worthwhile.
-+ *
-+ * Called and returns without pte mapped or spinlocks held,
-+ * but with mmap_sem held to protect against vma changes.
-+ */
-+
-+static void __collapse_huge_page_swapin(struct mm_struct *mm,
-+					struct vm_area_struct *vma,
-+					unsigned long address, pmd_t *pmd,
-+					pte_t *pte)
-+{
-+	unsigned long _address;
-+	pte_t pteval = *pte;
-+	int swapped_in = 0, ret = 0;
-+
-+	pte = pte_offset_map(pmd, address);
-+	for (_address = address; _address < address + HPAGE_PMD_NR*PAGE_SIZE;
-+	     pte++, _address += PAGE_SIZE) {
-+		pteval = *pte;
-+		if (!is_swap_pte(pteval))
-+			continue;
-+		swapped_in++;
-+		ret = do_swap_page(mm, vma, _address, pte, pmd,
-+				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
-+				   pteval);
-+		if (ret & VM_FAULT_ERROR) {
-+			trace_mm_collapse_huge_page_swapin(mm, swapped_in, 0);
-+			return;
-+		}
-+		/* pte is unmapped now, we need to map it */
-+		pte = pte_offset_map(pmd, _address);
-+	}
-+	pte--;
-+	pte_unmap(pte);
-+	trace_mm_collapse_huge_page_swapin(mm, swapped_in, 1);
-+}
-+
-+
-+
- static void collapse_huge_page(struct mm_struct *mm,
- 				   unsigned long address,
- 				   struct page **hpage,
-@@ -2600,6 +2641,8 @@ static void collapse_huge_page(struct mm_struct *mm,
- 
- 	anon_vma_lock_write(vma->anon_vma);
- 
-+	__collapse_huge_page_swapin(mm, vma, address, pmd, pte);
-+
- 	pte = pte_offset_map(pmd, address);
- 	pte_ptl = pte_lockptr(mm, pmd);
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 388dcf9..d3a446c 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2442,7 +2442,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
-  * We return with the mmap_sem locked or unlocked in the same cases
-  * as does filemap_fault().
-  */
--static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pte_t *page_table, pmd_t *pmd,
- 		unsigned int flags, pte_t orig_pte)
- {
+IOWs, what produces a problem on one kernel on one machine will not
+reproduce the same problem on a different kernel or machine. Numbers
+are a crapshoot here, especially as the cause of the problem is
+trivially easy to understand.
+
+Linus, you always say that at some point you've just got to step
+back, read the code and understand the underlying issue that is
+being dealt with because some things are way too complex to
+reproduce reliably. This is one of those cases - it's obvious that
+slab merging does not fix or prevent internal slab cache
+fragmentation and that it only serves to minimise the impact of
+fragmentation by amortising it across multiple similar slabs.
+Really, this is the best we can do with passive slab caches where
+you can't control freeing patterns.
+
+However, we also have actively managed slab caches, and they can and
+do work to prevent fragmetnation and clear it quickly when it
+happens. Merging these actively managed slabs with other passive
+slab is just a bad idea because the passive slab objects can only
+reduce the effectiveness of the active management algorithms. We
+don't need numbers to understand this - it's clear and obvious from
+an algorithmic point of view.
+
+> In contrast, there really *are*
+> numbers to show the advantages of merging.
+
+I have never denied that. Please listen to what I'm saying.
+
+> So the fragmentation argument has been shown to generally be in favor
+> of merging, _not_ in favor of that "no-merge" behavior.
+
+Yes, all the numbers and research I've seen has been on passive
+slab cache behaviour. I *agree* that passive slab caches should be
+merged, but I don't recall anyone documenting the behavioural
+distinction between active/passive slabs before now, even though
+it's been something I've had in my head for several years. Actively
+managed slabs are very different in their behaviour to passive
+slabs, and so what holds true for passive slabs is not necessarily
+true for actively managed slabs.
+
+Really, we don't need some stupidly high bar to jump over here -
+whether merging should be allowed can easily be answered with a
+simple question: "Does the slab have a shrinker or does it back a
+mempool?" If the answer is yes then using SLAB_SHRINKER or
+SLAB_MEMPOOL to trigger the no-merge case doesn't need any more
+justification from subsystem maintainers at all.
+
+Cheers,
+
+Dave.
 -- 
-1.9.1
+Dave Chinner
+dchinner@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
