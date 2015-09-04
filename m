@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B5C0A6B0255
-	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 13:00:56 -0400 (EDT)
-Received: by pacwi10 with SMTP id wi10so29486322pac.3
-        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 10:00:56 -0700 (PDT)
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A66036B0256
+	for <linux-mm@kvack.org>; Fri,  4 Sep 2015 13:01:09 -0400 (EDT)
+Received: by iofb144 with SMTP id b144so30846311iof.1
+        for <linux-mm@kvack.org>; Fri, 04 Sep 2015 10:01:09 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id il4si5188625pbb.177.2015.09.04.10.00.55
+        by mx.google.com with ESMTPS id na7si456183pdb.93.2015.09.04.10.01.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Sep 2015 10:00:55 -0700 (PDT)
-Subject: [RFC PATCH 1/3] net: introduce kfree_skb_bulk() user of
- kmem_cache_free_bulk()
+        Fri, 04 Sep 2015 10:01:09 -0700 (PDT)
+Subject: [RFC PATCH 2/3] net: NIC helper API for building array of skbs to
+ free
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Fri, 04 Sep 2015 19:00:53 +0200
-Message-ID: <20150904170046.4312.38018.stgit@devil>
+Date: Fri, 04 Sep 2015 19:01:06 +0200
+Message-ID: <20150904170104.4312.47707.stgit@devil>
 In-Reply-To: <20150904165944.4312.32435.stgit@devil>
 References: <20150904165944.4312.32435.stgit@devil>
 MIME-Version: 1.0
@@ -24,147 +24,97 @@ List-ID: <linux-mm.kvack.org>
 To: netdev@vger.kernel.org, akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, aravinda@linux.vnet.ibm.com, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com
 
-Introduce the first user of SLAB bulk free API kmem_cache_free_bulk(),
-in the network stack in form of function kfree_skb_bulk() which bulk
-free SKBs (not skb clones or skb->head, yet).
+The NIC device drivers are expected to use this small helper API, when
+building up an array of objects/skbs to bulk free, while (loop)
+processing objects to free.  Objects to be free'ed later is added
+(dev_free_waitlist_add) to an array and flushed if the array runs
+full.  After processing the array is flushed (dev_free_waitlist_flush).
+The array should be stored on the local stack.
 
-As this is the third user of SKB reference decrementing, split out
-refcnt decrement into helper function and use this in all call points.
+Usage e.g. during TX completion loop the NIC driver can replace
+dev_consume_skb_any() with an "add" and after the loop a "flush".
+
+For performance reasons the compiler should inline most of these
+functions.
 
 Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
 ---
- include/linux/skbuff.h |    1 +
- net/core/skbuff.c      |   87 +++++++++++++++++++++++++++++++++++++++---------
- 2 files changed, 71 insertions(+), 17 deletions(-)
+ include/linux/netdevice.h |   62 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)
 
-diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
-index b97597970ce7..e5f1e007723b 100644
---- a/include/linux/skbuff.h
-+++ b/include/linux/skbuff.h
-@@ -762,6 +762,7 @@ static inline struct rtable *skb_rtable(const struct sk_buff *skb)
+diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
+index 05b9a694e213..d0133e778314 100644
+--- a/include/linux/netdevice.h
++++ b/include/linux/netdevice.h
+@@ -2935,6 +2935,68 @@ static inline void dev_consume_skb_any(struct sk_buff *skb)
+ 	__dev_kfree_skb_any(skb, SKB_REASON_CONSUMED);
  }
  
- void kfree_skb(struct sk_buff *skb);
-+void kfree_skb_bulk(struct sk_buff **skbs, unsigned int size);
- void kfree_skb_list(struct sk_buff *segs);
- void skb_tx_error(struct sk_buff *skb);
- void consume_skb(struct sk_buff *skb);
-diff --git a/net/core/skbuff.c b/net/core/skbuff.c
-index 429b407b4fe6..034545934158 100644
---- a/net/core/skbuff.c
-+++ b/net/core/skbuff.c
-@@ -661,26 +661,83 @@ void __kfree_skb(struct sk_buff *skb)
- }
- EXPORT_SYMBOL(__kfree_skb);
- 
-+/*
-+ *	skb_dec_and_test - Helper to drop ref to SKB and see is ready to free
-+ *	@skb: buffer to decrement reference
++/* The NIC device drivers are expected to use this small helper API,
++ * when building up an array of objects/skbs to bulk free, while
++ * (loop) processing objects to free.  Objects to be free'ed later is
++ * added (dev_free_waitlist_add) to an array and flushed if the array
++ * runs full.  After processing the array is flushed (dev_free_waitlist_flush).
++ * The array should be stored on the local stack.
 + *
-+ *	Drop a reference to the buffer, and return true if it is ready
-+ *	to free. Which is if the usage count has hit zero or is equal to 1.
++ * Usage e.g. during TX completion loop the NIC driver can replace
++ * dev_consume_skb_any() with an "add" and after the loop a "flush".
 + *
-+ *	This is performance critical code that should be inlined.
++ * For performance reasons the compiler should inline most of these
++ * functions.
 + */
-+static inline bool skb_dec_and_test(struct sk_buff *skb)
++struct dev_free_waitlist {
++	struct sk_buff **skbs;
++	unsigned int skb_cnt;
++};
++
++static void __dev_free_waitlist_bulkfree(struct dev_free_waitlist *wl)
 +{
-+	if (unlikely(!skb))
-+		return false;
-+	if (likely(atomic_read(&skb->users) == 1))
-+		smp_rmb();
-+	else if (likely(!atomic_dec_and_test(&skb->users)))
-+		return false;
-+	/* If reaching here SKB is ready to free */
-+	return true;
++	/* Cannot bulk free from interrupt context or with IRQs
++	 * disabled, due to how SLAB bulk API works (and gain it's
++	 * speedup).  This can e.g. happen due to invocation from
++	 * netconsole/netpoll.
++	 */
++	if (unlikely(in_irq() || irqs_disabled())) {
++		int i;
++
++		for (i = 0; i < wl->skb_cnt; i++)
++			dev_consume_skb_irq(wl->skbs[i]);
++	} else {
++		/* Likely fastpath, don't call with cnt == 0 */
++		kfree_skb_bulk(wl->skbs, wl->skb_cnt);
++	}
 +}
 +
- /**
-  *	kfree_skb - free an sk_buff
-  *	@skb: buffer to free
-  *
-  *	Drop a reference to the buffer and free it if the usage count has
-- *	hit zero.
-+ *	hit zero or is equal to 1.
-  */
- void kfree_skb(struct sk_buff *skb)
- {
--	if (unlikely(!skb))
--		return;
--	if (likely(atomic_read(&skb->users) == 1))
--		smp_rmb();
--	else if (likely(!atomic_dec_and_test(&skb->users)))
--		return;
--	trace_kfree_skb(skb, __builtin_return_address(0));
--	__kfree_skb(skb);
-+	if (skb_dec_and_test(skb)) {
-+		trace_kfree_skb(skb, __builtin_return_address(0));
-+		__kfree_skb(skb);
-+	}
- }
- EXPORT_SYMBOL(kfree_skb);
- 
-+/**
-+ *	kfree_skb_bulk - bulk free SKBs when refcnt allows to
-+ *	@skbs: array of SKBs to free
-+ *	@size: number of SKBs in array
-+ *
-+ *	If SKB refcnt allows for free, then release any auxiliary data
-+ *	and then bulk free SKBs to the SLAB allocator.
-+ *
-+ *	Note that interrupts must be enabled when calling this function.
-+ */
-+void kfree_skb_bulk(struct sk_buff **skbs, unsigned int size)
++static inline void dev_free_waitlist_flush(struct dev_free_waitlist *wl)
 +{
-+	int i;
-+	size_t cnt = 0;
++	/* Flush the waitlist, but only if any objects remain, as bulk
++	 * freeing "zero" objects is not supported and plus it avoids
++	 * pointless function calls.
++	 */
++	if (likely(wl->skb_cnt))
++		__dev_free_waitlist_bulkfree(wl);
++}
 +
-+	for (i = 0; i < size; i++) {
-+		struct sk_buff *skb = skbs[i];
-+
-+		if (!skb_dec_and_test(skb))
-+			continue; /* skip skb, not ready to free */
-+
-+		/* Construct an array of SKBs, ready to be free'ed and
-+		 * cleanup all auxiliary, before bulk free to SLAB.
-+		 * For now, only handle non-cloned SKBs, related to
-+		 * SLAB skbuff_head_cache
-+		 */
-+		if (skb->fclone == SKB_FCLONE_UNAVAILABLE) {
-+			skb_release_all(skb);
-+			skbs[cnt++] = skb;
-+		} else {
-+			/* SKB was a clone, don't handle this case */
-+			__kfree_skb(skb);
-+		}
-+	}
-+	if (likely(cnt)) {
-+		kmem_cache_free_bulk(skbuff_head_cache, cnt, (void **) skbs);
++static __always_inline void dev_free_waitlist_add(struct dev_free_waitlist *wl,
++						  struct sk_buff *skb,
++						  unsigned int max)
++{
++	/* It is recommended that max is a builtin constant, as this
++	 * saves one register when inlined. Catch offenders with:
++	 * BUILD_BUG_ON(!__builtin_constant_p(max));
++	 */
++	wl->skbs[wl->skb_cnt++] = skb;
++	if (wl->skb_cnt == max) {
++		/* Detect when waitlist array is full, then flush and reset */
++		__dev_free_waitlist_bulkfree(wl);
++		wl->skb_cnt = 0;
 +	}
 +}
-+EXPORT_SYMBOL(kfree_skb_bulk);
 +
- void kfree_skb_list(struct sk_buff *segs)
- {
- 	while (segs) {
-@@ -722,14 +779,10 @@ EXPORT_SYMBOL(skb_tx_error);
-  */
- void consume_skb(struct sk_buff *skb)
- {
--	if (unlikely(!skb))
--		return;
--	if (likely(atomic_read(&skb->users) == 1))
--		smp_rmb();
--	else if (likely(!atomic_dec_and_test(&skb->users)))
--		return;
--	trace_consume_skb(skb);
--	__kfree_skb(skb);
-+	if (skb_dec_and_test(skb)) {
-+		trace_consume_skb(skb);
-+		__kfree_skb(skb);
-+	}
- }
- EXPORT_SYMBOL(consume_skb);
- 
+ int netif_rx(struct sk_buff *skb);
+ int netif_rx_ni(struct sk_buff *skb);
+ int netif_receive_skb_sk(struct sock *sk, struct sk_buff *skb);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
