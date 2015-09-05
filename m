@@ -1,60 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id BFD2C6B0038
-	for <linux-mm@kvack.org>; Sat,  5 Sep 2015 06:11:42 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so47864756pac.0
-        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 03:11:42 -0700 (PDT)
-Received: from COL004-OMC1S14.hotmail.com (col004-omc1s14.hotmail.com. [65.55.34.24])
-        by mx.google.com with ESMTPS id rd1si9212338pdb.167.2015.09.05.03.11.41
+Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id EE1236B0038
+	for <linux-mm@kvack.org>; Sat,  5 Sep 2015 07:18:33 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so48689421ioi.2
+        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 04:18:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q2si9494027pdi.59.2015.09.05.04.18.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 05 Sep 2015 03:11:41 -0700 (PDT)
-Message-ID: <COL130-W64DF8D947992A52E4CBE40B9560@phx.gbl>
-From: Chen Gang <xili_gchen_5257@hotmail.com>
-Subject: Re: [PATCH] mm/mmap.c: Only call vma_unlock_anon_vm() when failure
- occurs in expand_upwards() and expand_downwards()
-Date: Sat, 5 Sep 2015 18:11:40 +0800
-In-Reply-To: <55EAC021.3080205@hotmail.com>
-References: 
- <COL130-W9593F65D7C12B5353FE079B96B0@phx.gbl>,<55E5AD17.6060901@hotmail.com>
- <COL130-W4895D78CDAEA273AB88C53B96A0@phx.gbl>,<55E96E01.5010605@hotmail.com>
- <COL130-W49B21394779B6662272AD0B9570@phx.gbl>,<55EAC021.3080205@hotmail.com>
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 05 Sep 2015 04:18:33 -0700 (PDT)
+Date: Sat, 5 Sep 2015 13:18:25 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH 0/3] Network stack, first user of SLAB/kmem_cache
+ bulk free API.
+Message-ID: <20150905131825.6c04837d@redhat.com>
+In-Reply-To: <alpine.DEB.2.11.1509041844190.2499@east.gentwo.org>
+References: <20150824005727.2947.36065.stgit@localhost>
+	<20150904165944.4312.32435.stgit@devil>
+	<55E9DE51.7090109@gmail.com>
+	<alpine.DEB.2.11.1509041354560.993@east.gentwo.org>
+	<55EA0172.2040505@gmail.com>
+	<alpine.DEB.2.11.1509041844190.2499@east.gentwo.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>
-Cc: Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>, Chen Gang <gchen_5i5j@21cn.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com, brouer@redhat.com
 
-SGVsbG8gQWxsOgoKSSBoYXZlIHNlbmQgMiBuZXcgcGF0Y2hlcyBhYm91dCBtbSwgYW5kIDEgcGF0
-Y2ggZm9yIGFyY2ggbWV0YWcgdmlhIG15CjIxY24gbWFpbC4gQ291bGQgYW55IG1lbWJlcnMgaGVs
-cCB0byB0ZWxsIG1lLCB3aGV0aGVyIGhlL3NoZSBoYXZlCnJlY2VpdmVkIHRoZSBwYXRjaGVzIG9y
-IG5vdD8KCkF0IHByZXNlbnQ6CgotIEZvciBDaGluZXNlIHNpdGU6IHFxLCBzb2h1LCBzaW5hLCAx
-NjMsIDIxY24gLi4uIGl0IHNlZW1zIG9ubHkgMjFjbiBPSwoocXEgaXMgbm90IGFjY2VwdGVkLCBz
-b2h1LCBzaW5hLCBhbmQgMTYzIHN1cHBvcnRzIHBsYWluIHRleHQgYmFkbHkpLgoKLSBnbWFpbCBj
-YW5uJ3Qgc2VuZCBwYXRjaGVzIChidXQgY2FuIHJlY2VpdmUgbWFpbCB2aWEgcXEgbWFpbCBhZGRy
-ZXNzKSwKaG90bWFpbCBjYW4gb25seSBzZW5kIHBhdGNoZXMgZnJvbSB3ZWJzaXRlLgoKLSBJZiAy
-MWNuIG1haWwgZG9lcyBub3Qgd29yayB3ZWxsLCBJIGd1ZXNzLCB0aGUgb25seSB3YXkgZm9yIG1l
-IGlzCiJzZW5kIHBhdGNoIGluIGF0dGFjaG1lbnQgaW4gbXkgaG90bWFpbCB3ZWJzaXRlIi4KCgpX
-ZWxjb21lIGFueSBpZGVhcywgc3VnZ2VzdGlvbnMsIG9yIGNvbXBsZXRpb24uCgpUaGFua3MuCgpP
-biA5LzQvMTUgMTg6MDksIENoZW4gR2FuZyB3cm90ZToKPiBIZWxsbyBhbGw6Cj4KPiBJdCBzZWVt
-cyAyMWNuIG1haWwgY2FuIGJlIGFjY2VwdGVkIGJ5IG91ciBtYWlsaW5nIGxpc3QgKEkgZGlkbid0
-IHJlY2VpdmUKPiBhbnkgcmVqZWN0aXZlIG5vdGlmaWNhdGlvbiBtYWlsIGZyb20gb3VyIG1haWxp
-bmcgbGlzdCkuCj4KPiBJZiBpdCBpcyBuZWNlc3NhcnkgdG8gc2VuZCB0aGUgcGF0Y2ggYWdhaW4g
-dmlhIGdpdCBjbGllbnQsIHBsZWFzZSBsZXQgbWUKPiBrbm93LCBJIHNoYWxsIHRyeSB0byBzZW5k
-IGl0IGFnYWluIHdpdGggbXkgMjFjbiBtYWlsIGFkZHJlc3MgdmlhIGdpdAo+IGNsaWVudC4KPgo+
-IFdlbGNvbWUgYW55IGlkZWFzLCBzdWdnZXN0aW9ucywgYW5kIGNvbXBsZXRpb25zLgo+Cj4gVGhh
-bmtzLgo+Cj4gT24gOS8xLzE1IDIxOjQ5LCBDaGVuIEdhbmcgd3JvdGU6Cj4+Cj4+IFNvcnJ5IGZv
-ciB0aGUgaW5jb3JyZWN0IGZvcm1hdCBvZiB0aGUgcGF0Y2guIFNvIEkgcHV0IHRoZSBwYXRjaCBp
-bnRvIHRoZQo+PiBhdHRhY2htZW50IHdoaWNoIGdlbmVyYXRlZCBieSAiZ2l0IGZvcm1hdC1wYXRj
-aCAtTSBIRUFEXiIuIFBsZWFzZSBoZWxwCj4+IGNoZWNrLCB0aGFua3MuCj4+Cj4+IE5leHQsIEkg
-c2hhbGwgdHJ5IHRvIGZpbmQgYW5vdGhlciBtYWlsIGFkZHJlc3Mgd2hpY2ggY2FuIGJlIGFjY2Vw
-dGVkIGJ5Cj4+IGJvdGggQ2hpbmEgYW5kIG91ciBtYWlsaW5nIGxpc3QuCj4+Cj4+IFRoYW5rcy4K
-Pj4KPgo+Cj4gVGhhbmtzLgo+IC0tCj4gQ2hlbiBHYW5nICizwrjVKQo+Cj4gT3Blbiwgc2hhcmUs
-IGFuZCBhdHRpdHVkZSBsaWtlIGFpciwgd2F0ZXIsIGFuZCBsaWZlIHdoaWNoIEdvZCBibGVzc2Vk
-Cj4KPgoKLS0KQ2hlbiBHYW5nICizwrjVKQoKT3Blbiwgc2hhcmUsIGFuZCBhdHRpdHVkZSBsaWtl
-IGFpciwgd2F0ZXIsIGFuZCBsaWZlIHdoaWNoIEdvZCBibGVzc2VkCiAJCSAJICAgCQkgIA==
+On Fri, 4 Sep 2015 18:45:13 -0500 (CDT)
+Christoph Lameter <cl@linux.com> wrote:
+
+> On Fri, 4 Sep 2015, Alexander Duyck wrote:
+> > Right, but one of the reasons for Jesper to implement the bulk alloc/free is
+> > to avoid the cmpxchg that is being used to get stuff into or off of the per
+> > cpu lists.
+> 
+> There is no full cmpxchg used for the per cpu lists. Its a cmpxchg without
+> lock semantics which is very cheap.
+
+The double_cmpxchg without lock prefix still cost 9 cycles, which is
+very fast but still a cost (add approx 19 cycles for a lock prefix).
+
+It is slower than local_irq_disable + local_irq_enable that only cost
+7 cycles, which the bulking call uses.  (That is the reason bulk calls
+with 1 object can almost compete with fastpath).
+
+
+> > In the case of network drivers they are running in softirq context almost
+> > exclusively.  As such it is useful to have a set of buffers that can be
+> > acquired or freed from this context without the need to use any
+> > synchronization primitives.  Then once the softirq context ends then we can
+> > free up some or all of the resources back to the slab allocator.
+> 
+> That is the case in the slab allocators.
+
+There is a potential for taking advantage of this softirq context,
+which is basically what my qmempool implementation did.
+
+But we have now optimized the slub allocator to an extend that (in case
+of slab-tuning or slab_nomerge) is faster than my qmempool implementation.
+
+Thus, I would like a smaller/slimmer layer than qmempool.  We do need
+some per CPU cache for allocations, like Alex suggests, but I'm not
+sure we need that for the free side.  For now I'm returning
+objects/skbs directly to slub, and is hoping enough objects can be
+merged in a detached freelist, which allow me to return several objects
+with a single locked double_cmpxchg.
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
