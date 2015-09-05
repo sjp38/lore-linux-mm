@@ -1,80 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id EE1236B0038
-	for <linux-mm@kvack.org>; Sat,  5 Sep 2015 07:18:33 -0400 (EDT)
-Received: by ioiz6 with SMTP id z6so48689421ioi.2
-        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 04:18:33 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q2si9494027pdi.59.2015.09.05.04.18.32
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BBD96B0038
+	for <linux-mm@kvack.org>; Sat,  5 Sep 2015 10:04:01 -0400 (EDT)
+Received: by oixx17 with SMTP id x17so25567095oix.0
+        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 07:04:00 -0700 (PDT)
+Received: from COL004-OMC1S19.hotmail.com (col004-omc1s19.hotmail.com. [65.55.34.29])
+        by mx.google.com with ESMTPS id j5si10217654pdd.119.2015.09.05.07.04.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Sep 2015 04:18:33 -0700 (PDT)
-Date: Sat, 5 Sep 2015 13:18:25 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC PATCH 0/3] Network stack, first user of SLAB/kmem_cache
- bulk free API.
-Message-ID: <20150905131825.6c04837d@redhat.com>
-In-Reply-To: <alpine.DEB.2.11.1509041844190.2499@east.gentwo.org>
-References: <20150824005727.2947.36065.stgit@localhost>
-	<20150904165944.4312.32435.stgit@devil>
-	<55E9DE51.7090109@gmail.com>
-	<alpine.DEB.2.11.1509041354560.993@east.gentwo.org>
-	<55EA0172.2040505@gmail.com>
-	<alpine.DEB.2.11.1509041844190.2499@east.gentwo.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 05 Sep 2015 07:04:00 -0700 (PDT)
+Message-ID: <COL130-W64A6555222F8CEDA513171B9560@phx.gbl>
+Content-Type: multipart/mixed;
+	boundary="_148e8dfe-9e04-4d70-ac9b-d0cebaa2b38f_"
+From: Chen Gang <xili_gchen_5257@hotmail.com>
+Subject: [PATCH] mm/mmap.c: Remove useless statement "vma = NULL" in
+  find_vma()
+Date: Sat, 5 Sep 2015 22:03:59 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com, brouer@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "oleg@redhat.com" <oleg@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
 
-On Fri, 4 Sep 2015 18:45:13 -0500 (CDT)
-Christoph Lameter <cl@linux.com> wrote:
+--_148e8dfe-9e04-4d70-ac9b-d0cebaa2b38f_
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-> On Fri, 4 Sep 2015, Alexander Duyck wrote:
-> > Right, but one of the reasons for Jesper to implement the bulk alloc/free is
-> > to avoid the cmpxchg that is being used to get stuff into or off of the per
-> > cpu lists.
-> 
-> There is no full cmpxchg used for the per cpu lists. Its a cmpxchg without
-> lock semantics which is very cheap.
+=0A=
+>From b12fa5a9263cf4c044988e59f0071f4bcc132215 Mon Sep 17 00:00:00 2001=0A=
+From: Chen Gang <gang.chen.5i5j@gmail.com>=0A=
+Date: Sat=2C 5 Sep 2015 21:49:56 +0800=0A=
+Subject: [PATCH] mm/mmap.c: Remove useless statement "vma =3D NULL" in=0A=
+=A0find_vma()=0A=
+=0A=
+Before the main looping=2C vma is already is NULL=2C so need not set it to=
+=0A=
+NULL=2C again.=0A=
+=0A=
+Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>=0A=
+---=0A=
+=A0mm/mmap.c | 1 -=0A=
+=A01 file changed=2C 1 deletion(-)=0A=
+=0A=
+diff --git a/mm/mmap.c b/mm/mmap.c=0A=
+index df6d5f0..4db7cf0 100644=0A=
+--- a/mm/mmap.c=0A=
++++ b/mm/mmap.c=0A=
+@@ -2054=2C7 +2054=2C6 @@ struct vm_area_struct *find_vma(struct mm_struct =
+*mm=2C unsigned long addr)=0A=
+=A0		return vma=3B=0A=
+=A0=0A=
+=A0	rb_node =3D mm->mm_rb.rb_node=3B=0A=
+-	vma =3D NULL=3B=0A=
+=A0=0A=
+=A0	while (rb_node) {=0A=
+=A0		struct vm_area_struct *tmp=3B=0A=
+--=A0=0A=
+1.9.3=0A=
+=0A=
+ 		 	   		  =
 
-The double_cmpxchg without lock prefix still cost 9 cycles, which is
-very fast but still a cost (add approx 19 cycles for a lock prefix).
+--_148e8dfe-9e04-4d70-ac9b-d0cebaa2b38f_
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+	filename="0001-mm-mmap.c-Remove-useless-statement-vma-NULL-in-find_.patch"
 
-It is slower than local_irq_disable + local_irq_enable that only cost
-7 cycles, which the bulking call uses.  (That is the reason bulk calls
-with 1 object can almost compete with fastpath).
+RnJvbSBiMTJmYTVhOTI2M2NmNGMwNDQ5ODhlNTlmMDA3MWY0YmNjMTMyMjE1IE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQpGcm9tOiBDaGVuIEdhbmcgPGdhbmcuY2hlbi41aTVqQGdtYWlsLmNvbT4K
+RGF0ZTogU2F0LCA1IFNlcCAyMDE1IDIxOjQ5OjU2ICswODAwClN1YmplY3Q6IFtQQVRDSCAxLzJd
+IG1tL21tYXAuYzogUmVtb3ZlIHVzZWxlc3Mgc3RhdGVtZW50ICJ2bWEgPSBOVUxMIiBpbgogZmlu
+ZF92bWEoKQoKQmVmb3JlIHRoZSBtYWluIGxvb3BpbmcsIHZtYSBpcyBhbHJlYWR5IGlzIE5VTEws
+IHNvIG5lZWQgbm90IHNldCBpdCB0bwpOVUxMLCBhZ2Fpbi4KClNpZ25lZC1vZmYtYnk6IENoZW4g
+R2FuZyA8Z2FuZy5jaGVuLjVpNWpAZ21haWwuY29tPgotLS0KIG1tL21tYXAuYyB8IDEgLQogMSBm
+aWxlIGNoYW5nZWQsIDEgZGVsZXRpb24oLSkKCmRpZmYgLS1naXQgYS9tbS9tbWFwLmMgYi9tbS9t
+bWFwLmMKaW5kZXggZGY2ZDVmMC4uNGRiN2NmMCAxMDA2NDQKLS0tIGEvbW0vbW1hcC5jCisrKyBi
+L21tL21tYXAuYwpAQCAtMjA1NCw3ICsyMDU0LDYgQEAgc3RydWN0IHZtX2FyZWFfc3RydWN0ICpm
+aW5kX3ZtYShzdHJ1Y3QgbW1fc3RydWN0ICptbSwgdW5zaWduZWQgbG9uZyBhZGRyKQogCQlyZXR1
+cm4gdm1hOwogCiAJcmJfbm9kZSA9IG1tLT5tbV9yYi5yYl9ub2RlOwotCXZtYSA9IE5VTEw7CiAK
+IAl3aGlsZSAocmJfbm9kZSkgewogCQlzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnRtcDsKLS0gCjEu
+OS4zCgo=
 
-
-> > In the case of network drivers they are running in softirq context almost
-> > exclusively.  As such it is useful to have a set of buffers that can be
-> > acquired or freed from this context without the need to use any
-> > synchronization primitives.  Then once the softirq context ends then we can
-> > free up some or all of the resources back to the slab allocator.
-> 
-> That is the case in the slab allocators.
-
-There is a potential for taking advantage of this softirq context,
-which is basically what my qmempool implementation did.
-
-But we have now optimized the slub allocator to an extend that (in case
-of slab-tuning or slab_nomerge) is faster than my qmempool implementation.
-
-Thus, I would like a smaller/slimmer layer than qmempool.  We do need
-some per CPU cache for allocations, like Alex suggests, but I'm not
-sure we need that for the free side.  For now I'm returning
-objects/skbs directly to slub, and is hoping enough objects can be
-merged in a detached freelist, which allow me to return several objects
-with a single locked double_cmpxchg.
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+--_148e8dfe-9e04-4d70-ac9b-d0cebaa2b38f_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
