@@ -1,87 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 84ACE6B0038
-	for <linux-mm@kvack.org>; Sat,  5 Sep 2015 15:24:54 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so51561916wic.0
-        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 12:24:54 -0700 (PDT)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id s2si5175382wjw.75.2015.09.05.12.24.52
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1D96B0038
+	for <linux-mm@kvack.org>; Sat,  5 Sep 2015 16:33:06 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so55862776ioi.2
+        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 13:33:05 -0700 (PDT)
+Received: from mail-io0-x231.google.com (mail-io0-x231.google.com. [2607:f8b0:4001:c06::231])
+        by mx.google.com with ESMTPS id a17si6484425ioe.56.2015.09.05.13.33.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Sep 2015 12:24:53 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so46971472wic.1
-        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 12:24:52 -0700 (PDT)
-Date: Sat, 5 Sep 2015 22:24:48 +0300
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: Re: [RESEND RFC v4 1/3] mm: add tracepoint for scanning pages
-Message-ID: <20150905192448.GA3933@debian>
-References: <1441313508-4276-1-git-send-email-ebru.akagunduz@gmail.com>
- <1441313508-4276-2-git-send-email-ebru.akagunduz@gmail.com>
- <55E9C1AA.4010908@suse.cz>
- <55E9CA8B.7090004@redhat.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 05 Sep 2015 13:33:05 -0700 (PDT)
+Received: by ioii196 with SMTP id i196so55878673ioi.3
+        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 13:33:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55E9CA8B.7090004@redhat.com>
+In-Reply-To: <20150905020907.GA1431@swordfish>
+References: <CA+55aFyepmdpbg9U2Pvp+aHjKmmGCrTK2ywzqfmaOTMXQasYNw@mail.gmail.com>
+	<20150903005115.GA27804@redhat.com>
+	<CA+55aFxpH6-XD97dOsuGvwozyV=28eBsxiKS901h8PFZrxaygw@mail.gmail.com>
+	<20150903060247.GV1933@devil.localdomain>
+	<20150903122949.78ee3c94@redhat.com>
+	<20150904063528.GA29320@swordfish>
+	<CA+55aFxOR06BiyH9nfFXzidFGr77R_BGp_xypjFQJSnv5c+_-g@mail.gmail.com>
+	<20150904075945.GA31503@swordfish>
+	<CA+55aFzs78Y0LS2FJG7Mrh6KBFxVnsBGSAySoi7SpR+EmmGpLg@mail.gmail.com>
+	<20150905020907.GA1431@swordfish>
+Date: Sat, 5 Sep 2015 13:33:04 -0700
+Message-ID: <CA+55aFw609MpnZPdecjxHxLRQsHp2fM+vUj0KtHPC9sTm78FRw@mail.gmail.com>
+Subject: Re: slab-nomerge (was Re: [git pull] device mapper changes for 4.3)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com, linux-mm@kvack.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Dave Chinner <dchinner@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "dm-devel@redhat.com" <dm-devel@redhat.com>, Alasdair G Kergon <agk@redhat.com>, Joe Thornber <ejt@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, Sami Tolvanen <samitolvanen@google.com>, Viresh Kumar <viresh.kumar@linaro.org>, Heinz Mauelshagen <heinzm@redhat.com>, linux-mm <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Fri, Sep 04, 2015 at 12:44:59PM -0400, Rik van Riel wrote:
-> On 09/04/2015 12:07 PM, Vlastimil Babka wrote:
-> > On 09/03/2015 10:51 PM, Ebru Akagunduz wrote:
-> >> Using static tracepoints, data of functions is recorded.
-> >> It is good to automatize debugging without doing a lot
-> >> of changes in the source code.
-> >>
-> >> This patch adds tracepoint for khugepaged_scan_pmd,
-> >> collapse_huge_page and __collapse_huge_page_isolate.
-> >>
-> >> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> >> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >> Acked-by: Rik van Riel <riel@redhat.com>
-> >> ---
-> >> Changes in v2:
-> >>  - Nothing changed
-> >>
-> >> Changes in v3:
-> >>  - Print page address instead of vm_start (Vlastimil Babka)
-> >>  - Define constants to specify exact tracepoint result (Vlastimil Babka)
-> >>
-> >> Changes in v4:
-> >>  - Change the constant prefix with SCAN_ instead of MM_ (Vlastimil Babka)
-> >>  - Move the constants into the enum (Vlastimil Babka)
-> >>  - Move the constants from mm.h to huge_memory.c
-> >>    (because only will be used in huge_memory.c) (Vlastimil Babka)
-> >>  - Print pfn in tracepoints (Vlastimil Babka)
-> >>  - Print scan result as string in tracepoint (Vlastimil Babka)
-> >>    (I tried to make same things to print string like mm/compaction.c.
-> >>     My patch does not print string, I skip something but could not see why)
-> > 
-> > How do you print the trace? Do you cat /sys/kernel/debug/tracing/trace_pipe
-> > or use some tool such as trace-cmd? I have just recently realized that tools
-> > don't print strings in the compaction tracepoints, which lead to a patch [1].
-> > You could convert this patch in the same way and then it should work with
-> > tracing tools. Sorry for previously suggesting a wrong example to follow.
-> > 
-> > [1] https://lkml.org/lkml/2015/8/27/373
+On Fri, Sep 4, 2015 at 7:09 PM, Sergey Senozhatsky
+<sergey.senozhatsky.work@gmail.com> wrote:
+>
+> Aha... Didn't know that, sorry.
 
-I use perf tool to test changes.
-> 
-> Well that explains why doing the same thing as compaction.c
-> resulted in the strings not being printed!  Ebru and I got
-> confused over that for quite a while :)
-> 
-> Thanks for pointing us to the fix.
-> 
-> Ebru, can you use tracepoint macros like in Vlastimil's patch
-> above, so your tracepoints work?
-> 
-I did similar changes with Vlastimil's patch. It works!
+Hey, I didn't react to it either. until you pointed out the oddity of
+"no free slab memory" Very easy to overlook.
 
-Thanks,
-Ebru
+> ... And those are sort of interesting. I was expecting to see more
+> diverged behaviours.
+>
+> Attached.
+
+So I'm not sure how really conclusive these graphs are, but they are
+certainly fun to look at. So I have a few reactions:
+
+  - that 'nomerge' spike at roughly 780s is interesting. I wonder why
+it does that.
+
+ - it would be interesting to see - for example - which slabs are the
+top memory users, and not _just_ the total (it could clarify the
+spike, for example). That's obviously something that works much better
+for the no-merge case, but could your script be changed to show (say)
+the "top 5 slabs". Showing all of them would probably be too messy,
+but "top 5" could be interesting.
+
+ - assuming the times are comparable, it looks like 'merge' really is
+noticeably faster. But that might just be noise too, so this may not
+be real data.
+
+ - regardless of how meaningful the graphs are, and whether they
+really tell us anything, I do like the concept, and I'd love to see
+people do things like this more often. Visualization to show behavior
+is great.
+
+That last point in particular means that if you scripted this and your
+scripts aren't *too* ugly and not too tied to your particular setup, I
+think it would perhaps not be a bad idea to encourage plots like this
+by making those kinds of scripts available in the kernel tree.  That's
+particularly true if you used something like the tools/testing/ktest/
+scripts to run these things automatically (which can be a *big* issue
+to show that something is actually stable across multiple boots, and
+see the variance).
+
+So maybe these graphs are meaningful, and maybe they aren't. But I'd
+still like to see more of them ;)
+
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
