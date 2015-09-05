@@ -1,79 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 53E106B0038
-	for <linux-mm@kvack.org>; Sat,  5 Sep 2015 10:09:25 -0400 (EDT)
-Received: by igcrk20 with SMTP id rk20so29953669igc.1
-        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 07:09:25 -0700 (PDT)
-Received: from COL004-OMC1S14.hotmail.com (col004-omc1s14.hotmail.com. [65.55.34.24])
-        by mx.google.com with ESMTPS id w1si10243062pdr.124.2015.09.05.07.09.24
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 84ACE6B0038
+	for <linux-mm@kvack.org>; Sat,  5 Sep 2015 15:24:54 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so51561916wic.0
+        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 12:24:54 -0700 (PDT)
+Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
+        by mx.google.com with ESMTPS id s2si5175382wjw.75.2015.09.05.12.24.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 05 Sep 2015 07:09:24 -0700 (PDT)
-Message-ID: <COL130-W16C972B0457D5C7C9CB06B9560@phx.gbl>
-From: Chen Gang <xili_gchen_5257@hotmail.com>
-Subject: [PATCH] mm/mmap.c: Remove redundent 'get_area' function pointer in
- get_unmapped_area()
-Date: Sat, 5 Sep 2015 22:09:24 +0800
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 05 Sep 2015 12:24:53 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so46971472wic.1
+        for <linux-mm@kvack.org>; Sat, 05 Sep 2015 12:24:52 -0700 (PDT)
+Date: Sat, 5 Sep 2015 22:24:48 +0300
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: Re: [RESEND RFC v4 1/3] mm: add tracepoint for scanning pages
+Message-ID: <20150905192448.GA3933@debian>
+References: <1441313508-4276-1-git-send-email-ebru.akagunduz@gmail.com>
+ <1441313508-4276-2-git-send-email-ebru.akagunduz@gmail.com>
+ <55E9C1AA.4010908@suse.cz>
+ <55E9CA8B.7090004@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55E9CA8B.7090004@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "oleg@redhat.com" <oleg@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com, linux-mm@kvack.org
 
-=0A=
->From a1bf4726f71d6d0394b41309944646fc806a8a0c Mon Sep 17 00:00:00 2001=0A=
-From: Chen Gang <gang.chen.5i5j@gmail.com>=0A=
-Date: Sat=2C 5 Sep 2015 21:51:08 +0800=0A=
-Subject: [PATCH] mm/mmap.c: Remove redundent 'get_area' function pointer in=
-=0A=
-get_unmapped_area()=0A=
-=0A=
-Call the function pointer directly=2C then let code a bit simpler.=0A=
-=0A=
-Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>=0A=
----=0A=
-=A0mm/mmap.c | 12 ++++++------=0A=
-=A01 file changed=2C 6 insertions(+)=2C 6 deletions(-)=0A=
-=0A=
-diff --git a/mm/mmap.c b/mm/mmap.c=0A=
-index 4db7cf0..39fd727 100644=0A=
---- a/mm/mmap.c=0A=
-+++ b/mm/mmap.c=0A=
-@@ -2012=2C10 +2012=2C8 @@ unsigned long=0A=
-=A0get_unmapped_area(struct file *file=2C unsigned long addr=2C unsigned lo=
-ng len=2C=0A=
-=A0		unsigned long pgoff=2C unsigned long flags)=0A=
-=A0{=0A=
--	unsigned long (*get_area)(struct file *=2C unsigned long=2C=0A=
--				 =A0unsigned long=2C unsigned long=2C unsigned long)=3B=0A=
--=0A=
-=A0	unsigned long error =3D arch_mmap_check(addr=2C len=2C flags)=3B=0A=
-+=0A=
-=A0	if (error)=0A=
-=A0		return error=3B=0A=
-=A0=0A=
-@@ -2023=2C10 +2021=2C12 @@ get_unmapped_area(struct file *file=2C unsigned=
- long addr=2C unsigned long len=2C=0A=
-=A0	if (len> TASK_SIZE)=0A=
-=A0		return -ENOMEM=3B=0A=
-=A0=0A=
--	get_area =3D current->mm->get_unmapped_area=3B=0A=
-=A0	if (file && file->f_op->get_unmapped_area)=0A=
--		get_area =3D file->f_op->get_unmapped_area=3B=0A=
--	addr =3D get_area(file=2C addr=2C len=2C pgoff=2C flags)=3B=0A=
-+		addr =3D file->f_op->get_unmapped_area(file=2C addr=2C len=2C=0A=
-+							pgoff=2C flags)=3B=0A=
-+	else=0A=
-+		addr =3D current->mm->get_unmapped_area(file=2C addr=2C len=2C=0A=
-+							pgoff=2C flags)=3B=0A=
-=A0	if (IS_ERR_VALUE(addr))=0A=
-=A0		return addr=3B=0A=
-=A0=0A=
---=A0=0A=
-1.9.3=0A=
-=0A=
- 		 	   		  =
+On Fri, Sep 04, 2015 at 12:44:59PM -0400, Rik van Riel wrote:
+> On 09/04/2015 12:07 PM, Vlastimil Babka wrote:
+> > On 09/03/2015 10:51 PM, Ebru Akagunduz wrote:
+> >> Using static tracepoints, data of functions is recorded.
+> >> It is good to automatize debugging without doing a lot
+> >> of changes in the source code.
+> >>
+> >> This patch adds tracepoint for khugepaged_scan_pmd,
+> >> collapse_huge_page and __collapse_huge_page_isolate.
+> >>
+> >> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> >> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> >> Acked-by: Rik van Riel <riel@redhat.com>
+> >> ---
+> >> Changes in v2:
+> >>  - Nothing changed
+> >>
+> >> Changes in v3:
+> >>  - Print page address instead of vm_start (Vlastimil Babka)
+> >>  - Define constants to specify exact tracepoint result (Vlastimil Babka)
+> >>
+> >> Changes in v4:
+> >>  - Change the constant prefix with SCAN_ instead of MM_ (Vlastimil Babka)
+> >>  - Move the constants into the enum (Vlastimil Babka)
+> >>  - Move the constants from mm.h to huge_memory.c
+> >>    (because only will be used in huge_memory.c) (Vlastimil Babka)
+> >>  - Print pfn in tracepoints (Vlastimil Babka)
+> >>  - Print scan result as string in tracepoint (Vlastimil Babka)
+> >>    (I tried to make same things to print string like mm/compaction.c.
+> >>     My patch does not print string, I skip something but could not see why)
+> > 
+> > How do you print the trace? Do you cat /sys/kernel/debug/tracing/trace_pipe
+> > or use some tool such as trace-cmd? I have just recently realized that tools
+> > don't print strings in the compaction tracepoints, which lead to a patch [1].
+> > You could convert this patch in the same way and then it should work with
+> > tracing tools. Sorry for previously suggesting a wrong example to follow.
+> > 
+> > [1] https://lkml.org/lkml/2015/8/27/373
+
+I use perf tool to test changes.
+> 
+> Well that explains why doing the same thing as compaction.c
+> resulted in the strings not being printed!  Ebru and I got
+> confused over that for quite a while :)
+> 
+> Thanks for pointing us to the fix.
+> 
+> Ebru, can you use tracepoint macros like in Vlastimil's patch
+> above, so your tracepoints work?
+> 
+I did similar changes with Vlastimil's patch. It works!
+
+Thanks,
+Ebru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
