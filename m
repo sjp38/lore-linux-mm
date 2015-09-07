@@ -1,116 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8028F6B0038
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 02:48:04 -0400 (EDT)
-Received: by padhk3 with SMTP id hk3so2992269pad.3
-        for <linux-mm@kvack.org>; Sun, 06 Sep 2015 23:48:04 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id od3si18472749pdb.61.2015.09.06.23.48.02
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AF016B0038
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 03:24:21 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so73359958wic.0
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 00:24:21 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
+        by mx.google.com with ESMTPS id o7si13674951wjq.49.2015.09.07.00.24.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 06 Sep 2015 23:48:03 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t876m15Y016255
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Mon, 7 Sep 2015 15:48:01 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v5 1/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/smaps
-Date: Mon, 7 Sep 2015 06:46:15 +0000
-Message-ID: <20150907064614.GB7229@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
- <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1440059182-19798-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <55ECE891.7030309@draigBrady.com>
- <20150907022343.GB6448@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20150907022343.GB6448@hori1.linux.bs1.fc.nec.co.jp>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <2A2C91A718E94E419E16986E7B3D2DA4@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Sep 2015 00:24:20 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so73526067wic.1
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 00:24:19 -0700 (PDT)
+Date: Mon, 7 Sep 2015 09:24:18 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/mmap.c: Only call vma_unlock_anon_vm() when failure
+ occurs in expand_upwards() and expand_downwards()
+Message-ID: <20150907072418.GA6022@dhcp22.suse.cz>
+References: <COL130-W9593F65D7C12B5353FE079B96B0@phx.gbl>
+ <55E5AD17.6060901@hotmail.com>
+ <COL130-W4895D78CDAEA273AB88C53B96A0@phx.gbl>
+ <55E96E01.5010605@hotmail.com>
+ <COL130-W49B21394779B6662272AD0B9570@phx.gbl>
+ <55EAC021.3080205@hotmail.com>
+ <COL130-W64DF8D947992A52E4CBE40B9560@phx.gbl>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <COL130-W64DF8D947992A52E4CBE40B9560@phx.gbl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Chen Gang <xili_gchen_5257@hotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>, Chen Gang <gchen_5i5j@21cn.com>
 
-T24gTW9uLCBTZXAgMDcsIDIwMTUgYXQgMDI6MjM6NDRBTSArMDAwMCwgSG9yaWd1Y2hpIE5hb3lh
-KOWggOWPoyDnm7TkuZ8pIHdyb3RlOg0KPiBPbiBNb24sIFNlcCAwNywgMjAxNSBhdCAwMjoyOTo1
-M0FNICswMTAwLCBQw6FkcmFpZyBCcmFkeSB3cm90ZToNCj4gPiBPbiAyMC8wOC8xNSAwOToyNiwg
-TmFveWEgSG9yaWd1Y2hpIHdyb3RlOg0KPiA+ID4gQ3VycmVudGx5IC9wcm9jL1BJRC9zbWFwcyBw
-cm92aWRlcyBubyB1c2FnZSBpbmZvIGZvciB2bWEoVk1fSFVHRVRMQiksIHdoaWNoDQo+ID4gPiBp
-cyBpbmNvbnZlbmllbnQgd2hlbiB3ZSB3YW50IHRvIGtub3cgcGVyLXRhc2sgb3IgcGVyLXZtYSBi
-YXNlIGh1Z2V0bGIgdXNhZ2UuDQo+ID4gPiBUbyBzb2x2ZSB0aGlzLCB0aGlzIHBhdGNoIGFkZHMg
-YSBuZXcgbGluZSBmb3IgaHVnZXRsYiB1c2FnZSBsaWtlIGJlbG93Og0KPiA+ID4gDQo+ID4gPiAg
-IFNpemU6ICAgICAgICAgICAgICAyMDQ4MCBrQg0KPiA+ID4gICBSc3M6ICAgICAgICAgICAgICAg
-ICAgIDAga0INCj4gPiA+ICAgUHNzOiAgICAgICAgICAgICAgICAgICAwIGtCDQo+ID4gPiAgIFNo
-YXJlZF9DbGVhbjogICAgICAgICAgMCBrQg0KPiA+ID4gICBTaGFyZWRfRGlydHk6ICAgICAgICAg
-IDAga0INCj4gPiA+ICAgUHJpdmF0ZV9DbGVhbjogICAgICAgICAwIGtCDQo+ID4gPiAgIFByaXZh
-dGVfRGlydHk6ICAgICAgICAgMCBrQg0KPiA+ID4gICBSZWZlcmVuY2VkOiAgICAgICAgICAgIDAg
-a0INCj4gPiA+ICAgQW5vbnltb3VzOiAgICAgICAgICAgICAwIGtCDQo+ID4gPiAgIEFub25IdWdl
-UGFnZXM6ICAgICAgICAgMCBrQg0KPiA+ID4gICBIdWdldGxiUGFnZXM6ICAgICAgMTg0MzIga0IN
-Cj4gPiA+ICAgU3dhcDogICAgICAgICAgICAgICAgICAwIGtCDQo+ID4gPiAgIEtlcm5lbFBhZ2VT
-aXplOiAgICAgMjA0OCBrQg0KPiA+ID4gICBNTVVQYWdlU2l6ZTogICAgICAgIDIwNDgga0INCj4g
-PiA+ICAgTG9ja2VkOiAgICAgICAgICAgICAgICAwIGtCDQo+ID4gPiAgIFZtRmxhZ3M6IHJkIHdy
-IG1yIG13IG1lIGRlIGh0DQo+ID4gPiANCj4gPiA+IFNpZ25lZC1vZmYtYnk6IE5hb3lhIEhvcmln
-dWNoaSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbT4NCj4gPiA+IEFja2VkLWJ5OiBKb2VybiBF
-bmdlbCA8am9lcm5AbG9nZnMub3JnPg0KPiA+ID4gQWNrZWQtYnk6IERhdmlkIFJpZW50amVzIDxy
-aWVudGplc0Bnb29nbGUuY29tPg0KPiA+ID4gLS0tDQo+ID4gPiB2MyAtPiB2NDoNCj4gPiA+IC0g
-c3VzcGVuZCBBY2tlZC1ieSB0YWcgYmVjYXVzZSB2My0+djQgY2hhbmdlIGlzIG5vdCB0cml2aWFs
-DQo+ID4gPiAtIEkgc3RhdGVkIGluIHByZXZpb3VzIGRpc2N1c3Npb24gdGhhdCBIdWdldGxiUGFn
-ZXMgbGluZSBjYW4gY29udGFpbiBwYWdlDQo+ID4gPiAgIHNpemUgaW5mbywgYnV0IHRoYXQncyBu
-b3QgbmVjZXNzYXJ5IGJlY2F1c2Ugd2UgYWxyZWFkeSBoYXZlIEtlcm5lbFBhZ2VTaXplDQo+ID4g
-PiAgIGluZm8uDQo+ID4gPiAtIG1lcmdlZCBkb2N1bWVudGF0aW9uIHVwZGF0ZSwgd2hlcmUgdGhl
-IGN1cnJlbnQgZG9jdW1lbnRhdGlvbiBkb2Vzbid0IG1lbnRpb24NCj4gPiA+ICAgQW5vbkh1Z2VQ
-YWdlcywgc28gaXQncyBhbHNvIGFkZGVkLg0KPiA+ID4gLS0tDQo+ID4gPiAgRG9jdW1lbnRhdGlv
-bi9maWxlc3lzdGVtcy9wcm9jLnR4dCB8ICA3ICsrKysrLS0NCj4gPiA+ICBmcy9wcm9jL3Rhc2tf
-bW11LmMgICAgICAgICAgICAgICAgIHwgMjkgKysrKysrKysrKysrKysrKysrKysrKysrKysrKysN
-Cj4gPiA+ICAyIGZpbGVzIGNoYW5nZWQsIDM0IGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0p
-DQo+ID4gPiANCj4gPiA+IGRpZmYgLS1naXQgdjQuMi1yYzQvRG9jdW1lbnRhdGlvbi9maWxlc3lz
-dGVtcy9wcm9jLnR4dCB2NC4yLXJjNF9wYXRjaGVkL0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMv
-cHJvYy50eHQNCj4gPiA+IGluZGV4IDZmN2ZhZmRlMDg4NC4uMjJlNDAyMTFlZjY0IDEwMDY0NA0K
-PiA+ID4gLS0tIHY0LjItcmM0L0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMvcHJvYy50eHQNCj4g
-PiA+ICsrKyB2NC4yLXJjNF9wYXRjaGVkL0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMvcHJvYy50
-eHQNCj4gPiA+IEBAIC00MjMsNiArNDIzLDggQEAgUHJpdmF0ZV9DbGVhbjogICAgICAgICAwIGtC
-DQo+ID4gPiAgUHJpdmF0ZV9EaXJ0eTogICAgICAgICAwIGtCDQo+ID4gPiAgUmVmZXJlbmNlZDog
-ICAgICAgICAgODkyIGtCDQo+ID4gPiAgQW5vbnltb3VzOiAgICAgICAgICAgICAwIGtCDQo+ID4g
-PiArQW5vbkh1Z2VQYWdlczogICAgICAgICAwIGtCDQo+ID4gPiArSHVnZXRsYlBhZ2VzOiAgICAg
-ICAgICAwIGtCDQo+ID4gPiAgU3dhcDogICAgICAgICAgICAgICAgICAwIGtCDQo+ID4gPiAgS2Vy
-bmVsUGFnZVNpemU6ICAgICAgICA0IGtCDQo+ID4gPiAgTU1VUGFnZVNpemU6ICAgICAgICAgICA0
-IGtCDQo+ID4gPiBAQCAtNDQwLDggKzQ0Miw5IEBAIGluZGljYXRlcyB0aGUgYW1vdW50IG9mIG1l
-bW9yeSBjdXJyZW50bHkgbWFya2VkIGFzIHJlZmVyZW5jZWQgb3IgYWNjZXNzZWQuDQo+ID4gPiAg
-IkFub255bW91cyIgc2hvd3MgdGhlIGFtb3VudCBvZiBtZW1vcnkgdGhhdCBkb2VzIG5vdCBiZWxv
-bmcgdG8gYW55IGZpbGUuICBFdmVuDQo+ID4gPiAgYSBtYXBwaW5nIGFzc29jaWF0ZWQgd2l0aCBh
-IGZpbGUgbWF5IGNvbnRhaW4gYW5vbnltb3VzIHBhZ2VzOiB3aGVuIE1BUF9QUklWQVRFDQo+ID4g
-PiAgYW5kIGEgcGFnZSBpcyBtb2RpZmllZCwgdGhlIGZpbGUgcGFnZSBpcyByZXBsYWNlZCBieSBh
-IHByaXZhdGUgYW5vbnltb3VzIGNvcHkuDQo+ID4gPiAtIlN3YXAiIHNob3dzIGhvdyBtdWNoIHdv
-dWxkLWJlLWFub255bW91cyBtZW1vcnkgaXMgYWxzbyB1c2VkLCBidXQgb3V0IG9uDQo+ID4gPiAt
-c3dhcC4NCj4gPiA+ICsiQW5vbkh1Z2VQYWdlcyIgc2hvd3MgdGhlIGFtbW91bnQgb2YgbWVtb3J5
-IGJhY2tlZCBieSB0cmFuc3BhcmVudCBodWdlcGFnZS4NCj4gPiA+ICsiSHVnZXRsYlBhZ2VzIiBz
-aG93cyB0aGUgYW1tb3VudCBvZiBtZW1vcnkgYmFja2VkIGJ5IGh1Z2V0bGJmcyBwYWdlLg0KPiA+
-ID4gKyJTd2FwIiBzaG93cyBob3cgbXVjaCB3b3VsZC1iZS1hbm9ueW1vdXMgbWVtb3J5IGlzIGFs
-c28gdXNlZCwgYnV0IG91dCBvbiBzd2FwLg0KPiA+IA0KPiA+IFRoZXJlIGlzIG5vIGRpc3RpbmN0
-aW9uIGJldHdlZW4gInByaXZhdGUiIGFuZCAic2hhcmVkIiBpbiB0aGlzICJodWdlIHBhZ2UiIGFj
-Y291bnRpbmcgcmlnaHQ/DQo+IA0KPiBSaWdodCBmb3IgY3VycmVudCB2ZXJzaW9uLiBBbmQgSSB0
-aGluayB0aGF0IHByaXZhdGUvc2hhcmVkIGRpc3RpbmN0aW9uDQo+IGdpdmVzIHNvbWUgaGVscC4N
-Cj4gDQo+ID4gV291bGQgaXQgYmUgcG9zc2libGUgdG8gYWNjb3VudCBmb3IgdGhlIGh1Z2UgcGFn
-ZXMgaW4gdGhlIHtQcml2YXRlLFNoYXJlZH1fe0NsZWFuLERpcnR5fSBmaWVsZHM/DQo+ID4gT3Ig
-b3RoZXJ3aXNlIHNwbGl0IHRoZSBodWdlIHBhZ2UgYWNjb3VudGluZyBpbnRvIHNoYXJlZC9wcml2
-YXRlPw0KDQpTb3JyeSwgSSBkaWRuJ3QgY2F0Y2ggeW91IHByb3Blcmx5Lg0KSSB0aGluayB0aGF0
-IGFjY291bnRpbmcgZm9yIGh1Z2V0bGIgcGFnZXMgc2hvdWxkIGJlIGRvbmUgb25seSB3aXRoIEh1
-Z2V0bGJQYWdlcw0Kb3IgYW55IG90aGVyIG5ldyBmaWVsZCBmb3IgaHVnZXRsYiwgaW4gb3JkZXIg
-bm90IHRvIGJyZWFrIHRoZSBiZWhhdmlvciBvZiBleGlzdGluZw0KZmllbGRzLiBTbyBzcGxpdHRp
-bmcgSHVnZXRsYlBhZ2VzIGludG8gc2hhcmVkL3ByaXZhdGUgbG9va3MgZ29vZCB0byBtZS4NCg0K
-VGhhbmtzLA0KTmFveWEgSG9yaWd1Y2hpDQoNCj4gQXMgZm9yIGNsZWFuL2RpcnR5IGRpc3RpbmN0
-aW9uLCBJJ20gbm90IHN1cmUgaG93IGl0J3Mgd29ydGh3aGlsZSBiZWNhdXNlDQo+IGh1Z2V0bGIg
-cGFnZXMgYXJlIGFsd2F5cyBvbiBtZW1vcnkgYW5kIG5ldmVyIHN3YXBwZWQgb3V0ICh1c2Vyc3Bh
-Y2UgZG9lc24ndA0KPiBjYXJlIGFib3V0IGRpcnRpbmVzcyBvZiBodWdldGxiPykuDQo+IA0KPiBB
-Y2NvcmRpbmcgdG8gY29tbWl0IGxvZyBvZiBjb21taXQgYjRkMWQ5OWZkZDhiICgiaHVnZXRsYjog
-aGFuZGxlIHVwZGF0aW5nDQo+IG9mIEFDQ0VTU0VEIGFuZCBESVJUWSBpbiBodWdldGxiX2ZhdWx0
-KCkiKSwgZGlydHkgYml0IG9mIGh1Z2V0bGIgaXMgbWFpbnRhaW5lZA0KPiB0byBtYWtlIGFyY2gt
-c3BlY2lmaWMgVExCIGhhbmRsaW5nIGNvbnZlbmllbnQuIEl0IGxvb2tzIHB1cmVseSBrZXJuZWwt
-aW50ZXJuYWwsDQo+IHNvIEkgdGhpbmsgd2UgZG9uJ3QgaGF2ZSB0byBleHBvc2UgaXQuDQo+IA0K
-PiBUaGFua3MsDQo+IE5hb3lhIEhvcmlndWNoaQ==
+On Sat 05-09-15 18:11:40, Chen Gang wrote:
+> Hello All:
+> 
+> I have send 2 new patches about mm, and 1 patch for arch metag via my
+> 21cn mail. Could any members help to tell me, whether he/she have
+> received the patches or not?
+
+Yes they seem to be in the archive.
+http://lkml.kernel.org/r/COL130-W64A6555222F8CEDA513171B9560%40phx.gbl
+http://lkml.kernel.org/r/COL130-W16C972B0457D5C7C9CB06B9560%40phx.gbl
+
+You can check that easily by http://lkml.kernel.org/r/$MESSAGE_ID
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
