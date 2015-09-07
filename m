@@ -1,107 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 86A596B0256
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 06:54:40 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so84418363wic.0
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 03:54:40 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id ll9si20555962wic.3.2015.09.07.03.54.39
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id B4DB56B0256
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 07:03:17 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so79742800wic.0
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 04:03:17 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
+        by mx.google.com with ESMTPS id bk4si15077844wib.2.2015.09.07.04.03.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Sep 2015 03:54:39 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so79473278wic.0
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 03:54:39 -0700 (PDT)
-Date: Mon, 7 Sep 2015 12:54:37 +0200
+        Mon, 07 Sep 2015 04:03:16 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so41535143wic.1
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 04:03:16 -0700 (PDT)
+Date: Mon, 7 Sep 2015 13:03:15 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH 4/4] memcg: always enable kmemcg on the default hierarchy
-Message-ID: <20150907105437.GE6022@dhcp22.suse.cz>
-References: <1440775530-18630-1-git-send-email-tj@kernel.org>
- <1440775530-18630-5-git-send-email-tj@kernel.org>
+Message-ID: <20150907110315.GF6022@dhcp22.suse.cz>
+References: <1440775530-18630-5-git-send-email-tj@kernel.org>
  <20150828164918.GJ9610@esperanza>
  <20150828171438.GD21463@dhcp22.suse.cz>
  <20150828174140.GN26785@mtj.duckdns.org>
  <20150901124459.GC8810@dhcp22.suse.cz>
  <20150901185157.GD18956@htj.dyndns.org>
  <20150904133038.GC8220@dhcp22.suse.cz>
- <20150904161845.GB25329@mtj.duckdns.org>
+ <20150904153810.GD13699@esperanza>
+ <20150907093905.GD6022@dhcp22.suse.cz>
+ <20150907100110.GA31800@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150904161845.GB25329@mtj.duckdns.org>
+In-Reply-To: <20150907100110.GA31800@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Tejun Heo <tj@kernel.org>, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-On Fri 04-09-15 12:18:45, Tejun Heo wrote:
-> Hello, Michal.
+On Mon 07-09-15 13:01:10, Vladimir Davydov wrote:
+> On Mon, Sep 07, 2015 at 11:39:06AM +0200, Michal Hocko wrote:
+> ...
+> > > > I might be wrong here of course but if the default should be switched it
+> > > > would deserve a better justification with some numbers so that people
+> > > > can see the possible drawbacks.
+> > > 
+> > > Personally, I'd prefer to have it switched on by default, because it
+> > > would force people test it and report bugs and performance degradation.
+> > > If one finds it really crappy, he/she should be able to disable it.
+> > 
+> > I do not think this is the way of introducing new functionality. You do
+> > not want to force users to debug your code and go let it disable if it
+> > is too crappy.
 > 
-> On Fri, Sep 04, 2015 at 03:30:38PM +0200, Michal Hocko wrote:
-> > The overhead was around 4% for the basic kbuild test without ever
-> > triggering the [k]memcg limit last time I checked. This was quite some
-> > time ago and things might have changed since then. Even when this got
-> > better there will still be _some_ overhead because we have to track that
-> > memory and that is not free.
-> 
-> So, I just ran small scale tests and I don't see any meaningful
-> difference between kmemcg disabled and enabled for kbuild workload
-> (limit is never reached in both cases, memory is reclaimed from global
-> pressure).  The difference in kernel time usage.  I'm sure there's
-> *some* overhead buried in the noise but given the current
-> implementation, I can't see how enabling kmem would lead to 4%
-> overhead in kbuild tests.  It isn't that kernel intensive to begin
-> with.
+> One must first enable CONFIG_KMEM, which is off by default.
 
-OK, I've quickly rerun my test on 32CPU machine with 64G of RAM
-Elapsed
-logs.kmem: min: 68.10 max: 69.27 avg: 68.53 std: 0.53 runs: 3
-logs.no.kmem: min: 64.08 [94.1%] max: 68.42 [98.8%] avg: 66.22 [96.6%] std: 1.77 runs: 3
-User
-logs.kmem: min: 867.68 max: 872.88 avg: 869.49 std: 2.40 runs: 3
-logs.no.kmem: min: 865.99 [99.8%] max: 884.94 [101.4%] avg: 874.08 [100.5%] std: 7.98 runs: 3
-System
-logs.kmem: min: 78.50 max: 78.85 avg: 78.63 std: 0.16 runs: 3
-logs.no.kmem: min: 75.36 [96.0%] max: 80.50 [102.1%] avg: 77.91 [99.1%] std: 2.10 runs: 3
-
-The elapsed time is still ~3% worse in average while user and system are
-in noise. I haven't checked where he overhead is coming from.
+Yes, but let's be realistic here. People tend to use distribution
+kernels and so the config option will have to be enabled.
  
-> > The question really is whether kmem accounting is so generally useful
-> > that the overhead is acceptable and it is should be enabled by
-> > default. From my POV it is a useful mitigation of untrusted users but
-> > many loads simply do not care because they only care about a certain
-> > level of isolation.
+> Anyway, we aren't talking about enabling it by default in the legacy
+> hierarchy, only in the unified hierarchy, which must be explicitly
+> enabled by passing __DEVEL__save_behavior. I think that's enough.
+
+But once it is set like that in default then it will stay even when the
+__DEVEL__ part is dropped. 
+ 
+> > > > I agree that the per-cgroup knob is better than the global one. We
+> > > 
+> > > Not that sure :-/
+> > 
+> > Why?
 > 
-> I don't think that's the right way to approach the problem.  Given
-> that the cost isn't prohibitive, no user only care about a certain
-> level of isolation willingly.
+> I'm not sure there is use cases which need having kmem acct enabled in
+> one cgroup and disabled in another.
 
-I haven't said it is prohibitive. It is simply non-zero and there is
-always cost/benefit that should be considered.
-
-> Distributing memory is what it's all about after all and memory is
-> memory, user or kernel.
-
-True except that kmem accounting doesn't cover the whole kernel memory
-usage. It is an opt-in mechanism for a _better_ isolation. And the
-question really is whether that better isolation is needed/requested by
-default.
-
-> We have kmem
-> on/off situation for historical reasons and because the early
-> implementation wasn't good enough to be enabled by default.  I get
-> that there can be special cases, temporary or otherwise, where
-> disabling kmem is desirable but that gotta be the exception, not the
-> norm.
-
-The default should be the cheapest one IMHO. And our overhead is really
-close to 0 if no memcg accounting is enabled thanks to Johannes'
-page_counters. Then we have a lightweight form of accounting (only user
-memory) which is nicely defined. And then we have an additional opt-in
-for a better isolation which involves some kernel memory as well. Why
-should we conflate the last two? I mean, if somebody wants an additional
-protection then sure, enable kmem and pay an additional overhead but why
-to force this on everybody who wants to use memcg?
+What would be the downside though? It is true that all the static keys
+will be enabled in these configurations so even the non-enabled path
+would pay some overhead but that should be still close to unmeasurable
+(I haven't measured that so I might be wrong here).
 -- 
 Michal Hocko
 SUSE Labs
