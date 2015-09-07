@@ -1,99 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id E025C6B0256
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 08:19:10 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so43823120wic.1
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 05:19:10 -0700 (PDT)
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
-        by mx.google.com with ESMTPS id gj20si20824347wic.95.2015.09.07.05.19.09
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id F22666B0258
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 08:39:43 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so94369360pad.1
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 05:39:43 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id df7si1525382pdb.67.2015.09.07.05.39.42
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Sep 2015 05:19:09 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so82054541wic.0
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 05:19:09 -0700 (PDT)
-Date: Mon, 7 Sep 2015 15:19:07 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv5 1/7] mm: drop page->slab_page
-Message-ID: <20150907121907.GA5531@node.dhcp.inet.fi>
-References: <1441283758-92774-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1441283758-92774-2-git-send-email-kirill.shutemov@linux.intel.com>
- <55ED1A09.3040409@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Sep 2015 05:39:43 -0700 (PDT)
+Date: Mon, 7 Sep 2015 14:36:57 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] mm/mmap.c: Remove useless statement "vma = NULL" in
+	find_vma()
+Message-ID: <20150907123656.GA32668@redhat.com>
+References: <COL130-W64A6555222F8CEDA513171B9560@phx.gbl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <55ED1A09.3040409@gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <COL130-W64A6555222F8CEDA513171B9560@phx.gbl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andi Kleen <ak@linux.intel.com>
+To: Chen Gang <xili_gchen_5257@hotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
 
-On Sun, Sep 06, 2015 at 10:00:57PM -0700, Alexander Duyck wrote:
-> On 09/03/2015 05:35 AM, Kirill A. Shutemov wrote:
-> >Since 8456a648cf44 ("slab: use struct page for slab management") nobody
-> >uses slab_page field in struct page.
-> >
-> >Let's drop it.
-> >
-> >Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >Acked-by: Christoph Lameter <cl@linux.com>
-> >Acked-by: David Rientjes <rientjes@google.com>
-> >Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> >Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >Cc: Andi Kleen <ak@linux.intel.com>
-> >---
-> >  include/linux/mm_types.h |  1 -
-> >  mm/slab.c                | 17 +++--------------
-> >  2 files changed, 3 insertions(+), 15 deletions(-)
-> >
-> >diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> >index 0038ac7466fd..58620ac7f15c 100644
-> >--- a/include/linux/mm_types.h
-> >+++ b/include/linux/mm_types.h
-> >@@ -140,7 +140,6 @@ struct page {
-> >  #endif
-> >  		};
-> >-		struct slab *slab_page; /* slab fields */
-> >  		struct rcu_head rcu_head;	/* Used by SLAB
-> >  						 * when destroying via RCU
-> >  						 */
-> >diff --git a/mm/slab.c b/mm/slab.c
-> >index 200e22412a16..649044f26e5d 100644
-> >--- a/mm/slab.c
-> >+++ b/mm/slab.c
-> >@@ -1888,21 +1888,10 @@ static void slab_destroy(struct kmem_cache *cachep, struct page *page)
-> >  	freelist = page->freelist;
-> >  	slab_destroy_debugcheck(cachep, page);
-> >-	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU)) {
-> >-		struct rcu_head *head;
-> >-
-> >-		/*
-> >-		 * RCU free overloads the RCU head over the LRU.
-> >-		 * slab_page has been overloeaded over the LRU,
-> >-		 * however it is not used from now on so that
-> >-		 * we can use it safely.
-> >-		 */
-> >-		head = (void *)&page->rcu_head;
-> >-		call_rcu(head, kmem_rcu_free);
-> >-
-> >-	} else {
-> >+	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
-> >+		call_rcu(&page->rcu_head, kmem_rcu_free);
-> >+	else
-> >  		kmem_freepages(cachep, page);
-> >-	}
-> >  	/*
-> >  	 * From now on, we don't use freelist
-> 
-> This second piece looks like it belongs in patch 2, not patch 1 based on the
-> descriptions.
+On 09/05, Chen Gang wrote:
+>
+> From b12fa5a9263cf4c044988e59f0071f4bcc132215 Mon Sep 17 00:00:00 2001
+> From: Chen Gang <gang.chen.5i5j@gmail.com>
+> Date: Sat, 5 Sep 2015 21:49:56 +0800
+> Subject: [PATCH] mm/mmap.c: Remove useless statement "vma = NULL" in
+>  find_vma()
+>
+> Before the main looping, vma is already is NULL, so need not set it to
+> NULL, again.
+>
+> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
 
-You're right.
+Reviewed-by: Oleg Nesterov <oleg@redhat.com>
 
-Although I don't think I would re-spin the patchset just for this change.
-If any other change would be required, I'll fix this too.
+> ---
+>  mm/mmap.c | 1 -
+>  1 file changed, 1 deletion(-)
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index df6d5f0..4db7cf0 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2054,7 +2054,6 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+>  		return vma;
+>  
+>  	rb_node = mm->mm_rb.rb_node;
+> -	vma = NULL;
+>  
+>  	while (rb_node) {
+>  		struct vm_area_struct *tmp;
+> -- 
+> 1.9.3
+>
+>
 
--- 
- Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
