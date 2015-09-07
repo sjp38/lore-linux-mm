@@ -1,94 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C49ED6B0038
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 01:01:01 -0400 (EDT)
-Received: by padhk3 with SMTP id hk3so131108pad.3
-        for <linux-mm@kvack.org>; Sun, 06 Sep 2015 22:01:01 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id b16si18013363pbu.61.2015.09.06.22.01.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 06 Sep 2015 22:01:00 -0700 (PDT)
-Received: by padhy16 with SMTP id hy16so82768533pad.1
-        for <linux-mm@kvack.org>; Sun, 06 Sep 2015 22:01:00 -0700 (PDT)
-Subject: Re: [PATCHv5 1/7] mm: drop page->slab_page
-References: <1441283758-92774-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1441283758-92774-2-git-send-email-kirill.shutemov@linux.intel.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Message-ID: <55ED1A09.3040409@gmail.com>
-Date: Sun, 6 Sep 2015 22:00:57 -0700
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id F3BCD6B0038
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 01:35:31 -0400 (EDT)
+Received: by padhk3 with SMTP id hk3so1042482pad.3
+        for <linux-mm@kvack.org>; Sun, 06 Sep 2015 22:35:31 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id g4si18175802pdh.107.2015.09.06.22.35.29
+        for <linux-mm@kvack.org>;
+        Sun, 06 Sep 2015 22:35:31 -0700 (PDT)
+Date: Mon, 7 Sep 2015 14:35:28 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 1/9] mm/compaction: skip useless pfn when updating
+ cached pfn
+Message-ID: <20150907053528.GB21207@js1304-P5Q-DELUXE>
+References: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1440382773-16070-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <55DADEC0.5030800@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1441283758-92774-2-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55DADEC0.5030800@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andi Kleen <ak@linux.intel.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
 
-On 09/03/2015 05:35 AM, Kirill A. Shutemov wrote:
-> Since 8456a648cf44 ("slab: use struct page for slab management") nobody
-> uses slab_page field in struct page.
->
-> Let's drop it.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Andi Kleen <ak@linux.intel.com>
-> ---
->   include/linux/mm_types.h |  1 -
->   mm/slab.c                | 17 +++--------------
->   2 files changed, 3 insertions(+), 15 deletions(-)
->
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 0038ac7466fd..58620ac7f15c 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -140,7 +140,6 @@ struct page {
->   #endif
->   		};
->   
-> -		struct slab *slab_page; /* slab fields */
->   		struct rcu_head rcu_head;	/* Used by SLAB
->   						 * when destroying via RCU
->   						 */
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 200e22412a16..649044f26e5d 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -1888,21 +1888,10 @@ static void slab_destroy(struct kmem_cache *cachep, struct page *page)
->   
->   	freelist = page->freelist;
->   	slab_destroy_debugcheck(cachep, page);
-> -	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU)) {
-> -		struct rcu_head *head;
-> -
-> -		/*
-> -		 * RCU free overloads the RCU head over the LRU.
-> -		 * slab_page has been overloeaded over the LRU,
-> -		 * however it is not used from now on so that
-> -		 * we can use it safely.
-> -		 */
-> -		head = (void *)&page->rcu_head;
-> -		call_rcu(head, kmem_rcu_free);
-> -
-> -	} else {
-> +	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
-> +		call_rcu(&page->rcu_head, kmem_rcu_free);
-> +	else
->   		kmem_freepages(cachep, page);
-> -	}
->   
->   	/*
->   	 * From now on, we don't use freelist
+On Mon, Aug 24, 2015 at 11:07:12AM +0200, Vlastimil Babka wrote:
+> On 08/24/2015 04:19 AM, Joonsoo Kim wrote:
+> >Cached pfn is used to determine the start position of scanner
+> >at next compaction run. Current cached pfn points the skipped pageblock
+> >so we uselessly checks whether pageblock is valid for compaction and
+> >skip-bit is set or not. If we set scanner's cached pfn to next pfn of
+> >skipped pageblock, we don't need to do this check.
+> >
+> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >---
+> >  mm/compaction.c | 13 ++++++-------
+> >  1 file changed, 6 insertions(+), 7 deletions(-)
+> >
+> >diff --git a/mm/compaction.c b/mm/compaction.c
+> >index 6ef2fdf..c2d3d6a 100644
+> >--- a/mm/compaction.c
+> >+++ b/mm/compaction.c
+> >@@ -261,10 +261,9 @@ void reset_isolation_suitable(pg_data_t *pgdat)
+> >   */
+> >  static void update_pageblock_skip(struct compact_control *cc,
+> >  			struct page *page, unsigned long nr_isolated,
+> >-			bool migrate_scanner)
+> >+			unsigned long pfn, bool migrate_scanner)
+> >  {
+> >  	struct zone *zone = cc->zone;
+> >-	unsigned long pfn;
+> >
+> >  	if (cc->ignore_skip_hint)
+> >  		return;
+> >@@ -277,8 +276,6 @@ static void update_pageblock_skip(struct compact_control *cc,
+> >
+> >  	set_pageblock_skip(page);
+> >
+> >-	pfn = page_to_pfn(page);
+> >-
+> >  	/* Update where async and sync compaction should restart */
+> >  	if (migrate_scanner) {
+> >  		if (pfn > zone->compact_cached_migrate_pfn[0])
+> >@@ -300,7 +297,7 @@ static inline bool isolation_suitable(struct compact_control *cc,
+> >
+> >  static void update_pageblock_skip(struct compact_control *cc,
+> >  			struct page *page, unsigned long nr_isolated,
+> >-			bool migrate_scanner)
+> >+			unsigned long pfn, bool migrate_scanner)
+> >  {
+> >  }
+> >  #endif /* CONFIG_COMPACTION */
+> >@@ -509,7 +506,8 @@ isolate_fail:
+> >
+> >  	/* Update the pageblock-skip if the whole pageblock was scanned */
+> >  	if (blockpfn == end_pfn)
+> >-		update_pageblock_skip(cc, valid_page, total_isolated, false);
+> >+		update_pageblock_skip(cc, valid_page, total_isolated,
+> >+					end_pfn, false);
+> 
+> In isolate_freepages_block() this means we actually go logically
+> *back* one pageblock, as the direction is opposite? I know it's not
+> an issue after the redesign patch so you wouldn't notice it when
+> testing the whole series. But there's a non-zero chance that the
+> smaller fixes are merged first and the redesign later...
 
-This second piece looks like it belongs in patch 2, not patch 1 based on 
-the descriptions.
+Hello, Vlastimil.
+Sorry for long delay. I was on vacation. :)
+I will fix it next time.
 
-- Alex
+Btw, if possible, could you review the patchset in detail? or do you
+have another plan on compaction improvement? Please let me know your
+position to determine future plan of this patchset.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
