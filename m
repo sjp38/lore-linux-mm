@@ -1,52 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AF016B0038
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 03:24:21 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so73359958wic.0
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 00:24:21 -0700 (PDT)
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
-        by mx.google.com with ESMTPS id o7si13674951wjq.49.2015.09.07.00.24.19
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F02D6B0038
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 04:16:18 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so90266361pac.0
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 01:16:18 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id ev1si5822531pbb.19.2015.09.07.01.16.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Sep 2015 00:24:20 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so73526067wic.1
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 00:24:19 -0700 (PDT)
-Date: Mon, 7 Sep 2015 09:24:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/mmap.c: Only call vma_unlock_anon_vm() when failure
- occurs in expand_upwards() and expand_downwards()
-Message-ID: <20150907072418.GA6022@dhcp22.suse.cz>
-References: <COL130-W9593F65D7C12B5353FE079B96B0@phx.gbl>
- <55E5AD17.6060901@hotmail.com>
- <COL130-W4895D78CDAEA273AB88C53B96A0@phx.gbl>
- <55E96E01.5010605@hotmail.com>
- <COL130-W49B21394779B6662272AD0B9570@phx.gbl>
- <55EAC021.3080205@hotmail.com>
- <COL130-W64DF8D947992A52E4CBE40B9560@phx.gbl>
+        Mon, 07 Sep 2015 01:16:17 -0700 (PDT)
+Date: Mon, 7 Sep 2015 10:16:10 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH 0/3] Network stack, first user of SLAB/kmem_cache
+ bulk free API.
+Message-ID: <20150907101610.44504597@redhat.com>
+In-Reply-To: <55E9DE51.7090109@gmail.com>
+References: <20150824005727.2947.36065.stgit@localhost>
+	<20150904165944.4312.32435.stgit@devil>
+	<55E9DE51.7090109@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <COL130-W64DF8D947992A52E4CBE40B9560@phx.gbl>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <xili_gchen_5257@hotmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>, Chen Gang <gchen_5i5j@21cn.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, Christoph Lameter <cl@linux.com>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com, brouer@redhat.com
 
-On Sat 05-09-15 18:11:40, Chen Gang wrote:
-> Hello All:
-> 
-> I have send 2 new patches about mm, and 1 patch for arch metag via my
-> 21cn mail. Could any members help to tell me, whether he/she have
-> received the patches or not?
+On Fri, 4 Sep 2015 11:09:21 -0700
+Alexander Duyck <alexander.duyck@gmail.com> wrote:
 
-Yes they seem to be in the archive.
-http://lkml.kernel.org/r/COL130-W64A6555222F8CEDA513171B9560%40phx.gbl
-http://lkml.kernel.org/r/COL130-W16C972B0457D5C7C9CB06B9560%40phx.gbl
+> This is an interesting start.  However I feel like it might work better 
+> if you were to create a per-cpu pool for skbs that could be freed and 
+> allocated in NAPI context.  So for example we already have 
+> napi_alloc_skb, why not just add a napi_free_skb
 
-You can check that easily by http://lkml.kernel.org/r/$MESSAGE_ID
+I do like the idea...
+
+> and then make the array 
+> of objects to be freed part of a pool that could be used for either 
+> allocation or freeing?  If the pool runs empty you just allocate 
+> something like 8 or 16 new skb heads, and if you fill it you just free 
+> half of the list?
+
+But I worry that this algorithm will "randomize" the (skb) objects.
+And the SLUB bulk optimization only works if we have many objects
+belonging to the same page.
+
+It would likely be fastest to implement a simple stack (for these
+per-cpu pools), but I again worry that it would randomize the
+object-pages.  A simple queue might be better, but slightly slower.
+Guess I could just reuse part of qmempool / alf_queue as a quick test.
+
+Having a per-cpu pool in networking would solve the problem of the slub
+per-cpu pool isn't large enough for our use-case.  On the other hand,
+maybe we should fix slub to dynamically adjust the size of it's per-cpu
+resources?
+
+
+A pre-req knowledge (for people not knowing slub's internal details):
+Slub alloc path will pickup a page, and empty all objects for that page
+before proceeding to the next page.  Thus, slub bulk alloc will give
+many objects belonging to the page.  I'm trying to keep these objects
+grouped together until they can be free'ed in a bulk.
+
 -- 
-Michal Hocko
-SUSE Labs
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
