@@ -1,116 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 999386B0258
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 05:52:47 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so77987162wic.1
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 02:52:47 -0700 (PDT)
-Received: from mail2.vodafone.ie (mail2.vodafone.ie. [213.233.128.44])
-        by mx.google.com with ESMTP id z8si19845597wje.28.2015.09.07.02.52.45
-        for <linux-mm@kvack.org>;
-        Mon, 07 Sep 2015 02:52:46 -0700 (PDT)
-Message-ID: <55ED5E6C.6000102@draigBrady.com>
-Date: Mon, 07 Sep 2015 10:52:44 +0100
-From: =?UTF-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id CA73B6B0038
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 06:01:25 -0400 (EDT)
+Received: by laeb10 with SMTP id b10so49387949lae.1
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 03:01:25 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id n4si10014171lbc.63.2015.09.07.03.01.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Sep 2015 03:01:24 -0700 (PDT)
+Date: Mon, 7 Sep 2015 13:01:10 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 4/4] memcg: always enable kmemcg on the default hierarchy
+Message-ID: <20150907100110.GA31800@esperanza>
+References: <1440775530-18630-1-git-send-email-tj@kernel.org>
+ <1440775530-18630-5-git-send-email-tj@kernel.org>
+ <20150828164918.GJ9610@esperanza>
+ <20150828171438.GD21463@dhcp22.suse.cz>
+ <20150828174140.GN26785@mtj.duckdns.org>
+ <20150901124459.GC8810@dhcp22.suse.cz>
+ <20150901185157.GD18956@htj.dyndns.org>
+ <20150904133038.GC8220@dhcp22.suse.cz>
+ <20150904153810.GD13699@esperanza>
+ <20150907093905.GD6022@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 1/2] mm: hugetlb: proc: add HugetlbPages field to /proc/PID/smaps
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp> <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1440059182-19798-2-git-send-email-n-horiguchi@ah.jp.nec.com> <55ECE891.7030309@draigBrady.com> <20150907022343.GB6448@hori1.linux.bs1.fc.nec.co.jp> <20150907064614.GB7229@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20150907064614.GB7229@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150907093905.GD6022@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?UTF-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-On 07/09/15 07:46, Naoya Horiguchi wrote:
-> On Mon, Sep 07, 2015 at 02:23:44AM +0000, Horiguchi Naoya(a ?a?GBP c?'a1?) wrote:
->> On Mon, Sep 07, 2015 at 02:29:53AM +0100, PA!draig Brady wrote:
->>> On 20/08/15 09:26, Naoya Horiguchi wrote:
->>>> Currently /proc/PID/smaps provides no usage info for vma(VM_HUGETLB), which
->>>> is inconvenient when we want to know per-task or per-vma base hugetlb usage.
->>>> To solve this, this patch adds a new line for hugetlb usage like below:
->>>>
->>>>   Size:              20480 kB
->>>>   Rss:                   0 kB
->>>>   Pss:                   0 kB
->>>>   Shared_Clean:          0 kB
->>>>   Shared_Dirty:          0 kB
->>>>   Private_Clean:         0 kB
->>>>   Private_Dirty:         0 kB
->>>>   Referenced:            0 kB
->>>>   Anonymous:             0 kB
->>>>   AnonHugePages:         0 kB
->>>>   HugetlbPages:      18432 kB
->>>>   Swap:                  0 kB
->>>>   KernelPageSize:     2048 kB
->>>>   MMUPageSize:        2048 kB
->>>>   Locked:                0 kB
->>>>   VmFlags: rd wr mr mw me de ht
->>>>
->>>> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->>>> Acked-by: Joern Engel <joern@logfs.org>
->>>> Acked-by: David Rientjes <rientjes@google.com>
->>>> ---
->>>> v3 -> v4:
->>>> - suspend Acked-by tag because v3->v4 change is not trivial
->>>> - I stated in previous discussion that HugetlbPages line can contain page
->>>>   size info, but that's not necessary because we already have KernelPageSize
->>>>   info.
->>>> - merged documentation update, where the current documentation doesn't mention
->>>>   AnonHugePages, so it's also added.
->>>> ---
->>>>  Documentation/filesystems/proc.txt |  7 +++++--
->>>>  fs/proc/task_mmu.c                 | 29 +++++++++++++++++++++++++++++
->>>>  2 files changed, 34 insertions(+), 2 deletions(-)
->>>>
->>>> diff --git v4.2-rc4/Documentation/filesystems/proc.txt v4.2-rc4_patched/Documentation/filesystems/proc.txt
->>>> index 6f7fafde0884..22e40211ef64 100644
->>>> --- v4.2-rc4/Documentation/filesystems/proc.txt
->>>> +++ v4.2-rc4_patched/Documentation/filesystems/proc.txt
->>>> @@ -423,6 +423,8 @@ Private_Clean:         0 kB
->>>>  Private_Dirty:         0 kB
->>>>  Referenced:          892 kB
->>>>  Anonymous:             0 kB
->>>> +AnonHugePages:         0 kB
->>>> +HugetlbPages:          0 kB
->>>>  Swap:                  0 kB
->>>>  KernelPageSize:        4 kB
->>>>  MMUPageSize:           4 kB
->>>> @@ -440,8 +442,9 @@ indicates the amount of memory currently marked as referenced or accessed.
->>>>  "Anonymous" shows the amount of memory that does not belong to any file.  Even
->>>>  a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
->>>>  and a page is modified, the file page is replaced by a private anonymous copy.
->>>> -"Swap" shows how much would-be-anonymous memory is also used, but out on
->>>> -swap.
->>>> +"AnonHugePages" shows the ammount of memory backed by transparent hugepage.
->>>> +"HugetlbPages" shows the ammount of memory backed by hugetlbfs page.
->>>> +"Swap" shows how much would-be-anonymous memory is also used, but out on swap.
->>>
->>> There is no distinction between "private" and "shared" in this "huge page" accounting right?
->>
->> Right for current version. And I think that private/shared distinction
->> gives some help.
->>
->>> Would it be possible to account for the huge pages in the {Private,Shared}_{Clean,Dirty} fields?
->>> Or otherwise split the huge page accounting into shared/private?
+On Mon, Sep 07, 2015 at 11:39:06AM +0200, Michal Hocko wrote:
+...
+> > > I might be wrong here of course but if the default should be switched it
+> > > would deserve a better justification with some numbers so that people
+> > > can see the possible drawbacks.
+> > 
+> > Personally, I'd prefer to have it switched on by default, because it
+> > would force people test it and report bugs and performance degradation.
+> > If one finds it really crappy, he/she should be able to disable it.
 > 
-> Sorry, I didn't catch you properly.
-> I think that accounting for hugetlb pages should be done only with HugetlbPages
-> or any other new field for hugetlb, in order not to break the behavior of existing
-> fields. 
+> I do not think this is the way of introducing new functionality. You do
+> not want to force users to debug your code and go let it disable if it
+> is too crappy.
 
-On a more general note I'd be inclined to just account
-for hugetlb pages in Rss and {Private,Shared}_Dirty
-and fix any tools that double count.
+One must first enable CONFIG_KMEM, which is off by default.
 
-> So splitting HugetlbPages into shared/private looks good to me.
+Anyway, we aren't talking about enabling it by default in the legacy
+hierarchy, only in the unified hierarchy, which must be explicitly
+enabled by passing __DEVEL__save_behavior. I think that's enough.
 
-Yes this is the most compatible solution,
-and will allow one to accurately determine
-how much core mem a process is using.
+> 
+> > > I agree that the per-cgroup knob is better than the global one. We
+> > 
+> > Not that sure :-/
+> 
+> Why?
 
-thanks!
-PA!draig.
+I'm not sure there is use cases which need having kmem acct enabled in
+one cgroup and disabled in another.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
