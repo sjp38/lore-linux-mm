@@ -1,86 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 04EED6B0256
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 05:30:39 -0400 (EDT)
-Received: by iofh134 with SMTP id h134so83007006iof.0
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 02:30:38 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v4si5634634pdp.62.2015.09.07.02.30.38
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 864706B0258
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 05:39:09 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so82107080wic.0
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 02:39:09 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
+        by mx.google.com with ESMTPS id bd6si19868778wib.116.2015.09.07.02.39.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Sep 2015 02:30:38 -0700 (PDT)
-Date: Mon, 7 Sep 2015 11:30:26 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: slab-nomerge (was Re: [git pull] device mapper changes for 4.3)
-Message-ID: <20150907113026.5bb28ca3@redhat.com>
-In-Reply-To: <CA+55aFzBTL=DnC4zv6yxjk0HxwxWpOhpKDPA8zkTGdgbh08sEg@mail.gmail.com>
-References: <CA+55aFyepmdpbg9U2Pvp+aHjKmmGCrTK2ywzqfmaOTMXQasYNw@mail.gmail.com>
-	<20150903005115.GA27804@redhat.com>
-	<CA+55aFxpH6-XD97dOsuGvwozyV=28eBsxiKS901h8PFZrxaygw@mail.gmail.com>
-	<20150903060247.GV1933@devil.localdomain>
-	<CA+55aFxftNVWVD7ujseqUDNgbVamrFWf0PVM+hPnrfmmACgE0Q@mail.gmail.com>
-	<20150904032607.GX1933@devil.localdomain>
-	<CA+55aFzBTL=DnC4zv6yxjk0HxwxWpOhpKDPA8zkTGdgbh08sEg@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Sep 2015 02:39:08 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so81983940wic.1
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 02:39:07 -0700 (PDT)
+Date: Mon, 7 Sep 2015 11:39:06 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/4] memcg: always enable kmemcg on the default hierarchy
+Message-ID: <20150907093905.GD6022@dhcp22.suse.cz>
+References: <1440775530-18630-1-git-send-email-tj@kernel.org>
+ <1440775530-18630-5-git-send-email-tj@kernel.org>
+ <20150828164918.GJ9610@esperanza>
+ <20150828171438.GD21463@dhcp22.suse.cz>
+ <20150828174140.GN26785@mtj.duckdns.org>
+ <20150901124459.GC8810@dhcp22.suse.cz>
+ <20150901185157.GD18956@htj.dyndns.org>
+ <20150904133038.GC8220@dhcp22.suse.cz>
+ <20150904153810.GD13699@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150904153810.GD13699@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: brouer@redhat.com, Dave Chinner <dchinner@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "dm-devel@redhat.com" <dm-devel@redhat.com>, Alasdair G Kergon <agk@redhat.com>, Joe Thornber <ejt@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, Sami Tolvanen <samitolvanen@google.com>, Viresh Kumar <viresh.kumar@linaro.org>, Heinz Mauelshagen <heinzm@redhat.com>, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Tejun Heo <tj@kernel.org>, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-
-On Thu, 3 Sep 2015 20:51:09 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
-
-> On Thu, Sep 3, 2015 at 8:26 PM, Dave Chinner <dchinner@redhat.com> wrote:
-> >
-> > The double standard is the problem here. No notification, proof,
-> > discussion or review was needed to turn on slab merging for
-> > everyone, but you're setting a very high bar to jump if anyone wants
-> > to turn it off in their code.
+On Fri 04-09-15 18:38:10, Vladimir Davydov wrote:
+> On Fri, Sep 04, 2015 at 03:30:38PM +0200, Michal Hocko wrote:
+> > On Tue 01-09-15 14:51:57, Tejun Heo wrote:
+> > > Hello,
+> > > 
+> > > On Tue, Sep 01, 2015 at 02:44:59PM +0200, Michal Hocko wrote:
+> > > > The runtime overhead is not negligible and I do not see why everybody
+> > > > should be paying that price by default. I can definitely see the reason why
+> > > > somebody would want to enable the kmem accounting but many users will
+> > > > probably never care because the kernel footprint would be in the noise
+> > > > wrt. user memory.
+> > > 
+> > > We said the same thing about hierarchy support.  Sure, it's not the
+> > > same but I think it's wiser to keep the architectural decisions at a
+> > > higher level.  I don't think kmem overhead is that high but if this
+> > > actually is a problem we'd need a per-cgroup knob anyway.
+> > 
+> > The overhead was around 4% for the basic kbuild test without ever
+> > triggering the [k]memcg limit last time I checked. This was quite some
+> > time ago and things might have changed since then. Even when this got
+> > better there will still be _some_ overhead because we have to track that
+> > memory and that is not free.
 > 
-> Ehh. You realize that almost the only load that is actually seriously
-> allocator-limited is networking?
+> Just like there is some overhead if a process is placed in memcg w/o
+> kmem accounting enabled.
+
+Sure I am not questioning that.
+
+> > The question really is whether kmem accounting is so generally useful
+> > that the overhead is acceptable and it is should be enabled by
+> > default. From my POV it is a useful mitigation of untrusted users but
+> > many loads simply do not care because they only care about a certain
+> > level of isolation.
 > 
-> And slub was beating slab on that? And slub has been doing the merging
-> since day one. Slab was just changed to try to keep up with the
-> winning strategy.
+> FWIW, I've seen a useful workload that generated tons of negative
+> dentries for some reason (if my memory doesn't fail, it was nginx web
+> server). If one starts such a workload inside a container w/o kmem
+> accounting, it might evict useful data from other containers. So, even
+> if a container is trusted, it might be still worth having kmem
+> accounting enabled.
 
-Sorry, I have to correct you on this.  The slub allocator is not as
-fast as you might think.  The slab allocator is actually faster for
-networking.
+OK, then this is a clear usecase for using kmem mem. I was merely
+pointing out that many others will not care about kmem. Is it majority?
+I dunno. But I haven't heard any convincing argument that those that
+need kmem would form a majority either.
 
-IP-forwarding, single CPU, single flow UDP (highly tuned):
- * Allocator slub: 2043575 pps
- * Allocator slab: 2088295 pps
+> > I might be wrong here of course but if the default should be switched it
+> > would deserve a better justification with some numbers so that people
+> > can see the possible drawbacks.
+> 
+> Personally, I'd prefer to have it switched on by default, because it
+> would force people test it and report bugs and performance degradation.
+> If one finds it really crappy, he/she should be able to disable it.
 
-Difference slab faster than slub:
- * +44720 pps and -10.48ns
+I do not think this is the way of introducing new functionality. You do
+not want to force users to debug your code and go let it disable if it
+is too crappy.
 
-The slub allocator have a faster "fastpath", if your workload is
-fast-reusing within the same per-cpu page-slab, but once the workload
-increases you hit the slowpath, and then slab catches up. Slub looks
-great in micro-benchmarking.
+> > I agree that the per-cgroup knob is better than the global one. We
+> 
+> Not that sure :-/
 
+Why?
 
-As you can see in patchset:
- [PATCH 0/3] Network stack, first user of SLAB/kmem_cache bulk free API.
- http://thread.gmane.org/gmane.linux.kernel.mm/137469/focus=376625
+> > should also find consensus whether the legacy semantic of k < u limit
+> > should be preserved. It made sense to me at the time it was introduced
+> > but I recall that Vladimir found it not really helpful when we discussed
+> > that at LSF. I found it interesting e.g. for the rough task count
+> > limiting use case which people were asking for.
+> 
+> There is the pids cgroup, which suits this purpose much better.
 
-I'm working on speeding up slub to the level of slab.  And it seems
-like I have succeeded with half-a-nanosec 2090522 pps (+2227 pps or
-0.51 ns).
+I am not familiar with this controller. I am not following cgroup
+mailing list too closely but I vaguely remember somebody proposing this
+controller but I am not sure what is the current status. The last time
+this has been discussed there was a general pushback to use kmem
+accounting for process count restriction.
 
-And with "slab_nomerge" I get even high performance:
- * slub: bulk-free and slab_nomerge: 2121824 pps
- * Diff to slub: +78249 and -18.05ns
+> K < U adds a lot of complexity to reclaim, while it's not clear whether
+> we really need it. For instance, when you hit K you should reclaim kmem
+> only, but there is kmem that is pinned by umem, e.g. radix tree nodes or
+> buffer heads. What should we do with them? Reclaim umem on hitting kmem
+> limit? IMO ugly.
 
+kmem as a hard limit could simply reclaim slab objects and fail if it
+doesn't succeed. Sure many objects might be pinned by other resources
+which are not reclaimable but that is possible with the global case as
+well.
+I can see your argument that the configuration might be quite tricky,
+though. If there is a general consensus that kernel memory bound to
+resources which need to be controllable will get its own way of
+controlling then a separate K limit would indeed be not needed.
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
