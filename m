@@ -1,44 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E75DF6B0038
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 13:52:03 -0400 (EDT)
-Received: by qgev79 with SMTP id v79so66131074qge.0
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 10:52:03 -0700 (PDT)
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id F244A6B0038
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 16:14:57 -0400 (EDT)
+Received: by qkcj187 with SMTP id j187so35842814qkc.2
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 13:14:57 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 143si593615qhy.11.2015.09.07.10.52.02
+        by mx.google.com with ESMTPS id k89si1027450qge.7.2015.09.07.13.14.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Sep 2015 10:52:02 -0700 (PDT)
-Date: Mon, 7 Sep 2015 19:49:14 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC PATCH 10/14] ring_buffer: Fix more races when terminating
-	the producer in the benchmark
-Message-ID: <20150907174914.GA2148@redhat.com>
-References: <1438094371-8326-1-git-send-email-pmladek@suse.com> <1438094371-8326-11-git-send-email-pmladek@suse.com> <20150803143323.426ea2fc@gandalf.local.home> <20150904093856.GI22739@pathway.suse.cz>
+        Mon, 07 Sep 2015 13:14:57 -0700 (PDT)
+Date: Mon, 7 Sep 2015 22:14:48 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH 1/3] net: introduce kfree_skb_bulk() user of
+ kmem_cache_free_bulk()
+Message-ID: <20150907221448.2b18b174@redhat.com>
+In-Reply-To: <CALx6S348WrCr1mCOCMsr7fnSRp1bDRaG+-G1B+gpCJ3a4JeUtQ@mail.gmail.com>
+References: <20150904165944.4312.32435.stgit@devil>
+	<20150904170046.4312.38018.stgit@devil>
+	<CALx6S36R2zGwj5XF0GZWPOC1Ng5HviPWxBM-cn=DDMXU9Auoxg@mail.gmail.com>
+	<20150907104101.3e392a6d@redhat.com>
+	<CALx6S348WrCr1mCOCMsr7fnSRp1bDRaG+-G1B+gpCJ3a4JeUtQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150904093856.GI22739@pathway.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Tom Herbert <tom@herbertland.com>
+Cc: Linux Kernel Network Developers <netdev@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com, brouer@redhat.com
 
-Sorry, I didn't read these emails, and I never looked at this code...
-Can't understand what are you talking about but a minor nit anyway ;)
 
-On 09/04, Petr Mladek wrote:
->
-> +	__set_current_state(TASK_RUNNING);
->  	if (!kthread_should_stop())
->  		wait_to_die();
+On Mon, 7 Sep 2015 09:25:49 -0700 Tom Herbert <tom@herbertland.com> wrote:
 
-I bet this wait_to_die() can die, consumer/producer can simply exit.
+> >> What not pass a list of skbs (e.g. using skb->next)?
+> >
+> > Because the next layer, the slab API needs an array:
+> >   kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+> >
+> 
+> I suppose we could ask the same question of that function. IMO
+> encouraging drivers to define arrays of pointers on the stack like
+> you're doing in the ixgbe patch is a bad direction.
+> 
+> In any case I believe this would be simpler in the networking side
+> just to maintain a list of skb's to free. Then the dev_free_waitlist
+> structure might not be needed then since we could just use a
+> skb_buf_head for that.
 
-Just you need get_task_struct() after kthread_create(), and put_task_struct()
-after kthread_stop().
+I guess it is more natural for the network side to work with skb lists.
+But I'm keeping it for slab/slub as we cannot assume/enforce objects of a
+specific data type.
 
-Oleg.
+I worried about how large bulk free we should allow, due to the
+interaction with skb->destructor which for sockets affect their memory
+accounting. E.g. we have seen issues with hypervisor network drivers
+(Xen and HyperV) that are too slow to cleanup their TX completion queue
+that their TCP bandwidth get limited by tcp_limit_output_bytes.
+I capped it at 32, and the NAPI budget will cap it at 64.
+
+
+By the following argument, bulk free of 64 objects/skb's is not a problem.
+The delay I'm introducing is very small, before the first real
+kfree_skb is called, which calls the destructor with free up socket
+memory accounting.
+
+Assume measured packet rate of: 2105011 pps
+Time between packets (1/2105011*10^9): 475 ns
+
+Perf shows ixgbe_clean_tx_irq() takes: 1.23%
+Extrapolating the function call cost: 5.84 ns (475*(1.23/100))
+
+Processing 64 packets in ixgbe_clean_tx_irq() 373 ns.
+At 10Gbit/s how many bytes can arrive in this period, only: 466 bytes.
+((373/10^9)*(10000*10^6)/8)
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
