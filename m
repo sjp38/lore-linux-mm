@@ -1,75 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F02D6B0038
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 04:16:18 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so90266361pac.0
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 01:16:18 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id ev1si5822531pbb.19.2015.09.07.01.16.17
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E2F36B0038
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 04:28:48 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so90589421pac.0
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 01:28:48 -0700 (PDT)
+Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
+        by mx.google.com with ESMTPS id qg1si18856345pbb.66.2015.09.07.01.28.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Sep 2015 01:16:17 -0700 (PDT)
-Date: Mon, 7 Sep 2015 10:16:10 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC PATCH 0/3] Network stack, first user of SLAB/kmem_cache
- bulk free API.
-Message-ID: <20150907101610.44504597@redhat.com>
-In-Reply-To: <55E9DE51.7090109@gmail.com>
-References: <20150824005727.2947.36065.stgit@localhost>
-	<20150904165944.4312.32435.stgit@devil>
-	<55E9DE51.7090109@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Mon, 07 Sep 2015 01:28:47 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 7 Sep 2015 13:58:44 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id C56BDE0058
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 13:58:05 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t878SfbC34865392
+	for <linux-mm@kvack.org>; Mon, 7 Sep 2015 13:58:41 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t878Selt009879
+	for <linux-mm@kvack.org>; Mon, 7 Sep 2015 13:58:40 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V2 1/4] mm/kasan: Rename kasan_enabled to kasan_report_enabled
+Date: Mon,  7 Sep 2015 13:58:36 +0530
+Message-Id: <1441614519-20298-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, Christoph Lameter <cl@linux.com>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com, brouer@redhat.com
+To: akpm@linux-foundation.org, ryabinin.a.a@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Fri, 4 Sep 2015 11:09:21 -0700
-Alexander Duyck <alexander.duyck@gmail.com> wrote:
+The function only disable/enable reporting. In the later patch
+we will be adding a kasan early enable/disable. Rename kasan_enabled
+to properly reflect its function.
 
-> This is an interesting start.  However I feel like it might work better 
-> if you were to create a per-cpu pool for skbs that could be freed and 
-> allocated in NAPI context.  So for example we already have 
-> napi_alloc_skb, why not just add a napi_free_skb
+Reviewed-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ mm/kasan/kasan.h  | 2 +-
+ mm/kasan/report.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-I do like the idea...
-
-> and then make the array 
-> of objects to be freed part of a pool that could be used for either 
-> allocation or freeing?  If the pool runs empty you just allocate 
-> something like 8 or 16 new skb heads, and if you fill it you just free 
-> half of the list?
-
-But I worry that this algorithm will "randomize" the (skb) objects.
-And the SLUB bulk optimization only works if we have many objects
-belonging to the same page.
-
-It would likely be fastest to implement a simple stack (for these
-per-cpu pools), but I again worry that it would randomize the
-object-pages.  A simple queue might be better, but slightly slower.
-Guess I could just reuse part of qmempool / alf_queue as a quick test.
-
-Having a per-cpu pool in networking would solve the problem of the slub
-per-cpu pool isn't large enough for our use-case.  On the other hand,
-maybe we should fix slub to dynamically adjust the size of it's per-cpu
-resources?
-
-
-A pre-req knowledge (for people not knowing slub's internal details):
-Slub alloc path will pickup a page, and empty all objects for that page
-before proceeding to the next page.  Thus, slub bulk alloc will give
-many objects belonging to the page.  I'm trying to keep these objects
-grouped together until they can be free'ed in a bulk.
-
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index c242adf6bc85..a6b46cc94907 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -63,7 +63,7 @@ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
+ 		<< KASAN_SHADOW_SCALE_SHIFT);
+ }
+ 
+-static inline bool kasan_enabled(void)
++static inline bool kasan_report_enabled(void)
+ {
+ 	return !current->kasan_depth;
+ }
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index e07c94fbd0ac..6c3f82b0240b 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -220,7 +220,7 @@ void kasan_report(unsigned long addr, size_t size,
+ {
+ 	struct kasan_access_info info;
+ 
+-	if (likely(!kasan_enabled()))
++	if (likely(!kasan_report_enabled()))
+ 		return;
+ 
+ 	info.access_addr = (void *)addr;
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
