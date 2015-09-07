@@ -1,115 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 473C96B0038
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 06:52:44 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so79807569wic.1
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 03:52:43 -0700 (PDT)
-Received: from mail2.vodafone.ie (mail2.vodafone.ie. [213.233.128.44])
-        by mx.google.com with ESMTP id gh10si20222718wic.24.2015.09.07.03.52.42
-        for <linux-mm@kvack.org>;
-        Mon, 07 Sep 2015 03:52:43 -0700 (PDT)
-Message-ID: <55ED6C79.6030000@draigBrady.com>
-Date: Mon, 07 Sep 2015 11:52:41 +0100
-From: =?UTF-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 86A596B0256
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 06:54:40 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so84418363wic.0
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 03:54:40 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
+        by mx.google.com with ESMTPS id ll9si20555962wic.3.2015.09.07.03.54.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Sep 2015 03:54:39 -0700 (PDT)
+Received: by wicge5 with SMTP id ge5so79473278wic.0
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 03:54:39 -0700 (PDT)
+Date: Mon, 7 Sep 2015 12:54:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/4] memcg: always enable kmemcg on the default hierarchy
+Message-ID: <20150907105437.GE6022@dhcp22.suse.cz>
+References: <1440775530-18630-1-git-send-email-tj@kernel.org>
+ <1440775530-18630-5-git-send-email-tj@kernel.org>
+ <20150828164918.GJ9610@esperanza>
+ <20150828171438.GD21463@dhcp22.suse.cz>
+ <20150828174140.GN26785@mtj.duckdns.org>
+ <20150901124459.GC8810@dhcp22.suse.cz>
+ <20150901185157.GD18956@htj.dyndns.org>
+ <20150904133038.GC8220@dhcp22.suse.cz>
+ <20150904161845.GB25329@mtj.duckdns.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 1/2] mm: hugetlb: proc: add HugetlbPages field to /proc/PID/smaps
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp> <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1440059182-19798-2-git-send-email-n-horiguchi@ah.jp.nec.com> <55ECE891.7030309@draigBrady.com> <20150907022343.GB6448@hori1.linux.bs1.fc.nec.co.jp> <20150907064614.GB7229@hori1.linux.bs1.fc.nec.co.jp> <55ED5E6C.6000102@draigBrady.com>
-In-Reply-To: <55ED5E6C.6000102@draigBrady.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150904161845.GB25329@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?UTF-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-On 07/09/15 10:52, PA!draig Brady wrote:
-> On 07/09/15 07:46, Naoya Horiguchi wrote:
->> On Mon, Sep 07, 2015 at 02:23:44AM +0000, Horiguchi Naoya(a ?a?GBP c?'a1?) wrote:
->>> On Mon, Sep 07, 2015 at 02:29:53AM +0100, PA!draig Brady wrote:
->>>> On 20/08/15 09:26, Naoya Horiguchi wrote:
->>>>> Currently /proc/PID/smaps provides no usage info for vma(VM_HUGETLB), which
->>>>> is inconvenient when we want to know per-task or per-vma base hugetlb usage.
->>>>> To solve this, this patch adds a new line for hugetlb usage like below:
->>>>>
->>>>>   Size:              20480 kB
->>>>>   Rss:                   0 kB
->>>>>   Pss:                   0 kB
->>>>>   Shared_Clean:          0 kB
->>>>>   Shared_Dirty:          0 kB
->>>>>   Private_Clean:         0 kB
->>>>>   Private_Dirty:         0 kB
->>>>>   Referenced:            0 kB
->>>>>   Anonymous:             0 kB
->>>>>   AnonHugePages:         0 kB
->>>>>   HugetlbPages:      18432 kB
->>>>>   Swap:                  0 kB
->>>>>   KernelPageSize:     2048 kB
->>>>>   MMUPageSize:        2048 kB
->>>>>   Locked:                0 kB
->>>>>   VmFlags: rd wr mr mw me de ht
->>>>>
->>>>> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->>>>> Acked-by: Joern Engel <joern@logfs.org>
->>>>> Acked-by: David Rientjes <rientjes@google.com>
->>>>> ---
->>>>> v3 -> v4:
->>>>> - suspend Acked-by tag because v3->v4 change is not trivial
->>>>> - I stated in previous discussion that HugetlbPages line can contain page
->>>>>   size info, but that's not necessary because we already have KernelPageSize
->>>>>   info.
->>>>> - merged documentation update, where the current documentation doesn't mention
->>>>>   AnonHugePages, so it's also added.
->>>>> ---
->>>>>  Documentation/filesystems/proc.txt |  7 +++++--
->>>>>  fs/proc/task_mmu.c                 | 29 +++++++++++++++++++++++++++++
->>>>>  2 files changed, 34 insertions(+), 2 deletions(-)
->>>>>
->>>>> diff --git v4.2-rc4/Documentation/filesystems/proc.txt v4.2-rc4_patched/Documentation/filesystems/proc.txt
->>>>> index 6f7fafde0884..22e40211ef64 100644
->>>>> --- v4.2-rc4/Documentation/filesystems/proc.txt
->>>>> +++ v4.2-rc4_patched/Documentation/filesystems/proc.txt
->>>>> @@ -423,6 +423,8 @@ Private_Clean:         0 kB
->>>>>  Private_Dirty:         0 kB
->>>>>  Referenced:          892 kB
->>>>>  Anonymous:             0 kB
->>>>> +AnonHugePages:         0 kB
->>>>> +HugetlbPages:          0 kB
->>>>>  Swap:                  0 kB
->>>>>  KernelPageSize:        4 kB
->>>>>  MMUPageSize:           4 kB
->>>>> @@ -440,8 +442,9 @@ indicates the amount of memory currently marked as referenced or accessed.
->>>>>  "Anonymous" shows the amount of memory that does not belong to any file.  Even
->>>>>  a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
->>>>>  and a page is modified, the file page is replaced by a private anonymous copy.
->>>>> -"Swap" shows how much would-be-anonymous memory is also used, but out on
->>>>> -swap.
->>>>> +"AnonHugePages" shows the ammount of memory backed by transparent hugepage.
->>>>> +"HugetlbPages" shows the ammount of memory backed by hugetlbfs page.
->>>>> +"Swap" shows how much would-be-anonymous memory is also used, but out on swap.
->>>>
->>>> There is no distinction between "private" and "shared" in this "huge page" accounting right?
->>>
->>> Right for current version. And I think that private/shared distinction
->>> gives some help.
->>>
->>>> Would it be possible to account for the huge pages in the {Private,Shared}_{Clean,Dirty} fields?
->>>> Or otherwise split the huge page accounting into shared/private?
->>
->> Sorry, I didn't catch you properly.
->> I think that accounting for hugetlb pages should be done only with HugetlbPages
->> or any other new field for hugetlb, in order not to break the behavior of existing
->> fields. 
+On Fri 04-09-15 12:18:45, Tejun Heo wrote:
+> Hello, Michal.
 > 
-> On a more general note I'd be inclined to just account
-> for hugetlb pages in Rss and {Private,Shared}_Dirty
-> and fix any tools that double count.
+> On Fri, Sep 04, 2015 at 03:30:38PM +0200, Michal Hocko wrote:
+> > The overhead was around 4% for the basic kbuild test without ever
+> > triggering the [k]memcg limit last time I checked. This was quite some
+> > time ago and things might have changed since then. Even when this got
+> > better there will still be _some_ overhead because we have to track that
+> > memory and that is not free.
+> 
+> So, I just ran small scale tests and I don't see any meaningful
+> difference between kmemcg disabled and enabled for kbuild workload
+> (limit is never reached in both cases, memory is reclaimed from global
+> pressure).  The difference in kernel time usage.  I'm sure there's
+> *some* overhead buried in the noise but given the current
+> implementation, I can't see how enabling kmem would lead to 4%
+> overhead in kbuild tests.  It isn't that kernel intensive to begin
+> with.
 
-By the same argument I presume the existing THP "AnonHugePages" smaps field
-is not accounted for in the {Private,Shared}_... fields?
-I.E. AnonHugePages may also benefit from splitting to Private/Shared?
+OK, I've quickly rerun my test on 32CPU machine with 64G of RAM
+Elapsed
+logs.kmem: min: 68.10 max: 69.27 avg: 68.53 std: 0.53 runs: 3
+logs.no.kmem: min: 64.08 [94.1%] max: 68.42 [98.8%] avg: 66.22 [96.6%] std: 1.77 runs: 3
+User
+logs.kmem: min: 867.68 max: 872.88 avg: 869.49 std: 2.40 runs: 3
+logs.no.kmem: min: 865.99 [99.8%] max: 884.94 [101.4%] avg: 874.08 [100.5%] std: 7.98 runs: 3
+System
+logs.kmem: min: 78.50 max: 78.85 avg: 78.63 std: 0.16 runs: 3
+logs.no.kmem: min: 75.36 [96.0%] max: 80.50 [102.1%] avg: 77.91 [99.1%] std: 2.10 runs: 3
 
-thanks,
-PA!draig.
+The elapsed time is still ~3% worse in average while user and system are
+in noise. I haven't checked where he overhead is coming from.
+ 
+> > The question really is whether kmem accounting is so generally useful
+> > that the overhead is acceptable and it is should be enabled by
+> > default. From my POV it is a useful mitigation of untrusted users but
+> > many loads simply do not care because they only care about a certain
+> > level of isolation.
+> 
+> I don't think that's the right way to approach the problem.  Given
+> that the cost isn't prohibitive, no user only care about a certain
+> level of isolation willingly.
+
+I haven't said it is prohibitive. It is simply non-zero and there is
+always cost/benefit that should be considered.
+
+> Distributing memory is what it's all about after all and memory is
+> memory, user or kernel.
+
+True except that kmem accounting doesn't cover the whole kernel memory
+usage. It is an opt-in mechanism for a _better_ isolation. And the
+question really is whether that better isolation is needed/requested by
+default.
+
+> We have kmem
+> on/off situation for historical reasons and because the early
+> implementation wasn't good enough to be enabled by default.  I get
+> that there can be special cases, temporary or otherwise, where
+> disabling kmem is desirable but that gotta be the exception, not the
+> norm.
+
+The default should be the cheapest one IMHO. And our overhead is really
+close to 0 if no memcg accounting is enabled thanks to Johannes'
+page_counters. Then we have a lightweight form of accounting (only user
+memory) which is nicely defined. And then we have an additional opt-in
+for a better isolation which involves some kernel memory as well. Why
+should we conflate the last two? I mean, if somebody wants an additional
+protection then sure, enable kmem and pay an additional overhead but why
+to force this on everybody who wants to use memcg?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
