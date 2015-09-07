@@ -1,79 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CF506B0259
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 04:29:17 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so90602097pac.0
-        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 01:29:17 -0700 (PDT)
-Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
-        by mx.google.com with ESMTPS id jf11si18835209pbd.111.2015.09.07.01.29.15
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B9D96B0038
+	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 04:41:10 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so88711708pad.1
+        for <linux-mm@kvack.org>; Mon, 07 Sep 2015 01:41:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id rb8si18934632pab.112.2015.09.07.01.41.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Sep 2015 01:29:16 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 7 Sep 2015 13:59:13 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 01A9A3940061
-	for <linux-mm@kvack.org>; Mon,  7 Sep 2015 13:59:11 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t878Sf4S2031782
-	for <linux-mm@kvack.org>; Mon, 7 Sep 2015 13:58:41 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t878SexJ009885
-	for <linux-mm@kvack.org>; Mon, 7 Sep 2015 13:58:41 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V2 3/4] mm/kasan: Don't use kasan shadow pointer in generic functions
-Date: Mon,  7 Sep 2015 13:58:38 +0530
-Message-Id: <1441614519-20298-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1441614519-20298-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1441614519-20298-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Sep 2015 01:41:09 -0700 (PDT)
+Date: Mon, 7 Sep 2015 10:41:01 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH 1/3] net: introduce kfree_skb_bulk() user of
+ kmem_cache_free_bulk()
+Message-ID: <20150907104101.3e392a6d@redhat.com>
+In-Reply-To: <CALx6S36R2zGwj5XF0GZWPOC1Ng5HviPWxBM-cn=DDMXU9Auoxg@mail.gmail.com>
+References: <20150904165944.4312.32435.stgit@devil>
+	<20150904170046.4312.38018.stgit@devil>
+	<CALx6S36R2zGwj5XF0GZWPOC1Ng5HviPWxBM-cn=DDMXU9Auoxg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, ryabinin.a.a@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Tom Herbert <tom@herbertland.com>
+Cc: Linux Kernel Network Developers <netdev@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com, brouer@redhat.com
 
-We can't use generic functions like print_hex_dump to access kasan
-shadow region. This require us to setup another kasan shadow region
-for the address passed (kasan shadow address). Some architectures won't
-be able to do that. Hence make a copy of the shadow region row and
-pass that to generic functions.
+On Fri, 4 Sep 2015 11:47:17 -0700 Tom Herbert <tom@herbertland.com> wrote:
 
-Reviewed-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- mm/kasan/report.c | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+> On Fri, Sep 4, 2015 at 10:00 AM, Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+> > Introduce the first user of SLAB bulk free API kmem_cache_free_bulk(),
+> > in the network stack in form of function kfree_skb_bulk() which bulk
+> > free SKBs (not skb clones or skb->head, yet).
+> >
+[...]
+> > +/**
+> > + *     kfree_skb_bulk - bulk free SKBs when refcnt allows to
+> > + *     @skbs: array of SKBs to free
+> > + *     @size: number of SKBs in array
+> > + *
+> > + *     If SKB refcnt allows for free, then release any auxiliary data
+> > + *     and then bulk free SKBs to the SLAB allocator.
+> > + *
+> > + *     Note that interrupts must be enabled when calling this function.
+> > + */
+> > +void kfree_skb_bulk(struct sk_buff **skbs, unsigned int size)
+> > +{
+>
+> What not pass a list of skbs (e.g. using skb->next)?
 
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index d269f2087faf..c5367089703c 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -164,14 +164,20 @@ static void print_shadow_for_address(const void *addr)
- 	for (i = -SHADOW_ROWS_AROUND_ADDR; i <= SHADOW_ROWS_AROUND_ADDR; i++) {
- 		const void *kaddr = kasan_shadow_to_mem(shadow_row);
- 		char buffer[4 + (BITS_PER_LONG/8)*2];
-+		char shadow_buf[SHADOW_BYTES_PER_ROW];
- 
- 		snprintf(buffer, sizeof(buffer),
- 			(i == 0) ? ">%p: " : " %p: ", kaddr);
--
-+		/*
-+		 * We should not pass a shadow pointer to generic
-+		 * function, because generic functions may try to
-+		 * access kasan mapping for the passed address.
-+		 */
- 		kasan_disable_current();
-+		memcpy(shadow_buf, shadow_row, SHADOW_BYTES_PER_ROW);
- 		print_hex_dump(KERN_ERR, buffer,
- 			DUMP_PREFIX_NONE, SHADOW_BYTES_PER_ROW, 1,
--			shadow_row, SHADOW_BYTES_PER_ROW, 0);
-+			shadow_buf, SHADOW_BYTES_PER_ROW, 0);
- 		kasan_enable_current();
- 
- 		if (row_is_guilty(shadow_row, shadow))
+Because the next layer, the slab API needs an array:
+  kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+
+Look at the patch:
+ [PATCH V2 3/3] slub: build detached freelist with look-ahead
+ http://thread.gmane.org/gmane.linux.kernel.mm/137469/focus=137472
+
+Where I use this array to progressively scan for objects belonging to
+the same page.  (A subtle detail is I manage to zero out the array,
+which is good from a security/error-handling point of view, as pointers
+to the objects are not left dangling on the stack).
+
+
+I cannot argue that, writing skb->next comes as an additional cost,
+because the slUb free also writes into this cacheline.  Perhaps the
+slAb allocator does not?
+
+[...]
+> > +       if (likely(cnt)) {
+> > +               kmem_cache_free_bulk(skbuff_head_cache, cnt, (void **) skbs);
+> > +       }
+> > +}
+> > +EXPORT_SYMBOL(kfree_skb_bulk);
+
 -- 
-2.5.0
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
