@@ -1,94 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 43CFA6B0038
-	for <linux-mm@kvack.org>; Sun,  6 Sep 2015 21:29:56 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so72423459wic.0
-        for <linux-mm@kvack.org>; Sun, 06 Sep 2015 18:29:55 -0700 (PDT)
-Received: from mail1.vodafone.ie (mail1.vodafone.ie. [213.233.128.43])
-        by mx.google.com with ESMTP id sd17si18006172wjb.102.2015.09.06.18.29.54
-        for <linux-mm@kvack.org>;
-        Sun, 06 Sep 2015 18:29:54 -0700 (PDT)
-Message-ID: <55ECE891.7030309@draigBrady.com>
-Date: Mon, 07 Sep 2015 02:29:53 +0100
-From: =?UTF-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BAF36B0038
+	for <linux-mm@kvack.org>; Sun,  6 Sep 2015 22:25:24 -0400 (EDT)
+Received: by padbj2 with SMTP id bj2so8781591pad.3
+        for <linux-mm@kvack.org>; Sun, 06 Sep 2015 19:25:24 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id v2si17488067pds.164.2015.09.06.19.25.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 06 Sep 2015 19:25:23 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v5 1/2] mm: hugetlb: proc: add HugetlbPages field to
+ /proc/PID/smaps
+Date: Mon, 7 Sep 2015 02:23:44 +0000
+Message-ID: <20150907022343.GB6448@hori1.linux.bs1.fc.nec.co.jp>
+References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
+ <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1440059182-19798-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <55ECE891.7030309@draigBrady.com>
+In-Reply-To: <55ECE891.7030309@draigBrady.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <B6E60C9C459F894D87B7790AD5EB9A6B@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 1/2] mm: hugetlb: proc: add HugetlbPages field to /proc/PID/smaps
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp> <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1440059182-19798-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1440059182-19798-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, =?UTF-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: =?utf-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On 20/08/15 09:26, Naoya Horiguchi wrote:
-> Currently /proc/PID/smaps provides no usage info for vma(VM_HUGETLB), which
-> is inconvenient when we want to know per-task or per-vma base hugetlb usage.
-> To solve this, this patch adds a new line for hugetlb usage like below:
-> 
->   Size:              20480 kB
->   Rss:                   0 kB
->   Pss:                   0 kB
->   Shared_Clean:          0 kB
->   Shared_Dirty:          0 kB
->   Private_Clean:         0 kB
->   Private_Dirty:         0 kB
->   Referenced:            0 kB
->   Anonymous:             0 kB
->   AnonHugePages:         0 kB
->   HugetlbPages:      18432 kB
->   Swap:                  0 kB
->   KernelPageSize:     2048 kB
->   MMUPageSize:        2048 kB
->   Locked:                0 kB
->   VmFlags: rd wr mr mw me de ht
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Acked-by: Joern Engel <joern@logfs.org>
-> Acked-by: David Rientjes <rientjes@google.com>
-> ---
-> v3 -> v4:
-> - suspend Acked-by tag because v3->v4 change is not trivial
-> - I stated in previous discussion that HugetlbPages line can contain page
->   size info, but that's not necessary because we already have KernelPageSize
->   info.
-> - merged documentation update, where the current documentation doesn't mention
->   AnonHugePages, so it's also added.
-> ---
->  Documentation/filesystems/proc.txt |  7 +++++--
->  fs/proc/task_mmu.c                 | 29 +++++++++++++++++++++++++++++
->  2 files changed, 34 insertions(+), 2 deletions(-)
-> 
-> diff --git v4.2-rc4/Documentation/filesystems/proc.txt v4.2-rc4_patched/Documentation/filesystems/proc.txt
-> index 6f7fafde0884..22e40211ef64 100644
-> --- v4.2-rc4/Documentation/filesystems/proc.txt
-> +++ v4.2-rc4_patched/Documentation/filesystems/proc.txt
-> @@ -423,6 +423,8 @@ Private_Clean:         0 kB
->  Private_Dirty:         0 kB
->  Referenced:          892 kB
->  Anonymous:             0 kB
-> +AnonHugePages:         0 kB
-> +HugetlbPages:          0 kB
->  Swap:                  0 kB
->  KernelPageSize:        4 kB
->  MMUPageSize:           4 kB
-> @@ -440,8 +442,9 @@ indicates the amount of memory currently marked as referenced or accessed.
->  "Anonymous" shows the amount of memory that does not belong to any file.  Even
->  a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
->  and a page is modified, the file page is replaced by a private anonymous copy.
-> -"Swap" shows how much would-be-anonymous memory is also used, but out on
-> -swap.
-> +"AnonHugePages" shows the ammount of memory backed by transparent hugepage.
-> +"HugetlbPages" shows the ammount of memory backed by hugetlbfs page.
-> +"Swap" shows how much would-be-anonymous memory is also used, but out on swap.
-
-There is no distinction between "private" and "shared" in this "huge page" accounting right?
-Would it be possible to account for the huge pages in the {Private,Shared}_{Clean,Dirty} fields?
-Or otherwise split the huge page accounting into shared/private?
-
-thanks!
-PA!draig.
+T24gTW9uLCBTZXAgMDcsIDIwMTUgYXQgMDI6Mjk6NTNBTSArMDEwMCwgUMOhZHJhaWcgQnJhZHkg
+d3JvdGU6DQo+IE9uIDIwLzA4LzE1IDA5OjI2LCBOYW95YSBIb3JpZ3VjaGkgd3JvdGU6DQo+ID4g
+Q3VycmVudGx5IC9wcm9jL1BJRC9zbWFwcyBwcm92aWRlcyBubyB1c2FnZSBpbmZvIGZvciB2bWEo
+Vk1fSFVHRVRMQiksIHdoaWNoDQo+ID4gaXMgaW5jb252ZW5pZW50IHdoZW4gd2Ugd2FudCB0byBr
+bm93IHBlci10YXNrIG9yIHBlci12bWEgYmFzZSBodWdldGxiIHVzYWdlLg0KPiA+IFRvIHNvbHZl
+IHRoaXMsIHRoaXMgcGF0Y2ggYWRkcyBhIG5ldyBsaW5lIGZvciBodWdldGxiIHVzYWdlIGxpa2Ug
+YmVsb3c6DQo+ID4gDQo+ID4gICBTaXplOiAgICAgICAgICAgICAgMjA0ODAga0INCj4gPiAgIFJz
+czogICAgICAgICAgICAgICAgICAgMCBrQg0KPiA+ICAgUHNzOiAgICAgICAgICAgICAgICAgICAw
+IGtCDQo+ID4gICBTaGFyZWRfQ2xlYW46ICAgICAgICAgIDAga0INCj4gPiAgIFNoYXJlZF9EaXJ0
+eTogICAgICAgICAgMCBrQg0KPiA+ICAgUHJpdmF0ZV9DbGVhbjogICAgICAgICAwIGtCDQo+ID4g
+ICBQcml2YXRlX0RpcnR5OiAgICAgICAgIDAga0INCj4gPiAgIFJlZmVyZW5jZWQ6ICAgICAgICAg
+ICAgMCBrQg0KPiA+ICAgQW5vbnltb3VzOiAgICAgICAgICAgICAwIGtCDQo+ID4gICBBbm9uSHVn
+ZVBhZ2VzOiAgICAgICAgIDAga0INCj4gPiAgIEh1Z2V0bGJQYWdlczogICAgICAxODQzMiBrQg0K
+PiA+ICAgU3dhcDogICAgICAgICAgICAgICAgICAwIGtCDQo+ID4gICBLZXJuZWxQYWdlU2l6ZTog
+ICAgIDIwNDgga0INCj4gPiAgIE1NVVBhZ2VTaXplOiAgICAgICAgMjA0OCBrQg0KPiA+ICAgTG9j
+a2VkOiAgICAgICAgICAgICAgICAwIGtCDQo+ID4gICBWbUZsYWdzOiByZCB3ciBtciBtdyBtZSBk
+ZSBodA0KPiA+IA0KPiA+IFNpZ25lZC1vZmYtYnk6IE5hb3lhIEhvcmlndWNoaSA8bi1ob3JpZ3Vj
+aGlAYWguanAubmVjLmNvbT4NCj4gPiBBY2tlZC1ieTogSm9lcm4gRW5nZWwgPGpvZXJuQGxvZ2Zz
+Lm9yZz4NCj4gPiBBY2tlZC1ieTogRGF2aWQgUmllbnRqZXMgPHJpZW50amVzQGdvb2dsZS5jb20+
+DQo+ID4gLS0tDQo+ID4gdjMgLT4gdjQ6DQo+ID4gLSBzdXNwZW5kIEFja2VkLWJ5IHRhZyBiZWNh
+dXNlIHYzLT52NCBjaGFuZ2UgaXMgbm90IHRyaXZpYWwNCj4gPiAtIEkgc3RhdGVkIGluIHByZXZp
+b3VzIGRpc2N1c3Npb24gdGhhdCBIdWdldGxiUGFnZXMgbGluZSBjYW4gY29udGFpbiBwYWdlDQo+
+ID4gICBzaXplIGluZm8sIGJ1dCB0aGF0J3Mgbm90IG5lY2Vzc2FyeSBiZWNhdXNlIHdlIGFscmVh
+ZHkgaGF2ZSBLZXJuZWxQYWdlU2l6ZQ0KPiA+ICAgaW5mby4NCj4gPiAtIG1lcmdlZCBkb2N1bWVu
+dGF0aW9uIHVwZGF0ZSwgd2hlcmUgdGhlIGN1cnJlbnQgZG9jdW1lbnRhdGlvbiBkb2Vzbid0IG1l
+bnRpb24NCj4gPiAgIEFub25IdWdlUGFnZXMsIHNvIGl0J3MgYWxzbyBhZGRlZC4NCj4gPiAtLS0N
+Cj4gPiAgRG9jdW1lbnRhdGlvbi9maWxlc3lzdGVtcy9wcm9jLnR4dCB8ICA3ICsrKysrLS0NCj4g
+PiAgZnMvcHJvYy90YXNrX21tdS5jICAgICAgICAgICAgICAgICB8IDI5ICsrKysrKysrKysrKysr
+KysrKysrKysrKysrKysrDQo+ID4gIDIgZmlsZXMgY2hhbmdlZCwgMzQgaW5zZXJ0aW9ucygrKSwg
+MiBkZWxldGlvbnMoLSkNCj4gPiANCj4gPiBkaWZmIC0tZ2l0IHY0LjItcmM0L0RvY3VtZW50YXRp
+b24vZmlsZXN5c3RlbXMvcHJvYy50eHQgdjQuMi1yYzRfcGF0Y2hlZC9Eb2N1bWVudGF0aW9uL2Zp
+bGVzeXN0ZW1zL3Byb2MudHh0DQo+ID4gaW5kZXggNmY3ZmFmZGUwODg0Li4yMmU0MDIxMWVmNjQg
+MTAwNjQ0DQo+ID4gLS0tIHY0LjItcmM0L0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMvcHJvYy50
+eHQNCj4gPiArKysgdjQuMi1yYzRfcGF0Y2hlZC9Eb2N1bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3By
+b2MudHh0DQo+ID4gQEAgLTQyMyw2ICs0MjMsOCBAQCBQcml2YXRlX0NsZWFuOiAgICAgICAgIDAg
+a0INCj4gPiAgUHJpdmF0ZV9EaXJ0eTogICAgICAgICAwIGtCDQo+ID4gIFJlZmVyZW5jZWQ6ICAg
+ICAgICAgIDg5MiBrQg0KPiA+ICBBbm9ueW1vdXM6ICAgICAgICAgICAgIDAga0INCj4gPiArQW5v
+bkh1Z2VQYWdlczogICAgICAgICAwIGtCDQo+ID4gK0h1Z2V0bGJQYWdlczogICAgICAgICAgMCBr
+Qg0KPiA+ICBTd2FwOiAgICAgICAgICAgICAgICAgIDAga0INCj4gPiAgS2VybmVsUGFnZVNpemU6
+ICAgICAgICA0IGtCDQo+ID4gIE1NVVBhZ2VTaXplOiAgICAgICAgICAgNCBrQg0KPiA+IEBAIC00
+NDAsOCArNDQyLDkgQEAgaW5kaWNhdGVzIHRoZSBhbW91bnQgb2YgbWVtb3J5IGN1cnJlbnRseSBt
+YXJrZWQgYXMgcmVmZXJlbmNlZCBvciBhY2Nlc3NlZC4NCj4gPiAgIkFub255bW91cyIgc2hvd3Mg
+dGhlIGFtb3VudCBvZiBtZW1vcnkgdGhhdCBkb2VzIG5vdCBiZWxvbmcgdG8gYW55IGZpbGUuICBF
+dmVuDQo+ID4gIGEgbWFwcGluZyBhc3NvY2lhdGVkIHdpdGggYSBmaWxlIG1heSBjb250YWluIGFu
+b255bW91cyBwYWdlczogd2hlbiBNQVBfUFJJVkFURQ0KPiA+ICBhbmQgYSBwYWdlIGlzIG1vZGlm
+aWVkLCB0aGUgZmlsZSBwYWdlIGlzIHJlcGxhY2VkIGJ5IGEgcHJpdmF0ZSBhbm9ueW1vdXMgY29w
+eS4NCj4gPiAtIlN3YXAiIHNob3dzIGhvdyBtdWNoIHdvdWxkLWJlLWFub255bW91cyBtZW1vcnkg
+aXMgYWxzbyB1c2VkLCBidXQgb3V0IG9uDQo+ID4gLXN3YXAuDQo+ID4gKyJBbm9uSHVnZVBhZ2Vz
+IiBzaG93cyB0aGUgYW1tb3VudCBvZiBtZW1vcnkgYmFja2VkIGJ5IHRyYW5zcGFyZW50IGh1Z2Vw
+YWdlLg0KPiA+ICsiSHVnZXRsYlBhZ2VzIiBzaG93cyB0aGUgYW1tb3VudCBvZiBtZW1vcnkgYmFj
+a2VkIGJ5IGh1Z2V0bGJmcyBwYWdlLg0KPiA+ICsiU3dhcCIgc2hvd3MgaG93IG11Y2ggd291bGQt
+YmUtYW5vbnltb3VzIG1lbW9yeSBpcyBhbHNvIHVzZWQsIGJ1dCBvdXQgb24gc3dhcC4NCj4gDQo+
+IFRoZXJlIGlzIG5vIGRpc3RpbmN0aW9uIGJldHdlZW4gInByaXZhdGUiIGFuZCAic2hhcmVkIiBp
+biB0aGlzICJodWdlIHBhZ2UiIGFjY291bnRpbmcgcmlnaHQ/DQoNClJpZ2h0IGZvciBjdXJyZW50
+IHZlcnNpb24uIEFuZCBJIHRoaW5rIHRoYXQgcHJpdmF0ZS9zaGFyZWQgZGlzdGluY3Rpb24NCmdp
+dmVzIHNvbWUgaGVscC4NCg0KPiBXb3VsZCBpdCBiZSBwb3NzaWJsZSB0byBhY2NvdW50IGZvciB0
+aGUgaHVnZSBwYWdlcyBpbiB0aGUge1ByaXZhdGUsU2hhcmVkfV97Q2xlYW4sRGlydHl9IGZpZWxk
+cz8NCj4gT3Igb3RoZXJ3aXNlIHNwbGl0IHRoZSBodWdlIHBhZ2UgYWNjb3VudGluZyBpbnRvIHNo
+YXJlZC9wcml2YXRlPw0KDQpBcyBmb3IgY2xlYW4vZGlydHkgZGlzdGluY3Rpb24sIEknbSBub3Qg
+c3VyZSBob3cgaXQncyB3b3J0aHdoaWxlIGJlY2F1c2UNCmh1Z2V0bGIgcGFnZXMgYXJlIGFsd2F5
+cyBvbiBtZW1vcnkgYW5kIG5ldmVyIHN3YXBwZWQgb3V0ICh1c2Vyc3BhY2UgZG9lc24ndA0KY2Fy
+ZSBhYm91dCBkaXJ0aW5lc3Mgb2YgaHVnZXRsYj8pLg0KDQpBY2NvcmRpbmcgdG8gY29tbWl0IGxv
+ZyBvZiBjb21taXQgYjRkMWQ5OWZkZDhiICgiaHVnZXRsYjogaGFuZGxlIHVwZGF0aW5nDQpvZiBB
+Q0NFU1NFRCBhbmQgRElSVFkgaW4gaHVnZXRsYl9mYXVsdCgpIiksIGRpcnR5IGJpdCBvZiBodWdl
+dGxiIGlzIG1haW50YWluZWQNCnRvIG1ha2UgYXJjaC1zcGVjaWZpYyBUTEIgaGFuZGxpbmcgY29u
+dmVuaWVudC4gSXQgbG9va3MgcHVyZWx5IGtlcm5lbC1pbnRlcm5hbCwNCnNvIEkgdGhpbmsgd2Ug
+ZG9uJ3QgaGF2ZSB0byBleHBvc2UgaXQuDQoNClRoYW5rcywNCk5hb3lhIEhvcmlndWNoaQ==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
