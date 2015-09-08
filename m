@@ -1,65 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 90FAA6B0260
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 16:43:57 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so131510362pad.1
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 13:43:57 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id cb5si7408882pbd.216.2015.09.08.13.43.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Sep 2015 13:43:40 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 06/12] userfaultfd: selftest: avoid my_bcmp false positives with powerpc
-Date: Tue,  8 Sep 2015 22:43:24 +0200
-Message-Id: <1441745010-14314-7-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1441745010-14314-1-git-send-email-aarcange@redhat.com>
-References: <1441745010-14314-1-git-send-email-aarcange@redhat.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id F07C66B0038
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 17:01:13 -0400 (EDT)
+Received: by padhk3 with SMTP id hk3so49122843pad.3
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 14:01:13 -0700 (PDT)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id tf1si2592036pac.5.2015.09.08.14.01.12
+        for <linux-mm@kvack.org>;
+        Tue, 08 Sep 2015 14:01:13 -0700 (PDT)
+Date: Tue, 08 Sep 2015 14:01:10 -0700 (PDT)
+Message-Id: <20150908.140110.899240065088272758.davem@davemloft.net>
+Subject: Re: [RFC PATCH 1/3] net: introduce kfree_skb_bulk() user of
+ kmem_cache_free_bulk()
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20150904170046.4312.38018.stgit@devil>
+References: <20150904165944.4312.32435.stgit@devil>
+	<20150904170046.4312.38018.stgit@devil>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: Pavel Emelyanov <xemul@parallels.com>, zhang.zhanghailiang@huawei.com, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Michael Ellerman <mpe@ellerman.id.au>, Bamvor Zhang Jian <bamvor.zhangjian@linaro.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>
+To: brouer@redhat.com
+Cc: netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, cl@linux.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com
 
-Keep a non-zero placeholder after the count, for the my_bcmp
-comparison of the page against the zeropage. The lockless increment
-between 255 to 256 against a lockless my_bcmp could otherwise return
-false positives on ppc32le.
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Fri, 04 Sep 2015 19:00:53 +0200
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- tools/testing/selftests/vm/userfaultfd.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+> +/**
+> + *	kfree_skb_bulk - bulk free SKBs when refcnt allows to
+> + *	@skbs: array of SKBs to free
+> + *	@size: number of SKBs in array
+> + *
+> + *	If SKB refcnt allows for free, then release any auxiliary data
+> + *	and then bulk free SKBs to the SLAB allocator.
+> + *
+> + *	Note that interrupts must be enabled when calling this function.
+> + */
+> +void kfree_skb_bulk(struct sk_buff **skbs, unsigned int size)
+> +{
+> +	int i;
+> +	size_t cnt = 0;
+> +
+> +	for (i = 0; i < size; i++) {
+> +		struct sk_buff *skb = skbs[i];
+> +
+> +		if (!skb_dec_and_test(skb))
+> +			continue; /* skip skb, not ready to free */
+> +
+> +		/* Construct an array of SKBs, ready to be free'ed and
+> +		 * cleanup all auxiliary, before bulk free to SLAB.
+> +		 * For now, only handle non-cloned SKBs, related to
+> +		 * SLAB skbuff_head_cache
+> +		 */
+> +		if (skb->fclone == SKB_FCLONE_UNAVAILABLE) {
+> +			skb_release_all(skb);
+> +			skbs[cnt++] = skb;
+> +		} else {
+> +			/* SKB was a clone, don't handle this case */
+> +			__kfree_skb(skb);
+> +		}
+> +	}
+> +	if (likely(cnt)) {
+> +		kmem_cache_free_bulk(skbuff_head_cache, cnt, (void **) skbs);
+> +	}
+> +}
 
-diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
-index 0c7d66f..c1e4fa1 100644
---- a/tools/testing/selftests/vm/userfaultfd.c
-+++ b/tools/testing/selftests/vm/userfaultfd.c
-@@ -462,6 +462,14 @@ static int userfaultfd_stress(void)
- 		*area_mutex(area_src, nr) = (pthread_mutex_t)
- 			PTHREAD_MUTEX_INITIALIZER;
- 		count_verify[nr] = *area_count(area_src, nr) = 1;
-+		/*
-+		 * In the transition between 255 to 256, powerpc will
-+		 * read out of order in my_bcmp and see both bytes as
-+		 * zero, so leave a placeholder below always non-zero
-+		 * after the count, to avoid my_bcmp to trigger false
-+		 * positives.
-+		 */
-+		*(area_count(area_src, nr) + 1) = 1;
- 	}
- 
- 	pipefd = malloc(sizeof(int) * nr_cpus * 2);
-@@ -607,8 +615,8 @@ int main(int argc, char **argv)
- 		fprintf(stderr, "Usage: <MiB> <bounces>\n"), exit(1);
- 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
- 	page_size = sysconf(_SC_PAGE_SIZE);
--	if ((unsigned long) area_count(NULL, 0) + sizeof(unsigned long long) >
--	    page_size)
-+	if ((unsigned long) area_count(NULL, 0) + sizeof(unsigned long long) * 2
-+	    > page_size)
- 		fprintf(stderr, "Impossible to run this test\n"), exit(2);
- 	nr_pages_per_cpu = atol(argv[1]) * 1024*1024 / page_size /
- 		nr_cpus;
+You're going to have to do a trace_kfree_skb() or trace_consume_skb() for
+these things.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
