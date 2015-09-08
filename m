@@ -1,34 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E7626B0255
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 13:49:45 -0400 (EDT)
-Received: by iofb144 with SMTP id b144so127834695iof.1
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 10:49:45 -0700 (PDT)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id 40si3901485ios.168.2015.09.08.10.49.44
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D51D6B0038
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 14:30:12 -0400 (EDT)
+Received: by qgx61 with SMTP id 61so90294581qgx.3
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 11:30:12 -0700 (PDT)
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com. [129.33.205.209])
+        by mx.google.com with ESMTPS id a51si4792253qge.64.2015.09.08.11.30.10
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 08 Sep 2015 10:49:44 -0700 (PDT)
-Date: Tue, 8 Sep 2015 12:49:43 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: slab:Fix the unexpected index mapping result of kmalloc_size(INDEX_NODE
- + 1)
-In-Reply-To: <20150907053855.GC21207@js1304-P5Q-DELUXE>
-Message-ID: <alpine.DEB.2.11.1509081249240.26204@east.gentwo.org>
-References: <OF591717D2.930C6B40-ON48257E7D.0017016C-48257E7D.0020AFB4@zte.com.cn> <20150729152803.67f593847050419a8696fe28@linux-foundation.org> <20150731001827.GA15029@js1304-P5Q-DELUXE> <alpine.DEB.2.11.1507310845440.11895@east.gentwo.org>
- <20150807015609.GB15802@js1304-P5Q-DELUXE> <20150904132902.5d62a09077435d742d6f2f1b@linux-foundation.org> <20150907053855.GC21207@js1304-P5Q-DELUXE>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Tue, 08 Sep 2015 11:30:11 -0700 (PDT)
+Received: from /spool/local
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
+	Tue, 8 Sep 2015 14:30:10 -0400
+Received: from b01cxnp23032.gho.pok.ibm.com (b01cxnp23032.gho.pok.ibm.com [9.57.198.27])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id B150138C804A
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 14:30:08 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by b01cxnp23032.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t88IU8o648562192
+	for <linux-mm@kvack.org>; Tue, 8 Sep 2015 18:30:08 GMT
+Received: from d01av03.pok.ibm.com (localhost [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t88IU8S1009420
+	for <linux-mm@kvack.org>; Tue, 8 Sep 2015 14:30:08 -0400
+From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Subject: [PATCH  0/2] Replace nr_node_ids for loop with for_each_node 
+Date: Wed,  9 Sep 2015 00:01:45 +0530
+Message-Id: <1441737107-23103-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, liu.hailong6@zte.com.cn, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, jiang.xuexin@zte.com.cn, David Rientjes <rientjes@google.com>
+To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, anton@samba.org, akpm@linux-foundation.org
+Cc: nacc@linux.vnet.ibm.com, gkurz@linux.vnet.ibm.com, zhong@linux.vnet.ibm.com, grant.likely@linaro.org, nikunj@linux.vnet.ibm.com, vdavydov@parallels.com, raghavendra.kt@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 7 Sep 2015, Joonsoo Kim wrote:
+Many places in the kernel use 'for' loop with nr_node_ids. For the architectures
+which supports sparse numa ids, this will result in some unnecessary allocations
+for non existing nodes.
+(for e.g., numa node numbers such as 0,1,16,17 is common in powerpc.)
 
-> Sure. It should be fixed soon. If Christoph agree with my approach, I
-> will make it to proper formatted patch.
+So replace the for loop with for_each_node so that allocations happen only for
+existing numa nodes.
 
-Could you explain that approach again?
+Please note that, though there are many places where nr_node_ids is used,
+current patchset uses for_each_node only for slowpath to avoid find_next_bit
+traversal.
+
+Raghavendra K T (2):
+  mm: Replace nr_node_ids for loop with for_each_node in list lru
+  powerpc:numa Do not allocate bootmem memory for non existing nodes
+
+ arch/powerpc/mm/numa.c |  2 +-
+ mm/list_lru.c          | 23 +++++++++++++++--------
+ 2 files changed, 16 insertions(+), 9 deletions(-)
+
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
