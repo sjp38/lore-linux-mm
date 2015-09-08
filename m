@@ -1,55 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CE2C6B025D
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 13:00:56 -0400 (EDT)
-Received: by ykdg206 with SMTP id g206so127960436ykd.1
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 10:00:56 -0700 (PDT)
-Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
-        by mx.google.com with ESMTPS id u62si2504346ykc.142.2015.09.08.10.00.55
+Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 619906B0038
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 13:09:09 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so125763898ioi.2
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 10:09:09 -0700 (PDT)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id f194si3794678ioe.72.2015.09.08.10.09.08
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Sep 2015 10:00:55 -0700 (PDT)
-Received: by ykdg206 with SMTP id g206so127959720ykd.1
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 10:00:55 -0700 (PDT)
-Date: Tue, 8 Sep 2015 13:00:51 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2 3/2] memcg: punt high overage reclaim to
- return-to-userland path
-Message-ID: <20150908170051.GH13749@mtj.duckdns.org>
-References: <20150828220158.GD11089@htj.dyndns.org>
- <20150828220237.GE11089@htj.dyndns.org>
- <20150904210011.GH25329@mtj.duckdns.org>
- <20150907113822.GB31800@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150907113822.GB31800@esperanza>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Tue, 08 Sep 2015 10:09:08 -0700 (PDT)
+Date: Tue, 8 Sep 2015 12:09:07 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Is it OK to pass non-acquired objects to kfree?
+In-Reply-To: <CACT4Y+bt4mBzQZDTjJDQFtOs463QFUt7-OJWEABCocNzork8Ww@mail.gmail.com>
+Message-ID: <alpine.DEB.2.11.1509081205120.25526@east.gentwo.org>
+References: <CACT4Y+Yfz3XvT+w6a3WjcZuATb1b9JdQHHf637zdT=6QZ-hjKg@mail.gmail.com> <alpine.DEB.2.11.1509080902190.24606@east.gentwo.org> <CACT4Y+Z9Mggp_iyJbd03yLNRak-ErSyZanEhxb9DS16QCgZNRA@mail.gmail.com> <alpine.DEB.2.11.1509081008400.25292@east.gentwo.org>
+ <CACT4Y+Z0xoKGmTMyZVf-jhbDQvcH7aErRBULwXHq3GnAudwO-w@mail.gmail.com> <alpine.DEB.2.11.1509081031100.25526@east.gentwo.org> <CACT4Y+bt4mBzQZDTjJDQFtOs463QFUt7-OJWEABCocNzork8Ww@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, akpm@linux-foundation.org, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>
 
-Hello, Vladimir.
+On Tue, 8 Sep 2015, Dmitry Vyukov wrote:
 
-On Mon, Sep 07, 2015 at 02:38:22PM +0300, Vladimir Davydov wrote:
-> > As long as kernel doesn't have a run-away allocation spree, this
-> > should provide enough protection while making kmemcg behave more
-> > consistently.
-> 
-> Another good thing about such an approach is that it copes with prio
-> inversion. Currently, a task with small memory.high might issue
-> memory.high reclaim on kmem charge with a bunch of various locks held.
-> If a task with a big value of memory.high needs any of these locks,
-> it'll have to wait until the low prio task finishes reclaim and releases
-> the locks. By handing over reclaim to task_work whenever possible we
-> might avoid this issue and improve overall performance.
+> >> I would expect that this is illegal code. Is my understanding correct?
+> >
+> > This should work. It could be a problem if thread 1 is touching
+> > the object.
+>
+> What does make it work?
 
-Indeed, will update the patch accordingly.
+The 2nd thread gets the pointer that the first allocated and frees it.
+If there is no more processing then fine.
 
-Thanks.
+> There are clearly memory barriers missing when passing the object
+> between threads. The typical correct pattern is:
 
--- 
-tejun
+Why? If thread 2 gets the pointer it frees it. Thats ok.
+
+> // thread 1
+> smp_store_release(&p, kmalloc(8));
+>
+> // thread 2
+> void *r = smp_load_acquire(&p); // or READ_ONCE_CTRL
+> if (r)
+>   kfree(r);
+>
+> Otherwise stores into the object in kmalloc can reach the object when
+> it is already freed, which is a use-after-free.
+
+Ok so there is more code executing in thread #1. That changes things.
+>
+> What does prevent the use-after-free?
+
+There is no access to p in the first thread. If there are such accesses
+then they are illegal. A user of slab allocators must ensure that there
+are no accesses after freeing the object. And since there is a thread
+that  at random checks p and frees it when not NULL then no other thread
+would be allowed to touch the object.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
