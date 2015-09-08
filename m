@@ -1,73 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id F07C66B0038
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 17:01:13 -0400 (EDT)
-Received: by padhk3 with SMTP id hk3so49122843pad.3
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 14:01:13 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id tf1si2592036pac.5.2015.09.08.14.01.12
-        for <linux-mm@kvack.org>;
-        Tue, 08 Sep 2015 14:01:13 -0700 (PDT)
-Date: Tue, 08 Sep 2015 14:01:10 -0700 (PDT)
-Message-Id: <20150908.140110.899240065088272758.davem@davemloft.net>
-Subject: Re: [RFC PATCH 1/3] net: introduce kfree_skb_bulk() user of
- kmem_cache_free_bulk()
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20150904170046.4312.38018.stgit@devil>
-References: <20150904165944.4312.32435.stgit@devil>
-	<20150904170046.4312.38018.stgit@devil>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 225986B0038
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 19:14:48 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so2684938ioi.2
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 16:14:48 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id oa7si8046991pdb.56.2015.09.08.16.14.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Sep 2015 16:14:47 -0700 (PDT)
+Received: by padhk3 with SMTP id hk3so51926014pad.3
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 16:14:47 -0700 (PDT)
+Date: Tue, 8 Sep 2015 16:14:45 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/mmap.c: Remove useless statement "vma = NULL" in
+ find_vma()
+In-Reply-To: <COL130-W64A6555222F8CEDA513171B9560@phx.gbl>
+Message-ID: <alpine.DEB.2.10.1509081614320.26116@chino.kir.corp.google.com>
+References: <COL130-W64A6555222F8CEDA513171B9560@phx.gbl>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="397176738-523733570-1441754086=:26116"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: brouer@redhat.com
-Cc: netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, cl@linux.com, paulmck@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com
+To: Chen Gang <xili_gchen_5257@hotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "oleg@redhat.com" <oleg@redhat.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
 
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Fri, 04 Sep 2015 19:00:53 +0200
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> +/**
-> + *	kfree_skb_bulk - bulk free SKBs when refcnt allows to
-> + *	@skbs: array of SKBs to free
-> + *	@size: number of SKBs in array
-> + *
-> + *	If SKB refcnt allows for free, then release any auxiliary data
-> + *	and then bulk free SKBs to the SLAB allocator.
-> + *
-> + *	Note that interrupts must be enabled when calling this function.
-> + */
-> +void kfree_skb_bulk(struct sk_buff **skbs, unsigned int size)
-> +{
-> +	int i;
-> +	size_t cnt = 0;
-> +
-> +	for (i = 0; i < size; i++) {
-> +		struct sk_buff *skb = skbs[i];
-> +
-> +		if (!skb_dec_and_test(skb))
-> +			continue; /* skip skb, not ready to free */
-> +
-> +		/* Construct an array of SKBs, ready to be free'ed and
-> +		 * cleanup all auxiliary, before bulk free to SLAB.
-> +		 * For now, only handle non-cloned SKBs, related to
-> +		 * SLAB skbuff_head_cache
-> +		 */
-> +		if (skb->fclone == SKB_FCLONE_UNAVAILABLE) {
-> +			skb_release_all(skb);
-> +			skbs[cnt++] = skb;
-> +		} else {
-> +			/* SKB was a clone, don't handle this case */
-> +			__kfree_skb(skb);
-> +		}
-> +	}
-> +	if (likely(cnt)) {
-> +		kmem_cache_free_bulk(skbuff_head_cache, cnt, (void **) skbs);
-> +	}
-> +}
+--397176738-523733570-1441754086=:26116
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: 8BIT
 
-You're going to have to do a trace_kfree_skb() or trace_consume_skb() for
-these things.
+On Sat, 5 Sep 2015, Chen Gang wrote:
+
+> 
+> From b12fa5a9263cf4c044988e59f0071f4bcc132215 Mon Sep 17 00:00:00 2001
+> From: Chen Gang <gang.chen.5i5j@gmail.com>
+> Date: Sat, 5 Sep 2015 21:49:56 +0800
+> Subject: [PATCH] mm/mmap.c: Remove useless statement "vma = NULL" in
+>  find_vma()
+> 
+> Before the main looping, vma is already is NULL, so need not set it to
+> NULL, again.
+> 
+> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
+
+Acked-by: David Rientjes <rientjes@google.com>
+--397176738-523733570-1441754086=:26116--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
