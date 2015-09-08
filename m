@@ -1,110 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 85B846B0038
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 03:22:23 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so109017577wic.0
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 00:22:23 -0700 (PDT)
-Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
-        by mx.google.com with ESMTPS id jq2si4247689wjc.180.2015.09.08.00.22.21
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id B28646B0038
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 03:52:03 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so105595499wic.0
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 00:52:03 -0700 (PDT)
+Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com. [2a00:1450:400c:c05::230])
+        by mx.google.com with ESMTPS id kz6si4441461wjc.27.2015.09.08.00.52.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Sep 2015 00:22:22 -0700 (PDT)
-Date: Tue, 8 Sep 2015 09:22:20 +0200 (CEST)
-From: Julia Lawall <julia.lawall@lip6.fr>
-Subject: Re: fs/ocfs2/dlm/dlmrecovery.c:1824:4-23: iterator with update on
- line 1827
-In-Reply-To: <55EE7C6D.3030704@huawei.com>
-Message-ID: <alpine.DEB.2.10.1509080916550.2342@hadrien>
-References: <201509072033.3vy462XZ%fengguang.wu@intel.com> <alpine.DEB.2.10.1509071559590.2407@hadrien> <55EE7C6D.3030704@huawei.com>
+        Tue, 08 Sep 2015 00:52:02 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so104700755wic.0
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 00:52:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 8 Sep 2015 09:51:41 +0200
+Message-ID: <CACT4Y+Yfz3XvT+w6a3WjcZuATb1b9JdQHHf637zdT=6QZ-hjKg@mail.gmail.com>
+Subject: Is it OK to pass non-acquired objects to kfree?
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joseph Qi <joseph.qi@huawei.com>
-Cc: Julia Lawall <julia.lawall@lip6.fr>, kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, akpm@linux-foundation.org, linux-mm@kvack.org, kbuild@01.org
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>
 
-On Tue, 8 Sep 2015, Joseph Qi wrote:
+Hello mm-maintainers,
 
-> Hi Julia,
->
-> On 2015/9/7 22:01, Julia Lawall wrote:
-> > It looks like a serious problem, because the loop update does a
-> > dereference of the first argument of list_for_each via list_entry.
-> >
-> Could you give more details about this? IMO, it doesn't make any
-> difference in functional logic.
+I have a question about kfree semantics, I can't find answer in docs
+and opinions I hear differ.
+Namely, is it OK to pass non-acquired objects to
+kfree/kmem_cache_free? By non-acquired mean objects unsafely passed
+between threads without using proper release/acquire (wmb/rmb) memory
+barriers.
 
-Do you expect that setting lock to NULL will cause a break out of the
-loop?  Because it does not.  The expansion of list_for_each_entry is:
+The question arose during work on KernelThreadSanitizer, a kernel data
+race, and in particular caused by the following existing code:
 
-#define list_for_each_entry(pos, head, member)                          \
-	for (pos = list_first_entry(head, typeof(*pos), member);        \
-             &pos->member != (head);                                    \
-             pos = list_next_entry(pos, member))
+// kernel/pid.c
+         if ((atomic_read(&pid->count) =3D=3D 1) ||
+              atomic_dec_and_test(&pid->count)) {
+                 kmem_cache_free(ns->pid_cachep, pid);
+                 put_pid_ns(ns);
+         }
 
-Since pos is NULL, &pos->member != (head), so we will take the loop
-update. List_next_entry is:
+//drivers/tty/tty_buffer.c
+while ((next =3D buf->head->next) !=3D NULL) {
+     tty_buffer_free(port, buf->head);
+     buf->head =3D next;
+}
+// Here another thread can concurrently append to the buffer list, and
+tty_buffer_free eventually calls kfree.
 
-#define list_next_entry(pos, member) \
-        list_entry((pos)->member.next, typeof(*(pos)), member)
+Both these cases don't contain proper memory barrier before handing
+off the object to kfree. In my opinion the code should use
+smp_load_acquire or READ_ONCE_CTRL ("control-dependnecy-acquire").
+Otherwise there can be pending memory accesses to the object in other
+threads that can interfere with slab code or the next usage of the
+object after reuse.
 
-list_entry is container_of, which does
+Paul McKenney suggested that:
 
-const typeof( ((type *)0)->member ) *__mptr = (ptr);
+"
+The maintainers probably want this sort of code to be allowed:
+        p->a++;
+        if (p->b) {
+                kfree(p);
+                p =3D NULL;
+        }
+And the users even more so.
+So if the compiler really is free to reorder any scribbling/checking
+by the caller with any scribbling/checking by kfree(), that should
+be fixed in kfree() rather than in all the callers.
+"
 
-This causes (pos)->member.next to be evaluated, which since pos is NULL
-will crash.
+This does not look reasonable to me for 2 reasons:
+- this incurs unnecessary cost for all kfree users, kfree would have
+to execute a memory barrier always while most callers already have the
+object acquired (either single-threaded use, or mutex protected, or
+the object was properly handed off to the freeing thread)
+- as far as I understand if an object is unsafely passed between a
+chain of threads A->B->C->D and then the last does kfree, then kfree
+can't acquire visibility over the object by executing a memory
+barrier. All threads in the chain must play by the rules to properly
+hand off the object to kfree.
 
-julia
+As far as I understand, that's why atomic_dec_and_test used for
+reference counting contains full memory barrier; and also kfree does
+not seem to contain any memory barriers on fast path.
 
->
-> > julia
-> >
-> > On Mon, 7 Sep 2015, kbuild test robot wrote:
-> >
-> >> TO: Joseph Qi <joseph.qi@huawei.com>
-> >> CC: kbuild-all@01.org
-> >> CC: Andrew Morton <akpm@linux-foundation.org>
-> >> CC: Linux Memory Management List <linux-mm@kvack.org>
-> >>
-> >> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> >> head:   7d9071a095023cd1db8fa18fa0d648dc1a5210e0
-> >> commit: f83c7b5e9fd633fe91128af116e6472a8c4d29a5 ocfs2/dlm: use list_for_each_entry instead of list_for_each
-> >> date:   3 days ago
-> >> :::::: branch date: 33 hours ago
-> >> :::::: commit date: 3 days ago
-> >>
-> >>>> fs/ocfs2/dlm/dlmrecovery.c:1824:4-23: iterator with update on line 1827
-> >>
-> >> git remote add linus git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-> >> git remote update linus
-> >> git checkout f83c7b5e9fd633fe91128af116e6472a8c4d29a5
-> >> vim +1824 fs/ocfs2/dlm/dlmrecovery.c
-> >>
-> >> 6714d8e8 Kurt Hackel 2005-12-15  1818  			BUG_ON(!(mres->flags & DLM_MRES_MIGRATION));
-> >> 6714d8e8 Kurt Hackel 2005-12-15  1819
-> >> 34aa8dac Junxiao Bi  2014-04-03  1820  			lock = NULL;
-> >> 6714d8e8 Kurt Hackel 2005-12-15  1821  			spin_lock(&res->spinlock);
-> >> e17e75ec Kurt Hackel 2007-01-05  1822  			for (j = DLM_GRANTED_LIST; j <= DLM_BLOCKED_LIST; j++) {
-> >> e17e75ec Kurt Hackel 2007-01-05  1823  				tmpq = dlm_list_idx_to_ptr(res, j);
-> >> f83c7b5e Joseph Qi   2015-09-04 @1824  				list_for_each_entry(lock, tmpq, list) {
-> >> 34aa8dac Junxiao Bi  2014-04-03  1825  					if (lock->ml.cookie == ml->cookie)
-> >> 6714d8e8 Kurt Hackel 2005-12-15  1826  						break;
-> >> 34aa8dac Junxiao Bi  2014-04-03 @1827  					lock = NULL;
-> >> 6714d8e8 Kurt Hackel 2005-12-15  1828  				}
-> >> e17e75ec Kurt Hackel 2007-01-05  1829  				if (lock)
-> >> e17e75ec Kurt Hackel 2007-01-05  1830  					break;
-> >>
-> >> ---
-> >> 0-DAY kernel test infrastructure                Open Source Technology Center
-> >> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-> >>
-> >
-> > .
-> >
->
->
->
+Can you please clarify the rules here?
+
+Thank you
+
+
+
+--=20
+Dmitry Vyukov, Software Engineer, dvyukov@google.com
+Google Germany GmbH, Dienerstra=C3=9Fe 12, 80331, M=C3=BCnchen
+Gesch=C3=A4ftsf=C3=BChrer: Graham Law, Christine Elizabeth Flores
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
+Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat
+sind, leiten Sie diese bitte nicht weiter, informieren Sie den
+Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
+.
+This e-mail is confidential. If you are not the right addressee please
+do not forward it, please inform the sender, and please erase this
+e-mail including any attachments. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
