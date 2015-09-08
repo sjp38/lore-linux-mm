@@ -1,114 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2E56B0257
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 10:14:05 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so123188486pad.1
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 07:14:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id iu8si5724038pbc.94.2015.09.08.07.14.04
+Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A5E46B0258
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 10:14:20 -0400 (EDT)
+Received: by oiww128 with SMTP id w128so59284283oiw.2
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 07:14:20 -0700 (PDT)
+Received: from COL004-OMC4S6.hotmail.com (col004-omc4s6.hotmail.com. [65.55.34.208])
+        by mx.google.com with ESMTPS id ya4si2648655pab.124.2015.09.08.07.14.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Sep 2015 07:14:05 -0700 (PDT)
-Date: Tue, 8 Sep 2015 15:13:56 +0100
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [Qemu-devel] [PATCH 19/23] userfaultfd: activate syscall
-Message-ID: <20150908141356.GM2246@work-vm>
-References: <1431624680-20153-20-git-send-email-aarcange@redhat.com>
- <20150811100728.GB4587@in.ibm.com>
- <20150811134826.GI4520@redhat.com>
- <20150812052346.GC4587@in.ibm.com>
- <1441692486.14597.17.camel@ellerman.id.au>
- <20150908063948.GB678@in.ibm.com>
- <20150908085946.GC2246@work-vm>
- <20150908095915.GC678@in.ibm.com>
- <20150908124652.GK2246@work-vm>
- <20150908133647.GA17433@in.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 08 Sep 2015 07:14:19 -0700 (PDT)
+Message-ID: <COL130-W6916929C85FB1943CC1B11B9530@phx.gbl>
+From: Chen Gang <xili_gchen_5257@hotmail.com>
+Subject: Re: [PATCH] mm/mmap.c: Remove useless statement "vma = NULL" in
+ find_vma()
+Date: Tue, 8 Sep 2015 22:14:19 +0800
+In-Reply-To: <55EEED66.6090509@hotmail.com>
+References: <COL130-W64A6555222F8CEDA513171B9560@phx.gbl>
+ <20150907123656.GA32668@redhat.com>,<55EEED66.6090509@hotmail.com>
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150908133647.GA17433@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bharata B Rao <bharata@linux.vnet.ibm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, zhang.zhanghailiang@huawei.com, Pavel Emelyanov <xemul@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Andres Lagar-Cavilla <andreslc@google.com>, Mel Gorman <mgorman@suse.de>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Andy Lutomirski <luto@amacapital.net>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Feiner <pfeiner@google.com>, linuxppc-dev@lists.ozlabs.org
+To: "oleg@redhat.com" <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
 
-* Bharata B Rao (bharata@linux.vnet.ibm.com) wrote:
-> On Tue, Sep 08, 2015 at 01:46:52PM +0100, Dr. David Alan Gilbert wrote:
-> > * Bharata B Rao (bharata@linux.vnet.ibm.com) wrote:
-> > > On Tue, Sep 08, 2015 at 09:59:47AM +0100, Dr. David Alan Gilbert wrote:
-> > > > * Bharata B Rao (bharata@linux.vnet.ibm.com) wrote:
-> > > > > In fact I had successfully done postcopy migration of sPAPR guest with
-> > > > > this setup.
-> > > > 
-> > > > Interesting - I'd not got that far myself on power; I was hitting a problem
-> > > > loading htab ( htab_load() bad index 2113929216 (14848+0 entries) in htab stream (htab_shift=25) )
-> > > > 
-> > > > Did you have to make any changes to the qemu code to get that happy?
-> > > 
-> > > I should have mentioned that I tried only QEMU driven migration within
-> > > the same host using wp3-postcopy branch of your tree. I don't see the
-> > > above issue.
-> > > 
-> > > (qemu) info migrate
-> > > capabilities: xbzrle: off rdma-pin-all: off auto-converge: off zero-blocks: off compress: off x-postcopy-ram: on 
-> > > Migration status: completed
-> > > total time: 39432 milliseconds
-> > > downtime: 162 milliseconds
-> > > setup: 14 milliseconds
-> > > transferred ram: 1297209 kbytes
-> > > throughput: 270.72 mbps
-> > > remaining ram: 0 kbytes
-> > > total ram: 4194560 kbytes
-> > > duplicate: 734015 pages
-> > > skipped: 0 pages
-> > > normal: 318469 pages
-> > > normal bytes: 1273876 kbytes
-> > > dirty sync count: 4
-> > > 
-> > > I will try migration between different hosts soon and check.
-> > 
-> > I hit that on the same host; are you sure you've switched into postcopy mode;
-> > i.e. issued a migrate_start_postcopy before the end of migration?
-> 
-> Sorry I was following your discussion with Li in this thread
-> 
-> https://www.marc.info/?l=qemu-devel&m=143035620026744&w=4
-> 
-> and it wasn't obvious to me that anything apart from turning on the
-> x-postcopy-ram capability was required :(
-
-OK.
-
-> So I do see the problem now.
-> 
-> At the source
-> -------------
-> Error reading data from KVM HTAB fd: Bad file descriptor
-> Segmentation fault
-> 
-> At the target
-> -------------
-> htab_load() bad index 2113929216 (14336+0 entries) in htab stream (htab_shift=25)
-> qemu-system-ppc64: error while loading state section id 56(spapr/htab)
-> qemu-system-ppc64: postcopy_ram_listen_thread: loadvm failed: -22
-> qemu-system-ppc64: VQ 0 size 0x100 Guest index 0x0 inconsistent with Host index 0x1f: delta 0xffe1
-> qemu-system-ppc64: error while loading state for instance 0x0 of device 'pci@800000020000000:00.0/virtio-net'
-> *** Error in `./ppc64-softmmu/qemu-system-ppc64': corrupted double-linked list: 0x00000100241234a0 ***
-> ======= Backtrace: =========
-> /lib64/power8/libc.so.6Segmentation fault
-
-Good - my current world has got rid of the segfaults/corruption in the cleanup on power - but those
-are only after it stumbled over the htab problem.
-
-I don't know the innards of power/htab, so if you've got any pointers on what upset it
-I'd be happy for some pointers.
-
-(We should probably trim the cc - since I don't think this is userfault related).
-
-Dave
-
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+T24gOS83LzE1IDIwOjM2LCBPbGVnIE5lc3Rlcm92IHdyb3RlOgo+IE9uIDA5LzA1LCBDaGVuIEdh
+bmcgd3JvdGU6Cj4+Cj4+IEZyb20gYjEyZmE1YTkyNjNjZjRjMDQ0OTg4ZTU5ZjAwNzFmNGJjYzEz
+MjIxNSBNb24gU2VwIDE3IDAwOjAwOjAwIDIwMDEKPj4gRnJvbTogQ2hlbiBHYW5nIDxnYW5nLmNo
+ZW4uNWk1akBnbWFpbC5jb20+Cj4+IERhdGU6IFNhdCwgNSBTZXAgMjAxNSAyMTo0OTo1NiArMDgw
+MAo+PiBTdWJqZWN0OiBbUEFUQ0hdIG1tL21tYXAuYzogUmVtb3ZlIHVzZWxlc3Mgc3RhdGVtZW50
+ICJ2bWEgPSBOVUxMIiBpbgo+PiBmaW5kX3ZtYSgpCj4+Cj4+IEJlZm9yZSB0aGUgbWFpbiBsb29w
+aW5nLCB2bWEgaXMgYWxyZWFkeSBpcyBOVUxMLCBzbyBuZWVkIG5vdCBzZXQgaXQgdG8KPj4gTlVM
+TCwgYWdhaW4uCj4+Cj4+IFNpZ25lZC1vZmYtYnk6IENoZW4gR2FuZyA8Z2FuZy5jaGVuLjVpNWpA
+Z21haWwuY29tPgo+Cj4gUmV2aWV3ZWQtYnk6IE9sZWcgTmVzdGVyb3YgPG9sZWdAcmVkaGF0LmNv
+bT4KPgoKT0ssIHRoYW5rcy4KCgpJIGFsc28gd2FudCB0byBjb25zdWx0OiB0aGUgY29tbWVudHMg
+b2YgZmluZF92bWEoKSBzYXlzOgoKIkxvb2sgdXAgdGhlIGZpcnN0IFZNQSB3aGljaCBzYXRpc2Zp
+ZXMgYWRkciA8IHZtX2VuZCwgLi4uIgoKSXMgaXQgT0s/ICh3aHkgbm90ICJ2bV9zdGFydCA8PSBh
+ZGRyIDwgdm1fZW5kIiksIG5lZWQgd2UgbGV0ICJ2bWEgPSB0bXAiCmluICJpZiAodG1wLT52bV9z
+dGFydCA8PSBhZGRyKSI/IC0tIGl0IGxvb2tzIHRoZSBjb21tZW50cyBpcyBub3QgbWF0Y2gKdGhl
+IGltcGxlbWVudGF0aW9uLCBwcmVjaXNlbHkgKG1heWJlIG5vdCAxc3QgVk1BKS4KCgpUaGFua3Mu
+CgoKPj4gLS0tCj4+IG1tL21tYXAuYyB8IDEgLQo+PiAxIGZpbGUgY2hhbmdlZCwgMSBkZWxldGlv
+bigtKQo+Pgo+PiBkaWZmIC0tZ2l0IGEvbW0vbW1hcC5jIGIvbW0vbW1hcC5jCj4+IGluZGV4IGRm
+NmQ1ZjAuLjRkYjdjZjAgMTAwNjQ0Cj4+IC0tLSBhL21tL21tYXAuYwo+PiArKysgYi9tbS9tbWFw
+LmMKPj4gQEAgLTIwNTQsNyArMjA1NCw2IEBAIHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqZmluZF92
+bWEoc3RydWN0IG1tX3N0cnVjdCAqbW0sIHVuc2lnbmVkIGxvbmcgYWRkcikKPj4gcmV0dXJuIHZt
+YTsKPj4KPj4gcmJfbm9kZSA9IG1tLT5tbV9yYi5yYl9ub2RlOwo+PiAtIHZtYSA9IE5VTEw7Cj4+
+Cj4+IHdoaWxlIChyYl9ub2RlKSB7Cj4+IHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdG1wOwo+PiAt
+LQo+PiAxLjkuMwo+Pgo+Pgo+Cj4KCi0tCkNoZW4gR2FuZyAos8K41SkKCk9wZW4sIHNoYXJlLCBh
+bmQgYXR0aXR1ZGUgbGlrZSBhaXIsIHdhdGVyLCBhbmQgbGlmZSB3aGljaCBHb2QgYmxlc3NlZAog
+CQkgCSAgIAkJICA=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
