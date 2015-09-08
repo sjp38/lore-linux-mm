@@ -1,60 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id CBAF76B0038
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 07:31:59 -0400 (EDT)
-Received: by igxx6 with SMTP id x6so13841740igx.1
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 04:31:59 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id ch4si5023965pdb.84.2015.09.08.04.31.58
-        for <linux-mm@kvack.org>;
-        Tue, 08 Sep 2015 04:31:59 -0700 (PDT)
-Date: Tue, 8 Sep 2015 12:31:13 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH V4 2/3] arm64: support initrd outside kernel linear map
-Message-ID: <20150908113113.GA20562@leverpostej>
-References: <1439830867-14935-1-git-send-email-msalter@redhat.com>
- <1439830867-14935-3-git-send-email-msalter@redhat.com>
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 04A066B0038
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 08:18:52 -0400 (EDT)
+Received: by igbni9 with SMTP id ni9so75344847igb.0
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 05:18:51 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id v11si5186614pdi.230.2015.09.08.05.18.50
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=RC4-SHA bits=128/128);
+        Tue, 08 Sep 2015 05:18:51 -0700 (PDT)
+Message-ID: <55EED09E.3010107@huawei.com>
+Date: Tue, 8 Sep 2015 20:12:14 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1439830867-14935-3-git-send-email-msalter@redhat.com>
+Subject: [PATCH V2] kasan: fix last shadow judgement in memory_is_poisoned_16()
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Salter <msalter@redhat.com>
-Cc: Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <Will.Deacon@arm.com>, "x86@kernel.org" <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <adech.fo@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>, Michal Marek <mmarek@suse.cz>, zhongjiang@huawei.com
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Mark,
+The shadow which correspond 16 bytes memory may span 2 or 3 bytes. If the
+memory is aligned on 8, then the shadow takes only 2 bytes. So we check
+"shadow_first_bytes" is enough, and need not to call "memory_is_poisoned_1(addr + 15);".
+But the code "if (likely(!last_byte))" is wrong judgement.
 
-On Mon, Aug 17, 2015 at 06:01:06PM +0100, Mark Salter wrote:
-> The use of mem= could leave part or all of the initrd outside of
-> the kernel linear map. This will lead to an error when unpacking
-> the initrd and a probable failure to boot. This patch catches that
-> situation and relocates the initrd to be fully within the linear
-> map.
+e.g. addr=0, so last_byte = 15 & KASAN_SHADOW_MASK = 7, then the code will
+continue to call "memory_is_poisoned_1(addr + 15);"
 
-With next-20150908, this patch results in a confusing message at boot when not
-using an initrd:
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/kasan/kasan.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
-Moving initrd from [4080000000-407fffffff] to [9fff49000-9fff48fff]
-
-I think that can be solved by folding in the diff below.
-
-Thanks,
-Mark.
-
-diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
-index 6bab21f..2322479 100644
---- a/arch/arm64/kernel/setup.c
-+++ b/arch/arm64/kernel/setup.c
-@@ -364,6 +364,8 @@ static void __init relocate_initrd(void)
-                to_free = ram_end - orig_start;
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 7b28e9c..8da2114 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -135,12 +135,11 @@ static __always_inline bool memory_is_poisoned_16(unsigned long addr)
  
-        size = orig_end - orig_start;
-+       if (!size)
-+               return;
+ 	if (unlikely(*shadow_addr)) {
+ 		u16 shadow_first_bytes = *(u16 *)shadow_addr;
+-		s8 last_byte = (addr + 15) & KASAN_SHADOW_MASK;
  
-        /* initrd needs to be relocated completely inside linear mapping */
-        new_start = memblock_find_in_range(0, PFN_PHYS(max_pfn),
+ 		if (unlikely(shadow_first_bytes))
+ 			return true;
+ 
+-		if (likely(!last_byte))
++		if (likely(IS_ALIGNED(addr, 8)))
+ 			return false;
+ 
+ 		return memory_is_poisoned_1(addr + 15);
+-- 
+1.7.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
