@@ -1,121 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id EF0826B0255
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 10:41:26 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so122992276wic.1
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 07:41:26 -0700 (PDT)
-Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
-        by mx.google.com with ESMTPS id cv10si1031217wib.81.2015.09.08.07.41.25
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id BB5B86B0255
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 10:44:54 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so120337213ioi.2
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 07:44:54 -0700 (PDT)
+Received: from COL004-OMC2S6.hotmail.com (col004-omc2s6.hotmail.com. [65.55.34.80])
+        by mx.google.com with ESMTPS id hm3si5877269pdb.152.2015.09.08.07.44.53
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Sep 2015 07:41:25 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so119607895wic.0
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 07:41:25 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 08 Sep 2015 07:44:54 -0700 (PDT)
+Message-ID: <COL130-W25EE93C6762646736C6156B9530@phx.gbl>
+From: Chen Gang <xili_gchen_5257@hotmail.com>
+Subject: Re: [PATCH] mm/mmap.c: Only call vma_unlock_anon_vm() when failure
+ occurs in expand_upwards() and expand_downwards()
+Date: Tue, 8 Sep 2015 22:44:52 +0800
+In-Reply-To: <55EEF4B4.5010205@hotmail.com>
+References: <COL130-W9593F65D7C12B5353FE079B96B0@phx.gbl>
+ <55E5AD17.6060901@hotmail.com> <COL130-W4895D78CDAEA273AB88C53B96A0@phx.gbl>
+ <55E96E01.5010605@hotmail.com> <COL130-W49B21394779B6662272AD0B9570@phx.gbl>
+ <55EAC021.3080205@hotmail.com> <COL130-W64DF8D947992A52E4CBE40B9560@phx.gbl>
+ <20150907072418.GA6022@dhcp22.suse.cz>,<55EEF4B4.5010205@hotmail.com>
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.11.1509080902190.24606@east.gentwo.org>
-References: <CACT4Y+Yfz3XvT+w6a3WjcZuATb1b9JdQHHf637zdT=6QZ-hjKg@mail.gmail.com>
- <alpine.DEB.2.11.1509080902190.24606@east.gentwo.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 8 Sep 2015 16:41:05 +0200
-Message-ID: <CACT4Y+Z9Mggp_iyJbd03yLNRak-ErSyZanEhxb9DS16QCgZNRA@mail.gmail.com>
-Subject: Re: Is it OK to pass non-acquired objects to kfree?
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>, Max Filippov <jcmvbkbc@gmail.com>
 
-On Tue, Sep 8, 2015 at 4:13 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Tue, 8 Sep 2015, Dmitry Vyukov wrote:
->
->> The question arose during work on KernelThreadSanitizer, a kernel data
->> race, and in particular caused by the following existing code:
->>
->> // kernel/pid.c
->>          if ((atomic_read(&pid->count) =3D=3D 1) ||
->>               atomic_dec_and_test(&pid->count)) {
->>                  kmem_cache_free(ns->pid_cachep, pid);
->>                  put_pid_ns(ns);
->>          }
->
-> It frees when there the refcount is one? Should this not be
->
->         if (atomic_read(&pid->count) =3D=3D=3D 0) || ...
-
-The code is meant to do decrement of pid->count, but since
-pid->count=3D=3D1 it figures out that it is the only owner of the object,
-so it just skips the "pid->count--" part and proceeds directly to
-free.
-
->> //drivers/tty/tty_buffer.c
->> while ((next =3D buf->head->next) !=3D NULL) {
->>      tty_buffer_free(port, buf->head);
->>      buf->head =3D next;
->> }
->> // Here another thread can concurrently append to the buffer list, and
->> tty_buffer_free eventually calls kfree.
->>
->> Both these cases don't contain proper memory barrier before handing
->> off the object to kfree. In my opinion the code should use
->> smp_load_acquire or READ_ONCE_CTRL ("control-dependnecy-acquire").
->> Otherwise there can be pending memory accesses to the object in other
->> threads that can interfere with slab code or the next usage of the
->> object after reuse.
->
-> There can be pending reads maybe? But a write would require exclusive
-> acccess to the cachelines.
->
->
->> Paul McKenney suggested that:
->>
->> "
->> The maintainers probably want this sort of code to be allowed:
->>         p->a++;
->>         if (p->b) {
->>                 kfree(p);
->>                 p =3D NULL;
->>         }
->> And the users even more so.
->
->
-> Sure. What would be the problem with the above code? The write to the
-> object (p->a++) results in exclusive access to a cacheline being obtained=
-.
-> So one cpu holds that cacheline. Then the object is freed and reused
-> either
-
-I am not sure what cache line states has to do with it...
-Anyway, another thread can do p->c++ after this thread does p->a++,
-then this thread loses its ownership. Or p->c can be located on a
-separate cache line with p->a. And then we still free the object with
-a pending write.
-
-> 1. On the same cpu -> No problem.
->
-> 2. On another cpu. This means that a hand off of the pointer to the objec=
-t
-> occurs in the slab allocators. The hand off involves a spinlock and thus
-> implicit barriers. The other processor will acquire exclusive access to
-> the cacheline when it initializes the object. At that point the cacheline
-> ownership will transfer between the processors.
->
-
-
-
---=20
-Dmitry Vyukov, Software Engineer, dvyukov@google.com
-Google Germany GmbH, Dienerstra=C3=9Fe 12, 80331, M=C3=BCnchen
-Gesch=C3=A4ftsf=C3=BChrer: Graham Law, Christine Elizabeth Flores
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
-Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat
-sind, leiten Sie diese bitte nicht weiter, informieren Sie den
-Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
-.
-This e-mail is confidential. If you are not the right addressee please
-do not forward it, please inform the sender, and please erase this
-e-mail including any attachments. Thanks.
+T24gOS83LzE1IDE1OjI0LCBNaWNoYWwgSG9ja28gd3JvdGU6Cj4gT24gU2F0IDA1LTA5LTE1IDE4
+OjExOjQwLCBDaGVuIEdhbmcgd3JvdGU6Cj4+IEhlbGxvIEFsbDoKPj4KPj4gSSBoYXZlIHNlbmQg
+MiBuZXcgcGF0Y2hlcyBhYm91dCBtbSwgYW5kIDEgcGF0Y2ggZm9yIGFyY2ggbWV0YWcgdmlhIG15
+Cj4+IDIxY24gbWFpbC4gQ291bGQgYW55IG1lbWJlcnMgaGVscCB0byB0ZWxsIG1lLCB3aGV0aGVy
+IGhlL3NoZSBoYXZlCj4+IHJlY2VpdmVkIHRoZSBwYXRjaGVzIG9yIG5vdD8KPgo+IFllcyB0aGV5
+IHNlZW0gdG8gYmUgaW4gdGhlIGFyY2hpdmUuCj4gaHR0cDovL2xrbWwua2VybmVsLm9yZy9yL0NP
+TDEzMC1XNjRBNjU1NTIyMkY4Q0VEQTUxMzE3MUI5NTYwJTQwcGh4LmdibAo+IGh0dHA6Ly9sa21s
+Lmtlcm5lbC5vcmcvci9DT0wxMzAtVzE2Qzk3MkIwNDU3RDVDN0M5Q0IwNkI5NTYwJTQwcGh4Lmdi
+bAo+Cj4gWW91IGNhbiBjaGVjayB0aGF0IGVhc2lseSBieSBodHRwOi8vbGttbC5rZXJuZWwub3Jn
+L3IvJE1FU1NBR0VfSUQKPgoKVGhhbmsgeW91IHZlcnkgbXVjaCBmb3IgeW91ciByZXBseS4gOi0p
+CgoKRXhjdXNlIG1lLCBJIGNhbiBub3Qgb3BlbiBodHRwOi8vbGttbC5rZXJuZWwub3JnL3IvLi4u
+LCBidXQgSSBjYW4gb3BlbgpodHRwczovL2xrbWwub3JnL2xrbWwvMjAxNS85LzMgKG9yIGFub3Ro
+ZXIgZGF0ZSkuIFVuZGVyIHRoaXMgd2ViIHNpdGUsCkkgY2FuIG5vdCBmaW5kIGFueSBwYXRjaGVz
+IHdoaWNoIEkgc2VudCAoSSBzZW50IHRoZW0gaW4gMjAxNS0wOS0wMy8wNCkuCgpJbiAyMDE1LTA5
+LTA1LCBhIHFlbXUgbWVtYmVyIHRvbGQgbWUgdG8gY2hlY2sgdGhlIHBhdGNoZXMgb24gd2Vic2l0
+ZSwgc28KSSBjb3VsZCBrbm93IG15c2VsZiB3aGV0aGVyIHBhdGNoZXMgYXJlIGFjdHVhbGx5IHNl
+bnQgKEkgbWV0IGFsbW9zdCB0aGUKc2FtZSBpc3N1ZSBmb3IgcWVtdSwgc28gSSBjb25zdWx0IHRo
+ZW0sIHRvbykuIFNvIGZvdW5kIGh0dHBzOi8vbGttbC5vcmcKClNvIEkgc2VudCBrZXJuZWwgcGF0
+Y2hlcyBhZ2FpbiB3aXRoIHRoZSBhdHRhY2htZW50cyB2aWEgbXkgaG90bWFpbCBpbiAyMAoxNS0w
+OS0wNS8wNi4gSSBndWVzcywgdGhlIHBhdGNoZXMgeW91IHNhdyBhcmUgc2VudCB2aWEgbXkgaG90
+bWFpbCBpbiAyMDEKNS0wOS0wNS8wNi4gUGxlYXNlIGhlbHAgY2hlY2ssIGFnYWluLCB0aGFua3Mu
+CgoKVGhhbmtzLgotLQpDaGVuIEdhbmcgKLPCuNUpCgpPcGVuLCBzaGFyZSwgYW5kIGF0dGl0dWRl
+IGxpa2UgYWlyLCB3YXRlciwgYW5kIGxpZmUgd2hpY2ggR29kIGJsZXNzZWQKIAkJIAkgICAJCSAg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
