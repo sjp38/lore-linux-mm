@@ -1,44 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C5D46B0254
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 13:10:57 -0400 (EDT)
-Received: by ioiz6 with SMTP id z6so125826379ioi.2
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 10:10:57 -0700 (PDT)
-Received: from resqmta-po-11v.sys.comcast.net (resqmta-po-11v.sys.comcast.net. [2001:558:fe16:19:96:114:154:170])
-        by mx.google.com with ESMTPS id z6si3794516igz.2.2015.09.08.10.10.56
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id D48D16B0038
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 13:32:41 -0400 (EDT)
+Received: by igxx6 with SMTP id x6so22048629igx.1
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 10:32:41 -0700 (PDT)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id e36si3848238ioj.101.2015.09.08.10.32.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 08 Sep 2015 10:10:56 -0700 (PDT)
-Date: Tue, 8 Sep 2015 12:10:54 -0500 (CDT)
+        Tue, 08 Sep 2015 10:32:41 -0700 (PDT)
+Date: Tue, 8 Sep 2015 12:32:40 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH mm] slab: implement bulking for SLAB allocator
-In-Reply-To: <20150908175451.2ce83a0b@redhat.com>
-Message-ID: <alpine.DEB.2.11.1509081209180.25526@east.gentwo.org>
-References: <20150908142147.22804.37717.stgit@devil> <alpine.DEB.2.11.1509081020510.25292@east.gentwo.org> <20150908175451.2ce83a0b@redhat.com>
+Subject: Re: [RFC PATCH 0/3] Network stack, first user of SLAB/kmem_cache
+ bulk free API.
+In-Reply-To: <20150905131825.6c04837d@redhat.com>
+Message-ID: <alpine.DEB.2.11.1509081228100.26148@east.gentwo.org>
+References: <20150824005727.2947.36065.stgit@localhost> <20150904165944.4312.32435.stgit@devil> <55E9DE51.7090109@gmail.com> <alpine.DEB.2.11.1509041354560.993@east.gentwo.org> <55EA0172.2040505@gmail.com> <alpine.DEB.2.11.1509041844190.2499@east.gentwo.org>
+ <20150905131825.6c04837d@redhat.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, netdev@vger.kernel.org
+Cc: Alexander Duyck <alexander.duyck@gmail.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com
 
-On Tue, 8 Sep 2015, Jesper Dangaard Brouer wrote:
+On Sat, 5 Sep 2015, Jesper Dangaard Brouer wrote:
 
-> This test was a single CPU benchmark with no congestion or concurrency.
-> But the code was compiled with CONFIG_NUMA=y.
+> The double_cmpxchg without lock prefix still cost 9 cycles, which is
+> very fast but still a cost (add approx 19 cycles for a lock prefix).
 >
-> I don't know the slAb code very well, but the kmem_cache_node->list_lock
-> looks like a scalability issue.  I guess that is what you are referring
-> to ;-)
+> It is slower than local_irq_disable + local_irq_enable that only cost
+> 7 cycles, which the bulking call uses.  (That is the reason bulk calls
+> with 1 object can almost compete with fastpath).
 
-That lock can be mitigated like in SLUB by increasing per cpu resources.
-The problem in SLAB is the categorization of objects on free as to which
-node they came from and the use of arrays of pointers to avoid freeing the
-object to the object tracking metadata structures in the slab page.
-
-The arrays of pointers have to be replicated for each node, each slab and
-each processor.
-
-
+Hmmm... Guess we need to come up with distinct version of kmalloc() for
+irq and non irq contexts to take advantage of that . Most at non irq
+context anyways.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
