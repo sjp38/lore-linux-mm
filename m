@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 991206B025E
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 16:43:53 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so131509078pad.1
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 13:43:53 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 85C8C6B025F
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 16:43:55 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so136768300pac.2
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 13:43:55 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id dd6si7489909pad.84.2015.09.08.13.43.37
+        by mx.google.com with ESMTPS id kt9si7457853pab.169.2015.09.08.13.43.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Sep 2015 13:43:38 -0700 (PDT)
+        Tue, 08 Sep 2015 13:43:39 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 10/12] userfaultfd: powerpc: Bump up __NR_syscalls to account for __NR_userfaultfd
-Date: Tue,  8 Sep 2015 22:43:28 +0200
-Message-Id: <1441745010-14314-11-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 09/12] userfaultfd: selftest: don't error out if pthread_mutex_t isn't identical
+Date: Tue,  8 Sep 2015 22:43:27 +0200
+Message-Id: <1441745010-14314-10-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1441745010-14314-1-git-send-email-aarcange@redhat.com>
 References: <1441745010-14314-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,30 +20,36 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: Pavel Emelyanov <xemul@parallels.com>, zhang.zhanghailiang@huawei.com, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Michael Ellerman <mpe@ellerman.id.au>, Bamvor Zhang Jian <bamvor.zhangjian@linaro.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>
 
-From: Bharata B Rao <bharata@linux.vnet.ibm.com>
+On ppc big endian this check fails, the mutex doesn't necessarily need
+to be identical for all pages after pthread_mutex_lock/unlock
+cycles. The count verification (outside of the pthread_mutex_t
+structure) suffices and that is retained.
 
-With userfaultfd syscall, the number of syscalls will be 365 on PowerPC.
-Reflect the same in __NR_syscalls.
-
-Signed-off-by: Bharata B Rao <bharata@linux.vnet.ibm.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- arch/powerpc/include/asm/unistd.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ tools/testing/selftests/vm/userfaultfd.c | 9 ---------
+ 1 file changed, 9 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/unistd.h b/arch/powerpc/include/asm/unistd.h
-index f4f8b66..4a055b6 100644
---- a/arch/powerpc/include/asm/unistd.h
-+++ b/arch/powerpc/include/asm/unistd.h
-@@ -12,7 +12,7 @@
- #include <uapi/asm/unistd.h>
- 
- 
--#define __NR_syscalls		364
-+#define __NR_syscalls		365
- 
- #define __NR__exit __NR_exit
- #define NR_syscalls	__NR_syscalls
+diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
+index 174f2fc..d77ed41 100644
+--- a/tools/testing/selftests/vm/userfaultfd.c
++++ b/tools/testing/selftests/vm/userfaultfd.c
+@@ -580,15 +580,6 @@ static int userfaultfd_stress(void)
+ 		/* verification */
+ 		if (bounces & BOUNCE_VERIFY) {
+ 			for (nr = 0; nr < nr_pages; nr++) {
+-				if (my_bcmp(area_dst,
+-					    area_dst + nr * page_size,
+-					    sizeof(pthread_mutex_t))) {
+-					fprintf(stderr,
+-						"error mutex %lu\n",
+-						nr);
+-					err = 1;
+-					bounces = 0;
+-				}
+ 				if (*area_count(area_dst, nr) != count_verify[nr]) {
+ 					fprintf(stderr,
+ 						"error area_count %Lu %Lu %lu\n",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
