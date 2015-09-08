@@ -1,89 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E9F476B0038
-	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 05:56:56 -0400 (EDT)
-Received: by iofh134 with SMTP id h134so111824263iof.0
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 02:56:56 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id 17si4620982pdg.139.2015.09.08.02.56.55
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id D03B76B0038
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 06:01:51 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so111673491ioi.2
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 03:01:51 -0700 (PDT)
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [122.248.162.2])
+        by mx.google.com with ESMTPS id ra9si4588515pac.222.2015.09.08.03.01.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=RC4-SHA bits=128/128);
-        Tue, 08 Sep 2015 02:56:56 -0700 (PDT)
-Message-ID: <55EEAFD7.8010409@huawei.com>
-Date: Tue, 8 Sep 2015 17:52:23 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Tue, 08 Sep 2015 03:01:51 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bharata@linux.vnet.ibm.com>;
+	Tue, 8 Sep 2015 15:31:47 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 2D509E0054
+	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 15:31:07 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t88A1dCt40173822
+	for <linux-mm@kvack.org>; Tue, 8 Sep 2015 15:31:41 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t88A150i012721
+	for <linux-mm@kvack.org>; Tue, 8 Sep 2015 15:31:07 +0530
+Date: Tue, 8 Sep 2015 15:30:30 +0530
+From: Bharata B Rao <bharata@linux.vnet.ibm.com>
+Subject: Re: [Qemu-devel] [PATCH 19/23] userfaultfd: activate syscall
+Message-ID: <20150908095915.GC678@in.ibm.com>
+Reply-To: bharata@linux.vnet.ibm.com
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+ <1431624680-20153-20-git-send-email-aarcange@redhat.com>
+ <20150811100728.GB4587@in.ibm.com>
+ <20150811134826.GI4520@redhat.com>
+ <20150812052346.GC4587@in.ibm.com>
+ <1441692486.14597.17.camel@ellerman.id.au>
+ <20150908063948.GB678@in.ibm.com>
+ <20150908085946.GC2246@work-vm>
 MIME-Version: 1.0
-Subject: Re: [PATCH] kasan: fix last shadow judgement in memory_is_poisoned_16()
-References: <55EE3D03.8000502@huawei.com> <CAPAsAGwo73yh9p0GVN9Rt+U-UonJ-V7y4ZU+LfE17MDSrQpjDA@mail.gmail.com> <55EEAF37.5050402@huawei.com>
-In-Reply-To: <55EEAF37.5050402@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150908085946.GC2246@work-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <adech.fo@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>, Michal Marek <mmarek@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhongjiang@huawei.com
+To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, zhang.zhanghailiang@huawei.com, Pavel Emelyanov <xemul@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Andres Lagar-Cavilla <andreslc@google.com>, Mel Gorman <mgorman@suse.de>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Andy Lutomirski <luto@amacapital.net>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Feiner <pfeiner@google.com>, linuxppc-dev@lists.ozlabs.org
 
-On 2015/9/8 17:49, Xishi Qiu wrote:
+On Tue, Sep 08, 2015 at 09:59:47AM +0100, Dr. David Alan Gilbert wrote:
+> * Bharata B Rao (bharata@linux.vnet.ibm.com) wrote:
+> > In fact I had successfully done postcopy migration of sPAPR guest with
+> > this setup.
+> 
+> Interesting - I'd not got that far myself on power; I was hitting a problem
+> loading htab ( htab_load() bad index 2113929216 (14848+0 entries) in htab stream (htab_shift=25) )
+> 
+> Did you have to make any changes to the qemu code to get that happy?
 
-> On 2015/9/8 17:36, Andrey Ryabinin wrote:
-> 
->> 2015-09-08 4:42 GMT+03:00 Xishi Qiu <qiuxishi@huawei.com>:
->>> The shadow which correspond 16 bytes may span 2 or 3 bytes. If shadow
->>> only take 2 bytes, we can return in "if (likely(!last_byte)) ...", but
->>> it calculates wrong, so fix it.
->>>
->>
->> Please, be more specific. Describe what is wrong with the current code and why,
->> what's the effect of this bug and how you fixed it.
->>
->>
-> 
-> If the 16 bytes memory is aligned on 8, then the shadow takes only 2 bytes.
-> So we check "shadow_first_bytes" is enough, and need not to call "memory_is_poisoned_1(addr + 15);".
-> The code "if (likely(IS_ALIGNED(addr, 8)))" is wrong judgement.
+I should have mentioned that I tried only QEMU driven migration within
+the same host using wp3-postcopy branch of your tree. I don't see the
+above issue.
 
-Sorry, a mistake, The code "if (likely(!last_byte))" is wrong judgement.
+(qemu) info migrate
+capabilities: xbzrle: off rdma-pin-all: off auto-converge: off zero-blocks: off compress: off x-postcopy-ram: on 
+Migration status: completed
+total time: 39432 milliseconds
+downtime: 162 milliseconds
+setup: 14 milliseconds
+transferred ram: 1297209 kbytes
+throughput: 270.72 mbps
+remaining ram: 0 kbytes
+total ram: 4194560 kbytes
+duplicate: 734015 pages
+skipped: 0 pages
+normal: 318469 pages
+normal bytes: 1273876 kbytes
+dirty sync count: 4
 
-> e.g. addr=0, so last_byte = 15 & KASAN_SHADOW_MASK = 7, then the code will
-> continue to call "return memory_is_poisoned_1(addr + 15);"
-> 
-> Thanks,
-> Xishi Qiu
-> 
->>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->>> ---
->>>  mm/kasan/kasan.c |    3 +--
->>>  1 files changed, 1 insertions(+), 2 deletions(-)
->>>
->>> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
->>> index 7b28e9c..8da2114 100644
->>> --- a/mm/kasan/kasan.c
->>> +++ b/mm/kasan/kasan.c
->>> @@ -135,12 +135,11 @@ static __always_inline bool memory_is_poisoned_16(unsigned long addr)
->>>
->>>         if (unlikely(*shadow_addr)) {
->>>                 u16 shadow_first_bytes = *(u16 *)shadow_addr;
->>> -               s8 last_byte = (addr + 15) & KASAN_SHADOW_MASK;
->>>
->>>                 if (unlikely(shadow_first_bytes))
->>>                         return true;
->>>
->>> -               if (likely(!last_byte))
->>> +               if (likely(IS_ALIGNED(addr, 8)))
->>>                         return false;
->>>
->>>                 return memory_is_poisoned_1(addr + 15);
->>> --
->>> 1.7.1
->>>
->>>
->>
->> .
->>
-> 
-> 
+I will try migration between different hosts soon and check.
 
-
+Regards,
+Bharata.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
