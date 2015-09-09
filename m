@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CEF76B0257
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C58A56B0259
 	for <linux-mm@kvack.org>; Tue,  8 Sep 2015 22:49:00 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so141990698pac.0
-        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 19:48:59 -0700 (PDT)
+Received: by pacex6 with SMTP id ex6so141990965pac.0
+        for <linux-mm@kvack.org>; Tue, 08 Sep 2015 19:49:00 -0700 (PDT)
 Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id fl1si8834339pab.174.2015.09.08.19.48.58
+        by mx.google.com with ESMTPS id t5si8832282pbs.119.2015.09.08.19.48.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 08 Sep 2015 19:48:59 -0700 (PDT)
-Message-ID: <1441766934.7854.10.camel@ellerman.id.au>
-Subject: Re: [PATCH 03/12] userfaultfd: selftests: vm: pick up sanitized
- kernel headers
+Message-ID: <1441766935.7854.11.camel@ellerman.id.au>
+Subject: Re: [PATCH 10/12] userfaultfd: powerpc: Bump up __NR_syscalls to
+ account for __NR_userfaultfd
 From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Wed, 09 Sep 2015 12:48:54 +1000
-In-Reply-To: <1441745010-14314-4-git-send-email-aarcange@redhat.com>
+Date: Wed, 09 Sep 2015 12:48:55 +1000
+In-Reply-To: <1441745010-14314-11-git-send-email-aarcange@redhat.com>
 References: <1441745010-14314-1-git-send-email-aarcange@redhat.com>
-	 <1441745010-14314-4-git-send-email-aarcange@redhat.com>
+	 <1441745010-14314-11-git-send-email-aarcange@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -27,32 +27,35 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Pavel Emelyan
  Alan Gilbert" <dgilbert@redhat.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Bamvor Zhang Jian <bamvor.zhangjian@linaro.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>
 
 On Tue, 2015-09-08 at 22:43 +0200, Andrea Arcangeli wrote:
-> From: Thierry Reding <treding@nvidia.com>
+> From: Bharata B Rao <bharata@linux.vnet.ibm.com>
 > 
-> Add the usr/include subdirectory of the top-level tree to the include
-> path, and make sure to include headers without relative paths to make sure
-> the sanitized headers get picked up.  Otherwise the compiler will not be
-> able to find the linux/compiler.h header included by the non- sanitized
-> include/uapi/linux/userfaultfd.h.
+> With userfaultfd syscall, the number of syscalls will be 365 on PowerPC.
+> Reflect the same in __NR_syscalls.
 > 
-> While at it, make sure to only hardcode the syscall numbers on x86 and
-> PowerPC if they haven't been properly picked up from the headers.
-> 
-> Signed-off-by: Thierry Reding <treding@nvidia.com>
-> Cc: Shuah Khan <shuahkh@osg.samsung.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Bharata B Rao <bharata@linux.vnet.ibm.com>
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > ---
->  tools/testing/selftests/vm/Makefile      | 2 +-
->  tools/testing/selftests/vm/userfaultfd.c | 4 +++-
->  2 files changed, 4 insertions(+), 2 deletions(-)
+>  arch/powerpc/include/asm/unistd.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/arch/powerpc/include/asm/unistd.h b/arch/powerpc/include/asm/unistd.h
+> index f4f8b66..4a055b6 100644
+> --- a/arch/powerpc/include/asm/unistd.h
+> +++ b/arch/powerpc/include/asm/unistd.h
+> @@ -12,7 +12,7 @@
+>  #include <uapi/asm/unistd.h>
+>  
+> 
+> -#define __NR_syscalls		364
+> +#define __NR_syscalls		365
 
-This is not perfect, but better than what's there, so:
+I guess technically it's OK for this to get bumped first, but we typically do
+it in a single patch with the addition of the syscall number.
 
-Acked-by: Michael Ellerman <mpe@ellerman.id.au>
+I'd rather do the syscall addition via my tree.
 
 cheers
+
 
 
 --
