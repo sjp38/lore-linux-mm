@@ -1,182 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BDDC6B0255
-	for <linux-mm@kvack.org>; Wed,  9 Sep 2015 13:57:02 -0400 (EDT)
-Received: by qkfq186 with SMTP id q186so7957758qkf.1
-        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 10:57:02 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u71si9259657qku.50.2015.09.09.10.57.01
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A9E336B0038
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2015 14:31:23 -0400 (EDT)
+Received: by qgx61 with SMTP id 61so15572532qgx.3
+        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 11:31:23 -0700 (PDT)
+Received: from mail-qg0-x22e.google.com (mail-qg0-x22e.google.com. [2607:f8b0:400d:c04::22e])
+        by mx.google.com with ESMTPS id 34si9327127qgb.89.2015.09.09.11.31.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Sep 2015 10:57:01 -0700 (PDT)
-Subject: Re: [PATCH/RFC] mm: do not regard CMA pages as free on watermark
- check
-References: <BLU436-SMTP171766343879051ED4CED0A2520@phx.gbl>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <55F072EA.4000703@redhat.com>
-Date: Wed, 9 Sep 2015 10:56:58 -0700
+        Wed, 09 Sep 2015 11:31:23 -0700 (PDT)
+Received: by qgx61 with SMTP id 61so15572221qgx.3
+        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 11:31:22 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <BLU436-SMTP171766343879051ED4CED0A2520@phx.gbl>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <55F072EA.4000703@redhat.com>
+References: <BLU436-SMTP171766343879051ED4CED0A2520@phx.gbl>
+	<55F072EA.4000703@redhat.com>
+Date: Wed, 9 Sep 2015 20:31:22 +0200
+Message-ID: <CAMJBoFNsCuktUC0aZF6Xw05v4g_2eK1G183KkSkhQYkztEVHCA@mail.gmail.com>
+Subject: Re: [PATCH/RFC] mm: do not regard CMA pages as free on watermark check
+From: Vitaly Wool <vitalywool@gmail.com>
+Content-Type: multipart/alternative; boundary=001a1135c67883d73e051f54b09f
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vwool@hotmail.com>, linux-kernel@vger.kernel.org
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Vitaly Wool <vwool@hotmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-(cc-ing linux-mm)
-On 09/09/2015 07:44 AM, Vitaly Wool wrote:
-> __zone_watermark_ok() does not corrrectly take high-order
-> CMA pageblocks into account: high-order CMA blocks are not
-> removed from the watermark check. Moreover, CMA pageblocks
-> may suddenly vanish through CMA allocation, so let's not
-> regard these pages as free in __zone_watermark_ok().
->
-> This patch also adds some primitive testing for the method
-> implemented which has proven that it works as it should.
->
+--001a1135c67883d73e051f54b09f
+Content-Type: text/plain; charset=UTF-8
 
-The choice to include CMA as part of watermarks was pretty deliberate.
-Do you have a description of the problem you are facing with
-the watermark code as is? Any performance numbers?
+Hi Laura,
 
-> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
-> ---
->   include/linux/mmzone.h |  1 +
->   mm/page_alloc.c        | 56 +++++++++++++++++++++++++++++++++++++++++++++-----
->   mm/page_isolation.c    |  2 +-
->   3 files changed, 53 insertions(+), 6 deletions(-)
+On Wed, Sep 9, 2015 at 7:56 PM, Laura Abbott <labbott@redhat.com> wrote:
+
+> (cc-ing linux-mm)
+> On 09/09/2015 07:44 AM, Vitaly Wool wrote:
 >
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index ac00e20..73268f5 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -92,6 +92,7 @@ static inline int get_pfnblock_migratetype(struct page *page, unsigned long pfn)
->   struct free_area {
->   	struct list_head	free_list[MIGRATE_TYPES];
->   	unsigned long		nr_free;
-> +	unsigned long		nr_free_cma;
->   };
+>> __zone_watermark_ok() does not corrrectly take high-order
+>> CMA pageblocks into account: high-order CMA blocks are not
+>> removed from the watermark check. Moreover, CMA pageblocks
+>> may suddenly vanish through CMA allocation, so let's not
+>> regard these pages as free in __zone_watermark_ok().
+>>
+>> This patch also adds some primitive testing for the method
+>> implemented which has proven that it works as it should.
+>>
+>>
+> The choice to include CMA as part of watermarks was pretty deliberate.
+> Do you have a description of the problem you are facing with
+> the watermark code as is? Any performance numbers?
 >
->   struct pglist_data;
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5b5240b..69fbc93 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -672,6 +672,8 @@ static inline void __free_one_page(struct page *page,
->   		} else {
->   			list_del(&buddy->lru);
->   			zone->free_area[order].nr_free--;
-> +			if (is_migrate_cma(migratetype))
-> +				zone->free_area[order].nr_free_cma--;
->   			rmv_page_order(buddy);
->   		}
->   		combined_idx = buddy_idx & page_idx;
-> @@ -705,6 +707,8 @@ static inline void __free_one_page(struct page *page,
->   	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
->   out:
->   	zone->free_area[order].nr_free++;
-> +	if (is_migrate_cma(migratetype))
-> +		zone->free_area[order].nr_free_cma++;
->   }
 >
->   static inline int free_pages_check(struct page *page)
-> @@ -1278,6 +1282,8 @@ static inline void expand(struct zone *zone, struct page *page,
->   		}
->   		list_add(&page[size].lru, &area->free_list[migratetype]);
->   		area->nr_free++;
-> +		if (is_migrate_cma(migratetype))
-> +			area->nr_free_cma++;
->   		set_page_order(&page[size], high);
->   	}
->   }
-> @@ -1379,6 +1385,8 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
->   		list_del(&page->lru);
->   		rmv_page_order(page);
->   		area->nr_free--;
-> +		if (is_migrate_cma(migratetype))
-> +			area->nr_free_cma--;
->   		expand(zone, page, order, current_order, area, migratetype);
->   		set_freepage_migratetype(page, migratetype);
->   		return page;
-> @@ -1428,6 +1436,7 @@ int move_freepages(struct zone *zone,
->   	struct page *page;
->   	unsigned long order;
->   	int pages_moved = 0;
-> +	int mt;
->
->   #ifndef CONFIG_HOLES_IN_ZONE
->   	/*
-> @@ -1457,7 +1466,12 @@ int move_freepages(struct zone *zone,
->   		order = page_order(page);
->   		list_move(&page->lru,
->   			  &zone->free_area[order].free_list[migratetype]);
-> +		mt = get_pageblock_migratetype(page);
-> +		if (is_migrate_cma(mt))
-> +			zone->free_area[order].nr_free_cma--;
->   		set_freepage_migratetype(page, migratetype);
-> +		if (is_migrate_cma(migratetype))
-> +			zone->free_area[order].nr_free_cma++;
->   		page += 1 << order;
->   		pages_moved += 1 << order;
->   	}
-> @@ -1621,6 +1635,8 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
->
->   		/* Remove the page from the freelists */
->   		area->nr_free--;
-> +		if (unlikely(is_migrate_cma(start_migratetype)))
-> +			area->nr_free_cma--;
->   		list_del(&page->lru);
->   		rmv_page_order(page);
->
-> @@ -2012,6 +2028,8 @@ int __isolate_free_page(struct page *page, unsigned int order)
->   	/* Remove page from free list */
->   	list_del(&page->lru);
->   	zone->free_area[order].nr_free--;
-> +	if (is_migrate_cma(mt))
-> +		zone->free_area[order].nr_free_cma--;
->   	rmv_page_order(page);
->
->   	set_page_owner(page, order, __GFP_MOVABLE);
-> @@ -2220,7 +2238,6 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
->   	/* free_pages may go negative - that's OK */
->   	long min = mark;
->   	int o;
-> -	long free_cma = 0;
->
->   	free_pages -= (1 << order) - 1;
->   	if (alloc_flags & ALLOC_HIGH)
-> @@ -2228,17 +2245,43 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
->   	if (alloc_flags & ALLOC_HARDER)
->   		min -= min / 4;
->   #ifdef CONFIG_CMA
-> -	/* If allocation can't use CMA areas don't use free CMA pages */
-> +	/*
-> +	 * We don't want to regard the pages on CMA region as free
-> +	 * on watermark checking, since they cannot be used for
-> +	 * unmovable/reclaimable allocation and they can suddenly
-> +	 * vanish through CMA allocation
-> +	 */
->   	if (!(alloc_flags & ALLOC_CMA))
-> -		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
-> +		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
-> +#ifdef CONFIG_DEBUG_PAGEALLOC
-> +	{
-> +		long nr_free_cma;
-> +		for (o = 0, nr_free_cma = 0; o < MAX_ORDER; o++)
-> +			nr_free_cma += z->free_area[o].nr_free_cma << o;
-> +
-> +		/* nr_free_cma is a bit more realtime than zone_page_state
-> +		 * and may thus differ from it a little, and it's ok
-> +		 */
-> +		if (abs(nr_free_cma -
-> +				zone_page_state(z, NR_FREE_CMA_PAGES)) > 256)
-> +			pr_info_ratelimited("%s: nr_free_cma %ld instead of %ld\n",
-> +					__func__,
-> +					nr_free_cma,
-> +					zone_page_state(z, NR_FREE_CMA_PAGES));
-> +	}
->
+let's start with facing the fact that the calculation in
+__zone_watermark_ok() is done incorrectly for the case when ALLOC_CMA is
+not set. While going through pages by order it is implicitly considered
+that CMA pages can be used and this impacts the result of the function.
+
+This can be solved in a slightly different way compared to what I proposed
+but it needs per-order CMA pages accounting anyway. Then it would have
+looked like:
+
+        for (o = 0; o < order; o++) {
+                /* At the next order, this order's pages become unavailable
+*/
+                free_pages -= z->free_area[o].nr_free << o;
+#ifdef CONFIG_CMA
+                if (!(alloc_flags & ALLOC_CMA))
+                        free_pages -= z->free_area[o].nr_free_cma << o;
+                /* Require fewer higher order pages to be free */
+                min >>= 1;
+...
+
+But what we have also seen is that CMA pages may suddenly disappear due to
+CMA allocator work so the whole watermark checking was still unreliable,
+causing compaction to not run when it ought to and thus leading to
+(otherwise redundant) low memory killer operations, so I decided to propose
+a safer method instead.
+
+Best regards,
+   Vitaly
+
+--001a1135c67883d73e051f54b09f
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hi Laura,<div><br></div><div class=3D"gmail_extra"><div cl=
+ass=3D"gmail_quote">On Wed, Sep 9, 2015 at 7:56 PM, Laura Abbott <span dir=
+=3D"ltr">&lt;<a href=3D"mailto:labbott@redhat.com" target=3D"_blank">labbot=
+t@redhat.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" sty=
+le=3D"margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(=
+204,204,204);border-left-style:solid;padding-left:1ex">(cc-ing linux-mm)<sp=
+an class=3D""><br>
+On 09/09/2015 07:44 AM, Vitaly Wool wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
+left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;p=
+adding-left:1ex">
+__zone_watermark_ok() does not corrrectly take high-order<br>
+CMA pageblocks into account: high-order CMA blocks are not<br>
+removed from the watermark check. Moreover, CMA pageblocks<br>
+may suddenly vanish through CMA allocation, so let&#39;s not<br>
+regard these pages as free in __zone_watermark_ok().<br>
+<br>
+This patch also adds some primitive testing for the method<br>
+implemented which has proven that it works as it should.<br>
+<br>
+</blockquote>
+<br></span>
+The choice to include CMA as part of watermarks was pretty deliberate.<br>
+Do you have a description of the problem you are facing with<br>
+the watermark code as is? Any performance numbers?<div class=3D""><div clas=
+s=3D"h5"><br></div></div></blockquote><div><br></div><div>let&#39;s start w=
+ith facing the fact that the calculation in __zone_watermark_ok() is done i=
+ncorrectly for the case when ALLOC_CMA is not set. While going through page=
+s by order it is implicitly considered that CMA pages can be used and this =
+impacts the result of the function.</div><div><br></div><div>This can be so=
+lved in a slightly different way compared to what I proposed but it needs p=
+er-order CMA pages accounting anyway. Then it would have looked like:</div>=
+<div><br></div><div><div>=C2=A0 =C2=A0 =C2=A0 =C2=A0 for (o =3D 0; o &lt; o=
+rder; o++) {</div><div>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 /* At the next order, this order&#39;s pages become unavailable */</div=
+><div>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 free_pages -=
+=3D z-&gt;free_area[o].nr_free &lt;&lt; o;</div><div>#ifdef CONFIG_CMA</div=
+><div>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if=C2=A0(!(al=
+loc_flags &amp; ALLOC_CMA))</div><div>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 free_pages -=3D=C2=A0z-&gt=
+;free_area[o].nr_free_cma &lt;&lt; o;</div><div>=C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* Require fewer higher order pages to be free=
+ */</div><div>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 min &=
+gt;&gt;=3D 1;</div><div>...</div><div>=C2=A0 =C2=A0<br></div></div><div>But=
+ what we have also seen is that CMA pages may suddenly disappear due to CMA=
+ allocator work so the whole watermark checking was still unreliable, causi=
+ng compaction to not run when it ought to and thus leading to (otherwise re=
+dundant) low memory killer operations, so I decided to propose a safer meth=
+od instead.</div><div><br></div><div>Best regards,</div><div>=C2=A0 =C2=A0V=
+italy</div></div></div></div>
+
+--001a1135c67883d73e051f54b09f--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
