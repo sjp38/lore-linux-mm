@@ -1,68 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 573F56B0038
-	for <linux-mm@kvack.org>; Wed,  9 Sep 2015 08:59:29 -0400 (EDT)
-Received: by qkfq186 with SMTP id q186so3162026qkf.1
-        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 05:59:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o3si8115138qki.31.2015.09.09.05.59.28
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 1913F6B0255
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2015 09:17:01 -0400 (EDT)
+Received: by lbcjc2 with SMTP id jc2so5494564lbc.0
+        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 06:17:00 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
+        by mx.google.com with ESMTPS id cd10si4609620wib.23.2015.09.09.06.16.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Sep 2015 05:59:28 -0700 (PDT)
-Date: Wed, 9 Sep 2015 14:59:19 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC PATCH 0/3] Network stack, first user of SLAB/kmem_cache
- bulk free API.
-Message-ID: <20150909145919.4d68ea36@redhat.com>
-In-Reply-To: <alpine.DEB.2.11.1509081228100.26148@east.gentwo.org>
-References: <20150824005727.2947.36065.stgit@localhost>
-	<20150904165944.4312.32435.stgit@devil>
-	<55E9DE51.7090109@gmail.com>
-	<alpine.DEB.2.11.1509041354560.993@east.gentwo.org>
-	<55EA0172.2040505@gmail.com>
-	<alpine.DEB.2.11.1509041844190.2499@east.gentwo.org>
-	<20150905131825.6c04837d@redhat.com>
-	<alpine.DEB.2.11.1509081228100.26148@east.gentwo.org>
+        Wed, 09 Sep 2015 06:16:59 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so116162206wic.1
+        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 06:16:59 -0700 (PDT)
+Date: Wed, 9 Sep 2015 14:16:57 +0100
+From: Matt Fleming <matt@codeblueprint.co.uk>
+Subject: Re: [PATCH v2 1/3] efi: Add EFI_MEMORY_MORE_RELIABLE support to
+ efi_md_typeattr_format()
+Message-ID: <20150909131657.GF4973@codeblueprint.co.uk>
+References: <1440609031-14695-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <1440609079-14746-1-git-send-email-izumi.taku@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1440609079-14746-1-git-send-email-izumi.taku@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, netdev@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, aravinda@linux.vnet.ibm.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, iamjoonsoo.kim@lge.com, brouer@redhat.com
+To: Taku Izumi <izumi.taku@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-efi@vger.kernel.org, x86@kernel.org, matt.fleming@intel.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, tony.luck@intel.com, qiuxishi@huawei.com, kamezawa.hiroyu@jp.fujitsu.com, ard.biesheuvel@linaro.org, linux-mm@kvack.org
 
-On Tue, 8 Sep 2015 12:32:40 -0500 (CDT)
-Christoph Lameter <cl@linux.com> wrote:
-
-> On Sat, 5 Sep 2015, Jesper Dangaard Brouer wrote:
+On Thu, 27 Aug, at 02:11:19AM, Taku Izumi wrote:
+> UEFI spec 2.5 introduces new Memory Attribute Definition named
+> EFI_MEMORY_MORE_RELIABLE. This patch adds this new attribute
+> support to efi_md_typeattr_format().
 > 
-> > The double_cmpxchg without lock prefix still cost 9 cycles, which is
-> > very fast but still a cost (add approx 19 cycles for a lock prefix).
-> >
-> > It is slower than local_irq_disable + local_irq_enable that only cost
-> > 7 cycles, which the bulking call uses.  (That is the reason bulk calls
-> > with 1 object can almost compete with fastpath).
-> 
-> Hmmm... Guess we need to come up with distinct version of kmalloc() for
-> irq and non irq contexts to take advantage of that . Most at non irq
-> context anyways.
+> Signed-off-by: Taku Izumi <izumi.taku@jp.fujitsu.com>
+> ---
+>  drivers/firmware/efi/efi.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
 
-I agree, it would be an easy win.  Do notice this will have the most
-impact for the slAb allocator.
-
-I estimate alloc + free cost would save:
- * slAb would save approx 60 cycles
- * slUb would save approx  4 cycles
-
-We might consider keeping the slUb approach as it would be more
-friendly for RT with less IRQ disabling.
+Thanks, applied!
 
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Matt Fleming, Intel Open Source Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
