@@ -1,119 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D6CC6B0255
-	for <linux-mm@kvack.org>; Wed,  9 Sep 2015 07:11:29 -0400 (EDT)
-Received: by qgx61 with SMTP id 61so4007738qgx.3
-        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 04:11:29 -0700 (PDT)
-Received: from mx4-phx2.redhat.com (mx4-phx2.redhat.com. [209.132.183.25])
-        by mx.google.com with ESMTPS id r137si7749500qha.16.2015.09.09.04.11.27
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 27A2C6B0255
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2015 07:17:14 -0400 (EDT)
+Received: by obbbh8 with SMTP id bh8so4861085obb.0
+        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 04:17:14 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id xj4si4512868oeb.73.2015.09.09.04.17.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Sep 2015 04:11:28 -0700 (PDT)
-Date: Wed, 9 Sep 2015 07:11:23 -0400 (EDT)
-From: Jan Stancek <jstancek@redhat.com>
-Message-ID: <1670445670.7779783.1441797083045.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20150901071553.GD23114@localhost.localdomain>
-References: <1a7c81db42986a6fa27260fe189890bffc8a9cce.1440665740.git.jstancek@redhat.com> <b12da2996a30cb739146a5eccd068bbe650092a1.1440665740.git.jstancek@redhat.com> <20150901071553.GD23114@localhost.localdomain>
-Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections in
- register_mem_sect_under_node
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 09 Sep 2015 04:17:13 -0700 (PDT)
+From: Wang Long <long.wanglong@huawei.com>
+Subject: [PATCH v2] kasan: Fix a type conversion error
+Date: Wed, 9 Sep 2015 11:04:05 +0000
+Message-ID: <1441796645-23587-1-git-send-email-long.wanglong@huawei.com>
+In-Reply-To: <55F00E91.20409@virtuozzo.com>
+References: <55F00E91.20409@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Young <dyoung@redhat.com>
+To: ryabinin.a.a@gmail.com, adech.fo@gmail.com
+Cc: akpm@linux-foundation.org, rusty@rustcorp.com.au, long.wanglong@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wanglong@laoqinren.net, peifeiyue@huawei.com, morgan.wang@huawei.com
 
-Greg,
+The current KASAN code can not find the following out-of-bounds
+bugs:
+	char *ptr;
+	ptr = kmalloc(8, GFP_KERNEL);
+	memset(ptr+7, 0, 2);
 
-any thoughts about the patch?
+the cause of the problem is the type conversion error in
+*memory_is_poisoned_n* function. So this patch fix that.
 
-Regards,
-Jan
+Signed-off-by: Wang Long <long.wanglong@huawei.com>
+Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+---
+ mm/kasan/kasan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
------ Original Message -----
-> From: "Dave Young" <dyoung@redhat.com>
-> To: "Jan Stancek" <jstancek@redhat.com>
-> Cc: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-> Sent: Tuesday, 1 September, 2015 9:15:53 AM
-> Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections in register_mem_sect_under_node
-> 
-> On 08/27/15 at 04:43pm, Jan Stancek wrote:
-> > Skip non-present sections in mem_blk to avoid crashing during boot
-> > at register_mem_sect_under_node()->get_nid_for_pfn():
-> > 
-> >   Unable to handle kernel paging request for data at address
-> >   0xf000000000080020
-> >   Faulting instruction address: 0xc00000000866b480
-> >   Oops: Kernel access of bad area, sig: 11 [#1]
-> >   SMP NR_CPUS=2048 NUMA pSeries
-> >   Modules linked in:
-> >   CPU: 14 PID: 1 Comm: swapper/14 Not tainted 4.2.0-rc8+ #6
-> >   task: c00000001e480000 ti: c00000001e500000 task.ti: c00000001e500000
-> >   NIP: c00000000866b480 LR: c00000000851aecc CTR: 0000000000000400
-> >   ...
-> >   NIP [c00000000866b480] get_nid_for_pfn+0x10/0x30
-> >   LR [c00000000851aecc] register_mem_sect_under_node+0x9c/0x190
-> >   Call Trace:
-> >   [c00000001e503b10] [c0000000084f89a4] put_device+0x24/0x40 (unreliable)
-> >   [c00000001e503b60] [c00000000851b3d4] register_one_node+0x2b4/0x390
-> >   [c00000001e503bc0] [c000000008ae7a50] topology_init+0x4c/0x1e8
-> >   [c00000001e503c30] [c00000000800b3bc] do_one_initcall+0x10c/0x260
-> >   [c00000001e503d00] [c000000008ae41b4] kernel_init_freeable+0x27c/0x364
-> >   [c00000001e503dc0] [c00000000800bc14] kernel_init+0x24/0x130
-> >   [c00000001e503e30] [c000000008009530] ret_from_kernel_thread+0x5c/0xac
-> >   Instruction dump:
-> >   4e800020 60000000 60000000 60420000 3b80ffed 4bffffc8 00000000 00000000
-> >   3920ffff 78633664 792900c4 7d434a14 <e94a0020> 2faa0000 41de0010 7c63482a
-> >   ---[ end trace e9ab4a173e0cee14 ]---
-> > 
-> > This has been observed during kdump kernel boot on ppc64le KVM guest
-> > (page size: 65536, sections_per_block: 16, PAGES_PER_SECTION: 256)
-> > where kdump adds "rtas" to list of usable regions:
-> >   # hexdump -C /sys/firmware/devicetree/base/rtas/linux,rtas-base
-> >   00000000  2f ff 00 00                                       |/...|
-> > 
-> > [    0.000000] Early memory node ranges
-> > [    0.000000]   node   0: [mem 0x0000000000000000-0x000000001fffffff]
-> > [    0.000000]   node   0: [mem 0x000000002fff0000-0x000000002fffffff]
-> > 
-> > Crash happens when register_mem_sect_under_node goes over mem_blk that
-> > spans sections 32-47, 32-46 are not present, 47 is present:
-> >   32 * 256 * 65536 == 0x20000000
-> >   47 * 256 * 65536 == 0x2f000000
-> > It tries to access page for first pfn of this mem_blk (8192 == 32 * 256)
-> > and crashes.
-> > 
-> > Signed-off-by: Jan Stancek <jstancek@redhat.com>
-> > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > ---
-> >  drivers/base/node.c | 3 +++
-> >  1 file changed, 3 insertions(+)
-> > 
-> > diff --git a/drivers/base/node.c b/drivers/base/node.c
-> > index 4c7423a4b5f4..e638cfde7486 100644
-> > --- a/drivers/base/node.c
-> > +++ b/drivers/base/node.c
-> > @@ -390,6 +390,9 @@ int register_mem_sect_under_node(struct memory_block
-> > *mem_blk, int nid)
-> >  		sect_no <= mem_blk->end_section_nr;
-> >  		sect_no++) {
-> >  
-> > +		if (!present_section_nr(sect_no))
-> > +			continue;
-> > +
-> >  		sect_start_pfn = section_nr_to_pfn(sect_no);
-> >  		sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
-> >  
-> > --
-> > 1.8.3.1
-> > 
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > Please read the FAQ at  http://www.tux.org/lkml/
-> 
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 7b28e9c..5d65d06 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -204,7 +204,7 @@ static __always_inline bool memory_is_poisoned_n(unsigned long addr,
+ 		s8 *last_shadow = (s8 *)kasan_mem_to_shadow((void *)last_byte);
+ 
+ 		if (unlikely(ret != (unsigned long)last_shadow ||
+-			((last_byte & KASAN_SHADOW_MASK) >= *last_shadow)))
++			((long)(last_byte & KASAN_SHADOW_MASK) >= *last_shadow)))
+ 			return true;
+ 	}
+ 	return false;
+-- 
+1.8.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
