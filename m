@@ -1,169 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EF446B0038
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 08:08:42 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so22050578wic.1
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 05:08:41 -0700 (PDT)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id v7si5795909wie.67.2015.09.10.05.08.40
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 66C4C6B0038
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 08:30:00 -0400 (EDT)
+Received: by padhk3 with SMTP id hk3so42093766pad.3
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 05:30:00 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id op6si19104283pbb.239.2015.09.10.05.29.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Sep 2015 05:08:40 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so20523465wic.0
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 05:08:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150910124253.6000cc77@redhat.com>
-References: <CACT4Y+bvaJ6cC_=A1VGx=cT_bkB-teXNud0Wgt33E1AtBYNTSg@mail.gmail.com>
- <alpine.DEB.2.11.1509090901480.18992@east.gentwo.org> <CACT4Y+ZpToAmaboGDvFhgWUqtnUcJACprg=XSTkrJYE4DQ1jcA@mail.gmail.com>
- <alpine.DEB.2.11.1509090930510.19262@east.gentwo.org> <CACT4Y+b_wDnC3mONjmq+F9kaw1_L_8z=E__1n25ZgLhx-biEmQ@mail.gmail.com>
- <alpine.DEB.2.11.1509091036590.19663@east.gentwo.org> <CACT4Y+a6rjbEoP7ufgyJimjx3qVh81TToXjL9Rnj-bHNregZXg@mail.gmail.com>
- <alpine.DEB.2.11.1509091251150.20311@east.gentwo.org> <20150909184415.GJ4029@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1509091346230.20665@east.gentwo.org> <20150909203642.GO4029@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1509091823360.21983@east.gentwo.org> <CACT4Y+aULybVcGWWUDvZ9sFtE7TDvQfZ2enT49xe3VD3Ayv5-Q@mail.gmail.com>
- <20150910124253.6000cc77@redhat.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 10 Sep 2015 14:08:20 +0200
-Message-ID: <CACT4Y+YEEZAOMFojv91T5M34ZHBfDBRxGjn6KtP6cyz+ivt=vw@mail.gmail.com>
-Subject: Re: Is it OK to pass non-acquired objects to kfree?
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Sep 2015 05:29:59 -0700 (PDT)
+Received: by padhy16 with SMTP id hy16so42291992pad.1
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 05:29:59 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [RFC][PATCH] mm: make zbud znd zpool to depend on zswap
+Date: Thu, 10 Sep 2015 21:28:48 +0900
+Message-Id: <1441888128-10897-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Thu, Sep 10, 2015 at 12:42 PM, Jesper Dangaard Brouer
-<brouer@redhat.com> wrote:
-> On Thu, 10 Sep 2015 11:55:35 +0200 Dmitry Vyukov <dvyukov@google.com> wro=
-te:
->
->> On Thu, Sep 10, 2015 at 1:31 AM, Christoph Lameter <cl@linux.com> wrote:
->> > On Wed, 9 Sep 2015, Paul E. McKenney wrote:
->> >
->> >> Either way, Dmitry's tool got a hit on real code using the slab
->> >> allocators.  If that hit is a false positive, then clearly Dmitry
->> >> needs to fix his tool, however, I am not (yet) convinced that it is a
->> >> false positive.  If it is not a false positive, we might well need to
->> >> articulate the rules for use of the slab allocators.
->> >
->> > Could I get a clear definiton as to what exactly is positive? Was this
->> > using SLAB, SLUB or SLOB?
->> >
->> >> > This would all use per cpu data. As soon as a handoff is required w=
-ithin
->> >> > the allocators locks are being used. So I would say no.
->> >>
->> >> As in "no, it is not necessary for the caller of kfree() to invoke ba=
-rrier()
->> >> in this example", right?
->> >
->> > Actually SLUB contains a barrier already in kfree(). Has to be there
->> > because of the way the per cpu pointer is being handled.
->>
->> The positive was reporting of data races in the following code:
->>
->> // kernel/pid.c
->>          if ((atomic_read(&pid->count) =3D=3D 1) ||
->>               atomic_dec_and_test(&pid->count)) {
->>                  kmem_cache_free(ns->pid_cachep, pid);
->>                  put_pid_ns(ns);
->>          }
->>
->> //drivers/tty/tty_buffer.c
->> while ((next =3D buf->head->next) !=3D NULL) {
->>      tty_buffer_free(port, buf->head);
->>      buf->head =3D next;
->> }
->>
->> Namely, the tool reported data races between usage of the object in
->> other threads before they released the object and kfree.
->>
->> I am not sure why we are so concentrated on details like SLAB vs SLUB
->> vs SLOB or cache coherency protocols. This looks like waste of time to
->> me. General kernel code should not be safe only when working with SLxB
->> due to current implementation details of SLxB, it should be safe
->> according to memory allocator contract. And this contract seem to be:
->> memory allocator can do arbitrary reads and writes to the object
->> inside of kmalloc and kfree.
->> Similarly for memory model. There is officially documented kernel
->> memory model, which all general kernel code must adhere to. Reasoning
->> about whether a particular piece of code works on architecture X, or
->> how exactly it can break on architecture Y in unnecessary in such
->> context. In the end, there can be memory allocator implementation and
->> new architectures.
->>
->> My question is about contracts, not about current implementation
->> details or specific architectures.
->>
->> There are memory allocator implementations that do reads and writes of
->> the object, and there are memory allocator implementations that do not
->> do any barriers on fast paths. From this follows that objects must be
->> passed in quiescent state to kfree.
->> Now, kernel memory model says "A load-load control dependency requires
->> a full read memory barrier".
->> From this follows that the following code is broken:
->>
->> // kernel/pid.c
->>          if ((atomic_read(&pid->count) =3D=3D 1) ||
->>               atomic_dec_and_test(&pid->count)) {
->>                  kmem_cache_free(ns->pid_cachep, pid);
->>                  put_pid_ns(ns);
->>          }
->>
->> and it should be:
->>
->> // kernel/pid.c
->>          if ((smp_load_acquire(&pid->count) =3D=3D 1) ||
->>               atomic_dec_and_test(&pid->count)) {
->>                  kmem_cache_free(ns->pid_cachep, pid);
->>                  put_pid_ns(ns);
->>          }
->>
->
-> This reminds me of some code in the network stack[1] in kfree_skb()
-> where we have a smp_rmb().  Should we have used smp_load_acquire() ?
->
->  void kfree_skb(struct sk_buff *skb)
->  {
->         if (unlikely(!skb))
->                 return;
->         if (likely(atomic_read(&skb->users) =3D=3D 1))
->                 smp_rmb();
->         else if (likely(!atomic_dec_and_test(&skb->users)))
->                 return;
->         trace_kfree_skb(skb, __builtin_return_address(0));
->         __kfree_skb(skb);
->  }
->  EXPORT_SYMBOL(kfree_skb);
+There are no zbud and zpool users besides zswap so enabling
+(and building) CONFIG_ZPOOL and CONFIG_ZBUD make sense only
+when CONFIG_ZSWAP is enabled. In other words, make those
+options to depend on CONFIG_ZSWAP.
 
-rmb is much better than nothing :)
-I generally prefer to use smp_load_acquire just because it's more
-explicit (you see what memory access the barrier relates to), fewer
-lines of code, agrees with modern atomic APIs in C, C++, Java, etc,
-and FWIW is much better for dynamic race detectors.
-As for semantic difference between rmb and smp_load_acquire, rmb does
-not order stores, so stores from __kfree_skb can hoist above the
-atomic_read(&skb->users) =3D=3D 1 check. The only architecture that can do
-that is Alpha, I don't know enough about Alpha and barrier
-implementation on Alpha (maybe rmb and smp_load_acquire do the same
-hardware barrier on Alpha) to say whether it can break in real life or
-not. But I would still consider smp_load_acquire as safer and cleaner
-alternative.
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ mm/Kconfig | 2 ++
+ 1 file changed, 2 insertions(+)
 
-
---=20
-Dmitry Vyukov, Software Engineer, dvyukov@google.com
-Google Germany GmbH, Dienerstra=C3=9Fe 12, 80331, M=C3=BCnchen
-Gesch=C3=A4ftsf=C3=BChrer: Graham Law, Christine Elizabeth Flores
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
-Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat
-sind, leiten Sie diese bitte nicht weiter, informieren Sie den
-Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
-.
-This e-mail is confidential. If you are not the right addressee please
-do not forward it, please inform the sender, and please erase this
-e-mail including any attachments. Thanks.
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 3455a8d..eb48422 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -563,6 +563,7 @@ config ZSWAP
+ 
+ config ZPOOL
+ 	tristate "Common API for compressed memory storage"
++	depends on ZSWAP
+ 	default n
+ 	help
+ 	  Compressed memory storage API.  This allows using either zbud or
+@@ -570,6 +571,7 @@ config ZPOOL
+ 
+ config ZBUD
+ 	tristate "Low density storage for compressed pages"
++	depends on ZSWAP
+ 	default n
+ 	help
+ 	  A special purpose allocator for storing compressed pages.
+-- 
+2.5.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
