@@ -1,96 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 43D996B0038
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 02:39:29 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so11432019wic.1
-        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 23:39:28 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EDF36B0038
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 03:22:45 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so11864326wic.0
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 00:22:44 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lg1si17620384wjc.136.2015.09.09.23.39.27
+        by mx.google.com with ESMTPS id n5si5738616wia.1.2015.09.10.00.22.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Sep 2015 23:39:28 -0700 (PDT)
-Subject: Re: [PATCH/RFC] mm: do not regard CMA pages as free on watermark
- check
-References: <BLU436-SMTP171766343879051ED4CED0A2520@phx.gbl>
- <55F072EA.4000703@redhat.com>
- <CAMJBoFNsCuktUC0aZF6Xw05v4g_2eK1G183KkSkhQYkztEVHCA@mail.gmail.com>
+        Thu, 10 Sep 2015 00:22:44 -0700 (PDT)
+Subject: Re: Store Buffers (was Re: Is it OK to pass non-acquired objects to
+ kfree?)
+References: <CACT4Y+bvaJ6cC_=A1VGx=cT_bkB-teXNud0Wgt33E1AtBYNTSg@mail.gmail.com>
+ <alpine.DEB.2.11.1509090901480.18992@east.gentwo.org>
+ <CACT4Y+ZpToAmaboGDvFhgWUqtnUcJACprg=XSTkrJYE4DQ1jcA@mail.gmail.com>
+ <alpine.DEB.2.11.1509090930510.19262@east.gentwo.org>
+ <CACT4Y+b_wDnC3mONjmq+F9kaw1_L_8z=E__1n25ZgLhx-biEmQ@mail.gmail.com>
+ <alpine.DEB.2.11.1509091036590.19663@east.gentwo.org>
+ <CACT4Y+a6rjbEoP7ufgyJimjx3qVh81TToXjL9Rnj-bHNregZXg@mail.gmail.com>
+ <alpine.DEB.2.11.1509091251150.20311@east.gentwo.org>
+ <20150909184415.GJ4029@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1509091346230.20665@east.gentwo.org>
+ <20150909203642.GO4029@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1509091812500.21983@east.gentwo.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55F1259C.3020006@suse.cz>
-Date: Thu, 10 Sep 2015 08:39:24 +0200
+Message-ID: <55F12FC1.2070801@suse.cz>
+Date: Thu, 10 Sep 2015 09:22:41 +0200
 MIME-Version: 1.0
-In-Reply-To: <CAMJBoFNsCuktUC0aZF6Xw05v4g_2eK1G183KkSkhQYkztEVHCA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <alpine.DEB.2.11.1509091812500.21983@east.gentwo.org>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>, Laura Abbott <labbott@redhat.com>
-Cc: Vitaly Wool <vwool@hotmail.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>
+To: Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>
 
-[CC Joonsoo, Mel]
-
-On 09/09/2015 08:31 PM, Vitaly Wool wrote:
-> Hi Laura,
+On 09/10/2015 01:23 AM, Christoph Lameter wrote:
+> On Wed, 9 Sep 2015, Paul E. McKenney wrote:
 > 
-> On Wed, Sep 9, 2015 at 7:56 PM, Laura Abbott <labbott@redhat.com> wrote:
-> 
->> (cc-ing linux-mm)
->> On 09/09/2015 07:44 AM, Vitaly Wool wrote:
+>> > > > A processor that can randomly defer writes to cachelines in the face of
+>> > > > other processors owning cachelines exclusively does not seem sane to me.
+>> > > > In fact its no longer exclusive.
+>> > >
+>> > > Welcome to the wonderful world of store buffers, which are present even
+>> > > on strongly ordered systems such as x86 and the mainframe.
+>> >
+>> > Store buffers hold complete cachelines that have been written to by a
+>> > processor.
 >>
->>> __zone_watermark_ok() does not corrrectly take high-order
->>> CMA pageblocks into account: high-order CMA blocks are not
->>> removed from the watermark check. Moreover, CMA pageblocks
->>> may suddenly vanish through CMA allocation, so let's not
->>> regard these pages as free in __zone_watermark_ok().
->>>
->>> This patch also adds some primitive testing for the method
->>> implemented which has proven that it works as it should.
->>>
->>>
->> The choice to include CMA as part of watermarks was pretty deliberate.
->> Do you have a description of the problem you are facing with
->> the watermark code as is? Any performance numbers?
->>
->>
-> let's start with facing the fact that the calculation in
-> __zone_watermark_ok() is done incorrectly for the case when ALLOC_CMA is
-> not set. While going through pages by order it is implicitly considered
-
-You're not the first who tried to fix it, I think Joonsoo tried as well?
-I think the main objection was against further polluting fastpaths due to CMA.
-
-Note that Mel has a patchset removing high-order watermark checks (in the last
-patch of https://lwn.net/Articles/655406/ ) so this will be moot afterwards.
-
-> that CMA pages can be used and this impacts the result of the function.
+>> In many cases, partial cachelines.  If the cacheline is not available
+>> locally, the processor cannot know the contents of the rest of the cache
+>> line, only the contents of the portion that it recently stored into.
 > 
-> This can be solved in a slightly different way compared to what I proposed
-> but it needs per-order CMA pages accounting anyway. Then it would have
-> looked like:
-> 
->         for (o = 0; o < order; o++) {
->                 /* At the next order, this order's pages become unavailable
-> */
->                 free_pages -= z->free_area[o].nr_free << o;
-> #ifdef CONFIG_CMA
->                 if (!(alloc_flags & ALLOC_CMA))
->                         free_pages -= z->free_area[o].nr_free_cma << o;
->                 /* Require fewer higher order pages to be free */
->                 min >>= 1;
-> ...
-> 
-> But what we have also seen is that CMA pages may suddenly disappear due to
-> CMA allocator work so the whole watermark checking was still unreliable,
-> causing compaction to not run when it ought to and thus leading to
+> For a partial cacheline it would have to read the rest of the cacheline
+> before updating. And I would expect the processor to have exclusive access
+> to the cacheline that is held in a store buffer. If not then there is
+> trouble afoot.
 
-Well, watermark checking is inherently racy. CMA pages disappearing is no
-exception, non-CMA pages may disappear as well.
-
-> (otherwise redundant) low memory killer operations, so I decided to propose
-> a safer method instead.
-> 
-> Best regards,
->    Vitaly
-> 
+IIRC that (or something similar with same guarantees) basically happens on x86
+when you use the LOCK prefix, i.e. for atomic inc etc. Doing that always would
+destroy performance.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
