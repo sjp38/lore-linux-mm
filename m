@@ -1,38 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 837D36B0038
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 05:13:13 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so16236943wic.1
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 02:13:12 -0700 (PDT)
-Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
-        by mx.google.com with ESMTPS id si6si5281895wic.33.2015.09.10.02.13.11
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 741856B0038
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 05:31:53 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so16860852wic.1
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 02:31:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o12si10529981wik.94.2015.09.10.02.31.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 10 Sep 2015 02:13:12 -0700 (PDT)
-Date: Thu, 10 Sep 2015 10:13:07 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH 1/1] mm: kmemleak: remove unneeded initialization of
- object to NULL
-Message-ID: <20150910091306.GB12294@localhost>
-References: <1441838029-4596-1-git-send-email-alexey.klimov@linaro.org>
+        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 10 Sep 2015 02:31:52 -0700 (PDT)
+Subject: Re: [PATCH v2] mlock.2: mlock2.2: Add entry to for new mlock2 syscall
+References: <1441030820-2960-1-git-send-email-emunson@akamai.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55F14E05.6020304@suse.cz>
+Date: Thu, 10 Sep 2015 11:31:49 +0200
 MIME-Version: 1.0
-In-Reply-To: <1441838029-4596-1-git-send-email-alexey.klimov@linaro.org>
-Content-Type: text/plain; charset=WINDOWS-1252
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+In-Reply-To: <1441030820-2960-1-git-send-email-emunson@akamai.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Klimov <alexey.klimov@linaro.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, klimov.linux@gmail.com
+To: Eric B Munson <emunson@akamai.com>, mtk.manpages@gmail.com
+Cc: Michal Hocko <mhocko@suse.cz>, Jonathan Corbet <corbet@lwn.net>, linux-man@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Sep 10, 2015 at 01:33:49AM +0300, Alexey Klimov wrote:
-> Few lines below object is reinitialized by lookup_object()
-> so we don't need to init it by NULL in the beginning of
-> find_and_get_object().
->=20
-> Signed-off-by: Alexey Klimov <alexey.klimov@linaro.org>
+On 08/31/2015 04:20 PM, Eric B Munson wrote:
+> Update the mlock.2 man page with information on mlock2() and the new
+> mlockall() flag MCL_ONFAULT.
+> 
+> Signed-off-by: Eric B Munson <emunson@akamai.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+Looks like I acked v1 too late and not v2, so:
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+However, looks like it won't be in Linux 4.3 so that part is outdated.
+Also, what about glibc wrapper for mlock2()? Does it have to come before or
+after the manpage and who gets it in?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
