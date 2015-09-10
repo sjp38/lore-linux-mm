@@ -1,74 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F0906B0038
-	for <linux-mm@kvack.org>; Wed,  9 Sep 2015 21:05:34 -0400 (EDT)
-Received: by obbbh8 with SMTP id bh8so22677398obb.0
-        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 18:05:34 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id ar6si6044359obc.104.2015.09.09.18.05.32
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C0F6C6B0038
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2015 21:10:33 -0400 (EDT)
+Received: by oiev17 with SMTP id v17so16129477oie.1
+        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 18:10:33 -0700 (PDT)
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
+        by mx.google.com with ESMTPS id 5si6064781oid.50.2015.09.09.18.10.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Sep 2015 18:05:33 -0700 (PDT)
-Message-ID: <55F0D5B2.2090205@oracle.com>
-Date: Wed, 09 Sep 2015 20:58:26 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Wed, 09 Sep 2015 18:10:32 -0700 (PDT)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 9 Sep 2015 19:10:32 -0600
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 6FB211FF0042
+	for <linux-mm@kvack.org>; Wed,  9 Sep 2015 19:01:39 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8A19NZt55443572
+	for <linux-mm@kvack.org>; Wed, 9 Sep 2015 18:09:23 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8A1ATo9004616
+	for <linux-mm@kvack.org>; Wed, 9 Sep 2015 19:10:29 -0600
+Date: Wed, 9 Sep 2015 18:10:28 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: Store Buffers (was Re: Is it OK to pass non-acquired objects to
+ kfree?)
+Message-ID: <20150910011028.GY4029@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <CACT4Y+b_wDnC3mONjmq+F9kaw1_L_8z=E__1n25ZgLhx-biEmQ@mail.gmail.com>
+ <alpine.DEB.2.11.1509091036590.19663@east.gentwo.org>
+ <CACT4Y+a6rjbEoP7ufgyJimjx3qVh81TToXjL9Rnj-bHNregZXg@mail.gmail.com>
+ <alpine.DEB.2.11.1509091251150.20311@east.gentwo.org>
+ <20150909184415.GJ4029@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1509091346230.20665@east.gentwo.org>
+ <20150909203642.GO4029@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1509091812500.21983@east.gentwo.org>
+ <20150910000847.GV4029@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1509091917560.22381@east.gentwo.org>
 MIME-Version: 1.0
-Subject: Re: Multiple potential races on vma->vm_flags
-References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com> <55EC9221.4040603@oracle.com> <20150907114048.GA5016@node.dhcp.inet.fi>
-In-Reply-To: <20150907114048.GA5016@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1509091917560.22381@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>
 
-On 09/07/2015 07:40 AM, Kirill A. Shutemov wrote:
-> On Sun, Sep 06, 2015 at 03:21:05PM -0400, Sasha Levin wrote:
->> > ==================================================================
->> > ThreadSanitizer: data-race in munlock_vma_pages_range
->> > 
->> > Write of size 8 by thread T378 (K2633, CPU3):
->> >  [<ffffffff81212579>] munlock_vma_pages_range+0x59/0x3e0 mm/mlock.c:425
->> >  [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
->> >  [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
->> >  [<     inlined    >] SyS_munlock+0x74/0xb0 SYSC_munlock mm/mlock.c:651
->> >  [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
->> >  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
->> > arch/x86/entry/entry_64.S:186
-> ...
+On Wed, Sep 09, 2015 at 07:21:34PM -0500, Christoph Lameter wrote:
+> On Wed, 9 Sep 2015, Paul E. McKenney wrote:
 > 
->> > Previous read of size 8 by thread T398 (K2623, CPU2):
->> >  [<ffffffff8121d198>] try_to_unmap_one+0x78/0x4f0 mm/rmap.c:1208
->> >  [<     inlined    >] rmap_walk+0x147/0x450 rmap_walk_file mm/rmap.c:1540
->> >  [<ffffffff8121e7b7>] rmap_walk+0x147/0x450 mm/rmap.c:1559
->> >  [<ffffffff8121ef72>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
->> >  [<ffffffff81211bb0>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
->> >  [<ffffffff81212066>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
->> >  [<ffffffff812128a0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
->> >  [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
->> >  [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
->> >  [<     inlined    >] SyS_munlock+0x74/0xb0 SYSC_munlock mm/mlock.c:651
->> >  [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
->> >  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
->> > arch/x86/entry/entry_64.S:186
-> Okay, the detected race is mlock/munlock vs. rmap.
+> > The CPU is indeed constrained in this way, but the compiler is not.
+> > In particular, the CPU must do exact alias analysis, while the compiler
+> > is permitted to do approximate alias analysis in some cases.  However,
+> > in gcc builds of the Linux kernel, I believe that the -fno-strict-aliasing
+> > gcc command-line argument forces exact alias analysis.
+> >
+> > Dmitry, anything that I am missing?
+> >
+> > > The transfer to another processor is guarded by locks and I think that
+> > > those are enough to ensure that the cachelines become visible in a
+> > > controlled fashion.
+> >
+> > For the kfree()-to-kmalloc() path, I do believe that you are correct.
+> > Dmitry's question was leading up to the kfree().
 > 
-> On rmap side we check vma->vm_flags in few places without taking
-> vma->vm_mm->mmap_sem. The vma cannot be freed since we hold i_mmap_rwsem
-> or anon_vma_lock, but nothing prevent vma->vm_flags from changing under
-> us.
+> The kmalloc-to-kfree path has similar bounds that ensure correctness.
+> First of all it is the availability of the pointer and the transfer of the
+> contents of the pointer to a remove processor.
 > 
-> In this particular case, speculative check in beginning of
-> try_to_unmap_one() is fine, since we re-check it under mmap_sem later in
-> the function.
+> Strictly speaking the processor would violate the rule that there cannnot
+> be a memory access to the object after kfree is called if the compiler
+> would move a store into kfree().
+> 
+> But then again kfree() contains a barrier() which would block the compiler
+> from moving anything into the free path.
 
-So you're suggesting that this isn't the cause of the bad page flags
-error observed by Andrey and myself?
+That barrier() is implicit in the fact that kfree() is an external
+function?  Or are my eyes failing me?
 
+But yes, a barrier() seems to me to suffice in this situation.
 
-Thanks,
-Sasha
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
