@@ -1,42 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 96F4C6B0038
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 18:01:02 -0400 (EDT)
-Received: by iofb144 with SMTP id b144so78143695iof.1
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 15:01:02 -0700 (PDT)
-Received: from resqmta-po-08v.sys.comcast.net (resqmta-po-08v.sys.comcast.net. [2001:558:fe16:19:96:114:154:167])
-        by mx.google.com with ESMTPS id qm8si95834igb.65.2015.09.10.15.00.58
+	by kanga.kvack.org (Postfix) with ESMTP id B5D1D6B0256
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 18:02:33 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so77551467ioi.2
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 15:02:33 -0700 (PDT)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id eh3si6540078igb.11.2015.09.10.15.02.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 10 Sep 2015 15:00:58 -0700 (PDT)
-Date: Thu, 10 Sep 2015 17:00:56 -0500 (CDT)
+        Thu, 10 Sep 2015 15:02:33 -0700 (PDT)
+Date: Thu, 10 Sep 2015 17:02:31 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: Is it OK to pass non-acquired objects to kfree?
-In-Reply-To: <CACT4Y+ZN=wPWtXOSKanWpL9OtRUd8Bd8r5_o3GJ92YHYgoT01g@mail.gmail.com>
-Message-ID: <alpine.DEB.2.11.1509101700240.11096@east.gentwo.org>
-References: <alpine.DEB.2.11.1509090930510.19262@east.gentwo.org> <CACT4Y+b_wDnC3mONjmq+F9kaw1_L_8z=E__1n25ZgLhx-biEmQ@mail.gmail.com> <alpine.DEB.2.11.1509091036590.19663@east.gentwo.org> <CACT4Y+a6rjbEoP7ufgyJimjx3qVh81TToXjL9Rnj-bHNregZXg@mail.gmail.com>
- <alpine.DEB.2.11.1509091251150.20311@east.gentwo.org> <20150909184415.GJ4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509091346230.20665@east.gentwo.org> <20150909203642.GO4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509091823360.21983@east.gentwo.org>
- <CACT4Y+aULybVcGWWUDvZ9sFtE7TDvQfZ2enT49xe3VD3Ayv5-Q@mail.gmail.com> <20150910171333.GD4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509101301010.10131@east.gentwo.org> <CACT4Y+Y7hjhbhDoDC-gJaqQcaw0jACjvaaqjFeemvWPV=RjPRw@mail.gmail.com>
- <alpine.DEB.2.11.1509101312470.10226@east.gentwo.org> <CACT4Y+ZN=wPWtXOSKanWpL9OtRUd8Bd8r5_o3GJ92YHYgoT01g@mail.gmail.com>
+Subject: Re: [PATCH v2 3/7] x86, gfp: Cache best near node for memory
+ allocation.
+In-Reply-To: <20150910193819.GJ8114@mtj.duckdns.org>
+Message-ID: <alpine.DEB.2.11.1509101701220.11096@east.gentwo.org>
+References: <1441859269-25831-1-git-send-email-tangchen@cn.fujitsu.com> <1441859269-25831-4-git-send-email-tangchen@cn.fujitsu.com> <20150910192935.GI8114@mtj.duckdns.org> <20150910193819.GJ8114@mtj.duckdns.org>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-On Thu, 10 Sep 2015, Dmitry Vyukov wrote:
+On Thu, 10 Sep 2015, Tejun Heo wrote:
 
-> > It changes the first word of the object after the barrier. The first word
-> > is used in SLUB as the pointer to the next free object.
+> > Why not just update node_data[]->node_zonelist in the first place?
+> > Also, what's the synchronization rule here?  How are allocators
+> > synchronized against node hot [un]plugs?
 >
-> User can also write to this object after it is reallocated. It is
-> equivalent to kmalloc writing to the object.
-> And barrier is not the kind of barrier that would make it correct.
-> So I do not see how it is relevant.
+> Also, shouldn't kmalloc_node() or any public allocator fall back
+> automatically to a near node w/o GFP_THISNODE?  Why is this failing at
+> all?  I get that cpu id -> node id mapping changing messes up the
+> locality but allocations shouldn't fail, right?
 
-This is a compiler barrier so nothing can be moved below that into the
-code where the freelist pointer is handled. That was the issue from what
-I heard?
+Without a node specification allocations are subject to various
+constraints and memory policies. It is not simply going to the next node.
+The memory load may require spreading out the allocations over multiple
+nodes, the app may have specified which nodes are to be used etc etc.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
