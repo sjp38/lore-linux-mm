@@ -1,256 +1,304 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id A99C06B0038
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 18:42:41 -0400 (EDT)
-Received: by lbpo4 with SMTP id o4so31064048lbp.2
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 15:42:40 -0700 (PDT)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id y10si1647464lal.29.2015.09.10.15.42.38
-        for <linux-mm@kvack.org>;
-        Thu, 10 Sep 2015 15:42:39 -0700 (PDT)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH v2 4/7] x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at boot time.
-Date: Fri, 11 Sep 2015 01:10:31 +0200
-Message-ID: <1840596.ysIY9qmoPP@vostro.rjw.lan>
-In-Reply-To: <1441859269-25831-5-git-send-email-tangchen@cn.fujitsu.com>
-References: <1441859269-25831-1-git-send-email-tangchen@cn.fujitsu.com> <1441859269-25831-5-git-send-email-tangchen@cn.fujitsu.com>
+Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B4E4A6B0038
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 19:30:57 -0400 (EDT)
+Received: by qgt47 with SMTP id 47so49646246qgt.2
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 16:30:57 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id g33si15390000qge.118.2015.09.10.16.30.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Sep 2015 16:30:56 -0700 (PDT)
+Date: Thu, 10 Sep 2015 16:30:54 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2015-09-10-16-30 uploaded
+Message-ID: <55f212ae.jOhLy+/WerFdt/xh%akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: tj@kernel.org, jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
 
-On Thursday, September 10, 2015 12:27:46 PM Tang Chen wrote:
-> From: Gu Zheng <guz.fnst@cn.fujitsu.com>
-> 
-> [Problem]
-> 
-> cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
-> the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
-> 
-> When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
-> which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
-> workqueue does not update wq_numa_possible_cpumask.
-> 
-> So here is the problem:
-> 
-> Assume we have the following cpuid <-> nodeid in the beginning:
-> 
->   Node | CPU
-> ------------------------
-> node 0 |  0-14, 60-74
-> node 1 | 15-29, 75-89
-> node 2 | 30-44, 90-104
-> node 3 | 45-59, 105-119
-> 
-> and we hot-remove node2 and node3, it becomes:
-> 
->   Node | CPU
-> ------------------------
-> node 0 |  0-14, 60-74
-> node 1 | 15-29, 75-89
-> 
-> and we hot-add node4 and node5, it becomes:
-> 
->   Node | CPU
-> ------------------------
-> node 0 |  0-14, 60-74
-> node 1 | 15-29, 75-89
-> node 4 | 30-59
-> node 5 | 90-119
-> 
-> But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
-> 
-> When a pool workqueue is initialized, if its cpumask belongs to a node, its
-> pool->node will be mapped to that node. And memory used by this workqueue will
-> also be allocated on that node.
-> 
-> static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs){
-> ...
->         /* if cpumask is contained inside a NUMA node, we belong to that node */
->         if (wq_numa_enabled) {
->                 for_each_node(node) {
->                         if (cpumask_subset(pool->attrs->cpumask,
->                                            wq_numa_possible_cpumask[node])) {
->                                 pool->node = node;
->                                 break;
->                         }
->                 }
->         }
-> 
-> Since wq_numa_possible_cpumask is not updated, it could be mapped to an offline node,
-> which will lead to memory allocation failure:
-> 
->  SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
->   cache: kmalloc-192, object size: 192, buffer size: 192, default order: 1, min order: 0
->   node 0: slabs: 6172, objs: 259224, free: 245741
->   node 1: slabs: 3261, objs: 136962, free: 127656
-> 
-> It happens here:
-> 
-> create_worker(struct worker_pool *pool)
->  |--> worker = alloc_worker(pool->node);
-> 
-> static struct worker *alloc_worker(int node)
-> {
->         struct worker *worker;
-> 
->         worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); --> Here, useing the wrong node.
-> 
->         ......
-> 
->         return worker;
-> }
-> 
-> [Solution]
-> 
-> There are four mappings in the kernel:
-> 1. nodeid (logical node id)   <->   pxm
-> 2. apicid (physical cpu id)   <->   nodeid
-> 3. cpuid (logical cpu id)     <->   apicid
-> 4. cpuid (logical cpu id)     <->   nodeid
-> 
-> 1. pxm (proximity domain) is provided by ACPI firmware in SRAT, and nodeid <-> pxm
->    mapping is setup at boot time. This mapping is persistent, won't change.
-> 
-> 2. apicid <-> nodeid mapping is setup using info in 1. The mapping is setup at boot
->    time and CPU hotadd time, and cleared at CPU hotremove time. This mapping is also
->    persistent.
-> 
-> 3. cpuid <-> apicid mapping is setup at boot time and CPU hotadd time. cpuid is
->    allocated, lower ids first, and released at CPU hotremove time, reused for other
->    hotadded CPUs. So this mapping is not persistent.
-> 
-> 4. cpuid <-> nodeid mapping is also setup at boot time and CPU hotadd time, and
->    cleared at CPU hotremove time. As a result of 3, this mapping is not persistent.
-> 
-> To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
-> cpus at boot time, and make it persistent. And according to init_cpu_to_node(),
-> cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
-> mapping. So the key point is obtaining all cpus' apicid.
-> 
-> apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
-> MADT (Multiple APIC Description Table). So we finish the job in the following steps:
-> 
-> 1. Enable apic registeration flow to handle both enabled and disabled cpus.
->    This is done by introducing an extra parameter to generic_processor_info to let the
->    caller control if disabled cpus are ignored.
-> 
-> 2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
->    the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
->    registering local apic. Store the mapping in this array.
-> 
-> 3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
->    This is also done by introducing an extra parameter to these apis to let the caller
->    control if disabled cpus are ignored.
-> 
-> 4. Establish all possible cpuid <-> nodeid mapping.
->    This is done via an additional acpi namespace walk for processors.
-> 
-> This patch finished step 1.
+The mm-of-the-moment snapshot 2015-09-10-16-30 has been uploaded to
 
-Can you please avoid using the same (or at least very similar changelog)
-for multiple patches in the series?  That doesn't help a lot.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-> Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> ---
->  arch/x86/kernel/apic/apic.c | 26 +++++++++++++++++++-------
->  1 file changed, 19 insertions(+), 7 deletions(-)
-> 
-> diff --git a/arch/x86/kernel/apic/apic.c b/arch/x86/kernel/apic/apic.c
-> index dcb5285..a9c9830 100644
-> --- a/arch/x86/kernel/apic/apic.c
-> +++ b/arch/x86/kernel/apic/apic.c
-> @@ -1977,7 +1977,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
->  	apic_write(APIC_LVT1, value);
->  }
->  
-> -int generic_processor_info(int apicid, int version)
-> +static int __generic_processor_info(int apicid, int version, bool enabled)
->  {
->  	int cpu, max = nr_cpu_ids;
->  	bool boot_cpu_detected = physid_isset(boot_cpu_physical_apicid,
-> @@ -2011,7 +2011,8 @@ int generic_processor_info(int apicid, int version)
->  			   " Processor %d/0x%x ignored.\n",
->  			   thiscpu, apicid);
->  
-> -		disabled_cpus++;
-> +		if (enabled)
-> +			disabled_cpus++;
+mmotm-readme.txt says
 
-This doesn't look particularly clean to me to be honest.
+README for mm-of-the-moment:
 
->  		return -ENODEV;
->  	}
->  
-> @@ -2028,7 +2029,8 @@ int generic_processor_info(int apicid, int version)
->  			" reached. Keeping one slot for boot cpu."
->  			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
->  
-> -		disabled_cpus++;
-> +		if (enabled)
-> +			disabled_cpus++;
+http://www.ozlabs.org/~akpm/mmotm/
 
-Likewise and so on.
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-Maybe call it "enabled_only"?
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
->  		return -ENODEV;
->  	}
->  
-> @@ -2039,11 +2041,14 @@ int generic_processor_info(int apicid, int version)
->  			"ACPI: NR_CPUS/possible_cpus limit of %i reached."
->  			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
->  
-> -		disabled_cpus++;
-> +		if (enabled)
-> +			disabled_cpus++;
->  		return -EINVAL;
->  	}
->  
-> -	num_processors++;
-> +	if (enabled)
-> +		num_processors++;
-> +
->  	if (apicid == boot_cpu_physical_apicid) {
->  		/*
->  		 * x86_bios_cpu_apicid is required to have processors listed
-> @@ -2071,7 +2076,8 @@ int generic_processor_info(int apicid, int version)
->  			apic_version[boot_cpu_physical_apicid], cpu, version);
->  	}
->  
-> -	physid_set(apicid, phys_cpu_present_map);
-> +	if (enabled)
-> +		physid_set(apicid, phys_cpu_present_map);
->  	if (apicid > max_physical_apicid)
->  		max_physical_apicid = apicid;
->  
-> @@ -2084,11 +2090,17 @@ int generic_processor_info(int apicid, int version)
->  		apic->x86_32_early_logical_apicid(cpu);
->  #endif
->  	set_cpu_possible(cpu, true);
-> -	set_cpu_present(cpu, true);
-> +	if (enabled)
-> +		set_cpu_present(cpu, true);
->  
->  	return cpu;
->  }
->  
-> +int generic_processor_info(int apicid, int version)
-> +{
-> +	return __generic_processor_info(apicid, version, true);
-> +}
-> +
->  int hard_smp_processor_id(void)
->  {
->  	return read_apic_id();
-> 
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-Thanks,
-Rafael
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.2:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  zpool-add-zpool_has_pool.patch
+  zswap-dynamic-pool-creation.patch
+  zswap-change-zpool-compressor-at-runtime.patch
+  zswap-update-docs-for-runtime-changeable-attributes.patch
+  memcg-add-page_cgroup_ino-helper.patch
+  hwpoison-use-page_cgroup_ino-for-filtering-by-memcg.patch
+  memcg-zap-try_get_mem_cgroup_from_page.patch
+  proc-add-kpagecgroup-file.patch
+  mmu-notifier-add-clear_young-callback.patch
+  proc-add-kpageidle-file.patch
+  proc-export-idle-flag-via-kpageflags.patch
+  proc-add-cond_resched-to-proc-kpage-read-write-loop.patch
+  procfs-always-expose-proc-pid-map_files-and-make-it-readable.patch
+  proc-change-proc_subdir_lock-to-a-rwlock.patch
+  fix-list_poison12-offset.patch
+  remove-not-used-poison-pointer-macros.patch
+  extable-remove-duplicated-include-from-extablec.patch
+  cred-remove-unnecessary-kdebug-atomic-reads.patch
+  printk-include-pr_fmt-in-pr_debug_ratelimited.patch
+  maintainers-credits-mark-maxraid-as-orphan-move-anil-ravindranath-to-credits.patch
+  kstrto-accept-0-for-signed-conversion.patch
+  lib-bitmapc-correct-a-code-style-and-do-some-optimization.patch
+  lib-bitmapc-fix-a-special-string-handling-bug-in-__bitmap_parselist.patch
+  lib-bitmapc-bitmap_parselist-can-accept-string-with-whitespaces-on-head-or-tail.patch
+  hexdump-do-not-print-debug-dumps-for-config_debug.patch
+  lib-string_helpers-clarify-esc-arg-in-string_escape_mem.patch
+  lib-string_helpers-rename-esc-arg-to-only.patch
+  test_kasan-just-fix-a-typo.patch
+  test_kasan-make-kmalloc_oob_krealloc_less-more-correctly.patch
+  checkpatch-warn-on-bare-sha-1-commit-ids-in-commit-logs.patch
+  checkpatch-add-warning-on-bug-bug_on-use.patch
+  checkpatch-improve-suspect_code_indent-test.patch
+  checkpatch-allow-longer-declaration-macros.patch
+  checkpatch-add-some-foo_destroy-functions-to-needless_if-tests.patch
+  checkpatch-report-the-right-line-when-using-emacs-and-file.patch
+  checkpatch-always-check-block-comment-styles.patch
+  checkpatch-make-strict-the-default-for-drivers-staging-files-and-patches.patch
+  checkpatch-emit-an-error-on-formats-with-0x%decimal.patch
+  checkpatch-avoid-some-commit-message-long-line-warnings.patch
+  checkpatch-fix-left-brace-warning.patch
+  checkpatch-add-__pmem-to-sparse-annotations.patch
+  checkpatch-add-constant-comparison-on-left-side-test.patch
+  fs-coda-fix-readlink-buffer-overflow.patch
+  hfshfsplus-cache-pages-correctly-between-bnode_create-and-bnode_free.patch
+  hfs-fix-b-tree-corruption-after-insertion-at-position-0.patch
+  kmod-correct-documentation-of-return-status-of-request_module.patch
+  kmod-bunch-of-internal-functions-renames.patch
+  kmod-remove-unecessary-explicit-wide-cpu-affinity-setting.patch
+  kmod-add-up-to-date-explanations-on-the-purpose-of-each-asynchronous-levels.patch
+  kmod-use-system_unbound_wq-instead-of-khelper.patch
+  kmod-handle-umh_wait_proc-from-system-unbound-workqueue.patch
+  fs-if-a-coredump-already-exists-unlink-and-recreate-with-o_excl.patch
+  fs-dont-dump-core-if-the-corefile-would-become-world-readable.patch
+  seq_file-provide-an-analogue-of-print_hex_dump.patch
+  crypto-qat-use-seq_hex_dump-to-dump-buffers.patch
+  parisc-use-seq_hex_dump-to-dump-buffers.patch
+  zcrypt-use-seq_hex_dump-to-dump-buffers.patch
+  kmemleak-use-seq_hex_dump-to-dump-buffers.patch
+  wil6210-use-seq_hex_dump-to-dump-buffers.patch
+  kexec-split-kexec_file-syscall-code-to-kexec_filec.patch
+  kexec-split-kexec_load-syscall-from-kexec-core-code.patch
+  kexec-remove-the-unnecessary-conditional-judgement-to-simplify-the-code-logic.patch
+  align-crash_notes-allocation-to-make-it-be-inside-one-physical-page.patch
+  kexec-export-kernel_image_size-to-vmcoreinfo.patch
+  sysctl-fix-int-unsigned-long-assignments-in-int_min-case.patch
+  make-affs-root-lookup-from-blkdev-logical-size.patch
+  lib-decompressors-use-real-out-buf-size-for-gunzip-with-kernel.patch
+  lib-decompress_unlzma-do-a-null-check-for-pointer.patch
+  zlib_deflate-deftree-remove-bi_reverse.patch
+  ipc-convert-invalid-scenarios-to-use-warn_on.patch
+  namei-fix-warning-while-make-xmldocs-caused-by-nameic.patch
+  mm-mark-most-vm_operations_struct-const.patch
+  mm-mpx-add-vm_flags_t-vm_flags-arg-to-do_mmap_pgoff.patch
+  mm-make-sure-all-file-vmas-have-vm_ops-set.patch
+  mm-use-vma_is_anonymous-in-create_huge_pmd-and-wp_huge_pmd.patch
+  dma-mapping-consolidate-dma_allocfree_attrscoherent.patch
+  dma-mapping-consolidate-dma_allocfree_noncoherent.patch
+  dma-mapping-cosolidate-dma_mapping_error.patch
+  dma-mapping-consolidate-dma_supported.patch
+  dma-mapping-consolidate-dma_set_mask.patch
+  sys_membarrier-system-wide-memory-barrier-generic-x86.patch
+  selftests-add-membarrier-syscall-test.patch
+  selftests-enhance-membarrier-syscall-test.patch
+  fs-seq_file-convert-int-seq_vprint-seq_printf-etc-returns-to-void.patch
+  fs-seq_file-convert-int-seq_vprint-seq_printf-etc-returns-to-void-fix.patch
+  fs-seq_file-convert-int-seq_vprint-seq_printf-etc-returns-to-void-fix-fix.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+  drivers-gpu-drm-i915-intel_spritec-fix-build.patch
+  drivers-gpu-drm-i915-intel_tvc-fix-build.patch
+  arm-mm-do-not-use-virt_to_idmap-for-nommu-systems.patch
+* mm-early_ioremap-add-explicit-include-of-asm-early_ioremaph.patch
+* revert-ocfs2-dlm-use-list_for_each_entry-instead-of-list_for_each.patch
+* scripts-extract-certc-fix-err-call-in-write_cert.patch
+* lib-string_helpersc-fix-infinite-loop-in-string_get_size.patch
+* fs-ext4-fsyncc-generic_file_fsync-call-based-on-barrier-flag.patch
+* ocfs2-extend-transaction-for-ocfs2_remove_rightmost_path-and-ocfs2_update_edge_lengths-before-to-avoid-inconsistency-between-inode-and-et.patch
+* extend-enough-credits-for-freeing-one-truncate-record-while-replaying-truncate-records.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* 9p-do-not-overwrite-return-code-when-locking-fails.patch
+  mm.patch
+* slab-fix-the-unexpected-index-mapping-result-of-kmalloc_sizeindex_node-1.patch
+* userfaultfd-selftest-fix.patch
+* mm-mlock-refactor-mlock-munlock-and-munlockall-code.patch
+* mm-mlock-refactor-mlock-munlock-and-munlockall-code-v7.patch
+* mm-mlock-add-new-mlock-system-call.patch
+* mm-mlock-add-new-mlock-system-call-v7.patch
+* mm-introduce-vm_lockonfault.patch
+* mm-introduce-vm_lockonfault-v7.patch
+* mm-mlock-add-mlock-flags-to-enable-vm_lockonfault-usage.patch
+* mm-mlock-add-mlock-flags-to-enable-vm_lockonfault-usage-v7.patch
+* selftests-vm-add-tests-for-lock-on-fault.patch
+* selftests-vm-add-tests-for-lock-on-fault-fix.patch
+* selftests-vm-add-tests-for-lock-on-fault-fix-2.patch
+* selftests-vm-add-tests-for-lock-on-fault-fix-3.patch
+* mips-add-entry-for-new-mlock2-syscall.patch
+* mm-srcu-ify-shrinkers.patch
+* mm-srcu-ify-shrinkers-fix.patch
+* mm-srcu-ify-shrinkers-fix-fix.patch
+* mm-hugetlb-proc-add-hugetlbpages-field-to-proc-pid-smaps.patch
+* mm-hugetlb-proc-add-hugetlbpages-field-to-proc-pid-smaps-fix.patch
+* mm-hugetlb-proc-add-hugetlbpages-field-to-proc-pid-status.patch
+* mm-hugetlb-proc-add-hugetlbpages-field-to-proc-pid-status-v5.patch
+* page-flags-trivial-cleanup-for-pagetrans-helpers.patch
+* page-flags-introduce-page-flags-policies-wrt-compound-pages.patch
+* page-flags-introduce-page-flags-policies-wrt-compound-pages-fix.patch
+* page-flags-define-pg_locked-behavior-on-compound-pages.patch
+* page-flags-define-behavior-of-fs-io-related-flags-on-compound-pages.patch
+* page-flags-define-behavior-of-lru-related-flags-on-compound-pages.patch
+* page-flags-define-behavior-slb-related-flags-on-compound-pages.patch
+* page-flags-define-behavior-of-xen-related-flags-on-compound-pages.patch
+* page-flags-define-pg_reserved-behavior-on-compound-pages.patch
+* page-flags-define-pg_swapbacked-behavior-on-compound-pages.patch
+* page-flags-define-pg_swapcache-behavior-on-compound-pages.patch
+* page-flags-define-pg_mlocked-behavior-on-compound-pages.patch
+* page-flags-define-pg_uncached-behavior-on-compound-pages.patch
+* page-flags-define-pg_uptodate-behavior-on-compound-pages.patch
+* page-flags-look-on-head-page-if-the-flag-is-encoded-in-page-mapping.patch
+* mm-sanitize-page-mapping-for-tail-pages.patch
+* include-linux-page-flagsh-rename-macros-to-avoid-collisions.patch
+* mm-increase-swap_cluster_max-to-batch-tlb-flushes.patch
+* mm-vmscan-fix-the-page-state-calculation-in-too_many_isolated.patch
+* mm-page_isolation-check-pfn-validity-before-access.patch
+* mm-fix-invalid-use-of-pfn_valid_within-in-test_pages_in_a_zone.patch
+* fs-mpagec-forgotten-write_sync-in-case-of-data-integrity-write.patch
+* x86-add-pmd_-for-thp.patch
+* x86-add-pmd_-for-thp-fix.patch
+* sparc-add-pmd_-for-thp.patch
+* sparc-add-pmd_-for-thp-fix.patch
+* powerpc-add-pmd_-for-thp.patch
+* arm-add-pmd_mkclean-for-thp.patch
+* arm64-add-pmd_-for-thp.patch
+* mm-support-madvisemadv_free.patch
+* mm-support-madvisemadv_free-fix.patch
+* mm-support-madvisemadv_free-fix-2.patch
+* mm-support-madvisemadv_free-fix-3.patch
+* mm-dont-split-thp-page-when-syscall-is-called.patch
+* mm-dont-split-thp-page-when-syscall-is-called-fix.patch
+* mm-dont-split-thp-page-when-syscall-is-called-fix-2.patch
+* mm-dont-split-thp-page-when-syscall-is-called-fix-3.patch
+* mm-free-swp_entry-in-madvise_free.patch
+* mm-move-lazy-free-pages-to-inactive-list.patch
+* mm-move-lazy-free-pages-to-inactive-list-fix.patch
+* mm-move-lazy-free-pages-to-inactive-list-fix-fix.patch
+* mm-move-lazy-free-pages-to-inactive-list-fix-fix-fix.patch
+* use-poison_pointer_delta-for-poison-pointers.patch
+* lib-vsprintf-add-%pt-format-specifier.patch
+* mm-utilc-add-kstrimdup.patch
+* lib-add-crc64-ecma-module.patch
+* fat-add-fat_fallocate-operation.patch
+* fat-skip-cluster-allocation-on-fallocated-region.patch
+* fat-permit-to-return-phy-block-number-by-fibmap-in-fallocated-region.patch
+* documentation-filesystems-vfattxt-update-the-limitation-for-fat-fallocate.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* w1-masters-omap_hdq-add-support-for-1-wire-mode.patch
+* ipc-msgc-msgsnd-use-freezable-blocking-call.patch
+* msgrcv-use-freezable-blocking-call.patch
+  linux-next.patch
+  linux-next-rejects.patch
+* drivers-net-ieee802154-at86rf230c-seq_printf-now-returns-null.patch
+* w1-call-put_device-if-device_register-fails.patch
+  x86-numa-acpi-online-node-earlier-when-doing-cpu-hot-addition.patch
+  kernel-profilec-replace-cpu_to_mem-with-cpu_to_node.patch
+  sgi-xp-replace-cpu_to_node-with-cpu_to_mem-to-support-memoryless-node.patch
+  openvswitch-replace-cpu_to_node-with-cpu_to_mem-to-support-memoryless-node.patch
+  i40e-use-numa_mem_id-to-better-support-memoryless-node.patch
+  i40evf-use-numa_mem_id-to-better-support-memoryless-node.patch
+  x86-numa-kill-useless-code-to-improve-code-readability.patch
+  mm-update-_mem_id_-for-every-possible-cpu-when-memory-configuration-changes.patch
+  mm-x86-enable-memoryless-node-support-to-better-support-cpu-memory-hotplug.patch
+  uaccess-reimplement-probe_kernel_address-using-probe_kernel_read.patch
+  uaccess-reimplement-probe_kernel_address-using-probe_kernel_read-fix.patch
+  lib-dynamic_debugc-use-kstrdup_const.patch
+  inotify-actually-check-for-invalid-bits-in-sys_inotify_add_watch.patch
+  inotify-actually-check-for-invalid-bits-in-sys_inotify_add_watch-v2.patch
+  scripts-kernel-doc-processing-nofunc-for-functions-only.patch
+  mm-mmapc-remove-useless-statement-vma-=-null-in-find_vma.patch
+  mm-add-strictlimit-knob-v2.patch
+  do_shared_fault-check-that-mmap_sem-is-held.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
