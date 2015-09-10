@@ -1,55 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FAD86B0256
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 18:09:04 -0400 (EDT)
-Received: by padhk3 with SMTP id hk3so54265587pad.3
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 15:09:04 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id je6si22044357pbd.221.2015.09.10.15.09.03
+Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 047436B0256
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 18:18:32 -0400 (EDT)
+Received: by ykei199 with SMTP id i199so73444927yke.0
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 15:18:31 -0700 (PDT)
+Received: from BLU004-OMC1S28.hotmail.com (blu004-omc1s28.hotmail.com. [65.55.116.39])
+        by mx.google.com with ESMTPS id s184si8107123ywb.139.2015.09.10.15.18.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Sep 2015 15:09:03 -0700 (PDT)
-Received: by padhk3 with SMTP id hk3so54265383pad.3
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 15:09:03 -0700 (PDT)
-Date: Thu, 10 Sep 2015 18:08:57 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2 3/7] x86, gfp: Cache best near node for memory
- allocation.
-Message-ID: <20150910220857.GN8114@mtj.duckdns.org>
-References: <1441859269-25831-1-git-send-email-tangchen@cn.fujitsu.com>
- <1441859269-25831-4-git-send-email-tangchen@cn.fujitsu.com>
- <20150910192935.GI8114@mtj.duckdns.org>
- <20150910193819.GJ8114@mtj.duckdns.org>
- <alpine.DEB.2.11.1509101701220.11096@east.gentwo.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 10 Sep 2015 15:18:31 -0700 (PDT)
+Message-ID: <BLU436-SMTP253F123C92780B6AA4E637B9510@phx.gbl>
+Date: Fri, 11 Sep 2015 06:20:27 +0800
+From: Chen Gang <xili_gchen_5257@hotmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1509101701220.11096@east.gentwo.org>
+Subject: Re: [PATCH] mm/mmap.c: Remove useless statement "vma = NULL" in find_vma()
+References: <COL130-W64A6555222F8CEDA513171B9560@phx.gbl> <COL130-W6916929C85FB1943CC1B11B9530@phx.gbl> <COL130-W43C0C45AA4E2A7AA6361D0B9520@phx.gbl> <20150910181935.GB21456@redhat.com>
+In-Reply-To: <20150910181935.GB21456@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
 
-Hello,
+On 9/11/15 02:19=2C Oleg Nesterov wrote:
+> On 09/10=2C Chen Gang wrote:
+>> - If "addr>=3D vm_start"=2C we return this vma (else continue searching)=
+.
+>=20
+> This is optimization=2C we can stop the search because in this case
+> vma =3D=3D tmp is obviously the 1st vma with "addr < vm_end".
+>=20
 
-On Thu, Sep 10, 2015 at 05:02:31PM -0500, Christoph Lameter wrote:
-> > Also, shouldn't kmalloc_node() or any public allocator fall back
-> > automatically to a near node w/o GFP_THISNODE?  Why is this failing at
-> > all?  I get that cpu id -> node id mapping changing messes up the
-> > locality but allocations shouldn't fail, right?
-> 
-> Without a node specification allocations are subject to various
-> constraints and memory policies. It is not simply going to the next node.
-> The memory load may require spreading out the allocations over multiple
-> nodes, the app may have specified which nodes are to be used etc etc.
+OK=2C thanks.
 
-Yeah, sure, but even w/ node specified, it shouldn't fail unless
-THISNODE, right?
+I guess if we have additional comments for "if (tmp->vm_start <=3D addr)"=
+=2C
+the code will be more readable for readers (especially for newbies).
+
+@@ -2064=2C7 +2064=2C7 @@ struct vm_area_struct *find_vma(struct mm_struct =
+*mm=2C unsigned long addr)
+                if (tmp->vm_end > addr) {
+                        vma =3D tmp=3B
+                        if (tmp->vm_start <=3D addr)
+-                               break=3B
++                               break=3B /* It must be 1st "addr < vm_end" =
+*/
+                        rb_node =3D rb_node->rb_left=3B
+                } else
+                        rb_node =3D rb_node->rb_right=3B
+
+
+> I simply can't understand your concerns. Perhaps you can make a
+> patch=2C then it will be more clear what me-or-you have missed.
+>=20
+
+I guess=2C we need not (it is my missing). :-)
+
 
 Thanks.
+--=20
+Chen Gang (=E9=99=88=E5=88=9A)
 
--- 
-tejun
+Open=2C share=2C and attitude like air=2C water=2C and life which God bless=
+ed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
