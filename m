@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D96356B0257
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 00:29:51 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so31124631pac.2
-        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 21:29:51 -0700 (PDT)
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ECD36B0258
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 00:29:55 -0400 (EDT)
+Received: by igcpb10 with SMTP id pb10so11025475igc.1
+        for <linux-mm@kvack.org>; Wed, 09 Sep 2015 21:29:55 -0700 (PDT)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id qa17si13486131pab.131.2015.09.09.21.29.49
+        by mx.google.com with ESMTP id qa17si13486131pab.131.2015.09.09.21.29.51
         for <linux-mm@kvack.org>;
-        Wed, 09 Sep 2015 21:29:51 -0700 (PDT)
+        Wed, 09 Sep 2015 21:29:54 -0700 (PDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 3/7] x86, gfp: Cache best near node for memory allocation.
-Date: Thu, 10 Sep 2015 12:27:45 +0800
-Message-ID: <1441859269-25831-4-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 4/7] x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at boot time.
+Date: Thu, 10 Sep 2015 12:27:46 +0800
+Message-ID: <1441859269-25831-5-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1441859269-25831-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1441859269-25831-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
@@ -23,87 +23,217 @@ Cc: tangchen@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-k
 
 From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-In the current kernel, all possible cpus are mapped to the best near online
-node if they reside in a memory-less node in init_cpu_to_node().
+[Problem]
 
-init_cpu_to_node()
+cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
+the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
+
+When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
+which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
+workqueue does not update wq_numa_possible_cpumask.
+
+So here is the problem:
+
+Assume we have the following cpuid <-> nodeid in the beginning:
+
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+node 2 | 30-44, 90-104
+node 3 | 45-59, 105-119
+
+and we hot-remove node2 and node3, it becomes:
+
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+
+and we hot-add node4 and node5, it becomes:
+
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+node 4 | 30-59
+node 5 | 90-119
+
+But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
+
+When a pool workqueue is initialized, if its cpumask belongs to a node, its
+pool->node will be mapped to that node. And memory used by this workqueue will
+also be allocated on that node.
+
+static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs){
+...
+        /* if cpumask is contained inside a NUMA node, we belong to that node */
+        if (wq_numa_enabled) {
+                for_each_node(node) {
+                        if (cpumask_subset(pool->attrs->cpumask,
+                                           wq_numa_possible_cpumask[node])) {
+                                pool->node = node;
+                                break;
+                        }
+                }
+        }
+
+Since wq_numa_possible_cpumask is not updated, it could be mapped to an offline node,
+which will lead to memory allocation failure:
+
+ SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
+  cache: kmalloc-192, object size: 192, buffer size: 192, default order: 1, min order: 0
+  node 0: slabs: 6172, objs: 259224, free: 245741
+  node 1: slabs: 3261, objs: 136962, free: 127656
+
+It happens here:
+
+create_worker(struct worker_pool *pool)
+ |--> worker = alloc_worker(pool->node);
+
+static struct worker *alloc_worker(int node)
 {
-	......
-	for_each_possible_cpu(cpu) {
-		......
-		if (!node_online(node))
-			node = find_near_online_node(node);
-		numa_set_node(cpu, node);
-	}
+        struct worker *worker;
+
+        worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); --> Here, useing the wrong node.
+
+        ......
+
+        return worker;
 }
 
-The reason for doing this is to prevent memory allocation failure if the
-cpu is online but there is no memory on that node.
+[Solution]
 
-But since cpuid <-> nodeid mapping is planed to be made static, doing
-so in initialization pharse makes no sense any more.
+There are four mappings in the kernel:
+1. nodeid (logical node id)   <->   pxm
+2. apicid (physical cpu id)   <->   nodeid
+3. cpuid (logical cpu id)     <->   apicid
+4. cpuid (logical cpu id)     <->   nodeid
 
-The best near online node for each cpu has been cached in an array in previous
-patch. And the reason for doing this is to avoid mapping CPUs on memory-less
-nodes to other nodes.
+1. pxm (proximity domain) is provided by ACPI firmware in SRAT, and nodeid <-> pxm
+   mapping is setup at boot time. This mapping is persistent, won't change.
 
-So in this patch, we get best near online node for CPUs on memory-less nodes
-inside alloc_pages_node() and alloc_pages_exact_node() to avoid memory allocation
-failure.
+2. apicid <-> nodeid mapping is setup using info in 1. The mapping is setup at boot
+   time and CPU hotadd time, and cleared at CPU hotremove time. This mapping is also
+   persistent.
+
+3. cpuid <-> apicid mapping is setup at boot time and CPU hotadd time. cpuid is
+   allocated, lower ids first, and released at CPU hotremove time, reused for other
+   hotadded CPUs. So this mapping is not persistent.
+
+4. cpuid <-> nodeid mapping is also setup at boot time and CPU hotadd time, and
+   cleared at CPU hotremove time. As a result of 3, this mapping is not persistent.
+
+To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
+cpus at boot time, and make it persistent. And according to init_cpu_to_node(),
+cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
+mapping. So the key point is obtaining all cpus' apicid.
+
+apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
+MADT (Multiple APIC Description Table). So we finish the job in the following steps:
+
+1. Enable apic registeration flow to handle both enabled and disabled cpus.
+   This is done by introducing an extra parameter to generic_processor_info to let the
+   caller control if disabled cpus are ignored.
+
+2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
+   the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
+   registering local apic. Store the mapping in this array.
+
+3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
+   This is also done by introducing an extra parameter to these apis to let the caller
+   control if disabled cpus are ignored.
+
+4. Establish all possible cpuid <-> nodeid mapping.
+   This is done via an additional acpi namespace walk for processors.
+
+This patch finished step 1.
 
 Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/mm/numa.c  | 3 +--
- include/linux/gfp.h | 8 +++++++-
- 2 files changed, 8 insertions(+), 3 deletions(-)
+ arch/x86/kernel/apic/apic.c | 26 +++++++++++++++++++-------
+ 1 file changed, 19 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 8bd7661..e89b9fb 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -151,6 +151,7 @@ void numa_set_node(int cpu, int node)
- 		return;
- 	}
- #endif
-+
- 	per_cpu(x86_cpu_to_node_map, cpu) = node;
- 
- 	set_near_online_node(node);
-@@ -787,8 +788,6 @@ void __init init_cpu_to_node(void)
- 
- 		if (node == NUMA_NO_NODE)
- 			continue;
--		if (!node_online(node))
--			node = find_near_online_node(node);
- 		numa_set_node(cpu, node);
- 	}
- }
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index ad35f30..1a1324f 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -307,13 +307,19 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
- 	if (nid < 0)
- 		nid = numa_node_id();
- 
-+	if (!node_online(nid))
-+		nid = get_near_online_node(nid);
-+
- 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+diff --git a/arch/x86/kernel/apic/apic.c b/arch/x86/kernel/apic/apic.c
+index dcb5285..a9c9830 100644
+--- a/arch/x86/kernel/apic/apic.c
++++ b/arch/x86/kernel/apic/apic.c
+@@ -1977,7 +1977,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
+ 	apic_write(APIC_LVT1, value);
  }
  
- static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
- 						unsigned int order)
+-int generic_processor_info(int apicid, int version)
++static int __generic_processor_info(int apicid, int version, bool enabled)
  {
--	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid));
-+	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
-+
-+	if (!node_online(nid))
-+		nid = get_near_online_node(nid);
+ 	int cpu, max = nr_cpu_ids;
+ 	bool boot_cpu_detected = physid_isset(boot_cpu_physical_apicid,
+@@ -2011,7 +2011,8 @@ int generic_processor_info(int apicid, int version)
+ 			   " Processor %d/0x%x ignored.\n",
+ 			   thiscpu, apicid);
  
- 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+-		disabled_cpus++;
++		if (enabled)
++			disabled_cpus++;
+ 		return -ENODEV;
+ 	}
+ 
+@@ -2028,7 +2029,8 @@ int generic_processor_info(int apicid, int version)
+ 			" reached. Keeping one slot for boot cpu."
+ 			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
+ 
+-		disabled_cpus++;
++		if (enabled)
++			disabled_cpus++;
+ 		return -ENODEV;
+ 	}
+ 
+@@ -2039,11 +2041,14 @@ int generic_processor_info(int apicid, int version)
+ 			"ACPI: NR_CPUS/possible_cpus limit of %i reached."
+ 			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
+ 
+-		disabled_cpus++;
++		if (enabled)
++			disabled_cpus++;
+ 		return -EINVAL;
+ 	}
+ 
+-	num_processors++;
++	if (enabled)
++		num_processors++;
++
+ 	if (apicid == boot_cpu_physical_apicid) {
+ 		/*
+ 		 * x86_bios_cpu_apicid is required to have processors listed
+@@ -2071,7 +2076,8 @@ int generic_processor_info(int apicid, int version)
+ 			apic_version[boot_cpu_physical_apicid], cpu, version);
+ 	}
+ 
+-	physid_set(apicid, phys_cpu_present_map);
++	if (enabled)
++		physid_set(apicid, phys_cpu_present_map);
+ 	if (apicid > max_physical_apicid)
+ 		max_physical_apicid = apicid;
+ 
+@@ -2084,11 +2090,17 @@ int generic_processor_info(int apicid, int version)
+ 		apic->x86_32_early_logical_apicid(cpu);
+ #endif
+ 	set_cpu_possible(cpu, true);
+-	set_cpu_present(cpu, true);
++	if (enabled)
++		set_cpu_present(cpu, true);
+ 
+ 	return cpu;
  }
+ 
++int generic_processor_info(int apicid, int version)
++{
++	return __generic_processor_info(apicid, version, true);
++}
++
+ int hard_smp_processor_id(void)
+ {
+ 	return read_apic_id();
 -- 
 1.9.3
 
