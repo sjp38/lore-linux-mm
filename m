@@ -1,156 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id D93436B0256
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 07:50:01 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so42147524pac.2
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 04:50:01 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id pm10si18979865pac.92.2015.09.10.04.50.01
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EF446B0038
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 08:08:42 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so22050578wic.1
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 05:08:41 -0700 (PDT)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id v7si5795909wie.67.2015.09.10.05.08.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Sep 2015 04:50:01 -0700 (PDT)
-Received: by pacfv12 with SMTP id fv12so42147280pac.2
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 04:50:01 -0700 (PDT)
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [PATCH 2/2] mm:zsmalloc: constify struct zs_pool name
-Date: Thu, 10 Sep 2015 20:48:38 +0900
-Message-Id: <1441885718-32580-3-git-send-email-sergey.senozhatsky@gmail.com>
-In-Reply-To: <1441885718-32580-1-git-send-email-sergey.senozhatsky@gmail.com>
-References: <1441885718-32580-1-git-send-email-sergey.senozhatsky@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Sep 2015 05:08:40 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so20523465wic.0
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 05:08:40 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150910124253.6000cc77@redhat.com>
+References: <CACT4Y+bvaJ6cC_=A1VGx=cT_bkB-teXNud0Wgt33E1AtBYNTSg@mail.gmail.com>
+ <alpine.DEB.2.11.1509090901480.18992@east.gentwo.org> <CACT4Y+ZpToAmaboGDvFhgWUqtnUcJACprg=XSTkrJYE4DQ1jcA@mail.gmail.com>
+ <alpine.DEB.2.11.1509090930510.19262@east.gentwo.org> <CACT4Y+b_wDnC3mONjmq+F9kaw1_L_8z=E__1n25ZgLhx-biEmQ@mail.gmail.com>
+ <alpine.DEB.2.11.1509091036590.19663@east.gentwo.org> <CACT4Y+a6rjbEoP7ufgyJimjx3qVh81TToXjL9Rnj-bHNregZXg@mail.gmail.com>
+ <alpine.DEB.2.11.1509091251150.20311@east.gentwo.org> <20150909184415.GJ4029@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1509091346230.20665@east.gentwo.org> <20150909203642.GO4029@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1509091823360.21983@east.gentwo.org> <CACT4Y+aULybVcGWWUDvZ9sFtE7TDvQfZ2enT49xe3VD3Ayv5-Q@mail.gmail.com>
+ <20150910124253.6000cc77@redhat.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 10 Sep 2015 14:08:20 +0200
+Message-ID: <CACT4Y+YEEZAOMFojv91T5M34ZHBfDBRxGjn6KtP6cyz+ivt=vw@mail.gmail.com>
+Subject: Re: Is it OK to pass non-acquired objects to kfree?
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey SENOZHATSKY <sergey.senozhatsky@gmail.com>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Eric Dumazet <eric.dumazet@gmail.com>
 
-From: Sergey SENOZHATSKY <sergey.senozhatsky@gmail.com>
+On Thu, Sep 10, 2015 at 12:42 PM, Jesper Dangaard Brouer
+<brouer@redhat.com> wrote:
+> On Thu, 10 Sep 2015 11:55:35 +0200 Dmitry Vyukov <dvyukov@google.com> wro=
+te:
+>
+>> On Thu, Sep 10, 2015 at 1:31 AM, Christoph Lameter <cl@linux.com> wrote:
+>> > On Wed, 9 Sep 2015, Paul E. McKenney wrote:
+>> >
+>> >> Either way, Dmitry's tool got a hit on real code using the slab
+>> >> allocators.  If that hit is a false positive, then clearly Dmitry
+>> >> needs to fix his tool, however, I am not (yet) convinced that it is a
+>> >> false positive.  If it is not a false positive, we might well need to
+>> >> articulate the rules for use of the slab allocators.
+>> >
+>> > Could I get a clear definiton as to what exactly is positive? Was this
+>> > using SLAB, SLUB or SLOB?
+>> >
+>> >> > This would all use per cpu data. As soon as a handoff is required w=
+ithin
+>> >> > the allocators locks are being used. So I would say no.
+>> >>
+>> >> As in "no, it is not necessary for the caller of kfree() to invoke ba=
+rrier()
+>> >> in this example", right?
+>> >
+>> > Actually SLUB contains a barrier already in kfree(). Has to be there
+>> > because of the way the per cpu pointer is being handled.
+>>
+>> The positive was reporting of data races in the following code:
+>>
+>> // kernel/pid.c
+>>          if ((atomic_read(&pid->count) =3D=3D 1) ||
+>>               atomic_dec_and_test(&pid->count)) {
+>>                  kmem_cache_free(ns->pid_cachep, pid);
+>>                  put_pid_ns(ns);
+>>          }
+>>
+>> //drivers/tty/tty_buffer.c
+>> while ((next =3D buf->head->next) !=3D NULL) {
+>>      tty_buffer_free(port, buf->head);
+>>      buf->head =3D next;
+>> }
+>>
+>> Namely, the tool reported data races between usage of the object in
+>> other threads before they released the object and kfree.
+>>
+>> I am not sure why we are so concentrated on details like SLAB vs SLUB
+>> vs SLOB or cache coherency protocols. This looks like waste of time to
+>> me. General kernel code should not be safe only when working with SLxB
+>> due to current implementation details of SLxB, it should be safe
+>> according to memory allocator contract. And this contract seem to be:
+>> memory allocator can do arbitrary reads and writes to the object
+>> inside of kmalloc and kfree.
+>> Similarly for memory model. There is officially documented kernel
+>> memory model, which all general kernel code must adhere to. Reasoning
+>> about whether a particular piece of code works on architecture X, or
+>> how exactly it can break on architecture Y in unnecessary in such
+>> context. In the end, there can be memory allocator implementation and
+>> new architectures.
+>>
+>> My question is about contracts, not about current implementation
+>> details or specific architectures.
+>>
+>> There are memory allocator implementations that do reads and writes of
+>> the object, and there are memory allocator implementations that do not
+>> do any barriers on fast paths. From this follows that objects must be
+>> passed in quiescent state to kfree.
+>> Now, kernel memory model says "A load-load control dependency requires
+>> a full read memory barrier".
+>> From this follows that the following code is broken:
+>>
+>> // kernel/pid.c
+>>          if ((atomic_read(&pid->count) =3D=3D 1) ||
+>>               atomic_dec_and_test(&pid->count)) {
+>>                  kmem_cache_free(ns->pid_cachep, pid);
+>>                  put_pid_ns(ns);
+>>          }
+>>
+>> and it should be:
+>>
+>> // kernel/pid.c
+>>          if ((smp_load_acquire(&pid->count) =3D=3D 1) ||
+>>               atomic_dec_and_test(&pid->count)) {
+>>                  kmem_cache_free(ns->pid_cachep, pid);
+>>                  put_pid_ns(ns);
+>>          }
+>>
+>
+> This reminds me of some code in the network stack[1] in kfree_skb()
+> where we have a smp_rmb().  Should we have used smp_load_acquire() ?
+>
+>  void kfree_skb(struct sk_buff *skb)
+>  {
+>         if (unlikely(!skb))
+>                 return;
+>         if (likely(atomic_read(&skb->users) =3D=3D 1))
+>                 smp_rmb();
+>         else if (likely(!atomic_dec_and_test(&skb->users)))
+>                 return;
+>         trace_kfree_skb(skb, __builtin_return_address(0));
+>         __kfree_skb(skb);
+>  }
+>  EXPORT_SYMBOL(kfree_skb);
 
-Constify `struct zs_pool' ->name.
+rmb is much better than nothing :)
+I generally prefer to use smp_load_acquire just because it's more
+explicit (you see what memory access the barrier relates to), fewer
+lines of code, agrees with modern atomic APIs in C, C++, Java, etc,
+and FWIW is much better for dynamic race detectors.
+As for semantic difference between rmb and smp_load_acquire, rmb does
+not order stores, so stores from __kfree_skb can hoist above the
+atomic_read(&skb->users) =3D=3D 1 check. The only architecture that can do
+that is Alpha, I don't know enough about Alpha and barrier
+implementation on Alpha (maybe rmb and smp_load_acquire do the same
+hardware barrier on Alpha) to say whether it can break in real life or
+not. But I would still consider smp_load_acquire as safer and cleaner
+alternative.
 
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
----
- include/linux/zpool.h    |  6 ++++--
- include/linux/zsmalloc.h |  2 +-
- mm/zbud.c                |  2 +-
- mm/zpool.c               |  4 ++--
- mm/zsmalloc.c            | 10 +++++-----
- 5 files changed, 13 insertions(+), 11 deletions(-)
 
-diff --git a/include/linux/zpool.h b/include/linux/zpool.h
-index 2c136f4..8edb451 100644
---- a/include/linux/zpool.h
-+++ b/include/linux/zpool.h
-@@ -38,7 +38,7 @@ enum zpool_mapmode {
- 
- bool zpool_has_pool(const char *type);
- 
--struct zpool *zpool_create_pool(const char *type, char *name,
-+struct zpool *zpool_create_pool(const char *type, const char *name,
- 			gfp_t gfp, const struct zpool_ops *ops);
- 
- const char *zpool_get_type(struct zpool *pool);
-@@ -83,7 +83,9 @@ struct zpool_driver {
- 	atomic_t refcount;
- 	struct list_head list;
- 
--	void *(*create)(char *name, gfp_t gfp, const struct zpool_ops *ops,
-+	void *(*create)(const char *name,
-+			gfp_t gfp,
-+			const struct zpool_ops *ops,
- 			struct zpool *zpool);
- 	void (*destroy)(void *pool);
- 
-diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
-index 6398dfa..34eb160 100644
---- a/include/linux/zsmalloc.h
-+++ b/include/linux/zsmalloc.h
-@@ -41,7 +41,7 @@ struct zs_pool_stats {
- 
- struct zs_pool;
- 
--struct zs_pool *zs_create_pool(char *name, gfp_t flags);
-+struct zs_pool *zs_create_pool(const char *name, gfp_t flags);
- void zs_destroy_pool(struct zs_pool *pool);
- 
- unsigned long zs_malloc(struct zs_pool *pool, size_t size);
-diff --git a/mm/zbud.c b/mm/zbud.c
-index fa48bcdf..d8a181f 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -137,7 +137,7 @@ static const struct zbud_ops zbud_zpool_ops = {
- 	.evict =	zbud_zpool_evict
- };
- 
--static void *zbud_zpool_create(char *name, gfp_t gfp,
-+static void *zbud_zpool_create(const char *name, gfp_t gfp,
- 			       const struct zpool_ops *zpool_ops,
- 			       struct zpool *zpool)
- {
-diff --git a/mm/zpool.c b/mm/zpool.c
-index 2889d0d..1247c28 100644
---- a/mm/zpool.c
-+++ b/mm/zpool.c
-@@ -147,8 +147,8 @@ EXPORT_SYMBOL(zpool_has_pool);
-  *
-  * Returns: New zpool on success, NULL on failure.
-  */
--struct zpool *zpool_create_pool(const char *type, char *name, gfp_t gfp,
--		const struct zpool_ops *ops)
-+struct zpool *zpool_create_pool(const char *type, const char *name,
-+		gfp_t gfp, const struct zpool_ops *ops)
- {
- 	struct zpool_driver *driver;
- 	struct zpool *zpool;
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index f135b1b..8b8e0da 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -237,7 +237,7 @@ struct link_free {
- };
- 
- struct zs_pool {
--	char *name;
-+	const char *name;
- 
- 	struct size_class **size_class;
- 	struct kmem_cache *handle_cachep;
-@@ -311,7 +311,7 @@ static void record_obj(unsigned long handle, unsigned long obj)
- 
- #ifdef CONFIG_ZPOOL
- 
--static void *zs_zpool_create(char *name, gfp_t gfp,
-+static void *zs_zpool_create(const char *name, gfp_t gfp,
- 			     const struct zpool_ops *zpool_ops,
- 			     struct zpool *zpool)
- {
-@@ -548,7 +548,7 @@ static const struct file_operations zs_stat_size_ops = {
- 	.release        = single_release,
- };
- 
--static int zs_pool_stat_create(char *name, struct zs_pool *pool)
-+static int zs_pool_stat_create(const char *name, struct zs_pool *pool)
- {
- 	struct dentry *entry;
- 
-@@ -588,7 +588,7 @@ static void __exit zs_stat_exit(void)
- {
- }
- 
--static inline int zs_pool_stat_create(char *name, struct zs_pool *pool)
-+static inline int zs_pool_stat_create(const char *name, struct zs_pool *pool)
- {
- 	return 0;
- }
-@@ -1866,7 +1866,7 @@ static int zs_register_shrinker(struct zs_pool *pool)
-  * On success, a pointer to the newly created pool is returned,
-  * otherwise NULL.
-  */
--struct zs_pool *zs_create_pool(char *name, gfp_t flags)
-+struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
- {
- 	int i;
- 	struct zs_pool *pool;
--- 
-2.5.1
+--=20
+Dmitry Vyukov, Software Engineer, dvyukov@google.com
+Google Germany GmbH, Dienerstra=C3=9Fe 12, 80331, M=C3=BCnchen
+Gesch=C3=A4ftsf=C3=BChrer: Graham Law, Christine Elizabeth Flores
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
+Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat
+sind, leiten Sie diese bitte nicht weiter, informieren Sie den
+Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
+.
+This e-mail is confidential. If you are not the right addressee please
+do not forward it, please inform the sender, and please erase this
+e-mail including any attachments. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
