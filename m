@@ -1,51 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FDA36B0038
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 14:22:26 -0400 (EDT)
-Received: by qkcf65 with SMTP id f65so22054588qkc.3
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 11:22:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e6si14329142qgf.35.2015.09.10.11.22.25
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1546C6B0038
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 14:27:21 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so38478562wic.0
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 11:27:20 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id dl8si20989133wjb.63.2015.09.10.11.27.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Sep 2015 11:22:25 -0700 (PDT)
-Date: Thu, 10 Sep 2015 20:19:35 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm/mmap.c: Remove useless statement "vma = NULL" in
-	find_vma()
-Message-ID: <20150910181935.GB21456@redhat.com>
-References: <COL130-W64A6555222F8CEDA513171B9560@phx.gbl> <COL130-W6916929C85FB1943CC1B11B9530@phx.gbl> <COL130-W43C0C45AA4E2A7AA6361D0B9520@phx.gbl>
+        Thu, 10 Sep 2015 11:27:20 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so33045054wic.1
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 11:27:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <COL130-W43C0C45AA4E2A7AA6361D0B9520@phx.gbl>
+In-Reply-To: <alpine.DEB.2.11.1509101312470.10226@east.gentwo.org>
+References: <alpine.DEB.2.11.1509090930510.19262@east.gentwo.org>
+ <CACT4Y+b_wDnC3mONjmq+F9kaw1_L_8z=E__1n25ZgLhx-biEmQ@mail.gmail.com>
+ <alpine.DEB.2.11.1509091036590.19663@east.gentwo.org> <CACT4Y+a6rjbEoP7ufgyJimjx3qVh81TToXjL9Rnj-bHNregZXg@mail.gmail.com>
+ <alpine.DEB.2.11.1509091251150.20311@east.gentwo.org> <20150909184415.GJ4029@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1509091346230.20665@east.gentwo.org> <20150909203642.GO4029@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1509091823360.21983@east.gentwo.org> <CACT4Y+aULybVcGWWUDvZ9sFtE7TDvQfZ2enT49xe3VD3Ayv5-Q@mail.gmail.com>
+ <20150910171333.GD4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509101301010.10131@east.gentwo.org>
+ <CACT4Y+Y7hjhbhDoDC-gJaqQcaw0jACjvaaqjFeemvWPV=RjPRw@mail.gmail.com> <alpine.DEB.2.11.1509101312470.10226@east.gentwo.org>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 10 Sep 2015 20:26:59 +0200
+Message-ID: <CACT4Y+ZN=wPWtXOSKanWpL9OtRUd8Bd8r5_o3GJ92YHYgoT01g@mail.gmail.com>
+Subject: Re: Is it OK to pass non-acquired objects to kfree?
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <xili_gchen_5257@hotmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>
 
-On 09/10, Chen Gang wrote:
+On Thu, Sep 10, 2015 at 8:13 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Thu, 10 Sep 2015, Dmitry Vyukov wrote:
 >
-> On 9/10/15 00:26, Oleg Nesterov wrote:
-> >
-> > The implementation looks correct. Why do you think it can be not 1st vma?
-> >
+>> On Thu, Sep 10, 2015 at 8:01 PM, Christoph Lameter <cl@linux.com> wrote:
+>> > On Thu, 10 Sep 2015, Paul E. McKenney wrote:
+>> >
+>> >> The reason we poked at this was to see if any of SLxB touched the
+>> >> memory being freed.  If none of them touched the memory being freed,
+>> >> and if that was a policy, then the idiom above would be legal.  Howev=
+er,
+>> >> one of them does touch the memory being freed, so, yes, the above cod=
+e
+>> >> needs to be fixed.
+>> >
+>> > The one that touches the object has a barrier() before it touches the
+>> > memory.
+>>
+>> It does not change anything, right?
 >
-> It is in while (rb_node) {...}.
->
-> - When we set "vma = tmp", it is alreay match "addr < vm_end".
+> It changes the first word of the object after the barrier. The first word
+> is used in SLUB as the pointer to the next free object.
 
-Yes,
+User can also write to this object after it is reallocated. It is
+equivalent to kmalloc writing to the object.
+And barrier is not the kind of barrier that would make it correct.
+So I do not see how it is relevant.
 
-> - If "addr>= vm_start", we return this vma (else continue searching).
-
-This is optimization, we can stop the search because in this case
-vma == tmp is obviously the 1st vma with "addr < vm_end".
-
-I simply can't understand your concerns. Perhaps you can make a
-patch, then it will be more clear what me-or-you have missed.
-
-Oleg.
+--=20
+Dmitry Vyukov, Software Engineer, dvyukov@google.com
+Google Germany GmbH, Dienerstra=C3=9Fe 12, 80331, M=C3=BCnchen
+Gesch=C3=A4ftsf=C3=BChrer: Graham Law, Christine Elizabeth Flores
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
+Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat
+sind, leiten Sie diese bitte nicht weiter, informieren Sie den
+Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
+.
+This e-mail is confidential. If you are not the right addressee please
+do not forward it, please inform the sender, and please erase this
+e-mail including any attachments. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
