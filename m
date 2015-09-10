@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B80B36B0256
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 12:36:20 -0400 (EDT)
-Received: by igcpb10 with SMTP id pb10so24464547igc.1
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 09:36:20 -0700 (PDT)
-Received: from resqmta-po-01v.sys.comcast.net (resqmta-po-01v.sys.comcast.net. [2001:558:fe16:19:96:114:154:160])
-        by mx.google.com with ESMTPS id gb7si816330igd.85.2015.09.10.09.36.19
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 94BEB6B0258
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 12:37:05 -0400 (EDT)
+Received: by qgt47 with SMTP id 47so40048474qgt.2
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 09:37:05 -0700 (PDT)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id j31si13842994qgj.124.2015.09.10.09.37.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 10 Sep 2015 09:36:20 -0700 (PDT)
-Date: Thu, 10 Sep 2015 11:36:18 -0500 (CDT)
+        Thu, 10 Sep 2015 09:37:04 -0700 (PDT)
+Date: Thu, 10 Sep 2015 11:37:02 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: Store Buffers (was Re: Is it OK to pass non-acquired objects to
  kfree?)
-In-Reply-To: <55F12FC1.2070801@suse.cz>
-Message-ID: <alpine.DEB.2.11.1509101135590.9501@east.gentwo.org>
-References: <CACT4Y+bvaJ6cC_=A1VGx=cT_bkB-teXNud0Wgt33E1AtBYNTSg@mail.gmail.com> <alpine.DEB.2.11.1509090901480.18992@east.gentwo.org> <CACT4Y+ZpToAmaboGDvFhgWUqtnUcJACprg=XSTkrJYE4DQ1jcA@mail.gmail.com> <alpine.DEB.2.11.1509090930510.19262@east.gentwo.org>
- <CACT4Y+b_wDnC3mONjmq+F9kaw1_L_8z=E__1n25ZgLhx-biEmQ@mail.gmail.com> <alpine.DEB.2.11.1509091036590.19663@east.gentwo.org> <CACT4Y+a6rjbEoP7ufgyJimjx3qVh81TToXjL9Rnj-bHNregZXg@mail.gmail.com> <alpine.DEB.2.11.1509091251150.20311@east.gentwo.org>
- <20150909184415.GJ4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509091346230.20665@east.gentwo.org> <20150909203642.GO4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509091812500.21983@east.gentwo.org> <55F12FC1.2070801@suse.cz>
+In-Reply-To: <55F13387.4030803@suse.cz>
+Message-ID: <alpine.DEB.2.11.1509101136210.9501@east.gentwo.org>
+References: <CACT4Y+b_wDnC3mONjmq+F9kaw1_L_8z=E__1n25ZgLhx-biEmQ@mail.gmail.com> <alpine.DEB.2.11.1509091036590.19663@east.gentwo.org> <CACT4Y+a6rjbEoP7ufgyJimjx3qVh81TToXjL9Rnj-bHNregZXg@mail.gmail.com> <alpine.DEB.2.11.1509091251150.20311@east.gentwo.org>
+ <20150909184415.GJ4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509091346230.20665@east.gentwo.org> <20150909203642.GO4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509091812500.21983@east.gentwo.org> <20150910000847.GV4029@linux.vnet.ibm.com>
+ <alpine.DEB.2.11.1509091917560.22381@east.gentwo.org> <20150910011028.GY4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509092047060.3588@east.gentwo.org> <55F13387.4030803@suse.cz>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -26,16 +26,14 @@ Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dmitry Vyukov <dvyukov@goog
 
 On Thu, 10 Sep 2015, Vlastimil Babka wrote:
 
-> > For a partial cacheline it would have to read the rest of the cacheline
-> > before updating. And I would expect the processor to have exclusive access
-> > to the cacheline that is held in a store buffer. If not then there is
-> > trouble afoot.
+> > kfree at some point calls slab_free(). That function has a barrier. All
+> > free operations go through it.
 >
-> IIRC that (or something similar with same guarantees) basically happens on x86
-> when you use the LOCK prefix, i.e. for atomic inc etc. Doing that always would
-> destroy performance.
+> SLAB doesn't have such barrier AFAICS. It will put the object on per-cpu cache
+> and that's it. Only flushing the full cache takes a spin lock.
 
-Well yes but it also happens anytime you try to write to a cacheline.
+SLAB disables and enables interrupts. Isnt that also considered a form of
+barrier?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
