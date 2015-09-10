@@ -1,255 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id AE01F6B0038
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 09:28:01 -0400 (EDT)
-Received: by laeb10 with SMTP id b10so28295539lae.1
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 06:28:01 -0700 (PDT)
-Received: from mail-lb0-x22d.google.com (mail-lb0-x22d.google.com. [2a00:1450:4010:c04::22d])
-        by mx.google.com with ESMTPS id w4si10441692lad.89.2015.09.10.06.27.59
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 71D726B0038
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 09:37:42 -0400 (EDT)
+Received: by igcrk20 with SMTP id rk20so16333372igc.1
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 06:37:42 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id k17si3476933igt.103.2015.09.10.06.37.41
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Sep 2015 06:28:00 -0700 (PDT)
-Received: by lbbmp1 with SMTP id mp1so23056497lbb.1
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 06:27:59 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150910083605.GB9526@node.dhcp.inet.fi>
-References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com>
-	<55EC9221.4040603@oracle.com>
-	<20150907114048.GA5016@node.dhcp.inet.fi>
-	<55F0D5B2.2090205@oracle.com>
-	<20150910083605.GB9526@node.dhcp.inet.fi>
-Date: Thu, 10 Sep 2015 15:27:59 +0200
-Message-ID: <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com>
-Subject: Re: Multiple potential races on vma->vm_flags
-From: Andrey Konovalov <andreyknvl@google.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Sep 2015 06:37:41 -0700 (PDT)
+Received: by padhy16 with SMTP id hy16so43719961pad.1
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 06:37:41 -0700 (PDT)
+Message-ID: <1441892259.4619.53.camel@edumazet-glaptop2.roam.corp.google.com>
+Subject: Re: Is it OK to pass non-acquired objects to kfree?
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Thu, 10 Sep 2015 06:37:39 -0700
+In-Reply-To: <CACT4Y+YEEZAOMFojv91T5M34ZHBfDBRxGjn6KtP6cyz+ivt=vw@mail.gmail.com>
+References: 
+	<CACT4Y+bvaJ6cC_=A1VGx=cT_bkB-teXNud0Wgt33E1AtBYNTSg@mail.gmail.com>
+	 <alpine.DEB.2.11.1509090901480.18992@east.gentwo.org>
+	 <CACT4Y+ZpToAmaboGDvFhgWUqtnUcJACprg=XSTkrJYE4DQ1jcA@mail.gmail.com>
+	 <alpine.DEB.2.11.1509090930510.19262@east.gentwo.org>
+	 <CACT4Y+b_wDnC3mONjmq+F9kaw1_L_8z=E__1n25ZgLhx-biEmQ@mail.gmail.com>
+	 <alpine.DEB.2.11.1509091036590.19663@east.gentwo.org>
+	 <CACT4Y+a6rjbEoP7ufgyJimjx3qVh81TToXjL9Rnj-bHNregZXg@mail.gmail.com>
+	 <alpine.DEB.2.11.1509091251150.20311@east.gentwo.org>
+	 <20150909184415.GJ4029@linux.vnet.ibm.com>
+	 <alpine.DEB.2.11.1509091346230.20665@east.gentwo.org>
+	 <20150909203642.GO4029@linux.vnet.ibm.com>
+	 <alpine.DEB.2.11.1509091823360.21983@east.gentwo.org>
+	 <CACT4Y+aULybVcGWWUDvZ9sFtE7TDvQfZ2enT49xe3VD3Ayv5-Q@mail.gmail.com>
+	 <20150910124253.6000cc77@redhat.com>
+	 <CACT4Y+YEEZAOMFojv91T5M34ZHBfDBRxGjn6KtP6cyz+ivt=vw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Christoph Lameter <cl@linux.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>
 
-Can a vma be shared among a few mm's?
-If yes, then taking current->mm->mmap_sem to protect vma is not enough.
+On Thu, 2015-09-10 at 14:08 +0200, Dmitry Vyukov wrote:
+> On Thu, Sep 10, 2015 at 12:42 PM, Jesper Dangaard Brouer
 
-In the first report below both T378 and T398 take
-current->mm->mmap_sem at mm/mlock.c:650, but they turn out to be
-different locks (the addresses are different).
-In the second report T309 doesn't take any locks at all, since it
-assumes that after checking atomic_dec_and_test(&mm->mm_users) the mm
-has no other users, but then it does a write to vma.
+> > This reminds me of some code in the network stack[1] in kfree_skb()
+> > where we have a smp_rmb().  Should we have used smp_load_acquire() ?
+> >
+> >  void kfree_skb(struct sk_buff *skb)
+> >  {
+> >         if (unlikely(!skb))
+> >                 return;
+> >         if (likely(atomic_read(&skb->users) == 1))
+> >                 smp_rmb();
+> >         else if (likely(!atomic_dec_and_test(&skb->users)))
+> >                 return;
+> >         trace_kfree_skb(skb, __builtin_return_address(0));
+> >         __kfree_skb(skb);
+> >  }
+> >  EXPORT_SYMBOL(kfree_skb);
+> 
+> rmb is much better than nothing :)
+> I generally prefer to use smp_load_acquire just because it's more
+> explicit (you see what memory access the barrier relates to), fewer
+> lines of code, agrees with modern atomic APIs in C, C++, Java, etc,
+> and FWIW is much better for dynamic race detectors.
+> As for semantic difference between rmb and smp_load_acquire, rmb does
+> not order stores, so stores from __kfree_skb can hoist above the
+> atomic_read(&skb->users) == 1 check. The only architecture that can do
+> that is Alpha, I don't know enough about Alpha and barrier
+> implementation on Alpha (maybe rmb and smp_load_acquire do the same
+> hardware barrier on Alpha) to say whether it can break in real life or
+> not. But I would still consider smp_load_acquire as safer and cleaner
+> alternative.
 
-==================================================================
-ThreadSanitizer: data-race in munlock_vma_pages_range
+smp_load_acquire() is a kid compared to kfree_skb() code written decades
+ago.
 
-Write of size 8 by thread T378 (K2633, CPU3):
- [<ffffffff81212579>] munlock_vma_pages_range+0x59/0x3e0 mm/mlock.c:425
- [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
- [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
- [<     inlined    >] SYSC_munlock mm/mlock.c:651
- [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
- [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:186
+Sure, new code has plenty of ways to implement all this stuff, and now
+we can discuss days about choosing right variant in a single spot.
 
-Locks held by T378:
-#0 Lock 25710428 taken here:
- [<     inlined    >] SYSC_munlock mm/mlock.c:650
- [<ffffffff8121308c>] SyS_munlock+0x4c/0xb0 mm/mlock.c:643
- [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:186
+In the old days, Alexei was writing thousand of lines of code per day,
+and he got it mostly right, even for the Alpha ;)
 
-Previous read of size 8 by thread T398 (K2623, CPU2):
- [<ffffffff8121d198>] try_to_unmap_one+0x78/0x4f0 mm/rmap.c:1208
- [<     inlined    >] rmap_walk_file mm/rmap.c:1540
- [<ffffffff8121e7b7>] rmap_walk+0x147/0x450 mm/rmap.c:1559
- [<ffffffff8121ef72>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
- [<ffffffff81211bb0>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
- [<ffffffff81212066>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
- [<ffffffff812128a0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
- [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
- [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
- [<     inlined    >] SYSC_munlock mm/mlock.c:651
- [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
- [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:186
+Another discussion is whether or not reading the value before attempting
+the lock atomic dec is a win on modern cpus, because it might incur an
+additional bus transaction in the case skbs are allocated/freed on
+different cpus. I believe I made tests ~4 years ago and it was worth
+keeping it.
 
-Locks held by T398:
-#0 Lock 21b00c68 taken here:
- [<     inlined    >] SYSC_munlock mm/mlock.c:650
- [<ffffffff8121308c>] SyS_munlock+0x4c/0xb0 mm/mlock.c:643
- [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:186
-#1 Lock bac2d750 taken here:
- [<     inlined    >] i_mmap_lock_read include/linux/fs.h:509
- [<     inlined    >] rmap_walk_file mm/rmap.c:1533
- [<ffffffff8121e6e8>] rmap_walk+0x78/0x450 mm/rmap.c:1559
- [<ffffffff8121ef72>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
- [<ffffffff81211bb0>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
- [<ffffffff81212066>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
- [<ffffffff812128a0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
- [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
- [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
- [<     inlined    >] SYSC_munlock mm/mlock.c:651
- [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
- [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:186
-#2 Lock 0895f570 taken here:
- [<     inlined    >] spin_lock include/linux/spinlock.h:312
- [<ffffffff8121c959>] __page_check_address+0xd9/0x210 mm/rmap.c:681
- [<     inlined    >] page_check_address include/linux/rmap.h:204
- [<ffffffff8121d173>] try_to_unmap_one+0x53/0x4f0 mm/rmap.c:1198
- [<     inlined    >] rmap_walk_file mm/rmap.c:1540
- [<ffffffff8121e7b7>] rmap_walk+0x147/0x450 mm/rmap.c:1559
- [<ffffffff8121ef72>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
- [<ffffffff81211bb0>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
- [<ffffffff81212066>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
- [<ffffffff812128a0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
- [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
- [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
- [<     inlined    >] SYSC_munlock mm/mlock.c:651
- [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
- [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:186
-
-DBG: addr: ffff880222610e10
-DBG: first offset: 0, second offset: 0
-DBG: T378 clock: {T378: 4486533, T398: 2405850}
-DBG: T398 clock: {T398: 2406009}
-==================================================================
-
-==================================================================
-ThreadSanitizer: data-race in munlock_vma_pages_range
-
-Write of size 8 by thread T309 (K2577, CPU0):
- [<ffffffff81211fc9>] munlock_vma_pages_range+0x59/0x3e0 mm/mlock.c:425
- [<     inlined    >] munlock_vma_pages_all mm/internal.h:252
- [<ffffffff81216cc3>] exit_mmap+0x163/0x190 mm/mmap.c:2824
- [<ffffffff81085685>] mmput+0x65/0x190 kernel/fork.c:708
- [<     inlined    >] exit_mm kernel/exit.c:437
- [<ffffffff8108c3a7>] do_exit+0x457/0x1420 kernel/exit.c:733
- [<ffffffff8108f08f>] do_group_exit+0x7f/0x140 kernel/exit.c:874
- [<     inlined    >] SYSC_exit_group kernel/exit.c:885
- [<ffffffff8108f170>] __wake_up_parent+0x0/0x50 kernel/exit.c:883
- [<ffffffff81eadb2e>] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:186
-
-Locks held by T309:
-
-Previous read of size 8 by thread T293 (K2573, CPU3):
- [<ffffffff8121cbe8>] try_to_unmap_one+0x78/0x4f0 mm/rmap.c:1208
- [<     inlined    >] rmap_walk_file mm/rmap.c:1540
- [<ffffffff8121e207>] rmap_walk+0x147/0x450 mm/rmap.c:1559
- [<ffffffff8121e9c2>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
- [<ffffffff81211600>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
- [<ffffffff81211ab6>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
- [<ffffffff812122f0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
- [<     inlined    >] munlock_vma_pages_all mm/internal.h:252
- [<ffffffff81216cc3>] exit_mmap+0x163/0x190 mm/mmap.c:2824
- [<ffffffff81085685>] mmput+0x65/0x190 kernel/fork.c:708
- [<     inlined    >] exit_mm kernel/exit.c:437
- [<ffffffff8108c3a7>] do_exit+0x457/0x1420 kernel/exit.c:733
- [<ffffffff8108f08f>] do_group_exit+0x7f/0x140 kernel/exit.c:874
- [<     inlined    >] SYSC_exit_group kernel/exit.c:885
- [<ffffffff8108f170>] __wake_up_parent+0x0/0x50 kernel/exit.c:883
- [<ffffffff81eadb2e>] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:186
-
-Locks held by T293:
-#0 Lock bb0dc710 taken here:
- [<     inlined    >] i_mmap_lock_read include/linux/fs.h:509
- [<     inlined    >] rmap_walk_file mm/rmap.c:1533
- [<ffffffff8121e138>] rmap_walk+0x78/0x450 mm/rmap.c:1559
- [<ffffffff8121e9c2>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
- [<ffffffff81211600>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
- [<ffffffff81211ab6>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
- [<ffffffff812122f0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
- [<     inlined    >] munlock_vma_pages_all mm/internal.h:252
- [<ffffffff81216cc3>] exit_mmap+0x163/0x190 mm/mmap.c:2824
- [<ffffffff81085685>] mmput+0x65/0x190 kernel/fork.c:708
- [<     inlined    >] exit_mm kernel/exit.c:437
- [<ffffffff8108c3a7>] do_exit+0x457/0x1420 kernel/exit.c:733
- [<ffffffff8108f08f>] do_group_exit+0x7f/0x140 kernel/exit.c:874
- [<     inlined    >] SYSC_exit_group kernel/exit.c:885
- [<ffffffff8108f170>] __wake_up_parent+0x0/0x50 kernel/exit.c:883
- [<ffffffff81eadb2e>] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:186
-#1 Lock 02e0f1b0 taken here:
- [<     inlined    >] spin_lock include/linux/spinlock.h:312
- [<ffffffff8121c3a9>] __page_check_address+0xd9/0x210 mm/rmap.c:681
- [<     inlined    >] page_check_address include/linux/rmap.h:204
- [<ffffffff8121cbc3>] try_to_unmap_one+0x53/0x4f0 mm/rmap.c:1198
- [<     inlined    >] rmap_walk_file mm/rmap.c:1540
- [<ffffffff8121e207>] rmap_walk+0x147/0x450 mm/rmap.c:1559
- [<ffffffff8121e9c2>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
- [<ffffffff81211600>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
- [<ffffffff81211ab6>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
- [<ffffffff812122f0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
- [<     inlined    >] munlock_vma_pages_all mm/internal.h:252
- [<ffffffff81216cc3>] exit_mmap+0x163/0x190 mm/mmap.c:2824
- [<ffffffff81085685>] mmput+0x65/0x190 kernel/fork.c:708
- [<     inlined    >] exit_mm kernel/exit.c:437
- [<ffffffff8108c3a7>] do_exit+0x457/0x1420 kernel/exit.c:733
- [<ffffffff8108f08f>] do_group_exit+0x7f/0x140 kernel/exit.c:874
- [<     inlined    >] SYSC_exit_group kernel/exit.c:885
- [<ffffffff8108f170>] __wake_up_parent+0x0/0x50 kernel/exit.c:883
- [<ffffffff81eadb2e>] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:186
-
-DBG: addr: ffff8800bb153a78
-DBG: first offset: 0, second offset: 0
-DBG: T309 clock: {T309: 1297809, T293: 747168}
-DBG: T293 clock: {T293: 747528}
-==================================================================
-
-On Thu, Sep 10, 2015 at 10:36 AM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Wed, Sep 09, 2015 at 08:58:26PM -0400, Sasha Levin wrote:
->> On 09/07/2015 07:40 AM, Kirill A. Shutemov wrote:
->> > On Sun, Sep 06, 2015 at 03:21:05PM -0400, Sasha Levin wrote:
->> >> > ==================================================================
->> >> > ThreadSanitizer: data-race in munlock_vma_pages_range
->> >> >
->> >> > Write of size 8 by thread T378 (K2633, CPU3):
->> >> >  [<ffffffff81212579>] munlock_vma_pages_range+0x59/0x3e0 mm/mlock.c:425
->> >> >  [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
->> >> >  [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
->> >> >  [<     inlined    >] SyS_munlock+0x74/0xb0 SYSC_munlock mm/mlock.c:651
->> >> >  [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
->> >> >  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
->> >> > arch/x86/entry/entry_64.S:186
->> > ...
->> >
->> >> > Previous read of size 8 by thread T398 (K2623, CPU2):
->> >> >  [<ffffffff8121d198>] try_to_unmap_one+0x78/0x4f0 mm/rmap.c:1208
->> >> >  [<     inlined    >] rmap_walk+0x147/0x450 rmap_walk_file mm/rmap.c:1540
->> >> >  [<ffffffff8121e7b7>] rmap_walk+0x147/0x450 mm/rmap.c:1559
->> >> >  [<ffffffff8121ef72>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
->> >> >  [<ffffffff81211bb0>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
->> >> >  [<ffffffff81212066>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
->> >> >  [<ffffffff812128a0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
->> >> >  [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
->> >> >  [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
->> >> >  [<     inlined    >] SyS_munlock+0x74/0xb0 SYSC_munlock mm/mlock.c:651
->> >> >  [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
->> >> >  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
->> >> > arch/x86/entry/entry_64.S:186
->> > Okay, the detected race is mlock/munlock vs. rmap.
->> >
->> > On rmap side we check vma->vm_flags in few places without taking
->> > vma->vm_mm->mmap_sem. The vma cannot be freed since we hold i_mmap_rwsem
->> > or anon_vma_lock, but nothing prevent vma->vm_flags from changing under
->> > us.
->> >
->> > In this particular case, speculative check in beginning of
->> > try_to_unmap_one() is fine, since we re-check it under mmap_sem later in
->> > the function.
->>
->> So you're suggesting that this isn't the cause of the bad page flags
->> error observed by Andrey and myself?
->
-> I don't see it, but who knows.
->
-> --
->  Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
