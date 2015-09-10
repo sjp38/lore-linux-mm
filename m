@@ -1,62 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D7346B0038
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 12:35:22 -0400 (EDT)
-Received: by qkap81 with SMTP id p81so20700525qka.2
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 09:35:22 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d93si13973238qkh.88.2015.09.10.09.35.21
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id B80B36B0256
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 12:36:20 -0400 (EDT)
+Received: by igcpb10 with SMTP id pb10so24464547igc.1
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 09:36:20 -0700 (PDT)
+Received: from resqmta-po-01v.sys.comcast.net (resqmta-po-01v.sys.comcast.net. [2001:558:fe16:19:96:114:154:160])
+        by mx.google.com with ESMTPS id gb7si816330igd.85.2015.09.10.09.36.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Sep 2015 09:35:21 -0700 (PDT)
-Message-ID: <1441902919.18796.10.camel@redhat.com>
-Subject: Re: [PATCH] mm/early_ioremap: add explicit #include of
- asm/early_ioremap.h
-From: Mark Salter <msalter@redhat.com>
-Date: Thu, 10 Sep 2015 12:35:19 -0400
-In-Reply-To: <1441900848-18527-1-git-send-email-ard.biesheuvel@linaro.org>
-References: <1441900848-18527-1-git-send-email-ard.biesheuvel@linaro.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 10 Sep 2015 09:36:20 -0700 (PDT)
+Date: Thu, 10 Sep 2015 11:36:18 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Store Buffers (was Re: Is it OK to pass non-acquired objects to
+ kfree?)
+In-Reply-To: <55F12FC1.2070801@suse.cz>
+Message-ID: <alpine.DEB.2.11.1509101135590.9501@east.gentwo.org>
+References: <CACT4Y+bvaJ6cC_=A1VGx=cT_bkB-teXNud0Wgt33E1AtBYNTSg@mail.gmail.com> <alpine.DEB.2.11.1509090901480.18992@east.gentwo.org> <CACT4Y+ZpToAmaboGDvFhgWUqtnUcJACprg=XSTkrJYE4DQ1jcA@mail.gmail.com> <alpine.DEB.2.11.1509090930510.19262@east.gentwo.org>
+ <CACT4Y+b_wDnC3mONjmq+F9kaw1_L_8z=E__1n25ZgLhx-biEmQ@mail.gmail.com> <alpine.DEB.2.11.1509091036590.19663@east.gentwo.org> <CACT4Y+a6rjbEoP7ufgyJimjx3qVh81TToXjL9Rnj-bHNregZXg@mail.gmail.com> <alpine.DEB.2.11.1509091251150.20311@east.gentwo.org>
+ <20150909184415.GJ4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509091346230.20665@east.gentwo.org> <20150909203642.GO4029@linux.vnet.ibm.com> <alpine.DEB.2.11.1509091812500.21983@east.gentwo.org> <55F12FC1.2070801@suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Dmitry Vyukov <dvyukov@google.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>
 
-On Thu, 2015-09-10 at 18:00 +0200, Ard Biesheuvel wrote:
-> Commit 6b0f68e32ea8 ("mm: add utility for early copy from unmapped
-> ram") introduces a function copy_from_early_mem() into mm/early_ioremap.c
-> which itself calls early_memremap()/early_memunmap(). However, since
-> early_memunmap() has not been declared yet at this point in the .c file,
-> nor by any explicitly included header files, we are depending on a
-> transitive include of asm/early_ioremap.h to declare it, which is fragile.
-> 
-> So instead, include this header explicitly.
-> 
-> Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> ---
+On Thu, 10 Sep 2015, Vlastimil Babka wrote:
 
-Acked-by: Mark Salter <msalter@redhat.com>
+> > For a partial cacheline it would have to read the rest of the cacheline
+> > before updating. And I would expect the processor to have exclusive access
+> > to the cacheline that is held in a store buffer. If not then there is
+> > trouble afoot.
+>
+> IIRC that (or something similar with same guarantees) basically happens on x86
+> when you use the LOCK prefix, i.e. for atomic inc etc. Doing that always would
+> destroy performance.
 
-> 
-> I ran into this by accident when trying to enable to the generic ioremap
-> implementation for 32-bit ARM.
-> 
->  mm/early_ioremap.c | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-> index 23f744d77ce0..17ae14b5aefa 100644
-> --- a/mm/early_ioremap.c
-> +++ b/mm/early_ioremap.c
-> @@ -15,6 +15,7 @@
->  #include <linux/mm.h>
->  #include <linux/vmalloc.h>
->  #include <asm/fixmap.h>
-> +#include <asm/early_ioremap.h>
->  
->  #ifdef CONFIG_MMU
->  static int early_ioremap_debug __initdata;
+Well yes but it also happens anytime you try to write to a cacheline.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
