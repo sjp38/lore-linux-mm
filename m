@@ -1,205 +1,301 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 533106B0038
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 04:47:19 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so50076604wic.1
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 01:47:18 -0700 (PDT)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id bz6si650418wjc.31.2015.09.11.01.47.17
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 88D366B0038
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 06:40:02 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so57617720wic.0
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 03:40:02 -0700 (PDT)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com. [209.85.212.178])
+        by mx.google.com with ESMTPS id c9si17183437wiw.58.2015.09.11.03.40.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Sep 2015 01:47:17 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so50010567wic.0
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 01:47:17 -0700 (PDT)
-Message-ID: <55F29513.4030503@gmail.com>
-Date: Fri, 11 Sep 2015 10:47:15 +0200
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Sep 2015 03:40:01 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so57245633wic.1
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 03:40:01 -0700 (PDT)
+Date: Fri, 11 Sep 2015 13:39:59 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Multiple potential races on vma->vm_flags
+Message-ID: <20150911103959.GA7976@node.dhcp.inet.fi>
+References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com>
+ <55EC9221.4040603@oracle.com>
+ <20150907114048.GA5016@node.dhcp.inet.fi>
+ <55F0D5B2.2090205@oracle.com>
+ <20150910083605.GB9526@node.dhcp.inet.fi>
+ <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/23] userfaultfd: linux/Documentation/vm/userfaultfd.txt
-References: <1431624680-20153-1-git-send-email-aarcange@redhat.com> <1431624680-20153-2-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1431624680-20153-2-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org
-Cc: mtk.manpages@gmail.com, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: Andrey Konovalov <andreyknvl@google.com>, Oleg Nesterov <oleg@redhat.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
 
-On 05/14/2015 07:30 PM, Andrea Arcangeli wrote:
-> Add documentation.
+On Thu, Sep 10, 2015 at 03:27:59PM +0200, Andrey Konovalov wrote:
+> Can a vma be shared among a few mm's?
 
-Hi Andrea,
+Define "shared".
 
-I do not recall... Did you write a man page also for this new system call?
+vma can belong only to one process (mm_struct), but it can be accessed
+from other process like in rmap case below.
 
-Thanks,
+rmap uses anon_vma_lock for anon vma and i_mmap_rwsem for file vma to make
+sure that the vma will not disappear under it.
 
-Michael
+> If yes, then taking current->mm->mmap_sem to protect vma is not enough.
 
+Depends on what protection you are talking about.
+ 
+> In the first report below both T378 and T398 take
+> current->mm->mmap_sem at mm/mlock.c:650, but they turn out to be
+> different locks (the addresses are different).
 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  Documentation/vm/userfaultfd.txt | 140 +++++++++++++++++++++++++++++++++++++++
->  1 file changed, 140 insertions(+)
->  create mode 100644 Documentation/vm/userfaultfd.txt
+See i_mmap_lock_read() in T398. It will guarantee that vma is there.
+
+> In the second report T309 doesn't take any locks at all, since it
+> assumes that after checking atomic_dec_and_test(&mm->mm_users) the mm
+> has no other users, but then it does a write to vma.
+
+This one is tricky. I *assume* the mm cannot be generally accessible after
+mm_users drops to zero, but I'm not entirely sure about it.
+procfs? ptrace?
+
+The VMA is still accessible via rmap at this point. And I think it can be
+a problem:
+
+		CPU0					CPU1
+exit_mmap()
+  // mmap_sem is *not* taken
+  munlock_vma_pages_all()
+    munlock_vma_pages_range()
+    						try_to_unmap_one()
+						  down_read_trylock(&vma->vm_mm->mmap_sem))
+						  !!(vma->vm_flags & VM_LOCKED) == true
+      vma->vm_flags &= ~VM_LOCKED;
+      <munlock the page>
+      						  mlock_vma_page(page);
+						  // mlocked pages is leaked.
+
+The obvious solution is to take mmap_sem in exit path, but it would cause
+performance regression.
+
+Any comments?
+
 > 
-> diff --git a/Documentation/vm/userfaultfd.txt b/Documentation/vm/userfaultfd.txt
-> new file mode 100644
-> index 0000000..c2f5145
-> --- /dev/null
-> +++ b/Documentation/vm/userfaultfd.txt
-> @@ -0,0 +1,140 @@
-> += Userfaultfd =
-> +
-> +== Objective ==
-> +
-> +Userfaults allow the implementation of on-demand paging from userland
-> +and more generally they allow userland to take control various memory
-> +page faults, something otherwise only the kernel code could do.
-> +
-> +For example userfaults allows a proper and more optimal implementation
-> +of the PROT_NONE+SIGSEGV trick.
-> +
-> +== Design ==
-> +
-> +Userfaults are delivered and resolved through the userfaultfd syscall.
-> +
-> +The userfaultfd (aside from registering and unregistering virtual
-> +memory ranges) provides two primary functionalities:
-> +
-> +1) read/POLLIN protocol to notify a userland thread of the faults
-> +   happening
-> +
-> +2) various UFFDIO_* ioctls that can manage the virtual memory regions
-> +   registered in the userfaultfd that allows userland to efficiently
-> +   resolve the userfaults it receives via 1) or to manage the virtual
-> +   memory in the background
-> +
-> +The real advantage of userfaults if compared to regular virtual memory
-> +management of mremap/mprotect is that the userfaults in all their
-> +operations never involve heavyweight structures like vmas (in fact the
-> +userfaultfd runtime load never takes the mmap_sem for writing).
-> +
-> +Vmas are not suitable for page- (or hugepage) granular fault tracking
-> +when dealing with virtual address spaces that could span
-> +Terabytes. Too many vmas would be needed for that.
-> +
-> +The userfaultfd once opened by invoking the syscall, can also be
-> +passed using unix domain sockets to a manager process, so the same
-> +manager process could handle the userfaults of a multitude of
-> +different processes without them being aware about what is going on
-> +(well of course unless they later try to use the userfaultfd
-> +themselves on the same region the manager is already tracking, which
-> +is a corner case that would currently return -EBUSY).
-> +
-> +== API ==
-> +
-> +When first opened the userfaultfd must be enabled invoking the
-> +UFFDIO_API ioctl specifying a uffdio_api.api value set to UFFD_API (or
-> +a later API version) which will specify the read/POLLIN protocol
-> +userland intends to speak on the UFFD. The UFFDIO_API ioctl if
-> +successful (i.e. if the requested uffdio_api.api is spoken also by the
-> +running kernel), will return into uffdio_api.features and
-> +uffdio_api.ioctls two 64bit bitmasks of respectively the activated
-> +feature of the read(2) protocol and the generic ioctl available.
-> +
-> +Once the userfaultfd has been enabled the UFFDIO_REGISTER ioctl should
-> +be invoked (if present in the returned uffdio_api.ioctls bitmask) to
-> +register a memory range in the userfaultfd by setting the
-> +uffdio_register structure accordingly. The uffdio_register.mode
-> +bitmask will specify to the kernel which kind of faults to track for
-> +the range (UFFDIO_REGISTER_MODE_MISSING would track missing
-> +pages). The UFFDIO_REGISTER ioctl will return the
-> +uffdio_register.ioctls bitmask of ioctls that are suitable to resolve
-> +userfaults on the range registered. Not all ioctls will necessarily be
-> +supported for all memory types depending on the underlying virtual
-> +memory backend (anonymous memory vs tmpfs vs real filebacked
-> +mappings).
-> +
-> +Userland can use the uffdio_register.ioctls to manage the virtual
-> +address space in the background (to add or potentially also remove
-> +memory from the userfaultfd registered range). This means a userfault
-> +could be triggering just before userland maps in the background the
-> +user-faulted page.
-> +
-> +The primary ioctl to resolve userfaults is UFFDIO_COPY. That
-> +atomically copies a page into the userfault registered range and wakes
-> +up the blocked userfaults (unless uffdio_copy.mode &
-> +UFFDIO_COPY_MODE_DONTWAKE is set). Other ioctl works similarly to
-> +UFFDIO_COPY.
-> +
-> +== QEMU/KVM ==
-> +
-> +QEMU/KVM is using the userfaultfd syscall to implement postcopy live
-> +migration. Postcopy live migration is one form of memory
-> +externalization consisting of a virtual machine running with part or
-> +all of its memory residing on a different node in the cloud. The
-> +userfaultfd abstraction is generic enough that not a single line of
-> +KVM kernel code had to be modified in order to add postcopy live
-> +migration to QEMU.
-> +
-> +Guest async page faults, FOLL_NOWAIT and all other GUP features work
-> +just fine in combination with userfaults. Userfaults trigger async
-> +page faults in the guest scheduler so those guest processes that
-> +aren't waiting for userfaults (i.e. network bound) can keep running in
-> +the guest vcpus.
-> +
-> +It is generally beneficial to run one pass of precopy live migration
-> +just before starting postcopy live migration, in order to avoid
-> +generating userfaults for readonly guest regions.
-> +
-> +The implementation of postcopy live migration currently uses one
-> +single bidirectional socket but in the future two different sockets
-> +will be used (to reduce the latency of the userfaults to the minimum
-> +possible without having to decrease /proc/sys/net/ipv4/tcp_wmem).
-> +
-> +The QEMU in the source node writes all pages that it knows are missing
-> +in the destination node, into the socket, and the migration thread of
-> +the QEMU running in the destination node runs UFFDIO_COPY|ZEROPAGE
-> +ioctls on the userfaultfd in order to map the received pages into the
-> +guest (UFFDIO_ZEROCOPY is used if the source page was a zero page).
-> +
-> +A different postcopy thread in the destination node listens with
-> +poll() to the userfaultfd in parallel. When a POLLIN event is
-> +generated after a userfault triggers, the postcopy thread read() from
-> +the userfaultfd and receives the fault address (or -EAGAIN in case the
-> +userfault was already resolved and waken by a UFFDIO_COPY|ZEROPAGE run
-> +by the parallel QEMU migration thread).
-> +
-> +After the QEMU postcopy thread (running in the destination node) gets
-> +the userfault address it writes the information about the missing page
-> +into the socket. The QEMU source node receives the information and
-> +roughly "seeks" to that page address and continues sending all
-> +remaining missing pages from that new page offset. Soon after that
-> +(just the time to flush the tcp_wmem queue through the network) the
-> +migration thread in the QEMU running in the destination node will
-> +receive the page that triggered the userfault and it'll map it as
-> +usual with the UFFDIO_COPY|ZEROPAGE (without actually knowing if it
-> +was spontaneously sent by the source or if it was an urgent page
-> +requested through an userfault).
-> +
-> +By the time the userfaults start, the QEMU in the destination node
-> +doesn't need to keep any per-page state bitmap relative to the live
-> +migration around and a single per-page bitmap has to be maintained in
-> +the QEMU running in the source node to know which pages are still
-> +missing in the destination node. The bitmap in the source node is
-> +checked to find which missing pages to send in round robin and we seek
-> +over it when receiving incoming userfaults. After sending each page of
-> +course the bitmap is updated accordingly. It's also useful to avoid
-> +sending the same page twice (in case the userfault is read by the
-> +postcopy thread just before UFFDIO_COPY|ZEROPAGE runs in the migration
-> +thread).
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-api" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> ==================================================================
+> ThreadSanitizer: data-race in munlock_vma_pages_range
 > 
-
+> Write of size 8 by thread T378 (K2633, CPU3):
+>  [<ffffffff81212579>] munlock_vma_pages_range+0x59/0x3e0 mm/mlock.c:425
+>  [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
+>  [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
+>  [<     inlined    >] SYSC_munlock mm/mlock.c:651
+>  [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
+>  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> arch/x86/entry/entry_64.S:186
+> 
+> Locks held by T378:
+> #0 Lock 25710428 taken here:
+>  [<     inlined    >] SYSC_munlock mm/mlock.c:650
+>  [<ffffffff8121308c>] SyS_munlock+0x4c/0xb0 mm/mlock.c:643
+>  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> arch/x86/entry/entry_64.S:186
+> 
+> Previous read of size 8 by thread T398 (K2623, CPU2):
+>  [<ffffffff8121d198>] try_to_unmap_one+0x78/0x4f0 mm/rmap.c:1208
+>  [<     inlined    >] rmap_walk_file mm/rmap.c:1540
+>  [<ffffffff8121e7b7>] rmap_walk+0x147/0x450 mm/rmap.c:1559
+>  [<ffffffff8121ef72>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
+>  [<ffffffff81211bb0>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
+>  [<ffffffff81212066>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
+>  [<ffffffff812128a0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
+>  [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
+>  [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
+>  [<     inlined    >] SYSC_munlock mm/mlock.c:651
+>  [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
+>  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> arch/x86/entry/entry_64.S:186
+> 
+> Locks held by T398:
+> #0 Lock 21b00c68 taken here:
+>  [<     inlined    >] SYSC_munlock mm/mlock.c:650
+>  [<ffffffff8121308c>] SyS_munlock+0x4c/0xb0 mm/mlock.c:643
+>  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> arch/x86/entry/entry_64.S:186
+> #1 Lock bac2d750 taken here:
+>  [<     inlined    >] i_mmap_lock_read include/linux/fs.h:509
+>  [<     inlined    >] rmap_walk_file mm/rmap.c:1533
+>  [<ffffffff8121e6e8>] rmap_walk+0x78/0x450 mm/rmap.c:1559
+>  [<ffffffff8121ef72>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
+>  [<ffffffff81211bb0>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
+>  [<ffffffff81212066>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
+>  [<ffffffff812128a0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
+>  [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
+>  [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
+>  [<     inlined    >] SYSC_munlock mm/mlock.c:651
+>  [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
+>  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> arch/x86/entry/entry_64.S:186
+> #2 Lock 0895f570 taken here:
+>  [<     inlined    >] spin_lock include/linux/spinlock.h:312
+>  [<ffffffff8121c959>] __page_check_address+0xd9/0x210 mm/rmap.c:681
+>  [<     inlined    >] page_check_address include/linux/rmap.h:204
+>  [<ffffffff8121d173>] try_to_unmap_one+0x53/0x4f0 mm/rmap.c:1198
+>  [<     inlined    >] rmap_walk_file mm/rmap.c:1540
+>  [<ffffffff8121e7b7>] rmap_walk+0x147/0x450 mm/rmap.c:1559
+>  [<ffffffff8121ef72>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
+>  [<ffffffff81211bb0>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
+>  [<ffffffff81212066>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
+>  [<ffffffff812128a0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
+>  [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
+>  [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
+>  [<     inlined    >] SYSC_munlock mm/mlock.c:651
+>  [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
+>  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> arch/x86/entry/entry_64.S:186
+> 
+> DBG: addr: ffff880222610e10
+> DBG: first offset: 0, second offset: 0
+> DBG: T378 clock: {T378: 4486533, T398: 2405850}
+> DBG: T398 clock: {T398: 2406009}
+> ==================================================================
+> 
+> ==================================================================
+> ThreadSanitizer: data-race in munlock_vma_pages_range
+> 
+> Write of size 8 by thread T309 (K2577, CPU0):
+>  [<ffffffff81211fc9>] munlock_vma_pages_range+0x59/0x3e0 mm/mlock.c:425
+>  [<     inlined    >] munlock_vma_pages_all mm/internal.h:252
+>  [<ffffffff81216cc3>] exit_mmap+0x163/0x190 mm/mmap.c:2824
+>  [<ffffffff81085685>] mmput+0x65/0x190 kernel/fork.c:708
+>  [<     inlined    >] exit_mm kernel/exit.c:437
+>  [<ffffffff8108c3a7>] do_exit+0x457/0x1420 kernel/exit.c:733
+>  [<ffffffff8108f08f>] do_group_exit+0x7f/0x140 kernel/exit.c:874
+>  [<     inlined    >] SYSC_exit_group kernel/exit.c:885
+>  [<ffffffff8108f170>] __wake_up_parent+0x0/0x50 kernel/exit.c:883
+>  [<ffffffff81eadb2e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> arch/x86/entry/entry_64.S:186
+> 
+> Locks held by T309:
+> 
+> Previous read of size 8 by thread T293 (K2573, CPU3):
+>  [<ffffffff8121cbe8>] try_to_unmap_one+0x78/0x4f0 mm/rmap.c:1208
+>  [<     inlined    >] rmap_walk_file mm/rmap.c:1540
+>  [<ffffffff8121e207>] rmap_walk+0x147/0x450 mm/rmap.c:1559
+>  [<ffffffff8121e9c2>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
+>  [<ffffffff81211600>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
+>  [<ffffffff81211ab6>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
+>  [<ffffffff812122f0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
+>  [<     inlined    >] munlock_vma_pages_all mm/internal.h:252
+>  [<ffffffff81216cc3>] exit_mmap+0x163/0x190 mm/mmap.c:2824
+>  [<ffffffff81085685>] mmput+0x65/0x190 kernel/fork.c:708
+>  [<     inlined    >] exit_mm kernel/exit.c:437
+>  [<ffffffff8108c3a7>] do_exit+0x457/0x1420 kernel/exit.c:733
+>  [<ffffffff8108f08f>] do_group_exit+0x7f/0x140 kernel/exit.c:874
+>  [<     inlined    >] SYSC_exit_group kernel/exit.c:885
+>  [<ffffffff8108f170>] __wake_up_parent+0x0/0x50 kernel/exit.c:883
+>  [<ffffffff81eadb2e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> arch/x86/entry/entry_64.S:186
+> 
+> Locks held by T293:
+> #0 Lock bb0dc710 taken here:
+>  [<     inlined    >] i_mmap_lock_read include/linux/fs.h:509
+>  [<     inlined    >] rmap_walk_file mm/rmap.c:1533
+>  [<ffffffff8121e138>] rmap_walk+0x78/0x450 mm/rmap.c:1559
+>  [<ffffffff8121e9c2>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
+>  [<ffffffff81211600>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
+>  [<ffffffff81211ab6>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
+>  [<ffffffff812122f0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
+>  [<     inlined    >] munlock_vma_pages_all mm/internal.h:252
+>  [<ffffffff81216cc3>] exit_mmap+0x163/0x190 mm/mmap.c:2824
+>  [<ffffffff81085685>] mmput+0x65/0x190 kernel/fork.c:708
+>  [<     inlined    >] exit_mm kernel/exit.c:437
+>  [<ffffffff8108c3a7>] do_exit+0x457/0x1420 kernel/exit.c:733
+>  [<ffffffff8108f08f>] do_group_exit+0x7f/0x140 kernel/exit.c:874
+>  [<     inlined    >] SYSC_exit_group kernel/exit.c:885
+>  [<ffffffff8108f170>] __wake_up_parent+0x0/0x50 kernel/exit.c:883
+>  [<ffffffff81eadb2e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> arch/x86/entry/entry_64.S:186
+> #1 Lock 02e0f1b0 taken here:
+>  [<     inlined    >] spin_lock include/linux/spinlock.h:312
+>  [<ffffffff8121c3a9>] __page_check_address+0xd9/0x210 mm/rmap.c:681
+>  [<     inlined    >] page_check_address include/linux/rmap.h:204
+>  [<ffffffff8121cbc3>] try_to_unmap_one+0x53/0x4f0 mm/rmap.c:1198
+>  [<     inlined    >] rmap_walk_file mm/rmap.c:1540
+>  [<ffffffff8121e207>] rmap_walk+0x147/0x450 mm/rmap.c:1559
+>  [<ffffffff8121e9c2>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
+>  [<ffffffff81211600>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
+>  [<ffffffff81211ab6>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
+>  [<ffffffff812122f0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
+>  [<     inlined    >] munlock_vma_pages_all mm/internal.h:252
+>  [<ffffffff81216cc3>] exit_mmap+0x163/0x190 mm/mmap.c:2824
+>  [<ffffffff81085685>] mmput+0x65/0x190 kernel/fork.c:708
+>  [<     inlined    >] exit_mm kernel/exit.c:437
+>  [<ffffffff8108c3a7>] do_exit+0x457/0x1420 kernel/exit.c:733
+>  [<ffffffff8108f08f>] do_group_exit+0x7f/0x140 kernel/exit.c:874
+>  [<     inlined    >] SYSC_exit_group kernel/exit.c:885
+>  [<ffffffff8108f170>] __wake_up_parent+0x0/0x50 kernel/exit.c:883
+>  [<ffffffff81eadb2e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> arch/x86/entry/entry_64.S:186
+> 
+> DBG: addr: ffff8800bb153a78
+> DBG: first offset: 0, second offset: 0
+> DBG: T309 clock: {T309: 1297809, T293: 747168}
+> DBG: T293 clock: {T293: 747528}
+> ==================================================================
+> 
+> On Thu, Sep 10, 2015 at 10:36 AM, Kirill A. Shutemov
+> <kirill@shutemov.name> wrote:
+> > On Wed, Sep 09, 2015 at 08:58:26PM -0400, Sasha Levin wrote:
+> >> On 09/07/2015 07:40 AM, Kirill A. Shutemov wrote:
+> >> > On Sun, Sep 06, 2015 at 03:21:05PM -0400, Sasha Levin wrote:
+> >> >> > ==================================================================
+> >> >> > ThreadSanitizer: data-race in munlock_vma_pages_range
+> >> >> >
+> >> >> > Write of size 8 by thread T378 (K2633, CPU3):
+> >> >> >  [<ffffffff81212579>] munlock_vma_pages_range+0x59/0x3e0 mm/mlock.c:425
+> >> >> >  [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
+> >> >> >  [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
+> >> >> >  [<     inlined    >] SyS_munlock+0x74/0xb0 SYSC_munlock mm/mlock.c:651
+> >> >> >  [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
+> >> >> >  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> >> >> > arch/x86/entry/entry_64.S:186
+> >> > ...
+> >> >
+> >> >> > Previous read of size 8 by thread T398 (K2623, CPU2):
+> >> >> >  [<ffffffff8121d198>] try_to_unmap_one+0x78/0x4f0 mm/rmap.c:1208
+> >> >> >  [<     inlined    >] rmap_walk+0x147/0x450 rmap_walk_file mm/rmap.c:1540
+> >> >> >  [<ffffffff8121e7b7>] rmap_walk+0x147/0x450 mm/rmap.c:1559
+> >> >> >  [<ffffffff8121ef72>] try_to_munlock+0xa2/0xc0 mm/rmap.c:1423
+> >> >> >  [<ffffffff81211bb0>] __munlock_isolated_page+0x30/0x60 mm/mlock.c:129
+> >> >> >  [<ffffffff81212066>] __munlock_pagevec+0x236/0x3f0 mm/mlock.c:331
+> >> >> >  [<ffffffff812128a0>] munlock_vma_pages_range+0x380/0x3e0 mm/mlock.c:476
+> >> >> >  [<ffffffff81212ac9>] mlock_fixup+0x1c9/0x280 mm/mlock.c:549
+> >> >> >  [<ffffffff81212ccc>] do_mlock+0x14c/0x180 mm/mlock.c:589
+> >> >> >  [<     inlined    >] SyS_munlock+0x74/0xb0 SYSC_munlock mm/mlock.c:651
+> >> >> >  [<ffffffff812130b4>] SyS_munlock+0x74/0xb0 mm/mlock.c:643
+> >> >> >  [<ffffffff81eb352e>] entry_SYSCALL_64_fastpath+0x12/0x71
+> >> >> > arch/x86/entry/entry_64.S:186
+> >> > Okay, the detected race is mlock/munlock vs. rmap.
+> >> >
+> >> > On rmap side we check vma->vm_flags in few places without taking
+> >> > vma->vm_mm->mmap_sem. The vma cannot be freed since we hold i_mmap_rwsem
+> >> > or anon_vma_lock, but nothing prevent vma->vm_flags from changing under
+> >> > us.
+> >> >
+> >> > In this particular case, speculative check in beginning of
+> >> > try_to_unmap_one() is fine, since we re-check it under mmap_sem later in
+> >> > the function.
+> >>
+> >> So you're suggesting that this isn't the cause of the bad page flags
+> >> error observed by Andrey and myself?
+> >
+> > I don't see it, but who knows.
+> >
+> > --
+> >  Kirill A. Shutemov
 
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
