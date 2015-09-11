@@ -1,119 +1,322 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 594A46B0038
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 09:22:18 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so64077141wic.1
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 06:22:18 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id xb8si430486wjb.75.2015.09.11.06.22.16
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C04C56B0038
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 09:35:04 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so62993896wic.1
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 06:35:04 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
+        by mx.google.com with ESMTPS id fx4si801094wib.38.2015.09.11.06.35.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 11 Sep 2015 06:22:16 -0700 (PDT)
-Subject: Re: [PATCHv10 37/36, RFC] thp: allow mlocked THP again
-References: <1441293202-137314-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1441293388-137552-1-git-send-email-kirill.shutemov@linux.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55F2D586.3040204@suse.cz>
-Date: Fri, 11 Sep 2015 15:22:14 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Sep 2015 06:35:03 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so64507527wic.1
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 06:35:03 -0700 (PDT)
+Date: Fri, 11 Sep 2015 16:35:01 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv5 5/7] mm: make compound_head() robust
+Message-ID: <20150911133501.GA9129@node.dhcp.inet.fi>
+References: <1441283758-92774-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1441283758-92774-6-git-send-email-kirill.shutemov@linux.intel.com>
+ <55F16150.502@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1441293388-137552-1-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55F16150.502@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On 09/03/2015 05:16 PM, Kirill A. Shutemov wrote:
-> This patch brings back mlocked THP. Instead of forbidding mlocked pages
-> altogether, we just avoid mlocking PTE-mapped THPs and munlock THPs on
-> split_huge_pmd().
->
-> This means PTE-mapped THPs will be on normal lru lists and will be
-> split under memory pressure by vmscan. After the split vmscan will
-> detect unevictable small pages and mlock them.
+On Thu, Sep 10, 2015 at 12:54:08PM +0200, Vlastimil Babka wrote:
+> On 09/03/2015 02:35 PM, Kirill A. Shutemov wrote:
+> > Hugh has pointed that compound_head() call can be unsafe in some
+> > context. There's one example:
+> > 
+> > 	CPU0					CPU1
+> > 
+> > isolate_migratepages_block()
+> >   page_count()
+> >     compound_head()
+> >       !!PageTail() == true
+> > 					put_page()
+> > 					  tail->first_page = NULL
+> >       head = tail->first_page
+> > 					alloc_pages(__GFP_COMP)
+> > 					   prep_compound_page()
+> > 					     tail->first_page = head
+> > 					     __SetPageTail(p);
+> >       !!PageTail() == true
+> >     <head == NULL dereferencing>
+> > 
+> > The race is pure theoretical. I don't it's possible to trigger it in
+> > practice. But who knows.
+> > 
+> > We can fix the race by changing how encode PageTail() and compound_head()
+> > within struct page to be able to update them in one shot.
+> > 
+> > The patch introduces page->compound_head into third double word block in
+> > front of compound_dtor and compound_order. Bit 0 encodes PageTail() and
+> > the rest bits are pointer to head page if bit zero is set.
+> > 
+> > The patch moves page->pmd_huge_pte out of word, just in case if an
+> > architecture defines pgtable_t into something what can have the bit 0
+> > set.
+> > 
+> > hugetlb_cgroup uses page->lru.next in the second tail page to store
+> > pointer struct hugetlb_cgroup. The patch switch it to use page->private
+> > in the second tail page instead. The space is free since ->first_page is
+> > removed from the union.
+> > 
+> > The patch also opens possibility to remove HUGETLB_CGROUP_MIN_ORDER
+> > limitation, since there's now space in first tail page to store struct
+> > hugetlb_cgroup pointer. But that's out of scope of the patch.
+> > 
+> > That means page->compound_head shares storage space with:
+> > 
+> >  - page->lru.next;
+> >  - page->next;
+> >  - page->rcu_head.next;
+> > 
+> > That's too long list to be absolutely sure, but looks like nobody uses
+> > bit 0 of the word.
+> 
+> Given the discussion about rcu_head, that should warrant some summary here :)
 
-Yeah that sounds like a compromise that should work.
+Agreed.
 
-> This way we can void leaking mlocked pages into non-VM_LOCKED VMAs.
+> > --- a/include/linux/mm_types.h
+> > +++ b/include/linux/mm_types.h
+> > @@ -120,7 +120,13 @@ struct page {
+> >  		};
+> >  	};
+> >  
+> > -	/* Third double word block */
+> > +	/*
+> > +	 * Third double word block
+> > +	 *
+> > +	 * WARNING: bit 0 of the first word encode PageTail(). That means
+> > +	 * the rest users of the storage space MUST NOT use the bit to
+> > +	 * avoid collision and false-positive PageTail().
+> > +	 */
+> >  	union {
+> >  		struct list_head lru;	/* Pageout list, eg. active_list
+> >  					 * protected by zone->lru_lock !
+> > @@ -143,12 +149,19 @@ struct page {
+> >  						 */
+> >  		/* First tail page of compound page */
+> 
+> "First tail" doesn't apply for compound_head.
 
-                  avoid
+I'll adjust comments.
+ 
+> > index 097c7a4bfbd9..330377f83ac7 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -1686,8 +1686,7 @@ static void __split_huge_page_refcount(struct page *page,
+> >  				      (1L << PG_unevictable)));
+> >  		page_tail->flags |= (1L << PG_dirty);
+> >  
+> > -		/* clear PageTail before overwriting first_page */
+> > -		smp_wmb();
+> > +		clear_compound_head(page_tail);
+> 
+> I would sleep better if this was done before setting all the page->flags above,
+> previously, PageTail was cleared by the first operation which is
+> "page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;"
+> I do realize that it doesn't use WRITE_ONCE, so it might have been theoretically
+> broken already, if it does matter.
 
-But mlocked page in non-mlocked VMA's is a normal thing for shared pages 
-when only one of the sharing mm's did mlock(), right? So this 
-description doesn't explain the whole issue. I admit I forgot the exact 
-details already :(
+Right. Nothing enforces particular order. If we really need to have some
+ordering on PageTail() vs. page->flags let's define it, but so far I
+don't see a reason to change this part.
 
->
-> Not-Yet-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->
-> I'm not yet 100% certain that this approch is correct. Review would be appriciated.
-> More testing is required.
->
-> ---
->   mm/gup.c         |  6 ++++--
->   mm/huge_memory.c | 33 +++++++++++++++++++++++-------
->   mm/memory.c      |  3 +--
->   mm/mlock.c       | 61 +++++++++++++++++++++++++++++++++++++-------------------
->   4 files changed, 71 insertions(+), 32 deletions(-)
->
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 70d65e4015a4..e95b0cb6ed81 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -143,6 +143,10 @@ retry:
->   		mark_page_accessed(page);
->   	}
->   	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
-> +		/* Do not mlock pte-mapped THP */
-> +		if (PageTransCompound(page))
-> +			goto out;
-> +
->   		/*
->   		 * The preliminary mapping check is mainly to avoid the
->   		 * pointless overhead of lock_page on the ZERO_PAGE
-> @@ -920,8 +924,6 @@ long populate_vma_page_range(struct vm_area_struct *vma,
->   	gup_flags = FOLL_TOUCH | FOLL_POPULATE | FOLL_MLOCK;
->   	if (vma->vm_flags & VM_LOCKONFAULT)
->   		gup_flags &= ~FOLL_POPULATE;
-> -	if (vma->vm_flags & VM_LOCKED)
-> -		gup_flags |= FOLL_SPLIT;
->   	/*
->   	 * We want to touch writable mappings with a write fault in order
->   	 * to break COW, except for shared mappings because these don't COW
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 2cc99f9096a8..d714de02473b 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -846,8 +846,6 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->
->   	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
->   		return VM_FAULT_FALLBACK;
-> -	if (vma->vm_flags & VM_LOCKED)
-> -		return VM_FAULT_FALLBACK;
->   	if (unlikely(anon_vma_prepare(vma)))
->   		return VM_FAULT_OOM;
->   	if (unlikely(khugepaged_enter(vma, vma->vm_flags)))
-> @@ -1316,7 +1314,16 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
->   			update_mmu_cache_pmd(vma, addr, pmd);
->   	}
->   	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
-> -		if (page->mapping && trylock_page(page)) {
-> +		/*
-> +		 * We don't mlock() pte-mapped THPs. This way we can avoid
-> +		 * leaking mlocked pages into non-VM_LOCKED VMAs.
-> +		 * In most cases the pmd is the only mapping of the page: we
-> +		 * break COW for the mlock(). The only scenario when we have
+> > diff --git a/mm/internal.h b/mm/internal.h
+> > index 36b23f1e2ca6..89e21a07080a 100644
+> > --- a/mm/internal.h
+> > +++ b/mm/internal.h
+> > @@ -61,9 +61,9 @@ static inline void __get_page_tail_foll(struct page *page,
+> >  	 * speculative page access (like in
+> >  	 * page_cache_get_speculative()) on tail pages.
+> >  	 */
+> > -	VM_BUG_ON_PAGE(atomic_read(&page->first_page->_count) <= 0, page);
+> > +	VM_BUG_ON_PAGE(atomic_read(&compound_head(page)->_count) <= 0, page);
+> >  	if (get_page_head)
+> > -		atomic_inc(&page->first_page->_count);
+> > +		atomic_inc(&compound_head(page)->_count);
+> 
+> Doing another compound_head() seems like overkill when this code already assumes
+> PageTail.
 
-I don't understand what's meant by "we break COW for the mlock()"?
+"Overkill"? It's too strong wording for re-read hot cache line.
 
-> +		 * the page shared here is if we mlocking read-only mapping
-> +		 * shared over fork(). We skip mlocking such pages.
+> All callers do it after if (PageTail()) which means they already did
+> READ_ONCE(page->compound_head) and here they do another one. Potentially with
+> different result in bit 0, which would be a subtle bug, that could be
+> interesting to catch with some VM_BUG_ON. I don't know if a direct plain
+> page->compound_head access here instead of compound_head() would also result in
+> a re-read, since the previous access did use READ_ONCE(). Maybe it would be best
+> to reorganize the code here and in the 3 call sites so that the READ_ONCE() used
+> to determine PageTail also obtains the compound head pointer.
 
-Why do we skip them? There's no PTE mapping involved, just multiple PMD 
-mappings? Why are those a problem?
+All we would possbily win by the change is few bytes in code. Additional
+READ_ONCE() only affect code generation. It doesn't introduce any cpu
+barriers. The cache line with compound_head is in L1 anyway.
 
+I don't see justification to change this part too. If you think we can
+gain something by reworking this code, feel free to propose patch on top.
+
+> Some of that is probably made moot by your other series, but better let's think
+> of this series as standalone first.
+> 
+> >  	get_huge_page_tail(page);
+> >  }
+> >  
+> > diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> > index 1f4446a90cef..4d1a5de9653d 100644
+> > --- a/mm/memory-failure.c
+> > +++ b/mm/memory-failure.c
+> > @@ -787,8 +787,6 @@ static int me_huge_page(struct page *p, unsigned long pfn)
+> >  #define lru		(1UL << PG_lru)
+> >  #define swapbacked	(1UL << PG_swapbacked)
+> >  #define head		(1UL << PG_head)
+> > -#define tail		(1UL << PG_tail)
+> > -#define compound	(1UL << PG_compound)
+> >  #define slab		(1UL << PG_slab)
+> >  #define reserved	(1UL << PG_reserved)
+> >  
+> > @@ -811,12 +809,7 @@ static struct page_state {
+> >  	 */
+> >  	{ slab,		slab,		MF_MSG_SLAB,	me_kernel },
+> >  
+> > -#ifdef CONFIG_PAGEFLAGS_EXTENDED
+> >  	{ head,		head,		MF_MSG_HUGE,		me_huge_page },
+> > -	{ tail,		tail,		MF_MSG_HUGE,		me_huge_page },
+> > -#else
+> > -	{ compound,	compound,	MF_MSG_HUGE,		me_huge_page },
+> > -#endif
+> >  
+> >  	{ sc|dirty,	sc|dirty,	MF_MSG_DIRTY_SWAPCACHE,	me_swapcache_dirty },
+> >  	{ sc|dirty,	sc,		MF_MSG_CLEAN_SWAPCACHE,	me_swapcache_clean },
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index c6733cc3cbce..a56ad53ff553 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -424,15 +424,15 @@ out:
+> >  /*
+> >   * Higher-order pages are called "compound pages".  They are structured thusly:
+> >   *
+> > - * The first PAGE_SIZE page is called the "head page".
+> > + * The first PAGE_SIZE page is called the "head page" and have PG_head set.
+> >   *
+> > - * The remaining PAGE_SIZE pages are called "tail pages".
+> > + * The remaining PAGE_SIZE pages are called "tail pages". PageTail() is encoded
+> > + * in bit 0 of page->compound_head. The rest of bits is pointer to head page.
+> >   *
+> > - * All pages have PG_compound set.  All tail pages have their ->first_page
+> > - * pointing at the head page.
+> > + * The first tail page's ->compound_dtor holds the offset in array of compound
+> > + * page destructors. See compound_page_dtors.
+> >   *
+> > - * The first tail page's ->lru.next holds the address of the compound page's
+> > - * put_page() function.  Its ->lru.prev holds the order of allocation.
+> > + * The first tail page's ->compound_order holds the order of allocation.
+> >   * This usage means that zero-order pages may not be compound.
+> >   */
+> >  
+> > @@ -452,10 +452,7 @@ void prep_compound_page(struct page *page, unsigned long order)
+> >  	for (i = 1; i < nr_pages; i++) {
+> >  		struct page *p = page + i;
+> >  		set_page_count(p, 0);
+> > -		p->first_page = page;
+> > -		/* Make sure p->first_page is always valid for PageTail() */
+> > -		smp_wmb();
+> > -		__SetPageTail(p);
+> > +		set_compound_head(p, page);
+> >  	}
+> >  }
+> >  
+> > @@ -830,17 +827,30 @@ static void free_one_page(struct zone *zone,
+> >  
+> >  static int free_tail_pages_check(struct page *head_page, struct page *page)
+> >  {
+> > -	if (!IS_ENABLED(CONFIG_DEBUG_VM))
+> > -		return 0;
+> > +	int ret = 1;
+> > +
+> > +	/*
+> > +	 * We rely page->lru.next never has bit 0 set, unless the page
+> > +	 * is PageTail(). Let's make sure that's true even for poisoned ->lru.
+> > +	 */
+> > +	BUILD_BUG_ON((unsigned long)LIST_POISON1 & 1);
+> > +
+> > +	if (!IS_ENABLED(CONFIG_DEBUG_VM)) {
+> > +		ret = 0;
+> > +		goto out;
+> > +	}
+> >  	if (unlikely(!PageTail(page))) {
+> >  		bad_page(page, "PageTail not set", 0);
+> > -		return 1;
+> > +		goto out;
+> >  	}
+> > -	if (unlikely(page->first_page != head_page)) {
+> > -		bad_page(page, "first_page not consistent", 0);
+> > -		return 1;
+> > +	if (unlikely(compound_head(page) != head_page)) {
+> > +		bad_page(page, "compound_head not consistent", 0);
+> > +		goto out;
+> 
+> Same here, although for a DEBUG_VM config only it's not as important.
+
+Ditto.
+
+> 
+> >  	}
+> > -	return 0;
+> > +	ret = 0;
+> > +out:
+> > +	clear_compound_head(page);
+> > +	return ret;
+> >  }
+> >  
+> >  static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+> > @@ -888,6 +898,8 @@ static void init_reserved_page(unsigned long pfn)
+> >  #else
+> >  static inline void init_reserved_page(unsigned long pfn)
+> >  {
+> > +	/* Avoid false-positive PageTail() */
+> > +	INIT_LIST_HEAD(&pfn_to_page(pfn)->lru);
+> >  }
+> >  #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+> >  
+> > diff --git a/mm/swap.c b/mm/swap.c
+> > index a3a0a2f1f7c3..faa9e1687dea 100644
+> > --- a/mm/swap.c
+> > +++ b/mm/swap.c
+> > @@ -200,7 +200,7 @@ out_put_single:
+> >  				__put_single_page(page);
+> >  			return;
+> >  		}
+> > -		VM_BUG_ON_PAGE(page_head != page->first_page, page);
+> > +		VM_BUG_ON_PAGE(page_head != compound_head(page), page);
+> >  		/*
+> >  		 * We can release the refcount taken by
+> >  		 * get_page_unless_zero() now that
+> > @@ -261,7 +261,7 @@ static void put_compound_page(struct page *page)
+> >  	 *  Case 3 is possible, as we may race with
+> >  	 *  __split_huge_page_refcount tearing down a THP page.
+> >  	 */
+> > -	page_head = compound_head_by_tail(page);
+> > +	page_head = compound_head(page);
+> 
+> This is also in a path after PageTail() is true.
+
+We can only save one branch here: other PageTail() is most likely in other
+compilation unit and compiler would not be able to eliminate additional
+load.
+Why bother?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
