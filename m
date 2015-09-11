@@ -1,168 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C2D076B0038
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 15:42:18 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so71428080qgt.2
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 12:42:18 -0700 (PDT)
-Received: from mail-qg0-x22c.google.com (mail-qg0-x22c.google.com. [2607:f8b0:400d:c04::22c])
-        by mx.google.com with ESMTPS id f185si1649565qhc.2.2015.09.11.12.42.17
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B1726B0038
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 18:22:11 -0400 (EDT)
+Received: by qkap81 with SMTP id p81so38106297qka.2
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 15:22:10 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d19si2120048qhc.106.2015.09.11.15.22.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Sep 2015 12:42:17 -0700 (PDT)
-Received: by qgev79 with SMTP id v79so71392654qge.0
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 12:42:17 -0700 (PDT)
-Message-ID: <55f32e98.5a18370a.25e16.4c64@mx.google.com>
-Date: Fri, 11 Sep 2015 12:42:16 -0700 (PDT)
-From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Subject: Re: [PATCH V4] mm: memory hot-add: memory can not be added to
- movable zone defaultly
-In-Reply-To: <55EBFA66.5040106@inspur.com>
-References: <0bc3aaab6cea54112f1c444880f9b832@s.corp-email.com>
-	<1441000720-28506-1-git-send-email-liuchangsheng@inspur.com>
-	<55e5c643.04c0370a.45f82.58bb@mx.google.com>
-	<55EBFA66.5040106@inspur.com>
+        Fri, 11 Sep 2015 15:22:10 -0700 (PDT)
+Date: Fri, 11 Sep 2015 15:21:55 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm:zpool: constify struct zpool type
+Message-Id: <20150911152155.425f590018c01e689f2361e2@linux-foundation.org>
+In-Reply-To: <1441885718-32580-2-git-send-email-sergey.senozhatsky@gmail.com>
+References: <1441885718-32580-1-git-send-email-sergey.senozhatsky@gmail.com>
+	<1441885718-32580-2-git-send-email-sergey.senozhatsky@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Changsheng Liu <liuchangsheng@inspur.com>
-Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-Hi Changsheng,
+On Thu, 10 Sep 2015 20:48:37 +0900 Sergey Senozhatsky <sergey.senozhatsky@gmail.com> wrote:
 
-Thank you for your comments.
-I'm on vacation. So After that, I'll repost the patch.
-
-Thanks,
-Yasuaki Ishimatsu
-On Sun, 6 Sep 2015 16:33:42 +0800
-Changsheng Liu <liuchangsheng@inspur.com> wrote:
-
+> From: Sergey SENOZHATSKY <sergey.senozhatsky@gmail.com>
 > 
+> Constify `struct zpool' ->type.
 > 
-> On 9/1/2015 23:37, Yasuaki Ishimatsu wrote:
-> > On Mon, 31 Aug 2015 01:58:40 -0400
-> > Changsheng Liu <liuchangsheng@inspur.com> wrote:
-> >
-> >> From: Changsheng Liu <liuchangcheng@inspur.com>
-> >>
-> >> After the user config CONFIG_MOVABLE_NODE and movable_node kernel option,
-> >> When the memory is hot added, should_add_memory_movable() return 0
-> >> because all zones including movable zone are empty,
-> >> so the memory that was hot added will be added  to the normal zone
-> >> and the normal zone will be created firstly.
-> >> But we want the whole node to be added to movable zone defaultly.
-> >>
-> >> So we change should_add_memory_movable(): if the user config
-> >> CONFIG_MOVABLE_NODE and movable_node kernel option
-> >> it will always return 1 and all zones is empty at the same time,
-> >> so that the movable zone will be created firstly
-> >> and then the whole node will be added to movable zone defaultly.
-> >> If we want the node to be added to normal zone,
-> >> we can do it as follows:
-> >> "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
-> >>
-> >> If the memory is added to movable zone defaultly,
-> >> the user can offline it and add it to other zone again.
-> >> But if the memory is added to normal zone defaultly,
-> >> the user will not offline the memory used by kernel.
-> >>
-> >> Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-> >> Reviewed-by: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-> >> Reviewed-by: Vlastimil Babka <vbabka@suse.cz>
-> >> Reviewed-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
-> >> Signed-off-by: Changsheng Liu <liuchangcheng@inspur.com>
-> >> Tested-by: Dongdong Fan <fandd@inspur.com>
-> >> ---
-> >>   mm/memory_hotplug.c |    5 +++++
-> >>   1 files changed, 5 insertions(+), 0 deletions(-)
-> >>
-> >> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> >> index 26fbba7..d1149ff 100644
-> >> --- a/mm/memory_hotplug.c
-> >> +++ b/mm/memory_hotplug.c
-> >> @@ -1197,6 +1197,11 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
-> >>   	unsigned long start_pfn = start >> PAGE_SHIFT;
-> >>   	pg_data_t *pgdat = NODE_DATA(nid);
-> >>   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
-> >> +	struct zone *normal_zone = pgdat->node_zones + ZONE_NORMAL;
-> >> +
-> >> +	if (movable_node_is_enabled()
-> >> +	&& (zone_end_pfn(normal_zone) <= start_pfn))
-> >> +		return 1;
-> > If system boots up without movable_node, kernel behavior is changed by the patch.
-> > And you syould consider other zone.
-> >
-> > How about it. The patch is no build and test.
-> >
-> >
-> > ---
-> >   mm/memory_hotplug.c |   36 ++++++++++++++++++++++++++++++++----
-> >   1 files changed, 32 insertions(+), 4 deletions(-)
-> >
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index 6da82bc..321595d 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -1198,6 +1198,8 @@ static int check_hotplug_memory_range(u64 start, u64 size)
-> >   /*
-> >    * If movable zone has already been setup, newly added memory should be check.
-> >    * If its address is higher than movable zone, it should be added as movable.
-> > + * And if system boots up with movable_zone and added memory does not overlap
-> > + * other zone except for movable zone, the memory is added as movable.
-> >    * Without this check, movable zone may overlap with other zone.
-> >    */
-> >   static int should_add_memory_movable(int nid, u64 start, u64 size)
-> > @@ -1205,14 +1207,40 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
-> >   	unsigned long start_pfn = start >> PAGE_SHIFT;
-> >   	pg_data_t *pgdat = NODE_DATA(nid);
-> >   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
-> > +	struct zone *zone;
-> > +	enum zone_type zt = ZONE_MOVABLE - 1;
-> > +
-> > +	/*
-> > +	 * If memory is added after ZONE_MOVALBE, the memory is managed as
-> > +	 * movable.
-> > +	 */
-> > +	if (!zone_is_empty(movable_zone) &&
-> > +	    (movable_zone->zone_start_pfn <= start_pfn))
-> > +		return 1;
-> >   
-> > -	if (zone_is_empty(movable_zone))
-> > +	if (!movable_node_is_enabled())
-> >   		return 0;
-> >   
-> > -	if (movable_zone->zone_start_pfn <= start_pfn)
-> > -		return 1;
-> > +	/*
-> > +	 * Find enabled zone and check the added memory.
-> > +	 * If the memory is added after the enabled zone, the memory is
-> > +	 * managed as movable.
-> > +	 *
-> > +	 * If all zones are empty, the memory is also managed as movable.
-> > +	 */
-> > +	for (; zt >= ZONE_DMA; zt--) {
-> > +		zone = pgdat->node_zones + zt;
-> >   
-> > -	return 0;
-> > +		if (zone_is_empty(zone))
-> > +			continue;
-> > +
-> > +		if (zone_end_pfn(zone) <= start_pfn)
-> > +			return 1;
-> > +		else
-> > +			return 0;
-> > +	}
-> > +
-> > +	return 1;
-> >   }
-> >   
->      The function zone_for_memory()  adds the memory to 
-> ZONE_NORMAL(x86_64)/ZONE_HIGH(x86_32) defaultly, So I think the system 
-> just  need check the added-memory is whether after the ZONE_NORMAL/ZONE_HIGH
-> >   int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
-> 
+
+I think I prefer Dan's patch, which deletes stuff:
+
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: zpool: remove redundant zpool->type string, const-ify zpool_get_type
+
+Make the return type of zpool_get_type const; the string belongs to the
+zpool driver and should not be modified.  Remove the redundant type field
+in the struct zpool; it is private to zpool.c and isn't needed since
+->driver->type can be used directly.  Add comments indicating strings must
+be null-terminated.
+
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Seth Jennings <sjennings@variantweb.net>
+Cc: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ include/linux/zpool.h |    2 +-
+ mm/zpool.c            |   14 ++++++++------
+ 2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff -puN include/linux/zpool.h~zpool-remove-redundant-zpool-type-string-const-ify-zpool_get_type include/linux/zpool.h
+--- a/include/linux/zpool.h~zpool-remove-redundant-zpool-type-string-const-ify-zpool_get_type
++++ a/include/linux/zpool.h
+@@ -41,7 +41,7 @@ bool zpool_has_pool(char *type);
+ struct zpool *zpool_create_pool(char *type, char *name,
+ 			gfp_t gfp, const struct zpool_ops *ops);
+ 
+-char *zpool_get_type(struct zpool *pool);
++const char *zpool_get_type(struct zpool *pool);
+ 
+ void zpool_destroy_pool(struct zpool *pool);
+ 
+diff -puN mm/zpool.c~zpool-remove-redundant-zpool-type-string-const-ify-zpool_get_type mm/zpool.c
+--- a/mm/zpool.c~zpool-remove-redundant-zpool-type-string-const-ify-zpool_get_type
++++ a/mm/zpool.c
+@@ -18,8 +18,6 @@
+ #include <linux/zpool.h>
+ 
+ struct zpool {
+-	char *type;
+-
+ 	struct zpool_driver *driver;
+ 	void *pool;
+ 	const struct zpool_ops *ops;
+@@ -73,6 +71,7 @@ int zpool_unregister_driver(struct zpool
+ }
+ EXPORT_SYMBOL(zpool_unregister_driver);
+ 
++/* this assumes @type is null-terminated. */
+ static struct zpool_driver *zpool_get_driver(char *type)
+ {
+ 	struct zpool_driver *driver;
+@@ -113,6 +112,8 @@ static void zpool_put_driver(struct zpoo
+  * not be loaded, and calling @zpool_create_pool() with the pool type will
+  * fail.
+  *
++ * The @type string must be null-terminated.
++ *
+  * Returns: true if @type pool is available, false if not
+  */
+ bool zpool_has_pool(char *type)
+@@ -145,6 +146,8 @@ EXPORT_SYMBOL(zpool_has_pool);
+  *
+  * Implementations must guarantee this to be thread-safe.
+  *
++ * The @type and @name strings must be null-terminated.
++ *
+  * Returns: New zpool on success, NULL on failure.
+  */
+ struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
+@@ -174,7 +177,6 @@ struct zpool *zpool_create_pool(char *ty
+ 		return NULL;
+ 	}
+ 
+-	zpool->type = driver->type;
+ 	zpool->driver = driver;
+ 	zpool->pool = driver->create(name, gfp, ops, zpool);
+ 	zpool->ops = ops;
+@@ -208,7 +210,7 @@ struct zpool *zpool_create_pool(char *ty
+  */
+ void zpool_destroy_pool(struct zpool *zpool)
+ {
+-	pr_debug("destroying pool type %s\n", zpool->type);
++	pr_debug("destroying pool type %s\n", zpool->driver->type);
+ 
+ 	spin_lock(&pools_lock);
+ 	list_del(&zpool->list);
+@@ -228,9 +230,9 @@ void zpool_destroy_pool(struct zpool *zp
+  *
+  * Returns: The type of zpool.
+  */
+-char *zpool_get_type(struct zpool *zpool)
++const char *zpool_get_type(struct zpool *zpool)
+ {
+-	return zpool->type;
++	return zpool->driver->type;
+ }
+ 
+ /**
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
