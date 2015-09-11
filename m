@@ -1,98 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id D48546B0038
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 12:08:42 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so63717507wic.0
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 09:08:42 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o12si1542978wik.94.2015.09.11.09.08.41
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BD376B0038
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 15:00:28 -0400 (EDT)
+Received: by ykdt18 with SMTP id t18so80520525ykd.3
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 12:00:28 -0700 (PDT)
+Received: from mail-yk0-x232.google.com (mail-yk0-x232.google.com. [2607:f8b0:4002:c07::232])
+        by mx.google.com with ESMTPS id q132si780824ywb.39.2015.09.11.12.00.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 11 Sep 2015 09:08:41 -0700 (PDT)
-Subject: Re: Multiple potential races on vma->vm_flags
-References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com>
- <55EC9221.4040603@oracle.com> <20150907114048.GA5016@node.dhcp.inet.fi>
- <55F0D5B2.2090205@oracle.com> <20150910083605.GB9526@node.dhcp.inet.fi>
- <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com>
- <20150911103959.GA7976@node.dhcp.inet.fi> <55F2F354.1030607@suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55F2FC87.6060908@suse.cz>
-Date: Fri, 11 Sep 2015 18:08:39 +0200
-MIME-Version: 1.0
-In-Reply-To: <55F2F354.1030607@suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Sep 2015 12:00:27 -0700 (PDT)
+Received: by ykei199 with SMTP id i199so100703601yke.0
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 12:00:27 -0700 (PDT)
+From: Tejun Heo <tj@kernel.org>
+Subject: [PATCHSET v2 cgroup/for-4.4] cgroup: make multi-process migration atomic
+Date: Fri, 11 Sep 2015 15:00:17 -0400
+Message-Id: <1441998022-12953-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrey Konovalov <andreyknvl@google.com>, Oleg Nesterov <oleg@redhat.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: lizefan@huawei.com
+Cc: cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/11/2015 05:29 PM, Vlastimil Babka wrote:
-> On 09/11/2015 12:39 PM, Kirill A. Shutemov wrote:
->> On Thu, Sep 10, 2015 at 03:27:59PM +0200, Andrey Konovalov wrote:
->>> Can a vma be shared among a few mm's?
->>
->> Define "shared".
->>
->> vma can belong only to one process (mm_struct), but it can be accessed
->> from other process like in rmap case below.
->>
->> rmap uses anon_vma_lock for anon vma and i_mmap_rwsem for file vma to make
->> sure that the vma will not disappear under it.
->>
->>> If yes, then taking current->mm->mmap_sem to protect vma is not enough.
->>
->> Depends on what protection you are talking about.
->>
->>> In the first report below both T378 and T398 take
->>> current->mm->mmap_sem at mm/mlock.c:650, but they turn out to be
->>> different locks (the addresses are different).
->>
->> See i_mmap_lock_read() in T398. It will guarantee that vma is there.
->>
->>> In the second report T309 doesn't take any locks at all, since it
->>> assumes that after checking atomic_dec_and_test(&mm->mm_users) the mm
->>> has no other users, but then it does a write to vma.
->>
->> This one is tricky. I *assume* the mm cannot be generally accessible after
->> mm_users drops to zero, but I'm not entirely sure about it.
->> procfs? ptrace?
->>
->> The VMA is still accessible via rmap at this point. And I think it can be
->> a problem:
->>
->> 		CPU0					CPU1
->> exit_mmap()
->>     // mmap_sem is *not* taken
->>     munlock_vma_pages_all()
->>       munlock_vma_pages_range()
->>       						try_to_unmap_one()
->> 						  down_read_trylock(&vma->vm_mm->mmap_sem))
->> 						  !!(vma->vm_flags & VM_LOCKED) == true
->>         vma->vm_flags &= ~VM_LOCKED;
->>         <munlock the page>
->>         						  mlock_vma_page(page);
->> 						  // mlocked pages is leaked.
->>
->> The obvious solution is to take mmap_sem in exit path, but it would cause
->> performance regression.
->>
->> Any comments?
->
-> Just so others don't repeat the paths that I already looked at:
->
-> - First I thought that try_to_unmap_one() has the page locked and
-> munlock_vma_pages_range() will also lock it... but it doesn't.
+Hello,
 
-More precisely, it does (in __munlock_pagevec()), but 
-TestClearPageMlocked(page) doesn't happen under that lock.
+This is v2 of atomic multi-process migration patchset.  This one
+slipped through crack somehow.  Changes from the last take[L] are.
 
-> - Then I thought that exit_mmap() will revisit the page anyway doing
-> actual unmap. It would, if it's the one who has the page mapped, it will
-> clear the mlock (see page_remove_rmap()). If it's not the last one, page
-> will be left locked. So it won't be completely leaked, but still, it
-> will be mlocked when it shouldn't.
->
+* 0002-memcg-restructure-mem_cgroup_can_attach.patch already in
+  upstream.
+
+* 0003-memcg-immigrate-charges-only-when-a-threadgroup-lead.patch
+  dropped and
+  0004-cgroup-memcg-cpuset-implement-cgroup_taskset_for_eac.patch
+  updated accordingly.
+
+* Li's acks added and patchset refreshed.
+
+When a controller is enabled or disabled on the unified hierarchy, the
+effective css changes for all processes in the sub-hierarchy which
+virtually is multi-process migration.  This is implemented in
+cgroup_update_dfl_csses() as process-by-process migration - all the
+target source css_sets are first chained to the target list and
+processes are drained from them one-by-one.
+
+If a process gets rejected by a controller after some are successfully
+migrated, the recovery action is tricky.  The changes which have
+happened upto this point have to be rolled back but there's nothing
+guaranteeing such rollback would be successful either.
+
+The unified hierarchy didn't need to deal with this issue because
+organizational operations were expected to always succeed;
+unfortunately, it turned out that such policy doesn't work too well
+for certain type of resources and unified hierarchy would need to
+allow migration failures for some restrictied cases.
+
+This patch updates multi-process migration in
+cgroup_update_dfl_csses() atomic so that ->can_attach() can fail the
+whole transaction.  It's consisted of the following seven patches.
+
+ 0001-cpuset-migrate-memory-only-for-threadgroup-leaders.patch
+ 0002-cgroup-memcg-cpuset-implement-cgroup_taskset_for_eac.patch
+ 0003-reorder-cgroup_migrate-s-parameters.patch
+ 0004-cgroup-separate-out-taskset-operations-from-cgroup_m.patch
+ 0005-cgroup-make-cgroup_update_dfl_csses-migrate-all-targ.patch
+
+0001-0002 prepare cpuset and memcg.  Note that 0001 causes behavioral
+changes in that mm is now always tied to the threadgroup leader.
+Avoiding this change isn't too difficult but both the code and
+behavior are saner this way and the change is unlikely to cause
+breakage.
+
+0003-0005 prepare and implement atomic multi-process migration.
+
+This patchset is on top of 64d1def7d338 ("Merge tag
+'sound-fix-4.3-rc1' of
+git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound").
+
+and available in the following git branch.
+
+ git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-multi-process-migration
+
+diffstat follows.  Thanks.
+
+ include/linux/cgroup.h |   22 +++
+ kernel/cgroup.c        |  278 ++++++++++++++++++++++++-------------------------
+ kernel/cpuset.c        |   41 +++----
+ mm/memcontrol.c        |   17 ++
+ 4 files changed, 198 insertions(+), 160 deletions(-)
+
+--
+tejun
+
+[L] http://lkml.kernel.org/g/1431978595-12176-1-git-send-email-tj@kernel.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
