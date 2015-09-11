@@ -1,85 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A50736B0038
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 07:47:47 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so59702502wic.0
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 04:47:47 -0700 (PDT)
-Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
-        by mx.google.com with ESMTPS id br2si1413590wjb.123.2015.09.11.04.47.46
+Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 114D06B0038
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 08:14:52 -0400 (EDT)
+Received: by oibi136 with SMTP id i136so41551996oib.3
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 05:14:51 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id gd1si55032obb.4.2015.09.11.05.14.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Sep 2015 04:47:46 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so61019130wic.1
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 04:47:45 -0700 (PDT)
-Message-ID: <55F2BF5E.2000505@gmail.com>
-Date: Fri, 11 Sep 2015 13:47:42 +0200
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Sep 2015 05:14:51 -0700 (PDT)
+Received: by padhy16 with SMTP id hy16so73872083pad.1
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 05:14:50 -0700 (PDT)
+Date: Fri, 11 Sep 2015 21:13:43 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH 0/2] mm:constify zpool/zs_pool char members
+Message-ID: <20150911121343.GA521@swordfish>
+References: <1441885718-32580-1-git-send-email-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mremap.2: Add note about mremap with locked areas
-References: <1440787372-30214-1-git-send-email-emunson@akamai.com>
-In-Reply-To: <1440787372-30214-1-git-send-email-emunson@akamai.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1441885718-32580-1-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: mtk.manpages@gmail.com, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-man@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On 08/28/2015 08:42 PM, Eric B Munson wrote:
-> When mremap() is used to move or expand a mapping that is locked with
-> mlock() or equivalent it will attempt to populate the new area.
-> However, like mmap(MAP_LOCKED), mremap() will not fail if the area
-> cannot be populated.  Also like mmap(MAP_LOCKED) this might come as a
-> surprise to users and should be noted.
-
-Thanks, Eric! 
-
-Applied, with Michael's Acked-by added.
-
-Cheers,
-
-Michael
-
-
-> Signed-off-by: Eric B Munson <emunson@akamai.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: linux-man@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
->  man2/mremap.2 | 11 +++++++++++
->  1 file changed, 11 insertions(+)
-> 
-> diff --git a/man2/mremap.2 b/man2/mremap.2
-> index 071adb5..cf884e6 100644
-> --- a/man2/mremap.2
-> +++ b/man2/mremap.2
-> @@ -196,6 +196,17 @@ and the prototype for
->  did not allow for the
->  .I new_address
->  argument.
-> +
-> +If
-> +.BR mremap ()
-> +is used to move or expand an area locked with
-> +.BR mlock (2)
-> +or equivalent, the
-> +.BR mremap ()
-> +call will make a best effort to populate the new area but will not fail
-> +with
-> +.B ENOMEM
-> +if the area cannot be populated.
->  .SH SEE ALSO
->  .BR brk (2),
->  .BR getpagesize (2),
+On (09/10/15 20:48), Sergey Senozhatsky wrote:
+> Two trivial patches to constify zs_pool and zpool ->name and ->type
+> members and functions' signatures that set/return them.
 > 
 
+oh.. um.. somehow linux-next 20150910 contained zpool_has_pool()
+function, which I can't find any more. I'll resend the patch set.
 
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+	-ss
+
+> Sergey SENOZHATSKY (2):
+>   mm:zpool: constify struct zpool type
+>   mm:zsmalloc: constify struct zs_pool name
+> 
+>  include/linux/zpool.h    | 12 +++++++-----
+>  include/linux/zsmalloc.h |  2 +-
+>  mm/zbud.c                |  2 +-
+>  mm/zpool.c               | 12 ++++++------
+>  mm/zsmalloc.c            | 10 +++++-----
+>  5 files changed, 20 insertions(+), 18 deletions(-)
+> 
+> -- 
+> 2.5.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
