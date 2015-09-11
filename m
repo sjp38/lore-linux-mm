@@ -1,44 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 698556B0038
-	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 20:14:43 -0400 (EDT)
-Received: by igcpb10 with SMTP id pb10so33264319igc.1
-        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 17:14:43 -0700 (PDT)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id y66si12369542ioi.149.2015.09.10.17.14.42
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B8EBD6B0038
+	for <linux-mm@kvack.org>; Thu, 10 Sep 2015 20:35:11 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so57718348pac.0
+        for <linux-mm@kvack.org>; Thu, 10 Sep 2015 17:35:11 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id qy7si22882649pab.12.2015.09.10.17.35.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 10 Sep 2015 17:14:42 -0700 (PDT)
-Date: Thu, 10 Sep 2015 19:14:40 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 3/7] x86, gfp: Cache best near node for memory
- allocation.
-In-Reply-To: <20150910193819.GJ8114@mtj.duckdns.org>
-Message-ID: <alpine.DEB.2.11.1509101908410.11150@east.gentwo.org>
-References: <1441859269-25831-1-git-send-email-tangchen@cn.fujitsu.com> <1441859269-25831-4-git-send-email-tangchen@cn.fujitsu.com> <20150910192935.GI8114@mtj.duckdns.org> <20150910193819.GJ8114@mtj.duckdns.org>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Sep 2015 17:35:10 -0700 (PDT)
+Date: Fri, 11 Sep 2015 10:35:05 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2015-09-10-16-30 uploaded
+Message-ID: <20150911103505.47f95d72@canb.auug.org.au>
+In-Reply-To: <55f212ae.jOhLy+/WerFdt/xh%akpm@linux-foundation.org>
+References: <55f212ae.jOhLy+/WerFdt/xh%akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, mhocko@suse.cz
 
-On Thu, 10 Sep 2015, Tejun Heo wrote:
+Hi Andrew,
 
-> > Why not just update node_data[]->node_zonelist in the first place?
-> > Also, what's the synchronization rule here?  How are allocators
-> > synchronized against node hot [un]plugs?
+On Thu, 10 Sep 2015 16:30:54 -0700 akpm@linux-foundation.org wrote:
 >
-> Also, shouldn't kmalloc_node() or any public allocator fall back
-> automatically to a near node w/o GFP_THISNODE?  Why is this failing at
-> all?  I get that cpu id -> node id mapping changing messes up the
-> locality but allocations shouldn't fail, right?
+>   sys_membarrier-system-wide-memory-barrier-generic-x86.patch
 
-Yes that should occur in the absence of other constraints (mempolicies,
-cpusets, cgroups, allocation type). If the constraints do not allow an
-allocation then the allocation will fail.
+Because that patch is not in the set for -next ...
 
-Also: Are the zonelists setup the right way?
+> * mm-mlock-add-new-mlock-system-call.patch
 
+This did not apply properly.  I ended up with:
+
+diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
+index 477bfa6db370..41e72a50c2ed 100644
+--- a/arch/x86/entry/syscalls/syscall_32.tbl
++++ b/arch/x86/entry/syscalls/syscall_32.tbl
+@@ -381,3 +381,4 @@
+ 372	i386	recvmsg			sys_recvmsg			compat_sys_recvmsg
+ 373	i386	shutdown		sys_shutdown
+ 374	i386	userfaultfd		sys_userfaultfd
++375	i386	mlock2			sys_mlock2
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index 81c490634db9..23669007b85d 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -330,6 +330,7 @@
+ 321	common	bpf			sys_bpf
+ 322	64	execveat		stub_execveat
+ 323	common	userfaultfd		sys_userfaultfd
++324	common	mlock2			sys_mlock2
+ 
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 08001317aee7..890632cbf353 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -885,4 +885,6 @@ asmlinkage long sys_execveat(int dfd, const char __user *filename,
+ 			const char __user *const __user *argv,
+ 			const char __user *const __user *envp, int flags);
+ 
++asmlinkage long sys_mlock2(unsigned long start, size_t len, int flags);
++
+ #endif
+diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
+index e016bd9b1a04..14a6013cbdac 100644
+--- a/include/uapi/asm-generic/unistd.h
++++ b/include/uapi/asm-generic/unistd.h
+@@ -709,9 +709,11 @@ __SYSCALL(__NR_memfd_create, sys_memfd_create)
+ __SYSCALL(__NR_bpf, sys_bpf)
+ #define __NR_execveat 281
+ __SC_COMP(__NR_execveat, sys_execveat, compat_sys_execveat)
++#define __NR_mlock2 282
++__SYSCALL(__NR_mlock2, sys_mlock2)
+ 
+ #undef __NR_syscalls
+-#define __NR_syscalls 282
++#define __NR_syscalls 283
+ 
+ /*
+  * All syscalls below here should go away really,
+diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
+index 03c3875d9958..8de5b2645796 100644
+--- a/kernel/sys_ni.c
++++ b/kernel/sys_ni.c
+@@ -194,6 +194,7 @@ cond_syscall(sys_mlock);
+ cond_syscall(sys_munlock);
+ cond_syscall(sys_mlockall);
+ cond_syscall(sys_munlockall);
++cond_syscall(sys_mlock2);
+ cond_syscall(sys_mincore);
+ cond_syscall(sys_madvise);
+ cond_syscall(sys_mremap);
+diff --git a/mm/mlock.c b/mm/mlock.c
+index c32ad8f6a9d1..fb6912f3efe6 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -644,6 +644,15 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
+ 	return do_mlock(start, len, VM_LOCKED);
+ }
+ 
++SYSCALL_DEFINE3(mlock2, unsigned long, start, size_t, len, int, flags)
++{
++	vm_flags_t vm_flags = VM_LOCKED;
++	if (flags)
++		return -EINVAL;
++
++	return do_mlock(start, len, vm_flags);
++}
++
+ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
+ {
+ 	int ret;
+
+> * page-flags-introduce-page-flags-policies-wrt-compound-pages-fix.patch
+
+That did not apply either because proc-add-kpageidle-file.patch is
+not among the -next included stuff. I just dropped it.
+
+Everything else applied fine ...
+-- 
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
