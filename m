@@ -1,90 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 114246B0038
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 06:54:58 -0400 (EDT)
-Received: by ykdt18 with SMTP id t18so66772805ykd.3
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 03:54:57 -0700 (PDT)
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com. [209.85.160.169])
-        by mx.google.com with ESMTPS id e188si370247ywd.55.2015.09.11.03.54.55
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A50736B0038
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 07:47:47 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so59702502wic.0
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 04:47:47 -0700 (PDT)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id br2si1413590wjb.123.2015.09.11.04.47.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Sep 2015 03:54:55 -0700 (PDT)
-Received: by ykdg206 with SMTP id g206so86749941ykd.1
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 03:54:54 -0700 (PDT)
-From: Jeff Layton <jlayton@poochiereds.net>
-Subject: [PATCH v4 02/16] list_lru: add list_lru_rotate
-Date: Fri, 11 Sep 2015 06:54:28 -0400
-Message-Id: <1441968882-7851-3-git-send-email-jeff.layton@primarydata.com>
-In-Reply-To: <1441968882-7851-1-git-send-email-jeff.layton@primarydata.com>
-References: <1441968882-7851-1-git-send-email-jeff.layton@primarydata.com>
+        Fri, 11 Sep 2015 04:47:46 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so61019130wic.1
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 04:47:45 -0700 (PDT)
+Message-ID: <55F2BF5E.2000505@gmail.com>
+Date: Fri, 11 Sep 2015 13:47:42 +0200
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mremap.2: Add note about mremap with locked areas
+References: <1440787372-30214-1-git-send-email-emunson@akamai.com>
+In-Reply-To: <1440787372-30214-1-git-send-email-emunson@akamai.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bfields@fieldses.org
-Cc: linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Eric B Munson <emunson@akamai.com>
+Cc: mtk.manpages@gmail.com, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, linux-man@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Add a function that can move an entry to the MRU end of the list.
+On 08/28/2015 08:42 PM, Eric B Munson wrote:
+> When mremap() is used to move or expand a mapping that is locked with
+> mlock() or equivalent it will attempt to populate the new area.
+> However, like mmap(MAP_LOCKED), mremap() will not fail if the area
+> cannot be populated.  Also like mmap(MAP_LOCKED) this might come as a
+> surprise to users and should be noted.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
-Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
-Signed-off-by: Jeff Layton <jeff.layton@primarydata.com>
----
- include/linux/list_lru.h | 13 +++++++++++++
- mm/list_lru.c            | 15 +++++++++++++++
- 2 files changed, 28 insertions(+)
+Thanks, Eric! 
 
-diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-index 2a6b9947aaa3..4534b1b34d2d 100644
---- a/include/linux/list_lru.h
-+++ b/include/linux/list_lru.h
-@@ -96,6 +96,19 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item);
- bool list_lru_del(struct list_lru *lru, struct list_head *item);
- 
- /**
-+ * list_lru_rotate: rotate an element to the end of an lru list
-+ * @list_lru: the lru pointer
-+ * @item: the item to be rotated
-+ *
-+ * This function moves an entry to the end of an LRU list. Should be used when
-+ * an entry that is on the LRU is used, and should be moved to the MRU end of
-+ * the list. If the item is not on a list, then this function has no effect.
-+ * The comments about an element already pertaining to a list are also valid
-+ * for list_lru_rotate.
-+ */
-+void list_lru_rotate(struct list_lru *lru, struct list_head *item);
-+
-+/**
-  * list_lru_count_one: return the number of objects currently held by @lru
-  * @lru: the lru pointer.
-  * @nid: the node id to count from.
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index e1da19fac1b3..66718c2a9a7b 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -130,6 +130,21 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
- }
- EXPORT_SYMBOL_GPL(list_lru_del);
- 
-+void list_lru_rotate(struct list_lru *lru, struct list_head *item)
-+{
-+	int nid = page_to_nid(virt_to_page(item));
-+	struct list_lru_node *nlru = &lru->node[nid];
-+	struct list_lru_one *l;
-+
-+	spin_lock(&nlru->lock);
-+	if (!list_empty(item)) {
-+		l = list_lru_from_kmem(nlru, item);
-+		list_move_tail(item, &l->list);
-+	}
-+	spin_unlock(&nlru->lock);
-+}
-+EXPORT_SYMBOL_GPL(list_lru_rotate);
-+
- void list_lru_isolate(struct list_lru_one *list, struct list_head *item)
- {
- 	list_del_init(item);
+Applied, with Michael's Acked-by added.
+
+Cheers,
+
+Michael
+
+
+> Signed-off-by: Eric B Munson <emunson@akamai.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: linux-man@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> ---
+>  man2/mremap.2 | 11 +++++++++++
+>  1 file changed, 11 insertions(+)
+> 
+> diff --git a/man2/mremap.2 b/man2/mremap.2
+> index 071adb5..cf884e6 100644
+> --- a/man2/mremap.2
+> +++ b/man2/mremap.2
+> @@ -196,6 +196,17 @@ and the prototype for
+>  did not allow for the
+>  .I new_address
+>  argument.
+> +
+> +If
+> +.BR mremap ()
+> +is used to move or expand an area locked with
+> +.BR mlock (2)
+> +or equivalent, the
+> +.BR mremap ()
+> +call will make a best effort to populate the new area but will not fail
+> +with
+> +.B ENOMEM
+> +if the area cannot be populated.
+>  .SH SEE ALSO
+>  .BR brk (2),
+>  .BR getpagesize (2),
+> 
+
+
 -- 
-2.4.3
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
