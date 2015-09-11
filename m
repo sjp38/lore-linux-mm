@@ -1,96 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BD376B0038
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 15:00:28 -0400 (EDT)
-Received: by ykdt18 with SMTP id t18so80520525ykd.3
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 12:00:28 -0700 (PDT)
-Received: from mail-yk0-x232.google.com (mail-yk0-x232.google.com. [2607:f8b0:4002:c07::232])
-        by mx.google.com with ESMTPS id q132si780824ywb.39.2015.09.11.12.00.27
+Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 339DF6B0255
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 15:00:29 -0400 (EDT)
+Received: by ykdt18 with SMTP id t18so80520957ykd.3
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 12:00:29 -0700 (PDT)
+Received: from mail-yk0-x235.google.com (mail-yk0-x235.google.com. [2607:f8b0:4002:c07::235])
+        by mx.google.com with ESMTPS id s6si765747ywf.167.2015.09.11.12.00.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Sep 2015 12:00:27 -0700 (PDT)
-Received: by ykei199 with SMTP id i199so100703601yke.0
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 12:00:27 -0700 (PDT)
+        Fri, 11 Sep 2015 12:00:28 -0700 (PDT)
+Received: by ykdu9 with SMTP id u9so101425273ykd.2
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 12:00:28 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCHSET v2 cgroup/for-4.4] cgroup: make multi-process migration atomic
-Date: Fri, 11 Sep 2015 15:00:17 -0400
-Message-Id: <1441998022-12953-1-git-send-email-tj@kernel.org>
+Subject: [PATCH 1/5] cpuset: migrate memory only for threadgroup leaders
+Date: Fri, 11 Sep 2015 15:00:18 -0400
+Message-Id: <1441998022-12953-2-git-send-email-tj@kernel.org>
+In-Reply-To: <1441998022-12953-1-git-send-email-tj@kernel.org>
+References: <1441998022-12953-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: lizefan@huawei.com
-Cc: cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>
 
-Hello,
+If memory_migrate flag is set, cpuset migrates memory according to the
+destnation css's nodemask.  The current implementation migrates memory
+whenever any thread of a process is migrated making the behavior
+somewhat arbitrary.  Let's tie memory operations to the threadgroup
+leader so that memory is migrated only when the leader is migrated.
 
-This is v2 of atomic multi-process migration patchset.  This one
-slipped through crack somehow.  Changes from the last take[L] are.
+While this is a behavior change, given the inherent fuziness, this
+change is not too likely to be noticed and allows us to clearly define
+who owns the memory (always the leader) and helps the planned atomic
+multi-process migration.
 
-* 0002-memcg-restructure-mem_cgroup_can_attach.patch already in
-  upstream.
+Note that we're currently migrating memory in migration path proper
+while holding all the locks.  In the long term, this should be moved
+out to an async work item.
 
-* 0003-memcg-immigrate-charges-only-when-a-threadgroup-lead.patch
-  dropped and
-  0004-cgroup-memcg-cpuset-implement-cgroup_taskset_for_eac.patch
-  updated accordingly.
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Acked-by: Zefan Li <lizefan@huawei.com>
+---
+ kernel/cpuset.c | 40 ++++++++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 18 deletions(-)
 
-* Li's acks added and patchset refreshed.
-
-When a controller is enabled or disabled on the unified hierarchy, the
-effective css changes for all processes in the sub-hierarchy which
-virtually is multi-process migration.  This is implemented in
-cgroup_update_dfl_csses() as process-by-process migration - all the
-target source css_sets are first chained to the target list and
-processes are drained from them one-by-one.
-
-If a process gets rejected by a controller after some are successfully
-migrated, the recovery action is tricky.  The changes which have
-happened upto this point have to be rolled back but there's nothing
-guaranteeing such rollback would be successful either.
-
-The unified hierarchy didn't need to deal with this issue because
-organizational operations were expected to always succeed;
-unfortunately, it turned out that such policy doesn't work too well
-for certain type of resources and unified hierarchy would need to
-allow migration failures for some restrictied cases.
-
-This patch updates multi-process migration in
-cgroup_update_dfl_csses() atomic so that ->can_attach() can fail the
-whole transaction.  It's consisted of the following seven patches.
-
- 0001-cpuset-migrate-memory-only-for-threadgroup-leaders.patch
- 0002-cgroup-memcg-cpuset-implement-cgroup_taskset_for_eac.patch
- 0003-reorder-cgroup_migrate-s-parameters.patch
- 0004-cgroup-separate-out-taskset-operations-from-cgroup_m.patch
- 0005-cgroup-make-cgroup_update_dfl_csses-migrate-all-targ.patch
-
-0001-0002 prepare cpuset and memcg.  Note that 0001 causes behavioral
-changes in that mm is now always tied to the threadgroup leader.
-Avoiding this change isn't too difficult but both the code and
-behavior are saner this way and the change is unlikely to cause
-breakage.
-
-0003-0005 prepare and implement atomic multi-process migration.
-
-This patchset is on top of 64d1def7d338 ("Merge tag
-'sound-fix-4.3-rc1' of
-git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound").
-
-and available in the following git branch.
-
- git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-multi-process-migration
-
-diffstat follows.  Thanks.
-
- include/linux/cgroup.h |   22 +++
- kernel/cgroup.c        |  278 ++++++++++++++++++++++++-------------------------
- kernel/cpuset.c        |   41 +++----
- mm/memcontrol.c        |   17 ++
- 4 files changed, 198 insertions(+), 160 deletions(-)
-
---
-tejun
-
-[L] http://lkml.kernel.org/g/1431978595-12176-1-git-send-email-tj@kernel.org
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index f0acff0..09393f6 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -1484,7 +1484,6 @@ static void cpuset_attach(struct cgroup_subsys_state *css,
+ {
+ 	/* static buf protected by cpuset_mutex */
+ 	static nodemask_t cpuset_attach_nodemask_to;
+-	struct mm_struct *mm;
+ 	struct task_struct *task;
+ 	struct task_struct *leader = cgroup_taskset_first(tset);
+ 	struct cpuset *cs = css_cs(css);
+@@ -1512,26 +1511,31 @@ static void cpuset_attach(struct cgroup_subsys_state *css,
+ 	}
+ 
+ 	/*
+-	 * Change mm, possibly for multiple threads in a threadgroup. This is
+-	 * expensive and may sleep.
++	 * Change mm, possibly for multiple threads in a threadgroup. This
++	 * is expensive and may sleep and should be moved outside migration
++	 * path proper.
+ 	 */
+ 	cpuset_attach_nodemask_to = cs->effective_mems;
+-	mm = get_task_mm(leader);
+-	if (mm) {
+-		mpol_rebind_mm(mm, &cpuset_attach_nodemask_to);
+-
+-		/*
+-		 * old_mems_allowed is the same with mems_allowed here, except
+-		 * if this task is being moved automatically due to hotplug.
+-		 * In that case @mems_allowed has been updated and is empty,
+-		 * so @old_mems_allowed is the right nodesets that we migrate
+-		 * mm from.
+-		 */
+-		if (is_memory_migrate(cs)) {
+-			cpuset_migrate_mm(mm, &oldcs->old_mems_allowed,
+-					  &cpuset_attach_nodemask_to);
++	if (thread_group_leader(leader)) {
++		struct mm_struct *mm = get_task_mm(leader);
++
++		if (mm) {
++			mpol_rebind_mm(mm, &cpuset_attach_nodemask_to);
++
++			/*
++			 * old_mems_allowed is the same with mems_allowed
++			 * here, except if this task is being moved
++			 * automatically due to hotplug.  In that case
++			 * @mems_allowed has been updated and is empty, so
++			 * @old_mems_allowed is the right nodesets that we
++			 * migrate mm from.
++			 */
++			if (is_memory_migrate(cs)) {
++				cpuset_migrate_mm(mm, &oldcs->old_mems_allowed,
++						  &cpuset_attach_nodemask_to);
++			}
++			mmput(mm);
+ 		}
+-		mmput(mm);
+ 	}
+ 
+ 	cs->old_mems_allowed = cpuset_attach_nodemask_to;
+-- 
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
