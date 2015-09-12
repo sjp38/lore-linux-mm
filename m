@@ -1,146 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A6E2A6B0038
-	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 20:30:29 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so89863720pac.2
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 17:30:29 -0700 (PDT)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E4B796B0038
+	for <linux-mm@kvack.org>; Fri, 11 Sep 2015 21:27:25 -0400 (EDT)
+Received: by padhk3 with SMTP id hk3so89084158pad.3
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 18:27:25 -0700 (PDT)
 Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id km1si3780293pab.52.2015.09.11.17.30.28
+        by mx.google.com with ESMTPS id qr10si4038342pbb.77.2015.09.11.18.27.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Sep 2015 17:30:28 -0700 (PDT)
-Received: by padhk3 with SMTP id hk3so88148921pad.3
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 17:30:28 -0700 (PDT)
-Date: Sat, 12 Sep 2015 09:29:21 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH 1/2] mm:zpool: constify struct zpool type
-Message-ID: <20150912002921.GA621@swordfish>
-References: <1441885718-32580-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1441885718-32580-2-git-send-email-sergey.senozhatsky@gmail.com>
- <20150911152155.425f590018c01e689f2361e2@linux-foundation.org>
+        Fri, 11 Sep 2015 18:27:25 -0700 (PDT)
+Received: by pacex6 with SMTP id ex6so89479259pac.0
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 18:27:24 -0700 (PDT)
+Date: Fri, 11 Sep 2015 18:27:14 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Multiple potential races on vma->vm_flags
+In-Reply-To: <20150911103959.GA7976@node.dhcp.inet.fi>
+Message-ID: <alpine.LSU.2.11.1509111734480.7660@eggly.anvils>
+References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com> <55EC9221.4040603@oracle.com> <20150907114048.GA5016@node.dhcp.inet.fi> <55F0D5B2.2090205@oracle.com> <20150910083605.GB9526@node.dhcp.inet.fi>
+ <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com> <20150911103959.GA7976@node.dhcp.inet.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150911152155.425f590018c01e689f2361e2@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Oleg Nesterov <oleg@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
 
-On (09/11/15 15:21), Andrew Morton wrote:
-> > From: Sergey SENOZHATSKY <sergey.senozhatsky@gmail.com>
-> > 
-> > Constify `struct zpool' ->type.
-> > 
+On Fri, 11 Sep 2015, Kirill A. Shutemov wrote:
+> On Thu, Sep 10, 2015 at 03:27:59PM +0200, Andrey Konovalov wrote:
+> > Can a vma be shared among a few mm's?
 > 
-> I think I prefer Dan's patch, which deletes stuff:
+> Define "shared".
+> 
+> vma can belong only to one process (mm_struct), but it can be accessed
+> from other process like in rmap case below.
+> 
+> rmap uses anon_vma_lock for anon vma and i_mmap_rwsem for file vma to make
+> sure that the vma will not disappear under it.
+> 
+> > If yes, then taking current->mm->mmap_sem to protect vma is not enough.
+> 
+> Depends on what protection you are talking about.
+>  
+> > In the first report below both T378 and T398 take
+> > current->mm->mmap_sem at mm/mlock.c:650, but they turn out to be
+> > different locks (the addresses are different).
+> 
+> See i_mmap_lock_read() in T398. It will guarantee that vma is there.
+> 
+> > In the second report T309 doesn't take any locks at all, since it
+> > assumes that after checking atomic_dec_and_test(&mm->mm_users) the mm
+> > has no other users, but then it does a write to vma.
+> 
+> This one is tricky. I *assume* the mm cannot be generally accessible after
+> mm_users drops to zero, but I'm not entirely sure about it.
+> procfs? ptrace?
 
-Sure, agree. Somehow I overlooked it.
+Most of the things (including procfs and ptrace) that need to work on
+a foreign mm do take a hold on mm_users with get_task_mm().  swapoff
+uses atomic_inc_not_zero(&mm->mm_users).  In KSM I managed to get away
+with just a hold on the structure itself, atomic_inc(&mm->mm_count),
+and a check for mm_users 0 wherever it down_reads mmap_sem (but Andrey
+might like to turn KSM on: it wouldn't be entirely shocking if he were
+to discover an anomaly from that).
 
-	-ss
+> 
+> The VMA is still accessible via rmap at this point. And I think it can be
+> a problem:
+> 
+> 		CPU0					CPU1
+> exit_mmap()
+>   // mmap_sem is *not* taken
+>   munlock_vma_pages_all()
+>     munlock_vma_pages_range()
+>     						try_to_unmap_one()
+> 						  down_read_trylock(&vma->vm_mm->mmap_sem))
+> 						  !!(vma->vm_flags & VM_LOCKED) == true
+>       vma->vm_flags &= ~VM_LOCKED;
+>       <munlock the page>
+>       						  mlock_vma_page(page);
+> 						  // mlocked pages is leaked.
+> 
+> The obvious solution is to take mmap_sem in exit path, but it would cause
+> performance regression.
+> 
+> Any comments?
 
+I'm inclined to echo Vlastimil's comment from earlier in the thread:
+sounds like an overkill, unless we find something more serious than this.
 
-> From: Dan Streetman <ddstreet@ieee.org>
-> Subject: zpool: remove redundant zpool->type string, const-ify zpool_get_type
-> 
-> Make the return type of zpool_get_type const; the string belongs to the
-> zpool driver and should not be modified.  Remove the redundant type field
-> in the struct zpool; it is private to zpool.c and isn't needed since
-> ->driver->type can be used directly.  Add comments indicating strings must
-> be null-terminated.
-> 
-> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
-> Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Cc: Seth Jennings <sjennings@variantweb.net>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  include/linux/zpool.h |    2 +-
->  mm/zpool.c            |   14 ++++++++------
->  2 files changed, 9 insertions(+), 7 deletions(-)
-> 
-> diff -puN include/linux/zpool.h~zpool-remove-redundant-zpool-type-string-const-ify-zpool_get_type include/linux/zpool.h
-> --- a/include/linux/zpool.h~zpool-remove-redundant-zpool-type-string-const-ify-zpool_get_type
-> +++ a/include/linux/zpool.h
-> @@ -41,7 +41,7 @@ bool zpool_has_pool(char *type);
->  struct zpool *zpool_create_pool(char *type, char *name,
->  			gfp_t gfp, const struct zpool_ops *ops);
->  
-> -char *zpool_get_type(struct zpool *pool);
-> +const char *zpool_get_type(struct zpool *pool);
->  
->  void zpool_destroy_pool(struct zpool *pool);
->  
-> diff -puN mm/zpool.c~zpool-remove-redundant-zpool-type-string-const-ify-zpool_get_type mm/zpool.c
-> --- a/mm/zpool.c~zpool-remove-redundant-zpool-type-string-const-ify-zpool_get_type
-> +++ a/mm/zpool.c
-> @@ -18,8 +18,6 @@
->  #include <linux/zpool.h>
->  
->  struct zpool {
-> -	char *type;
-> -
->  	struct zpool_driver *driver;
->  	void *pool;
->  	const struct zpool_ops *ops;
-> @@ -73,6 +71,7 @@ int zpool_unregister_driver(struct zpool
->  }
->  EXPORT_SYMBOL(zpool_unregister_driver);
->  
-> +/* this assumes @type is null-terminated. */
->  static struct zpool_driver *zpool_get_driver(char *type)
->  {
->  	struct zpool_driver *driver;
-> @@ -113,6 +112,8 @@ static void zpool_put_driver(struct zpoo
->   * not be loaded, and calling @zpool_create_pool() with the pool type will
->   * fail.
->   *
-> + * The @type string must be null-terminated.
-> + *
->   * Returns: true if @type pool is available, false if not
->   */
->  bool zpool_has_pool(char *type)
-> @@ -145,6 +146,8 @@ EXPORT_SYMBOL(zpool_has_pool);
->   *
->   * Implementations must guarantee this to be thread-safe.
->   *
-> + * The @type and @name strings must be null-terminated.
-> + *
->   * Returns: New zpool on success, NULL on failure.
->   */
->  struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
-> @@ -174,7 +177,6 @@ struct zpool *zpool_create_pool(char *ty
->  		return NULL;
->  	}
->  
-> -	zpool->type = driver->type;
->  	zpool->driver = driver;
->  	zpool->pool = driver->create(name, gfp, ops, zpool);
->  	zpool->ops = ops;
-> @@ -208,7 +210,7 @@ struct zpool *zpool_create_pool(char *ty
->   */
->  void zpool_destroy_pool(struct zpool *zpool)
->  {
-> -	pr_debug("destroying pool type %s\n", zpool->type);
-> +	pr_debug("destroying pool type %s\n", zpool->driver->type);
->  
->  	spin_lock(&pools_lock);
->  	list_del(&zpool->list);
-> @@ -228,9 +230,9 @@ void zpool_destroy_pool(struct zpool *zp
->   *
->   * Returns: The type of zpool.
->   */
-> -char *zpool_get_type(struct zpool *zpool)
-> +const char *zpool_get_type(struct zpool *zpool)
->  {
-> -	return zpool->type;
-> +	return zpool->driver->type;
->  }
->  
->  /**
-> _
-> 
+I'm not sure whether we'd actually see a regression from taking mmap_sem
+in exit path; but given that it's mmap_sem, yes, history tells us please
+not to take it any more than we have to.
+
+I do remember wishing, when working out KSM's mm handling, that exit took
+mmap_sem: it would have made it simpler, but that wasn't a change I dared
+to make.
+
+Maybe an mm_users 0 check after down_read_trylock in try_to_unmap_one() 
+could fix it?
+
+But if we were to make a bigger change for this VM_LOCKED issue, and
+something more serious makes it worth all the effort, I'd say that
+what needs to be done is to give mlock/munlock proper locking (haha).
+
+I have not yet looked at your mlocked THP patch (sorry), but when I
+was doing the same thing for huge tmpfs, what made it so surprisingly
+difficult was all the spongy trylocking, which concealed the rules.
+
+Maybe I'm completely wrong, but I thought a lot of awkwardness might
+disappear if they were relying on anon_vma->rwsem and i_mmap_rwsem
+throughout instead of mmap_sem.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
