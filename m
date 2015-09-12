@@ -1,71 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 53BAA6B0038
-	for <linux-mm@kvack.org>; Sat, 12 Sep 2015 02:12:18 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so93845103pad.1
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 23:12:18 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id qm11si5477404pab.36.2015.09.11.23.12.17
+Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id CDED06B0038
+	for <linux-mm@kvack.org>; Sat, 12 Sep 2015 02:18:23 -0400 (EDT)
+Received: by iofh134 with SMTP id h134so120250703iof.0
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 23:18:23 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id ok17si5483076pab.94.2015.09.11.23.18.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Sep 2015 23:12:17 -0700 (PDT)
-Received: by padhk3 with SMTP id hk3so93742644pad.3
-        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 23:12:17 -0700 (PDT)
-Date: Sat, 12 Sep 2015 14:04:30 +0800
-From: Wang YanQing <udknight@gmail.com>
-Subject: [PATCH] ARM: mm: avoid unneeded page protection fault for memory
- range with (VM_PFNMAP|VM_PFNWRITE)
-Message-ID: <20150912060430.GA16768@udknight>
+        Fri, 11 Sep 2015 23:18:23 -0700 (PDT)
+Received: by padhk3 with SMTP id hk3so93841334pad.3
+        for <linux-mm@kvack.org>; Fri, 11 Sep 2015 23:18:23 -0700 (PDT)
+Subject: Re: [Bug 99471] System locks with kswapd0 and kworker taking full IO
+ and mem
+References: <bug-99471-27@https.bugzilla.kernel.org/>
+ <bug-99471-27-hjYeBz7jw2@https.bugzilla.kernel.org/>
+ <20150910140418.73b33d3542bab739f8fd1826@linux-foundation.org>
+From: Raymond Jennings <shentino@gmail.com>
+Message-ID: <55F3C3AC.6070800@gmail.com>
+Date: Fri, 11 Sep 2015 23:18:20 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20150910140418.73b33d3542bab739f8fd1826@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rmk+kernel@arm.linux.org.uk
-Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@arm.linux.org.uk
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, gaguilar@aguilardelgado.com, sgh@sgh.dk
 
-Add L_PTE_DIRTY to PTEs for memory range with (VM_PFNMAP|VM_PFNWRITE),
-then we could avoid unneeded page protection fault in write access
-first time due to L_PTE_RDONLY.
+On 09/10/15 14:04, Andrew Morton wrote:
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
+>
+> On Tue, 01 Sep 2015 12:32:10 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+>
+>> https://bugzilla.kernel.org/show_bug.cgi?id=99471
+> Guys, could you take a look please?
+>
+> The machine went oom when there's heaps of unused swap and most memory
+> is being used on active_anon and inactive_anon.  We should have just
+> swapped that stuff out and kept going.
 
-There are no valid struct pages behind VM_PFNMAP range, so it make no
-sense to set L_PTE_DIRTY in page fault handler.
+Isn't there already logic in the kernel that disables OOM if there's 
+swap space available?
 
-Signed-off-by: Wang YanQing <udknight@gmail.com>
----
- arch/arm/include/asm/mman.h | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
- create mode 100644 arch/arm/include/asm/mman.h
-
-diff --git a/arch/arm/include/asm/mman.h b/arch/arm/include/asm/mman.h
-new file mode 100644
-index 0000000..f59bbf3
---- /dev/null
-+++ b/arch/arm/include/asm/mman.h
-@@ -0,0 +1,21 @@
-+/*
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; either version
-+ * 2 of the License, or (at your option) any later version.
-+ */
-+#ifndef __ASM_ARM_MMAN_H
-+#define __ASM_ARM_MMAN_H
-+
-+#include <uapi/asm/mman.h>
-+
-+static inline pgprot_t arch_vm_get_page_prot(unsigned long vm_flags)
-+{
-+	if ((vm_flags & (VM_PFNMAP|VM_WRITE)) == (VM_PFNMAP|VM_WRITE))
-+		return __pgprot(L_PTE_DIRTY);
-+	else
-+		return __pgprot(0);
-+}
-+#define arch_vm_get_page_prot(vm_flags) arch_vm_get_page_prot(vm_flags)
-+
-+#endif	/* __ASM_ARM_MMAN_H */
--- 
-1.8.5.6.2.g3d8a54e.dirty
+I saw it once, what happened to it?
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
