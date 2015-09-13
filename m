@@ -1,173 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 194BA6B0253
-	for <linux-mm@kvack.org>; Sun, 13 Sep 2015 14:59:45 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so99855375qgt.2
-        for <linux-mm@kvack.org>; Sun, 13 Sep 2015 11:59:44 -0700 (PDT)
-Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com. [2607:f8b0:400d:c04::233])
-        by mx.google.com with ESMTPS id e143si9013233qhc.120.2015.09.13.11.59.44
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EB876B0255
+	for <linux-mm@kvack.org>; Sun, 13 Sep 2015 15:00:12 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so99810135qge.0
+        for <linux-mm@kvack.org>; Sun, 13 Sep 2015 12:00:11 -0700 (PDT)
+Received: from mail-qk0-x236.google.com (mail-qk0-x236.google.com. [2607:f8b0:400d:c09::236])
+        by mx.google.com with ESMTPS id p72si9063263qkh.25.2015.09.13.12.00.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Sep 2015 11:59:44 -0700 (PDT)
-Received: by qgev79 with SMTP id v79so99805194qge.0
-        for <linux-mm@kvack.org>; Sun, 13 Sep 2015 11:59:44 -0700 (PDT)
-Date: Sun, 13 Sep 2015 14:59:40 -0400
+        Sun, 13 Sep 2015 12:00:11 -0700 (PDT)
+Received: by qkfq186 with SMTP id q186so50629302qkf.1
+        for <linux-mm@kvack.org>; Sun, 13 Sep 2015 12:00:10 -0700 (PDT)
+Date: Sun, 13 Sep 2015 15:00:08 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 1/2] memcg: flatten task_struct->memcg_oom
-Message-ID: <20150913185940.GA25369@htj.duckdns.org>
+Subject: [PATCH v3 2/2] memcg: punt high overage reclaim to
+ return-to-userland path
+Message-ID: <20150913190008.GB25369@htj.duckdns.org>
+References: <20150913185940.GA25369@htj.duckdns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20150913185940.GA25369@htj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@kernel.org
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
 
-task_struct->memcg_oom is a sub-struct containing fields which are
-used for async memcg oom handling.  Most task_struct fields aren't
-packaged this way and it can lead to unnecessary alignment paddings.
-This patch flattens it.
+Currently, try_charge() tries to reclaim memory synchronously when the
+high limit is breached; however, if the allocation doesn't have
+__GFP_WAIT, synchronous reclaim is skipped.  If a process performs
+only speculative allocations, it can blow way past the high limit.
+This is actually easily reproducible by simply doing "find /".
+slab/slub allocator tries speculative allocations first, so as long as
+there's memory which can be consumed without blocking, it can keep
+allocating memory regardless of the high limit.
 
-* task.memcg_oom.memcg          -> task.memcg_in_oom
-* task.memcg_oom.gfp_mask	-> task.memcg_oom_gfp_mask
-* task.memcg_oom.order          -> task.memcg_oom_order
-* task.memcg_oom.may_oom        -> task.memcg_may_oom
+This patch makes try_charge() always punt the over-high reclaim to the
+return-to-userland path.  If try_charge() detects that high limit is
+breached, it adds the overage to current->memcg_nr_pages_over_high and
+schedules execution of mem_cgroup_handle_over_high() which performs
+synchronous reclaim from the return-to-userland path.
 
-In addition, task.memcg_may_oom is relocated to where other bitfields
-are which reduces the size of task_struct.
+As long as kernel doesn't have a run-away allocation spree, this
+should provide enough protection while making kmemcg behave more
+consistently.  It also has the following benefits.
+
+- All over-high reclaims can use GFP_KERNEL regardless of the specific
+  gfp mask in use, e.g. GFP_NOFS, when the limit was breached.
+
+- It copes with prio inversion.  Previously, a low-prio task with
+  small memory.high might perform over-high reclaim with a bunch of
+  locks held.  If a higher prio task needed any of these locks, it
+  would have to wait until the low prio task finished reclaim and
+  released the locks.  By handing over-high reclaim to the task exit
+  path this issue can be avoided.
+
+v3: - Description updated.
+
+v2: - Switched to reclaiming only the overage caused by current rather
+      than the difference between usage and high as suggested by
+      Michal.
+    - Don't record the memcg which went over high limit.  This makes
+      exit path handling unnecessary.  Dropped.
+    - Drop mentions of avoiding high stack usage from description as
+      suggested by Vladimir.  max limit still triggers direct reclaim.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
-Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Michal Hocko <mhocko@kernel.org>
 Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
-Hello,
-
-Andrew, these are the two patches which got acked from the following
-thread.
-
- http://lkml.kernel.org/g/20150828220158.GD11089@htj.dyndns.org
-
-Acks are added and the second patch's description is updated as
-suggested by Michal and Vladimir.
-
-Can you please put them in -mm?
-
-Thanks!
-
- include/linux/memcontrol.h |   10 +++++-----
- include/linux/sched.h      |   13 ++++++-------
- mm/memcontrol.c            |   16 ++++++++--------
- 3 files changed, 19 insertions(+), 20 deletions(-)
+ include/linux/memcontrol.h |    6 +++++
+ include/linux/sched.h      |    3 ++
+ include/linux/tracehook.h  |    3 ++
+ mm/memcontrol.c            |   47 +++++++++++++++++++++++++++++++++++++--------
+ 4 files changed, 51 insertions(+), 8 deletions(-)
 
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -407,19 +407,19 @@ void mem_cgroup_print_oom_info(struct me
+@@ -402,6 +402,8 @@ static inline int mem_cgroup_inactive_an
+ 	return inactive * inactive_ratio < active;
+ }
  
++void mem_cgroup_handle_over_high(void);
++
+ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+ 				struct task_struct *p);
+ 
+@@ -621,6 +623,10 @@ static inline void mem_cgroup_end_page_s
+ {
+ }
+ 
++static inline void mem_cgroup_handle_over_high(void)
++{
++}
++
  static inline void mem_cgroup_oom_enable(void)
  {
--	WARN_ON(current->memcg_oom.may_oom);
--	current->memcg_oom.may_oom = 1;
-+	WARN_ON(current->memcg_may_oom);
-+	current->memcg_may_oom = 1;
  }
- 
- static inline void mem_cgroup_oom_disable(void)
- {
--	WARN_ON(!current->memcg_oom.may_oom);
--	current->memcg_oom.may_oom = 0;
-+	WARN_ON(!current->memcg_may_oom);
-+	current->memcg_may_oom = 0;
- }
- 
- static inline bool task_in_memcg_oom(struct task_struct *p)
- {
--	return p->memcg_oom.memcg;
-+	return p->memcg_in_oom;
- }
- 
- bool mem_cgroup_oom_synchronize(bool wait);
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -1451,7 +1451,9 @@ struct task_struct {
- 	unsigned sched_reset_on_fork:1;
- 	unsigned sched_contributes_to_load:1;
- 	unsigned sched_migrated:1;
--
-+#ifdef CONFIG_MEMCG
-+	unsigned memcg_may_oom:1;
-+#endif
- #ifdef CONFIG_MEMCG_KMEM
- 	unsigned memcg_kmem_skip_account:1;
- #endif
-@@ -1782,12 +1784,9 @@ struct task_struct {
- 	unsigned long trace_recursion;
- #endif /* CONFIG_TRACING */
- #ifdef CONFIG_MEMCG
--	struct memcg_oom_info {
--		struct mem_cgroup *memcg;
--		gfp_t gfp_mask;
--		int order;
--		unsigned int may_oom:1;
--	} memcg_oom;
-+	struct mem_cgroup *memcg_in_oom;
-+	gfp_t memcg_oom_gfp_mask;
-+	int memcg_oom_order;
+@@ -1787,6 +1787,9 @@ struct task_struct {
+ 	struct mem_cgroup *memcg_in_oom;
+ 	gfp_t memcg_oom_gfp_mask;
+ 	int memcg_oom_order;
++
++	/* number of pages to reclaim on returning to userland */
++	unsigned int memcg_nr_pages_over_high;
  #endif
  #ifdef CONFIG_UPROBES
  	struct uprobe_task *utask;
+--- a/include/linux/tracehook.h
++++ b/include/linux/tracehook.h
+@@ -50,6 +50,7 @@
+ #include <linux/ptrace.h>
+ #include <linux/security.h>
+ #include <linux/task_work.h>
++#include <linux/memcontrol.h>
+ struct linux_binprm;
+ 
+ /*
+@@ -188,6 +189,8 @@ static inline void tracehook_notify_resu
+ 	smp_mb__after_atomic();
+ 	if (unlikely(current->task_works))
+ 		task_work_run();
++
++	mem_cgroup_handle_over_high();
+ }
+ 
+ #endif	/* <linux/tracehook.h> */
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1652,7 +1652,7 @@ static void memcg_oom_recover(struct mem
+@@ -62,6 +62,7 @@
+ #include <linux/oom.h>
+ #include <linux/lockdep.h>
+ #include <linux/file.h>
++#include <linux/tracehook.h>
+ #include "internal.h"
+ #include <net/sock.h>
+ #include <net/ip.h>
+@@ -1963,6 +1964,31 @@ static int memcg_cpu_hotplug_callback(st
+ 	return NOTIFY_OK;
+ }
  
- static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
++/*
++ * Scheduled by try_charge() to be executed from the userland return path
++ * and reclaims memory over the high limit.
++ */
++void mem_cgroup_handle_over_high(void)
++{
++	unsigned int nr_pages = current->memcg_nr_pages_over_high;
++	struct mem_cgroup *memcg, *pos;
++
++	if (likely(!nr_pages))
++		return;
++
++	pos = memcg = get_mem_cgroup_from_mm(current->mm);
++
++	do {
++		if (page_counter_read(&pos->memory) <= pos->high)
++			continue;
++		mem_cgroup_events(pos, MEMCG_HIGH, 1);
++		try_to_free_mem_cgroup_pages(pos, nr_pages, GFP_KERNEL, true);
++	} while ((pos = parent_mem_cgroup(pos)));
++
++	css_put(&memcg->css);
++	current->memcg_nr_pages_over_high = 0;
++}
++
+ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 		      unsigned int nr_pages)
  {
--	if (!current->memcg_oom.may_oom)
-+	if (!current->memcg_may_oom)
- 		return;
+@@ -2071,17 +2097,22 @@ done_restock:
+ 	css_get_many(&memcg->css, batch);
+ 	if (batch > nr_pages)
+ 		refill_stock(memcg, batch - nr_pages);
+-	if (!(gfp_mask & __GFP_WAIT))
+-		goto done;
++
  	/*
- 	 * We are in the middle of the charge context here, so we
-@@ -1669,9 +1669,9 @@ static void mem_cgroup_oom(struct mem_cg
- 	 * and when we know whether the fault was overall successful.
+-	 * If the hierarchy is above the normal consumption range,
+-	 * make the charging task trim their excess contribution.
++	 * If the hierarchy is above the normal consumption range, schedule
++	 * reclaim on returning to userland.  We can perform reclaim here
++	 * if __GFP_WAIT but let's always punt for simplicity and so that
++	 * GFP_KERNEL can consistently be used during reclaim.  @memcg is
++	 * not recorded as it most likely matches current's and won't
++	 * change in the meantime.  As high limit is checked again before
++	 * reclaim, the cost of mismatch is negligible.
  	 */
- 	css_get(&memcg->css);
--	current->memcg_oom.memcg = memcg;
--	current->memcg_oom.gfp_mask = mask;
--	current->memcg_oom.order = order;
-+	current->memcg_in_oom = memcg;
-+	current->memcg_oom_gfp_mask = mask;
-+	current->memcg_oom_order = order;
- }
- 
- /**
-@@ -1693,7 +1693,7 @@ static void mem_cgroup_oom(struct mem_cg
-  */
- bool mem_cgroup_oom_synchronize(bool handle)
- {
--	struct mem_cgroup *memcg = current->memcg_oom.memcg;
-+	struct mem_cgroup *memcg = current->memcg_in_oom;
- 	struct oom_wait_info owait;
- 	bool locked;
- 
-@@ -1721,8 +1721,8 @@ bool mem_cgroup_oom_synchronize(bool han
- 	if (locked && !memcg->oom_kill_disable) {
- 		mem_cgroup_unmark_under_oom(memcg);
- 		finish_wait(&memcg_oom_waitq, &owait.wait);
--		mem_cgroup_out_of_memory(memcg, current->memcg_oom.gfp_mask,
--					 current->memcg_oom.order);
-+		mem_cgroup_out_of_memory(memcg, current->memcg_oom_gfp_mask,
-+					 current->memcg_oom_order);
- 	} else {
- 		schedule();
- 		mem_cgroup_unmark_under_oom(memcg);
-@@ -1739,7 +1739,7 @@ bool mem_cgroup_oom_synchronize(bool han
- 		memcg_oom_recover(memcg);
- 	}
- cleanup:
--	current->memcg_oom.memcg = NULL;
-+	current->memcg_in_oom = NULL;
- 	css_put(&memcg->css);
- 	return true;
- }
+ 	do {
+-		if (page_counter_read(&memcg->memory) <= memcg->high)
+-			continue;
+-		mem_cgroup_events(memcg, MEMCG_HIGH, 1);
+-		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
++		if (page_counter_read(&memcg->memory) > memcg->high) {
++			current->memcg_nr_pages_over_high += nr_pages;
++			set_notify_resume(current);
++			break;
++		}
+ 	} while ((memcg = parent_mem_cgroup(memcg)));
+ done:
+ 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
