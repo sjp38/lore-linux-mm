@@ -1,58 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C47C46B0257
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:05:15 -0400 (EDT)
-Received: by lahg1 with SMTP id g1so55283516lah.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 05:05:15 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id a8si5870008lbc.107.2015.09.14.05.05.13
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 12AEF6B0253
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:37:18 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so130708859wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 05:37:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id en7si18363149wjd.61.2015.09.14.05.37.16
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 05:05:14 -0700 (PDT)
-Date: Mon, 14 Sep 2015 15:04:55 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH  1/2] mm: Replace nr_node_ids for loop with for_each_node
- in list lru
-Message-ID: <20150914120455.GD30743@esperanza>
-References: <1441737107-23103-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
- <1441737107-23103-2-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
- <20150914090010.GB30743@esperanza>
- <55F6B1F3.1010702@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 14 Sep 2015 05:37:16 -0700 (PDT)
+Subject: Re: Can we disable transparent hugepages for lack of a legitimate use
+ case please?
+References: <BLUPR02MB1698DD8F0D1550366489DF8CCD620@BLUPR02MB1698.namprd02.prod.outlook.com>
+ <20150824201952.5931089.66204.70511@amd.com>
+ <BLUPR02MB1698B29C7908833FA1364C8ACD620@BLUPR02MB1698.namprd02.prod.outlook.com>
+ <20150910164506.GK10639@redhat.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55F6BF79.4010801@suse.cz>
+Date: Mon, 14 Sep 2015 14:37:13 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <55F6B1F3.1010702@linux.vnet.ibm.com>
+In-Reply-To: <20150910164506.GK10639@redhat.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, anton@samba.org, akpm@linux-foundation.org, nacc@linux.vnet.ibm.com, gkurz@linux.vnet.ibm.com, zhong@linux.vnet.ibm.com, grant.likely@linaro.org, nikunj@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>, James Hartshorn <jhartshorn@connexity.com>
+Cc: "Bridgman, John" <John.Bridgman@amd.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Sep 14, 2015 at 05:09:31PM +0530, Raghavendra K T wrote:
-> On 09/14/2015 02:30 PM, Vladimir Davydov wrote:
-> >On Wed, Sep 09, 2015 at 12:01:46AM +0530, Raghavendra K T wrote:
-> >>The functions used in the patch are in slowpath, which gets called
-> >>whenever alloc_super is called during mounts.
-> >>
-> >>Though this should not make difference for the architectures with
-> >>sequential numa node ids, for the powerpc which can potentially have
-> >>sparse node ids (for e.g., 4 node system having numa ids, 0,1,16,17
-> >>is common), this patch saves some unnecessary allocations for
-> >>non existing numa nodes.
-> >>
-> >>Even without that saving, perhaps patch makes code more readable.
-> >
-> >Do I understand correctly that node 0 must always be in
-> >node_possible_map? I ask, because we currently test
-> >lru->node[0].memcg_lrus to determine if the list is memcg aware.
-> >
-> 
-> Yes, node 0 is always there. So it should not be a problem.
+On 09/10/2015 06:45 PM, Andrea Arcangeli wrote:
+>> >Mysql (tokudb)
+>> >https://dzone.com/articles/why-tokudb-hates-transparent
+> This seems a THP issue: unless the alternate malloc allocator starts
+> using MADV_NOHUGEPAGE, its memory loss would become extreme with the
+> split_huge_page pending changes from Kirill. There's little the kernel
+> can do about this, in fact Kirill's latest changes goes in the very
+> opposite direction of what's needed to reduce the memory footprint for
+> this MADV_DONTNEED 4kb case.
+>
+> With current code however the best you can do is:
+>
+> echo 0 >/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_none
+>
+> That will guarantee that khugepaged never increases the memory
+> footprint after a MADV_DONTNEED done by the alternate malloc
+> allocator. Just that will definitely stop to help with the
+> split_huge_page pending changes. You could consider testing that but
+> if the split_huge_page pending changes are merged, this tuning shall
+> disappear.
 
-I think it should be mentioned in the comment to list_lru_memcg_aware
-then.
+I don't think it's that pessimistic after Kirill's patchset? 
+MADV_DONTNEED should still result in unmaps, which results in 
+split_huge_pmd. Then the THP is put in a shrinker list and will be fully 
+split in response to memory pressure, see:
 
-Thanks,
-Vladimir
+  [PATCHv10 34/36] thp: introduce deferred_split_huge_page()
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
