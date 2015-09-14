@@ -1,64 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D37736B0253
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 11:17:21 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so145490788wic.0
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:17:21 -0700 (PDT)
-Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
-        by mx.google.com with ESMTPS id p11si19235572wjw.192.2015.09.14.08.17.20
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id EA9E36B0255
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 11:21:32 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so137381175wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:21:32 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id q18si17790352wik.96.2015.09.14.08.21.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 08:17:20 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so144986133wic.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:17:20 -0700 (PDT)
+        Mon, 14 Sep 2015 08:21:31 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so137380553wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:21:31 -0700 (PDT)
+Date: Mon, 14 Sep 2015 17:21:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/3] memcg: collect kmem bypass conditions into
+ __memcg_kmem_bypass()
+Message-ID: <20150914152129.GE7050@dhcp22.suse.cz>
+References: <20150913201416.GC25369@htj.duckdns.org>
 MIME-Version: 1.0
-In-Reply-To: <55F62C65.7070100@huawei.com>
-References: <55F62C65.7070100@huawei.com>
-Date: Mon, 14 Sep 2015 18:17:19 +0300
-Message-ID: <CAPAsAGxf_OQD502cW1nbXJ7WdRxyKqTx6+BJJpJoD-Z6WFCZMg@mail.gmail.com>
-Subject: Re: [PATCH V2] kasan: use IS_ALIGNED in memory_is_poisoned_8()
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150913201416.GC25369@htj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <adech.fo@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>, Michal Marek <mmarek@suse.cz>, "long.wanglong" <long.wanglong@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
 
-2015-09-14 5:09 GMT+03:00 Xishi Qiu <qiuxishi@huawei.com>:
-> Use IS_ALIGNED() to determine whether the shadow span two bytes.
-> It generates less code and more readable. Add some comments in
-> shadow check functions.
->
-> Please apply "kasan: fix last shadow judgement in memory_is_poisoned_16()"
-> first.
->
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+On Sun 13-09-15 16:14:16, Tejun Heo wrote:
+> memcg_kmem_newpage_charge() and memcg_kmem_get_cache() are testing the
+> same series of conditions to decide whether to bypass kmem accounting.
+> Collect the tests into __memcg_kmem_bypass().
+> 
+> This is pure refactoring.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  mm/kasan/kasan.c | 21 +++++++++++++++++++--
->  1 file changed, 19 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> index 8da2114..00d5605 100644
-> --- a/mm/kasan/kasan.c
-> +++ b/mm/kasan/kasan.c
-> @@ -86,6 +86,10 @@ static __always_inline bool memory_is_poisoned_2(unsigned long addr)
->                 if (memory_is_poisoned_1(addr + 1))
->                         return true;
->
-> +               /*
-> +                * If the shadow spans two bytes, the first byte should
-> +                * be zero.
+> Hello,
+> 
+> These three patches are on top of mmotm as of Sep 13th and the two
+> patches from the following thread.
+> 
+>  http://lkml.kernel.org/g/20150913185940.GA25369@htj.duckdns.org
+> 
+> Thanks.
+> 
+>  include/linux/memcontrol.h |   46 +++++++++++++++++++++------------------------
+>  1 file changed, 22 insertions(+), 24 deletions(-)
+> 
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -776,20 +776,7 @@ int memcg_charge_kmem(struct mem_cgroup
+>  		      unsigned long nr_pages);
+>  void memcg_uncharge_kmem(struct mem_cgroup *memcg, unsigned long nr_pages);
+>  
+> -/**
+> - * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
+> - * @gfp: the gfp allocation flags.
+> - * @memcg: a pointer to the memcg this was charged against.
+> - * @order: allocation order.
+> - *
+> - * returns true if the memcg where the current task belongs can hold this
+> - * allocation.
+> - *
+> - * We return true automatically if this allocation is not to be accounted to
+> - * any memcg.
+> - */
+> -static inline bool
+> -memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
+> +static inline bool __memcg_kmem_bypass(gfp_t gfp)
+>  {
+>  	if (!memcg_kmem_enabled())
+>  		return true;
+> @@ -811,6 +798,26 @@ memcg_kmem_newpage_charge(gfp_t gfp, str
+>  	if (unlikely(fatal_signal_pending(current)))
+>  		return true;
+>  
+> +	return false;
+> +}
+> +
+> +/**
+> + * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
+> + * @gfp: the gfp allocation flags.
+> + * @memcg: a pointer to the memcg this was charged against.
+> + * @order: allocation order.
+> + *
+> + * returns true if the memcg where the current task belongs can hold this
+> + * allocation.
+> + *
+> + * We return true automatically if this allocation is not to be accounted to
+> + * any memcg.
+> + */
+> +static inline bool
+> +memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
+> +{
+> +	if (__memcg_kmem_bypass(gfp))
+> +		return true;
+>  	return __memcg_kmem_newpage_charge(gfp, memcg, order);
+>  }
+>  
+> @@ -853,17 +860,8 @@ memcg_kmem_commit_charge(struct page *pa
+>  static __always_inline struct kmem_cache *
+>  memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+>  {
+> -	if (!memcg_kmem_enabled())
+> -		return cachep;
+> -	if (gfp & __GFP_NOACCOUNT)
+> -		return cachep;
+> -	if (gfp & __GFP_NOFAIL)
+> +	if (__memcg_kmem_bypass(gfp))
+>  		return cachep;
+> -	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
+> -		return cachep;
+> -	if (unlikely(fatal_signal_pending(current)))
+> -		return cachep;
+> -
+>  	return __memcg_kmem_get_cache(cachep);
+>  }
+>  
 
-Hmm.. I found this comment a bit odd.
-
-How about this:
-/*
- * If single shadow byte covers 2-byte access,
- * we don't need to do anything more.
- * Otherwise, test the first shadow byte.
- */
-
-?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
