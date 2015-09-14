@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id BDEBE6B0267
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:46:35 -0400 (EDT)
-Received: by lbcjc2 with SMTP id jc2so67576797lbc.0
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:35 -0700 (PDT)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id ld9si18739544wjc.86.2015.09.14.06.46.26
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id BFA626B0268
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:46:37 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so141600407wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:37 -0700 (PDT)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id p4si17242427wiz.80.2015.09.14.06.46.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 06:46:27 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so141044703wic.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:26 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Sep 2015 06:46:28 -0700 (PDT)
+Received: by wicge5 with SMTP id ge5so143618513wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:28 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 6/7] kasan: move KASAN_SANITIZE in arch/x86/boot/Makefile
-Date: Mon, 14 Sep 2015 15:46:07 +0200
-Message-Id: <d1a8006fbdd02c31b51e39b9c931d3898d3bfee9.1442238094.git.andreyknvl@google.com>
+Subject: [PATCH v2 7/7] kasan: update reference to kasan prototype repo
+Date: Mon, 14 Sep 2015 15:46:08 +0200
+Message-Id: <4c8a6793de540216e5fbc4616a4556374c3348ad.1442238094.git.andreyknvl@google.com>
 In-Reply-To: <cover.1442238094.git.andreyknvl@google.com>
 References: <cover.1442238094.git.andreyknvl@google.com>
 In-Reply-To: <cover.1442238094.git.andreyknvl@google.com>
@@ -24,34 +24,41 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: dvyukov@google.com, glider@google.com, kcc@google.com, Andrey Konovalov <andreyknvl@google.com>
 
-Move KASAN_SANITIZE in arch/x86/boot/Makefile above the comment
-related to SVGA_MODE, since the comment refers to 'the next line'.
+Update the reference to the kasan prototype repository on github,
+since it was renamed.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/x86/boot/Makefile | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/kasan/kasan.c  | 2 +-
+ mm/kasan/report.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/boot/Makefile b/arch/x86/boot/Makefile
-index 0d553e5..2ee62db 100644
---- a/arch/x86/boot/Makefile
-+++ b/arch/x86/boot/Makefile
-@@ -9,13 +9,13 @@
- # Changed by many, many contributors over the years.
- #
- 
-+KASAN_SANITIZE := n
-+
- # If you want to preset the SVGA mode, uncomment the next line and
- # set SVGA_MODE to whatever number you want.
- # Set it to -DSVGA_MODE=NORMAL_VGA if you just want the EGA/VGA mode.
- # The number is the same as you would ordinarily press at bootup.
- 
--KASAN_SANITIZE := n
--
- SVGA_MODE	:= -DSVGA_MODE=NORMAL_VGA
- 
- targets		:= vmlinux.bin setup.bin setup.elf bzImage
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 61c9620..48fe48b 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -4,7 +4,7 @@
+  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
+  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+  *
+- * Some of code borrowed from https://github.com/xairy/linux by
++ * Some code borrowed from https://github.com/xairy/kasan-prototype by
+  *        Andrey Konovalov <adech.fo@gmail.com>
+  *
+  * This program is free software; you can redistribute it and/or modify
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index ae6bd36..f5e068a 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -4,7 +4,7 @@
+  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
+  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+  *
+- * Some of code borrowed from https://github.com/xairy/linux by
++ * Some code borrowed from https://github.com/xairy/kasan-prototype by
+  *        Andrey Konovalov <adech.fo@gmail.com>
+  *
+  * This program is free software; you can redistribute it and/or modify
 -- 
 2.6.0.rc0.131.gf624c3d
 
