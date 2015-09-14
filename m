@@ -1,129 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EA9E36B0255
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 11:21:32 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so137381175wic.0
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:21:32 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id q18si17790352wik.96.2015.09.14.08.21.31
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DCF36B0256
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 11:41:32 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so138172426wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:41:31 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
+        by mx.google.com with ESMTPS id fj6si17910399wib.101.2015.09.14.08.41.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 08:21:31 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so137380553wic.0
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:21:31 -0700 (PDT)
-Date: Mon, 14 Sep 2015 17:21:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] memcg: collect kmem bypass conditions into
- __memcg_kmem_bypass()
-Message-ID: <20150914152129.GE7050@dhcp22.suse.cz>
-References: <20150913201416.GC25369@htj.duckdns.org>
+        Mon, 14 Sep 2015 08:41:31 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH V2] debugfs: don't assume sizeof(bool) to be 4 bytes
+Date: Mon, 14 Sep 2015 17:39:06 +0200
+Message-ID: <1708603.aKpYchk1pa@wuerfel>
+In-Reply-To: <81516fb9c662cc338b5af5b63fbbcde5374e0893.1442202447.git.viresh.kumar@linaro.org>
+References: <81516fb9c662cc338b5af5b63fbbcde5374e0893.1442202447.git.viresh.kumar@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150913201416.GC25369@htj.duckdns.org>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
+To: linaro-kernel@lists.linaro.org
+Cc: Viresh Kumar <viresh.kumar@linaro.org>, gregkh@linuxfoundation.org, "open list:NETWORKING DRIVERS WIRELESS" <linux-wireless@vger.kernel.org>, "moderated list:SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEM..." <alsa-devel@alsa-project.org>, Avri Altman <avri.altman@intel.com>, Stanislaw Gruszka <sgruszka@redhat.com>, Jiri Slaby <jirislaby@gmail.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Brown <broonie@kernel.org>, Jaroslav Kysela <perex@perex.cz>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Kalle Valo <kvalo@qca.qualcomm.com>, Emmanuel Grumbach <emmanuel.grumbach@intel.com>, Wang Long <long.wanglong@huawei.com>, Richard Fitzgerald <rf@opensource.wolfsonmicro.com>, Ingo Molnar <mingo@kernel.org>, Johan Hedberg <johan.hedberg@gmail.com>, Davidlohr Bueso <dave@stgolabs.net>, Joonsoo Kim <js1304@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "open list:WOLFSON MICROELECTRONICS DRIVERS" <patches@opensource.wolfsonmicro.com>, Sebastian Ott <sebott@linux.vnet.ibm.com>, "open list:QUALCOMM ATHEROS ATH10K WIRELESS DRIVER" <ath10k@lists.infradead.org>, Intel Linux Wireless <ilw@linux.intel.com>, "open list:ACPI" <linux-acpi@vger.kernel.org>, "open list:QUALCOMM ATHEROS ATH9K WIRELESS DRIVER" <ath9k-devel@lists.ath9k.org>, Nick Kossifidis <mickflemm@gmail.com>, "open list:B43 WIRELESS DRIVER" <b43-dev@lists.infradead.org>, Luciano Coelho <luciano.coelho@intel.com>, Doug Thompson <dougthompson@xmission.com>, Gustavo Padovan <gustavo@padovan.org>, Sasha Levin <sasha.levin@oracle.com>, Tomas Winkler <tomas.winkler@intel.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, sboyd@codeaurora.org, Len Brown <lenb@kernel.org>, Takashi Iwai <tiwai@suse.com>, Hariprasad S <hariprasad@chelsio.com>, Johannes Berg <johannes.berg@intel.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, Vlastimil Babka <vbabka@suse.cz>, Arik Nemtsov <arik@wizery.com>, Marcel Holtmann <marcel@holtmann.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Akinobu Mita <akinobu.mita@gmail.com>, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Tejun Heo <tj@kernel.org>, Florian Fainelli <f.fainelli@gmail.com>, Borislav Petkov <bp@alien8.de>, Oleg Nesterov <oleg@redhat.com>, Charles Keepax <ckeepax@opensource.wolfsonmicro.com>, Mel Gorman <mgorman@suse.de>, "moderated list:ARM64 PORT AARCH64 ARCHITECTURE" <linux-arm-kernel@lists.infradead.org>, "open list:EDAC-CORE" <linux-edac@vger.kernel.org>, Haggai Eran <haggaie@mellanox.com>, "James E.J. Bottomley" <JBottomley@odin.com>, Chaya Rachel Ivgi <chaya.rachel.ivgi@intel.com>, "open list:CISCO SCSI HBA DRIVER" <linux-scsi@vger.kernel.org>, Brian Silverman <bsilver16384@gmail.com>, "Luis R. Rodriguez" <mcgrof@do-not-panic.com>, "open list:CXGB4 ETHERNET DRIVER CXGB4" <netdev@vger.kernel.org>, "open list:ULTRA-WIDEBAND UWB SUBSYSTEM:" <linux-usb@vger.kernel.org>, Rafael Wysocki <rjw@rjwysocki.net>, Liam Girdwood <lgirdwood@gmail.com>, Sesidhar Baddela <sebaddel@cisco.com>, open list <linux-kernel@vger.kernel.org>, "open list:BLUETOOTH DRIVERS" <linux-bluetooth@vger.kernel.org>, "open list:AMD IOMMU AMD-VI" <iommu@lists.linux-foundation.org>, Dmitry Monakhov <dmonakhov@openvz.org>, Thomas Gleixner <tglx@linutronix.de>, Narsimhulu Musini <nmusini@cisco.com>, Johannes Weiner <hannes@cmpxchg.org>, Joe Perches <joe@perches.com>, Eliad Peller <eliad@wizery.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Duyck <alexander.h.duyck@redhat.com>, Larry Finger <Larry.Finger@lwfinger.net>
 
-On Sun 13-09-15 16:14:16, Tejun Heo wrote:
-> memcg_kmem_newpage_charge() and memcg_kmem_get_cache() are testing the
-> same series of conditions to decide whether to bypass kmem accounting.
-> Collect the tests into __memcg_kmem_bypass().
-> 
-> This is pure refactoring.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
+On Monday 14 September 2015 09:21:54 Viresh Kumar wrote:
+> diff --git a/drivers/acpi/ec_sys.c b/drivers/acpi/ec_sys.c
+> index b4c216bab22b..bea8e425a8de 100644
+> --- a/drivers/acpi/ec_sys.c
+> +++ b/drivers/acpi/ec_sys.c
+> @@ -128,7 +128,7 @@ static int acpi_ec_add_debugfs(struct acpi_ec *ec, unsigned int ec_device_count)
+>  	if (!debugfs_create_x32("gpe", 0444, dev_dir, (u32 *)&first_ec->gpe))
+>  		goto error;
+>  	if (!debugfs_create_bool("use_global_lock", 0444, dev_dir,
+> -				 (u32 *)&first_ec->global_lock))
+> +				 &first_ec->global_lock))
+>  		goto error;
+>  
+>  	if (write_support)
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+This one might need a separate patch that can be backported to stable, as
+the original code is already broken on big-endian 64-bit machines:
+global_lock is 'unsigned long'.
 
-> ---
-> Hello,
-> 
-> These three patches are on top of mmotm as of Sep 13th and the two
-> patches from the following thread.
-> 
->  http://lkml.kernel.org/g/20150913185940.GA25369@htj.duckdns.org
-> 
-> Thanks.
-> 
->  include/linux/memcontrol.h |   46 +++++++++++++++++++++------------------------
->  1 file changed, 22 insertions(+), 24 deletions(-)
-> 
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -776,20 +776,7 @@ int memcg_charge_kmem(struct mem_cgroup
->  		      unsigned long nr_pages);
->  void memcg_uncharge_kmem(struct mem_cgroup *memcg, unsigned long nr_pages);
->  
-> -/**
-> - * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
-> - * @gfp: the gfp allocation flags.
-> - * @memcg: a pointer to the memcg this was charged against.
-> - * @order: allocation order.
-> - *
-> - * returns true if the memcg where the current task belongs can hold this
-> - * allocation.
-> - *
-> - * We return true automatically if this allocation is not to be accounted to
-> - * any memcg.
-> - */
-> -static inline bool
-> -memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
-> +static inline bool __memcg_kmem_bypass(gfp_t gfp)
->  {
->  	if (!memcg_kmem_enabled())
->  		return true;
-> @@ -811,6 +798,26 @@ memcg_kmem_newpage_charge(gfp_t gfp, str
->  	if (unlikely(fatal_signal_pending(current)))
->  		return true;
->  
-> +	return false;
-> +}
-> +
-> +/**
-> + * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
-> + * @gfp: the gfp allocation flags.
-> + * @memcg: a pointer to the memcg this was charged against.
-> + * @order: allocation order.
-> + *
-> + * returns true if the memcg where the current task belongs can hold this
-> + * allocation.
-> + *
-> + * We return true automatically if this allocation is not to be accounted to
-> + * any memcg.
-> + */
-> +static inline bool
-> +memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
-> +{
-> +	if (__memcg_kmem_bypass(gfp))
-> +		return true;
->  	return __memcg_kmem_newpage_charge(gfp, memcg, order);
->  }
->  
-> @@ -853,17 +860,8 @@ memcg_kmem_commit_charge(struct page *pa
->  static __always_inline struct kmem_cache *
->  memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
->  {
-> -	if (!memcg_kmem_enabled())
-> -		return cachep;
-> -	if (gfp & __GFP_NOACCOUNT)
-> -		return cachep;
-> -	if (gfp & __GFP_NOFAIL)
-> +	if (__memcg_kmem_bypass(gfp))
->  		return cachep;
-> -	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
-> -		return cachep;
-> -	if (unlikely(fatal_signal_pending(current)))
-> -		return cachep;
-> -
->  	return __memcg_kmem_get_cache(cachep);
->  }
->  
-
--- 
-Michal Hocko
-SUSE Labs
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
