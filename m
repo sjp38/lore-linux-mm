@@ -1,126 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id E28146B025B
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:22:30 -0400 (EDT)
-Received: by obbzf10 with SMTP id zf10so52448517obb.2
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:22:30 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id q126si1889685oia.45.2015.09.14.06.22.29
-        for <linux-mm@kvack.org>;
-        Mon, 14 Sep 2015 06:22:30 -0700 (PDT)
-Date: Mon, 14 Sep 2015 14:22:30 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: LTP regressions due to 6dc296e7df4c ("mm: make sure all file
- VMAs have ->vm_ops set")
-Message-ID: <20150914132230.GD23878@arm.com>
-References: <20150914105346.GB23878@arm.com>
- <20150914115800.06242CE@black.fi.intel.com>
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 0164F6B025C
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:27:38 -0400 (EDT)
+Received: by lahg1 with SMTP id g1so56863629lah.1
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:27:37 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id or2si9722370lbb.38.2015.09.14.06.27.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Sep 2015 06:27:36 -0700 (PDT)
+Date: Mon, 14 Sep 2015 16:27:16 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH  1/2] mm: Replace nr_node_ids for loop with for_each_node
+ in list lru
+Message-ID: <20150914132716.GJ30743@esperanza>
+References: <1441737107-23103-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+ <1441737107-23103-2-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+ <20150914090010.GB30743@esperanza>
+ <55F6B1F3.1010702@linux.vnet.ibm.com>
+ <20150914120455.GD30743@esperanza>
+ <55F6C637.6080807@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20150914115800.06242CE@black.fi.intel.com>
+In-Reply-To: <55F6C637.6080807@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: "oleg@redhat.com" <oleg@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "luto@amacapital.net" <luto@amacapital.net>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "mingo@elte.hu" <mingo@elte.hu>, "minchan@kernel.org" <minchan@kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, anton@samba.org, akpm@linux-foundation.org, nacc@linux.vnet.ibm.com, gkurz@linux.vnet.ibm.com, zhong@linux.vnet.ibm.com, grant.likely@linaro.org, nikunj@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Sep 14, 2015 at 12:57:59PM +0100, Kirill A. Shutemov wrote:
-> Will Deacon wrote:
-> > Your patch 6dc296e7df4c ("mm: make sure all file VMAs have ->vm_ops set")
-> > causes some mmap regressions in LTP, which appears to use a MAP_PRIVATE
-> > mmap of /dev/zero as a way to get anonymous pages in some of its tests
-> > (specifically mmap10 [1]).
-> > 
-> > Dead simple reproducer below. Is this change in behaviour intentional?
+On Mon, Sep 14, 2015 at 06:35:59PM +0530, Raghavendra K T wrote:
+> On 09/14/2015 05:34 PM, Vladimir Davydov wrote:
+> >On Mon, Sep 14, 2015 at 05:09:31PM +0530, Raghavendra K T wrote:
+> >>On 09/14/2015 02:30 PM, Vladimir Davydov wrote:
+> >>>On Wed, Sep 09, 2015 at 12:01:46AM +0530, Raghavendra K T wrote:
+> >>>>The functions used in the patch are in slowpath, which gets called
+> >>>>whenever alloc_super is called during mounts.
+> >>>>
+> >>>>Though this should not make difference for the architectures with
+> >>>>sequential numa node ids, for the powerpc which can potentially have
+> >>>>sparse node ids (for e.g., 4 node system having numa ids, 0,1,16,17
+> >>>>is common), this patch saves some unnecessary allocations for
+> >>>>non existing numa nodes.
+> >>>>
+> >>>>Even without that saving, perhaps patch makes code more readable.
+> >>>
+> >>>Do I understand correctly that node 0 must always be in
+> >>>node_possible_map? I ask, because we currently test
+> >>>lru->node[0].memcg_lrus to determine if the list is memcg aware.
+> >>>
+> >>
+> >>Yes, node 0 is always there. So it should not be a problem.
+> >
+> >I think it should be mentioned in the comment to list_lru_memcg_aware
+> >then.
+> >
 > 
-> Ouch. Of couse it's a bug.
+> Something like this: ?
+
+Yeah, looks good to me.
+
+Thanks,
+Vladimir
+
+> static inline bool list_lru_memcg_aware(struct list_lru *lru)
+> {
+>         /*
+>          * This needs node 0 to be always present, even
+>          * in the systems supporting sparse numa ids.
+>          */
+>         return !!lru->node[0].memcg_lrus;
+> }
 > 
-> Fix is below. I don't really like it, but I cannot find any better
-> solution.
-
-Brill, thanks for the quick response! I agree that the fix isn't very
-nice. Maybe moving the mmap_zero test into a helper would make it more
-palatable?
-
-> From 97be4458fd63758b0c233e528bf952d1cd26428e Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Mon, 14 Sep 2015 14:44:32 +0300
-> Subject: [PATCH] mm: fix mmap(MAP_PRIVATE) on /dev/zero
-> 
-> In attempt to make mm less fragile I've screwed up setting up anonymous
-> mappings by mmap() on /dev/zero.
-> 
-> Here's the fix.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Fixes: 6dc296e7df4c ("mm: make sure all file VMAs have ->vm_ops set")
-> Reported-by: Will Deacon <will.deacon@arm.com>
-
-FWIW:
-
-  Tested-by: Will Deacon <will.deacon@arm.com>
-
-Cheers,
-
-Will
-
-> ---
->  drivers/char/mem.c | 2 +-
->  include/linux/mm.h | 1 +
->  mm/mmap.c          | 6 ++++--
->  3 files changed, 6 insertions(+), 3 deletions(-)
-> 
-> diff --git a/drivers/char/mem.c b/drivers/char/mem.c
-> index 6b1721f978c2..c8fe3af4de29 100644
-> --- a/drivers/char/mem.c
-> +++ b/drivers/char/mem.c
-> @@ -651,7 +651,7 @@ static ssize_t read_iter_zero(struct kiocb *iocb, struct iov_iter *iter)
->  	return written;
->  }
->  
-> -static int mmap_zero(struct file *file, struct vm_area_struct *vma)
-> +int mmap_zero(struct file *file, struct vm_area_struct *vma)
->  {
->  #ifndef CONFIG_MMU
->  	return -ENOSYS;
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 91c08f6f0dc9..5e152e9588ec 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1066,6 +1066,7 @@ extern void pagefault_out_of_memory(void);
->  extern void show_free_areas(unsigned int flags);
->  extern bool skip_free_areas_node(unsigned int flags, int nid);
->  
-> +int mmap_zero(struct file *file, struct vm_area_struct *vma);
->  int shmem_zero_setup(struct vm_area_struct *);
->  #ifdef CONFIG_SHMEM
->  bool shmem_mapping(struct address_space *mapping);
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 971dd2cb77d2..7960fd206a2f 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -612,7 +612,9 @@ static unsigned long count_vma_pages_range(struct mm_struct *mm,
->  void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
->  		struct rb_node **rb_link, struct rb_node *rb_parent)
->  {
-> -	WARN_ONCE(vma->vm_file && !vma->vm_ops, "missing vma->vm_ops");
-> +	WARN_ONCE(vma->vm_file && !vma->vm_ops &&
-> +			vma->vm_file->f_op->mmap != mmap_zero,
-> +			"missing vma->vm_ops");
->  
->  	/* Update tracking information for the gap following the new vma. */
->  	if (vma->vm_next)
-> @@ -1639,7 +1641,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
->  		WARN_ON_ONCE(addr != vma->vm_start);
->  
->  		/* All file mapping must have ->vm_ops set */
-> -		if (!vma->vm_ops) {
-> +		if (!vma->vm_ops && file->f_op->mmap != &mmap_zero) {
->  			static const struct vm_operations_struct dummy_ops = {};
->  			vma->vm_ops = &dummy_ops;
->  		}
-> -- 
-> 2.5.1
 > 
 
 --
