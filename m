@@ -1,62 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id DF5846B0253
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 16:49:11 -0400 (EDT)
-Received: by qkfq186 with SMTP id q186so63700127qkf.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 13:49:11 -0700 (PDT)
-Received: from mail-qk0-x235.google.com (mail-qk0-x235.google.com. [2607:f8b0:400d:c09::235])
-        by mx.google.com with ESMTPS id c59si13855725qge.28.2015.09.14.13.49.10
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E2AE6B0253
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 17:33:58 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so126947207qge.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 14:33:58 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d93si14004658qkh.88.2015.09.14.14.33.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 13:49:11 -0700 (PDT)
-Received: by qkdw123 with SMTP id w123so63739688qkd.0
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 13:49:10 -0700 (PDT)
-Date: Mon, 14 Sep 2015 16:49:07 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/5] cgroup, memcg, cpuset: implement
- cgroup_taskset_for_each_leader()
-Message-ID: <20150914204907.GI25369@htj.duckdns.org>
-References: <1441998022-12953-1-git-send-email-tj@kernel.org>
- <1441998022-12953-3-git-send-email-tj@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1441998022-12953-3-git-send-email-tj@kernel.org>
+        Mon, 14 Sep 2015 14:33:57 -0700 (PDT)
+Date: Mon, 14 Sep 2015 14:33:55 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC v5 2/3] mm: make optimistic check for swapin readahead
+Message-Id: <20150914143355.cd75506c0605c5d6c9a4bb03@linux-foundation.org>
+In-Reply-To: <1442259105-4420-3-git-send-email-ebru.akagunduz@gmail.com>
+References: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
+	<1442259105-4420-3-git-send-email-ebru.akagunduz@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lizefan@huawei.com
-Cc: cgroups@vger.kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
 
-On Fri, Sep 11, 2015 at 03:00:19PM -0400, Tejun Heo wrote:
-> It wasn't explicitly documented but, when a process is being migrated,
-> cpuset and memcg depend on cgroup_taskset_first() returning the
-> threadgroup leader; however, this approach is somewhat ghetto and
-> would no longer work for the planned multi-process migration.
-> 
-> This patch introduces explicit cgroup_taskset_for_each_leader() which
-> iterates over only the threadgroup leaders and replaces
-> cgroup_taskset_first() usages for accessing the leader with it.
-> 
-> This prepares both memcg and cpuset for multi-process migration.  This
-> patch also updates the documentation for cgroup_taskset_for_each() to
-> clarify the iteration rules and removes comments mentioning task
-> ordering in tasksets.
-> 
-> v2: A previous patch which added threadgroup leader test was dropped.
->     Patch updated accordingly.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Acked-by: Zefan Li <lizefan@huawei.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
+On Mon, 14 Sep 2015 22:31:44 +0300 Ebru Akagunduz <ebru.akagunduz@gmail.com> wrote:
 
-Michal, if you're okay with this patch, I'll apply the patchset in
-cgroup/for-4.4.
+> This patch introduces new sysfs integer knob
+> /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_swap
+> which makes optimistic check for swapin readahead to
+> increase thp collapse rate. Before getting swapped
+> out pages to memory, checks them and allows up to a
+> certain number. It also prints out using tracepoints
+> amount of unmapped ptes.
 
-Thanks.
-
--- 
-tejun
+We we please get this control documented? 
+Documentation/vm/transhuge.txt appears to be the place for it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
