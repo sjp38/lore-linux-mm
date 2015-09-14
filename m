@@ -1,78 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 0164F6B025C
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:27:38 -0400 (EDT)
-Received: by lahg1 with SMTP id g1so56863629lah.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:27:37 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id or2si9722370lbb.38.2015.09.14.06.27.35
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 501896B025D
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:31:12 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so142978042wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:31:11 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fz6si17128820wic.116.2015.09.14.06.31.10
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 06:27:36 -0700 (PDT)
-Date: Mon, 14 Sep 2015 16:27:16 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH  1/2] mm: Replace nr_node_ids for loop with for_each_node
- in list lru
-Message-ID: <20150914132716.GJ30743@esperanza>
-References: <1441737107-23103-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
- <1441737107-23103-2-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
- <20150914090010.GB30743@esperanza>
- <55F6B1F3.1010702@linux.vnet.ibm.com>
- <20150914120455.GD30743@esperanza>
- <55F6C637.6080807@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 14 Sep 2015 06:31:10 -0700 (PDT)
+Subject: Re: [PATCHv5 5/7] mm: make compound_head() robust
+References: <1441283758-92774-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1441283758-92774-6-git-send-email-kirill.shutemov@linux.intel.com>
+ <55F16150.502@suse.cz> <20150911133501.GA9129@node.dhcp.inet.fi>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <55F6CC1B.8020304@suse.cz>
+Date: Mon, 14 Sep 2015 15:31:07 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <55F6C637.6080807@linux.vnet.ibm.com>
+In-Reply-To: <20150911133501.GA9129@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, anton@samba.org, akpm@linux-foundation.org, nacc@linux.vnet.ibm.com, gkurz@linux.vnet.ibm.com, zhong@linux.vnet.ibm.com, grant.likely@linaro.org, nikunj@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Mon, Sep 14, 2015 at 06:35:59PM +0530, Raghavendra K T wrote:
-> On 09/14/2015 05:34 PM, Vladimir Davydov wrote:
-> >On Mon, Sep 14, 2015 at 05:09:31PM +0530, Raghavendra K T wrote:
-> >>On 09/14/2015 02:30 PM, Vladimir Davydov wrote:
-> >>>On Wed, Sep 09, 2015 at 12:01:46AM +0530, Raghavendra K T wrote:
-> >>>>The functions used in the patch are in slowpath, which gets called
-> >>>>whenever alloc_super is called during mounts.
-> >>>>
-> >>>>Though this should not make difference for the architectures with
-> >>>>sequential numa node ids, for the powerpc which can potentially have
-> >>>>sparse node ids (for e.g., 4 node system having numa ids, 0,1,16,17
-> >>>>is common), this patch saves some unnecessary allocations for
-> >>>>non existing numa nodes.
-> >>>>
-> >>>>Even without that saving, perhaps patch makes code more readable.
-> >>>
-> >>>Do I understand correctly that node 0 must always be in
-> >>>node_possible_map? I ask, because we currently test
-> >>>lru->node[0].memcg_lrus to determine if the list is memcg aware.
-> >>>
-> >>
-> >>Yes, node 0 is always there. So it should not be a problem.
-> >
-> >I think it should be mentioned in the comment to list_lru_memcg_aware
-> >then.
-> >
-> 
-> Something like this: ?
+On 09/11/2015 03:35 PM, Kirill A. Shutemov wrote:
+>>> index 097c7a4bfbd9..330377f83ac7 100644
+>>> --- a/mm/huge_memory.c
+>>> +++ b/mm/huge_memory.c
+>>> @@ -1686,8 +1686,7 @@ static void __split_huge_page_refcount(struct page *page,
+>>>   				      (1L << PG_unevictable)));
+>>>   		page_tail->flags |= (1L << PG_dirty);
+>>>
+>>> -		/* clear PageTail before overwriting first_page */
+>>> -		smp_wmb();
+>>> +		clear_compound_head(page_tail);
+>>
+>> I would sleep better if this was done before setting all the page->flags above,
+>> previously, PageTail was cleared by the first operation which is
+>> "page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;"
+>> I do realize that it doesn't use WRITE_ONCE, so it might have been theoretically
+>> broken already, if it does matter.
+>
+> Right. Nothing enforces particular order. If we really need to have some
+> ordering on PageTail() vs. page->flags let's define it, but so far I
+> don't see a reason to change this part.
 
-Yeah, looks good to me.
+OK.
 
-Thanks,
-Vladimir
+>>> diff --git a/mm/internal.h b/mm/internal.h
+>>> index 36b23f1e2ca6..89e21a07080a 100644
+>>> --- a/mm/internal.h
+>>> +++ b/mm/internal.h
+>>> @@ -61,9 +61,9 @@ static inline void __get_page_tail_foll(struct page *page,
+>>>   	 * speculative page access (like in
+>>>   	 * page_cache_get_speculative()) on tail pages.
+>>>   	 */
+>>> -	VM_BUG_ON_PAGE(atomic_read(&page->first_page->_count) <= 0, page);
+>>> +	VM_BUG_ON_PAGE(atomic_read(&compound_head(page)->_count) <= 0, page);
+>>>   	if (get_page_head)
+>>> -		atomic_inc(&page->first_page->_count);
+>>> +		atomic_inc(&compound_head(page)->_count);
+>>
+>> Doing another compound_head() seems like overkill when this code already assumes
+>> PageTail.
+>
+> "Overkill"? It's too strong wording for re-read hot cache line.
 
-> static inline bool list_lru_memcg_aware(struct list_lru *lru)
-> {
->         /*
->          * This needs node 0 to be always present, even
->          * in the systems supporting sparse numa ids.
->          */
->         return !!lru->node[0].memcg_lrus;
-> }
-> 
-> 
+Hm good point.
+
+>> All callers do it after if (PageTail()) which means they already did
+>> READ_ONCE(page->compound_head) and here they do another one. Potentially with
+>> different result in bit 0, which would be a subtle bug, that could be
+>> interesting to catch with some VM_BUG_ON. I don't know if a direct plain
+>> page->compound_head access here instead of compound_head() would also result in
+>> a re-read, since the previous access did use READ_ONCE(). Maybe it would be best
+>> to reorganize the code here and in the 3 call sites so that the READ_ONCE() used
+>> to determine PageTail also obtains the compound head pointer.
+>
+> All we would possbily win by the change is few bytes in code. Additional
+> READ_ONCE() only affect code generation. It doesn't introduce any cpu
+> barriers. The cache line with compound_head is in L1 anyway.
+>
+> I don't see justification to change this part too. If you think we can
+> gain something by reworking this code, feel free to propose patch on top.
+
+OK, it's probably not worth:
+
+add/remove: 0/0 grow/shrink: 1/3 up/down: 7/-66 (-59)
+function                                     old     new   delta
+follow_trans_huge_pmd                        516     523      +7
+follow_page_pte                              905     893     -12
+follow_hugetlb_page                          943     919     -24
+__get_page_tail                              440     410     -30
+
+
+>>> diff --git a/mm/swap.c b/mm/swap.c
+>>> index a3a0a2f1f7c3..faa9e1687dea 100644
+>>> --- a/mm/swap.c
+>>> +++ b/mm/swap.c
+>>> @@ -200,7 +200,7 @@ out_put_single:
+>>>   				__put_single_page(page);
+>>>   			return;
+>>>   		}
+>>> -		VM_BUG_ON_PAGE(page_head != page->first_page, page);
+>>> +		VM_BUG_ON_PAGE(page_head != compound_head(page), page);
+>>>   		/*
+>>>   		 * We can release the refcount taken by
+>>>   		 * get_page_unless_zero() now that
+>>> @@ -261,7 +261,7 @@ static void put_compound_page(struct page *page)
+>>>   	 *  Case 3 is possible, as we may race with
+>>>   	 *  __split_huge_page_refcount tearing down a THP page.
+>>>   	 */
+>>> -	page_head = compound_head_by_tail(page);
+>>> +	page_head = compound_head(page);
+>>
+>> This is also in a path after PageTail() is true.
+>
+> We can only save one branch here: other PageTail() is most likely in other
+> compilation unit and compiler would not be able to eliminate additional
+> load.
+> Why bother?
+
+Hmm, right. Bah.
+
+add/remove: 0/0 grow/shrink: 1/0 up/down: 8/0 (8)
+function                                     old     new   delta
+put_compound_page                            500     508      +8
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
