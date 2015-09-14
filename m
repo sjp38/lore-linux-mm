@@ -1,70 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9614A6B0257
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 11:55:42 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so146533003wic.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:55:42 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id fz7si19460189wjc.198.2015.09.14.08.55.41
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 88E206B0253
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 12:03:50 -0400 (EDT)
+Received: by qgt47 with SMTP id 47so118655276qgt.2
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:03:50 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d139si12612179qhc.110.2015.09.14.09.03.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 08:55:41 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so139187109wic.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:55:41 -0700 (PDT)
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Subject: [PATCH 3/3] arm64/efi: mark UEFI reserved regions as MEMBLOCK_NOMAP
-Date: Mon, 14 Sep 2015 17:55:29 +0200
-Message-Id: <1442246129-13930-4-git-send-email-ard.biesheuvel@linaro.org>
-In-Reply-To: <1442246129-13930-1-git-send-email-ard.biesheuvel@linaro.org>
-References: <1442246129-13930-1-git-send-email-ard.biesheuvel@linaro.org>
+        Mon, 14 Sep 2015 09:03:49 -0700 (PDT)
+Date: Mon, 14 Sep 2015 09:03:48 -0700
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH V2] debugfs: don't assume sizeof(bool) to be 4 bytes
+Message-ID: <20150914160348.GA7290@kroah.com>
+References: <81516fb9c662cc338b5af5b63fbbcde5374e0893.1442202447.git.viresh.kumar@linaro.org>
+ <1708603.aKpYchk1pa@wuerfel>
+ <20150914154708.GF32551@linux>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150914154708.GF32551@linux>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, catalin.marinas@arm.com, will.deacon@arm.com, leif.lindholm@linaro.org, mark.rutland@arm.com, msalter@redhat.com, akpm@linux-foundation.org
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: Viresh Kumar <viresh.kumar@linaro.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, linaro-kernel@lists.linaro.org, "open list:NETWORKING DRIVERS WIRELESS" <linux-wireless@vger.kernel.org>, "moderated list:SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEM..." <alsa-devel@alsa-project.org>, Avri Altman <avri.altman@intel.com>, Stanislaw Gruszka <sgruszka@redhat.com>, Jiri Slaby <jirislaby@gmail.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Brown <broonie@kernel.org>, Jaroslav Kysela <perex@perex.cz>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Kalle Valo <kvalo@qca.qualcomm.com>, Emmanuel Grumbach <emmanuel.grumbach@intel.com>, Wang Long <long.wanglong@huawei.com>, Richard Fitzgerald <rf@opensource.wolfsonmicro.com>, Ingo Molnar <mingo@kernel.org>, Johan Hedberg <johan.hedberg@gmail.com>, Davidlohr Bueso <dave@stgolabs.net>, Joonsoo Kim <js1304@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "open list:WOLFSON MICROELECTRONICS DRIVERS" <patches@opensource.wolfsonmicro.com>, Sebastian Ott <sebott@linux.vnet.ibm.com>, "open list:QUALCOMM ATHEROS ATH10K WIRELESS DRIVER" <ath10k@lists.infradead.org>, Intel Linux Wireless <ilw@linux.intel.com>, "open list:ACPI" <linux-acpi@vger.kernel.org>, "open list:QUALCOMM ATHEROS ATH9K WIRELESS DRIVER" <ath9k-devel@lists.ath9k.org>, Nick Kossifidis <mickflemm@gmail.com>, "open list:B43 WIRELESS DRIVER" <b43-dev@lists.infradead.org>, Luciano Coelho <luciano.coelho@intel.com>, Doug Thompson <dougthompson@xmission.com>, Gustavo Padovan <gustavo@padovan.org>, Sasha Levin <sasha.levin@oracle.com>, Tomas Winkler <tomas.winkler@intel.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, sboyd@codeaurora.org, Len Brown <lenb@kernel.org>, Takashi Iwai <tiwai@suse.com>, Hariprasad S <hariprasad@chelsio.com>, Johannes Berg <johannes.berg@intel.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, Vlastimil Babka <vbabka@suse.cz>, Arik Nemtsov <arik@wizery.com>, Marcel Holtmann <marcel@holtmann.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Akinobu Mita <akinobu.mita@gmail.com>, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Tejun Heo <tj@kernel.org>, Florian Fainelli <f.fainelli@gmail.com>, Borislav Petkov <bp@alien8.de>, Oleg Nesterov <oleg@redhat.com>, Charles Keepax <ckeepax@opensource.wolfsonmicro.com>, Mel Gorman <mgorman@suse.de>, "moderated list:ARM64 PORT AARCH64 ARCHITECTURE" <linux-arm-kernel@lists.infradead.org>, "open list:EDAC-CORE" <linux-edac@vger.kernel.org>, Haggai Eran <haggaie@mellanox.com>, "James E.J. Bottomley" <JBottomley@odin.com>, Chaya Rachel Ivgi <chaya.rachel.ivgi@intel.com>, "open list:CISCO SCSI HBA DRIVER" <linux-scsi@vger.kernel.org>, Brian Silverman <bsilver16384@gmail.com>, "Luis R. Rodriguez" <mcgrof@do-not-panic.com>, "open list:CXGB4 ETHERNET DRIVER CXGB4" <netdev@vger.kernel.org>, "open list:ULTRA-WIDEBAND UWB SUBSYSTEM:" <linux-usb@vger.kernel.org>, Rafael Wysocki <rjw@rjwysocki.net>, Liam Girdwood <lgirdwood@gmail.com>, Sesidhar Baddela <sebaddel@cisco.com>, open list <linux-kernel@vger.kernel.org>, "open list:BLUETOOTH DRIVERS" <linux-bluetooth@vger.kernel.org>, "open list:AMD IOMMU AMD-VI" <iommu@lists.linux-foundation.org>, Dmitry Monakhov <dmonakhov@openvz.org>, Thomas Gleixner <tglx@linutronix.de>, Narsimhulu Musini <nmusini@cisco.com>, Johannes Weiner <hannes@cmpxchg.org>, Joe Perches <joe@perches.com>, Eliad Peller <eliad@wizery.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Duyck <alexander.h.duyck@redhat.com>, Larry Finger <Larry.Finger@lwfinger.net>
 
-Change the EFI memory reservation logic to use memblock_mark_nomap()
-rather than memblock_reserve() to mark UEFI reserved regions as
-occupied. In addition to reserving them against allocations done by
-memblock, this will also prevent them from being covered by the linear
-mapping.
+On Mon, Sep 14, 2015 at 09:17:08PM +0530, Viresh Kumar wrote:
+> On 14-09-15, 17:39, Arnd Bergmann wrote:
+> > On Monday 14 September 2015 09:21:54 Viresh Kumar wrote:
+> > > diff --git a/drivers/acpi/ec_sys.c b/drivers/acpi/ec_sys.c
+> > > index b4c216bab22b..bea8e425a8de 100644
+> > > --- a/drivers/acpi/ec_sys.c
+> > > +++ b/drivers/acpi/ec_sys.c
+> > > @@ -128,7 +128,7 @@ static int acpi_ec_add_debugfs(struct acpi_ec *ec, unsigned int ec_device_count)
+> > >  	if (!debugfs_create_x32("gpe", 0444, dev_dir, (u32 *)&first_ec->gpe))
+> > >  		goto error;
+> > >  	if (!debugfs_create_bool("use_global_lock", 0444, dev_dir,
+> > > -				 (u32 *)&first_ec->global_lock))
+> > > +				 &first_ec->global_lock))
+> > >  		goto error;
+> > >  
+> > >  	if (write_support)
+> > 
+> > This one might need a separate patch that can be backported to stable, as
+> > the original code is already broken on big-endian 64-bit machines:
+> > global_lock is 'unsigned long'.
+> 
+> Hmmm, so you suggest a single patch that will do s/unsigned long/u32
+> and that will be followed with this patch (almost) as is. Right?
+> 
+> Also, regarding the stable thing, we will surely not be able to
+> backport it straight away. But we should get it backported for sure.
+> 
+> @Greg: What all kernel versions you want this to be backported for?
 
-Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
----
- arch/arm64/kernel/efi.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
-
-diff --git a/arch/arm64/kernel/efi.c b/arch/arm64/kernel/efi.c
-index e8ca6eaedd02..f609325c4a83 100644
---- a/arch/arm64/kernel/efi.c
-+++ b/arch/arm64/kernel/efi.c
-@@ -193,7 +193,7 @@ static __init void reserve_regions(void)
- 			early_init_dt_add_memory_arch(paddr, size);
- 
- 		if (is_reserve_region(md)) {
--			memblock_reserve(paddr, size);
-+			memblock_mark_nomap(paddr, size);
- 			if (uefi_debug)
- 				pr_cont("*");
- 		}
-@@ -215,8 +215,6 @@ void __init efi_init(void)
- 
- 	efi_system_table = params.system_table;
- 
--	memblock_reserve(params.mmap & PAGE_MASK,
--			 PAGE_ALIGN(params.mmap_size + (params.mmap & ~PAGE_MASK)));
- 	memmap.phys_map = (void *)params.mmap;
- 	memmap.map = early_memremap(params.mmap, params.mmap_size);
- 	memmap.map_end = memmap.map + params.mmap_size;
-@@ -228,6 +226,7 @@ void __init efi_init(void)
- 
- 	reserve_regions();
- 	early_memunmap(memmap.map, params.mmap_size);
-+	memblock_mark_nomap(params.mmap, params.mmap_size);
- }
- 
- static bool __init efi_virtmap_init(void)
--- 
-1.9.1
+What ever ones you think it is relevant for :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
