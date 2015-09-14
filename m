@@ -1,51 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C9186B0256
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 11:15:02 -0400 (EDT)
-Received: by ykdg206 with SMTP id g206so155559677ykd.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:15:01 -0700 (PDT)
-Received: from mail-yk0-x22f.google.com (mail-yk0-x22f.google.com. [2607:f8b0:4002:c07::22f])
-        by mx.google.com with ESMTPS id g1si6553466ywf.169.2015.09.14.08.15.01
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D37736B0253
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 11:17:21 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so145490788wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:17:21 -0700 (PDT)
+Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
+        by mx.google.com with ESMTPS id p11si19235572wjw.192.2015.09.14.08.17.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 08:15:01 -0700 (PDT)
-Received: by ykft14 with SMTP id t14so3843148ykf.0
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:15:01 -0700 (PDT)
+        Mon, 14 Sep 2015 08:17:20 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so144986133wic.1
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 08:17:20 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAEqaY8cE7C2UvQP5x6VswOG46Gn+W+NYzWvFyqwXSjLaaTZBJg@mail.gmail.com>
-References: <CAEqaY8cE7C2UvQP5x6VswOG46Gn+W+NYzWvFyqwXSjLaaTZBJg@mail.gmail.com>
-Date: Mon, 14 Sep 2015 08:15:00 -0700
-Message-ID: <CAA25o9Quzq-Kmr47FhKXOR_PHr-5qVH0Che2vFRXeT2vZjAKqw@mail.gmail.com>
-Subject: Re: how can I solve this grep problem
-From: Luigi Semenzato <semenzato@google.com>
+In-Reply-To: <55F62C65.7070100@huawei.com>
+References: <55F62C65.7070100@huawei.com>
+Date: Mon, 14 Sep 2015 18:17:19 +0300
+Message-ID: <CAPAsAGxf_OQD502cW1nbXJ7WdRxyKqTx6+BJJpJoD-Z6WFCZMg@mail.gmail.com>
+Subject: Re: [PATCH V2] kasan: use IS_ALIGNED in memory_is_poisoned_8()
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?=C3=96zkan_Pakdil?= <ozkan.pakdil@gmail.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <adech.fo@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>, Michal Marek <mmarek@suse.cz>, "long.wanglong" <long.wanglong@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sun, Sep 13, 2015 at 8:20 PM, =C3=96zkan Pakdil <ozkan.pakdil@gmail.com>=
- wrote:
-> Hello
+2015-09-14 5:09 GMT+03:00 Xishi Qiu <qiuxishi@huawei.com>:
+> Use IS_ALIGNED() to determine whether the shadow span two bytes.
+> It generates less code and more readable. Add some comments in
+> shadow check functions.
 >
-> I was searching some strings in my disk yes I mean whole disk like this
+> Please apply "kasan: fix last shadow judgement in memory_is_poisoned_16()"
+> first.
 >
-> find / -type f -exec grep -sl "access denied" {} \;
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>  mm/kasan/kasan.c | 21 +++++++++++++++++++--
+>  1 file changed, 19 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+> index 8da2114..00d5605 100644
+> --- a/mm/kasan/kasan.c
+> +++ b/mm/kasan/kasan.c
+> @@ -86,6 +86,10 @@ static __always_inline bool memory_is_poisoned_2(unsigned long addr)
+>                 if (memory_is_poisoned_1(addr + 1))
+>                         return true;
+>
+> +               /*
+> +                * If the shadow spans two bytes, the first byte should
+> +                * be zero.
 
-This is a bad idea on many levels.
+Hmm.. I found this comment a bit odd.
 
-1. This is the wrong list for such requests and you're lucky to get any rep=
-ly.
-2. You were searching for 40 hours.  You should optimize the search,
-and narrow it down.  Do this instead:
+How about this:
+/*
+ * If single shadow byte covers 2-byte access,
+ * we don't need to do anything more.
+ * Otherwise, test the first shadow byte.
+ */
 
-find <list-of-directories> -type f | xargs grep -sl "access denied"
-
-where <list-of-directories> excludes /sys, /proc, /dev and other
-directories that it might not make sense to search.
-
-Good luck! :)
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
