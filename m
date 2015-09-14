@@ -1,66 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A13086B025B
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:19:26 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so141555781wic.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:19:26 -0700 (PDT)
-Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com. [2a00:1450:400c:c05::22b])
-        by mx.google.com with ESMTPS id im9si18605614wjb.38.2015.09.14.06.19.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 06:19:25 -0700 (PDT)
-Received: by wicgb1 with SMTP id gb1so141555048wic.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:19:24 -0700 (PDT)
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id E28146B025B
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:22:30 -0400 (EDT)
+Received: by obbzf10 with SMTP id zf10so52448517obb.2
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:22:30 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id q126si1889685oia.45.2015.09.14.06.22.29
+        for <linux-mm@kvack.org>;
+        Mon, 14 Sep 2015 06:22:30 -0700 (PDT)
+Date: Mon, 14 Sep 2015 14:22:30 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: LTP regressions due to 6dc296e7df4c ("mm: make sure all file
+ VMAs have ->vm_ops set")
+Message-ID: <20150914132230.GD23878@arm.com>
+References: <20150914105346.GB23878@arm.com>
+ <20150914115800.06242CE@black.fi.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20150911154730.3a2151a0b111fed01acdaaa1@linux-foundation.org>
-References: <55F23635.1010109@huawei.com>
-	<20150911154730.3a2151a0b111fed01acdaaa1@linux-foundation.org>
-Date: Mon, 14 Sep 2015 16:19:24 +0300
-Message-ID: <CAPAsAGxq8pKuGpmZ9T-JB_3MP+QcTgsUpFOv-0u2a+tqfkej9w@mail.gmail.com>
-Subject: Re: [PATCH] kasan: use IS_ALIGNED in memory_is_poisoned_8()
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150914115800.06242CE@black.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrey Konovalov <adech.fo@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>, Michal Marek <mmarek@suse.cz>, "long.wanglong" <long.wanglong@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "oleg@redhat.com" <oleg@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "luto@amacapital.net" <luto@amacapital.net>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "mingo@elte.hu" <mingo@elte.hu>, "minchan@kernel.org" <minchan@kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-2015-09-12 1:47 GMT+03:00 Andrew Morton <akpm@linux-foundation.org>:
-> On Fri, 11 Sep 2015 10:02:29 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
->> -             if (likely(((addr + 7) & KASAN_SHADOW_MASK) >= 7))
->> +             if (likely(IS_ALIGNED(addr, 8)))
->>                       return false;
->
-> Wouldn't IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE) be more appropriate?
->
-> But I'm not really sure what the original code is trying to do.
->
+On Mon, Sep 14, 2015 at 12:57:59PM +0100, Kirill A. Shutemov wrote:
+> Will Deacon wrote:
+> > Your patch 6dc296e7df4c ("mm: make sure all file VMAs have ->vm_ops set")
+> > causes some mmap regressions in LTP, which appears to use a MAP_PRIVATE
+> > mmap of /dev/zero as a way to get anonymous pages in some of its tests
+> > (specifically mmap10 [1]).
+> > 
+> > Dead simple reproducer below. Is this change in behaviour intentional?
+> 
+> Ouch. Of couse it's a bug.
+> 
+> Fix is below. I don't really like it, but I cannot find any better
+> solution.
 
-Original code is trying to estimate whether we should check 2 shadow
-bytes or just 1 should be enough.
+Brill, thanks for the quick response! I agree that the fix isn't very
+nice. Maybe moving the mmap_zero test into a helper would make it more
+palatable?
 
->         if ((addr + 7) & 7) >= 7)
->
-> can only evaluate true if ((addr + 7) & 7) equals 7, so the ">=" could
-> be "==".
->
+> From 97be4458fd63758b0c233e528bf952d1cd26428e Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Mon, 14 Sep 2015 14:44:32 +0300
+> Subject: [PATCH] mm: fix mmap(MAP_PRIVATE) on /dev/zero
+> 
+> In attempt to make mm less fragile I've screwed up setting up anonymous
+> mappings by mmap() on /dev/zero.
+> 
+> Here's the fix.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Fixes: 6dc296e7df4c ("mm: make sure all file VMAs have ->vm_ops set")
+> Reported-by: Will Deacon <will.deacon@arm.com>
 
-Yes, it could be "==".
-">=" is just for consistency with similar code in memory_is_poisoned_2/4.
+FWIW:
 
-If I'm not mistaken generic formula for such check looks like this:
-        ((addr + size - 1) & KASAN_SHADOW_MASK) >= ((size - 1) &
-KASAN_SHADOW_MASK)
+  Tested-by: Will Deacon <will.deacon@arm.com>
 
-But when size >= KASAN_SHADOW_SCALE_SIZE we could just check for alignment.
+Cheers,
 
-> I think.  The code looks a bit weird.  A code comment would help.
->
-> And how come memory_is_poisoned_16() does IS_ALIGNED(addr, 8)?  Should
-> it be 16?
->
+Will
 
-No, If 16 bytes are 8-byte aligned, then shadow is 2-bytes.
+> ---
+>  drivers/char/mem.c | 2 +-
+>  include/linux/mm.h | 1 +
+>  mm/mmap.c          | 6 ++++--
+>  3 files changed, 6 insertions(+), 3 deletions(-)
+> 
+> diff --git a/drivers/char/mem.c b/drivers/char/mem.c
+> index 6b1721f978c2..c8fe3af4de29 100644
+> --- a/drivers/char/mem.c
+> +++ b/drivers/char/mem.c
+> @@ -651,7 +651,7 @@ static ssize_t read_iter_zero(struct kiocb *iocb, struct iov_iter *iter)
+>  	return written;
+>  }
+>  
+> -static int mmap_zero(struct file *file, struct vm_area_struct *vma)
+> +int mmap_zero(struct file *file, struct vm_area_struct *vma)
+>  {
+>  #ifndef CONFIG_MMU
+>  	return -ENOSYS;
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 91c08f6f0dc9..5e152e9588ec 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1066,6 +1066,7 @@ extern void pagefault_out_of_memory(void);
+>  extern void show_free_areas(unsigned int flags);
+>  extern bool skip_free_areas_node(unsigned int flags, int nid);
+>  
+> +int mmap_zero(struct file *file, struct vm_area_struct *vma);
+>  int shmem_zero_setup(struct vm_area_struct *);
+>  #ifdef CONFIG_SHMEM
+>  bool shmem_mapping(struct address_space *mapping);
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 971dd2cb77d2..7960fd206a2f 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -612,7 +612,9 @@ static unsigned long count_vma_pages_range(struct mm_struct *mm,
+>  void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		struct rb_node **rb_link, struct rb_node *rb_parent)
+>  {
+> -	WARN_ONCE(vma->vm_file && !vma->vm_ops, "missing vma->vm_ops");
+> +	WARN_ONCE(vma->vm_file && !vma->vm_ops &&
+> +			vma->vm_file->f_op->mmap != mmap_zero,
+> +			"missing vma->vm_ops");
+>  
+>  	/* Update tracking information for the gap following the new vma. */
+>  	if (vma->vm_next)
+> @@ -1639,7 +1641,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+>  		WARN_ON_ONCE(addr != vma->vm_start);
+>  
+>  		/* All file mapping must have ->vm_ops set */
+> -		if (!vma->vm_ops) {
+> +		if (!vma->vm_ops && file->f_op->mmap != &mmap_zero) {
+>  			static const struct vm_operations_struct dummy_ops = {};
+>  			vma->vm_ops = &dummy_ops;
+>  		}
+> -- 
+> 2.5.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
