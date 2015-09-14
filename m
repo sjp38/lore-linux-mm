@@ -1,60 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B738C6B0258
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:46:21 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so143614012wic.0
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:21 -0700 (PDT)
-Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
-        by mx.google.com with ESMTPS id bt11si18680657wjb.210.2015.09.14.06.46.20
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 08AC06B0259
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:46:23 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so142663268wic.1
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:22 -0700 (PDT)
+Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
+        by mx.google.com with ESMTPS id uz1si18742568wjc.54.2015.09.14.06.46.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 06:46:20 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so133845184wic.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:20 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Sep 2015 06:46:22 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so133431762wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:21 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 0/7] kasan: various fixes
-Date: Mon, 14 Sep 2015 15:46:01 +0200
-Message-Id: <cover.1442238094.git.andreyknvl@google.com>
+Subject: [PATCH v2 4/7] kasan: update log messages
+Date: Mon, 14 Sep 2015 15:46:05 +0200
+Message-Id: <1b8017c40f905469de9edfab9f1d1b255fd1fac8.1442238094.git.andreyknvl@google.com>
+In-Reply-To: <cover.1442238094.git.andreyknvl@google.com>
+References: <cover.1442238094.git.andreyknvl@google.com>
+In-Reply-To: <cover.1442238094.git.andreyknvl@google.com>
+References: <cover.1442238094.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: dvyukov@google.com, glider@google.com, kcc@google.com, Andrey Konovalov <andreyknvl@google.com>
 
-This patchset contains various fixes for KASAN. That includes:
+We decided to use KASAN as the short name of the tool and
+KernelAddressSanitizer as the full one.
+Update log messages according to that.
 
-1. Improving reported bug types.
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
+ arch/x86/mm/kasan_init_64.c | 2 +-
+ mm/kasan/kasan.c            | 2 +-
+ mm/kasan/report.c           | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
-Making KASAN distinguish and report the following types of bugs:
-slab-out-of-bounds, stack-out-of-bounds, global-out-of-bounds
-use-after-free, null-ptr-deref, user-memory-access, wild-memory-access.
-
-2. Making references to the tool name consistent.
-
-We decided to use KASAN as the short name of the tool since a lot of
-people already use it, and KernelAddressSanitizer as the full name
-to be consistent with the userspace AddressSantizer.
-
-Changes since v1:
-- rebased on top of the latest -mm
-
-Andrey Konovalov (7):
-  kasan: update reported bug types for not user nor kernel memory
-    accesses
-  kasan: update reported bug types for kernel memory accesses
-  kasan: accurately determine the type of the bad access
-  kasan: update log messages
-  kasan: various fixes in documentation
-  kasan: move KASAN_SANITIZE in arch/x86/boot/Makefile
-  kasan: update reference to kasan prototype repo
-
- Documentation/kasan.txt     | 43 +++++++++++-----------
- arch/x86/boot/Makefile      |  4 +-
- arch/x86/mm/kasan_init_64.c |  2 +-
- mm/kasan/kasan.c            | 12 ++----
- mm/kasan/kasan.h            |  3 --
- mm/kasan/report.c           | 89 +++++++++++++++++++++++++--------------------
- 6 files changed, 78 insertions(+), 75 deletions(-)
-
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index 9ce5da2..d470cf2 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -126,5 +126,5 @@ void __init kasan_init(void)
+ 	__flush_tlb_all();
+ 	init_task.kasan_depth = 0;
+ 
+-	pr_info("Kernel address sanitizer initialized\n");
++	pr_info("KernelAddressSanitizer initialized\n");
+ }
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 035f268..61c9620 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -519,7 +519,7 @@ static int kasan_mem_notifier(struct notifier_block *nb,
+ 
+ static int __init kasan_memhotplug_init(void)
+ {
+-	pr_err("WARNING: KASan doesn't support memory hot-add\n");
++	pr_err("WARNING: KASAN doesn't support memory hot-add\n");
+ 	pr_err("Memory hot-add will be disabled\n");
+ 
+ 	hotplug_memory_notifier(kasan_mem_notifier, 0);
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index be53a8f..ae6bd36 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -91,7 +91,7 @@ static void print_error_description(struct kasan_access_info *info)
+ 		break;
+ 	}
+ 
+-	pr_err("BUG: KASan: %s in %pS at addr %p\n",
++	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
+ 		bug_type, (void *)info->ip,
+ 		info->access_addr);
+ 	pr_err("%s of size %zu by task %s/%d\n",
+@@ -224,7 +224,7 @@ static void kasan_report_error(struct kasan_access_info *info)
+ 			bug_type = "user-memory-access";
+ 		else
+ 			bug_type = "wild-memory-access";
+-		pr_err("BUG: KASan: %s on address %p\n",
++		pr_err("BUG: KASAN: %s on address %p\n",
+ 			bug_type, info->access_addr);
+ 		pr_err("%s of size %zu by task %s/%d\n",
+ 			info->is_write ? "Write" : "Read",
 -- 
 2.6.0.rc0.131.gf624c3d
 
