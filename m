@@ -1,221 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A9DAB6B0255
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 15:32:23 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so146270422wic.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 12:32:23 -0700 (PDT)
-Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
-        by mx.google.com with ESMTPS id jc9si20668691wjb.143.2015.09.14.12.32.22
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FD5A6B0257
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 15:32:28 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so145772822wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 12:32:28 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
+        by mx.google.com with ESMTPS id e11si20709178wjs.28.2015.09.14.12.32.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 12:32:22 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so156606149wic.0
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 12:32:22 -0700 (PDT)
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: [RFC v5 3/3] mm: make swapin readahead to improve thp collapse rate
-Date: Mon, 14 Sep 2015 22:31:45 +0300
-Message-Id: <1442259105-4420-4-git-send-email-ebru.akagunduz@gmail.com>
-In-Reply-To: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
-References: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
+        Mon, 14 Sep 2015 12:32:27 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so146272283wic.1
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 12:32:26 -0700 (PDT)
+Date: Mon, 14 Sep 2015 21:32:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/3] memcg: ratify and consolidate over-charge handling
+Message-ID: <20150914193225.GA26273@dhcp22.suse.cz>
+References: <20150913201416.GC25369@htj.duckdns.org>
+ <20150913201442.GD25369@htj.duckdns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150913201442.GD25369@htj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
 
-This patch makes swapin readahead to improve thp collapse rate.
-When khugepaged scanned pages, there can be a few of the pages
-in swap area.
+On Sun 13-09-15 16:14:42, Tejun Heo wrote:
+> try_charge() is the main charging logic of memcg.  When it hits the
+> limit but either can't fail the allocation due to __GFP_NOFAIL or the
+> task is likely to free memory very soon, being OOM killed, has SIGKILL
+> pending or exiting, it "bypasses" the charge to the root memcg and
+> returns -EINTR.  While this is one approach which can be taken for
+> these situations, it has several issues.
+> 
+> * It unnecessarily lies about the reality.  The number itself doesn't
+>   go over the limit but the actual usage does.  memcg is either forced
+>   to or actively chooses to go over the limit because that is the
+>   right behavior under the circumstances, which is completely fine,
+>   but, if at all avoidable, it shouldn't be misrepresenting what's
+>   happening by sneaking the charges into the root memcg.
+> 
+> * Despite trying, we already do over-charge.  kmemcg can't deal with
+>   switching over to the root memcg by the point try_charge() returns
+>   -EINTR, so it open-codes over-charing.
+> 
+> * It complicates the callers.  Each try_charge() user has to handle
+>   the weird -EINTR exception.  memcg_charge_kmem() does the manual
+>   over-charging.  mem_cgroup_do_precharge() performs unnecessary
+>   uncharging of root memcg, which BTW is inconsistent with what
+>   memcg_charge_kmem() does. 
 
-With the patch THP can collapse 4kB pages into a THP when
-there are up to max_ptes_swap swap ptes in a 2MB range.
+This is a left over from ce00a967377b ("mm: memcontrol: revert use of
+root_mem_cgroup res_counter")
 
-The patch was tested with a test program that allocates
-400B of memory, writes to it, and then sleeps. I force
-the system to swap out all. Afterwards, the test program
-touches the area by writing, it skips a page in each
-20 pages of the area.
+>   mem_cgroup_try_charge() needs to switch
+>   the returned cgroup to the root one.
+> 
+> The reality is that in memcg there are cases where we are forced
+> and/or willing to go over the limit.  Each such case needs to be
+> scrutinized and justified but there definitely are situations where
+> that is the right thing to do.  We alredy do this but with a
+> superficial and inconsistent disguise which leads to unnecessary
+> complications.
+>
+> This patch updates try_charge() so that it over-charges and returns 0
+> when deemed necessary.  -EINTR return is removed along with all
+> special case handling in the callers.
 
-Without the patch, system did not swap in readahead.
-THP rate was %65 of the program of the memory, it
-did not change over time.
+OK the code is easier in the end, although I would argue that try_charge
+could return ENOMEM for GFP_NOWAIT instead of overcharging (this would
+e.g. allow precharge to bail out earlier). Something for a separate patch I
+guess.
 
-With this patch, after 10 minutes of waiting khugepaged had
-collapsed %99 of the program's memory.
+Anyway I still do not like usage > max/hard limit presented to userspace
+because it looks like a clear breaking of max/hard limit semantic. I
+realize that we cannot solve the underlying problem easily or it might
+be unfeasible but we should consider how to present this state to the
+userspace.
+We have basically 2 options AFAICS. We can either document that a
+_temporal_ breach of the max/hard limit is allowed or we can hide this
+fact and always present max(current,max).
+The first one might be better for an easier debugging and it is also
+more honest about the current state but the definition of the hard limit
+is a bit weird. It also exposes implementation details to the userspace.
+The other choice is clearly lying but users shouldn't care about the
+implementation details and if the state is really temporal then the
+userspace shouldn't even notice. There is also a risk that somebody is
+already depending on current < max which happened to work without kmem
+until now.
 
-Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Acked-by: Rik van Riel <riel@redhat.com>
----
-Changes in v2:
- - Use FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT flag
-   instead of 0x0 when called do_swap_page from
-   __collapse_huge_page_swapin (Rik van Riel)
+This is something to be solved in a separate patch I guess but we
+should think about that. I am not entirely clear on that myself but I am
+more inclined to the first option and simply document the potential
+corner case and temporal breach.
 
-Changes in v3:
- - Catch VM_FAULT_HWPOISON and VM_FAULT_OOM return cases
-   in __collapse_huge_page_swapin (Kirill A. Shutemov)
+> While at it, remove the local variable @ret, which was initialized to
+> zero and never changed, along with done: label which just returned the
+> always zero @ret.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
 
-Changes in v4:
- - Fix broken indentation reverting if (...) statement in
-   __collapse_huge_page_swapin (Kirill A. Shutemov)
- - Fix check statement of ret (Kirill A. Shutemov)
- - Use swapped_in name instead of swap_pte
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Changes in v5:
- - Export do_swap_page in mm/internal.h instead outside
-   of mm (Vlastimil Babka)
+> ---
+>  mm/memcontrol.c |   69 ++++++++++++++++----------------------------------------
+>  1 file changed, 20 insertions(+), 49 deletions(-)
+> 
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1999,13 +1999,12 @@ static int try_charge(struct mem_cgroup
+>  	unsigned long nr_reclaimed;
+>  	bool may_swap = true;
+>  	bool drained = false;
+> -	int ret = 0;
+>  
+>  	if (mem_cgroup_is_root(memcg))
+> -		goto done;
+> +		return 0;
+>  retry:
+>  	if (consume_stock(memcg, nr_pages))
+> -		goto done;
+> +		return 0;
+>  
+>  	if (!do_swap_account ||
+>  	    !page_counter_try_charge(&memcg->memsw, batch, &counter)) {
+> @@ -2033,7 +2032,7 @@ retry:
+>  	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
+>  		     fatal_signal_pending(current) ||
+>  		     current->flags & PF_EXITING))
+> -		goto bypass;
+> +		goto force;
+>  
+>  	if (unlikely(task_in_memcg_oom(current)))
+>  		goto nomem;
+> @@ -2079,10 +2078,10 @@ retry:
+>  		goto retry;
+>  
+>  	if (gfp_mask & __GFP_NOFAIL)
+> -		goto bypass;
+> +		goto force;
+>  
+>  	if (fatal_signal_pending(current))
+> -		goto bypass;
+> +		goto force;
+>  
+>  	mem_cgroup_events(mem_over_limit, MEMCG_OOM, 1);
+>  
+> @@ -2090,8 +2089,18 @@ retry:
+>  nomem:
+>  	if (!(gfp_mask & __GFP_NOFAIL))
+>  		return -ENOMEM;
+> -bypass:
+> -	return -EINTR;
+> +force:
+> +	/*
+> +	 * The allocation either can't fail or will lead to more memory
+> +	 * being freed very soon.  Allow memory usage go over the limit
+> +	 * temporarily by force charging it.
+> +	 */
+> +	page_counter_charge(&memcg->memory, nr_pages);
+> +	if (do_swap_account)
+> +		page_counter_charge(&memcg->memsw, nr_pages);
+> +	css_get_many(&memcg->css, nr_pages);
+> +
+> +	return 0;
+>  
+>  done_restock:
+>  	css_get_many(&memcg->css, batch);
+> @@ -2114,8 +2123,8 @@ done_restock:
+>  			break;
+>  		}
+>  	} while ((memcg = parent_mem_cgroup(memcg)));
+> -done:
+> -	return ret;
+> +
+> +	return 0;
+>  }
+>  
+>  static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
+> @@ -2207,28 +2216,7 @@ int memcg_charge_kmem(struct mem_cgroup
+>  		return ret;
+>  
+>  	ret = try_charge(memcg, gfp, nr_pages);
+> -	if (ret == -EINTR)  {
+> -		/*
+> -		 * try_charge() chose to bypass to root due to OOM kill or
+> -		 * fatal signal.  Since our only options are to either fail
+> -		 * the allocation or charge it to this cgroup, do it as a
+> -		 * temporary condition. But we can't fail. From a kmem/slab
+> -		 * perspective, the cache has already been selected, by
+> -		 * mem_cgroup_kmem_get_cache(), so it is too late to change
+> -		 * our minds.
+> -		 *
+> -		 * This condition will only trigger if the task entered
+> -		 * memcg_charge_kmem in a sane state, but was OOM-killed
+> -		 * during try_charge() above. Tasks that were already dying
+> -		 * when the allocation triggers should have been already
+> -		 * directed to the root cgroup in memcontrol.h
+> -		 */
+> -		page_counter_charge(&memcg->memory, nr_pages);
+> -		if (do_swap_account)
+> -			page_counter_charge(&memcg->memsw, nr_pages);
+> -		css_get_many(&memcg->css, nr_pages);
+> -		ret = 0;
+> -	} else if (ret)
+> +	if (ret)
+>  		page_counter_uncharge(&memcg->kmem, nr_pages);
+>  
+>  	return ret;
+> @@ -4433,22 +4421,10 @@ static int mem_cgroup_do_precharge(unsig
+>  		mc.precharge += count;
+>  		return ret;
+>  	}
+> -	if (ret == -EINTR) {
+> -		cancel_charge(root_mem_cgroup, count);
+> -		return ret;
+> -	}
+>  
+>  	/* Try charges one by one with reclaim */
+>  	while (count--) {
+>  		ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_NORETRY, 1);
+> -		/*
+> -		 * In case of failure, any residual charges against
+> -		 * mc.to will be dropped by mem_cgroup_clear_mc()
+> -		 * later on.  However, cancel any charges that are
+> -		 * bypassed to root right away or they'll be lost.
+> -		 */
+> -		if (ret == -EINTR)
+> -			cancel_charge(root_mem_cgroup, 1);
+>  		if (ret)
+>  			return ret;
+>  		mc.precharge++;
+> @@ -5353,11 +5329,6 @@ int mem_cgroup_try_charge(struct page *p
+>  	ret = try_charge(memcg, gfp_mask, nr_pages);
+>  
+>  	css_put(&memcg->css);
+> -
+> -	if (ret == -EINTR) {
+> -		memcg = root_mem_cgroup;
+> -		ret = 0;
+> -	}
+>  out:
+>  	*memcgp = memcg;
+>  	return ret;
 
-Test results:
-
-                        After swapped out
--------------------------------------------------------------------
-              | Anonymous | AnonHugePages | Swap      | Fraction  |
--------------------------------------------------------------------
-With patch    | 90076 kB    | 88064 kB    | 309928 kB |    %99    |
--------------------------------------------------------------------
-Without patch | 194068 kB | 192512 kB     | 205936 kB |    %99    |
--------------------------------------------------------------------
-
-                        After swapped in
--------------------------------------------------------------------
-              | Anonymous | AnonHugePages | Swap      | Fraction  |
--------------------------------------------------------------------
-With patch    | 201408 kB | 198656 kB     | 198596 kB |    %98    |
--------------------------------------------------------------------
-Without patch | 292624 kB | 192512 kB     | 107380 kB |    %65    |
--------------------------------------------------------------------
-
- include/trace/events/huge_memory.h | 24 +++++++++++++++++++++
- mm/huge_memory.c                   | 43 ++++++++++++++++++++++++++++++++++++++
- mm/internal.h                      |  4 ++++
- mm/memory.c                        |  2 +-
- 4 files changed, 72 insertions(+), 1 deletion(-)
-
-diff --git a/include/trace/events/huge_memory.h b/include/trace/events/huge_memory.h
-index 153274c..1efc7f1 100644
---- a/include/trace/events/huge_memory.h
-+++ b/include/trace/events/huge_memory.h
-@@ -136,6 +136,30 @@ TRACE_EVENT(mm_collapse_huge_page_isolate,
- 		__print_symbolic(__entry->status, SCAN_STATUS))
- );
- 
-+TRACE_EVENT(mm_collapse_huge_page_swapin,
-+
-+	TP_PROTO(struct mm_struct *mm, int swapped_in, int ret),
-+
-+	TP_ARGS(mm, swapped_in, ret),
-+
-+	TP_STRUCT__entry(
-+		__field(struct mm_struct *, mm)
-+		__field(int, swapped_in)
-+		__field(int, ret)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->mm = mm;
-+		__entry->swapped_in = swapped_in;
-+		__entry->ret = ret;
-+	),
-+
-+	TP_printk("mm=%p, swapped_in=%d, ret=%d",
-+		__entry->mm,
-+		__entry->swapped_in,
-+		__entry->ret)
-+);
-+
- #endif /* __HUGE_MEMORY_H */
- #include <trace/define_trace.h>
- 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 049b0db..e83f20a 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2584,6 +2584,47 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
- 	return true;
- }
- 
-+/*
-+ * Bring missing pages in from swap, to complete THP collapse.
-+ * Only done if khugepaged_scan_pmd believes it is worthwhile.
-+ *
-+ * Called and returns without pte mapped or spinlocks held,
-+ * but with mmap_sem held to protect against vma changes.
-+ */
-+
-+static void __collapse_huge_page_swapin(struct mm_struct *mm,
-+					struct vm_area_struct *vma,
-+					unsigned long address, pmd_t *pmd,
-+					pte_t *pte)
-+{
-+	unsigned long _address;
-+	pte_t pteval = *pte;
-+	int swapped_in = 0, ret = 0;
-+
-+	pte = pte_offset_map(pmd, address);
-+	for (_address = address; _address < address + HPAGE_PMD_NR*PAGE_SIZE;
-+	     pte++, _address += PAGE_SIZE) {
-+		pteval = *pte;
-+		if (!is_swap_pte(pteval))
-+			continue;
-+		swapped_in++;
-+		ret = do_swap_page(mm, vma, _address, pte, pmd,
-+				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
-+				   pteval);
-+		if (ret & VM_FAULT_ERROR) {
-+			trace_mm_collapse_huge_page_swapin(mm, swapped_in, 0);
-+			return;
-+		}
-+		/* pte is unmapped now, we need to map it */
-+		pte = pte_offset_map(pmd, _address);
-+	}
-+	pte--;
-+	pte_unmap(pte);
-+	trace_mm_collapse_huge_page_swapin(mm, swapped_in, 1);
-+}
-+
-+
-+
- static void collapse_huge_page(struct mm_struct *mm,
- 				   unsigned long address,
- 				   struct page **hpage,
-@@ -2655,6 +2696,8 @@ static void collapse_huge_page(struct mm_struct *mm,
- 
- 	anon_vma_lock_write(vma->anon_vma);
- 
-+	__collapse_huge_page_swapin(mm, vma, address, pmd, pte);
-+
- 	pte = pte_offset_map(pmd, address);
- 	pte_ptl = pte_lockptr(mm, pmd);
- 
-diff --git a/mm/internal.h b/mm/internal.h
-index bc0fa9a..867ea14 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -14,6 +14,10 @@
- #include <linux/fs.h>
- #include <linux/mm.h>
- 
-+extern int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+			unsigned long address, pte_t *page_table, pmd_t *pmd,
-+			unsigned int flags, pte_t orig_pte);
-+
- void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
- 		unsigned long floor, unsigned long ceiling);
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 9cb2747..caecc64 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2441,7 +2441,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
-  * We return with the mmap_sem locked or unlocked in the same cases
-  * as does filemap_fault().
-  */
--static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pte_t *page_table, pmd_t *pmd,
- 		unsigned int flags, pte_t orig_pte)
- {
 -- 
-1.9.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
