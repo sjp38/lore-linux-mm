@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 08AC06B0259
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:46:23 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so142663268wic.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:22 -0700 (PDT)
-Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
-        by mx.google.com with ESMTPS id uz1si18742568wjc.54.2015.09.14.06.46.21
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 58F9D6B025F
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:46:25 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so141043677wic.1
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:24 -0700 (PDT)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id gk10si18724853wjb.110.2015.09.14.06.46.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 14 Sep 2015 06:46:22 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so133431762wic.0
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:21 -0700 (PDT)
+Received: by wicge5 with SMTP id ge5so143614604wic.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:46:22 -0700 (PDT)
 From: Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v2 4/7] kasan: update log messages
-Date: Mon, 14 Sep 2015 15:46:05 +0200
-Message-Id: <1b8017c40f905469de9edfab9f1d1b255fd1fac8.1442238094.git.andreyknvl@google.com>
+Subject: [PATCH v2 3/7] kasan: accurately determine the type of the bad access
+Date: Mon, 14 Sep 2015 15:46:04 +0200
+Message-Id: <7a7cd737b0dd19b9f956df4fba6b6dbff964ddbd.1442238094.git.andreyknvl@google.com>
 In-Reply-To: <cover.1442238094.git.andreyknvl@google.com>
 References: <cover.1442238094.git.andreyknvl@google.com>
 In-Reply-To: <cover.1442238094.git.andreyknvl@google.com>
@@ -24,63 +24,49 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: dvyukov@google.com, glider@google.com, kcc@google.com, Andrey Konovalov <andreyknvl@google.com>
 
-We decided to use KASAN as the short name of the tool and
-KernelAddressSanitizer as the full one.
-Update log messages according to that.
+Makes KASAN accurately determine the type of the bad access. If the shadow
+byte value is in the [0, KASAN_SHADOW_SCALE_SIZE) range we can look at
+the next shadow byte to determine the type of the access.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/x86/mm/kasan_init_64.c | 2 +-
- mm/kasan/kasan.c            | 2 +-
- mm/kasan/report.c           | 4 ++--
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ mm/kasan/report.c | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index 9ce5da2..d470cf2 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -126,5 +126,5 @@ void __init kasan_init(void)
- 	__flush_tlb_all();
- 	init_task.kasan_depth = 0;
- 
--	pr_info("Kernel address sanitizer initialized\n");
-+	pr_info("KernelAddressSanitizer initialized\n");
- }
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 035f268..61c9620 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -519,7 +519,7 @@ static int kasan_mem_notifier(struct notifier_block *nb,
- 
- static int __init kasan_memhotplug_init(void)
- {
--	pr_err("WARNING: KASan doesn't support memory hot-add\n");
-+	pr_err("WARNING: KASAN doesn't support memory hot-add\n");
- 	pr_err("Memory hot-add will be disabled\n");
- 
- 	hotplug_memory_notifier(kasan_mem_notifier, 0);
 diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index be53a8f..ae6bd36 100644
+index cdf4c31..be53a8f 100644
 --- a/mm/kasan/report.c
 +++ b/mm/kasan/report.c
-@@ -91,7 +91,7 @@ static void print_error_description(struct kasan_access_info *info)
- 		break;
- 	}
+@@ -50,15 +50,26 @@ static const void *find_first_bad_addr(const void *addr, size_t size)
+ static void print_error_description(struct kasan_access_info *info)
+ {
+ 	const char *bug_type = "unknown-crash";
+-	u8 shadow_val;
++	u8 *shadow_addr;
  
--	pr_err("BUG: KASan: %s in %pS at addr %p\n",
-+	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
- 		bug_type, (void *)info->ip,
- 		info->access_addr);
- 	pr_err("%s of size %zu by task %s/%d\n",
-@@ -224,7 +224,7 @@ static void kasan_report_error(struct kasan_access_info *info)
- 			bug_type = "user-memory-access";
- 		else
- 			bug_type = "wild-memory-access";
--		pr_err("BUG: KASan: %s on address %p\n",
-+		pr_err("BUG: KASAN: %s on address %p\n",
- 			bug_type, info->access_addr);
- 		pr_err("%s of size %zu by task %s/%d\n",
- 			info->is_write ? "Write" : "Read",
+ 	info->first_bad_addr = find_first_bad_addr(info->access_addr,
+ 						info->access_size);
+ 
+-	shadow_val = *(u8 *)kasan_mem_to_shadow(info->first_bad_addr);
++	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
+ 
+-	switch (shadow_val) {
++	/*
++	 * If shadow byte value is in [0, KASAN_SHADOW_SCALE_SIZE) we can look
++	 * at the next shadow byte to determine the type of the bad access.
++	 */
++	if (*shadow_addr > 0 && *shadow_addr <= KASAN_SHADOW_SCALE_SIZE - 1)
++		shadow_addr++;
++
++	switch (*shadow_addr) {
+ 	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
++		/*
++		 * In theory it's still possible to see these shadow values
++		 * due to a data race in the kernel code.
++		 */
+ 		bug_type = "out-of-bounds";
+ 		break;
+ 	case KASAN_PAGE_REDZONE:
 -- 
 2.6.0.rc0.131.gf624c3d
 
