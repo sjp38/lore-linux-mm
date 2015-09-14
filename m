@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 3255F6B025D
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:51:38 -0400 (EDT)
-Received: by lagj9 with SMTP id j9so88318086lag.2
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:51:37 -0700 (PDT)
-Received: from mail-la0-x22c.google.com (mail-la0-x22c.google.com. [2a00:1450:4010:c03::22c])
-        by mx.google.com with ESMTPS id m6si9772912lah.100.2015.09.14.06.51.36
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id EE2A86B0260
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 09:55:29 -0400 (EDT)
+Received: by lahg1 with SMTP id g1so57447514lah.1
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:55:29 -0700 (PDT)
+Received: from mail-lb0-x22e.google.com (mail-lb0-x22e.google.com. [2a00:1450:4010:c04::22e])
+        by mx.google.com with ESMTPS id m7si9238942lbd.21.2015.09.14.06.55.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 06:51:36 -0700 (PDT)
-Received: by lanb10 with SMTP id b10so86833840lan.3
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:51:36 -0700 (PDT)
-Date: Mon, 14 Sep 2015 15:51:34 +0200
+        Mon, 14 Sep 2015 06:55:28 -0700 (PDT)
+Received: by lbcjc2 with SMTP id jc2so67727601lbc.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 06:55:27 -0700 (PDT)
+Date: Mon, 14 Sep 2015 15:55:21 +0200
 From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH 2/3] zpool/zsmalloc/zbud: align on interfaces
-Message-Id: <20150914155134.032ebb89e287bd0db59ba603@gmail.com>
+Subject: [PATCH 3/3] zram: use common zpool interface
+Message-Id: <20150914155521.8b5ccc16b09e09d885a9ce5a@gmail.com>
 In-Reply-To: <20150914154901.92c5b7b24e15f04d8204de18@gmail.com>
 References: <20150914154901.92c5b7b24e15f04d8204de18@gmail.com>
 Mime-Version: 1.0
@@ -25,237 +25,213 @@ List-ID: <linux-mm.kvack.org>
 To: minchan@kernel.org, sergey.senozhatsky@gmail.com, ddstreet@ieee.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-As a preparation step for zram to be able to use common zpool API,
-there has to be some alignment done on it. This patch adds
-functions that correspond to zsmalloc-specific API to the common
-zpool API and takes care of the callbacks that have to be
-introduced, too.
+Update zram driver to use common zpool API instead of calling
+zsmalloc functions directly. This patch also adds a parameter
+that allows for changing underlying compressor storage to zbud.
 
 Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
 ---
- drivers/block/zram/zram_drv.c |  4 ++--
- include/linux/zpool.h         | 14 ++++++++++++++
- include/linux/zsmalloc.h      |  8 ++------
- mm/zbud.c                     | 12 ++++++++++++
- mm/zpool.c                    | 22 ++++++++++++++++++++++
- mm/zsmalloc.c                 | 23 ++++++++++++++++++++---
- 6 files changed, 72 insertions(+), 11 deletions(-)
+ drivers/block/zram/Kconfig    |  3 ++-
+ drivers/block/zram/zram_drv.c | 44 ++++++++++++++++++++++++-------------------
+ drivers/block/zram/zram_drv.h |  4 ++--
+ 3 files changed, 29 insertions(+), 22 deletions(-)
 
+diff --git a/drivers/block/zram/Kconfig b/drivers/block/zram/Kconfig
+index 386ba3d..4831d0a 100644
+--- a/drivers/block/zram/Kconfig
++++ b/drivers/block/zram/Kconfig
+@@ -1,6 +1,7 @@
+ config ZRAM
+ 	tristate "Compressed RAM block device support"
+-	depends on BLOCK && SYSFS && ZSMALLOC
++	depends on BLOCK && SYSFS
++	select ZPOOL
+ 	select LZO_COMPRESS
+ 	select LZO_DECOMPRESS
+ 	default n
 diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 6d9f1d1..49d5a65 100644
+index 49d5a65..2829c3d 100644
 --- a/drivers/block/zram/zram_drv.c
 +++ b/drivers/block/zram/zram_drv.c
-@@ -427,12 +427,12 @@ static ssize_t mm_stat_show(struct device *dev,
- 		struct device_attribute *attr, char *buf)
- {
- 	struct zram *zram = dev_to_zram(dev);
--	struct zs_pool_stats pool_stats;
-+	struct zpool_stats pool_stats;
- 	u64 orig_size, mem_used = 0;
- 	long max_used;
- 	ssize_t ret;
+@@ -44,6 +44,9 @@ static const char *default_compressor = "lzo";
+ static unsigned int num_devices = 1;
+ static size_t max_zpage_size = PAGE_SIZE / 4 * 3;
  
--	memset(&pool_stats, 0x00, sizeof(struct zs_pool_stats));
-+	memset(&pool_stats, 0x00, sizeof(struct zpool_stats));
++#define ZRAM_ZPOOL_DEFAULT "zsmalloc"
++static char *pool_type = ZRAM_ZPOOL_DEFAULT;
++
+ static inline void deprecated_attr_warn(const char *name)
+ {
+ 	pr_warn_once("%d (%s) Attribute %s (and others) will be removed. %s\n",
+@@ -229,11 +232,11 @@ static ssize_t mem_used_total_show(struct device *dev,
+ 	down_read(&zram->init_lock);
+ 	if (init_done(zram)) {
+ 		struct zram_meta *meta = zram->meta;
+-		val = zs_get_total_pages(meta->mem_pool);
++		val = zpool_get_total_size(meta->mem_pool);
+ 	}
+ 	up_read(&zram->init_lock);
+ 
+-	return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
++	return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
+ }
+ 
+ static ssize_t mem_limit_show(struct device *dev,
+@@ -298,7 +301,7 @@ static ssize_t mem_used_max_store(struct device *dev,
+ 	if (init_done(zram)) {
+ 		struct zram_meta *meta = zram->meta;
+ 		atomic_long_set(&zram->stats.max_used_pages,
+-				zs_get_total_pages(meta->mem_pool));
++			zpool_get_total_size(meta->mem_pool) >> PAGE_SHIFT);
+ 	}
+ 	up_read(&zram->init_lock);
+ 
+@@ -399,7 +402,7 @@ static ssize_t compact_store(struct device *dev,
+ 	}
+ 
+ 	meta = zram->meta;
+-	zs_compact(meta->mem_pool);
++	zpool_compact(meta->mem_pool, NULL);
+ 	up_read(&zram->init_lock);
+ 
+ 	return len;
+@@ -436,8 +439,8 @@ static ssize_t mm_stat_show(struct device *dev,
  
  	down_read(&zram->init_lock);
  	if (init_done(zram)) {
-diff --git a/include/linux/zpool.h b/include/linux/zpool.h
-index 42f8ec9..f64cf86 100644
---- a/include/linux/zpool.h
-+++ b/include/linux/zpool.h
-@@ -17,6 +17,11 @@ struct zpool_ops {
- 	int (*evict)(struct zpool *pool, unsigned long handle);
- };
+-		mem_used = zs_get_total_pages(zram->meta->mem_pool);
+-		zs_pool_stats(zram->meta->mem_pool, &pool_stats);
++		mem_used = zpool_get_total_size(zram->meta->mem_pool);
++		zpool_stats(zram->meta->mem_pool, &pool_stats);
+ 	}
  
-+struct zpool_stats {
-+	/* How many pages were migrated (freed) */
-+	unsigned long pages_compacted;
-+};
-+
- /*
-  * Control how a handle is mapped.  It will be ignored if the
-  * implementation does not support it.  Its use is optional.
-@@ -58,6 +63,10 @@ void *zpool_map_handle(struct zpool *pool, unsigned long handle,
+ 	orig_size = atomic64_read(&zram->stats.pages_stored);
+@@ -447,7 +450,7 @@ static ssize_t mm_stat_show(struct device *dev,
+ 			"%8llu %8llu %8llu %8lu %8ld %8llu %8lu\n",
+ 			orig_size << PAGE_SHIFT,
+ 			(u64)atomic64_read(&zram->stats.compr_data_size),
+-			mem_used << PAGE_SHIFT,
++			mem_used,
+ 			zram->limit_pages << PAGE_SHIFT,
+ 			max_used << PAGE_SHIFT,
+ 			(u64)atomic64_read(&zram->stats.zero_pages),
+@@ -492,10 +495,10 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
+ 		if (!handle)
+ 			continue;
  
- void zpool_unmap_handle(struct zpool *pool, unsigned long handle);
+-		zs_free(meta->mem_pool, handle);
++		zpool_free(meta->mem_pool, handle);
+ 	}
  
-+int zpool_compact(struct zpool *pool, unsigned long *compacted);
-+
-+void zpool_stats(struct zpool *pool, struct zpool_stats *zstats);
-+
- u64 zpool_get_total_size(struct zpool *pool);
+-	zs_destroy_pool(meta->mem_pool);
++	zpool_destroy_pool(meta->mem_pool);
+ 	vfree(meta->table);
+ 	kfree(meta);
+ }
+@@ -515,7 +518,8 @@ static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
+ 		goto out_error;
+ 	}
  
+-	meta->mem_pool = zs_create_pool(pool_name, GFP_NOIO | __GFP_HIGHMEM);
++	meta->mem_pool = zpool_create_pool(pool_type, pool_name,
++			GFP_NOIO | __GFP_HIGHMEM, NULL);
+ 	if (!meta->mem_pool) {
+ 		pr_err("Error creating memory pool\n");
+ 		goto out_error;
+@@ -551,7 +555,7 @@ static void zram_free_page(struct zram *zram, size_t index)
+ 		return;
+ 	}
  
-@@ -72,6 +81,8 @@ u64 zpool_get_total_size(struct zpool *pool);
-  * @shrink:	shrink the pool.
-  * @map:	map a handle.
-  * @unmap:	unmap a handle.
-+ * @compact:	try to run compaction for the pool
-+ * @stats:	get statistics for the pool
-  * @total_size:	get total size of a pool.
-  *
-  * This is created by a zpool implementation and registered
-@@ -98,6 +109,9 @@ struct zpool_driver {
- 				enum zpool_mapmode mm);
- 	void (*unmap)(void *pool, unsigned long handle);
+-	zs_free(meta->mem_pool, handle);
++	zpool_free(meta->mem_pool, handle);
  
-+	int (*compact)(void *pool, unsigned long *compacted);
-+	void (*stats)(void *pool, struct zpool_stats *stats);
-+
- 	u64 (*total_size)(void *pool);
- };
+ 	atomic64_sub(zram_get_obj_size(meta, index),
+ 			&zram->stats.compr_data_size);
+@@ -579,12 +583,12 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
+ 		return 0;
+ 	}
  
-diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
-index 6398dfa..5aee1c7 100644
---- a/include/linux/zsmalloc.h
-+++ b/include/linux/zsmalloc.h
-@@ -15,6 +15,7 @@
- #define _ZS_MALLOC_H_
+-	cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_RO);
++	cmem = zpool_map_handle(meta->mem_pool, handle, ZPOOL_MM_RO);
+ 	if (size == PAGE_SIZE)
+ 		copy_page(mem, cmem);
+ 	else
+ 		ret = zcomp_decompress(zram->comp, cmem, size, mem);
+-	zs_unmap_object(meta->mem_pool, handle);
++	zpool_unmap_handle(meta->mem_pool, handle);
+ 	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
  
- #include <linux/types.h>
+ 	/* Should NEVER happen. Return bio error if it does. */
+@@ -718,24 +722,24 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 			src = uncmem;
+ 	}
+ 
+-	handle = zs_malloc(meta->mem_pool, clen);
+-	if (!handle) {
++	if (zpool_malloc(meta->mem_pool, clen, __GFP_IO | __GFP_NOWARN,
++			&handle) != 0) {
+ 		pr_err("Error allocating memory for compressed page: %u, size=%zu\n",
+ 			index, clen);
+ 		ret = -ENOMEM;
+ 		goto out;
+ 	}
+ 
+-	alloced_pages = zs_get_total_pages(meta->mem_pool);
++	alloced_pages = zpool_get_total_size(meta->mem_pool) >> PAGE_SHIFT;
+ 	if (zram->limit_pages && alloced_pages > zram->limit_pages) {
+-		zs_free(meta->mem_pool, handle);
++		zpool_free(meta->mem_pool, handle);
+ 		ret = -ENOMEM;
+ 		goto out;
+ 	}
+ 
+ 	update_used_max(zram, alloced_pages);
+ 
+-	cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
++	cmem = zpool_map_handle(meta->mem_pool, handle, ZPOOL_MM_WO);
+ 
+ 	if ((clen == PAGE_SIZE) && !is_partial_io(bvec)) {
+ 		src = kmap_atomic(page);
+@@ -747,7 +751,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 
+ 	zcomp_strm_release(zram->comp, zstrm);
+ 	zstrm = NULL;
+-	zs_unmap_object(meta->mem_pool, handle);
++	zpool_unmap_handle(meta->mem_pool, handle);
+ 
+ 	/*
+ 	 * Free memory associated with this sector
+@@ -1457,6 +1461,8 @@ module_param(num_devices, uint, 0);
+ MODULE_PARM_DESC(num_devices, "Number of pre-created zram devices");
+ module_param(max_zpage_size, ulong, 0);
+ MODULE_PARM_DESC(max_zpage_size, "Threshold for storing compressed pages");
++module_param_named(zpool_type, pool_type, charp, 0444);
++MODULE_PARM_DESC(zpool_type, "zpool implementation selection (zsmalloc vs zbud)");
+ 
+ MODULE_LICENSE("Dual BSD/GPL");
+ MODULE_AUTHOR("Nitin Gupta <ngupta@vflare.org>");
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index 3a29c33..9a64b94 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -16,7 +16,7 @@
+ #define _ZRAM_DRV_H_
+ 
+ #include <linux/spinlock.h>
+-#include <linux/zsmalloc.h>
 +#include <linux/zpool.h>
  
- /*
-  * zsmalloc mapping modes
-@@ -34,11 +35,6 @@ enum zs_mapmode {
- 	 */
+ #include "zcomp.h"
+ 
+@@ -73,7 +73,7 @@ struct zram_stats {
+ 
+ struct zram_meta {
+ 	struct zram_table_entry *table;
+-	struct zs_pool *mem_pool;
++	struct zpool *mem_pool;
  };
  
--struct zs_pool_stats {
--	/* How many pages were migrated (freed) */
--	unsigned long pages_compacted;
--};
--
- struct zs_pool;
- 
- struct zs_pool *zs_create_pool(char *name, gfp_t flags);
-@@ -54,5 +50,5 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
- unsigned long zs_get_total_pages(struct zs_pool *pool);
- unsigned long zs_compact(struct zs_pool *pool);
- 
--void zs_pool_stats(struct zs_pool *pool, struct zs_pool_stats *stats);
-+void zs_pool_stats(struct zs_pool *pool, struct zpool_stats *stats);
- #endif
-diff --git a/mm/zbud.c b/mm/zbud.c
-index fa48bcdf..0963342 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -195,6 +195,16 @@ static void zbud_zpool_unmap(void *pool, unsigned long handle)
- 	zbud_unmap(pool, handle);
- }
- 
-+static int zbud_zpool_compact(void *pool, unsigned long *compacted)
-+{
-+	return -EINVAL;
-+}
-+
-+static void zbud_zpool_stats(void *pool, struct zpool_stats *stats)
-+{
-+	/* no-op */
-+}
-+
- static u64 zbud_zpool_total_size(void *pool)
- {
- 	return zbud_get_pool_size(pool) * PAGE_SIZE;
-@@ -210,6 +220,8 @@ static struct zpool_driver zbud_zpool_driver = {
- 	.shrink =	zbud_zpool_shrink,
- 	.map =		zbud_zpool_map,
- 	.unmap =	zbud_zpool_unmap,
-+	.compact =	zbud_zpool_compact,
-+	.stats =	zbud_zpool_stats,
- 	.total_size =	zbud_zpool_total_size,
- };
- 
-diff --git a/mm/zpool.c b/mm/zpool.c
-index 8f670d3..15a171a 100644
---- a/mm/zpool.c
-+++ b/mm/zpool.c
-@@ -341,6 +341,28 @@ void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
- }
- 
- /**
-+ * zpool_compact() - try to run compaction over zpool
-+ * @pool	The zpool to compact
-+ * @compacted	The number of migrated pages
-+ *
-+ * Returns: 0 on success, error code otherwise
-+ */
-+int zpool_compact(struct zpool *zpool, unsigned long *compacted)
-+{
-+	return zpool->driver->compact(zpool->pool, compacted);
-+}
-+
-+/**
-+ * zpool_stats() - obtain zpool statistics
-+ * @pool	The zpool to get statistics for
-+ * @zstats	stats to fill in
-+ */
-+void zpool_stats(struct zpool *zpool, struct zpool_stats *zstats)
-+{
-+	zpool->driver->stats(zpool->pool, zstats);
-+}
-+
-+/**
-  * zpool_get_total_size() - The total size of the pool
-  * @pool	The zpool to check
-  *
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index f135b1b..f002f57 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -245,7 +245,7 @@ struct zs_pool {
- 	gfp_t flags;	/* allocation flags used when growing pool */
- 	atomic_long_t pages_allocated;
- 
--	struct zs_pool_stats stats;
-+	struct zpool_stats stats;
- 
- 	/* Compact classes */
- 	struct shrinker shrinker;
-@@ -365,6 +365,21 @@ static void zs_zpool_unmap(void *pool, unsigned long handle)
- 	zs_unmap_object(pool, handle);
- }
- 
-+static int zs_zpool_compact(void *pool, unsigned long *compacted)
-+{
-+	unsigned long c = zs_compact(pool);
-+
-+	if (compacted)
-+		*compacted = c;
-+	return 0;
-+}
-+
-+
-+static void zs_zpool_stats(void *pool, struct zpool_stats *stats)
-+{
-+	zs_pool_stats(pool, stats);
-+}
-+
- static u64 zs_zpool_total_size(void *pool)
- {
- 	return zs_get_total_pages(pool) << PAGE_SHIFT;
-@@ -380,6 +395,8 @@ static struct zpool_driver zs_zpool_driver = {
- 	.shrink =	zs_zpool_shrink,
- 	.map =		zs_zpool_map,
- 	.unmap =	zs_zpool_unmap,
-+	.compact =	zs_zpool_compact,
-+	.stats =	zs_zpool_stats,
- 	.total_size =	zs_zpool_total_size,
- };
- 
-@@ -1789,9 +1806,9 @@ unsigned long zs_compact(struct zs_pool *pool)
- }
- EXPORT_SYMBOL_GPL(zs_compact);
- 
--void zs_pool_stats(struct zs_pool *pool, struct zs_pool_stats *stats)
-+void zs_pool_stats(struct zs_pool *pool, struct zpool_stats *stats)
- {
--	memcpy(stats, &pool->stats, sizeof(struct zs_pool_stats));
-+	memcpy(stats, &pool->stats, sizeof(struct zpool_stats));
- }
- EXPORT_SYMBOL_GPL(zs_pool_stats);
- 
+ struct zram {
 -- 
 1.9.1
 
