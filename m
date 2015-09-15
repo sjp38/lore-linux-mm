@@ -1,62 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 367BC6B0253
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 05:20:33 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so19443510wic.0
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 02:20:32 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id e14si24486200wjq.46.2015.09.15.02.20.31
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E2F5D6B0259
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 05:56:13 -0400 (EDT)
+Received: by padhk3 with SMTP id hk3so172328132pad.3
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 02:56:13 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id uv9si30536980pac.183.2015.09.15.02.56.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 02:20:31 -0700 (PDT)
-Date: Tue, 15 Sep 2015 11:20:25 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/2] memcg: always enable kmemcg on the default hierarchy
-Message-ID: <20150915092025.GA6812@cmpxchg.org>
-References: <20150828220158.GD11089@htj.dyndns.org>
- <20150828220237.GE11089@htj.dyndns.org>
+        (version=TLS1 cipher=RC4-SHA bits=128/128);
+        Tue, 15 Sep 2015 02:56:13 -0700 (PDT)
+From: Junichi Nomura <j-nomura@ce.jp.nec.com>
+Subject: [PATCH 0/1] Fix false-negative error reporting from fsync/fdatasync
+Date: Tue, 15 Sep 2015 09:46:39 +0000
+Message-ID: <20150915094638.GA13399@xzibit.linux.bs1.fc.nec.co.jp>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <9F23CF1F60D32E46A675B86DCFBCBB8E@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150828220237.GE11089@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "tony.luck@intel.com" <tony.luck@intel.com>, "liwanp@linux.vnet.ibm.com" <liwanp@linux.vnet.ibm.com>, "david@fromorbit.com" <david@fromorbit.com>, Tejun Heo <tj@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Fri, Aug 28, 2015 at 06:02:37PM -0400, Tejun Heo wrote:
-> On the default hierarchy, all memory consumption will be accounted
-> together and controlled by the same set of limits.  Enable kmemcg on
-> the default hierarchy by default.  Boot parameter "disable_kmemcg" can
-> be specified to turn it off.
-> 
-> v2: - v1 triggered oops on nested cgroup creations.  Moved enabling
->       mechanism to memcg_propagate_kmem().
->     - Bypass busy test on kmem activation as it's unnecessary and gets
->       confused by controller being enabled on a cgroup which already
->       has processes.
->     - "disable_kmemcg" boot param added.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
+Applications use fsync/fdatasync to make sure data is written back to
+storage. It is expected that those system calls return error if
+writeback has failed (e.g. disk/transport failure, memory failure..)
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+However if admins run a command such as sync or fsfreeze along side,
+fsync/fdatasync may return success even if writeback has failed.
+That could lead to data corruption.
 
-The old distinction between kernel and user memory really doesn't make
-sense and should not be maintained. The dentry and inode caches are a
-significant share of overall memory consumed in common workloads, and
-that is memory unambiguously coupled to userspace activity. I'd go as
-far as removing CONFIG_MEMCG_KMEM altogether because it strikes me as
-a completely unreasonable choice to give to the user (outside of maybe
-CONFIG_EXPERT).
-
-What CONFIG_MEMCG should really capture is all memory that can grow
-significantly in size and can be associated directly with userspace
-behavior. If there are types of memory that turn out to be very costly
-to account and track, we can still go back and conceive an interface
-that lets the user select the types of memory he doesn't need tracked.
-
-But the KMEMCG differentation is an arbitrary, and mostly historical
-distinction that we shouldn't continue to present to users.
+This patch is a minimal fix for the problem.
+--=20
+Jun'ichi Nomura, NEC Corporation=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
