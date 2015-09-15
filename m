@@ -1,79 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C4A76B0038
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 08:15:08 -0400 (EDT)
-Received: by qgev79 with SMTP id v79so140043284qge.0
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 05:15:08 -0700 (PDT)
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E77CD6B0038
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 08:58:07 -0400 (EDT)
+Received: by qgx61 with SMTP id 61so141497383qgx.3
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 05:58:07 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 49si16654386qgn.69.2015.09.15.05.15.06
+        by mx.google.com with ESMTPS id k89si16822676qge.7.2015.09.15.05.58.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 05:15:07 -0700 (PDT)
-Date: Tue, 15 Sep 2015 14:12:01 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: LTP regressions due to 6dc296e7df4c ("mm: make sure all file
-	VMAs have ->vm_ops set")
-Message-ID: <20150915121201.GA10104@redhat.com>
-References: <20150914105346.GB23878@arm.com> <20150914115800.06242CE@black.fi.intel.com> <20150914170547.GA28535@redhat.com> <20150914182033.GA4165@node.dhcp.inet.fi>
+        Tue, 15 Sep 2015 05:58:07 -0700 (PDT)
+Message-ID: <55F815D2.9010804@redhat.com>
+Date: Tue, 15 Sep 2015 08:57:54 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150914182033.GA4165@node.dhcp.inet.fi>
+Subject: Re: [Bug 99471] System locks with kswapd0 and kworker taking full
+ IO and mem
+References: <bug-99471-27@https.bugzilla.kernel.org/> <bug-99471-27-hjYeBz7jw2@https.bugzilla.kernel.org/> <20150910140418.73b33d3542bab739f8fd1826@linux-foundation.org> <20150915083919.GG2858@cmpxchg.org>
+In-Reply-To: <20150915083919.GG2858@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>, hpa@zytor.com, luto@amacapital.net, dave.hansen@linux.intel.com, mingo@elte.hu, minchan@kernel.org, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, gaguilar@aguilardelgado.com, sgh@sgh.dk
 
-On 09/14, Kirill A. Shutemov wrote:
->
-> On Mon, Sep 14, 2015 at 07:05:47PM +0200, Oleg Nesterov wrote:
-> > On 09/14, Kirill A. Shutemov wrote:
-> > >
-> > > Fix is below. I don't really like it, but I cannot find any better
-> > > solution.
-> >
-> > Me too...
-> >
-> > But this change "documents" the nasty special "vm_file && !vm_ops" case, and
-> > I am not sure how we can remove it later...
-> >
-> > So perhaps we should change vma_is_anonymous() back to check ->fault too,
-> >
-> > 	 static inline bool vma_is_anonymous(struct vm_area_struct *vma)
-> > 	 {
-> > 	-	return !vma->vm_ops;
-> > 	+	return !vma->vm_ops || !vma->vm_ops->fault;
->
-> No. This would give a lot false positives from drives which setup page
-> tables upfront and don't use ->fault at all.
+On 09/15/2015 04:39 AM, Johannes Weiner wrote:
+> On Thu, Sep 10, 2015 at 02:04:18PM -0700, Andrew Morton wrote:
+>> (switched to email.  Please respond via emailed reply-to-all, not via the
+>> bugzilla web interface).
+>>
+>> On Tue, 01 Sep 2015 12:32:10 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+>>
+>>> https://bugzilla.kernel.org/show_bug.cgi?id=99471
+>>
+>> Guys, could you take a look please?
+>>
+>> The machine went oom when there's heaps of unused swap and most memory
+>> is being used on active_anon and inactive_anon.  We should have just
+>> swapped that stuff out and kept going.
+> 
+> I think we need to re-evaluate the way we balance file and anon scan
+> pressure. It's not just the "not swapping" aspect that bugs me, it's
+> also the fact that the machine has been thrashing page cache at full
+> load for *minutes* before signalling the OOM.
+> 
+> SSDs can flush and reload pages quick enough that on memory pressure
+> there are always reclaimable cache pages and the scanner never goes
+> after anonymous memory. If anonymous memory does not leave enough room
+> for page cache to hold the libraries and executables, userspace goes
+> into a state where it's mostly waiting for cache to become uptodate.
+> 
+> It's a very frustrating problem because it's hard to even detect.
+> 
+> One idea I had to address the LRU balance problem in the past was to
+> always reclaim the pages in the following order: inactive file, active
+> file, anon*. As one set becomes empty, go after the next one. If the
+> workingset code detects cache thrashing, it depends on the refault
+> distances what to do: if they are smaller than the active file size,
+> deactivate; if they are bigger than that, but smaller than active file
+> + anon, we need to start swapping to alleviate the cache thrashing.
+> 
+> Now, if the refault distances are bigger than active file + anon, no
+> amount of deactivating and swapping are going to stop the thrashing
+> and we have to think about triggering OOM. But OOM is drastic and the
+> refaults might happen at a very slow pace (or, with sparse files, not
+> require any IO at all) and the system might be completely fine.
 
-And? I mean, I am not sure I understand what exactly do you dislike.
+We already measure how much the system is slowed down by waiting
+on IO - iowait time.  It's not perfect, but it can give us some
+indication whether or not we are thrashing on page cache access.
 
-Firstly, I still think that (in the long term) we should change them
-to use .faul = no_fault() which just returns VM_FAULT_SIGBUS.
+> So in
+> addition this would require a measure of overall time spent on
+> thrashing IO, comparable to what Tejun proposed in "[RFD] memory
+> pressure and sizing problem", where we say if thrashing IO takes up X
+> percent of all execution time spent, we trigger the OOM killer--not to
+> free memory, but to reduce the tasks that contribute to the thrashing
+> and let the remaining tasks make progress, similar to the swap token
+> or a BSD style memory scheduler.
 
-Until then I do not see why the change above can be really bad. The
-VM_SHARED case is fine, do_anonymous_page() will return VM_FAULT_SIGBUS.
+The BSD style process swapping only takes mapped memory into
+account. Page cache thrashing is pretty much ignored.
 
-So afaics the only problem is that after the change above the private
-mapping can silently get an anonymous page after (say) MADV_DONTNEED
-instead of the nice SIGBUS from do_fault(). I agree, this is not good,
-but see above.
+Maybe we should only count page fault stalls (do we track
+those already?) in addition to refault distances?
 
-Or I missed something else?
-
-Let me repeat, I am not going to really argue, you understand this all
-much better than me. But imho we should try to avoid the special case
-added by your change as much as possible, in this sense the change above
-looks "obviously better" at least as a short-term fix.
-
-
-Whether we need to keep the vm_ops/fault check in __vma_link_rb() and
-mmap_region() is another issue. But if we keep them, then I think we
-should at least turn the !vma->vm_ops check in mmap_region into
-WARN_ON() as well.
-
-Oleg.
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
