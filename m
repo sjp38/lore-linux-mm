@@ -1,76 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E84D6B0257
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 02:09:57 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so166526266pad.1
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 23:09:57 -0700 (PDT)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id pd2si29174637pbb.27.2015.09.14.23.09.56
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 86ABB6B0259
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 02:12:47 -0400 (EDT)
+Received: by igcrk20 with SMTP id rk20so8047519igc.1
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 23:12:47 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id c6si1728375pbu.132.2015.09.14.23.12.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 23:09:56 -0700 (PDT)
-Received: by padhk3 with SMTP id hk3so166452278pad.3
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 23:09:56 -0700 (PDT)
-Date: Tue, 15 Sep 2015 15:10:41 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC][PATCH] mm: make zbud znd zpool to depend on zswap
-Message-ID: <20150915061041.GB454@swordfish>
-References: <1441888128-10897-1-git-send-email-sergey.senozhatsky@gmail.com>
- <CALZtONCSpXOB+8AZ4eVKfK8DeH0UX=ZuAK4zn8=UpVabP8pdNg@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Sep 2015 23:12:46 -0700 (PDT)
+Received: by padhk3 with SMTP id hk3so166528735pad.3
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 23:12:46 -0700 (PDT)
+Date: Tue, 15 Sep 2015 15:13:49 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 0/3] allow zram to use zbud as underlying allocator
+Message-ID: <20150915061349.GA16485@bbox>
+References: <20150914154901.92c5b7b24e15f04d8204de18@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALZtONCSpXOB+8AZ4eVKfK8DeH0UX=ZuAK4zn8=UpVabP8pdNg@mail.gmail.com>
+In-Reply-To: <20150914154901.92c5b7b24e15f04d8204de18@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: sergey.senozhatsky@gmail.com, ddstreet@ieee.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?B?6rmA7KSA7IiY?= <iamjoonsoo.kim@lge.com>, Gioh Kim <gioh.kim@lge.com>
 
-On (09/15/15 02:06), Dan Streetman wrote:
-> > There are no zbud and zpool users besides zswap so enabling
-> > (and building) CONFIG_ZPOOL and CONFIG_ZBUD make sense only
-> > when CONFIG_ZSWAP is enabled. In other words, make those
-> > options to depend on CONFIG_ZSWAP.
+Hello Vitaly,
+
+It seems you sent a mail with gmail web or something which didn't use
+plain-text. ;-). I will add newline manually.
+Please send a mail with plain-text in future.
+
+On Mon, Sep 14, 2015 at 03:49:01PM +0200, Vitaly Wool wrote:
+> While using ZRAM on a small RAM footprint devices, together with KSM,
+
+KSM? Is there any reason you mentioned *KSM* in this context?
+IOW, if you don't use KSM, you couldn't see a problem?
+
+> I ran into several occasions when moving pages from compressed swap back
+> into the "normal" part of RAM caused significant latencies in system operation.
+
+What kernel version did you use? Did you enable CMA? ION?
+What was major factor for the latencies?
+
+Decompress? zsmalloc-compaction overhead? rmap overheads?
+compaction overheads?
+There are several potential culprits.
+It would be very helpful if you provide some numbers(perf will help you).
+
+> By using zbud I lose in compression ratio but gain in determinism,
+> lower latencies and lower fragmentation, so in the coming patches
+> I tried to generalize what I've done to enable zbud for zram so far.
+
+Before that, I'd like to know what is root cause.
+>From my side, I had an similar experience.
+At that time, problem was that *compaction* which triggered to reclaim
+lots of page cache pages. The reason compaction triggered a lot was
+fragmentation caused by zsmalloc, GPU and high-order allocation
+request by SLUB and somethings(ex, ION, fork).
+
+Recently, Joonsoo fixed SLUB side.
+http://marc.info/?l=linux-kernel&m=143891343223853&w=2
+
+And we added zram-auto-compaction recently so zram try to compact
+objects to reduce memory usage. It might be helpful for fragment
+problem as side effect but please keep it mind that it would be opposite.
+Currently, zram-auto-compaction is not aware of virtual memory compaction
+so as worst case, zsmalloc can spread out pinned object into movable
+pageblocks via zsmalloc-compaction.
+Gioh and I try to solve the issue with below patches but is pending now
+by other urgent works.
+https://lwn.net/Articles/650917/
+https://lkml.org/lkml/2015/8/10/90
+
+In summary, we need to clarify what's the root cause before diving into
+code and hiding it.
+
+Thanks.
+
 > 
-> Let's wait on this until the patches to add zpool support to zram go
-> one way or the other.  If they don't make it in, I'm fine with this,
-> and even moving the zpool.h header into mm/ instead of include/linux/
+> -- 
+> Vitaly Wool <vitalywool@gmail.com>
 > 
-
-agree.
-
-	-ss
-
-> >
-> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > ---
-> >  mm/Kconfig | 2 ++
-> >  1 file changed, 2 insertions(+)
-> >
-> > diff --git a/mm/Kconfig b/mm/Kconfig
-> > index 3455a8d..eb48422 100644
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -563,6 +563,7 @@ config ZSWAP
-> >
-> >  config ZPOOL
-> >         tristate "Common API for compressed memory storage"
-> > +       depends on ZSWAP
-> >         default n
-> >         help
-> >           Compressed memory storage API.  This allows using either zbud or
-> > @@ -570,6 +571,7 @@ config ZPOOL
-> >
-> >  config ZBUD
-> >         tristate "Low density storage for compressed pages"
-> > +       depends on ZSWAP
-> >         default n
-> >         help
-> >           A special purpose allocator for storing compressed pages.
-> > --
-> > 2.5.1
-> >
-> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
