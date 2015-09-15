@@ -1,70 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id ED1856B0038
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 19:06:10 -0400 (EDT)
-Received: by iofb144 with SMTP id b144so215303226iof.1
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 16:06:10 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 42si15088110iok.146.2015.09.15.16.06.09
-        for <linux-mm@kvack.org>;
-        Tue, 15 Sep 2015 16:06:10 -0700 (PDT)
-Subject: Re: +
- mm-memory-hot-add-memory-can-not-be-added-to-movable-zone-defaultly.patch
- added to -mm tree
-References: <55f89282.Ea4OBESeo1emyCz7%akpm@linux-foundation.org>
- <20150915145232.fb74148815fa79bfeaad88bc@linux-foundation.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <55F8A461.3070309@intel.com>
-Date: Tue, 15 Sep 2015 16:06:09 -0700
-MIME-Version: 1.0
-In-Reply-To: <20150915145232.fb74148815fa79bfeaad88bc@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AB7A6B0038
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 19:32:51 -0400 (EDT)
+Received: by qkcf65 with SMTP id f65so79638188qkc.3
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 16:32:51 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 100si19361379qgg.31.2015.09.15.16.32.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Sep 2015 16:32:50 -0700 (PDT)
+Date: Tue, 15 Sep 2015 16:32:48 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/5 v2] mm/memblock: Introduce
+ memblock_first_region_size() helper
+Message-Id: <20150915163248.d7a5e3fdb4e4dfa344731624@linux-foundation.org>
+In-Reply-To: <1441117631-30589-1-git-send-email-kuleshovmail@gmail.com>
+References: <1441117527-30466-1-git-send-email-kuleshovmail@gmail.com>
+	<1441117631-30589-1-git-send-email-kuleshovmail@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, liuchangcheng@inspur.com, fandd@inspur.com, guz.fnst@cn.fujitsu.com, hutao@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, qiuxishi@huawei.com, tangchen@cn.fujitsu.com, toshi.kani@hp.com, wangnan0@huawei.com, yanxiaofeng@inspur.com, yinghai@kernel.org, zhangyanfei@cn.fujitsu.com, Linux-MM <linux-mm@kvack.org>
+To: Alexander Kuleshov <kuleshovmail@gmail.com>
+Cc: Tony Luck <tony.luck@intel.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Xishi Qiu <qiuxishi@huawei.com>, Robin Holt <holt@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/15/2015 02:52 PM, Andrew Morton wrote:
->>  /*
->>   * If movable zone has already been setup, newly added memory should be check.
->>   * If its address is higher than movable zone, it should be added as movable.
->> + * And if system boots up with movable_node and config CONFIG_MOVABLE_NOD and
->> + * added memory does not overlap the zone before MOVABLE_ZONE,
->> + * the memory is added as movable
->>   * Without this check, movable zone may overlap with other zone.
->>   */
->>  static int should_add_memory_movable(int nid, u64 start, u64 size)
->> @@ -1208,6 +1211,11 @@ static int should_add_memory_movable(int
->>  	unsigned long start_pfn = start >> PAGE_SHIFT;
->>  	pg_data_t *pgdat = NODE_DATA(nid);
->>  	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
->> +	struct zone *pre_zone = pgdat->node_zones + (ZONE_MOVABLE - 1);
->> +
->> +	if (movable_node_is_enabled()
->> +	&& zone_end_pfn(pre_zone) <= start_pfn)
->> +		return 1;
+On Tue,  1 Sep 2015 20:27:11 +0600 Alexander Kuleshov <kuleshovmail@gmail.com> wrote:
 
-This check seems goofy to me.  According to the description, we're
-looking at a node here which has all of its zones empty.  So it
-definitely has zone->spanned_pages=0.  zone_end_pfn() is looking at
-zone->zone_start_pfn too, which is also 0, presumably.
+> Some architectures (like s390, microblaze and etc...) require size
+> of the first memory region. This patch provides new memblock_first_region_size()
+> helper for this case.
+> 
+> ...
+>
+> +phys_addr_t __init_memblock memblock_first_region_size(void)
+> +{
+> +	return memblock.memory.regions[0].size;
+> +}
+> +
 
-So why is it bothering to look at the pfns if they're potentially
-"garbage"?  It seems like we really want something like this:
+Some callers call this from __init code, which is OK.
 
-	if (all_node_zones_empty(pgdat)) {
-		/*
-		 * We usually want a ZONE_NORMAL before we add a
-		 * ZONE_MOVABLE since ZONE_MOVABLE is mildly crippled.
-		 * We only want ZONE_MOVABLE first when 'movable_node'
-		 * mode is on.
-		 */
-		return movable_node_is_enabled();
-	}
+Other callers call it from an inlined function and I'm too lazy to work
+out if all the callers of those callers are calling
+memblock_first_region_size() from a compatible section.
 
-Either way, this is a behavior change.  It's one that is triggered by a
-config option plus a boot option, but it might surprise some users.  Is
-this new behavior documented?
+So please either a) demonstrate that all the sectioning is correct (and
+maintainable!) or b) simply inline memblock_first_region_size()...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
