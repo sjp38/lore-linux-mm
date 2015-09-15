@@ -1,56 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0FC6B0038
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 12:12:36 -0400 (EDT)
-Received: by lanb10 with SMTP id b10so110426371lan.3
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 09:12:35 -0700 (PDT)
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 27DDC6B0038
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 12:18:39 -0400 (EDT)
+Received: by lbbvu2 with SMTP id vu2so16088249lbb.0
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 09:18:38 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id dt5si14615546lac.34.2015.09.15.09.12.33
+        by mx.google.com with ESMTPS id ab1si5652264lbc.108.2015.09.15.09.18.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 09:12:34 -0700 (PDT)
-Date: Tue, 15 Sep 2015 18:12:18 +0200
+        Tue, 15 Sep 2015 09:18:37 -0700 (PDT)
+Date: Tue, 15 Sep 2015 18:18:26 +0200
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3 2/2] memcg: punt high overage reclaim to
- return-to-userland path
-Message-ID: <20150915161218.GA12032@cmpxchg.org>
-References: <20150913185940.GA25369@htj.duckdns.org>
- <20150913190008.GB25369@htj.duckdns.org>
- <20150915074724.GE2858@cmpxchg.org>
- <20150915155355.GH2905@mtj.duckdns.org>
+Subject: Re: [PATCH v2 2/3] memcg: ratify and consolidate over-charge handling
+Message-ID: <20150915161826.GB12032@cmpxchg.org>
+References: <20150913201416.GC25369@htj.duckdns.org>
+ <20150913201442.GD25369@htj.duckdns.org>
+ <20150914200732.GG25369@htj.duckdns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150915155355.GH2905@mtj.duckdns.org>
+In-Reply-To: <20150914200732.GG25369@htj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
 Cc: akpm@linux-foundation.org, mhocko@kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
 
-On Tue, Sep 15, 2015 at 11:53:55AM -0400, Tejun Heo wrote:
-> Hello, Johannes.
+On Mon, Sep 14, 2015 at 04:07:32PM -0400, Tejun Heo wrote:
+> try_charge() is the main charging logic of memcg.  When it hits the
+> limit but either can't fail the allocation due to __GFP_NOFAIL or the
+> task is likely to free memory very soon, being OOM killed, has SIGKILL
+> pending or exiting, it "bypasses" the charge to the root memcg and
+> returns -EINTR.  While this is one approach which can be taken for
+> these situations, it has several issues.
 > 
-> On Tue, Sep 15, 2015 at 09:47:24AM +0200, Johannes Weiner wrote:
-> > Why can't we simply fail NOWAIT allocations when the high limit is
-> > breached? We do the same for the max limit.
+> * It unnecessarily lies about the reality.  The number itself doesn't
+>   go over the limit but the actual usage does.  memcg is either forced
+>   to or actively chooses to go over the limit because that is the
+>   right behavior under the circumstances, which is completely fine,
+>   but, if at all avoidable, it shouldn't be misrepresenting what's
+>   happening by sneaking the charges into the root memcg.
 > 
-> Because that can lead to continued systematic failures of NOWAIT
-> allocations.  For that to work, we'll have to add async reclaimaing.
+> * Despite trying, we already do over-charge.  kmemcg can't deal with
+>   switching over to the root memcg by the point try_charge() returns
+>   -EINTR, so it open-codes over-charing.
 > 
-> > As I see it, NOWAIT allocations are speculative attempts on available
-> > memory. We should be able to just fail them and have somebody that is
-> > allowed to reclaim try again, just like with the max limit.
+> * It complicates the callers.  Each try_charge() user has to handle
+>   the weird -EINTR exception.  memcg_charge_kmem() does the manual
+>   over-charging.  mem_cgroup_do_precharge() performs unnecessary
+>   uncharging of root memcg, which BTW is inconsistent with what
+>   memcg_charge_kmem() does but not broken as [un]charging are noops on
+>   root memcg.  mem_cgroup_try_charge() needs to switch the returned
+>   cgroup to the root one.
 > 
-> Yes, but the assumption is that even back-to-back NOWAIT allocations
-> won't continue to fail indefinitely.
+> The reality is that in memcg there are cases where we are forced
+> and/or willing to go over the limit.  Each such case needs to be
+> scrutinized and justified but there definitely are situations where
+> that is the right thing to do.  We alredy do this but with a
+> superficial and inconsistent disguise which leads to unnecessary
+> complications.
+> 
+> This patch updates try_charge() so that it over-charges and returns 0
+> when deemed necessary.  -EINTR return is removed along with all
+> special case handling in the callers.
+> 
+> While at it, remove the local variable @ret, which was initialized to
+> zero and never changed, along with done: label which just returned the
+> always zero @ret.
+> 
+> v2: Minor update to patch description as per Vladimir.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-But they have been failing indefinitely forever once you hit the hard
-limit in the past. There was never an async reclaim provision there.
-
-I can definitely see that the unconstrained high limit breaching needs
-to be fixed one way or another, I just don't quite understand why you
-chose to go for new semantics. Is there a new or a specific usecase
-you had in mind when you chose deferred reclaim over simply failing?
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
