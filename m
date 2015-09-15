@@ -1,64 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 66CF16B0038
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 14:16:29 -0400 (EDT)
-Received: by lbbvu2 with SMTP id vu2so18008001lbb.0
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 11:16:28 -0700 (PDT)
-Received: from mail-lb0-x22b.google.com (mail-lb0-x22b.google.com. [2a00:1450:4010:c04::22b])
-        by mx.google.com with ESMTPS id xv11si9982128lab.53.2015.09.15.11.16.27
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 662BF6B0038
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 14:28:19 -0400 (EDT)
+Received: by lagj9 with SMTP id j9so115284808lag.2
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 11:28:18 -0700 (PDT)
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com. [209.85.215.47])
+        by mx.google.com with ESMTPS id rz7si15259322lbb.129.2015.09.15.11.28.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 11:16:28 -0700 (PDT)
-Received: by lbcao8 with SMTP id ao8so90078691lbc.3
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 11:16:27 -0700 (PDT)
-From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Subject: [PATCH] mm/memblock: Make memblock_remove_range() static
-Date: Wed, 16 Sep 2015 00:15:25 +0600
-Message-Id: <1442340925-15887-1-git-send-email-kuleshovmail@gmail.com>
+        Tue, 15 Sep 2015 11:28:18 -0700 (PDT)
+Received: by lamp12 with SMTP id p12so112310565lam.0
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 11:28:17 -0700 (PDT)
+From: Denis Kirjanov <kda@linux-powerpc.org>
+Subject: [PATCH] mm: slab: convert slab_is_available to boolean
+Date: Tue, 15 Sep 2015 20:50:01 +0300
+Message-Id: <1442339401-4145-1-git-send-email-kda@linux-powerpc.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tony Luck <tony.luck@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Pekka Enberg <penberg@kernel.org>, Wei Yang <weiyang@linux.vnet.ibm.com>, Robin Holt <holt@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Kuleshov <kuleshovmail@gmail.com>
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Denis Kirjanov <kda@linux-powerpc.org>
 
-The memblock_remove_range() function is only used in the
-mm/memblock.c, so we can do it static.
+A good one candidate to return a boolean result
 
-Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
+Signed-off-by: Denis Kirjanov <kda@linux-powerpc.org>
 ---
- include/linux/memblock.h | 4 ----
- mm/memblock.c            | 2 +-
- 2 files changed, 1 insertion(+), 5 deletions(-)
+ include/linux/slab.h | 2 +-
+ mm/slab_common.c     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index c518eb5..24daf8f 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -89,10 +89,6 @@ int memblock_add_range(struct memblock_type *type,
- 		       phys_addr_t base, phys_addr_t size,
- 		       int nid, unsigned long flags);
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 7e37d44..7c82e3b 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -111,7 +111,7 @@ struct mem_cgroup;
+  * struct kmem_cache related prototypes
+  */
+ void __init kmem_cache_init(void);
+-int slab_is_available(void);
++bool slab_is_available(void);
  
--int memblock_remove_range(struct memblock_type *type,
--			  phys_addr_t base,
--			  phys_addr_t size);
--
- void __next_mem_range(u64 *idx, int nid, ulong flags,
- 		      struct memblock_type *type_a,
- 		      struct memblock_type *type_b, phys_addr_t *out_start,
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 1c7b647..d300f13 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -706,7 +706,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
- 	return 0;
+ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
+ 			unsigned long,
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 5ce4fae..113a6fd 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -692,7 +692,7 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
  }
+ EXPORT_SYMBOL(kmem_cache_shrink);
  
--int __init_memblock memblock_remove_range(struct memblock_type *type,
-+static int __init_memblock memblock_remove_range(struct memblock_type *type,
- 					  phys_addr_t base, phys_addr_t size)
+-int slab_is_available(void)
++bool slab_is_available(void)
  {
- 	int start_rgn, end_rgn;
+ 	return slab_state >= UP;
+ }
 -- 
-2.5.0
+2.4.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
