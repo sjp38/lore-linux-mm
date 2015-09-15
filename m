@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 27A3B6B025C
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 10:08:58 -0400 (EDT)
-Received: by lagj9 with SMTP id j9so109919329lag.2
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:08:57 -0700 (PDT)
-Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
-        by mx.google.com with ESMTPS id e4si13874966lab.35.2015.09.15.07.08.56
+Received: from mail-vk0-f54.google.com (mail-vk0-f54.google.com [209.85.213.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F7816B025D
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 10:09:07 -0400 (EDT)
+Received: by vkhf67 with SMTP id f67so80435639vkh.1
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:07 -0700 (PDT)
+Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
+        by mx.google.com with ESMTPS id w3si12522723laj.40.2015.09.15.07.09.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 07:08:57 -0700 (PDT)
-Received: by lanb10 with SMTP id b10so107793290lan.3
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:08:56 -0700 (PDT)
+        Tue, 15 Sep 2015 07:09:06 -0700 (PDT)
+Received: by lanb10 with SMTP id b10so107796999lan.3
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:06 -0700 (PDT)
 From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Subject: [PATCH 05/10] mm/percpu: Use offset_in_page macro
-Date: Tue, 15 Sep 2015 20:08:01 +0600
-Message-Id: <1442326081-7383-1-git-send-email-kuleshovmail@gmail.com>
+Subject: [PATCH 06/10] mm/util: Use offset_in_page macro
+Date: Tue, 15 Sep 2015 20:08:11 +0600
+Message-Id: <1442326091-7438-1-git-send-email-kuleshovmail@gmail.com>
 In-Reply-To: <1442326012-7034-1-git-send-email-kuleshovmail@gmail.com>
 References: <1442326012-7034-1-git-send-email-kuleshovmail@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -27,47 +27,22 @@ predefined macro instead of (addr & ~PAGE_MASK).
 
 Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
 ---
- mm/percpu.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ mm/util.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index a63b4d8..8a943b9 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -1554,12 +1554,12 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
- #ifdef CONFIG_SMP
- 	PCPU_SETUP_BUG_ON(!ai->static_size);
--	PCPU_SETUP_BUG_ON((unsigned long)__per_cpu_start & ~PAGE_MASK);
-+	PCPU_SETUP_BUG_ON(offset_in_page(__per_cpu_start));
- #endif
- 	PCPU_SETUP_BUG_ON(!base_addr);
--	PCPU_SETUP_BUG_ON((unsigned long)base_addr & ~PAGE_MASK);
-+	PCPU_SETUP_BUG_ON(offset_in_page(base_addr));
- 	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
--	PCPU_SETUP_BUG_ON(ai->unit_size & ~PAGE_MASK);
-+	PCPU_SETUP_BUG_ON(offset_in_page(ai->unit_size));
- 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
- 	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
- 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
-@@ -1806,7 +1806,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+diff --git a/mm/util.c b/mm/util.c
+index 68ff8a5..9af1c12 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -309,7 +309,7 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
+ {
+ 	if (unlikely(offset + PAGE_ALIGN(len) < offset))
+ 		return -EINVAL;
+-	if (unlikely(offset & ~PAGE_MASK))
++	if (unlikely(offset_in_page(offset)))
+ 		return -EINVAL;
  
- 	alloc_size = roundup(min_unit_size, atom_size);
- 	upa = alloc_size / min_unit_size;
--	while (alloc_size % upa || ((alloc_size / upa) & ~PAGE_MASK))
-+	while (alloc_size % upa || (offset_in_page(alloc_size / upa)))
- 		upa--;
- 	max_upa = upa;
- 
-@@ -1838,7 +1838,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
- 	for (upa = max_upa; upa; upa--) {
- 		int allocs = 0, wasted = 0;
- 
--		if (alloc_size % upa || ((alloc_size / upa) & ~PAGE_MASK))
-+		if (alloc_size % upa || (offset_in_page(alloc_size / upa)))
- 			continue;
- 
- 		for (group = 0; group < nr_groups; group++) {
+ 	return vm_mmap_pgoff(file, addr, len, prot, flag, offset >> PAGE_SHIFT);
 -- 
 2.5.0
 
