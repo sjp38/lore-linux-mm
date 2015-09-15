@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F0236B025F
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 10:09:34 -0400 (EDT)
-Received: by lbbmp1 with SMTP id mp1so85837974lbb.1
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:33 -0700 (PDT)
-Received: from mail-la0-x229.google.com (mail-la0-x229.google.com. [2a00:1450:4010:c03::229])
-        by mx.google.com with ESMTPS id rj9si13884466lbb.26.2015.09.15.07.09.32
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id DFB8F6B025F
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 10:09:40 -0400 (EDT)
+Received: by lbbvu2 with SMTP id vu2so13646832lbb.0
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:40 -0700 (PDT)
+Received: from mail-la0-x230.google.com (mail-la0-x230.google.com. [2a00:1450:4010:c03::230])
+        by mx.google.com with ESMTPS id r5si4878436lbp.56.2015.09.15.07.09.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 07:09:32 -0700 (PDT)
-Received: by lanb10 with SMTP id b10so107807836lan.3
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:32 -0700 (PDT)
+        Tue, 15 Sep 2015 07:09:39 -0700 (PDT)
+Received: by lamp12 with SMTP id p12so107200836lam.0
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:39 -0700 (PDT)
 From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Subject: [PATCH 09/10] mm/mmap: Use offset_in_page macro
-Date: Tue, 15 Sep 2015 20:08:37 +0600
-Message-Id: <1442326117-7603-1-git-send-email-kuleshovmail@gmail.com>
+Subject: [PATCH 10/10] mm/mremap: Use offset_in_page macro
+Date: Tue, 15 Sep 2015 20:08:44 +0600
+Message-Id: <1442326124-7658-1-git-send-email-kuleshovmail@gmail.com>
 In-Reply-To: <1442326012-7034-1-git-send-email-kuleshovmail@gmail.com>
 References: <1442326012-7034-1-git-send-email-kuleshovmail@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -27,67 +27,63 @@ predefined macro instead of (addr & ~PAGE_MASK).
 
 Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
 ---
- mm/mmap.c | 12 ++++++------
+ mm/mremap.c | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 971dd2c..a313a9c 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1304,7 +1304,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 	 * that it represents a valid section of the address space.
- 	 */
- 	addr = get_unmapped_area(file, addr, len, pgoff, flags);
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 5a71cce..3fea83c 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -401,7 +401,7 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
+ 	unsigned long charged = 0;
+ 	unsigned long map_flags;
+ 
+-	if (new_addr & ~PAGE_MASK)
++	if (offset_in_page(new_addr))
+ 		goto out;
+ 
+ 	if (new_len > TASK_SIZE || new_addr > TASK_SIZE - new_len)
+@@ -435,11 +435,11 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
+ 	ret = get_unmapped_area(vma->vm_file, new_addr, new_len, vma->vm_pgoff +
+ 				((addr - vma->vm_start) >> PAGE_SHIFT),
+ 				map_flags);
+-	if (ret & ~PAGE_MASK)
++	if (offset_in_page(ret))
+ 		goto out1;
+ 
+ 	ret = move_vma(vma, addr, old_len, new_len, new_addr, locked);
+-	if (!(ret & ~PAGE_MASK))
++	if (!(offset_in_page(ret)))
+ 		goto out;
+ out1:
+ 	vm_unacct_memory(charged);
+@@ -484,7 +484,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 	if (flags & MREMAP_FIXED && !(flags & MREMAP_MAYMOVE))
+ 		return ret;
+ 
 -	if (addr & ~PAGE_MASK)
 +	if (offset_in_page(addr))
- 		return addr;
+ 		return ret;
  
- 	/* Do simple checking here so the lower-level routines won't have
-@@ -1475,7 +1475,7 @@ SYSCALL_DEFINE1(old_mmap, struct mmap_arg_struct __user *, arg)
- 
- 	if (copy_from_user(&a, arg, sizeof(a)))
- 		return -EFAULT;
--	if (a.offset & ~PAGE_MASK)
-+	if (offset_in_page(a.offset))
- 		return -EINVAL;
- 
- 	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
-@@ -1996,7 +1996,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	 * can happen with large stack limits and large mmap()
- 	 * allocations.
- 	 */
--	if (addr & ~PAGE_MASK) {
-+	if (offset_in_page(addr)) {
- 		VM_BUG_ON(addr != -ENOMEM);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
-@@ -2032,7 +2032,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
- 
- 	if (addr > TASK_SIZE - len)
- 		return -ENOMEM;
--	if (addr & ~PAGE_MASK)
-+	if (offset_in_page(addr))
- 		return -EINVAL;
- 
- 	addr = arch_rebalance_pgtables(addr, len);
-@@ -2543,7 +2543,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
- 	unsigned long end;
- 	struct vm_area_struct *vma, *prev, *last;
- 
--	if ((start & ~PAGE_MASK) || start > TASK_SIZE || len > TASK_SIZE-start)
-+	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
- 		return -EINVAL;
- 
- 	len = PAGE_ALIGN(len);
-@@ -2741,7 +2741,7 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
- 	flags = VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
- 
- 	error = get_unmapped_area(NULL, addr, len, 0, MAP_FIXED);
--	if (error & ~PAGE_MASK)
-+	if (offset_in_page(error))
- 		return error;
- 
- 	error = mlock_future_check(mm, mm->def_flags, len);
+ 	old_len = PAGE_ALIGN(old_len);
+@@ -566,7 +566,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 					vma->vm_pgoff +
+ 					((addr - vma->vm_start) >> PAGE_SHIFT),
+ 					map_flags);
+-		if (new_addr & ~PAGE_MASK) {
++		if (offset_in_page(new_addr)) {
+ 			ret = new_addr;
+ 			goto out;
+ 		}
+@@ -574,7 +574,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 		ret = move_vma(vma, addr, old_len, new_len, new_addr, &locked);
+ 	}
+ out:
+-	if (ret & ~PAGE_MASK) {
++	if (offset_in_page(ret)) {
+ 		vm_unacct_memory(charged);
+ 		locked = 0;
+ 	}
 -- 
 2.5.0
 
