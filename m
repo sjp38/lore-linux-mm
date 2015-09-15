@@ -1,46 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C9A26B0253
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 17:41:08 -0400 (EDT)
-Received: by qgx61 with SMTP id 61so127447284qgx.3
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 14:41:08 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 188si14008360qhe.57.2015.09.14.14.41.07
+Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EE056B0255
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 20:01:40 -0400 (EDT)
+Received: by qkdw123 with SMTP id w123so65470661qkd.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 17:01:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k62si14546796qgk.50.2015.09.14.17.01.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 14:41:08 -0700 (PDT)
-Date: Mon, 14 Sep 2015 14:41:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC v5 0/3] mm: make swapin readahead to gain more thp
- performance
-Message-Id: <20150914144106.ee205c3ae3f4ec0e5202c9fe@linux-foundation.org>
-In-Reply-To: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
-References: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 14 Sep 2015 17:01:39 -0700 (PDT)
+Date: Tue, 15 Sep 2015 02:01:36 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] userfaultfd: add missing mmput() in error path
+Message-ID: <20150915000136.GD2191@redhat.com>
+References: <1442188647-4233-1-git-send-email-ebiggers3@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1442188647-4233-1-git-send-email-ebiggers3@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
+To: Eric Biggers <ebiggers3@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 14 Sep 2015 22:31:42 +0300 Ebru Akagunduz <ebru.akagunduz@gmail.com> wrote:
+Hello Eric,
 
-> This patch series makes swapin readahead up to a
-> certain number to gain more thp performance and adds
-> tracepoint for khugepaged_scan_pmd, collapse_huge_page,
-> __collapse_huge_page_isolate.
+On Sun, Sep 13, 2015 at 06:57:27PM -0500, Eric Biggers wrote:
+> Signed-off-by: Eric Biggers <ebiggers3@gmail.com>
+> ---
+>  fs/userfaultfd.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index 634e676..f9aeb40 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -1287,8 +1287,10 @@ static struct file *userfaultfd_file_create(int flags)
+>  
+>  	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
+>  				  O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
+> -	if (IS_ERR(file))
+> +	if (IS_ERR(file)) {
+> +		mmput(ctx->mm);
+>  		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
+> +	}
+>  out:
+>  	return file;
+>  }
 
-I'll merge this series for testing.  Hopefully Andrea and/or Hugh will
-find time for a quality think about the issue before 4.3 comes around.
+This bug would have generated a memleak in the error code path (which
+could only run if running out of files or memory, unfortunately not a
+condition that gets routinely exercised).
 
-It would be much better if we didn't have that sysfs knob - make the
-control automatic in some fashion.
+It's great you spotted it now, we can fix it before final 4.3. I'll
+forward it to Andrew to be sure it's not missed.
 
-If we can't think of a way of doing that then at least let's document
-max_ptes_swap very carefully.  Explain to our users what it does, why
-they should care about it, how they should set about determining (ie:
-measuring) its effect upon their workloads.
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
