@@ -1,147 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id CB5256B0038
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 11:16:14 -0400 (EDT)
-Received: by qkfq186 with SMTP id q186so73354749qkf.1
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 08:16:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p68si17309496qkh.42.2015.09.15.08.16.13
+Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 633EC6B0255
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 11:20:12 -0400 (EDT)
+Received: by ykft14 with SMTP id t14so37016272ykf.0
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 08:20:12 -0700 (PDT)
+Received: from mail-yk0-x22f.google.com (mail-yk0-x22f.google.com. [2607:f8b0:4002:c07::22f])
+        by mx.google.com with ESMTPS id k16si3794103ykk.11.2015.09.15.08.20.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 08:16:13 -0700 (PDT)
-Date: Tue, 15 Sep 2015 17:13:18 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: LTP regressions due to 6dc296e7df4c ("mm: make sure all file
-	VMAs have ->vm_ops set")
-Message-ID: <20150915151318.GA15866@redhat.com>
-References: <20150914105346.GB23878@arm.com> <20150914115800.06242CE@black.fi.intel.com> <20150914170547.GA28535@redhat.com> <20150914182033.GA4165@node.dhcp.inet.fi> <20150915121201.GA10104@redhat.com> <20150915134216.GA16093@node.dhcp.inet.fi>
+        Tue, 15 Sep 2015 08:20:11 -0700 (PDT)
+Received: by ykdu9 with SMTP id u9so189641751ykd.2
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 08:20:11 -0700 (PDT)
+Date: Tue, 15 Sep 2015 11:20:06 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 1/1] fs: global sync to not clear error status of
+ individual inodes
+Message-ID: <20150915152006.GD2905@mtj.duckdns.org>
+References: <20150915094638.GA13399@xzibit.linux.bs1.fc.nec.co.jp>
+ <20150915095412.GD13399@xzibit.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150915134216.GA16093@node.dhcp.inet.fi>
+In-Reply-To: <20150915095412.GD13399@xzibit.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>, hpa@zytor.com, luto@amacapital.net, dave.hansen@linux.intel.com, mingo@elte.hu, minchan@kernel.org, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Junichi Nomura <j-nomura@ce.jp.nec.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "tony.luck@intel.com" <tony.luck@intel.com>, "liwanp@linux.vnet.ibm.com" <liwanp@linux.vnet.ibm.com>, "david@fromorbit.com" <david@fromorbit.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On 09/15, Kirill A. Shutemov wrote:
->
-> On Tue, Sep 15, 2015 at 02:12:01PM +0200, Oleg Nesterov wrote:
-> > On 09/14, Kirill A. Shutemov wrote:
-> > >
-> > > On Mon, Sep 14, 2015 at 07:05:47PM +0200, Oleg Nesterov wrote:
-> > > > On 09/14, Kirill A. Shutemov wrote:
-> > > > >
-> > > > > Fix is below. I don't really like it, but I cannot find any better
-> > > > > solution.
-> > > >
-> > > > Me too...
-> > > >
-> > > > But this change "documents" the nasty special "vm_file && !vm_ops" case, and
-> > > > I am not sure how we can remove it later...
-> > > >
-> > > > So perhaps we should change vma_is_anonymous() back to check ->fault too,
-> > > >
-> > > > 	 static inline bool vma_is_anonymous(struct vm_area_struct *vma)
-> > > > 	 {
-> > > > 	-	return !vma->vm_ops;
-> > > > 	+	return !vma->vm_ops || !vma->vm_ops->fault;
-> > >
-> > > No. This would give a lot false positives from drives which setup page
-> > > tables upfront and don't use ->fault at all.
-> >
-> > And? I mean, I am not sure I understand what exactly do you dislike.
-> >
-> > Firstly, I still think that (in the long term) we should change them
-> > to use .faul = no_fault() which just returns VM_FAULT_SIGBUS.
->
-> I would rather like to see consolidated fault path between file and anon
-> with ->vm_ops set for both. So vma_is_anonymous() will be trivial
-> vma->vm_ops == anon_vm_ops.
+Hello, Junichi.
 
-I too thought about this. Perhaps but I guess this needs another
-discussion.
+On Tue, Sep 15, 2015 at 09:54:13AM +0000, Junichi Nomura wrote:
+> filemap_fdatawait() is a function to wait for on-going writeback
+> to complete but also consume and clear error status of the mapping
+> set during writeback.
+> The latter functionality is critical for applications to detect
+> writeback error with system calls like fsync(2)/fdatasync(2).
+> 
+> However filemap_fdatawait() is also used by sync(2) or FIFREEZE
+> ioctl, which don't check error status of individual mappings.
+> 
+> As a result, fsync() may not be able to detect writeback error
+> if events happen in the following order:
+> 
+>    Application                    System admin
+>    ----------------------------------------------------------
+>    write data on page cache
+>                                   Run sync command
+>                                   writeback completes with error
+>                                   filemap_fdatawait() clears error
+>    fsync returns success
+>    (but the data is not on disk)
+> 
+> This patch adds filemap_fdatawait_keep_errors() for call sites where
+> writeback error is not handled so that they don't clear error status.
 
-In particular I am not sure we should just rely on vm_ops == anon_vm_ops.
-Again, it is not that I think that the VM_MPX check in arch_vma_name() is
-that bad. Still I think it would be better if mpx_mmap() could install
-vma->vm_ops = mpx_vm_ops with ->name(). So perhaps ->anon_fault() makes
-more sense. But lets not discuss this right now.
+Is this an actual problem?  Write errors usually indicate that the
+underlying device is completely hosed and the kernel tends to make a
+lot of noise throughout the different layers and it often pretty
+quickly leads to failures of metadata IOs which which results in
+damage-control actions like RO remounts, so in most cases the
+specifics of failure handling don't end up mattering all that much.
 
->
-> > Until then I do not see why the change above can be really bad. The
-> > VM_SHARED case is fine, do_anonymous_page() will return VM_FAULT_SIGBUS.
-> >
-> > So afaics the only problem is that after the change above the private
-> > mapping can silently get an anonymous page after (say) MADV_DONTNEED
-> > instead of the nice SIGBUS from do_fault(). I agree, this is not good,
-> > but see above.
->
-> So, what the point to introduce vma_is_anonymous() if it often produces
-> false result? vma_is_anonymous_or_maybe_not()?
+That said, no reason to not improve upon it.
 
-Heh.
+> @@ -2121,7 +2121,13 @@ static void wait_sb_inodes(struct super_block *sb)
+>  		iput(old_inode);
+>  		old_inode = inode;
+>  
+> -		filemap_fdatawait(mapping);
+> +		/*
+> +		 * Wait for on-going writeback to complete
+> +		 * but not consume error status on this mapping.
+                       ^don't
 
-Then what the point to demand that "All file mapping must have ->vm_ops set"
-if mmap(MAP_PRIVATE, "/dev/zero") has ->vm_ops == NULL ? Because this is
-not actually the file mapping, yes. And this is why we want vma_is_anonymous()
-to return T in this case.
+> +		 * Otherwise application may fail to catch writeback error
 
-vma_is_anonymous() just says that a page fault will use do_anonymous_page().
-I agree, it would be nice to ensure vma_is_anonymous() can only be true
-if this vma can only have the anon pages. Let me repeat that I suggested
-this change as a short-term fix (at least without other changes like we
-discuss above). Because the mmap_zero() hack looks worse to me. Damn, even
-the ugly hack below looks better to me.
+                   mapping; otherwise,
 
-> > Whether we need to keep the vm_ops/fault check in __vma_link_rb() and
-> > mmap_region() is another issue. But if we keep them, then I think we
-> > should at least turn the !vma->vm_ops check in mmap_region into
-> > WARN_ON() as well.
->
-> It would require first fix all known cases where ->f_op->mmap() returns
-> vma->vm_ops == NULL. Not subject for 4.3, I think.
+> +		 * using fsync(2).
+> +		 */
 
-Kirill, I even sent you the private email to clarify that - of course! -
-I only meant "in the longer term" ;)
+Can you please re-flow the comment so that it's filling up to, say, 72
+or 76 or whatever column?
 
-Oleg.
+> +		filemap_fdatawait_keep_errors(mapping);
+>  
+>  		cond_resched();
+>  
+> diff --git a/fs/sync.c b/fs/sync.c
+> index fbc98ee..e2b7a77 100644
+> --- a/fs/sync.c
+> +++ b/fs/sync.c
+> @@ -86,7 +86,7 @@ static void fdatawrite_one_bdev(struct block_device *bdev, void *arg)
+>  
+>  static void fdatawait_one_bdev(struct block_device *bdev, void *arg)
+>  {
+> -	filemap_fdatawait(bdev->bd_inode->i_mapping);
+> +	filemap_fdatawait_keep_errors(bdev->bd_inode->i_mapping);
 
---- x/include/linux/mm.h
-+++ x/include/linux/mm.h
-@@ -1289,9 +1289,11 @@ static inline int vma_growsdown(struct v
- 	return vma && (vma->vm_end == addr) && (vma->vm_flags & VM_GROWSDOWN);
- }
- 
-+#define xxx_fault	((void*)1)
-+
- static inline bool vma_is_anonymous(struct vm_area_struct *vma)
- {
--	return !vma->vm_ops;
-+	return !vma->vm_ops || vma->vm_ops->fault == xxx_fault;
- }
- 
- static inline int stack_guard_page_start(struct vm_area_struct *vma,
---- x/drivers/char/mem.c
-+++ x/drivers/char/mem.c
-@@ -653,11 +653,17 @@ static ssize_t read_iter_zero(struct kio
- 
- static int mmap_zero(struct file *file, struct vm_area_struct *vma)
- {
-+	static const struct vm_operations_struct xxx_ops = {
-+		.fault = xxx_fault,
-+	};
-+		}
- #ifndef CONFIG_MMU
- 	return -ENOSYS;
- #endif
- 	if (vma->vm_flags & VM_SHARED)
- 		return shmem_zero_setup(vma);
-+
-+	vma->vm_ops = &xxx_ops;
- 	return 0;
- }
- 
+Maybe it'd be better to describe what's going on in detail in the
+function comment of filemat_fdatawait_keep_errors() and refer to that
+from its callers?
+
+> @@ -382,6 +391,26 @@ out:
+>  }
+>  EXPORT_SYMBOL(filemap_fdatawait_range);
+>  
+> +/*
+> + * As filemap_check_errors() consumes and clears error status of mapping,
+> + * filemap_fdatawait() should be used only when the caller is responsible
+> + * for handling the error.
+
+Please make this a proper function comment.
+
+> + *
+> + * Use filemap_fdatawait_keep_errors() if callers just want to wait for
+> + * witeback and don't handle errors themselves.
+      writeback
+
+> + * Expected call sites are system-wide / filesystem-wide data flushers:
+> + * e.g. sync(2), fsfreeze(8)
+
+Ditto, please either break up paragraphs or reflow to column
+consistently.
+
+> + */
+> +void filemap_fdatawait_keep_errors(struct address_space *mapping)
+> +{
+> +	loff_t i_size = i_size_read(mapping->host);
+> +
+> +	if (i_size == 0)
+> +		return;
+> +
+> +	__filemap_fdatawait_range(mapping, 0, i_size - 1);
+> +}
+
+Generally looks good to me.  We may end up deferring writeback error
+from way earlier to later fsync callers but given that sync(2) doesn't
+even have a return value, it looks like that's the best we can do.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
