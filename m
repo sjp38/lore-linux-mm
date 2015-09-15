@@ -1,100 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 029206B0253
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 22:04:21 -0400 (EDT)
-Received: by obqa2 with SMTP id a2so123787221obq.3
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 19:04:20 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id mm1si8117552obb.103.2015.09.14.19.04.19
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B601F6B0254
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 22:04:45 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so160677174pac.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 19:04:45 -0700 (PDT)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com. [209.85.220.44])
+        by mx.google.com with ESMTPS id ra1si27604246pbb.202.2015.09.14.19.04.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 14 Sep 2015 19:04:20 -0700 (PDT)
-Message-ID: <55F77C52.3010101@huawei.com>
-Date: Tue, 15 Sep 2015 10:02:58 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Sep 2015 19:04:45 -0700 (PDT)
+Received: by pacfv12 with SMTP id fv12so163509676pac.2
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 19:04:44 -0700 (PDT)
+Date: Tue, 15 Sep 2015 07:34:38 +0530
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Subject: Re: [PATCH V2] debugfs: don't assume sizeof(bool) to be 4 bytes
+Message-ID: <20150915020438.GG32551@linux>
+References: <81516fb9c662cc338b5af5b63fbbcde5374e0893.1442202447.git.viresh.kumar@linaro.org>
+ <1708603.aKpYchk1pa@wuerfel>
+ <20150914154708.GF32551@linux>
+ <20150914160348.GA7290@kroah.com>
 MIME-Version: 1.0
-Subject: [PATCH V3] kasan: use IS_ALIGNED in memory_is_poisoned_8()
-References: <55F62C65.7070100@huawei.com> <CAPAsAGxf_OQD502cW1nbXJ7WdRxyKqTx6+BJJpJoD-Z6WFCZMg@mail.gmail.com>
-In-Reply-To: <CAPAsAGxf_OQD502cW1nbXJ7WdRxyKqTx6+BJJpJoD-Z6WFCZMg@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150914160348.GA7290@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <adech.fo@gmail.com>, Rusty
- Russell <rusty@rustcorp.com.au>, Michal Marek <mmarek@suse.cz>, "long.wanglong" <long.wanglong@huawei.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, linaro-kernel@lists.linaro.org, "open list:NETWORKING DRIVERS WIRELESS" <linux-wireless@vger.kernel.org>, "moderated list:SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEM..." <alsa-devel@alsa-project.org>, Avri Altman <avri.altman@intel.com>, Stanislaw Gruszka <sgruszka@redhat.com>, Jiri Slaby <jirislaby@gmail.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Brown <broonie@kernel.org>, Jaroslav Kysela <perex@perex.cz>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Kalle Valo <kvalo@qca.qualcomm.com>, Emmanuel Grumbach <emmanuel.grumbach@intel.com>, Wang Long <long.wanglong@huawei.com>, Richard Fitzgerald <rf@opensource.wolfsonmicro.com>, Ingo Molnar <mingo@kernel.org>, Johan Hedberg <johan.hedberg@gmail.com>, Davidlohr Bueso <dave@stgolabs.net>, Joonsoo Kim <js1304@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "open list:WOLFSON MICROELECTRONICS DRIVERS" <patches@opensource.wolfsonmicro.com>, Sebastian Ott <sebott@linux.vnet.ibm.com>, "open list:QUALCOMM ATHEROS ATH10K WIRELESS DRIVER" <ath10k@lists.infradead.org>, Intel Linux Wireless <ilw@linux.intel.com>, "open list:ACPI" <linux-acpi@vger.kernel.org>, "open list:QUALCOMM ATHEROS ATH9K WIRELESS DRIVER" <ath9k-devel@lists.ath9k.org>, Nick Kossifidis <mickflemm@gmail.com>, "open list:B43 WIRELESS DRIVER" <b43-dev@lists.infradead.org>, Luciano Coelho <luciano.coelho@intel.com>, Doug Thompson <dougthompson@xmission.com>, Gustavo Padovan <gustavo@padovan.org>, Sasha Levin <sasha.levin@oracle.com>, Tomas Winkler <tomas.winkler@intel.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, sboyd@codeaurora.org, Len Brown <lenb@kernel.org>, Takashi Iwai <tiwai@suse.com>, Hariprasad S <hariprasad@chelsio.com>, Johannes Berg <johannes.berg@intel.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, Vlastimil Babka <vbabka@suse.cz>, Arik Nemtsov <arik@wizery.com>, Marcel Holtmann <marcel@holtmann.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Akinobu Mita <akinobu.mita@gmail.com>, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Tejun Heo <tj@kernel.org>, Florian Fainelli <f.fainelli@gmail.com>, Borislav Petkov <bp@alien8.de>, Oleg Nesterov <oleg@redhat.com>, Charles Keepax <ckeepax@opensource.wolfsonmicro.com>, Mel Gorman <mgorman@suse.de>, "moderated list:ARM64 PORT AARCH64 ARCHITECTURE" <linux-arm-kernel@lists.infradead.org>, "open list:EDAC-CORE" <linux-edac@vger.kernel.org>, Haggai Eran <haggaie@mellanox.com>, "James E.J. Bottomley" <JBottomley@odin.com>, Chaya Rachel Ivgi <chaya.rachel.ivgi@intel.com>, "open list:CISCO SCSI HBA DRIVER" <linux-scsi@vger.kernel.org>, Brian Silverman <bsilver16384@gmail.com>, "Luis R. Rodriguez" <mcgrof@do-not-panic.com>, "open list:CXGB4 ETHERNET DRIVER CXGB4" <netdev@vger.kernel.org>, "open list:ULTRA-WIDEBAND UWB SUBSYSTEM:" <linux-usb@vger.kernel.org>, Rafael Wysocki <rjw@rjwysocki.net>, Liam Girdwood <lgirdwood@gmail.com>, Sesidhar Baddela <sebaddel@cisco.com>, open list <linux-kernel@vger.kernel.org>, "open list:BLUETOOTH DRIVERS" <linux-bluetooth@vger.kernel.org>, "open list:AMD IOMMU AMD-VI" <iommu@lists.linux-foundation.org>, Dmitry Monakhov <dmonakhov@openvz.org>, Thomas Gleixner <tglx@linutronix.de>, Narsimhulu Musini <nmusini@cisco.com>, Johannes Weiner <hannes@cmpxchg.org>, Joe Perches <joe@perches.com>, Eliad Peller <eliad@wizery.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Duyck <alexander.h.duyck@redhat.com>, Larry Finger <Larry.Finger@lwfinger.net>
 
-Use IS_ALIGNED() to determine whether the shadow span two bytes. It
-generates less code and more readable. Also add some comments in shadow
-check functions.
+On 14-09-15, 09:03, Greg KH wrote:
+> What ever ones you think it is relevant for :)
 
-Please apply "kasan: fix last shadow judgement in memory_is_poisoned_16()"
-first.
+"Relevant" is a relevant term :)
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- mm/kasan/kasan.c | 24 ++++++++++++++++++++++--
- 1 file changed, 22 insertions(+), 2 deletions(-)
+So, the patch which defined the type bool as _Bool was added in v2.6.19 :)
 
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 8da2114..d0a3af8 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -86,6 +86,11 @@ static __always_inline bool memory_is_poisoned_2(unsigned long addr)
- 		if (memory_is_poisoned_1(addr + 1))
- 			return true;
- 
-+		/*
-+		 * If single shadow byte covers 2-byte access, we don't
-+		 * need to do anything more. Otherwise, test the first
-+		 * shadow byte.
-+		 */
- 		if (likely(((addr + 1) & KASAN_SHADOW_MASK) != 0))
- 			return false;
- 
-@@ -103,6 +108,11 @@ static __always_inline bool memory_is_poisoned_4(unsigned long addr)
- 		if (memory_is_poisoned_1(addr + 3))
- 			return true;
- 
-+		/*
-+		 * If single shadow byte covers 4-byte access, we don't
-+		 * need to do anything more. Otherwise, test the first
-+		 * shadow byte.
-+		 */
- 		if (likely(((addr + 3) & KASAN_SHADOW_MASK) >= 3))
- 			return false;
- 
-@@ -120,7 +130,12 @@ static __always_inline bool memory_is_poisoned_8(unsigned long addr)
- 		if (memory_is_poisoned_1(addr + 7))
- 			return true;
- 
--		if (likely(((addr + 7) & KASAN_SHADOW_MASK) >= 7))
-+		/*
-+		 * If single shadow byte covers 8-byte access, we don't
-+		 * need to do anything more. Otherwise, test the first
-+		 * shadow byte.
-+		 */
-+		if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
- 			return false;
- 
- 		return unlikely(*(u8 *)shadow_addr);
-@@ -139,7 +154,12 @@ static __always_inline bool memory_is_poisoned_16(unsigned long addr)
- 		if (unlikely(shadow_first_bytes))
- 			return true;
- 
--		if (likely(IS_ALIGNED(addr, 8)))
-+		/*
-+		 * If two shadow bytes covers 16-byte access, we don't
-+		 * need to do anything more. Otherwise, test the last
-+		 * shadow byte.
-+		 */
-+		if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
- 			return false;
- 
- 		return memory_is_poisoned_1(addr + 15);
+6e2182874324 ("[PATCH] Generic boolean")
+
+So, I will try at least for v3.10+ as they are used by a lot of
+people, as they are LTS kernels. But wasn't sure if I should do it
+right from 2.6.19.
+
 -- 
-2.0.0
-
+viresh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
