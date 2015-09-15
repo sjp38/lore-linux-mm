@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f54.google.com (mail-vk0-f54.google.com [209.85.213.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F7816B025D
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 10:09:07 -0400 (EDT)
-Received: by vkhf67 with SMTP id f67so80435639vkh.1
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:07 -0700 (PDT)
-Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
-        by mx.google.com with ESMTPS id w3si12522723laj.40.2015.09.15.07.09.06
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 0726C6B025E
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 10:09:16 -0400 (EDT)
+Received: by lagj9 with SMTP id j9so109926753lag.2
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:15 -0700 (PDT)
+Received: from mail-lb0-x230.google.com (mail-lb0-x230.google.com. [2a00:1450:4010:c04::230])
+        by mx.google.com with ESMTPS id g3si13873140lag.57.2015.09.15.07.09.14
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 07:09:06 -0700 (PDT)
-Received: by lanb10 with SMTP id b10so107796999lan.3
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:06 -0700 (PDT)
+        Tue, 15 Sep 2015 07:09:15 -0700 (PDT)
+Received: by lbbvu2 with SMTP id vu2so13637919lbb.0
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:14 -0700 (PDT)
 From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Subject: [PATCH 06/10] mm/util: Use offset_in_page macro
-Date: Tue, 15 Sep 2015 20:08:11 +0600
-Message-Id: <1442326091-7438-1-git-send-email-kuleshovmail@gmail.com>
+Subject: [PATCH 07/10] mm/mlock: Use offset_in_page macro
+Date: Tue, 15 Sep 2015 20:08:17 +0600
+Message-Id: <1442326097-7493-1-git-send-email-kuleshovmail@gmail.com>
 In-Reply-To: <1442326012-7034-1-git-send-email-kuleshovmail@gmail.com>
 References: <1442326012-7034-1-git-send-email-kuleshovmail@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -27,22 +27,40 @@ predefined macro instead of (addr & ~PAGE_MASK).
 
 Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
 ---
- mm/util.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/mlock.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/mm/util.c b/mm/util.c
-index 68ff8a5..9af1c12 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -309,7 +309,7 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
- {
- 	if (unlikely(offset + PAGE_ALIGN(len) < offset))
- 		return -EINVAL;
--	if (unlikely(offset & ~PAGE_MASK))
-+	if (unlikely(offset_in_page(offset)))
- 		return -EINVAL;
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 25936680..e86206b 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -560,7 +560,7 @@ static int do_mlock(unsigned long start, size_t len, int on)
+ 	struct vm_area_struct * vma, * prev;
+ 	int error;
  
- 	return vm_mmap_pgoff(file, addr, len, prot, flag, offset >> PAGE_SHIFT);
+-	VM_BUG_ON(start & ~PAGE_MASK);
++	VM_BUG_ON(offset_in_page(start));
+ 	VM_BUG_ON(len != PAGE_ALIGN(len));
+ 	end = start + len;
+ 	if (end < start)
+@@ -616,7 +616,7 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
+ 
+ 	lru_add_drain_all();	/* flush pagevec */
+ 
+-	len = PAGE_ALIGN(len + (start & ~PAGE_MASK));
++	len = PAGE_ALIGN(len + (offset_in_page(start)));
+ 	start &= PAGE_MASK;
+ 
+ 	lock_limit = rlimit(RLIMIT_MEMLOCK);
+@@ -645,7 +645,7 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
+ {
+ 	int ret;
+ 
+-	len = PAGE_ALIGN(len + (start & ~PAGE_MASK));
++	len = PAGE_ALIGN(len + (offset_in_page(start)));
+ 	start &= PAGE_MASK;
+ 
+ 	down_write(&current->mm->mmap_sem);
 -- 
 2.5.0
 
