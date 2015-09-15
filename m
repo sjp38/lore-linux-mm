@@ -1,95 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DBE06B0038
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 16:02:56 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so153271879qgt.2
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 13:02:55 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y45si18393725qgd.42.2015.09.15.13.02.55
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4000B6B0038
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 16:08:29 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so45031298wic.0
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 13:08:28 -0700 (PDT)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id m8si28430126wjw.183.2015.09.15.13.08.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 13:02:55 -0700 (PDT)
-Date: Tue, 15 Sep 2015 13:02:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 12/12] userfaultfd: register uapi generic syscall
- (aarch64)
-Message-Id: <20150915130253.c1a0fbbab9ce93b38a2bfd43@linux-foundation.org>
-In-Reply-To: <1441745010-14314-13-git-send-email-aarcange@redhat.com>
-References: <1441745010-14314-1-git-send-email-aarcange@redhat.com>
-	<1441745010-14314-13-git-send-email-aarcange@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 15 Sep 2015 13:08:28 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so44698580wic.1
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 13:08:27 -0700 (PDT)
+Date: Tue, 15 Sep 2015 23:08:21 +0300
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: Re: [RFC v5 2/3] mm: make optimistic check for swapin readahead
+Message-ID: <20150915200820.GA4188@debian>
+References: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
+ <1442259105-4420-3-git-send-email-ebru.akagunduz@gmail.com>
+ <20150914143355.cd75506c0605c5d6c9a4bb03@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150914143355.cd75506c0605c5d6c9a4bb03@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Pavel Emelyanov <xemul@parallels.com>, zhang.zhanghailiang@huawei.com, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Michael Ellerman <mpe@ellerman.id.au>, Bamvor Zhang Jian <bamvor.zhangjian@linaro.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
 
-On Tue,  8 Sep 2015 22:43:30 +0200 Andrea Arcangeli <aarcange@redhat.com> wrote:
-
-> From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+On Mon, Sep 14, 2015 at 02:33:55PM -0700, Andrew Morton wrote:
+> On Mon, 14 Sep 2015 22:31:44 +0300 Ebru Akagunduz <ebru.akagunduz@gmail.com> wrote:
 > 
-> Add the userfaultfd syscalls to uapi asm-generic, it was tested with
-> postcopy live migration on aarch64 with both 4k and 64k pagesize kernels.
+> > This patch introduces new sysfs integer knob
+> > /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_swap
+> > which makes optimistic check for swapin readahead to
+> > increase thp collapse rate. Before getting swapped
+> > out pages to memory, checks them and allows up to a
+> > certain number. It also prints out using tracepoints
+> > amount of unmapped ptes.
 > 
-> ...
->
-> --- a/include/uapi/asm-generic/unistd.h
-> +++ b/include/uapi/asm-generic/unistd.h
-> @@ -709,9 +709,11 @@ __SYSCALL(__NR_memfd_create, sys_memfd_create)
->  __SYSCALL(__NR_bpf, sys_bpf)
->  #define __NR_execveat 281
->  __SC_COMP(__NR_execveat, sys_execveat, compat_sys_execveat)
-> +#define __NR_userfaultfd 282
-> +__SYSCALL(__NR_userfaultfd, sys_userfaultfd)
->  
->  #undef __NR_syscalls
-> -#define __NR_syscalls 282
-> +#define __NR_syscalls 283
+> We we please get this control documented? 
+> Documentation/vm/transhuge.txt appears to be the place for it.
 
-sys_membarrier got there first.  Does this version look OK?
+I will add annotation about max_swap_ptes to doc and send it with new patch.
 
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: userfaultfd: register uapi generic syscall (aarch64)
-
-Add the userfaultfd syscalls to uapi asm-generic, it was tested with
-postcopy live migration on aarch64 with both 4k and 64k pagesize kernels.
-
-Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- include/uapi/asm-generic/unistd.h |    8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
-
-diff -puN include/uapi/asm-generic/unistd.h~userfaultfd-register-uapi-generic-syscall-aarch64 include/uapi/asm-generic/unistd.h
---- a/include/uapi/asm-generic/unistd.h~userfaultfd-register-uapi-generic-syscall-aarch64
-+++ a/include/uapi/asm-generic/unistd.h
-@@ -709,17 +709,19 @@ __SYSCALL(__NR_memfd_create, sys_memfd_c
- __SYSCALL(__NR_bpf, sys_bpf)
- #define __NR_execveat 281
- __SC_COMP(__NR_execveat, sys_execveat, compat_sys_execveat)
--#define __NR_membarrier 282
-+#define __NR_userfaultfd 282
-+__SYSCALL(__NR_userfaultfd, sys_userfaultfd)
-+#define __NR_membarrier 283
- __SYSCALL(__NR_membarrier, sys_membarrier)
- 
- #undef __NR_syscalls
--#define __NR_syscalls 283
-+#define __NR_syscalls 284
- 
- /*
-  * All syscalls below here should go away really,
-  * these are provided for both review and as a porting
-  * help for the C library version.
--*
-+ *
-  * Last chance: are any of these important enough to
-  * enable by default?
-  */
-_
+Kind regards,
+Ebru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
