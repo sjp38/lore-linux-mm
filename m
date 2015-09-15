@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id BA5D56B025F
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 10:09:25 -0400 (EDT)
-Received: by lagj9 with SMTP id j9so109931019lag.2
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:25 -0700 (PDT)
-Received: from mail-la0-x233.google.com (mail-la0-x233.google.com. [2a00:1450:4010:c03::233])
-        by mx.google.com with ESMTPS id br8si13870083lbb.117.2015.09.15.07.09.24
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F0236B025F
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 10:09:34 -0400 (EDT)
+Received: by lbbmp1 with SMTP id mp1so85837974lbb.1
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:33 -0700 (PDT)
+Received: from mail-la0-x229.google.com (mail-la0-x229.google.com. [2a00:1450:4010:c03::229])
+        by mx.google.com with ESMTPS id rj9si13884466lbb.26.2015.09.15.07.09.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 07:09:24 -0700 (PDT)
-Received: by lagj9 with SMTP id j9so109930426lag.2
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:23 -0700 (PDT)
+        Tue, 15 Sep 2015 07:09:32 -0700 (PDT)
+Received: by lanb10 with SMTP id b10so107807836lan.3
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:09:32 -0700 (PDT)
 From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Subject: [PATCH 08/10] mm/vmalloc: Use offset_in_page macro
-Date: Tue, 15 Sep 2015 20:08:29 +0600
-Message-Id: <1442326109-7548-1-git-send-email-kuleshovmail@gmail.com>
+Subject: [PATCH 09/10] mm/mmap: Use offset_in_page macro
+Date: Tue, 15 Sep 2015 20:08:37 +0600
+Message-Id: <1442326117-7603-1-git-send-email-kuleshovmail@gmail.com>
 In-Reply-To: <1442326012-7034-1-git-send-email-kuleshovmail@gmail.com>
 References: <1442326012-7034-1-git-send-email-kuleshovmail@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -27,67 +27,67 @@ predefined macro instead of (addr & ~PAGE_MASK).
 
 Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
 ---
- mm/vmalloc.c | 12 ++++++------
+ mm/mmap.c | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 2faaa29..b51b733 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -358,7 +358,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	struct vmap_area *first;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 971dd2c..a313a9c 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1304,7 +1304,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+ 	 * that it represents a valid section of the address space.
+ 	 */
+ 	addr = get_unmapped_area(file, addr, len, pgoff, flags);
+-	if (addr & ~PAGE_MASK)
++	if (offset_in_page(addr))
+ 		return addr;
  
- 	BUG_ON(!size);
--	BUG_ON(size & ~PAGE_MASK);
-+	BUG_ON(offset_in_page(size));
- 	BUG_ON(!is_power_of_2(align));
+ 	/* Do simple checking here so the lower-level routines won't have
+@@ -1475,7 +1475,7 @@ SYSCALL_DEFINE1(old_mmap, struct mmap_arg_struct __user *, arg)
  
- 	va = kmalloc_node(sizeof(struct vmap_area),
-@@ -936,7 +936,7 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
- 	void *vaddr = NULL;
- 	unsigned int order;
+ 	if (copy_from_user(&a, arg, sizeof(a)))
+ 		return -EFAULT;
+-	if (a.offset & ~PAGE_MASK)
++	if (offset_in_page(a.offset))
+ 		return -EINVAL;
  
--	BUG_ON(size & ~PAGE_MASK);
-+	BUG_ON(offset_in_page(size));
- 	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
- 	if (WARN_ON(size == 0)) {
- 		/*
-@@ -989,7 +989,7 @@ static void vb_free(const void *addr, unsigned long size)
- 	unsigned int order;
- 	struct vmap_block *vb;
+ 	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
+@@ -1996,7 +1996,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	 * can happen with large stack limits and large mmap()
+ 	 * allocations.
+ 	 */
+-	if (addr & ~PAGE_MASK) {
++	if (offset_in_page(addr)) {
+ 		VM_BUG_ON(addr != -ENOMEM);
+ 		info.flags = 0;
+ 		info.low_limit = TASK_UNMAPPED_BASE;
+@@ -2032,7 +2032,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
  
--	BUG_ON(size & ~PAGE_MASK);
-+	BUG_ON(offset_in_page(size));
- 	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
+ 	if (addr > TASK_SIZE - len)
+ 		return -ENOMEM;
+-	if (addr & ~PAGE_MASK)
++	if (offset_in_page(addr))
+ 		return -EINVAL;
  
- 	flush_cache_vunmap((unsigned long)addr, (unsigned long)addr + size);
-@@ -1902,7 +1902,7 @@ static int aligned_vread(char *buf, char *addr, unsigned long count)
- 	while (count) {
- 		unsigned long offset, length;
+ 	addr = arch_rebalance_pgtables(addr, len);
+@@ -2543,7 +2543,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
+ 	unsigned long end;
+ 	struct vm_area_struct *vma, *prev, *last;
  
--		offset = (unsigned long)addr & ~PAGE_MASK;
-+		offset = offset_in_page(addr);
- 		length = PAGE_SIZE - offset;
- 		if (length > count)
- 			length = count;
-@@ -1941,7 +1941,7 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
- 	while (count) {
- 		unsigned long offset, length;
+-	if ((start & ~PAGE_MASK) || start > TASK_SIZE || len > TASK_SIZE-start)
++	if ((offset_in_page(start)) || start > TASK_SIZE || len > TASK_SIZE-start)
+ 		return -EINVAL;
  
--		offset = (unsigned long)addr & ~PAGE_MASK;
-+		offset = offset_in_page(addr);
- 		length = PAGE_SIZE - offset;
- 		if (length > count)
- 			length = count;
-@@ -2392,7 +2392,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 	bool purged = false;
+ 	len = PAGE_ALIGN(len);
+@@ -2741,7 +2741,7 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
+ 	flags = VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
  
- 	/* verify parameters and allocate data structures */
--	BUG_ON(align & ~PAGE_MASK || !is_power_of_2(align));
-+	BUG_ON(offset_in_page(align) || !is_power_of_2(align));
- 	for (last_area = 0, area = 0; area < nr_vms; area++) {
- 		start = offsets[area];
- 		end = start + sizes[area];
+ 	error = get_unmapped_area(NULL, addr, len, 0, MAP_FIXED);
+-	if (error & ~PAGE_MASK)
++	if (offset_in_page(error))
+ 		return error;
+ 
+ 	error = mlock_future_check(mm, mm->def_flags, len);
 -- 
 2.5.0
 
