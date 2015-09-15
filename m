@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D79CA6B025A
-	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 10:08:37 -0400 (EDT)
-Received: by lbbvu2 with SMTP id vu2so13625426lbb.0
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:08:37 -0700 (PDT)
-Received: from mail-la0-x230.google.com (mail-la0-x230.google.com. [2a00:1450:4010:c03::230])
-        by mx.google.com with ESMTPS id ku10si13877242lac.18.2015.09.15.07.08.36
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id BC4896B025B
+	for <linux-mm@kvack.org>; Tue, 15 Sep 2015 10:08:50 -0400 (EDT)
+Received: by lamp12 with SMTP id p12so107182727lam.0
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:08:50 -0700 (PDT)
+Received: from mail-la0-x235.google.com (mail-la0-x235.google.com. [2a00:1450:4010:c03::235])
+        by mx.google.com with ESMTPS id pp5si13853013lbb.166.2015.09.15.07.08.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Sep 2015 07:08:36 -0700 (PDT)
-Received: by lahg1 with SMTP id g1so78916459lah.1
-        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:08:36 -0700 (PDT)
+        Tue, 15 Sep 2015 07:08:49 -0700 (PDT)
+Received: by lagj9 with SMTP id j9so109915739lag.2
+        for <linux-mm@kvack.org>; Tue, 15 Sep 2015 07:08:49 -0700 (PDT)
 From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Subject: [PATCH 03/10] mm/mincore: Use offset_in_page macro
-Date: Tue, 15 Sep 2015 20:07:40 +0600
-Message-Id: <1442326060-7261-1-git-send-email-kuleshovmail@gmail.com>
+Subject: [PATCH 04/10] mm/early_ioremap: Use offset_in_page macro
+Date: Tue, 15 Sep 2015 20:07:53 +0600
+Message-Id: <1442326073-7328-1-git-send-email-kuleshovmail@gmail.com>
 In-Reply-To: <1442326012-7034-1-git-send-email-kuleshovmail@gmail.com>
 References: <1442326012-7034-1-git-send-email-kuleshovmail@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -27,22 +27,40 @@ predefined macro instead of (addr & ~PAGE_MASK).
 
 Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
 ---
- mm/mincore.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/early_ioremap.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/mm/mincore.c b/mm/mincore.c
-index be25efd..a011355 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -234,8 +234,7 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
+diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+index 17ae14b..6d5717b 100644
+--- a/mm/early_ioremap.c
++++ b/mm/early_ioremap.c
+@@ -126,7 +126,7 @@ __early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
+ 	/*
+ 	 * Mappings have to be page-aligned
+ 	 */
+-	offset = phys_addr & ~PAGE_MASK;
++	offset = offset_in_page(phys_addr);
+ 	phys_addr &= PAGE_MASK;
+ 	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
  
- 	/* This also avoids any overflows on PAGE_CACHE_ALIGN */
- 	pages = len >> PAGE_SHIFT;
--	pages += (len & ~PAGE_MASK) != 0;
-+	pages += (offset_in_page(len)) != 0;
+@@ -189,7 +189,7 @@ void __init early_iounmap(void __iomem *addr, unsigned long size)
+ 	if (WARN_ON(virt_addr < fix_to_virt(FIX_BTMAP_BEGIN)))
+ 		return;
  
- 	if (!access_ok(VERIFY_WRITE, vec, pages))
- 		return -EFAULT;
+-	offset = virt_addr & ~PAGE_MASK;
++	offset = offset_in_page(virt_addr);
+ 	nrpages = PAGE_ALIGN(offset + size) >> PAGE_SHIFT;
+ 
+ 	idx = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*slot;
+@@ -234,7 +234,7 @@ void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
+ 	char *p;
+ 
+ 	while (size) {
+-		slop = src & ~PAGE_MASK;
++		slop = offset_in_page(src);
+ 		clen = size;
+ 		if (clen > MAX_MAP_CHUNK - slop)
+ 			clen = MAX_MAP_CHUNK - slop;
 -- 
 2.5.0
 
