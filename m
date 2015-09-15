@@ -1,62 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EE056B0255
-	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 20:01:40 -0400 (EDT)
-Received: by qkdw123 with SMTP id w123so65470661qkd.0
-        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 17:01:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k62si14546796qgk.50.2015.09.14.17.01.39
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AE676B0253
+	for <linux-mm@kvack.org>; Mon, 14 Sep 2015 20:49:13 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so158839635pac.0
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 17:49:13 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id kh8si24295198pab.53.2015.09.14.17.49.12
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Sep 2015 17:01:39 -0700 (PDT)
-Date: Tue, 15 Sep 2015 02:01:36 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] userfaultfd: add missing mmput() in error path
-Message-ID: <20150915000136.GD2191@redhat.com>
-References: <1442188647-4233-1-git-send-email-ebiggers3@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Sep 2015 17:49:12 -0700 (PDT)
+Received: by pacfv12 with SMTP id fv12so161647338pac.2
+        for <linux-mm@kvack.org>; Mon, 14 Sep 2015 17:49:12 -0700 (PDT)
+Date: Tue, 15 Sep 2015 09:49:57 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 0/3] allow zram to use zbud as underlying allocator
+Message-ID: <20150915004957.GA1860@swordfish>
+References: <20150914154901.92c5b7b24e15f04d8204de18@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1442188647-4233-1-git-send-email-ebiggers3@gmail.com>
+In-Reply-To: <20150914154901.92c5b7b24e15f04d8204de18@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: minchan@kernel.org, sergey.senozhatsky@gmail.com, ddstreet@ieee.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello Eric,
-
-On Sun, Sep 13, 2015 at 06:57:27PM -0500, Eric Biggers wrote:
-> Signed-off-by: Eric Biggers <ebiggers3@gmail.com>
-> ---
->  fs/userfaultfd.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
+On (09/14/15 15:49), Vitaly Wool wrote:
+> While using ZRAM on a small RAM footprint devices, together with KSM,
+> I ran into several occasions when moving pages from compressed swap back
+> into the "normal" part of RAM caused significant latencies in system operation.
+> By using zbud I lose in compression ratio but gain in determinism, lower
+> latencies and lower fragmentation, so in the coming patches I tried to
+> generalize what I've done to enable zbud for zram so far.
 > 
-> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> index 634e676..f9aeb40 100644
-> --- a/fs/userfaultfd.c
-> +++ b/fs/userfaultfd.c
-> @@ -1287,8 +1287,10 @@ static struct file *userfaultfd_file_create(int flags)
->  
->  	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
->  				  O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
-> -	if (IS_ERR(file))
-> +	if (IS_ERR(file)) {
-> +		mmput(ctx->mm);
->  		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
-> +	}
->  out:
->  	return file;
->  }
 
-This bug would have generated a memleak in the error code path (which
-could only run if running out of files or memory, unfortunately not a
-condition that gets routinely exercised).
+do you have CONFIG_PGTABLE_MAPPING enabled or disabled? or
+kmap_atomic/memcpy/kunmap_atomic is not the root cause here?
+can you provide more details please?
 
-It's great you spotted it now, we can fix it before final 4.3. I'll
-forward it to Andrew to be sure it's not missed.
-
-Thanks,
-Andrea
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
