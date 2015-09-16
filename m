@@ -1,130 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B67D6B0258
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:49:18 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so215288910pad.1
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:49:18 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id gk11si31520258pbd.34.2015.09.16.10.49.04
+	by kanga.kvack.org (Postfix) with ESMTP id 64F796B0259
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:49:20 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so215289697pad.1
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:49:20 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id e5si15347140pas.193.2015.09.16.10.49.08
         for <linux-mm@kvack.org>;
-        Wed, 16 Sep 2015 10:49:04 -0700 (PDT)
-Subject: [PATCH 00/26] [RFCv2] x86: Memory Protection Keys
+        Wed, 16 Sep 2015 10:49:09 -0700 (PDT)
+Subject: [PATCH 13/26] mm: simplify get_user_pages() PTE bit handling
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 16 Sep 2015 10:49:03 -0700
-Message-Id: <20150916174903.E112E464@viggo.jf.intel.com>
+Date: Wed, 16 Sep 2015 10:49:07 -0700
+References: <20150916174903.E112E464@viggo.jf.intel.com>
+In-Reply-To: <20150916174903.E112E464@viggo.jf.intel.com>
+Message-Id: <20150916174907.0011AC9C@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dave@sr71.net
 Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-MM reviewers, if you are going to look at one thing, please look
-at patch 14 which adds a bunch of additional vma/pte permission
-checks.  Everybody else, please take a look at the two syscall
-alternatives, especially the non-x86 folk.
 
-This is a second big, fat RFC.  This code is not runnable to
-anyone outside of Intel unless they have some special hardware or
-a fancy simulator.  If you are interested in running this for
-real, please get in touch with me.  Hardware is available to
-a very small but nonzero number of people.
+The current get_user_pages() code is a wee bit more complicated
+than it needs to be for pte bit checking.  Currently, it establishes
+a mask of required pte _PAGE_* bits and ensures that the pte it
+goes after has all those bits.
 
-Since the last posting, I have implemented almost all of the
-"software enforcement" for protection keys.  Basically, in places
-where we look at VMA or PTE permissions, we try to enforce
-protection keys to make it act similarly to mprotect().  This is
-the part of the approach that really needs the most review and is
-almost entirely contained in the "check VMAs and PTEs for
-protection keys".
+We need to use the bits for our _PAGE_PRESENT check since
+pte_present() is also true for _PAGE_PROTNONE, and we have no
+accessor for _PAGE_USER, so need it there as well.
 
-I also implemented a new system call.  There are basically two
-possibilities for plumbing protection keys out to userspace.
-I've included *both* approaches here:
-1. Create a new system call: mprotect_key().  It's mprotect(),
-   plus a protection key.  The patches implementing this have
-   [NEWSYSCALL] in the subject.
-2. Hijack some space in the PROT_* bits and pass a protection key
-   in there.  That way, existing system calls like mmap(),
-   mprotect(), etc... just work.  The patches implementing this
-   have [HIJACKPROT] in the subject and must be applied without
-   the [NEWSYSCALL] ones.
+But we might as well just use pte_write() since we have it and
+let the compiler work its magic on optimizing it.
 
-There is still work left to do here.  Current TODO:
- * Build on something other than x86
- * Do some more exhaustive x86 randconfig tests
- * Make sure DAX mappings work
- * Pound on some of the modified paths to ensure limited
-   performance impact from modifications to hot paths.
+This also consolidates the three identical copies of this code.
 
-This set is also available here (with the new syscall):
+---
 
-	git://git.kernel.org/pub/scm/linux/kernel/git/daveh/x86-pkeys.git pkeys-v005
+ b/arch/x86/mm/gup.c |   34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)
 
-A version with the modification of the PROT_ syscalls is tagged
-as 'pkeys-v005-protsyscalls'.
-
-=== diffstat (new syscall version) ===
-
- Documentation/kernel-parameters.txt         |    3 
- Documentation/x86/protection-keys.txt       |   65 ++++++++++++++++++++
- arch/powerpc/include/asm/mman.h             |    5 -
- arch/x86/Kconfig                            |   15 ++++
- arch/x86/entry/syscalls/syscall_32.tbl      |    1 
- arch/x86/entry/syscalls/syscall_64.tbl      |    1 
- arch/x86/include/asm/cpufeature.h           |   54 ++++++++++------
- arch/x86/include/asm/disabled-features.h    |   12 +++
- arch/x86/include/asm/fpu/types.h            |   17 +++++
- arch/x86/include/asm/fpu/xstate.h           |    4 -
- arch/x86/include/asm/mmu_context.h          |   66 ++++++++++++++++++++
- arch/x86/include/asm/pgtable.h              |   37 +++++++++++
- arch/x86/include/asm/pgtable_types.h        |   34 +++++++++-
- arch/x86/include/asm/required-features.h    |    4 +
- arch/x86/include/asm/special_insns.h        |   33 ++++++++++
- arch/x86/include/uapi/asm/mman.h            |   23 +++++++
- arch/x86/include/uapi/asm/processor-flags.h |    2 
- arch/x86/kernel/cpu/common.c                |   27 ++++++++
- arch/x86/kernel/fpu/xstate.c                |   10 ++-
- arch/x86/kernel/process_64.c                |    2 
- arch/x86/kernel/setup.c                     |    9 ++
- arch/x86/mm/fault.c                         |   89 ++++++++++++++++++++++++++--
- arch/x86/mm/gup.c                           |   37 ++++++-----
- drivers/char/agp/frontend.c                 |    2 
- drivers/staging/android/ashmem.c            |    3 
- fs/proc/task_mmu.c                          |    5 +
- include/asm-generic/mm_hooks.h              |   12 +++
- include/linux/mm.h                          |   15 ++++
- include/linux/mman.h                        |    6 -
- include/uapi/asm-generic/siginfo.h          |   11 +++
- mm/Kconfig                                  |   11 +++
- mm/gup.c                                    |   28 +++++++-
- mm/memory.c                                 |    8 +-
- mm/mmap.c                                   |    2 
- mm/mprotect.c                               |   20 +++++-
- 35 files changed, 607 insertions(+), 66 deletions(-)
-
-== FEATURE OVERVIEW ==
-
-Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU
-feature which will be found in future Intel CPUs.  The work here
-was done with the aid of simulators.
-
-Memory Protection Keys provides a mechanism for enforcing
-page-based protections, but without requiring modification of the
-page tables when an application changes protection domains.  It
-works by dedicating 4 previously ignored bits in each page table
-entry to assigning a "protection key", giving 16 possible keys to
-each page mapping.
-
-There is also a new user-accessible register (PKRU) with two
-separate bits (Access Disable and Write Disable) for each key.
-Being a CPU register, PKRU is inherently thread-local,
-potentially giving each thread a different set of protections
-from every other thread.
-
-There are two new instructions (RDPKRU/WRPKRU) for reading and
-writing to the new register.  The feature is only available in
-64-bit mode, even though there is theoretically space in the PAE
-PTEs.  These permissions are enforced on data access only and
-have no effect on instruction fetches.
+diff -puN arch/x86/mm/gup.c~pkeys-16-gup-swizzle arch/x86/mm/gup.c
+--- a/arch/x86/mm/gup.c~pkeys-16-gup-swizzle	2015-09-16 10:48:17.002226145 -0700
++++ b/arch/x86/mm/gup.c	2015-09-16 10:48:17.006226326 -0700
+@@ -63,6 +63,19 @@ retry:
+ #endif
+ }
+ 
++static inline int pte_allows_gup(pte_t pte, int write)
++{
++	/*
++	 * Note that pte_present() is true for !_PAGE_PRESENT
++	 * but _PAGE_PROTNONE, so we can not use it here.
++	 */
++	if (!(pte_flags(pte) & (_PAGE_PRESENT|_PAGE_USER)))
++		return 0;
++	if (write && !pte_write(pte))
++		return 0;
++	return 1;
++}
++
+ /*
+  * The performance critical leaf functions are made noinline otherwise gcc
+  * inlines everything into a single function which results in too much
+@@ -71,13 +84,8 @@ retry:
+ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
+ {
+-	unsigned long mask;
+ 	pte_t *ptep;
+ 
+-	mask = _PAGE_PRESENT|_PAGE_USER;
+-	if (write)
+-		mask |= _PAGE_RW;
+-
+ 	ptep = pte_offset_map(&pmd, addr);
+ 	do {
+ 		pte_t pte = gup_get_pte(ptep);
+@@ -88,8 +96,8 @@ static noinline int gup_pte_range(pmd_t
+ 			pte_unmap(ptep);
+ 			return 0;
+ 		}
+-
+-		if ((pte_flags(pte) & (mask | _PAGE_SPECIAL)) != mask) {
++		if (!pte_allows_gup(pte, write) ||
++		    pte_special(pte)) {
+ 			pte_unmap(ptep);
+ 			return 0;
+ 		}
+@@ -117,15 +125,11 @@ static inline void get_head_page_multipl
+ static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
+ {
+-	unsigned long mask;
+ 	pte_t pte = *(pte_t *)&pmd;
+ 	struct page *head, *page;
+ 	int refs;
+ 
+-	mask = _PAGE_PRESENT|_PAGE_USER;
+-	if (write)
+-		mask |= _PAGE_RW;
+-	if ((pte_flags(pte) & mask) != mask)
++	if (!pte_allows_gup(pte, write))
+ 		return 0;
+ 	/* hugepages are never "special" */
+ 	VM_BUG_ON(pte_flags(pte) & _PAGE_SPECIAL);
+@@ -194,15 +198,11 @@ static int gup_pmd_range(pud_t pud, unsi
+ static noinline int gup_huge_pud(pud_t pud, unsigned long addr,
+ 		unsigned long end, int write, struct page **pages, int *nr)
+ {
+-	unsigned long mask;
+ 	pte_t pte = *(pte_t *)&pud;
+ 	struct page *head, *page;
+ 	int refs;
+ 
+-	mask = _PAGE_PRESENT|_PAGE_USER;
+-	if (write)
+-		mask |= _PAGE_RW;
+-	if ((pte_flags(pte) & mask) != mask)
++	if (!pte_allows_gup(pte, write))
+ 		return 0;
+ 	/* hugepages are never "special" */
+ 	VM_BUG_ON(pte_flags(pte) & _PAGE_SPECIAL);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
