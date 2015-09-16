@@ -1,50 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id CAAB66B0038
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 04:02:26 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so60670669wic.0
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 01:02:26 -0700 (PDT)
-Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com. [2a00:1450:400c:c05::22b])
-        by mx.google.com with ESMTPS id f8si4691417wiz.88.2015.09.16.01.02.24
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 260DF6B0038
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 04:41:06 -0400 (EDT)
+Received: by oiww128 with SMTP id w128so116971148oiw.2
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 01:41:06 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id r124si12314269oih.92.2015.09.16.01.41.04
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Sep 2015 01:02:24 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so58354008wic.0
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 01:02:24 -0700 (PDT)
-Date: Wed, 16 Sep 2015 10:02:18 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH V3 2/2] debugfs: don't assume sizeof(bool) to be 4 bytes
-Message-ID: <20150916080218.GA8155@gmail.com>
-References: <9b705747a138c96c26faee5218f7b47403195b28.1442305897.git.viresh.kumar@linaro.org>
- <27d37898b4be6b9b9f31b90135f8206ca079a868.1442305897.git.viresh.kumar@linaro.org>
- <1442313464.1914.21.camel@sipsolutions.net>
- <20150915110447.GI6350@linux>
- <20150915094509.46cca84d@gandalf.local.home>
- <CA+55aFxVQ9jD=jUqPZt76EMe_Tb-_SA8v=rOHeR9Ljdsc6=xGQ@mail.gmail.com>
- <20150915134732.7ff50d03@gandalf.local.home>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 16 Sep 2015 01:41:05 -0700 (PDT)
+From: Junichi Nomura <j-nomura@ce.jp.nec.com>
+Subject: [PATCH v2] fs: global sync to not clear error status of individual
+ inodes
+Date: Wed, 16 Sep 2015 08:39:09 +0000
+Message-ID: <20150916083908.GA12244@xzibit.linux.bs1.fc.nec.co.jp>
+References: <20150915094638.GA13399@xzibit.linux.bs1.fc.nec.co.jp>
+ <20150915095412.GD13399@xzibit.linux.bs1.fc.nec.co.jp>
+ <20150915152006.GD2905@mtj.duckdns.org>
+ <20150916005916.GB6059@xzibit.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20150916005916.GB6059@xzibit.linux.bs1.fc.nec.co.jp>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <F7270BFC4BBA7C4D95672551CB2E89F2@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150915134732.7ff50d03@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Viresh Kumar <viresh.kumar@linaro.org>, Johannes Berg <johannes@sipsolutions.net>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linaro-kernel@lists.linaro.org" <linaro-kernel@lists.linaro.org>, Rafael Wysocki <rjw@rjwysocki.net>, "sboyd@codeaurora.org" <sboyd@codeaurora.org>, "arnd@arndb.de" <arnd@arndb.de>, Mark Brown <broonie@kernel.org>, Akinobu Mita <akinobu.mita@gmail.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, "moderated list:SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEM..." <alsa-devel@alsa-project.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Arik Nemtsov <arik@wizery.com>, "open list:QUALCOMM ATHEROS ATH10K WIRELESS DRIVER" <ath10k@lists.infradead.org>, "open list:QUALCOMM ATHEROS ATH9K WIRELESS DRIVER" <ath9k-devel@lists.ath9k.org>, "Altman, Avri" <avri.altman@intel.com>, "open list:B43 WIRELESS DRIVER" <b43-dev@lists.infradead.org>, Borislav Petkov <bp@alien8.de>, Brian Silverman <bsilver16384@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, Charles Keepax <ckeepax@opensource.wolfsonmicro.com>, "Ivgi, Chaya Rachel" <chaya.rachel.ivgi@intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Dmitry Monakhov <dmonakhov@openvz.org>, Doug Thompson <dougthompson@xmission.com>, Eliad Peller <eliad@wizery.com>, "Grumbach, Emmanuel" <emmanuel.grumbach@intel.com>, Florian Fainelli <f.fainelli@gmail.com>, Gustavo Padovan <gustavo@padovan.org>, Haggai Eran <haggaie@mellanox.com>, Hariprasad S <hariprasad@chelsio.com>, Intel Linux Wireless <ilw@linux.intel.com>, "open list:AMD IOMMU (AMD-VI)" <iommu@lists.linux-foundation.org>, "James E.J. Bottomley" <JBottomley@odin.com>, Jaroslav Kysela <perex@perex.cz>, Jiri Slaby <jirislaby@gmail.com>, Joe Perches <joe@perches.com>, Joerg Roedel <joro@8bytes.org>, Johan Hedberg <johan.hedberg@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <js1304@gmail.com>, Kalle Valo <kvalo@qca.qualcomm.com>, Larry Finger <Larry.Finger@lwfinger.net>, Len Brown <lenb@kernel.org>, Liam Girdwood <lgirdwood@gmail.com>, "open list:ACPI" <linux-acpi@vger.kernel.org>, "moderated list:ARM64 PORT (AARCH64 ARCHITECTURE)" <linux-arm-kernel@lists.infradead.org>, "open list:BLUETOOTH DRIVERS" <linux-bluetooth@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:EDAC-CORE" <linux-edac@vger.kernel.org>, open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:CISCO SCSI HBA DRIVER" <linux-scsi@vger.kernel.org>, "open list:ULTRA-WIDEBAND (UWB) SUBSYSTEM:" <linux-usb@vger.kernel.org>, "open list:NETWORKING DRIVERS (WIRELESS)" <linux-wireless@vger.kernel.org>, "Coelho, Luciano" <luciano.coelho@intel.com>, "Luis R. Rodriguez" <mcgrof@do-not-panic.com>, Marcel Holtmann <marcel@holtmann.org>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, Mel Gorman <mgorman@suse.de>, Michael Kerrisk <mtk.manpages@gmail.com>, Michal Hocko <mhocko@suse.com>, Narsimhulu Musini <nmusini@cisco.com>, "open list:CXGB4 ETHERNET DRIVER (CXGB4)" <netdev@vger.kernel.org>, Nick Kossifidis <mickflemm@gmail.com>, "open list:WOLFSON MICROELECTRONICS DRIVERS" <patches@opensource.wolfsonmicro.com>, Peter Zijlstra <peterz@infradead.org>, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Richard Fitzgerald <rf@opensource.wolfsonmicro.com>, Sasha Levin <sasha.levin@oracle.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Sesidhar Baddela <sebaddel@cisco.com>, Stanislaw Gruszka <sgruszka@redhat.com>, Takashi Iwai <tiwai@suse.com>, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "Winkler, Tomas" <tomas.winkler@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Wang Long <long.wanglong@huawei.com>, Will Deacon <will.deacon@arm.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Tejun Heo <tj@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "tony.luck@intel.com" <tony.luck@intel.com>, "david@fromorbit.com" <david@fromorbit.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
+filemap_fdatawait() is a function to wait for on-going writeback
+to complete but also consume and clear error status of the mapping
+set during writeback.
+The latter functionality is critical for applications to detect
+writeback error with system calls like fsync(2)/fdatasync(2).
 
-* Steven Rostedt <rostedt@goodmis.org> wrote:
+However filemap_fdatawait() is also used by sync(2) or FIFREEZE
+ioctl, which don't check error status of individual mappings.
 
-> But please, next time, go easy on the Cc list. Maybe just use bcc for those not 
-> on the list, stating that you BCC'd a lot of people to make sure this is sane, 
-> but didn't want to spam everyone with every reply.
+As a result, fsync() may not be able to detect writeback error
+if events happen in the following order:
 
-Not just that, such a long Cc: list is a semi-guarantee that various list engines 
-(vger included I think) would drop the mail as spam and nobody else would get the 
-mail...
+   Application                    System admin
+   ----------------------------------------------------------
+   write data on page cache
+                                  Run sync command
+                                  writeback completes with error
+                                  filemap_fdatawait() clears error
+   fsync returns success
+   (but the data is not on disk)
 
-Thanks,
+This patch adds filemap_fdatawait_keep_errors() for call sites where
+writeback error is not handled so that they don't clear error status.
 
-	Ingo
+Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
+Acked-by: Andi Kleen <ak@linux.intel.com>
+---
+v2:
+  - Fixed comments based on Tejun's suggestions. No code changes.
+
+v1 and test cases:
+  - https://lkml.org/lkml/2015/9/15/335
+
+---
+ fs/fs-writeback.c  |  7 +++++-
+ fs/sync.c          |  7 +++++-
+ include/linux/fs.h |  1 +
+ mm/filemap.c       | 67 +++++++++++++++++++++++++++++++++++++++++++-------=
+----
+ 4 files changed, 67 insertions(+), 15 deletions(-)
+
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 587ac08..f252a00 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -2121,7 +2121,12 @@ static void wait_sb_inodes(struct super_block *sb)
+ 		iput(old_inode);
+ 		old_inode =3D inode;
+=20
+-		filemap_fdatawait(mapping);
++		/*
++		 * We keep the error status of individual mapping so that
++		 * applications can catch the writeback error using fsync(2).
++		 * See filemap_fdatawait_keep_errors() for details.
++		 */
++		filemap_fdatawait_keep_errors(mapping);
+=20
+ 		cond_resched();
+=20
+diff --git a/fs/sync.c b/fs/sync.c
+index fbc98ee..4ec430a 100644
+--- a/fs/sync.c
++++ b/fs/sync.c
+@@ -86,7 +86,12 @@ static void fdatawrite_one_bdev(struct block_device *bde=
+v, void *arg)
+=20
+ static void fdatawait_one_bdev(struct block_device *bdev, void *arg)
+ {
+-	filemap_fdatawait(bdev->bd_inode->i_mapping);
++	/*
++	 * We keep the error status of individual mapping so that
++	 * applications can catch the writeback error using fsync(2).
++	 * See filemap_fdatawait_keep_errors() for details.
++	 */
++	filemap_fdatawait_keep_errors(bdev->bd_inode->i_mapping);
+ }
+=20
+ /*
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 72d8a84..9355f37 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2422,6 +2422,7 @@ extern int write_inode_now(struct inode *, int);
+ extern int filemap_fdatawrite(struct address_space *);
+ extern int filemap_flush(struct address_space *);
+ extern int filemap_fdatawait(struct address_space *);
++extern void filemap_fdatawait_keep_errors(struct address_space *);
+ extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
+ 				   loff_t lend);
+ extern int filemap_write_and_wait(struct address_space *mapping);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 72940fb..40e0af9 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -331,23 +331,14 @@ int filemap_flush(struct address_space *mapping)
+ }
+ EXPORT_SYMBOL(filemap_flush);
+=20
+-/**
+- * filemap_fdatawait_range - wait for writeback to complete
+- * @mapping:		address space structure to wait for
+- * @start_byte:		offset in bytes where the range starts
+- * @end_byte:		offset in bytes where the range ends (inclusive)
+- *
+- * Walk the list of under-writeback pages of the given address space
+- * in the given range and wait for all of them.
+- */
+-int filemap_fdatawait_range(struct address_space *mapping, loff_t start_by=
+te,
+-			    loff_t end_byte)
++static int __filemap_fdatawait_range(struct address_space *mapping,
++				     loff_t start_byte, loff_t end_byte)
+ {
+ 	pgoff_t index =3D start_byte >> PAGE_CACHE_SHIFT;
+ 	pgoff_t end =3D end_byte >> PAGE_CACHE_SHIFT;
+ 	struct pagevec pvec;
+ 	int nr_pages;
+-	int ret2, ret =3D 0;
++	int ret =3D 0;
+=20
+ 	if (end_byte < start_byte)
+ 		goto out;
+@@ -374,6 +365,29 @@ int filemap_fdatawait_range(struct address_space *mapp=
+ing, loff_t start_byte,
+ 		cond_resched();
+ 	}
+ out:
++	return ret;
++}
++
++/**
++ * filemap_fdatawait_range - wait for writeback to complete
++ * @mapping:		address space structure to wait for
++ * @start_byte:		offset in bytes where the range starts
++ * @end_byte:		offset in bytes where the range ends (inclusive)
++ *
++ * Walk the list of under-writeback pages of the given address space
++ * in the given range and wait for all of them.  Check error status of
++ * the address space and return it.
++ *
++ * Since the error status of the address space is cleared by this function=
+,
++ * callers are responsible for checking the return value and handling and/=
+or
++ * reporting the error.
++ */
++int filemap_fdatawait_range(struct address_space *mapping, loff_t start_by=
+te,
++			    loff_t end_byte)
++{
++	int ret, ret2;
++
++	ret =3D __filemap_fdatawait_range(mapping, start_byte, end_byte);
+ 	ret2 =3D filemap_check_errors(mapping);
+ 	if (!ret)
+ 		ret =3D ret2;
+@@ -383,11 +397,38 @@ out:
+ EXPORT_SYMBOL(filemap_fdatawait_range);
+=20
+ /**
++ * filemap_fdatawait_keep_errors - wait for writeback without clearing err=
+ors
++ * @mapping: address space structure to wait for
++ *
++ * Walk the list of under-writeback pages of the given address space
++ * and wait for all of them.  Unlike filemap_fdatawait(), this function
++ * does not clear error status of the address space.
++ *
++ * Use this function if callers don't handle errors themselves.  Expected
++ * call sites are system-wide / filesystem-wide data flushers: e.g. sync(2=
+),
++ * fsfreeze(8)
++ */
++void filemap_fdatawait_keep_errors(struct address_space *mapping)
++{
++	loff_t i_size =3D i_size_read(mapping->host);
++
++	if (i_size =3D=3D 0)
++		return;
++
++	__filemap_fdatawait_range(mapping, 0, i_size - 1);
++}
++
++/**
+  * filemap_fdatawait - wait for all under-writeback pages to complete
+  * @mapping: address space structure to wait for
+  *
+  * Walk the list of under-writeback pages of the given address space
+- * and wait for all of them.
++ * and wait for all of them.  Check error status of the address space
++ * and return it.
++ *
++ * Since the error status of the address space is cleared by this function=
+,
++ * callers are responsible for checking the return value and handling and/=
+or
++ * reporting the error.
+  */
+ int filemap_fdatawait(struct address_space *mapping)
+ {
+--=20
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
