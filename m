@@ -1,68 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 943186B0272
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:55:55 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so215780824pac.0
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:55:55 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id cj4si42289090pbc.126.2015.09.16.10.49.12
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 85DA86B0274
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:56:19 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so219678305pac.2
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:56:19 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id tc9si42275497pbc.232.2015.09.16.10.49.09
         for <linux-mm@kvack.org>;
-        Wed, 16 Sep 2015 10:49:13 -0700 (PDT)
-Subject: [PATCH 23/26] [HIJACKPROT] x86, pkeys: add x86 version of arch_validate_prot()
+        Wed, 16 Sep 2015 10:49:09 -0700 (PDT)
+Subject: [PATCH 15/26] x86, pkeys: optimize fault handling in access_error()
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 16 Sep 2015 10:49:12 -0700
+Date: Wed, 16 Sep 2015 10:49:08 -0700
 References: <20150916174903.E112E464@viggo.jf.intel.com>
 In-Reply-To: <20150916174903.E112E464@viggo.jf.intel.com>
-Message-Id: <20150916174912.F07EE9C1@viggo.jf.intel.com>
+Message-Id: <20150916174908.01625DF4@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dave@sr71.net
 Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 
-This allows more than just the traditional PROT_* flags to
-be passed in to mprotect(), etc... on x86.
+We might not strictly have to make modifictions to
+access_error() to check the VMA here.
+
+If we do not, we will do this:
+1. app sets VMA pkey to K
+2. app touches a !present page
+3. do_page_fault(), allocates and maps page, sets pte.pkey=K
+4. return to userspace
+5. touch instruction reexecutes, but triggers PF_PK
+6. do PKEY signal
+
+What happens with this patch applied:
+1. app sets VMA pkey to K
+2. app touches a !present page
+3. do_page_fault() notices that K is inaccessible
+4. do PKEY signal
+
+We basically skip the fault that does an allocation.
+
+So what this lets us do is protect areas from even being
+*populated* unless it is accessible according to protection
+keys.  That seems handy to me and makes protection keys work
+more like an mprotect()'d mapping.
 
 ---
 
- b/arch/x86/include/uapi/asm/mman.h |   18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ b/arch/x86/mm/fault.c |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff -puN arch/x86/include/uapi/asm/mman.h~pkeys-81-arch_validate_prot arch/x86/include/uapi/asm/mman.h
---- a/arch/x86/include/uapi/asm/mman.h~pkeys-81-arch_validate_prot	2015-09-16 09:45:54.564432490 -0700
-+++ b/arch/x86/include/uapi/asm/mman.h	2015-09-16 09:45:54.567432626 -0700
-@@ -6,6 +6,8 @@
- #define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
- #define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
+diff -puN arch/x86/mm/fault.c~pkeys-15-access_error arch/x86/mm/fault.c
+--- a/arch/x86/mm/fault.c~pkeys-15-access_error	2015-09-16 10:48:18.012271934 -0700
++++ b/arch/x86/mm/fault.c	2015-09-16 10:48:18.016272115 -0700
+@@ -889,6 +889,9 @@ static inline bool bad_area_access_from_
+ 		return false;
+ 	if (error_code & PF_PK)
+ 		return true;
++	/* this checks permission keys on the VMA: */
++	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE)))
++		return true;
+ 	return false;
+ }
  
-+#include <asm-generic/mman.h>
-+
- #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
- /*
-  * Take the 4 protection key bits out of the vma->vm_flags
-@@ -26,8 +28,20 @@
- 		((prot) & PROT_PKEY1 ? VM_PKEY_BIT1 : 0) |	\
- 		((prot) & PROT_PKEY2 ? VM_PKEY_BIT2 : 0) |	\
- 		((prot) & PROT_PKEY3 ? VM_PKEY_BIT3 : 0))
--#endif
+@@ -1075,6 +1078,13 @@ access_error(unsigned long error_code, s
+ 	 */
+ 	if (error_code & PF_PK)
+ 		return 1;
++	/*
++	 * Make sure to check the VMA so that we do not perform
++	 * faults just to hit a PF_PK as soon as we fill in a
++	 * page.
++	 */
++	if (!arch_vma_access_permitted(vma, (error_code & PF_WRITE)))
++		return 1;
  
--#include <asm-generic/mman.h>
-+#ifndef arch_validate_prot
-+/*
-+ * This is called from mprotect().  PROT_GROWSDOWN and PROT_GROWSUP have
-+ * already been masked out.
-+ *
-+ * Returns true if the prot flags are valid
-+ */
-+#define arch_validate_prot(prot) (\
-+	(prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM |	\
-+	 PROT_PKEY0 | PROT_PKEY1 | PROT_PKEY2 | PROT_PKEY3)) == 0)	\
-+
-+#endif /* arch_validate_prot */
-+
-+#endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
- 
- #endif /* _ASM_X86_MMAN_H */
+ 	if (error_code & PF_WRITE) {
+ 		/* write, present and write, not present: */
 _
 
 --
