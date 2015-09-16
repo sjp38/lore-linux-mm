@@ -1,236 +1,424 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 260DF6B0038
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 04:41:06 -0400 (EDT)
-Received: by oiww128 with SMTP id w128so116971148oiw.2
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 01:41:06 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id r124si12314269oih.92.2015.09.16.01.41.04
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id F02406B0038
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 04:46:27 -0400 (EDT)
+Received: by igcpb10 with SMTP id pb10so30926338igc.1
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 01:46:27 -0700 (PDT)
+Received: from mail-io0-f181.google.com (mail-io0-f181.google.com. [209.85.223.181])
+        by mx.google.com with ESMTPS id m5si2392016igr.59.2015.09.16.01.46.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 16 Sep 2015 01:41:05 -0700 (PDT)
-From: Junichi Nomura <j-nomura@ce.jp.nec.com>
-Subject: [PATCH v2] fs: global sync to not clear error status of individual
- inodes
-Date: Wed, 16 Sep 2015 08:39:09 +0000
-Message-ID: <20150916083908.GA12244@xzibit.linux.bs1.fc.nec.co.jp>
-References: <20150915094638.GA13399@xzibit.linux.bs1.fc.nec.co.jp>
- <20150915095412.GD13399@xzibit.linux.bs1.fc.nec.co.jp>
- <20150915152006.GD2905@mtj.duckdns.org>
- <20150916005916.GB6059@xzibit.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20150916005916.GB6059@xzibit.linux.bs1.fc.nec.co.jp>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <F7270BFC4BBA7C4D95672551CB2E89F2@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Sep 2015 01:46:27 -0700 (PDT)
+Received: by iofh134 with SMTP id h134so224467445iof.0
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 01:46:27 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <1442340117-3964-1-git-send-email-dwoods@ezchip.com>
+References: <1442340117-3964-1-git-send-email-dwoods@ezchip.com>
+Date: Wed, 16 Sep 2015 09:46:26 +0100
+Message-ID: <CAPvkgC1JYZRc5BEXFxmR927r1asLYZw=oAMyUDcGPAOfC2Yy-A@mail.gmail.com>
+Subject: Re: [PATCH] arm64: Add support for PTE contiguous bit.
+From: Steve Capper <steve.capper@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Tejun Heo <tj@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "tony.luck@intel.com" <tony.luck@intel.com>, "david@fromorbit.com" <david@fromorbit.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: David Woods <dwoods@ezchip.com>
+Cc: Chris Metcalf <cmetcalf@ezchip.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, Hugh Dickins <hughd@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Suzuki K. Poulose" <suzuki.poulose@arm.com>
 
-filemap_fdatawait() is a function to wait for on-going writeback
-to complete but also consume and clear error status of the mapping
-set during writeback.
-The latter functionality is critical for applications to detect
-writeback error with system calls like fsync(2)/fdatasync(2).
+On 15 September 2015 at 19:01, David Woods <dwoods@ezchip.com> wrote:
+> The arm64 MMU supports a Contiguous bit which is a hint that the TTE
+> is one of a set of contiguous entries which can be cached in a single
+> TLB entry.  Supporting this bit adds new intermediate huge page sizes.
+>
+> The set of huge page sizes available depends on the base page size.
+> Without using contiguous pages the huge page sizes are as follows.
+>
+>  4KB:   2MB  1GB
+> 64KB: 512MB  4TB
 
-However filemap_fdatawait() is also used by sync(2) or FIFREEZE
-ioctl, which don't check error status of individual mappings.
+We just have 512MB for a 64KB granule.
+As per [1] D4.2.6 - "The VMSAv8-64 translation table format" page D4-1668.
 
-As a result, fsync() may not be able to detect writeback error
-if events happen in the following order:
+>
+> With 4KB pages, the contiguous bit groups together sets of 16 pages
+> and with 64KB pages it groups sets of 32 pages.  This enables two new
+> huge page sizes in each case, so that the full set of available sizes
+> is as follows.
+>
+>  4KB:  64KB   2MB  32MB  1GB
+> 64KB:   2MB 512MB  16GB  4TB
+>
+> If the base page size is set to 64KB then 2MB pages are enabled by
+> default.  It is possible in the future to make 2MB the default huge
+> page size for both 4KB and 64KB pages.
+>
 
-   Application                    System admin
-   ----------------------------------------------------------
-   write data on page cache
-                                  Run sync command
-                                  writeback completes with error
-                                  filemap_fdatawait() clears error
-   fsync returns success
-   (but the data is not on disk)
+Hi David,
+Thanks for posting this, and apologies in advance for talking about
+the ARM ARM[1]...
 
-This patch adds filemap_fdatawait_keep_errors() for call sites where
-writeback error is not handled so that they don't clear error status.
+D4.4.2 "Other fields in the VMSAv8-64 translation table format
+descriptors" (page D4-1715)
+Only gives examples of the contiguous bit being used for level 3
+descriptors (i.e. PTEs) when running with a 4KB and 64KB granule.
 
-Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
-Acked-by: Andi Kleen <ak@linux.intel.com>
----
-v2:
-  - Fixed comments based on Tejun's suggestions. No code changes.
+With a 16KB granule we *can* have a contiguous bit being used by level
+2 descriptors (i.e. PMDs), so the pmd_contig logic could perhaps be
+used in combination with Suzuki's 16KB PAGE_SIZE series at:
+http://lists.infradead.org/pipermail/linux-arm-kernel/2015-September/370117.html
 
-v1 and test cases:
-  - https://lkml.org/lkml/2015/9/15/335
+I will read through the rest of the patch and post more feedback
 
----
- fs/fs-writeback.c  |  7 +++++-
- fs/sync.c          |  7 +++++-
- include/linux/fs.h |  1 +
- mm/filemap.c       | 67 +++++++++++++++++++++++++++++++++++++++++++-------=
-----
- 4 files changed, 67 insertions(+), 15 deletions(-)
+Cheers,
+--
+Steve
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 587ac08..f252a00 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -2121,7 +2121,12 @@ static void wait_sb_inodes(struct super_block *sb)
- 		iput(old_inode);
- 		old_inode =3D inode;
-=20
--		filemap_fdatawait(mapping);
-+		/*
-+		 * We keep the error status of individual mapping so that
-+		 * applications can catch the writeback error using fsync(2).
-+		 * See filemap_fdatawait_keep_errors() for details.
-+		 */
-+		filemap_fdatawait_keep_errors(mapping);
-=20
- 		cond_resched();
-=20
-diff --git a/fs/sync.c b/fs/sync.c
-index fbc98ee..4ec430a 100644
---- a/fs/sync.c
-+++ b/fs/sync.c
-@@ -86,7 +86,12 @@ static void fdatawrite_one_bdev(struct block_device *bde=
-v, void *arg)
-=20
- static void fdatawait_one_bdev(struct block_device *bdev, void *arg)
- {
--	filemap_fdatawait(bdev->bd_inode->i_mapping);
-+	/*
-+	 * We keep the error status of individual mapping so that
-+	 * applications can catch the writeback error using fsync(2).
-+	 * See filemap_fdatawait_keep_errors() for details.
-+	 */
-+	filemap_fdatawait_keep_errors(bdev->bd_inode->i_mapping);
- }
-=20
- /*
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 72d8a84..9355f37 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2422,6 +2422,7 @@ extern int write_inode_now(struct inode *, int);
- extern int filemap_fdatawrite(struct address_space *);
- extern int filemap_flush(struct address_space *);
- extern int filemap_fdatawait(struct address_space *);
-+extern void filemap_fdatawait_keep_errors(struct address_space *);
- extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
- 				   loff_t lend);
- extern int filemap_write_and_wait(struct address_space *mapping);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 72940fb..40e0af9 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -331,23 +331,14 @@ int filemap_flush(struct address_space *mapping)
- }
- EXPORT_SYMBOL(filemap_flush);
-=20
--/**
-- * filemap_fdatawait_range - wait for writeback to complete
-- * @mapping:		address space structure to wait for
-- * @start_byte:		offset in bytes where the range starts
-- * @end_byte:		offset in bytes where the range ends (inclusive)
-- *
-- * Walk the list of under-writeback pages of the given address space
-- * in the given range and wait for all of them.
-- */
--int filemap_fdatawait_range(struct address_space *mapping, loff_t start_by=
-te,
--			    loff_t end_byte)
-+static int __filemap_fdatawait_range(struct address_space *mapping,
-+				     loff_t start_byte, loff_t end_byte)
- {
- 	pgoff_t index =3D start_byte >> PAGE_CACHE_SHIFT;
- 	pgoff_t end =3D end_byte >> PAGE_CACHE_SHIFT;
- 	struct pagevec pvec;
- 	int nr_pages;
--	int ret2, ret =3D 0;
-+	int ret =3D 0;
-=20
- 	if (end_byte < start_byte)
- 		goto out;
-@@ -374,6 +365,29 @@ int filemap_fdatawait_range(struct address_space *mapp=
-ing, loff_t start_byte,
- 		cond_resched();
- 	}
- out:
-+	return ret;
-+}
-+
-+/**
-+ * filemap_fdatawait_range - wait for writeback to complete
-+ * @mapping:		address space structure to wait for
-+ * @start_byte:		offset in bytes where the range starts
-+ * @end_byte:		offset in bytes where the range ends (inclusive)
-+ *
-+ * Walk the list of under-writeback pages of the given address space
-+ * in the given range and wait for all of them.  Check error status of
-+ * the address space and return it.
-+ *
-+ * Since the error status of the address space is cleared by this function=
-,
-+ * callers are responsible for checking the return value and handling and/=
-or
-+ * reporting the error.
-+ */
-+int filemap_fdatawait_range(struct address_space *mapping, loff_t start_by=
-te,
-+			    loff_t end_byte)
-+{
-+	int ret, ret2;
-+
-+	ret =3D __filemap_fdatawait_range(mapping, start_byte, end_byte);
- 	ret2 =3D filemap_check_errors(mapping);
- 	if (!ret)
- 		ret =3D ret2;
-@@ -383,11 +397,38 @@ out:
- EXPORT_SYMBOL(filemap_fdatawait_range);
-=20
- /**
-+ * filemap_fdatawait_keep_errors - wait for writeback without clearing err=
-ors
-+ * @mapping: address space structure to wait for
-+ *
-+ * Walk the list of under-writeback pages of the given address space
-+ * and wait for all of them.  Unlike filemap_fdatawait(), this function
-+ * does not clear error status of the address space.
-+ *
-+ * Use this function if callers don't handle errors themselves.  Expected
-+ * call sites are system-wide / filesystem-wide data flushers: e.g. sync(2=
-),
-+ * fsfreeze(8)
-+ */
-+void filemap_fdatawait_keep_errors(struct address_space *mapping)
-+{
-+	loff_t i_size =3D i_size_read(mapping->host);
-+
-+	if (i_size =3D=3D 0)
-+		return;
-+
-+	__filemap_fdatawait_range(mapping, 0, i_size - 1);
-+}
-+
-+/**
-  * filemap_fdatawait - wait for all under-writeback pages to complete
-  * @mapping: address space structure to wait for
-  *
-  * Walk the list of under-writeback pages of the given address space
-- * and wait for all of them.
-+ * and wait for all of them.  Check error status of the address space
-+ * and return it.
-+ *
-+ * Since the error status of the address space is cleared by this function=
-,
-+ * callers are responsible for checking the return value and handling and/=
-or
-+ * reporting the error.
-  */
- int filemap_fdatawait(struct address_space *mapping)
- {
---=20
-2.1.0
+[1] - http://infocenter.arm.com/help/topic/com.arm.doc.ddi0487a.g/index.html
+
+
+
+
+> Signed-off-by: David Woods <dwoods@ezchip.com>
+> Reviewed-by: Chris Metcalf <cmetcalf@ezchip.com>
+> ---
+>  arch/arm64/Kconfig                     |   3 -
+>  arch/arm64/include/asm/hugetlb.h       |   4 +
+>  arch/arm64/include/asm/pgtable-hwdef.h |  15 +++
+>  arch/arm64/include/asm/pgtable.h       |  30 +++++-
+>  arch/arm64/mm/hugetlbpage.c            | 165 ++++++++++++++++++++++++++++++++-
+>  5 files changed, 210 insertions(+), 7 deletions(-)
+>
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 7d95663..8310e38 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -447,9 +447,6 @@ config HW_PERF_EVENTS
+>  config SYS_SUPPORTS_HUGETLBFS
+>         def_bool y
+>
+> -config ARCH_WANT_GENERAL_HUGETLB
+> -       def_bool y
+> -
+>  config ARCH_WANT_HUGE_PMD_SHARE
+>         def_bool y if !ARM64_64K_PAGES
+>
+> diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
+> index bb4052e..e5af553 100644
+> --- a/arch/arm64/include/asm/hugetlb.h
+> +++ b/arch/arm64/include/asm/hugetlb.h
+> @@ -97,4 +97,8 @@ static inline void arch_clear_hugepage_flags(struct page *page)
+>         clear_bit(PG_dcache_clean, &page->flags);
+>  }
+>
+> +extern pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+> +                               struct page *page, int writable);
+> +#define arch_make_huge_pte arch_make_huge_pte
+> +
+>  #endif /* __ASM_HUGETLB_H */
+> diff --git a/arch/arm64/include/asm/pgtable-hwdef.h b/arch/arm64/include/asm/pgtable-hwdef.h
+> index 24154b0..da73243 100644
+> --- a/arch/arm64/include/asm/pgtable-hwdef.h
+> +++ b/arch/arm64/include/asm/pgtable-hwdef.h
+> @@ -55,6 +55,19 @@
+>  #define SECTION_MASK           (~(SECTION_SIZE-1))
+>
+>  /*
+> + * Contiguous large page definitions.
+> + */
+> +#ifdef CONFIG_ARM64_64K_PAGES
+> +#define        CONTIG_SHIFT            5
+> +#define CONTIG_PAGES           32
+> +#else
+> +#define        CONTIG_SHIFT            4
+> +#define CONTIG_PAGES           16
+> +#endif
+> +#define        CONTIG_PTE_SIZE         (CONTIG_PAGES * PAGE_SIZE)
+> +#define        CONTIG_PTE_MASK         (~(CONTIG_PTE_SIZE - 1))
+> +
+> +/*
+>   * Hardware page table definitions.
+>   *
+>   * Level 1 descriptor (PUD).
+> @@ -83,6 +96,7 @@
+>  #define PMD_SECT_S             (_AT(pmdval_t, 3) << 8)
+>  #define PMD_SECT_AF            (_AT(pmdval_t, 1) << 10)
+>  #define PMD_SECT_NG            (_AT(pmdval_t, 1) << 11)
+> +#define PMD_SECT_CONTIG                (_AT(pmdval_t, 1) << 52)
+>  #define PMD_SECT_PXN           (_AT(pmdval_t, 1) << 53)
+>  #define PMD_SECT_UXN           (_AT(pmdval_t, 1) << 54)
+>
+> @@ -105,6 +119,7 @@
+>  #define PTE_AF                 (_AT(pteval_t, 1) << 10)        /* Access Flag */
+>  #define PTE_NG                 (_AT(pteval_t, 1) << 11)        /* nG */
+>  #define PTE_DBM                        (_AT(pteval_t, 1) << 51)        /* Dirty Bit Management */
+> +#define PTE_CONTIG             (_AT(pteval_t, 1) << 52)        /* Contiguous */
+>  #define PTE_PXN                        (_AT(pteval_t, 1) << 53)        /* Privileged XN */
+>  #define PTE_UXN                        (_AT(pteval_t, 1) << 54)        /* User XN */
+>
+> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+> index 6900b2d9..df5ec64 100644
+> --- a/arch/arm64/include/asm/pgtable.h
+> +++ b/arch/arm64/include/asm/pgtable.h
+> @@ -144,6 +144,7 @@ extern struct page *empty_zero_page;
+>  #define pte_special(pte)       (!!(pte_val(pte) & PTE_SPECIAL))
+>  #define pte_write(pte)         (!!(pte_val(pte) & PTE_WRITE))
+>  #define pte_exec(pte)          (!(pte_val(pte) & PTE_UXN))
+> +#define pte_contig(pte)                (!!(pte_val(pte) & PTE_CONTIG))
+>
+>  #ifdef CONFIG_ARM64_HW_AFDBM
+>  #define pte_hw_dirty(pte)      (!(pte_val(pte) & PTE_RDONLY))
+> @@ -206,6 +207,9 @@ static inline pte_t pte_mkspecial(pte_t pte)
+>         return set_pte_bit(pte, __pgprot(PTE_SPECIAL));
+>  }
+>
+> +extern pte_t pte_mkcontig(pte_t pte);
+> +extern pmd_t pmd_mkcontig(pmd_t pmd);
+> +
+>  static inline void set_pte(pte_t *ptep, pte_t pte)
+>  {
+>         *ptep = pte;
+> @@ -275,7 +279,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+>  /*
+>   * Hugetlb definitions.
+>   */
+> -#define HUGE_MAX_HSTATE                2
+> +#define HUGE_MAX_HSTATE                ((2 * CONFIG_PGTABLE_LEVELS) - 1)
+>  #define HPAGE_SHIFT            PMD_SHIFT
+>  #define HPAGE_SIZE             (_AC(1, UL) << HPAGE_SHIFT)
+>  #define HPAGE_MASK             (~(HPAGE_SIZE - 1))
+> @@ -372,7 +376,8 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+>  #define pmd_none(pmd)          (!pmd_val(pmd))
+>  #define pmd_present(pmd)       (pmd_val(pmd))
+>
+> -#define pmd_bad(pmd)           (!(pmd_val(pmd) & 2))
+> +#define pmd_bad(pmd)           (!(pmd_val(pmd) & \
+> +                                  (PMD_TABLE_BIT | PMD_SECT_CONTIG)))
+>
+>  #define pmd_table(pmd)         ((pmd_val(pmd) & PMD_TYPE_MASK) == \
+>                                  PMD_TYPE_TABLE)
+> @@ -500,7 +505,8 @@ static inline pud_t *pud_offset(pgd_t *pgd, unsigned long addr)
+>  static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+>  {
+>         const pteval_t mask = PTE_USER | PTE_PXN | PTE_UXN | PTE_RDONLY |
+> -                             PTE_PROT_NONE | PTE_WRITE | PTE_TYPE_MASK;
+> +                             PTE_PROT_NONE | PTE_WRITE | PTE_TYPE_MASK |
+> +                             PTE_CONTIG;
+>         /* preserve the hardware dirty information */
+>         if (pte_hw_dirty(pte))
+>                 newprot |= PTE_DIRTY;
+> @@ -513,6 +519,24 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+>         return pte_pmd(pte_modify(pmd_pte(pmd), newprot));
+>  }
+>
+> +static inline pte_t pte_modify_pfn(pte_t pte, unsigned long newpfn)
+> +{
+> +       const pteval_t mask = PHYS_MASK & PAGE_MASK;
+> +
+> +       pte_val(pte) = pfn_pte(newpfn, (pte_val(pte) & ~mask));
+> +       return pte;
+> +}
+> +
+> +#if CONFIG_PGTABLE_LEVELS > 2
+> +static inline pmd_t pmd_modify_pfn(pmd_t pmd, unsigned long newpfn)
+> +{
+> +       const pmdval_t mask = PHYS_MASK & PAGE_MASK;
+> +
+> +       pmd = pfn_pmd(newpfn, (pmd_val(pmd) & ~mask));
+> +       return pmd;
+> +}
+> +#endif
+> +
+>  #ifdef CONFIG_ARM64_HW_AFDBM
+>  /*
+>   * Atomic pte/pmd modifications.
+> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+> index 383b03f..f5bbbbc 100644
+> --- a/arch/arm64/mm/hugetlbpage.c
+> +++ b/arch/arm64/mm/hugetlbpage.c
+> @@ -41,6 +41,155 @@ int pud_huge(pud_t pud)
+>  #endif
+>  }
+>
+> +pte_t *huge_pte_alloc(struct mm_struct *mm,
+> +                       unsigned long addr, unsigned long sz)
+> +{
+> +       pgd_t *pgd;
+> +       pud_t *pud;
+> +       pte_t *pte = NULL;
+> +       int i;
+> +
+> +       pgd = pgd_offset(mm, addr);
+> +       pud = pud_alloc(mm, pgd, addr);
+> +       if (pud) {
+> +               if (sz == PUD_SIZE) {
+> +                       pte = (pte_t *)pud;
+> +               } else if (sz == PMD_SIZE) {
+> +#ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
+> +                       if (pud_none(*pud))
+> +                               pte = huge_pmd_share(mm, addr, pud);
+> +                       else
+> +#endif
+> +                               pte = (pte_t *)pmd_alloc(mm, pud, addr);
+> +               } else if (sz == (PAGE_SIZE * CONTIG_PAGES)) {
+> +                       pmd_t *pmd = pmd_alloc(mm, pud, addr);
+> +
+> +                       WARN_ON(addr & (sz - 1));
+> +                       pte = pte_alloc_map(mm, NULL, pmd, addr);
+> +                       if (pte_present(*pte)) {
+> +                               unsigned long pfn;
+> +                               *pte = pte_mkcontig(*pte);
+> +                               pfn = pte_pfn(*pte);
+> +                               for (i = 0; i < CONTIG_PAGES; i++) {
+> +                                       set_pte(&pte[i],
+> +                                               pte_modify_pfn(*pte, pfn + i));
+> +                               }
+> +                       }
+> +#if CONFIG_PGTABLE_LEVELS > 2
+> +               } else if (sz == (PMD_SIZE * CONTIG_PAGES)) {
+> +                       pmd_t *pmd;
+> +
+> +                       pmd = pmd_alloc(mm, pud, addr);
+> +                       WARN_ON(addr & (sz - 1));
+> +                       if (pmd && pmd_present(*pmd)) {
+> +                               unsigned long pfn;
+> +                               pmd_t pmdval;
+> +
+> +                               pmdval = *pmd = pmd_mkcontig(*pmd);
+> +                               pfn = pmd_pfn(*pmd);
+> +                               for (i = 0; i < CONTIG_PAGES; i++) {
+> +                                       unsigned long newpfn = pfn +
+> +                                               (i << (PMD_SHIFT - PAGE_SHIFT));
+> +                                       if (!pmd_present(pmd[i]))
+> +                                               atomic_long_inc(&mm->nr_ptes);
+> +                                       set_pmd(&pmd[i],
+> +                                               pmd_modify_pfn(pmdval, newpfn));
+> +                               }
+> +                       }
+> +                       return pmd;
+> +#endif
+> +               }
+> +       }
+> +
+> +       return pte;
+> +}
+> +
+> +pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+> +{
+> +       pgd_t *pgd;
+> +       pud_t *pud;
+> +       pmd_t *pmd = NULL;
+> +       pte_t *pte = NULL;
+> +
+> +       pgd = pgd_offset(mm, addr);
+> +       if (pgd_present(*pgd)) {
+> +               pud = pud_offset(pgd, addr);
+> +               if (pud_present(*pud)) {
+> +                       if (pud_huge(*pud))
+> +                               return (pte_t *)pud;
+> +                       pmd = pmd_offset(pud, addr);
+> +                       if (pmd_present(*pmd)) {
+> +                               if (pmd_huge(*pmd))
+> +                                       return (pte_t *)pmd;
+> +                               pte = pte_offset_kernel(pmd, addr);
+> +                               if (pte_present(*pte) && pte_contig(*pte)) {
+> +                                       pte = pte_offset_kernel(
+> +                                               pmd, (addr & CONTIG_PTE_MASK));
+> +                                       return pte;
+> +                               }
+> +                       }
+> +               }
+> +       }
+> +       return (pte_t *) NULL;
+> +}
+> +
+> +pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+> +                        struct page *page, int writable)
+> +{
+> +       size_t pagesize = huge_page_size(hstate_vma(vma));
+> +       pte_t nent = {0};
+> +
+> +       if (pagesize == PUD_SIZE || pagesize == PMD_SIZE)
+> +               nent = entry;
+> +       else if (pagesize == (PAGE_SIZE * CONTIG_PAGES))
+> +               nent = pte_mkcontig(entry);
+> +#if CONFIG_PGTABLE_LEVELS > 2
+> +       else if (pagesize == (PMD_SIZE * CONTIG_PAGES) ||
+> +                pagesize == (PUD_SIZE * CONTIG_PAGES))
+> +               nent = pmd_mkcontig(entry);
+> +#endif
+> +       else {
+> +               pr_warn("%s: unrecognized huge page size 0x%lx\n",
+> +                      __func__, pagesize);
+> +       }
+> +       return nent;
+> +}
+> +
+> +pte_t pte_mkcontig(pte_t pte)
+> +{
+> +       pte = set_pte_bit(pte, __pgprot(PTE_CONTIG));
+> +       pte = set_pte_bit(pte, __pgprot(PTE_TYPE_PAGE));
+> +       return pte;
+> +}
+> +
+> +pmd_t pmd_mkcontig(pmd_t pmd)
+> +{
+> +       pmd = __pmd(pmd_val(pmd) | PMD_SECT_CONTIG);
+> +       return pmd;
+> +}
+> +
+> +struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> +               pmd_t *pmd, int write)
+> +{
+> +       struct page *page;
+> +
+> +       page = pte_page(*(pte_t *)pmd);
+> +       if (page)
+> +               page += ((address & ~PMD_MASK) >> PAGE_SHIFT);
+> +       return page;
+> +}
+> +
+> +struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
+> +               pud_t *pud, int write)
+> +{
+> +       struct page *page;
+> +
+> +       page = pte_page(*(pte_t *)pud);
+> +       if (page)
+> +               page += ((address & ~PUD_MASK) >> PAGE_SHIFT);
+> +       return page;
+> +}
+> +
+>  static __init int setup_hugepagesz(char *opt)
+>  {
+>         unsigned long ps = memparse(opt, &opt);
+> @@ -48,10 +197,24 @@ static __init int setup_hugepagesz(char *opt)
+>                 hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
+>         } else if (ps == PUD_SIZE) {
+>                 hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+> +       } else if (ps == (PAGE_SIZE * CONTIG_PAGES)) {
+> +               hugetlb_add_hstate(CONTIG_SHIFT);
+> +       } else if (ps == (PMD_SIZE * CONTIG_PAGES)) {
+> +               hugetlb_add_hstate((PMD_SHIFT + CONTIG_SHIFT) - PAGE_SHIFT);
+>         } else {
+> -               pr_err("hugepagesz: Unsupported page size %lu M\n", ps >> 20);
+> +               pr_err("hugepagesz: Unsupported page size %lu K\n", ps >> 10);
+>                 return 0;
+>         }
+>         return 1;
+>  }
+>  __setup("hugepagesz=", setup_hugepagesz);
+> +
+> +#ifdef CONFIG_ARM64_64K_PAGES
+> +static __init int add_default_hugepagesz(void)
+> +{
+> +       if (size_to_hstate(CONTIG_PAGES * PAGE_SIZE) == NULL)
+> +               hugetlb_add_hstate(CONTIG_SHIFT);
+> +       return 0;
+> +}
+> +arch_initcall(add_default_hugepagesz);
+> +#endif
+> --
+> 2.1.2
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
