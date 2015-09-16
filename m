@@ -1,69 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 460686B0038
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:47:20 -0400 (EDT)
-Received: by ykft14 with SMTP id t14so75091894ykf.0
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:47:20 -0700 (PDT)
-Received: from mail-yk0-x236.google.com (mail-yk0-x236.google.com. [2607:f8b0:4002:c07::236])
-        by mx.google.com with ESMTPS id q3si12399746ywc.190.2015.09.16.10.47.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Sep 2015 10:47:19 -0700 (PDT)
-Received: by ykdt18 with SMTP id t18so206572959ykd.3
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:47:19 -0700 (PDT)
-Date: Wed, 16 Sep 2015 13:47:15 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2] fs: global sync to not clear error status of
- individual inodes
-Message-ID: <20150916174715.GF3243@mtj.duckdns.org>
-References: <20150915094638.GA13399@xzibit.linux.bs1.fc.nec.co.jp>
- <20150915095412.GD13399@xzibit.linux.bs1.fc.nec.co.jp>
- <20150915152006.GD2905@mtj.duckdns.org>
- <20150916005916.GB6059@xzibit.linux.bs1.fc.nec.co.jp>
- <20150916083908.GA12244@xzibit.linux.bs1.fc.nec.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150916083908.GA12244@xzibit.linux.bs1.fc.nec.co.jp>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C96CC6B0038
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:49:09 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so219525163pac.2
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:49:09 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id rf13si42264488pac.159.2015.09.16.10.49.07
+        for <linux-mm@kvack.org>;
+        Wed, 16 Sep 2015 10:49:08 -0700 (PDT)
+Subject: [PATCH 08/26] x86, pkeys: store protection in high VMA flags
+From: Dave Hansen <dave@sr71.net>
+Date: Wed, 16 Sep 2015 10:49:06 -0700
+References: <20150916174903.E112E464@viggo.jf.intel.com>
+In-Reply-To: <20150916174903.E112E464@viggo.jf.intel.com>
+Message-Id: <20150916174906.889ACF20@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Junichi Nomura <j-nomura@ce.jp.nec.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "fengguang.wu@intel.com" <fengguang.wu@intel.com>, "tony.luck@intel.com" <tony.luck@intel.com>, "david@fromorbit.com" <david@fromorbit.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: dave@sr71.net
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Sep 16, 2015 at 08:39:09AM +0000, Junichi Nomura wrote:
-> filemap_fdatawait() is a function to wait for on-going writeback
-> to complete but also consume and clear error status of the mapping
-> set during writeback.
-> The latter functionality is critical for applications to detect
-> writeback error with system calls like fsync(2)/fdatasync(2).
-> 
-> However filemap_fdatawait() is also used by sync(2) or FIFREEZE
-> ioctl, which don't check error status of individual mappings.
-> 
-> As a result, fsync() may not be able to detect writeback error
-> if events happen in the following order:
-> 
->    Application                    System admin
->    ----------------------------------------------------------
->    write data on page cache
->                                   Run sync command
->                                   writeback completes with error
->                                   filemap_fdatawait() clears error
->    fsync returns success
->    (but the data is not on disk)
-> 
-> This patch adds filemap_fdatawait_keep_errors() for call sites where
-> writeback error is not handled so that they don't clear error status.
-> 
-> Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
-> Acked-by: Andi Kleen <ak@linux.intel.com>
 
-Reviewed-by: Tejun Heo <tj@kernel.org>
+vma->vm_flags is an 'unsigned long', so has space for 32 flags
+on 32-bit architectures.  The high 32 bits are unused on 64-bit
+platforms.  We've steered away from using the unused high VMA
+bits for things because we would have difficulty supporting it
+on 32-bit.
 
-Thanks.
+Protection Keys are not available in 32-bit mode, so there is
+no concern about supporting this feature in 32-bit mode or on
+32-bit CPUs.
 
--- 
-tejun
+This patch carves out 4 bits from the high half of
+vma->vm_flags and allows architectures to set config option
+to make them available.
+
+Sparse complains about these constants unless we explicitly
+call them "UL".
+
+---
+
+ b/arch/x86/Kconfig   |    1 +
+ b/include/linux/mm.h |    7 +++++++
+ b/mm/Kconfig         |    3 +++
+ 3 files changed, 11 insertions(+)
+
+diff -puN arch/x86/Kconfig~pkeys-07-eat-high-vma-flags arch/x86/Kconfig
+--- a/arch/x86/Kconfig~pkeys-07-eat-high-vma-flags	2015-09-16 10:48:14.638118972 -0700
++++ b/arch/x86/Kconfig	2015-09-16 10:48:14.646119334 -0700
+@@ -152,6 +152,7 @@ config X86
+ 	select VIRT_TO_BUS
+ 	select X86_DEV_DMA_OPS			if X86_64
+ 	select X86_FEATURE_NAMES		if PROC_FS
++	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
+ 
+ config INSTRUCTION_DECODER
+ 	def_bool y
+diff -puN include/linux/mm.h~pkeys-07-eat-high-vma-flags include/linux/mm.h
+--- a/include/linux/mm.h~pkeys-07-eat-high-vma-flags	2015-09-16 10:48:14.640119062 -0700
++++ b/include/linux/mm.h	2015-09-16 10:48:14.647119380 -0700
+@@ -157,6 +157,13 @@ extern unsigned int kobjsize(const void
+ #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
+ #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
+ 
++#ifdef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
++#define VM_HIGH_ARCH_0  0x100000000UL	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_1  0x200000000UL	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_2  0x400000000UL	/* bit only usable on 64-bit architectures */
++#define VM_HIGH_ARCH_3  0x800000000UL	/* bit only usable on 64-bit architectures */
++#endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
++
+ #if defined(CONFIG_X86)
+ # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
+ #elif defined(CONFIG_PPC)
+diff -puN mm/Kconfig~pkeys-07-eat-high-vma-flags mm/Kconfig
+--- a/mm/Kconfig~pkeys-07-eat-high-vma-flags	2015-09-16 10:48:14.642119153 -0700
++++ b/mm/Kconfig	2015-09-16 10:48:14.647119380 -0700
+@@ -680,3 +680,6 @@ config ZONE_DEVICE
+ 
+ config FRAME_VECTOR
+ 	bool
++
++config ARCH_USES_HIGH_VMA_FLAGS
++	bool
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
