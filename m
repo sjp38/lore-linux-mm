@@ -1,110 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 92D6F6B0260
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:49:34 -0400 (EDT)
-Received: by padhk3 with SMTP id hk3so215099080pad.3
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:49:34 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id cj4si42289090pbc.126.2015.09.16.10.49.12
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id EDE0E6B0254
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:50:47 -0400 (EDT)
+Received: by padhk3 with SMTP id hk3so215124926pad.3
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:50:47 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id lg2si42353578pbc.60.2015.09.16.10.50.46
         for <linux-mm@kvack.org>;
-        Wed, 16 Sep 2015 10:49:12 -0700 (PDT)
-Subject: [PATCH 20/26] [NEWSYSCALL] mm: implement new mprotect_pkey() system call
+        Wed, 16 Sep 2015 10:50:47 -0700 (PDT)
+Subject: [PATCH 01/26] x86, fpu: add placeholder for Processor Trace XSAVE state
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 16 Sep 2015 10:49:09 -0700
+Date: Wed, 16 Sep 2015 10:49:04 -0700
 References: <20150916174903.E112E464@viggo.jf.intel.com>
 In-Reply-To: <20150916174903.E112E464@viggo.jf.intel.com>
-Message-Id: <20150916174909.3E595780@viggo.jf.intel.com>
+Message-Id: <20150916174904.E002DB09@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dave@sr71.net
 Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 
-mprotect_pkey() is just like mprotect, except it also takes a
-protection key as an argument.  On systems that do not support
-protection keys, it still works, but requires that key=0.
-Otherwise it does exactly what mprotect does.
+There is an XSAVE state component for Intel Processor Trace.  But,
+we do not use it and do not expect to ever use it.
 
-I expect it to get used like this, if you want to guarantee that
-any mapping you create can *never* be accessed without the right
-protection keys set up.
+We add a placeholder in the code for it so it is not a mystery and
+also so we do not need an explicit enum initialization for Protection
+Keys in a moment.
 
-	pkey_deny_access(11); // random pkey
-	int real_prot = PROT_READ|PROT_WRITE;
-	ptr = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-	ret = mprotect_pkey(ptr, PAGE_SIZE, real_prot, 11);
+Why will we never use it?  According to Andi Kleen:
 
-This way, there is *no* window where the mapping is accessible
-since it was always either PROT_NONE or had a protection key set.
+The XSAVE support assumes that there is a single buffer for each
+thread. But perf generally doesn't work this way, it usually has
+only a single perf event per CPU per user, and when tracing
+multiple threads on that CPU it inherits perf event buffers between
+different threads. So XSAVE per thread cannot handle this inheritance
+case directly.
+
+Using multiple XSAVE areas (another one per perf event) would defeat
+some of the state caching that the CPUs do.
+
 
 ---
 
- b/mm/Kconfig    |    7 +++++++
- b/mm/mprotect.c |   20 +++++++++++++++++---
- 2 files changed, 24 insertions(+), 3 deletions(-)
+ b/arch/x86/include/asm/fpu/types.h |    1 +
+ b/arch/x86/kernel/fpu/xstate.c     |    3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
-diff -puN mm/Kconfig~pkeys-85-mprotect_pkey mm/Kconfig
---- a/mm/Kconfig~pkeys-85-mprotect_pkey	2015-09-16 10:48:20.270374302 -0700
-+++ b/mm/Kconfig	2015-09-16 10:48:20.275374529 -0700
-@@ -683,3 +683,10 @@ config FRAME_VECTOR
+diff -puN arch/x86/include/asm/fpu/types.h~pt-xstate-bit arch/x86/include/asm/fpu/types.h
+--- a/arch/x86/include/asm/fpu/types.h~pt-xstate-bit	2015-09-16 10:48:11.570979927 -0700
++++ b/arch/x86/include/asm/fpu/types.h	2015-09-16 10:48:11.574980109 -0700
+@@ -108,6 +108,7 @@ enum xfeature {
+ 	XFEATURE_OPMASK,
+ 	XFEATURE_ZMM_Hi256,
+ 	XFEATURE_Hi16_ZMM,
++	XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
  
- config ARCH_USES_HIGH_VMA_FLAGS
- 	bool
-+
-+config NR_PROTECTION_KEYS
-+	int
-+	# Everything supports a _single_ key, so allow folks to
-+	# at least call APIs that take keys, but require that the
-+	# key be 0.
-+	default 1
-diff -puN mm/mprotect.c~pkeys-85-mprotect_pkey mm/mprotect.c
---- a/mm/mprotect.c~pkeys-85-mprotect_pkey	2015-09-16 10:48:20.272374393 -0700
-+++ b/mm/mprotect.c	2015-09-16 10:48:20.276374574 -0700
-@@ -344,8 +344,8 @@ fail:
- 	return error;
- }
- 
--SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
--		unsigned long, prot)
-+static int do_mprotect_key(unsigned long start, size_t len,
-+		unsigned long prot, unsigned long key)
- {
- 	unsigned long vm_flags, nstart, end, tmp, reqprot;
- 	struct vm_area_struct *vma, *prev;
-@@ -365,6 +365,8 @@ SYSCALL_DEFINE3(mprotect, unsigned long,
- 		return -ENOMEM;
- 	if (!arch_validate_prot(prot))
- 		return -EINVAL;
-+	if (key >= CONFIG_NR_PROTECTION_KEYS)
-+		return -EINVAL;
- 
- 	reqprot = prot;
- 	/*
-@@ -373,7 +375,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long,
- 	if ((prot & PROT_READ) && (current->personality & READ_IMPLIES_EXEC))
- 		prot |= PROT_EXEC;
- 
--	vm_flags = calc_vm_prot_bits(prot, 0);
-+	vm_flags = calc_vm_prot_bits(prot, key);
- 
- 	down_write(&current->mm->mmap_sem);
- 
-@@ -443,3 +445,15 @@ out:
- 	up_write(&current->mm->mmap_sem);
- 	return error;
- }
-+
-+SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
-+		unsigned long, prot)
-+{
-+	return do_mprotect_key(start, len, prot, 0);
-+}
-+
-+SYSCALL_DEFINE4(mprotect_key, unsigned long, start, size_t, len,
-+		unsigned long, prot, unsigned long, key)
-+{
-+	return do_mprotect_key(start, len, prot, key);
-+}
+ 	XFEATURE_MAX,
+ };
+diff -puN arch/x86/kernel/fpu/xstate.c~pt-xstate-bit arch/x86/kernel/fpu/xstate.c
+--- a/arch/x86/kernel/fpu/xstate.c~pt-xstate-bit	2015-09-16 10:48:11.571979973 -0700
++++ b/arch/x86/kernel/fpu/xstate.c	2015-09-16 10:48:11.575980154 -0700
+@@ -469,7 +469,8 @@ static void check_xstate_against_struct(
+ 	 * numbers.
+ 	 */
+ 	if ((nr < XFEATURE_YMM) ||
+-	    (nr >= XFEATURE_MAX)) {
++	    (nr >= XFEATURE_MAX) ||
++	    (nr == XFEATURE_PT_UNIMPLEMENTED_SO_FAR)) {
+ 		WARN_ONCE(1, "no structure for xstate: %d\n", nr);
+ 		XSTATE_WARN_ON(1);
+ 	}
 _
 
 --
