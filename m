@@ -1,81 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 828866B0260
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:49:32 -0400 (EDT)
-Received: by padhk3 with SMTP id hk3so215098427pad.3
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:49:32 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id rb8si42266970pbb.243.2015.09.16.10.49.11
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 92D6F6B0260
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:49:34 -0400 (EDT)
+Received: by padhk3 with SMTP id hk3so215099080pad.3
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:49:34 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id cj4si42289090pbc.126.2015.09.16.10.49.12
         for <linux-mm@kvack.org>;
         Wed, 16 Sep 2015 10:49:12 -0700 (PDT)
-Subject: [PATCH 21/26] [NEWSYSCALL] x86: wire up mprotect_key() system call
+Subject: [PATCH 20/26] [NEWSYSCALL] mm: implement new mprotect_pkey() system call
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 16 Sep 2015 10:49:11 -0700
+Date: Wed, 16 Sep 2015 10:49:09 -0700
 References: <20150916174903.E112E464@viggo.jf.intel.com>
 In-Reply-To: <20150916174903.E112E464@viggo.jf.intel.com>
-Message-Id: <20150916174911.BB286A08@viggo.jf.intel.com>
+Message-Id: <20150916174909.3E595780@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dave@sr71.net
 Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 
-This is all that we need to get the new system call itself
-working on x86.
+mprotect_pkey() is just like mprotect, except it also takes a
+protection key as an argument.  On systems that do not support
+protection keys, it still works, but requires that key=0.
+Otherwise it does exactly what mprotect does.
+
+I expect it to get used like this, if you want to guarantee that
+any mapping you create can *never* be accessed without the right
+protection keys set up.
+
+	pkey_deny_access(11); // random pkey
+	int real_prot = PROT_READ|PROT_WRITE;
+	ptr = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+	ret = mprotect_pkey(ptr, PAGE_SIZE, real_prot, 11);
+
+This way, there is *no* window where the mapping is accessible
+since it was always either PROT_NONE or had a protection key set.
 
 ---
 
- b/arch/x86/entry/syscalls/syscall_32.tbl |    1 +
- b/arch/x86/entry/syscalls/syscall_64.tbl |    1 +
- b/arch/x86/include/uapi/asm/mman.h       |    7 +++++++
- b/mm/Kconfig                             |    1 +
- 4 files changed, 10 insertions(+)
+ b/mm/Kconfig    |    7 +++++++
+ b/mm/mprotect.c |   20 +++++++++++++++++---
+ 2 files changed, 24 insertions(+), 3 deletions(-)
 
-diff -puN arch/x86/entry/syscalls/syscall_32.tbl~pkeys-16-x86-mprotect_key arch/x86/entry/syscalls/syscall_32.tbl
---- a/arch/x86/entry/syscalls/syscall_32.tbl~pkeys-16-x86-mprotect_key	2015-09-16 10:48:20.711394295 -0700
-+++ b/arch/x86/entry/syscalls/syscall_32.tbl	2015-09-16 10:48:20.719394658 -0700
-@@ -382,3 +382,4 @@
- 373	i386	shutdown		sys_shutdown
- 374	i386	userfaultfd		sys_userfaultfd
- 375	i386	membarrier		sys_membarrier
-+394	i386	mprotect_key		sys_mprotect_key
-diff -puN arch/x86/entry/syscalls/syscall_64.tbl~pkeys-16-x86-mprotect_key arch/x86/entry/syscalls/syscall_64.tbl
---- a/arch/x86/entry/syscalls/syscall_64.tbl~pkeys-16-x86-mprotect_key	2015-09-16 10:48:20.712394341 -0700
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl	2015-09-16 10:48:20.719394658 -0700
-@@ -331,6 +331,7 @@
- 322	64	execveat		stub_execveat
- 323	common	userfaultfd		sys_userfaultfd
- 324	common	membarrier		sys_membarrier
-+394	common	mprotect_key		sys_mprotect_key
+diff -puN mm/Kconfig~pkeys-85-mprotect_pkey mm/Kconfig
+--- a/mm/Kconfig~pkeys-85-mprotect_pkey	2015-09-16 10:48:20.270374302 -0700
++++ b/mm/Kconfig	2015-09-16 10:48:20.275374529 -0700
+@@ -683,3 +683,10 @@ config FRAME_VECTOR
  
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-diff -puN arch/x86/include/uapi/asm/mman.h~pkeys-16-x86-mprotect_key arch/x86/include/uapi/asm/mman.h
---- a/arch/x86/include/uapi/asm/mman.h~pkeys-16-x86-mprotect_key	2015-09-16 10:48:20.714394431 -0700
-+++ b/arch/x86/include/uapi/asm/mman.h	2015-09-16 10:48:20.720394703 -0700
-@@ -20,6 +20,13 @@
- 		((vm_flags) & VM_PKEY_BIT1 ? _PAGE_PKEY_BIT1 : 0) |	\
- 		((vm_flags) & VM_PKEY_BIT2 ? _PAGE_PKEY_BIT2 : 0) |	\
- 		((vm_flags) & VM_PKEY_BIT3 ? _PAGE_PKEY_BIT3 : 0))
+ config ARCH_USES_HIGH_VMA_FLAGS
+ 	bool
 +
-+#define arch_calc_vm_prot_bits(prot, key) ( 		\
-+		((key) & 0x1 ? VM_PKEY_BIT0 : 0) |      \
-+		((key) & 0x2 ? VM_PKEY_BIT1 : 0) |      \
-+		((key) & 0x4 ? VM_PKEY_BIT2 : 0) |      \
-+		((key) & 0x8 ? VM_PKEY_BIT3 : 0))
-+
- #endif
++config NR_PROTECTION_KEYS
++	int
++	# Everything supports a _single_ key, so allow folks to
++	# at least call APIs that take keys, but require that the
++	# key be 0.
++	default 1
+diff -puN mm/mprotect.c~pkeys-85-mprotect_pkey mm/mprotect.c
+--- a/mm/mprotect.c~pkeys-85-mprotect_pkey	2015-09-16 10:48:20.272374393 -0700
++++ b/mm/mprotect.c	2015-09-16 10:48:20.276374574 -0700
+@@ -344,8 +344,8 @@ fail:
+ 	return error;
+ }
  
- #include <asm-generic/mman.h>
-diff -puN mm/Kconfig~pkeys-16-x86-mprotect_key mm/Kconfig
---- a/mm/Kconfig~pkeys-16-x86-mprotect_key	2015-09-16 10:48:20.716394522 -0700
-+++ b/mm/Kconfig	2015-09-16 10:48:20.720394703 -0700
-@@ -689,4 +689,5 @@ config NR_PROTECTION_KEYS
- 	# Everything supports a _single_ key, so allow folks to
- 	# at least call APIs that take keys, but require that the
- 	# key be 0.
-+	default 16 if X86_INTEL_MEMORY_PROTECTION_KEYS
- 	default 1
+-SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+-		unsigned long, prot)
++static int do_mprotect_key(unsigned long start, size_t len,
++		unsigned long prot, unsigned long key)
+ {
+ 	unsigned long vm_flags, nstart, end, tmp, reqprot;
+ 	struct vm_area_struct *vma, *prev;
+@@ -365,6 +365,8 @@ SYSCALL_DEFINE3(mprotect, unsigned long,
+ 		return -ENOMEM;
+ 	if (!arch_validate_prot(prot))
+ 		return -EINVAL;
++	if (key >= CONFIG_NR_PROTECTION_KEYS)
++		return -EINVAL;
+ 
+ 	reqprot = prot;
+ 	/*
+@@ -373,7 +375,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long,
+ 	if ((prot & PROT_READ) && (current->personality & READ_IMPLIES_EXEC))
+ 		prot |= PROT_EXEC;
+ 
+-	vm_flags = calc_vm_prot_bits(prot, 0);
++	vm_flags = calc_vm_prot_bits(prot, key);
+ 
+ 	down_write(&current->mm->mmap_sem);
+ 
+@@ -443,3 +445,15 @@ out:
+ 	up_write(&current->mm->mmap_sem);
+ 	return error;
+ }
++
++SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
++		unsigned long, prot)
++{
++	return do_mprotect_key(start, len, prot, 0);
++}
++
++SYSCALL_DEFINE4(mprotect_key, unsigned long, start, size_t, len,
++		unsigned long, prot, unsigned long, key)
++{
++	return do_mprotect_key(start, len, prot, key);
++}
 _
 
 --
