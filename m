@@ -1,198 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F5B56B026D
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:55:11 -0400 (EDT)
-Received: by igbni9 with SMTP id ni9so36796775igb.0
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:55:11 -0700 (PDT)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B64716B026F
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:55:12 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so219654658pac.2
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:55:12 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id k80si18245126ioi.214.2015.09.16.10.49.05
+        by mx.google.com with ESMTP id e5si15347140pas.193.2015.09.16.10.49.09
         for <linux-mm@kvack.org>;
-        Wed, 16 Sep 2015 10:49:05 -0700 (PDT)
-Subject: [PATCH 03/26] x86, pkeys: cpuid bit definition
+        Wed, 16 Sep 2015 10:49:09 -0700 (PDT)
+Subject: [PATCH 17/26] x86, pkeys: dump PTE pkey in /proc/pid/smaps
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 16 Sep 2015 10:49:04 -0700
+Date: Wed, 16 Sep 2015 10:49:08 -0700
 References: <20150916174903.E112E464@viggo.jf.intel.com>
 In-Reply-To: <20150916174903.E112E464@viggo.jf.intel.com>
-Message-Id: <20150916174904.369049ED@viggo.jf.intel.com>
+Message-Id: <20150916174908.3A2FA837@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dave@sr71.net
 Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 
-There are two CPUID bits for protection keys.  One is for whether
-the CPU contains the feature, and the other will appear set once
-the OS enables protection keys.  Specifically:
+The protection key can now be just as important as read/write
+permissions on a VMA.  We need some debug mechanism to help
+figure out if it is in play.  smaps seems like a logical
+place to expose it.
 
-	Bit 04: OSPKE. If 1, OS has set CR4.PKE to enable
-	Protection keys (and the RDPKRU/WRPKRU instructions)
+arch/x86/kernel/setup.c is a bit of a weirdo place to put
+this code, but it already had seq_file.h and there was not
+a much better existing place to put it.
 
-This is because userspace can not see CR4 contents, but it can
-see CPUID contents.
-
-X86_FEATURE_PKU is referred to as "PKU" in the hardware documentation:
-
-	CPUID.(EAX=07H,ECX=0H):ECX.PKU [bit 3]
-
-X86_FEATURE_OSPKE is "OSPKU":
-
-	CPUID.(EAX=07H,ECX=0H):ECX.OSPKE [bit 4]
-
-These are the first CPU features which need to look at the
-ECX word in CPUID leaf 0x7, so this patch also includes
-fetching that word in to the cpuinfo->x86_capability[] array.
-
-Add it to the disabled-features mask when its config option is
-off.  Even though we are not using it here, we also extend the
-REQUIRED_MASK_BIT_SET() macro to keep it mirroring the
-DISABLED_MASK_BIT_SET() version.
-
-This means that in almost all code, you should use:
-
-	cpu_has(X86_FEATURE_PKU)
-
-and *not* the CONFIG option.
+We also use no #ifdef.  If protection keys is .config'd out
+we will get the same function as if we used the weak generic
+function.
 
 ---
 
- b/arch/x86/include/asm/cpufeature.h        |   54 +++++++++++++++++------------
- b/arch/x86/include/asm/disabled-features.h |   12 ++++++
- b/arch/x86/include/asm/required-features.h |    4 ++
- b/arch/x86/kernel/cpu/common.c             |    1 
- 4 files changed, 50 insertions(+), 21 deletions(-)
+ b/arch/x86/kernel/setup.c |    9 +++++++++
+ b/fs/proc/task_mmu.c      |    5 +++++
+ 2 files changed, 14 insertions(+)
 
-diff -puN arch/x86/include/asm/cpufeature.h~pkeys-01-cpuid arch/x86/include/asm/cpufeature.h
---- a/arch/x86/include/asm/cpufeature.h~pkeys-01-cpuid	2015-09-16 10:48:12.424018599 -0700
-+++ b/arch/x86/include/asm/cpufeature.h	2015-09-16 10:48:12.433019007 -0700
-@@ -12,7 +12,7 @@
- #include <asm/disabled-features.h>
- #endif
- 
--#define NCAPINTS	13	/* N 32-bit words worth of info */
-+#define NCAPINTS	14	/* N 32-bit words worth of info */
- #define NBUGINTS	1	/* N 32-bit bug flags */
+diff -puN arch/x86/kernel/setup.c~pkeys-40-smaps arch/x86/kernel/setup.c
+--- a/arch/x86/kernel/setup.c~pkeys-40-smaps	2015-09-16 10:48:18.838309381 -0700
++++ b/arch/x86/kernel/setup.c	2015-09-16 10:48:18.844309653 -0700
+@@ -111,6 +111,7 @@
+ #include <asm/mce.h>
+ #include <asm/alternative.h>
+ #include <asm/prom.h>
++#include <asm/special_insns.h>
  
  /*
-@@ -254,6 +254,10 @@
- /* Intel-defined CPU QoS Sub-leaf, CPUID level 0x0000000F:1 (edx), word 12 */
- #define X86_FEATURE_CQM_OCCUP_LLC (12*32+ 0) /* LLC occupancy monitoring if 1 */
- 
-+/* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx), word 13 */
-+#define X86_FEATURE_PKU		(13*32+ 3) /* Protection Keys for Userspace */
-+#define X86_FEATURE_OSPKE	(13*32+ 4) /* OS Protection Keys Enable */
+  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
+@@ -1264,3 +1265,11 @@ static int __init register_kernel_offset
+ 	return 0;
+ }
+ __initcall(register_kernel_offset_dumper);
 +
- /*
-  * BUG word(s)
-  */
-@@ -294,28 +298,36 @@ extern const char * const x86_bug_flags[
- 	 test_bit(bit, (unsigned long *)((c)->x86_capability))
- 
- #define REQUIRED_MASK_BIT_SET(bit)					\
--	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & REQUIRED_MASK0)) ||	\
--	   (((bit)>>5)==1 && (1UL<<((bit)&31) & REQUIRED_MASK1)) ||	\
--	   (((bit)>>5)==2 && (1UL<<((bit)&31) & REQUIRED_MASK2)) ||	\
--	   (((bit)>>5)==3 && (1UL<<((bit)&31) & REQUIRED_MASK3)) ||	\
--	   (((bit)>>5)==4 && (1UL<<((bit)&31) & REQUIRED_MASK4)) ||	\
--	   (((bit)>>5)==5 && (1UL<<((bit)&31) & REQUIRED_MASK5)) ||	\
--	   (((bit)>>5)==6 && (1UL<<((bit)&31) & REQUIRED_MASK6)) ||	\
--	   (((bit)>>5)==7 && (1UL<<((bit)&31) & REQUIRED_MASK7)) ||	\
--	   (((bit)>>5)==8 && (1UL<<((bit)&31) & REQUIRED_MASK8)) ||	\
--	   (((bit)>>5)==9 && (1UL<<((bit)&31) & REQUIRED_MASK9)) )
-+	 ( (((bit)>>5)==0  && (1UL<<((bit)&31) & REQUIRED_MASK0 )) ||	\
-+	   (((bit)>>5)==1  && (1UL<<((bit)&31) & REQUIRED_MASK1 )) ||	\
-+	   (((bit)>>5)==2  && (1UL<<((bit)&31) & REQUIRED_MASK2 )) ||	\
-+	   (((bit)>>5)==3  && (1UL<<((bit)&31) & REQUIRED_MASK3 )) ||	\
-+	   (((bit)>>5)==4  && (1UL<<((bit)&31) & REQUIRED_MASK4 )) ||	\
-+	   (((bit)>>5)==5  && (1UL<<((bit)&31) & REQUIRED_MASK5 )) ||	\
-+	   (((bit)>>5)==6  && (1UL<<((bit)&31) & REQUIRED_MASK6 )) ||	\
-+	   (((bit)>>5)==7  && (1UL<<((bit)&31) & REQUIRED_MASK7 )) ||	\
-+	   (((bit)>>5)==8  && (1UL<<((bit)&31) & REQUIRED_MASK8 )) ||	\
-+	   (((bit)>>5)==9  && (1UL<<((bit)&31) & REQUIRED_MASK9 )) ||	\
-+	   (((bit)>>5)==10 && (1UL<<((bit)&31) & REQUIRED_MASK10)) ||	\
-+	   (((bit)>>5)==11 && (1UL<<((bit)&31) & REQUIRED_MASK11)) ||	\
-+	   (((bit)>>5)==12 && (1UL<<((bit)&31) & REQUIRED_MASK12)) ||	\
-+	   (((bit)>>5)==13 && (1UL<<((bit)&31) & REQUIRED_MASK13)) )
- 
- #define DISABLED_MASK_BIT_SET(bit)					\
--	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & DISABLED_MASK0)) ||	\
--	   (((bit)>>5)==1 && (1UL<<((bit)&31) & DISABLED_MASK1)) ||	\
--	   (((bit)>>5)==2 && (1UL<<((bit)&31) & DISABLED_MASK2)) ||	\
--	   (((bit)>>5)==3 && (1UL<<((bit)&31) & DISABLED_MASK3)) ||	\
--	   (((bit)>>5)==4 && (1UL<<((bit)&31) & DISABLED_MASK4)) ||	\
--	   (((bit)>>5)==5 && (1UL<<((bit)&31) & DISABLED_MASK5)) ||	\
--	   (((bit)>>5)==6 && (1UL<<((bit)&31) & DISABLED_MASK6)) ||	\
--	   (((bit)>>5)==7 && (1UL<<((bit)&31) & DISABLED_MASK7)) ||	\
--	   (((bit)>>5)==8 && (1UL<<((bit)&31) & DISABLED_MASK8)) ||	\
--	   (((bit)>>5)==9 && (1UL<<((bit)&31) & DISABLED_MASK9)) )
-+	 ( (((bit)>>5)==0  && (1UL<<((bit)&31) & DISABLED_MASK0 )) ||	\
-+	   (((bit)>>5)==1  && (1UL<<((bit)&31) & DISABLED_MASK1 )) ||	\
-+	   (((bit)>>5)==2  && (1UL<<((bit)&31) & DISABLED_MASK2 )) ||	\
-+	   (((bit)>>5)==3  && (1UL<<((bit)&31) & DISABLED_MASK3 )) ||	\
-+	   (((bit)>>5)==4  && (1UL<<((bit)&31) & DISABLED_MASK4 )) ||	\
-+	   (((bit)>>5)==5  && (1UL<<((bit)&31) & DISABLED_MASK5 )) ||	\
-+	   (((bit)>>5)==6  && (1UL<<((bit)&31) & DISABLED_MASK6 )) ||	\
-+	   (((bit)>>5)==7  && (1UL<<((bit)&31) & DISABLED_MASK7 )) ||	\
-+	   (((bit)>>5)==8  && (1UL<<((bit)&31) & DISABLED_MASK8 )) ||	\
-+	   (((bit)>>5)==9  && (1UL<<((bit)&31) & DISABLED_MASK9 )) ||	\
-+	   (((bit)>>5)==10 && (1UL<<((bit)&31) & DISABLED_MASK10)) ||	\
-+	   (((bit)>>5)==11 && (1UL<<((bit)&31) & DISABLED_MASK11)) ||	\
-+	   (((bit)>>5)==12 && (1UL<<((bit)&31) & DISABLED_MASK12)) ||	\
-+	   (((bit)>>5)==13 && (1UL<<((bit)&31) & DISABLED_MASK13)) )
- 
- #define cpu_has(c, bit)							\
- 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
-diff -puN arch/x86/include/asm/disabled-features.h~pkeys-01-cpuid arch/x86/include/asm/disabled-features.h
---- a/arch/x86/include/asm/disabled-features.h~pkeys-01-cpuid	2015-09-16 10:48:12.426018689 -0700
-+++ b/arch/x86/include/asm/disabled-features.h	2015-09-16 10:48:12.433019007 -0700
-@@ -28,6 +28,14 @@
- # define DISABLE_CENTAUR_MCR	0
- #endif /* CONFIG_X86_64 */
- 
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+# define DISABLE_PKU		(1<<(X86_FEATURE_PKU))
-+# define DISABLE_OSPKE		(1<<(X86_FEATURE_OSPKE))
-+#else
-+# define DISABLE_PKU		0
-+# define DISABLE_OSPKE		0
-+#endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
++void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
++{
++	if (!boot_cpu_has(X86_FEATURE_OSPKE))
++		return;
 +
- /*
-  * Make sure to add features to the correct mask
-  */
-@@ -41,5 +49,9 @@
- #define DISABLED_MASK7	0
- #define DISABLED_MASK8	0
- #define DISABLED_MASK9	(DISABLE_MPX)
-+#define DISABLED_MASK10	0
-+#define DISABLED_MASK11	0
-+#define DISABLED_MASK12	0
-+#define DISABLED_MASK13	(DISABLE_PKU|DISABLE_OSPKE)
++	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
++}
+diff -puN fs/proc/task_mmu.c~pkeys-40-smaps fs/proc/task_mmu.c
+--- a/fs/proc/task_mmu.c~pkeys-40-smaps	2015-09-16 10:48:18.840309472 -0700
++++ b/fs/proc/task_mmu.c	2015-09-16 10:48:18.844309653 -0700
+@@ -625,6 +625,10 @@ static void show_smap_vma_flags(struct s
+ 	seq_putc(m, '\n');
+ }
  
- #endif /* _ASM_X86_DISABLED_FEATURES_H */
-diff -puN arch/x86/include/asm/required-features.h~pkeys-01-cpuid arch/x86/include/asm/required-features.h
---- a/arch/x86/include/asm/required-features.h~pkeys-01-cpuid	2015-09-16 10:48:12.428018780 -0700
-+++ b/arch/x86/include/asm/required-features.h	2015-09-16 10:48:12.433019007 -0700
-@@ -92,5 +92,9 @@
- #define REQUIRED_MASK7	0
- #define REQUIRED_MASK8	0
- #define REQUIRED_MASK9	0
-+#define REQUIRED_MASK10	0
-+#define REQUIRED_MASK11	0
-+#define REQUIRED_MASK12	0
-+#define REQUIRED_MASK13	0
++void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
++{
++}
++
+ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ {
+ 	struct vm_area_struct *vma = v;
+@@ -674,6 +678,7 @@ static int show_smap(struct seq_file *m,
+ 		   (vma->vm_flags & VM_LOCKED) ?
+ 			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
  
- #endif /* _ASM_X86_REQUIRED_FEATURES_H */
-diff -puN arch/x86/kernel/cpu/common.c~pkeys-01-cpuid arch/x86/kernel/cpu/common.c
---- a/arch/x86/kernel/cpu/common.c~pkeys-01-cpuid	2015-09-16 10:48:12.429018825 -0700
-+++ b/arch/x86/kernel/cpu/common.c	2015-09-16 10:48:12.434019052 -0700
-@@ -619,6 +619,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
- 		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
- 
- 		c->x86_capability[9] = ebx;
-+		c->x86_capability[13] = ecx;
- 	}
- 
- 	/* Extended state features: level 0x0000000d */
++	arch_show_smap(m, vma);
+ 	show_smap_vma_flags(m, vma);
+ 	m_cache_vma(m, vma);
+ 	return 0;
 _
 
 --
