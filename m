@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 62DA06B027A
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:57:23 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so215811365pac.0
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:57:23 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id gk11si31520258pbd.34.2015.09.16.10.49.09
-        for <linux-mm@kvack.org>;
-        Wed, 16 Sep 2015 10:49:09 -0700 (PDT)
-Subject: [PATCH 16/26] x86, pkeys: dump PKRU with other kernel registers
-From: Dave Hansen <dave@sr71.net>
-Date: Wed, 16 Sep 2015 10:49:08 -0700
-References: <20150916174903.E112E464@viggo.jf.intel.com>
-In-Reply-To: <20150916174903.E112E464@viggo.jf.intel.com>
-Message-Id: <20150916174908.2B86AE47@viggo.jf.intel.com>
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id D1ADD6B0038
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 17:28:20 -0400 (EDT)
+Received: by qgt47 with SMTP id 47so183578809qgt.2
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 14:28:20 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o88si23826407qkh.75.2015.09.16.14.28.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Sep 2015 14:28:20 -0700 (PDT)
+Date: Wed, 16 Sep 2015 14:28:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: LTP regressions due to 6dc296e7df4c
+ ("mm: make sure all file VMAs have ->vm_ops set")
+Message-Id: <20150916142818.d0e5c01f0e91c91f9959ad84@linux-foundation.org>
+In-Reply-To: <20150915134216.GA16093@node.dhcp.inet.fi>
+References: <20150914105346.GB23878@arm.com>
+	<20150914115800.06242CE@black.fi.intel.com>
+	<20150914170547.GA28535@redhat.com>
+	<20150914182033.GA4165@node.dhcp.inet.fi>
+	<20150915121201.GA10104@redhat.com>
+	<20150915134216.GA16093@node.dhcp.inet.fi>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave@sr71.net
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>, hpa@zytor.com, luto@amacapital.net, dave.hansen@linux.intel.com, mingo@elte.hu, minchan@kernel.org, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Tue, 15 Sep 2015 16:42:16 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-I'm a bit ambivalent about whether this is needed or not.
+> I would rather like to see consolidated fault path between file and anon
+> with ->vm_ops set for both. So vma_is_anonymous() will be trivial
+> vma->vm_ops == anon_vm_ops.
 
-Protection Keys never affect kernel mappings.  But, they can
-affect whether the kernel will fault when it touches a user
-mapping.  But, the kernel doesn't touch user mappings without
-some careful choreography and these accesses don't generally
-result in oopses.
+People are noticing: https://bugzilla.kernel.org/show_bug.cgi?id=104691
 
-Should we dump out PKRU like this in our oopses?
-
----
-
- b/arch/x86/kernel/process_64.c |    2 ++
- 1 file changed, 2 insertions(+)
-
-diff -puN arch/x86/kernel/process_64.c~pkeys-30-kernel-error-dumps arch/x86/kernel/process_64.c
---- a/arch/x86/kernel/process_64.c~pkeys-30-kernel-error-dumps	2015-09-16 10:48:18.424290612 -0700
-+++ b/arch/x86/kernel/process_64.c	2015-09-16 10:48:18.427290748 -0700
-@@ -116,6 +116,8 @@ void __show_regs(struct pt_regs *regs, i
- 	printk(KERN_DEFAULT "DR0: %016lx DR1: %016lx DR2: %016lx\n", d0, d1, d2);
- 	printk(KERN_DEFAULT "DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
- 
-+	if (boot_cpu_has(X86_FEATURE_OSPKE))
-+		printk(KERN_DEFAULT "PKRU: %08x\n", read_pkru());
- }
- 
- void release_thread(struct task_struct *dead_task)
-_
+How about I send Linus a revert of 6dc296e7df4c while we work out what
+to do?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
