@@ -1,86 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B5D8C6B0255
-	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:55:00 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so219650082pac.2
-        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:55:00 -0700 (PDT)
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F5B56B026D
+	for <linux-mm@kvack.org>; Wed, 16 Sep 2015 13:55:11 -0400 (EDT)
+Received: by igbni9 with SMTP id ni9so36796775igb.0
+        for <linux-mm@kvack.org>; Wed, 16 Sep 2015 10:55:11 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id yc7si42254618pab.182.2015.09.16.10.49.12
+        by mx.google.com with ESMTP id k80si18245126ioi.214.2015.09.16.10.49.05
         for <linux-mm@kvack.org>;
-        Wed, 16 Sep 2015 10:49:13 -0700 (PDT)
-Subject: [PATCH 24/26] [HIJACKPROT] x86, pkeys: mask off pkeys bits in mprotect()
+        Wed, 16 Sep 2015 10:49:05 -0700 (PDT)
+Subject: [PATCH 03/26] x86, pkeys: cpuid bit definition
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 16 Sep 2015 10:49:12 -0700
+Date: Wed, 16 Sep 2015 10:49:04 -0700
 References: <20150916174903.E112E464@viggo.jf.intel.com>
 In-Reply-To: <20150916174903.E112E464@viggo.jf.intel.com>
-Message-Id: <20150916174912.18B301D4@viggo.jf.intel.com>
+Message-Id: <20150916174904.369049ED@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dave@sr71.net
 Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 
-This is a quick hack that puts very x86-specific bits in to
-mprotect.c.  I will fix this up properly if we decide to go
-forward with the PROT_* scheme for the user ABI for setting up
-protection keys.
+There are two CPUID bits for protection keys.  One is for whether
+the CPU contains the feature, and the other will appear set once
+the OS enables protection keys.  Specifically:
+
+	Bit 04: OSPKE. If 1, OS has set CR4.PKE to enable
+	Protection keys (and the RDPKRU/WRPKRU instructions)
+
+This is because userspace can not see CR4 contents, but it can
+see CPUID contents.
+
+X86_FEATURE_PKU is referred to as "PKU" in the hardware documentation:
+
+	CPUID.(EAX=07H,ECX=0H):ECX.PKU [bit 3]
+
+X86_FEATURE_OSPKE is "OSPKU":
+
+	CPUID.(EAX=07H,ECX=0H):ECX.OSPKE [bit 4]
+
+These are the first CPU features which need to look at the
+ECX word in CPUID leaf 0x7, so this patch also includes
+fetching that word in to the cpuinfo->x86_capability[] array.
+
+Add it to the disabled-features mask when its config option is
+off.  Even though we are not using it here, we also extend the
+REQUIRED_MASK_BIT_SET() macro to keep it mirroring the
+DISABLED_MASK_BIT_SET() version.
+
+This means that in almost all code, you should use:
+
+	cpu_has(X86_FEATURE_PKU)
+
+and *not* the CONFIG option.
 
 ---
 
- b/arch/x86/include/uapi/asm/mman.h |    9 +++++----
- b/mm/mprotect.c                    |   13 ++++++++++++-
- 2 files changed, 17 insertions(+), 5 deletions(-)
+ b/arch/x86/include/asm/cpufeature.h        |   54 +++++++++++++++++------------
+ b/arch/x86/include/asm/disabled-features.h |   12 ++++++
+ b/arch/x86/include/asm/required-features.h |    4 ++
+ b/arch/x86/kernel/cpu/common.c             |    1 
+ 4 files changed, 50 insertions(+), 21 deletions(-)
 
-diff -puN arch/x86/include/uapi/asm/mman.h~pkeys-82-mprotect-flag-copy arch/x86/include/uapi/asm/mman.h
---- a/arch/x86/include/uapi/asm/mman.h~pkeys-82-mprotect-flag-copy	2015-09-16 09:45:54.977451221 -0700
-+++ b/arch/x86/include/uapi/asm/mman.h	2015-09-16 09:45:54.982451448 -0700
-@@ -24,10 +24,11 @@
- 		((vm_flags) & VM_PKEY_BIT3 ? _PAGE_PKEY_BIT3 : 0))
+diff -puN arch/x86/include/asm/cpufeature.h~pkeys-01-cpuid arch/x86/include/asm/cpufeature.h
+--- a/arch/x86/include/asm/cpufeature.h~pkeys-01-cpuid	2015-09-16 10:48:12.424018599 -0700
++++ b/arch/x86/include/asm/cpufeature.h	2015-09-16 10:48:12.433019007 -0700
+@@ -12,7 +12,7 @@
+ #include <asm/disabled-features.h>
+ #endif
  
- #define arch_calc_vm_prot_bits(prot) (	\
--		((prot) & PROT_PKEY0 ? VM_PKEY_BIT0 : 0) |	\
--		((prot) & PROT_PKEY1 ? VM_PKEY_BIT1 : 0) |	\
--		((prot) & PROT_PKEY2 ? VM_PKEY_BIT2 : 0) |	\
--		((prot) & PROT_PKEY3 ? VM_PKEY_BIT3 : 0))
-+		(!boot_cpu_has(X86_FEATURE_OSPKE) ? 0 :			\
-+			((prot) & PROT_PKEY0 ? VM_PKEY_BIT0 : 0) |	\
-+			((prot) & PROT_PKEY1 ? VM_PKEY_BIT1 : 0) |	\
-+			((prot) & PROT_PKEY2 ? VM_PKEY_BIT2 : 0) |	\
-+			((prot) & PROT_PKEY3 ? VM_PKEY_BIT3 : 0)))
+-#define NCAPINTS	13	/* N 32-bit words worth of info */
++#define NCAPINTS	14	/* N 32-bit words worth of info */
+ #define NBUGINTS	1	/* N 32-bit bug flags */
  
- #ifndef arch_validate_prot
  /*
-diff -puN mm/mprotect.c~pkeys-82-mprotect-flag-copy mm/mprotect.c
---- a/mm/mprotect.c~pkeys-82-mprotect-flag-copy	2015-09-16 09:45:54.978451266 -0700
-+++ b/mm/mprotect.c	2015-09-16 09:45:54.982451448 -0700
-@@ -344,6 +344,15 @@ fail:
- 	return error;
- }
+@@ -254,6 +254,10 @@
+ /* Intel-defined CPU QoS Sub-leaf, CPUID level 0x0000000F:1 (edx), word 12 */
+ #define X86_FEATURE_CQM_OCCUP_LLC (12*32+ 0) /* LLC occupancy monitoring if 1 */
  
-+static unsigned long vm_flags_unaffected_by_mprotect(unsigned long vm_flags)
-+{
-+	unsigned long mask_off = VM_READ | VM_WRITE | VM_EXEC;
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+	mask_off |= VM_PKEY_BIT0 | VM_PKEY_BIT1 | VM_PKEY_BIT2 | VM_PKEY_BIT3;
-+#endif
-+	return vm_flags & ~mask_off;
-+}
++/* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx), word 13 */
++#define X86_FEATURE_PKU		(13*32+ 3) /* Protection Keys for Userspace */
++#define X86_FEATURE_OSPKE	(13*32+ 4) /* OS Protection Keys Enable */
 +
- SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
- 		unsigned long, prot)
- {
-@@ -407,8 +416,10 @@ SYSCALL_DEFINE3(mprotect, unsigned long,
+ /*
+  * BUG word(s)
+  */
+@@ -294,28 +298,36 @@ extern const char * const x86_bug_flags[
+ 	 test_bit(bit, (unsigned long *)((c)->x86_capability))
  
- 		/* Here we know that vma->vm_start <= nstart < vma->vm_end. */
+ #define REQUIRED_MASK_BIT_SET(bit)					\
+-	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & REQUIRED_MASK0)) ||	\
+-	   (((bit)>>5)==1 && (1UL<<((bit)&31) & REQUIRED_MASK1)) ||	\
+-	   (((bit)>>5)==2 && (1UL<<((bit)&31) & REQUIRED_MASK2)) ||	\
+-	   (((bit)>>5)==3 && (1UL<<((bit)&31) & REQUIRED_MASK3)) ||	\
+-	   (((bit)>>5)==4 && (1UL<<((bit)&31) & REQUIRED_MASK4)) ||	\
+-	   (((bit)>>5)==5 && (1UL<<((bit)&31) & REQUIRED_MASK5)) ||	\
+-	   (((bit)>>5)==6 && (1UL<<((bit)&31) & REQUIRED_MASK6)) ||	\
+-	   (((bit)>>5)==7 && (1UL<<((bit)&31) & REQUIRED_MASK7)) ||	\
+-	   (((bit)>>5)==8 && (1UL<<((bit)&31) & REQUIRED_MASK8)) ||	\
+-	   (((bit)>>5)==9 && (1UL<<((bit)&31) & REQUIRED_MASK9)) )
++	 ( (((bit)>>5)==0  && (1UL<<((bit)&31) & REQUIRED_MASK0 )) ||	\
++	   (((bit)>>5)==1  && (1UL<<((bit)&31) & REQUIRED_MASK1 )) ||	\
++	   (((bit)>>5)==2  && (1UL<<((bit)&31) & REQUIRED_MASK2 )) ||	\
++	   (((bit)>>5)==3  && (1UL<<((bit)&31) & REQUIRED_MASK3 )) ||	\
++	   (((bit)>>5)==4  && (1UL<<((bit)&31) & REQUIRED_MASK4 )) ||	\
++	   (((bit)>>5)==5  && (1UL<<((bit)&31) & REQUIRED_MASK5 )) ||	\
++	   (((bit)>>5)==6  && (1UL<<((bit)&31) & REQUIRED_MASK6 )) ||	\
++	   (((bit)>>5)==7  && (1UL<<((bit)&31) & REQUIRED_MASK7 )) ||	\
++	   (((bit)>>5)==8  && (1UL<<((bit)&31) & REQUIRED_MASK8 )) ||	\
++	   (((bit)>>5)==9  && (1UL<<((bit)&31) & REQUIRED_MASK9 )) ||	\
++	   (((bit)>>5)==10 && (1UL<<((bit)&31) & REQUIRED_MASK10)) ||	\
++	   (((bit)>>5)==11 && (1UL<<((bit)&31) & REQUIRED_MASK11)) ||	\
++	   (((bit)>>5)==12 && (1UL<<((bit)&31) & REQUIRED_MASK12)) ||	\
++	   (((bit)>>5)==13 && (1UL<<((bit)&31) & REQUIRED_MASK13)) )
  
-+		/* Set the vm_flags from the PROT_* bits passed to mprotect */
- 		newflags = vm_flags;
--		newflags |= (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
-+		/* Copy over all other VMA flags unaffected by mprotect */
-+		newflags |= vm_flags_unaffected_by_mprotect(vma->vm_flags);
+ #define DISABLED_MASK_BIT_SET(bit)					\
+-	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & DISABLED_MASK0)) ||	\
+-	   (((bit)>>5)==1 && (1UL<<((bit)&31) & DISABLED_MASK1)) ||	\
+-	   (((bit)>>5)==2 && (1UL<<((bit)&31) & DISABLED_MASK2)) ||	\
+-	   (((bit)>>5)==3 && (1UL<<((bit)&31) & DISABLED_MASK3)) ||	\
+-	   (((bit)>>5)==4 && (1UL<<((bit)&31) & DISABLED_MASK4)) ||	\
+-	   (((bit)>>5)==5 && (1UL<<((bit)&31) & DISABLED_MASK5)) ||	\
+-	   (((bit)>>5)==6 && (1UL<<((bit)&31) & DISABLED_MASK6)) ||	\
+-	   (((bit)>>5)==7 && (1UL<<((bit)&31) & DISABLED_MASK7)) ||	\
+-	   (((bit)>>5)==8 && (1UL<<((bit)&31) & DISABLED_MASK8)) ||	\
+-	   (((bit)>>5)==9 && (1UL<<((bit)&31) & DISABLED_MASK9)) )
++	 ( (((bit)>>5)==0  && (1UL<<((bit)&31) & DISABLED_MASK0 )) ||	\
++	   (((bit)>>5)==1  && (1UL<<((bit)&31) & DISABLED_MASK1 )) ||	\
++	   (((bit)>>5)==2  && (1UL<<((bit)&31) & DISABLED_MASK2 )) ||	\
++	   (((bit)>>5)==3  && (1UL<<((bit)&31) & DISABLED_MASK3 )) ||	\
++	   (((bit)>>5)==4  && (1UL<<((bit)&31) & DISABLED_MASK4 )) ||	\
++	   (((bit)>>5)==5  && (1UL<<((bit)&31) & DISABLED_MASK5 )) ||	\
++	   (((bit)>>5)==6  && (1UL<<((bit)&31) & DISABLED_MASK6 )) ||	\
++	   (((bit)>>5)==7  && (1UL<<((bit)&31) & DISABLED_MASK7 )) ||	\
++	   (((bit)>>5)==8  && (1UL<<((bit)&31) & DISABLED_MASK8 )) ||	\
++	   (((bit)>>5)==9  && (1UL<<((bit)&31) & DISABLED_MASK9 )) ||	\
++	   (((bit)>>5)==10 && (1UL<<((bit)&31) & DISABLED_MASK10)) ||	\
++	   (((bit)>>5)==11 && (1UL<<((bit)&31) & DISABLED_MASK11)) ||	\
++	   (((bit)>>5)==12 && (1UL<<((bit)&31) & DISABLED_MASK12)) ||	\
++	   (((bit)>>5)==13 && (1UL<<((bit)&31) & DISABLED_MASK13)) )
  
- 		/* newflags >> 4 shift VM_MAY% in place of VM_% */
- 		if ((newflags & ~(newflags >> 4)) & (VM_READ | VM_WRITE | VM_EXEC)) {
+ #define cpu_has(c, bit)							\
+ 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
+diff -puN arch/x86/include/asm/disabled-features.h~pkeys-01-cpuid arch/x86/include/asm/disabled-features.h
+--- a/arch/x86/include/asm/disabled-features.h~pkeys-01-cpuid	2015-09-16 10:48:12.426018689 -0700
++++ b/arch/x86/include/asm/disabled-features.h	2015-09-16 10:48:12.433019007 -0700
+@@ -28,6 +28,14 @@
+ # define DISABLE_CENTAUR_MCR	0
+ #endif /* CONFIG_X86_64 */
+ 
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++# define DISABLE_PKU		(1<<(X86_FEATURE_PKU))
++# define DISABLE_OSPKE		(1<<(X86_FEATURE_OSPKE))
++#else
++# define DISABLE_PKU		0
++# define DISABLE_OSPKE		0
++#endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
++
+ /*
+  * Make sure to add features to the correct mask
+  */
+@@ -41,5 +49,9 @@
+ #define DISABLED_MASK7	0
+ #define DISABLED_MASK8	0
+ #define DISABLED_MASK9	(DISABLE_MPX)
++#define DISABLED_MASK10	0
++#define DISABLED_MASK11	0
++#define DISABLED_MASK12	0
++#define DISABLED_MASK13	(DISABLE_PKU|DISABLE_OSPKE)
+ 
+ #endif /* _ASM_X86_DISABLED_FEATURES_H */
+diff -puN arch/x86/include/asm/required-features.h~pkeys-01-cpuid arch/x86/include/asm/required-features.h
+--- a/arch/x86/include/asm/required-features.h~pkeys-01-cpuid	2015-09-16 10:48:12.428018780 -0700
++++ b/arch/x86/include/asm/required-features.h	2015-09-16 10:48:12.433019007 -0700
+@@ -92,5 +92,9 @@
+ #define REQUIRED_MASK7	0
+ #define REQUIRED_MASK8	0
+ #define REQUIRED_MASK9	0
++#define REQUIRED_MASK10	0
++#define REQUIRED_MASK11	0
++#define REQUIRED_MASK12	0
++#define REQUIRED_MASK13	0
+ 
+ #endif /* _ASM_X86_REQUIRED_FEATURES_H */
+diff -puN arch/x86/kernel/cpu/common.c~pkeys-01-cpuid arch/x86/kernel/cpu/common.c
+--- a/arch/x86/kernel/cpu/common.c~pkeys-01-cpuid	2015-09-16 10:48:12.429018825 -0700
++++ b/arch/x86/kernel/cpu/common.c	2015-09-16 10:48:12.434019052 -0700
+@@ -619,6 +619,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
+ 		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
+ 
+ 		c->x86_capability[9] = ebx;
++		c->x86_capability[13] = ecx;
+ 	}
+ 
+ 	/* Extended state features: level 0x0000000d */
 _
 
 --
