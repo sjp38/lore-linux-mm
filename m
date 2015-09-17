@@ -1,159 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 6326C6B0038
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 16:15:22 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so22726230qgt.2
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 13:15:22 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s48si4337411qgd.111.2015.09.17.13.15.21
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B9D66B0038
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 16:17:08 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so22800005qge.0
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 13:17:08 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p21si4333976qki.114.2015.09.17.13.17.07
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Sep 2015 13:15:21 -0700 (PDT)
-Date: Thu, 17 Sep 2015 13:15:19 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: drivers/firmware/efi/libstub/efi-stub-helper.c:599:2: warning:
- implicit declaration of function 'memcpy'
-Message-Id: <20150917131519.1f579c0492dfe0d1e5a8ac54@linux-foundation.org>
-In-Reply-To: <CAPAsAGyFs7dc1AvUweJ6_KPjoK8qMELDnyOfmNSX-urr7Nnhww@mail.gmail.com>
-References: <201509170954.bUogAGSu%fengguang.wu@intel.com>
-	<20150917123751.772410664187565ba24171a5@linux-foundation.org>
-	<CAPAsAGyFs7dc1AvUweJ6_KPjoK8qMELDnyOfmNSX-urr7Nnhww@mail.gmail.com>
-Mime-Version: 1.0
+        Thu, 17 Sep 2015 13:17:07 -0700 (PDT)
+Date: Thu, 17 Sep 2015 22:17:02 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: Experiences with slub bulk use-case for network stack
+Message-ID: <20150917221702.734a42dc@redhat.com>
+In-Reply-To: <alpine.DEB.2.11.1509161009420.21859@east.gentwo.org>
+References: <20150824005727.2947.36065.stgit@localhost>
+	<20150904165944.4312.32435.stgit@devil>
+	<20150916120230.4ca75217@redhat.com>
+	<alpine.DEB.2.11.1509161009420.21859@east.gentwo.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Andrey Konovalov <adech.fo@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, netdev@vger.kernel.org, akpm@linux-foundation.org, Alexander Duyck <alexander.duyck@gmail.com>, iamjoonsoo.kim@lge.com, brouer@redhat.com
 
-On Thu, 17 Sep 2015 23:02:14 +0300 Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+On Wed, 16 Sep 2015 10:13:25 -0500 (CDT)
+Christoph Lameter <cl@linux.com> wrote:
 
-> 2015-09-17 22:37 GMT+03:00 Andrew Morton <akpm@linux-foundation.org>:
-> > On Thu, 17 Sep 2015 09:17:56 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
-> >
-> >> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> >> head:   72714841b705a5b9bccf37ee85a62352bee3a3ef
-> >> commit: 393f203f5fd54421fddb1e2a263f64d3876eeadb x86_64: kasan: add interceptors for memset/memmove/memcpy functions
-> >> date:   7 months ago
-> >> config: i386-randconfig-i0-201537 (attached as .config)
-> >> reproduce:
-> >>   git checkout 393f203f5fd54421fddb1e2a263f64d3876eeadb
-> >>   # save the attached .config to linux build tree
-> >>   make ARCH=i386
-> >>
-> >> All warnings (new ones prefixed by >>):
-> >>
-> >>    drivers/firmware/efi/libstub/efi-stub-helper.c: In function 'efi_relocate_kernel':
-> >> >> drivers/firmware/efi/libstub/efi-stub-helper.c:599:2: warning: implicit declaration of function 'memcpy' [-Wimplicit-function-declaration]
-> >>      memcpy((void *)new_addr, (void *)cur_image_addr, image_size);
-> >
-> > I can't reproduce this.
-> >
-> > But whatever.  I'll do this:
-> >
-> > --- a/drivers/firmware/efi/libstub/efi-stub-helper.c~drivers-firmware-efi-libstub-efi-stub-helperc-needs-stringh
-> > +++ a/drivers/firmware/efi/libstub/efi-stub-helper.c
-> > @@ -11,6 +11,7 @@
-> >   */
-> >
-> >  #include <linux/efi.h>
-> > +#include <linux/string.h>
+> On Wed, 16 Sep 2015, Jesper Dangaard Brouer wrote:
 > 
-> This won't help.
-> arch/x86/include/asm/string_32.h has several variants of #define memcpy()
-> But it doesn't have declaration of memcpy function like:
->             void memcpy(const void *to, const void *from, size_t len);
-> Thus '#undef memcpy' causes this warning, and including
-> <linux/string.h> won't help (It probably already included)
+> >
+> > Hint, this leads up to discussing if current bulk *ALLOC* API need to
+> > be changed...
+> >
+> > Alex and I have been working hard on practical use-case for SLAB
+> > bulking (mostly slUb), in the network stack.  Here is a summary of
+> > what we have learned so far.
+> 
+> SLAB refers to the SLAB allocator which is one slab allocator and SLUB is
+> another slab allocator.
+> 
+> Please keep that consistent otherwise things get confusing
 
-Well, I can't tell either way because that warning doesn't come out for
-me with the provided config.
-
-> Patch from KASAN for arm64 series:
-> http://marc.info/?l=linux-mm&m=144248270719929&w=2 ([PATCH v6 3/6]
-> x86, efi, kasan: #undef memset/memcpy/memmove per arch.)
-> should fix this warning, as it moves '#undef memcpy' under #ifdef
-> X86_64 in arch/x86/include/asm/efi.h
-
-hm, that patch was misfiled.  We want this for for 4.3-rc.  I'll queue
-it up.  I hope it's independent of the rest of that patch series?
+This naming scheme is really confusing.  I'll try to be more
+consistent.  So, you want capital letters SLAB and SLUB when talking
+about a specific slab allocator implementation.
 
 
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Subject: x86, efi, kasan: #undef memset/memcpy/memmove per arch
+> > Bulk free'ing SKBs during TX completion is a big and easy win.
+> >
+> > Specifically for slUb, normal path for freeing these objects (which
+> > are not on c->freelist) require a locked double_cmpxchg per object.
+> > The bulk free (via detached freelist patch) allow to free all objects
+> > belonging to the same slab-page, to be free'ed with a single locked
+> > double_cmpxchg. Thus, the bulk free speedup is quite an improvement.
+> 
+> Yep.
+> 
+> > Alex and I had the idea of bulk alloc returns an "allocator specific
+> > cache" data-structure (and we add some helpers to access this).
+> 
+> Maybe add some Macros to handle this?
 
-In not-instrumented code KASAN replaces instrumented memset/memcpy/memmove
-with not-instrumented analogues __memset/__memcpy/__memove.
+Yes, helpers will likely turn out to be macros.
 
-However, on x86 the EFI stub is not linked with the kernel.  It uses
-not-instrumented mem*() functions from arch/x86/boot/compressed/string.c
 
-So we don't replace them with __mem*() variants in EFI stub.
+> > In the slUb case, the freelist is a single linked pointer list.  In
+> > the network stack the skb objects have a skb->next pointer, which is
+> > located at the same position as freelist pointer.  Thus, simply
+> > returning the freelist directly, could be interpreted as a skb-list.
+> > The helper API would then do the prefetching, when pulling out
+> > objects.
+> 
+> The problem with the SLUB case is that the objects must be on the same
+> slab page.
 
-On ARM64 the EFI stub is linked with the kernel, so we should replace
-mem*() functions with __mem*(), because the EFI stub runs before KASAN
-sets up early shadow.
+Yes, I'm aware that, that is what we are trying to take advantage of.
 
-So let's move these #undef mem* into arch's asm/efi.h which is also
-included by the EFI stub.
 
-Also, this will fix the warning in 32-bit build reported by kbuild test
-robot:
+> > For the slUb case, we would simply cmpxchg either c->freelist or
+> > page->freelist with a NULL ptr, and then own all objects on the
+> > freelist. This also reduce the time we keep IRQs disabled.
+> 
+> You dont need to disable interrupts for the cmpxchges. There is
+> additional state in the page struct though so the updates must be
+> done carefully.
 
-	efi-stub-helper.c:599:2: warning: implicit declaration of function 'memcpy'
+Yes, I'm aware of cmpxchg does not need to disable interrupts.  And I
+plan to take advantage of this, in this new approach for bulk alloc.
 
-Signed-off-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Reported-by: Fengguang Wu <fengguang.wu@gmail.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Matt Fleming <matt.fleming@intel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+Our current bulk alloc disables interrupts for the full period (of
+collecting the number requested objects).
 
- arch/x86/include/asm/efi.h             |   12 ++++++++++++
- drivers/firmware/efi/libstub/efistub.h |    4 ----
- 2 files changed, 12 insertions(+), 4 deletions(-)
+What I'm proposing is keeping interrupts on, and then simply cmpxchg
+e.g 2 slab-pages out of the SLUB allocator (which the SLUB code calls
+freelist's). The bulk call now owns these freelists, and returns them
+to the caller.  The API caller gets some helpers/macros to access
+objects, to shield him from the details (of SLUB freelist's).
 
-diff -puN arch/x86/include/asm/efi.h~x86-efi-kasan-undef-memset-memcpy-memmove-per-arch arch/x86/include/asm/efi.h
---- a/arch/x86/include/asm/efi.h~x86-efi-kasan-undef-memset-memcpy-memmove-per-arch
-+++ a/arch/x86/include/asm/efi.h
-@@ -86,6 +86,18 @@ extern u64 asmlinkage efi_call(void *fp,
- extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned long size,
- 					u32 type, u64 attribute);
- 
-+/*
-+ * CONFIG_KASAN may redefine memset to __memset.
-+ * __memset function is present only in kernel binary.
-+ * Since the EFI stub linked into a separate binary it
-+ * doesn't have __memset(). So we should use standard
-+ * memset from arch/x86/boot/compressed/string.c
-+ * The same applies to memcpy and memmove.
-+ */
-+#undef memcpy
-+#undef memset
-+#undef memmove
-+
- #endif /* CONFIG_X86_32 */
- 
- extern struct efi_scratch efi_scratch;
-diff -puN drivers/firmware/efi/libstub/efistub.h~x86-efi-kasan-undef-memset-memcpy-memmove-per-arch drivers/firmware/efi/libstub/efistub.h
---- a/drivers/firmware/efi/libstub/efistub.h~x86-efi-kasan-undef-memset-memcpy-memmove-per-arch
-+++ a/drivers/firmware/efi/libstub/efistub.h
-@@ -5,10 +5,6 @@
- /* error code which can't be mistaken for valid address */
- #define EFI_ERROR	(~0UL)
- 
--#undef memcpy
--#undef memset
--#undef memmove
--
- void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
- 
- efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg, void *__image,
-_
+The pitfall with this API is we don't know how many objects are on a
+SLUB freelist.  And we cannot walk the freelist and count them, because
+then we hit the problem of memory/cache stalls (that we are trying so
+hard to avoid).
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
