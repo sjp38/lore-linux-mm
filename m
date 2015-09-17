@@ -1,59 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AE846B0038
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 14:34:25 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so20225405qgt.2
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 11:34:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v23si3866135qkv.126.2015.09.17.11.34.24
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id F3B6B6B0038
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 15:25:03 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so21521286qge.0
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 12:25:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g18si4113590qhc.82.2015.09.17.12.25.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Sep 2015 11:34:24 -0700 (PDT)
-Date: Thu, 17 Sep 2015 11:34:22 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [linux-next:master 2171/2223] lib/test-string_helpers.c:336:32:
- note: in expansion of macro 'min'
-Message-Id: <20150917113422.1d67ee7d09bbd87900b9dc29@linux-foundation.org>
-In-Reply-To: <201509171413.HY8sjcvk%fengguang.wu@intel.com>
-References: <201509171413.HY8sjcvk%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 17 Sep 2015 12:25:03 -0700 (PDT)
+Date: Thu, 17 Sep 2015 21:22:04 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] mm/oom_kill.c: don't kill TASK_UNINTERRUPTIBLE tasks
+Message-ID: <20150917192204.GA2728@redhat.com>
+References: <1442512783-14719-1-git-send-email-kwalker@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1442512783-14719-1-git-send-email-kwalker@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Kyle Walker <kwalker@redhat.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.cz, rientjes@google.com, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Stanislav Kozina <skozina@redhat.com>
 
-On Thu, 17 Sep 2015 14:33:15 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+Add cc's.
 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   01c8787d7f7ea56c16d94cf7133022189be231ad
-> commit: 42c38b1726a7df8aee87c44e5151b0f29ab5ab3b [2171/2223] lib/test-string_helpers.c: add string_get_size() tests
-> config: mn10300-allyesconfig (attached as .config)
-> reproduce:
->   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->   chmod +x ~/bin/make.cross
->   git checkout 42c38b1726a7df8aee87c44e5151b0f29ab5ab3b
->   # save the attached .config to linux build tree
->   make.cross ARCH=mn10300 
-> 
-> All warnings (new ones prefixed by >>):
-> 
->    In file included from lib/test-string_helpers.c:7:0:
->    lib/test-string_helpers.c: In function 'test_string_get_size_one':
->    include/linux/kernel.h:722:17: warning: comparison of distinct pointer types lacks a cast
->      (void) (&_min1 == &_min2);  \
->                     ^
-> >> lib/test-string_helpers.c:336:32: note: in expansion of macro 'min'
->      if (!strncmp(buf, exp_result, min(sizeof(buf), strlen(exp_result))))
->                                    ^
-> 
-> ...
+On 09/17, Kyle Walker wrote:
 >
->  > 336		if (!strncmp(buf, exp_result, min(sizeof(buf), strlen(exp_result))))
+> Currently, the oom killer will attempt to kill a process that is in
+> TASK_UNINTERRUPTIBLE state. For tasks in this state for an exceptional
+> period of time, such as processes writing to a frozen filesystem during
+> a lengthy backup operation, this can result in a deadlock condition as
+> related processes memory access will stall within the page fault
+> handler.
+>
+> Within oom_unkillable_task(), check for processes in
+> TASK_UNINTERRUPTIBLE (TASK_KILLABLE omitted). The oom killer will
+> move on to another task.
+>
+> Signed-off-by: Kyle Walker <kwalker@redhat.com>
+> ---
+>  mm/oom_kill.c | 4 ++++
+>  1 file changed, 4 insertions(+)
+>
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 1ecc0bc..66f03f8 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -131,6 +131,10 @@ static bool oom_unkillable_task(struct task_struct *p,
+>  	if (memcg && !task_in_mem_cgroup(p, memcg))
+>  		return true;
+>
+> +	/* Uninterruptible tasks should not be killed unless in TASK_WAKEKILL */
+> +	if (p->state == TASK_UNINTERRUPTIBLE)
+> +		return true;
+> +
 
-It looks like mn10300 gcc is busted.  sizeof and strlen() both return
-size_t.
+So we can skip a memory hog which, say, does mutex_lock(). And this can't
+help if this task is multithreaded, unless all its sub-threads are in "D"
+state too oom killer will pick another thread with the same ->mm. Plus
+other problems.
+
+But yes, such a deadlock is possible. I would really like to see the comments
+from maintainers. In particular, I seem to recall that someone suggested to
+try to kill another !TIF_MEMDIE process after timeout, perhaps this is what
+we should actually do...
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
