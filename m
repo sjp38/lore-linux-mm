@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A44D46B025C
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 14:27:30 -0400 (EDT)
-Received: by oiww128 with SMTP id w128so14353703oiw.2
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 11:27:30 -0700 (PDT)
-Received: from g2t4620.austin.hp.com (g2t4620.austin.hp.com. [15.73.212.81])
-        by mx.google.com with ESMTPS id s128si2413962oig.118.2015.09.17.11.27.21
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id AEF356B025D
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 14:27:32 -0400 (EDT)
+Received: by oibi136 with SMTP id i136so14386468oib.3
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 11:27:32 -0700 (PDT)
+Received: from g2t4623.austin.hp.com (g2t4623.austin.hp.com. [15.73.212.78])
+        by mx.google.com with ESMTPS id k125si2429029oig.26.2015.09.17.11.27.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Sep 2015 11:27:21 -0700 (PDT)
+        Thu, 17 Sep 2015 11:27:22 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v4 RESEND 9/11] x86/mm: Fix try_preserve_large_page() to handle large PAT bit
-Date: Thu, 17 Sep 2015 12:24:22 -0600
-Message-Id: <1442514264-12475-10-git-send-email-toshi.kani@hpe.com>
+Subject: [PATCH v4 RESEND 10/11] x86/mm: Fix __split_large_page() to handle large PAT bit
+Date: Thu, 17 Sep 2015 12:24:23 -0600
+Message-Id: <1442514264-12475-11-git-send-email-toshi.kani@hpe.com>
 In-Reply-To: <1442514264-12475-1-git-send-email-toshi.kani@hpe.com>
 References: <1442514264-12475-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,13 +20,13 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
 Cc: akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com, Toshi Kani <toshi.kani@hpe.com>
 
-try_preserve_large_page() is called from __change_page_attr() to
-change the mapping attribute of a given large page.  This function
-uses pte_pfn() and pte_pgprot() for PUD/PMD, which do not handle
-the large PAT bit properly.
+__split_large_page() is called from __change_page_attr() to change
+the mapping attribute by splitting a given large page into smaller
+pages.  This function uses pte_pfn() and pte_pgprot() for PUD/PMD,
+which do not handle the large PAT bit properly.
 
-Fix try_preserve_large_page() by using the corresponding pud/pmd
-prot/pfn interfaces.
+Fix __split_large_page() by using the corresponding pud/pmd pfn/
+pgprot interfaces.
 
 Also remove '#ifdef CONFIG_X86_64', which is not necessary.
 
@@ -38,88 +38,75 @@ Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Borislav Petkov <bp@alien8.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- arch/x86/mm/pageattr.c |   24 ++++++++++++++----------
- 1 file changed, 14 insertions(+), 10 deletions(-)
+ arch/x86/mm/pageattr.c |   31 +++++++++++++++++++------------
+ 1 file changed, 19 insertions(+), 12 deletions(-)
 
 diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 023b639..d055557 100644
+index d055557..b64a451 100644
 --- a/arch/x86/mm/pageattr.c
 +++ b/arch/x86/mm/pageattr.c
-@@ -486,7 +486,7 @@ static int
- try_preserve_large_page(pte_t *kpte, unsigned long address,
- 			struct cpa_data *cpa)
+@@ -623,7 +623,7 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
+ 		   struct page *base)
  {
--	unsigned long nextpage_addr, numpages, pmask, psize, addr, pfn;
-+	unsigned long nextpage_addr, numpages, pmask, psize, addr, pfn, old_pfn;
- 	pte_t new_pte, old_pte, *tmp;
- 	pgprot_t old_prot, new_prot, req_prot;
- 	int i, do_split = 1;
-@@ -506,17 +506,21 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
- 
- 	switch (level) {
- 	case PG_LEVEL_2M:
--#ifdef CONFIG_X86_64
-+		old_prot = pmd_pgprot(*(pmd_t *)kpte);
-+		old_pfn = pmd_pfn(*(pmd_t *)kpte);
-+		break;
- 	case PG_LEVEL_1G:
--#endif
--		psize = page_level_size(level);
--		pmask = page_level_mask(level);
-+		old_prot = pud_pgprot(*(pud_t *)kpte);
-+		old_pfn = pud_pfn(*(pud_t *)kpte);
- 		break;
- 	default:
- 		do_split = -EINVAL;
- 		goto out_unlock;
+ 	pte_t *pbase = (pte_t *)page_address(base);
+-	unsigned long pfn, pfninc = 1;
++	unsigned long ref_pfn, pfn, pfninc = 1;
+ 	unsigned int i, level;
+ 	pte_t *tmp;
+ 	pgprot_t ref_prot;
+@@ -640,26 +640,33 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
  	}
  
-+	psize = page_level_size(level);
-+	pmask = page_level_mask(level);
+ 	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
+-	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
+ 
+-	/* promote PAT bit to correct position */
+-	if (level == PG_LEVEL_2M)
++	switch (level) {
++	case PG_LEVEL_2M:
++		ref_prot = pmd_pgprot(*(pmd_t *)kpte);
++		/* clear PSE and promote PAT bit to correct position */
+ 		ref_prot = pgprot_large_2_4k(ref_prot);
++		ref_pfn = pmd_pfn(*(pmd_t *)kpte);
++		break;
+ 
+-#ifdef CONFIG_X86_64
+-	if (level == PG_LEVEL_1G) {
++	case PG_LEVEL_1G:
++		ref_prot = pud_pgprot(*(pud_t *)kpte);
++		ref_pfn = pud_pfn(*(pud_t *)kpte);
+ 		pfninc = PMD_PAGE_SIZE >> PAGE_SHIFT;
 +
- 	/*
- 	 * Calculate the number of pages, which fit into this large
- 	 * page starting at address:
-@@ -532,7 +536,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
- 	 * up accordingly.
- 	 */
- 	old_pte = *kpte;
--	old_prot = req_prot = pgprot_large_2_4k(pte_pgprot(old_pte));
-+	old_prot = req_prot = pgprot_large_2_4k(old_prot);
- 
- 	pgprot_val(req_prot) &= ~pgprot_val(cpa->mask_clr);
- 	pgprot_val(req_prot) |= pgprot_val(cpa->mask_set);
-@@ -558,10 +562,10 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
- 	req_prot = canon_pgprot(req_prot);
- 
- 	/*
--	 * old_pte points to the large page base address. So we need
-+	 * old_pfn points to the large page base pfn. So we need
- 	 * to add the offset of the virtual address:
- 	 */
--	pfn = pte_pfn(old_pte) + ((address & (psize - 1)) >> PAGE_SHIFT);
-+	pfn = old_pfn + ((address & (psize - 1)) >> PAGE_SHIFT);
- 	cpa->pfn = pfn;
- 
- 	new_prot = static_protections(req_prot, address, pfn);
-@@ -572,7 +576,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
- 	 * the pages in the range we try to preserve:
- 	 */
- 	addr = address & pmask;
--	pfn = pte_pfn(old_pte);
-+	pfn = old_pfn;
- 	for (i = 0; i < (psize >> PAGE_SHIFT); i++, addr += PAGE_SIZE, pfn++) {
- 		pgprot_t chk_prot = static_protections(req_prot, addr, pfn);
- 
-@@ -602,7 +606,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
- 		 * The address is aligned and the number of pages
- 		 * covers the full page.
+ 		/*
+-		 * Set the PSE flags only if the PRESENT flag is set
++		 * Clear the PSE flags if the PRESENT flag is not set
+ 		 * otherwise pmd_present/pmd_huge will return true
+ 		 * even on a non present pmd.
  		 */
--		new_pte = pfn_pte(pte_pfn(old_pte), new_prot);
-+		new_pte = pfn_pte(old_pfn, new_prot);
- 		__set_pmd_pte(kpte, address, new_pte);
- 		cpa->flags |= CPA_FLUSHTLB;
- 		do_split = 0;
+-		if (pgprot_val(ref_prot) & _PAGE_PRESENT)
+-			pgprot_val(ref_prot) |= _PAGE_PSE;
+-		else
++		if (!(pgprot_val(ref_prot) & _PAGE_PRESENT))
+ 			pgprot_val(ref_prot) &= ~_PAGE_PSE;
++		break;
++
++	default:
++		spin_unlock(&pgd_lock);
++		return 1;
+ 	}
+-#endif
+ 
+ 	/*
+ 	 * Set the GLOBAL flags only if the PRESENT flag is set
+@@ -675,7 +682,7 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
+ 	/*
+ 	 * Get the target pfn from the original entry:
+ 	 */
+-	pfn = pte_pfn(*kpte);
++	pfn = ref_pfn;
+ 	for (i = 0; i < PTRS_PER_PTE; i++, pfn += pfninc)
+ 		set_pte(&pbase[i], pfn_pte(pfn, canon_pgprot(ref_prot)));
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
