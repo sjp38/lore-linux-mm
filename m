@@ -1,54 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 44DF66B0256
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 11:37:37 -0400 (EDT)
-Received: by lbbvu2 with SMTP id vu2so11449271lbb.0
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 08:37:36 -0700 (PDT)
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
-        by mx.google.com with ESMTPS id k14si4845269wjr.21.2015.09.17.08.37.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Sep 2015 08:37:35 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so124256607wic.0
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 08:37:35 -0700 (PDT)
-Date: Thu, 17 Sep 2015 18:37:34 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: LTP regressions due to 6dc296e7df4c ("mm: make sure all file
- VMAs have ->vm_ops set")
-Message-ID: <20150917153733.GA31823@node.dhcp.inet.fi>
-References: <20150914105346.GB23878@arm.com>
- <20150914115800.06242CE@black.fi.intel.com>
- <20150914170547.GA28535@redhat.com>
- <20150914182033.GA4165@node.dhcp.inet.fi>
- <20150915121201.GA10104@redhat.com>
- <20150915134216.GA16093@node.dhcp.inet.fi>
- <20150916142818.d0e5c01f0e91c91f9959ad84@linux-foundation.org>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id BA0446B0255
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 11:41:33 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so23020500pad.1
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 08:41:33 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id rm9si6137743pab.83.2015.09.17.08.41.32
+        for <linux-mm@kvack.org>;
+        Thu, 17 Sep 2015 08:41:33 -0700 (PDT)
+Date: Thu, 17 Sep 2015 09:41:31 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] mm: take i_mmap_lock in unmap_mapping_range() for DAX
+Message-ID: <20150917154131.GA27791@linux.intel.com>
+References: <1438948423-128882-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <CAA9_cmd9D=7YgZrCf+w3HcckoqcfmCLEHhhm9j+kv+V0ijUnqw@mail.gmail.com>
+ <20150916111218.GB23026@node.dhcp.inet.fi>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150916142818.d0e5c01f0e91c91f9959ad84@linux-foundation.org>
+In-Reply-To: <20150916111218.GB23026@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>, hpa@zytor.com, luto@amacapital.net, dave.hansen@linux.intel.com, mingo@elte.hu, minchan@kernel.org, tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, ross.zwisler@linux.intel.com
 
-On Wed, Sep 16, 2015 at 02:28:18PM -0700, Andrew Morton wrote:
-> On Tue, 15 Sep 2015 16:42:16 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On Wed, Sep 16, 2015 at 02:12:18PM +0300, Kirill A. Shutemov wrote:
+> On Tue, Sep 15, 2015 at 04:52:42PM -0700, Dan Williams wrote:
+> > Hi Kirill,
+> > 
+> > On Fri, Aug 7, 2015 at 4:53 AM, Kirill A. Shutemov
+> > <kirill.shutemov@linux.intel.com> wrote:
+> > > DAX is not so special: we need i_mmap_lock to protect mapping->i_mmap.
+> > >
+> > > __dax_pmd_fault() uses unmap_mapping_range() shoot out zero page from
+> > > all mappings. We need to drop i_mmap_lock there to avoid lock deadlock.
+> > >
+> > > Re-aquiring the lock should be fine since we check i_size after the
+> > > point.
+> > >
+> > > Not-yet-signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > ---
+> > >  fs/dax.c    | 35 +++++++++++++++++++----------------
+> > >  mm/memory.c | 11 ++---------
+> > >  2 files changed, 21 insertions(+), 25 deletions(-)
+> > >
+> > > diff --git a/fs/dax.c b/fs/dax.c
+> > > index 9ef9b80cc132..ed54efedade6 100644
+> > > --- a/fs/dax.c
+> > > +++ b/fs/dax.c
+> > > @@ -554,6 +554,25 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+> > >         if (!buffer_size_valid(&bh) || bh.b_size < PMD_SIZE)
+> > >                 goto fallback;
+> > >
+> > > +       if (buffer_unwritten(&bh) || buffer_new(&bh)) {
+> > > +               int i;
+> > > +               for (i = 0; i < PTRS_PER_PMD; i++)
+> > > +                       clear_page(kaddr + i * PAGE_SIZE);
+> > 
+> > This patch, now upstream as commit 46c043ede471, moves the call to
+> > clear_page() earlier in __dax_pmd_fault().  However, 'kaddr' is not
+> > set at this point, so I'm not sure this path was ever tested.
 > 
-> > I would rather like to see consolidated fault path between file and anon
-> > with ->vm_ops set for both. So vma_is_anonymous() will be trivial
-> > vma->vm_ops == anon_vm_ops.
+> Ughh. It's obviously broken.
 > 
-> People are noticing: https://bugzilla.kernel.org/show_bug.cgi?id=104691
-> 
-> How about I send Linus a revert of 6dc296e7df4c while we work out what
-> to do?
+> I took fs/dax.c part of the patch from Matthew. And I'm not sure now we
+> would need to move this "if (buffer_unwritten(&bh) || buffer_new(&bh)) {"
+> block around. It should work fine where it was before. Right?
+> Matthew?
 
-I think it's the best step for now. Although, I'm not sure when I will get
-time on reworking fault path :-/
+Moving the "if (buffer_unwritten(&bh) || buffer_new(&bh)) {" block back seems
+correct to me.  Matthew is out for a while, so we should probably take care of
+this without him.
 
--- 
- Kirill A. Shutemov
+Kirill, do you want to whip up a quick patch?  I'm happy to do it if you're
+busy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
