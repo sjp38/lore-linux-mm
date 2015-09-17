@@ -1,55 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F21F6B0038
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 05:58:04 -0400 (EDT)
-Received: by padhk3 with SMTP id hk3so16238778pad.3
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:58:03 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id ne9si4191154pbc.29.2015.09.17.02.58.02
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7418B6B0038
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 06:26:13 -0400 (EDT)
+Received: by qkdw123 with SMTP id w123so4448217qkd.0
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 03:26:13 -0700 (PDT)
+Received: from mail-qg0-x22e.google.com (mail-qg0-x22e.google.com. [2607:f8b0:400d:c04::22e])
+        by mx.google.com with ESMTPS id 195si1955020qhw.70.2015.09.17.03.26.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 17 Sep 2015 02:58:03 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t8H9w0Jj017521
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 18:58:01 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v5 1/2] mm: hugetlb: proc: add HugetlbPages field to
- /proc/PID/smaps
-Date: Thu, 17 Sep 2015 09:39:15 +0000
-Message-ID: <20150917093914.GA18723@hori1.linux.bs1.fc.nec.co.jp>
-References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
- <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1440059182-19798-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <55ECE891.7030309@draigBrady.com>
- <20150907022343.GB6448@hori1.linux.bs1.fc.nec.co.jp>
- <20150907064614.GB7229@hori1.linux.bs1.fc.nec.co.jp>
- <55ED5E6C.6000102@draigBrady.com> <55ED6C79.6030000@draigBrady.com>
-In-Reply-To: <55ED6C79.6030000@draigBrady.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <0AAEA283A6BE174BA64F0DB0054021A5@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Sep 2015 03:26:12 -0700 (PDT)
+Received: by qgev79 with SMTP id v79so8669178qge.0
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 03:26:12 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20150917013007.GB421@swordfish>
+References: <20150916134857.e4a71f601a1f68cfa16cb361@gmail.com>
+	<20150917013007.GB421@swordfish>
+Date: Thu, 17 Sep 2015 12:26:12 +0200
+Message-ID: <CAMJBoFP5LfoKwzDbSJMmOVOfq=8-7AaoAOV5TVPNt-JcUvZ0eA@mail.gmail.com>
+Subject: Re: [PATCH 0/2] prepare zbud to be used by zram as underlying allocator
+From: Vitaly Wool <vitalywool@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-T24gTW9uLCBTZXAgMDcsIDIwMTUgYXQgMTE6NTI6NDFBTSArMDEwMCwgUMOhZHJhaWcgQnJhZHkg
-d3JvdGU6DQouLi4NCj4gDQo+IEJ5IHRoZSBzYW1lIGFyZ3VtZW50IEkgcHJlc3VtZSB0aGUgZXhp
-c3RpbmcgVEhQICJBbm9uSHVnZVBhZ2VzIiBzbWFwcyBmaWVsZA0KPiBpcyBub3QgYWNjb3VudGVk
-IGZvciBpbiB0aGUge1ByaXZhdGUsU2hhcmVkfV8uLi4gZmllbGRzPw0KPiBJLkUuIEFub25IdWdl
-UGFnZXMgbWF5IGFsc28gYmVuZWZpdCBmcm9tIHNwbGl0dGluZyB0byBQcml2YXRlL1NoYXJlZD8N
-Cg0Kc21hcHNfcG1kX2VudHJ5KCkgbm90IG9ubHkgaW5jcmVtZW50cyBtc3MtPmFub255bW91c190
-aHAsIGJ1dCBhbHNvIGNhbGxzDQpzbWFwc19hY2NvdW50KCkgd2hpY2ggdXBkYXRlcyBtc3MtPmFu
-b255bW91cywgbXNzLT5yZWZlcmVuY2VkIGFuZA0KbXNzLT57c2hhcmVkLHByaXZhdGV9X3tjbGVh
-bixkaXJ0eX0sIHNvIHRocCdzIHNoYXJlZC9wcml2YXRlIGNoYXJhY3RlcmlzdGljDQppcyBpbmNs
-dWRlZCBpbiBvdGhlciBleGlzdGluZyBmaWVsZHMuDQpJIHRoaW5rIHRoYXQgZXZlbiBpZiB3ZSBr
-bm93IHRoZSB0aHAtc3BlY2lmaWMgc2hhcmVkL3ByaXZhdGUgcHJvZmlsZXMsIGl0DQptaWdodCBi
-ZSBoYXJkIHRvIGRvIHNvbWV0aGluZyBiZW5lZmljaWFsIHVzaW5nIHRoYXQgaW5mb3JtYXRpb24s
-IHNvIEkgZmVlbA0Ka2VlcGluZyB0aGlzIGZpZWxkIGFzLWlzIGlzIG9rIGZvciBub3cuDQoNClRo
-YW5rcywNCk5hb3lhIEhvcmlndWNoaQ==
+On Thu, Sep 17, 2015 at 1:30 AM, Sergey Senozhatsky
+<sergey.senozhatsky.work@gmail.com> wrote:
+
+>
+> just a side note,
+> I'm afraid this is not how it works. numbers go first, to justify
+> the patch set.
+>
+
+These patches are extension/alignment patches, why would anyone need
+to justify that?
+
+But just to help you understand where I am coming from, here are some numbers:
+                               zsmalloc   zbud
+kswapd_low_wmark_hit_quickly   4513       5696
+kswapd_high_wmark_hit_quickly  861        902
+allocstall                     2236       1122
+pgmigrate_success              78229      31244
+compact_stall                  1172       634
+compact_fail                   194        95
+compact_success                464        210
+
+These are results from an Android device having run 3 'monkey' tests
+each 20 minutes, with user switch to guest and back in between.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
