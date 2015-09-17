@@ -1,85 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 495306B0256
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 11:47:20 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so23137034pad.1
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 08:47:20 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id q4si6136157pap.177.2015.09.17.08.47.19
-        for <linux-mm@kvack.org>;
-        Thu, 17 Sep 2015 08:47:19 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20150917154131.GA27791@linux.intel.com>
-References: <1438948423-128882-1-git-send-email-kirill.shutemov@linux.intel.com>
- <CAA9_cmd9D=7YgZrCf+w3HcckoqcfmCLEHhhm9j+kv+V0ijUnqw@mail.gmail.com>
- <20150916111218.GB23026@node.dhcp.inet.fi>
- <20150917154131.GA27791@linux.intel.com>
-Subject: Re: [PATCH] mm: take i_mmap_lock in unmap_mapping_range() for DAX
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E3A6B0038
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 13:45:40 -0400 (EDT)
+Received: by igcrk20 with SMTP id rk20so625093igc.1
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 10:45:40 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id ke10si114214pbc.248.2015.09.17.10.45.38
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Sep 2015 10:45:39 -0700 (PDT)
+Message-ID: <55FAFBBA.10602@oracle.com>
+Date: Thu, 17 Sep 2015 13:43:22 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: mm: ksm: WARNING: CPU: 3 PID: 22593 at mm/ksm.c:715 remove_stable_node+0xc7/0xf0()
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
-Message-Id: <20150917154715.7A857B8@black.fi.intel.com>
-Date: Thu, 17 Sep 2015 18:47:15 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-Ross Zwisler wrote:
-> On Wed, Sep 16, 2015 at 02:12:18PM +0300, Kirill A. Shutemov wrote:
-> > On Tue, Sep 15, 2015 at 04:52:42PM -0700, Dan Williams wrote:
-> > > Hi Kirill,
-> > > 
-> > > On Fri, Aug 7, 2015 at 4:53 AM, Kirill A. Shutemov
-> > > <kirill.shutemov@linux.intel.com> wrote:
-> > > > DAX is not so special: we need i_mmap_lock to protect mapping->i_mmap.
-> > > >
-> > > > __dax_pmd_fault() uses unmap_mapping_range() shoot out zero page from
-> > > > all mappings. We need to drop i_mmap_lock there to avoid lock deadlock.
-> > > >
-> > > > Re-aquiring the lock should be fine since we check i_size after the
-> > > > point.
-> > > >
-> > > > Not-yet-signed-off-by: Matthew Wilcox <willy@linux.intel.com>
-> > > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > > ---
-> > > >  fs/dax.c    | 35 +++++++++++++++++++----------------
-> > > >  mm/memory.c | 11 ++---------
-> > > >  2 files changed, 21 insertions(+), 25 deletions(-)
-> > > >
-> > > > diff --git a/fs/dax.c b/fs/dax.c
-> > > > index 9ef9b80cc132..ed54efedade6 100644
-> > > > --- a/fs/dax.c
-> > > > +++ b/fs/dax.c
-> > > > @@ -554,6 +554,25 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
-> > > >         if (!buffer_size_valid(&bh) || bh.b_size < PMD_SIZE)
-> > > >                 goto fallback;
-> > > >
-> > > > +       if (buffer_unwritten(&bh) || buffer_new(&bh)) {
-> > > > +               int i;
-> > > > +               for (i = 0; i < PTRS_PER_PMD; i++)
-> > > > +                       clear_page(kaddr + i * PAGE_SIZE);
-> > > 
-> > > This patch, now upstream as commit 46c043ede471, moves the call to
-> > > clear_page() earlier in __dax_pmd_fault().  However, 'kaddr' is not
-> > > set at this point, so I'm not sure this path was ever tested.
-> > 
-> > Ughh. It's obviously broken.
-> > 
-> > I took fs/dax.c part of the patch from Matthew. And I'm not sure now we
-> > would need to move this "if (buffer_unwritten(&bh) || buffer_new(&bh)) {"
-> > block around. It should work fine where it was before. Right?
-> > Matthew?
-> 
-> Moving the "if (buffer_unwritten(&bh) || buffer_new(&bh)) {" block back seems
-> correct to me.  Matthew is out for a while, so we should probably take care of
-> this without him.
-> 
-> Kirill, do you want to whip up a quick patch?  I'm happy to do it if you're
-> busy.
+Hi all,
 
-I would be better if you'll prepare the patch. Thanks.
+I've observed the following warning while fuzzing with trinity inside a KVM tools
+guest running -next:
 
--- 
- Kirill
+[1385507.811807] Out of memory (oom_kill_allocating_task): Kill process 22593 (ksm04) score 0 or sacrifice child
+[1385507.815277] Killed process 22612 (ksm04) total-vm:139476kB, anon-rss:131204kB, file-rss:896kB
+[1385507.821799] Out of memory (oom_kill_allocating_task): Kill process 22593 (ksm04) score 0 or sacrifice child
+[1385507.823082] Killed process 22613 (ksm04) total-vm:139476kB, anon-rss:131204kB, file-rss:896kB
+[1385508.569555] Out of memory (oom_kill_allocating_task): Kill process 22593 (ksm04) score 0 or sacrifice child
+[1385508.574114] Killed process 22614 (ksm04) total-vm:139476kB, anon-rss:131204kB, file-rss:896kB
+[1385508.589529] Out of memory (oom_kill_allocating_task): Kill process 22593 (ksm04) score 0 or sacrifice child
+[1385508.591203] Killed process 22593 (ksm04) total-vm:8408kB, anon-rss:148kB, file-rss:1508kB
+[1385509.046298] ------------[ cut here ]------------
+[1385509.047136] WARNING: CPU: 3 PID: 22593 at mm/ksm.c:715 remove_stable_node+0xc7/0xf0()
+[1385509.048308] Modules linked in:
+[1385509.069698] CPU: 3 PID: 22593 Comm: ksm04 Not tainted 4.3.0-rc1-next-20150914-sasha-00043-geddd763-dirty #2557
+[1385509.072158]  ffffffffa4750740 ffff8803f60bfab0 ffffffff9bf8bc6a 0000000000000000
+[1385509.073347]  ffff8803f60bfaf0 ffffffff9a369096 ffffffff9a7bd007 ffffea000042a5c0
+[1385509.074533]  00000000fffffff0 0000000000000000 0000000000000000 ffffffffaaa16540
+[1385509.075700] Call Trace:
+[1385509.076152] dump_stack (lib/dump_stack.c:52)
+[1385509.076971] warn_slowpath_common (kernel/panic.c:448)
+[1385509.078823] warn_slowpath_null (kernel/panic.c:482)
+[1385509.079700] remove_stable_node (mm/ksm.c:715 (discriminator 3))
+[1385509.080565] remove_all_stable_nodes (mm/ksm.c:751)
+[1385509.081515] run_store (include/linux/oom.h:65 mm/ksm.c:2162)
+[1385509.089983] kobj_attr_store (lib/kobject.c:780)
+[1385509.092142] sysfs_kf_write (fs/sysfs/file.c:131)
+[1385509.093899] kernfs_fop_write (fs/kernfs/file.c:312)
+[1385509.094793] __vfs_write (fs/read_write.c:487)
+[1385509.101787] vfs_write (fs/read_write.c:539)
+[1385509.102575] SyS_write (fs/read_write.c:586 fs/read_write.c:577)
+[1385509.106273] tracesys_phase2 (arch/x86/entry/entry_64.S:273)
+[1385509.188672] ---[ end trace 66cda70045475cf9 ]---
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
