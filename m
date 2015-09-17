@@ -1,44 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id DBC116B0038
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 09:00:57 -0400 (EDT)
-Received: by lbbvu2 with SMTP id vu2so8802030lbb.0
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 06:00:57 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id uu1si3921121wjc.126.2015.09.17.06.00.55
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E4E66B0254
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 09:04:32 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so22882017wic.1
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 06:04:31 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
+        by mx.google.com with ESMTPS id p10si3970902wiv.26.2015.09.17.06.04.30
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Sep 2015 06:00:55 -0700 (PDT)
-Subject: Re: [PATCH 1/2] zbud: allow PAGE_SIZE allocations
-References: <20150916134857.e4a71f601a1f68cfa16cb361@gmail.com>
- <20150916135048.fbd50fac5e91244ab9731b82@gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <55FAB985.9060705@suse.cz>
-Date: Thu, 17 Sep 2015 15:00:53 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Sep 2015 06:04:31 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so26421082wic.0
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 06:04:30 -0700 (PDT)
+Date: Thu, 17 Sep 2015 15:04:27 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: memcontrol: fix order calculation in try_charge()
+Message-ID: <20150917130427.GA25740@dhcp22.suse.cz>
+References: <1442318757-7141-1-git-send-email-jmarchan@redhat.com>
+ <20150915135623.GA26649@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20150916135048.fbd50fac5e91244ab9731b82@gmail.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150915135623.GA26649@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>, ddstreet@ieee.org, akpm@linux-foundation.org, minchan@kernel.org, sergey.senozhatsky@gmail.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jerome Marchand <jmarchan@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 09/16/2015 01:50 PM, Vitaly Wool wrote:
-> For zram to be able to use zbud via the common zpool API,
-> allocations of size PAGE_SIZE should be allowed by zpool.
-> zbud uses the beginning of an allocated page for its internal
-> structure but it is not a problem as long as we keep track of
-> such special pages using a newly introduced page flag.
-> To be able to keep track of zbud pages in any case, struct page's
-> lru pointer will be used for zbud page lists instead of the one
-> that used to be part of the aforementioned internal structure.
+[CC Andrew - the patch was posted here
+http://lkml.kernel.org/r/1442318757-7141-1-git-send-email-jmarchan%40redhat.com]
 
-I don't know how zsmalloc handles uncompressible PAGE_SIZE allocations, 
-but I wouldn't expect it to be any more clever than this? So why 
-duplicate the functionality in zswap and zbud? This could be handled 
-e.g. at the zpool level? Or maybe just in zram, as IIRC in zswap 
-(frontswap) it's valid just to reject a page and it goes to physical swap.
+On Tue 15-09-15 15:56:23, Michal Hocko wrote:
+> On Tue 15-09-15 14:05:57, Jerome Marchand wrote:
+> > Since commit <6539cc05386> (mm: memcontrol: fold mem_cgroup_do_charge()),
+> > the order to pass to mem_cgroup_oom() is calculated by passing the number
+> > of pages to get_order() instead of the expected  size in bytes. AFAICT,
+> > it only affects the value displayed in the oom warning message.
+> > This patch fix this.
+> 
+> We haven't noticed that just because the OOM is enabled only for page
+> faults of order-0 (single page) and get_order work just fine. Thanks for
+> noticing this. If we ever start triggering OOM on different orders this
+> would be broken.
+>  
+> > Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> 
+> Btw. a quick git grep shows that at least gart_iommu_init is using
+> number of pages as well. I haven't checked it does that intentionally,
+> though.
+> 
+> Thanks!
+> 
+> > ---
+> >  mm/memcontrol.c | 3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 1742a2d..91bf094 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -2032,7 +2032,8 @@ retry:
+> >  
+> >  	mem_cgroup_events(mem_over_limit, MEMCG_OOM, 1);
+> >  
+> > -	mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(nr_pages));
+> > +	mem_cgroup_oom(mem_over_limit, gfp_mask,
+> > +		       get_order(nr_pages * PAGE_SIZE));
+> >  nomem:
+> >  	if (!(gfp_mask & __GFP_NOFAIL))
+> >  		return -ENOMEM;
+> > -- 
+> > 1.9.3
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
