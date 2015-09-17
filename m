@@ -1,130 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 16ED182F64
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 05:18:04 -0400 (EDT)
-Received: by padhk3 with SMTP id hk3so15348458pad.3
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:18:03 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id uq10si3966289pac.8.2015.09.17.02.18.02
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A050382F64
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 05:21:05 -0400 (EDT)
+Received: by padhk3 with SMTP id hk3so15419257pad.3
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:21:05 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id w14si3911904pbt.201.2015.09.17.02.21.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 17 Sep 2015 02:18:03 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t8H9I0lH011342
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 18:18:00 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v6 1/2] mm: hugetlb: proc: add hugetlb-related fields to
- /proc/PID/smaps
-Date: Thu, 17 Sep 2015 09:09:31 +0000
-Message-ID: <1442480955-7297-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1442480955-7297-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1442480955-7297-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <6539326B5D45F54692FFD04515B30BF0@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Sep 2015 02:21:05 -0700 (PDT)
+Received: by padhy16 with SMTP id hy16so15565995pad.1
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:21:04 -0700 (PDT)
+Date: Thu, 17 Sep 2015 18:19:56 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH 0/3] allow zram to use zbud as underlying allocator
+Message-ID: <20150917091956.GA4171@swordfish>
+References: <20150914154901.92c5b7b24e15f04d8204de18@gmail.com>
+ <55F6D356.5000106@suse.cz>
+ <CAMJBoFMD8jj372sXfb5NkT2MBzBUQp232U7XxO9QHKco+mHUYQ@mail.gmail.com>
+ <55F6D641.6010209@suse.cz>
+ <CALZtONCKCTRP5r0u5iXYHsQ=uxA-B+1M=4=RPGtFiwo4EOpzeg@mail.gmail.com>
+ <20150915042216.GE1860@swordfish>
+ <55FA5BFE.6010605@suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <55FA5BFE.6010605@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, =?utf-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Vitaly Wool <vitalywool@gmail.com>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Q3VycmVudGx5IC9wcm9jL1BJRC9zbWFwcyBwcm92aWRlcyBubyB1c2FnZSBpbmZvIGZvciB2bWEo
-Vk1fSFVHRVRMQiksIHdoaWNoDQppcyBpbmNvbnZlbmllbnQgd2hlbiB3ZSB3YW50IHRvIGtub3cg
-cGVyLXRhc2sgb3IgcGVyLXZtYSBiYXNlIGh1Z2V0bGIgdXNhZ2UuDQpUbyBzb2x2ZSB0aGlzLCB0
-aGlzIHBhdGNoIGFkZHMgbmV3IGZpZWxkcyBmb3IgaHVnZXRsYiB1c2FnZSBsaWtlIGJlbG93Og0K
-DQogIFNpemU6ICAgICAgICAgICAgICAyMDQ4MCBrQg0KICBSc3M6ICAgICAgICAgICAgICAgICAg
-IDAga0INCiAgUHNzOiAgICAgICAgICAgICAgICAgICAwIGtCDQogIFNoYXJlZF9DbGVhbjogICAg
-ICAgICAgMCBrQg0KICBTaGFyZWRfRGlydHk6ICAgICAgICAgIDAga0INCiAgUHJpdmF0ZV9DbGVh
-bjogICAgICAgICAwIGtCDQogIFByaXZhdGVfRGlydHk6ICAgICAgICAgMCBrQg0KICBSZWZlcmVu
-Y2VkOiAgICAgICAgICAgIDAga0INCiAgQW5vbnltb3VzOiAgICAgICAgICAgICAwIGtCDQogIEFu
-b25IdWdlUGFnZXM6ICAgICAgICAgMCBrQg0KICBTaGFyZWRfSHVnZXRsYjogICAgMTg0MzIga0IN
-CiAgUHJpdmF0ZV9IdWdldGxiOiAgICAgMjA0OCBrQg0KICBTd2FwOiAgICAgICAgICAgICAgICAg
-IDAga0INCiAgS2VybmVsUGFnZVNpemU6ICAgICAyMDQ4IGtCDQogIE1NVVBhZ2VTaXplOiAgICAg
-ICAgMjA0OCBrQg0KICBMb2NrZWQ6ICAgICAgICAgICAgICAgIDAga0INCiAgVm1GbGFnczogcmQg
-d3IgbXIgbXcgbWUgZGUgaHQNCg0KU2lnbmVkLW9mZi1ieTogTmFveWEgSG9yaWd1Y2hpIDxuLWhv
-cmlndWNoaUBhaC5qcC5uZWMuY29tPg0KQWNrZWQtYnk6IEpvZXJuIEVuZ2VsIDxqb2VybkBsb2dm
-cy5vcmc+DQpBY2tlZC1ieTogRGF2aWQgUmllbnRqZXMgPHJpZW50amVzQGdvb2dsZS5jb20+DQpB
-Y2tlZC1ieTogTWljaGFsIEhvY2tvIDxtaG9ja29Ac3VzZS5jej4NCi0tLQ0KdjUgLT4gdjY6DQot
-IGFkZCBjb21tZW50IG1vcmUgdG8gcmVmZXIgdG8gbm8gaW5jbHVzaW9uIGluIFJTUy9QU1MgZmll
-bGQNCi0gc2VwYXJhdGUgZmllbGQgaW50byB7U2hhcmVkLFByaXZhdGV9X0h1Z2V0bGIgKHRoYW5r
-cyB0byBQw6FkcmFpZyBCcmFkeSkNCg0KdjMgLT4gdjQ6DQotIHN1c3BlbmQgQWNrZWQtYnkgdGFn
-IGJlY2F1c2UgdjMtPnY0IGNoYW5nZSBpcyBub3QgdHJpdmlhbA0KLSBJIHN0YXRlZCBpbiBwcmV2
-aW91cyBkaXNjdXNzaW9uIHRoYXQgSHVnZXRsYlBhZ2VzIGxpbmUgY2FuIGNvbnRhaW4gcGFnZQ0K
-ICBzaXplIGluZm8sIGJ1dCB0aGF0J3Mgbm90IG5lY2Vzc2FyeSBiZWNhdXNlIHdlIGFscmVhZHkg
-aGF2ZSBLZXJuZWxQYWdlU2l6ZQ0KICBpbmZvLg0KLSBtZXJnZWQgZG9jdW1lbnRhdGlvbiB1cGRh
-dGUsIHdoZXJlIHRoZSBjdXJyZW50IGRvY3VtZW50YXRpb24gZG9lc24ndCBtZW50aW9uDQogIEFu
-b25IdWdlUGFnZXMsIHNvIGl0J3MgYWxzbyBhZGRlZC4NCi0tLQ0KIERvY3VtZW50YXRpb24vZmls
-ZXN5c3RlbXMvcHJvYy50eHQgfCAgOCArKysrKysrKw0KIGZzL3Byb2MvdGFza19tbXUuYyAgICAg
-ICAgICAgICAgICAgfCAzOCArKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKw0K
-IDIgZmlsZXMgY2hhbmdlZCwgNDYgaW5zZXJ0aW9ucygrKQ0KDQpkaWZmIC0tZ2l0IHY0LjMtcmMx
-L0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMvcHJvYy50eHQgdjQuMy1yYzFfcGF0Y2hlZC9Eb2N1
-bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3Byb2MudHh0DQppbmRleCBkNDExY2E2M2M4YjYuLmI5NDY3
-ZDkxMDUyYSAxMDA2NDQNCi0tLSB2NC4zLXJjMS9Eb2N1bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3By
-b2MudHh0DQorKysgdjQuMy1yYzFfcGF0Y2hlZC9Eb2N1bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3By
-b2MudHh0DQpAQCAtNDIzLDYgKzQyMyw5IEBAIFByaXZhdGVfQ2xlYW46ICAgICAgICAgMCBrQg0K
-IFByaXZhdGVfRGlydHk6ICAgICAgICAgMCBrQg0KIFJlZmVyZW5jZWQ6ICAgICAgICAgIDg5MiBr
-Qg0KIEFub255bW91czogICAgICAgICAgICAgMCBrQg0KK0Fub25IdWdlUGFnZXM6ICAgICAgICAg
-MCBrQg0KK1NoYXJlZF9IdWdldGxiOiAgICAgICAgMCBrQg0KK1ByaXZhdGVfSHVnZXRsYjogICAg
-ICAgIDAga0INCiBTd2FwOiAgICAgICAgICAgICAgICAgIDAga0INCiBTd2FwUHNzOiAgICAgICAg
-ICAgICAgIDAga0INCiBLZXJuZWxQYWdlU2l6ZTogICAgICAgIDQga0INCkBAIC00NTEsNiArNDU0
-LDExIEBAIGFuZCBhIHBhZ2UgaXMgbW9kaWZpZWQsIHRoZSBmaWxlIHBhZ2UgaXMgcmVwbGFjZWQg
-YnkgYSBwcml2YXRlIGFub255bW91cyBjb3B5Lg0KICJTd2FwIiBzaG93cyBob3cgbXVjaCB3b3Vs
-ZC1iZS1hbm9ueW1vdXMgbWVtb3J5IGlzIGFsc28gdXNlZCwgYnV0IG91dCBvbg0KIHN3YXAuDQog
-IlN3YXBQc3MiIHNob3dzIHByb3BvcnRpb25hbCBzd2FwIHNoYXJlIG9mIHRoaXMgbWFwcGluZy4N
-CisiQW5vbkh1Z2VQYWdlcyIgc2hvd3MgdGhlIGFtbW91bnQgb2YgbWVtb3J5IGJhY2tlZCBieSB0
-cmFuc3BhcmVudCBodWdlcGFnZS4NCisiU2hhcmVkX0h1Z2V0bGIiIGFuZCAiUHJpdmF0ZV9IdWdl
-dGxiIiBzaG93IHRoZSBhbW1vdW50cyBvZiBtZW1vcnkgYmFja2VkIGJ5DQoraHVnZXRsYmZzIHBh
-Z2Ugd2hpY2ggaXMgKm5vdCogY291bnRlZCBpbiAiUlNTIiBvciAiUFNTIiBmaWVsZCBmb3IgaGlz
-dG9yaWNhbA0KK3JlYXNvbnMuIEFuZCB0aGVzZSBhcmUgbm90IGluY2x1ZGVkIGluIHtTaGFyZWQs
-UHJpdmF0ZX1fe0NsZWFuLERpcnR5fSBmaWVsZC4NCisNCiAiVm1GbGFncyIgZmllbGQgZGVzZXJ2
-ZXMgYSBzZXBhcmF0ZSBkZXNjcmlwdGlvbi4gVGhpcyBtZW1iZXIgcmVwcmVzZW50cyB0aGUga2Vy
-bmVsDQogZmxhZ3MgYXNzb2NpYXRlZCB3aXRoIHRoZSBwYXJ0aWN1bGFyIHZpcnR1YWwgbWVtb3J5
-IGFyZWEgaW4gdHdvIGxldHRlciBlbmNvZGVkDQogbWFubmVyLiBUaGUgY29kZXMgYXJlIHRoZSBm
-b2xsb3dpbmc6DQpkaWZmIC0tZ2l0IHY0LjMtcmMxL2ZzL3Byb2MvdGFza19tbXUuYyB2NC4zLXJj
-MV9wYXRjaGVkL2ZzL3Byb2MvdGFza19tbXUuYw0KaW5kZXggZTJkNDZhZGI1NGI0Li4yMmMwMjkx
-N2YyNjUgMTAwNjQ0DQotLS0gdjQuMy1yYzEvZnMvcHJvYy90YXNrX21tdS5jDQorKysgdjQuMy1y
-YzFfcGF0Y2hlZC9mcy9wcm9jL3Rhc2tfbW11LmMNCkBAIC00NDYsNiArNDQ2LDggQEAgc3RydWN0
-IG1lbV9zaXplX3N0YXRzIHsNCiAJdW5zaWduZWQgbG9uZyBhbm9ueW1vdXM7DQogCXVuc2lnbmVk
-IGxvbmcgYW5vbnltb3VzX3RocDsNCiAJdW5zaWduZWQgbG9uZyBzd2FwOw0KKwl1bnNpZ25lZCBs
-b25nIHNoYXJlZF9odWdldGxiOw0KKwl1bnNpZ25lZCBsb25nIHByaXZhdGVfaHVnZXRsYjsNCiAJ
-dTY0IHBzczsNCiAJdTY0IHN3YXBfcHNzOw0KIH07DQpAQCAtNjI1LDEyICs2MjcsNDQgQEAgc3Rh
-dGljIHZvaWQgc2hvd19zbWFwX3ZtYV9mbGFncyhzdHJ1Y3Qgc2VxX2ZpbGUgKm0sIHN0cnVjdCB2
-bV9hcmVhX3N0cnVjdCAqdm1hKQ0KIAlzZXFfcHV0YyhtLCAnXG4nKTsNCiB9DQogDQorI2lmZGVm
-IENPTkZJR19IVUdFVExCX1BBR0UNCitzdGF0aWMgaW50IHNtYXBzX2h1Z2V0bGJfcmFuZ2UocHRl
-X3QgKnB0ZSwgdW5zaWduZWQgbG9uZyBobWFzaywNCisJCQkJIHVuc2lnbmVkIGxvbmcgYWRkciwg
-dW5zaWduZWQgbG9uZyBlbmQsDQorCQkJCSBzdHJ1Y3QgbW1fd2FsayAqd2FsaykNCit7DQorCXN0
-cnVjdCBtZW1fc2l6ZV9zdGF0cyAqbXNzID0gd2Fsay0+cHJpdmF0ZTsNCisJc3RydWN0IHZtX2Fy
-ZWFfc3RydWN0ICp2bWEgPSB3YWxrLT52bWE7DQorCXN0cnVjdCBwYWdlICpwYWdlID0gTlVMTDsN
-CisNCisJaWYgKHB0ZV9wcmVzZW50KCpwdGUpKSB7DQorCQlwYWdlID0gdm1fbm9ybWFsX3BhZ2Uo
-dm1hLCBhZGRyLCAqcHRlKTsNCisJfSBlbHNlIGlmIChpc19zd2FwX3B0ZSgqcHRlKSkgew0KKwkJ
-c3dwX2VudHJ5X3Qgc3dwZW50ID0gcHRlX3RvX3N3cF9lbnRyeSgqcHRlKTsNCisNCisJCWlmIChp
-c19taWdyYXRpb25fZW50cnkoc3dwZW50KSkNCisJCQlwYWdlID0gbWlncmF0aW9uX2VudHJ5X3Rv
-X3BhZ2Uoc3dwZW50KTsNCisJfQ0KKwlpZiAocGFnZSkgew0KKwkJaW50IG1hcGNvdW50ID0gcGFn
-ZV9tYXBjb3VudChwYWdlKTsNCisNCisJCWlmIChtYXBjb3VudCA+PSAyKQ0KKwkJCW1zcy0+c2hh
-cmVkX2h1Z2V0bGIgKz0gaHVnZV9wYWdlX3NpemUoaHN0YXRlX3ZtYSh2bWEpKTsNCisJCWVsc2UN
-CisJCQltc3MtPnByaXZhdGVfaHVnZXRsYiArPSBodWdlX3BhZ2Vfc2l6ZShoc3RhdGVfdm1hKHZt
-YSkpOw0KKwl9DQorCXJldHVybiAwOw0KK30NCisjZW5kaWYgLyogSFVHRVRMQl9QQUdFICovDQor
-DQogc3RhdGljIGludCBzaG93X3NtYXAoc3RydWN0IHNlcV9maWxlICptLCB2b2lkICp2LCBpbnQg
-aXNfcGlkKQ0KIHsNCiAJc3RydWN0IHZtX2FyZWFfc3RydWN0ICp2bWEgPSB2Ow0KIAlzdHJ1Y3Qg
-bWVtX3NpemVfc3RhdHMgbXNzOw0KIAlzdHJ1Y3QgbW1fd2FsayBzbWFwc193YWxrID0gew0KIAkJ
-LnBtZF9lbnRyeSA9IHNtYXBzX3B0ZV9yYW5nZSwNCisjaWZkZWYgQ09ORklHX0hVR0VUTEJfUEFH
-RQ0KKwkJLmh1Z2V0bGJfZW50cnkgPSBzbWFwc19odWdldGxiX3JhbmdlLA0KKyNlbmRpZg0KIAkJ
-Lm1tID0gdm1hLT52bV9tbSwNCiAJCS5wcml2YXRlID0gJm1zcywNCiAJfTsNCkBAIC02NTIsNiAr
-Njg2LDggQEAgc3RhdGljIGludCBzaG93X3NtYXAoc3RydWN0IHNlcV9maWxlICptLCB2b2lkICp2
-LCBpbnQgaXNfcGlkKQ0KIAkJICAgIlJlZmVyZW5jZWQ6ICAgICAlOGx1IGtCXG4iDQogCQkgICAi
-QW5vbnltb3VzOiAgICAgICU4bHUga0JcbiINCiAJCSAgICJBbm9uSHVnZVBhZ2VzOiAgJThsdSBr
-QlxuIg0KKwkJICAgIlNoYXJlZF9IdWdldGxiOiAlOGx1IGtCXG4iDQorCQkgICAiUHJpdmF0ZV9I
-dWdldGxiOiAlOGx1IGtCXG4iDQogCQkgICAiU3dhcDogICAgICAgICAgICU4bHUga0JcbiINCiAJ
-CSAgICJTd2FwUHNzOiAgICAgICAgJThsdSBrQlxuIg0KIAkJICAgIktlcm5lbFBhZ2VTaXplOiAl
-OGx1IGtCXG4iDQpAQCAtNjY3LDYgKzcwMyw4IEBAIHN0YXRpYyBpbnQgc2hvd19zbWFwKHN0cnVj
-dCBzZXFfZmlsZSAqbSwgdm9pZCAqdiwgaW50IGlzX3BpZCkNCiAJCSAgIG1zcy5yZWZlcmVuY2Vk
-ID4+IDEwLA0KIAkJICAgbXNzLmFub255bW91cyA+PiAxMCwNCiAJCSAgIG1zcy5hbm9ueW1vdXNf
-dGhwID4+IDEwLA0KKwkJICAgbXNzLnNoYXJlZF9odWdldGxiID4+IDEwLA0KKwkJICAgbXNzLnBy
-aXZhdGVfaHVnZXRsYiA+PiAxMCwNCiAJCSAgIG1zcy5zd2FwID4+IDEwLA0KIAkJICAgKHVuc2ln
-bmVkIGxvbmcpKG1zcy5zd2FwX3BzcyA+PiAoMTAgKyBQU1NfU0hJRlQpKSwNCiAJCSAgIHZtYV9r
-ZXJuZWxfcGFnZXNpemUodm1hKSA+PiAxMCwNCi0tIA0KMi40LjMNCg==
+On (09/17/15 08:21), Vlastimil Babka wrote:
+> On 09/15/2015 06:22 AM, Sergey Senozhatsky wrote:
+> >On (09/15/15 00:08), Dan Streetman wrote:
+> >[..]
+> >
+> >correct. a bit of internals: we don't scan all the zspages every
+> >time. each class has stats for allocated used objects, allocated
+> >used objects, etc. so we 'compact' only classes that can be
+> >compacted:
+> >
+> >  static unsigned long zs_can_compact(struct size_class *class)
+> >  {
+> >          unsigned long obj_wasted;
+> >
+> >          obj_wasted = zs_stat_get(class, OBJ_ALLOCATED) -
+> >                  zs_stat_get(class, OBJ_USED);
+> >
+> >          obj_wasted /= get_maxobj_per_zspage(class->size,
+> >                          class->pages_per_zspage);
+> >
+> >          return obj_wasted * class->pages_per_zspage;
+> >  }
+> >
+> >if we can free any zspages (which is at least one page), then we
+> >attempt to do so.
+> >
+> >is compaction the root cause of the symptoms Vitaly observe?
+> 
+> He mentioned the "compact_stalls" counter which in /proc/vmstat is for the
+> traditional physical memory compaction, not the zsmalloc-specific one. Which
+> would imply high-order allocations. Does zsmalloc try them first before
+> falling back to the order-0 zspages linked together manually?
+
+each zspage is a bunch (pages_per_zspage) of alloc_page() calls
+
+        for (i = 0; i < class->pages_per_zspage; i++) {
+                struct page *page;
+
+                page = alloc_page(flags);
+                if (!page)
+                        goto cleanup;
+
+                INIT_LIST_HEAD(&page->lru);
+                if (i == 0) {   /* first page */
+                        SetPagePrivate(page);
+                        set_page_private(page, 0);
+                        first_page = page;
+                        first_page->inuse = 0;
+                }
+                if (i == 1)
+                        set_page_private(first_page, (unsigned long)page);
+                if (i >= 1)
+                        set_page_private(page, (unsigned long)first_page);
+                if (i >= 2)
+                        list_add(&page->lru, &prev_page->lru);
+                if (i == class->pages_per_zspage - 1)   /* last page */
+                        SetPagePrivate2(page);
+                prev_page = page;
+        }
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
