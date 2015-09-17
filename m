@@ -1,47 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id D3FF482F64
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 05:38:29 -0400 (EDT)
-Received: by lagj9 with SMTP id j9so7614928lag.2
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:38:29 -0700 (PDT)
-Received: from mail-la0-x22f.google.com (mail-la0-x22f.google.com. [2a00:1450:4010:c03::22f])
-        by mx.google.com with ESMTPS id v4si1655083lae.75.2015.09.17.02.38.28
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A94196B0038
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 05:53:15 -0400 (EDT)
+Received: by lanb10 with SMTP id b10so7730378lan.3
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:53:15 -0700 (PDT)
+Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com. [2a00:1450:4010:c04::22c])
+        by mx.google.com with ESMTPS id qo1si1544916lbb.135.2015.09.17.02.53.14
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Sep 2015 02:38:28 -0700 (PDT)
-Received: by lanb10 with SMTP id b10so7527858lan.3
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:38:28 -0700 (PDT)
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Subject: [PATCH v6 6/6] Documentation/features/KASAN: arm64 supports KASAN now
-Date: Thu, 17 Sep 2015 12:38:12 +0300
-Message-Id: <1442482692-6416-7-git-send-email-ryabinin.a.a@gmail.com>
-In-Reply-To: <1442482692-6416-1-git-send-email-ryabinin.a.a@gmail.com>
-References: <1442482692-6416-1-git-send-email-ryabinin.a.a@gmail.com>
+        Thu, 17 Sep 2015 02:53:14 -0700 (PDT)
+Received: by lbpo4 with SMTP id o4so6404689lbp.2
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:53:14 -0700 (PDT)
+Date: Thu, 17 Sep 2015 12:53:11 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH] mm/swapfile: fix swapoff vs. software dirty bits
+Message-ID: <20150917095311.GH2000@uranus>
+References: <1442480339-26308-1-git-send-email-schwidefsky@de.ibm.com>
+ <1442480339-26308-2-git-send-email-schwidefsky@de.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1442480339-26308-2-git-send-email-schwidefsky@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org
-Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Linus Walleij <linus.walleij@linaro.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org, David Keitel <dkeitel@codeaurora.org>, linux-mm@kvack.org, Alexey Klimov <klimov.linux@gmail.com>, Yury <yury.norov@gmail.com>, Andrey Konovalov <andreyknvl@google.com>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-Signed-off-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
----
- Documentation/features/debug/KASAN/arch-support.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+On Thu, Sep 17, 2015 at 10:58:59AM +0200, Martin Schwidefsky wrote:
+> Fixes a regression introduced with commit 179ef71cbc085252
+> "mm: save soft-dirty bits on swapped pages"
+> 
+> The maybe_same_pte() function is used to match a swap pte independent
+> of the swap software dirty bit set with pte_swp_mksoft_dirty().
+> 
+> For CONFIG_HAVE_ARCH_SOFT_DIRTY=y but CONFIG_MEM_SOFT_DIRTY=n the
+> software dirty bit may be set but maybe_same_pte() will not recognize
+> a software dirty swap pte. Due to this a 'swapoff -a' will hang.
+> 
+> The straightforward solution is to replace CONFIG_MEM_SOFT_DIRTY
+> with HAVE_ARCH_SOFT_DIRTY in maybe_same_pte().
+> 
+> Cc: linux-mm@kvack.org
+> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-diff --git a/Documentation/features/debug/KASAN/arch-support.txt b/Documentation/features/debug/KASAN/arch-support.txt
-index 14531da..703f578 100644
---- a/Documentation/features/debug/KASAN/arch-support.txt
-+++ b/Documentation/features/debug/KASAN/arch-support.txt
-@@ -9,7 +9,7 @@
-     |       alpha: | TODO |
-     |         arc: | TODO |
-     |         arm: | TODO |
--    |       arm64: | TODO |
-+    |       arm64: |  ok  |
-     |       avr32: | TODO |
-     |    blackfin: | TODO |
-     |         c6x: | TODO |
--- 
-2.4.6
+Thanks a huge, Martin! I'll take a look today.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
