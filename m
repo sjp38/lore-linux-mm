@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C0F4C6B0255
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 14:27:16 -0400 (EDT)
-Received: by obbda8 with SMTP id da8so20155170obb.1
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 11:27:16 -0700 (PDT)
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A724E6B0256
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 14:27:18 -0400 (EDT)
+Received: by oiev17 with SMTP id v17so14370461oie.1
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 11:27:18 -0700 (PDT)
 Received: from g1t6220.austin.hp.com (g1t6220.austin.hp.com. [15.73.96.84])
-        by mx.google.com with ESMTPS id s11si2414076oif.120.2015.09.17.11.27.14
+        by mx.google.com with ESMTPS id w2si2343131obv.47.2015.09.17.11.27.14
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Sep 2015 11:27:14 -0700 (PDT)
+        Thu, 17 Sep 2015 11:27:15 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v4 RESEND 1/11] x86/vdso32: Define PGTABLE_LEVELS to 32bit VDSO
-Date: Thu, 17 Sep 2015 12:24:14 -0600
-Message-Id: <1442514264-12475-2-git-send-email-toshi.kani@hpe.com>
+Subject: [PATCH v4 RESEND 3/11] x86/asm: Add pud/pmd mask interfaces to handle large PAT bit
+Date: Thu, 17 Sep 2015 12:24:16 -0600
+Message-Id: <1442514264-12475-4-git-send-email-toshi.kani@hpe.com>
 In-Reply-To: <1442514264-12475-1-git-send-email-toshi.kani@hpe.com>
 References: <1442514264-12475-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,47 +20,86 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
 Cc: akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com, Toshi Kani <toshi.kani@hpe.com>
 
-In case of CONFIG_X86_64, vdso32/vclock_gettime.c fakes a 32-bit
-non-PAE kernel configuration by re-defining it to CONFIG_X86_32.
-However, it does not re-define CONFIG_PGTABLE_LEVELS leaving it
-as 4 levels.
+The PAT bit gets relocated to bit 12 when PUD and PMD mappings are
+used.  This bit 12, however, is not covered by PTE_FLAGS_MASK, which
+is used for masking pfn and flags for all levels.
 
-This mismatch leads <asm/pgtable_type.h> to NOT include <asm-generic/
-pgtable-nopud.h> and <asm-generic/pgtable-nopmd.h>, which will cause
-compile errors when a later patch enhances <asm/pgtable_type.h> to
-use PUD_SHIFT and PMD_SHIFT.  These -nopud & -nopmd headers define
-these SHIFTs for the 32-bit non-PAE kernel.
+Add pud/pmd mask interfaces to handle pfn and flags properly by using
+P?D_PAGE_MASK when PUD/PMD mappings are used, i.e. PSE bit is set.
 
-Fix it by re-defining CONFIG_PGTABLE_LEVELS to 2 levels.
-
+Suggested-by: Juergen Gross <jgross@suse.com>
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 Cc: Juergen Gross <jgross@suse.com>
+Cc: Konrad Wilk <konrad.wilk@oracle.com>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Borislav Petkov <bp@alien8.de>
 ---
- arch/x86/entry/vdso/vdso32/vclock_gettime.c |    2 ++
- 1 file changed, 2 insertions(+)
+ arch/x86/include/asm/pgtable_types.h |   36 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 34 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/entry/vdso/vdso32/vclock_gettime.c b/arch/x86/entry/vdso/vdso32/vclock_gettime.c
-index 175cc72..87a86e0 100644
---- a/arch/x86/entry/vdso/vdso32/vclock_gettime.c
-+++ b/arch/x86/entry/vdso/vdso32/vclock_gettime.c
-@@ -14,11 +14,13 @@
-  */
- #undef CONFIG_64BIT
- #undef CONFIG_X86_64
-+#undef CONFIG_PGTABLE_LEVELS
- #undef CONFIG_ILLEGAL_POINTER_VALUE
- #undef CONFIG_SPARSEMEM_VMEMMAP
- #undef CONFIG_NR_CPUS
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 13f310b..7c8f797 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -209,10 +209,10 @@ enum page_cache_mode {
  
- #define CONFIG_X86_32 1
-+#define CONFIG_PGTABLE_LEVELS 2
- #define CONFIG_PAGE_OFFSET 0
- #define CONFIG_ILLEGAL_POINTER_VALUE 0
- #define CONFIG_NR_CPUS 1
+ #include <linux/types.h>
+ 
+-/* PTE_PFN_MASK extracts the PFN from a (pte|pmd|pud|pgd)val_t */
++/* Extracts the PFN from a (pte|pmd|pud|pgd)val_t of a 4KB page */
+ #define PTE_PFN_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
+ 
+-/* PTE_FLAGS_MASK extracts the flags from a (pte|pmd|pud|pgd)val_t */
++/* Extracts the flags from a (pte|pmd|pud|pgd)val_t of a 4KB page */
+ #define PTE_FLAGS_MASK		(~PTE_PFN_MASK)
+ 
+ typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
+@@ -276,11 +276,43 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
+ }
+ #endif
+ 
++static inline pudval_t pud_pfn_mask(pud_t pud)
++{
++	if (native_pud_val(pud) & _PAGE_PSE)
++		return PUD_PAGE_MASK & PHYSICAL_PAGE_MASK;
++	else
++		return PTE_PFN_MASK;
++}
++
++static inline pudval_t pud_flags_mask(pud_t pud)
++{
++	if (native_pud_val(pud) & _PAGE_PSE)
++		return ~(PUD_PAGE_MASK & (pudval_t)PHYSICAL_PAGE_MASK);
++	else
++		return ~PTE_PFN_MASK;
++}
++
+ static inline pudval_t pud_flags(pud_t pud)
+ {
+ 	return native_pud_val(pud) & PTE_FLAGS_MASK;
+ }
+ 
++static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
++{
++	if (native_pmd_val(pmd) & _PAGE_PSE)
++		return PMD_PAGE_MASK & PHYSICAL_PAGE_MASK;
++	else
++		return PTE_PFN_MASK;
++}
++
++static inline pmdval_t pmd_flags_mask(pmd_t pmd)
++{
++	if (native_pmd_val(pmd) & _PAGE_PSE)
++		return ~(PMD_PAGE_MASK & (pmdval_t)PHYSICAL_PAGE_MASK);
++	else
++		return ~PTE_PFN_MASK;
++}
++
+ static inline pmdval_t pmd_flags(pmd_t pmd)
+ {
+ 	return native_pmd_val(pmd) & PTE_FLAGS_MASK;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
