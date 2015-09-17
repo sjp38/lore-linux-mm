@@ -1,88 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E4E66B0254
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 09:04:32 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so22882017wic.1
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 06:04:31 -0700 (PDT)
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
-        by mx.google.com with ESMTPS id p10si3970902wiv.26.2015.09.17.06.04.30
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id E558C6B0038
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 09:28:28 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so23879563wic.1
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 06:28:28 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
+        by mx.google.com with ESMTPS id di4si4088003wjc.87.2015.09.17.06.28.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Sep 2015 06:04:31 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so26421082wic.0
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 06:04:30 -0700 (PDT)
-Date: Thu, 17 Sep 2015 15:04:27 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: fix order calculation in try_charge()
-Message-ID: <20150917130427.GA25740@dhcp22.suse.cz>
-References: <1442318757-7141-1-git-send-email-jmarchan@redhat.com>
- <20150915135623.GA26649@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Sep 2015 06:28:27 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so27420450wic.1
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 06:28:27 -0700 (PDT)
+Date: Thu, 17 Sep 2015 16:28:25 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC v5 3/3] mm: make swapin readahead to improve thp collapse
+ rate
+Message-ID: <20150917132825.GA30954@node.dhcp.inet.fi>
+References: <1442259105-4420-1-git-send-email-ebru.akagunduz@gmail.com>
+ <1442259105-4420-4-git-send-email-ebru.akagunduz@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150915135623.GA26649@dhcp22.suse.cz>
+In-Reply-To: <1442259105-4420-4-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, riel@redhat.com, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hughd@google.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, raindel@mellanox.com
 
-[CC Andrew - the patch was posted here
-http://lkml.kernel.org/r/1442318757-7141-1-git-send-email-jmarchan%40redhat.com]
-
-On Tue 15-09-15 15:56:23, Michal Hocko wrote:
-> On Tue 15-09-15 14:05:57, Jerome Marchand wrote:
-> > Since commit <6539cc05386> (mm: memcontrol: fold mem_cgroup_do_charge()),
-> > the order to pass to mem_cgroup_oom() is calculated by passing the number
-> > of pages to get_order() instead of the expected  size in bytes. AFAICT,
-> > it only affects the value displayed in the oom warning message.
-> > This patch fix this.
-> 
-> We haven't noticed that just because the OOM is enabled only for page
-> faults of order-0 (single page) and get_order work just fine. Thanks for
-> noticing this. If we ever start triggering OOM on different orders this
-> would be broken.
+On Mon, Sep 14, 2015 at 10:31:45PM +0300, Ebru Akagunduz wrote:
+> @@ -2655,6 +2696,8 @@ static void collapse_huge_page(struct mm_struct *mm,
 >  
-> > Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> Btw. a quick git grep shows that at least gart_iommu_init is using
-> number of pages as well. I haven't checked it does that intentionally,
-> though.
-> 
-> Thanks!
-> 
-> > ---
-> >  mm/memcontrol.c | 3 ++-
-> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 1742a2d..91bf094 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -2032,7 +2032,8 @@ retry:
-> >  
-> >  	mem_cgroup_events(mem_over_limit, MEMCG_OOM, 1);
-> >  
-> > -	mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(nr_pages));
-> > +	mem_cgroup_oom(mem_over_limit, gfp_mask,
-> > +		       get_order(nr_pages * PAGE_SIZE));
-> >  nomem:
-> >  	if (!(gfp_mask & __GFP_NOFAIL))
-> >  		return -ENOMEM;
-> > -- 
-> > 1.9.3
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+>  	anon_vma_lock_write(vma->anon_vma);
+>  
+> +	__collapse_huge_page_swapin(mm, vma, address, pmd, pte);
+> +
 
--- 
-Michal Hocko
-SUSE Labs
+Do I miss something, or 'pte' is not initialized at this point?
+And the value is not really used in __collapse_huge_page_swapin().
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>  	pte = pte_offset_map(pmd, address);
+>  	pte_ptl = pte_lockptr(mm, pmd);
