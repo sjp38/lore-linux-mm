@@ -1,52 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A94196B0038
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 05:53:15 -0400 (EDT)
-Received: by lanb10 with SMTP id b10so7730378lan.3
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:53:15 -0700 (PDT)
-Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com. [2a00:1450:4010:c04::22c])
-        by mx.google.com with ESMTPS id qo1si1544916lbb.135.2015.09.17.02.53.14
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F21F6B0038
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 05:58:04 -0400 (EDT)
+Received: by padhk3 with SMTP id hk3so16238778pad.3
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:58:03 -0700 (PDT)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id ne9si4191154pbc.29.2015.09.17.02.58.02
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Sep 2015 02:53:14 -0700 (PDT)
-Received: by lbpo4 with SMTP id o4so6404689lbp.2
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:53:14 -0700 (PDT)
-Date: Thu, 17 Sep 2015 12:53:11 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH] mm/swapfile: fix swapoff vs. software dirty bits
-Message-ID: <20150917095311.GH2000@uranus>
-References: <1442480339-26308-1-git-send-email-schwidefsky@de.ibm.com>
- <1442480339-26308-2-git-send-email-schwidefsky@de.ibm.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 17 Sep 2015 02:58:03 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t8H9w0Jj017521
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 18:58:01 +0900 (JST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v5 1/2] mm: hugetlb: proc: add HugetlbPages field to
+ /proc/PID/smaps
+Date: Thu, 17 Sep 2015 09:39:15 +0000
+Message-ID: <20150917093914.GA18723@hori1.linux.bs1.fc.nec.co.jp>
+References: <20150812000336.GB32192@hori1.linux.bs1.fc.nec.co.jp>
+ <1440059182-19798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1440059182-19798-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <55ECE891.7030309@draigBrady.com>
+ <20150907022343.GB6448@hori1.linux.bs1.fc.nec.co.jp>
+ <20150907064614.GB7229@hori1.linux.bs1.fc.nec.co.jp>
+ <55ED5E6C.6000102@draigBrady.com> <55ED6C79.6030000@draigBrady.com>
+In-Reply-To: <55ED6C79.6030000@draigBrady.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <0AAEA283A6BE174BA64F0DB0054021A5@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1442480339-26308-2-git-send-email-schwidefsky@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
+To: =?utf-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, Sep 17, 2015 at 10:58:59AM +0200, Martin Schwidefsky wrote:
-> Fixes a regression introduced with commit 179ef71cbc085252
-> "mm: save soft-dirty bits on swapped pages"
-> 
-> The maybe_same_pte() function is used to match a swap pte independent
-> of the swap software dirty bit set with pte_swp_mksoft_dirty().
-> 
-> For CONFIG_HAVE_ARCH_SOFT_DIRTY=y but CONFIG_MEM_SOFT_DIRTY=n the
-> software dirty bit may be set but maybe_same_pte() will not recognize
-> a software dirty swap pte. Due to this a 'swapoff -a' will hang.
-> 
-> The straightforward solution is to replace CONFIG_MEM_SOFT_DIRTY
-> with HAVE_ARCH_SOFT_DIRTY in maybe_same_pte().
-> 
-> Cc: linux-mm@kvack.org
-> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-
-Thanks a huge, Martin! I'll take a look today.
+T24gTW9uLCBTZXAgMDcsIDIwMTUgYXQgMTE6NTI6NDFBTSArMDEwMCwgUMOhZHJhaWcgQnJhZHkg
+d3JvdGU6DQouLi4NCj4gDQo+IEJ5IHRoZSBzYW1lIGFyZ3VtZW50IEkgcHJlc3VtZSB0aGUgZXhp
+c3RpbmcgVEhQICJBbm9uSHVnZVBhZ2VzIiBzbWFwcyBmaWVsZA0KPiBpcyBub3QgYWNjb3VudGVk
+IGZvciBpbiB0aGUge1ByaXZhdGUsU2hhcmVkfV8uLi4gZmllbGRzPw0KPiBJLkUuIEFub25IdWdl
+UGFnZXMgbWF5IGFsc28gYmVuZWZpdCBmcm9tIHNwbGl0dGluZyB0byBQcml2YXRlL1NoYXJlZD8N
+Cg0Kc21hcHNfcG1kX2VudHJ5KCkgbm90IG9ubHkgaW5jcmVtZW50cyBtc3MtPmFub255bW91c190
+aHAsIGJ1dCBhbHNvIGNhbGxzDQpzbWFwc19hY2NvdW50KCkgd2hpY2ggdXBkYXRlcyBtc3MtPmFu
+b255bW91cywgbXNzLT5yZWZlcmVuY2VkIGFuZA0KbXNzLT57c2hhcmVkLHByaXZhdGV9X3tjbGVh
+bixkaXJ0eX0sIHNvIHRocCdzIHNoYXJlZC9wcml2YXRlIGNoYXJhY3RlcmlzdGljDQppcyBpbmNs
+dWRlZCBpbiBvdGhlciBleGlzdGluZyBmaWVsZHMuDQpJIHRoaW5rIHRoYXQgZXZlbiBpZiB3ZSBr
+bm93IHRoZSB0aHAtc3BlY2lmaWMgc2hhcmVkL3ByaXZhdGUgcHJvZmlsZXMsIGl0DQptaWdodCBi
+ZSBoYXJkIHRvIGRvIHNvbWV0aGluZyBiZW5lZmljaWFsIHVzaW5nIHRoYXQgaW5mb3JtYXRpb24s
+IHNvIEkgZmVlbA0Ka2VlcGluZyB0aGlzIGZpZWxkIGFzLWlzIGlzIG9rIGZvciBub3cuDQoNClRo
+YW5rcywNCk5hb3lhIEhvcmlndWNoaQ==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
