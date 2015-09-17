@@ -1,75 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CF3C6B0254
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 04:59:41 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so108168005wic.1
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 01:59:41 -0700 (PDT)
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com. [195.75.94.111])
-        by mx.google.com with ESMTPS id e11si2703052wjs.28.2015.09.17.01.59.40
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EFCB82F64
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 05:13:05 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so15498155pac.0
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:13:04 -0700 (PDT)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id qh9si3849778pac.204.2015.09.17.02.13.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 Sep 2015 01:59:40 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Thu, 17 Sep 2015 09:59:38 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 3A3E41B08070
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 10:00:44 +0100 (BST)
-Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8H8x2UE29622466
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 08:59:02 GMT
-Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8H8x2Xa027298
-	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 02:59:02 -0600
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [PATCH] mm/swapfile: fix swapoff vs. software dirty bits
-Date: Thu, 17 Sep 2015 10:58:59 +0200
-Message-Id: <1442480339-26308-2-git-send-email-schwidefsky@de.ibm.com>
-In-Reply-To: <1442480339-26308-1-git-send-email-schwidefsky@de.ibm.com>
-References: <1442480339-26308-1-git-send-email-schwidefsky@de.ibm.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 17 Sep 2015 02:13:04 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t8H9D0tM010591
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Thu, 17 Sep 2015 18:13:01 +0900 (JST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v6 2/2] mm: hugetlb: proc: add HugetlbPages field to
+ /proc/PID/status
+Date: Thu, 17 Sep 2015 09:09:31 +0000
+Message-ID: <1442480955-7297-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1442480955-7297-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1442480955-7297-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, =?utf-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>, David Rientjes <rientjes@google.com>, =?utf-8?B?SsO2cm4gRW5nZWw=?= <joern@purestorage.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Fixes a regression introduced with commit 179ef71cbc085252
-"mm: save soft-dirty bits on swapped pages"
-
-The maybe_same_pte() function is used to match a swap pte independent
-of the swap software dirty bit set with pte_swp_mksoft_dirty().
-
-For CONFIG_HAVE_ARCH_SOFT_DIRTY=y but CONFIG_MEM_SOFT_DIRTY=n the
-software dirty bit may be set but maybe_same_pte() will not recognize
-a software dirty swap pte. Due to this a 'swapoff -a' will hang.
-
-The straightforward solution is to replace CONFIG_MEM_SOFT_DIRTY
-with HAVE_ARCH_SOFT_DIRTY in maybe_same_pte().
-
-Cc: linux-mm@kvack.org
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
----
- mm/swapfile.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 5887731..bf7da58 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1113,7 +1113,7 @@ unsigned int count_swap_pages(int type, int free)
- 
- static inline int maybe_same_pte(pte_t pte, pte_t swp_pte)
- {
--#ifdef CONFIG_MEM_SOFT_DIRTY
-+#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
- 	/*
- 	 * When pte keeps soft dirty bit the pte generated
- 	 * from swap entry does not has it, still it's same
--- 
-1.9.1
+Q3VycmVudGx5IHRoZXJlJ3Mgbm8gZWFzeSB3YXkgdG8gZ2V0IHBlci1wcm9jZXNzIHVzYWdlIG9m
+IGh1Z2V0bGIgcGFnZXMsIHdoaWNoDQppcyBpbmNvbnZlbmllbnQgYmVjYXVzZSB1c2Vyc3BhY2Ug
+YXBwbGljYXRpb25zIHdoaWNoIHVzZSBodWdldGxiIHR5cGljYWxseSB3YW50DQp0byBjb250cm9s
+IHRoZWlyIHByb2Nlc3NlcyBvbiB0aGUgYmFzaXMgb2YgaG93IG11Y2ggbWVtb3J5IChpbmNsdWRp
+bmcgaHVnZXRsYikNCnRoZXkgdXNlLiBTbyB0aGlzIHBhdGNoIHNpbXBseSBwcm92aWRlcyBlYXN5
+IGFjY2VzcyB0byB0aGUgaW5mbyB2aWENCi9wcm9jL1BJRC9zdGF0dXMuDQoNClNpZ25lZC1vZmYt
+Ynk6IE5hb3lhIEhvcmlndWNoaSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbT4NCkFja2VkLWJ5
+OiBKb2VybiBFbmdlbCA8am9lcm5AbG9nZnMub3JnPg0KQWNrZWQtYnk6IERhdmlkIFJpZW50amVz
+IDxyaWVudGplc0Bnb29nbGUuY29tPg0KLS0tDQp2NSAtPiB2NjoNCi0gZHJvcCBzaG93aW5nIHBl
+ci1wYWdlc2l6ZSBpbmZvDQoNCnY0IC0+IHY1Og0KLSBhZGQgKHN0cnVjdCBodWdldGxiX3VzYWdl
+ICopIHRvIHN0cnVjdCBtbV9zdHJ1Y3QNCi0gdXNlICVsdSBpbnN0ZWFkIG9mICVkIGZvciBzZXFf
+cHJpbnRmKCkNCi0gaW50cm9kdWNlIGh1Z2V0bGJfZm9yaw0KDQp2MyAtPiB2NDoNCi0gcmVuYW1l
+IGZpZWxkIChWbUh1Z2V0bGJSU1MgaXMgbm90IHRoZSBiZXN0IG5hbWUpDQotIGludHJvZHVjZSBz
+dHJ1Y3QgaHVnZXRsYl91c2FnZSBpbiBzdHJ1Y3QgbW1fc3RydWN0IChubyBpbnZhc2lvbiB0byBz
+dHJ1Y3QNCiAgbW1fcnNzX3N0YXQpDQotIGludHJvZHVjZSBodWdldGxiX3JlcG9ydF91c2FnZSgp
+DQotIG1lcmdlZCBkb2N1bWVudGF0aW9uIHVwZGF0ZQ0KDQp2MiAtPiB2MzoNCi0gdXNlIGlubGlu
+ZSBmdW5jdGlvbnMgaW5zdGVhZCBvZiBtYWNyb3MgZm9yICFDT05GSUdfSFVHRVRMQl9QQUdFDQot
+LS0NCiBEb2N1bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3Byb2MudHh0IHwgIDIgKysNCiBmcy9wcm9j
+L3Rhc2tfbW11LmMgICAgICAgICAgICAgICAgIHwgIDEgKw0KIGluY2x1ZGUvbGludXgvaHVnZXRs
+Yi5oICAgICAgICAgICAgfCAxOSArKysrKysrKysrKysrKysrKysrDQogaW5jbHVkZS9saW51eC9t
+bV90eXBlcy5oICAgICAgICAgICB8ICAzICsrKw0KIG1tL2h1Z2V0bGIuYyAgICAgICAgICAgICAg
+ICAgICAgICAgfCAgOSArKysrKysrKysNCiBtbS9ybWFwLmMgICAgICAgICAgICAgICAgICAgICAg
+ICAgIHwgIDQgKysrLQ0KIDYgZmlsZXMgY2hhbmdlZCwgMzcgaW5zZXJ0aW9ucygrKSwgMSBkZWxl
+dGlvbigtKQ0KDQpkaWZmIC0tZ2l0IHY0LjMtcmMxL0RvY3VtZW50YXRpb24vZmlsZXN5c3RlbXMv
+cHJvYy50eHQgdjQuMy1yYzFfcGF0Y2hlZC9Eb2N1bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3Byb2Mu
+dHh0DQppbmRleCBiOTQ2N2Q5MTA1MmEuLmRhMjlmYWFmNjg1ZSAxMDA2NDQNCi0tLSB2NC4zLXJj
+MS9Eb2N1bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3Byb2MudHh0DQorKysgdjQuMy1yYzFfcGF0Y2hl
+ZC9Eb2N1bWVudGF0aW9uL2ZpbGVzeXN0ZW1zL3Byb2MudHh0DQpAQCAtMTc0LDYgKzE3NCw3IEBA
+IEZvciBleGFtcGxlLCB0byBnZXQgdGhlIHN0YXR1cyBpbmZvcm1hdGlvbiBvZiBhIHByb2Nlc3Ms
+IGFsbCB5b3UgaGF2ZSB0byBkbyBpcw0KICAgVm1MaWI6ICAgICAgMTQxMiBrQg0KICAgVm1QVEU6
+ICAgICAgICAyMCBrYg0KICAgVm1Td2FwOiAgICAgICAgMCBrQg0KKyAgSHVnZXRsYlBhZ2VzOiAg
+ICAgICAgICAwIGtCDQogICBUaHJlYWRzOiAgICAgICAgMQ0KICAgU2lnUTogICAwLzI4NTc4DQog
+ICBTaWdQbmQ6IDAwMDAwMDAwMDAwMDAwMDANCkBAIC0yMzcsNiArMjM4LDcgQEAgVGFibGUgMS0y
+OiBDb250ZW50cyBvZiB0aGUgc3RhdHVzIGZpbGVzIChhcyBvZiA0LjEpDQogIFZtUFRFICAgICAg
+ICAgICAgICAgICAgICAgICBzaXplIG9mIHBhZ2UgdGFibGUgZW50cmllcw0KICBWbVBNRCAgICAg
+ICAgICAgICAgICAgICAgICAgc2l6ZSBvZiBzZWNvbmQgbGV2ZWwgcGFnZSB0YWJsZXMNCiAgVm1T
+d2FwICAgICAgICAgICAgICAgICAgICAgIHNpemUgb2Ygc3dhcCB1c2FnZSAodGhlIG51bWJlciBv
+ZiByZWZlcnJlZCBzd2FwZW50cykNCisgSHVnZXRsYlBhZ2VzICAgICAgICAgICAgICAgIHNpemUg
+b2YgaHVnZXRsYiBtZW1vcnkgcG9ydGlvbnMNCiAgVGhyZWFkcyAgICAgICAgICAgICAgICAgICAg
+IG51bWJlciBvZiB0aHJlYWRzDQogIFNpZ1EgICAgICAgICAgICAgICAgICAgICAgICBudW1iZXIg
+b2Ygc2lnbmFscyBxdWV1ZWQvbWF4LiBudW1iZXIgZm9yIHF1ZXVlDQogIFNpZ1BuZCAgICAgICAg
+ICAgICAgICAgICAgICBiaXRtYXAgb2YgcGVuZGluZyBzaWduYWxzIGZvciB0aGUgdGhyZWFkDQpk
+aWZmIC0tZ2l0IHY0LjMtcmMxL2ZzL3Byb2MvdGFza19tbXUuYyB2NC4zLXJjMV9wYXRjaGVkL2Zz
+L3Byb2MvdGFza19tbXUuYw0KaW5kZXggMjJjMDI5MTdmMjY1Li5iZDE2NzY3NWEwNmYgMTAwNjQ0
+DQotLS0gdjQuMy1yYzEvZnMvcHJvYy90YXNrX21tdS5jDQorKysgdjQuMy1yYzFfcGF0Y2hlZC9m
+cy9wcm9jL3Rhc2tfbW11LmMNCkBAIC03MCw2ICs3MCw3IEBAIHZvaWQgdGFza19tZW0oc3RydWN0
+IHNlcV9maWxlICptLCBzdHJ1Y3QgbW1fc3RydWN0ICptbSkNCiAJCXB0ZXMgPj4gMTAsDQogCQlw
+bWRzID4+IDEwLA0KIAkJc3dhcCA8PCAoUEFHRV9TSElGVC0xMCkpOw0KKwlodWdldGxiX3JlcG9y
+dF91c2FnZShtLCBtbSk7DQogfQ0KIA0KIHVuc2lnbmVkIGxvbmcgdGFza192c2l6ZShzdHJ1Y3Qg
+bW1fc3RydWN0ICptbSkNCmRpZmYgLS1naXQgdjQuMy1yYzEvaW5jbHVkZS9saW51eC9odWdldGxi
+LmggdjQuMy1yYzFfcGF0Y2hlZC9pbmNsdWRlL2xpbnV4L2h1Z2V0bGIuaA0KaW5kZXggNWUzNTM3
+OWY1OGE1Li42ODVjMjYyZTBiZTggMTAwNjQ0DQotLS0gdjQuMy1yYzEvaW5jbHVkZS9saW51eC9o
+dWdldGxiLmgNCisrKyB2NC4zLXJjMV9wYXRjaGVkL2luY2x1ZGUvbGludXgvaHVnZXRsYi5oDQpA
+QCAtNDgzLDYgKzQ4MywxNyBAQCBzdGF0aWMgaW5saW5lIHNwaW5sb2NrX3QgKmh1Z2VfcHRlX2xv
+Y2twdHIoc3RydWN0IGhzdGF0ZSAqaCwNCiAjZGVmaW5lIGh1Z2VwYWdlc19zdXBwb3J0ZWQoKSAo
+SFBBR0VfU0hJRlQgIT0gMCkNCiAjZW5kaWYNCiANCit2b2lkIGh1Z2V0bGJfcmVwb3J0X3VzYWdl
+KHN0cnVjdCBzZXFfZmlsZSAqbSwgc3RydWN0IG1tX3N0cnVjdCAqbW0pOw0KKw0KK3N0YXRpYyBp
+bmxpbmUgdm9pZCBodWdldGxiX2NvdW50X2FkZChsb25nIGwsIHN0cnVjdCBtbV9zdHJ1Y3QgKm1t
+KQ0KK3sNCisJYXRvbWljX2xvbmdfYWRkKGwsICZtbS0+aHVnZXRsYl91c2FnZSk7DQorfQ0KKw0K
+K3N0YXRpYyBpbmxpbmUgdm9pZCBodWdldGxiX2NvdW50X3N1Yihsb25nIGwsIHN0cnVjdCBtbV9z
+dHJ1Y3QgKm1tKQ0KK3sNCisJYXRvbWljX2xvbmdfc3ViKGwsICZtbS0+aHVnZXRsYl91c2FnZSk7
+DQorfQ0KICNlbHNlCS8qIENPTkZJR19IVUdFVExCX1BBR0UgKi8NCiBzdHJ1Y3QgaHN0YXRlIHt9
+Ow0KICNkZWZpbmUgYWxsb2NfaHVnZV9wYWdlKHYsIGEsIHIpIE5VTEwNCkBAIC01MTksNiArNTMw
+LDE0IEBAIHN0YXRpYyBpbmxpbmUgc3BpbmxvY2tfdCAqaHVnZV9wdGVfbG9ja3B0cihzdHJ1Y3Qg
+aHN0YXRlICpoLA0KIHsNCiAJcmV0dXJuICZtbS0+cGFnZV90YWJsZV9sb2NrOw0KIH0NCisNCitz
+dGF0aWMgaW5saW5lIHZvaWQgaHVnZXRsYl9yZXBvcnRfdXNhZ2Uoc3RydWN0IHNlcV9maWxlICpm
+LCBzdHJ1Y3QgbW1fc3RydWN0ICptKQ0KK3sNCit9DQorDQorc3RhdGljIGlubGluZSB2b2lkIGh1
+Z2V0bGJfY291bnRfc3ViKGxvbmcgbCwgc3RydWN0IG1tX3N0cnVjdCAqbW0pDQorew0KK30NCiAj
+ZW5kaWYJLyogQ09ORklHX0hVR0VUTEJfUEFHRSAqLw0KIA0KIHN0YXRpYyBpbmxpbmUgc3Bpbmxv
+Y2tfdCAqaHVnZV9wdGVfbG9jayhzdHJ1Y3QgaHN0YXRlICpoLA0KZGlmZiAtLWdpdCB2NC4zLXJj
+MS9pbmNsdWRlL2xpbnV4L21tX3R5cGVzLmggdjQuMy1yYzFfcGF0Y2hlZC9pbmNsdWRlL2xpbnV4
+L21tX3R5cGVzLmgNCmluZGV4IDNkNmJhYTdkNDUzNC4uMGE4NWRhMjVhODIyIDEwMDY0NA0KLS0t
+IHY0LjMtcmMxL2luY2x1ZGUvbGludXgvbW1fdHlwZXMuaA0KKysrIHY0LjMtcmMxX3BhdGNoZWQv
+aW5jbHVkZS9saW51eC9tbV90eXBlcy5oDQpAQCAtNDg2LDYgKzQ4Niw5IEBAIHN0cnVjdCBtbV9z
+dHJ1Y3Qgew0KIAkvKiBhZGRyZXNzIG9mIHRoZSBib3VuZHMgZGlyZWN0b3J5ICovDQogCXZvaWQg
+X191c2VyICpiZF9hZGRyOw0KICNlbmRpZg0KKyNpZmRlZiBDT05GSUdfSFVHRVRMQl9QQUdFDQor
+CWF0b21pY19sb25nX3QgaHVnZXRsYl91c2FnZTsNCisjZW5kaWYNCiB9Ow0KIA0KIHN0YXRpYyBp
+bmxpbmUgdm9pZCBtbV9pbml0X2NwdW1hc2soc3RydWN0IG1tX3N0cnVjdCAqbW0pDQpkaWZmIC0t
+Z2l0IHY0LjMtcmMxL21tL2h1Z2V0bGIuYyB2NC4zLXJjMV9wYXRjaGVkL21tL2h1Z2V0bGIuYw0K
+aW5kZXggOTk5ZmIwYWVmOGYxLi40NDRhNTVkZTNjNGEgMTAwNjQ0DQotLS0gdjQuMy1yYzEvbW0v
+aHVnZXRsYi5jDQorKysgdjQuMy1yYzFfcGF0Y2hlZC9tbS9odWdldGxiLmMNCkBAIC0yNzkwLDYg
+KzI3OTAsMTIgQEAgdm9pZCBodWdldGxiX3Nob3dfbWVtaW5mbyh2b2lkKQ0KIAkJCQkxVUwgPDwg
+KGh1Z2VfcGFnZV9vcmRlcihoKSArIFBBR0VfU0hJRlQgLSAxMCkpOw0KIH0NCiANCit2b2lkIGh1
+Z2V0bGJfcmVwb3J0X3VzYWdlKHN0cnVjdCBzZXFfZmlsZSAqbSwgc3RydWN0IG1tX3N0cnVjdCAq
+bW0pDQorew0KKwlzZXFfcHJpbnRmKG0sICJIdWdldGxiUGFnZXM6XHQlOGx1IGtCXG4iLA0KKwkJ
+ICAgYXRvbWljX2xvbmdfcmVhZCgmbW0tPmh1Z2V0bGJfdXNhZ2UpIDw8IChQQUdFX1NISUZUIC0g
+MTApKTsNCit9DQorDQogLyogUmV0dXJuIHRoZSBudW1iZXIgcGFnZXMgb2YgbWVtb3J5IHdlIHBo
+eXNpY2FsbHkgaGF2ZSwgaW4gUEFHRV9TSVpFIHVuaXRzLiAqLw0KIHVuc2lnbmVkIGxvbmcgaHVn
+ZXRsYl90b3RhbF9wYWdlcyh2b2lkKQ0KIHsNCkBAIC0zMDI1LDYgKzMwMzEsNyBAQCBpbnQgY29w
+eV9odWdldGxiX3BhZ2VfcmFuZ2Uoc3RydWN0IG1tX3N0cnVjdCAqZHN0LCBzdHJ1Y3QgbW1fc3Ry
+dWN0ICpzcmMsDQogCQkJZ2V0X3BhZ2UocHRlcGFnZSk7DQogCQkJcGFnZV9kdXBfcm1hcChwdGVw
+YWdlKTsNCiAJCQlzZXRfaHVnZV9wdGVfYXQoZHN0LCBhZGRyLCBkc3RfcHRlLCBlbnRyeSk7DQor
+CQkJaHVnZXRsYl9jb3VudF9hZGQocGFnZXNfcGVyX2h1Z2VfcGFnZShoKSwgZHN0KTsNCiAJCX0N
+CiAJCXNwaW5fdW5sb2NrKHNyY19wdGwpOw0KIAkJc3Bpbl91bmxvY2soZHN0X3B0bCk7DQpAQCAt
+MzEwNSw2ICszMTEyLDcgQEAgdm9pZCBfX3VubWFwX2h1Z2VwYWdlX3JhbmdlKHN0cnVjdCBtbXVf
+Z2F0aGVyICp0bGIsIHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hLA0KIAkJaWYgKGh1Z2VfcHRl
+X2RpcnR5KHB0ZSkpDQogCQkJc2V0X3BhZ2VfZGlydHkocGFnZSk7DQogDQorCQlodWdldGxiX2Nv
+dW50X3N1YihwYWdlc19wZXJfaHVnZV9wYWdlKGgpLCBtbSk7DQogCQlwYWdlX3JlbW92ZV9ybWFw
+KHBhZ2UpOw0KIAkJZm9yY2VfZmx1c2ggPSAhX190bGJfcmVtb3ZlX3BhZ2UodGxiLCBwYWdlKTsN
+CiAJCWlmIChmb3JjZV9mbHVzaCkgew0KQEAgLTM1MDEsNiArMzUwOSw3IEBAIHN0YXRpYyBpbnQg
+aHVnZXRsYl9ub19wYWdlKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLCBzdHJ1Y3Qgdm1fYXJlYV9zdHJ1
+Y3QgKnZtYSwNCiAJCQkJJiYgKHZtYS0+dm1fZmxhZ3MgJiBWTV9TSEFSRUQpKSk7DQogCXNldF9o
+dWdlX3B0ZV9hdChtbSwgYWRkcmVzcywgcHRlcCwgbmV3X3B0ZSk7DQogDQorCWh1Z2V0bGJfY291
+bnRfYWRkKHBhZ2VzX3Blcl9odWdlX3BhZ2UoaCksIG1tKTsNCiAJaWYgKChmbGFncyAmIEZBVUxU
+X0ZMQUdfV1JJVEUpICYmICEodm1hLT52bV9mbGFncyAmIFZNX1NIQVJFRCkpIHsNCiAJCS8qIE9w
+dGltaXphdGlvbiwgZG8gdGhlIENPVyB3aXRob3V0IGEgc2Vjb25kIGZhdWx0ICovDQogCQlyZXQg
+PSBodWdldGxiX2NvdyhtbSwgdm1hLCBhZGRyZXNzLCBwdGVwLCBuZXdfcHRlLCBwYWdlLCBwdGwp
+Ow0KZGlmZiAtLWdpdCB2NC4zLXJjMS9tbS9ybWFwLmMgdjQuMy1yYzFfcGF0Y2hlZC9tbS9ybWFw
+LmMNCmluZGV4IGY1YjVjMWYzZGNkNy4uZDQwZTdhZWZiODg4IDEwMDY0NA0KLS0tIHY0LjMtcmMx
+L21tL3JtYXAuYw0KKysrIHY0LjMtcmMxX3BhdGNoZWQvbW0vcm1hcC5jDQpAQCAtMTM1Miw3ICsx
+MzUyLDkgQEAgc3RhdGljIGludCB0cnlfdG9fdW5tYXBfb25lKHN0cnVjdCBwYWdlICpwYWdlLCBz
+dHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnZtYSwNCiAJdXBkYXRlX2hpd2F0ZXJfcnNzKG1tKTsNCiAN
+CiAJaWYgKFBhZ2VIV1BvaXNvbihwYWdlKSAmJiAhKGZsYWdzICYgVFRVX0lHTk9SRV9IV1BPSVNP
+TikpIHsNCi0JCWlmICghUGFnZUh1Z2UocGFnZSkpIHsNCisJCWlmIChQYWdlSHVnZShwYWdlKSkg
+ew0KKwkJCWh1Z2V0bGJfY291bnRfc3ViKDEgPDwgY29tcG91bmRfb3JkZXIocGFnZSksIG1tKTsN
+CisJCX0gZWxzZSB7DQogCQkJaWYgKFBhZ2VBbm9uKHBhZ2UpKQ0KIAkJCQlkZWNfbW1fY291bnRl
+cihtbSwgTU1fQU5PTlBBR0VTKTsNCiAJCQllbHNlDQotLSANCjIuNC4zDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
