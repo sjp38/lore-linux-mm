@@ -1,41 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id AA8516B0038
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 03:15:53 -0400 (EDT)
-Received: by lamp12 with SMTP id p12so24645795lam.0
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 00:15:53 -0700 (PDT)
-Received: from mail-la0-x229.google.com (mail-la0-x229.google.com. [2a00:1450:4010:c03::229])
-        by mx.google.com with ESMTPS id 6si4996592lav.58.2015.09.18.00.15.52
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id D16206B0038
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 03:42:23 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so20465201wic.1
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 00:42:23 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id s6si9378868wjy.175.2015.09.18.00.42.22
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Sep 2015 00:15:52 -0700 (PDT)
-Received: by lahg1 with SMTP id g1so25444626lah.1
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 00:15:52 -0700 (PDT)
-Date: Fri, 18 Sep 2015 10:15:50 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH] mm/swapfile: fix swapoff vs. software dirty bits
-Message-ID: <20150918071549.GA2035@uranus>
-References: <1442480339-26308-1-git-send-email-schwidefsky@de.ibm.com>
- <1442480339-26308-2-git-send-email-schwidefsky@de.ibm.com>
- <20150917193152.GJ2000@uranus>
- <20150918085835.597fb036@mschwide>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 Sep 2015 00:42:22 -0700 (PDT)
+Date: Fri, 18 Sep 2015 09:42:17 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: memcontrol: fix order calculation in try_charge()
+Message-ID: <20150918074217.GD15395@cmpxchg.org>
+References: <1442318757-7141-1-git-send-email-jmarchan@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150918085835.597fb036@mschwide>
+In-Reply-To: <1442318757-7141-1-git-send-email-jmarchan@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
+To: Jerome Marchand <jmarchan@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 18, 2015 at 08:58:35AM +0200, Martin Schwidefsky wrote:
-> > 
-> > Martin, could you please elaborate? Seems I'm missing
-> > something obvious.
+On Tue, Sep 15, 2015 at 02:05:57PM +0200, Jerome Marchand wrote:
+> Since commit <6539cc05386> (mm: memcontrol: fold mem_cgroup_do_charge()),
+> the order to pass to mem_cgroup_oom() is calculated by passing the number
+> of pages to get_order() instead of the expected  size in bytes. AFAICT,
+> it only affects the value displayed in the oom warning message.
+> This patch fix this.
+> 
+> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Thanks, Jerome. One minor thing:
+
+> @@ -2032,7 +2032,8 @@ retry:
 >  
-> It is me who missed something.. thanks for the explanation.
+>  	mem_cgroup_events(mem_over_limit, MEMCG_OOM, 1);
+>  
+> -	mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(nr_pages));
+> +	mem_cgroup_oom(mem_over_limit, gfp_mask,
+> +		       get_order(nr_pages * PAGE_SIZE));
 
-Sure thing! Ping me if any.
+fls(nr_pages)?
+
+get_order() is basically fls(x / PAGE_SIZE).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
