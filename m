@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AB9C82F64
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 11:08:25 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so54441736pac.2
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 08:08:25 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id gv10si14184295pac.145.2015.09.18.08.02.16
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E32C682F64
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 11:08:27 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so53844721pac.0
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 08:08:27 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id sp4si14187340pac.151.2015.09.18.08.02.22
         for <linux-mm@kvack.org>;
-        Fri, 18 Sep 2015 08:02:16 -0700 (PDT)
+        Fri, 18 Sep 2015 08:02:22 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv11 29/37] thp: implement split_huge_pmd()
-Date: Fri, 18 Sep 2015 18:01:32 +0300
-Message-Id: <1442588500-77331-30-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv11 24/37] x86, thp: remove infrastructure for handling splitting PMDs
+Date: Fri, 18 Sep 2015 18:01:27 +0300
+Message-Id: <1442588500-77331-25-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1442588500-77331-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1442588500-77331-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,180 +19,115 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Original split_huge_page() combined two operations: splitting PMDs into
-tables of PTEs and splitting underlying compound page. This patch
-implements split_huge_pmd() which split given PMD without splitting
-other PMDs this page mapped with or underlying compound page.
-
-Without tail page refcounting, implementation of split_huge_pmd() is
-pretty straight-forward.
+With new refcounting we don't need to mark PMDs splitting. Let's drop
+code to handle this.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
-Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 Acked-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- include/linux/huge_mm.h |  11 ++++-
- mm/huge_memory.c        | 124 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 134 insertions(+), 1 deletion(-)
+ arch/x86/include/asm/pgtable.h       |  9 ---------
+ arch/x86/include/asm/pgtable_types.h |  2 --
+ arch/x86/mm/gup.c                    | 13 +------------
+ arch/x86/mm/pgtable.c                | 14 --------------
+ 4 files changed, 1 insertion(+), 37 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index b82c0c2a96f6..60b5448bf37d 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -96,7 +96,16 @@ extern unsigned long transparent_hugepage_flags;
- 
- #define split_huge_page_to_list(page, list) BUILD_BUG()
- #define split_huge_page(page) BUILD_BUG()
--#define split_huge_pmd(__vma, __pmd, __address) BUILD_BUG()
-+
-+void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long address);
-+
-+#define split_huge_pmd(__vma, __pmd, __address)				\
-+	do {								\
-+		pmd_t *____pmd = (__pmd);				\
-+		if (pmd_trans_huge(*____pmd))				\
-+			__split_huge_pmd(__vma, __pmd, __address);	\
-+	}  while (0)
- 
- #if HPAGE_PMD_ORDER >= MAX_ORDER
- #error "hugepages can't be allocated by the buddy allocator"
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index dcf2d5dfd0d8..5fea82555c11 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2783,6 +2783,130 @@ static int khugepaged(void *none)
- 	return 0;
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index b964d54300e1..a8fdfe0d7277 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -158,11 +158,6 @@ static inline int pmd_large(pmd_t pte)
  }
  
-+static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
-+		unsigned long haddr, pmd_t *pmd)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	pgtable_t pgtable;
-+	pmd_t _pmd;
-+	int i;
-+
-+	/* leave pmd empty until pte is filled */
-+	pmdp_huge_clear_flush_notify(vma, haddr, pmd);
-+
-+	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
-+	pmd_populate(mm, &_pmd, pgtable);
-+
-+	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-+		pte_t *pte, entry;
-+		entry = pfn_pte(my_zero_pfn(haddr), vma->vm_page_prot);
-+		entry = pte_mkspecial(entry);
-+		pte = pte_offset_map(&_pmd, haddr);
-+		VM_BUG_ON(!pte_none(*pte));
-+		set_pte_at(mm, haddr, pte, entry);
-+		pte_unmap(pte);
-+	}
-+	smp_wmb(); /* make pte visible before pmd */
-+	pmd_populate(mm, pmd, pgtable);
-+	put_huge_zero_page();
-+}
-+
-+static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long haddr)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	struct page *page;
-+	pgtable_t pgtable;
-+	pmd_t _pmd;
-+	bool young, write;
-+	int i;
-+
-+	VM_BUG_ON(haddr & ~HPAGE_PMD_MASK);
-+	VM_BUG_ON_VMA(vma->vm_start > haddr, vma);
-+	VM_BUG_ON_VMA(vma->vm_end < haddr + HPAGE_PMD_SIZE, vma);
-+	VM_BUG_ON(!pmd_trans_huge(*pmd));
-+
-+	count_vm_event(THP_SPLIT_PMD);
-+
-+	if (vma_is_dax(vma)) {
-+		pmd_t _pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
-+		if (is_huge_zero_pmd(_pmd))
-+			put_huge_zero_page();
-+		return;
-+	} else if (is_huge_zero_pmd(*pmd)) {
-+		return __split_huge_zero_page_pmd(vma, haddr, pmd);
-+	}
-+
-+	page = pmd_page(*pmd);
-+	VM_BUG_ON_PAGE(!page_count(page), page);
-+	atomic_add(HPAGE_PMD_NR - 1, &page->_count);
-+	write = pmd_write(*pmd);
-+	young = pmd_young(*pmd);
-+
-+	/* leave pmd empty until pte is filled */
-+	pmdp_huge_clear_flush_notify(vma, haddr, pmd);
-+
-+	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
-+	pmd_populate(mm, &_pmd, pgtable);
-+
-+	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-+		pte_t entry, *pte;
-+		/*
-+		 * Note that NUMA hinting access restrictions are not
-+		 * transferred to avoid any possibility of altering
-+		 * permissions across VMAs.
-+		 */
-+		entry = mk_pte(page + i, vma->vm_page_prot);
-+		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+		if (!write)
-+			entry = pte_wrprotect(entry);
-+		if (!young)
-+			entry = pte_mkold(entry);
-+		pte = pte_offset_map(&_pmd, haddr);
-+		BUG_ON(!pte_none(*pte));
-+		set_pte_at(mm, haddr, pte, entry);
-+		atomic_inc(&page[i]._mapcount);
-+		pte_unmap(pte);
-+	}
-+
-+	/*
-+	 * Set PG_double_map before dropping compound_mapcount to avoid
-+	 * false-negative page_mapped().
-+	 */
-+	if (compound_mapcount(page) > 1 && !TestSetPageDoubleMap(page)) {
-+		for (i = 0; i < HPAGE_PMD_NR; i++)
-+			atomic_inc(&page[i]._mapcount);
-+	}
-+
-+	if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
-+		/* Last compound_mapcount is gone. */
-+		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+		if (TestClearPageDoubleMap(page)) {
-+			/* No need in mapcount reference anymore */
-+			for (i = 0; i < HPAGE_PMD_NR; i++)
-+				atomic_dec(&page[i]._mapcount);
-+		}
-+	}
-+
-+	smp_wmb(); /* make pte visible before pmd */
-+	pmd_populate(mm, pmd, pgtable);
-+}
-+
-+void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long address)
-+{
-+	spinlock_t *ptl;
-+	struct mm_struct *mm = vma->vm_mm;
-+	unsigned long haddr = address & HPAGE_PMD_MASK;
-+
-+	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
-+	ptl = pmd_lock(mm, pmd);
-+	if (likely(pmd_trans_huge(*pmd)))
-+		__split_huge_pmd_locked(vma, pmd, haddr);
-+	spin_unlock(ptl);
-+	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
-+}
-+
- static void split_huge_pmd_address(struct vm_area_struct *vma,
- 				    unsigned long address)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-static inline int pmd_trans_splitting(pmd_t pmd)
+-{
+-	return pmd_val(pmd) & _PAGE_SPLITTING;
+-}
+-
+ static inline int pmd_trans_huge(pmd_t pmd)
  {
+ 	return pmd_val(pmd) & _PAGE_PSE;
+@@ -800,10 +795,6 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+ 				  unsigned long address, pmd_t *pmdp);
+ 
+ 
+-#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+-extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+-				 unsigned long addr, pmd_t *pmdp);
+-
+ #define __HAVE_ARCH_PMD_WRITE
+ static inline int pmd_write(pmd_t pmd)
+ {
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 13f310bfc09a..d173197cfd9e 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -22,7 +22,6 @@
+ #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
+ #define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
+ #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
+-#define _PAGE_BIT_SPLITTING	_PAGE_BIT_SOFTW2 /* only valid on a PSE pmd */
+ #define _PAGE_BIT_HIDDEN	_PAGE_BIT_SOFTW3 /* hidden by kmemcheck */
+ #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
+ #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
+@@ -46,7 +45,6 @@
+ #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+ #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+ #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
+-#define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
+ #define __HAVE_ARCH_PTE_SPECIAL
+ 
+ #ifdef CONFIG_KMEMCHECK
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+index 62a887a3cf50..49bbbc57603b 100644
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -157,18 +157,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 		pmd_t pmd = *pmdp;
+ 
+ 		next = pmd_addr_end(addr, end);
+-		/*
+-		 * The pmd_trans_splitting() check below explains why
+-		 * pmdp_splitting_flush has to flush the tlb, to stop
+-		 * this gup-fast code from running while we set the
+-		 * splitting bit in the pmd. Returning zero will take
+-		 * the slow path that will call wait_split_huge_page()
+-		 * if the pmd is still in splitting state. gup-fast
+-		 * can't because it has irq disabled and
+-		 * wait_split_huge_page() would never return as the
+-		 * tlb flush IPI wouldn't run.
+-		 */
+-		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
++		if (pmd_none(pmd))
+ 			return 0;
+ 		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
+ 			/*
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index fb0a9dd1d6e4..f52caf9c519b 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -509,20 +509,6 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
+ 
+ 	return young;
+ }
+-
+-void pmdp_splitting_flush(struct vm_area_struct *vma,
+-			  unsigned long address, pmd_t *pmdp)
+-{
+-	int set;
+-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+-	set = !test_and_set_bit(_PAGE_BIT_SPLITTING,
+-				(unsigned long *)pmdp);
+-	if (set) {
+-		pmd_update(vma->vm_mm, address, pmdp);
+-		/* need tlb flush only to serialize against gup-fast */
+-		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+-	}
+-}
+ #endif
+ 
+ /**
 -- 
 2.5.1
 
