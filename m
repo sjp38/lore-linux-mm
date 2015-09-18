@@ -1,35 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 669686B0253
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 10:29:11 -0400 (EDT)
-Received: by igxx6 with SMTP id x6so18500119igx.1
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 07:29:11 -0700 (PDT)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id j7si6993760igh.44.2015.09.18.07.29.09
+Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
+	by kanga.kvack.org (Postfix) with ESMTP id CC8216B0253
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 10:40:19 -0400 (EDT)
+Received: by qkcf65 with SMTP id f65so20174405qkc.3
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 07:40:19 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j92si8072537qga.87.2015.09.18.07.40.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 18 Sep 2015 07:29:09 -0700 (PDT)
-Date: Fri, 18 Sep 2015 09:29:07 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm/slab: fix unexpected index mapping result of
- kmalloc_size(INDEX_NODE+1)
-In-Reply-To: <1442552475-21015-1-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.11.1509180928370.10168@east.gentwo.org>
-References: <1442552475-21015-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 Sep 2015 07:40:18 -0700 (PDT)
+Message-ID: <55FC224F.2020308@redhat.com>
+Date: Fri, 18 Sep 2015 10:40:15 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] doc: add information about max_ptes_swap
+References: <1442525698-22598-1-git-send-email-ebru.akagunduz@gmail.com>
+In-Reply-To: <1442525698-22598-1-git-send-email-ebru.akagunduz@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kirill.shutemov@linux.intel.com, dave@stgolabs.net, denc716@gmail.com, ldufour@linux.vnet.ibm.com, sasha.levin@oracle.com, viro@zeniv.linux.org.uk, linux-kernel@vger.kernel.org
 
-On Fri, 18 Sep 2015, Joonsoo Kim wrote:
+On 09/17/2015 05:34 PM, Ebru Akagunduz wrote:
+> max_ptes_swap specifies how many pages can be brought in from
+> swap when collapsing a group of pages into a transparent huge page.
+> 
+> /sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_swap
+> 
+> A higher value can cause excessive swap IO and waste
+> memory. A lower value can prevent THPs from being
+> collapsed, resulting fewer pages being collapsed into
+> THPs, and lower memory access performance.
+> 
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-> This patch fixes the problem of kmalloc_size(INDEX_NODE + 1) and removes
-> the BUG by adding 'size >= 256' check to guarantee that all necessary
-> small sized slabs are initialized regardless sequence of slab size in
-> mapping table.
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Acked-by: Christoph Lameter <cl@linux.com>
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
