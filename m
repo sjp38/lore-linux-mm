@@ -1,52 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D16206B0038
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 03:42:23 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so20465201wic.1
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 00:42:23 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id s6si9378868wjy.175.2015.09.18.00.42.22
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DC786B0038
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 04:03:23 -0400 (EDT)
+Received: by qgez77 with SMTP id z77so32945903qge.1
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 01:03:23 -0700 (PDT)
+Received: from mail-qg0-x22d.google.com (mail-qg0-x22d.google.com. [2607:f8b0:400d:c04::22d])
+        by mx.google.com with ESMTPS id k91si6667230qgf.53.2015.09.18.01.03.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Sep 2015 00:42:22 -0700 (PDT)
-Date: Fri, 18 Sep 2015 09:42:17 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: memcontrol: fix order calculation in try_charge()
-Message-ID: <20150918074217.GD15395@cmpxchg.org>
-References: <1442318757-7141-1-git-send-email-jmarchan@redhat.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 Sep 2015 01:03:22 -0700 (PDT)
+Received: by qgt47 with SMTP id 47so32761174qgt.2
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 01:03:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1442318757-7141-1-git-send-email-jmarchan@redhat.com>
+In-Reply-To: <55FAB985.9060705@suse.cz>
+References: <20150916134857.e4a71f601a1f68cfa16cb361@gmail.com>
+	<20150916135048.fbd50fac5e91244ab9731b82@gmail.com>
+	<55FAB985.9060705@suse.cz>
+Date: Fri, 18 Sep 2015 10:03:22 +0200
+Message-ID: <CAMJBoFNmK94yPL7GkRPyeyETn8_dC+zCvd8efEH=ncgPDyuJuQ@mail.gmail.com>
+Subject: Re: [PATCH 1/2] zbud: allow PAGE_SIZE allocations
+From: Vitaly Wool <vitalywool@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, Sep 15, 2015 at 02:05:57PM +0200, Jerome Marchand wrote:
-> Since commit <6539cc05386> (mm: memcontrol: fold mem_cgroup_do_charge()),
-> the order to pass to mem_cgroup_oom() is calculated by passing the number
-> of pages to get_order() instead of the expected  size in bytes. AFAICT,
-> it only affects the value displayed in the oom warning message.
-> This patch fix this.
-> 
-> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+> I don't know how zsmalloc handles uncompressible PAGE_SIZE allocations, but
+> I wouldn't expect it to be any more clever than this? So why duplicate the
+> functionality in zswap and zbud? This could be handled e.g. at the zpool
+> level? Or maybe just in zram, as IIRC in zswap (frontswap) it's valid just
+> to reject a page and it goes to physical swap.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-
-Thanks, Jerome. One minor thing:
-
-> @@ -2032,7 +2032,8 @@ retry:
->  
->  	mem_cgroup_events(mem_over_limit, MEMCG_OOM, 1);
->  
-> -	mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(nr_pages));
-> +	mem_cgroup_oom(mem_over_limit, gfp_mask,
-> +		       get_order(nr_pages * PAGE_SIZE));
-
-fls(nr_pages)?
-
-get_order() is basically fls(x / PAGE_SIZE).
+>From what I can see, zsmalloc just allocates pages and puts them into
+a linked list. Using the beginning of a page for storing an internal
+struct is zbud-specific, and so is this patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
