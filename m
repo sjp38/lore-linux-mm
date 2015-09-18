@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 88C316B025D
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 11:03:03 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so53591238pad.1
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 08:03:03 -0700 (PDT)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 96DFF6B026B
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 11:07:24 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so54420058pac.2
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 08:07:24 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id r4si14177026pap.165.2015.09.18.08.02.50
+        by mx.google.com with ESMTP id lp3si14185782pab.137.2015.09.18.08.02.21
         for <linux-mm@kvack.org>;
-        Fri, 18 Sep 2015 08:02:50 -0700 (PDT)
+        Fri, 18 Sep 2015 08:02:22 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv11 23/37] tile, thp: remove infrastructure for handling splitting PMDs
-Date: Fri, 18 Sep 2015 18:01:26 +0300
-Message-Id: <1442588500-77331-24-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv11 22/37] sparc, thp: remove infrastructure for handling splitting PMDs
+Date: Fri, 18 Sep 2015 18:01:25 +0300
+Message-Id: <1442588500-77331-23-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1442588500-77331-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1442588500-77331-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,30 +24,72 @@ code to handle this.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/tile/include/asm/pgtable.h | 10 ----------
- 1 file changed, 10 deletions(-)
+ arch/sparc/include/asm/pgtable_64.h | 16 ----------------
+ arch/sparc/mm/fault_64.c            |  3 ---
+ arch/sparc/mm/gup.c                 |  2 +-
+ 3 files changed, 1 insertion(+), 20 deletions(-)
 
-diff --git a/arch/tile/include/asm/pgtable.h b/arch/tile/include/asm/pgtable.h
-index 2b05ccbebed9..96cecf55522e 100644
---- a/arch/tile/include/asm/pgtable.h
-+++ b/arch/tile/include/asm/pgtable.h
-@@ -489,16 +489,6 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- #define has_transparent_hugepage() 1
- #define pmd_trans_huge pmd_huge_page
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index 5833dc5ee7d7..7a38d6a576c5 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -681,13 +681,6 @@ static inline unsigned long pmd_trans_huge(pmd_t pmd)
+ 	return pte_val(pte) & _PAGE_PMD_HUGE;
+ }
+ 
+-static inline unsigned long pmd_trans_splitting(pmd_t pmd)
+-{
+-	pte_t pte = __pte(pmd_val(pmd));
 -
+-	return pmd_trans_huge(pmd) && pte_special(pte);
+-}
+-
+ #define has_transparent_hugepage() 1
+ 
+ static inline pmd_t pmd_mkold(pmd_t pmd)
+@@ -744,15 +737,6 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
+ 	return __pmd(pte_val(pte));
+ }
+ 
 -static inline pmd_t pmd_mksplitting(pmd_t pmd)
 -{
--	return pte_pmd(hv_pte_set_client2(pmd_pte(pmd)));
+-	pte_t pte = __pte(pmd_val(pmd));
+-
+-	pte = pte_mkspecial(pte);
+-
+-	return __pmd(pte_val(pte));
 -}
 -
--static inline int pmd_trans_splitting(pmd_t pmd)
--{
--	return hv_pte_get_client2(pmd_pte(pmd));
--}
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ static inline pgprot_t pmd_pgprot(pmd_t entry)
+ {
+ 	unsigned long val = pmd_val(entry);
+diff --git a/arch/sparc/mm/fault_64.c b/arch/sparc/mm/fault_64.c
+index dbabe5713a15..cb841a33da59 100644
+--- a/arch/sparc/mm/fault_64.c
++++ b/arch/sparc/mm/fault_64.c
+@@ -113,9 +113,6 @@ static unsigned int get_user_insn(unsigned long tpc)
  
- /*
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	if (pmd_trans_huge(*pmdp)) {
+-		if (pmd_trans_splitting(*pmdp))
+-			goto out_irq_enable;
+-
+ 		pa  = pmd_pfn(*pmdp) << PAGE_SHIFT;
+ 		pa += tpc & ~HPAGE_MASK;
+ 
+diff --git a/arch/sparc/mm/gup.c b/arch/sparc/mm/gup.c
+index 9091c5daa2e1..eb3d8e8ebc6b 100644
+--- a/arch/sparc/mm/gup.c
++++ b/arch/sparc/mm/gup.c
+@@ -114,7 +114,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 		pmd_t pmd = *pmdp;
+ 
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
++		if (pmd_none(pmd))
+ 			return 0;
+ 		if (unlikely(pmd_large(pmd))) {
+ 			if (!gup_huge_pmd(pmdp, pmd, addr, next,
 -- 
 2.5.1
 
