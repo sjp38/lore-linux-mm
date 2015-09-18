@@ -1,58 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E73EF6B0254
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 12:57:41 -0400 (EDT)
-Received: by qgez77 with SMTP id z77so43745068qge.1
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 09:57:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g36si8684099qkh.100.2015.09.18.09.57.40
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id D19F96B0254
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 13:01:02 -0400 (EDT)
+Received: by iofb144 with SMTP id b144so63167415iof.1
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 10:01:02 -0700 (PDT)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id jk10si972104igb.32.2015.09.18.10.01.01
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Sep 2015 09:57:41 -0700 (PDT)
-Date: Fri, 18 Sep 2015 18:54:42 +0200
-From: Oleg Nesterov <oleg@redhat.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 18 Sep 2015 10:01:01 -0700 (PDT)
+Date: Fri, 18 Sep 2015 12:00:59 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [PATCH] mm/oom_kill.c: don't kill TASK_UNINTERRUPTIBLE tasks
-Message-ID: <20150918165441.GA20665@redhat.com>
-References: <1442512783-14719-1-git-send-email-kwalker@redhat.com> <20150917192204.GA2728@redhat.com> <alpine.DEB.2.11.1509181035180.11189@east.gentwo.org> <20150918162423.GA18136@redhat.com> <201509190139.GJH48908.QMSFJLFtOHOVFO@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201509190139.GJH48908.QMSFJLFtOHOVFO@I-love.SAKURA.ne.jp>
+In-Reply-To: <20150918162423.GA18136@redhat.com>
+Message-ID: <alpine.DEB.2.11.1509181200140.11964@east.gentwo.org>
+References: <1442512783-14719-1-git-send-email-kwalker@redhat.com> <20150917192204.GA2728@redhat.com> <alpine.DEB.2.11.1509181035180.11189@east.gentwo.org> <20150918162423.GA18136@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: cl@linux.com, kwalker@redhat.com, akpm@linux-foundation.org, mhocko@suse.cz, rientjes@google.com, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Kyle Walker <kwalker@redhat.com>, akpm@linux-foundation.org, mhocko@suse.cz, rientjes@google.com, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Stanislav Kozina <skozina@redhat.com>
 
-On 09/19, Tetsuo Handa wrote:
->
-> Oleg Nesterov wrote:
-> > To simplify the discussion lets ignore PF_FROZEN, this is another issue.
-> >
-> > I am not sure this change is enough, we need to ensure that
-> > select_bad_process() won't pick the same task (or its sub-thread) again.
->
-> SysRq-f is sometimes unusable because it continues choosing the same thread.
-> oom_kill_process() should not choose a thread which already has TIF_MEMDIE.
+On Fri, 18 Sep 2015, Oleg Nesterov wrote:
 
-So I was right, this is really not enough...
+> To simplify the discussion lets ignore PF_FROZEN, this is another issue.
 
-> I think we need to rewrite oom_kill_process().
+Ok.
 
-Heh. I can only ack the intent and wish you good luck ;)
+Subject: Allow multiple kills from the OOM killer
 
-> > And perhaps something like
-> >
-> > 	wait_event_timeout(oom_victims_wait, !oom_victims,
-> > 				configurable_timeout);
-> >
-> > before select_bad_process() makes sense?
->
-> I think you should not sleep for long with oom_lock mutex held.
-> http://marc.info/?l=linux-mm&m=143031212312459
+The OOM killer currently aborts if it finds a process that already is having
+access to the reserve memory pool for exit processing. This is done so that
+the reserves are not overcommitted but on the other hand this also allows
+only one process being oom killed at the time. That process may be stuck
+in D state.
 
-Yes, yes, sure, I didn't mean we should wait under oom_lock.
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Oleg.
+Index: linux/mm/oom_kill.c
+===================================================================
+--- linux.orig/mm/oom_kill.c	2015-09-18 11:58:52.963946782 -0500
++++ linux/mm/oom_kill.c	2015-09-18 11:59:42.010684778 -0500
+@@ -264,10 +264,9 @@ enum oom_scan_t oom_scan_process_thread(
+ 	 * This task already has access to memory reserves and is being killed.
+ 	 * Don't allow any other task to have access to the reserves.
+ 	 */
+-	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
+-		if (oc->order != -1)
+-			return OOM_SCAN_ABORT;
+-	}
++	if (test_tsk_thread_flag(task, TIF_MEMDIE))
++		return OOM_SCAN_CONTINUE;
++
+ 	if (!task->mm)
+ 		return OOM_SCAN_CONTINUE;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
