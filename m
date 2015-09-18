@@ -1,112 +1,264 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 73C306B0038
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 02:09:20 -0400 (EDT)
-Received: by iofh134 with SMTP id h134so46367195iof.0
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 23:09:20 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id vk4si5334885igb.97.2015.09.17.23.09.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Sep 2015 23:09:19 -0700 (PDT)
-Received: by pacex6 with SMTP id ex6so41767738pac.0
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 23:09:19 -0700 (PDT)
-References: <55FB9319.2010000@intel.com>
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: 4.3-rc1 dirty page count underflow (cgroup-related?)
-In-Reply-To: <55FB9319.2010000@intel.com>
-Date: Thu, 17 Sep 2015 23:09:16 -0700
-Message-ID: <xr938u84ntrn.fsf@gthelen.mtv.corp.google.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A9966B0038
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 02:25:04 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so42014238pad.1
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 23:25:04 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id km11si11074709pbd.28.2015.09.17.23.25.02
+        for <linux-mm@kvack.org>;
+        Thu, 17 Sep 2015 23:25:03 -0700 (PDT)
+Date: Fri, 18 Sep 2015 15:25:41 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 07/12] mm, page_alloc: Distinguish between being unable
+ to sleep, unwilling to sleep and avoiding waking kswapd
+Message-ID: <20150918062541.GA7769@js1304-P5Q-DELUXE>
+References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
+ <1440418191-10894-8-git-send-email-mgorman@techsingularity.net>
+ <CAAmzW4N+vrGcxx64B0t-7HXA7giyqRHbYcmRvnYLtw=_12AWPw@mail.gmail.com>
+ <20150909122203.GY12432@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150909122203.GY12432@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "open list:CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)" <cgroups@vger.kernel.org>, "open list:CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Wed, Sep 09, 2015 at 01:22:03PM +0100, Mel Gorman wrote:
+> On Tue, Sep 08, 2015 at 03:49:58PM +0900, Joonsoo Kim wrote:
+> > 2015-08-24 21:09 GMT+09:00 Mel Gorman <mgorman@techsingularity.net>:
+> > > __GFP_WAIT has been used to identify atomic context in callers that hold
+> > > spinlocks or are in interrupts. They are expected to be high priority and
+> > > have access one of two watermarks lower than "min" which can be referred
+> > > to as the "atomic reserve". __GFP_HIGH users get access to the first lower
+> > > watermark and can be called the "high priority reserve".
+> > >
+> > > Over time, callers had a requirement to not block when fallback options
+> > > were available. Some have abused __GFP_WAIT leading to a situation where
+> > > an optimisitic allocation with a fallback option can access atomic reserves.
+> > >
+> > > This patch uses __GFP_ATOMIC to identify callers that are truely atomic,
+> > > cannot sleep and have no alternative. High priority users continue to use
+> > > __GFP_HIGH. __GFP_DIRECT_RECLAIM identifies callers that can sleep and are
+> > > willing to enter direct reclaim. __GFP_KSWAPD_RECLAIM to identify callers
+> > > that want to wake kswapd for background reclaim. __GFP_WAIT is redefined
+> > > as a caller that is willing to enter direct reclaim and wake kswapd for
+> > > background reclaim.
+> > 
+> > Hello, Mel.
+> > 
+> > I think that it is better to do one thing at one patch.
+> 
+> This was a case where the incremental change felt unnecessary. The purpose
+> of the patch is to "distinguish between being unable to sleep, unwilling
+> to sleep and avoiding waking kswapd". Splitting that up is possible but
+> I'm not convinced it helps.
+> 
+> > To distinguish real atomic, we just need to introduce __GFP_ATOMIC and
+> > make GFP_ATOMIC to __GFP_ATOMIC | GFP_HARDER and change related
+> > things. __GFP_WAIT changes isn't needed at all for this purpose. It can
+> > reduce patch size and provides more good bisectability.
+> > 
+> > And, I don't think that introducing __GFP_KSWAPD_RECLAIM is good thing.
+> > Basically, kswapd reclaim should be enforced.
+> 
+> Several years ago, I would have agreed. Now there are callers that want
+> to control kswapd and I think it made more sense to clearly state whether
+> RECLAIM and KSWAPD are allowed instead of having RECLAIM and NO_KSWAPD
+> flags -- i.e. flags that consistently allow or consistently deny.
+> 
+> > New flag makes user who manually
+> > manipulate gfp flag more difficult. Without this change, your second hazard will
+> > be disappeared although it is almost harmless.
+> > 
+> > And, I doubt that this big one shot change is preferable. AFAIK, even if changes
+> > are one to one mapping and no functional difference, each one is made by
+> > one patch and send it to correct maintainer. I guess there is some difficulty
+> > in this patch to do like this, but, it could. Isn't it?
+> > 
+> 
+> Splitting this into one patch per maintainer would be a review and bisection
+> nightmare. If I saw someone else doing that I would wonder if they were
+> just trying to increase their patch count for no reason.
+> 
+> > Some nitpicks are below.
+> > 
+> > > <SNIP>
+> > >
+> > > diff --git a/arch/arm/xen/mm.c b/arch/arm/xen/mm.c
+> > > index 03e75fef15b8..86809bd2026d 100644
+> > > --- a/arch/arm/xen/mm.c
+> > > +++ b/arch/arm/xen/mm.c
+> > > @@ -25,7 +25,7 @@
+> > >  unsigned long xen_get_swiotlb_free_pages(unsigned int order)
+> > >  {
+> > >         struct memblock_region *reg;
+> > > -       gfp_t flags = __GFP_NOWARN;
+> > > +       gfp_t flags = __GFP_NOWARN|___GFP_KSWAPD_RECLAIM;
+> > 
+> > Please use __XXX rather than ___XXX.
+> > 
+> 
+> Fixed.
+> 
+> > > <SNIP>
+> > >
+> > > @@ -457,13 +457,13 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
+> > >                  * We solve this, and guarantee forward progress, with a rescuer
+> > >                  * workqueue per bio_set. If we go to allocate and there are
+> > >                  * bios on current->bio_list, we first try the allocation
+> > > -                * without __GFP_WAIT; if that fails, we punt those bios we
+> > > -                * would be blocking to the rescuer workqueue before we retry
+> > > -                * with the original gfp_flags.
+> > > +                * without __GFP_DIRECT_RECLAIM; if that fails, we punt those
+> > > +                * bios we would be blocking to the rescuer workqueue before
+> > > +                * we retry with the original gfp_flags.
+> > >                  */
+> > >
+> > >                 if (current->bio_list && !bio_list_empty(current->bio_list))
+> > > -                       gfp_mask &= ~__GFP_WAIT;
+> > > +                       gfp_mask &= ~__GFP_DIRECT_RECLAIM;
+> > 
+> > How about introduce helper function to mask out __GFP_DIRECT_RECLAIM?
+> > It can be used many places.
+> > 
+> 
+> In this case, the pattern for removing a single flag is easier to recognise
+> than a helper whose implementation must be examined.
+> 
+> > >                 p = mempool_alloc(bs->bio_pool, gfp_mask);
+> > >                 if (!p && gfp_mask != saved_gfp) {
+> > > diff --git a/block/blk-core.c b/block/blk-core.c
+> > > index 627ed0c593fb..e3605acaaffc 100644
+> > > --- a/block/blk-core.c
+> > > +++ b/block/blk-core.c
+> > > @@ -1156,8 +1156,8 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
+> > >   * @bio: bio to allocate request for (can be %NULL)
+> > >   * @gfp_mask: allocation mask
+> > >   *
+> > > - * Get a free request from @q.  If %__GFP_WAIT is set in @gfp_mask, this
+> > > - * function keeps retrying under memory pressure and fails iff @q is dead.
+> > > + * Get a free request from @q.  If %__GFP_DIRECT_RECLAIM is set in @gfp_mask,
+> > > + * this function keeps retrying under memory pressure and fails iff @q is dead.
+> > >   *
+> > >   * Must be called with @q->queue_lock held and,
+> > >   * Returns ERR_PTR on failure, with @q->queue_lock held.
+> > > @@ -1177,7 +1177,7 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
+> > >         if (!IS_ERR(rq))
+> > >                 return rq;
+> > >
+> > > -       if (!(gfp_mask & __GFP_WAIT) || unlikely(blk_queue_dying(q))) {
+> > > +       if (!gfpflags_allow_blocking(gfp_mask) || unlikely(blk_queue_dying(q))) {
+> > >                 blk_put_rl(rl);
+> > >                 return rq;
+> > >         }
+> > > @@ -1255,11 +1255,11 @@ EXPORT_SYMBOL(blk_get_request);
+> > >   * BUG.
+> > >   *
+> > >   * WARNING: When allocating/cloning a bio-chain, careful consideration should be
+> > > - * given to how you allocate bios. In particular, you cannot use __GFP_WAIT for
+> > > - * anything but the first bio in the chain. Otherwise you risk waiting for IO
+> > > - * completion of a bio that hasn't been submitted yet, thus resulting in a
+> > > - * deadlock. Alternatively bios should be allocated using bio_kmalloc() instead
+> > > - * of bio_alloc(), as that avoids the mempool deadlock.
+> > > + * given to how you allocate bios. In particular, you cannot use
+> > > + * __GFP_DIRECT_RECLAIM for anything but the first bio in the chain. Otherwise
+> > > + * you risk waiting for IO completion of a bio that hasn't been submitted yet,
+> > > + * thus resulting in a deadlock. Alternatively bios should be allocated using
+> > > + * bio_kmalloc() instead of bio_alloc(), as that avoids the mempool deadlock.
+> > >   * If possible a big IO should be split into smaller parts when allocation
+> > >   * fails. Partial allocation should not be an error, or you risk a live-lock.
+> > >   */
+> > > diff --git a/block/blk-ioc.c b/block/blk-ioc.c
+> > > index 1a27f45ec776..381cb50a673c 100644
+> > > --- a/block/blk-ioc.c
+> > > +++ b/block/blk-ioc.c
+> > > @@ -289,7 +289,7 @@ struct io_context *get_task_io_context(struct task_struct *task,
+> > >  {
+> > >         struct io_context *ioc;
+> > >
+> > > -       might_sleep_if(gfp_flags & __GFP_WAIT);
+> > > +       might_sleep_if(gfpflags_allow_blocking(gfp_flags));
+> > >
+> > >         do {
+> > >                 task_lock(task);
+> > > diff --git a/block/blk-mq-tag.c b/block/blk-mq-tag.c
+> > > index 9b6e28830b82..a8b46659ce4e 100644
+> > > --- a/block/blk-mq-tag.c
+> > > +++ b/block/blk-mq-tag.c
+> > > @@ -264,7 +264,7 @@ static int bt_get(struct blk_mq_alloc_data *data,
+> > >         if (tag != -1)
+> > >                 return tag;
+> > >
+> > > -       if (!(data->gfp & __GFP_WAIT))
+> > > +       if (!gfpflags_allow_blocking(data->gfp))
+> > >                 return -1;
+> > >
+> > >         bs = bt_wait_ptr(bt, hctx);
+> > > diff --git a/block/blk-mq.c b/block/blk-mq.c
+> > > index 7d842db59699..7d80379d7a38 100644
+> > > --- a/block/blk-mq.c
+> > > +++ b/block/blk-mq.c
+> > > @@ -85,7 +85,7 @@ static int blk_mq_queue_enter(struct request_queue *q, gfp_t gfp)
+> > >                 if (percpu_ref_tryget_live(&q->mq_usage_counter))
+> > >                         return 0;
+> > >
+> > > -               if (!(gfp & __GFP_WAIT))
+> > > +               if (!gfpflags_allow_blocking(gfp))
+> > >                         return -EBUSY;
+> > >
+> > >                 ret = wait_event_interruptible(q->mq_freeze_wq,
+> > > @@ -261,11 +261,11 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
+> > >
+> > >         ctx = blk_mq_get_ctx(q);
+> > >         hctx = q->mq_ops->map_queue(q, ctx->cpu);
+> > > -       blk_mq_set_alloc_data(&alloc_data, q, gfp & ~__GFP_WAIT,
+> > > +       blk_mq_set_alloc_data(&alloc_data, q, gfp & ~__GFP_DIRECT_RECLAIM,
+> > >                         reserved, ctx, hctx);
+> > >
+> > >         rq = __blk_mq_alloc_request(&alloc_data, rw);
+> > > -       if (!rq && (gfp & __GFP_WAIT)) {
+> > > +       if (!rq && (gfp & __GFP_DIRECT_RECLAIM)) {
+> > >                 __blk_mq_run_hw_queue(hctx);
+> > >                 blk_mq_put_ctx(ctx);
+> > 
+> > Is there any reason not to use gfpflags_allow_nonblocking() here?
+> > There are some places not using this helper and reason isn't
+> > specified.
+> > 
+> 
+> Strictly speaking the helper could be used. However, in cases where the
+> same function manipulates or examines the flag in any way, I did not use
+> the helper. It's in all those cases, I thought the final result was
+> easier to follow.
+> > >
+> > >  /*
+> > > + * A caller that is willing to wait may enter direct reclaim and will
+> > > + * wake kswapd to reclaim pages in the background until the high
+> > > + * watermark is met. A caller may wish to clear __GFP_DIRECT_RECLAIM to
+> > > + * avoid unnecessary delays when a fallback option is available but
+> > > + * still allow kswapd to reclaim in the background. The kswapd flag
+> > > + * can be cleared when the reclaiming of pages would cause unnecessary
+> > > + * disruption.
+> > > + */
+> > > +#define __GFP_WAIT (__GFP_DIRECT_RECLAIM|__GFP_KSWAPD_RECLAIM)
+> > 
+> > Convention is that combination of gfp flags don't use __XXX.
+> > 
+> 
+> I don't understand. GFP_MOVABLE_MASK, GFP_USER and a bunch of other
+> combinations use __XXX.
 
-Dave Hansen wrote:
+Hello, Mel.
+Sorry for late response.
 
-> I've been seeing some strange behavior with 4.3-rc1 kernels on my Ubuntu
-> 14.04.3 system.  The system will run fine for a few hours, but suddenly
-> start becoming horribly I/O bound.  A compile of perf for instance takes
-> 20-30 minutes and the compile seems entirely I/O bound.  But, the SSD is
-> only seeing tens or hundreds of KB/s of writes.
->
-> Looking at some writeback tracepoints shows it hitting
-> balance_dirty_pages() pretty hard with a pretty large number of dirty
-> pages. :)
->
->>               ld-27008 [000] ...1 88895.190770: balance_dirty_pages: bdi
->> 8:0: limit=234545 setpoint=204851 dirty=18446744073709513951
->> bdi_setpoint=184364 bdi_dirty=33 dirty_ratelimit=24 task_ratelimit=0
->> dirtied=1 dirtied_pause=0 paused=0 pause=136 period=136 think=0
->> cgroup=/user/1000.user/c2.session
->
-> So something is underflowing dirty.
->
-> I added the attached patch and got a warning pretty quickly, so this
-> looks pretty reproducible for me.
->
-> I'm not 100% sure this is from the 4.3 merge window.  I was running the
-> 4.2-rcs, but they seemed to have their own issues.  Ubuntu seems to be
-> automatically creating some cgroups, so they're definitely in play here.
->
-> Any ideas what is going on?
->
->> [   12.415472] ------------[ cut here ]------------
->> [   12.415481] WARNING: CPU: 1 PID: 1684 at mm/page-writeback.c:2435 account_page_cleaned+0x101/0x110()
->> [   12.415483] MEM_CGROUP_STAT_DIRTY bogus
->> [   12.415484] Modules linked in: ipt_MASQUERADE nf_nat_masquerade_ipv4 iptable_nat nf_nat_ipv4 nf_nat nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ipt_REJECT nf_reject_ipv4 xt_CHECKSUM iptable_mangle xt_tcpudp bridge stp llc iptable_filter ip_tables ebtable_nat ebtables x_tables dm_crypt cmac rfcomm bnep arc4 iwldvm mac80211 btusb snd_hda_codec_hdmi iwlwifi btrtl btbcm btintel snd_hda_codec_realtek snd_hda_codec_generic bluetooth snd_hda_intel snd_hda_codec cfg80211 snd_hwdep snd_hda_core intel_rapl iosf_mbi hid_logitech_hidpp x86_pkg_temp_thermal snd_pcm coretemp ghash_clmulni_intel thinkpad_acpi joydev snd_seq_midi snd_seq_midi_event snd_rawmidi nvram snd_seq snd_timer snd_seq_device wmi snd soundcore mac_hid lpc_ich aesni_intel aes_x86_64 glue_helper lrw gf128mul ablk_helper cryptd kvm_intel kvm hid_logitech_dj sdhci_pci sdhci usbhid hid
->> [   12.415538] CPU: 1 PID: 1684 Comm: indicator-keybo Not tainted 4.3.0-rc1-dirty #25
->> [   12.415540] Hardware name: LENOVO 2325AR2/2325AR2, BIOS G2ETA4WW (2.64 ) 04/09/2015
->> [   12.415542]  ffffffff81aa8172 ffff8800c926ba30 ffffffff8132e3e2 ffff8800c926ba78
->> [   12.415544]  ffff8800c926ba68 ffffffff8105e386 ffffea000fca4700 ffff880409b96420
->> [   12.415547]  ffff8803ef979490 ffff880403ff4800 0000000000000000 ffff8800c926bac8
->> [   12.415550] Call Trace:
->> [   12.415555]  [<ffffffff8132e3e2>] dump_stack+0x4b/0x69
->> [   12.415560]  [<ffffffff8105e386>] warn_slowpath_common+0x86/0xc0
->> [   12.415563]  [<ffffffff8105e40c>] warn_slowpath_fmt+0x4c/0x50
->> [   12.415566]  [<ffffffff8115f951>] account_page_cleaned+0x101/0x110
->> [   12.415568]  [<ffffffff8115fa1d>] cancel_dirty_page+0xbd/0xf0
->> [   12.415571]  [<ffffffff811fc044>] try_to_free_buffers+0x94/0xb0
->> [   12.415575]  [<ffffffff81296740>] jbd2_journal_try_to_free_buffers+0x100/0x130
->> [   12.415578]  [<ffffffff812498b2>] ext4_releasepage+0x52/0xa0
->> [   12.415582]  [<ffffffff81153765>] try_to_release_page+0x35/0x50
->> [   12.415585]  [<ffffffff811fcc13>] block_invalidatepage+0x113/0x130
->> [   12.415587]  [<ffffffff81249d5e>] ext4_invalidatepage+0x5e/0xb0
->> [   12.415590]  [<ffffffff8124a6f0>] ext4_da_invalidatepage+0x40/0x310
->> [   12.415593]  [<ffffffff81162b03>] truncate_inode_page+0x83/0x90
->> [   12.415595]  [<ffffffff81162ce9>] truncate_inode_pages_range+0x199/0x730
->> [   12.415598]  [<ffffffff8109c494>] ? __wake_up+0x44/0x50
->> [   12.415600]  [<ffffffff812962ca>] ? jbd2_journal_stop+0x1ba/0x3b0
->> [   12.415603]  [<ffffffff8125a754>] ? ext4_unlink+0x2f4/0x330
->> [   12.415607]  [<ffffffff811eed3d>] ? __inode_wait_for_writeback+0x6d/0xc0
->> [   12.415609]  [<ffffffff811632ec>] truncate_inode_pages_final+0x4c/0x60
->> [   12.415612]  [<ffffffff81250736>] ext4_evict_inode+0x116/0x4c0
->> [   12.415615]  [<ffffffff811e139c>] evict+0xbc/0x190
->> [   12.415617]  [<ffffffff811e1d2d>] iput+0x17d/0x1e0
->> [   12.415620]  [<ffffffff811d623b>] do_unlinkat+0x1ab/0x2b0
->> [   12.415622]  [<ffffffff811d6cb6>] SyS_unlink+0x16/0x20
->> [   12.415626]  [<ffffffff817d7f97>] entry_SYSCALL_64_fastpath+0x12/0x6a
->> [   12.415628] ---[ end trace 6fba1ddd3d240e13 ]---
->> [   12.418211] ------------[ cut here ]------------
+Yes, GFP_XXX can consist of multiple __GFP_XXX.
+But, __GFP_XXX doesn't consist of multiple __GFP_YYY.
+Your __GFP_WAIT seems to be a first one.
 
-I'm not denying the issue, bug the WARNING splat isn't necessarily
-catching a problem.  The corresponding code comes from your debug patch:
-+		WARN_ONCE(__this_cpu_read(memcg->stat->count[MEM_CGROUP_STAT_DIRTY]) > (1UL<<30), "MEM_CGROUP_STAT_DIRTY bogus");
-
-This only checks a single cpu's counter, which can be negative.  The sum
-of all counters is what matters.
-Imagine:
-cpu1) dirty page: inc
-cpu2) clean page: dec
-The sum is properly zero, but cpu2 is -1, which will trigger the WARN.
-
-I'll look at the code and also see if I can reproduce the failure using
-mem_cgroup_read_stat() for all of the new WARNs.
-
-Did you notice if the global /proc/meminfo:Dirty count also underflowed?
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
