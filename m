@@ -1,264 +1,312 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A9966B0038
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 02:25:04 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so42014238pad.1
-        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 23:25:04 -0700 (PDT)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id CB2416B0038
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 02:37:57 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so42895136pac.2
+        for <linux-mm@kvack.org>; Thu, 17 Sep 2015 23:37:57 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id km11si11074709pbd.28.2015.09.17.23.25.02
+        by mx.google.com with ESMTP id bu8si11157533pad.7.2015.09.17.23.37.55
         for <linux-mm@kvack.org>;
-        Thu, 17 Sep 2015 23:25:03 -0700 (PDT)
-Date: Fri, 18 Sep 2015 15:25:41 +0900
+        Thu, 17 Sep 2015 23:37:56 -0700 (PDT)
+Date: Fri, 18 Sep 2015 15:38:35 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 07/12] mm, page_alloc: Distinguish between being unable
- to sleep, unwilling to sleep and avoiding waking kswapd
-Message-ID: <20150918062541.GA7769@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH 11/12] mm, page_alloc: Reserve pageblocks for high-order
+ atomic allocations on demand
+Message-ID: <20150918063835.GB7769@js1304-P5Q-DELUXE>
 References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
- <1440418191-10894-8-git-send-email-mgorman@techsingularity.net>
- <CAAmzW4N+vrGcxx64B0t-7HXA7giyqRHbYcmRvnYLtw=_12AWPw@mail.gmail.com>
- <20150909122203.GY12432@techsingularity.net>
+ <20150824122957.GI12432@techsingularity.net>
+ <CAAmzW4O7N8NZVE4DS25a4FROem-pJOEYxAsqEBtPsjWuNSZyrQ@mail.gmail.com>
+ <20150909123239.GZ12432@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150909122203.GY12432@techsingularity.net>
+In-Reply-To: <20150909123239.GZ12432@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Sep 09, 2015 at 01:22:03PM +0100, Mel Gorman wrote:
-> On Tue, Sep 08, 2015 at 03:49:58PM +0900, Joonsoo Kim wrote:
-> > 2015-08-24 21:09 GMT+09:00 Mel Gorman <mgorman@techsingularity.net>:
-> > > __GFP_WAIT has been used to identify atomic context in callers that hold
-> > > spinlocks or are in interrupts. They are expected to be high priority and
-> > > have access one of two watermarks lower than "min" which can be referred
-> > > to as the "atomic reserve". __GFP_HIGH users get access to the first lower
-> > > watermark and can be called the "high priority reserve".
-> > >
-> > > Over time, callers had a requirement to not block when fallback options
-> > > were available. Some have abused __GFP_WAIT leading to a situation where
-> > > an optimisitic allocation with a fallback option can access atomic reserves.
-> > >
-> > > This patch uses __GFP_ATOMIC to identify callers that are truely atomic,
-> > > cannot sleep and have no alternative. High priority users continue to use
-> > > __GFP_HIGH. __GFP_DIRECT_RECLAIM identifies callers that can sleep and are
-> > > willing to enter direct reclaim. __GFP_KSWAPD_RECLAIM to identify callers
-> > > that want to wake kswapd for background reclaim. __GFP_WAIT is redefined
-> > > as a caller that is willing to enter direct reclaim and wake kswapd for
-> > > background reclaim.
-> > 
-> > Hello, Mel.
-> > 
-> > I think that it is better to do one thing at one patch.
-> 
-> This was a case where the incremental change felt unnecessary. The purpose
-> of the patch is to "distinguish between being unable to sleep, unwilling
-> to sleep and avoiding waking kswapd". Splitting that up is possible but
-> I'm not convinced it helps.
-> 
-> > To distinguish real atomic, we just need to introduce __GFP_ATOMIC and
-> > make GFP_ATOMIC to __GFP_ATOMIC | GFP_HARDER and change related
-> > things. __GFP_WAIT changes isn't needed at all for this purpose. It can
-> > reduce patch size and provides more good bisectability.
-> > 
-> > And, I don't think that introducing __GFP_KSWAPD_RECLAIM is good thing.
-> > Basically, kswapd reclaim should be enforced.
-> 
-> Several years ago, I would have agreed. Now there are callers that want
-> to control kswapd and I think it made more sense to clearly state whether
-> RECLAIM and KSWAPD are allowed instead of having RECLAIM and NO_KSWAPD
-> flags -- i.e. flags that consistently allow or consistently deny.
-> 
-> > New flag makes user who manually
-> > manipulate gfp flag more difficult. Without this change, your second hazard will
-> > be disappeared although it is almost harmless.
-> > 
-> > And, I doubt that this big one shot change is preferable. AFAIK, even if changes
-> > are one to one mapping and no functional difference, each one is made by
-> > one patch and send it to correct maintainer. I guess there is some difficulty
-> > in this patch to do like this, but, it could. Isn't it?
-> > 
-> 
-> Splitting this into one patch per maintainer would be a review and bisection
-> nightmare. If I saw someone else doing that I would wonder if they were
-> just trying to increase their patch count for no reason.
-> 
-> > Some nitpicks are below.
-> > 
+On Wed, Sep 09, 2015 at 01:32:39PM +0100, Mel Gorman wrote:
+> On Tue, Sep 08, 2015 at 05:01:06PM +0900, Joonsoo Kim wrote:
+> > 2015-08-24 21:29 GMT+09:00 Mel Gorman <mgorman@techsingularity.net>:
 > > > <SNIP>
 > > >
-> > > diff --git a/arch/arm/xen/mm.c b/arch/arm/xen/mm.c
-> > > index 03e75fef15b8..86809bd2026d 100644
-> > > --- a/arch/arm/xen/mm.c
-> > > +++ b/arch/arm/xen/mm.c
-> > > @@ -25,7 +25,7 @@
-> > >  unsigned long xen_get_swiotlb_free_pages(unsigned int order)
-> > >  {
-> > >         struct memblock_region *reg;
-> > > -       gfp_t flags = __GFP_NOWARN;
-> > > +       gfp_t flags = __GFP_NOWARN|___GFP_KSWAPD_RECLAIM;
-> > 
-> > Please use __XXX rather than ___XXX.
-> > 
-> 
-> Fixed.
-> 
-> > > <SNIP>
-> > >
-> > > @@ -457,13 +457,13 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
-> > >                  * We solve this, and guarantee forward progress, with a rescuer
-> > >                  * workqueue per bio_set. If we go to allocate and there are
-> > >                  * bios on current->bio_list, we first try the allocation
-> > > -                * without __GFP_WAIT; if that fails, we punt those bios we
-> > > -                * would be blocking to the rescuer workqueue before we retry
-> > > -                * with the original gfp_flags.
-> > > +                * without __GFP_DIRECT_RECLAIM; if that fails, we punt those
-> > > +                * bios we would be blocking to the rescuer workqueue before
-> > > +                * we retry with the original gfp_flags.
-> > >                  */
-> > >
-> > >                 if (current->bio_list && !bio_list_empty(current->bio_list))
-> > > -                       gfp_mask &= ~__GFP_WAIT;
-> > > +                       gfp_mask &= ~__GFP_DIRECT_RECLAIM;
-> > 
-> > How about introduce helper function to mask out __GFP_DIRECT_RECLAIM?
-> > It can be used many places.
-> > 
-> 
-> In this case, the pattern for removing a single flag is easier to recognise
-> than a helper whose implementation must be examined.
-> 
-> > >                 p = mempool_alloc(bs->bio_pool, gfp_mask);
-> > >                 if (!p && gfp_mask != saved_gfp) {
-> > > diff --git a/block/blk-core.c b/block/blk-core.c
-> > > index 627ed0c593fb..e3605acaaffc 100644
-> > > --- a/block/blk-core.c
-> > > +++ b/block/blk-core.c
-> > > @@ -1156,8 +1156,8 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
-> > >   * @bio: bio to allocate request for (can be %NULL)
-> > >   * @gfp_mask: allocation mask
-> > >   *
-> > > - * Get a free request from @q.  If %__GFP_WAIT is set in @gfp_mask, this
-> > > - * function keeps retrying under memory pressure and fails iff @q is dead.
-> > > + * Get a free request from @q.  If %__GFP_DIRECT_RECLAIM is set in @gfp_mask,
-> > > + * this function keeps retrying under memory pressure and fails iff @q is dead.
-> > >   *
-> > >   * Must be called with @q->queue_lock held and,
-> > >   * Returns ERR_PTR on failure, with @q->queue_lock held.
-> > > @@ -1177,7 +1177,7 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
-> > >         if (!IS_ERR(rq))
-> > >                 return rq;
-> > >
-> > > -       if (!(gfp_mask & __GFP_WAIT) || unlikely(blk_queue_dying(q))) {
-> > > +       if (!gfpflags_allow_blocking(gfp_mask) || unlikely(blk_queue_dying(q))) {
-> > >                 blk_put_rl(rl);
-> > >                 return rq;
-> > >         }
-> > > @@ -1255,11 +1255,11 @@ EXPORT_SYMBOL(blk_get_request);
-> > >   * BUG.
-> > >   *
-> > >   * WARNING: When allocating/cloning a bio-chain, careful consideration should be
-> > > - * given to how you allocate bios. In particular, you cannot use __GFP_WAIT for
-> > > - * anything but the first bio in the chain. Otherwise you risk waiting for IO
-> > > - * completion of a bio that hasn't been submitted yet, thus resulting in a
-> > > - * deadlock. Alternatively bios should be allocated using bio_kmalloc() instead
-> > > - * of bio_alloc(), as that avoids the mempool deadlock.
-> > > + * given to how you allocate bios. In particular, you cannot use
-> > > + * __GFP_DIRECT_RECLAIM for anything but the first bio in the chain. Otherwise
-> > > + * you risk waiting for IO completion of a bio that hasn't been submitted yet,
-> > > + * thus resulting in a deadlock. Alternatively bios should be allocated using
-> > > + * bio_kmalloc() instead of bio_alloc(), as that avoids the mempool deadlock.
-> > >   * If possible a big IO should be split into smaller parts when allocation
-> > >   * fails. Partial allocation should not be an error, or you risk a live-lock.
-> > >   */
-> > > diff --git a/block/blk-ioc.c b/block/blk-ioc.c
-> > > index 1a27f45ec776..381cb50a673c 100644
-> > > --- a/block/blk-ioc.c
-> > > +++ b/block/blk-ioc.c
-> > > @@ -289,7 +289,7 @@ struct io_context *get_task_io_context(struct task_struct *task,
-> > >  {
-> > >         struct io_context *ioc;
-> > >
-> > > -       might_sleep_if(gfp_flags & __GFP_WAIT);
-> > > +       might_sleep_if(gfpflags_allow_blocking(gfp_flags));
-> > >
-> > >         do {
-> > >                 task_lock(task);
-> > > diff --git a/block/blk-mq-tag.c b/block/blk-mq-tag.c
-> > > index 9b6e28830b82..a8b46659ce4e 100644
-> > > --- a/block/blk-mq-tag.c
-> > > +++ b/block/blk-mq-tag.c
-> > > @@ -264,7 +264,7 @@ static int bt_get(struct blk_mq_alloc_data *data,
-> > >         if (tag != -1)
-> > >                 return tag;
-> > >
-> > > -       if (!(data->gfp & __GFP_WAIT))
-> > > +       if (!gfpflags_allow_blocking(data->gfp))
-> > >                 return -1;
-> > >
-> > >         bs = bt_wait_ptr(bt, hctx);
-> > > diff --git a/block/blk-mq.c b/block/blk-mq.c
-> > > index 7d842db59699..7d80379d7a38 100644
-> > > --- a/block/blk-mq.c
-> > > +++ b/block/blk-mq.c
-> > > @@ -85,7 +85,7 @@ static int blk_mq_queue_enter(struct request_queue *q, gfp_t gfp)
-> > >                 if (percpu_ref_tryget_live(&q->mq_usage_counter))
-> > >                         return 0;
-> > >
-> > > -               if (!(gfp & __GFP_WAIT))
-> > > +               if (!gfpflags_allow_blocking(gfp))
-> > >                         return -EBUSY;
-> > >
-> > >                 ret = wait_event_interruptible(q->mq_freeze_wq,
-> > > @@ -261,11 +261,11 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
-> > >
-> > >         ctx = blk_mq_get_ctx(q);
-> > >         hctx = q->mq_ops->map_queue(q, ctx->cpu);
-> > > -       blk_mq_set_alloc_data(&alloc_data, q, gfp & ~__GFP_WAIT,
-> > > +       blk_mq_set_alloc_data(&alloc_data, q, gfp & ~__GFP_DIRECT_RECLAIM,
-> > >                         reserved, ctx, hctx);
-> > >
-> > >         rq = __blk_mq_alloc_request(&alloc_data, rw);
-> > > -       if (!rq && (gfp & __GFP_WAIT)) {
-> > > +       if (!rq && (gfp & __GFP_DIRECT_RECLAIM)) {
-> > >                 __blk_mq_run_hw_queue(hctx);
-> > >                 blk_mq_put_ctx(ctx);
-> > 
-> > Is there any reason not to use gfpflags_allow_nonblocking() here?
-> > There are some places not using this helper and reason isn't
-> > specified.
-> > 
-> 
-> Strictly speaking the helper could be used. However, in cases where the
-> same function manipulates or examines the flag in any way, I did not use
-> the helper. It's in all those cases, I thought the final result was
-> easier to follow.
-> > >
-> > >  /*
-> > > + * A caller that is willing to wait may enter direct reclaim and will
-> > > + * wake kswapd to reclaim pages in the background until the high
-> > > + * watermark is met. A caller may wish to clear __GFP_DIRECT_RECLAIM to
-> > > + * avoid unnecessary delays when a fallback option is available but
-> > > + * still allow kswapd to reclaim in the background. The kswapd flag
-> > > + * can be cleared when the reclaiming of pages would cause unnecessary
-> > > + * disruption.
+> > > +/*
+> > > + * Reserve a pageblock for exclusive use of high-order atomic allocations if
+> > > + * there are no empty page blocks that contain a page with a suitable order
 > > > + */
-> > > +#define __GFP_WAIT (__GFP_DIRECT_RECLAIM|__GFP_KSWAPD_RECLAIM)
+> > > +static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
+> > > +                               unsigned int alloc_order)
+> > > +{
+> > > +       int mt = get_pageblock_migratetype(page);
+> > > +       unsigned long max_managed, flags;
+> > > +
+> > > +       if (mt == MIGRATE_HIGHATOMIC)
+> > > +               return;
+> > > +
+> > > +       /*
+> > > +        * Limit the number reserved to 1 pageblock or roughly 1% of a zone.
+> > > +        * Check is race-prone but harmless.
+> > > +        */
+> > > +       max_managed = (zone->managed_pages / 100) + pageblock_nr_pages;
+> > > +       if (zone->nr_reserved_highatomic >= max_managed)
+> > > +               return;
+> > > +
+> > > +       /* Yoink! */
+> > > +       spin_lock_irqsave(&zone->lock, flags);
+> > > +       zone->nr_reserved_highatomic += pageblock_nr_pages;
+> > > +       set_pageblock_migratetype(page, MIGRATE_HIGHATOMIC);
+> > > +       move_freepages_block(zone, page, MIGRATE_HIGHATOMIC);
+> > > +       spin_unlock_irqrestore(&zone->lock, flags);
+> > > +}
 > > 
-> > Convention is that combination of gfp flags don't use __XXX.
+> > It is better to check if migratetype is MIGRATE_ISOLATE or MIGRATE_CMA.
+> > There can be race that isolated pageblock is changed to MIGRATE_HIGHATOMIC.
 > > 
 > 
-> I don't understand. GFP_MOVABLE_MASK, GFP_USER and a bunch of other
-> combinations use __XXX.
+> Done.
+> 
+> > > +/*
+> > > + * Used when an allocation is about to fail under memory pressure. This
+> > > + * potentially hurts the reliability of high-order allocations when under
+> > > + * intense memory pressure but failed atomic allocations should be easier
+> > > + * to recover from than an OOM.
+> > > + */
+> > > +static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
+> > > +{
+> > > +       struct zonelist *zonelist = ac->zonelist;
+> > > +       unsigned long flags;
+> > > +       struct zoneref *z;
+> > > +       struct zone *zone;
+> > > +       struct page *page;
+> > > +       int order;
+> > > +
+> > > +       for_each_zone_zonelist_nodemask(zone, z, zonelist, ac->high_zoneidx,
+> > > +                                                               ac->nodemask) {
+> > > +               /* Preserve at least one pageblock */
+> > > +               if (zone->nr_reserved_highatomic <= pageblock_nr_pages)
+> > > +                       continue;
+> > > +
+> > > +               spin_lock_irqsave(&zone->lock, flags);
+> > > +               for (order = 0; order < MAX_ORDER; order++) {
+> > > +                       struct free_area *area = &(zone->free_area[order]);
+> > > +
+> > > +                       if (list_empty(&area->free_list[MIGRATE_HIGHATOMIC]))
+> > > +                               continue;
+> > > +
+> > > +                       page = list_entry(area->free_list[MIGRATE_HIGHATOMIC].next,
+> > > +                                               struct page, lru);
+> > > +
+> > > +                       zone->nr_reserved_highatomic -= pageblock_nr_pages;
+> > > +
+> > > +                       /*
+> > > +                        * Convert to ac->migratetype and avoid the normal
+> > > +                        * pageblock stealing heuristics. Minimally, the caller
+> > > +                        * is doing the work and needs the pages. More
+> > > +                        * importantly, if the block was always converted to
+> > > +                        * MIGRATE_UNMOVABLE or another type then the number
+> > > +                        * of pageblocks that cannot be completely freed
+> > > +                        * may increase.
+> > > +                        */
+> > > +                       set_pageblock_migratetype(page, ac->migratetype);
+> > > +                       move_freepages_block(zone, page, ac->migratetype);
+> > > +                       spin_unlock_irqrestore(&zone->lock, flags);
+> > > +                       return;
+> > > +               }
+> > > +               spin_unlock_irqrestore(&zone->lock, flags);
+> > > +       }
+> > > +}
+> > > +
+> > >  /* Remove an element from the buddy allocator from the fallback list */
+> > >  static inline struct page *
+> > >  __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+> > > @@ -1645,10 +1725,16 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+> > >   * Call me with the zone->lock already held.
+> > >   */
+> > >  static struct page *__rmqueue(struct zone *zone, unsigned int order,
+> > > -                                               int migratetype)
+> > > +                               int migratetype, gfp_t gfp_flags)
+> > >  {
+> > >         struct page *page;
+> > >
+> > > +       if (unlikely(order && (gfp_flags & __GFP_ATOMIC))) {
+> > > +               page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+> > > +               if (page)
+> > > +                       goto out;
+> > > +       }
+> > 
+> > This hunk only serves for high order allocation so it is better to introduce
+> > rmqueue_highorder() and move this hunk to that function and call it in
+> > buffered_rmqueue. It makes order-0 request doesn't get worse
+> > by adding new branch.
+> > 
+> 
+> The helper is overkill. I can move the check to avoid the branch but it
+> duplicates the tracepoint handling which can be easy to miss in the
+> future. I'm not convinced it is an overall improvement.
+> 
+> > And, there is some mismatch that check atomic high-order allocation.
+> > In some place, you checked __GFP_ATOMIC, but some other places,
+> > you checked ALLOC_HARDER. It is better to use unified one.
+> > Introducing helper function may be a good choice.
+> > 
+> 
+> Which cases specifically? In the zone_watermark check, it's because
+> there is no GFP flags in that context. They could be passed in but then
+> every caller needs to be updated accordingly and overall it gains
+> nothing.
 
-Hello, Mel.
-Sorry for late response.
+You use __GFP_ATOMIC in rmqueue() to allow highatomic reserve.
+ALLOC_HARDER is used in watermark check and to reserve highatomic
+pageblock after allocation.
 
-Yes, GFP_XXX can consist of multiple __GFP_XXX.
-But, __GFP_XXX doesn't consist of multiple __GFP_YYY.
-Your __GFP_WAIT seems to be a first one.
+ALLOC_HARDER is set if (__GFP_ATOMIC && !__GFP_NOMEMALLOC) *or*
+(rt_task && !in_interrupt()). So, later case could pass watermark
+check but cannot use HIGHATOMIC reserve. And, it will reserve
+highatomic pageblock. When it try to allocate again, it can't use
+this reserved pageblock due to GFP flags and this could happens
+repeatedly.
+And, first case also has a problem. If user requests memory
+with __GFP_NOMEMALLOC, it's intend doesn't touch reserved mem,
+but, in current patch, it can use highatomic pageblock.
+
+I'm not sure these causes real trouble but unifying it as much as
+possible is preferable solution.
 
 Thanks.
+
+> 
+> > >         page = __rmqueue_smallest(zone, order, migratetype);
+> > >         if (unlikely(!page)) {
+> > >                 if (migratetype == MIGRATE_MOVABLE)
+> > > @@ -1658,6 +1744,7 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
+> > >                         page = __rmqueue_fallback(zone, order, migratetype);
+> > >         }
+> > >
+> > > +out:
+> > >         trace_mm_page_alloc_zone_locked(page, order, migratetype);
+> > >         return page;
+> > >  }
+> > > @@ -1675,7 +1762,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+> > >
+> > >         spin_lock(&zone->lock);
+> > >         for (i = 0; i < count; ++i) {
+> > > -               struct page *page = __rmqueue(zone, order, migratetype);
+> > > +               struct page *page = __rmqueue(zone, order, migratetype, 0);
+> > >                 if (unlikely(page == NULL))
+> > >                         break;
+> > >
+> > > @@ -2090,7 +2177,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
+> > >                         WARN_ON_ONCE(order > 1);
+> > >                 }
+> > >                 spin_lock_irqsave(&zone->lock, flags);
+> > > -               page = __rmqueue(zone, order, migratetype);
+> > > +               page = __rmqueue(zone, order, migratetype, gfp_flags);
+> > >                 spin_unlock(&zone->lock);
+> > >                 if (!page)
+> > >                         goto failed;
+> > > @@ -2200,15 +2287,23 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+> > >                         unsigned long mark, int classzone_idx, int alloc_flags,
+> > >                         long free_pages)
+> > >  {
+> > > -       /* free_pages may go negative - that's OK */
+> > >         long min = mark;
+> > >         int o;
+> > >         long free_cma = 0;
+> > >
+> > > +       /* free_pages may go negative - that's OK */
+> > >         free_pages -= (1 << order) - 1;
+> > > +
+> > >         if (alloc_flags & ALLOC_HIGH)
+> > >                 min -= min / 2;
+> > > -       if (alloc_flags & ALLOC_HARDER)
+> > > +
+> > > +       /*
+> > > +        * If the caller is not atomic then discount the reserves. This will
+> > > +        * over-estimate how the atomic reserve but it avoids a search
+> > > +        */
+> > > +       if (likely(!(alloc_flags & ALLOC_HARDER)))
+> > > +               free_pages -= z->nr_reserved_highatomic;
+> > > +       else
+> > >                 min -= min / 4;
+> > >
+> > >  #ifdef CONFIG_CMA
+> > > @@ -2397,6 +2492,14 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+> > >                 if (page) {
+> > >                         if (prep_new_page(page, order, gfp_mask, alloc_flags))
+> > >                                 goto try_this_zone;
+> > > +
+> > > +                       /*
+> > > +                        * If this is a high-order atomic allocation then check
+> > > +                        * if the pageblock should be reserved for the future
+> > > +                        */
+> > > +                       if (unlikely(order && (alloc_flags & ALLOC_HARDER)))
+> > > +                               reserve_highatomic_pageblock(page, zone, order);
+> > > +
+> > >                         return page;
+> > >                 }
+> > >         }
+> > > @@ -2664,9 +2767,11 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+> > >
+> > >         /*
+> > >          * If an allocation failed after direct reclaim, it could be because
+> > > -        * pages are pinned on the per-cpu lists. Drain them and try again
+> > > +        * pages are pinned on the per-cpu lists or in high alloc reserves.
+> > > +        * Shrink them them and try again
+> > >          */
+> > >         if (!page && !drained) {
+> > > +               unreserve_highatomic_pageblock(ac);
+> > >                 drain_all_pages(NULL);
+> > >                 drained = true;
+> > >                 goto retry;
+> > 
+> > In case of high-order request, it can easily fail even after direct reclaim.
+> > It can cause ping-pong effect on highatomic pageblock.
+> > Unreserve on order-0 request fail is one option to avoid that problem.
+> > 
+> 
+> That is potentially a modification that would be interest to non-atomic
+> high-atomic only users which I know you are interested in. However, it is
+> both outside the scope of the series and it is a hazardous change because a
+> normal high-order allocation that can reclaim can unreserve a block reserved
+> for high-order atomic allocations and then the atomic allocations fail.
+> That is a sufficiently strong side-effect that it should be a separate
+> patch that fixed a measurable problem.
+> 
+> > Anyway, do you measure fragmentation effect of this patch?
+> > 
+> 
+> Nothing interesting was revealed, the fragmentation effects looked similar
+> before and after the series. The number of reserved pageblocks is too
+> small to matteer.
+> 
+> > High-order atomic request is usually unmovable and it would be served
+> > by unmovable pageblock. And then, it is changed to highatomic.
+> > But, reclaim can be triggered by movable request and this unreserve
+> > makes that pageblock to movable type.
+> > 
+> > So, following sequence of transition will usually happen.
+> > 
+> > unmovable -> highatomic -> movable
+> > 
+> > It can reduce number of unmovable pageblock and unmovable
+> > allocation can be spread and cause fragmentation. I'd like to see
+> > result about fragmentation. Highorder stress benchmark can be
+> > one of candidates.
+> > 
+> 
+> Too few to matter. I checked high-order stresses and they appeared fine,
+> external fragmentation events were fine.
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
