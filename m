@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B559982F64
-	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 11:02:23 -0400 (EDT)
-Received: by padhk3 with SMTP id hk3so53354999pad.3
-        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 08:02:23 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id gw3si14209827pac.79.2015.09.18.08.02.01
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 3255082F64
+	for <linux-mm@kvack.org>; Fri, 18 Sep 2015 11:02:27 -0400 (EDT)
+Received: by oibi136 with SMTP id i136so28044112oib.3
+        for <linux-mm@kvack.org>; Fri, 18 Sep 2015 08:02:27 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id f80si4877853oig.72.2015.09.18.08.02.01
         for <linux-mm@kvack.org>;
-        Fri, 18 Sep 2015 08:02:02 -0700 (PDT)
+        Fri, 18 Sep 2015 08:02:03 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv11 07/37] thp, mlock: do not allow huge pages in mlocked area
-Date: Fri, 18 Sep 2015 18:01:10 +0300
-Message-Id: <1442588500-77331-8-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv11 18/37] arm, thp: remove infrastructure for handling splitting PMDs
+Date: Fri, 18 Sep 2015 18:01:21 +0300
+Message-Id: <1442588500-77331-19-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1442588500-77331-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1442588500-77331-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,147 +19,98 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting THP can belong to several VMAs. This makes tricky
-to track THP pages, when they partially mlocked. It can lead to leaking
-mlocked pages to non-VM_LOCKED vmas and other problems.
+With new refcounting we don't need to mark PMDs splitting. Let's drop
+code to handle this.
 
-With this patch we will split all pages on mlock and avoid
-fault-in/collapse new THP in VM_LOCKED vmas.
-
-I've tried alternative approach: do not mark THP pages mlocked and keep
-them on normal LRUs. This way vmscan could try to split huge pages on
-memory pressure and free up subpages which doesn't belong to VM_LOCKED
-vmas.  But this is user-visible change: we screw up Mlocked accouting
-reported in meminfo, so I had to leave this approach aside.
-
-We can bring something better later, but this should be good enough for
-now.
+pmdp_splitting_flush() is not needed too: on splitting PMD we will do
+pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
+needed for fast_gup.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Tested-by: Sasha Levin <sasha.levin@oracle.com>
-Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- mm/gup.c         |  3 ++-
- mm/huge_memory.c |  5 ++++-
- mm/memory.c      |  3 ++-
- mm/mlock.c       | 51 +++++++++++++++++++--------------------------------
- 4 files changed, 27 insertions(+), 35 deletions(-)
+ arch/arm/include/asm/pgtable-3level.h | 10 ----------
+ arch/arm/lib/uaccess_with_memcpy.c    |  5 ++---
+ arch/arm/mm/flush.c                   | 15 ---------------
+ 3 files changed, 2 insertions(+), 28 deletions(-)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 6880085d3790..20fa606b4e76 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -927,7 +927,8 @@ long populate_vma_page_range(struct vm_area_struct *vma,
- 	gup_flags = FOLL_TOUCH | FOLL_POPULATE | FOLL_MLOCK;
- 	if (vma->vm_flags & VM_LOCKONFAULT)
- 		gup_flags &= ~FOLL_POPULATE;
+diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
+index 6d6012a320b2..d42f81f13618 100644
+--- a/arch/arm/include/asm/pgtable-3level.h
++++ b/arch/arm/include/asm/pgtable-3level.h
+@@ -88,7 +88,6 @@
+ 
+ #define L_PMD_SECT_VALID	(_AT(pmdval_t, 1) << 0)
+ #define L_PMD_SECT_DIRTY	(_AT(pmdval_t, 1) << 55)
+-#define L_PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 56)
+ #define L_PMD_SECT_NONE		(_AT(pmdval_t, 1) << 57)
+ #define L_PMD_SECT_RDONLY	(_AT(pteval_t, 1) << 58)
+ 
+@@ -232,21 +231,12 @@ static inline pte_t pte_mkspecial(pte_t pte)
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !pmd_table(pmd))
+-#define pmd_trans_splitting(pmd) (pmd_isset((pmd), L_PMD_SECT_SPLITTING))
 -
-+	if (vma->vm_flags & VM_LOCKED)
-+		gup_flags |= FOLL_SPLIT;
- 	/*
- 	 * We want to touch writable mappings with a write fault in order
- 	 * to break COW, except for shared mappings because these don't COW
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 9bcfb0637b0e..1e87739ceefc 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -873,6 +873,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+-#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+-void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
+-			  pmd_t *pmdp);
+-#endif
+-#endif
  
- 	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
- 		return VM_FAULT_FALLBACK;
-+	if (vma->vm_flags & VM_LOCKED)
-+		return VM_FAULT_FALLBACK;
- 	if (unlikely(anon_vma_prepare(vma)))
- 		return VM_FAULT_OOM;
- 	if (unlikely(khugepaged_enter(vma, vma->vm_flags)))
-@@ -2621,7 +2623,8 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
- 	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
- 	    (vma->vm_flags & VM_NOHUGEPAGE))
- 		return false;
--
-+	if (vma->vm_flags & VM_LOCKED)
-+		return false;
- 	if (!vma->anon_vma || vma->vm_ops)
- 		return false;
- 	if (is_vma_temporary_stack(vma))
-diff --git a/mm/memory.c b/mm/memory.c
-index 2b80837368d5..fd9bf1febf06 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2161,7 +2161,8 @@ static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,
+ #define PMD_BIT_FUNC(fn,op) \
+ static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
  
- 	pte_unmap_unlock(page_table, ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
--	if (old_page) {
-+	/* THP pages are never mlocked */
-+	if (old_page && !PageTransCompound(old_page)) {
- 		/*
- 		 * Don't let another task, with possibly unlocked vma,
- 		 * keep the mlocked page.
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 339d9e0949b6..ef5fafd934b6 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -443,39 +443,26 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
- 		page = follow_page_mask(vma, start, FOLL_GET | FOLL_DUMP,
- 				&page_mask);
- 
--		if (page && !IS_ERR(page)) {
--			if (PageTransHuge(page)) {
--				lock_page(page);
--				/*
--				 * Any THP page found by follow_page_mask() may
--				 * have gotten split before reaching
--				 * munlock_vma_page(), so we need to recompute
--				 * the page_mask here.
--				 */
--				page_mask = munlock_vma_page(page);
--				unlock_page(page);
--				put_page(page); /* follow_page_mask() */
--			} else {
--				/*
--				 * Non-huge pages are handled in batches via
--				 * pagevec. The pin from follow_page_mask()
--				 * prevents them from collapsing by THP.
--				 */
--				pagevec_add(&pvec, page);
--				zone = page_zone(page);
--				zoneid = page_zone_id(page);
-+		if (page && !IS_ERR(page) && !PageTransCompound(page)) {
-+			/*
-+			 * Non-huge pages are handled in batches via
-+			 * pagevec. The pin from follow_page_mask()
-+			 * prevents them from collapsing by THP.
-+			 */
-+			pagevec_add(&pvec, page);
-+			zone = page_zone(page);
-+			zoneid = page_zone_id(page);
- 
--				/*
--				 * Try to fill the rest of pagevec using fast
--				 * pte walk. This will also update start to
--				 * the next page to process. Then munlock the
--				 * pagevec.
--				 */
--				start = __munlock_pagevec_fill(&pvec, vma,
--						zoneid, start, end);
--				__munlock_pagevec(&pvec, zone);
--				goto next;
--			}
-+			/*
-+			 * Try to fill the rest of pagevec using fast
-+			 * pte walk. This will also update start to
-+			 * the next page to process. Then munlock the
-+			 * pagevec.
-+			 */
-+			start = __munlock_pagevec_fill(&pvec, vma,
-+					zoneid, start, end);
-+			__munlock_pagevec(&pvec, zone);
-+			goto next;
+ PMD_BIT_FUNC(wrprotect,	|= L_PMD_SECT_RDONLY);
+ PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
+-PMD_BIT_FUNC(mksplitting, |= L_PMD_SECT_SPLITTING);
+ PMD_BIT_FUNC(mkwrite,   &= ~L_PMD_SECT_RDONLY);
+ PMD_BIT_FUNC(mkdirty,   |= L_PMD_SECT_DIRTY);
+ PMD_BIT_FUNC(mkclean,   &= ~L_PMD_SECT_DIRTY);
+diff --git a/arch/arm/lib/uaccess_with_memcpy.c b/arch/arm/lib/uaccess_with_memcpy.c
+index 4b39af2dfda9..e51f6daa9650 100644
+--- a/arch/arm/lib/uaccess_with_memcpy.c
++++ b/arch/arm/lib/uaccess_with_memcpy.c
+@@ -52,14 +52,13 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
+ 	 *
+ 	 * Lock the page table for the destination and check
+ 	 * to see that it's still huge and whether or not we will
+-	 * need to fault on write, or if we have a splitting THP.
++	 * need to fault on write.
+ 	 */
+ 	if (unlikely(pmd_thp_or_huge(*pmd))) {
+ 		ptl = &current->mm->page_table_lock;
+ 		spin_lock(ptl);
+ 		if (unlikely(!pmd_thp_or_huge(*pmd)
+-			|| pmd_hugewillfault(*pmd)
+-			|| pmd_trans_splitting(*pmd))) {
++			|| pmd_hugewillfault(*pmd))) {
+ 			spin_unlock(ptl);
+ 			return 0;
  		}
- 		/* It's a bug to munlock in the middle of a THP page */
- 		VM_BUG_ON((start >> PAGE_SHIFT) & page_mask);
+diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
+index 34b66af516ea..77f229302032 100644
+--- a/arch/arm/mm/flush.c
++++ b/arch/arm/mm/flush.c
+@@ -400,18 +400,3 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
+ 	 */
+ 	__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
+ }
+-
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+-void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
+-			  pmd_t *pmdp)
+-{
+-	pmd_t pmd = pmd_mksplitting(*pmdp);
+-	VM_BUG_ON(address & ~PMD_MASK);
+-	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
+-
+-	/* dummy IPI to serialise against fast_gup */
+-	kick_all_cpus_sync();
+-}
+-#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
+-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 -- 
 2.5.1
 
