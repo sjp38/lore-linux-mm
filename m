@@ -1,111 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 519886B0253
-	for <linux-mm@kvack.org>; Sat, 19 Sep 2015 18:54:53 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so83116973pac.2
-        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 15:54:53 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id it8si25231955pbc.103.2015.09.19.15.54.52
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D7576B0253
+	for <linux-mm@kvack.org>; Sat, 19 Sep 2015 19:00:32 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so81821089pac.0
+        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 16:00:32 -0700 (PDT)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id d10si25250624pas.77.2015.09.19.16.00.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 19 Sep 2015 15:54:52 -0700 (PDT)
-Received: by pacex6 with SMTP id ex6so81756431pac.0
-        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 15:54:52 -0700 (PDT)
-Date: Sat, 19 Sep 2015 15:54:40 -0700
-From: Raymond Jennings <shentino@gmail.com>
+        Sat, 19 Sep 2015 16:00:31 -0700 (PDT)
+Received: by padhy16 with SMTP id hy16so81729555pad.1
+        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 16:00:31 -0700 (PDT)
 Subject: Re: can't oom-kill zap the victim's memory?
-Message-Id: <1442703280.10833.0@smtp.gmail.com>
-In-Reply-To: 
- <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com>
 References: <1442512783-14719-1-git-send-email-kwalker@redhat.com>
-	<20150919150316.GB31952@redhat.com>
-	<CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com>
+ <20150919150316.GB31952@redhat.com>
+ <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com>
+From: Raymond Jennings <shentino@gmail.com>
+Message-ID: <55FDE90D.1070402@gmail.com>
+Date: Sat, 19 Sep 2015 16:00:29 -0700
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="=-Qn8st9Ake0m5uwhQ4RKK"
+In-Reply-To: <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>
+Cc: Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
---=-Qn8st9Ake0m5uwhQ4RKK
-Content-Type: text/plain; charset=utf-8; format=flowed
-
-On Sat, Sep 19, 2015 at 3:24 PM, Linus Torvalds 
-<torvalds@linux-foundation.org> wrote:
-> On Sat, Sep 19, 2015 at 8:03 AM, Oleg Nesterov <oleg@redhat.com> 
-> wrote:
->>  +
->>  +static void oom_unmap_func(struct work_struct *work)
->>  +{
->>  +       struct mm_struct *mm = xchg(&oom_unmap_mm, NULL);
->>  +
->>  +       if (!atomic_inc_not_zero(&mm->mm_users))
->>  +               return;
->>  +
->>  +       // If this is not safe we can do use_mm() + unuse_mm()
->>  +       down_read(&mm->mmap_sem);
-> 
+On 09/19/15 15:24, Linus Torvalds wrote:
+> On Sat, Sep 19, 2015 at 8:03 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+>> +
+>> +static void oom_unmap_func(struct work_struct *work)
+>> +{
+>> +       struct mm_struct *mm = xchg(&oom_unmap_mm, NULL);
+>> +
+>> +       if (!atomic_inc_not_zero(&mm->mm_users))
+>> +               return;
+>> +
+>> +       // If this is not safe we can do use_mm() + unuse_mm()
+>> +       down_read(&mm->mmap_sem);
 > I don't think this is safe.
-> 
+>
 > What makes you sure that we might not deadlock on the mmap_sem here?
 > For all we know, the process that is going out of memory is in the
 > middle of a mmap(), and already holds the mmap_sem for writing. No?
-> 
+
+Potentially stupid question that others may be asking: Is it legal to 
+return EINTR from mmap() to let a SIGKILL from the OOM handler punch the 
+task out of the kernel and back to userspace?
+
+(sorry for the dupe btw, new email client snuck in html and I got bounced)
+
 > So at the very least that needs to be a trylock, I think. And I'm not
 > sure zap_page_range() is ok with the mmap_sem only held for reading.
 > Normally our rule is that you can *populate* the page tables
 > concurrently, but you can't tear the down.
-
-Is it also possible to have mmap fail with EINTR?  Presumably that 
-would let a pending SIGKILL from the oom handler punch it out of the 
-kernel and back to userspace.
-
-> 
-> 
->                 Linus
-> 
+>
+>                  Linus
+>
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
---=-Qn8st9Ake0m5uwhQ4RKK
-Content-Type: text/html; charset=utf-8
-
-On Sat, Sep 19, 2015 at 3:24 PM, Linus Torvalds &lt;torvalds@linux-foundation.org&gt; wrote:<br>
-<blockquote type="cite"><div class="plaintext" style="white-space: pre-wrap;">On Sat, Sep 19, 2015 at 8:03 AM, Oleg Nesterov &lt;<a href="mailto:oleg@redhat.com">oleg@redhat.com</a>&gt; wrote:
-<blockquote> +
- +static void oom_unmap_func(struct work_struct *work)
- +{
- +       struct mm_struct *mm = xchg(&amp;oom_unmap_mm, NULL);
- +
- +       if (!atomic_inc_not_zero(&amp;mm-&gt;mm_users))
- +               return;
- +
- +       // If this is not safe we can do use_mm() + unuse_mm()
- +       down_read(&amp;mm-&gt;mmap_sem);
-</blockquote>
-I don't think this is safe.
-
-What makes you sure that we might not deadlock on the mmap_sem here?
-For all we know, the process that is going out of memory is in the
-middle of a mmap(), and already holds the mmap_sem for writing. No?
-
-So at the very least that needs to be a trylock, I think. And I'm not
-sure zap_page_range() is ok with the mmap_sem only held for reading.
-Normally our rule is that you can *populate* the page tables
-concurrently, but you can't tear the down.</div></blockquote><div><br></div>Is it also possible to have mmap fail with EINTR? &nbsp;Presumably that would let a pending SIGKILL from the oom handler punch it out of the kernel and back to userspace.<div><br><blockquote type="cite"><div class="plaintext" style="white-space: pre-wrap;">
-
-                Linus
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to <a href="mailto:majordomo@kvack.org">majordomo@kvack.org</a>.  For more info on Linux MM,
-see: <a href="http://www.linux-mm.org/">http://www.linux-mm.org/</a> .
-Don't email: &lt;a href=mailto:"dont@kvack.org"&gt; email@kvack.org &lt;/a&gt;
-</div></blockquote></div>
---=-Qn8st9Ake0m5uwhQ4RKK--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
