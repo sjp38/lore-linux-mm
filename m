@@ -1,74 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BB7A6B0254
-	for <linux-mm@kvack.org>; Sat, 19 Sep 2015 04:32:22 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so55509464wic.1
-        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 01:32:21 -0700 (PDT)
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com. [209.85.212.176])
-        by mx.google.com with ESMTPS id bt11si16918536wjb.210.2015.09.19.01.32.20
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id EC60A6B0038
+	for <linux-mm@kvack.org>; Sat, 19 Sep 2015 10:33:25 -0400 (EDT)
+Received: by obbbh8 with SMTP id bh8so56296619obb.0
+        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 07:33:25 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id mv15si7511053obb.64.2015.09.19.07.33.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 19 Sep 2015 01:32:21 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so55386512wic.0
-        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 01:32:20 -0700 (PDT)
-Date: Sat, 19 Sep 2015 10:32:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 19 Sep 2015 07:33:24 -0700 (PDT)
 Subject: Re: [PATCH] mm/oom_kill.c: don't kill TASK_UNINTERRUPTIBLE tasks
-Message-ID: <20150919083218.GD28815@dhcp22.suse.cz>
-References: <1442512783-14719-1-git-send-email-kwalker@redhat.com>
- <20150917192204.GA2728@redhat.com>
- <alpine.DEB.2.11.1509181035180.11189@east.gentwo.org>
- <20150918162423.GA18136@redhat.com>
- <alpine.DEB.2.11.1509181200140.11964@east.gentwo.org>
-MIME-Version: 1.0
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150917192204.GA2728@redhat.com>
+	<alpine.DEB.2.11.1509181035180.11189@east.gentwo.org>
+	<20150918162423.GA18136@redhat.com>
+	<alpine.DEB.2.11.1509181200140.11964@east.gentwo.org>
+	<20150919083218.GD28815@dhcp22.suse.cz>
+In-Reply-To: <20150919083218.GD28815@dhcp22.suse.cz>
+Message-Id: <201509192333.AGJ30797.OQOFLFSMJVFOtH@I-love.SAKURA.ne.jp>
+Date: Sat, 19 Sep 2015 23:33:07 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1509181200140.11964@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Stanislav Kozina <skozina@redhat.com>
+To: mhocko@kernel.org, cl@linux.com
+Cc: oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
 
-On Fri 18-09-15 12:00:59, Christoph Lameter wrote:
-[...]
-> Subject: Allow multiple kills from the OOM killer
-> 
-> The OOM killer currently aborts if it finds a process that already is having
-> access to the reserve memory pool for exit processing. This is done so that
-> the reserves are not overcommitted but on the other hand this also allows
-> only one process being oom killed at the time. That process may be stuck
-> in D state.
+Michal Hocko wrote:
+> This has been posted in various forms many times over past years. I
+> still do not think this is a right approach of dealing with the problem.
 
-This has been posted in various forms many times over past years. I
-still do not think this is a right approach of dealing with the problem.
-You can quickly deplete memory reserves this way without making further
-progress (I am afraid you can even trigger this from userspace without
-having big privileges) so even administrator will have no way to
-intervene.
+I do not think "GFP_NOFS can fail" patch is a right approach because
+that patch easily causes messages like below.
 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> Index: linux/mm/oom_kill.c
-> ===================================================================
-> --- linux.orig/mm/oom_kill.c	2015-09-18 11:58:52.963946782 -0500
-> +++ linux/mm/oom_kill.c	2015-09-18 11:59:42.010684778 -0500
-> @@ -264,10 +264,9 @@ enum oom_scan_t oom_scan_process_thread(
->  	 * This task already has access to memory reserves and is being killed.
->  	 * Don't allow any other task to have access to the reserves.
->  	 */
-> -	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
-> -		if (oc->order != -1)
-> -			return OOM_SCAN_ABORT;
-> -	}
-> +	if (test_tsk_thread_flag(task, TIF_MEMDIE))
-> +		return OOM_SCAN_CONTINUE;
-> +
->  	if (!task->mm)
->  		return OOM_SCAN_CONTINUE;
+  Buffer I/O error on dev sda1, logical block 34661831, lost async page write
+  XFS: possible memory allocation deadlock in kmem_alloc (mode:0x8250)
+  XFS: possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
+  XFS: possible memory allocation deadlock in kmem_zone_alloc (mode:0x8250)
 
--- 
-Michal Hocko
-SUSE Labs
+Adding __GFP_NOFAIL will hide these messages but OOM stall remains anyway.
+
+I believe choosing more OOM victims is the only way which can solve OOM stalls.
+
+> You can quickly deplete memory reserves this way without making further
+> progress (I am afraid you can even trigger this from userspace without
+> having big privileges) so even administrator will have no way to
+> intervene.
+
+I think that use of ALLOC_NO_WATERMARKS via TIF_MEMDIE is the underlying
+cause. ALLOC_NO_WATERMARKS via TIF_MEMDIE is intended for terminating the
+OOM victim task as soon as possible, but it turned out that it will not
+work if there is invisible lock dependency. Therefore, why not to give up
+"there should be only up to 1 TIF_MEMDIE task" rule?
+
+What this patch (and many others posted in various forms many times over
+past years) does is to give up "there should be only up to 1 TIF_MEMDIE
+task" rule. I think that we need to tolerate more than 1 TIF_MEMDIE tasks
+and somehow manage in a way memory reserves will not deplete.
+
+In my proposal which favors all fatal_signal_pending() tasks evenly
+( http://lkml.kernel.org/r/201509102318.GHG18789.OHMSLFJOQFOtFV@I-love.SAKURA.ne.jp )
+suggests that the OOM victim task unlikely needs all of memory reserves.
+In other words, the OOM victim task can likely make forward progress
+if some amount of memory reserves are allowed (compared to normal tasks
+waiting for memory).
+
+So, I think that getting rid of "ALLOC_NO_WATERMARKS via TIF_MEMDIE" rule
+and replace test_thread_flag(TIF_MEMDIE) with fatal_signal_pending(current)
+will handle many cases if fatal_signal_pending() tasks are allowed to access
+some amount of memory reserves. And my proposal which chooses next OOM
+victim upon timeout will handle the remaining cases without depleting
+memory reserves.
+
+If you still want to keep "there should be only up to 1 TIF_MEMDIE task"
+rule, what alternative do you have? (I do not like panic_on_oom_timeout
+because it is more data-lossy approach than choosing next OOM victim.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
