@@ -1,122 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CB716B0038
-	for <linux-mm@kvack.org>; Sat, 19 Sep 2015 11:58:22 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so66123125wic.0
-        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 08:58:21 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 086126B0038
+	for <linux-mm@kvack.org>; Sat, 19 Sep 2015 12:26:26 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so97236058wic.1
+        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 09:26:25 -0700 (PDT)
 Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id b1si4904021wiy.63.2015.09.19.08.58.21
+        by mx.google.com with ESMTPS id cw7si5092596wib.13.2015.09.19.09.26.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 19 Sep 2015 08:58:21 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so66122909wic.0
-        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 08:58:21 -0700 (PDT)
-Date: Sat, 19 Sep 2015 17:58:19 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 19 Sep 2015 09:26:24 -0700 (PDT)
+Received: by wicge5 with SMTP id ge5so66612303wic.0
+        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 09:26:24 -0700 (PDT)
+Date: Sat, 19 Sep 2015 18:26:23 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: can't oom-kill zap the victim's memory?
-Message-ID: <20150919155819.GB9094@dhcp22.suse.cz>
-References: <1442512783-14719-1-git-send-email-kwalker@redhat.com>
- <20150919150316.GB31952@redhat.com>
+Subject: Re: [PATCH -mm] mm/khugepaged: fix scan not aborted on
+ SCAN_EXCEED_SWAP_PTE
+Message-ID: <20150919162622.GC10158@dhcp22.suse.cz>
+References: <1442591003-4880-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150919150316.GB31952@redhat.com>
+In-Reply-To: <1442591003-4880-1-git-send-email-vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat 19-09-15 17:03:16, Oleg Nesterov wrote:
-> On 09/17, Kyle Walker wrote:
-> >
-> > Currently, the oom killer will attempt to kill a process that is in
-> > TASK_UNINTERRUPTIBLE state. For tasks in this state for an exceptional
-> > period of time, such as processes writing to a frozen filesystem during
-> > a lengthy backup operation, this can result in a deadlock condition as
-> > related processes memory access will stall within the page fault
-> > handler.
-> 
-> And there are other potential reasons for deadlock.
-> 
-> Stupid idea. Can't we help the memory hog to free its memory? This is
-> orthogonal to other improvements we can do.
-> 
-> Please don't tell me the patch below is ugly, incomplete and suboptimal
-> in many ways, I know ;) I am not sure it is even correct. Just to explain
-> what I mean.
+On Fri 18-09-15 18:43:23, Vladimir Davydov wrote:
+[...]
+> Fixes: acc067d59a1f9 ("mm: make optimistic check for swapin readahead")
 
-Unmapping the memory for the oom victim has been already mentioned as a
-way to improve the OOM killer behavior. Nobody has implemented that yet
-though unfortunately. I have that on my TODO list since we have
-discussed it with Mel at LSF.
-
-> Perhaps oom_unmap_func() should only zap the anonymous vmas... and there
-> are a lot of other details which should be discussed if this can make any
-> sense.
-
-I have just returned from an internal conference so my head is
-completely cabbaged. I will have a look on Monday. From a quick look
-the idea is feasible. You cannot rely on the worker context because
-workqueues might be completely stuck with at this stage. You also cannot
-do take mmap_sem directly because that might be held already so you need
-a try_lock instead. Focusing on anonymous vmas first sounds like a good
-idea to me because that would be simpler I guess.
-
-> 
-> Oleg.
-> ---
-> 
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -493,6 +493,26 @@ void oom_killer_enable(void)
->  	up_write(&oom_sem);
->  }
->  
-> +static struct mm_struct *oom_unmap_mm;
-> +
-> +static void oom_unmap_func(struct work_struct *work)
-> +{
-> +	struct mm_struct *mm = xchg(&oom_unmap_mm, NULL);
-> +
-> +	if (!atomic_inc_not_zero(&mm->mm_users))
-> +		return;
-> +
-> +	// If this is not safe we can do use_mm() + unuse_mm()
-> +	down_read(&mm->mmap_sem);
-> +	if (mm->mmap)
-> +		zap_page_range(mm->mmap, 0, TASK_SIZE, NULL);
-> +	up_read(&mm->mmap_sem);
-> +
-> +	mmput(mm);
-> +	mmdrop(mm);
-> +}
-> +static DECLARE_WORK(oom_unmap_work, oom_unmap_func);
-> +
->  #define K(x) ((x) << (PAGE_SHIFT-10))
->  /*
->   * Must be called while holding a reference to p, which will be released upon
-> @@ -570,8 +590,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  		victim = p;
->  	}
->  
-> -	/* mm cannot safely be dereferenced after task_unlock(victim) */
->  	mm = victim->mm;
-> +	atomic_inc(&mm->mm_count);
->  	mark_tsk_oom_victim(victim);
->  	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
->  		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
-> @@ -604,6 +624,10 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  	rcu_read_unlock();
->  
->  	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
-> +	if (cmpxchg(&oom_unmap_mm, NULL, mm))
-> +		mmdrop(mm);
-> +	else
-> +		queue_work(system_unbound_wq, &oom_unmap_work);
->  	put_task_struct(victim);
->  }
->  #undef K
-
+This sha will not exist after the patch gets merged to the Linus tree
+from the Andrew tree. Either reference it just by the subject or simply
+mark it for Andrew to be folded into
+mm-make-optimistic-check-for-swapin-readahead.patch
 -- 
 Michal Hocko
 SUSE Labs
