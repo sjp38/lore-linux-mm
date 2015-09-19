@@ -1,42 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 086126B0038
-	for <linux-mm@kvack.org>; Sat, 19 Sep 2015 12:26:26 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so97236058wic.1
-        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 09:26:25 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id cw7si5092596wib.13.2015.09.19.09.26.24
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id CC5216B0253
+	for <linux-mm@kvack.org>; Sat, 19 Sep 2015 18:24:03 -0400 (EDT)
+Received: by igbni9 with SMTP id ni9so38036325igb.0
+        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 15:24:03 -0700 (PDT)
+Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
+        by mx.google.com with ESMTPS id r5si3722062igm.76.2015.09.19.15.24.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 19 Sep 2015 09:26:24 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so66612303wic.0
-        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 09:26:24 -0700 (PDT)
-Date: Sat, 19 Sep 2015 18:26:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -mm] mm/khugepaged: fix scan not aborted on
- SCAN_EXCEED_SWAP_PTE
-Message-ID: <20150919162622.GC10158@dhcp22.suse.cz>
-References: <1442591003-4880-1-git-send-email-vdavydov@parallels.com>
+        Sat, 19 Sep 2015 15:24:02 -0700 (PDT)
+Received: by iofh134 with SMTP id h134so88443918iof.0
+        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 15:24:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1442591003-4880-1-git-send-email-vdavydov@parallels.com>
+In-Reply-To: <20150919150316.GB31952@redhat.com>
+References: <1442512783-14719-1-git-send-email-kwalker@redhat.com>
+	<20150919150316.GB31952@redhat.com>
+Date: Sat, 19 Sep 2015 15:24:02 -0700
+Message-ID: <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com>
+Subject: Re: can't oom-kill zap the victim's memory?
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-On Fri 18-09-15 18:43:23, Vladimir Davydov wrote:
-[...]
-> Fixes: acc067d59a1f9 ("mm: make optimistic check for swapin readahead")
+On Sat, Sep 19, 2015 at 8:03 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+> +
+> +static void oom_unmap_func(struct work_struct *work)
+> +{
+> +       struct mm_struct *mm = xchg(&oom_unmap_mm, NULL);
+> +
+> +       if (!atomic_inc_not_zero(&mm->mm_users))
+> +               return;
+> +
+> +       // If this is not safe we can do use_mm() + unuse_mm()
+> +       down_read(&mm->mmap_sem);
 
-This sha will not exist after the patch gets merged to the Linus tree
-from the Andrew tree. Either reference it just by the subject or simply
-mark it for Andrew to be folded into
-mm-make-optimistic-check-for-swapin-readahead.patch
--- 
-Michal Hocko
-SUSE Labs
+I don't think this is safe.
+
+What makes you sure that we might not deadlock on the mmap_sem here?
+For all we know, the process that is going out of memory is in the
+middle of a mmap(), and already holds the mmap_sem for writing. No?
+
+So at the very least that needs to be a trylock, I think. And I'm not
+sure zap_page_range() is ok with the mmap_sem only held for reading.
+Normally our rule is that you can *populate* the page tables
+concurrently, but you can't tear the down.
+
+                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
