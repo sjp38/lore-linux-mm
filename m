@@ -1,76 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 830146B0253
-	for <linux-mm@kvack.org>; Sun, 20 Sep 2015 04:56:00 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so75741518wic.0
-        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 01:55:59 -0700 (PDT)
-Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
-        by mx.google.com with ESMTPS id q11si9628089wiw.60.2015.09.20.01.55.58
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A81D6B0253
+	for <linux-mm@kvack.org>; Sun, 20 Sep 2015 05:33:36 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so76329715wic.0
+        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 02:33:35 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
+        by mx.google.com with ESMTPS id m20si9754707wiv.101.2015.09.20.02.33.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Sep 2015 01:55:58 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so75741149wic.0
-        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 01:55:58 -0700 (PDT)
-Date: Sun, 20 Sep 2015 10:55:54 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
-Message-ID: <20150920085554.GA21906@gmail.com>
-References: <20150916174903.E112E464@viggo.jf.intel.com>
- <20150916174913.AF5FEA6D@viggo.jf.intel.com>
+        Sun, 20 Sep 2015 02:33:35 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so79264557wic.1
+        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 02:33:34 -0700 (PDT)
+Date: Sun, 20 Sep 2015 11:33:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: can't oom-kill zap the victim's memory?
+Message-ID: <20150920093332.GA20562@dhcp22.suse.cz>
+References: <1442512783-14719-1-git-send-email-kwalker@redhat.com>
+ <20150919150316.GB31952@redhat.com>
+ <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150916174913.AF5FEA6D@viggo.jf.intel.com>
+In-Reply-To: <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
+On Sat 19-09-15 15:24:02, Linus Torvalds wrote:
+> On Sat, Sep 19, 2015 at 8:03 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+> > +
+> > +static void oom_unmap_func(struct work_struct *work)
+> > +{
+> > +       struct mm_struct *mm = xchg(&oom_unmap_mm, NULL);
+> > +
+> > +       if (!atomic_inc_not_zero(&mm->mm_users))
+> > +               return;
+> > +
+> > +       // If this is not safe we can do use_mm() + unuse_mm()
+> > +       down_read(&mm->mmap_sem);
+> 
+> I don't think this is safe.
+> 
+> What makes you sure that we might not deadlock on the mmap_sem here?
+> For all we know, the process that is going out of memory is in the
+> middle of a mmap(), and already holds the mmap_sem for writing. No?
+> 
+> So at the very least that needs to be a trylock, I think.
 
-* Dave Hansen <dave@sr71.net> wrote:
+Agreed.
 
-> +Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU feature
-> +which will be found on future Intel CPUs.
-> +
-> +Memory Protection Keys provides a mechanism for enforcing page-based
-> +protections, but without requiring modification of the page tables
-> +when an application changes protection domains.  It works by
-> +dedicating 4 previously ignored bits in each page table entry to a
-> +"protection key", giving 16 possible keys.
+> And I'm not
+> sure zap_page_range() is ok with the mmap_sem only held for reading.
+> Normally our rule is that you can *populate* the page tables
+> concurrently, but you can't tear the down
 
-Wondering how user-space is supposed to discover the number of protection keys,
-is that CPUID leaf based, or hardcoded on the CPU feature bit?
+Actually mmap_sem for reading should be sufficient because we do not
+alter the layout. Both MADV_DONTNEED and MADV_FREE require read mmap_sem
+for example.
 
-> +There is also a new user-accessible register (PKRU) with two separate
-> +bits (Access Disable and Write Disable) for each key.  Being a CPU
-> +register, PKRU is inherently thread-local, potentially giving each
-> +thread a different set of protections from every other thread.
-> +
-> +There are two new instructions (RDPKRU/WRPKRU) for reading and writing
-> +to the new register.  The feature is only available in 64-bit mode,
-> +even though there is theoretically space in the PAE PTEs.  These
-> +permissions are enforced on data access only and have no effect on
-> +instruction fetches.
-
-Another question, related to enumeration as well: I'm wondering whether there's 
-any way for the kernel to allocate a bit or two for its own purposes - such as 
-protecting crypto keys? Or is the facility fundamentally intended for user-space 
-use only?
-
-Just a quick example: let's assume the kernel has an information leak hole, a way 
-to read any kernel address and pass that to the kernel attacker. Let's also assume 
-that the main crypto-keys of the kernel are protected by protection-keys. The code 
-exposing the information leak will very likely have protection-key protected areas 
-masked out, so the scope of the information leak is mitigated to a certain degree, 
-the crypto keys are not readable.
-
-Similarly, the pmem (persistent memory) driver could employ protection keys to 
-keep terabytes of data 'masked out' most of the time - protecting data from kernel 
-space memory corruption bugs.
-
-Thanks,
-
-	Ingo
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
