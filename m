@@ -1,58 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 08C1E6B0253
-	for <linux-mm@kvack.org>; Sat, 19 Sep 2015 22:56:59 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so84541337pad.1
-        for <linux-mm@kvack.org>; Sat, 19 Sep 2015 19:56:58 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id iq2si26552163pbb.50.2015.09.19.19.56.57
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 5116A6B0253
+	for <linux-mm@kvack.org>; Sun, 20 Sep 2015 03:03:30 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so89242978pac.2
+        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 00:03:30 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id ix8si14434813pbc.172.2015.09.20.00.03.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 19 Sep 2015 19:56:58 -0700 (PDT)
+        Sun, 20 Sep 2015 00:03:29 -0700 (PDT)
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH 3/3] mm,oom: Suppress unnecessary "sharing same memory" message.
-Date: Sun, 20 Sep 2015 11:04:45 +0900
-Message-Id: <1442714685-14002-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-In-Reply-To: <1442714685-14002-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1442714685-14002-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH 1/2] xfs: Add __GFP_NORETRY and __GFP_NOWARN to open-coded __GFP_NOFAIL allocations
+Date: Sun, 20 Sep 2015 16:03:13 +0900
+Message-Id: <1442732594-4205-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>
+To: david@fromorbit.com
+Cc: xfs@oss.sgi.com, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>
 
-oom_kill_process() sends SIGKILL to other thread groups sharing
-victim's mm. But printing
+kmem_alloc(), kmem_zone_alloc() and xfs_buf_allocate_memory() are doing
+open-coded __GFP_NOFAIL allocations with warning messages as a canary.
+But since small !__GFP_NOFAIL allocations retry forever inside memory
+allocator unless TIF_MEMDIE is set, the canary does not help even if
+allocations are stalling. Thus, this patch adds __GFP_NORETRY so that
+we can know possibility of allocation deadlock.
 
-  "Kill process %d (%s) sharing same memory\n"
-
-lines makes no sense if they already have pending SIGKILL.
-This patch reduces the "Kill process" lines by printing
-that line with info level only if SIGKILL is not pending.
+If a patchset which makes small !__GFP_NOFAIL !__GFP_FS allocations not
+retry inside memory allocator is merged, warning messages by
+warn_alloc_failed() will dominate warning messages by the canary
+because each thread calls warn_alloc_failed() for approximately
+every 2 milliseconds. Thus, this patch also adds __GFP_NOWARN so that
+we won't flood kernel logs by these open-coded __GFP_NOFAIL allocations.
+Next patch compensates for lack of comm name and pid by addding them to
+the canary.
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.com>
 ---
- mm/oom_kill.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ fs/xfs/kmem.c    | 4 ++--
+ fs/xfs/xfs_buf.c | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 408aa8e..81962d7 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -579,9 +579,11 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 		    !(p->flags & PF_KTHREAD)) {
- 			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
- 				continue;
-+			if (fatal_signal_pending(p))
-+				continue;
+diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
+index a7a3a63..1fcf90d 100644
+--- a/fs/xfs/kmem.c
++++ b/fs/xfs/kmem.c
+@@ -46,7 +46,7 @@ void *
+ kmem_alloc(size_t size, xfs_km_flags_t flags)
+ {
+ 	int	retries = 0;
+-	gfp_t	lflags = kmem_flags_convert(flags);
++	gfp_t	lflags = kmem_flags_convert(flags) | __GFP_NORETRY | __GFP_NOWARN;
+ 	void	*ptr;
  
- 			task_lock(p);	/* Protect ->comm from prctl() */
--			pr_err("Kill process %d (%s) sharing same memory\n",
-+			pr_info("Kill process %d (%s) sharing same memory\n",
- 				task_pid_nr(p), p->comm);
- 			task_unlock(p);
- 			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+ 	do {
+@@ -111,7 +111,7 @@ void *
+ kmem_zone_alloc(kmem_zone_t *zone, xfs_km_flags_t flags)
+ {
+ 	int	retries = 0;
+-	gfp_t	lflags = kmem_flags_convert(flags);
++	gfp_t	lflags = kmem_flags_convert(flags) | __GFP_NORETRY | __GFP_NOWARN;
+ 	void	*ptr;
+ 
+ 	do {
+diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
+index 8ecffb3..cbd4f91 100644
+--- a/fs/xfs/xfs_buf.c
++++ b/fs/xfs/xfs_buf.c
+@@ -289,7 +289,7 @@ xfs_buf_allocate_memory(
+ {
+ 	size_t			size;
+ 	size_t			nbytes, offset;
+-	gfp_t			gfp_mask = xb_to_gfp(flags);
++	gfp_t			gfp_mask = xb_to_gfp(flags) | __GFP_NORETRY | __GFP_NOWARN;
+ 	unsigned short		page_count, i;
+ 	xfs_off_t		start, end;
+ 	int			error;
 -- 
 1.8.3.1
 
