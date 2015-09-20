@@ -1,94 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BB00B6B0254
-	for <linux-mm@kvack.org>; Sun, 20 Sep 2015 03:03:31 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so87574837pad.1
-        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 00:03:31 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id mk6si26695658pab.21.2015.09.20.00.03.30
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 830146B0253
+	for <linux-mm@kvack.org>; Sun, 20 Sep 2015 04:56:00 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so75741518wic.0
+        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 01:55:59 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id q11si9628089wiw.60.2015.09.20.01.55.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 20 Sep 2015 00:03:30 -0700 (PDT)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH 2/2] xfs: Print comm name and pid when open-coded __GFP_NOFAIL allocation stucks
-Date: Sun, 20 Sep 2015 16:03:14 +0900
-Message-Id: <1442732594-4205-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-In-Reply-To: <1442732594-4205-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1442732594-4205-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 20 Sep 2015 01:55:58 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so75741149wic.0
+        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 01:55:58 -0700 (PDT)
+Date: Sun, 20 Sep 2015 10:55:54 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
+Message-ID: <20150920085554.GA21906@gmail.com>
+References: <20150916174903.E112E464@viggo.jf.intel.com>
+ <20150916174913.AF5FEA6D@viggo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150916174913.AF5FEA6D@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com
-Cc: xfs@oss.sgi.com, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
 
-This patch adds comm name and pid to warning messages printed by
-kmem_alloc(), kmem_zone_alloc() and xfs_buf_allocate_memory().
-This will help telling which memory allocations (e.g. kernel worker
-threads, OOM victim tasks, neither) are stalling.
 
-  [  135.568662] Out of memory: Kill process 9593 (a.out) score 998 or sacrifice child
-  [  135.570195] Killed process 9593 (a.out) total-vm:4700kB, anon-rss:488kB, file-rss:0kB
-  [  137.473691] XFS: kworker/u16:29(383) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
-  [  137.497662] XFS: a.out(8944) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
-  [  137.598219] XFS: a.out(9658) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
-  [  139.494529] XFS: kworker/u16:29(383) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
-  [  139.517196] XFS: a.out(8944) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
-  [  139.616396] XFS: a.out(9658) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
-  [  141.512753] XFS: kworker/u16:29(383) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
-  [  141.531421] XFS: a.out(8944) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
-  [  141.633574] XFS: a.out(9658) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
+* Dave Hansen <dave@sr71.net> wrote:
 
-(Strictly speaking, we want task_lock()/task_unlock() when reading comm name.)
+> +Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU feature
+> +which will be found on future Intel CPUs.
+> +
+> +Memory Protection Keys provides a mechanism for enforcing page-based
+> +protections, but without requiring modification of the page tables
+> +when an application changes protection domains.  It works by
+> +dedicating 4 previously ignored bits in each page table entry to a
+> +"protection key", giving 16 possible keys.
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Michal Hocko <mhocko@suse.com>
----
- fs/xfs/kmem.c    | 6 ++++--
- fs/xfs/xfs_buf.c | 3 ++-
- 2 files changed, 6 insertions(+), 3 deletions(-)
+Wondering how user-space is supposed to discover the number of protection keys,
+is that CPUID leaf based, or hardcoded on the CPU feature bit?
 
-diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
-index 1fcf90d..95a5b76 100644
---- a/fs/xfs/kmem.c
-+++ b/fs/xfs/kmem.c
-@@ -54,8 +54,9 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
- 		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
- 			return ptr;
- 		if (!(++retries % 100))
--			xfs_err(NULL,
-+			xfs_err(NULL, "%s(%u) "
- 		"possible memory allocation deadlock in %s (mode:0x%x)",
-+					current->comm, current->pid,
- 					__func__, lflags);
- 		congestion_wait(BLK_RW_ASYNC, HZ/50);
- 	} while (1);
-@@ -119,8 +120,9 @@ kmem_zone_alloc(kmem_zone_t *zone, xfs_km_flags_t flags)
- 		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
- 			return ptr;
- 		if (!(++retries % 100))
--			xfs_err(NULL,
-+			xfs_err(NULL, "%s(%u) "
- 		"possible memory allocation deadlock in %s (mode:0x%x)",
-+					current->comm, current->pid,
- 					__func__, lflags);
- 		congestion_wait(BLK_RW_ASYNC, HZ/50);
- 	} while (1);
-diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-index cbd4f91..5deb629 100644
---- a/fs/xfs/xfs_buf.c
-+++ b/fs/xfs/xfs_buf.c
-@@ -353,8 +353,9 @@ retry:
- 			 * handle buffer allocation failures we can't do much.
- 			 */
- 			if (!(++retries % 100))
--				xfs_err(NULL,
-+				xfs_err(NULL, "%s(%u) "
- 		"possible memory allocation deadlock in %s (mode:0x%x)",
-+					current->comm, current->pid,
- 					__func__, gfp_mask);
- 
- 			XFS_STATS_INC(xb_page_retries);
--- 
-1.8.3.1
+> +There is also a new user-accessible register (PKRU) with two separate
+> +bits (Access Disable and Write Disable) for each key.  Being a CPU
+> +register, PKRU is inherently thread-local, potentially giving each
+> +thread a different set of protections from every other thread.
+> +
+> +There are two new instructions (RDPKRU/WRPKRU) for reading and writing
+> +to the new register.  The feature is only available in 64-bit mode,
+> +even though there is theoretically space in the PAE PTEs.  These
+> +permissions are enforced on data access only and have no effect on
+> +instruction fetches.
+
+Another question, related to enumeration as well: I'm wondering whether there's 
+any way for the kernel to allocate a bit or two for its own purposes - such as 
+protecting crypto keys? Or is the facility fundamentally intended for user-space 
+use only?
+
+Just a quick example: let's assume the kernel has an information leak hole, a way 
+to read any kernel address and pass that to the kernel attacker. Let's also assume 
+that the main crypto-keys of the kernel are protected by protection-keys. The code 
+exposing the information leak will very likely have protection-key protected areas 
+masked out, so the scope of the information leak is mitigated to a certain degree, 
+the crypto keys are not readable.
+
+Similarly, the pmem (persistent memory) driver could employ protection keys to 
+keep terabytes of data 'masked out' most of the time - protecting data from kernel 
+space memory corruption bugs.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
