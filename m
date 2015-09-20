@@ -1,85 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id DDBDC6B0253
-	for <linux-mm@kvack.org>; Sun, 20 Sep 2015 10:45:47 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so93054641pac.0
-        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 07:45:47 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id pc2si30292139pbb.178.2015.09.20.07.45.46
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D64F6B0253
+	for <linux-mm@kvack.org>; Sun, 20 Sep 2015 10:50:53 -0400 (EDT)
+Received: by oiww128 with SMTP id w128so47353605oiw.2
+        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 07:50:53 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id q126si9874752oia.45.2015.09.20.07.50.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Sep 2015 07:45:46 -0700 (PDT)
-Message-ID: <55FEC685.5010404@oracle.com>
-Date: Sun, 20 Sep 2015 10:45:25 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] memcg: flatten task_struct->memcg_oom
-References: <20150913185940.GA25369@htj.duckdns.org>
-In-Reply-To: <20150913185940.GA25369@htj.duckdns.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 20 Sep 2015 07:50:52 -0700 (PDT)
+Subject: Re: can't oom-kill zap the victim's memory?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1442512783-14719-1-git-send-email-kwalker@redhat.com>
+	<20150919150316.GB31952@redhat.com>
+In-Reply-To: <20150919150316.GB31952@redhat.com>
+Message-Id: <201509202350.DDG21892.FFStOLHOQOFMVJ@I-love.SAKURA.ne.jp>
+Date: Sun, 20 Sep 2015 23:50:40 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@kernel.org
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
+To: oleg@redhat.com, kwalker@redhat.com, cl@linux.com, torvalds@linux-foundation.org, mhocko@kernel.org
+Cc: akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
 
-On 09/13/2015 02:59 PM, Tejun Heo wrote:
-> task_struct->memcg_oom is a sub-struct containing fields which are
-> used for async memcg oom handling.  Most task_struct fields aren't
-> packaged this way and it can lead to unnecessary alignment paddings.
-> This patch flattens it.
+Oleg Nesterov wrote:
+> On 09/17, Kyle Walker wrote:
+> >
+> > Currently, the oom killer will attempt to kill a process that is in
+> > TASK_UNINTERRUPTIBLE state. For tasks in this state for an exceptional
+> > period of time, such as processes writing to a frozen filesystem during
+> > a lengthy backup operation, this can result in a deadlock condition as
+> > related processes memory access will stall within the page fault
+> > handler.
 > 
-> * task.memcg_oom.memcg          -> task.memcg_in_oom
-> * task.memcg_oom.gfp_mask	-> task.memcg_oom_gfp_mask
-> * task.memcg_oom.order          -> task.memcg_oom_order
-> * task.memcg_oom.may_oom        -> task.memcg_may_oom
+> And there are other potential reasons for deadlock.
 > 
-> In addition, task.memcg_may_oom is relocated to where other bitfields
-> are which reduces the size of task_struct.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
-> ---
-> Hello,
-> 
-> Andrew, these are the two patches which got acked from the following
-> thread.
-> 
->  http://lkml.kernel.org/g/20150828220158.GD11089@htj.dyndns.org
-> 
-> Acks are added and the second patch's description is updated as
-> suggested by Michal and Vladimir.
-> 
-> Can you please put them in -mm?
+> Stupid idea. Can't we help the memory hog to free its memory? This is
+> orthogonal to other improvements we can do.
 
-Hi Tejun,
+So, we are trying to release memory without waiting for arriving at
+exit_mm() from do_exit(), right? If it works, it will be a simple and
+small change that will be easy to backport.
 
-I've started seeing these warnings:
+The idea is that since fatal_signal_pending() tasks no longer return to
+user space, we can release memory allocated for use by user space, right?
 
-[1598889.250160] WARNING: CPU: 3 PID: 11648 at include/linux/memcontrol.h:414 handle_mm_fault+0x1020/0x3fa0()
-[1598889.786891] Modules linked in:
-[1598890.883223] Unable to find swap-space signature
-[1598891.463736]
-[1598892.236001] CPU: 3 PID: 11648 Comm: trinity-c10 Not tainted 4.3.0-rc1-next-20150918-sasha-00081-g4b7392a-dirty #2565
-[1598892.239377]  ffffffffb4746d40 ffff8802edad7c70 ffffffffabfe97ba 0000000000000000
-[1598892.241723]  ffff8802edad7cb0 ffffffffaa367466 ffffffffaa764140 ffff88037f00bec0
-[1598892.244135]  ffff8802ecb94000 ffff88042420a000 0000000000b98fe8 ffff88042420a000
-[1598892.246393] Call Trace:
-[1598892.247256] dump_stack (lib/dump_stack.c:52)
-[1598892.249105] warn_slowpath_common (kernel/panic.c:448)
-[1598892.253202] warn_slowpath_null (kernel/panic.c:482)
-[1598892.255148] handle_mm_fault (include/linux/memcontrol.h:414 mm/memory.c:3430)
-[1598892.268151] __do_page_fault (arch/x86/mm/fault.c:1239)
-[1598892.269022] trace_do_page_fault (arch/x86/mm/fault.c:1331 include/linux/jump_label.h:133 include/linux/context_tracking_state.h:30 include/linux/context_tracking.h:46 arch/x86/mm/fault.c:1332)
-[1598892.269894] do_async_page_fault (arch/x86/kernel/kvm.c:280)
-[1598892.270792] async_page_fault (arch/x86/entry/entry_64.S:989)
-
-Not sure if it's because of this patch or not, but I haven't seen them before.
-
-
-Thanks,
-Sasha
+Then, I think that this approach can be applied to not only OOM-kill case
+but also regular kill(pid, SIGKILL) case (i.e. kick from signal_wake_up(1)
+or somewhere?). A dedicated kernel thread (not limited to OOM-kill purpose)
+scans for fatal_signal_pending() tasks and release that task's memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
