@@ -1,55 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 697936B0255
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 11:27:48 -0400 (EDT)
-Received: by igcpb10 with SMTP id pb10so81071464igc.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:27:48 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id k102si17405068ioi.138.2015.09.21.08.27.47
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 90F8A6B0255
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 11:35:55 -0400 (EDT)
+Received: by obbmp4 with SMTP id mp4so50417133obb.3
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:35:55 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w140si12464658oif.70.2015.09.21.08.35.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 08:27:47 -0700 (PDT)
-Received: by igbkq10 with SMTP id kq10so81123188igb.0
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:27:47 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Sep 2015 08:35:54 -0700 (PDT)
+Date: Mon, 21 Sep 2015 17:32:52 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: can't oom-kill zap the victim's memory?
+Message-ID: <20150921153252.GA21988@redhat.com>
+References: <1442512783-14719-1-git-send-email-kwalker@redhat.com> <20150919150316.GB31952@redhat.com> <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com> <20150920125642.GA2104@redhat.com> <CA+55aFyajHq2W9HhJWbLASFkTx_kLSHtHuY6mDHKxmoW-LnVEw@mail.gmail.com> <20150921134414.GA15974@redhat.com> <20150921142423.GC19811@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAMJBoFNmK94yPL7GkRPyeyETn8_dC+zCvd8efEH=ncgPDyuJuQ@mail.gmail.com>
-References: <20150916134857.e4a71f601a1f68cfa16cb361@gmail.com>
- <20150916135048.fbd50fac5e91244ab9731b82@gmail.com> <55FAB985.9060705@suse.cz>
- <CAMJBoFNmK94yPL7GkRPyeyETn8_dC+zCvd8efEH=ncgPDyuJuQ@mail.gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Mon, 21 Sep 2015 11:27:08 -0400
-Message-ID: <CALZtONA=z_NniVg9jz+vESL0QgSvLZsDU+oBkQrJRmco=Yv24g@mail.gmail.com>
-Subject: Re: [PATCH 1/2] zbud: allow PAGE_SIZE allocations
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150921142423.GC19811@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-On Fri, Sep 18, 2015 at 4:03 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
->> I don't know how zsmalloc handles uncompressible PAGE_SIZE allocations, but
->> I wouldn't expect it to be any more clever than this? So why duplicate the
->> functionality in zswap and zbud? This could be handled e.g. at the zpool
->> level? Or maybe just in zram, as IIRC in zswap (frontswap) it's valid just
->> to reject a page and it goes to physical swap.
-
-zpool doesn't actually store pages anywhere; zbud and zsmalloc do the
-storing, and they do it in completely different ways.  Storing an
-uncompressed page has to be done in zbud and zsmalloc, not zpool.  And
-zram can't do it either; zram doesn't actually store pages either, it
-relies on zsmalloc to store all its pages.
-
+On 09/21, Michal Hocko wrote:
 >
-> From what I can see, zsmalloc just allocates pages and puts them into
-> a linked list. Using the beginning of a page for storing an internal
-> struct is zbud-specific, and so is this patch.
+> On Mon 21-09-15 15:44:14, Oleg Nesterov wrote:
+> [...]
+> > So yes, in general oom_kill_process() can't call oom_unmap_func() directly.
+> > That is why the patch uses queue_work(oom_unmap_func). The workqueue thread
+> > takes mmap_sem and frees the memory allocated by user space.
+>
+> OK, this might have been a bit confusing. I didn't mean you cannot use
+> mmap_sem directly from the workqueue context. You _can_ AFAICS. But I've
+> mentioned that you _shouldn't_ use workqueue context in the first place
+> because all the workers might be blocked on locks and new workers cannot
+> be created due to memory pressure.
 
-zsmalloc has size "classes" that allow storing "objects" of a specific
-size range (i.e. the last class size + 1, up to class size).  the max
-size class is:
-#define ZS_MAX_ALLOC_SIZE PAGE_SIZE
+Yes, yes, and I already tried to comment this part. We probably need a
+dedicated kernel thread, but I still think (although I am not sure) that
+initial change can use workueue. In the likely case system_unbound_wq pool
+should have an idle thread, if not - OK, this change won't help in this
+case. This is minor.
 
-so zsmalloc is able to store "objects" up to, and including, PAGE_SIZE.
+> So I think we probably need to do this in the OOM killer context (with
+> try_lock)
+
+Yes we should try to do this in the OOM killer context, and in this case
+(of course) we need trylock. Let me quote my previous email:
+
+	And we want to avoid using workqueues when the caller can do this
+	directly. And in this case we certainly need trylock. But this needs
+	some refactoring: we do not want to do this under oom_lock, otoh it
+	makes sense to do this from mark_oom_victim() if current && killed,
+	and a lot more details.
+
+and probably this is another reason why do we need MMF_MEMDIE. But again,
+I think the initial change should be simple.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
