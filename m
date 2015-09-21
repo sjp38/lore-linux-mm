@@ -1,53 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E30326B0254
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 17:31:08 -0400 (EDT)
-Received: by qgez77 with SMTP id z77so102121992qge.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 14:31:08 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 19si7936458qht.99.2015.09.21.14.31.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 14:31:03 -0700 (PDT)
-Date: Mon, 21 Sep 2015 14:31:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 33/38] mm/memblock.c: remove invalid check
-Message-Id: <20150921143101.09426cd661fe66e65a1c06b5@linux-foundation.org>
-In-Reply-To: <1442842450-29769-34-git-send-email-a.hajda@samsung.com>
-References: <1442842450-29769-1-git-send-email-a.hajda@samsung.com>
-	<1442842450-29769-34-git-send-email-a.hajda@samsung.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 862956B0038
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 17:53:19 -0400 (EDT)
+Received: by padbj2 with SMTP id bj2so2656248pad.3
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 14:53:19 -0700 (PDT)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id aa9si40757890pbd.56.2015.09.21.14.53.17
+        for <linux-mm@kvack.org>;
+        Mon, 21 Sep 2015 14:53:18 -0700 (PDT)
+Date: Tue, 22 Sep 2015 07:52:41 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm, vmscan: Warn about possible deadlock at
+ shirink_inactive_list
+Message-ID: <20150921215241.GA19114@dastard>
+References: <1442833794-23117-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1442833794-23117-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrzej Hajda <a.hajda@samsung.com>
-Cc: linux-kernel@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Alexander Kuleshov <kuleshovmail@gmail.com>, Tony Luck <tony.luck@intel.com>, Wei Yang <weiyang@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: xfs@oss.sgi.com, linux-mm@kvack.org
 
-On Mon, 21 Sep 2015 15:34:05 +0200 Andrzej Hajda <a.hajda@samsung.com> wrote:
-
-> Unsigned value cannot be lesser than zero.
+On Mon, Sep 21, 2015 at 08:09:54PM +0900, Tetsuo Handa wrote:
+> This is a difficult-to-trigger silent hang up bug.
 > 
-> The problem has been detected using proposed semantic patch
-> scripts/coccinelle/tests/unsigned_lesser_than_zero.cocci [1].
-> 
-> [1]: http://permalink.gmane.org/gmane.linux.kernel/2038576
-> 
-> ...
->
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -837,7 +837,7 @@ void __init_memblock __next_reserved_mem_region(u64 *idx,
->  {
->  	struct memblock_type *type = &memblock.reserved;
->  
-> -	if (*idx >= 0 && *idx < type->cnt) {
-> +	if (*idx < type->cnt) {
+> The kswapd is allowed to bypass too_many_isolated() check in
+> shrink_inactive_list(). But the kswapd can be blocked by locks in
+> shrink_page_list() in shrink_inactive_list(). If the task which is
+> blocking the kswapd is trying to allocate memory with the locks held,
+> it forms memory reclaim deadlock.
 
-Linus has in the past expressed a preference for retaining checks such
-as this.  iirc he finds it clearer.  And perhaps safer if the type
-should change in the future.
+It's a known problem in XFS and I'm currently working on patches to
+fix it by hoisting the memory allocations outside of the CIL context
+lock.
 
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
