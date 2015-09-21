@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B48C6B025E
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:05:43 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so145403125wic.0
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:05:42 -0700 (PDT)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id F1B2F6B025F
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:05:45 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so144845801wic.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:05:45 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w8si17015784wiz.62.2015.09.21.06.05.41
+        by mx.google.com with ESMTPS id go6si3936948wib.82.2015.09.21.06.05.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 21 Sep 2015 06:05:42 -0700 (PDT)
+        Mon, 21 Sep 2015 06:05:44 -0700 (PDT)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [RFC v2 12/18] ring_buffer: Convert benchmark kthreads into kthread worker API
-Date: Mon, 21 Sep 2015 15:03:53 +0200
-Message-Id: <1442840639-6963-13-git-send-email-pmladek@suse.com>
+Subject: [RFC v2 13/18] rcu: Finish folding ->fqs_state into ->gp_state
+Date: Mon, 21 Sep 2015 15:03:54 +0200
+Message-Id: <1442840639-6963-14-git-send-email-pmladek@suse.com>
 In-Reply-To: <1442840639-6963-1-git-send-email-pmladek@suse.com>
 References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,281 +20,163 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
 
-Kthreads are currently implemented as an infinite loop. Each
-has its own variant of checks for terminating, freezing,
-awakening. In many cases it is unclear to say in which state
-it is and sometimes it is done a wrong way.
+Commit commit 4cdfc175c25c89ee ("rcu: Move quiescent-state forcing
+into kthread") started the process of folding the old ->fqs_state into
+->gp_state, but did not complete it.  This situation does not cause
+any malfunction, but can result in extremely confusing trace output.
+This commit completes this task of eliminating ->fqs_state in favor
+of ->gp_state.
 
-The plan is to convert kthreads into kthread_worker or workqueues
-API. It allows to split the functionality into separate operations.
-It helps to make a better structure. Also it defines a clean state
-where no locks are taken, IRQs blocked, the kthread might sleep
-or even be safely migrated.
-
-The kthread worker API is useful when we want to have a dedicated
-single thread for the work. It helps to make sure that it is
-available when needed. Also it allows a better control, e.g.
-define a scheduling priority.
-
-This patch converts the ring buffer benchmark producer into a kthread
-worker because it modifies the scheduling priority and policy.
-Also, it is a benchmark. It makes CPU very busy. It will most likely
-run only limited time. IMHO, it does not make sense to mess the system
-workqueues with it.
-
-The thread is split into two independent works. It might look more
-complicated but it helped me to find a race in the sleeping part
-that was fixed separately.
-
-kthread_should_stop() could not longer be used inside the works
-because it defines the life of the worker and it needs to stay
-usable until all works are done. Instead, we add @test_end
-global variable. It is set during normal termination in compare
-with @test_error.
+The old ->fqs_state was also used to decide when to collect dyntick-idle
+snapshots.  For this purpose, we add a boolean variable into the kthread,
+which is set on the first call to rcu_gp_fqs() for a given grace period
+and clear otherwise.
 
 Signed-off-by: Petr Mladek <pmladek@suse.com>
+Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 ---
- kernel/trace/ring_buffer_benchmark.c | 133 ++++++++++++++++-------------------
- 1 file changed, 59 insertions(+), 74 deletions(-)
+ kernel/rcu/tree.c       | 18 ++++++++----------
+ kernel/rcu/tree.h       | 14 +++-----------
+ kernel/rcu/tree_trace.c |  2 +-
+ 3 files changed, 12 insertions(+), 22 deletions(-)
 
-diff --git a/kernel/trace/ring_buffer_benchmark.c b/kernel/trace/ring_buffer_benchmark.c
-index 9e00fd178226..3f27ff6debd3 100644
---- a/kernel/trace/ring_buffer_benchmark.c
-+++ b/kernel/trace/ring_buffer_benchmark.c
-@@ -26,10 +26,17 @@ static int wakeup_interval = 100;
- static int reader_finish;
- static DECLARE_COMPLETION(read_start);
- static DECLARE_COMPLETION(read_done);
--
- static struct ring_buffer *buffer;
--static struct task_struct *producer;
--static struct task_struct *consumer;
-+
-+static void rb_producer_hammer_func(struct kthread_work *dummy);
-+static struct kthread_worker *rb_producer_worker;
-+static DEFINE_DELAYED_KTHREAD_WORK(rb_producer_hammer_work,
-+				   rb_producer_hammer_func);
-+
-+static void rb_consumer_func(struct kthread_work *dummy);
-+static struct kthread_worker *rb_consumer_worker;
-+static DEFINE_KTHREAD_WORK(rb_consumer_work, rb_consumer_func);
-+
- static unsigned long read;
- 
- static unsigned int disable_reader;
-@@ -61,6 +68,7 @@ MODULE_PARM_DESC(consumer_fifo, "fifo prio for consumer");
- static int read_events;
- 
- static int test_error;
-+static int test_end;
- 
- #define TEST_ERROR()				\
- 	do {					\
-@@ -77,7 +85,7 @@ enum event_status {
- 
- static bool break_test(void)
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+index 9f75f25cc5d9..5413d87a67c6 100644
+--- a/kernel/rcu/tree.c
++++ b/kernel/rcu/tree.c
+@@ -98,7 +98,7 @@ struct rcu_state sname##_state = { \
+ 	.level = { &sname##_state.node[0] }, \
+ 	.rda = &sname##_data, \
+ 	.call = cr, \
+-	.fqs_state = RCU_GP_IDLE, \
++	.gp_state = RCU_GP_IDLE, \
+ 	.gpnum = 0UL - 300UL, \
+ 	.completed = 0UL - 300UL, \
+ 	.orphan_lock = __RAW_SPIN_LOCK_UNLOCKED(&sname##_state.orphan_lock), \
+@@ -1927,16 +1927,15 @@ static bool rcu_gp_fqs_check_wake(struct rcu_state *rsp, int *gfp)
+ /*
+  * Do one round of quiescent-state forcing.
+  */
+-static int rcu_gp_fqs(struct rcu_state *rsp, int fqs_state_in)
++static void rcu_gp_fqs(struct rcu_state *rsp, bool first_time)
  {
--	return test_error || kthread_should_stop();
-+	return test_error || test_end;
+-	int fqs_state = fqs_state_in;
+ 	bool isidle = false;
+ 	unsigned long maxj;
+ 	struct rcu_node *rnp = rcu_get_root(rsp);
+ 
+ 	WRITE_ONCE(rsp->gp_activity, jiffies);
+ 	rsp->n_force_qs++;
+-	if (fqs_state == RCU_SAVE_DYNTICK) {
++	if (first_time) {
+ 		/* Collect dyntick-idle snapshots. */
+ 		if (is_sysidle_rcu_state(rsp)) {
+ 			isidle = true;
+@@ -1945,7 +1944,6 @@ static int rcu_gp_fqs(struct rcu_state *rsp, int fqs_state_in)
+ 		force_qs_rnp(rsp, dyntick_save_progress_counter,
+ 			     &isidle, &maxj);
+ 		rcu_sysidle_report_gp(rsp, isidle, maxj);
+-		fqs_state = RCU_FORCE_QS;
+ 	} else {
+ 		/* Handle dyntick-idle and offline CPUs. */
+ 		isidle = true;
+@@ -1959,7 +1957,6 @@ static int rcu_gp_fqs(struct rcu_state *rsp, int fqs_state_in)
+ 			   READ_ONCE(rsp->gp_flags) & ~RCU_GP_FLAG_FQS);
+ 		raw_spin_unlock_irq(&rnp->lock);
+ 	}
+-	return fqs_state;
  }
  
- static enum event_status read_event(int cpu)
-@@ -262,8 +270,8 @@ static void ring_buffer_producer(void)
- 		end_time = ktime_get();
- 
- 		cnt++;
--		if (consumer && !(cnt % wakeup_interval))
--			wake_up_process(consumer);
-+		if (rb_consumer_worker && !(cnt % wakeup_interval))
-+			wake_up_process(rb_consumer_worker->task);
- 
- #ifndef CONFIG_PREEMPT
- 		/*
-@@ -281,7 +289,7 @@ static void ring_buffer_producer(void)
- 	} while (ktime_before(end_time, timeout) && !break_test());
- 	trace_printk("End ring buffer hammer\n");
- 
--	if (consumer) {
-+	if (rb_consumer_worker) {
- 		/* Init both completions here to avoid races */
- 		init_completion(&read_start);
- 		init_completion(&read_done);
-@@ -290,7 +298,7 @@ static void ring_buffer_producer(void)
- 		reader_finish = 1;
- 		/* finish var visible before waking up the consumer */
- 		smp_wmb();
--		wake_up_process(consumer);
-+		wake_up_process(rb_consumer_worker->task);
- 		wait_for_completion(&read_done);
- 	}
- 
-@@ -368,68 +376,39 @@ static void ring_buffer_producer(void)
- 	}
- }
- 
--static void wait_to_die(void)
--{
--	set_current_state(TASK_INTERRUPTIBLE);
--	while (!kthread_should_stop()) {
--		schedule();
--		set_current_state(TASK_INTERRUPTIBLE);
--	}
--	__set_current_state(TASK_RUNNING);
--}
--
--static int ring_buffer_consumer_thread(void *arg)
-+static void rb_consumer_func(struct kthread_work *dummy)
+ /*
+@@ -2023,7 +2020,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
+ 	/* Declare grace period done. */
+ 	WRITE_ONCE(rsp->completed, rsp->gpnum);
+ 	trace_rcu_grace_period(rsp->name, rsp->completed, TPS("end"));
+-	rsp->fqs_state = RCU_GP_IDLE;
++	rsp->gp_state = RCU_GP_IDLE;
+ 	rdp = this_cpu_ptr(rsp->rda);
+ 	/* Advance CBs to reduce false positives below. */
+ 	needgp = rcu_advance_cbs(rsp, rnp, rdp) || needgp;
+@@ -2041,7 +2038,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
+  */
+ static int __noreturn rcu_gp_kthread(void *arg)
  {
--	while (!break_test()) {
--		complete(&read_start);
+-	int fqs_state;
++	bool first_gp_fqs;
+ 	int gf;
+ 	unsigned long j;
+ 	int ret;
+@@ -2073,7 +2070,7 @@ static int __noreturn rcu_gp_kthread(void *arg)
+ 		}
+ 
+ 		/* Handle quiescent-state forcing. */
+-		fqs_state = RCU_SAVE_DYNTICK;
++		first_gp_fqs = true;
+ 		j = jiffies_till_first_fqs;
+ 		if (j > HZ) {
+ 			j = HZ;
+@@ -2101,7 +2098,8 @@ static int __noreturn rcu_gp_kthread(void *arg)
+ 				trace_rcu_grace_period(rsp->name,
+ 						       READ_ONCE(rsp->gpnum),
+ 						       TPS("fqsstart"));
+-				fqs_state = rcu_gp_fqs(rsp, fqs_state);
++				rcu_gp_fqs(rsp, first_gp_fqs);
++				first_gp_fqs = false;
+ 				trace_rcu_grace_period(rsp->name,
+ 						       READ_ONCE(rsp->gpnum),
+ 						       TPS("fqsend"));
+diff --git a/kernel/rcu/tree.h b/kernel/rcu/tree.h
+index 2e991f8361e4..de370b611837 100644
+--- a/kernel/rcu/tree.h
++++ b/kernel/rcu/tree.h
+@@ -412,13 +412,6 @@ struct rcu_data {
+ 	struct rcu_state *rsp;
+ };
+ 
+-/* Values for fqs_state field in struct rcu_state. */
+-#define RCU_GP_IDLE		0	/* No grace period in progress. */
+-#define RCU_GP_INIT		1	/* Grace period being initialized. */
+-#define RCU_SAVE_DYNTICK	2	/* Need to scan dyntick state. */
+-#define RCU_FORCE_QS		3	/* Need to force quiescent state. */
+-#define RCU_SIGNAL_INIT		RCU_SAVE_DYNTICK
 -
--		ring_buffer_consumer();
-+	complete(&read_start);
+ /* Values for nocb_defer_wakeup field in struct rcu_data. */
+ #define RCU_NOGP_WAKE_NOT	0
+ #define RCU_NOGP_WAKE		1
+@@ -469,9 +462,8 @@ struct rcu_state {
  
--		set_current_state(TASK_INTERRUPTIBLE);
--		if (break_test())
--			break;
--		schedule();
--	}
--	__set_current_state(TASK_RUNNING);
--
--	if (!kthread_should_stop())
--		wait_to_die();
--
--	return 0;
-+	ring_buffer_consumer();
- }
+ 	/* The following fields are guarded by the root rcu_node's lock. */
  
--static int ring_buffer_producer_thread(void *arg)
-+static void rb_producer_hammer_func(struct kthread_work *dummy)
- {
--	while (!break_test()) {
--		ring_buffer_reset(buffer);
-+	if (break_test())
-+		return;
+-	u8	fqs_state ____cacheline_internodealigned_in_smp;
+-						/* Force QS state. */
+-	u8	boost;				/* Subject to priority boost. */
++	u8	boost ____cacheline_internodealigned_in_smp;
++						/* Subject to priority boost. */
+ 	unsigned long gpnum;			/* Current gp number. */
+ 	unsigned long completed;		/* # of last completed gp. */
+ 	struct task_struct *gp_kthread;		/* Task for grace periods. */
+@@ -539,7 +531,7 @@ struct rcu_state {
+ #define RCU_GP_FLAG_FQS  0x2	/* Need grace-period quiescent-state forcing. */
  
--		if (consumer) {
--			wake_up_process(consumer);
--			wait_for_completion(&read_start);
--		}
--
--		ring_buffer_producer();
--		if (break_test())
--			goto out_kill;
-+	ring_buffer_reset(buffer);
- 
--		trace_printk("Sleeping for 10 secs\n");
--		set_current_state(TASK_INTERRUPTIBLE);
--		if (break_test())
--			goto out_kill;
--		schedule_timeout(HZ * SLEEP_TIME);
-+	if (rb_consumer_worker) {
-+		queue_kthread_work(rb_consumer_worker, &rb_consumer_work);
-+		wait_for_completion(&read_start);
- 	}
- 
--out_kill:
--	__set_current_state(TASK_RUNNING);
--	if (!kthread_should_stop())
--		wait_to_die();
-+	ring_buffer_producer();
- 
--	return 0;
-+	if (break_test())
-+		return;
-+
-+	trace_printk("Sleeping for 10 secs\n");
-+	queue_delayed_kthread_work(rb_producer_worker,
-+				   &rb_producer_hammer_work,
-+				   HZ * SLEEP_TIME);
- }
- 
- static int __init ring_buffer_benchmark_init(void)
- {
--	int ret;
-+	int ret = 0;
- 
- 	/* make a one meg buffer in overwite mode */
- 	buffer = ring_buffer_alloc(1000000, RB_FL_OVERWRITE);
-@@ -437,19 +416,21 @@ static int __init ring_buffer_benchmark_init(void)
- 		return -ENOMEM;
- 
- 	if (!disable_reader) {
--		consumer = kthread_create(ring_buffer_consumer_thread,
--					  NULL, "rb_consumer");
--		ret = PTR_ERR(consumer);
--		if (IS_ERR(consumer))
-+		rb_consumer_worker = create_kthread_worker("rb_consumer");
-+		if (IS_ERR(rb_consumer_worker)) {
-+			ret = PTR_ERR(rb_consumer_worker);
- 			goto out_fail;
-+		}
- 	}
- 
--	producer = kthread_run(ring_buffer_producer_thread,
--			       NULL, "rb_producer");
--	ret = PTR_ERR(producer);
--
--	if (IS_ERR(producer))
-+	rb_producer_worker = create_kthread_worker("rb_producer");
-+	if (IS_ERR(rb_producer_worker)) {
-+		ret = PTR_ERR(rb_producer_worker);
- 		goto out_kill;
-+	}
-+
-+	queue_delayed_kthread_work(rb_producer_worker,
-+				   &rb_producer_hammer_work, 0);
- 
- 	/*
- 	 * Run them as low-prio background tasks by default:
-@@ -459,24 +440,26 @@ static int __init ring_buffer_benchmark_init(void)
- 			struct sched_param param = {
- 				.sched_priority = consumer_fifo
- 			};
--			sched_setscheduler(consumer, SCHED_FIFO, &param);
-+			sched_setscheduler(rb_consumer_worker->task,
-+					   SCHED_FIFO, &param);
- 		} else
--			set_user_nice(consumer, consumer_nice);
-+			set_user_nice(rb_consumer_worker->task, consumer_nice);
- 	}
- 
- 	if (producer_fifo >= 0) {
- 		struct sched_param param = {
- 			.sched_priority = producer_fifo
- 		};
--		sched_setscheduler(producer, SCHED_FIFO, &param);
-+		sched_setscheduler(rb_producer_worker->task,
-+				   SCHED_FIFO, &param);
- 	} else
--		set_user_nice(producer, producer_nice);
-+		set_user_nice(rb_producer_worker->task, producer_nice);
- 
- 	return 0;
- 
-  out_kill:
--	if (consumer)
--		kthread_stop(consumer);
-+	if (rb_consumer_worker)
-+		destroy_kthread_worker(rb_consumer_worker);
- 
-  out_fail:
- 	ring_buffer_free(buffer);
-@@ -485,9 +468,11 @@ static int __init ring_buffer_benchmark_init(void)
- 
- static void __exit ring_buffer_benchmark_exit(void)
- {
--	kthread_stop(producer);
--	if (consumer)
--		kthread_stop(consumer);
-+	test_end = 1;
-+	cancel_delayed_kthread_work_sync(&rb_producer_hammer_work);
-+	destroy_kthread_worker(rb_producer_worker);
-+	if (rb_consumer_worker)
-+		destroy_kthread_worker(rb_consumer_worker);
- 	ring_buffer_free(buffer);
- }
- 
+ /* Values for rcu_state structure's gp_flags field. */
+-#define RCU_GP_WAIT_INIT 0	/* Initial state. */
++#define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
+ #define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
+ #define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
+ #define RCU_GP_WAIT_FQS  3	/* Wait for force-quiescent-state time. */
+diff --git a/kernel/rcu/tree_trace.c b/kernel/rcu/tree_trace.c
+index 6fc4c5ff3bb5..1d61f5ba4641 100644
+--- a/kernel/rcu/tree_trace.c
++++ b/kernel/rcu/tree_trace.c
+@@ -268,7 +268,7 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
+ 	gpnum = rsp->gpnum;
+ 	seq_printf(m, "c=%ld g=%ld s=%d jfq=%ld j=%x ",
+ 		   ulong2long(rsp->completed), ulong2long(gpnum),
+-		   rsp->fqs_state,
++		   rsp->gp_state,
+ 		   (long)(rsp->jiffies_force_qs - jiffies),
+ 		   (int)(jiffies & 0xffff));
+ 	seq_printf(m, "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
 -- 
 1.8.5.6
 
