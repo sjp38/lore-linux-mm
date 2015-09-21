@@ -1,163 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E26F76B0253
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:03:20 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so108080606wic.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 05:03:20 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id y6si16661809wiv.50.2015.09.21.05.03.19
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 730D06B0253
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:16:52 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so143328653wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 05:16:52 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id ft20si16708881wic.68.2015.09.21.05.16.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 21 Sep 2015 05:03:19 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id E0ECE99050
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 12:03:18 +0000 (UTC)
-Date: Mon, 21 Sep 2015 13:03:17 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 10/10] mm, page_alloc: Only enforce watermarks for order-0
- allocations
-Message-ID: <20150921120317.GC3068@techsingularity.net>
-References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Sep 2015 05:16:51 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so143328017wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 05:16:51 -0700 (PDT)
+From: Dmitry Vyukov <dvyukov@google.com>
+Subject: [PATCH] fs: fix data race on mnt.mnt_flags
+Date: Mon, 21 Sep 2015 14:16:47 +0200
+Message-Id: <1442837807-70839-1-git-send-email-dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, riel@redhat.com, mhocko@suse.cz, oleg@redhat.com, sasha.levin@oracle.com, gang.chen.5i5j@gmail.com, pfeiner@google.com, aarcange@redhat.com, vishnu.ps@samsung.com, linux-mm@kvack.org
+Cc: glider@google.com, kcc@google.com, andreyknvl@google.com, ktsan@googlegroups.com, paulmck@linux.vnet.ibm.com, Dmitry Vyukov <dvyukov@google.com>
 
-The primary purpose of watermarks is to ensure that reclaim can always
-make forward progress in PF_MEMALLOC context (kswapd and direct reclaim).
-These assume that order-0 allocations are all that is necessary for
-forward progress.
+do_remount() does:
 
-High-order watermarks serve a different purpose. Kswapd
-had no high-order awareness before they were introduced
-(https://lkml.kernel.org/r/413AA7B2.4000907@yahoo.com.au).  This was
-particularly important when there were high-order atomic requests.
-The watermarks both gave kswapd awareness and made a reserve for those
-atomic requests.
+mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
+mnt->mnt.mnt_flags = mnt_flags;
 
-There are two important side-effects of this. The most important is that
-a non-atomic high-order request can fail even though free pages are available
-and the order-0 watermarks are ok. The second is that high-order watermark
-checks are expensive as the free list counts up to the requested order must
-be examined.
+This can easily be compiled as:
 
-With the introduction of MIGRATE_HIGHATOMIC it is no longer necessary to
-have high-order watermarks. Kswapd and compaction still need high-order
-awareness which is handled by checking that at least one suitable high-order
-page is free.
+mnt->mnt.mnt_flags &= ~MNT_USER_SETTABLE_MASK;
+mnt->mnt.mnt_flags |= mnt_flags;
 
-With the patch applied, there was little difference in the allocation
-failure rates as the atomic reserves are small relative to the number of
-allocation attempts. The expected impact is that there will never be an
-allocation failure report that shows suitable pages on the free lists.
+(also 2 memory accesses, less register pressure)
+The flags are being concurrently read by e.g. do_mmap_pgoff()
+which does:
 
-The one potential side-effect of this is that in a vanilla kernel, the
-watermark checks may have kept a free page for an atomic allocation. Now,
-we are 100% relying on the HighAtomic reserves and an early allocation to
-have allocated them.  If the first high-order atomic allocation is after
-the system is already heavily fragmented then it'll fail.
+if (file->f_path.mnt->mnt_flags & MNT_NOEXEC)
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Michal Hocko <mhocko@suse.com>
+As the result we can allow to mmap a MNT_NOEXEC mount
+as VM_EXEC.
+
+Use WRITE_ONCE() to set new flags.
+
+The data race was found with KernelThreadSanitizer (KTSAN).
+
+Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
 ---
- mm/page_alloc.c | 51 +++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 37 insertions(+), 14 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 811d6fc4ad5d..ee379d3b6cc2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2308,8 +2308,10 @@ static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
- #endif /* CONFIG_FAIL_PAGE_ALLOC */
- 
- /*
-- * Return true if free pages are above 'mark'. This takes into account the order
-- * of the allocation.
-+ * Return true if free base pages are above 'mark'. For high-order checks it
-+ * will return true of the order-0 watermark is reached and there is at least
-+ * one free page of a suitable size. Checking now avoids taking the zone lock
-+ * to check in the allocation paths if no pages are free.
-  */
- static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 			unsigned long mark, int classzone_idx, int alloc_flags,
-@@ -2317,7 +2319,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- {
- 	long min = mark;
- 	int o;
--	long free_cma = 0;
-+	const bool alloc_harder = (alloc_flags & ALLOC_HARDER);
- 
- 	/* free_pages may go negative - that's OK */
- 	free_pages -= (1 << order) - 1;
-@@ -2330,7 +2332,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 	 * the high-atomic reserves. This will over-estimate the size of the
- 	 * atomic reserve but it avoids a search.
- 	 */
--	if (likely(!(alloc_flags & ALLOC_HARDER)))
-+	if (likely(!alloc_harder))
- 		free_pages -= z->nr_reserved_highatomic;
- 	else
- 		min -= min / 4;
-@@ -2338,22 +2340,43 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- #ifdef CONFIG_CMA
- 	/* If allocation can't use CMA areas don't use free CMA pages */
- 	if (!(alloc_flags & ALLOC_CMA))
--		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
-+		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
- #endif
- 
--	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
-+	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
- 		return false;
--	for (o = 0; o < order; o++) {
--		/* At the next order, this order's pages become unavailable */
--		free_pages -= z->free_area[o].nr_free << o;
- 
--		/* Require fewer higher order pages to be free */
--		min >>= 1;
-+	/* order-0 watermarks are ok */
-+	if (!order)
-+		return true;
-+
-+	/* Check at least one high-order page is free */
-+	for (o = order; o < MAX_ORDER; o++) {
-+		struct free_area *area = &z->free_area[o];
-+		int mt;
-+
-+		if (!area->nr_free)
-+			continue;
-+
-+		if (alloc_harder) {
-+			if (area->nr_free)
-+				return true;
-+			continue;
-+		}
- 
--		if (free_pages <= min)
--			return false;
-+		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
-+			if (!list_empty(&area->free_list[mt]))
-+				return true;
-+		}
-+
-+#ifdef CONFIG_CMA
-+		if ((alloc_flags & ALLOC_CMA) &&
-+		    !list_empty(&area->free_list[MIGRATE_CMA])) {
-+			return true;
-+		}
-+#endif
+For the record KTSAN report on 4.2:
+
+ThreadSanitizer: data-race in do_mmap_pgoff
+
+Read at 0xffff8800bb857e30 of size 4 by thread 1471 on CPU 0:
+ [<ffffffff8121e770>] do_mmap_pgoff+0x4f0/0x590 mm/mmap.c:1341
+ [<ffffffff811f8a6a>] vm_mmap_pgoff+0xaa/0xe0 mm/util.c:297
+ [<ffffffff811f8b0c>] vm_mmap+0x6c/0x90 mm/util.c:315
+ [<ffffffff812ea95c>] elf_map+0x13c/0x160 fs/binfmt_elf.c:365
+ [<ffffffff812eb3cd>] load_elf_binary+0x91d/0x22b0 fs/binfmt_elf.c:955 (discriminator 9)
+ [<ffffffff8126a712>] search_binary_handler+0x142/0x360 fs/exec.c:1422
+ [<     inline     >] exec_binprm fs/exec.c:1464
+ [<ffffffff8126c689>] do_execveat_common.isra.36+0x919/0xb40 fs/exec.c:1584
+ [<     inline     >] do_execve fs/exec.c:1628
+ [<     inline     >] SYSC_execve fs/exec.c:1709
+ [<ffffffff8126cdc6>] SyS_execve+0x46/0x60 fs/exec.c:1704
+ [<ffffffff81ee4145>] return_from_execve+0x0/0x23 arch/x86/entry/entry_64.S:428
+
+Previous write at 0xffff8800bb857e30 of size 4 by thread 1468 on CPU 8:
+ [<     inline     >] do_remount fs/namespace.c:2215
+ [<ffffffff8129a157>] do_mount+0x637/0x1450 fs/namespace.c:2716
+ [<     inline     >] SYSC_mount fs/namespace.c:2915
+ [<ffffffff8129b4e3>] SyS_mount+0xa3/0x100 fs/namespace.c:2893
+ [<ffffffff81ee3e11>] entry_SYSCALL_64_fastpath+0x31/0x95 arch/x86/entry/entry_64.S:188
+
+Mutexes locked by thread 1471:
+Mutex 228939 is locked here:
+ [<ffffffff81edf7c2>] mutex_lock_interruptible+0x62/0xa0 kernel/locking/mutex.c:805
+ [<ffffffff8126bd0f>] prepare_bprm_creds+0x4f/0xb0 fs/exec.c:1172
+ [<ffffffff8126beaf>] do_execveat_common.isra.36+0x13f/0xb40 fs/exec.c:1517
+ [<     inline     >] do_execve fs/exec.c:1628
+ [<     inline     >] SYSC_execve fs/exec.c:1709
+ [<ffffffff8126cdc6>] SyS_execve+0x46/0x60 fs/exec.c:1704
+ [<ffffffff81ee4145>] return_from_execve+0x0/0x23 arch/x86/entry/entry_64.S:428
+
+Mutex 223016 is locked here:
+ [<ffffffff81ee0d45>] down_write+0x65/0x80 kernel/locking/rwsem.c:62
+ [<ffffffff811f8a4c>] vm_mmap_pgoff+0x8c/0xe0 mm/util.c:296
+ [<ffffffff811f8b0c>] vm_mmap+0x6c/0x90 mm/util.c:315
+ [<ffffffff812ea95c>] elf_map+0x13c/0x160 fs/binfmt_elf.c:365
+ [<ffffffff812eb3cd>] load_elf_binary+0x91d/0x22b0 fs/binfmt_elf.c:955 (discriminator 9)
+ [<ffffffff8126a712>] search_binary_handler+0x142/0x360 fs/exec.c:1422
+ [<     inline     >] exec_binprm fs/exec.c:1464
+ [<ffffffff8126c689>] do_execveat_common.isra.36+0x919/0xb40 fs/exec.c:1584
+ [<     inline     >] do_execve fs/exec.c:1628
+ [<     inline     >] SYSC_execve fs/exec.c:1709
+ [<ffffffff8126cdc6>] SyS_execve+0x46/0x60 fs/exec.c:1704
+ [<ffffffff81ee4145>] return_from_execve+0x0/0x23 arch/x86/entry/entry_64.S:428
+
+Mutexes locked by thread 1468:
+Mutex 119619 is locked here:
+ [<ffffffff81ee0d45>] down_write+0x65/0x80 kernel/locking/rwsem.c:62
+ [<     inline     >] do_remount fs/namespace.c:2205
+ [<ffffffff81299ff1>] do_mount+0x4d1/0x1450 fs/namespace.c:2716
+ [<     inline     >] SYSC_mount fs/namespace.c:2915
+ [<ffffffff8129b4e3>] SyS_mount+0xa3/0x100 fs/namespace.c:2893
+ [<ffffffff81ee3e11>] entry_SYSCALL_64_fastpath+0x31/0x95 arch/x86/entry/entry_64.S:188
+
+Mutex 193 is locked here:
+ [<     inline     >] __raw_spin_lock include/linux/spinlock_api_smp.h:158
+ [<ffffffff81ee37d0>] _raw_spin_lock+0x50/0x70 kernel/locking/spinlock.c:151
+ [<     inline     >] spin_lock include/linux/spinlock.h:312
+ [<     inline     >] write_seqlock include/linux/seqlock.h:470
+ [<     inline     >] lock_mount_hash fs/mount.h:112
+ [<     inline     >] do_remount fs/namespace.c:2213
+ [<ffffffff8129a10e>] do_mount+0x5ee/0x1450 fs/namespace.c:2716
+ [<     inline     >] SYSC_mount fs/namespace.c:2915
+ [<ffffffff8129b4e3>] SyS_mount+0xa3/0x100 fs/namespace.c:2893
+ [<ffffffff81ee3e11>] entry_SYSCALL_64_fastpath+0x31/0x95 arch/x86/entry/entry_64.S:188
+---
+ fs/namespace.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/fs/namespace.c b/fs/namespace.c
+index 0570729..d0040be 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -2212,7 +2212,7 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
+ 	if (!err) {
+ 		lock_mount_hash();
+ 		mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
+-		mnt->mnt.mnt_flags = mnt_flags;
++		WRITE_ONCE(mnt->mnt.mnt_flags, mnt_flags);
+ 		touch_mnt_namespace(mnt->mnt_ns);
+ 		unlock_mount_hash();
  	}
--	return true;
-+	return false;
- }
- 
- bool zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 -- 
-2.4.6
+2.6.0.rc0.131.gf624c3d
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
