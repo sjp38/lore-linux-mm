@@ -1,103 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 66E596B0253
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 00:45:15 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so105222462pad.1
-        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 21:45:15 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id o3si34821131pap.210.2015.09.20.21.45.14
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 7221E6B0253
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 03:10:29 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so132233000wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 00:10:29 -0700 (PDT)
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com. [195.75.94.109])
+        by mx.google.com with ESMTPS id mw8si15292701wic.89.2015.09.21.00.10.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Sep 2015 21:45:14 -0700 (PDT)
-Received: by pacex6 with SMTP id ex6so105348099pac.0
-        for <linux-mm@kvack.org>; Sun, 20 Sep 2015 21:45:14 -0700 (PDT)
-Date: Mon, 21 Sep 2015 13:46:00 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: [linux-next] khugepaged inconsistent lock state
-Message-ID: <20150921044600.GA863@swordfish>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 Sep 2015 00:10:28 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Mon, 21 Sep 2015 08:10:27 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 8D29A1B0804B
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:12:08 +0100 (BST)
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8L7APNH30801966
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 07:10:25 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8L7AOxl013267
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 01:10:25 -0600
+Date: Mon, 21 Sep 2015 09:10:33 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH] mm/swapfile: fix swapoff vs. software dirty bits
+Message-ID: <20150921091033.1799ea40@mschwide>
+In-Reply-To: <20150918202109.GE2035@uranus>
+References: <1442480339-26308-1-git-send-email-schwidefsky@de.ibm.com>
+	<1442480339-26308-2-git-send-email-schwidefsky@de.ibm.com>
+	<20150917193152.GJ2000@uranus>
+	<20150918085835.597fb036@mschwide>
+	<20150918071549.GA2035@uranus>
+	<20150918102001.0e0389c7@mschwide>
+	<20150918085301.GC2035@uranus>
+	<20150918111038.58c3a8de@mschwide>
+	<20150918202109.GE2035@uranus>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-Hi,
+On Fri, 18 Sep 2015 23:21:09 +0300
+Cyrill Gorcunov <gorcunov@gmail.com> wrote:
 
-4.3.0-rc1-next-20150918
+> On Fri, Sep 18, 2015 at 11:10:38AM +0200, Martin Schwidefsky wrote:
+> > > 
+> > > You know, these are only two lines where we use _PAGE_SOFT_DIRTY
+> > > directly, so I don't see much point in adding 22 lines of code
+> > > for that. Maybe we can leave it as is?
+> >  
+> > Only x86 has pte_clear_flags. And the two lines require that there is exactly
+> > one bit in the PTE for soft-dirty. An alternative encoding will not be allowed.
+> 
+> Agreed, still I would defer until there is a real need for an alternative encoding.
 
-[18344.236625] =================================
-[18344.236628] [ INFO: inconsistent lock state ]
-[18344.236633] 4.3.0-rc1-next-20150918-dbg-00014-ge5128d0-dirty #361 Not tainted
-[18344.236636] ---------------------------------
-[18344.236640] inconsistent {IN-RECLAIM_FS-W} -> {RECLAIM_FS-ON-W} usage.
-[18344.236645] khugepaged/32 [HC0[0]:SC0[0]:HE1:SE1] takes:
-[18344.236648]  (&anon_vma->rwsem){++++?.}, at: [<ffffffff81134403>] khugepaged+0x8b0/0x1987
-[18344.236662] {IN-RECLAIM_FS-W} state was registered at:
-[18344.236666]   [<ffffffff8107d747>] __lock_acquire+0x8e2/0x1183
-[18344.236673]   [<ffffffff8107e7ac>] lock_acquire+0x10b/0x1a6
-[18344.236678]   [<ffffffff8150a367>] down_write+0x3b/0x6a
-[18344.236686]   [<ffffffff811360d8>] split_huge_page_to_list+0x5b/0x61f
-[18344.236689]   [<ffffffff811224b3>] add_to_swap+0x37/0x78
-[18344.236691]   [<ffffffff810fd650>] shrink_page_list+0x4c2/0xb9a
-[18344.236694]   [<ffffffff810fe47c>] shrink_inactive_list+0x371/0x5d9
-[18344.236696]   [<ffffffff810fee2f>] shrink_lruvec+0x410/0x5ae
-[18344.236698]   [<ffffffff810ff024>] shrink_zone+0x57/0x140
-[18344.236700]   [<ffffffff810ffc79>] kswapd+0x6a5/0x91b
-[18344.236702]   [<ffffffff81059588>] kthread+0x107/0x10f
-[18344.236706]   [<ffffffff8150c7bf>] ret_from_fork+0x3f/0x70
-[18344.236708] irq event stamp: 6517947
-[18344.236709] hardirqs last  enabled at (6517947): [<ffffffff810f2d0c>] get_page_from_freelist+0x362/0x59e
-[18344.236713] hardirqs last disabled at (6517946): [<ffffffff8150ba41>] _raw_spin_lock_irqsave+0x18/0x51
-[18344.236715] softirqs last  enabled at (6507072): [<ffffffff81041cb0>] __do_softirq+0x2df/0x3f5
-[18344.236719] softirqs last disabled at (6507055): [<ffffffff81041fb5>] irq_exit+0x40/0x94
-[18344.236722] 
-               other info that might help us debug this:
-[18344.236723]  Possible unsafe locking scenario:
+The s390 support for soft dirty ptes will need it.
+ 
+> > And the current set of primitives is asymmetric, there are functions to query
+> > and set the bit pte_soft_dirty and pte_mksoft_dirty but no function to clear
+> > the bit.
+> 
+> Yes, but again I don't see an urgent need for these helpers.
+> 
+> Anyway, there is no strong objections against this approach
+> from my side, but please at least compile-test the patch next
+> time, because this is definitely a typo
+> 
+> static inline pmd_t pmd_clear_soft_dirty(pmd_t pmd)
+> {
+> 	return pmp_clear_flags(pmd, _PAGE_SOFT_DIRTY);
+> }
+> 
+> I bet you meant pmd_clear_flags.
 
-[18344.236724]        CPU0
-[18344.236725]        ----
-[18344.236726]   lock(&anon_vma->rwsem);
-[18344.236728]   <Interrupt>
-[18344.236729]     lock(&anon_vma->rwsem);
-[18344.236731] 
-                *** DEADLOCK ***
+Yes, the final test is still pending. The patch was more or less for illustrative
+purpose. I yet have to do the compile & boot test on an x86 system.
 
-[18344.236733] 2 locks held by khugepaged/32:
-[18344.236733]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff81134122>] khugepaged+0x5cf/0x1987
-[18344.236738]  #1:  (&anon_vma->rwsem){++++?.}, at: [<ffffffff81134403>] khugepaged+0x8b0/0x1987
-[18344.236741] 
-               stack backtrace:
-[18344.236744] CPU: 3 PID: 32 Comm: khugepaged Not tainted 4.3.0-rc1-next-20150918-dbg-00014-ge5128d0-dirty #361
-[18344.236747]  0000000000000000 ffff880132827a00 ffffffff81230867 ffffffff8237ba90
-[18344.236750]  ffff880132827a38 ffffffff810ea9b9 000000000000000a ffff8801333b52e0
-[18344.236753]  ffff8801333b4c00 ffffffff8107b3ce 000000000000000a ffff880132827a78
-[18344.236755] Call Trace:
-[18344.236758]  [<ffffffff81230867>] dump_stack+0x4e/0x79
-[18344.236761]  [<ffffffff810ea9b9>] print_usage_bug.part.24+0x259/0x268
-[18344.236763]  [<ffffffff8107b3ce>] ? print_shortest_lock_dependencies+0x180/0x180
-[18344.236765]  [<ffffffff8107c7fc>] mark_lock+0x381/0x567
-[18344.236766]  [<ffffffff8107ca40>] mark_held_locks+0x5e/0x74
-[18344.236768]  [<ffffffff8107ee9f>] lockdep_trace_alloc+0xb0/0xb3
-[18344.236771]  [<ffffffff810f30cc>] __alloc_pages_nodemask+0x99/0x856
-[18344.236772]  [<ffffffff810ebaf9>] ? find_get_entry+0x14b/0x17a
-[18344.236774]  [<ffffffff810ebb16>] ? find_get_entry+0x168/0x17a
-[18344.236777]  [<ffffffff811226d9>] __read_swap_cache_async+0x7b/0x1aa
-[18344.236778]  [<ffffffff8112281d>] read_swap_cache_async+0x15/0x2d
-[18344.236780]  [<ffffffff8112294f>] swapin_readahead+0x11a/0x16a
-[18344.236783]  [<ffffffff81112791>] do_swap_page+0xa7/0x36b
-[18344.236784]  [<ffffffff81112791>] ? do_swap_page+0xa7/0x36b
-[18344.236787]  [<ffffffff8113444c>] khugepaged+0x8f9/0x1987
-[18344.236790]  [<ffffffff810772f3>] ? wait_woken+0x88/0x88
-[18344.236792]  [<ffffffff81133b53>] ? maybe_pmd_mkwrite+0x1a/0x1a
-[18344.236794]  [<ffffffff81059588>] kthread+0x107/0x10f
-[18344.236797]  [<ffffffff81059481>] ? kthread_create_on_node+0x1ea/0x1ea
-[18344.236799]  [<ffffffff8150c7bf>] ret_from_fork+0x3f/0x70
-[18344.236801]  [<ffffffff81059481>] ? kthread_create_on_node+0x1ea/0x1ea
+-- 
+blue skies,
+   Martin.
 
-
-	-ss
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
