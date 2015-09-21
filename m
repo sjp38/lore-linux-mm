@@ -1,130 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B31E36B0253
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 11:01:39 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so118810444wic.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:01:39 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
-        by mx.google.com with ESMTPS id ir10si31665131wjb.206.2015.09.21.08.01.37
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A24186B0255
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 11:22:24 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so120860932wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:22:24 -0700 (PDT)
+Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
+        by mx.google.com with ESMTPS id b13si31821244wjz.156.2015.09.21.08.22.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 08:01:37 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so150409234wic.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:01:37 -0700 (PDT)
-Date: Mon, 21 Sep 2015 18:01:35 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [linux-next] khugepaged inconsistent lock state
-Message-ID: <20150921150135.GB30755@node.dhcp.inet.fi>
-References: <20150921044600.GA863@swordfish>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150921044600.GA863@swordfish>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 Sep 2015 08:22:23 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Mon, 21 Sep 2015 16:22:22 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 40499219005C
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 16:21:52 +0100 (BST)
+Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8LFMLQx36110566
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 15:22:21 GMT
+Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8LEMLQE009157
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:22:21 -0600
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [PATCH 0/2] mm: soft-dirty bits for s390
+Date: Mon, 21 Sep 2015 17:22:18 +0200
+Message-Id: <1442848940-22108-1-git-send-email-schwidefsky@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Mon, Sep 21, 2015 at 01:46:00PM +0900, Sergey Senozhatsky wrote:
-> Hi,
-> 
-> 4.3.0-rc1-next-20150918
-> 
-> [18344.236625] =================================
-> [18344.236628] [ INFO: inconsistent lock state ]
-> [18344.236633] 4.3.0-rc1-next-20150918-dbg-00014-ge5128d0-dirty #361 Not tainted
-> [18344.236636] ---------------------------------
-> [18344.236640] inconsistent {IN-RECLAIM_FS-W} -> {RECLAIM_FS-ON-W} usage.
-> [18344.236645] khugepaged/32 [HC0[0]:SC0[0]:HE1:SE1] takes:
-> [18344.236648]  (&anon_vma->rwsem){++++?.}, at: [<ffffffff81134403>] khugepaged+0x8b0/0x1987
-> [18344.236662] {IN-RECLAIM_FS-W} state was registered at:
-> [18344.236666]   [<ffffffff8107d747>] __lock_acquire+0x8e2/0x1183
-> [18344.236673]   [<ffffffff8107e7ac>] lock_acquire+0x10b/0x1a6
-> [18344.236678]   [<ffffffff8150a367>] down_write+0x3b/0x6a
-> [18344.236686]   [<ffffffff811360d8>] split_huge_page_to_list+0x5b/0x61f
-> [18344.236689]   [<ffffffff811224b3>] add_to_swap+0x37/0x78
-> [18344.236691]   [<ffffffff810fd650>] shrink_page_list+0x4c2/0xb9a
-> [18344.236694]   [<ffffffff810fe47c>] shrink_inactive_list+0x371/0x5d9
-> [18344.236696]   [<ffffffff810fee2f>] shrink_lruvec+0x410/0x5ae
-> [18344.236698]   [<ffffffff810ff024>] shrink_zone+0x57/0x140
-> [18344.236700]   [<ffffffff810ffc79>] kswapd+0x6a5/0x91b
-> [18344.236702]   [<ffffffff81059588>] kthread+0x107/0x10f
-> [18344.236706]   [<ffffffff8150c7bf>] ret_from_fork+0x3f/0x70
-> [18344.236708] irq event stamp: 6517947
-> [18344.236709] hardirqs last  enabled at (6517947): [<ffffffff810f2d0c>] get_page_from_freelist+0x362/0x59e
-> [18344.236713] hardirqs last disabled at (6517946): [<ffffffff8150ba41>] _raw_spin_lock_irqsave+0x18/0x51
-> [18344.236715] softirqs last  enabled at (6507072): [<ffffffff81041cb0>] __do_softirq+0x2df/0x3f5
-> [18344.236719] softirqs last disabled at (6507055): [<ffffffff81041fb5>] irq_exit+0x40/0x94
-> [18344.236722] 
->                other info that might help us debug this:
-> [18344.236723]  Possible unsafe locking scenario:
-> 
-> [18344.236724]        CPU0
-> [18344.236725]        ----
-> [18344.236726]   lock(&anon_vma->rwsem);
-> [18344.236728]   <Interrupt>
-> [18344.236729]     lock(&anon_vma->rwsem);
-> [18344.236731] 
->                 *** DEADLOCK ***
-> 
-> [18344.236733] 2 locks held by khugepaged/32:
-> [18344.236733]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff81134122>] khugepaged+0x5cf/0x1987
-> [18344.236738]  #1:  (&anon_vma->rwsem){++++?.}, at: [<ffffffff81134403>] khugepaged+0x8b0/0x1987
-> [18344.236741] 
->                stack backtrace:
-> [18344.236744] CPU: 3 PID: 32 Comm: khugepaged Not tainted 4.3.0-rc1-next-20150918-dbg-00014-ge5128d0-dirty #361
-> [18344.236747]  0000000000000000 ffff880132827a00 ffffffff81230867 ffffffff8237ba90
-> [18344.236750]  ffff880132827a38 ffffffff810ea9b9 000000000000000a ffff8801333b52e0
-> [18344.236753]  ffff8801333b4c00 ffffffff8107b3ce 000000000000000a ffff880132827a78
-> [18344.236755] Call Trace:
-> [18344.236758]  [<ffffffff81230867>] dump_stack+0x4e/0x79
-> [18344.236761]  [<ffffffff810ea9b9>] print_usage_bug.part.24+0x259/0x268
-> [18344.236763]  [<ffffffff8107b3ce>] ? print_shortest_lock_dependencies+0x180/0x180
-> [18344.236765]  [<ffffffff8107c7fc>] mark_lock+0x381/0x567
-> [18344.236766]  [<ffffffff8107ca40>] mark_held_locks+0x5e/0x74
-> [18344.236768]  [<ffffffff8107ee9f>] lockdep_trace_alloc+0xb0/0xb3
-> [18344.236771]  [<ffffffff810f30cc>] __alloc_pages_nodemask+0x99/0x856
-> [18344.236772]  [<ffffffff810ebaf9>] ? find_get_entry+0x14b/0x17a
-> [18344.236774]  [<ffffffff810ebb16>] ? find_get_entry+0x168/0x17a
-> [18344.236777]  [<ffffffff811226d9>] __read_swap_cache_async+0x7b/0x1aa
-> [18344.236778]  [<ffffffff8112281d>] read_swap_cache_async+0x15/0x2d
-> [18344.236780]  [<ffffffff8112294f>] swapin_readahead+0x11a/0x16a
-> [18344.236783]  [<ffffffff81112791>] do_swap_page+0xa7/0x36b
-> [18344.236784]  [<ffffffff81112791>] ? do_swap_page+0xa7/0x36b
-> [18344.236787]  [<ffffffff8113444c>] khugepaged+0x8f9/0x1987
-> [18344.236790]  [<ffffffff810772f3>] ? wait_woken+0x88/0x88
-> [18344.236792]  [<ffffffff81133b53>] ? maybe_pmd_mkwrite+0x1a/0x1a
-> [18344.236794]  [<ffffffff81059588>] kthread+0x107/0x10f
-> [18344.236797]  [<ffffffff81059481>] ? kthread_create_on_node+0x1ea/0x1ea
-> [18344.236799]  [<ffffffff8150c7bf>] ret_from_fork+0x3f/0x70
-> [18344.236801]  [<ffffffff81059481>] ? kthread_create_on_node+0x1ea/0x1ea
+Greetings,
 
-Hm. If I read this correctly, we see following scenario:
+this patch set of two adds memory change tracking alias soft-dirty
+feature to the s390 architecture.
 
- - khugepaged tries to swap in a page under mmap_sem and anon_vma lock;
- - do_swap_page() calls swapin_readahead() with GFP_HIGHUSER_MOVABLE;
- - __read_swap_cache_async() tries to allocate the page for swap in;
- - lockdep_trace_alloc() in __alloc_pages_nodemask() notices that with
-   given gfp_mask we could end up in direct relaim.
- - Lockdep already knows that reclaim sometimes (e.g. in case of
-   split_huge_page()) wants to take anon_vma lock on its own.
+The first patch is a cleanup of the existing x86 support, it adds two
+arch specific functions pte_clear_soft_dirty and pmd_clear_soft_dirty
+to complement the other xxx_soft_dirty functions. This removes the
+use of a x86 specific function in fs/proc/tasm_mmu.c.
 
-Therefore deadlock is possible.
+The second patch is the s390 arch support.
 
-I see two ways to fix this:
+Tested on x86 and s390, seems to work as intended for both platforms.
+If the first patch is acceptable I can queue the set on the linux-s390
+tree for the 4.4 merge window in a couple of weeks.
 
- - take anon_vma lock *after* __collapse_huge_page_swapin() in
-   collapse_huge_page(): I don't really see why we need the lock
-   during swapin;
- - respect FAULT_FLAG_RETRY_NOWAIT in do_swap_page(): add GFP_NOWAIT to
-   gfp_mask for swapin_readahead() in this case.
+Martin Schwidefsky (2):
+  mm: add architecture primitives for software dirty bit clearing
+  s390/mm: implement soft-dirty bits for user memory change tracking
 
-I guess it could be beneficial to do both.
-
-Any comments?
+ arch/s390/Kconfig               |  1 +
+ arch/s390/include/asm/pgtable.h | 59 ++++++++++++++++++++++++++++++++++++++---
+ arch/s390/mm/hugetlbpage.c      |  2 ++
+ arch/x86/include/asm/pgtable.h  | 10 +++++++
+ fs/proc/task_mmu.c              |  4 +--
+ include/asm-generic/pgtable.h   | 10 +++++++
+ 6 files changed, 80 insertions(+), 6 deletions(-)
 
 -- 
- Kirill A. Shutemov
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
