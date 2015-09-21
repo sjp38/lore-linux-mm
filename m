@@ -1,57 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D58CD6B0256
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:36:28 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so119507198pac.2
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:36:28 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id kw9si37816010pab.114.2015.09.21.06.36.27
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C7826B0256
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:42:36 -0400 (EDT)
+Received: by oibi136 with SMTP id i136so58177212oib.3
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:42:36 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k4si12142299oic.89.2015.09.21.06.42.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 21 Sep 2015 06:36:27 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NV1005VX4GNSH60@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 21 Sep 2015 14:36:23 +0100 (BST)
-From: Andrzej Hajda <a.hajda@samsung.com>
-Subject: [PATCH 33/38] mm/memblock.c: remove invalid check
-Date: Mon, 21 Sep 2015 15:34:05 +0200
-Message-id: <1442842450-29769-34-git-send-email-a.hajda@samsung.com>
-In-reply-to: <1442842450-29769-1-git-send-email-a.hajda@samsung.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Sep 2015 06:42:36 -0700 (PDT)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <1442842450-29769-1-git-send-email-a.hajda@samsung.com>
 References: <1442842450-29769-1-git-send-email-a.hajda@samsung.com>
+Subject: Re: [PATCH 00/38] Fixes related to incorrect usage of unsigned types
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <17570.1442842945.1@warthog.procyon.org.uk>
+Date: Mon, 21 Sep 2015 14:42:25 +0100
+Message-ID: <17571.1442842945@warthog.procyon.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrzej Hajda <a.hajda@samsung.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Kuleshov <kuleshovmail@gmail.com>, Tony Luck <tony.luck@intel.com>, Wei Yang <weiyang@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Andrzej Hajda <a.hajda@samsung.com>
+Cc: dhowells@redhat.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cachefs@redhat.com, linux-clk@vger.kernel.org, linux-crypto@vger.kernel.org, linux-fbdev@vger.kernel.org, linux-input@vger.kernel.org, linux-leds@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-omap@vger.kernel.org, linux-rdma@vger.kernel.org, linux-serial@vger.kernel.org, linux-sh@vger.kernel.org, linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org, lustre-devel@lists.lustre.org
 
-Unsigned value cannot be lesser than zero.
+Andrzej Hajda <a.hajda@samsung.com> wrote:
 
-The problem has been detected using proposed semantic patch
-scripts/coccinelle/tests/unsigned_lesser_than_zero.cocci [1].
+> Semantic patch finds comparisons of types:
+>     unsigned < 0
+>     unsigned >= 0
+> The former is always false, the latter is always true.
+> Such comparisons are useless, so theoretically they could be
+> safely removed, but their presence quite often indicates bugs.
 
-[1]: http://permalink.gmane.org/gmane.linux.kernel/2038576
+Or someone has left them in because they don't matter and there's the
+possibility that the type being tested might be or become signed under some
+circumstances.  If the comparison is useless, I'd expect the compiler to just
+discard it - for such cases your patch is pointless.
 
-Signed-off-by: Andrzej Hajda <a.hajda@samsung.com>
----
- mm/memblock.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+If I have, for example:
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index d300f13..aeb5148 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -837,7 +837,7 @@ void __init_memblock __next_reserved_mem_region(u64 *idx,
- {
- 	struct memblock_type *type = &memblock.reserved;
- 
--	if (*idx >= 0 && *idx < type->cnt) {
-+	if (*idx < type->cnt) {
- 		struct memblock_region *r = &type->regions[*idx];
- 		phys_addr_t base = r->base;
- 		phys_addr_t size = r->size;
--- 
-1.9.1
+	unsigned x;
+
+	if (x == 0 || x > 27)
+		give_a_range_error();
+
+I will write this as:
+
+	unsigned x;
+
+	if (x <= 0 || x > 27)
+		give_a_range_error();
+
+because it that gives a way to handle x being changed to signed at some point
+in the future for no cost.  In which case, your changing the <= to an ==
+"because the < part of the case is useless" is arguably wrong.
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
