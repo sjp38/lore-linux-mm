@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C81EC6B0038
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 19:02:29 -0400 (EDT)
-Received: by ioiz6 with SMTP id z6so135133084ioi.2
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 16:02:29 -0700 (PDT)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id om6si10364630igb.48.2015.09.21.16.02.29
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id DEF816B0255
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 19:03:17 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so129197367pac.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 16:03:17 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id mj6si41071204pab.217.2015.09.21.16.03.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 16:02:29 -0700 (PDT)
-Received: by pacex6 with SMTP id ex6so129180139pac.0
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 16:02:29 -0700 (PDT)
-Date: Mon, 21 Sep 2015 16:02:27 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Sep 2015 16:03:17 -0700 (PDT)
+Received: by pacfv12 with SMTP id fv12so131698353pac.2
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 16:03:17 -0700 (PDT)
+Date: Mon, 21 Sep 2015 16:03:15 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/3] mm/oom_kill: introduce is_sysrq_oom helper
-In-Reply-To: <1442404800-4051-2-git-send-email-bywxiaobai@163.com>
-Message-ID: <alpine.DEB.2.10.1509211602060.27715@chino.kir.corp.google.com>
-References: <1442404800-4051-1-git-send-email-bywxiaobai@163.com> <1442404800-4051-2-git-send-email-bywxiaobai@163.com>
+Subject: Re: [PATCH 3/3] mm/compaction: add an is_via_compact_memory helper
+ function
+In-Reply-To: <1442404800-4051-3-git-send-email-bywxiaobai@163.com>
+Message-ID: <alpine.DEB.2.10.1509211602470.27715@chino.kir.corp.google.com>
+References: <1442404800-4051-1-git-send-email-bywxiaobai@163.com> <1442404800-4051-3-git-send-email-bywxiaobai@163.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,14 +27,19 @@ Cc: akpm@linux-foundation.org, mgorman@suse.de, mhocko@kernel.org, hannes@cmpxch
 
 On Wed, 16 Sep 2015, Yaowei Bai wrote:
 
-> Introduce is_sysrq_oom helper function indicating oom kill triggered
-> by sysrq to improve readability.
+> Introduce is_via_compact_memory helper function indicating compacting
+> via /proc/sys/vm/compact_memory to improve readability.
 > 
-> No functional changes.
+> To catch this situation in __compaction_suitable, use order as parameter
+> directly instead of using struct compact_control.
+> 
+> This patch has no functional changes.
 > 
 > Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
 
 Acked-by: David Rientjes <rientjes@google.com>
+
+Thanks for doing these cleanups!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
