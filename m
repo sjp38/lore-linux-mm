@@ -1,139 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 730D06B0253
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:16:52 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so143328653wic.0
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 05:16:52 -0700 (PDT)
-Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
-        by mx.google.com with ESMTPS id ft20si16708881wic.68.2015.09.21.05.16.51
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 41EE06B0253
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:04:56 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so144804948wic.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:04:55 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c13si30939730wjr.154.2015.09.21.06.04.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 05:16:51 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so143328017wic.0
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 05:16:51 -0700 (PDT)
-From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH] fs: fix data race on mnt.mnt_flags
-Date: Mon, 21 Sep 2015 14:16:47 +0200
-Message-Id: <1442837807-70839-1-git-send-email-dvyukov@google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 21 Sep 2015 06:04:54 -0700 (PDT)
+From: Petr Mladek <pmladek@suse.com>
+Subject: [RFC v2 00/18] kthread: Use kthread worker API more widely
+Date: Mon, 21 Sep 2015 15:03:41 +0200
+Message-Id: <1442840639-6963-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, riel@redhat.com, mhocko@suse.cz, oleg@redhat.com, sasha.levin@oracle.com, gang.chen.5i5j@gmail.com, pfeiner@google.com, aarcange@redhat.com, vishnu.ps@samsung.com, linux-mm@kvack.org
-Cc: glider@google.com, kcc@google.com, andreyknvl@google.com, ktsan@googlegroups.com, paulmck@linux.vnet.ibm.com, Dmitry Vyukov <dvyukov@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
 
-do_remount() does:
+My intention is to make it easier to manipulate kthreads. This RFC tries
+to use the kthread worker API. It is based on comments from the
+first attempt. See https://lkml.org/lkml/2015/7/28/648 and
+the list of changes below.
 
-mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
-mnt->mnt.mnt_flags = mnt_flags;
+1st..8th patches: improve the existing kthread worker API
 
-This can easily be compiled as:
+9th, 12th, 17th patches: convert three kthreads into the new API,
+     namely: khugepaged, ring buffer benchmark, RCU gp kthreads[*]
 
-mnt->mnt.mnt_flags &= ~MNT_USER_SETTABLE_MASK;
-mnt->mnt.mnt_flags |= mnt_flags;
+10th, 11th patches: fix potential problems in the ring buffer
+      benchmark; also sent separately
 
-(also 2 memory accesses, less register pressure)
-The flags are being concurrently read by e.g. do_mmap_pgoff()
-which does:
+13th patch: small fix for RCU kthread; also sent separately;
+     being tested by Paul
 
-if (file->f_path.mnt->mnt_flags & MNT_NOEXEC)
+14th..16th patches: preparation steps for the RCU threads
+     conversion; they are needed _only_ if we split GP start
+     and QS handling into separate works[*]
 
-As the result we can allow to mmap a MNT_NOEXEC mount
-as VM_EXEC.
+18th patch: does a possible improvement of the kthread worker API;
+     it adds an extra parameter to the create*() functions, so I
+     rather put it into this draft
+     
 
-Use WRITE_ONCE() to set new flags.
+[*] IMPORTANT: I tried to split RCU GP start and GS state handling
+    into separate works this time. But there is a problem with
+    a race in rcu_gp_kthread_worker_poke(). It might queue
+    the wrong work. It can be detected and fixed by the work
+    itself but it is a bit ugly. Alternative solution is to
+    do both operations in one work. But then we sleep too much
+    in the work which is ugly as well. Any idea is appreciated.
+    
 
-The data race was found with KernelThreadSanitizer (KTSAN).
+Changes against v1:
 
-Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
----
++ remove wrappers to manipulate the scheduling policy and priority
 
-For the record KTSAN report on 4.2:
++ remove questionable wakeup_and_destroy_kthread_worker() variant
 
-ThreadSanitizer: data-race in do_mmap_pgoff
++ do not check for chained work when draining the queue
 
-Read at 0xffff8800bb857e30 of size 4 by thread 1471 on CPU 0:
- [<ffffffff8121e770>] do_mmap_pgoff+0x4f0/0x590 mm/mmap.c:1341
- [<ffffffff811f8a6a>] vm_mmap_pgoff+0xaa/0xe0 mm/util.c:297
- [<ffffffff811f8b0c>] vm_mmap+0x6c/0x90 mm/util.c:315
- [<ffffffff812ea95c>] elf_map+0x13c/0x160 fs/binfmt_elf.c:365
- [<ffffffff812eb3cd>] load_elf_binary+0x91d/0x22b0 fs/binfmt_elf.c:955 (discriminator 9)
- [<ffffffff8126a712>] search_binary_handler+0x142/0x360 fs/exec.c:1422
- [<     inline     >] exec_binprm fs/exec.c:1464
- [<ffffffff8126c689>] do_execveat_common.isra.36+0x919/0xb40 fs/exec.c:1584
- [<     inline     >] do_execve fs/exec.c:1628
- [<     inline     >] SYSC_execve fs/exec.c:1709
- [<ffffffff8126cdc6>] SyS_execve+0x46/0x60 fs/exec.c:1704
- [<ffffffff81ee4145>] return_from_execve+0x0/0x23 arch/x86/entry/entry_64.S:428
++ allocate struct kthread worker in create_kthread_work() and
+  use more simple checks for running worker
 
-Previous write at 0xffff8800bb857e30 of size 4 by thread 1468 on CPU 8:
- [<     inline     >] do_remount fs/namespace.c:2215
- [<ffffffff8129a157>] do_mount+0x637/0x1450 fs/namespace.c:2716
- [<     inline     >] SYSC_mount fs/namespace.c:2915
- [<ffffffff8129b4e3>] SyS_mount+0xa3/0x100 fs/namespace.c:2893
- [<ffffffff81ee3e11>] entry_SYSCALL_64_fastpath+0x31/0x95 arch/x86/entry/entry_64.S:188
++ add support for delayed kthread works and use them instead
+  of waiting inside the works
 
-Mutexes locked by thread 1471:
-Mutex 228939 is locked here:
- [<ffffffff81edf7c2>] mutex_lock_interruptible+0x62/0xa0 kernel/locking/mutex.c:805
- [<ffffffff8126bd0f>] prepare_bprm_creds+0x4f/0xb0 fs/exec.c:1172
- [<ffffffff8126beaf>] do_execveat_common.isra.36+0x13f/0xb40 fs/exec.c:1517
- [<     inline     >] do_execve fs/exec.c:1628
- [<     inline     >] SYSC_execve fs/exec.c:1709
- [<ffffffff8126cdc6>] SyS_execve+0x46/0x60 fs/exec.c:1704
- [<ffffffff81ee4145>] return_from_execve+0x0/0x23 arch/x86/entry/entry_64.S:428
++ rework the "unrelated" fixes for the ring buffer benchmark
+  as discussed in the 1st RFC; also sent separately
 
-Mutex 223016 is locked here:
- [<ffffffff81ee0d45>] down_write+0x65/0x80 kernel/locking/rwsem.c:62
- [<ffffffff811f8a4c>] vm_mmap_pgoff+0x8c/0xe0 mm/util.c:296
- [<ffffffff811f8b0c>] vm_mmap+0x6c/0x90 mm/util.c:315
- [<ffffffff812ea95c>] elf_map+0x13c/0x160 fs/binfmt_elf.c:365
- [<ffffffff812eb3cd>] load_elf_binary+0x91d/0x22b0 fs/binfmt_elf.c:955 (discriminator 9)
- [<ffffffff8126a712>] search_binary_handler+0x142/0x360 fs/exec.c:1422
- [<     inline     >] exec_binprm fs/exec.c:1464
- [<ffffffff8126c689>] do_execveat_common.isra.36+0x919/0xb40 fs/exec.c:1584
- [<     inline     >] do_execve fs/exec.c:1628
- [<     inline     >] SYSC_execve fs/exec.c:1709
- [<ffffffff8126cdc6>] SyS_execve+0x46/0x60 fs/exec.c:1704
- [<ffffffff81ee4145>] return_from_execve+0x0/0x23 arch/x86/entry/entry_64.S:428
++ convert also the consumer in the ring buffer benchmark
 
-Mutexes locked by thread 1468:
-Mutex 119619 is locked here:
- [<ffffffff81ee0d45>] down_write+0x65/0x80 kernel/locking/rwsem.c:62
- [<     inline     >] do_remount fs/namespace.c:2205
- [<ffffffff81299ff1>] do_mount+0x4d1/0x1450 fs/namespace.c:2716
- [<     inline     >] SYSC_mount fs/namespace.c:2915
- [<ffffffff8129b4e3>] SyS_mount+0xa3/0x100 fs/namespace.c:2893
- [<ffffffff81ee3e11>] entry_SYSCALL_64_fastpath+0x31/0x95 arch/x86/entry/entry_64.S:188
 
-Mutex 193 is locked here:
- [<     inline     >] __raw_spin_lock include/linux/spinlock_api_smp.h:158
- [<ffffffff81ee37d0>] _raw_spin_lock+0x50/0x70 kernel/locking/spinlock.c:151
- [<     inline     >] spin_lock include/linux/spinlock.h:312
- [<     inline     >] write_seqlock include/linux/seqlock.h:470
- [<     inline     >] lock_mount_hash fs/mount.h:112
- [<     inline     >] do_remount fs/namespace.c:2213
- [<ffffffff8129a10e>] do_mount+0x5ee/0x1450 fs/namespace.c:2716
- [<     inline     >] SYSC_mount fs/namespace.c:2915
- [<ffffffff8129b4e3>] SyS_mount+0xa3/0x100 fs/namespace.c:2893
- [<ffffffff81ee3e11>] entry_SYSCALL_64_fastpath+0x31/0x95 arch/x86/entry/entry_64.S:188
----
- fs/namespace.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I have tested this patch set against the stable Linus tree
+for 4.3-rc2.
 
-diff --git a/fs/namespace.c b/fs/namespace.c
-index 0570729..d0040be 100644
---- a/fs/namespace.c
-+++ b/fs/namespace.c
-@@ -2212,7 +2212,7 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
- 	if (!err) {
- 		lock_mount_hash();
- 		mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
--		mnt->mnt.mnt_flags = mnt_flags;
-+		WRITE_ONCE(mnt->mnt.mnt_flags, mnt_flags);
- 		touch_mnt_namespace(mnt->mnt_ns);
- 		unlock_mount_hash();
- 	}
+Petr Mladek (18):
+  kthread: Allow to call __kthread_create_on_node() with va_list args
+  kthread: Add create_kthread_worker*()
+  kthread: Add drain_kthread_worker()
+  kthread: Add destroy_kthread_worker()
+  kthread: Add pending flag to kthread work
+  kthread: Initial support for delayed kthread work
+  kthread: Allow to cancel kthread work
+  kthread: Allow to modify delayed kthread work
+  mm/huge_page: Convert khugepaged() into kthread worker API
+  ring_buffer: Do no not complete benchmark reader too early
+  ring_buffer: Fix more races when terminating the producer in the
+    benchmark
+  ring_buffer: Convert benchmark kthreads into kthread worker API
+  rcu: Finish folding ->fqs_state into ->gp_state
+  rcu: Store first_gp_fqs into struct rcu_state
+  rcu: Clean up timeouts for forcing the quiescent state
+  rcu: Check actual RCU_GP_FLAG_FQS when handling quiescent state
+  rcu: Convert RCU gp kthreads into kthread worker API
+  kthread: Better support freezable kthread workers
+
+ include/linux/kthread.h              |  67 +++++
+ kernel/kthread.c                     | 544 ++++++++++++++++++++++++++++++++---
+ kernel/rcu/tree.c                    | 407 ++++++++++++++++----------
+ kernel/rcu/tree.h                    |  24 +-
+ kernel/rcu/tree_plugin.h             |  16 +-
+ kernel/rcu/tree_trace.c              |   2 +-
+ kernel/trace/ring_buffer_benchmark.c | 194 ++++++-------
+ mm/huge_memory.c                     | 116 ++++----
+ 8 files changed, 1017 insertions(+), 353 deletions(-)
+
 -- 
-2.6.0.rc0.131.gf624c3d
+1.8.5.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
