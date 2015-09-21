@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E1CA26B0257
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:05:19 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so110602174wic.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:05:19 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id EED546B0258
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:05:23 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so110276956wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:05:23 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u4si18384159wjq.30.2015.09.21.06.05.15
+        by mx.google.com with ESMTPS id ph6si16970165wic.113.2015.09.21.06.05.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 21 Sep 2015 06:05:15 -0700 (PDT)
+        Mon, 21 Sep 2015 06:05:19 -0700 (PDT)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [RFC v2 04/18] kthread: Add destroy_kthread_worker()
-Date: Mon, 21 Sep 2015 15:03:45 +0200
-Message-Id: <1442840639-6963-5-git-send-email-pmladek@suse.com>
+Subject: [RFC v2 05/18] kthread: Add pending flag to kthread work
+Date: Mon, 21 Sep 2015 15:03:46 +0200
+Message-Id: <1442840639-6963-6-git-send-email-pmladek@suse.com>
 In-Reply-To: <1442840639-6963-1-git-send-email-pmladek@suse.com>
 References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,60 +20,103 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
 
-The current kthread worker users call flush() and stop() explicitly.
-The new function will make it easier and will do it better. Also it
-frees the kthread_worker struct that has been allocated by
-create_kthread_worker().
+This is a preparation step for delayed kthread works. It will use
+a timer to queue the work with the requested delay. We need to
+somehow mark the work in the meantime.
 
-Note that flush() does not guarantee that the queue is empty. drain()
-is more safe. It returns when the queue is really empty. Also it warns
-when too many work is being queued when draining.
+The implementation is inspired by workqueues. It adds a flag that
+is manipulated using bit operations. If the flag is set, it means
+that the work is going to be queued and any new attempts to queue
+the work should fail. As a side effect, queue_kthread_work() could
+test pending work even without the lock.
+
+In compare with workqueues, the flag is stored in a separate bitmap
+instead of sharing with the worker pointer. Kthread worker does not
+use pools of kthreads and the handling is much easier here. I did
+not fix a situation where we would need to manipulate both the flag
+and the worker pointer atomically.
 
 Signed-off-by: Petr Mladek <pmladek@suse.com>
 ---
- include/linux/kthread.h |  2 ++
- kernel/kthread.c        | 20 ++++++++++++++++++++
- 2 files changed, 22 insertions(+)
+ include/linux/kthread.h |  6 ++++++
+ kernel/kthread.c        | 30 ++++++++++++++++++++++++++----
+ 2 files changed, 32 insertions(+), 4 deletions(-)
 
 diff --git a/include/linux/kthread.h b/include/linux/kthread.h
-index e390069a3f68..bef97e06d2b6 100644
+index bef97e06d2b6..aabb105d3d4b 100644
 --- a/include/linux/kthread.h
 +++ b/include/linux/kthread.h
-@@ -136,4 +136,6 @@ bool queue_kthread_work(struct kthread_worker *worker,
- void flush_kthread_work(struct kthread_work *work);
- void flush_kthread_worker(struct kthread_worker *worker);
+@@ -71,7 +71,13 @@ struct kthread_worker {
+ 	struct kthread_work	*current_work;
+ };
  
-+void destroy_kthread_worker(struct kthread_worker *worker);
++enum {
++	/* work item is pending execution */
++	KTHREAD_WORK_PENDING_BIT	= 0,
++};
 +
- #endif /* _LINUX_KTHREAD_H */
+ struct kthread_work {
++	DECLARE_BITMAP(flags, 8);
+ 	struct list_head	node;
+ 	kthread_work_func_t	func;
+ 	struct kthread_worker	*worker;
 diff --git a/kernel/kthread.c b/kernel/kthread.c
-index e6424cf17cbd..65c263336b8b 100644
+index 65c263336b8b..fe1510e7ad04 100644
 --- a/kernel/kthread.c
 +++ b/kernel/kthread.c
-@@ -809,3 +809,23 @@ void drain_kthread_worker(struct kthread_worker *worker)
+@@ -602,6 +602,7 @@ repeat:
+ 		work = list_first_entry(&worker->work_list,
+ 					struct kthread_work, node);
+ 		list_del_init(&work->node);
++		clear_bit(KTHREAD_WORK_PENDING_BIT, work->flags);
+ 	}
+ 	worker->current_work = work;
  	spin_unlock_irq(&worker->lock);
+@@ -675,6 +676,27 @@ static void insert_kthread_work(struct kthread_worker *worker,
+ 		wake_up_process(worker->task);
  }
- EXPORT_SYMBOL(drain_kthread_worker);
-+
-+/**
-+ * destroy_kthread_worker - destroy a kthread worker
-+ * @worker: worker to be destroyed
-+ *
-+ * Destroy @worker. It should be idle when this is called.
+ 
++/*
++ * Queue @work without the check for the pending flag.
++ * Must be called with IRQs disabled.
 + */
-+void destroy_kthread_worker(struct kthread_worker *worker)
++static void __queue_kthread_work(struct kthread_worker *worker,
++			  struct kthread_work *work)
 +{
-+	struct task_struct *task;
++	/*
++	 * While a work item is PENDING && off queue, a task trying to
++	 * steal the PENDING will busy-loop waiting for it to either get
++	 * queued or lose PENDING.  Grabbing PENDING and queuing should
++	 * happen with IRQ disabled.
++	 */
++	WARN_ON_ONCE(!irqs_disabled());
++	WARN_ON_ONCE(!list_empty(&work->node));
 +
-+	task = worker->task;
-+	if (WARN_ON(!task))
-+		return;
-+
-+	drain_kthread_worker(worker);
-+	kthread_stop(task);
-+	kfree(worker);
++	spin_lock(&worker->lock);
++	insert_kthread_work(worker, work, &worker->work_list);
++	spin_unlock(&worker->lock);
 +}
-+EXPORT_SYMBOL(destroy_kthread_worker);
++
+ /**
+  * queue_kthread_work - queue a kthread_work
+  * @worker: target kthread_worker
+@@ -690,12 +712,12 @@ bool queue_kthread_work(struct kthread_worker *worker,
+ 	bool ret = false;
+ 	unsigned long flags;
+ 
+-	spin_lock_irqsave(&worker->lock, flags);
+-	if (list_empty(&work->node)) {
+-		insert_kthread_work(worker, work, &worker->work_list);
++	local_irq_save(flags);
++	if (!test_and_set_bit(KTHREAD_WORK_PENDING_BIT, work->flags)) {
++		__queue_kthread_work(worker, work);
+ 		ret = true;
+ 	}
+-	spin_unlock_irqrestore(&worker->lock, flags);
++	local_irq_restore(flags);
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(queue_kthread_work);
 -- 
 1.8.5.6
 
