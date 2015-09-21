@@ -1,162 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 033066B0254
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:51:45 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so108851912wic.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 03:51:44 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id y2si16268605wib.45.2015.09.21.03.51.43
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 50EC06B0255
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:52:45 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so109979446wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 03:52:44 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id m11si161695wij.112.2015.09.21.03.52.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 21 Sep 2015 03:51:43 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id DB5DD98FF3
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 10:51:42 +0000 (UTC)
-Date: Mon, 21 Sep 2015 11:51:41 +0100
+        Mon, 21 Sep 2015 03:52:44 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 8606899010
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 10:52:43 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 12/12] mm, page_alloc: Only enforce watermarks for
- order-0 allocations
-Message-ID: <20150921105141.GB3068@techsingularity.net>
-References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
- <20150824123015.GJ12432@techsingularity.net>
- <CAAmzW4NbjqOpDhNKp7POVLZyaoUJa6YU5-B9Xz2b+crkzD25+g@mail.gmail.com>
- <20150909123901.GA12432@techsingularity.net>
- <20150918065621.GC7769@js1304-P5Q-DELUXE>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20150918065621.GC7769@js1304-P5Q-DELUXE>
+Subject: [PATCH 00/10] Remove zonelist cache and high-order watermark checking v4
+Date: Mon, 21 Sep 2015 11:52:32 +0100
+Message-Id: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On Fri, Sep 18, 2015 at 03:56:21PM +0900, Joonsoo Kim wrote:
-> On Wed, Sep 09, 2015 at 01:39:01PM +0100, Mel Gorman wrote:
-> > On Tue, Sep 08, 2015 at 05:26:13PM +0900, Joonsoo Kim wrote:
-> > > 2015-08-24 21:30 GMT+09:00 Mel Gorman <mgorman@techsingularity.net>:
-> > > > The primary purpose of watermarks is to ensure that reclaim can always
-> > > > make forward progress in PF_MEMALLOC context (kswapd and direct reclaim).
-> > > > These assume that order-0 allocations are all that is necessary for
-> > > > forward progress.
-> > > >
-> > > > High-order watermarks serve a different purpose. Kswapd had no high-order
-> > > > awareness before they were introduced (https://lkml.org/lkml/2004/9/5/9).
-> > > > This was particularly important when there were high-order atomic requests.
-> > > > The watermarks both gave kswapd awareness and made a reserve for those
-> > > > atomic requests.
-> > > >
-> > > > There are two important side-effects of this. The most important is that
-> > > > a non-atomic high-order request can fail even though free pages are available
-> > > > and the order-0 watermarks are ok. The second is that high-order watermark
-> > > > checks are expensive as the free list counts up to the requested order must
-> > > > be examined.
-> > > >
-> > > > With the introduction of MIGRATE_HIGHATOMIC it is no longer necessary to
-> > > > have high-order watermarks. Kswapd and compaction still need high-order
-> > > > awareness which is handled by checking that at least one suitable high-order
-> > > > page is free.
-> > > 
-> > > I still don't think that this one suitable high-order page is enough.
-> > > If fragmentation happens, there would be no order-2 freepage. If kswapd
-> > > prepares only 1 order-2 freepage, one of two successive process forks
-> > > (AFAIK, fork in x86 and ARM require order 2 page) must go to direct reclaim
-> > > to make order-2 freepage. Kswapd cannot make order-2 freepage in that
-> > > short time. It causes latency to many high-order freepage requestor
-> > > in fragmented situation.
-> > > 
-> > 
-> > So what do you suggest instead? A fixed number, some other heuristic?
-> > You have pushed several times now for the series to focus on the latency
-> > of standard high-order allocations but again I will say that it is outside
-> > the scope of this series. If you want to take steps to reduce the latency
-> > of ordinary high-order allocation requests that can sleep then it should
-> > be a separate series.
-> 
-> I don't understand why you think it should be a separate series.
+Changelog since V3
+o Rebase to 4.3-rc1
+o Consistent style for __GFP_WAIT				(joonsoo)
+o Restored cpuset static checking behaviour			(vbabka)
+o Fix cpusets check in allocator fastpath			(vbabka)
+o Applied acks
 
-Because atomic high-order allocation success and normal high-order
-allocation stall latency are different problems. Atomic high-order
-allocation successes are about reserves, normal high-order allocations
-are about reclaim.
+Changelog since V2
+o Covered cases where __GFP_KSWAPD_RECLAIM is needed		(vbabka)
+o Cleaned up trailing references to zlc				(vbabka)
+o Fixed a subtle problem with GFP_TRANSHUGE checks		(vbabka)
+o Split out an unrelated change to its own patch		(vbabka)
+o Reordered series to put GFP flag modifications at start	(mhocko)
+o Added a number of clarifications on reclaim modifications	(mhocko)
+o Only check cpusets when one exists that can limit memory	(rientjes)
+o Applied acks
 
-> I don't know exact reason why high order watermark check is
-> introduced, but, based on your description, it is for high-order
-> allocation request in atomic context.
+Changelog since V1
+o Improve cpusets checks as suggested				(rientjes)
+o Add various acks and reviewed-bys
+o Rebase to 4.2-rc6
 
-Mostly yes, the initial motivation is described in the linked mail --
-give kswapd high-order awareness because otherwise (higher-order && !wait)
-allocations that fail would wake kswapd but it would go back to sleep.
+Changelog since RFC
+o Rebase to 4.2-rc5
+o Distinguish between high priority callers and callers that avoid sleep
+o Remove jump label related damage patches
 
-> And, it would accidently take care
-> about latency.
+Overall, the intent of this series is to remove the zonelist cache which
+was introduced to avoid high overhead in the page allocator. Once this is
+done, it is necessary to reduce the cost of watermark checks.
 
-Except all it does is defer the problem. If kswapd frees N high-order
-pages then it disrupts the system to satisfy the request, potentially
-reclaiming hot pages for an allocation attempt that *may* occur that
-will stall if there are N+1 allocation requests.
+The series starts with minor micro-optimisations.
 
-Kswapd reclaiming additional pages is definite system disruption and
-potentially increases thrashing *now* to help an event that *might* occur
-in the future.
+Next it notes that GFP flags that affect watermark checks are
+bused. __GFP_WAIT historically identified callers that could not sleep and
+could access reserves. This was later abused to identify callers that simply
+prefer to avoid sleeping and have other options. A patch distinguishes
+between atomic callers, high-priority callers and those that simply wish
+to avoid sleep.
 
-> It is used for a long time and your patch try to remove it
-> and it only takes care about success rate. That means that your patch
-> could cause regression. I think that if this happens actually, it is handled
-> in this patchset instead of separate series.
-> 
+The zonelist cache has been around for a long time but it is of dubious
+merit with a lot of complexity and some issues that are explained.
+The most important issue is that a failed THP allocation can cause a
+zone to be treated as "full". This potentially causes unnecessary stalls,
+reclaim activity or remote fallbacks. The issues could be fixed but it's
+not worth it. The series places a small number of other micro-optimisations
+on top before examining GFP flags watermarks.
 
-Except it doesn't really.
+High-order watermarks enforcement can cause high-order allocations to fail
+even though pages are free. The watermark checks both protect high-order
+atomic allocations and make kswapd aware of high-order pages but there is
+a much better way that can be handled using migrate types. This series uses
+page grouping by mobility to reserve pageblocks for high-order allocations
+with the size of the reservation depending on demand. kswapd awareness
+is maintained by examining the free lists. By patch 12 in this series,
+there are no high-order watermark checks while preserving the properties
+that motivated the introduction of the watermark checks.
 
-Current situation
-o A high-order watermark check might fail for a normal high-order
-  allocation request. On failure, stall to reclaim more pages which may
-  or may not succeed
-o An atomic allocation may use a lower watermark but it can still fail
-  even if there are free pages on the list
-
-Patched situation
-
-o A watermark check might fail for a normal high-order allocation
-  request and cannot use one of the reserved pages. On failure, stall to
-  reclaim more pages which may or may not succeed.
-  Functionally, this is very similar to current behaviour
-o An atomic allocation may use the reserves so if a free page exists, it
-  will be used
-  Functionally, this is more reliable than current behaviour as there is
-  still potential for disruption
-
-> In review of previous version, I suggested that removing watermark
-> check only for higher than PAGE_ALLOC_COSTLY_ORDER.
-
-It increases complexity for reasons that are not quantified.
-
-> You didn't accept
-> that and I still don't agree with your approach. You can show me that
-> my concern is wrong via some number.
-> 
-> One candidate test for this is that making system fragmented and
-> run hackbench which uses a lot of high-order allocation and measure
-> elapsed-time.
-> 
-
-o There is no difference in normal allocation high-order success rates
-  with this series appied
-o With the series applied, such tests complete in approximately the same
-  time
-o For the tests with parallel high-order allocation requests, there was
-  no significant difference in the elapsed times although success rates
-  were slightly higher
-
-Each time the full sets of tests take about 4 days to complete on this
-series and so far no problems of the type you describe have been found.
-If such a test case is found then there would a clear workload to
-justify either having kswapd reclaiming multiple pages or apply the old
-watermark scheme for lower orders.
+ Documentation/vm/balance                           |  14 +-
+ arch/arm/mm/dma-mapping.c                          |   6 +-
+ arch/arm/xen/mm.c                                  |   2 +-
+ arch/arm64/mm/dma-mapping.c                        |   4 +-
+ arch/x86/kernel/pci-dma.c                          |   2 +-
+ block/bio.c                                        |  26 +-
+ block/blk-core.c                                   |  16 +-
+ block/blk-ioc.c                                    |   2 +-
+ block/blk-mq-tag.c                                 |   2 +-
+ block/blk-mq.c                                     |   8 +-
+ block/scsi_ioctl.c                                 |   6 +-
+ drivers/block/drbd/drbd_bitmap.c                   |   2 +-
+ drivers/block/drbd/drbd_receiver.c                 |   3 +-
+ drivers/block/mtip32xx/mtip32xx.c                  |   2 +-
+ drivers/block/nvme-core.c                          |   4 +-
+ drivers/block/osdblk.c                             |   2 +-
+ drivers/block/paride/pd.c                          |   2 +-
+ drivers/block/pktcdvd.c                            |   4 +-
+ drivers/connector/connector.c                      |   3 +-
+ drivers/firewire/core-cdev.c                       |   2 +-
+ drivers/gpu/drm/i915/i915_gem.c                    |   4 +-
+ drivers/ide/ide-atapi.c                            |   2 +-
+ drivers/ide/ide-cd.c                               |   2 +-
+ drivers/ide/ide-cd_ioctl.c                         |   2 +-
+ drivers/ide/ide-devsets.c                          |   2 +-
+ drivers/ide/ide-disk.c                             |   2 +-
+ drivers/ide/ide-ioctls.c                           |   4 +-
+ drivers/ide/ide-park.c                             |   2 +-
+ drivers/ide/ide-pm.c                               |   4 +-
+ drivers/ide/ide-tape.c                             |   4 +-
+ drivers/ide/ide-taskfile.c                         |   4 +-
+ drivers/infiniband/core/sa_query.c                 |   2 +-
+ drivers/infiniband/hw/qib/qib_init.c               |   2 +-
+ drivers/iommu/amd_iommu.c                          |   2 +-
+ drivers/iommu/intel-iommu.c                        |   2 +-
+ drivers/md/dm-crypt.c                              |   6 +-
+ drivers/md/dm-kcopyd.c                             |   2 +-
+ drivers/media/pci/solo6x10/solo6x10-v4l2-enc.c     |   2 +-
+ drivers/media/pci/solo6x10/solo6x10-v4l2.c         |   2 +-
+ drivers/media/pci/tw68/tw68-video.c                |   2 +-
+ drivers/misc/vmw_balloon.c                         |   2 +-
+ drivers/mtd/mtdcore.c                              |   3 +-
+ drivers/net/ethernet/broadcom/bnx2x/bnx2x_cmn.c    |   2 +-
+ drivers/scsi/scsi_error.c                          |   2 +-
+ drivers/scsi/scsi_lib.c                            |   4 +-
+ drivers/staging/android/ion/ion_system_heap.c      |   2 +-
+ .../lustre/include/linux/libcfs/libcfs_private.h   |   2 +-
+ drivers/staging/rdma/hfi1/init.c                   |   2 +-
+ drivers/staging/rdma/ipath/ipath_file_ops.c        |   2 +-
+ drivers/usb/host/u132-hcd.c                        |   2 +-
+ drivers/video/fbdev/vermilion/vermilion.c          |   2 +-
+ fs/btrfs/disk-io.c                                 |   2 +-
+ fs/btrfs/extent_io.c                               |  14 +-
+ fs/btrfs/volumes.c                                 |   4 +-
+ fs/cachefiles/internal.h                           |   2 +-
+ fs/direct-io.c                                     |   2 +-
+ fs/ext4/super.c                                    |   2 +-
+ fs/fscache/cookie.c                                |   2 +-
+ fs/fscache/page.c                                  |   6 +-
+ fs/jbd2/transaction.c                              |   4 +-
+ fs/nfs/file.c                                      |   6 +-
+ fs/nilfs2/mdt.h                                    |   2 +-
+ fs/xfs/xfs_qm.c                                    |   2 +-
+ include/linux/cpuset.h                             |   6 +
+ include/linux/gfp.h                                |  70 ++-
+ include/linux/mmzone.h                             |  88 +--
+ include/linux/skbuff.h                             |   6 +-
+ include/net/sock.h                                 |   2 +-
+ include/trace/events/gfpflags.h                    |   5 +-
+ kernel/audit.c                                     |   6 +-
+ kernel/cgroup.c                                    |   2 +-
+ kernel/locking/lockdep.c                           |   2 +-
+ kernel/power/snapshot.c                            |   2 +-
+ kernel/power/swap.c                                |  14 +-
+ kernel/smp.c                                       |   2 +-
+ lib/idr.c                                          |   4 +-
+ lib/percpu_ida.c                                   |   2 +-
+ lib/radix-tree.c                                   |  10 +-
+ mm/backing-dev.c                                   |   2 +-
+ mm/dmapool.c                                       |   2 +-
+ mm/failslab.c                                      |   8 +-
+ mm/filemap.c                                       |   2 +-
+ mm/huge_memory.c                                   |   4 +-
+ mm/internal.h                                      |   1 +
+ mm/memcontrol.c                                    |   8 +-
+ mm/mempool.c                                       |  10 +-
+ mm/migrate.c                                       |   4 +-
+ mm/page_alloc.c                                    | 599 +++++++--------------
+ mm/slab.c                                          |  18 +-
+ mm/slub.c                                          |  10 +-
+ mm/vmalloc.c                                       |   2 +-
+ mm/vmscan.c                                        |   8 +-
+ mm/vmstat.c                                        |   2 +-
+ mm/zswap.c                                         |   5 +-
+ net/core/skbuff.c                                  |   8 +-
+ net/core/sock.c                                    |   6 +-
+ net/netlink/af_netlink.c                           |   2 +-
+ net/rds/ib_recv.c                                  |   4 +-
+ net/rxrpc/ar-connection.c                          |   2 +-
+ net/sctp/associola.c                               |   2 +-
+ security/integrity/ima/ima_crypto.c                |   2 +-
+ 101 files changed, 466 insertions(+), 705 deletions(-)
 
 -- 
-Mel Gorman
-SUSE Labs
+2.4.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
