@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 505DF6B0254
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:05:01 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so113872321wic.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:05:00 -0700 (PDT)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B8416B0255
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:05:06 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so113875901wic.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:05:05 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a7si16965876wic.116.2015.09.21.06.04.59
+        by mx.google.com with ESMTPS id lc2si30986397wjb.25.2015.09.21.06.05.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 21 Sep 2015 06:05:00 -0700 (PDT)
+        Mon, 21 Sep 2015 06:05:05 -0700 (PDT)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [RFC v2 01/18] kthread: Allow to call __kthread_create_on_node() with va_list args
-Date: Mon, 21 Sep 2015 15:03:42 +0200
-Message-Id: <1442840639-6963-2-git-send-email-pmladek@suse.com>
+Subject: [RFC v2 02/18] kthread: Add create_kthread_worker*()
+Date: Mon, 21 Sep 2015 15:03:43 +0200
+Message-Id: <1442840639-6963-3-git-send-email-pmladek@suse.com>
 In-Reply-To: <1442840639-6963-1-git-send-email-pmladek@suse.com>
 References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,121 +20,117 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
 
-kthread_create_on_node() implements a bunch of logic to create
-the kthread. It is already called by kthread_create_on_cpu().
+Kthread workers are currently created using the classic kthread API,
+namely kthread_run(). kthread_worker_fn() is passed as the @threadfn
+parameter.
 
-We are going to add a new API that will allow to standardize kthreads
-and define safe points for termination, freezing, parking, and even
-signal handling. It will want to call kthread_create_on_node()
-with va_list args.
+This patch defines create_kthread_worker_on_node() and
+create_kthread_worker() functions that hide implementation details.
 
-This patch does only a refactoring and does not modify the existing
-behavior.
+It enforces using kthread_worker_fn() for the main thread. But I doubt
+that there are any plans to create any alternative. In fact, I think
+that we do not want any alternative main thread because it would be
+hard to support consistency with the rest of the kthread worker API.
+
+The naming and function is inspired by the workqueues API like
+the rest of the kthread worker API.
+
+This patch does _not_ convert existing kthread workers. The kthread worker
+API need more improvements first, e.g. a function to destroy the worker.
 
 Signed-off-by: Petr Mladek <pmladek@suse.com>
 ---
- kernel/kthread.c | 72 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 42 insertions(+), 30 deletions(-)
+ include/linux/kthread.h |  7 +++++++
+ kernel/kthread.c        | 51 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 57 insertions(+), 1 deletion(-)
 
+diff --git a/include/linux/kthread.h b/include/linux/kthread.h
+index e691b6a23f72..e390069a3f68 100644
+--- a/include/linux/kthread.h
++++ b/include/linux/kthread.h
+@@ -124,6 +124,13 @@ extern void __init_kthread_worker(struct kthread_worker *worker,
+ 
+ int kthread_worker_fn(void *worker_ptr);
+ 
++__printf(2, 3)
++struct kthread_worker *
++create_kthread_worker_on_node(int node, const char namefmt[], ...);
++
++#define create_kthread_worker(namefmt, arg...)				\
++	create_kthread_worker_on_node(-1, namefmt, ##arg)
++
+ bool queue_kthread_work(struct kthread_worker *worker,
+ 			struct kthread_work *work);
+ void flush_kthread_work(struct kthread_work *work);
 diff --git a/kernel/kthread.c b/kernel/kthread.c
-index 9ff173dca1ae..1d29e675fe44 100644
+index 1d29e675fe44..8f8813b42632 100644
 --- a/kernel/kthread.c
 +++ b/kernel/kthread.c
-@@ -244,33 +244,10 @@ static void create_kthread(struct kthread_create_info *create)
- 	}
- }
+@@ -579,7 +579,11 @@ int kthread_worker_fn(void *worker_ptr)
+ 	struct kthread_worker *worker = worker_ptr;
+ 	struct kthread_work *work;
  
--/**
-- * kthread_create_on_node - create a kthread.
-- * @threadfn: the function to run until signal_pending(current).
-- * @data: data ptr for @threadfn.
-- * @node: task and thread structures for the thread are allocated on this node
-- * @namefmt: printf-style name for the thread.
-- *
-- * Description: This helper function creates and names a kernel
-- * thread.  The thread will be stopped: use wake_up_process() to start
-- * it.  See also kthread_run().  The new thread has SCHED_NORMAL policy and
-- * is affine to all CPUs.
-- *
-- * If thread is going to be bound on a particular cpu, give its node
-- * in @node, to get NUMA affinity for kthread stack, or else give NUMA_NO_NODE.
-- * When woken, the thread will run @threadfn() with @data as its
-- * argument. @threadfn() can either call do_exit() directly if it is a
-- * standalone thread for which no one will call kthread_stop(), or
-- * return when 'kthread_should_stop()' is true (which means
-- * kthread_stop() has been called).  The return value should be zero
-- * or a negative error number; it will be passed to kthread_stop().
-- *
-- * Returns a task_struct or ERR_PTR(-ENOMEM) or ERR_PTR(-EINTR).
-- */
--struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
--					   void *data, int node,
--					   const char namefmt[],
--					   ...)
-+static struct task_struct *__kthread_create_on_node(int (*threadfn)(void *data),
-+						    void *data, int node,
-+						    const char namefmt[],
-+						    va_list args)
- {
- 	DECLARE_COMPLETION_ONSTACK(done);
- 	struct task_struct *task;
-@@ -311,11 +288,8 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
- 	task = create->result;
- 	if (!IS_ERR(task)) {
- 		static const struct sched_param param = { .sched_priority = 0 };
--		va_list args;
- 
--		va_start(args, namefmt);
- 		vsnprintf(task->comm, sizeof(task->comm), namefmt, args);
--		va_end(args);
- 		/*
- 		 * root may have changed our (kthreadd's) priority or CPU mask.
- 		 * The kernel thread should not inherit these properties.
-@@ -326,6 +300,44 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
- 	kfree(create);
- 	return task;
+-	WARN_ON(worker->task);
++	/*
++	 * FIXME: Update the check and remove the assignment when all kthread
++	 * worker users are created using create_kthread_worker*() functions.
++	 */
++	WARN_ON(worker->task && worker->task != current);
+ 	worker->task = current;
+ repeat:
+ 	set_current_state(TASK_INTERRUPTIBLE);	/* mb paired w/ kthread_stop */
+@@ -613,6 +617,51 @@ repeat:
  }
-+
+ EXPORT_SYMBOL_GPL(kthread_worker_fn);
+ 
 +/**
-+ * kthread_create_on_node - create a kthread.
-+ * @threadfn: the function to run until signal_pending(current).
-+ * @data: data ptr for @threadfn.
-+ * @node: task and thread structures for the thread are allocated on this node
-+ * @namefmt: printf-style name for the thread.
++ * create_kthread_worker_on_node - create a kthread worker.
++ * @node: memory node number.
++ * @namefmt: printf-style name for the kthread worker (task).
 + *
-+ * Description: This helper function creates and names a kernel
-+ * thread.  The thread will be stopped: use wake_up_process() to start
-+ * it.  See also kthread_run().  The new thread has SCHED_NORMAL policy and
-+ * is affine to all CPUs.
++ * If the worker is going to be bound on a particular CPU, give its node
++ * in @node, to get NUMA affinity for kthread stack, or else give -1.
 + *
-+ * If thread is going to be bound on a particular cpu, give its node
-+ * in @node, to get NUMA affinity for kthread stack, or else give NUMA_NO_NODE.
-+ * When woken, the thread will run @threadfn() with @data as its
-+ * argument. @threadfn() can either call do_exit() directly if it is a
-+ * standalone thread for which no one will call kthread_stop(), or
-+ * return when 'kthread_should_stop()' is true (which means
-+ * kthread_stop() has been called).  The return value should be zero
-+ * or a negative error number; it will be passed to kthread_stop().
-+ *
-+ * Returns a task_struct or ERR_PTR(-ENOMEM) or ERR_PTR(-EINTR).
++ * Returns pointer to allocated worker on success, ERR_PTR(-ENOMEM) when
++ * the needed structures could not get allocated, and ERR_PTR(-EINTR)
++ * when the worker was SIGKILLed.
 + */
-+struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
-+					   void *data, int node,
-+					   const char namefmt[],
-+					   ...)
++struct kthread_worker *
++create_kthread_worker_on_node(int node, const char namefmt[], ...)
 +{
++	struct kthread_worker *worker;
 +	struct task_struct *task;
 +	va_list args;
 +
++	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
++	if (!worker)
++		return ERR_PTR(-ENOMEM);
++
++	init_kthread_worker(worker);
++
 +	va_start(args, namefmt);
-+	task = __kthread_create_on_node(threadfn, data, node, namefmt, args);
++	task = __kthread_create_on_node(kthread_worker_fn, worker, node,
++					namefmt, args);
 +	va_end(args);
 +
-+	return task;
++	if (IS_ERR(task))
++		goto fail_task;
++
++	worker->task = task;
++	wake_up_process(task);
++
++	return worker;
++
++fail_task:
++	kfree(worker);
++	return ERR_CAST(task);
++
 +}
- EXPORT_SYMBOL(kthread_create_on_node);
- 
- static void __kthread_bind_mask(struct task_struct *p, const struct cpumask *mask, long state)
++EXPORT_SYMBOL(create_kthread_worker_on_node);
++
+ /* insert @work before @pos in @worker */
+ static void insert_kthread_work(struct kthread_worker *worker,
+ 			       struct kthread_work *work,
 -- 
 1.8.5.6
 
