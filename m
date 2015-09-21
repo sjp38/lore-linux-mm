@@ -1,94 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 153796B0038
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 19:27:34 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so129496058pad.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 16:27:33 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id hp8si41192966pac.226.2015.09.21.16.27.33
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C768E6B0038
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 19:33:33 -0400 (EDT)
+Received: by igbkq10 with SMTP id kq10so71176828igb.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 16:33:33 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id 4si1968igy.86.2015.09.21.16.33.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 16:27:33 -0700 (PDT)
-Received: by padbj2 with SMTP id bj2so4540191pad.3
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 16:27:33 -0700 (PDT)
-Date: Mon, 21 Sep 2015 16:27:31 -0700 (PDT)
+        Mon, 21 Sep 2015 16:33:33 -0700 (PDT)
+Received: by padhy16 with SMTP id hy16so129622856pad.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 16:33:33 -0700 (PDT)
+Date: Mon, 21 Sep 2015 16:33:31 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] mm/oom_kill.c: don't kill TASK_UNINTERRUPTIBLE tasks
-In-Reply-To: <alpine.DEB.2.11.1509181200140.11964@east.gentwo.org>
-Message-ID: <alpine.DEB.2.10.1509211620180.27715@chino.kir.corp.google.com>
-References: <1442512783-14719-1-git-send-email-kwalker@redhat.com> <20150917192204.GA2728@redhat.com> <alpine.DEB.2.11.1509181035180.11189@east.gentwo.org> <20150918162423.GA18136@redhat.com> <alpine.DEB.2.11.1509181200140.11964@east.gentwo.org>
+In-Reply-To: <201509192333.AGJ30797.OQOFLFSMJVFOtH@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.10.1509211628050.27715@chino.kir.corp.google.com>
+References: <20150917192204.GA2728@redhat.com> <alpine.DEB.2.11.1509181035180.11189@east.gentwo.org> <20150918162423.GA18136@redhat.com> <alpine.DEB.2.11.1509181200140.11964@east.gentwo.org> <20150919083218.GD28815@dhcp22.suse.cz>
+ <201509192333.AGJ30797.OQOFLFSMJVFOtH@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, akpm@linux-foundation.org, mhocko@suse.cz, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Stanislav Kozina <skozina@redhat.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@kernel.org, cl@linux.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
 
-On Fri, 18 Sep 2015, Christoph Lameter wrote:
+On Sat, 19 Sep 2015, Tetsuo Handa wrote:
 
-> Subject: Allow multiple kills from the OOM killer
-> 
-> The OOM killer currently aborts if it finds a process that already is having
-> access to the reserve memory pool for exit processing. This is done so that
-> the reserves are not overcommitted but on the other hand this also allows
-> only one process being oom killed at the time. That process may be stuck
-> in D state.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> Index: linux/mm/oom_kill.c
-> ===================================================================
-> --- linux.orig/mm/oom_kill.c	2015-09-18 11:58:52.963946782 -0500
-> +++ linux/mm/oom_kill.c	2015-09-18 11:59:42.010684778 -0500
-> @@ -264,10 +264,9 @@ enum oom_scan_t oom_scan_process_thread(
->  	 * This task already has access to memory reserves and is being killed.
->  	 * Don't allow any other task to have access to the reserves.
->  	 */
-> -	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
-> -		if (oc->order != -1)
-> -			return OOM_SCAN_ABORT;
-> -	}
-> +	if (test_tsk_thread_flag(task, TIF_MEMDIE))
-> +		return OOM_SCAN_CONTINUE;
-> +
->  	if (!task->mm)
->  		return OOM_SCAN_CONTINUE;
+> I think that use of ALLOC_NO_WATERMARKS via TIF_MEMDIE is the underlying
+> cause. ALLOC_NO_WATERMARKS via TIF_MEMDIE is intended for terminating the
+> OOM victim task as soon as possible, but it turned out that it will not
+> work if there is invisible lock dependency. Therefore, why not to give up
+> "there should be only up to 1 TIF_MEMDIE task" rule?
 > 
 
-If this would result in the newly chosen process being guaranteed to exit, 
-this would be fine.  Unfortunately, no such guarantee is possible.  If a 
-thread is holding a contended mutex that the victim(s) require, this 
-serial oom killer could eventually panic the system if that thread is 
-OOM_DISABLE.
+I don't see the connection between TIF_MEMDIE and ALLOC_NO_WATERMARKS 
+being problematic.  It is simply the mechanism by which we give oom killed 
+processes access to memory reserves if they need it.  I believe you are 
+referring only to the oom killer stalling when it finds an oom victim.
 
-The solution that we have merged internally is described at 
-http://marc.info/?l=linux-kernel&m=144010444913702 -- we provide access to 
-memory reserves to processes that find a stalled exit in the oom killer so 
-that they may allocate.  It comes along with a test module that takes a 
-contended mutex and ensures that forward progress is made as long as 
-memory reserves are not depleted.  We can't actually guarantee that memory 
-reserves won't be depleted, but we (1) hope that nobody is actually 
-allocating a lot of memory before dropping a mutex and (2) want to avoid 
-the alternative which is a system livelock.
+> What this patch (and many others posted in various forms many times over
+> past years) does is to give up "there should be only up to 1 TIF_MEMDIE
+> task" rule. I think that we need to tolerate more than 1 TIF_MEMDIE tasks
+> and somehow manage in a way memory reserves will not deplete.
+> 
 
-This will address situations such as
+Your proposal, which I mostly agree with, tries to kill additional 
+processes so that they allocate and drop the lock that the original victim 
+depends on.  My approach, from 
+http://marc.info/?l=linux-kernel&m=144010444913702, is the same, but 
+without the killing.  It's unecessary to kill every process on the system 
+that is depending on the same lock, and we can't know which processes are 
+stalling on that lock and which are not.
 
-	allocator			oom victim
-	---------			----------
-	mutex_lock(lock)
-	alloc_pages(GFP_KERNEL)
-					mutex_lock(lock)
-					mutex_unlock(lock)
-					handle SIGKILL
+I think it's much easier to simply identify such a situation where a 
+process has not exited in a timely manner and then provide processes 
+access to memory reserves without being killed.  We hope that the victim 
+will have queued its mutex_lock() and allocators that are holding the lock 
+will drop it after successfully utilizing memory reserves.
 
-since this otherwise results in a livelock without a solution such as 
-mine since the GFP_KERNEL allocation stalls forever waiting for the oom 
-victim to acquire the mutex and exit.  This also works if the allocator is 
-OOM_DISABLE.
+We can mitigate immediate depletion of memory reserves by requiring all 
+allocators to reclaim (or compact) and calling the oom killer to identify 
+the timeout before granting access to memory reserves for a single 
+allocation before schedule_timeout_killable(1) and returning.
 
-This won't handle other situations where the victim gets wedged in D state 
-and is not allocating memory, but this is by far the more common 
-occurrence that we have dealt with.
+I don't know of any alternative solutions where we can guarantee that 
+memory reserves cannot be depleted unless memory reserves are 100% of 
+memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
