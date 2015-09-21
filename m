@@ -1,87 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 591DE6B0253
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 10:37:06 -0400 (EDT)
-Received: by qgev79 with SMTP id v79so90295653qge.0
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 07:37:06 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id w95si21679360qge.15.2015.09.21.07.37.05
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id B31E36B0253
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 11:01:39 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so118810444wic.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:01:39 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
+        by mx.google.com with ESMTPS id ir10si31665131wjb.206.2015.09.21.08.01.37
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 07:37:05 -0700 (PDT)
-Message-ID: <5600160B.3000400@oracle.com>
-Date: Mon, 21 Sep 2015 10:36:59 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Sep 2015 08:01:37 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so150409234wic.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 08:01:37 -0700 (PDT)
+Date: Mon, 21 Sep 2015 18:01:35 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [linux-next] khugepaged inconsistent lock state
+Message-ID: <20150921150135.GB30755@node.dhcp.inet.fi>
+References: <20150921044600.GA863@swordfish>
 MIME-Version: 1.0
-Subject: mm: NULL ptr deref in handle_mm_fault
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150921044600.GA863@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Hi all,
+On Mon, Sep 21, 2015 at 01:46:00PM +0900, Sergey Senozhatsky wrote:
+> Hi,
+> 
+> 4.3.0-rc1-next-20150918
+> 
+> [18344.236625] =================================
+> [18344.236628] [ INFO: inconsistent lock state ]
+> [18344.236633] 4.3.0-rc1-next-20150918-dbg-00014-ge5128d0-dirty #361 Not tainted
+> [18344.236636] ---------------------------------
+> [18344.236640] inconsistent {IN-RECLAIM_FS-W} -> {RECLAIM_FS-ON-W} usage.
+> [18344.236645] khugepaged/32 [HC0[0]:SC0[0]:HE1:SE1] takes:
+> [18344.236648]  (&anon_vma->rwsem){++++?.}, at: [<ffffffff81134403>] khugepaged+0x8b0/0x1987
+> [18344.236662] {IN-RECLAIM_FS-W} state was registered at:
+> [18344.236666]   [<ffffffff8107d747>] __lock_acquire+0x8e2/0x1183
+> [18344.236673]   [<ffffffff8107e7ac>] lock_acquire+0x10b/0x1a6
+> [18344.236678]   [<ffffffff8150a367>] down_write+0x3b/0x6a
+> [18344.236686]   [<ffffffff811360d8>] split_huge_page_to_list+0x5b/0x61f
+> [18344.236689]   [<ffffffff811224b3>] add_to_swap+0x37/0x78
+> [18344.236691]   [<ffffffff810fd650>] shrink_page_list+0x4c2/0xb9a
+> [18344.236694]   [<ffffffff810fe47c>] shrink_inactive_list+0x371/0x5d9
+> [18344.236696]   [<ffffffff810fee2f>] shrink_lruvec+0x410/0x5ae
+> [18344.236698]   [<ffffffff810ff024>] shrink_zone+0x57/0x140
+> [18344.236700]   [<ffffffff810ffc79>] kswapd+0x6a5/0x91b
+> [18344.236702]   [<ffffffff81059588>] kthread+0x107/0x10f
+> [18344.236706]   [<ffffffff8150c7bf>] ret_from_fork+0x3f/0x70
+> [18344.236708] irq event stamp: 6517947
+> [18344.236709] hardirqs last  enabled at (6517947): [<ffffffff810f2d0c>] get_page_from_freelist+0x362/0x59e
+> [18344.236713] hardirqs last disabled at (6517946): [<ffffffff8150ba41>] _raw_spin_lock_irqsave+0x18/0x51
+> [18344.236715] softirqs last  enabled at (6507072): [<ffffffff81041cb0>] __do_softirq+0x2df/0x3f5
+> [18344.236719] softirqs last disabled at (6507055): [<ffffffff81041fb5>] irq_exit+0x40/0x94
+> [18344.236722] 
+>                other info that might help us debug this:
+> [18344.236723]  Possible unsafe locking scenario:
+> 
+> [18344.236724]        CPU0
+> [18344.236725]        ----
+> [18344.236726]   lock(&anon_vma->rwsem);
+> [18344.236728]   <Interrupt>
+> [18344.236729]     lock(&anon_vma->rwsem);
+> [18344.236731] 
+>                 *** DEADLOCK ***
+> 
+> [18344.236733] 2 locks held by khugepaged/32:
+> [18344.236733]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff81134122>] khugepaged+0x5cf/0x1987
+> [18344.236738]  #1:  (&anon_vma->rwsem){++++?.}, at: [<ffffffff81134403>] khugepaged+0x8b0/0x1987
+> [18344.236741] 
+>                stack backtrace:
+> [18344.236744] CPU: 3 PID: 32 Comm: khugepaged Not tainted 4.3.0-rc1-next-20150918-dbg-00014-ge5128d0-dirty #361
+> [18344.236747]  0000000000000000 ffff880132827a00 ffffffff81230867 ffffffff8237ba90
+> [18344.236750]  ffff880132827a38 ffffffff810ea9b9 000000000000000a ffff8801333b52e0
+> [18344.236753]  ffff8801333b4c00 ffffffff8107b3ce 000000000000000a ffff880132827a78
+> [18344.236755] Call Trace:
+> [18344.236758]  [<ffffffff81230867>] dump_stack+0x4e/0x79
+> [18344.236761]  [<ffffffff810ea9b9>] print_usage_bug.part.24+0x259/0x268
+> [18344.236763]  [<ffffffff8107b3ce>] ? print_shortest_lock_dependencies+0x180/0x180
+> [18344.236765]  [<ffffffff8107c7fc>] mark_lock+0x381/0x567
+> [18344.236766]  [<ffffffff8107ca40>] mark_held_locks+0x5e/0x74
+> [18344.236768]  [<ffffffff8107ee9f>] lockdep_trace_alloc+0xb0/0xb3
+> [18344.236771]  [<ffffffff810f30cc>] __alloc_pages_nodemask+0x99/0x856
+> [18344.236772]  [<ffffffff810ebaf9>] ? find_get_entry+0x14b/0x17a
+> [18344.236774]  [<ffffffff810ebb16>] ? find_get_entry+0x168/0x17a
+> [18344.236777]  [<ffffffff811226d9>] __read_swap_cache_async+0x7b/0x1aa
+> [18344.236778]  [<ffffffff8112281d>] read_swap_cache_async+0x15/0x2d
+> [18344.236780]  [<ffffffff8112294f>] swapin_readahead+0x11a/0x16a
+> [18344.236783]  [<ffffffff81112791>] do_swap_page+0xa7/0x36b
+> [18344.236784]  [<ffffffff81112791>] ? do_swap_page+0xa7/0x36b
+> [18344.236787]  [<ffffffff8113444c>] khugepaged+0x8f9/0x1987
+> [18344.236790]  [<ffffffff810772f3>] ? wait_woken+0x88/0x88
+> [18344.236792]  [<ffffffff81133b53>] ? maybe_pmd_mkwrite+0x1a/0x1a
+> [18344.236794]  [<ffffffff81059588>] kthread+0x107/0x10f
+> [18344.236797]  [<ffffffff81059481>] ? kthread_create_on_node+0x1ea/0x1ea
+> [18344.236799]  [<ffffffff8150c7bf>] ret_from_fork+0x3f/0x70
+> [18344.236801]  [<ffffffff81059481>] ? kthread_create_on_node+0x1ea/0x1ea
 
-While fuzzing with trinity inside a KVM tools guest running -next kernel I've
-stumbled on:
+Hm. If I read this correctly, we see following scenario:
 
-[1717058.906453] kasan: GPF could be caused by NULL-ptr deref or user memory accessgeneral protection fault: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC KASAN
-[1717058.910606] Modules linked in:
-[1717058.911423] CPU: 6 PID: 16918 Comm: trinity-c136 Not tainted 4.3.0-rc1-next-20150918-sasha-00081-g4b7392a-dirty #2567
-[1717058.913616] task: ffff8803b767c000 ti: ffff8803c1190000 task.ti: ffff8803c1190000
-[1717058.915215] RIP: handle_mm_fault (./arch/x86/include/asm/pgtable.h:547 mm/memory.c:3401 mm/memory.c:3432)
-[1717058.917170] RSP: 0000:ffff8803c1197cd0  EFLAGS: 00010202
-[1717058.918303] RAX: dffffc0000000000 RBX: ffff88042c6cfd40 RCX: 1ffffffff5858826
-[1717058.919794] RDX: 0000000000000000 RSI: ffff8803b767ccb8 RDI: 0000000310392067
-[1717058.921275] RBP: ffff8803c1197e78 R08: 0000000000000108 R09: 00000000000003f2
-[1717058.922744] R10: 0000000000000002 R11: fffff91f843c5644 R12: 0000000000000000
-[1717058.924242] R13: ffff88042c6cfd90 R14: 00007fbfca421230 R15: ffff880174174000
-[1717058.925858] FS:  00007fbfca8d3700(0000) GS:ffff88032e200000(0000) knlGS:0000000000000000
-[1717058.927711] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[1717058.928931] CR2: 0000000000000000 CR3: 00000003d2b3f000 CR4: 00000000000006a0
-[1717058.930435] Stack:
-[1717058.930917]  ffffffff9f778b6f ffff8803c1197bc0 0000000000000000 ffffffff9f75d250
-[1717058.932712]  0000000000000000 ffff8803b767c000 ffffffff9f778a30 0000000000000000
-[1717058.934426]  ffffffff9f27ee03 ffff88070a4b1c90 ffffffff9f778a30 0000000000000000
-[1717058.936158] Call Trace:
-[1717058.949349] __do_page_fault (arch/x86/mm/fault.c:1239)
-[1717058.952904] trace_do_page_fault (arch/x86/mm/fault.c:1331 include/linux/jump_label.h:133 include/linux/context_tracking_state.h:30 include/linux/context_tracking.h:46 arch/x86/mm/fault.c:1332)
-[1717058.954825] do_async_page_fault (arch/x86/kernel/kvm.c:280)
-[1717058.956371] async_page_fault (arch/x86/entry/entry_64.S:989)
-[1717058.957819] Code: 81 e4 80 00 00 00 0f 85 87 09 00 00 48 b8 00 00 00 00 00 fc ff df 4d 89 f0 4c 89 d2 49 c1 e8 09 48 c1 ea 03 41 81 e0 f8 0f 00 00 <80> 3c 02 00 0f 85 28 38 00 00 48 ba 00 00 00 00 00 fc ff df 4c
-All code
-========
-   0:   81 e4 80 00 00 00       and    $0x80,%esp
-   6:   0f 85 87 09 00 00       jne    0x993
-   c:   48 b8 00 00 00 00 00    movabs $0xdffffc0000000000,%rax
-  13:   fc ff df
-  16:   4d 89 f0                mov    %r14,%r8
-  19:   4c 89 d2                mov    %r10,%rdx
-  1c:   49 c1 e8 09             shr    $0x9,%r8
-  20:   48 c1 ea 03             shr    $0x3,%rdx
-  24:   41 81 e0 f8 0f 00 00    and    $0xff8,%r8d
-  2b:*  80 3c 02 00             cmpb   $0x0,(%rdx,%rax,1)               <-- trapping instruction
-  2f:   0f 85 28 38 00 00       jne    0x385d
-  35:   48 ba 00 00 00 00 00    movabs $0xdffffc0000000000,%rdx
-  3c:   fc ff df
-  3f:   4c                      rex.WR
-        ...
+ - khugepaged tries to swap in a page under mmap_sem and anon_vma lock;
+ - do_swap_page() calls swapin_readahead() with GFP_HIGHUSER_MOVABLE;
+ - __read_swap_cache_async() tries to allocate the page for swap in;
+ - lockdep_trace_alloc() in __alloc_pages_nodemask() notices that with
+   given gfp_mask we could end up in direct relaim.
+ - Lockdep already knows that reclaim sometimes (e.g. in case of
+   split_huge_page()) wants to take anon_vma lock on its own.
 
-Code starting with the faulting instruction
-===========================================
-   0:   80 3c 02 00             cmpb   $0x0,(%rdx,%rax,1)
-   4:   0f 85 28 38 00 00       jne    0x3832
-   a:   48 ba 00 00 00 00 00    movabs $0xdffffc0000000000,%rdx
-  11:   fc ff df
-  14:   4c                      rex.WR
-        ...
-[1717058.967918] RIP handle_mm_fault (./arch/x86/include/asm/pgtable.h:547 mm/memory.c:3401 mm/memory.c:3432)
-[1717058.970464]  RSP <ffff8803c1197cd0>
+Therefore deadlock is possible.
 
+I see two ways to fix this:
 
-Thanks,
-Sasha
+ - take anon_vma lock *after* __collapse_huge_page_swapin() in
+   collapse_huge_page(): I don't really see why we need the lock
+   during swapin;
+ - respect FAULT_FLAG_RETRY_NOWAIT in do_swap_page(): add GFP_NOWAIT to
+   gfp_mask for swapin_readahead() in this case.
+
+I guess it could be beneficial to do both.
+
+Any comments?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
