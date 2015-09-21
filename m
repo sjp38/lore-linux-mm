@@ -1,64 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 483476B0256
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:43:39 -0400 (EDT)
-Received: by obbda8 with SMTP id da8so81960935obb.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:43:39 -0700 (PDT)
-Received: from m12-17.163.com (m12-17.163.com. [220.181.12.17])
-        by mx.google.com with ESMTP id w5si12069607obs.44.2015.09.21.06.42.49
-        for <linux-mm@kvack.org>;
-        Mon, 21 Sep 2015 06:43:38 -0700 (PDT)
-From: Yaowei Bai <bywxiaobai@163.com>
-Subject: [PATCH 2/2] mm/memcontrol: make mem_cgroup_inactive_anon_is_low return bool
-Date: Mon, 21 Sep 2015 21:37:53 +0800
-Message-Id: <1442842673-4140-2-git-send-email-bywxiaobai@163.com>
-In-Reply-To: <1442842673-4140-1-git-send-email-bywxiaobai@163.com>
-References: <1442842673-4140-1-git-send-email-bywxiaobai@163.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 63D7A6B0256
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:47:16 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so117421644pac.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:47:16 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id vm6si37893037pab.128.2015.09.21.06.47.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Sep 2015 06:47:15 -0700 (PDT)
+Date: Mon, 21 Sep 2015 15:44:14 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: can't oom-kill zap the victim's memory?
+Message-ID: <20150921134414.GA15974@redhat.com>
+References: <1442512783-14719-1-git-send-email-kwalker@redhat.com> <20150919150316.GB31952@redhat.com> <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com> <20150920125642.GA2104@redhat.com> <CA+55aFyajHq2W9HhJWbLASFkTx_kLSHtHuY6mDHKxmoW-LnVEw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFyajHq2W9HhJWbLASFkTx_kLSHtHuY6mDHKxmoW-LnVEw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de, mhocko@kernel.org, rientjes@google.com, hannes@cmpxchg.org, vdavydov@parallels.com, oleg@redhat.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, tj@kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-This patch makes mem_cgroup_inactive_anon_is_low return bool due to
-this particular function only using either one or zero as its return
-value.
+On 09/20, Linus Torvalds wrote:
+>
+> On Sun, Sep 20, 2015 at 5:56 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+> >
+> > In this case the workqueue thread will block.
+>
+> What workqueue thread?
 
-No functional change.
+I must have missed something. I can't understand your and Michal's
+concerns.
 
-Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
----
- include/linux/memcontrol.h | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+>    pagefault_out_of_memory ->
+>       out_of_memory ->
+>          oom_kill_process
+>
+> as far as I can tell, this can be called by any task. Now, that
+> pagefault case should only happen when the page fault comes from user
+> space, but we also have
+>
+>    __alloc_pages_slowpath ->
+>       __alloc_pages_may_oom ->
+>          out_of_memory ->
+>             oom_kill_process
+>
+> which can be called from just about any context (but atomic
+> allocations will never get here, so it can schedule etc).
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index ad800e6..91a6bf3 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -383,7 +383,7 @@ unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
- 	return mz->lru_size[lru];
- }
- 
--static inline int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
-+static inline bool mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
- {
- 	unsigned long inactive_ratio;
- 	unsigned long inactive;
-@@ -584,10 +584,10 @@ static inline bool mem_cgroup_disabled(void)
- 	return true;
- }
- 
--static inline int
-+static inline bool
- mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
- {
--	return 1;
-+	return true;
- }
- 
- static inline bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
--- 
-1.9.1
+So yes, in general oom_kill_process() can't call oom_unmap_func() directly.
+That is why the patch uses queue_work(oom_unmap_func). The workqueue thread
+takes mmap_sem and frees the memory allocated by user space.
 
+If this can lead to deadlock somehow, then we can hit the same deadlock
+when an oom-killed thread calls exit_mm().
+
+> So what's your point?
+
+This can help if the killed process refuse to die and (of course) it
+doesn't hold the mmap_sem for writing. Say, it waits for some mutex
+held by the task which tries to alloc the memory and triggers oom.
+
+> Explain again just how do you guarantee that you
+> can take the mmap_sem.
+
+This is not guaranteed, down_read(mmap_sem) can block forever. But this
+means that the (killed) victim never drops mmap_sem / never exits, so
+we lose anyway. We have no memory, oom-killer is blocked, etc.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
