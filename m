@@ -1,110 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AB026B0038
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 16:21:11 -0400 (EDT)
-Received: by qgx61 with SMTP id 61so100038321qgx.3
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 13:21:10 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u71si23158422qku.50.2015.09.21.13.21.09
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 0816A6B0038
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 17:11:02 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so133013434wic.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 14:11:01 -0700 (PDT)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id n4si19940780wia.64.2015.09.21.14.11.00
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 13:21:10 -0700 (PDT)
-Date: Mon, 21 Sep 2015 13:21:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] fs-writeback: drop wb->list_lock during
- blk_finish_plug()
-Message-Id: <20150921132108.990b3ce5e1acd0a7c7e73053@linux-foundation.org>
-In-Reply-To: <20150921092429.GB9028@quack.suse.cz>
-References: <20150917021453.GO3902@dastard>
-	<CA+55aFz6zfHQnrwtimgm9v10s8dkF-e1w1aQQ3aWperbZGT1Jg@mail.gmail.com>
-	<20150917224230.GF8624@ret.masoncoding.com>
-	<CA+55aFw40VNejeCtHC+-fPThK+xp9WnoNGQUwYW2JEVoVp5JJw@mail.gmail.com>
-	<20150917235647.GG8624@ret.masoncoding.com>
-	<20150918003735.GR3902@dastard>
-	<CA+55aFzXW7t+1v3tmW2sxn-BLpvZ1_Ye6epiPWBeq70FoaSmFQ@mail.gmail.com>
-	<20150918054044.GT3902@dastard>
-	<CA+55aFw3Y51ZtaPK=r1dp66hDsGmc-dFz9wf-gYMGi5B0FP4KQ@mail.gmail.com>
-	<20150918221714.GU3902@dastard>
-	<20150921092429.GB9028@quack.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 21 Sep 2015 14:11:00 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so165797556wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 14:11:00 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150921041837.GF27729@bbox>
+References: <20150916134857.e4a71f601a1f68cfa16cb361@gmail.com>
+	<20150917013007.GB421@swordfish>
+	<CAMJBoFP5LfoKwzDbSJMmOVOfq=8-7AaoAOV5TVPNt-JcUvZ0eA@mail.gmail.com>
+	<20150921041837.GF27729@bbox>
+Date: Mon, 21 Sep 2015 23:11:00 +0200
+Message-ID: <CAMJBoFN0KocBQLSMJkxYS2JS+jSPR3Y5gGdceoKTYJWbm06t1g@mail.gmail.com>
+Subject: Re: [PATCH 0/2] prepare zbud to be used by zram as underlying allocator
+From: Vitaly Wool <vitalywool@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Dave Chinner <david@fromorbit.com>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <jaxboe@fusionio.com>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Neil Brown <neilb@suse.de>, Christoph Hellwig <hch@lst.de>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, 21 Sep 2015 11:24:29 +0200 Jan Kara <jack@suse.cz> wrote:
+Hello Minchan,
 
-> On Sat 19-09-15 08:17:14, Dave Chinner wrote:
-> > On Thu, Sep 17, 2015 at 11:04:03PM -0700, Linus Torvalds wrote:
-> > > On Thu, Sep 17, 2015 at 10:40 PM, Dave Chinner <david@fromorbit.com> wrote:
-> > > > PS: just hit another "did this just get broken in 4.3-rc1" issue - I
-> > > > can't run blktrace while there's a IO load because:
-> > > >
-> > > > $ sudo blktrace -d /dev/vdc
-> > > > BLKTRACESETUP(2) /dev/vdc failed: 5/Input/output error
-> > > > Thread 1 failed open /sys/kernel/debug/block/(null)/trace1: 2/No such file or directory
-> > > > ....
-> > > >
-> > > > [  641.424618] blktrace: page allocation failure: order:5, mode:0x2040d0
-> > > > [  641.438933]  [<ffffffff811c1569>] kmem_cache_alloc_trace+0x129/0x400
-> > > > [  641.440240]  [<ffffffff811424f8>] relay_open+0x68/0x2c0
-> > > > [  641.441299]  [<ffffffff8115deb1>] do_blk_trace_setup+0x191/0x2d0
-> > > >
-> > > > gdb) l *(relay_open+0x68)
-> > > > 0xffffffff811424f8 is in relay_open (kernel/relay.c:582).
-> > > > 577                     return NULL;
-> > > > 578             if (subbuf_size > UINT_MAX / n_subbufs)
-> > > > 579                     return NULL;
-> > > > 580
-> > > > 581             chan = kzalloc(sizeof(struct rchan), GFP_KERNEL);
-> > > > 582             if (!chan)
-> > > > 583                     return NULL;
-> > > > 584
-> > > > 585             chan->version = RELAYFS_CHANNEL_VERSION;
-> > > > 586             chan->n_subbufs = n_subbufs;
-> > > >
-> > > > and struct rchan has a member struct rchan_buf *buf[NR_CPUS];
-> > > > and CONFIG_NR_CPUS=8192, hence the attempt at an order 5 allocation
-> > > > that fails here....
-> > > 
-> > > Hm. Have you always had MAX_SMP (and the NR_CPU==8192 that it causes)?
-> > > From a quick check, none of this code seems to be new.
-> > 
-> > Yes, I always build MAX_SMP kernels for testing, because XFS is
-> > often used on such machines and so I want to find issues exactly
-> > like this in my testing rather than on customer machines... :/
-> > 
-> > > That said, having that
-> > > 
-> > >         struct rchan_buf *buf[NR_CPUS];
-> > > 
-> > > in "struct rchan" really is something we should fix. We really should
-> > > strive to not allocate things by CONFIG_NR_CPU's, but by the actual
-> > > real CPU count.
-> > 
-> > *nod*. But it doesn't fix the problem of the memory allocation
-> > failing when there's still gigabytes of immediately reclaimable
-> > memory available in the page cache. If this is failing under page
-> > cache memory pressure, then we're going to be doing an awful lot
-> > more falling back to vmalloc in the filesystem code where large
-> > allocations like this are done e.g. extended attribute buffers are
-> > order-5, and used a lot when doing things like backups which tend to
-> > also produce significant page cache memory pressure.
-> > 
-> > Hence I'm tending towards there being a memory reclaim behaviour
-> > regression, not so much worrying about whether this specific
-> > allocation is optimal or not.
-> 
-> Yup, looks like a regression in reclaim. Added linux-mm folks to CC.
+> Sorry, because you wrote up "zram" in the title.
+> As I said earlier, we need several numbers to investigate.
+>
+> First of all, what is culprit of your latency?
+> It seems you are thinking about compaction. so compaction what?
+> Frequent scanning? lock collision? or frequent sleeping in compaction
+> code somewhere? And then why does zbud solve it? If we use zbud for zram,
+> we lose memory efficiency so there is something to justify it.
 
-That's going to be hard to find.  Possibly Vlastimil's 5-patch series
-"mm, compaction: more robust check for scanners meeting", possibly
-Joonsoo's "mm/compaction: correct to flush migrated pages if pageblock
-skip happens".  But probably something else :(
+The data I've got so far strongly suggests that in some use cases (see
+below) with zsmalloc
+* there are more allocstalls
+* memory compaction is triggered more frequently
+* allocstalls happen more often
+* page migrations are way more frequent, too.
 
-Teach relay.c about alloc_percpu()?
+Please also keep in mind that I do not advise you or anyone to use
+zbud instead of zsmalloc. The point I'm trying to make is that zbud
+fits my particular case better and I want to be able to choose it in
+the kernel without hacking it with my private patches.
+FWIW, given that I am not an author of either, I don't see why anyone
+would consider me biased. :-)
+
+As of the memory efficiency, you seem to be quite comfortable with
+storing uncompressed pages when they compress to more than 3/4 of a
+page. I observed ~13% reported ratio increase (3.8x to 4.3x) when I
+increased max_zpage_size to PAGE_SIZE / 32 * 31. Doesn't look like a
+fight for every byte to me.
+
+> The reason I am asking is I have investigated similar problems
+> in android and other plaforms and the reason of latency was not zsmalloc
+> but agressive high-order allocations from subsystems, watermark check
+> race, deferring of compaction, LMK not working and too much swapout so
+> it causes to reclaim lots of page cache pages which was main culprit
+> in my cases. When I checks with perf, compaction stall count is increased,
+> the time spent in there is not huge so it was not main factor of latency.
+
+The main use case where the difference is seen is switching between
+users on an Android device. It does cause a lot of reclaim, too, as
+you say, but this is in the nature of zbud that reclaim happens in a
+more deterministic way and worst-case looks substantially nicer. That
+said, the standard deviation calculated over 20 iterations of a
+change-user-multiple-times-test is 2x less for zbud than the one of
+zsmalloc.
+
+I'll post some numbers in the next patch respin so they won't get lost :)
+
+~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
