@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C7826B0256
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:42:36 -0400 (EDT)
-Received: by oibi136 with SMTP id i136so58177212oib.3
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:42:36 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k4si12142299oic.89.2015.09.21.06.42.35
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 06:42:36 -0700 (PDT)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <1442842450-29769-1-git-send-email-a.hajda@samsung.com>
-References: <1442842450-29769-1-git-send-email-a.hajda@samsung.com>
-Subject: Re: [PATCH 00/38] Fixes related to incorrect usage of unsigned types
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <17570.1442842945.1@warthog.procyon.org.uk>
-Date: Mon, 21 Sep 2015 14:42:25 +0100
-Message-ID: <17571.1442842945@warthog.procyon.org.uk>
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 483476B0256
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 09:43:39 -0400 (EDT)
+Received: by obbda8 with SMTP id da8so81960935obb.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:43:39 -0700 (PDT)
+Received: from m12-17.163.com (m12-17.163.com. [220.181.12.17])
+        by mx.google.com with ESMTP id w5si12069607obs.44.2015.09.21.06.42.49
+        for <linux-mm@kvack.org>;
+        Mon, 21 Sep 2015 06:43:38 -0700 (PDT)
+From: Yaowei Bai <bywxiaobai@163.com>
+Subject: [PATCH 2/2] mm/memcontrol: make mem_cgroup_inactive_anon_is_low return bool
+Date: Mon, 21 Sep 2015 21:37:53 +0800
+Message-Id: <1442842673-4140-2-git-send-email-bywxiaobai@163.com>
+In-Reply-To: <1442842673-4140-1-git-send-email-bywxiaobai@163.com>
+References: <1442842673-4140-1-git-send-email-bywxiaobai@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrzej Hajda <a.hajda@samsung.com>
-Cc: dhowells@redhat.com, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cachefs@redhat.com, linux-clk@vger.kernel.org, linux-crypto@vger.kernel.org, linux-fbdev@vger.kernel.org, linux-input@vger.kernel.org, linux-leds@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-omap@vger.kernel.org, linux-rdma@vger.kernel.org, linux-serial@vger.kernel.org, linux-sh@vger.kernel.org, linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org, lustre-devel@lists.lustre.org
+To: akpm@linux-foundation.org, mgorman@suse.de, mhocko@kernel.org, rientjes@google.com, hannes@cmpxchg.org, vdavydov@parallels.com, oleg@redhat.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, tj@kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Andrzej Hajda <a.hajda@samsung.com> wrote:
+This patch makes mem_cgroup_inactive_anon_is_low return bool due to
+this particular function only using either one or zero as its return
+value.
 
-> Semantic patch finds comparisons of types:
->     unsigned < 0
->     unsigned >= 0
-> The former is always false, the latter is always true.
-> Such comparisons are useless, so theoretically they could be
-> safely removed, but their presence quite often indicates bugs.
+No functional change.
 
-Or someone has left them in because they don't matter and there's the
-possibility that the type being tested might be or become signed under some
-circumstances.  If the comparison is useless, I'd expect the compiler to just
-discard it - for such cases your patch is pointless.
+Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
+---
+ include/linux/memcontrol.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-If I have, for example:
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index ad800e6..91a6bf3 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -383,7 +383,7 @@ unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+ 	return mz->lru_size[lru];
+ }
+ 
+-static inline int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
++static inline bool mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
+ {
+ 	unsigned long inactive_ratio;
+ 	unsigned long inactive;
+@@ -584,10 +584,10 @@ static inline bool mem_cgroup_disabled(void)
+ 	return true;
+ }
+ 
+-static inline int
++static inline bool
+ mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
+ {
+-	return 1;
++	return true;
+ }
+ 
+ static inline bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
+-- 
+1.9.1
 
-	unsigned x;
-
-	if (x == 0 || x > 27)
-		give_a_range_error();
-
-I will write this as:
-
-	unsigned x;
-
-	if (x <= 0 || x > 27)
-		give_a_range_error();
-
-because it that gives a way to handle x being changed to signed at some point
-in the future for no cost.  In which case, your changing the <= to an ==
-"because the < part of the case is useless" is arguably wrong.
-
-David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
