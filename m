@@ -1,329 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EBDE86B025D
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:53:05 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so109992222wic.0
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 03:53:05 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id k14si30234883wjr.21.2015.09.21.03.52.45
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F9AB6B0253
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 07:10:17 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so114060859pad.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 04:10:16 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id rw6si36930392pbb.52.2015.09.21.04.10.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 21 Sep 2015 03:52:45 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 8211F99043
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 10:52:45 +0000 (UTC)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 09/10] mm, page_alloc: Reserve pageblocks for high-order atomic allocations on demand
-Date: Mon, 21 Sep 2015 11:52:41 +0100
-Message-Id: <1442832762-7247-10-git-send-email-mgorman@techsingularity.net>
-In-Reply-To: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
-References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
+        Mon, 21 Sep 2015 04:10:16 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] mm, vmscan: Warn about possible deadlock at shirink_inactive_list
+Date: Mon, 21 Sep 2015 20:09:54 +0900
+Message-Id: <1442833794-23117-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: david@fromorbit.com
+Cc: xfs@oss.sgi.com, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-High-order watermark checking exists for two reasons --  kswapd high-order
-awareness and protection for high-order atomic requests. Historically the
-kernel depended on MIGRATE_RESERVE to preserve min_free_kbytes as high-order
-free pages for as long as possible. This patch introduces MIGRATE_HIGHATOMIC
-that reserves pageblocks for high-order atomic allocations on demand and
-avoids using those blocks for order-0 allocations. This is more flexible
-and reliable than MIGRATE_RESERVE was.
+This is a difficult-to-trigger silent hang up bug.
 
-A MIGRATE_HIGHORDER pageblock is created when an atomic high-order allocation
-request steals a pageblock but limits the total number to 1% of the zone.
-Callers that speculatively abuse atomic allocations for long-lived
-high-order allocations to access the reserve will quickly fail. Note that
-SLUB is currently not such an abuser as it reclaims at least once.  It is
-possible that the pageblock stolen has few suitable high-order pages and
-will need to steal again in the near future but there would need to be
-strong justification to search all pageblocks for an ideal candidate.
+The kswapd is allowed to bypass too_many_isolated() check in
+shrink_inactive_list(). But the kswapd can be blocked by locks in
+shrink_page_list() in shrink_inactive_list(). If the task which is
+blocking the kswapd is trying to allocate memory with the locks held,
+it forms memory reclaim deadlock.
 
-The pageblocks are unreserved if an allocation fails after a direct
-reclaim attempt.
+----------
+[  142.870301] kswapd0         D ffff88007fcd5b80     0    51      2 0x00000000
+[  142.871941]  ffff88007c98f660 0000000000000046 ffff88007cde4c80 ffff88007c990000
+[  142.873772]  ffff880035d08b40 ffff880035d08b58 ffff880079e4a828 ffff88007c98f890
+[  142.875544]  ffff88007c98f678 ffffffff81632c68 ffff88007cde4c80 ffff88007c98f6d8
+[  142.877338] Call Trace:
+[  142.878220]  [<ffffffff81632c68>] schedule+0x38/0x90
+[  142.879477]  [<ffffffff81636163>] rwsem_down_read_failed+0xd3/0x140
+[  142.880937]  [<ffffffff81328314>] call_rwsem_down_read_failed+0x14/0x30
+[  142.882595]  [<ffffffff81635b12>] ? down_read+0x12/0x20
+[  142.883882]  [<ffffffff8126488b>] xfs_log_commit_cil+0x5b/0x460
+[  142.885326]  [<ffffffff8125f67b>] __xfs_trans_commit+0x10b/0x1f0
+[  142.886756]  [<ffffffff8125f9eb>] xfs_trans_commit+0xb/0x10
+[  142.888085]  [<ffffffff81251505>] xfs_iomap_write_allocate+0x165/0x320
+[  142.889657]  [<ffffffff8123f4aa>] xfs_map_blocks+0x15a/0x170
+[  142.891002]  [<ffffffff8124045b>] xfs_vm_writepage+0x18b/0x5a0
+[  142.892372]  [<ffffffff811295bc>] pageout.isra.42+0x18c/0x250
+[  142.893813]  [<ffffffff8112a720>] shrink_page_list+0x650/0xa10
+[  142.895182]  [<ffffffff8112b1f2>] shrink_inactive_list+0x1f2/0x560
+[  142.896606]  [<ffffffff8112bedf>] shrink_lruvec+0x59f/0x760
+[  142.898037]  [<ffffffff8112c146>] shrink_zone+0xa6/0x2d0
+[  142.899320]  [<ffffffff8112d162>] kswapd+0x4c2/0x8e0
+[  142.900545]  [<ffffffff8112cca0>] ? mem_cgroup_shrink_node_zone+0xe0/0xe0
+[  142.902152]  [<ffffffff81086fb3>] kthread+0xd3/0xf0
+[  142.903381]  [<ffffffff81086ee0>] ? kthread_create_on_node+0x1a0/0x1a0
+[  142.904919]  [<ffffffff81637b9f>] ret_from_fork+0x3f/0x70
+[  142.906237]  [<ffffffff81086ee0>] ? kthread_create_on_node+0x1a0/0x1a0
+(...snipped...)
+[  148.995189] a.out           D ffffffff813360c7     0  7821   7788 0x00000080
+[  148.996854]  ffff88007c6b73d8 0000000000000086 ffff880078e7f2c0 ffff88007c6b8000
+[  148.998583]  ffff88007c6b7410 ffff88007fc8dfc0 00000000fffd94f9 0000000000000002
+[  149.000560]  ffff88007c6b73f0 ffffffff81632c68 ffff88007fc8dfc0 ffff88007c6b7470
+[  149.002415] Call Trace:
+[  149.003285]  [<ffffffff81632c68>] schedule+0x38/0x90
+[  149.004624]  [<ffffffff816366e2>] schedule_timeout+0x122/0x1c0
+[  149.006003]  [<ffffffff8108fc63>] ? preempt_count_add+0x43/0x90
+[  149.007412]  [<ffffffff810c81b0>] ? cascade+0x90/0x90
+[  149.008704]  [<ffffffff81632291>] io_schedule_timeout+0xa1/0x110
+[  149.010109]  [<ffffffff811359bd>] congestion_wait+0x7d/0xd0
+[  149.011536]  [<ffffffff810a64a0>] ? wait_woken+0x80/0x80
+[  149.012891]  [<ffffffff8112b519>] shrink_inactive_list+0x519/0x560
+[  149.014327]  [<ffffffff8109aa6e>] ? check_preempt_wakeup+0x10e/0x1f0
+[  149.015867]  [<ffffffff8112bedf>] shrink_lruvec+0x59f/0x760
+[  149.017340]  [<ffffffff8117bb4f>] ? mem_cgroup_iter+0xef/0x4e0
+[  149.018742]  [<ffffffff8112c146>] shrink_zone+0xa6/0x2d0
+[  149.020150]  [<ffffffff8112c6e4>] do_try_to_free_pages+0x164/0x420
+[  149.021605]  [<ffffffff8112ca34>] try_to_free_pages+0x94/0xc0
+[  149.022968]  [<ffffffff8112101b>] __alloc_pages_nodemask+0x4fb/0x930
+[  149.024476]  [<ffffffff811626bc>] alloc_pages_current+0x8c/0x100
+[  149.025883]  [<ffffffff81169b68>] new_slab+0x458/0x4d0
+[  149.027209]  [<ffffffff8116bdbe>] ___slab_alloc+0x49e/0x610
+[  149.028580]  [<ffffffff81260014>] ? kmem_alloc+0x74/0xe0
+[  149.029864]  [<ffffffff81099548>] ? update_curr+0x58/0xe0
+[  149.031327]  [<ffffffff8109969d>] ? update_cfs_shares+0xad/0xf0
+[  149.032808]  [<ffffffff81099af9>] ? dequeue_entity+0x1e9/0x800
+[  149.034301]  [<ffffffff811889be>] __slab_alloc.isra.67+0x53/0x6f
+[  149.035780]  [<ffffffff81260014>] ? kmem_alloc+0x74/0xe0
+[  149.037076]  [<ffffffff81260014>] ? kmem_alloc+0x74/0xe0
+[  149.038344]  [<ffffffff8116c23d>] __kmalloc+0x14d/0x1a0
+[  149.039677]  [<ffffffff81260014>] kmem_alloc+0x74/0xe0
+[  149.040940]  [<ffffffff81264b82>] xfs_log_commit_cil+0x352/0x460
+[  149.042321]  [<ffffffff8125f67b>] __xfs_trans_commit+0x10b/0x1f0
+[  149.043733]  [<ffffffff8125f9eb>] xfs_trans_commit+0xb/0x10
+[  149.045065]  [<ffffffff81251b9f>] xfs_vn_update_time+0xdf/0x130
+[  149.046430]  [<ffffffff811a4768>] file_update_time+0xb8/0x110
+[  149.047833]  [<ffffffff81249cde>] xfs_file_aio_write_checks+0x16e/0x1c0
+[  149.049386]  [<ffffffff8124a089>] xfs_file_buffered_aio_write+0x79/0x1f0
+[  149.051031]  [<ffffffff81636fd5>] ? _raw_spin_lock_irqsave+0x25/0x50
+[  149.052581]  [<ffffffff8163709f>] ? _raw_spin_unlock_irqrestore+0x1f/0x40
+[  149.054084]  [<ffffffff8124a274>] xfs_file_write_iter+0x74/0x110
+[  149.055729]  [<ffffffff8118ada7>] __vfs_write+0xc7/0x100
+[  149.057023]  [<ffffffff8118b574>] vfs_write+0xa4/0x190
+[  149.058330]  [<ffffffff8118c200>] SyS_write+0x50/0xc0
+[  149.059553]  [<ffffffff811b7c78>] ? do_fsync+0x38/0x60
+[  149.060811]  [<ffffffff8163782e>] entry_SYSCALL_64_fastpath+0x12/0x71
+(...snipped...)
+[  264.199092] kswapd0         D ffff88007fcd5b80     0    51      2 0x00000000
+[  264.200724]  ffff88007c98f660 0000000000000046 ffff88007cde4c80 ffff88007c990000
+[  264.202469]  ffff880035d08b40 ffff880035d08b58 ffff880079e4a828 ffff88007c98f890
+[  264.204233]  ffff88007c98f678 ffffffff81632c68 ffff88007cde4c80 ffff88007c98f6d8
+[  264.206173] Call Trace:
+[  264.207202]  [<ffffffff81632c68>] schedule+0x38/0x90
+[  264.208536]  [<ffffffff81636163>] rwsem_down_read_failed+0xd3/0x140
+[  264.210044]  [<ffffffff81328314>] call_rwsem_down_read_failed+0x14/0x30
+[  264.211602]  [<ffffffff81635b12>] ? down_read+0x12/0x20
+[  264.212929]  [<ffffffff8126488b>] xfs_log_commit_cil+0x5b/0x460
+[  264.214369]  [<ffffffff8125f67b>] __xfs_trans_commit+0x10b/0x1f0
+[  264.215820]  [<ffffffff8125f9eb>] xfs_trans_commit+0xb/0x10
+[  264.217193]  [<ffffffff81251505>] xfs_iomap_write_allocate+0x165/0x320
+[  264.218721]  [<ffffffff8123f4aa>] xfs_map_blocks+0x15a/0x170
+[  264.220109]  [<ffffffff8124045b>] xfs_vm_writepage+0x18b/0x5a0
+[  264.221586]  [<ffffffff811295bc>] pageout.isra.42+0x18c/0x250
+[  264.222989]  [<ffffffff8112a720>] shrink_page_list+0x650/0xa10
+[  264.224404]  [<ffffffff8112b1f2>] shrink_inactive_list+0x1f2/0x560
+[  264.225876]  [<ffffffff8112bedf>] shrink_lruvec+0x59f/0x760
+[  264.227248]  [<ffffffff8112c146>] shrink_zone+0xa6/0x2d0
+[  264.228573]  [<ffffffff8112d162>] kswapd+0x4c2/0x8e0
+[  264.229840]  [<ffffffff8112cca0>] ? mem_cgroup_shrink_node_zone+0xe0/0xe0
+[  264.231407]  [<ffffffff81086fb3>] kthread+0xd3/0xf0
+[  264.232662]  [<ffffffff81086ee0>] ? kthread_create_on_node+0x1a0/0x1a0
+[  264.234185]  [<ffffffff81637b9f>] ret_from_fork+0x3f/0x70
+[  264.235527]  [<ffffffff81086ee0>] ? kthread_create_on_node+0x1a0/0x1a0
+(...snipped...)
+[  270.339774] a.out           D ffffffff813360c7     0  7821   7788 0x00000080
+[  270.341391]  ffff88007c6b73d8 0000000000000086 ffff880078e7f2c0 ffff88007c6b8000
+[  270.343114]  ffff88007c6b7410 ffff88007fc4dfc0 00000000ffff8b29 0000000000000002
+[  270.344859]  ffff88007c6b73f0 ffffffff81632c68 ffff88007fc4dfc0 ffff88007c6b7470
+[  270.346670] Call Trace:
+[  270.347608]  [<ffffffff81632c68>] schedule+0x38/0x90
+[  270.348929]  [<ffffffff816366e2>] schedule_timeout+0x122/0x1c0
+[  270.350354]  [<ffffffff8108fc63>] ? preempt_count_add+0x43/0x90
+[  270.351790]  [<ffffffff810c81b0>] ? cascade+0x90/0x90
+[  270.353106]  [<ffffffff81632291>] io_schedule_timeout+0xa1/0x110
+[  270.354558]  [<ffffffff811359bd>] congestion_wait+0x7d/0xd0
+[  270.355958]  [<ffffffff810a64a0>] ? wait_woken+0x80/0x80
+[  270.357298]  [<ffffffff8112b519>] shrink_inactive_list+0x519/0x560
+[  270.358779]  [<ffffffff8109aa6e>] ? check_preempt_wakeup+0x10e/0x1f0
+[  270.360307]  [<ffffffff8112bedf>] shrink_lruvec+0x59f/0x760
+[  270.361687]  [<ffffffff8117bb4f>] ? mem_cgroup_iter+0xef/0x4e0
+[  270.363147]  [<ffffffff8112c146>] shrink_zone+0xa6/0x2d0
+[  270.364462]  [<ffffffff8112c6e4>] do_try_to_free_pages+0x164/0x420
+[  270.365898]  [<ffffffff8112ca34>] try_to_free_pages+0x94/0xc0
+[  270.367261]  [<ffffffff8112101b>] __alloc_pages_nodemask+0x4fb/0x930
+[  270.368744]  [<ffffffff811626bc>] alloc_pages_current+0x8c/0x100
+[  270.370151]  [<ffffffff81169b68>] new_slab+0x458/0x4d0
+[  270.371420]  [<ffffffff8116bdbe>] ___slab_alloc+0x49e/0x610
+[  270.372769]  [<ffffffff81260014>] ? kmem_alloc+0x74/0xe0
+[  270.374053]  [<ffffffff81099548>] ? update_curr+0x58/0xe0
+[  270.375351]  [<ffffffff8109969d>] ? update_cfs_shares+0xad/0xf0
+[  270.376748]  [<ffffffff81099af9>] ? dequeue_entity+0x1e9/0x800
+[  270.378200]  [<ffffffff811889be>] __slab_alloc.isra.67+0x53/0x6f
+[  270.379604]  [<ffffffff81260014>] ? kmem_alloc+0x74/0xe0
+[  270.380879]  [<ffffffff81260014>] ? kmem_alloc+0x74/0xe0
+[  270.382148]  [<ffffffff8116c23d>] __kmalloc+0x14d/0x1a0
+[  270.383424]  [<ffffffff81260014>] kmem_alloc+0x74/0xe0
+[  270.384668]  [<ffffffff81264b82>] xfs_log_commit_cil+0x352/0x460
+[  270.386049]  [<ffffffff8125f67b>] __xfs_trans_commit+0x10b/0x1f0
+[  270.387449]  [<ffffffff8125f9eb>] xfs_trans_commit+0xb/0x10
+[  270.388761]  [<ffffffff81251b9f>] xfs_vn_update_time+0xdf/0x130
+[  270.390126]  [<ffffffff811a4768>] file_update_time+0xb8/0x110
+[  270.391484]  [<ffffffff81249cde>] xfs_file_aio_write_checks+0x16e/0x1c0
+[  270.392962]  [<ffffffff8124a089>] xfs_file_buffered_aio_write+0x79/0x1f0
+[  270.394728]  [<ffffffff81636fd5>] ? _raw_spin_lock_irqsave+0x25/0x50
+[  270.396218]  [<ffffffff8163709f>] ? _raw_spin_unlock_irqrestore+0x1f/0x40
+[  270.397769]  [<ffffffff8124a274>] xfs_file_write_iter+0x74/0x110
+[  270.399194]  [<ffffffff8118ada7>] __vfs_write+0xc7/0x100
+[  270.400507]  [<ffffffff8118b574>] vfs_write+0xa4/0x190
+[  270.401788]  [<ffffffff8118c200>] SyS_write+0x50/0xc0
+[  270.403048]  [<ffffffff811b7c78>] ? do_fsync+0x38/0x60
+[  270.404324]  [<ffffffff8163782e>] entry_SYSCALL_64_fastpath+0x12/0x71
+----------
 
-The watermark checks account for the reserved pageblocks when the allocation
-request is not a high-order atomic allocation.
+While OOM-killer deadlock shows OOM-killer messages and CPU usage remains
+100%, this hang up shows no kernel messages and CPU usage remains 0% as if
+the system is completely idle.
 
-The reserved pageblocks can not be used for order-0 allocations. This may
-allow temporary wastage until a failed reclaim reassigns the pageblock. This
-is deliberate as the intent of the reservation is to satisfy a limited
-number of atomic high-order short-lived requests if the system requires them.
+This patch shows progress of shrinking inactive list in order to assist
+warning about possible deadlock. So far I haven't succeeded to reproduce
+this bug after applying this patch; excuse me for output messages example
+is not available.
 
-The stutter benchmark was used to evaluate this but while it was running
-there was a systemtap script that randomly allocated between 1 high-order
-page and 12.5% of memory's worth of order-3 pages using GFP_ATOMIC. This
-is much larger than the potential reserve and it does not attempt to be
-realistic.  It is intended to stress random high-order allocations from
-an unknown source, show that there is a reduction in failures without
-introducing an anomaly where atomic allocations are more reliable than
-regular allocations.  The amount of memory reserved varied throughout the
-workload as reserves were created and reclaimed under memory pressure. The
-allocation failures once the workload warmed up were as follows;
-
-4.2-rc5-vanilla		70%
-4.2-rc5-atomic-reserve	56%
-
-The failure rate was also measured while building multiple kernels. The
-failure rate was 14% but is 6% with this patch applied.
-
-Overall, this is a small reduction but the reserves are small relative
-to the number of allocation requests. In early versions of the patch,
-the failure rate reduced by a much larger amount but that required much
-larger reserves and perversely made atomic allocations seem more reliable
-than regular allocations.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 ---
- include/linux/mmzone.h |   6 ++-
- mm/page_alloc.c        | 125 +++++++++++++++++++++++++++++++++++++++++++++----
- mm/vmstat.c            |   1 +
- 3 files changed, 122 insertions(+), 10 deletions(-)
+ mm/vmscan.c | 45 +++++++++++++++++++++++++++++++--------------
+ 1 file changed, 31 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 40a856d28764..ad8cf52de55b 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -39,6 +39,8 @@ enum {
- 	MIGRATE_UNMOVABLE,
- 	MIGRATE_MOVABLE,
- 	MIGRATE_RECLAIMABLE,
-+	MIGRATE_PCPTYPES,	/* the number of types on the pcp lists */
-+	MIGRATE_HIGHATOMIC = MIGRATE_PCPTYPES,
- #ifdef CONFIG_CMA
- 	/*
- 	 * MIGRATE_CMA migration type is designed to mimic the way
-@@ -61,8 +63,6 @@ enum {
- 	MIGRATE_TYPES
- };
- 
--#define MIGRATE_PCPTYPES (MIGRATE_RECLAIMABLE+1)
--
- #ifdef CONFIG_CMA
- #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
- #else
-@@ -334,6 +334,8 @@ struct zone {
- 	/* zone watermarks, access with *_wmark_pages(zone) macros */
- 	unsigned long watermark[NR_WMARK];
- 
-+	unsigned long nr_reserved_highatomic;
-+
- 	/*
- 	 * We don't know if the memory that we're going to allocate will be freeable
- 	 * or/and it will be released eventually, so to avoid totally wasting several
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ae01a2c1e863..811d6fc4ad5d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1615,6 +1615,88 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
- 	return -1;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index db5339d..0464537 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1476,20 +1476,12 @@ int isolate_lru_page(struct page *page)
+ 	return ret;
  }
  
-+/*
-+ * Reserve a pageblock for exclusive use of high-order atomic allocations if
-+ * there are no empty page blocks that contain a page with a suitable order
-+ */
-+static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
-+				unsigned int alloc_order)
-+{
-+	int mt;
-+	unsigned long max_managed, flags;
-+
-+	/*
-+	 * Limit the number reserved to 1 pageblock or roughly 1% of a zone.
-+	 * Check is race-prone but harmless.
-+	 */
-+	max_managed = (zone->managed_pages / 100) + pageblock_nr_pages;
-+	if (zone->nr_reserved_highatomic >= max_managed)
-+		return;
-+
-+	/* Yoink! */
-+	spin_lock_irqsave(&zone->lock, flags);
-+
-+	mt = get_pageblock_migratetype(page);
-+	if (mt != MIGRATE_HIGHATOMIC &&
-+			!is_migrate_isolate(mt) && !is_migrate_cma(mt)) {
-+		zone->nr_reserved_highatomic += pageblock_nr_pages;
-+		set_pageblock_migratetype(page, MIGRATE_HIGHATOMIC);
-+		move_freepages_block(zone, page, MIGRATE_HIGHATOMIC);
-+	}
-+	spin_unlock_irqrestore(&zone->lock, flags);
-+}
-+
-+/*
-+ * Used when an allocation is about to fail under memory pressure. This
-+ * potentially hurts the reliability of high-order allocations when under
-+ * intense memory pressure but failed atomic allocations should be easier
-+ * to recover from than an OOM.
-+ */
-+static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
-+{
-+	struct zonelist *zonelist = ac->zonelist;
-+	unsigned long flags;
-+	struct zoneref *z;
-+	struct zone *zone;
-+	struct page *page;
-+	int order;
-+
-+	for_each_zone_zonelist_nodemask(zone, z, zonelist, ac->high_zoneidx,
-+								ac->nodemask) {
-+		/* Preserve at least one pageblock */
-+		if (zone->nr_reserved_highatomic <= pageblock_nr_pages)
-+			continue;
-+
-+		spin_lock_irqsave(&zone->lock, flags);
-+		for (order = 0; order < MAX_ORDER; order++) {
-+			struct free_area *area = &(zone->free_area[order]);
-+
-+			if (list_empty(&area->free_list[MIGRATE_HIGHATOMIC]))
-+				continue;
-+
-+			page = list_entry(area->free_list[MIGRATE_HIGHATOMIC].next,
-+						struct page, lru);
-+
-+			zone->nr_reserved_highatomic -= pageblock_nr_pages;
-+
-+			/*
-+			 * Convert to ac->migratetype and avoid the normal
-+			 * pageblock stealing heuristics. Minimally, the caller
-+			 * is doing the work and needs the pages. More
-+			 * importantly, if the block was always converted to
-+			 * MIGRATE_UNMOVABLE or another type then the number
-+			 * of pageblocks that cannot be completely freed
-+			 * may increase.
-+			 */
-+			set_pageblock_migratetype(page, ac->migratetype);
-+			move_freepages_block(zone, page, ac->migratetype);
-+			spin_unlock_irqrestore(&zone->lock, flags);
-+			return;
-+		}
-+		spin_unlock_irqrestore(&zone->lock, flags);
-+	}
-+}
-+
- /* Remove an element from the buddy allocator from the fallback list */
- static inline struct page *
- __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
-@@ -1670,7 +1752,7 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
-  * Call me with the zone->lock already held.
-  */
- static struct page *__rmqueue(struct zone *zone, unsigned int order,
--						int migratetype)
-+				int migratetype, gfp_t gfp_flags)
+-static int __too_many_isolated(struct zone *zone, int file,
+-			       struct scan_control *sc, int safe)
++static inline unsigned long inactive_pages(struct zone *zone, int file,
++					   struct scan_control *sc, int safe)
  {
- 	struct page *page;
- 
-@@ -1700,7 +1782,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
- 
- 	spin_lock(&zone->lock);
- 	for (i = 0; i < count; ++i) {
--		struct page *page = __rmqueue(zone, order, migratetype);
-+		struct page *page = __rmqueue(zone, order, migratetype, 0);
- 		if (unlikely(page == NULL))
- 			break;
- 
-@@ -2072,7 +2154,7 @@ int split_free_page(struct page *page)
- static inline
- struct page *buffered_rmqueue(struct zone *preferred_zone,
- 			struct zone *zone, unsigned int order,
--			gfp_t gfp_flags, int migratetype)
-+			gfp_t gfp_flags, int alloc_flags, int migratetype)
- {
- 	unsigned long flags;
- 	struct page *page;
-@@ -2115,7 +2197,15 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
- 			WARN_ON_ONCE(order > 1);
- 		}
- 		spin_lock_irqsave(&zone->lock, flags);
--		page = __rmqueue(zone, order, migratetype);
-+
-+		page = NULL;
-+		if (unlikely(order) && (alloc_flags & ALLOC_HARDER)) {
-+			page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
-+			if (page)
-+				trace_mm_page_alloc_zone_locked(page, order, migratetype);
-+		}
-+
-+		page = __rmqueue(zone, order, migratetype, gfp_flags);
- 		spin_unlock(&zone->lock);
- 		if (!page)
- 			goto failed;
-@@ -2225,15 +2315,24 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 			unsigned long mark, int classzone_idx, int alloc_flags,
- 			long free_pages)
- {
--	/* free_pages may go negative - that's OK */
- 	long min = mark;
- 	int o;
- 	long free_cma = 0;
- 
-+	/* free_pages may go negative - that's OK */
- 	free_pages -= (1 << order) - 1;
-+
- 	if (alloc_flags & ALLOC_HIGH)
- 		min -= min / 2;
--	if (alloc_flags & ALLOC_HARDER)
-+
-+	/*
-+	 * If the caller does not have rights to ALLOC_HARDER then subtract
-+	 * the high-atomic reserves. This will over-estimate the size of the
-+	 * atomic reserve but it avoids a search.
-+	 */
-+	if (likely(!(alloc_flags & ALLOC_HARDER)))
-+		free_pages -= z->nr_reserved_highatomic;
-+	else
- 		min -= min / 4;
- 
- #ifdef CONFIG_CMA
-@@ -2418,10 +2517,18 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 
- try_this_zone:
- 		page = buffered_rmqueue(ac->preferred_zone, zone, order,
--						gfp_mask, ac->migratetype);
-+				gfp_mask, alloc_flags, ac->migratetype);
- 		if (page) {
- 			if (prep_new_page(page, order, gfp_mask, alloc_flags))
- 				goto try_this_zone;
-+
-+			/*
-+			 * If this is a high-order atomic allocation then check
-+			 * if the pageblock should be reserved for the future
-+			 */
-+			if (unlikely(order && (alloc_flags & ALLOC_HARDER)))
-+				reserve_highatomic_pageblock(page, zone, order);
-+
- 			return page;
- 		}
- 	}
-@@ -2694,9 +2801,11 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+-	unsigned long inactive, isolated;
+-
+-	if (safe) {
+-		inactive = zone_page_state_snapshot(zone,
+-				NR_INACTIVE_ANON + 2 * file);
+-		isolated = zone_page_state_snapshot(zone,
+-				NR_ISOLATED_ANON + file);
+-	} else {
+-		inactive = zone_page_state(zone, NR_INACTIVE_ANON + 2 * file);
+-		isolated = zone_page_state(zone, NR_ISOLATED_ANON + file);
+-	}
++	unsigned long inactive = safe ?
++		zone_page_state_snapshot(zone, NR_INACTIVE_ANON + 2 * file) :
++		zone_page_state(zone, NR_INACTIVE_ANON + 2 * file);
  
  	/*
- 	 * If an allocation failed after direct reclaim, it could be because
--	 * pages are pinned on the per-cpu lists. Drain them and try again
-+	 * pages are pinned on the per-cpu lists or in high alloc reserves.
-+	 * Shrink them them and try again
+ 	 * GFP_NOIO/GFP_NOFS callers are allowed to isolate more pages, so they
+@@ -1498,8 +1490,21 @@ static int __too_many_isolated(struct zone *zone, int file,
  	 */
- 	if (!page && !drained) {
-+		unreserve_highatomic_pageblock(ac);
- 		drain_all_pages(NULL);
- 		drained = true;
- 		goto retry;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 49963aa2dff3..3427a155f85e 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -901,6 +901,7 @@ static char * const migratetype_names[MIGRATE_TYPES] = {
- 	"Unmovable",
- 	"Reclaimable",
- 	"Movable",
-+	"HighAtomic",
- #ifdef CONFIG_CMA
- 	"CMA",
- #endif
+ 	if ((sc->gfp_mask & GFP_IOFS) == GFP_IOFS)
+ 		inactive >>= 3;
++	return inactive;
++}
+ 
+-	return isolated > inactive;
++static inline unsigned long isolated_pages(struct zone *zone, int file,
++					   int safe)
++{
++	return safe ? zone_page_state_snapshot(zone, NR_ISOLATED_ANON + file) :
++		zone_page_state(zone, NR_ISOLATED_ANON + file);
++}
++
++static int __too_many_isolated(struct zone *zone, int file,
++			       struct scan_control *sc, int safe)
++{
++	return isolated_pages(zone, file, safe) >
++		inactive_pages(zone, file, sc, safe);
+ }
+ 
+ /*
+@@ -1619,8 +1624,20 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	int file = is_file_lru(lru);
+ 	struct zone *zone = lruvec_zone(lruvec);
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
++	unsigned long start = jiffies;
++	unsigned long prev = start + 30 * HZ;
+ 
+ 	while (unlikely(too_many_isolated(zone, file, sc))) {
++		unsigned long now = jiffies;
++
++		if (time_after(now, prev)) {
++			pr_warn("vmscan: %s(%u) is waiting for %lu seconds at %s (mode:0x%x,isolated:%lu,inactive:%lu)\n",
++				current->comm, current->pid, (now - start) / HZ,
++				__func__, sc->gfp_mask,
++				isolated_pages(zone, file, 1),
++				inactive_pages(zone, file, sc, 1));
++			prev = now + 30 * HZ;
++		}
+ 		congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 		/* We are about to die and free our memory. Return now. */
 -- 
-2.4.6
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
