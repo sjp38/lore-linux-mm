@@ -1,47 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CC9A6B0253
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 03:53:58 -0400 (EDT)
-Received: by padbj2 with SMTP id bj2so310732pad.3
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 00:53:58 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id is9si35867188pbc.208.2015.09.21.00.53.57
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 161676B0254
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 03:54:06 -0400 (EDT)
+Received: by lahg1 with SMTP id g1so63007058lah.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 00:54:05 -0700 (PDT)
+Received: from mail-la0-x234.google.com (mail-la0-x234.google.com. [2a00:1450:4010:c03::234])
+        by mx.google.com with ESMTPS id y9si10211367lae.127.2015.09.21.00.54.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 00:53:57 -0700 (PDT)
-Date: Mon, 21 Sep 2015 10:53:46 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm] mm/khugepaged: fix scan not aborted on
- SCAN_EXCEED_SWAP_PTE
-Message-ID: <20150921075346.GA4995@esperanza>
-References: <1442591003-4880-1-git-send-email-vdavydov@parallels.com>
- <20150919162622.GC10158@dhcp22.suse.cz>
+        Mon, 21 Sep 2015 00:54:04 -0700 (PDT)
+Received: by lahg1 with SMTP id g1so63006838lah.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 00:54:04 -0700 (PDT)
+Date: Mon, 21 Sep 2015 10:54:02 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH] mm/swapfile: fix swapoff vs. software dirty bits
+Message-ID: <20150921075402.GB3181@uranus>
+References: <20150917193152.GJ2000@uranus>
+ <20150918085835.597fb036@mschwide>
+ <20150918071549.GA2035@uranus>
+ <20150918102001.0e0389c7@mschwide>
+ <20150918085301.GC2035@uranus>
+ <20150918111038.58c3a8de@mschwide>
+ <20150918202109.GE2035@uranus>
+ <20150921091033.1799ea40@mschwide>
+ <20150921073033.GA3181@uranus>
+ <20150921094019.6b311a9b@mschwide>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150919162622.GC10158@dhcp22.suse.cz>
+In-Reply-To: <20150921094019.6b311a9b@mschwide>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A.
- Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-On Sat, Sep 19, 2015 at 06:26:23PM +0200, Michal Hocko wrote:
-> On Fri 18-09-15 18:43:23, Vladimir Davydov wrote:
-> [...]
-> > Fixes: acc067d59a1f9 ("mm: make optimistic check for swapin readahead")
-> 
-> This sha will not exist after the patch gets merged to the Linus tree
-> from the Andrew tree. Either reference it just by the subject or simply
-> mark it for Andrew to be folded into
-> mm-make-optimistic-check-for-swapin-readahead.patch
+On Mon, Sep 21, 2015 at 09:40:19AM +0200, Martin Schwidefsky wrote:
+> > Ah, I see. Could you please note this fact in the patch
+> > changelog.
+>  
+> Sure will do. I'll send a patch set after I got the x86 test sorted out.
 
-AFAICS Andrew has already folded the fix into this patch:
-
-  mm-make-optimistic-check-for-swapin-readahead-fix-2.patch
-
-Thanks,
-Vladimir
+Great! Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
