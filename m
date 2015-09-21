@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B01C66B025A
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:52:58 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so105579540wic.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 03:52:58 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id qg7si13505574wic.46.2015.09.21.03.52.45
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A53C6B025B
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 06:53:01 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so105581017wic.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 03:53:00 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id ly8si16231387wic.103.2015.09.21.03.52.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Mon, 21 Sep 2015 03:52:45 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id C515499012
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 10:52:44 +0000 (UTC)
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 0C23599023
+	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 10:52:45 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 06/10] mm, page_alloc: Rename __GFP_WAIT to __GFP_RECLAIM
-Date: Mon, 21 Sep 2015 11:52:38 +0100
-Message-Id: <1442832762-7247-7-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 07/10] mm, page_alloc: Delete the zonelist_cache
+Date: Mon, 21 Sep 2015 11:52:39 +0100
+Message-Id: <1442832762-7247-8-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
 References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,716 +23,542 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-__GFP_WAIT was used to signal that the caller was in atomic context and
-could not sleep.  Now it is possible to distinguish between true atomic
-context and callers that are not willing to sleep. The latter should clear
-__GFP_DIRECT_RECLAIM so kswapd will still wake. As clearing __GFP_WAIT
-behaves differently, there is a risk that people will clear the wrong
-flags. This patch renames __GFP_WAIT to __GFP_RECLAIM to clearly indicate
-what it does -- setting it allows all reclaim activity, clearing them
-prevents it.
+The zonelist cache (zlc) was introduced to skip over zones that were
+recently known to be full. This avoided expensive operations such as the
+cpuset checks, watermark calculations and zone_reclaim. The situation
+today is different and the complexity of zlc is harder to justify.
+
+1) The cpuset checks are no-ops unless a cpuset is active and in general
+   are a lot cheaper.
+
+2) zone_reclaim is now disabled by default and I suspect that was a large
+   source of the cost that zlc wanted to avoid. When it is enabled, it's
+   known to be a major source of stalling when nodes fill up and it's
+   unwise to hit every other user with the overhead.
+
+3) Watermark checks are expensive to calculate for high-order
+   allocation requests. Later patches in this series will reduce the cost
+   of the watermark checking.
+
+4) The most important issue is that in the current implementation it
+   is possible for a failed THP allocation to mark a zone full for order-0
+   allocations and cause a fallback to remote nodes.
+
+The last issue could be addressed with additional complexity but as the
+benefit of zlc is questionable, it is better to remove it.  If stalls
+due to zone_reclaim are ever reported then an alternative would be to
+introduce deferring logic based on a timeout inside zone_reclaim itself
+and leave the page allocator fast paths alone.
+
+The impact on page-allocator microbenchmarks is negligible as they don't
+hit the paths where the zlc comes into play. Most page-reclaim related
+workloads showed no noticeable difference as a result of the removal.
+
+The impact was noticeable in a workload called "stutter". One part uses a
+lot of anonymous memory, a second measures mmap latency and a third copies
+a large file. In an ideal world the latency application would not notice
+the mmap latency.  On a 2-node machine the results of this patch are
+
+stutter
+                             4.3.0-rc1             4.3.0-rc1
+                              baseline              nozlc-v4
+Min         mmap     20.9243 (  0.00%)     20.7716 (  0.73%)
+1st-qrtle   mmap     22.0612 (  0.00%)     22.0680 ( -0.03%)
+2nd-qrtle   mmap     22.3291 (  0.00%)     22.3809 ( -0.23%)
+3rd-qrtle   mmap     25.2244 (  0.00%)     25.2396 ( -0.06%)
+Max-90%     mmap     48.0995 (  0.00%)     28.3713 ( 41.02%)
+Max-93%     mmap     52.5557 (  0.00%)     36.0170 ( 31.47%)
+Max-95%     mmap     55.8173 (  0.00%)     47.3163 ( 15.23%)
+Max-99%     mmap     67.3781 (  0.00%)     70.1140 ( -4.06%)
+Max         mmap  24447.6375 (  0.00%)  12915.1356 ( 47.17%)
+Mean        mmap     33.7883 (  0.00%)     27.7944 ( 17.74%)
+Best99%Mean mmap     27.7825 (  0.00%)     25.2767 (  9.02%)
+Best95%Mean mmap     26.3912 (  0.00%)     23.7994 (  9.82%)
+Best90%Mean mmap     24.9886 (  0.00%)     23.2251 (  7.06%)
+Best50%Mean mmap     22.0157 (  0.00%)     22.0261 ( -0.05%)
+Best10%Mean mmap     21.6705 (  0.00%)     21.6083 (  0.29%)
+Best5%Mean  mmap     21.5581 (  0.00%)     21.4611 (  0.45%)
+Best1%Mean  mmap     21.3079 (  0.00%)     21.1631 (  0.68%)
+
+Note that the maximum stall latency went from 24 seconds to 12 which is still
+bad but an improvement.  The milage varies considerably 2-node machine on an
+earlier test went from 494 seconds to 47 seconds and  a 4-node machine that
+tested an earlier version of this patch went from a worst case stall time of
+6 seconds to 67ms. The nature of the benchmark is inherently unpredictable
+as it is hammering the system and the milage will vary between machines.
+
+There is a secondary impact with potentially more direct reclaim because
+zones are now being considered instead of being skipped by zlc. In this
+particular test run it did not occur so will not be described. However,
+in at least one test the following was observed
+
+1. Direct reclaim rates were higher. This was likely due to direct reclaim
+  being entered instead of the zlc disabling a zone and busy looping.
+  Busy looping may have the effect of allowing kswapd to make more
+  progress and in some cases may be better overall. If this is found then
+  the correct action is to put direct reclaimers to sleep on a waitqueue
+  and allow kswapd make forward progress. Busy looping on the zlc is even
+  worse than when the allocator used to blindly call congestion_wait().
+
+2. There was higher swap activity as direct reclaim was active.
+
+3. Direct reclaim efficiency was lower. This is related to 1 as more
+  scanning activity also encountered more pages that could not be
+  immediately reclaimed
+
+In that case, the direct page scan and reclaim rates are noticeable but
+it is not considered a problem for a few reasons
+
+1. The test is primarily concerned with latency. The mmap attempts are also
+   faulted which means there are THP allocation requests. The ZLC could
+   cause zones to be disabled causing the process to busy loop instead
+   of reclaiming.  This looks like elevated direct reclaim activity but
+   it's the correct action to take based on what processes requested.
+
+2. The test hammers reclaim and compaction heavily. The number of successful
+   THP faults is highly variable but affects the reclaim stats. It's not a
+   realistic or reasonable measure of page reclaim activity.
+
+3. No other page-reclaim intensive workload that was tested showed a problem.
+
+4. If a workload is identified that benefitted from the busy looping then it
+   should be fixed by having direct reclaimers sleep on a wait queue until
+   woken by kswapd instead of busy looping. We had this class of problem before
+   when congestion_waits() with a fixed timeout was a brain damaged decision
+   but happened to benefit some workloads.
+
+If a workload is identified that relied on the zlc to busy loop then it
+should be fixed correctly and have a direct reclaimer sleep on a waitqueue
+until woken by kswapd.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Christoph Lameter <cl@linux.com>
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- block/blk-mq.c                              |  2 +-
- block/scsi_ioctl.c                          |  6 +++---
- drivers/block/drbd/drbd_bitmap.c            |  2 +-
- drivers/block/mtip32xx/mtip32xx.c           |  2 +-
- drivers/block/nvme-core.c                   |  4 ++--
- drivers/block/paride/pd.c                   |  2 +-
- drivers/block/pktcdvd.c                     |  4 ++--
- drivers/gpu/drm/i915/i915_gem.c             |  2 +-
- drivers/ide/ide-atapi.c                     |  2 +-
- drivers/ide/ide-cd.c                        |  2 +-
- drivers/ide/ide-cd_ioctl.c                  |  2 +-
- drivers/ide/ide-devsets.c                   |  2 +-
- drivers/ide/ide-disk.c                      |  2 +-
- drivers/ide/ide-ioctls.c                    |  4 ++--
- drivers/ide/ide-park.c                      |  2 +-
- drivers/ide/ide-pm.c                        |  4 ++--
- drivers/ide/ide-tape.c                      |  4 ++--
- drivers/ide/ide-taskfile.c                  |  4 ++--
- drivers/infiniband/hw/qib/qib_init.c        |  2 +-
- drivers/misc/vmw_balloon.c                  |  2 +-
- drivers/scsi/scsi_error.c                   |  2 +-
- drivers/scsi/scsi_lib.c                     |  4 ++--
- drivers/staging/rdma/hfi1/init.c            |  2 +-
- drivers/staging/rdma/ipath/ipath_file_ops.c |  2 +-
- fs/cachefiles/internal.h                    |  2 +-
- fs/direct-io.c                              |  2 +-
- fs/nilfs2/mdt.h                             |  2 +-
- include/linux/gfp.h                         | 16 ++++++++--------
- kernel/power/swap.c                         | 14 +++++++-------
- lib/percpu_ida.c                            |  2 +-
- mm/failslab.c                               |  8 ++++----
- mm/filemap.c                                |  2 +-
- mm/huge_memory.c                            |  2 +-
- mm/migrate.c                                |  2 +-
- mm/page_alloc.c                             |  6 +++---
- security/integrity/ima/ima_crypto.c         |  2 +-
- 36 files changed, 63 insertions(+), 63 deletions(-)
+ include/linux/mmzone.h |  74 -----------------
+ mm/page_alloc.c        | 212 -------------------------------------------------
+ 2 files changed, 286 deletions(-)
 
-diff --git a/block/blk-mq.c b/block/blk-mq.c
-index 7c322cea838f..b59c646f8e79 100644
---- a/block/blk-mq.c
-+++ b/block/blk-mq.c
-@@ -1207,7 +1207,7 @@ static struct request *blk_mq_map_request(struct request_queue *q,
- 		ctx = blk_mq_get_ctx(q);
- 		hctx = q->mq_ops->map_queue(q, ctx->cpu);
- 		blk_mq_set_alloc_data(&alloc_data, q,
--				__GFP_WAIT|__GFP_HIGH, false, ctx, hctx);
-+				__GFP_RECLAIM|__GFP_HIGH, false, ctx, hctx);
- 		rq = __blk_mq_alloc_request(&alloc_data, rw);
- 		ctx = alloc_data.ctx;
- 		hctx = alloc_data.hctx;
-diff --git a/block/scsi_ioctl.c b/block/scsi_ioctl.c
-index dda653ce7b24..0774799942e0 100644
---- a/block/scsi_ioctl.c
-+++ b/block/scsi_ioctl.c
-@@ -444,7 +444,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
- 
- 	}
- 
--	rq = blk_get_request(q, in_len ? WRITE : READ, __GFP_WAIT);
-+	rq = blk_get_request(q, in_len ? WRITE : READ, __GFP_RECLAIM);
- 	if (IS_ERR(rq)) {
- 		err = PTR_ERR(rq);
- 		goto error_free_buffer;
-@@ -495,7 +495,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
- 		break;
- 	}
- 
--	if (bytes && blk_rq_map_kern(q, rq, buffer, bytes, __GFP_WAIT)) {
-+	if (bytes && blk_rq_map_kern(q, rq, buffer, bytes, __GFP_RECLAIM)) {
- 		err = DRIVER_ERROR << 24;
- 		goto error;
- 	}
-@@ -536,7 +536,7 @@ static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
- 	struct request *rq;
- 	int err;
- 
--	rq = blk_get_request(q, WRITE, __GFP_WAIT);
-+	rq = blk_get_request(q, WRITE, __GFP_RECLAIM);
- 	if (IS_ERR(rq))
- 		return PTR_ERR(rq);
- 	blk_rq_set_block_pc(rq);
-diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-index e5e0f19ceda0..3dc53a16ed3a 100644
---- a/drivers/block/drbd/drbd_bitmap.c
-+++ b/drivers/block/drbd/drbd_bitmap.c
-@@ -1007,7 +1007,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
- 	bm_set_page_unchanged(b->bm_pages[page_nr]);
- 
- 	if (ctx->flags & BM_AIO_COPY_PAGES) {
--		page = mempool_alloc(drbd_md_io_page_pool, __GFP_HIGHMEM|__GFP_WAIT);
-+		page = mempool_alloc(drbd_md_io_page_pool, __GFP_HIGHMEM|__GFP_RECLAIM);
- 		copy_highpage(page, b->bm_pages[page_nr]);
- 		bm_store_page_idx(page, page_nr);
- 	} else
-diff --git a/drivers/block/mtip32xx/mtip32xx.c b/drivers/block/mtip32xx/mtip32xx.c
-index f504232c1ee7..a28a562f7b7f 100644
---- a/drivers/block/mtip32xx/mtip32xx.c
-+++ b/drivers/block/mtip32xx/mtip32xx.c
-@@ -173,7 +173,7 @@ static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
- {
- 	struct request *rq;
- 
--	rq = blk_mq_alloc_request(dd->queue, 0, __GFP_WAIT, true);
-+	rq = blk_mq_alloc_request(dd->queue, 0, __GFP_RECLAIM, true);
- 	return blk_mq_rq_to_pdu(rq);
- }
- 
-diff --git a/drivers/block/nvme-core.c b/drivers/block/nvme-core.c
-index b97fc3fe0916..dc860e085e06 100644
---- a/drivers/block/nvme-core.c
-+++ b/drivers/block/nvme-core.c
-@@ -1032,11 +1032,11 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
- 	req->special = (void *)0;
- 
- 	if (buffer && bufflen) {
--		ret = blk_rq_map_kern(q, req, buffer, bufflen, __GFP_WAIT);
-+		ret = blk_rq_map_kern(q, req, buffer, bufflen, __GFP_RECLAIM);
- 		if (ret)
- 			goto out;
- 	} else if (ubuffer && bufflen) {
--		ret = blk_rq_map_user(q, req, NULL, ubuffer, bufflen, __GFP_WAIT);
-+		ret = blk_rq_map_user(q, req, NULL, ubuffer, bufflen, __GFP_RECLAIM);
- 		if (ret)
- 			goto out;
- 		bio = req->bio;
-diff --git a/drivers/block/paride/pd.c b/drivers/block/paride/pd.c
-index b9242d78283d..562b5a4ca7b7 100644
---- a/drivers/block/paride/pd.c
-+++ b/drivers/block/paride/pd.c
-@@ -723,7 +723,7 @@ static int pd_special_command(struct pd_unit *disk,
- 	struct request *rq;
- 	int err = 0;
- 
--	rq = blk_get_request(disk->gd->queue, READ, __GFP_WAIT);
-+	rq = blk_get_request(disk->gd->queue, READ, __GFP_RECLAIM);
- 	if (IS_ERR(rq))
- 		return PTR_ERR(rq);
- 
-diff --git a/drivers/block/pktcdvd.c b/drivers/block/pktcdvd.c
-index 7be2375db7f2..5959c2981cc7 100644
---- a/drivers/block/pktcdvd.c
-+++ b/drivers/block/pktcdvd.c
-@@ -704,14 +704,14 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
- 	int ret = 0;
- 
- 	rq = blk_get_request(q, (cgc->data_direction == CGC_DATA_WRITE) ?
--			     WRITE : READ, __GFP_WAIT);
-+			     WRITE : READ, __GFP_RECLAIM);
- 	if (IS_ERR(rq))
- 		return PTR_ERR(rq);
- 	blk_rq_set_block_pc(rq);
- 
- 	if (cgc->buflen) {
- 		ret = blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen,
--				      __GFP_WAIT);
-+				      __GFP_RECLAIM);
- 		if (ret)
- 			goto out;
- 	}
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index d58cb9e034fe..7e505d4be7c0 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -2216,7 +2216,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
- 	mapping = file_inode(obj->base.filp)->i_mapping;
- 	gfp = mapping_gfp_mask(mapping);
- 	gfp |= __GFP_NORETRY | __GFP_NOWARN;
--	gfp &= ~(__GFP_IO | __GFP_WAIT);
-+	gfp &= ~(__GFP_IO | __GFP_RECLAIM);
- 	sg = st->sgl;
- 	st->nents = 0;
- 	for (i = 0; i < page_count; i++) {
-diff --git a/drivers/ide/ide-atapi.c b/drivers/ide/ide-atapi.c
-index 1362ad80a76c..05352f490d60 100644
---- a/drivers/ide/ide-atapi.c
-+++ b/drivers/ide/ide-atapi.c
-@@ -92,7 +92,7 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
- 	struct request *rq;
- 	int error;
- 
--	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-+	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
- 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
- 	rq->special = (char *)pc;
- 
-diff --git a/drivers/ide/ide-cd.c b/drivers/ide/ide-cd.c
-index 64a6b827b3dd..ef907fd5ba98 100644
---- a/drivers/ide/ide-cd.c
-+++ b/drivers/ide/ide-cd.c
-@@ -441,7 +441,7 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
- 		struct request *rq;
- 		int error;
- 
--		rq = blk_get_request(drive->queue, write, __GFP_WAIT);
-+		rq = blk_get_request(drive->queue, write, __GFP_RECLAIM);
- 
- 		memcpy(rq->cmd, cmd, BLK_MAX_CDB);
- 		rq->cmd_type = REQ_TYPE_ATA_PC;
-diff --git a/drivers/ide/ide-cd_ioctl.c b/drivers/ide/ide-cd_ioctl.c
-index 066e39036518..474173eb31bb 100644
---- a/drivers/ide/ide-cd_ioctl.c
-+++ b/drivers/ide/ide-cd_ioctl.c
-@@ -303,7 +303,7 @@ int ide_cdrom_reset(struct cdrom_device_info *cdi)
- 	struct request *rq;
- 	int ret;
- 
--	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-+	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
- 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
- 	rq->cmd_flags = REQ_QUIET;
- 	ret = blk_execute_rq(drive->queue, cd->disk, rq, 0);
-diff --git a/drivers/ide/ide-devsets.c b/drivers/ide/ide-devsets.c
-index b05a74d78ef5..0dd43b4fcec6 100644
---- a/drivers/ide/ide-devsets.c
-+++ b/drivers/ide/ide-devsets.c
-@@ -165,7 +165,7 @@ int ide_devset_execute(ide_drive_t *drive, const struct ide_devset *setting,
- 	if (!(setting->flags & DS_SYNC))
- 		return setting->set(drive, arg);
- 
--	rq = blk_get_request(q, READ, __GFP_WAIT);
-+	rq = blk_get_request(q, READ, __GFP_RECLAIM);
- 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
- 	rq->cmd_len = 5;
- 	rq->cmd[0] = REQ_DEVSET_EXEC;
-diff --git a/drivers/ide/ide-disk.c b/drivers/ide/ide-disk.c
-index 56b9708894a5..37a8a907febe 100644
---- a/drivers/ide/ide-disk.c
-+++ b/drivers/ide/ide-disk.c
-@@ -477,7 +477,7 @@ static int set_multcount(ide_drive_t *drive, int arg)
- 	if (drive->special_flags & IDE_SFLAG_SET_MULTMODE)
- 		return -EBUSY;
- 
--	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-+	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
- 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
- 
- 	drive->mult_req = arg;
-diff --git a/drivers/ide/ide-ioctls.c b/drivers/ide/ide-ioctls.c
-index aa2e9b77b20d..d05db2469209 100644
---- a/drivers/ide/ide-ioctls.c
-+++ b/drivers/ide/ide-ioctls.c
-@@ -125,7 +125,7 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
- 	if (NULL == (void *) arg) {
- 		struct request *rq;
- 
--		rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-+		rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
- 		rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
- 		err = blk_execute_rq(drive->queue, NULL, rq, 0);
- 		blk_put_request(rq);
-@@ -221,7 +221,7 @@ static int generic_drive_reset(ide_drive_t *drive)
- 	struct request *rq;
- 	int ret = 0;
- 
--	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-+	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
- 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
- 	rq->cmd_len = 1;
- 	rq->cmd[0] = REQ_DRIVE_RESET;
-diff --git a/drivers/ide/ide-park.c b/drivers/ide/ide-park.c
-index c80868520488..2d7dca56dd24 100644
---- a/drivers/ide/ide-park.c
-+++ b/drivers/ide/ide-park.c
-@@ -31,7 +31,7 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
- 	}
- 	spin_unlock_irq(&hwif->lock);
- 
--	rq = blk_get_request(q, READ, __GFP_WAIT);
-+	rq = blk_get_request(q, READ, __GFP_RECLAIM);
- 	rq->cmd[0] = REQ_PARK_HEADS;
- 	rq->cmd_len = 1;
- 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
-diff --git a/drivers/ide/ide-pm.c b/drivers/ide/ide-pm.c
-index 081e43458d50..e34af488693a 100644
---- a/drivers/ide/ide-pm.c
-+++ b/drivers/ide/ide-pm.c
-@@ -18,7 +18,7 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
- 	}
- 
- 	memset(&rqpm, 0, sizeof(rqpm));
--	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-+	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
- 	rq->cmd_type = REQ_TYPE_ATA_PM_SUSPEND;
- 	rq->special = &rqpm;
- 	rqpm.pm_step = IDE_PM_START_SUSPEND;
-@@ -88,7 +88,7 @@ int generic_ide_resume(struct device *dev)
- 	}
- 
- 	memset(&rqpm, 0, sizeof(rqpm));
--	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-+	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
- 	rq->cmd_type = REQ_TYPE_ATA_PM_RESUME;
- 	rq->cmd_flags |= REQ_PREEMPT;
- 	rq->special = &rqpm;
-diff --git a/drivers/ide/ide-tape.c b/drivers/ide/ide-tape.c
-index f5d51d1d09ee..12fa04997dcc 100644
---- a/drivers/ide/ide-tape.c
-+++ b/drivers/ide/ide-tape.c
-@@ -852,7 +852,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
- 	BUG_ON(cmd != REQ_IDETAPE_READ && cmd != REQ_IDETAPE_WRITE);
- 	BUG_ON(size < 0 || size % tape->blk_size);
- 
--	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-+	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
- 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
- 	rq->cmd[13] = cmd;
- 	rq->rq_disk = tape->disk;
-@@ -860,7 +860,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
- 
- 	if (size) {
- 		ret = blk_rq_map_kern(drive->queue, rq, tape->buf, size,
--				      __GFP_WAIT);
-+				      __GFP_RECLAIM);
- 		if (ret)
- 			goto out_put;
- 	}
-diff --git a/drivers/ide/ide-taskfile.c b/drivers/ide/ide-taskfile.c
-index 0979e126fff1..a716693417a3 100644
---- a/drivers/ide/ide-taskfile.c
-+++ b/drivers/ide/ide-taskfile.c
-@@ -430,7 +430,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
- 	int error;
- 	int rw = !(cmd->tf_flags & IDE_TFLAG_WRITE) ? READ : WRITE;
- 
--	rq = blk_get_request(drive->queue, rw, __GFP_WAIT);
-+	rq = blk_get_request(drive->queue, rw, __GFP_RECLAIM);
- 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
- 
- 	/*
-@@ -441,7 +441,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
- 	 */
- 	if (nsect) {
- 		error = blk_rq_map_kern(drive->queue, rq, buf,
--					nsect * SECTOR_SIZE, __GFP_WAIT);
-+					nsect * SECTOR_SIZE, __GFP_RECLAIM);
- 		if (error)
- 			goto put_req;
- 	}
-diff --git a/drivers/infiniband/hw/qib/qib_init.c b/drivers/infiniband/hw/qib/qib_init.c
-index 7e00470adc30..4ff340fe904f 100644
---- a/drivers/infiniband/hw/qib/qib_init.c
-+++ b/drivers/infiniband/hw/qib/qib_init.c
-@@ -1680,7 +1680,7 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
- 	 * heavy filesystem activity makes these fail, and we can
- 	 * use compound pages.
- 	 */
--	gfp_flags = __GFP_WAIT | __GFP_IO | __GFP_COMP;
-+	gfp_flags = __GFP_RECLAIM | __GFP_IO | __GFP_COMP;
- 
- 	egrcnt = rcd->rcvegrcnt;
- 	egroff = rcd->rcvegr_tid_base;
-diff --git a/drivers/misc/vmw_balloon.c b/drivers/misc/vmw_balloon.c
-index ffb56340d0c7..1b49e53463a2 100644
---- a/drivers/misc/vmw_balloon.c
-+++ b/drivers/misc/vmw_balloon.c
-@@ -85,7 +85,7 @@ MODULE_LICENSE("GPL");
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index b489e0b5ab48..f42a8340327f 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -589,75 +589,8 @@ static inline bool zone_is_empty(struct zone *zone)
+  * [1]	: No fallback (__GFP_THISNODE)
+  */
+ #define MAX_ZONELISTS 2
+-
+-
+-/*
+- * We cache key information from each zonelist for smaller cache
+- * footprint when scanning for free pages in get_page_from_freelist().
+- *
+- * 1) The BITMAP fullzones tracks which zones in a zonelist have come
+- *    up short of free memory since the last time (last_fullzone_zap)
+- *    we zero'd fullzones.
+- * 2) The array z_to_n[] maps each zone in the zonelist to its node
+- *    id, so that we can efficiently evaluate whether that node is
+- *    set in the current tasks mems_allowed.
+- *
+- * Both fullzones and z_to_n[] are one-to-one with the zonelist,
+- * indexed by a zones offset in the zonelist zones[] array.
+- *
+- * The get_page_from_freelist() routine does two scans.  During the
+- * first scan, we skip zones whose corresponding bit in 'fullzones'
+- * is set or whose corresponding node in current->mems_allowed (which
+- * comes from cpusets) is not set.  During the second scan, we bypass
+- * this zonelist_cache, to ensure we look methodically at each zone.
+- *
+- * Once per second, we zero out (zap) fullzones, forcing us to
+- * reconsider nodes that might have regained more free memory.
+- * The field last_full_zap is the time we last zapped fullzones.
+- *
+- * This mechanism reduces the amount of time we waste repeatedly
+- * reexaming zones for free memory when they just came up low on
+- * memory momentarilly ago.
+- *
+- * The zonelist_cache struct members logically belong in struct
+- * zonelist.  However, the mempolicy zonelists constructed for
+- * MPOL_BIND are intentionally variable length (and usually much
+- * shorter).  A general purpose mechanism for handling structs with
+- * multiple variable length members is more mechanism than we want
+- * here.  We resort to some special case hackery instead.
+- *
+- * The MPOL_BIND zonelists don't need this zonelist_cache (in good
+- * part because they are shorter), so we put the fixed length stuff
+- * at the front of the zonelist struct, ending in a variable length
+- * zones[], as is needed by MPOL_BIND.
+- *
+- * Then we put the optional zonelist cache on the end of the zonelist
+- * struct.  This optional stuff is found by a 'zlcache_ptr' pointer in
+- * the fixed length portion at the front of the struct.  This pointer
+- * both enables us to find the zonelist cache, and in the case of
+- * MPOL_BIND zonelists, (which will just set the zlcache_ptr to NULL)
+- * to know that the zonelist cache is not there.
+- *
+- * The end result is that struct zonelists come in two flavors:
+- *  1) The full, fixed length version, shown below, and
+- *  2) The custom zonelists for MPOL_BIND.
+- * The custom MPOL_BIND zonelists have a NULL zlcache_ptr and no zlcache.
+- *
+- * Even though there may be multiple CPU cores on a node modifying
+- * fullzones or last_full_zap in the same zonelist_cache at the same
+- * time, we don't lock it.  This is just hint data - if it is wrong now
+- * and then, the allocator will still function, perhaps a bit slower.
+- */
+-
+-
+-struct zonelist_cache {
+-	unsigned short z_to_n[MAX_ZONES_PER_ZONELIST];		/* zone->nid */
+-	DECLARE_BITMAP(fullzones, MAX_ZONES_PER_ZONELIST);	/* zone full? */
+-	unsigned long last_full_zap;		/* when last zap'd (jiffies) */
+-};
+ #else
+ #define MAX_ZONELISTS 1
+-struct zonelist_cache;
+ #endif
  
  /*
-  * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We don't
-- * allow wait (__GFP_WAIT) for NOSLEEP page allocations. Use
-+ * allow wait (__GFP_RECLAIM) for NOSLEEP page allocations. Use
-  * __GFP_NOWARN, to suppress page allocation failure warnings.
-  */
- #define VMW_PAGE_ALLOC_NOSLEEP		(__GFP_HIGHMEM|__GFP_NOWARN)
-diff --git a/drivers/scsi/scsi_error.c b/drivers/scsi/scsi_error.c
-index 66a96cd98b97..984ddcb4786d 100644
---- a/drivers/scsi/scsi_error.c
-+++ b/drivers/scsi/scsi_error.c
-@@ -1970,7 +1970,7 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
- 	struct request *req;
- 
- 	/*
--	 * blk_get_request with GFP_KERNEL (__GFP_WAIT) sleeps until a
-+	 * blk_get_request with GFP_KERNEL (__GFP_RECLAIM) sleeps until a
- 	 * request becomes available
- 	 */
- 	req = blk_get_request(sdev->request_queue, READ, GFP_KERNEL);
-diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
-index cbfc5990052b..f570b48883e5 100644
---- a/drivers/scsi/scsi_lib.c
-+++ b/drivers/scsi/scsi_lib.c
-@@ -222,13 +222,13 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
- 	int write = (data_direction == DMA_TO_DEVICE);
- 	int ret = DRIVER_ERROR << 24;
- 
--	req = blk_get_request(sdev->request_queue, write, __GFP_WAIT);
-+	req = blk_get_request(sdev->request_queue, write, __GFP_RECLAIM);
- 	if (IS_ERR(req))
- 		return ret;
- 	blk_rq_set_block_pc(req);
- 
- 	if (bufflen &&	blk_rq_map_kern(sdev->request_queue, req,
--					buffer, bufflen, __GFP_WAIT))
-+					buffer, bufflen, __GFP_RECLAIM))
- 		goto out;
- 
- 	req->cmd_len = COMMAND_SIZE(cmd[0]);
-diff --git a/drivers/staging/rdma/hfi1/init.c b/drivers/staging/rdma/hfi1/init.c
-index a877eda8c13c..29fff7f2a45a 100644
---- a/drivers/staging/rdma/hfi1/init.c
-+++ b/drivers/staging/rdma/hfi1/init.c
-@@ -1564,7 +1564,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
- 	 * heavy filesystem activity makes these fail, and we can
- 	 * use compound pages.
- 	 */
--	gfp_flags = __GFP_WAIT | __GFP_IO | __GFP_COMP;
-+	gfp_flags = __GFP_RECLAIM | __GFP_IO | __GFP_COMP;
- 
- 	/*
- 	 * The minimum size of the eager buffers is a groups of MTU-sized
-diff --git a/drivers/staging/rdma/ipath/ipath_file_ops.c b/drivers/staging/rdma/ipath/ipath_file_ops.c
-index 450d15965005..c11f6c58ce53 100644
---- a/drivers/staging/rdma/ipath/ipath_file_ops.c
-+++ b/drivers/staging/rdma/ipath/ipath_file_ops.c
-@@ -905,7 +905,7 @@ static int ipath_create_user_egr(struct ipath_portdata *pd)
- 	 * heavy filesystem activity makes these fail, and we can
- 	 * use compound pages.
- 	 */
--	gfp_flags = __GFP_WAIT | __GFP_IO | __GFP_COMP;
-+	gfp_flags = __GFP_RECLAIM | __GFP_IO | __GFP_COMP;
- 
- 	egrcnt = dd->ipath_rcvegrcnt;
- 	/* TID number offset for this port */
-diff --git a/fs/cachefiles/internal.h b/fs/cachefiles/internal.h
-index aecd0859eacb..9c4b737a54df 100644
---- a/fs/cachefiles/internal.h
-+++ b/fs/cachefiles/internal.h
-@@ -30,7 +30,7 @@ extern unsigned cachefiles_debug;
- #define CACHEFILES_DEBUG_KLEAVE	2
- #define CACHEFILES_DEBUG_KDEBUG	4
- 
--#define cachefiles_gfp (__GFP_WAIT | __GFP_NORETRY | __GFP_NOMEMALLOC)
-+#define cachefiles_gfp (__GFP_RECLAIM | __GFP_NORETRY | __GFP_NOMEMALLOC)
- 
- /*
-  * node records
-diff --git a/fs/direct-io.c b/fs/direct-io.c
-index 11256291642e..dbb94a2d6c50 100644
---- a/fs/direct-io.c
-+++ b/fs/direct-io.c
-@@ -360,7 +360,7 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
- 
- 	/*
- 	 * bio_alloc() is guaranteed to return a bio when called with
--	 * __GFP_WAIT and we request a valid number of vectors.
-+	 * __GFP_RECLAIM and we request a valid number of vectors.
- 	 */
- 	bio = bio_alloc(GFP_KERNEL, nr_vecs);
- 
-diff --git a/fs/nilfs2/mdt.h b/fs/nilfs2/mdt.h
-index fe529a87a208..03246cac3338 100644
---- a/fs/nilfs2/mdt.h
-+++ b/fs/nilfs2/mdt.h
-@@ -72,7 +72,7 @@ static inline struct nilfs_mdt_info *NILFS_MDT(const struct inode *inode)
- }
- 
- /* Default GFP flags using highmem */
--#define NILFS_MDT_GFP      (__GFP_WAIT | __GFP_IO | __GFP_HIGHMEM)
-+#define NILFS_MDT_GFP      (__GFP_RECLAIM | __GFP_IO | __GFP_HIGHMEM)
- 
- int nilfs_mdt_get_block(struct inode *, unsigned long, int,
- 			void (*init_block)(struct inode *,
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index b56e811b6f7c..60b2db94d49d 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -107,7 +107,7 @@ struct vm_area_struct;
-  * can be cleared when the reclaiming of pages would cause unnecessary
-  * disruption.
-  */
--#define __GFP_WAIT ((__force gfp_t)(___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM))
-+#define __GFP_RECLAIM ((__force gfp_t)(___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM))
- #define __GFP_DIRECT_RECLAIM	((__force gfp_t)___GFP_DIRECT_RECLAIM) /* Caller can reclaim */
- #define __GFP_KSWAPD_RECLAIM	((__force gfp_t)___GFP_KSWAPD_RECLAIM) /* kswapd can wake */
- 
-@@ -126,12 +126,12 @@ struct vm_area_struct;
-  */
- #define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
- #define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM)
--#define GFP_NOIO	(__GFP_WAIT)
--#define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
--#define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
--#define GFP_TEMPORARY	(__GFP_WAIT | __GFP_IO | __GFP_FS | \
-+#define GFP_NOIO	(__GFP_RECLAIM)
-+#define GFP_NOFS	(__GFP_RECLAIM | __GFP_IO)
-+#define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
-+#define GFP_TEMPORARY	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | \
- 			 __GFP_RECLAIMABLE)
--#define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
-+#define GFP_USER	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
- #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
- #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
- #define GFP_IOFS	(__GFP_IO | __GFP_FS | __GFP_KSWAPD_RECLAIM)
-@@ -144,12 +144,12 @@ struct vm_area_struct;
- #define GFP_MOVABLE_SHIFT 3
- 
- /* Control page allocator reclaim behavior */
--#define GFP_RECLAIM_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS|\
-+#define GFP_RECLAIM_MASK (__GFP_RECLAIM|__GFP_HIGH|__GFP_IO|__GFP_FS|\
- 			__GFP_NOWARN|__GFP_REPEAT|__GFP_NOFAIL|\
- 			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC)
- 
- /* Control slab gfp mask during early boot */
--#define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_WAIT|__GFP_IO|__GFP_FS))
-+#define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_RECLAIM|__GFP_IO|__GFP_FS))
- 
- /* Control allocation constraints */
- #define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
-diff --git a/kernel/power/swap.c b/kernel/power/swap.c
-index b2066fb5b10f..53d95673d88a 100644
---- a/kernel/power/swap.c
-+++ b/kernel/power/swap.c
-@@ -257,7 +257,7 @@ static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
- 	struct bio *bio;
- 	int error = 0;
- 
--	bio = bio_alloc(__GFP_WAIT | __GFP_HIGH, 1);
-+	bio = bio_alloc(__GFP_RECLAIM | __GFP_HIGH, 1);
- 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
- 	bio->bi_bdev = hib_resume_bdev;
- 
-@@ -356,7 +356,7 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
- 		return -ENOSPC;
- 
- 	if (hb) {
--		src = (void *)__get_free_page(__GFP_WAIT | __GFP_NOWARN |
-+		src = (void *)__get_free_page(__GFP_RECLAIM | __GFP_NOWARN |
- 		                              __GFP_NORETRY);
- 		if (src) {
- 			copy_page(src, buf);
-@@ -364,7 +364,7 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
- 			ret = hib_wait_io(hb); /* Free pages */
- 			if (ret)
- 				return ret;
--			src = (void *)__get_free_page(__GFP_WAIT |
-+			src = (void *)__get_free_page(__GFP_RECLAIM |
- 			                              __GFP_NOWARN |
- 			                              __GFP_NORETRY);
- 			if (src) {
-@@ -672,7 +672,7 @@ static int save_image_lzo(struct swap_map_handle *handle,
- 	nr_threads = num_online_cpus() - 1;
- 	nr_threads = clamp_val(nr_threads, 1, LZO_THREADS);
- 
--	page = (void *)__get_free_page(__GFP_WAIT | __GFP_HIGH);
-+	page = (void *)__get_free_page(__GFP_RECLAIM | __GFP_HIGH);
- 	if (!page) {
- 		printk(KERN_ERR "PM: Failed to allocate LZO page\n");
- 		ret = -ENOMEM;
-@@ -975,7 +975,7 @@ static int get_swap_reader(struct swap_map_handle *handle,
- 		last = tmp;
- 
- 		tmp->map = (struct swap_map_page *)
--		           __get_free_page(__GFP_WAIT | __GFP_HIGH);
-+		           __get_free_page(__GFP_RECLAIM | __GFP_HIGH);
- 		if (!tmp->map) {
- 			release_swap_reader(handle);
- 			return -ENOMEM;
-@@ -1242,8 +1242,8 @@ static int load_image_lzo(struct swap_map_handle *handle,
- 
- 	for (i = 0; i < read_pages; i++) {
- 		page[i] = (void *)__get_free_page(i < LZO_CMP_PAGES ?
--		                                  __GFP_WAIT | __GFP_HIGH :
--		                                  __GFP_WAIT | __GFP_NOWARN |
-+		                                  __GFP_RECLAIM | __GFP_HIGH :
-+		                                  __GFP_RECLAIM | __GFP_NOWARN |
- 		                                  __GFP_NORETRY);
- 
- 		if (!page[i]) {
-diff --git a/lib/percpu_ida.c b/lib/percpu_ida.c
-index f75715131f20..6d40944960de 100644
---- a/lib/percpu_ida.c
-+++ b/lib/percpu_ida.c
-@@ -135,7 +135,7 @@ static inline unsigned alloc_local_tag(struct percpu_ida_cpu *tags)
-  * TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE, of course).
+@@ -675,9 +608,6 @@ struct zoneref {
+  * allocation, the other zones are fallback zones, in decreasing
+  * priority.
   *
-  * @gfp indicates whether or not to wait until a free id is available (it's not
-- * used for internal memory allocations); thus if passed __GFP_WAIT we may sleep
-+ * used for internal memory allocations); thus if passed __GFP_RECLAIM we may sleep
-  * however long it takes until another thread frees an id (same semantics as a
-  * mempool).
-  *
-diff --git a/mm/failslab.c b/mm/failslab.c
-index fefaabaab76d..69f083146a37 100644
---- a/mm/failslab.c
-+++ b/mm/failslab.c
-@@ -3,11 +3,11 @@
- 
- static struct {
- 	struct fault_attr attr;
--	u32 ignore_gfp_wait;
-+	u32 ignore_gfp_reclaim;
- 	int cache_filter;
- } failslab = {
- 	.attr = FAULT_ATTR_INITIALIZER,
--	.ignore_gfp_wait = 1,
-+	.ignore_gfp_reclaim = 1,
- 	.cache_filter = 0,
+- * If zlcache_ptr is not NULL, then it is just the address of zlcache,
+- * as explained above.  If zlcache_ptr is NULL, there is no zlcache.
+- * *
+  * To speed the reading of the zonelist, the zonerefs contain the zone index
+  * of the entry being read. Helper functions to access information given
+  * a struct zoneref are
+@@ -687,11 +617,7 @@ struct zoneref {
+  * zonelist_node_idx()	- Return the index of the node for an entry
+  */
+ struct zonelist {
+-	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
+ 	struct zoneref _zonerefs[MAX_ZONES_PER_ZONELIST + 1];
+-#ifdef CONFIG_NUMA
+-	struct zonelist_cache zlcache;			     // optional ...
+-#endif
  };
  
-@@ -16,7 +16,7 @@ bool should_failslab(size_t size, gfp_t gfpflags, unsigned long cache_flags)
- 	if (gfpflags & __GFP_NOFAIL)
- 		return false;
- 
--        if (failslab.ignore_gfp_wait && (gfpflags & __GFP_WAIT))
-+        if (failslab.ignore_gfp_reclaim && (gfpflags & __GFP_RECLAIM))
- 		return false;
- 
- 	if (failslab.cache_filter && !(cache_flags & SLAB_FAILSLAB))
-@@ -42,7 +42,7 @@ static int __init failslab_debugfs_init(void)
- 		return PTR_ERR(dir);
- 
- 	if (!debugfs_create_bool("ignore-gfp-wait", mode, dir,
--				&failslab.ignore_gfp_wait))
-+				&failslab.ignore_gfp_reclaim))
- 		goto fail;
- 	if (!debugfs_create_bool("cache-filter", mode, dir,
- 				&failslab.cache_filter))
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 72940fb38666..1a12b7c7474f 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2675,7 +2675,7 @@ EXPORT_SYMBOL(generic_file_write_iter);
-  * page is known to the local caching routines.
-  *
-  * The @gfp_mask argument specifies whether I/O may be performed to release
-- * this page (__GFP_IO), and whether the call may block (__GFP_WAIT & __GFP_FS).
-+ * this page (__GFP_IO), and whether the call may block (__GFP_RECLAIM & __GFP_FS).
-  *
-  */
- int try_to_release_page(struct page *page, gfp_t gfp_mask)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4b06b8db9df2..25c74e2dbc8b 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -786,7 +786,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 
- static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
- {
--	return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT)) | extra_gfp;
-+	return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_RECLAIM)) | extra_gfp;
- }
- 
- /* Caller must hold page table lock. */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index a1c82b65dcad..b19c03b7f49c 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1739,7 +1739,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 		goto out_dropref;
- 
- 	new_page = alloc_pages_node(node,
--		(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_WAIT,
-+		(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
- 		HPAGE_PMD_ORDER);
- 	if (!new_page)
- 		goto out_fail;
+ #ifndef CONFIG_DISCONTIGMEM
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b32081b02c49..4418741c78ad 100644
+index 4418741c78ad..1a9a20362251 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2160,11 +2160,11 @@ static struct {
- 	struct fault_attr attr;
+@@ -2291,122 +2291,6 @@ bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
+ }
  
- 	u32 ignore_gfp_highmem;
--	u32 ignore_gfp_wait;
-+	u32 ignore_gfp_reclaim;
- 	u32 min_order;
- } fail_page_alloc = {
- 	.attr = FAULT_ATTR_INITIALIZER,
--	.ignore_gfp_wait = 1,
-+	.ignore_gfp_reclaim = 1,
- 	.ignore_gfp_highmem = 1,
- 	.min_order = 1,
- };
-@@ -2202,7 +2202,7 @@ static int __init fail_page_alloc_debugfs(void)
- 		return PTR_ERR(dir);
- 
- 	if (!debugfs_create_bool("ignore-gfp-wait", mode, dir,
--				&fail_page_alloc.ignore_gfp_wait))
-+				&fail_page_alloc.ignore_gfp_reclaim))
- 		goto fail;
- 	if (!debugfs_create_bool("ignore-gfp-highmem", mode, dir,
- 				&fail_page_alloc.ignore_gfp_highmem))
-diff --git a/security/integrity/ima/ima_crypto.c b/security/integrity/ima/ima_crypto.c
-index e24121afb2f2..6eb62936c672 100644
---- a/security/integrity/ima/ima_crypto.c
-+++ b/security/integrity/ima/ima_crypto.c
-@@ -126,7 +126,7 @@ static void *ima_alloc_pages(loff_t max_size, size_t *allocated_size,
+ #ifdef CONFIG_NUMA
+-/*
+- * zlc_setup - Setup for "zonelist cache".  Uses cached zone data to
+- * skip over zones that are not allowed by the cpuset, or that have
+- * been recently (in last second) found to be nearly full.  See further
+- * comments in mmzone.h.  Reduces cache footprint of zonelist scans
+- * that have to skip over a lot of full or unallowed zones.
+- *
+- * If the zonelist cache is present in the passed zonelist, then
+- * returns a pointer to the allowed node mask (either the current
+- * tasks mems_allowed, or node_states[N_MEMORY].)
+- *
+- * If the zonelist cache is not available for this zonelist, does
+- * nothing and returns NULL.
+- *
+- * If the fullzones BITMAP in the zonelist cache is stale (more than
+- * a second since last zap'd) then we zap it out (clear its bits.)
+- *
+- * We hold off even calling zlc_setup, until after we've checked the
+- * first zone in the zonelist, on the theory that most allocations will
+- * be satisfied from that first zone, so best to examine that zone as
+- * quickly as we can.
+- */
+-static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
+-{
+-	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
+-	nodemask_t *allowednodes;	/* zonelist_cache approximation */
+-
+-	zlc = zonelist->zlcache_ptr;
+-	if (!zlc)
+-		return NULL;
+-
+-	if (time_after(jiffies, zlc->last_full_zap + HZ)) {
+-		bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+-		zlc->last_full_zap = jiffies;
+-	}
+-
+-	allowednodes = !in_interrupt() && (alloc_flags & ALLOC_CPUSET) ?
+-					&cpuset_current_mems_allowed :
+-					&node_states[N_MEMORY];
+-	return allowednodes;
+-}
+-
+-/*
+- * Given 'z' scanning a zonelist, run a couple of quick checks to see
+- * if it is worth looking at further for free memory:
+- *  1) Check that the zone isn't thought to be full (doesn't have its
+- *     bit set in the zonelist_cache fullzones BITMAP).
+- *  2) Check that the zones node (obtained from the zonelist_cache
+- *     z_to_n[] mapping) is allowed in the passed in allowednodes mask.
+- * Return true (non-zero) if zone is worth looking at further, or
+- * else return false (zero) if it is not.
+- *
+- * This check -ignores- the distinction between various watermarks,
+- * such as GFP_HIGH, GFP_ATOMIC, PF_MEMALLOC, ...  If a zone is
+- * found to be full for any variation of these watermarks, it will
+- * be considered full for up to one second by all requests, unless
+- * we are so low on memory on all allowed nodes that we are forced
+- * into the second scan of the zonelist.
+- *
+- * In the second scan we ignore this zonelist cache and exactly
+- * apply the watermarks to all zones, even it is slower to do so.
+- * We are low on memory in the second scan, and should leave no stone
+- * unturned looking for a free page.
+- */
+-static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zoneref *z,
+-						nodemask_t *allowednodes)
+-{
+-	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
+-	int i;				/* index of *z in zonelist zones */
+-	int n;				/* node that zone *z is on */
+-
+-	zlc = zonelist->zlcache_ptr;
+-	if (!zlc)
+-		return 1;
+-
+-	i = z - zonelist->_zonerefs;
+-	n = zlc->z_to_n[i];
+-
+-	/* This zone is worth trying if it is allowed but not full */
+-	return node_isset(n, *allowednodes) && !test_bit(i, zlc->fullzones);
+-}
+-
+-/*
+- * Given 'z' scanning a zonelist, set the corresponding bit in
+- * zlc->fullzones, so that subsequent attempts to allocate a page
+- * from that zone don't waste time re-examining it.
+- */
+-static void zlc_mark_zone_full(struct zonelist *zonelist, struct zoneref *z)
+-{
+-	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
+-	int i;				/* index of *z in zonelist zones */
+-
+-	zlc = zonelist->zlcache_ptr;
+-	if (!zlc)
+-		return;
+-
+-	i = z - zonelist->_zonerefs;
+-
+-	set_bit(i, zlc->fullzones);
+-}
+-
+-/*
+- * clear all zones full, called after direct reclaim makes progress so that
+- * a zone that was recently full is not skipped over for up to a second
+- */
+-static void zlc_clear_zones_full(struct zonelist *zonelist)
+-{
+-	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
+-
+-	zlc = zonelist->zlcache_ptr;
+-	if (!zlc)
+-		return;
+-
+-	bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+-}
+-
+ static bool zone_local(struct zone *local_zone, struct zone *zone)
  {
- 	void *ptr;
- 	int order = ima_maxorder;
--	gfp_t gfp_mask = __GFP_WAIT | __GFP_NOWARN | __GFP_NORETRY;
-+	gfp_t gfp_mask = __GFP_RECLAIM | __GFP_NOWARN | __GFP_NORETRY;
+ 	return local_zone->node == zone->node;
+@@ -2417,28 +2301,7 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+ 	return node_distance(zone_to_nid(local_zone), zone_to_nid(zone)) <
+ 				RECLAIM_DISTANCE;
+ }
+-
+ #else	/* CONFIG_NUMA */
+-
+-static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
+-{
+-	return NULL;
+-}
+-
+-static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zoneref *z,
+-				nodemask_t *allowednodes)
+-{
+-	return 1;
+-}
+-
+-static void zlc_mark_zone_full(struct zonelist *zonelist, struct zoneref *z)
+-{
+-}
+-
+-static void zlc_clear_zones_full(struct zonelist *zonelist)
+-{
+-}
+-
+ static bool zone_local(struct zone *local_zone, struct zone *zone)
+ {
+ 	return true;
+@@ -2448,7 +2311,6 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+ {
+ 	return true;
+ }
+-
+ #endif	/* CONFIG_NUMA */
  
- 	if (order)
- 		order = min(get_order(max_size), order);
+ static void reset_alloc_batches(struct zone *preferred_zone)
+@@ -2475,9 +2337,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 	struct zoneref *z;
+ 	struct page *page = NULL;
+ 	struct zone *zone;
+-	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+-	int zlc_active = 0;		/* set if using zonelist_cache */
+-	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+ 	int nr_fair_skipped = 0;
+ 	bool zonelist_rescan;
+ 
+@@ -2492,9 +2351,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 								ac->nodemask) {
+ 		unsigned long mark;
+ 
+-		if (IS_ENABLED(CONFIG_NUMA) && zlc_active &&
+-			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+-				continue;
+ 		if (cpusets_enabled() &&
+ 			(alloc_flags & ALLOC_CPUSET) &&
+ 			!cpuset_zone_allowed(zone, gfp_mask))
+@@ -2552,28 +2408,8 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 			if (alloc_flags & ALLOC_NO_WATERMARKS)
+ 				goto try_this_zone;
+ 
+-			if (IS_ENABLED(CONFIG_NUMA) &&
+-					!did_zlc_setup && nr_online_nodes > 1) {
+-				/*
+-				 * we do zlc_setup if there are multiple nodes
+-				 * and before considering the first zone allowed
+-				 * by the cpuset.
+-				 */
+-				allowednodes = zlc_setup(zonelist, alloc_flags);
+-				zlc_active = 1;
+-				did_zlc_setup = 1;
+-			}
+-
+ 			if (zone_reclaim_mode == 0 ||
+ 			    !zone_allows_reclaim(ac->preferred_zone, zone))
+-				goto this_zone_full;
+-
+-			/*
+-			 * As we may have just activated ZLC, check if the first
+-			 * eligible zone has failed zone_reclaim recently.
+-			 */
+-			if (IS_ENABLED(CONFIG_NUMA) && zlc_active &&
+-				!zlc_zone_worth_trying(zonelist, z, allowednodes))
+ 				continue;
+ 
+ 			ret = zone_reclaim(zone, gfp_mask, order);
+@@ -2590,19 +2426,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 						ac->classzone_idx, alloc_flags))
+ 					goto try_this_zone;
+ 
+-				/*
+-				 * Failed to reclaim enough to meet watermark.
+-				 * Only mark the zone full if checking the min
+-				 * watermark or if we failed to reclaim just
+-				 * 1<<order pages or else the page allocator
+-				 * fastpath will prematurely mark zones full
+-				 * when the watermark is between the low and
+-				 * min watermarks.
+-				 */
+-				if (((alloc_flags & ALLOC_WMARK_MASK) == ALLOC_WMARK_MIN) ||
+-				    ret == ZONE_RECLAIM_SOME)
+-					goto this_zone_full;
+-
+ 				continue;
+ 			}
+ 		}
+@@ -2615,9 +2438,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 				goto try_this_zone;
+ 			return page;
+ 		}
+-this_zone_full:
+-		if (IS_ENABLED(CONFIG_NUMA) && zlc_active)
+-			zlc_mark_zone_full(zonelist, z);
+ 	}
+ 
+ 	/*
+@@ -2638,12 +2458,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 			zonelist_rescan = true;
+ 	}
+ 
+-	if (unlikely(IS_ENABLED(CONFIG_NUMA) && zlc_active)) {
+-		/* Disable zlc cache for second zonelist scan */
+-		zlc_active = 0;
+-		zonelist_rescan = true;
+-	}
+-
+ 	if (zonelist_rescan)
+ 		goto zonelist_scan;
+ 
+@@ -2888,10 +2702,6 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ 	if (unlikely(!(*did_some_progress)))
+ 		return NULL;
+ 
+-	/* After successful reclaim, reconsider all zones for allocation */
+-	if (IS_ENABLED(CONFIG_NUMA))
+-		zlc_clear_zones_full(ac->zonelist);
+-
+ retry:
+ 	page = get_page_from_freelist(gfp_mask, order,
+ 					alloc_flags & ~ALLOC_NO_WATERMARKS, ac);
+@@ -4227,20 +4037,6 @@ static void build_zonelists(pg_data_t *pgdat)
+ 	build_thisnode_zonelists(pgdat);
+ }
+ 
+-/* Construct the zonelist performance cache - see further mmzone.h */
+-static void build_zonelist_cache(pg_data_t *pgdat)
+-{
+-	struct zonelist *zonelist;
+-	struct zonelist_cache *zlc;
+-	struct zoneref *z;
+-
+-	zonelist = &pgdat->node_zonelists[0];
+-	zonelist->zlcache_ptr = zlc = &zonelist->zlcache;
+-	bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
+-	for (z = zonelist->_zonerefs; z->zone; z++)
+-		zlc->z_to_n[z - zonelist->_zonerefs] = zonelist_node_idx(z);
+-}
+-
+ #ifdef CONFIG_HAVE_MEMORYLESS_NODES
+ /*
+  * Return node id of node used for "local" allocations.
+@@ -4301,12 +4097,6 @@ static void build_zonelists(pg_data_t *pgdat)
+ 	zonelist->_zonerefs[j].zone_idx = 0;
+ }
+ 
+-/* non-NUMA variant of zonelist performance cache - just NULL zlcache_ptr */
+-static void build_zonelist_cache(pg_data_t *pgdat)
+-{
+-	pgdat->node_zonelists[0].zlcache_ptr = NULL;
+-}
+-
+ #endif	/* CONFIG_NUMA */
+ 
+ /*
+@@ -4347,14 +4137,12 @@ static int __build_all_zonelists(void *data)
+ 
+ 	if (self && !node_online(self->node_id)) {
+ 		build_zonelists(self);
+-		build_zonelist_cache(self);
+ 	}
+ 
+ 	for_each_online_node(nid) {
+ 		pg_data_t *pgdat = NODE_DATA(nid);
+ 
+ 		build_zonelists(pgdat);
+-		build_zonelist_cache(pgdat);
+ 	}
+ 
+ 	/*
 -- 
 2.4.6
 
