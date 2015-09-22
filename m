@@ -1,81 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C2DF6B0255
-	for <linux-mm@kvack.org>; Mon, 21 Sep 2015 23:43:38 -0400 (EDT)
-Received: by oiev17 with SMTP id v17so69587094oie.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 20:43:37 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id a80si13796693oih.138.2015.09.21.20.43.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 21 Sep 2015 20:43:37 -0700 (PDT)
-Subject: Re: [PATCH 1/3] mm,oom: Reverse the order of setting TIF_MEMDIE and sending SIGKILL.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1442714685-14002-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20150921145958.434bdb12c91e5300c27576f5@linux-foundation.org>
-	<201509221239.EGD05714.JFSOOOtVLFHFQM@I-love.SAKURA.ne.jp>
-In-Reply-To: <201509221239.EGD05714.JFSOOOtVLFHFQM@I-love.SAKURA.ne.jp>
-Message-Id: <201509221243.GBC34820.OVJFMOLSOFHFtQ@I-love.SAKURA.ne.jp>
-Date: Tue, 22 Sep 2015 12:43:29 +0900
-Mime-Version: 1.0
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 101AE6B0038
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 01:13:22 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so137078466pad.1
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 22:13:21 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id k13si43111082pbq.238.2015.09.21.22.12.56
+        for <linux-mm@kvack.org>;
+        Mon, 21 Sep 2015 22:13:21 -0700 (PDT)
+Date: Tue, 22 Sep 2015 15:12:53 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2] xfs: Print comm name and pid when open-coded
+ __GFP_NOFAIL allocation stucks
+Message-ID: <20150922051253.GB3902@dastard>
+References: <20150920231858.GY3902@dastard>
+ <1442798637-5941-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1442798637-5941-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: xfs@oss.sgi.com, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
 
-Re-sending [PATCH 2/2] due to context changes in [PATCH 1/2].
-------------------------------------------------------------
->From 33cdde028dbd65543e4946ee9ec1a08b712c708c Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Tue, 22 Sep 2015 12:16:02 +0900
-Subject: [PATCH 2/2] mm,oom: Fix potentially killing unrelated process.
+On Mon, Sep 21, 2015 at 10:23:57AM +0900, Tetsuo Handa wrote:
+> This patch adds comm name and pid to warning messages printed by
+> kmem_alloc(), kmem_zone_alloc() and xfs_buf_allocate_memory().
+> This will help telling which memory allocations (e.g. kernel worker
+> threads, OOM victim tasks, neither) are stalling because these functions
+> are passing __GFP_NOWARN which suppresses not only backtrace but comm name
+> and pid.
+> 
+>   [  135.568662] Out of memory: Kill process 9593 (a.out) score 998 or sacrifice child
+>   [  135.570195] Killed process 9593 (a.out) total-vm:4700kB, anon-rss:488kB, file-rss:0kB
+>   [  137.473691] XFS: kworker/u16:29(383) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
+>   [  137.497662] XFS: a.out(8944) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
+>   [  137.598219] XFS: a.out(9658) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
+>   [  139.494529] XFS: kworker/u16:29(383) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
+>   [  139.517196] XFS: a.out(8944) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
+>   [  139.616396] XFS: a.out(9658) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
+>   [  141.512753] XFS: kworker/u16:29(383) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
+>   [  141.531421] XFS: a.out(8944) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
+>   [  141.633574] XFS: a.out(9658) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x1250)
+> 
+> (Strictly speaking, we want task_lock()/task_unlock() when reading comm name.)
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Michal Hocko <mhocko@suse.com>
+> ---
+>  fs/xfs/kmem.c    | 10 ++++++----
+>  fs/xfs/xfs_buf.c |  3 ++-
+>  2 files changed, 8 insertions(+), 5 deletions(-)
+> 
+> diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
+> index a7a3a63..735095a 100644
+> --- a/fs/xfs/kmem.c
+> +++ b/fs/xfs/kmem.c
+> @@ -55,8 +55,9 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
+>  			return ptr;
+>  		if (!(++retries % 100))
+>  			xfs_err(NULL,
+> -		"possible memory allocation deadlock in %s (mode:0x%x)",
+> -					__func__, lflags);
+> +				"%s(%u) possible memory allocation deadlock in %s (mode:0x%x)",
+> +				current->comm, current->pid,
+> +				__func__, lflags);
 
-At the for_each_process() loop in oom_kill_process(), we are comparing
-address of OOM victim's mm without holding a reference to that mm.  If
-there are a lot of processes to compare or a lot of "Kill process %d (%s)
-sharing same memory" messages to print, for_each_process() loop could take
-very long time.
+<=80 columns, please.
 
-It is possible that meanwhile the OOM victim exits and releases its mm,
-and then mm is allocated with the same address and assigned to some
-unrelated process.  When we hit such race, the unrelated process will be
-killed by error.  To make sure that the OOM victim's mm does not go away
-until for_each_process() loop finishes, get a reference on the OOM
-victim's mm before calling task_unlock(victim).
+Cheers,
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 97c376c..0b70965 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -561,8 +561,9 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 		victim = p;
- 	}
- 
--	/* mm cannot safely be dereferenced after task_unlock(victim) */
-+	/* Get a reference to safely compare mm after task_unlock(victim) */
- 	mm = victim->mm;
-+	atomic_inc(&mm->mm_users);
- 	/*
- 	 * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
- 	 * the OOM victim from depleting the memory reserves from the user
-@@ -600,6 +601,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 		}
- 	rcu_read_unlock();
- 
-+	mmput(mm);
- 	put_task_struct(victim);
- }
- #undef K
+Dave.
 -- 
-1.8.3.1
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
