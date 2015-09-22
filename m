@@ -1,109 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B7F626B0253
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:20:43 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so12102063pad.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 08:20:43 -0700 (PDT)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 184F36B0253
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:28:45 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so12274832pad.1
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 08:28:44 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id c10si3331829pbu.118.2015.09.22.08.20.42
+        by mx.google.com with ESMTPS id lp10si3379418pab.101.2015.09.22.08.28.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 08:20:42 -0700 (PDT)
-Date: Tue, 22 Sep 2015 11:20:38 -0400
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Sep 2015 08:28:44 -0700 (PDT)
+Date: Tue, 22 Sep 2015 11:28:36 -0400
 From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 01/10] mm: make cleancache.c explicitly non-modular
-Message-ID: <20150922152038.GE4454@l.oracle.com>
+Subject: Re: [PATCH 09/10] mm: make frontswap.c explicitly non-modular
+Message-ID: <20150922152836.GG4454@l.oracle.com>
 References: <1440454482-12250-1-git-send-email-paul.gortmaker@windriver.com>
- <1440454482-12250-2-git-send-email-paul.gortmaker@windriver.com>
- <F91A372A-4443-41C6-880F-5F6B66990FFA@oracle.com>
- <20150825011040.GA3560@windriver.com>
+ <1440454482-12250-10-git-send-email-paul.gortmaker@windriver.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150825011040.GA3560@windriver.com>
+In-Reply-To: <1440454482-12250-10-git-send-email-paul.gortmaker@windriver.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Paul Gortmaker <paul.gortmaker@windriver.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 24, 2015 at 09:10:40PM -0400, Paul Gortmaker wrote:
-> [Re: [PATCH 01/10] mm: make cleancache.c explicitly non-modular] On 24/08/2015 (Mon 20:10) Konrad Rzeszutek Wilk wrote:
+On Mon, Aug 24, 2015 at 06:14:41PM -0400, Paul Gortmaker wrote:
+> The Kconfig currently controlling compilation of this code is:
 > 
-> > On August 24, 2015 6:14:33 PM EDT, Paul Gortmaker <paul.gortmaker@windriver.com> wrote:
-> > >The Kconfig currently controlling compilation of this code is:
-> > >
-> > >config CLEANCACHE
-> > >bool "Enable cleancache driver to cache clean pages if tmem is present"
-> > >
-> > >...meaning that it currently is not being built as a module by anyone.
-> > 
-> > Why not make it a tristate?
+> config FRONTSWAP
+>     bool "Enable frontswap to cache swap pages if tmem is present"
 > 
-> Simple.  I'm making the code consistent with its current behaviour.
-> I'm not looking to extend functionality in code that I don't know
-> intimately.  I can't do that and do it reliably and guarantee it
-> works as a module when it has never been used as such before.
+> ...meaning that it currently is not being built as a module by anyone.
 > 
-> I've got about 130 of these and counting.  Some of them have been bool
-> since before git history ; before the turn of the century.  If there was
-> demand for them to be tristate, then it would have happened by now.  So
-> clearly there is no point in looking at making _those_ tristate.
+> Lets remove the couple traces of modularity so that when reading the
+> driver there is no doubt it is builtin-only.
 > 
-> I did have one uart driver author indicate that he _meant_ his code to
-> be tristate, and he tested it as such, and asked if I would convert it
-> to tristate on his behalf.  And that was fine and I did exactly that.
+> Since module_init translates to device_initcall in the non-modular
+> case, the init ordering remains unchanged with this commit.  However
+> one could argue that subsys_initcall might make more sense here.
 > 
-> But unless there are interested users who want their code tristate and
-> can vouch that their code works OK as such, I can only make the code
-> consistent with the implicit non-modular behaviour that the Kconfig and
-> Makefiles have dictated up to now.  Are there such users for CLEANCACHE?
+> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
 Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-Sorry for taking so long. It really cannot be tri-state (I tried
-making it an module) as the cleancache hooks are tied in the mm/filemap.c.
+I would add to the commit:
 
+Frontswap depends on CONFIG_SWAP and there is currently no way
+to make swap dynamically loaded.
+
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
+> ---
+>  mm/frontswap.c | 5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
 > 
-> Paul.
-> --
+> diff --git a/mm/frontswap.c b/mm/frontswap.c
+> index 27a9924caf61..b36409766831 100644
+> --- a/mm/frontswap.c
+> +++ b/mm/frontswap.c
+> @@ -15,7 +15,7 @@
+>  #include <linux/swap.h>
+>  #include <linux/swapops.h>
+>  #include <linux/security.h>
+> -#include <linux/module.h>
+> +#include <linux/init.h>
+>  #include <linux/debugfs.h>
+>  #include <linux/frontswap.h>
+>  #include <linux/swapfile.h>
+> @@ -500,5 +500,4 @@ static int __init init_frontswap(void)
+>  #endif
+>  	return 0;
+>  }
+> -
+> -module_init(init_frontswap);
+> +device_initcall(init_frontswap);
+> -- 
+> 2.5.0
 > 
-> > 
-> > 
-> > >
-> > >Lets remove the couple traces of modularity so that when reading the
-> > >driver there is no doubt it is builtin-only.
-> > >
-> > >Since module_init translates to device_initcall in the non-modular
-> > >case, the init ordering remains unchanged with this commit.
-> > >
-> > >Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> > >Cc: linux-mm@kvack.org
-> > >Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
-> > >---
-> > > mm/cleancache.c | 4 ++--
-> > > 1 file changed, 2 insertions(+), 2 deletions(-)
-> > >
-> > >diff --git a/mm/cleancache.c b/mm/cleancache.c
-> > >index 8fc50811119b..ee0646d1c2fa 100644
-> > >--- a/mm/cleancache.c
-> > >+++ b/mm/cleancache.c
-> > >@@ -11,7 +11,7 @@
-> > >  * This work is licensed under the terms of the GNU GPL, version 2.
-> > >  */
-> > > 
-> > >-#include <linux/module.h>
-> > >+#include <linux/init.h>
-> > > #include <linux/fs.h>
-> > > #include <linux/exportfs.h>
-> > > #include <linux/mm.h>
-> > >@@ -316,4 +316,4 @@ static int __init init_cleancache(void)
-> > > #endif
-> > > 	return 0;
-> > > }
-> > >-module_init(init_cleancache)
-> > >+device_initcall(init_cleancache)
-> > 
-> > 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
