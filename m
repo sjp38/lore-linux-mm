@@ -1,152 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 692696B0255
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:33:02 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so14627417wic.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:33:02 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s2si23236815wik.32.2015.09.22.02.32.58
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 898766B0038
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:47:06 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so4990678pac.2
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:47:06 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id zx10si1250133pbc.65.2015.09.22.02.47.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Sep 2015 02:32:58 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 2/3] mm, compaction: export tracepoints zone names to userspace
-Date: Tue, 22 Sep 2015 11:32:44 +0200
-Message-Id: <1442914365-15949-2-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1442914365-15949-1-git-send-email-vbabka@suse.cz>
-References: <1442914365-15949-1-git-send-email-vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 22 Sep 2015 02:47:05 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NV200EZMOIDTD70@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 22 Sep 2015 10:47:01 +0100 (BST)
+Message-id: <56012392.7020807@samsung.com>
+Date: Tue, 22 Sep 2015 11:46:58 +0200
+From: Jacek Anaszewski <j.anaszewski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH 00/38] Fixes related to incorrect usage of unsigned types
+References: <1442842450-29769-1-git-send-email-a.hajda@samsung.com>
+ <17571.1442842945@warthog.procyon.org.uk> <56011BB9.5030004@samsung.com>
+In-reply-to: <56011BB9.5030004@samsung.com>
+Content-type: text/plain; charset=windows-1252; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Steven Rostedt <rostedt@goodmis.org>
+To: Andrzej Hajda <a.hajda@samsung.com>
+Cc: David Howells <dhowells@redhat.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, brcm80211-dev-list@broadcom.com, devel@driverdev.osuosl.org, dev@openvswitch.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-api@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cachefs@redhat.com, linux-clk@vger.kernel.org, linux-crypto@vger.kernel.org, linux-fbdev@vger.kernel.org, linux-input@vger.kernel.org, linux-leds@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-omap@vger.kernel.org, linux-rdma@vger.kernel.org, linux-serial@vger.kernel.org, linux-sh@vger.kernel.org, linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org, lustre-devel@lists.lustre.org, netdev@vger.kernel.org, rtc-linux@googlegroups.com
 
-Some compaction tracepoints use zone->name to print which zone is being
-compacted. This works for in-kernel printing, but not userspace trace printing
-of raw captured trace such as via trace-cmd report.
+On 09/22/2015 11:13 AM, Andrzej Hajda wrote:
+> On 09/21/2015 03:42 PM, David Howells wrote:
+>> Andrzej Hajda <a.hajda-Sze3O3UU22JBDgjK7y7TUQ@public.gmane.org> wrote:
+>>
+>>> Semantic patch finds comparisons of types:
+>>>      unsigned < 0
+>>>      unsigned >= 0
+>>> The former is always false, the latter is always true.
+>>> Such comparisons are useless, so theoretically they could be
+>>> safely removed, but their presence quite often indicates bugs.
+>>
+>> Or someone has left them in because they don't matter and there's the
+>> possibility that the type being tested might be or become signed under some
+>> circumstances.  If the comparison is useless, I'd expect the compiler to just
+>> discard it - for such cases your patch is pointless.
+>>
+>> If I have, for example:
+>>
+>> 	unsigned x;
+>>
+>> 	if (x == 0 || x > 27)
+>> 		give_a_range_error();
+>>
+>> I will write this as:
+>>
+>> 	unsigned x;
+>>
+>> 	if (x <= 0 || x > 27)
+>> 		give_a_range_error();
+>>
+>> because it that gives a way to handle x being changed to signed at some point
+>> in the future for no cost.  In which case, your changing the <= to an ==
+>> "because the < part of the case is useless" is arguably wrong.
+>
+> This is why I have not checked for such cases - I have skipped checks of type
+> 	unsigned <= 0
+> exactly for the reasons above.
+>
+> However I have left two other checks as they seems to me more suspicious - they
+> are always true or false. But as Dmitry and Andrew pointed out Linus have quite
+> strong opinion against removing range checks in such cases as he finds it
+> clearer. I think it applies to patches 29-36. I am not sure about patches 26-28,37.
 
-This patch uses zone_idx() instead of zone->name as the raw value, and when
-printing, converts the zone_type to string using the appropriate EM() macros
-and some ugly tricks to overcome the problem that half the values depend on
-CONFIG_ options and one does not simply use #ifdef inside of #define.
+Dropped 30/38 and 31/38 from LED tree then.
 
-trace-cmd output before:
-transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
-zone=ffffffff81815d7a order=9 ret=partial
-
-after:
-transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
-zone=Normal   order=9 ret=partial
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: David Rientjes <rientjes@google.com>
----
-v2: add Reviewed-by.
-
- include/trace/events/compaction.h | 38 ++++++++++++++++++++++++++++++++------
- 1 file changed, 32 insertions(+), 6 deletions(-)
-
-diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index 1275a55..8daa8fa 100644
---- a/include/trace/events/compaction.h
-+++ b/include/trace/events/compaction.h
-@@ -18,6 +18,31 @@
- 	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
- 	EMe(COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")
- 
-+#ifdef CONFIG_ZONE_DMA
-+#define IFDEF_ZONE_DMA(X) X
-+#else
-+#define IFDEF_ZONE_DMA(X)
-+#endif
-+
-+#ifdef CONFIG_ZONE_DMA32
-+#define IFDEF_ZONE_DMA32(X) X
-+#else
-+#define IFDEF_ZONE_DMA32(X)
-+#endif
-+
-+#ifdef CONFIG_ZONE_HIGHMEM_
-+#define IFDEF_ZONE_HIGHMEM(X) X
-+#else
-+#define IFDEF_ZONE_HIGHMEM(X)
-+#endif
-+
-+#define ZONE_TYPE						\
-+	IFDEF_ZONE_DMA(		EM (ZONE_DMA,	 "DMA"))	\
-+	IFDEF_ZONE_DMA32(	EM (ZONE_DMA32,	 "DMA32"))	\
-+				EM (ZONE_NORMAL, "Normal")	\
-+	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
-+				EMe(ZONE_MOVABLE,"Movable")
-+
- /*
-  * First define the enums in the above macros to be exported to userspace
-  * via TRACE_DEFINE_ENUM().
-@@ -28,6 +53,7 @@
- #define EMe(a, b)	TRACE_DEFINE_ENUM(a);
- 
- COMPACTION_STATUS
-+ZONE_TYPE
- 
- /*
-  * Now redefine the EM() and EMe() macros to map the enums to the strings
-@@ -230,21 +256,21 @@ DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
- 
- 	TP_STRUCT__entry(
- 		__field(int, nid)
--		__field(char *, name)
-+		__field(enum zone_type, idx)
- 		__field(int, order)
- 		__field(int, ret)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->nid = zone_to_nid(zone);
--		__entry->name = (char *)zone->name;
-+		__entry->idx = zone_idx(zone);
- 		__entry->order = order;
- 		__entry->ret = ret;
- 	),
- 
- 	TP_printk("node=%d zone=%-8s order=%d ret=%s",
- 		__entry->nid,
--		__entry->name,
-+		__print_symbolic(__entry->idx, ZONE_TYPE),
- 		__entry->order,
- 		__print_symbolic(__entry->ret, COMPACTION_STATUS))
- );
-@@ -276,7 +302,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
- 
- 	TP_STRUCT__entry(
- 		__field(int, nid)
--		__field(char *, name)
-+		__field(enum zone_type, idx)
- 		__field(int, order)
- 		__field(unsigned int, considered)
- 		__field(unsigned int, defer_shift)
-@@ -285,7 +311,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
- 
- 	TP_fast_assign(
- 		__entry->nid = zone_to_nid(zone);
--		__entry->name = (char *)zone->name;
-+		__entry->idx = zone_idx(zone);
- 		__entry->order = order;
- 		__entry->considered = zone->compact_considered;
- 		__entry->defer_shift = zone->compact_defer_shift;
-@@ -294,7 +320,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
- 
- 	TP_printk("node=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu",
- 		__entry->nid,
--		__entry->name,
-+		__print_symbolic(__entry->idx, ZONE_TYPE),
- 		__entry->order,
- 		__entry->order_failed,
- 		__entry->considered,
 -- 
-2.5.1
+Best Regards,
+Jacek Anaszewski
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
