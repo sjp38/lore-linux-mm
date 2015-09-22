@@ -1,48 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 58FDA6B0253
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 14:20:55 -0400 (EDT)
-Received: by ykdt18 with SMTP id t18so18141245ykd.3
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:20:55 -0700 (PDT)
-Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
-        by mx.google.com with ESMTPS id t5si1784101ykb.147.2015.09.22.11.20.54
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A0BE6B0253
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 14:26:53 -0400 (EDT)
+Received: by iofb144 with SMTP id b144so23171141iof.1
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:26:53 -0700 (PDT)
+Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
+        by mx.google.com with ESMTPS id 72si3679406iot.191.2015.09.22.11.26.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 11:20:54 -0700 (PDT)
-Received: by ykdz138 with SMTP id z138so18108302ykd.2
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:20:54 -0700 (PDT)
-Date: Tue, 22 Sep 2015 14:20:49 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC v2 02/18] kthread: Add create_kthread_worker*()
-Message-ID: <20150922182049.GA17659@mtj.duckdns.org>
-References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
- <1442840639-6963-3-git-send-email-pmladek@suse.com>
+        Tue, 22 Sep 2015 11:26:52 -0700 (PDT)
+Received: by igcrk20 with SMTP id rk20so86354319igc.1
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:26:52 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1442840639-6963-3-git-send-email-pmladek@suse.com>
+In-Reply-To: <CALCETrUv3yV2LBt9b5B_PQdfNOgJtcQrqVatWUU7Aozi4BAfLQ@mail.gmail.com>
+References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
+	<1442903021-3893-6-git-send-email-mingo@kernel.org>
+	<CA+55aFzyZ6UKb_Ujm3E3eFwW_KUf8Vw3sV6tFpmAAGnificVvQ@mail.gmail.com>
+	<CALCETrUv3yV2LBt9b5B_PQdfNOgJtcQrqVatWUU7Aozi4BAfLQ@mail.gmail.com>
+Date: Tue, 22 Sep 2015 11:26:52 -0700
+Message-ID: <CA+55aFy2oQztH_8TXgyAn944SpvD5wb9k=Os3fSYTB8V1Gc45w@mail.gmail.com>
+Subject: Re: [PATCH 05/11] mm: Introduce arch_pgd_init_late()
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
 
-Hello, Petr.
+On Tue, Sep 22, 2015 at 11:00 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+>
+> I really really hate the vmalloc fault thing.  It seems to work,
+> rather to my surprise.  It doesn't *deserve* to work, because of
+> things like the percpu TSS accesses in the entry code that happen
+> without a valid stack.
 
-On Mon, Sep 21, 2015 at 03:03:43PM +0200, Petr Mladek wrote:
-> It enforces using kthread_worker_fn() for the main thread. But I doubt
-> that there are any plans to create any alternative. In fact, I think
-> that we do not want any alternative main thread because it would be
-> hard to support consistency with the rest of the kthread worker API.
+The thing is, I think you're misguided in your hatred.
 
-The original intention was allowing users to use a wrapper function
-which sets up kthread attributes and then calls kthread_worker_fn().
-That can be done by a work item too but is more cumbersome.  Just
-wanted to note that.  Will keep reading on.
+The reason I say that is because I think we should just embrace the
+fact that faults can and do happen in the kernel in very inconvenient
+places, and not just in code we "control".
 
-Thanks.
+Even if you get rid of the vmalloc fault, you'll still have debug
+faults, and you'll still have NMI's and horrible crazy machine check
+faults.
 
--- 
-tejun
+I actually think teh vmalloc fault is a good way to just let people
+know "pretty much anything can trap, deal with it".
+
+And I think trying to eliminate them is the wrong thing, because it
+forces us to be so damn synchronized. This whole patch-series is a
+prime example of why that is a bad bad things. We want to have _less_
+synchronization.
+
+                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
