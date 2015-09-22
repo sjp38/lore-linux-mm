@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B803F6B025B
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:24:21 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so176874933wic.0
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 23:24:21 -0700 (PDT)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id p10si1789176wiv.26.2015.09.21.23.24.20
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E0FD6B025D
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:24:24 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so145568178wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 23:24:24 -0700 (PDT)
+Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
+        by mx.google.com with ESMTPS id gb8si2311wjb.121.2015.09.21.23.24.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Sep 2015 23:24:20 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so176172239wic.1
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 23:24:20 -0700 (PDT)
+        Mon, 21 Sep 2015 23:24:22 -0700 (PDT)
+Received: by wicge5 with SMTP id ge5so145567149wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 23:24:21 -0700 (PDT)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 09/11] x86/mm: Make pgd_alloc()/pgd_free() lockless
-Date: Tue, 22 Sep 2015 08:23:39 +0200
-Message-Id: <1442903021-3893-10-git-send-email-mingo@kernel.org>
+Subject: [PATCH 10/11] x86/mm: Remove pgd_list leftovers
+Date: Tue, 22 Sep 2015 08:23:40 +0200
+Message-Id: <1442903021-3893-11-git-send-email-mingo@kernel.org>
 In-Reply-To: <1442903021-3893-1-git-send-email-mingo@kernel.org>
 References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,19 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
 
-The fork()/exit() code uses pgd_alloc()/pgd_free() to allocate/deallocate
-the PGD, with platform specific code setting up kernel pagetables.
-
-The x86 code uses a global pgd_list with an associated lock to update
-all PGDs of all tasks in the system synchronously.
-
-The lock is still kept to synchronize updates to all PGDs in the system,
-but all users of the list have been migrated to use the task list.
-
-So we can remove the pgd_list addition/removal from this code.
-
-The new PGD is private while constructed, so it needs no extra
-locking.
+Nothing uses the pgd_list anymore - remove the list itself and its helpers.
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andy Lutomirski <luto@amacapital.net>
@@ -51,65 +39,77 @@ Cc: Waiman Long <Waiman.Long@hp.com>
 Cc: linux-mm@kvack.org
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- arch/x86/mm/pgtable.c | 27 +++------------------------
- 1 file changed, 3 insertions(+), 24 deletions(-)
+ arch/x86/include/asm/pgtable.h |  3 ---
+ arch/x86/mm/fault.c            |  1 -
+ arch/x86/mm/pgtable.c          | 26 --------------------------
+ 3 files changed, 30 deletions(-)
 
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 867da5bbb4a3..8338c8175409 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -29,9 +29,6 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
+ #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
+ 
+ extern spinlock_t pgd_lock;
+-extern struct list_head pgd_list;
+-
+-extern struct mm_struct *pgd_page_get_mm(struct page *page);
+ 
+ #ifdef CONFIG_PARAVIRT
+ #include <asm/paravirt.h>
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 9322d5ad3811..546fbca9621d 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -189,7 +189,6 @@ force_sig_info_fault(int si_signo, int si_code, unsigned long address,
+ }
+ 
+ DEFINE_SPINLOCK(pgd_lock);
+-LIST_HEAD(pgd_list);
+ 
+ #ifdef CONFIG_X86_32
+ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index c7038b6e51bf..8a42d54f44ba 100644
+index 8a42d54f44ba..cb5b8cbcf96b 100644
 --- a/arch/x86/mm/pgtable.c
 +++ b/arch/x86/mm/pgtable.c
-@@ -125,22 +125,6 @@ static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
- 				swapper_pg_dir + KERNEL_PGD_BOUNDARY,
- 				KERNEL_PGD_PTRS);
- 	}
+@@ -84,35 +84,9 @@ void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
+ #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
+ #endif	/* CONFIG_PGTABLE_LEVELS > 2 */
+ 
+-static inline void pgd_list_add(pgd_t *pgd)
+-{
+-	struct page *page = virt_to_page(pgd);
 -
--	/* list required to sync kernel mapping updates */
--	if (!SHARED_KERNEL_PMD) {
--		pgd_set_mm(pgd, mm);
--		pgd_list_add(pgd);
--	}
+-	list_add(&page->lru, &pgd_list);
 -}
 -
--static void pgd_dtor(pgd_t *pgd)
+-static inline void pgd_list_del(pgd_t *pgd)
 -{
--	if (SHARED_KERNEL_PMD)
--		return;
+-	struct page *page = virt_to_page(pgd);
 -
--	spin_lock(&pgd_lock);
--	pgd_list_del(pgd);
--	spin_unlock(&pgd_lock);
- }
- 
- /*
-@@ -370,17 +354,13 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
- 		goto out_free_pmds;
- 
- 	/*
--	 * Make sure that pre-populating the pmds is atomic with
--	 * respect to anything walking the pgd_list, so that they
--	 * never see a partially populated pgd.
-+	 * No locking is needed here, as the PGD is still private,
-+	 * so no code walking the task list and looking at mm->pgd
-+	 * will be able to see it before it's fully constructed:
- 	 */
--	spin_lock(&pgd_lock);
+-	list_del(&page->lru);
+-}
 -
- 	pgd_ctor(mm, pgd);
- 	pgd_prepopulate_pmd(mm, pgd, pmds);
+ #define UNSHARED_PTRS_PER_PGD				\
+ 	(SHARED_KERNEL_PMD ? KERNEL_PGD_BOUNDARY : PTRS_PER_PGD)
  
--	spin_unlock(&pgd_lock);
 -
- 	return pgd;
- 
- out_free_pmds:
-@@ -453,7 +433,6 @@ void arch_pgd_init_late(struct mm_struct *mm)
- void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+-static void pgd_set_mm(pgd_t *pgd, struct mm_struct *mm)
+-{
+-	BUILD_BUG_ON(sizeof(virt_to_page(pgd)->index) < sizeof(mm));
+-	virt_to_page(pgd)->index = (pgoff_t)mm;
+-}
+-
+-struct mm_struct *pgd_page_get_mm(struct page *page)
+-{
+-	return (struct mm_struct *)page->index;
+-}
+-
+ static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
  {
- 	pgd_mop_up_pmds(mm, pgd);
--	pgd_dtor(pgd);
- 	paravirt_pgd_free(mm, pgd);
- 	_pgd_free(pgd);
- }
+ 	/* If the pgd points to a shared pagetable level (either the
 -- 
 2.1.4
 
