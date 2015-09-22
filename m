@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D01AF6B0253
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 13:55:15 -0400 (EDT)
-Received: by igbkq10 with SMTP id kq10so104497299igb.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 10:55:15 -0700 (PDT)
-Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com. [2607:f8b0:4001:c05::236])
-        by mx.google.com with ESMTPS id t2si3577571ioe.182.2015.09.22.10.55.10
+Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B0D886B0253
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 13:58:07 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so22229061ioi.2
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 10:58:07 -0700 (PDT)
+Received: from mail-io0-x230.google.com (mail-io0-x230.google.com. [2607:f8b0:4001:c06::230])
+        by mx.google.com with ESMTPS id y1si3380202igl.74.2015.09.22.10.58.07
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 10:55:10 -0700 (PDT)
-Received: by igbni9 with SMTP id ni9so14293123igb.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 10:55:10 -0700 (PDT)
+        Tue, 22 Sep 2015 10:58:07 -0700 (PDT)
+Received: by iofb144 with SMTP id b144so22388055iof.1
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 10:58:07 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1442903021-3893-6-git-send-email-mingo@kernel.org>
+In-Reply-To: <1442903021-3893-7-git-send-email-mingo@kernel.org>
 References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
-	<1442903021-3893-6-git-send-email-mingo@kernel.org>
-Date: Tue, 22 Sep 2015 10:55:09 -0700
-Message-ID: <CA+55aFzyZ6UKb_Ujm3E3eFwW_KUf8Vw3sV6tFpmAAGnificVvQ@mail.gmail.com>
-Subject: Re: [PATCH 05/11] mm: Introduce arch_pgd_init_late()
+	<1442903021-3893-7-git-send-email-mingo@kernel.org>
+Date: Tue, 22 Sep 2015 10:58:06 -0700
+Message-ID: <CA+55aFw5BLBTFWQpcOGYv4ALAM02aywTk1vz5ng=wqPnNH3qKw@mail.gmail.com>
+Subject: Re: [PATCH 06/11] x86/virt/guest/xen: Remove use of pgd_list from the
+ Xen guest code
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -26,26 +27,23 @@ To: Ingo Molnar <mingo@kernel.org>
 Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
 
 On Mon, Sep 21, 2015 at 11:23 PM, Ingo Molnar <mingo@kernel.org> wrote:
-> Add a late PGD init callback to places that allocate a new MM
-> with a new PGD: copy_process() and exec().
->
-> The purpose of this callback is to allow architectures to implement
-> lockless initialization of task PGDs, to remove the scalability
-> limit of pgd_list/pgd_lock.
+> xen_mm_pin_all()/unpin_all() are used to implement full guest instance
+> suspend/restore. It's a stop-all method that needs to iterate through
+> all allocated pgds in the system to fix them up for Xen's use.
 
-Do we really need this?
+And _this_ is why I'd reall ylike that "for_each_mm()" helper.
 
-Can't we just initialize the pgd when we allocate it, knowing that
-it's not in sync, but just depend on the vmalloc fault to add in any
-kernel entries that we might have missed?
+Yeah, yeah, maybe it would require syntax like
 
-I liked the other patches in the series because they remove code and
-simplify things. This patch I don't like.
+    for_each_mm (tsk, mm) {
+        ...
+    } end_for_each_mm(mm);
 
-There may be some reason we need it that I missed, and which makes me
-go "Duh!" when you tell me. But please do tell me.
+to do variable allocation things or cleanups (ie "end_for_each_mm()"
+might drop the task lock etc), but wouldn't that still be better than
+this complex boilerplate thing?
 
-               Linus
+                    Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
