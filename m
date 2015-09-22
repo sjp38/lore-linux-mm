@@ -1,79 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D45066B0253
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 14:52:51 -0400 (EDT)
-Received: by obbda8 with SMTP id da8so15461723obb.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:52:51 -0700 (PDT)
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com. [209.85.214.170])
-        by mx.google.com with ESMTPS id 11si1811362obs.46.2015.09.22.11.52.51
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 903496B0253
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 14:54:26 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so16733418pac.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:54:26 -0700 (PDT)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id pq4si4534302pac.95.2015.09.22.11.54.25
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 11:52:51 -0700 (PDT)
-Received: by obbbh8 with SMTP id bh8so15448115obb.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:52:51 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Sep 2015 11:54:25 -0700 (PDT)
+Received: by pablk4 with SMTP id lk4so1046439pab.3
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:54:25 -0700 (PDT)
+Date: Tue, 22 Sep 2015 11:54:17 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Multiple potential races on vma->vm_flags
+In-Reply-To: <CAAeHK+wABeppPQCsTmUk6cMswJosgkaXkHO5QTFBh=1ZTi+-3w@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1509221151370.11653@eggly.anvils>
+References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com> <55EC9221.4040603@oracle.com> <20150907114048.GA5016@node.dhcp.inet.fi> <55F0D5B2.2090205@oracle.com> <20150910083605.GB9526@node.dhcp.inet.fi>
+ <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com> <20150911103959.GA7976@node.dhcp.inet.fi> <alpine.LSU.2.11.1509111734480.7660@eggly.anvils> <55F8572D.8010409@oracle.com> <20150915190143.GA18670@node.dhcp.inet.fi>
+ <CAAeHK+wABeppPQCsTmUk6cMswJosgkaXkHO5QTFBh=1ZTi+-3w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFzBHDsB3icLkotCFdC57kNduredrUjd6+tt=q0OtuBS5Q@mail.gmail.com>
-References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
- <1442903021-3893-6-git-send-email-mingo@kernel.org> <CA+55aFzyZ6UKb_Ujm3E3eFwW_KUf8Vw3sV6tFpmAAGnificVvQ@mail.gmail.com>
- <CALCETrUv3yV2LBt9b5B_PQdfNOgJtcQrqVatWUU7Aozi4BAfLQ@mail.gmail.com>
- <CA+55aFy2oQztH_8TXgyAn944SpvD5wb9k=Os3fSYTB8V1Gc45w@mail.gmail.com>
- <CALCETrUp2rmUSfKcTphEybfTQ8Kh58kRUekG80vx0TpZURo50g@mail.gmail.com> <CA+55aFzBHDsB3icLkotCFdC57kNduredrUjd6+tt=q0OtuBS5Q@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 22 Sep 2015 11:52:31 -0700
-Message-ID: <CALCETrX9+dOE97r+A8v4eH7mhsPPA+hNXK7OF2ryMFhhHjT-jw@mail.gmail.com>
-Subject: Re: [PATCH 05/11] mm: Introduce arch_pgd_init_late()
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, Sep 22, 2015 at 11:44 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Tue, Sep 22, 2015 at 11:37 AM, Andy Lutomirski <luto@amacapital.net> wrote:
->> kinds of mess.
->>
->> I don't think that anyone really wants to move #PF to IST, which means
->> that we simply cannot handle vmalloc faults that happen when switching
->> stacks after SYSCALL, no matter what fanciness we shove into the
->> page_fault asm.
->
-> But that's fine. The kernel stack is special.  So yes, we want to make
-> sure that the kernel stack is always mapped in the thread whose stack
-> it is.
->
-> But that's not a big and onerous guarantee to make. Not when the
-> *real* problem is "random vmalloc allocations made by other processes
-> that we are not in the least interested in, and we don't want to add
-> synchronization for".
->
+On Tue, 22 Sep 2015, Andrey Konovalov wrote:
+> If anybody comes up with a patch to fix the original issue I easily
+> can test it, since I'm hitting "BUG: Bad page state" in a second when
+> fuzzing with KTSAN and Trinity.
 
-It's the kernel stack, the TSS (for sp0) and rsp_scratch at least.
-But yes, that's not that onerous, and it's never lazily initialized
-elsewhere.
+This "BUG: Bad page state" sounds more serious, but I cannot track down
+your report of it: please repost - thanks - though on seeing it, I may
+well end up with no ideas.
 
-How about this (long-term, not right now): Never free pgd entries.
-For each pgd, track the number of populated kernel entries.  Also
-track the global (init_mm) number of existing kernel entries.  At
-context switch time, if new_pgd has fewer entries that the total, sync
-it.
-
-This hits *at most* 256 times per thread, and otherwise it's just a
-single unlikely branch.  It guarantees that we only ever take a
-vmalloc fault when accessing maps that didn't exist when we last
-context switched, which gets us all of the important percpu stuff and
-the kernel stack, even if we schedule onto a cpu that didn't exist
-when the mm was created.
-
---Andy
-
->                          Linus
-
-
-
--- 
-Andy Lutomirski
-AMA Capital Management, LLC
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
