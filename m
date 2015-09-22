@@ -1,117 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 369856B0255
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:00:11 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so199589242wic.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 09:00:10 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id e8si3165184wjx.133.2015.09.22.09.00.09
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 647026B0253
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:09:12 -0400 (EDT)
+Received: by ioii196 with SMTP id i196so19324673ioi.3
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 09:09:12 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x75si3266820ioi.11.2015.09.22.09.09.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 09:00:10 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so200412014wic.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 09:00:09 -0700 (PDT)
-Date: Tue, 22 Sep 2015 18:00:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: hugetlbfs: Skip shared VMAs when unmapping private
- pages to satisfy a fault
-Message-ID: <20150922160008.GC4027@dhcp22.suse.cz>
-References: <20150922123151.GD3068@techsingularity.net>
- <20150922154938.GE3068@techsingularity.net>
+        Tue, 22 Sep 2015 09:09:11 -0700 (PDT)
+Date: Tue, 22 Sep 2015 18:06:08 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: can't oom-kill zap the victim's memory?
+Message-ID: <20150922160608.GA2716@redhat.com>
+References: <1442512783-14719-1-git-send-email-kwalker@redhat.com> <20150919150316.GB31952@redhat.com> <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com> <20150920125642.GA2104@redhat.com> <CA+55aFyajHq2W9HhJWbLASFkTx_kLSHtHuY6mDHKxmoW-LnVEw@mail.gmail.com> <20150921134414.GA15974@redhat.com> <20150921142423.GC19811@dhcp22.suse.cz> <20150921153252.GA21988@redhat.com> <20150921161203.GD19811@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150922154938.GE3068@techsingularity.net>
+In-Reply-To: <20150921161203.GD19811@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, SunDong <sund_sky@126.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-On Tue 22-09-15 16:49:38, Mel Gorman wrote:
-[...]
-> mm: hugetlbfs: Skip shared VMAs when unmapping private pages to satisfy a fault
-> 
-> SunDong reported the following on https://bugzilla.kernel.org/show_bug.cgi?id=103841
-> 
-> 	I think I find a linux bug, I have the test cases is constructed. I
-> 	can stable recurring problems in fedora22(4.0.4) kernel version,
-> 	arch for x86_64.  I construct transparent huge page, when the parent
-> 	and child process with MAP_SHARE, MAP_PRIVATE way to access the same
-> 	huge page area, it has the opportunity to lead to huge page copy on
-> 	write failure, and then it will munmap the child corresponding mmap
-> 	area, but then the child mmap area with VM_MAYSHARE attributes, child
-> 	process munmap this area can trigger VM_BUG_ON in set_vma_resv_flags
-> 	functions (vma - > vm_flags & VM_MAYSHARE).
-> 
-> There were a number of problems with the report (e.g. it's hugetlbfs that
-> triggers this, not transparent huge pages) but it was fundamentally correct
-> in that a VM_BUG_ON in set_vma_resv_flags() can be triggered that looks
-> like this
-> 
-> 	 vma ffff8804651fd0d0 start 00007fc474e00000 end 00007fc475e00000
-> 	 next ffff8804651fd018 prev ffff8804651fd188 mm ffff88046b1b1800
-> 	 prot 8000000000000027 anon_vma           (null) vm_ops ffffffff8182a7a0
-> 	 pgoff 0 file ffff88106bdb9800 private_data           (null)
-> 	 flags: 0x84400fb(read|write|shared|mayread|maywrite|mayexec|mayshare|dontexpand|hugetlb)
-> 	 ------------
-> 	 kernel BUG at mm/hugetlb.c:462!
-> 	 SMP
-> 	 Modules linked in: xt_pkttype xt_LOG xt_limit iscsi_ibft iscsi_boot_sysfs af_packet ip6t_REJECT nf_reject_ipv6
-> xt_tcpudp nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_raw ipt_REJECT nf_reject_ipv4 iptable_raw xt_CT iptable_filter ip6table_mangle
-> nf_conntrack_netbios_ns nf_conntrack_broadcast nf_conntrack_ipv4 nf_defrag_ipv4 ip_tables xt_conntrack nf_conntrack ip6table_filter
-> ip6_tables x_tables intel_powerclamp coretemp kvm_intel kvm mgag200 ttm drm_kms_helper drm crct10dif_pclmul crc32_pclmul crc32c_intel
-> ghash_clmulni_intel aesni_intel aes_x86_64 lrw ipmi_devintf gf128mul iTCO_wdt gpio_ich iTCO_vendor_support glue_helper ablk_helper
-> dcdbas i7core_edac cryptd syscopyarea sysfillrect bnx2 sysimgblt lpc_ich serio_raw edac_core i2c_algo_bit shpchp mfd_core ipmi_si
-> tpm_tis tpm ipmi_msghandler wmi acpi_power_meter button acpi_cpufreq processor dm_mod sr_mod cdrom ata_generic hid_generic usbhid hid
-> uhci_hcd ehci_pci ehci_hcd usbcore ata_piix usb_common megaraid_sas sg
-> 	 CPU: 38 PID: 26839 Comm: map Not tainted 4.0.4-default #1
-> 	 Hardware name: Dell Inc. PowerEdge R810/0TT6JF, BIOS 2.7.4 04/26/2012
-> 	 task: ffff88085ed10490 ti: ffff88085ed14000 task.ti: ffff88085ed14000
-> 	 set_vma_resv_flags+0x2d/0x30
-> 
-> The VM_BUG_ON is correct because private and shared mappings have different
-> reservation accounting but the warning clearly shows that the VMA is shared.
-> 
-> When a private COW fails to allocate a new page then only the process that
-> created the VMA gets the page -- all the children unmap the page. If the
-> children access that data in the future then they get killed.
-> 
-> The problem is that the same file is mapped shared and private. During
-> the COW, the allocation fails, the VMAs are traversed to unmap the other
-> private pages but a shared VMA is found and the bug is triggered. This
-> patch identifies such VMAs and skips them.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Reported-by: SunDong <sund_sky@126.com>
+On 09/21, Michal Hocko wrote:
+>
+> On Mon 21-09-15 17:32:52, Oleg Nesterov wrote:
+> > On 09/21, Michal Hocko wrote:
+> > >
+> > > On Mon 21-09-15 15:44:14, Oleg Nesterov wrote:
+> > > [...]
+> > > > So yes, in general oom_kill_process() can't call oom_unmap_func() directly.
+> > > > That is why the patch uses queue_work(oom_unmap_func). The workqueue thread
+> > > > takes mmap_sem and frees the memory allocated by user space.
+> > >
+> > > OK, this might have been a bit confusing. I didn't mean you cannot use
+> > > mmap_sem directly from the workqueue context. You _can_ AFAICS. But I've
+> > > mentioned that you _shouldn't_ use workqueue context in the first place
+> > > because all the workers might be blocked on locks and new workers cannot
+> > > be created due to memory pressure.
+> >
+> > Yes, yes, and I already tried to comment this part.
+>
+> OK then we are on the same page, good.
 
-Reviewed-by: Michal Hocko <mhocko@suse.com>
+Yes, yes.
 
-I guess you wanted to add Cc: stable back. I believe this goes very long
-way back.
- 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 999fb0aef8f1..9cc773483624 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -3202,6 +3202,14 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
->  			continue;
->  
->  		/*
-> +		 * Shared VMAs have their own reserves and do not affect
-> +		 * MAP_PRIVATE accounting but it is possible that a shared
-> +		 * VMA is using the same page so check and skip such VMAs.
-> +		 */
-> +		if (iter_vma->vm_flags & VM_MAYSHARE)
-> +			continue;
-> +
-> +		/*
->  		 * Unmap the page from other VMAs without their own reserves.
->  		 * They get marked to be SIGKILLed if they fault in these
->  		 * areas. This is because a future no-page fault on this VMA
+> > We probably need a
+> > dedicated kernel thread, but I still think (although I am not sure) that
+> > initial change can use workueue. In the likely case system_unbound_wq pool
+> > should have an idle thread, if not - OK, this change won't help in this
+> > case. This is minor.
+>
+> The point is that the implementation should be robust from the very
+> beginning.
 
--- 
-Michal Hocko
-SUSE Labs
+OK, let it be a kthread from the very beginning, I won't argue. This
+is really minor compared to other problems.
+
+> > > So I think we probably need to do this in the OOM killer context (with
+> > > try_lock)
+> >
+> > Yes we should try to do this in the OOM killer context, and in this case
+> > (of course) we need trylock. Let me quote my previous email:
+> >
+> > 	And we want to avoid using workqueues when the caller can do this
+> > 	directly. And in this case we certainly need trylock. But this needs
+> > 	some refactoring: we do not want to do this under oom_lock,
+>
+> Why do you think oom_lock would be a big deal?
+
+I don't really know... This doesn't look sane to me, but perhaps this
+is just because I don't understand this code enough.
+
+And note that the caller can held other locks we do not even know about.
+Most probably we should not deadlock, at least if we only unmap the anon
+pages, but still this doesn't look safe.
+
+But I agree, this probably needs more discussion.
+
+> Address space of the
+> victim might be really large but we can back off after a batch of
+> unmapped pages.
+
+Hmm. If we already have mmap_sem and started zap_page_range() then
+I do not think it makes sense to stop until we free everything we can.
+
+> I definitely agree with the simplicity for the first iteration. That
+> means only unmap private exclusive pages and release at most few megs of
+> them.
+
+See above, I am not sure this makes sense. And in any case this will
+complicate the initial changes, not simplify.
+
+> I am still not sure about some details, e.g. futex sitting in such
+> a memory. Wouldn't threads blow up when they see an unmapped futex page,
+> try to page it in and it would be in an uninitialized state? Maybe this
+> is safe
+
+But this must be safe.
+
+We do not care about userspace (assuming that all mm users have a
+pending SIGKILL).
+
+If this can (say) crash the kernel somehow, then we have a bug which
+should be fixed. Simply because userspace can exploit this bug doing
+MADV_DONTEED from another thread or CLONE_VM process.
+
+
+
+Finally. Whatever we do, we need to change oom_kill_process() first,
+and I think we should do this regardless. The "Kill all user processes
+sharing victim->mm" logic looks wrong and suboptimal/overcomplicated.
+I'll try to make some patches tomorrow if I have time...
+
+But. Can't we just remove another ->oom_score_adj check when we try
+to kill all mm users (the last for_each_process loop). If yes, this
+all can be simplified.
+
+I guess we can't and its a pity. Because it looks simply pointless
+to not kill all mm users. This just means the select_bad_process()
+picked the wrong task.
+
+
+Say, vfork(). OK, it is possible that parent is OOM_SCORE_ADJ_MIN and
+the child has already updated its oom_score_adj before exec. Now if
+we to kill the child we will only upset the parent for no reason, this
+won't help to free the memory.
+
+
+
+And while this completely offtopic... why does it take task_lock()
+to protect ->comm? Sure, without task_lock() we can print garbage.
+Is it really that important? I am asking because sometime people
+think that it is not safe to use ->comm lockless, but this is not
+true.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
