@@ -1,142 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 685A96B0254
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 19:30:16 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so22416499pac.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 16:30:16 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id rb3si5984069pbc.134.2015.09.22.16.30.15
+Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D5BAA6B0254
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 19:32:41 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so29747332ioi.2
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 16:32:41 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id z10si4256420igl.94.2015.09.22.16.32.41
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 16:30:15 -0700 (PDT)
-Received: by pacbt3 with SMTP id bt3so4094687pac.3
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 16:30:15 -0700 (PDT)
-Date: Tue, 22 Sep 2015 16:30:13 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Sep 2015 16:32:41 -0700 (PDT)
+Received: by pacex6 with SMTP id ex6so22465184pac.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 16:32:40 -0700 (PDT)
+Date: Tue, 22 Sep 2015 16:32:38 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, oom: remove task_lock protecting comm printing
-Message-ID: <alpine.DEB.2.10.1509221629440.7794@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm/oom_kill.c: don't kill TASK_UNINTERRUPTIBLE tasks
+In-Reply-To: <201509221433.ICI00012.VFOQMFHLFJtSOO@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.10.1509221631040.7794@chino.kir.corp.google.com>
+References: <20150918162423.GA18136@redhat.com> <alpine.DEB.2.11.1509181200140.11964@east.gentwo.org> <20150919083218.GD28815@dhcp22.suse.cz> <201509192333.AGJ30797.OQOFLFSMJVFOtH@I-love.SAKURA.ne.jp> <alpine.DEB.2.10.1509211628050.27715@chino.kir.corp.google.com>
+ <201509221433.ICI00012.VFOQMFHLFJtSOO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@kernel.org, cl@linux.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
 
-The oom killer takes task_lock() in a couple of places solely to protect
-printing the task's comm.
+On Tue, 22 Sep 2015, Tetsuo Handa wrote:
 
-A process's comm, including current's comm, may change due to
-/proc/pid/comm or PR_SET_NAME.
+> David Rientjes wrote:
+> > Your proposal, which I mostly agree with, tries to kill additional 
+> > processes so that they allocate and drop the lock that the original victim 
+> > depends on.  My approach, from 
+> > http://marc.info/?l=linux-kernel&m=144010444913702, is the same, but 
+> > without the killing.  It's unecessary to kill every process on the system 
+> > that is depending on the same lock, and we can't know which processes are 
+> > stalling on that lock and which are not.
+> 
+> Would you try your approach with below program?
+> (My reproducers are tested on XFS on a VM with 4 CPUs / 2048MB RAM.)
+> 
+> ---------- oom-depleter3.c start ----------
+> #define _GNU_SOURCE
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <unistd.h>
+> #include <sys/types.h>
+> #include <sys/stat.h>
+> #include <fcntl.h>
+> #include <sched.h>
+> 
+> static int zero_fd = EOF;
+> static char *buf = NULL;
+> static unsigned long size = 0;
+> 
+> static int dummy(void *unused)
+> {
+> 	static char buffer[4096] = { };
+> 	int fd = open("/tmp/file", O_WRONLY | O_CREAT | O_APPEND, 0600);
+> 	while (write(fd, buffer, sizeof(buffer) == sizeof(buffer)) &&
+> 	       fsync(fd) == 0);
+> 	return 0;
+> }
+> 
+> static int trigger(void *unused)
+> {
+> 	read(zero_fd, buf, size); /* Will cause OOM due to overcommit */
+> 	return 0;
+> }
+> 
+> int main(int argc, char *argv[])
+> {
+>         unsigned long i;
+> 	zero_fd = open("/dev/zero", O_RDONLY);
+> 	for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
+> 		char *cp = realloc(buf, size);
+> 		if (!cp) {
+> 			size >>= 1;
+> 			break;
+> 		}
+> 		buf = cp;
+> 	}
+> 	/*
+> 	 * Create many child threads in order to enlarge time lag between
+> 	 * the OOM killer sets TIF_MEMDIE to thread group leader and
+> 	 * the OOM killer sends SIGKILL to that thread.
+> 	 */
+> 	for (i = 0; i < 1000; i++) {
+> 		clone(dummy, malloc(1024) + 1024, CLONE_SIGHAND | CLONE_VM,
+> 		      NULL);
+> 	}
+> 	/* Let a child thread trigger the OOM killer. */
+> 	clone(trigger, malloc(4096)+ 4096, CLONE_SIGHAND | CLONE_VM, NULL);
+> 	/* Deplete all memory reserve using the time lag. */
+> 	for (i = size; i; i -= 4096)
+> 		buf[i - 1] = 1;
+> 	return * (char *) NULL; /* Kill all threads. */
+> }
+> ---------- oom-depleter3.c end ----------
+> 
+> uptime > 350 of http://I-love.SAKURA.ne.jp/tmp/serial-20150922-1.txt.xz
+> shows that the memory reserves completely depleted and
+> uptime > 42 of http://I-love.SAKURA.ne.jp/tmp/serial-20150922-2.txt.xz
+> shows that the memory reserves was not used at all.
+> Is this result what you expected?
+> 
 
-The comm will always be NULL-terminated, so the worst race scenario would
-only be during update.  We can tolerate a comm being printed that is in
-the middle of an update to avoid taking the lock.
+What are the results when the kernel isn't patched at all?  The trade-off 
+being made is that we want to attempt to make forward progress when there 
+is an excessive stall in an oom victim making its exit rather than 
+livelock the system forever waiting for memory that can never be 
+allocated.
 
-Other locations in the kernel have already dropped task_lock() when
-printing comm, so this is consistent.
-
-Suggested-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/cpuset.h |  4 ++--
- kernel/cpuset.c        | 14 +++++++-------
- mm/oom_kill.c          |  8 +-------
- 3 files changed, 10 insertions(+), 16 deletions(-)
-
-diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
---- a/include/linux/cpuset.h
-+++ b/include/linux/cpuset.h
-@@ -93,7 +93,7 @@ extern int current_cpuset_is_being_rebound(void);
- 
- extern void rebuild_sched_domains(void);
- 
--extern void cpuset_print_task_mems_allowed(struct task_struct *p);
-+extern void cpuset_print_current_mems_allowed(void);
- 
- /*
-  * read_mems_allowed_begin is required when making decisions involving
-@@ -219,7 +219,7 @@ static inline void rebuild_sched_domains(void)
- 	partition_sched_domains(1, NULL, NULL);
- }
- 
--static inline void cpuset_print_task_mems_allowed(struct task_struct *p)
-+static inline void cpuset_print_current_mems_allowed(void)
- {
- }
- 
-diff --git a/kernel/cpuset.c b/kernel/cpuset.c
---- a/kernel/cpuset.c
-+++ b/kernel/cpuset.c
-@@ -2599,22 +2599,22 @@ int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
- }
- 
- /**
-- * cpuset_print_task_mems_allowed - prints task's cpuset and mems_allowed
-- * @tsk: pointer to task_struct of some task.
-+ * cpuset_print_current_mems_allowed - prints current's cpuset and mems_allowed
-  *
-- * Description: Prints @task's name, cpuset name, and cached copy of its
-+ * Description: Prints current's name, cpuset name, and cached copy of its
-  * mems_allowed to the kernel log.
-  */
--void cpuset_print_task_mems_allowed(struct task_struct *tsk)
-+void cpuset_print_current_mems_allowed(void)
- {
- 	struct cgroup *cgrp;
- 
- 	rcu_read_lock();
- 
--	cgrp = task_cs(tsk)->css.cgroup;
--	pr_info("%s cpuset=", tsk->comm);
-+	cgrp = task_cs(current)->css.cgroup;
-+	pr_info("%s cpuset=", current->comm);
- 	pr_cont_cgroup_name(cgrp);
--	pr_cont(" mems_allowed=%*pbl\n", nodemask_pr_args(&tsk->mems_allowed));
-+	pr_cont(" mems_allowed=%*pbl\n",
-+		nodemask_pr_args(&current->mems_allowed));
- 
- 	rcu_read_unlock();
- }
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -386,13 +386,11 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
- static void dump_header(struct oom_control *oc, struct task_struct *p,
- 			struct mem_cgroup *memcg)
- {
--	task_lock(current);
- 	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
- 		"oom_score_adj=%hd\n",
- 		current->comm, oc->gfp_mask, oc->order,
- 		current->signal->oom_score_adj);
--	cpuset_print_task_mems_allowed(current);
--	task_unlock(current);
-+	cpuset_print_current_mems_allowed();
- 	dump_stack();
- 	if (memcg)
- 		mem_cgroup_print_oom_info(memcg, p);
-@@ -518,10 +516,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	if (__ratelimit(&oom_rs))
- 		dump_header(oc, p, memcg);
- 
--	task_lock(p);
- 	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
- 		message, task_pid_nr(p), p->comm, points);
--	task_unlock(p);
- 
- 	/*
- 	 * If any of p's children has a different mm and is eligible for kill,
-@@ -586,10 +582,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
- 				continue;
- 
--			task_lock(p);	/* Protect ->comm from prctl() */
- 			pr_err("Kill process %d (%s) sharing same memory\n",
- 				task_pid_nr(p), p->comm);
--			task_unlock(p);
- 			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
- 		}
- 	rcu_read_unlock();
+I struggle to understand how the approach of randomly continuing to kill 
+more and more processes in the hope that it slows down usage of memory 
+reserves or that we get lucky is better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
