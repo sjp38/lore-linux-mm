@@ -1,86 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A2166B0038
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:13:57 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so4250198pac.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:13:57 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id r3si1075444pap.0.2015.09.22.02.13.56
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id BD1F36B0038
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:32:59 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so14625711wic.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:32:59 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ct4si869941wjb.45.2015.09.22.02.32.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 22 Sep 2015 02:13:56 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0NV200D60MZ4DV70@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 22 Sep 2015 10:13:52 +0100 (BST)
-Subject: Re: [PATCH 00/38] Fixes related to incorrect usage of unsigned types
-References: <1442842450-29769-1-git-send-email-a.hajda@samsung.com>
- <17571.1442842945@warthog.procyon.org.uk>
-From: Andrzej Hajda <a.hajda@samsung.com>
-Message-id: <56011BB9.5030004@samsung.com>
-Date: Tue, 22 Sep 2015 11:13:29 +0200
-MIME-version: 1.0
-In-reply-to: <17571.1442842945@warthog.procyon.org.uk>
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 22 Sep 2015 02:32:58 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v2 3/3] mm, compaction: disginguish contended status in tracepoints
+Date: Tue, 22 Sep 2015 11:32:45 +0200
+Message-Id: <1442914365-15949-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1442914365-15949-1-git-send-email-vbabka@suse.cz>
+References: <1442914365-15949-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: Andrzej Hajda <a.hajda@samsung.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, brcm80211-dev-list@broadcom.com, devel@driverdev.osuosl.org, dev@openvswitch.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-api@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cachefs@redhat.com, linux-clk@vger.kernel.org, linux-crypto@vger.kernel.org, linux-fbdev@vger.kernel.org, linux-input@vger.kernel.orglinux-kernel@vger.kernel.org, linux-leds@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-omap@vger.kernel.org, linux-rdma@vger.kernel.org, linux-serial@vger.kernel.org, linux-sh@vger.kernel.org, linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org, lustre-devel@lists.lustre.org, netdev@vger.kernel.org, rtc-linux@googlegroups.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
 
-On 09/21/2015 03:42 PM, David Howells wrote:
-> Andrzej Hajda <a.hajda-Sze3O3UU22JBDgjK7y7TUQ@public.gmane.org> wrote:
-> 
->> Semantic patch finds comparisons of types:
->>     unsigned < 0
->>     unsigned >= 0
->> The former is always false, the latter is always true.
->> Such comparisons are useless, so theoretically they could be
->> safely removed, but their presence quite often indicates bugs.
-> 
-> Or someone has left them in because they don't matter and there's the
-> possibility that the type being tested might be or become signed under some
-> circumstances.  If the comparison is useless, I'd expect the compiler to just
-> discard it - for such cases your patch is pointless.
-> 
-> If I have, for example:
-> 
-> 	unsigned x;
-> 
-> 	if (x == 0 || x > 27)
-> 		give_a_range_error();
-> 
-> I will write this as:
-> 
-> 	unsigned x;
-> 
-> 	if (x <= 0 || x > 27)
-> 		give_a_range_error();
-> 
-> because it that gives a way to handle x being changed to signed at some point
-> in the future for no cost.  In which case, your changing the <= to an ==
-> "because the < part of the case is useless" is arguably wrong.
+Compaction returns prematurely with COMPACT_PARTIAL when contended or has fatal
+signal pending. This is ok for the callers, but might be misleading in the
+traces, as the usual reason to return COMPACT_PARTIAL is that we think the
+allocation should succeed. After this patch we distinguish the premature ending
+condition in the mm_compaction_finished and mm_compaction_end tracepoints.
 
-This is why I have not checked for such cases - I have skipped checks of type
-	unsigned <= 0
-exactly for the reasons above.
+The contended status covers the following reasons:
+- lock contention or need_resched() detected in async compaction
+- fatal signal pending
+- too many pages isolated in the zone (only for async compaction)
+Further distinguishing the exact reason seems unnecessary for now.
 
-However I have left two other checks as they seems to me more suspicious - they
-are always true or false. But as Dmitry and Andrew pointed out Linus have quite
-strong opinion against removing range checks in such cases as he finds it
-clearer. I think it applies to patches 29-36. I am not sure about patches 26-28,37.
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>
+---
+v2: extend to mm_compaction_end (pointed out by Joonsoo)
 
-Regards
-Andrzej
+ include/linux/compaction.h        | 1 +
+ include/trace/events/compaction.h | 3 ++-
+ mm/compaction.c                   | 9 ++++++---
+ 3 files changed, 9 insertions(+), 4 deletions(-)
 
-> 
-> David
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-wireless" in
-> the body of a message to majordomo-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index f14ba98..4cd4ddf 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -15,6 +15,7 @@
+ /* For more detailed tracepoint output */
+ #define COMPACT_NO_SUITABLE_PAGE	5
+ #define COMPACT_NOT_SUITABLE_ZONE	6
++#define COMPACT_CONTENDED		7
+ /* When adding new states, please adjust include/trace/events/compaction.h */
+ 
+ /* Used to signal whether compaction detected need_sched() or lock contention */
+diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+index 8daa8fa..5604994 100644
+--- a/include/trace/events/compaction.h
++++ b/include/trace/events/compaction.h
+@@ -16,7 +16,8 @@
+ 	EM( COMPACT_PARTIAL,		"partial")		\
+ 	EM( COMPACT_COMPLETE,		"complete")		\
+ 	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
+-	EMe(COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")
++	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
++	EMe(COMPACT_CONTENDED,		"contended")
+ 
+ #ifdef CONFIG_ZONE_DMA
+ #define IFDEF_ZONE_DMA(X) X
+diff --git a/mm/compaction.c b/mm/compaction.c
+index a5849c4..de3e1e7 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1202,7 +1202,7 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
+ 	unsigned long watermark;
+ 
+ 	if (cc->contended || fatal_signal_pending(current))
+-		return COMPACT_PARTIAL;
++		return COMPACT_CONTENDED;
+ 
+ 	/* Compaction run completes if the migrate and free scanner meet */
+ 	if (compact_scanners_met(cc)) {
+@@ -1393,7 +1393,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 
+ 		switch (isolate_migratepages(zone, cc)) {
+ 		case ISOLATE_ABORT:
+-			ret = COMPACT_PARTIAL;
++			ret = COMPACT_CONTENDED;
+ 			putback_movable_pages(&cc->migratepages);
+ 			cc->nr_migratepages = 0;
+ 			goto out;
+@@ -1424,7 +1424,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 			 * and we want compact_finished() to detect it
+ 			 */
+ 			if (err == -ENOMEM && !compact_scanners_met(cc)) {
+-				ret = COMPACT_PARTIAL;
++				ret = COMPACT_CONTENDED;
+ 				goto out;
+ 			}
+ 		}
+@@ -1477,6 +1477,9 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
+ 				cc->free_pfn, end_pfn, sync, ret);
+ 
++	if (ret == COMPACT_CONTENDED)
++		ret = COMPACT_PARTIAL;
++
+ 	return ret;
+ }
+ 
+-- 
+2.5.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
