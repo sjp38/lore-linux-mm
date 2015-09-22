@@ -1,60 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 52A2C6B0038
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:09:45 -0400 (EDT)
-Received: by lahg1 with SMTP id g1so4405479lah.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:09:44 -0700 (PDT)
-Received: from mail-la0-x230.google.com (mail-la0-x230.google.com. [2a00:1450:4010:c03::230])
-        by mx.google.com with ESMTPS id as1si18572775lbc.94.2015.09.22.02.09.43
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A2166B0038
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:13:57 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so4250198pac.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:13:57 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id r3si1075444pap.0.2015.09.22.02.13.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 02:09:43 -0700 (PDT)
-Received: by lahg1 with SMTP id g1so4404993lah.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:09:43 -0700 (PDT)
-Date: Tue, 22 Sep 2015 12:09:35 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH 1/2] mm: add architecture primitives for software dirty
- bit clearing
-Message-ID: <20150922090935.GA10131@uranus>
-References: <1442848940-22108-1-git-send-email-schwidefsky@de.ibm.com>
- <1442848940-22108-2-git-send-email-schwidefsky@de.ibm.com>
- <20150921194854.GD3181@uranus>
- <20150922093549.504a5fb3@mschwide>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150922093549.504a5fb3@mschwide>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 22 Sep 2015 02:13:56 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0NV200D60MZ4DV70@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 22 Sep 2015 10:13:52 +0100 (BST)
+Subject: Re: [PATCH 00/38] Fixes related to incorrect usage of unsigned types
+References: <1442842450-29769-1-git-send-email-a.hajda@samsung.com>
+ <17571.1442842945@warthog.procyon.org.uk>
+From: Andrzej Hajda <a.hajda@samsung.com>
+Message-id: <56011BB9.5030004@samsung.com>
+Date: Tue, 22 Sep 2015 11:13:29 +0200
+MIME-version: 1.0
+In-reply-to: <17571.1442842945@warthog.procyon.org.uk>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@linuxfoundation.org>, Pavel Emelyanov <xemul@virtuozzo.com>
+To: David Howells <dhowells@redhat.com>
+Cc: Andrzej Hajda <a.hajda@samsung.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, brcm80211-dev-list@broadcom.com, devel@driverdev.osuosl.org, dev@openvswitch.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, linux-api@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cachefs@redhat.com, linux-clk@vger.kernel.org, linux-crypto@vger.kernel.org, linux-fbdev@vger.kernel.org, linux-input@vger.kernel.orglinux-kernel@vger.kernel.org, linux-leds@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, linux-omap@vger.kernel.org, linux-rdma@vger.kernel.org, linux-serial@vger.kernel.org, linux-sh@vger.kernel.org, linux-usb@vger.kernel.org, linux-wireless@vger.kernel.org, lustre-devel@lists.lustre.org, netdev@vger.kernel.org, rtc-linux@googlegroups.com
 
-On Tue, Sep 22, 2015 at 09:35:49AM +0200, Martin Schwidefsky wrote:
-> > 
-> > Looks good to me. Thank you, Martin!
-> > (I cant ack s390 part 'casuse I simply not familiar
-> >  with the architecture).
+On 09/21/2015 03:42 PM, David Howells wrote:
+> Andrzej Hajda <a.hajda-Sze3O3UU22JBDgjK7y7TUQ@public.gmane.org> wrote:
 > 
-> Sure, the s390 patch just shows why the new arch functions are needed..
+>> Semantic patch finds comparisons of types:
+>>     unsigned < 0
+>>     unsigned >= 0
+>> The former is always false, the latter is always true.
+>> Such comparisons are useless, so theoretically they could be
+>> safely removed, but their presence quite often indicates bugs.
+> 
+> Or someone has left them in because they don't matter and there's the
+> possibility that the type being tested might be or become signed under some
+> circumstances.  If the comparison is useless, I'd expect the compiler to just
+> discard it - for such cases your patch is pointless.
+> 
+> If I have, for example:
+> 
+> 	unsigned x;
+> 
+> 	if (x == 0 || x > 27)
+> 		give_a_range_error();
+> 
+> I will write this as:
+> 
+> 	unsigned x;
+> 
+> 	if (x <= 0 || x > 27)
+> 		give_a_range_error();
+> 
+> because it that gives a way to handle x being changed to signed at some point
+> in the future for no cost.  In which case, your changing the <= to an ==
+> "because the < part of the case is useless" is arguably wrong.
 
-A see, thanks!
+This is why I have not checked for such cases - I have skipped checks of type
+	unsigned <= 0
+exactly for the reasons above.
+
+However I have left two other checks as they seems to me more suspicious - they
+are always true or false. But as Dmitry and Andrew pointed out Linus have quite
+strong opinion against removing range checks in such cases as he finds it
+clearer. I think it applies to patches 29-36. I am not sure about patches 26-28,37.
+
+Regards
+Andrzej
 
 > 
-> > Acked-by: Cyrill Gorcunov <gorcunov@openvz.org>
+> David
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-wireless" in
+> the body of a message to majordomo-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 > 
-> Thanks. I have added both patches to the features branch of linux-s390
-> for the 4.4 merge window.
-
-The first patch (x86 and general helpers) seems better to go via
-Andrew (CC'ed) becase they are not s390 only. And while these
-changes are fine for me and you as far as I can say, lets them
-floating around for some more review just to make sure we're not
-missing something obvious.
-
-And initially the soft-dirty feature has been hittin vanilla by
--mm tree so I suppose we should continue this way, though I
-don't mind if it gonna be merged via pull request from s390
-side but still ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
