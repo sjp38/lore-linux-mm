@@ -1,53 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 09CC86B0253
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 14:03:46 -0400 (EDT)
-Received: by obbda8 with SMTP id da8so14300054obb.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:03:45 -0700 (PDT)
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com. [209.85.214.174])
-        by mx.google.com with ESMTPS id p187si1704861oih.136.2015.09.22.11.03.45
+Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 58FDA6B0253
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 14:20:55 -0400 (EDT)
+Received: by ykdt18 with SMTP id t18so18141245ykd.3
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:20:55 -0700 (PDT)
+Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
+        by mx.google.com with ESMTPS id t5si1784101ykb.147.2015.09.22.11.20.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 11:03:45 -0700 (PDT)
-Received: by obbda8 with SMTP id da8so14299769obb.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:03:45 -0700 (PDT)
+        Tue, 22 Sep 2015 11:20:54 -0700 (PDT)
+Received: by ykdz138 with SMTP id z138so18108302ykd.2
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:20:54 -0700 (PDT)
+Date: Tue, 22 Sep 2015 14:20:49 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC v2 02/18] kthread: Add create_kthread_worker*()
+Message-ID: <20150922182049.GA17659@mtj.duckdns.org>
+References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
+ <1442840639-6963-3-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFz2YH6F1L7JULQZOUMqyqeR+2LL2GWeg+QV1T8aRkJw1w@mail.gmail.com>
-References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
- <1442903021-3893-2-git-send-email-mingo@kernel.org> <CA+55aFz2YH6F1L7JULQZOUMqyqeR+2LL2GWeg+QV1T8aRkJw1w@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 22 Sep 2015 11:03:25 -0700
-Message-ID: <CALCETrV-Y90=wXOuXGauT0BQbyHdkpfLmi1nF5Y2G=Vhx3GzuA@mail.gmail.com>
-Subject: Re: [PATCH 01/11] x86/mm/pat: Don't free PGD entries on memory unmap
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1442840639-6963-3-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 22, 2015 at 10:41 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Mon, Sep 21, 2015 at 11:23 PM, Ingo Molnar <mingo@kernel.org> wrote:
->>
->> This complicates PGD management, so don't do this. We can keep the
->> PGD mapped and the PUD table all clear - it's only a single 4K page
->> per 512 GB of memory mapped.
->
-> I'm ok with this just from a "it removes code" standpoint.  That said,
-> some of the other patches here make me go "hmm". I'll answer them
-> separately.
->
+Hello, Petr.
 
-If we want to get rid of vmalloc faults, then this patch makes it much
-more obvious that it can be done without hurting performance.
+On Mon, Sep 21, 2015 at 03:03:43PM +0200, Petr Mladek wrote:
+> It enforces using kthread_worker_fn() for the main thread. But I doubt
+> that there are any plans to create any alternative. In fact, I think
+> that we do not want any alternative main thread because it would be
+> hard to support consistency with the rest of the kthread worker API.
 
->                   Linus
+The original intention was allowing users to use a wrapper function
+which sets up kthread attributes and then calls kthread_worker_fn().
+That can be done by a work item too but is more cumbersome.  Just
+wanted to note that.  Will keep reading on.
 
-
+Thanks.
 
 -- 
-Andy Lutomirski
-AMA Capital Management, LLC
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
