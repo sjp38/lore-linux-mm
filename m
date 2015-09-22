@@ -1,58 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0BE6B0253
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 14:26:53 -0400 (EDT)
-Received: by iofb144 with SMTP id b144so23171141iof.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:26:53 -0700 (PDT)
-Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
-        by mx.google.com with ESMTPS id 72si3679406iot.191.2015.09.22.11.26.52
+Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A9C256B0254
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 14:27:05 -0400 (EDT)
+Received: by ykdz138 with SMTP id z138so18290669ykd.2
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:27:05 -0700 (PDT)
+Received: from mail-yk0-x230.google.com (mail-yk0-x230.google.com. [2607:f8b0:4002:c07::230])
+        by mx.google.com with ESMTPS id v139si1813694ywa.47.2015.09.22.11.27.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 11:26:52 -0700 (PDT)
-Received: by igcrk20 with SMTP id rk20so86354319igc.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:26:52 -0700 (PDT)
+        Tue, 22 Sep 2015 11:27:04 -0700 (PDT)
+Received: by ykdt18 with SMTP id t18so18322247ykd.3
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:27:04 -0700 (PDT)
+Date: Tue, 22 Sep 2015 14:26:59 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC v2 03/18] kthread: Add drain_kthread_worker()
+Message-ID: <20150922182659.GB17659@mtj.duckdns.org>
+References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
+ <1442840639-6963-4-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrUv3yV2LBt9b5B_PQdfNOgJtcQrqVatWUU7Aozi4BAfLQ@mail.gmail.com>
-References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
-	<1442903021-3893-6-git-send-email-mingo@kernel.org>
-	<CA+55aFzyZ6UKb_Ujm3E3eFwW_KUf8Vw3sV6tFpmAAGnificVvQ@mail.gmail.com>
-	<CALCETrUv3yV2LBt9b5B_PQdfNOgJtcQrqVatWUU7Aozi4BAfLQ@mail.gmail.com>
-Date: Tue, 22 Sep 2015 11:26:52 -0700
-Message-ID: <CA+55aFy2oQztH_8TXgyAn944SpvD5wb9k=Os3fSYTB8V1Gc45w@mail.gmail.com>
-Subject: Re: [PATCH 05/11] mm: Introduce arch_pgd_init_late()
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1442840639-6963-4-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 22, 2015 at 11:00 AM, Andy Lutomirski <luto@amacapital.net> wrote:
->
-> I really really hate the vmalloc fault thing.  It seems to work,
-> rather to my surprise.  It doesn't *deserve* to work, because of
-> things like the percpu TSS accesses in the entry code that happen
-> without a valid stack.
+On Mon, Sep 21, 2015 at 03:03:44PM +0200, Petr Mladek wrote:
+> flush_kthread_worker() returns when the currently queued works are proceed.
+								     ^
+								   processed?
 
-The thing is, I think you're misguided in your hatred.
+> But some other works might have been queued in the meantime.
+...
+> +/**
+> + * drain_kthread_worker - drain a kthread worker
+> + * @worker: worker to be drained
+> + *
+> + * Wait until there is none work queued for the given kthread worker.
+                          ^
+                          no
 
-The reason I say that is because I think we should just embrace the
-fact that faults can and do happen in the kernel in very inconvenient
-places, and not just in code we "control".
+> + * Only currently running work on @worker can queue further work items
+                                             ^^^^^^^^^
+				 should be queueing is prolly more accurate
 
-Even if you get rid of the vmalloc fault, you'll still have debug
-faults, and you'll still have NMI's and horrible crazy machine check
-faults.
+> + * on it.  @worker is flushed repeatedly until it becomes empty.
+> + * The number of flushing is determined by the depth of chaining
+> + * and should be relatively short.  Whine if it takes too long.
+> + *
+> + * The caller is responsible for blocking all existing works
+> + * from an infinite re-queuing!
+           
+The caller is responsible for preventing the existing work items from
+requeueing themselves indefinitely.
 
-I actually think teh vmalloc fault is a good way to just let people
-know "pretty much anything can trap, deal with it".
+> + *
+> + * Also the caller is responsible for blocking all the kthread
+> + * worker users from queuing any new work. It is especially
+> + * important if the queue has to stay empty once this function
+> + * finishes.
 
-And I think trying to eliminate them is the wrong thing, because it
-forces us to be so damn synchronized. This whole patch-series is a
-prime example of why that is a bad bad things. We want to have _less_
-synchronization.
+The last sentence reads a bit weird to me.  New work items just aren't
+allowed while draining.  It isn't "especially important" for certain
+cases.  It's just buggy otherwise.
 
-                Linus
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
