@@ -1,74 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id AADDC6B0038
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 03:35:56 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so178419302wic.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 00:35:56 -0700 (PDT)
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
-        by mx.google.com with ESMTPS id n5si22949155wia.1.2015.09.22.00.35.54
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 40EF56B0038
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 04:04:01 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so2639057pad.1
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 01:04:01 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id rj3si627601pbc.104.2015.09.22.01.03.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Tue, 22 Sep 2015 00:35:55 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Tue, 22 Sep 2015 08:35:54 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id DFD7F1B08072
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 08:37:35 +0100 (BST)
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8M7Zqjp35782782
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 07:35:52 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8M7ZpuZ026879
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 01:35:51 -0600
-Date: Tue, 22 Sep 2015 09:35:49 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH 1/2] mm: add architecture primitives for software dirty
- bit clearing
-Message-ID: <20150922093549.504a5fb3@mschwide>
-In-Reply-To: <20150921194854.GD3181@uranus>
-References: <1442848940-22108-1-git-send-email-schwidefsky@de.ibm.com>
-	<1442848940-22108-2-git-send-email-schwidefsky@de.ibm.com>
-	<20150921194854.GD3181@uranus>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 22 Sep 2015 01:04:00 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH v3] xfs: Print comm name and pid when open-coded __GFP_NOFAIL allocation stucks
+Date: Tue, 22 Sep 2015 17:03:43 +0900
+Message-Id: <1442909023-4088-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <20150922051253.GB3902@dastard>
+References: <20150922051253.GB3902@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: david@fromorbit.com
+Cc: xfs@oss.sgi.com, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>
 
-On Mon, 21 Sep 2015 22:48:54 +0300
-Cyrill Gorcunov <gorcunov@gmail.com> wrote:
+This patch adds comm name and pid to warning messages printed by
+kmem_alloc(), kmem_zone_alloc() and xfs_buf_allocate_memory().
+This will help telling which memory allocations (e.g. kernel worker
+threads, OOM victim tasks, neither) are stalling because these functions
+are passing __GFP_NOWARN which suppresses not only backtrace but comm name
+and pid.
 
-> On Mon, Sep 21, 2015 at 05:22:19PM +0200, Martin Schwidefsky wrote:
-> > There are primitives to create and query the software dirty bits
-> > in a pte or pmd. But the clearing of the software dirty bits is done
-> > in common code with x86 specific page table functions.
-> > 
-> > Add the missing architecture primitives to clear the software dirty
-> > bits to allow the feature to be used on non-x86 systems, e.g. the
-> > s390 architecture.
-> > 
-> > Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> 
-> Looks good to me. Thank you, Martin!
-> (I cant ack s390 part 'casuse I simply not familiar
->  with the architecture).
+  [   66.089978] Kill process 8505 (a.out) sharing same memory
+  [   69.748060] XFS: a.out(8082) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
+  [   69.798580] XFS: kworker/u16:28(381) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
+  [   69.876952] XFS: xfs-data/sda1(399) possible memory allocation deadlock in kmem_alloc (mode:0x8250)
+  [   70.359518] XFS: a.out(8412) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
+  [   73.299509] XFS: kworker/u16:28(381) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
+  [   73.470350] XFS: xfs-data/sda1(399) possible memory allocation deadlock in kmem_alloc (mode:0x8250)
+  [   73.664420] XFS: a.out(8082) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
+  [   73.967434] XFS: a.out(8412) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
+  [   76.950038] XFS: kworker/u16:28(381) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
+  [   76.957938] XFS: xfs-data/sda1(399) possible memory allocation deadlock in kmem_alloc (mode:0x8250)
 
-Sure, the s390 patch just shows why the new arch functions are needed..
+(Strictly speaking, we want task_lock()/task_unlock() when reading comm name.)
 
-> Acked-by: Cyrill Gorcunov <gorcunov@openvz.org>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>
+---
+ fs/xfs/kmem.c    | 10 ++++++----
+ fs/xfs/xfs_buf.c |  3 ++-
+ 2 files changed, 8 insertions(+), 5 deletions(-)
 
-Thanks. I have added both patches to the features branch of linux-s390
-for the 4.4 merge window.
-
+diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
+index a7a3a63..535c136 100644
+--- a/fs/xfs/kmem.c
++++ b/fs/xfs/kmem.c
+@@ -55,8 +55,9 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
+ 			return ptr;
+ 		if (!(++retries % 100))
+ 			xfs_err(NULL,
+-		"possible memory allocation deadlock in %s (mode:0x%x)",
+-					__func__, lflags);
++		"%s(%u) possible memory allocation deadlock in %s (mode:0x%x)",
++				current->comm, current->pid,
++				__func__, lflags);
+ 		congestion_wait(BLK_RW_ASYNC, HZ/50);
+ 	} while (1);
+ }
+@@ -120,8 +121,9 @@ kmem_zone_alloc(kmem_zone_t *zone, xfs_km_flags_t flags)
+ 			return ptr;
+ 		if (!(++retries % 100))
+ 			xfs_err(NULL,
+-		"possible memory allocation deadlock in %s (mode:0x%x)",
+-					__func__, lflags);
++		"%s(%u) possible memory allocation deadlock in %s (mode:0x%x)",
++				current->comm, current->pid,
++				__func__, lflags);
+ 		congestion_wait(BLK_RW_ASYNC, HZ/50);
+ 	} while (1);
+ }
+diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
+index 8ecffb3..cac62e1 100644
+--- a/fs/xfs/xfs_buf.c
++++ b/fs/xfs/xfs_buf.c
+@@ -354,7 +354,8 @@ retry:
+ 			 */
+ 			if (!(++retries % 100))
+ 				xfs_err(NULL,
+-		"possible memory allocation deadlock in %s (mode:0x%x)",
++		"%s(%u) possible memory allocation deadlock in %s (mode:0x%x)",
++					current->comm, current->pid,
+ 					__func__, gfp_mask);
+ 
+ 			XFS_STATS_INC(xb_page_retries);
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
