@@ -1,44 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 903496B0253
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 14:54:26 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so16733418pac.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:54:26 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id pq4si4534302pac.95.2015.09.22.11.54.25
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 0005B6B0253
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 15:34:52 -0400 (EDT)
+Received: by qgx61 with SMTP id 61so2496022qgx.3
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:34:52 -0700 (PDT)
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com. [129.33.205.209])
+        by mx.google.com with ESMTPS id p91si3074847qkp.57.2015.09.22.12.34.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 11:54:25 -0700 (PDT)
-Received: by pablk4 with SMTP id lk4so1046439pab.3
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:54:25 -0700 (PDT)
-Date: Tue, 22 Sep 2015 11:54:17 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Multiple potential races on vma->vm_flags
-In-Reply-To: <CAAeHK+wABeppPQCsTmUk6cMswJosgkaXkHO5QTFBh=1ZTi+-3w@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1509221151370.11653@eggly.anvils>
-References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com> <55EC9221.4040603@oracle.com> <20150907114048.GA5016@node.dhcp.inet.fi> <55F0D5B2.2090205@oracle.com> <20150910083605.GB9526@node.dhcp.inet.fi>
- <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com> <20150911103959.GA7976@node.dhcp.inet.fi> <alpine.LSU.2.11.1509111734480.7660@eggly.anvils> <55F8572D.8010409@oracle.com> <20150915190143.GA18670@node.dhcp.inet.fi>
- <CAAeHK+wABeppPQCsTmUk6cMswJosgkaXkHO5QTFBh=1ZTi+-3w@mail.gmail.com>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Tue, 22 Sep 2015 12:34:52 -0700 (PDT)
+Received: from /spool/local
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
+	Tue, 22 Sep 2015 15:34:51 -0400
+Received: from b01cxnp23032.gho.pok.ibm.com (b01cxnp23032.gho.pok.ibm.com [9.57.198.27])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id D0F48C9003C
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 15:25:50 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp23032.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8MJYlD610747962
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 19:34:47 GMT
+Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8MJYkL3002202
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 15:34:47 -0400
+Date: Wed, 23 Sep 2015 01:06:20 +0530
+From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2  2/2] powerpc:numa Do not allocate bootmem memory for
+ non existing nodes
+Message-ID: <20150922193620.GA6942@linux.vnet.ibm.com>
+Reply-To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+References: <1442282917-16893-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+ <1442282917-16893-3-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+ <1442899743.18408.5.camel@ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1442899743.18408.5.camel@ellerman.id.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, anton@samba.org, akpm@linux-foundation.org, nacc@linux.vnet.ibm.com, gkurz@linux.vnet.ibm.com, grant.likely@linaro.org, nikunj@linux.vnet.ibm.com, vdavydov@parallels.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 22 Sep 2015, Andrey Konovalov wrote:
-> If anybody comes up with a patch to fix the original issue I easily
-> can test it, since I'm hitting "BUG: Bad page state" in a second when
-> fuzzing with KTSAN and Trinity.
+* Michael Ellerman <mpe@ellerman.id.au> [2015-09-22 15:29:03]:
 
-This "BUG: Bad page state" sounds more serious, but I cannot track down
-your report of it: please repost - thanks - though on seeing it, I may
-well end up with no ideas.
+> On Tue, 2015-09-15 at 07:38 +0530, Raghavendra K T wrote:
+> >
+> > ... nothing
+> 
+> Sure this patch looks obvious, but please give me a changelog that proves
+> you've thought about it thoroughly.
+> 
+> For example is it OK to use for_each_node() at this point in boot? Is there any
+> historical reason why we did it with a hard coded loop? If so what has changed.
+> What systems have you tested on? etc. etc.
+> 
+> cheers
 
-Hugh
+Hi Michael,
+resending the patches with the changelog.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Please note that the patch is in -mm tree already.
+
+---8<---
