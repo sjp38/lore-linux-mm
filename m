@@ -1,76 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E50F6B0253
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 19:04:21 -0400 (EDT)
-Received: by pacbt3 with SMTP id bt3so3580715pac.3
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 16:04:21 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id ez4si752005pbd.42.2015.09.22.16.04.20
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 685A96B0254
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 19:30:16 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so22416499pac.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 16:30:16 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id rb3si5984069pbc.134.2015.09.22.16.30.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 16:04:20 -0700 (PDT)
-Received: by pacbt3 with SMTP id bt3so3580436pac.3
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 16:04:20 -0700 (PDT)
-Date: Tue, 22 Sep 2015 16:04:18 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Sep 2015 16:30:15 -0700 (PDT)
+Received: by pacbt3 with SMTP id bt3so4094687pac.3
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 16:30:15 -0700 (PDT)
+Date: Tue, 22 Sep 2015 16:30:13 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: can't oom-kill zap the victim's memory?
-In-Reply-To: <20150922160608.GA2716@redhat.com>
-Message-ID: <alpine.DEB.2.10.1509221557070.1150@chino.kir.corp.google.com>
-References: <1442512783-14719-1-git-send-email-kwalker@redhat.com> <20150919150316.GB31952@redhat.com> <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com> <20150920125642.GA2104@redhat.com> <CA+55aFyajHq2W9HhJWbLASFkTx_kLSHtHuY6mDHKxmoW-LnVEw@mail.gmail.com>
- <20150921134414.GA15974@redhat.com> <20150921142423.GC19811@dhcp22.suse.cz> <20150921153252.GA21988@redhat.com> <20150921161203.GD19811@dhcp22.suse.cz> <20150922160608.GA2716@redhat.com>
+Subject: [patch] mm, oom: remove task_lock protecting comm printing
+Message-ID: <alpine.DEB.2.10.1509221629440.7794@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-On Tue, 22 Sep 2015, Oleg Nesterov wrote:
+The oom killer takes task_lock() in a couple of places solely to protect
+printing the task's comm.
 
-> Finally. Whatever we do, we need to change oom_kill_process() first,
-> and I think we should do this regardless. The "Kill all user processes
-> sharing victim->mm" logic looks wrong and suboptimal/overcomplicated.
-> I'll try to make some patches tomorrow if I have time...
-> 
+A process's comm, including current's comm, may change due to
+/proc/pid/comm or PR_SET_NAME.
 
-Killing all processes sharing the ->mm has been done in the past to 
-obviously ensure that memory is eventually freed, but also to solve 
-mm->mmap_sem livelocks where a thread is holding a contended mutex and 
-needs a fatal signal to acquire TIF_MEMDIE if it calls into the oom killer 
-and be able to allocate so that it may eventually drop the mutex.
+The comm will always be NULL-terminated, so the worst race scenario would
+only be during update.  We can tolerate a comm being printed that is in
+the middle of an update to avoid taking the lock.
 
-> But. Can't we just remove another ->oom_score_adj check when we try
-> to kill all mm users (the last for_each_process loop). If yes, this
-> all can be simplified.
-> 
+Other locations in the kernel have already dropped task_lock() when
+printing comm, so this is consistent.
 
-For complete correctness, we would avoid killing any process that shares 
-memory with an oom disabled thread since the oom killer shall not kill it 
-and otherwise we do not free any memory.
+Suggested-by: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/cpuset.h |  4 ++--
+ kernel/cpuset.c        | 14 +++++++-------
+ mm/oom_kill.c          |  8 +-------
+ 3 files changed, 10 insertions(+), 16 deletions(-)
 
-> I guess we can't and its a pity. Because it looks simply pointless
-> to not kill all mm users. This just means the select_bad_process()
-> picked the wrong task.
-> 
-
-This is a side-effect of moving oom scoring to signal_struct from 
-mm_struct.  It could be improved separately by flagging mm_structs that 
-are unkillable which would also allow for an optimization in 
-find_lock_task_mm().
-
-> And while this completely offtopic... why does it take task_lock()
-> to protect ->comm? Sure, without task_lock() we can print garbage.
-> Is it really that important? I am asking because sometime people
-> think that it is not safe to use ->comm lockless, but this is not
-> true.
-> 
-
-This has come up a couple times in the past and, from what I recall, 
-Andrew has said that we don't actually care since the string will always 
-be terminated and if we race we don't actually care.  There are other 
-places in the kernel where task_lock() isn't used solely to protect 
-->comm.  It can be removed from the oom_kill_process() loop checking for 
-other potential victims.
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -93,7 +93,7 @@ extern int current_cpuset_is_being_rebound(void);
+ 
+ extern void rebuild_sched_domains(void);
+ 
+-extern void cpuset_print_task_mems_allowed(struct task_struct *p);
++extern void cpuset_print_current_mems_allowed(void);
+ 
+ /*
+  * read_mems_allowed_begin is required when making decisions involving
+@@ -219,7 +219,7 @@ static inline void rebuild_sched_domains(void)
+ 	partition_sched_domains(1, NULL, NULL);
+ }
+ 
+-static inline void cpuset_print_task_mems_allowed(struct task_struct *p)
++static inline void cpuset_print_current_mems_allowed(void)
+ {
+ }
+ 
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -2599,22 +2599,22 @@ int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
+ }
+ 
+ /**
+- * cpuset_print_task_mems_allowed - prints task's cpuset and mems_allowed
+- * @tsk: pointer to task_struct of some task.
++ * cpuset_print_current_mems_allowed - prints current's cpuset and mems_allowed
+  *
+- * Description: Prints @task's name, cpuset name, and cached copy of its
++ * Description: Prints current's name, cpuset name, and cached copy of its
+  * mems_allowed to the kernel log.
+  */
+-void cpuset_print_task_mems_allowed(struct task_struct *tsk)
++void cpuset_print_current_mems_allowed(void)
+ {
+ 	struct cgroup *cgrp;
+ 
+ 	rcu_read_lock();
+ 
+-	cgrp = task_cs(tsk)->css.cgroup;
+-	pr_info("%s cpuset=", tsk->comm);
++	cgrp = task_cs(current)->css.cgroup;
++	pr_info("%s cpuset=", current->comm);
+ 	pr_cont_cgroup_name(cgrp);
+-	pr_cont(" mems_allowed=%*pbl\n", nodemask_pr_args(&tsk->mems_allowed));
++	pr_cont(" mems_allowed=%*pbl\n",
++		nodemask_pr_args(&current->mems_allowed));
+ 
+ 	rcu_read_unlock();
+ }
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -386,13 +386,11 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ static void dump_header(struct oom_control *oc, struct task_struct *p,
+ 			struct mem_cgroup *memcg)
+ {
+-	task_lock(current);
+ 	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
+ 		"oom_score_adj=%hd\n",
+ 		current->comm, oc->gfp_mask, oc->order,
+ 		current->signal->oom_score_adj);
+-	cpuset_print_task_mems_allowed(current);
+-	task_unlock(current);
++	cpuset_print_current_mems_allowed();
+ 	dump_stack();
+ 	if (memcg)
+ 		mem_cgroup_print_oom_info(memcg, p);
+@@ -518,10 +516,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	if (__ratelimit(&oom_rs))
+ 		dump_header(oc, p, memcg);
+ 
+-	task_lock(p);
+ 	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+ 		message, task_pid_nr(p), p->comm, points);
+-	task_unlock(p);
+ 
+ 	/*
+ 	 * If any of p's children has a different mm and is eligible for kill,
+@@ -586,10 +582,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 			if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+ 				continue;
+ 
+-			task_lock(p);	/* Protect ->comm from prctl() */
+ 			pr_err("Kill process %d (%s) sharing same memory\n",
+ 				task_pid_nr(p), p->comm);
+-			task_unlock(p);
+ 			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+ 		}
+ 	rcu_read_unlock();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
