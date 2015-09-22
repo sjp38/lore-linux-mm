@@ -1,79 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B1ED6B0254
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 15:35:19 -0400 (EDT)
-Received: by ykft14 with SMTP id t14so20407046ykf.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:35:19 -0700 (PDT)
-Received: from mail-yk0-x22a.google.com (mail-yk0-x22a.google.com. [2607:f8b0:4002:c07::22a])
-        by mx.google.com with ESMTPS id d16si1974933ywb.11.2015.09.22.12.35.18
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A8D646B0253
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 15:45:24 -0400 (EDT)
+Received: by lagj9 with SMTP id j9so26157310lag.2
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:45:24 -0700 (PDT)
+Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
+        by mx.google.com with ESMTPS id y15si1122456lfd.55.2015.09.22.12.45.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 12:35:18 -0700 (PDT)
-Received: by ykft14 with SMTP id t14so20406656ykf.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:35:18 -0700 (PDT)
-Date: Tue, 22 Sep 2015 15:35:13 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC v2 07/18] kthread: Allow to cancel kthread work
-Message-ID: <20150922193513.GE17659@mtj.duckdns.org>
-References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
- <1442840639-6963-8-git-send-email-pmladek@suse.com>
+        Tue, 22 Sep 2015 12:45:23 -0700 (PDT)
+Received: by lagj9 with SMTP id j9so26156741lag.2
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:45:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1442840639-6963-8-git-send-email-pmladek@suse.com>
+In-Reply-To: <alpine.LSU.2.11.1509221151370.11653@eggly.anvils>
+References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com>
+	<55EC9221.4040603@oracle.com>
+	<20150907114048.GA5016@node.dhcp.inet.fi>
+	<55F0D5B2.2090205@oracle.com>
+	<20150910083605.GB9526@node.dhcp.inet.fi>
+	<CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com>
+	<20150911103959.GA7976@node.dhcp.inet.fi>
+	<alpine.LSU.2.11.1509111734480.7660@eggly.anvils>
+	<55F8572D.8010409@oracle.com>
+	<20150915190143.GA18670@node.dhcp.inet.fi>
+	<CAAeHK+wABeppPQCsTmUk6cMswJosgkaXkHO5QTFBh=1ZTi+-3w@mail.gmail.com>
+	<alpine.LSU.2.11.1509221151370.11653@eggly.anvils>
+Date: Tue, 22 Sep 2015 21:45:22 +0200
+Message-ID: <CAAeHK+zkG4L7TJ3M8fus8F5KExHRMhcyjgEQop=wqOpBcrKzYQ@mail.gmail.com>
+Subject: Re: Multiple potential races on vma->vm_flags
+From: Andrey Konovalov <andreyknvl@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Sasha Levin <sasha.levin@oracle.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon, Sep 21, 2015 at 03:03:48PM +0200, Petr Mladek wrote:
->  /**
-> + * try_to_grab_pending_kthread_work - steal kthread work item from worklist,
-> + *	and disable irq
-> + * @work: work item to steal
-> + * @is_dwork: @work is a delayed_work
-> + * @flags: place to store irq state
-> + *
-> + * Try to grab PENDING bit of @work.  This function can handle @work in any
-> + * stable state - idle, on timer or on worklist.
-> + *
-> + * Return:
-> + *  1		if @work was pending and we successfully stole PENDING
-> + *  0		if @work was idle and we claimed PENDING
-> + *  -EAGAIN	if PENDING couldn't be grabbed at the moment, safe to busy-retry
-> + *  -ENOENT	if someone else is canceling @work, this state may persist
-> + *		for arbitrarily long
-> + *
-> + * Note:
-> + * On >= 0 return, the caller owns @work's PENDING bit.  To avoid getting
-> + * interrupted while holding PENDING and @work off queue, irq must be
-> + * disabled on return.  This, combined with delayed_work->timer being
-> + * irqsafe, ensures that we return -EAGAIN for finite short period of time.
-> + *
-> + * On successful return, >= 0, irq is disabled and the caller is
-> + * responsible for releasing it using local_irq_restore(*@flags).
-> + *
-> + * This function is safe to call from any context including IRQ handler.
-> + */
+On Tue, Sep 22, 2015 at 8:54 PM, Hugh Dickins <hughd@google.com> wrote:
+> On Tue, 22 Sep 2015, Andrey Konovalov wrote:
+>> If anybody comes up with a patch to fix the original issue I easily
+>> can test it, since I'm hitting "BUG: Bad page state" in a second when
+>> fuzzing with KTSAN and Trinity.
+>
+> This "BUG: Bad page state" sounds more serious, but I cannot track down
+> your report of it: please repost - thanks - though on seeing it, I may
+> well end up with no ideas.
 
-Ugh... I think this is way too much for kthread_worker.  Workqueue is
-as complex as it is partly for historical reasons and partly because
-it's used so widely and heavily.  kthread_worker is always guaranteed
-to have a single worker and in most cases maybe several work items.
-There's no reason to bring this level of complexity onto it.
-Providing simliar semantics is fine but it should be possible to do
-this in a lot simpler way if the requirements on space and concurrency
-is this much lower.
+The report is below.
 
-e.g. always embed timer_list in a work item and use per-worker
-spinlock to synchronize access to both the work item and timer and use
-per-work-item mutex to synchronize multiple cancelers.  Let's please
-keep it simple.
+I get it after a few seconds of running Trinity on a kernel with KTSAN
+and targeting mlock, munlock and madvise syscalls.
+Sasha also observed a very similar crash a while ago
+(https://lkml.org/lkml/2014/11/6/1055).
+I didn't manage to reproduce this in a kernel build without KTSAN though.
+The idea was that data races KTSAN reports might be the explanation of
+these crashes.
 
-Thanks.
+BUG: Bad page state in process trinity-c15  pfn:281999
+page:ffffea000a066640 count:0 mapcount:0 mapping:          (null) index:0xd
+flags: 0x20000000028000c(referenced|uptodate|swapbacked|mlocked)
+page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
+bad because of flags:
+flags: 0x200000(mlocked)
+Modules linked in:
+CPU: 3 PID: 11190 Comm: trinity-c15 Not tainted 4.2.0-tsan #1295
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+ ffffffff821c3b70 0000000000000000 0000000100004741 ffff8800b857f948
+ ffffffff81e9926c 0000000000000003 ffffea000a066640 ffff8800b857f978
+ ffffffff811ce045 ffffffff821c3b70 ffffea000a066640 0000000000000001
+Call Trace:
+ [<     inline     >] __dump_stack lib/dump_stack.c:15
+ [<ffffffff81e9926c>] dump_stack+0x63/0x81 lib/dump_stack.c:50
+ [<ffffffff811ce045>] bad_page+0x115/0x1a0 mm/page_alloc.c:409
+ [<     inline     >] free_pages_check mm/page_alloc.c:731
+ [<ffffffff811cf3b8>] free_pages_prepare+0x2f8/0x330 mm/page_alloc.c:922
+ [<ffffffff811d2911>] free_hot_cold_page+0x51/0x2b0 mm/page_alloc.c:1908
+ [<ffffffff811d2bcf>] free_hot_cold_page_list+0x5f/0x100
+mm/page_alloc.c:1956 (discriminator 3)
+ [<ffffffff811dd9c1>] release_pages+0x151/0x300 mm/swap.c:967
+ [<ffffffff811de723>] __pagevec_release+0x43/0x60 mm/swap.c:984
+ [<     inline     >] pagevec_release include/linux/pagevec.h:69
+ [<ffffffff811ef36a>] shmem_undo_range+0x4fa/0x9d0 mm/shmem.c:446
+ [<ffffffff811ef86f>] shmem_truncate_range+0x2f/0x60 mm/shmem.c:540
+ [<ffffffff811f15d5>] shmem_fallocate+0x555/0x6e0 mm/shmem.c:2086
+ [<ffffffff812568d0>] vfs_fallocate+0x1e0/0x310 fs/open.c:303
+ [<     inline     >] madvise_remove mm/madvise.c:326
+ [<     inline     >] madvise_vma mm/madvise.c:378
+ [<     inline     >] SYSC_madvise mm/madvise.c:528
+ [<ffffffff81225548>] SyS_madvise+0x378/0x760 mm/madvise.c:459
+ [<ffffffff8124ef36>] ? kt_atomic64_store+0x76/0x130 mm/ktsan/sync_atomic.c:161
+ [<ffffffff81ea8691>] entry_SYSCALL_64_fastpath+0x31/0x95
+arch/x86/entry/entry_64.S:188
+Disabling lock debugging due to kernel taint
 
--- 
-tejun
+>
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
