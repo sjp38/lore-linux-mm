@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 953326B0260
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 06:36:48 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so6119999pac.2
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 03:36:48 -0700 (PDT)
-Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id ge9si1558120pbc.39.2015.09.22.03.36.47
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B4B176B0258
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 06:36:56 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so6116550pac.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 03:36:56 -0700 (PDT)
+Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
+        by mx.google.com with ESMTPS id wn10si1527793pab.97.2015.09.22.03.36.55
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 03:36:47 -0700 (PDT)
+        Tue, 22 Sep 2015 03:36:56 -0700 (PDT)
 From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: [PATCH v2 10/12] mm,thp: introduce flush_pmd_tlb_range
-Date: Tue, 22 Sep 2015 16:04:54 +0530
-Message-ID: <1442918096-17454-11-git-send-email-vgupta@synopsys.com>
+Subject: [PATCH v2 11/12] ARCv2: mm: THP: Implement flush_pmd_tlb_range() optimization
+Date: Tue, 22 Sep 2015 16:04:55 +0530
+Message-ID: <1442918096-17454-12-git-send-email-vgupta@synopsys.com>
 In-Reply-To: <1442918096-17454-1-git-send-email-vgupta@synopsys.com>
 References: <1442918096-17454-1-git-send-email-vgupta@synopsys.com>
 MIME-Version: 1.0
@@ -23,103 +23,59 @@ To: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@
  Wilcox <matthew.r.wilcox@intel.com>, Minchan Kim <minchan@kernel.org>
 Cc: linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vineet Gupta <Vineet.Gupta1@synopsys.com>
 
+Implement the TLB flush routine to evict a sepcific Super TLB entry,
+vs. moving to a new ASID on every such flush.
+
 Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
 ---
- mm/huge_memory.c     |  2 +-
- mm/pgtable-generic.c | 25 +++++++++++++++++++------
- 2 files changed, 20 insertions(+), 7 deletions(-)
+ arch/arc/include/asm/hugepage.h |  4 ++++
+ arch/arc/mm/tlb.c               | 20 ++++++++++++++++++++
+ 2 files changed, 24 insertions(+)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4b06b8db9df2..e25eb3d2081a 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1880,7 +1880,7 @@ static int __split_huge_page_map(struct page *page,
- 		 * here). But it is generally safer to never allow
- 		 * small and huge TLB entries for the same virtual
- 		 * address to be loaded simultaneously. So instead of
--		 * doing "pmd_populate(); flush_tlb_range();" we first
-+		 * doing "pmd_populate(); flush_pmd_tlb_range();" we first
- 		 * mark the current pmd notpresent (atomically because
- 		 * here the pmd_trans_huge and pmd_trans_splitting
- 		 * must remain set at all times on the pmd until the
-diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-index c9c59bb75a17..b0fed9a4776e 100644
---- a/mm/pgtable-generic.c
-+++ b/mm/pgtable-generic.c
-@@ -84,6 +84,19 @@ pte_t ptep_clear_flush(struct vm_area_struct *vma, unsigned long address,
+diff --git a/arch/arc/include/asm/hugepage.h b/arch/arc/include/asm/hugepage.h
+index d7614d2af454..bf74f507e038 100644
+--- a/arch/arc/include/asm/hugepage.h
++++ b/arch/arc/include/asm/hugepage.h
+@@ -75,4 +75,8 @@ extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+ #define __HAVE_ARCH_PGTABLE_WITHDRAW
+ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
  
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 
-+#ifndef __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
++#define __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
++extern void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
++				unsigned long end);
 +
-+/*
-+ * ARCHes with special requirements for evicting THP backing TLB entries can
-+ * implement this. Otherwise also, it can help optimizing thp flush operation.
-+ * flush_tlb_range() can have optimization to nuke the entire TLB if flush span
-+ * is greater than a threashhold, which will likely be true for a single
-+ * huge page.
-+ * e.g. see arch/arc: flush_pmd_tlb_range
-+ */
-+#define flush_pmd_tlb_range(vma, addr, end)	flush_tlb_range(vma, addr, end)
-+#endif
+ #endif
+diff --git a/arch/arc/mm/tlb.c b/arch/arc/mm/tlb.c
+index 80e28555a5de..b28731c175b1 100644
+--- a/arch/arc/mm/tlb.c
++++ b/arch/arc/mm/tlb.c
+@@ -626,6 +626,26 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
+ 	return pgtable;
+ }
+ 
++void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
++			 unsigned long end)
++{
++	unsigned int cpu;
++	unsigned long flags;
 +
- #ifndef __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
- int pmdp_set_access_flags(struct vm_area_struct *vma,
- 			  unsigned long address, pmd_t *pmdp,
-@@ -93,7 +106,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 	if (changed) {
- 		set_pmd_at(vma->vm_mm, address, pmdp, entry);
--		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+		flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
- 	}
- 	return changed;
- }
-@@ -107,7 +120,7 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 	young = pmdp_test_and_clear_young(vma, address, pmdp);
- 	if (young)
--		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+		flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
- 	return young;
- }
- #endif
-@@ -120,7 +133,7 @@ pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma, unsigned long address,
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 	VM_BUG_ON(!pmd_trans_huge(*pmdp));
- 	pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
--	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
- 	return pmd;
- }
- #endif
-@@ -133,7 +146,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
- 	/* tlb flush only to serialize against gup-fast */
--	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
- }
++	local_irq_save(flags);
++
++	cpu = smp_processor_id();
++
++	if (likely(asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID)) {
++		unsigned int asid = hw_pid(vma->vm_mm, cpu);
++
++		/* No need to loop here: this will always be for 1 Huge Page */
++		tlb_entry_erase(start | _PAGE_HW_SZ | asid);
++	}
++
++	local_irq_restore(flags);
++}
++
  #endif
  
-@@ -179,7 +192,7 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
- {
- 	pmd_t entry = *pmdp;
- 	set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
--	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
- }
- #endif
- 
-@@ -196,7 +209,7 @@ pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 	VM_BUG_ON(pmd_trans_huge(*pmdp));
- 	pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
--	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-+	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
- 	return pmd;
- }
- #endif
+ /* Read the Cache Build Confuration Registers, Decode them and save into
 -- 
 1.9.1
 
