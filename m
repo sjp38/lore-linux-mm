@@ -1,107 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BCF06B0254
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 01:34:02 -0400 (EDT)
-Received: by obbzf10 with SMTP id zf10so99148859obb.2
-        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 22:34:02 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id n131si13979986oib.102.2015.09.21.22.34.01
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FD9D6B0038
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:24:07 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so176868600wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 23:24:07 -0700 (PDT)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id 9si4908wjt.113.2015.09.21.23.24.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 21 Sep 2015 22:34:01 -0700 (PDT)
-Subject: Re: [PATCH] mm/oom_kill.c: don't kill TASK_UNINTERRUPTIBLE tasks
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150918162423.GA18136@redhat.com>
-	<alpine.DEB.2.11.1509181200140.11964@east.gentwo.org>
-	<20150919083218.GD28815@dhcp22.suse.cz>
-	<201509192333.AGJ30797.OQOFLFSMJVFOtH@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.10.1509211628050.27715@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1509211628050.27715@chino.kir.corp.google.com>
-Message-Id: <201509221433.ICI00012.VFOQMFHLFJtSOO@I-love.SAKURA.ne.jp>
-Date: Tue, 22 Sep 2015 14:33:47 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Sep 2015 23:24:06 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so176868055wic.0
+        for <linux-mm@kvack.org>; Mon, 21 Sep 2015 23:24:05 -0700 (PDT)
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [PATCH 00/11] x86/mm: Implement lockless pgd_alloc()/pgd_free()
+Date: Tue, 22 Sep 2015 08:23:30 +0200
+Message-Id: <1442903021-3893-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: mhocko@kernel.org, cl@linux.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
 
-David Rientjes wrote:
-> Your proposal, which I mostly agree with, tries to kill additional 
-> processes so that they allocate and drop the lock that the original victim 
-> depends on.  My approach, from 
-> http://marc.info/?l=linux-kernel&m=144010444913702, is the same, but 
-> without the killing.  It's unecessary to kill every process on the system 
-> that is depending on the same lock, and we can't know which processes are 
-> stalling on that lock and which are not.
+So this is the somewhat belated latest iteration of the series.
+I (think I) fixed all correctness bugs in the code pointed out by Oleg.
 
-Would you try your approach with below program?
-(My reproducers are tested on XFS on a VM with 4 CPUs / 2048MB RAM.)
+The task list walk is still 'dumb', using for_each_process(), as none of
+the call sites are performance critical.
 
----------- oom-depleter3.c start ----------
-#define _GNU_SOURCE
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sched.h>
+Oleg, can you see any problems with this code?
 
-static int zero_fd = EOF;
-static char *buf = NULL;
-static unsigned long size = 0;
+Background:
 
-static int dummy(void *unused)
-{
-	static char buffer[4096] = { };
-	int fd = open("/tmp/file", O_WRONLY | O_CREAT | O_APPEND, 0600);
-	while (write(fd, buffer, sizeof(buffer) == sizeof(buffer)) &&
-	       fsync(fd) == 0);
-	return 0;
-}
+Waiman Long reported 'pgd_lock' contention on high CPU count systems and proposed
+moving pgd_lock on a separate cacheline to eliminate false sharing and to reduce
+some of the lock bouncing overhead.
 
-static int trigger(void *unused)
-{
-	read(zero_fd, buf, size); /* Will cause OOM due to overcommit */
-	return 0;
-}
+I think we can do much better: this series eliminates the pgd_list and makes
+pgd_alloc()/pgd_free() lockless.
 
-int main(int argc, char *argv[])
-{
-        unsigned long i;
-	zero_fd = open("/dev/zero", O_RDONLY);
-	for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
-		char *cp = realloc(buf, size);
-		if (!cp) {
-			size >>= 1;
-			break;
-		}
-		buf = cp;
-	}
-	/*
-	 * Create many child threads in order to enlarge time lag between
-	 * the OOM killer sets TIF_MEMDIE to thread group leader and
-	 * the OOM killer sends SIGKILL to that thread.
-	 */
-	for (i = 0; i < 1000; i++) {
-		clone(dummy, malloc(1024) + 1024, CLONE_SIGHAND | CLONE_VM,
-		      NULL);
-	}
-	/* Let a child thread trigger the OOM killer. */
-	clone(trigger, malloc(4096)+ 4096, CLONE_SIGHAND | CLONE_VM, NULL);
-	/* Deplete all memory reserve using the time lag. */
-	for (i = size; i; i -= 4096)
-		buf[i - 1] = 1;
-	return * (char *) NULL; /* Kill all threads. */
-}
----------- oom-depleter3.c end ----------
+Now the lockless initialization of the PGD has a few preconditions, which the
+initial part of the series implements:
 
-uptime > 350 of http://I-love.SAKURA.ne.jp/tmp/serial-20150922-1.txt.xz
-shows that the memory reserves completely depleted and
-uptime > 42 of http://I-love.SAKURA.ne.jp/tmp/serial-20150922-2.txt.xz
-shows that the memory reserves was not used at all.
-Is this result what you expected?
+ - no PGD clearing is allowed, only additions. This makes sense as a single PGD
+   entry covers 512 GB of RAM so the 4K overhead per 0.5TB of RAM mapped is
+   miniscule.
+
+The patches after that convert existing pgd_list users to walk the task list.
+
+PGD locking is kept intact: coherency guarantees between the CPA, vmalloc,
+hotplug, etc. code are unchanged.
+
+The final patches eliminate the pgd_list and thus make pgd_alloc()/pgd_free()
+lockless.
+
+The patches have been boot tested on 64-bit and 32-bit x86 systems.
+
+Architectures not making use of the new facility are unaffected.
+
+Thanks,
+
+	Ingo
+
+===
+Ingo Molnar (11):
+  x86/mm/pat: Don't free PGD entries on memory unmap
+  x86/mm/hotplug: Remove pgd_list use from the memory hotplug code
+  x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
+  x86/mm/hotplug: Simplify sync_global_pgds()
+  mm: Introduce arch_pgd_init_late()
+  x86/virt/guest/xen: Remove use of pgd_list from the Xen guest code
+  x86/mm: Remove pgd_list use from vmalloc_sync_all()
+  x86/mm/pat/32: Remove pgd_list use from the PAT code
+  x86/mm: Make pgd_alloc()/pgd_free() lockless
+  x86/mm: Remove pgd_list leftovers
+  x86/mm: Simplify pgd_alloc()
+
+ arch/Kconfig                      |   9 +++
+ arch/x86/Kconfig                  |   1 +
+ arch/x86/include/asm/pgtable.h    |   3 -
+ arch/x86/include/asm/pgtable_64.h |   3 +-
+ arch/x86/mm/fault.c               |  32 +++++++---
+ arch/x86/mm/init_64.c             |  92 ++++++++++++--------------
+ arch/x86/mm/pageattr.c            |  40 ++++++------
+ arch/x86/mm/pgtable.c             | 131 +++++++++++++++++++-------------------
+ arch/x86/xen/mmu.c                |  45 +++++++++++--
+ fs/exec.c                         |   3 +
+ include/linux/mm.h                |   6 ++
+ kernel/fork.c                     |  16 +++++
+ 12 files changed, 227 insertions(+), 154 deletions(-)
+
+--
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
