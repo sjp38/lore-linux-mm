@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C80AF6B0038
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 06:18:59 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so184532846wic.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 03:18:59 -0700 (PDT)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id fa17si2858546wid.21.2015.09.22.03.18.58
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 74DE86B0255
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 06:30:12 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so16762766wic.1
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 03:30:11 -0700 (PDT)
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
+        by mx.google.com with ESMTPS id ko7si1138492wjc.94.2015.09.22.03.30.10
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Sep 2015 03:18:58 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so16376945wic.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 03:18:58 -0700 (PDT)
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Tue, 22 Sep 2015 03:30:11 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Tue, 22 Sep 2015 11:30:10 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 2C3A81B08067
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 11:31:51 +0100 (BST)
+Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8MAU7aM20578432
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 10:30:07 GMT
+Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8MAU7sd002304
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 04:30:07 -0600
+Date: Tue, 22 Sep 2015 12:30:01 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH 1/2] mm: add architecture primitives for software dirty
+ bit clearing
+Message-ID: <20150922123001.09449feb@mschwide>
+In-Reply-To: <20150922090935.GA10131@uranus>
+References: <1442848940-22108-1-git-send-email-schwidefsky@de.ibm.com>
+	<1442848940-22108-2-git-send-email-schwidefsky@de.ibm.com>
+	<20150921194854.GD3181@uranus>
+	<20150922093549.504a5fb3@mschwide>
+	<20150922090935.GA10131@uranus>
 MIME-Version: 1.0
-In-Reply-To: <CALZtONCF6mSU1dKkv2bX+koM4LHciQ0TJciQx4k-PZzs8_mTNQ@mail.gmail.com>
-References: <20150916134857.e4a71f601a1f68cfa16cb361@gmail.com>
-	<20150916135048.fbd50fac5e91244ab9731b82@gmail.com>
-	<CALZtONCF6mSU1dKkv2bX+koM4LHciQ0TJciQx4k-PZzs8_mTNQ@mail.gmail.com>
-Date: Tue, 22 Sep 2015 12:18:58 +0200
-Message-ID: <CAMJBoFNGY2f3a7RV_y0buqF+dm23pXhUF=q6mTU3Bcj0AXF=LQ@mail.gmail.com>
-Subject: Re: [PATCH 1/2] zbud: allow PAGE_SIZE allocations
-From: Vitaly Wool <vitalywool@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjennings@variantweb.net>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrew Morton <akpm@linuxfoundation.org>, Pavel Emelyanov <xemul@virtuozzo.com>
 
-Hi Dan,
+On Tue, 22 Sep 2015 12:09:35 +0300
+Cyrill Gorcunov <gorcunov@gmail.com> wrote:
 
-On Mon, Sep 21, 2015 at 6:17 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> Please make sure to cc Seth also, he's the owner of zbud.
+> On Tue, Sep 22, 2015 at 09:35:49AM +0200, Martin Schwidefsky wrote:
+> > Thanks. I have added both patches to the features branch of linux-s390
+> > for the 4.4 merge window.
+> 
+> The first patch (x86 and general helpers) seems better to go via
+> Andrew (CC'ed) becase they are not s390 only. And while these
+> changes are fine for me and you as far as I can say, lets them
+> floating around for some more review just to make sure we're not
+> missing something obvious.
+> 
+> And initially the soft-dirty feature has been hittin vanilla by
+> -mm tree so I suppose we should continue this way, though I
+> don't mind if it gonna be merged via pull request from s390
+> side but still ;)
+ 
+Well, the patches will be included in linux-next automatically and
+they will get a fair share of testing before the 4.4 merge window
+opens. If the patches get picked up via -mm as well, be my guest.
 
-Sure :)
+-- 
+blue skies,
+   Martin.
 
-<snip>
->> @@ -514,8 +552,17 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
->>                 return -EINVAL;
->>         }
->>         for (i = 0; i < retries; i++) {
->> -               zhdr = list_tail_entry(&pool->lru, struct zbud_header, lru);
->> -               list_del(&zhdr->lru);
->> +               page = list_tail_entry(&pool->lru, struct page, lru);
->> +               zhdr = page_address(page);
->> +               list_del(&page->lru);
->> +               /* Uncompressed zbud page? just run eviction and free it */
->> +               if (page->flags & PG_uncompressed) {
->> +                       page->flags &= ~PG_uncompressed;
->> +                       spin_unlock(&pool->lock);
->> +                       pool->ops->evict(pool, encode_handle(zhdr, FULL));
->> +                       __free_page(page);
->> +                       return 0;
->
-> again, don't be redundant.  change the function to handle full-sized
-> pages, don't repeat the function in an if() block for a special case.
-
-Well, this case is a little tricky. How to process a zbud page in
-zbud_reclaim_page() is defined basing on the assumption there is a
-zhdr at the beginning of the page. What can be done here IMV is either
-of the following:
-* add a constant magic number to zhdr and check for it, if the check
-fails, it is a type FULL page
-* add a CRC field to zhdr, if CRC check over assumed zhdr fails,  it
-is a type FULL page
-* use a field from struct page to indicate its type
-
-The last option still looks better to me.
-
-~vitaly
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
