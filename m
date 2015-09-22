@@ -1,37 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E3B96B0254
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:33:00 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so182773454wic.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:32:59 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 692696B0255
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:33:02 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so14627417wic.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:33:02 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jv6si2609206wid.56.2015.09.22.02.32.58
+        by mx.google.com with ESMTPS id s2si23236815wik.32.2015.09.22.02.32.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Tue, 22 Sep 2015 02:32:58 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 1/3] mm, compaction: export tracepoints status strings to userspace
-Date: Tue, 22 Sep 2015 11:32:43 +0200
-Message-Id: <1442914365-15949-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v2 2/3] mm, compaction: export tracepoints zone names to userspace
+Date: Tue, 22 Sep 2015 11:32:44 +0200
+Message-Id: <1442914365-15949-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1442914365-15949-1-git-send-email-vbabka@suse.cz>
+References: <1442914365-15949-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Steven Rostedt <rostedt@goodmis.org>
 
-Some compaction tracepoints convert the integer return values to strings using
-the compaction_status_string array. This works for in-kernel printing, but not
-userspace trace printing of raw captured trace such as via trace-cmd report.
+Some compaction tracepoints use zone->name to print which zone is being
+compacted. This works for in-kernel printing, but not userspace trace printing
+of raw captured trace such as via trace-cmd report.
 
-This patch converts the private array to appropriate tracepoint macros that
-result in proper userspace support.
+This patch uses zone_idx() instead of zone->name as the raw value, and when
+printing, converts the zone_type to string using the appropriate EM() macros
+and some ugly tricks to overcome the problem that half the values depend on
+CONFIG_ options and one does not simply use #ifdef inside of #define.
 
 trace-cmd output before:
 transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
-  zone=ffffffff81815d7a order=9 ret=
+zone=ffffffff81815d7a order=9 ret=partial
 
 after:
 transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
-  zone=ffffffff81815d7a order=9 ret=partial
+zone=Normal   order=9 ret=partial
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
@@ -40,106 +44,107 @@ Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: David Rientjes <rientjes@google.com>
 ---
-v2: adjust comment for adding new states, add Reviewed-by.
+v2: add Reviewed-by.
 
- include/linux/compaction.h        |  2 +-
- include/trace/events/compaction.h | 33 +++++++++++++++++++++++++++++++--
- mm/compaction.c                   | 11 -----------
- 3 files changed, 32 insertions(+), 14 deletions(-)
+ include/trace/events/compaction.h | 38 ++++++++++++++++++++++++++++++++------
+ 1 file changed, 32 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index aa8f61c..f14ba98 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -15,7 +15,7 @@
- /* For more detailed tracepoint output */
- #define COMPACT_NO_SUITABLE_PAGE	5
- #define COMPACT_NOT_SUITABLE_ZONE	6
--/* When adding new state, please change compaction_status_string, too */
-+/* When adding new states, please adjust include/trace/events/compaction.h */
- 
- /* Used to signal whether compaction detected need_sched() or lock contention */
- /* No contention detected */
 diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index 9a6a3fe..1275a55 100644
+index 1275a55..8daa8fa 100644
 --- a/include/trace/events/compaction.h
 +++ b/include/trace/events/compaction.h
-@@ -9,6 +9,35 @@
- #include <linux/tracepoint.h>
- #include <trace/events/gfpflags.h>
+@@ -18,6 +18,31 @@
+ 	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
+ 	EMe(COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")
  
-+#define COMPACTION_STATUS					\
-+	EM( COMPACT_DEFERRED,		"deferred")		\
-+	EM( COMPACT_SKIPPED,		"skipped")		\
-+	EM( COMPACT_CONTINUE,		"continue")		\
-+	EM( COMPACT_PARTIAL,		"partial")		\
-+	EM( COMPACT_COMPLETE,		"complete")		\
-+	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
-+	EMe(COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")
++#ifdef CONFIG_ZONE_DMA
++#define IFDEF_ZONE_DMA(X) X
++#else
++#define IFDEF_ZONE_DMA(X)
++#endif
 +
-+/*
-+ * First define the enums in the above macros to be exported to userspace
-+ * via TRACE_DEFINE_ENUM().
-+ */
-+#undef EM
-+#undef EMe
-+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
-+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
++#ifdef CONFIG_ZONE_DMA32
++#define IFDEF_ZONE_DMA32(X) X
++#else
++#define IFDEF_ZONE_DMA32(X)
++#endif
 +
-+COMPACTION_STATUS
++#ifdef CONFIG_ZONE_HIGHMEM_
++#define IFDEF_ZONE_HIGHMEM(X) X
++#else
++#define IFDEF_ZONE_HIGHMEM(X)
++#endif
 +
-+/*
-+ * Now redefine the EM() and EMe() macros to map the enums to the strings
-+ * that will be printed in the output.
-+ */
-+#undef EM
-+#undef EMe
-+#define EM(a, b)	{a, b},
-+#define EMe(a, b)	{a, b}
++#define ZONE_TYPE						\
++	IFDEF_ZONE_DMA(		EM (ZONE_DMA,	 "DMA"))	\
++	IFDEF_ZONE_DMA32(	EM (ZONE_DMA32,	 "DMA32"))	\
++				EM (ZONE_NORMAL, "Normal")	\
++	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
++				EMe(ZONE_MOVABLE,"Movable")
 +
- DECLARE_EVENT_CLASS(mm_compaction_isolate_template,
+ /*
+  * First define the enums in the above macros to be exported to userspace
+  * via TRACE_DEFINE_ENUM().
+@@ -28,6 +53,7 @@
+ #define EMe(a, b)	TRACE_DEFINE_ENUM(a);
  
- 	TP_PROTO(
-@@ -161,7 +190,7 @@ TRACE_EVENT(mm_compaction_end,
- 		__entry->free_pfn,
- 		__entry->zone_end,
- 		__entry->sync ? "sync" : "async",
--		compaction_status_string[__entry->status])
-+		__print_symbolic(__entry->status, COMPACTION_STATUS))
- );
+ COMPACTION_STATUS
++ZONE_TYPE
  
- TRACE_EVENT(mm_compaction_try_to_compact_pages,
-@@ -217,7 +246,7 @@ DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
+ /*
+  * Now redefine the EM() and EMe() macros to map the enums to the strings
+@@ -230,21 +256,21 @@ DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
+ 
+ 	TP_STRUCT__entry(
+ 		__field(int, nid)
+-		__field(char *, name)
++		__field(enum zone_type, idx)
+ 		__field(int, order)
+ 		__field(int, ret)
+ 	),
+ 
+ 	TP_fast_assign(
+ 		__entry->nid = zone_to_nid(zone);
+-		__entry->name = (char *)zone->name;
++		__entry->idx = zone_idx(zone);
+ 		__entry->order = order;
+ 		__entry->ret = ret;
+ 	),
+ 
+ 	TP_printk("node=%d zone=%-8s order=%d ret=%s",
  		__entry->nid,
- 		__entry->name,
+-		__entry->name,
++		__print_symbolic(__entry->idx, ZONE_TYPE),
  		__entry->order,
--		compaction_status_string[__entry->ret])
-+		__print_symbolic(__entry->ret, COMPACTION_STATUS))
+ 		__print_symbolic(__entry->ret, COMPACTION_STATUS))
  );
+@@ -276,7 +302,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
  
- DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_finished,
-diff --git a/mm/compaction.c b/mm/compaction.c
-index a8e6593..a5849c4 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -35,17 +35,6 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
- #endif
+ 	TP_STRUCT__entry(
+ 		__field(int, nid)
+-		__field(char *, name)
++		__field(enum zone_type, idx)
+ 		__field(int, order)
+ 		__field(unsigned int, considered)
+ 		__field(unsigned int, defer_shift)
+@@ -285,7 +311,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
  
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
--#ifdef CONFIG_TRACEPOINTS
--static const char *const compaction_status_string[] = {
--	"deferred",
--	"skipped",
--	"continue",
--	"partial",
--	"complete",
--	"no_suitable_page",
--	"not_suitable_zone",
--};
--#endif
+ 	TP_fast_assign(
+ 		__entry->nid = zone_to_nid(zone);
+-		__entry->name = (char *)zone->name;
++		__entry->idx = zone_idx(zone);
+ 		__entry->order = order;
+ 		__entry->considered = zone->compact_considered;
+ 		__entry->defer_shift = zone->compact_defer_shift;
+@@ -294,7 +320,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
  
- #define CREATE_TRACE_POINTS
- #include <trace/events/compaction.h>
+ 	TP_printk("node=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu",
+ 		__entry->nid,
+-		__entry->name,
++		__print_symbolic(__entry->idx, ZONE_TYPE),
+ 		__entry->order,
+ 		__entry->order_failed,
+ 		__entry->considered,
 -- 
 2.5.1
 
