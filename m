@@ -1,45 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 92E506B0254
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 15:58:54 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so18072772pac.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:58:54 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id r3si4928025pap.0.2015.09.22.12.58.53
-        for <linux-mm@kvack.org>;
-        Tue, 22 Sep 2015 12:58:53 -0700 (PDT)
-Subject: Re: [PATCH 05/26] x86, pkey: add PKRU xsave fields and data
- structure(s)
-References: <20150916174903.E112E464@viggo.jf.intel.com>
- <20150916174905.0ECA529B@viggo.jf.intel.com>
- <alpine.DEB.2.11.1509222152300.5606@nanos>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <5601B2F9.3030906@sr71.net>
-Date: Tue, 22 Sep 2015 12:58:49 -0700
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 079ED6B0253
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 16:03:48 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so176325877wic.1
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 13:03:47 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id cl1si26884718wib.44.2015.09.22.13.03.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA256 bits=128/128);
+        Tue, 22 Sep 2015 13:03:46 -0700 (PDT)
+Date: Tue, 22 Sep 2015 22:03:08 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 10/26] x86, pkeys: notify userspace about protection key
+ faults
+In-Reply-To: <20150916174906.51062FBC@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.11.1509222157050.5606@nanos>
+References: <20150916174903.E112E464@viggo.jf.intel.com> <20150916174906.51062FBC@viggo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.11.1509222152300.5606@nanos>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
+To: Dave Hansen <dave@sr71.net>
 Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/22/2015 12:53 PM, Thomas Gleixner wrote:
-> On Wed, 16 Sep 2015, Dave Hansen wrote:
->> --- a/arch/x86/kernel/fpu/xstate.c~pkeys-03-xsave	2015-09-16 10:48:13.340060126 -0700
->> +++ b/arch/x86/kernel/fpu/xstate.c	2015-09-16 10:48:13.344060307 -0700
->> @@ -23,6 +23,8 @@ static const char *xfeature_names[] =
->>  	"AVX-512 opmask"		,
->>  	"AVX-512 Hi256"			,
->>  	"AVX-512 ZMM_Hi256"		,
->> +	"unknown xstate feature (8)"	,
-> 
-> It's not unknown. It's PT, right?
+On Wed, 16 Sep 2015, Dave Hansen wrote:
+>  
+> +static inline u16 vma_pkey(struct vm_area_struct *vma)
+> +{
+> +	u16 pkey = 0;
+> +#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+> +	unsigned long f = vma->vm_flags;
+> +	pkey |= (!!(f & VM_HIGH_ARCH_0)) << 0;
+> +	pkey |= (!!(f & VM_HIGH_ARCH_1)) << 1;
+> +	pkey |= (!!(f & VM_HIGH_ARCH_2)) << 2;
+> +	pkey |= (!!(f & VM_HIGH_ARCH_3)) << 3;
 
-Yes, it's the Processor Trace state.
+Eew. What's wrong with:
 
-I'll give it a real name and also a comment about it being unused.
+     pkey = (vma->vm_flags & VM_PKEY_MASK) >> VM_PKEY_SHIFT;
+
+???
+
+> +static u16 fetch_pkey(unsigned long address, struct task_struct *tsk)
+
+So here we get a u16 and assign it to si_pkey
+
+> +	if (boot_cpu_has(X86_FEATURE_OSPKE) && si_code == SEGV_PKUERR)
+> +		info.si_pkey = fetch_pkey(address, tsk);
+
+which is int.
+
+> +			int _pkey; /* FIXME: protection key value??
+
+Inconsistent at least.
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
