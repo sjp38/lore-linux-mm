@@ -1,97 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 40EF56B0038
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 04:04:01 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so2639057pad.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 01:04:01 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id rj3si627601pbc.104.2015.09.22.01.03.59
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id CE2156B0255
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 04:27:04 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so110107052qge.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 01:27:04 -0700 (PDT)
+Received: from mx3-phx2.redhat.com (mx3-phx2.redhat.com. [209.132.183.24])
+        by mx.google.com with ESMTPS id q29si296525qkh.99.2015.09.22.01.27.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 22 Sep 2015 01:04:00 -0700 (PDT)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH v3] xfs: Print comm name and pid when open-coded __GFP_NOFAIL allocation stucks
-Date: Tue, 22 Sep 2015 17:03:43 +0900
-Message-Id: <1442909023-4088-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-In-Reply-To: <20150922051253.GB3902@dastard>
-References: <20150922051253.GB3902@dastard>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Tue, 22 Sep 2015 01:27:03 -0700 (PDT)
+Date: Tue, 22 Sep 2015 04:27:01 -0400 (EDT)
+From: Jan Stancek <jstancek@redhat.com>
+Message-ID: <1327703113.14884616.1442910421398.JavaMail.zimbra@redhat.com>
+In-Reply-To: <1670445670.7779783.1441797083045.JavaMail.zimbra@redhat.com>
+References: <1a7c81db42986a6fa27260fe189890bffc8a9cce.1440665740.git.jstancek@redhat.com> <b12da2996a30cb739146a5eccd068bbe650092a1.1440665740.git.jstancek@redhat.com> <20150901071553.GD23114@localhost.localdomain> <1670445670.7779783.1441797083045.JavaMail.zimbra@redhat.com>
+Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections in
+ register_mem_sect_under_node
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com
-Cc: xfs@oss.sgi.com, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>
+To: gregkh@linuxfoundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Young <dyoung@redhat.com>
 
-This patch adds comm name and pid to warning messages printed by
-kmem_alloc(), kmem_zone_alloc() and xfs_buf_allocate_memory().
-This will help telling which memory allocations (e.g. kernel worker
-threads, OOM victim tasks, neither) are stalling because these functions
-are passing __GFP_NOWARN which suppresses not only backtrace but comm name
-and pid.
 
-  [   66.089978] Kill process 8505 (a.out) sharing same memory
-  [   69.748060] XFS: a.out(8082) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
-  [   69.798580] XFS: kworker/u16:28(381) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
-  [   69.876952] XFS: xfs-data/sda1(399) possible memory allocation deadlock in kmem_alloc (mode:0x8250)
-  [   70.359518] XFS: a.out(8412) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
-  [   73.299509] XFS: kworker/u16:28(381) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
-  [   73.470350] XFS: xfs-data/sda1(399) possible memory allocation deadlock in kmem_alloc (mode:0x8250)
-  [   73.664420] XFS: a.out(8082) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
-  [   73.967434] XFS: a.out(8412) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
-  [   76.950038] XFS: kworker/u16:28(381) possible memory allocation deadlock in xfs_buf_allocate_memory (mode:0x250)
-  [   76.957938] XFS: xfs-data/sda1(399) possible memory allocation deadlock in kmem_alloc (mode:0x8250)
 
-(Strictly speaking, we want task_lock()/task_unlock() when reading comm name.)
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Michal Hocko <mhocko@suse.com>
----
- fs/xfs/kmem.c    | 10 ++++++----
- fs/xfs/xfs_buf.c |  3 ++-
- 2 files changed, 8 insertions(+), 5 deletions(-)
 
-diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
-index a7a3a63..535c136 100644
---- a/fs/xfs/kmem.c
-+++ b/fs/xfs/kmem.c
-@@ -55,8 +55,9 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
- 			return ptr;
- 		if (!(++retries % 100))
- 			xfs_err(NULL,
--		"possible memory allocation deadlock in %s (mode:0x%x)",
--					__func__, lflags);
-+		"%s(%u) possible memory allocation deadlock in %s (mode:0x%x)",
-+				current->comm, current->pid,
-+				__func__, lflags);
- 		congestion_wait(BLK_RW_ASYNC, HZ/50);
- 	} while (1);
- }
-@@ -120,8 +121,9 @@ kmem_zone_alloc(kmem_zone_t *zone, xfs_km_flags_t flags)
- 			return ptr;
- 		if (!(++retries % 100))
- 			xfs_err(NULL,
--		"possible memory allocation deadlock in %s (mode:0x%x)",
--					__func__, lflags);
-+		"%s(%u) possible memory allocation deadlock in %s (mode:0x%x)",
-+				current->comm, current->pid,
-+				__func__, lflags);
- 		congestion_wait(BLK_RW_ASYNC, HZ/50);
- 	} while (1);
- }
-diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-index 8ecffb3..cac62e1 100644
---- a/fs/xfs/xfs_buf.c
-+++ b/fs/xfs/xfs_buf.c
-@@ -354,7 +354,8 @@ retry:
- 			 */
- 			if (!(++retries % 100))
- 				xfs_err(NULL,
--		"possible memory allocation deadlock in %s (mode:0x%x)",
-+		"%s(%u) possible memory allocation deadlock in %s (mode:0x%x)",
-+					current->comm, current->pid,
- 					__func__, gfp_mask);
- 
- 			XFS_STATS_INC(xb_page_retries);
--- 
-1.8.3.1
+----- Original Message -----
+> From: "Jan Stancek" <jstancek@redhat.com>
+> To: gregkh@linuxfoundation.org
+> Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Dave Young" <dyoung@redhat.com>
+> Sent: Wednesday, 9 September, 2015 1:11:23 PM
+> Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections in register_mem_sect_under_node
+> 
+> Greg,
+> 
+> any thoughts about the patch?
+
+ping
+
+> 
+> Regards,
+> Jan
+> 
+> ----- Original Message -----
+> > From: "Dave Young" <dyoung@redhat.com>
+> > To: "Jan Stancek" <jstancek@redhat.com>
+> > Cc: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org,
+> > linux-mm@kvack.org
+> > Sent: Tuesday, 1 September, 2015 9:15:53 AM
+> > Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections in
+> > register_mem_sect_under_node
+> > 
+> > On 08/27/15 at 04:43pm, Jan Stancek wrote:
+> > > Skip non-present sections in mem_blk to avoid crashing during boot
+> > > at register_mem_sect_under_node()->get_nid_for_pfn():
+> > > 
+> > >   Unable to handle kernel paging request for data at address
+> > >   0xf000000000080020
+> > >   Faulting instruction address: 0xc00000000866b480
+> > >   Oops: Kernel access of bad area, sig: 11 [#1]
+> > >   SMP NR_CPUS=2048 NUMA pSeries
+> > >   Modules linked in:
+> > >   CPU: 14 PID: 1 Comm: swapper/14 Not tainted 4.2.0-rc8+ #6
+> > >   task: c00000001e480000 ti: c00000001e500000 task.ti: c00000001e500000
+> > >   NIP: c00000000866b480 LR: c00000000851aecc CTR: 0000000000000400
+> > >   ...
+> > >   NIP [c00000000866b480] get_nid_for_pfn+0x10/0x30
+> > >   LR [c00000000851aecc] register_mem_sect_under_node+0x9c/0x190
+> > >   Call Trace:
+> > >   [c00000001e503b10] [c0000000084f89a4] put_device+0x24/0x40 (unreliable)
+> > >   [c00000001e503b60] [c00000000851b3d4] register_one_node+0x2b4/0x390
+> > >   [c00000001e503bc0] [c000000008ae7a50] topology_init+0x4c/0x1e8
+> > >   [c00000001e503c30] [c00000000800b3bc] do_one_initcall+0x10c/0x260
+> > >   [c00000001e503d00] [c000000008ae41b4] kernel_init_freeable+0x27c/0x364
+> > >   [c00000001e503dc0] [c00000000800bc14] kernel_init+0x24/0x130
+> > >   [c00000001e503e30] [c000000008009530] ret_from_kernel_thread+0x5c/0xac
+> > >   Instruction dump:
+> > >   4e800020 60000000 60000000 60420000 3b80ffed 4bffffc8 00000000 00000000
+> > >   3920ffff 78633664 792900c4 7d434a14 <e94a0020> 2faa0000 41de0010
+> > >   7c63482a
+> > >   ---[ end trace e9ab4a173e0cee14 ]---
+> > > 
+> > > This has been observed during kdump kernel boot on ppc64le KVM guest
+> > > (page size: 65536, sections_per_block: 16, PAGES_PER_SECTION: 256)
+> > > where kdump adds "rtas" to list of usable regions:
+> > >   # hexdump -C /sys/firmware/devicetree/base/rtas/linux,rtas-base
+> > >   00000000  2f ff 00 00                                       |/...|
+> > > 
+> > > [    0.000000] Early memory node ranges
+> > > [    0.000000]   node   0: [mem 0x0000000000000000-0x000000001fffffff]
+> > > [    0.000000]   node   0: [mem 0x000000002fff0000-0x000000002fffffff]
+> > > 
+> > > Crash happens when register_mem_sect_under_node goes over mem_blk that
+> > > spans sections 32-47, 32-46 are not present, 47 is present:
+> > >   32 * 256 * 65536 == 0x20000000
+> > >   47 * 256 * 65536 == 0x2f000000
+> > > It tries to access page for first pfn of this mem_blk (8192 == 32 * 256)
+> > > and crashes.
+> > > 
+> > > Signed-off-by: Jan Stancek <jstancek@redhat.com>
+> > > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> > > ---
+> > >  drivers/base/node.c | 3 +++
+> > >  1 file changed, 3 insertions(+)
+> > > 
+> > > diff --git a/drivers/base/node.c b/drivers/base/node.c
+> > > index 4c7423a4b5f4..e638cfde7486 100644
+> > > --- a/drivers/base/node.c
+> > > +++ b/drivers/base/node.c
+> > > @@ -390,6 +390,9 @@ int register_mem_sect_under_node(struct memory_block
+> > > *mem_blk, int nid)
+> > >  		sect_no <= mem_blk->end_section_nr;
+> > >  		sect_no++) {
+> > >  
+> > > +		if (!present_section_nr(sect_no))
+> > > +			continue;
+> > > +
+> > >  		sect_start_pfn = section_nr_to_pfn(sect_no);
+> > >  		sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+> > >  
+> > > --
+> > > 1.8.3.1
+> > > 
+> > > --
+> > > To unsubscribe from this list: send the line "unsubscribe linux-kernel"
+> > > in
+> > > the body of a message to majordomo@vger.kernel.org
+> > > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > > Please read the FAQ at  http://www.tux.org/lkml/
+> > 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
