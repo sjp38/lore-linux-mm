@@ -1,138 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id CE2156B0255
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 04:27:04 -0400 (EDT)
-Received: by qgev79 with SMTP id v79so110107052qge.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 01:27:04 -0700 (PDT)
-Received: from mx3-phx2.redhat.com (mx3-phx2.redhat.com. [209.132.183.24])
-        by mx.google.com with ESMTPS id q29si296525qkh.99.2015.09.22.01.27.03
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A30E6B0038
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:03:15 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so182346968wic.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:03:15 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
+        by mx.google.com with ESMTPS id wc12si23025481wic.115.2015.09.22.02.03.13
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Tue, 22 Sep 2015 01:27:03 -0700 (PDT)
-Date: Tue, 22 Sep 2015 04:27:01 -0400 (EDT)
-From: Jan Stancek <jstancek@redhat.com>
-Message-ID: <1327703113.14884616.1442910421398.JavaMail.zimbra@redhat.com>
-In-Reply-To: <1670445670.7779783.1441797083045.JavaMail.zimbra@redhat.com>
-References: <1a7c81db42986a6fa27260fe189890bffc8a9cce.1440665740.git.jstancek@redhat.com> <b12da2996a30cb739146a5eccd068bbe650092a1.1440665740.git.jstancek@redhat.com> <20150901071553.GD23114@localhost.localdomain> <1670445670.7779783.1441797083045.JavaMail.zimbra@redhat.com>
-Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections in
- register_mem_sect_under_node
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Sep 2015 02:03:14 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so149798614wic.1
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:03:13 -0700 (PDT)
+Date: Tue, 22 Sep 2015 11:03:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: 4.3-rc1 dirty page count underflow (cgroup-related?)
+Message-ID: <20150922090311.GB25888@dhcp22.suse.cz>
+References: <55FC24C2.8020501@intel.com>
+ <xr93pp1cmc0t.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <xr93pp1cmc0t.fsf@gthelen.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Young <dyoung@redhat.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "open list:CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)" <cgroups@vger.kernel.org>, "open list:CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
 
+[I am sorry I didn't get to this earlier because I was at an internal
+conference last week]
 
-
-
-
------ Original Message -----
-> From: "Jan Stancek" <jstancek@redhat.com>
-> To: gregkh@linuxfoundation.org
-> Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Dave Young" <dyoung@redhat.com>
-> Sent: Wednesday, 9 September, 2015 1:11:23 PM
-> Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections in register_mem_sect_under_node
+On Mon 21-09-15 01:06:58, Greg Thelen wrote:
+[...]
+> >From f5c39c2e8471c10fe0464ca7b6e6f743ce6920a6 Mon Sep 17 00:00:00 2001
+> From: Greg Thelen <gthelen@google.com>
+> Date: Sat, 19 Sep 2015 16:21:18 -0700
+> Subject: [PATCH] memcg: fix dirty page migration
 > 
-> Greg,
+> The problem starts with a file backed dirty page which is charged to a
+> memcg.  Then page migration is used to move oldpage to newpage.
+> Migration:
+> - copies the oldpage's data to newpage
+> - clears oldpage.PG_dirty
+> - sets newpage.PG_dirty
+> - uncharges oldpage from memcg
+> - charges newpage to memcg
 > 
-> any thoughts about the patch?
+> Clearing oldpage.PG_dirty decrements the charged memcg's dirty page
+> count.  However, because newpage is not yet charged, setting
+> newpage.PG_dirty does not increment the memcg's dirty page count.  After
+> migration completes newpage.PG_dirty is eventually cleared, often in
+> account_page_cleaned().  At this time newpage is charged to a memcg so
+> the memcg's dirty page count is decremented which causes underflow
+> because the count was not previously incremented by migration.  This
+> underflow causes balance_dirty_pages() to see a very large unsigned
+> number of dirty memcg pages which leads to aggressive throttling of
+> buffered writes by processes in non root memcg.
 
-ping
+Very well spotted!
 
+> This issue:
+> - can harm performance of non root memcg buffered writes.
+> - can report too small (even negative) values in
+>   memory.stat[(total_)dirty] counters of all memcg, including the root.
 > 
-> Regards,
-> Jan
+> To avoid polluting migrate.c with #ifdef CONFIG_MEMCG checks, introduce
+> page_memcg() and set_page_memcg() helpers.
 > 
-> ----- Original Message -----
-> > From: "Dave Young" <dyoung@redhat.com>
-> > To: "Jan Stancek" <jstancek@redhat.com>
-> > Cc: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org,
-> > linux-mm@kvack.org
-> > Sent: Tuesday, 1 September, 2015 9:15:53 AM
-> > Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections in
-> > register_mem_sect_under_node
-> > 
-> > On 08/27/15 at 04:43pm, Jan Stancek wrote:
-> > > Skip non-present sections in mem_blk to avoid crashing during boot
-> > > at register_mem_sect_under_node()->get_nid_for_pfn():
-> > > 
-> > >   Unable to handle kernel paging request for data at address
-> > >   0xf000000000080020
-> > >   Faulting instruction address: 0xc00000000866b480
-> > >   Oops: Kernel access of bad area, sig: 11 [#1]
-> > >   SMP NR_CPUS=2048 NUMA pSeries
-> > >   Modules linked in:
-> > >   CPU: 14 PID: 1 Comm: swapper/14 Not tainted 4.2.0-rc8+ #6
-> > >   task: c00000001e480000 ti: c00000001e500000 task.ti: c00000001e500000
-> > >   NIP: c00000000866b480 LR: c00000000851aecc CTR: 0000000000000400
-> > >   ...
-> > >   NIP [c00000000866b480] get_nid_for_pfn+0x10/0x30
-> > >   LR [c00000000851aecc] register_mem_sect_under_node+0x9c/0x190
-> > >   Call Trace:
-> > >   [c00000001e503b10] [c0000000084f89a4] put_device+0x24/0x40 (unreliable)
-> > >   [c00000001e503b60] [c00000000851b3d4] register_one_node+0x2b4/0x390
-> > >   [c00000001e503bc0] [c000000008ae7a50] topology_init+0x4c/0x1e8
-> > >   [c00000001e503c30] [c00000000800b3bc] do_one_initcall+0x10c/0x260
-> > >   [c00000001e503d00] [c000000008ae41b4] kernel_init_freeable+0x27c/0x364
-> > >   [c00000001e503dc0] [c00000000800bc14] kernel_init+0x24/0x130
-> > >   [c00000001e503e30] [c000000008009530] ret_from_kernel_thread+0x5c/0xac
-> > >   Instruction dump:
-> > >   4e800020 60000000 60000000 60420000 3b80ffed 4bffffc8 00000000 00000000
-> > >   3920ffff 78633664 792900c4 7d434a14 <e94a0020> 2faa0000 41de0010
-> > >   7c63482a
-> > >   ---[ end trace e9ab4a173e0cee14 ]---
-> > > 
-> > > This has been observed during kdump kernel boot on ppc64le KVM guest
-> > > (page size: 65536, sections_per_block: 16, PAGES_PER_SECTION: 256)
-> > > where kdump adds "rtas" to list of usable regions:
-> > >   # hexdump -C /sys/firmware/devicetree/base/rtas/linux,rtas-base
-> > >   00000000  2f ff 00 00                                       |/...|
-> > > 
-> > > [    0.000000] Early memory node ranges
-> > > [    0.000000]   node   0: [mem 0x0000000000000000-0x000000001fffffff]
-> > > [    0.000000]   node   0: [mem 0x000000002fff0000-0x000000002fffffff]
-> > > 
-> > > Crash happens when register_mem_sect_under_node goes over mem_blk that
-> > > spans sections 32-47, 32-46 are not present, 47 is present:
-> > >   32 * 256 * 65536 == 0x20000000
-> > >   47 * 256 * 65536 == 0x2f000000
-> > > It tries to access page for first pfn of this mem_blk (8192 == 32 * 256)
-> > > and crashes.
-> > > 
-> > > Signed-off-by: Jan Stancek <jstancek@redhat.com>
-> > > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > > ---
-> > >  drivers/base/node.c | 3 +++
-> > >  1 file changed, 3 insertions(+)
-> > > 
-> > > diff --git a/drivers/base/node.c b/drivers/base/node.c
-> > > index 4c7423a4b5f4..e638cfde7486 100644
-> > > --- a/drivers/base/node.c
-> > > +++ b/drivers/base/node.c
-> > > @@ -390,6 +390,9 @@ int register_mem_sect_under_node(struct memory_block
-> > > *mem_blk, int nid)
-> > >  		sect_no <= mem_blk->end_section_nr;
-> > >  		sect_no++) {
-> > >  
-> > > +		if (!present_section_nr(sect_no))
-> > > +			continue;
-> > > +
-> > >  		sect_start_pfn = section_nr_to_pfn(sect_no);
-> > >  		sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
-> > >  
-> > > --
-> > > 1.8.3.1
-> > > 
-> > > --
-> > > To unsubscribe from this list: send the line "unsubscribe linux-kernel"
-> > > in
-> > > the body of a message to majordomo@vger.kernel.org
-> > > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > > Please read the FAQ at  http://www.tux.org/lkml/
-> > 
+> Test:
+>     0) setup and enter limited memcg
+>     mkdir /sys/fs/cgroup/test
+>     echo 1G > /sys/fs/cgroup/test/memory.limit_in_bytes
+>     echo $$ > /sys/fs/cgroup/test/cgroup.procs
 > 
+>     1) buffered writes baseline
+>     dd if=/dev/zero of=/data/tmp/foo bs=1M count=1k
+>     sync
+>     grep ^dirty /sys/fs/cgroup/test/memory.stat
+> 
+>     2) buffered writes with compaction antagonist to induce migration
+>     yes 1 > /proc/sys/vm/compact_memory &
+>     rm -rf /data/tmp/foo
+>     dd if=/dev/zero of=/data/tmp/foo bs=1M count=1k
+>     kill %
+>     sync
+>     grep ^dirty /sys/fs/cgroup/test/memory.stat
+> 
+>     3) buffered writes without antagonist, should match baseline
+>     rm -rf /data/tmp/foo
+>     dd if=/dev/zero of=/data/tmp/foo bs=1M count=1k
+>     sync
+>     grep ^dirty /sys/fs/cgroup/test/memory.stat
+> 
+>                        (speed, dirty residue)
+>              unpatched                       patched
+>     1) 841 MB/s 0 dirty pages          886 MB/s 0 dirty pages
+>     2) 611 MB/s -33427456 dirty pages  793 MB/s 0 dirty pages
+>     3) 114 MB/s -33427456 dirty pages  891 MB/s 0 dirty pages
+> 
+>     Notice that unpatched baseline performance (1) fell after
+>     migration (3): 841 -> 114 MB/s.  In the patched kernel, post
+>     migration performance matches baseline.
+> 
+> Fixes: c4843a7593a9 ("memcg: add per cgroup dirty page accounting")
+> Cc: <stable@vger.kernel.org> # 4.2+
+> Reported-by: Dave Hansen <dave.hansen@intel.com>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+> ---
+>  include/linux/mm.h | 21 +++++++++++++++++++++
+>  mm/migrate.c       | 12 +++++++++++-
+>  2 files changed, 32 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 91c08f6f0dc9..80001de019ba 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -905,6 +905,27 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
+>  #endif
+>  }
+>  
+> +#ifdef CONFIG_MEMCG
+> +static inline struct mem_cgroup *page_memcg(struct page *page)
+> +{
+> +	return page->mem_cgroup;
+> +}
+> +
+> +static inline void set_page_memcg(struct page *page, struct mem_cgroup *memcg)
+> +{
+> +	page->mem_cgroup = memcg;
+> +}
+> +#else
+> +static inline struct mem_cgroup *page_memcg(struct page *page)
+> +{
+> +	return NULL;
+> +}
+> +
+> +static inline void set_page_memcg(struct page *page, struct mem_cgroup *memcg)
+> +{
+> +}
+> +#endif
+> +
+>  /*
+>   * Some inline functions in vmstat.h depend on page_zone()
+>   */
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index c3cb566af3e2..6116b8f64d27 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -740,6 +740,15 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+>  	if (PageSwapBacked(page))
+>  		SetPageSwapBacked(newpage);
+>  
+> +	/*
+> +	 * Indirectly called below, migrate_page_copy() copies PG_dirty and thus
+> +	 * needs newpage's memcg set to transfer memcg dirty page accounting.
+> +	 * So perform memcg migration in two steps:
+> +	 * 1. set newpage->mem_cgroup (here)
+> +	 * 2. clear page->mem_cgroup (below)
+> +	 */
+> +	set_page_memcg(newpage, page_memcg(page));
+> +
+>  	mapping = page_mapping(page);
+>  	if (!mapping)
+>  		rc = migrate_page(mapping, newpage, page, mode);
+> @@ -756,9 +765,10 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+>  		rc = fallback_migrate_page(mapping, newpage, page, mode);
+>  
+>  	if (rc != MIGRATEPAGE_SUCCESS) {
+> +		set_page_memcg(newpage, NULL);
+>  		newpage->mapping = NULL;
+>  	} else {
+> -		mem_cgroup_migrate(page, newpage, false);
+> +		set_page_memcg(page, NULL);
+>  		if (page_was_mapped)
+>  			remove_migration_ptes(page, newpage);
+>  		page->mapping = NULL;
+> -- 
+> 2.6.0.rc0.131.gf624c3d
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
