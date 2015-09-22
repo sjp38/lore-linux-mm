@@ -1,116 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BD1F36B0038
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:32:59 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so14625711wic.0
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E3B96B0254
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 05:33:00 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so182773454wic.1
         for <linux-mm@kvack.org>; Tue, 22 Sep 2015 02:32:59 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ct4si869941wjb.45.2015.09.22.02.32.58
+        by mx.google.com with ESMTPS id jv6si2609206wid.56.2015.09.22.02.32.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Tue, 22 Sep 2015 02:32:58 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 3/3] mm, compaction: disginguish contended status in tracepoints
-Date: Tue, 22 Sep 2015 11:32:45 +0200
-Message-Id: <1442914365-15949-3-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1442914365-15949-1-git-send-email-vbabka@suse.cz>
-References: <1442914365-15949-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v2 1/3] mm, compaction: export tracepoints status strings to userspace
+Date: Tue, 22 Sep 2015 11:32:43 +0200
+Message-Id: <1442914365-15949-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ingo Molnar <mingo@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Steven Rostedt <rostedt@goodmis.org>
 
-Compaction returns prematurely with COMPACT_PARTIAL when contended or has fatal
-signal pending. This is ok for the callers, but might be misleading in the
-traces, as the usual reason to return COMPACT_PARTIAL is that we think the
-allocation should succeed. After this patch we distinguish the premature ending
-condition in the mm_compaction_finished and mm_compaction_end tracepoints.
+Some compaction tracepoints convert the integer return values to strings using
+the compaction_status_string array. This works for in-kernel printing, but not
+userspace trace printing of raw captured trace such as via trace-cmd report.
 
-The contended status covers the following reasons:
-- lock contention or need_resched() detected in async compaction
-- fatal signal pending
-- too many pages isolated in the zone (only for async compaction)
-Further distinguishing the exact reason seems unnecessary for now.
+This patch converts the private array to appropriate tracepoint macros that
+result in proper userspace support.
+
+trace-cmd output before:
+transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
+  zone=ffffffff81815d7a order=9 ret=
+
+after:
+transhuge-stres-4235  [000]   453.149280: mm_compaction_finished: node=0
+  zone=ffffffff81815d7a order=9 ret=partial
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: David Rientjes <rientjes@google.com>
 ---
-v2: extend to mm_compaction_end (pointed out by Joonsoo)
+v2: adjust comment for adding new states, add Reviewed-by.
 
- include/linux/compaction.h        | 1 +
- include/trace/events/compaction.h | 3 ++-
- mm/compaction.c                   | 9 ++++++---
- 3 files changed, 9 insertions(+), 4 deletions(-)
+ include/linux/compaction.h        |  2 +-
+ include/trace/events/compaction.h | 33 +++++++++++++++++++++++++++++++--
+ mm/compaction.c                   | 11 -----------
+ 3 files changed, 32 insertions(+), 14 deletions(-)
 
 diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index f14ba98..4cd4ddf 100644
+index aa8f61c..f14ba98 100644
 --- a/include/linux/compaction.h
 +++ b/include/linux/compaction.h
-@@ -15,6 +15,7 @@
+@@ -15,7 +15,7 @@
  /* For more detailed tracepoint output */
  #define COMPACT_NO_SUITABLE_PAGE	5
  #define COMPACT_NOT_SUITABLE_ZONE	6
-+#define COMPACT_CONTENDED		7
- /* When adding new states, please adjust include/trace/events/compaction.h */
+-/* When adding new state, please change compaction_status_string, too */
++/* When adding new states, please adjust include/trace/events/compaction.h */
  
  /* Used to signal whether compaction detected need_sched() or lock contention */
+ /* No contention detected */
 diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index 8daa8fa..5604994 100644
+index 9a6a3fe..1275a55 100644
 --- a/include/trace/events/compaction.h
 +++ b/include/trace/events/compaction.h
-@@ -16,7 +16,8 @@
- 	EM( COMPACT_PARTIAL,		"partial")		\
- 	EM( COMPACT_COMPLETE,		"complete")		\
- 	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
--	EMe(COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")
-+	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
-+	EMe(COMPACT_CONTENDED,		"contended")
+@@ -9,6 +9,35 @@
+ #include <linux/tracepoint.h>
+ #include <trace/events/gfpflags.h>
  
- #ifdef CONFIG_ZONE_DMA
- #define IFDEF_ZONE_DMA(X) X
++#define COMPACTION_STATUS					\
++	EM( COMPACT_DEFERRED,		"deferred")		\
++	EM( COMPACT_SKIPPED,		"skipped")		\
++	EM( COMPACT_CONTINUE,		"continue")		\
++	EM( COMPACT_PARTIAL,		"partial")		\
++	EM( COMPACT_COMPLETE,		"complete")		\
++	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
++	EMe(COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")
++
++/*
++ * First define the enums in the above macros to be exported to userspace
++ * via TRACE_DEFINE_ENUM().
++ */
++#undef EM
++#undef EMe
++#define EM(a, b)	TRACE_DEFINE_ENUM(a);
++#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
++
++COMPACTION_STATUS
++
++/*
++ * Now redefine the EM() and EMe() macros to map the enums to the strings
++ * that will be printed in the output.
++ */
++#undef EM
++#undef EMe
++#define EM(a, b)	{a, b},
++#define EMe(a, b)	{a, b}
++
+ DECLARE_EVENT_CLASS(mm_compaction_isolate_template,
+ 
+ 	TP_PROTO(
+@@ -161,7 +190,7 @@ TRACE_EVENT(mm_compaction_end,
+ 		__entry->free_pfn,
+ 		__entry->zone_end,
+ 		__entry->sync ? "sync" : "async",
+-		compaction_status_string[__entry->status])
++		__print_symbolic(__entry->status, COMPACTION_STATUS))
+ );
+ 
+ TRACE_EVENT(mm_compaction_try_to_compact_pages,
+@@ -217,7 +246,7 @@ DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
+ 		__entry->nid,
+ 		__entry->name,
+ 		__entry->order,
+-		compaction_status_string[__entry->ret])
++		__print_symbolic(__entry->ret, COMPACTION_STATUS))
+ );
+ 
+ DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_finished,
 diff --git a/mm/compaction.c b/mm/compaction.c
-index a5849c4..de3e1e7 100644
+index a8e6593..a5849c4 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1202,7 +1202,7 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
- 	unsigned long watermark;
+@@ -35,17 +35,6 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
+ #endif
  
- 	if (cc->contended || fatal_signal_pending(current))
--		return COMPACT_PARTIAL;
-+		return COMPACT_CONTENDED;
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+-#ifdef CONFIG_TRACEPOINTS
+-static const char *const compaction_status_string[] = {
+-	"deferred",
+-	"skipped",
+-	"continue",
+-	"partial",
+-	"complete",
+-	"no_suitable_page",
+-	"not_suitable_zone",
+-};
+-#endif
  
- 	/* Compaction run completes if the migrate and free scanner meet */
- 	if (compact_scanners_met(cc)) {
-@@ -1393,7 +1393,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 
- 		switch (isolate_migratepages(zone, cc)) {
- 		case ISOLATE_ABORT:
--			ret = COMPACT_PARTIAL;
-+			ret = COMPACT_CONTENDED;
- 			putback_movable_pages(&cc->migratepages);
- 			cc->nr_migratepages = 0;
- 			goto out;
-@@ -1424,7 +1424,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 			 * and we want compact_finished() to detect it
- 			 */
- 			if (err == -ENOMEM && !compact_scanners_met(cc)) {
--				ret = COMPACT_PARTIAL;
-+				ret = COMPACT_CONTENDED;
- 				goto out;
- 			}
- 		}
-@@ -1477,6 +1477,9 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
- 				cc->free_pfn, end_pfn, sync, ret);
- 
-+	if (ret == COMPACT_CONTENDED)
-+		ret = COMPACT_PARTIAL;
-+
- 	return ret;
- }
- 
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/compaction.h>
 -- 
 2.5.1
 
