@@ -1,63 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0005B6B0253
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 15:34:52 -0400 (EDT)
-Received: by qgx61 with SMTP id 61so2496022qgx.3
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:34:52 -0700 (PDT)
-Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com. [129.33.205.209])
-        by mx.google.com with ESMTPS id p91si3074847qkp.57.2015.09.22.12.34.51
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B1ED6B0254
+	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 15:35:19 -0400 (EDT)
+Received: by ykft14 with SMTP id t14so20407046ykf.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:35:19 -0700 (PDT)
+Received: from mail-yk0-x22a.google.com (mail-yk0-x22a.google.com. [2607:f8b0:4002:c07::22a])
+        by mx.google.com with ESMTPS id d16si1974933ywb.11.2015.09.22.12.35.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Tue, 22 Sep 2015 12:34:52 -0700 (PDT)
-Received: from /spool/local
-	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
-	Tue, 22 Sep 2015 15:34:51 -0400
-Received: from b01cxnp23032.gho.pok.ibm.com (b01cxnp23032.gho.pok.ibm.com [9.57.198.27])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id D0F48C9003C
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 15:25:50 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by b01cxnp23032.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8MJYlD610747962
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 19:34:47 GMT
-Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8MJYkL3002202
-	for <linux-mm@kvack.org>; Tue, 22 Sep 2015 15:34:47 -0400
-Date: Wed, 23 Sep 2015 01:06:20 +0530
-From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Subject: Re: [PATCH V2  2/2] powerpc:numa Do not allocate bootmem memory for
- non existing nodes
-Message-ID: <20150922193620.GA6942@linux.vnet.ibm.com>
-Reply-To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-References: <1442282917-16893-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
- <1442282917-16893-3-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
- <1442899743.18408.5.camel@ellerman.id.au>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Sep 2015 12:35:18 -0700 (PDT)
+Received: by ykft14 with SMTP id t14so20406656ykf.0
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 12:35:18 -0700 (PDT)
+Date: Tue, 22 Sep 2015 15:35:13 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC v2 07/18] kthread: Allow to cancel kthread work
+Message-ID: <20150922193513.GE17659@mtj.duckdns.org>
+References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
+ <1442840639-6963-8-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1442899743.18408.5.camel@ellerman.id.au>
+In-Reply-To: <1442840639-6963-8-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, benh@kernel.crashing.org, paulus@samba.org, anton@samba.org, akpm@linux-foundation.org, nacc@linux.vnet.ibm.com, gkurz@linux.vnet.ibm.com, grant.likely@linaro.org, nikunj@linux.vnet.ibm.com, vdavydov@parallels.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-* Michael Ellerman <mpe@ellerman.id.au> [2015-09-22 15:29:03]:
+On Mon, Sep 21, 2015 at 03:03:48PM +0200, Petr Mladek wrote:
+>  /**
+> + * try_to_grab_pending_kthread_work - steal kthread work item from worklist,
+> + *	and disable irq
+> + * @work: work item to steal
+> + * @is_dwork: @work is a delayed_work
+> + * @flags: place to store irq state
+> + *
+> + * Try to grab PENDING bit of @work.  This function can handle @work in any
+> + * stable state - idle, on timer or on worklist.
+> + *
+> + * Return:
+> + *  1		if @work was pending and we successfully stole PENDING
+> + *  0		if @work was idle and we claimed PENDING
+> + *  -EAGAIN	if PENDING couldn't be grabbed at the moment, safe to busy-retry
+> + *  -ENOENT	if someone else is canceling @work, this state may persist
+> + *		for arbitrarily long
+> + *
+> + * Note:
+> + * On >= 0 return, the caller owns @work's PENDING bit.  To avoid getting
+> + * interrupted while holding PENDING and @work off queue, irq must be
+> + * disabled on return.  This, combined with delayed_work->timer being
+> + * irqsafe, ensures that we return -EAGAIN for finite short period of time.
+> + *
+> + * On successful return, >= 0, irq is disabled and the caller is
+> + * responsible for releasing it using local_irq_restore(*@flags).
+> + *
+> + * This function is safe to call from any context including IRQ handler.
+> + */
 
-> On Tue, 2015-09-15 at 07:38 +0530, Raghavendra K T wrote:
-> >
-> > ... nothing
-> 
-> Sure this patch looks obvious, but please give me a changelog that proves
-> you've thought about it thoroughly.
-> 
-> For example is it OK to use for_each_node() at this point in boot? Is there any
-> historical reason why we did it with a hard coded loop? If so what has changed.
-> What systems have you tested on? etc. etc.
-> 
-> cheers
+Ugh... I think this is way too much for kthread_worker.  Workqueue is
+as complex as it is partly for historical reasons and partly because
+it's used so widely and heavily.  kthread_worker is always guaranteed
+to have a single worker and in most cases maybe several work items.
+There's no reason to bring this level of complexity onto it.
+Providing simliar semantics is fine but it should be possible to do
+this in a lot simpler way if the requirements on space and concurrency
+is this much lower.
 
-Hi Michael,
-resending the patches with the changelog.
+e.g. always embed timer_list in a work item and use per-worker
+spinlock to synchronize access to both the work item and timer and use
+per-work-item mutex to synchronize multiple cancelers.  Let's please
+keep it simple.
 
-Please note that the patch is in -mm tree already.
+Thanks.
 
----8<---
+-- 
+tejun
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
