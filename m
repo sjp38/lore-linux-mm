@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C61026B025E
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:48:03 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so29385129pad.1
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 21:48:03 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id rq8si734458pbc.226.2015.09.22.21.48.02
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id ADDBA6B0254
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:48:11 -0400 (EDT)
+Received: by pacbt3 with SMTP id bt3so10926455pac.3
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 21:48:11 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id wp3si7666520pab.160.2015.09.22.21.48.10
         for <linux-mm@kvack.org>;
-        Tue, 22 Sep 2015 21:48:03 -0700 (PDT)
-Subject: [PATCH 10/15] block, dax: fix lifetime of in-kernel dax mappings
+        Tue, 22 Sep 2015 21:48:11 -0700 (PDT)
+Subject: [PATCH 14/15] mm, dax,
+ pmem: introduce {get|put}_dev_pagemap() for dax-gup
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 23 Sep 2015 00:42:06 -0400
-Message-ID: <20150923044206.36490.79829.stgit@dwillia2-desk3.jf.intel.com>
+Date: Wed, 23 Sep 2015 00:42:27 -0400
+Message-ID: <20150923044227.36490.99741.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
 References: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -20,294 +21,291 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Jens Axboe <axboe@kernel.dk>, Boaz Harrosh <boaz@plexistor.com>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+Cc: Dave Hansen <dave@sr71.net>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-The DAX implementation needs to protect new calls to ->direct_access()
-and usage of its return value against unbind of the underlying block
-device.  Use blk_dax_{get|put}() to either prevent blk_cleanup_queue()
-from proceeding, or fail the dax_map_bh() if the request_queue is being
-torn down.
+get_dev_page() enables paths like get_user_pages() to pin a dynamically
+mapped pfn-range (devm_memremap_pages()) while the resulting struct page
+objects are in use.  Unlike get_page() it may fail if the device is, or
+is in the process of being, disabled.  While the initial lookup of the
+range may be an expensive list walk, the result is cached to speed up
+subsequent lookups which are likely to be in the same mapped range.
 
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Boaz Harrosh <boaz@plexistor.com>
+Cc: Dave Hansen <dave@sr71.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <willy@linux.intel.com>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- fs/dax.c |  131 ++++++++++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 84 insertions(+), 47 deletions(-)
+ drivers/nvdimm/pmem.c    |    2 +
+ include/linux/io.h       |   17 -----------
+ include/linux/mm.h       |   62 ++++++++++++++++++++++++++++++++++++++++
+ include/linux/mm_types.h |    6 +++-
+ kernel/memremap.c        |   71 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 140 insertions(+), 18 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index bcfb14bfc1e4..358eea39e982 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -63,12 +63,43 @@ int dax_clear_blocks(struct inode *inode, sector_t block, long size)
- }
- EXPORT_SYMBOL_GPL(dax_clear_blocks);
- 
--static long dax_get_addr(struct buffer_head *bh, void __pmem **addr,
--		unsigned blkbits)
-+static void __pmem *__dax_map_bh(const struct buffer_head *bh, unsigned blkbits,
-+		unsigned long *pfn, long *len)
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index 1c670775129b..ac581a2e20e2 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -184,6 +184,7 @@ static void pmem_detach_disk(struct pmem_device *pmem)
+ static int pmem_attach_disk(struct device *dev,
+ 		struct nd_namespace_common *ndns, struct pmem_device *pmem)
  {
--	unsigned long pfn;
-+	long rc;
-+	void __pmem *addr;
-+	struct block_device *bdev = bh->b_bdev;
-+	struct request_queue *q = bdev->bd_queue;
- 	sector_t sector = bh->b_blocknr << (blkbits - 9);
--	return bdev_direct_access(bh->b_bdev, sector, addr, &pfn, bh->b_size);
-+
-+	rc = blk_dax_get(q);
-+	if (rc < 0)
-+		return (void __pmem *) ERR_PTR(rc);
-+	rc = bdev_direct_access(bdev, sector, &addr, pfn, bh->b_size);
-+	if (len)
-+		*len = rc;
-+	if (rc < 0) {
-+		blk_dax_put(q);
-+		return (void __pmem *) ERR_PTR(rc);
-+	}
-+	return addr;
-+}
-+
-+static void __pmem *dax_map_bh(const struct buffer_head *bh, unsigned blkbits)
-+{
-+	unsigned long pfn;
-+
-+	return __dax_map_bh(bh, blkbits, &pfn, NULL);
-+}
-+
-+static void dax_unmap_bh(const struct buffer_head *bh, void __pmem *addr)
-+{
-+	struct block_device *bdev = bh->b_bdev;
-+	struct request_queue *q = bdev->bd_queue;
-+
-+	if (IS_ERR(addr))
-+		return;
-+	blk_dax_put(q);
- }
++	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+ 	int nid = dev_to_node(dev);
+ 	struct gendisk *disk;
  
- /* the clear_pmem() calls are ordered by a wmb_pmem() in the caller */
-@@ -104,15 +135,16 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
- 		      loff_t start, loff_t end, get_block_t get_block,
- 		      struct buffer_head *bh)
- {
--	ssize_t retval = 0;
--	loff_t pos = start;
--	loff_t max = start;
--	loff_t bh_max = start;
--	void __pmem *addr;
-+	loff_t pos = start, max = start, bh_max = start;
-+	int rw = iov_iter_rw(iter), rc;
-+	long map_len = 0;
-+	unsigned long pfn;
-+	void __pmem *addr = NULL;
-+	void __pmem *kmap = (void __pmem *) ERR_PTR(-EIO);
- 	bool hole = false;
- 	bool need_wmb = false;
+@@ -191,6 +192,7 @@ static int pmem_attach_disk(struct device *dev,
+ 	if (!pmem->pmem_queue)
+ 		return -ENOMEM;
  
--	if (iov_iter_rw(iter) != WRITE)
-+	if (rw == READ)
- 		end = min(end, i_size_read(inode));
++	devm_register_pagemap(dev, &nsio->res, &pmem->pmem_queue->dax_ref.count);
+ 	blk_queue_make_request(pmem->pmem_queue, pmem_make_request);
+ 	blk_queue_physical_block_size(pmem->pmem_queue, PAGE_SIZE);
+ 	blk_queue_max_hw_sectors(pmem->pmem_queue, UINT_MAX);
+diff --git a/include/linux/io.h b/include/linux/io.h
+index de64c1e53612..2f2f8859abd9 100644
+--- a/include/linux/io.h
++++ b/include/linux/io.h
+@@ -87,23 +87,6 @@ void *devm_memremap(struct device *dev, resource_size_t offset,
+ 		size_t size, unsigned long flags);
+ void devm_memunmap(struct device *dev, void *addr);
  
- 	while (pos < end) {
-@@ -127,9 +159,8 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
- 			if (pos == bh_max) {
- 				bh->b_size = PAGE_ALIGN(end - pos);
- 				bh->b_state = 0;
--				retval = get_block(inode, block, bh,
--						   iov_iter_rw(iter) == WRITE);
--				if (retval)
-+				rc = get_block(inode, block, bh, rw == WRITE);
-+				if (rc)
- 					break;
- 				if (!buffer_size_valid(bh))
- 					bh->b_size = 1 << blkbits;
-@@ -141,21 +172,25 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
- 				bh->b_size -= done;
- 			}
- 
--			hole = iov_iter_rw(iter) != WRITE && !buffer_written(bh);
-+			hole = rw == READ && !buffer_written(bh);
- 			if (hole) {
- 				addr = NULL;
- 				size = bh->b_size - first;
- 			} else {
--				retval = dax_get_addr(bh, &addr, blkbits);
--				if (retval < 0)
-+				dax_unmap_bh(bh, kmap);
-+				kmap = __dax_map_bh(bh, blkbits, &pfn, &map_len);
-+				if (IS_ERR(kmap)) {
-+					rc = PTR_ERR(kmap);
- 					break;
-+				}
-+				addr = kmap;
- 				if (buffer_unwritten(bh) || buffer_new(bh)) {
--					dax_new_buf(addr, retval, first, pos,
--									end);
-+					dax_new_buf(addr, map_len, first, pos,
-+							end);
- 					need_wmb = true;
- 				}
- 				addr += first;
--				size = retval - first;
-+				size = map_len - first;
- 			}
- 			max = min(pos + size, end);
- 		}
-@@ -178,8 +213,9 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
- 
- 	if (need_wmb)
- 		wmb_pmem();
-+	dax_unmap_bh(bh, kmap);
- 
--	return (pos == start) ? retval : pos - start;
-+	return (pos == start) ? rc : pos - start;
- }
- 
- /**
-@@ -274,21 +310,22 @@ static int copy_user_bh(struct page *to, struct buffer_head *bh,
- 	void __pmem *vfrom;
- 	void *vto;
- 
--	if (dax_get_addr(bh, &vfrom, blkbits) < 0)
--		return -EIO;
-+	vfrom = dax_map_bh(bh, blkbits);
-+	if (IS_ERR(vfrom))
-+		return PTR_ERR(vfrom);
- 	vto = kmap_atomic(to);
- 	copy_user_page(vto, (void __force *)vfrom, vaddr, to);
- 	kunmap_atomic(vto);
-+	dax_unmap_bh(bh, vfrom);
- 	return 0;
- }
- 
- static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 			struct vm_area_struct *vma, struct vm_fault *vmf)
- {
--	sector_t sector = bh->b_blocknr << (inode->i_blkbits - 9);
- 	unsigned long vaddr = (unsigned long)vmf->virtual_address;
--	void __pmem *addr;
- 	unsigned long pfn;
-+	void __pmem *addr;
- 	pgoff_t size;
- 	int error;
- 
-@@ -305,11 +342,9 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 		goto out;
- 	}
- 
--	error = bdev_direct_access(bh->b_bdev, sector, &addr, &pfn, bh->b_size);
--	if (error < 0)
--		goto out;
--	if (error < PAGE_SIZE) {
--		error = -EIO;
-+	addr = __dax_map_bh(bh, inode->i_blkbits, &pfn, NULL);
-+	if (IS_ERR(addr)) {
-+		error = PTR_ERR(addr);
- 		goto out;
- 	}
- 
-@@ -317,6 +352,7 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 		clear_pmem(addr, PAGE_SIZE);
- 		wmb_pmem();
- 	}
-+	dax_unmap_bh(bh, addr);
- 
- 	error = vm_insert_mixed(vma, vaddr, pfn);
- 
-@@ -528,11 +564,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	unsigned blkbits = inode->i_blkbits;
- 	unsigned long pmd_addr = address & PMD_MASK;
- 	bool write = flags & FAULT_FLAG_WRITE;
--	long length;
--	void __pmem *kaddr;
- 	pgoff_t size, pgoff;
--	sector_t block, sector;
--	unsigned long pfn;
-+	sector_t block;
- 	int result = 0;
- 
- 	/* Fall back to PTEs if we're going to COW */
-@@ -557,8 +590,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 
- 	bh.b_size = PMD_SIZE;
- 	i_mmap_lock_write(mapping);
--	length = get_block(inode, block, &bh, write);
--	if (length)
-+	if (get_block(inode, block, &bh, write) != 0)
- 		return VM_FAULT_SIGBUS;
- 
- 	/*
-@@ -569,17 +601,17 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	if (!buffer_size_valid(&bh) || bh.b_size < PMD_SIZE)
- 		goto fallback;
- 
--	sector = bh.b_blocknr << (blkbits - 9);
+-void *__devm_memremap_pages(struct device *dev, struct resource *res);
 -
- 	if (buffer_unwritten(&bh) || buffer_new(&bh)) {
- 		int i;
-+		long length;
-+		unsigned long pfn;
-+		void __pmem *kaddr = __dax_map_bh(&bh, blkbits, &pfn, &length);
+-#ifdef CONFIG_ZONE_DEVICE
+-void *devm_memremap_pages(struct device *dev, struct resource *res);
+-#else
+-static inline void *devm_memremap_pages(struct device *dev, struct resource *res)
+-{
+-	/*
+-	 * Fail attempts to call devm_memremap_pages() without
+-	 * ZONE_DEVICE support enabled, this requires callers to fall
+-	 * back to plain devm_memremap() based on config
+-	 */
+-	WARN_ON_ONCE(1);
+-	return ERR_PTR(-ENXIO);
+-}
+-#endif
+-
+ /*
+  * Some systems do not have legacy ISA devices.
+  * /dev/port is not a valid interface on these systems.
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 989c5459bee7..6183549a854c 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -15,12 +15,14 @@
+ #include <linux/debug_locks.h>
+ #include <linux/mm_types.h>
+ #include <linux/range.h>
++#include <linux/percpu-refcount.h>
+ #include <linux/pfn.h>
+ #include <linux/bit_spinlock.h>
+ #include <linux/shrinker.h>
+ #include <linux/resource.h>
+ #include <linux/page_ext.h>
+ #include <linux/err.h>
++#include <linux/ioport.h>
  
--		length = bdev_direct_access(bh.b_bdev, sector, &kaddr, &pfn,
--						bh.b_size);
--		if (length < 0) {
-+		if (IS_ERR(kaddr)) {
- 			result = VM_FAULT_SIGBUS;
- 			goto out;
- 		}
+ struct mempolicy;
+ struct anon_vma;
+@@ -558,6 +560,28 @@ static inline void init_page_count(struct page *page)
+ void put_page(struct page *page);
+ void put_pages_list(struct list_head *pages);
+ 
++#ifdef CONFIG_ZONE_DEVICE
++void *devm_memremap_pages(struct device *dev, struct resource *res);
++void devm_register_pagemap(struct device *dev, struct resource *res,
++		struct percpu_ref *ref);
++#else
++static inline void *devm_memremap_pages(struct device *dev, struct resource *res)
++{
++	/*
++	 * Fail attempts to call devm_memremap_pages() without
++	 * ZONE_DEVICE support enabled, this requires callers to fall
++	 * back to plain devm_memremap() based on config
++	 */
++	WARN_ON_ONCE(1);
++	return ERR_PTR(-ENXIO);
++}
 +
- 		if ((length < PMD_SIZE) || (pfn & PG_PMD_COLOUR))
- 			goto fallback;
- 
-@@ -589,6 +621,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 		count_vm_event(PGMAJFAULT);
- 		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
- 		result |= VM_FAULT_MAJOR;
-+		dax_unmap_bh(&bh, kaddr);
- 	}
- 
- 	/*
-@@ -635,12 +668,15 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 		result = VM_FAULT_NOPAGE;
- 		spin_unlock(ptl);
- 	} else {
--		length = bdev_direct_access(bh.b_bdev, sector, &kaddr, &pfn,
--						bh.b_size);
--		if (length < 0) {
-+		long length;
-+		unsigned long pfn;
-+		void __pmem *kaddr = __dax_map_bh(&bh, blkbits, &pfn, &length);
++static inline void devm_register_pagemap(struct device *dev, struct resource *res,
++		struct percpu_ref *ref)
++{
++}
++#endif
 +
-+		if (IS_ERR(kaddr)) {
- 			result = VM_FAULT_SIGBUS;
- 			goto out;
- 		}
-+		dax_unmap_bh(&bh, kaddr);
- 		if ((length < PMD_SIZE) || (pfn & PG_PMD_COLOUR))
- 			goto fallback;
+ void split_page(struct page *page, unsigned int order);
+ int split_free_page(struct page *page);
  
-@@ -746,12 +782,13 @@ int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
- 	if (err < 0)
- 		return err;
- 	if (buffer_written(&bh)) {
--		void __pmem *addr;
--		err = dax_get_addr(&bh, &addr, inode->i_blkbits);
--		if (err < 0)
--			return err;
-+		void __pmem *addr = dax_map_bh(&bh, inode->i_blkbits);
+@@ -717,6 +741,44 @@ static inline enum zone_type page_zonenum(const struct page *page)
+ 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
+ }
+ 
++/**
++ * struct dev_pagemap - reference count for a devm_memremap_pages mapping
++ * @res: physical address range covered by @ref
++ * @ref: reference count that pins the devm_memremap_pages() mapping
++ * @dev: host device of the mapping for debug
++ */
++struct dev_pagemap {
++	const struct resource *res;
++	struct percpu_ref *ref;
++	struct device *dev;
++};
 +
-+		if (IS_ERR(addr))
-+			return PTR_ERR(addr);
- 		clear_pmem(addr + offset, length);
- 		wmb_pmem();
-+		dax_unmap_bh(&bh, addr);
- 	}
++struct dev_pagemap *__get_dev_pagemap(resource_size_t phys);
++
++static inline struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
++		struct dev_pagemap *pgmap)
++{
++	resource_size_t phys = PFN_PHYS(pfn);
++
++	/*
++	 * In the cached case we're already holding a reference so we can
++	 * simply do a blind increment
++	 */
++	if (pgmap && phys >= pgmap->res->start && phys <= pgmap->res->end) {
++		percpu_ref_get(pgmap->ref);
++		return pgmap;
++	}
++
++	/* fall back to slow path lookup */
++	return __get_dev_pagemap(phys);
++}
++
++static inline void put_dev_pagemap(struct dev_pagemap *pgmap)
++{
++	if (pgmap)
++		percpu_ref_put(pgmap->ref);
++}
++
+ #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
+ #define SECTION_IN_PAGE_FLAGS
+ #endif
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 3d6baa7d4534..20097e7b679a 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -49,12 +49,16 @@ struct page {
+ 					 * updated asynchronously */
+ 	union {
+ 		struct address_space *mapping;	/* If low bit clear, points to
+-						 * inode address_space, or NULL.
++						 * inode address_space, unless
++						 * the page is in ZONE_DEVICE
++						 * then it points to its parent
++						 * dev_pagemap, otherwise NULL.
+ 						 * If page mapped as anonymous
+ 						 * memory, low bit is set, and
+ 						 * it points to anon_vma object:
+ 						 * see PAGE_MAPPING_ANON below.
+ 						 */
++		struct dev_pagemap *pgmap;
+ 		void *s_mem;			/* slab first object */
+ 	};
  
- 	return 0;
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 0d818ce04129..74344dc8c31e 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -10,6 +10,7 @@
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  * General Public License for more details.
+  */
++#include <linux/rculist.h>
+ #include <linux/device.h>
+ #include <linux/types.h>
+ #include <linux/io.h>
+@@ -137,16 +138,86 @@ void devm_memunmap(struct device *dev, void *addr)
+ EXPORT_SYMBOL(devm_memunmap);
+ 
+ #ifdef CONFIG_ZONE_DEVICE
++static LIST_HEAD(ranges);
++static DEFINE_SPINLOCK(range_lock);
++
+ struct page_map {
+ 	struct resource res;
++	struct dev_pagemap pgmap;
++	struct list_head list;
+ };
+ 
+ static void devm_memremap_pages_release(struct device *dev, void *res)
+ {
+ 	struct page_map *page_map = res;
++	struct dev_pagemap *pgmap = &page_map->pgmap;
+ 
+ 	/* pages are dead and unused, undo the arch mapping */
+ 	arch_remove_memory(page_map->res.start, resource_size(&page_map->res));
++
++	if (pgmap->res) {
++		spin_lock(&range_lock);
++		list_del_rcu(&page_map->list);
++		spin_unlock(&range_lock);
++		dev_WARN_ONCE(dev, !percpu_ref_is_zero(pgmap->ref),
++				"page mapping not idle in %s\n", __func__);
++	}
++}
++
++static int page_map_match(struct device *dev, void *res, void *match_data)
++{
++	struct page_map *page_map = res;
++	resource_size_t phys = *(resource_size_t *) match_data;
++
++	return page_map->res.start == phys;
++}
++
++void devm_register_pagemap(struct device *dev, struct resource *res,
++		struct percpu_ref *ref)
++{
++	struct page_map *page_map;
++	struct dev_pagemap *pgmap;
++	unsigned long pfn;
++
++	page_map = devres_find(dev, devm_memremap_pages_release,
++			page_map_match, &res->start);
++	dev_WARN_ONCE(dev, !page_map, "%s: no mapping found for %pa\n",
++			__func__, &res->start);
++	if (!page_map)
++		return;
++
++	pgmap = &page_map->pgmap;
++	pgmap->dev = dev;
++	pgmap->res = &page_map->res;
++	pgmap->ref = ref;
++	INIT_LIST_HEAD(&page_map->list);
++	spin_lock(&range_lock);
++	list_add_rcu(&page_map->list, &ranges);
++	spin_unlock(&range_lock);
++
++	for (pfn = res->start >> PAGE_SHIFT;
++			pfn < res->end >> PAGE_SHIFT; pfn++) {
++		struct page *page = pfn_to_page(pfn);
++
++		page->pgmap = pgmap;
++	}
++}
++EXPORT_SYMBOL(devm_register_pagemap);
++
++struct dev_pagemap *__get_dev_pagemap(resource_size_t phys)
++{
++	struct page_map *page_map;
++	struct dev_pagemap *pgmap = NULL;
++
++	rcu_read_lock();
++	list_for_each_entry_rcu(page_map, &ranges, list)
++		if (phys >= page_map->res.start && phys <= page_map->res.end) {
++			if (percpu_ref_tryget_live(page_map->pgmap.ref))
++				pgmap = &page_map->pgmap;
++			break;
++		}
++	rcu_read_unlock();
++	return pgmap;
+ }
+ 
+ void *devm_memremap_pages(struct device *dev, struct resource *res)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
