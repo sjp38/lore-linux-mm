@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CA7646B025B
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:47:52 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so29689007pac.2
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 21:47:52 -0700 (PDT)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 57AA96B025C
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:47:55 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so29690022pac.2
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 21:47:55 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id cy1si7643373pad.200.2015.09.22.21.47.51
+        by mx.google.com with ESMTP id cy1si7643373pad.200.2015.09.22.21.47.54
         for <linux-mm@kvack.org>;
-        Tue, 22 Sep 2015 21:47:51 -0700 (PDT)
-Subject: [PATCH 08/15] block, dax, pmem: reference counting infrastructure
+        Tue, 22 Sep 2015 21:47:54 -0700 (PDT)
+Subject: [PATCH 11/15] mm, dax, pmem: introduce __pfn_t
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 23 Sep 2015 00:41:55 -0400
-Message-ID: <20150923044155.36490.2017.stgit@dwillia2-desk3.jf.intel.com>
+Date: Wed, 23 Sep 2015 00:42:11 -0400
+Message-ID: <20150923044211.36490.18084.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
 References: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -20,439 +20,410 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Jens Axboe <axboe@kernel.dk>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+Cc: Dave Hansen <dave@sr71.net>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
-Enable DAX to use a reference count for keeping the virtual address
-returned by ->direct_access() valid for the duration of its usage in
-fs/dax.c, or otherwise hold off blk_cleanup_queue() while
-pmem_make_request is active.  The blk-mq code is already in a position
-to need low overhead referece counting for races against request_queue
-destruction (blk_cleanup_queue()).  Given DAX-enabled block drivers do
-not enable blk-mq, share the storage in 'struct request_queue' between
-the two implementations.
+In preparation for enabling get_user_pages() operations on dax mappings,
+introduce a type that encapsulates a page-frame-number that can also be
+used to encode other information.  This other information is the
+historical "page_link" encoding in a scatterlist, but can also denote
+"device memory".  Where "device memory" is a set of pfns that are not
+part of the kernel's linear mapping by default, but are accessed via the
+same memory controller as ram.  The motivation for this new type is
+large capacity persistent memory that optionally has struct page entries
+in the 'memmap'.
 
-Cc: Jens Axboe <axboe@kernel.dk>
+When a driver, like pmem, has established a devm_memremap_pages()
+mapping it needs to communicate to upper layers that the pfn has a page
+backing.  This property will be leveraged in a later patch to enable
+dax-gup.  For now, update all the ->direct_access() implementations to
+communicate whether the returned pfn range is mapped.
+
 Cc: Christoph Hellwig <hch@lst.de>
+Cc: Dave Hansen <dave@sr71.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/powerpc/sysdev/axonram.c |    2 -
- block/blk-core.c              |   84 +++++++++++++++++++++++++++++++++++++++++
- block/blk-mq-sysfs.c          |    2 -
- block/blk-mq.c                |   48 ++++++-----------------
- block/blk-sysfs.c             |    9 ++++
- block/blk.h                   |    3 +
- drivers/block/brd.c           |    2 -
- drivers/nvdimm/pmem.c         |    3 +
- drivers/s390/block/dcssblk.c  |    2 -
- include/linux/blkdev.h        |   20 ++++++++--
- 10 files changed, 130 insertions(+), 45 deletions(-)
+ arch/powerpc/sysdev/axonram.c |    8 ++---
+ drivers/block/brd.c           |    4 +-
+ drivers/nvdimm/pmem.c         |   27 ++++++++-------
+ drivers/s390/block/dcssblk.c  |   10 ++----
+ fs/block_dev.c                |    2 +
+ fs/dax.c                      |   23 +++++++------
+ include/linux/blkdev.h        |    4 +-
+ include/linux/mm.h            |   72 +++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 110 insertions(+), 40 deletions(-)
 
 diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
-index d2b79bc336c1..24ffab2572e8 100644
+index 24ffab2572e8..35eff52c0a38 100644
 --- a/arch/powerpc/sysdev/axonram.c
 +++ b/arch/powerpc/sysdev/axonram.c
-@@ -228,7 +228,7 @@ static int axon_ram_probe(struct platform_device *device)
- 	sprintf(bank->disk->disk_name, "%s%d",
- 			AXON_RAM_DEVICE_NAME, axon_ram_bank_id);
- 
--	bank->disk->queue = blk_alloc_queue(GFP_KERNEL);
-+	bank->disk->queue = blk_dax_init_queue(NUMA_NO_NODE);
- 	if (bank->disk->queue == NULL) {
- 		dev_err(&device->dev, "Cannot register disk queue\n");
- 		rc = -EFAULT;
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 2eb722d48773..13764f8b22e0 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -26,6 +26,7 @@
- #include <linux/slab.h>
- #include <linux/swap.h>
- #include <linux/writeback.h>
-+#include <linux/percpu-refcount.h>
- #include <linux/task_io_accounting_ops.h>
- #include <linux/fault-inject.h>
- #include <linux/list_sort.h>
-@@ -497,6 +498,84 @@ void blk_queue_bypass_end(struct request_queue *q)
- }
- EXPORT_SYMBOL_GPL(blk_queue_bypass_end);
- 
-+int blk_qref_enter(struct request_queue_ref *qref, gfp_t gfp)
-+{
-+	struct request_queue *q = container_of(qref, typeof(*q), mq_ref);
-+
-+	while (true) {
-+		int ret;
-+
-+		if (percpu_ref_tryget_live(&qref->count))
-+			return 0;
-+
-+		if (!(gfp & __GFP_WAIT))
-+			return -EBUSY;
-+
-+		ret = wait_event_interruptible(qref->freeze_wq,
-+				!atomic_read(&qref->freeze_depth) ||
-+				blk_queue_dying(q));
-+		if (blk_queue_dying(q))
-+			return -ENODEV;
-+		if (ret)
-+			return ret;
-+	}
-+}
-+
-+void blk_qref_release(struct percpu_ref *ref)
-+{
-+	struct request_queue_ref *qref = container_of(ref, typeof(*qref), count);
-+
-+	wake_up_all(&qref->freeze_wq);
-+}
-+
-+int blk_dax_get(struct request_queue *q)
-+{
-+	return blk_qref_enter(&q->dax_ref, GFP_NOWAIT);
-+}
-+
-+void blk_dax_put(struct request_queue *q)
-+{
-+	percpu_ref_put(&q->dax_ref.count);
-+}
-+
-+static void blk_dax_freeze(struct request_queue *q)
-+{
-+	if (!blk_queue_dax(q))
-+		return;
-+
-+	if (atomic_inc_return(&q->dax_ref.freeze_depth) == 1)
-+		percpu_ref_kill(&q->dax_ref.count);
-+
-+	wait_event(q->dax_ref.freeze_wq, percpu_ref_is_zero(&q->dax_ref.count));
-+}
-+
-+struct request_queue *blk_dax_init_queue(int nid)
-+{
-+	struct request_queue *q;
-+	int rc;
-+
-+	q = blk_alloc_queue_node(GFP_KERNEL, nid);
-+	if (!q)
-+		return ERR_PTR(-ENOMEM);
-+	queue_flag_set_unlocked(QUEUE_FLAG_DAX, q);
-+
-+	rc = percpu_ref_init(&q->dax_ref.count, blk_qref_release, 0,
-+			GFP_KERNEL);
-+	if (rc) {
-+		blk_cleanup_queue(q);
-+		return ERR_PTR(rc);
-+	}
-+	return q;
-+}
-+EXPORT_SYMBOL(blk_dax_init_queue);
-+
-+static void blk_dax_exit(struct request_queue *q)
-+{
-+	if (!blk_queue_dax(q))
-+		return;
-+	percpu_ref_exit(&q->dax_ref.count);
-+}
-+
- void blk_set_queue_dying(struct request_queue *q)
+@@ -141,15 +141,13 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
+  */
+ static long
+ axon_ram_direct_access(struct block_device *device, sector_t sector,
+-		       void __pmem **kaddr, unsigned long *pfn)
++		       void __pmem **kaddr, __pfn_t *pfn)
  {
- 	queue_flag_set_unlocked(QUEUE_FLAG_DYING, q);
-@@ -558,6 +637,7 @@ void blk_cleanup_queue(struct request_queue *q)
- 		blk_mq_freeze_queue(q);
- 		spin_lock_irq(lock);
- 	} else {
-+		blk_dax_freeze(q);
- 		spin_lock_irq(lock);
- 		__blk_drain_queue(q, true);
- 	}
-@@ -570,6 +650,7 @@ void blk_cleanup_queue(struct request_queue *q)
- 
- 	if (q->mq_ops)
- 		blk_mq_free_queue(q);
-+	blk_dax_exit(q);
- 
- 	spin_lock_irq(lock);
- 	if (q->queue_lock != &q->__queue_lock)
-@@ -688,7 +769,8 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
- 	q->bypass_depth = 1;
- 	__set_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
- 
--	init_waitqueue_head(&q->mq_freeze_wq);
-+	/* this also inits q->dax_ref.freeze_wq in the union */
-+	init_waitqueue_head(&q->mq_ref.freeze_wq);
- 
- 	if (blkcg_init_queue(q))
- 		goto fail_bdi;
-diff --git a/block/blk-mq-sysfs.c b/block/blk-mq-sysfs.c
-index 279c5d674edf..b0fdffa0d4c6 100644
---- a/block/blk-mq-sysfs.c
-+++ b/block/blk-mq-sysfs.c
-@@ -415,7 +415,7 @@ static void blk_mq_sysfs_init(struct request_queue *q)
- /* see blk_register_queue() */
- void blk_mq_finish_init(struct request_queue *q)
- {
--	percpu_ref_switch_to_percpu(&q->mq_usage_counter);
-+	percpu_ref_switch_to_percpu(&q->mq_ref.count);
- }
- 
- int blk_mq_register_disk(struct gendisk *disk)
-diff --git a/block/blk-mq.c b/block/blk-mq.c
-index f2d67b4047a0..494c6e267c9d 100644
---- a/block/blk-mq.c
-+++ b/block/blk-mq.c
-@@ -79,45 +79,21 @@ static void blk_mq_hctx_clear_pending(struct blk_mq_hw_ctx *hctx,
- 
- static int blk_mq_queue_enter(struct request_queue *q, gfp_t gfp)
- {
--	while (true) {
--		int ret;
+ 	struct axon_ram_bank *bank = device->bd_disk->private_data;
+ 	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
+-	void *addr = (void *)(bank->ph_addr + offset);
 -
--		if (percpu_ref_tryget_live(&q->mq_usage_counter))
--			return 0;
--
--		if (!(gfp & __GFP_WAIT))
--			return -EBUSY;
--
--		ret = wait_event_interruptible(q->mq_freeze_wq,
--				!atomic_read(&q->mq_freeze_depth) ||
--				blk_queue_dying(q));
--		if (blk_queue_dying(q))
--			return -ENODEV;
--		if (ret)
--			return ret;
--	}
-+	return blk_qref_enter(&q->mq_ref, gfp);
+-	*kaddr = (void __pmem *)addr;
+-	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
+ 
++	*kaddr = (void __pmem __force *) bank->io_addr + offset;
++	*pfn = phys_to_pfn_t(bank->ph_addr + offset, PFN_DEV);
+ 	return bank->size - offset;
  }
  
- static void blk_mq_queue_exit(struct request_queue *q)
- {
--	percpu_ref_put(&q->mq_usage_counter);
--}
--
--static void blk_mq_usage_counter_release(struct percpu_ref *ref)
--{
--	struct request_queue *q =
--		container_of(ref, struct request_queue, mq_usage_counter);
--
--	wake_up_all(&q->mq_freeze_wq);
-+	percpu_ref_put(&q->mq_ref.count);
- }
- 
- void blk_mq_freeze_queue_start(struct request_queue *q)
- {
- 	int freeze_depth;
- 
--	freeze_depth = atomic_inc_return(&q->mq_freeze_depth);
-+	freeze_depth = atomic_inc_return(&q->mq_ref.freeze_depth);
- 	if (freeze_depth == 1) {
--		percpu_ref_kill(&q->mq_usage_counter);
-+		percpu_ref_kill(&q->mq_ref.count);
- 		blk_mq_run_hw_queues(q, false);
- 	}
- }
-@@ -125,7 +101,7 @@ EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_start);
- 
- static void blk_mq_freeze_queue_wait(struct request_queue *q)
- {
--	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->mq_usage_counter));
-+	wait_event(q->mq_ref.freeze_wq, percpu_ref_is_zero(&q->mq_ref.count));
- }
- 
- /*
-@@ -143,11 +119,11 @@ void blk_mq_unfreeze_queue(struct request_queue *q)
- {
- 	int freeze_depth;
- 
--	freeze_depth = atomic_dec_return(&q->mq_freeze_depth);
-+	freeze_depth = atomic_dec_return(&q->mq_ref.freeze_depth);
- 	WARN_ON_ONCE(freeze_depth < 0);
- 	if (!freeze_depth) {
--		percpu_ref_reinit(&q->mq_usage_counter);
--		wake_up_all(&q->mq_freeze_wq);
-+		percpu_ref_reinit(&q->mq_ref.count);
-+		wake_up_all(&q->mq_ref.freeze_wq);
- 	}
- }
- EXPORT_SYMBOL_GPL(blk_mq_unfreeze_queue);
-@@ -166,7 +142,7 @@ void blk_mq_wake_waiters(struct request_queue *q)
- 	 * dying, we need to ensure that processes currently waiting on
- 	 * the queue are notified as well.
- 	 */
--	wake_up_all(&q->mq_freeze_wq);
-+	wake_up_all(&q->mq_ref.freeze_wq);
- }
- 
- bool blk_mq_can_queue(struct blk_mq_hw_ctx *hctx)
-@@ -1983,7 +1959,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
- 	 * Init percpu_ref in atomic mode so that it's faster to shutdown.
- 	 * See blk_register_queue() for details.
- 	 */
--	if (percpu_ref_init(&q->mq_usage_counter, blk_mq_usage_counter_release,
-+	if (percpu_ref_init(&q->mq_ref.count, blk_qref_release,
- 			    PERCPU_REF_INIT_ATOMIC, GFP_KERNEL))
- 		goto err_hctxs;
- 
-@@ -2062,7 +2038,7 @@ void blk_mq_free_queue(struct request_queue *q)
- 	blk_mq_exit_hw_queues(q, set, set->nr_hw_queues);
- 	blk_mq_free_hw_queues(q, set);
- 
--	percpu_ref_exit(&q->mq_usage_counter);
-+	percpu_ref_exit(&q->mq_ref.count);
- 
- 	kfree(q->mq_map);
- 
-@@ -2076,7 +2052,7 @@ void blk_mq_free_queue(struct request_queue *q)
- /* Basically redo blk_mq_init_queue with queue frozen */
- static void blk_mq_queue_reinit(struct request_queue *q)
- {
--	WARN_ON_ONCE(!atomic_read(&q->mq_freeze_depth));
-+	WARN_ON_ONCE(!atomic_read(&q->mq_ref.freeze_depth));
- 
- 	blk_mq_sysfs_unregister(q);
- 
-diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
-index 3e44a9da2a13..5126a97825de 100644
---- a/block/blk-sysfs.c
-+++ b/block/blk-sysfs.c
-@@ -616,6 +616,15 @@ int blk_register_queue(struct gendisk *disk)
- 
- 	kobject_uevent(&q->kobj, KOBJ_ADD);
- 
-+	if (q->mq_ops && blk_queue_dax(q)) {
-+		/*
-+		 * mq_ref and dax_ref share storage in request_queue, so
-+		 * we can't have both enabled.
-+		 */
-+		WARN_ON_ONCE(1);
-+		return -EINVAL;
-+	}
-+
- 	if (q->mq_ops)
- 		blk_mq_register_disk(disk);
- 
-diff --git a/block/blk.h b/block/blk.h
-index 98614ad37c81..0b898d89e0dd 100644
---- a/block/blk.h
-+++ b/block/blk.h
-@@ -54,6 +54,9 @@ static inline void __blk_get_queue(struct request_queue *q)
- 	kobject_get(&q->kobj);
- }
- 
-+int blk_qref_enter(struct request_queue_ref *qref, gfp_t gfp);
-+void blk_qref_release(struct percpu_ref *percpu_ref);
-+
- struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
- 		int node, int cmd_size);
- void blk_free_flush_queue(struct blk_flush_queue *q);
 diff --git a/drivers/block/brd.c b/drivers/block/brd.c
-index b9794aeeb878..f645a71ae827 100644
+index f645a71ae827..50e78b1ea26c 100644
 --- a/drivers/block/brd.c
 +++ b/drivers/block/brd.c
-@@ -482,7 +482,7 @@ static struct brd_device *brd_alloc(int i)
- 	spin_lock_init(&brd->brd_lock);
- 	INIT_RADIX_TREE(&brd->brd_pages, GFP_ATOMIC);
+@@ -374,7 +374,7 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
  
--	brd->brd_queue = blk_alloc_queue(GFP_KERNEL);
-+	brd->brd_queue = blk_dax_init_queue(NUMA_NO_NODE);
- 	if (!brd->brd_queue)
- 		goto out_free_dev;
+ #ifdef CONFIG_BLK_DEV_RAM_DAX
+ static long brd_direct_access(struct block_device *bdev, sector_t sector,
+-			void __pmem **kaddr, unsigned long *pfn)
++			void __pmem **kaddr, __pfn_t *pfn)
+ {
+ 	struct brd_device *brd = bdev->bd_disk->private_data;
+ 	struct page *page;
+@@ -385,7 +385,7 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
+ 	if (!page)
+ 		return -ENOSPC;
+ 	*kaddr = (void __pmem *)page_address(page);
+-	*pfn = page_to_pfn(page);
++	*pfn = page_to_pfn_t(page);
  
+ 	return PAGE_SIZE;
+ }
 diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 9805d311b1d1..a01611d8f351 100644
+index 3ee02af73ad0..1c670775129b 100644
 --- a/drivers/nvdimm/pmem.c
 +++ b/drivers/nvdimm/pmem.c
-@@ -176,9 +176,10 @@ static void pmem_detach_disk(struct pmem_device *pmem)
- static int pmem_attach_disk(struct device *dev,
- 		struct nd_namespace_common *ndns, struct pmem_device *pmem)
+@@ -39,6 +39,7 @@ struct pmem_device {
+ 	phys_addr_t		phys_addr;
+ 	/* when non-zero this device is hosting a 'pfn' instance */
+ 	phys_addr_t		data_offset;
++	unsigned long		pfn_flags;
+ 	void __pmem		*virt_addr;
+ 	size_t			size;
+ };
+@@ -108,25 +109,22 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
+ }
+ 
+ static long pmem_direct_access(struct block_device *bdev, sector_t sector,
+-		      void __pmem **kaddr, unsigned long *pfn)
++		      void __pmem **kaddr, __pfn_t *pfn)
  {
-+	int nid = dev_to_node(dev);
- 	struct gendisk *disk;
+ 	struct pmem_device *pmem = bdev->bd_disk->private_data;
+ 	resource_size_t offset = sector * 512 + pmem->data_offset;
+-	resource_size_t size;
++	resource_size_t size = pmem->size - offset;
  
--	pmem->pmem_queue = blk_alloc_queue(GFP_KERNEL);
-+	pmem->pmem_queue = blk_dax_init_queue(nid);
- 	if (!pmem->pmem_queue)
- 		return -ENOMEM;
+-	if (pmem->data_offset) {
++	*kaddr = pmem->virt_addr + offset;
++	*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
++
++	if (__pfn_t_has_page(*pfn)) {
+ 		/*
+ 		 * Limit the direct_access() size to what is covered by
+ 		 * the memmap
+ 		 */
+-		size = (pmem->size - offset) & ~ND_PFN_MASK;
+-	} else
+-		size = pmem->size - offset;
+-
+-	/* FIXME convert DAX to comprehend that this mapping has a lifetime */
+-	*kaddr = pmem->virt_addr + offset;
+-	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
+-
++		size &= ~ND_PFN_MASK;
++	}
+ 	return size;
+ }
  
+@@ -158,9 +156,11 @@ static struct pmem_device *pmem_alloc(struct device *dev,
+ 		return ERR_PTR(-EBUSY);
+ 	}
+ 
+-	if (pmem_should_map_pages(dev))
++	pmem->pfn_flags = PFN_DEV;
++	if (pmem_should_map_pages(dev)) {
+ 		pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, res);
+-	else
++		pmem->pfn_flags |= PFN_MAP;
++	} else
+ 		pmem->virt_addr = (void __pmem *) devm_memremap(dev,
+ 				pmem->phys_addr, pmem->size,
+ 				ARCH_MEMREMAP_PMEM);
+@@ -371,6 +371,7 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
+ 	pmem = dev_get_drvdata(dev);
+ 	devm_memunmap(dev, (void __force *) pmem->virt_addr);
+ 	pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, &nsio->res);
++	pmem->pfn_flags |= PFN_MAP;
+ 	if (IS_ERR(pmem->virt_addr)) {
+ 		rc = PTR_ERR(pmem->virt_addr);
+ 		goto err;
 diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-index 5ed44fe21380..c212ce925ee6 100644
+index c212ce925ee6..4dfa8cfbdd9a 100644
 --- a/drivers/s390/block/dcssblk.c
 +++ b/drivers/s390/block/dcssblk.c
-@@ -610,7 +610,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char
+@@ -29,7 +29,7 @@ static int dcssblk_open(struct block_device *bdev, fmode_t mode);
+ static void dcssblk_release(struct gendisk *disk, fmode_t mode);
+ static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
+ static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
+-			 void __pmem **kaddr, unsigned long *pfn);
++			 void __pmem **kaddr, __pfn_t *pfn);
+ 
+ static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
+ 
+@@ -881,20 +881,18 @@ fail:
+ 
+ static long
+ dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
+-			void __pmem **kaddr, unsigned long *pfn)
++			void __pmem **kaddr, __pfn_t *pfn)
+ {
+ 	struct dcssblk_dev_info *dev_info;
+ 	unsigned long offset, dev_sz;
+-	void *addr;
+ 
+ 	dev_info = bdev->bd_disk->private_data;
+ 	if (!dev_info)
+ 		return -ENODEV;
+ 	dev_sz = dev_info->end - dev_info->start;
+ 	offset = secnum * 512;
+-	addr = (void *) (dev_info->start + offset);
+-	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
+-	*kaddr = (void __pmem *) addr;
++	*kaddr = (void __pmem *) (dev_info->start + offset);
++	*pfn = phys_to_pfn_t(dev_info->start + offset, PFN_DEV);
+ 
+ 	return dev_sz - offset;
+ }
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 073bb57adab1..74c507059f8d 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -442,7 +442,7 @@ EXPORT_SYMBOL_GPL(bdev_write_page);
+  * accessible at this address.
+  */
+ long bdev_direct_access(struct block_device *bdev, sector_t sector,
+-			void __pmem **addr, unsigned long *pfn, long size)
++			void __pmem **addr, __pfn_t *pfn, long size)
+ {
+ 	long avail;
+ 	const struct block_device_operations *ops = bdev->bd_disk->fops;
+diff --git a/fs/dax.c b/fs/dax.c
+index 358eea39e982..41d4f76e93ef 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -37,7 +37,7 @@ int dax_clear_blocks(struct inode *inode, sector_t block, long size)
+ 	might_sleep();
+ 	do {
+ 		void __pmem *addr;
+-		unsigned long pfn;
++		__pfn_t pfn;
+ 		long count;
+ 
+ 		count = bdev_direct_access(bdev, sector, &addr, &pfn, size);
+@@ -64,7 +64,7 @@ int dax_clear_blocks(struct inode *inode, sector_t block, long size)
+ EXPORT_SYMBOL_GPL(dax_clear_blocks);
+ 
+ static void __pmem *__dax_map_bh(const struct buffer_head *bh, unsigned blkbits,
+-		unsigned long *pfn, long *len)
++		__pfn_t *pfn, long *len)
+ {
+ 	long rc;
+ 	void __pmem *addr;
+@@ -87,7 +87,7 @@ static void __pmem *__dax_map_bh(const struct buffer_head *bh, unsigned blkbits,
+ 
+ static void __pmem *dax_map_bh(const struct buffer_head *bh, unsigned blkbits)
+ {
+-	unsigned long pfn;
++	__pfn_t pfn;
+ 
+ 	return __dax_map_bh(bh, blkbits, &pfn, NULL);
+ }
+@@ -138,7 +138,7 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
+ 	loff_t pos = start, max = start, bh_max = start;
+ 	int rw = iov_iter_rw(iter), rc;
+ 	long map_len = 0;
+-	unsigned long pfn;
++	__pfn_t pfn;
+ 	void __pmem *addr = NULL;
+ 	void __pmem *kmap = (void __pmem *) ERR_PTR(-EIO);
+ 	bool hole = false;
+@@ -324,9 +324,9 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
+ 			struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+ 	unsigned long vaddr = (unsigned long)vmf->virtual_address;
+-	unsigned long pfn;
+ 	void __pmem *addr;
+ 	pgoff_t size;
++	__pfn_t pfn;
+ 	int error;
+ 
+ 	/*
+@@ -354,7 +354,7 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
  	}
- 	dev_info->gd->major = dcssblk_major;
- 	dev_info->gd->fops = &dcssblk_devops;
--	dev_info->dcssblk_queue = blk_alloc_queue(GFP_KERNEL);
-+	dev_info->dcssblk_queue = blk_dax_init_queue(NUMA_NO_NODE);
- 	dev_info->gd->queue = dev_info->dcssblk_queue;
- 	dev_info->gd->private_data = dev_info;
- 	dev_info->gd->driverfs_dev = &dev_info->dev;
+ 	dax_unmap_bh(bh, addr);
+ 
+-	error = vm_insert_mixed(vma, vaddr, pfn);
++	error = vm_insert_mixed(vma, vaddr, __pfn_t_to_pfn(pfn));
+ 
+  out:
+ 	return error;
+@@ -604,7 +604,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	if (buffer_unwritten(&bh) || buffer_new(&bh)) {
+ 		int i;
+ 		long length;
+-		unsigned long pfn;
++		__pfn_t pfn;
+ 		void __pmem *kaddr = __dax_map_bh(&bh, blkbits, &pfn, &length);
+ 
+ 		if (IS_ERR(kaddr)) {
+@@ -612,7 +612,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 			goto out;
+ 		}
+ 
+-		if ((length < PMD_SIZE) || (pfn & PG_PMD_COLOUR))
++		if ((length < PMD_SIZE) || (__pfn_t_to_pfn(pfn) & PG_PMD_COLOUR))
+ 			goto fallback;
+ 
+ 		for (i = 0; i < PTRS_PER_PMD; i++)
+@@ -668,8 +668,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		result = VM_FAULT_NOPAGE;
+ 		spin_unlock(ptl);
+ 	} else {
++		__pfn_t pfn;
+ 		long length;
+-		unsigned long pfn;
+ 		void __pmem *kaddr = __dax_map_bh(&bh, blkbits, &pfn, &length);
+ 
+ 		if (IS_ERR(kaddr)) {
+@@ -677,10 +677,11 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 			goto out;
+ 		}
+ 		dax_unmap_bh(&bh, kaddr);
+-		if ((length < PMD_SIZE) || (pfn & PG_PMD_COLOUR))
++		if ((length < PMD_SIZE) || (__pfn_t_to_pfn(pfn) & PG_PMD_COLOUR))
+ 			goto fallback;
+ 
+-		result |= vmf_insert_pfn_pmd(vma, address, pmd, pfn, write);
++		result |= vmf_insert_pfn_pmd(vma, address, pmd,
++				__pfn_t_to_pfn(pfn), write);
+ 	}
+ 
+  out:
 diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 99da9ebc7377..363d7df8d65c 100644
+index 363d7df8d65c..e893f30ad520 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -277,6 +277,13 @@ struct queue_limits {
- 	unsigned char		raid_partial_stripes_expensive;
- };
+@@ -1634,7 +1634,7 @@ struct block_device_operations {
+ 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+ 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+ 	long (*direct_access)(struct block_device *, sector_t, void __pmem **,
+-			unsigned long *pfn);
++			__pfn_t *);
+ 	unsigned int (*check_events) (struct gendisk *disk,
+ 				      unsigned int clearing);
+ 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
+@@ -1653,7 +1653,7 @@ extern int bdev_read_page(struct block_device *, sector_t, struct page *);
+ extern int bdev_write_page(struct block_device *, sector_t, struct page *,
+ 						struct writeback_control *);
+ extern long bdev_direct_access(struct block_device *, sector_t,
+-		void __pmem **addr, unsigned long *pfn, long size);
++		void __pmem **addr, __pfn_t *pfn, long size);
+ #else /* CONFIG_BLOCK */
  
+ struct block_device;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 91c08f6f0dc9..6ea922de6870 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -906,6 +906,78 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
+ }
+ 
+ /*
++ * __pfn_t: encapsulates a page-frame number that is optionally backed
++ * by memmap (struct page).  Whether a __pfn_t has a 'struct page'
++ * backing is indicated by flags in the low bits of the value;
++ */
++typedef struct {
++	unsigned long val;
++} __pfn_t;
 +
-+struct request_queue_ref {
-+	wait_queue_head_t	freeze_wq;
-+	struct percpu_ref	count;
-+	atomic_t		freeze_depth;
++/*
++ * PFN_SG_CHAIN - pfn is a pointer to the next scatterlist entry
++ * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
++ * PFN_DEV - pfn is not covered by system memmap by default
++ * PFN_MAP - pfn has a dynamic page mapping established by a device driver
++ */
++enum {
++	PFN_SHIFT = 4,
++	PFN_MASK = (1UL << PFN_SHIFT) - 1,
++	PFN_SG_CHAIN = (1UL << 0),
++	PFN_SG_LAST = (1UL << 1),
++	PFN_DEV = (1UL << 2),
++	PFN_MAP = (1UL << 3),
 +};
 +
- struct request_queue {
- 	/*
- 	 * Together with queue_head for cacheline sharing
-@@ -436,7 +443,6 @@ struct request_queue {
- 	struct mutex		sysfs_lock;
- 
- 	int			bypass_depth;
--	atomic_t		mq_freeze_depth;
- 
- #if defined(CONFIG_BLK_DEV_BSG)
- 	bsg_job_fn		*bsg_job_fn;
-@@ -449,8 +455,10 @@ struct request_queue {
- 	struct throtl_data *td;
- #endif
- 	struct rcu_head		rcu_head;
--	wait_queue_head_t	mq_freeze_wq;
--	struct percpu_ref	mq_usage_counter;
-+	union {
-+		struct request_queue_ref mq_ref;
-+		struct request_queue_ref dax_ref;
-+	};
- 	struct list_head	all_q_node;
- 
- 	struct blk_mq_tag_set	*tag_set;
-@@ -480,6 +488,7 @@ struct request_queue {
- #define QUEUE_FLAG_DEAD        19	/* queue tear-down finished */
- #define QUEUE_FLAG_INIT_DONE   20	/* queue is initialized */
- #define QUEUE_FLAG_NO_SG_MERGE 21	/* don't attempt to merge SG segments*/
-+#define QUEUE_FLAG_DAX         22	/* capacity may be direct-mapped */
- 
- #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
- 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
-@@ -568,6 +577,7 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
- #define blk_queue_discard(q)	test_bit(QUEUE_FLAG_DISCARD, &(q)->queue_flags)
- #define blk_queue_secdiscard(q)	(blk_queue_discard(q) && \
- 	test_bit(QUEUE_FLAG_SECDISCARD, &(q)->queue_flags))
-+#define blk_queue_dax(q)	test_bit(QUEUE_FLAG_DAX, &(q)->queue_flags)
- 
- #define blk_noretry_request(rq) \
- 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
-@@ -1003,6 +1013,10 @@ struct request_queue *blk_alloc_queue_node(gfp_t, int);
- extern void blk_put_queue(struct request_queue *);
- extern void blk_set_queue_dying(struct request_queue *);
- 
-+struct request_queue *blk_dax_init_queue(int nid);
-+int blk_dax_get(struct request_queue *q);
-+void blk_dax_put(struct request_queue *q);
++static inline __pfn_t pfn_to_pfn_t(unsigned long pfn, unsigned long flags)
++{
++	__pfn_t pfn_t = { .val = (pfn << PFN_SHIFT) | (flags & PFN_MASK), };
 +
- /*
-  * block layer runtime pm functions
++	return pfn_t;
++}
++
++static inline __pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags)
++{
++	return pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
++}
++
++static inline bool __pfn_t_has_page(__pfn_t pfn)
++{
++	return (pfn.val & PFN_MAP) == PFN_MAP || (pfn.val & PFN_DEV) == 0;
++}
++
++static inline unsigned long __pfn_t_to_pfn(__pfn_t pfn)
++{
++	return pfn.val >> PFN_SHIFT;
++}
++
++static inline struct page *__pfn_t_to_page(__pfn_t pfn)
++{
++	if (__pfn_t_has_page(pfn))
++		return pfn_to_page(__pfn_t_to_pfn(pfn));
++	return NULL;
++}
++
++static inline dma_addr_t __pfn_t_to_phys(__pfn_t pfn)
++{
++	return PFN_PHYS(__pfn_t_to_pfn(pfn));
++}
++
++static inline void *__pfn_t_to_virt(__pfn_t pfn)
++{
++	if (__pfn_t_has_page(pfn))
++		return __va(__pfn_t_to_phys(pfn));
++	return NULL;
++}
++
++static inline __pfn_t page_to_pfn_t(struct page *page)
++{
++	__pfn_t pfn = { .val = page_to_pfn(page) << PFN_SHIFT, };
++
++	return pfn;
++}
++
++/*
+  * Some inline functions in vmstat.h depend on page_zone()
   */
+ #include <linux/vmstat.h>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
