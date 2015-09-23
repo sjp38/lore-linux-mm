@@ -1,76 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B45A6B0256
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 03:45:22 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so194430041wic.0
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:45:22 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
-        by mx.google.com with ESMTPS id xm4si9464567wib.90.2015.09.23.00.45.21
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id C0C286B0255
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 03:54:03 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so226489666wic.0
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:54:03 -0700 (PDT)
+Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
+        by mx.google.com with ESMTPS id r14si7782558wjw.64.2015.09.23.00.54.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Sep 2015 00:45:21 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so56266418wic.0
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:45:21 -0700 (PDT)
-Date: Wed, 23 Sep 2015 09:45:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memcg: remove pcp_counter_lock
-Message-ID: <20150923074518.GC6283@dhcp22.suse.cz>
-References: <1442976106-49685-1-git-send-email-gthelen@google.com>
+        Wed, 23 Sep 2015 00:54:02 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so226489272wic.0
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:54:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1442976106-49685-1-git-send-email-gthelen@google.com>
+In-Reply-To: <20150923031845.GA31207@cerebellum.local.variantweb.net>
+References: <20150922141733.d7d97f59f207d0655c3b881d@gmail.com>
+	<20150923031845.GA31207@cerebellum.local.variantweb.net>
+Date: Wed, 23 Sep 2015 09:54:02 +0200
+Message-ID: <CAMJBoFOEYv05FZqDER9hw79re4vrc3wKwGeuL=uoGbCnwodH8Q@mail.gmail.com>
+Subject: Re: [PATCH v2] zbud: allow up to PAGE_SIZE allocations
+From: Vitaly Wool <vitalywool@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Seth Jennings <sjennings@variantweb.net>
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Tue 22-09-15 19:41:46, Greg Thelen wrote:
-> Commit 733a572e66d2 ("memcg: make mem_cgroup_read_{stat|event}() iterate
-> possible cpus instead of online") removed the last use of the per memcg
-> pcp_counter_lock but forgot to remove the variable.
-> 
-> Kill the vestigial variable.
-> 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+On Wed, Sep 23, 2015 at 5:18 AM, Seth Jennings <sjennings@variantweb.net> wrote:
+> On Tue, Sep 22, 2015 at 02:17:33PM +0200, Vitaly Wool wrote:
+>> Currently zbud is only capable of allocating not more than
+>> PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE. This is okay as
+>> long as only zswap is using it, but other users of zbud may
+>> (and likely will) want to allocate up to PAGE_SIZE. This patch
+>> addresses that by skipping the creation of zbud internal
+>> structure in the beginning of an allocated page (such pages are
+>> then called 'headless').
+>
+> I guess I'm having trouble with this.  If you store a PAGE_SIZE
+> allocation in zbud, then the zpage can only have one allocation as there
+> is no room for a buddy.  Sooooo... we have an allocator for that: the
+> page allocator.
+>
+> zbud doesn't support this by design because, if you are only storing one
+> allocation per page, you don't gain anything.
+>
+> This functionality creates many new edge cases for the code.
+>
+> What is this use case you envision?  I think we need to discuss
+> whether the use case exists and if it justifies the added complexity.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+The use case is to use zram with zbud as allocator via the common
+zpool api. Sometimes determinism and better worst-case time are more
+important than high compression ratio.
+As far as I can see, I'm not the only one who wants this case
+supported in mainline.
 
-> ---
->  include/linux/memcontrol.h | 1 -
->  mm/memcontrol.c            | 1 -
->  2 files changed, 2 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index ad800e62cb7a..6452ff4c463f 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -242,7 +242,6 @@ struct mem_cgroup {
->  	 * percpu counter.
->  	 */
->  	struct mem_cgroup_stat_cpu __percpu *stat;
-> -	spinlock_t pcp_counter_lock;
->  
->  #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
->  	struct cg_proto tcp_mem;
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 6ddaeba34e09..da21143550c0 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4179,7 +4179,6 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
->  	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
->  		goto out_free_stat;
->  
-> -	spin_lock_init(&memcg->pcp_counter_lock);
->  	return memcg;
->  
->  out_free_stat:
-> -- 
-> 2.6.0.rc0.131.gf624c3d
+> We are crossing a boundary into zsmalloc style complexity with storing
+> stuff in the struct page, something I really didn't want to do in zbud.
 
--- 
-Michal Hocko
-SUSE Labs
+Well, the thing is we need PAGE_SIZE allocations supported to use zram
+with zbud. I can of course add the code handling this in zpool but I
+am quite sure doing that in zbud directly is a better idea. I'm very
+keen on keeping the complexity down as much as possible though.
+
+> zbud is the simple one, zsmalloc is the complex one.  I'd hate to have
+> two complex ones :-/
+
+Who am I to disagree :) Keeping zbud simple is my goal, too, but once
+again, I'd really like it to support PAGE_SIZE allocations. And if it
+doesn't, the whole zpool thing for it becomes useless, since there
+will hardly be any zbud users other than zswap.
+
+~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
