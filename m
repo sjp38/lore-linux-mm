@@ -1,80 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 483176B0254
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 07:47:58 -0400 (EDT)
-Received: by igbkq10 with SMTP id kq10so98022879igb.0
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 04:47:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i6si5313776igi.84.2015.09.23.04.47.57
+Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
+	by kanga.kvack.org (Postfix) with ESMTP id D3E026B0253
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 08:03:17 -0400 (EDT)
+Received: by ykdt18 with SMTP id t18so38516883ykd.3
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 05:03:17 -0700 (PDT)
+Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com. [209.85.160.178])
+        by mx.google.com with ESMTPS id c22si3812126ywb.41.2015.09.23.05.03.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Sep 2015 04:47:57 -0700 (PDT)
-Date: Wed, 23 Sep 2015 13:44:53 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 02/11] x86/mm/hotplug: Remove pgd_list use from the
-	memory hotplug code
-Message-ID: <20150923114453.GA8480@redhat.com>
-References: <1442903021-3893-1-git-send-email-mingo@kernel.org> <1442903021-3893-3-git-send-email-mingo@kernel.org> <CA+55aFzN7MMoxzaq-mcNcNoVzUMr0aPHDTipU-OVdaz7_YZ12Q@mail.gmail.com>
+        Wed, 23 Sep 2015 05:03:16 -0700 (PDT)
+Received: by ykdz138 with SMTP id z138so38510001ykd.2
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 05:03:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFzN7MMoxzaq-mcNcNoVzUMr0aPHDTipU-OVdaz7_YZ12Q@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1509221631040.7794@chino.kir.corp.google.com>
+References: <20150918162423.GA18136@redhat.com>
+	<alpine.DEB.2.11.1509181200140.11964@east.gentwo.org>
+	<20150919083218.GD28815@dhcp22.suse.cz>
+	<201509192333.AGJ30797.OQOFLFSMJVFOtH@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1509211628050.27715@chino.kir.corp.google.com>
+	<201509221433.ICI00012.VFOQMFHLFJtSOO@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1509221631040.7794@chino.kir.corp.google.com>
+Date: Wed, 23 Sep 2015 08:03:16 -0400
+Message-ID: <CAEPKNTK3DOBApeVDpwJ_B7jkLVp4GQ0ihM1PwAusyc8TWQyB_A@mail.gmail.com>
+Subject: Re: [PATCH] mm/oom_kill.c: don't kill TASK_UNINTERRUPTIBLE tasks
+From: Kyle Walker <kwalker@redhat.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
+To: David Rientjes <rientjes@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, mhocko@kernel.org, Christoph Lameter <cl@linux.com>, Oleg Nesterov <oleg@redhat.com>, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Stanislav Kozina <skozina@redhat.com>
 
-On 09/22, Linus Torvalds wrote:
+On Tue, Sep 22, 2015 at 7:32 PM, David Rientjes <rientjes@google.com> wrote:
 >
-> However, this now becomes a pattern for the series, and that just makes me think
->
->     "Why is this not a 'for_each_mm()' pattern helper?"
+> I struggle to understand how the approach of randomly continuing to kill
+> more and more processes in the hope that it slows down usage of memory
+> reserves or that we get lucky is better.
 
-And we already have other users. And note that oom_kill_process() does _not_
-follow this pattern and that is why it is buggy.
+Thank you to one and all for the feedback.
 
-So this is funny, but I was thinking about almost the same, something like
+I agree, in lieu of treating TASK_UNINTERRUPTIBLE tasks as unkillable,
+and omitting them from the oom selection process, continuing the
+carnage is likely to result in more unpredictable results. At this
+time, I believe Oleg's solution of zapping the process memory use
+while it sleeps with the fatal signal enroute is ideal.
 
-	struct task_struct *next_task_with_mm(struct task_struct *p)
-	{
-		struct task_struct *t;
-
-		p = p->group_leader;
-		while ((p = next_task(p)) != &init_task) {
-			if (p->flags & PF_KTHREAD)
-				continue;
-
-			t = find_lock_task_mm(p);
-			if (t)
-				return t;
-		}
-
-		return NULL;
-	}
-
-	#define for_each_task_lock_mm(p)
-		for (p = &init_task; (p = next_task_with_mm(p)); task_unlock(p))
-
-
-So that you can do
-
-	for_each_task_lock_mm(p) {
-		do_something_with(p->mm);
-
-		if (some_condition()) {
-			// UNFORTUNATELY you can't just do "break"
-			task_unlock(p);
-			break;
-		}
-	}
-
-do you think it makes sense?
-
-
-In fact it can't be simpler, we can move task_unlock() into next_task_with_mm(),
-it can check ->mm != NULL or p != init_task.
-
-Oleg.
+Kyle Walker
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
