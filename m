@@ -1,336 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 66E6582F64
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:48:23 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so29331638pac.0
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 21:48:23 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id ju4si7649152pbc.241.2015.09.22.21.48.22
-        for <linux-mm@kvack.org>;
-        Tue, 22 Sep 2015 21:48:22 -0700 (PDT)
-Subject: [PATCH 15/15] mm, x86: get_user_pages() for dax mappings
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 23 Sep 2015 00:42:33 -0400
-Message-ID: <20150923044232.36490.34248.stgit@dwillia2-desk3.jf.intel.com>
-In-Reply-To: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
-References: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C9526B0253
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 03:21:41 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so1718627pab.3
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:21:40 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id z8si8510986par.158.2015.09.23.00.21.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Sep 2015 00:21:40 -0700 (PDT)
+Received: by pacex6 with SMTP id ex6so32962298pac.0
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:21:40 -0700 (PDT)
+References: <20150922210346.749204fb.akpm@linux-foundation.org>
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH] memcg: make mem_cgroup_read_stat() unsigned
+In-reply-to: <20150922210346.749204fb.akpm@linux-foundation.org>
+Date: Wed, 23 Sep 2015 00:21:33 -0700
+Message-ID: <xr936131mwhu.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Dave Hansen <dave@sr71.net>, linux-nvdimm@lists.01.org, Peter Zijlstra <peterz@infradead.org>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-A dax mapping establishes a pte with _PAGE_DEVMAP set when the driver
-has established a devm_memremap_pages() mapping, i.e. when the __pfn_t
-return from ->direct_access() has PFN_DEV and PFN_MAP set.  Later, when
-encountering _PAGE_DEVMAP during a page table walk we lookup and pin a
-struct dev_pagemap instance to keep the result of pfn_to_page() valid
-until put_page().
 
-Cc: Dave Hansen <dave@sr71.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Jeff Moyer <jmoyer@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Dave Chinner <david@fromorbit.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- arch/ia64/include/asm/pgtable.h |    1 +
- arch/x86/include/asm/pgtable.h  |    2 +
- arch/x86/mm/gup.c               |   56 +++++++++++++++++++++++++++++++++++++--
- include/linux/mm.h              |   42 ++++++++++++++++++++---------
- mm/gup.c                        |   11 +++++++-
- mm/hugetlb.c                    |   18 ++++++++++++-
- mm/swap.c                       |   15 ++++++++++
- 7 files changed, 126 insertions(+), 19 deletions(-)
+Andrew Morton wrote:
 
-diff --git a/arch/ia64/include/asm/pgtable.h b/arch/ia64/include/asm/pgtable.h
-index 9f3ed9ee8f13..81d2af23958f 100644
---- a/arch/ia64/include/asm/pgtable.h
-+++ b/arch/ia64/include/asm/pgtable.h
-@@ -273,6 +273,7 @@ extern unsigned long VMALLOC_END;
- #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
- #define pmd_page_vaddr(pmd)		((unsigned long) __va(pmd_val(pmd) & _PFN_MASK))
- #define pmd_page(pmd)			virt_to_page((pmd_val(pmd) + PAGE_OFFSET))
-+#define pmd_pfn(pmd)			(pmd_val(pmd) >> PAGE_SHIFT)
- 
- #define pud_none(pud)			(!pud_val(pud))
- #define pud_bad(pud)			(!ia64_phys_addr_valid(pud_val(pud)))
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 84d1346e1cda..d29dc7b4924b 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -461,7 +461,7 @@ static inline int pte_present(pte_t a)
- #define pte_devmap pte_devmap
- static inline int pte_devmap(pte_t a)
- {
--	return pte_flags(a) & _PAGE_DEVMAP;
-+	return (pte_flags(a) & _PAGE_DEVMAP) == _PAGE_DEVMAP;
- }
- 
- #define pte_accessible pte_accessible
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-index 81bf3d2af3eb..7254ba4f791d 100644
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -63,6 +63,16 @@ retry:
- #endif
- }
- 
-+static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
-+{
-+	while ((*nr) - nr_start) {
-+		struct page *page = pages[--(*nr)];
-+
-+		ClearPageReferenced(page);
-+		put_page(page);
-+	}
-+}
-+
- /*
-  * The performance critical leaf functions are made noinline otherwise gcc
-  * inlines everything into a single function which results in too much
-@@ -71,7 +81,9 @@ retry:
- static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
- 		unsigned long end, int write, struct page **pages, int *nr)
- {
-+	struct dev_pagemap *pgmap = NULL;
- 	unsigned long mask;
-+	int nr_start = *nr;
- 	pte_t *ptep;
- 
- 	mask = _PAGE_PRESENT|_PAGE_USER;
-@@ -89,13 +101,21 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
- 			return 0;
- 		}
- 
--		if ((pte_flags(pte) & (mask | _PAGE_SPECIAL)) != mask) {
-+		page = pte_page(pte);
-+		if (pte_devmap(pte)) {
-+			pgmap = get_dev_pagemap(pte_pfn(pte), pgmap);
-+			if (unlikely(!pgmap)) {
-+				undo_dev_pagemap(nr, nr_start, pages);
-+				pte_unmap(ptep);
-+				return 0;
-+			}
-+		} else if ((pte_flags(pte) & (mask | _PAGE_SPECIAL)) != mask) {
- 			pte_unmap(ptep);
- 			return 0;
- 		}
- 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
--		page = pte_page(pte);
- 		get_page(page);
-+		put_dev_pagemap(pgmap);
- 		SetPageReferenced(page);
- 		pages[*nr] = page;
- 		(*nr)++;
-@@ -114,6 +134,32 @@ static inline void get_head_page_multiple(struct page *page, int nr)
- 	SetPageReferenced(page);
- }
- 
-+static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
-+		unsigned long end, struct page **pages, int *nr)
-+{
-+	int nr_start = *nr;
-+	unsigned long pfn = pmd_pfn(pmd);
-+	struct dev_pagemap *pgmap = NULL;
-+
-+	pfn += (addr & ~PMD_MASK) >> PAGE_SHIFT;
-+	do {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		pgmap = get_dev_pagemap(pfn, pgmap);
-+		if (unlikely(!pgmap)) {
-+			undo_dev_pagemap(nr, nr_start, pages);
-+			return 0;
-+		}
-+		SetPageReferenced(page);
-+		pages[*nr] = page;
-+		get_page(page);
-+		put_dev_pagemap(pgmap);
-+		(*nr)++;
-+		pfn++;
-+	} while (addr += PAGE_SIZE, addr != end);
-+	return 1;
-+}
-+
- static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
- 		unsigned long end, int write, struct page **pages, int *nr)
- {
-@@ -127,9 +173,13 @@ static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
- 		mask |= _PAGE_RW;
- 	if ((pte_flags(pte) & mask) != mask)
- 		return 0;
-+
-+	VM_BUG_ON(!pfn_valid(pmd_pfn(pmd)));
-+	if (pmd_devmap(pmd))
-+		return __gup_device_huge_pmd(pmd, addr, end, pages, nr);
-+
- 	/* hugepages are never "special" */
- 	VM_BUG_ON(pte_flags(pte) & _PAGE_SPECIAL);
--	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
- 
- 	refs = 0;
- 	head = pte_page(pte);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 6183549a854c..2aea87d8e702 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -522,19 +522,6 @@ static inline void get_huge_page_tail(struct page *page)
- 
- extern bool __get_page_tail(struct page *page);
- 
--static inline void get_page(struct page *page)
--{
--	if (unlikely(PageTail(page)))
--		if (likely(__get_page_tail(page)))
--			return;
--	/*
--	 * Getting a normal page or the head of a compound page
--	 * requires to already have an elevated page->_count.
--	 */
--	VM_BUG_ON_PAGE(atomic_read(&page->_count) <= 0, page);
--	atomic_inc(&page->_count);
--}
--
- static inline struct page *virt_to_head_page(const void *x)
- {
- 	struct page *page = virt_to_page(x);
-@@ -741,6 +728,18 @@ static inline enum zone_type page_zonenum(const struct page *page)
- 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
- }
- 
-+#ifdef CONFIG_ZONE_DEVICE
-+static inline bool is_zone_device_page(const struct page *page)
-+{
-+	return page_zonenum(page) == ZONE_DEVICE;
-+}
-+#else
-+static inline bool is_zone_device_page(const struct page *page)
-+{
-+	return false;
-+}
-+#endif
-+
- /**
-  * struct dev_pagemap - reference count for a devm_memremap_pages mapping
-  * @res: physical address range covered by @ref
-@@ -753,6 +752,23 @@ struct dev_pagemap {
- 	struct device *dev;
- };
- 
-+static inline void get_page(struct page *page)
-+{
-+	if (unlikely(PageTail(page)))
-+		if (likely(__get_page_tail(page)))
-+			return;
-+
-+	if (is_zone_device_page(page))
-+		percpu_ref_get(page->pgmap->ref);
-+
-+	/*
-+	 * Getting a normal page or the head of a compound page
-+	 * requires to already have an elevated page->_count.
-+	 */
-+	VM_BUG_ON_PAGE(atomic_read(&page->_count) <= 0, page);
-+	atomic_inc(&page->_count);
-+}
-+
- struct dev_pagemap *__get_dev_pagemap(resource_size_t phys);
- 
- static inline struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
-diff --git a/mm/gup.c b/mm/gup.c
-index a798293fc648..1064e9a489a4 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -98,7 +98,16 @@ retry:
- 	}
- 
- 	page = vm_normal_page(vma, address, pte);
--	if (unlikely(!page)) {
-+	if (!page && pte_devmap(pte) && (flags & FOLL_GET)) {
-+		/*
-+		 * Only return device mapping pages in the FOLL_GET case since
-+		 * they are only valid while holding the pgmap reference.
-+		 */
-+		if (get_dev_pagemap(pte_pfn(pte), NULL))
-+			page = pte_page(pte);
-+		else
-+			goto no_page;
-+	} else if (unlikely(!page)) {
- 		if (flags & FOLL_DUMP) {
- 			/* Avoid special (like zero) pages in core dumps */
- 			page = ERR_PTR(-EFAULT);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 999fb0aef8f1..0abacb331ae2 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4221,7 +4221,23 @@ retry:
- 	 */
- 	if (!pmd_huge(*pmd))
- 		goto out;
--	if (pmd_present(*pmd)) {
-+	if (pmd_present(*pmd) && pmd_devmap(*pmd)) {
-+		unsigned long pfn = pmd_pfn(*pmd);
-+		struct dev_pagemap *pgmap;
-+
-+		/*
-+		 * device mapped pages can only be returned if the
-+		 * caller will manage the page reference count.
-+		 */
-+		if (!(flags & FOLL_GET))
-+			goto out;
-+		pgmap = get_dev_pagemap(pfn, NULL);
-+		if (!pgmap)
-+			goto out;
-+		page = pfn_to_page(pfn);
-+		get_page(page);
-+		put_dev_pagemap(pgmap);
-+	} else if (pmd_present(*pmd)) {
- 		page = pmd_page(*pmd) + ((address & ~PMD_MASK) >> PAGE_SHIFT);
- 		if (flags & FOLL_GET)
- 			get_page(page);
-diff --git a/mm/swap.c b/mm/swap.c
-index 983f692a47fd..05a8a51c648e 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -230,6 +230,19 @@ out_put_single:
- 	}
- }
- 
-+static bool put_device_page(struct page *page)
-+{
-+	/*
-+	 * ZONE_DEVICE pages are never "onlined" so their reference
-+	 * counts never reach zero.  They are always owned by a device
-+	 * driver, not the mm core.  I.e. the page is 'idle' when the
-+	 * count is 1.
-+	 */
-+	VM_BUG_ON_PAGE(atomic_read(&page->_count) == 1, page);
-+	put_dev_pagemap(page->pgmap);
-+	return atomic_dec_return(&page->_count) == 1;
-+}
-+
- static void put_compound_page(struct page *page)
- {
- 	struct page *page_head;
-@@ -273,6 +286,8 @@ void put_page(struct page *page)
- {
- 	if (unlikely(PageCompound(page)))
- 		put_compound_page(page);
-+	else if (is_zone_device_page(page))
-+		put_device_page(page);
- 	else if (put_page_testzero(page))
- 		__put_single_page(page);
- }
+> On Tue, 22 Sep 2015 17:42:13 -0700 Greg Thelen <gthelen@google.com> wrote:
+>
+>> Andrew Morton wrote:
+>> 
+>> > On Tue, 22 Sep 2015 15:16:32 -0700 Greg Thelen <gthelen@google.com> wrote:
+>> >
+>> >> mem_cgroup_read_stat() returns a page count by summing per cpu page
+>> >> counters.  The summing is racy wrt. updates, so a transient negative sum
+>> >> is possible.  Callers don't want negative values:
+>> >> - mem_cgroup_wb_stats() doesn't want negative nr_dirty or nr_writeback.
+>> >> - oom reports and memory.stat shouldn't show confusing negative usage.
+>> >> - tree_usage() already avoids negatives.
+>> >>
+>> >> Avoid returning negative page counts from mem_cgroup_read_stat() and
+>> >> convert it to unsigned.
+>> >
+>> > Someone please remind me why this code doesn't use the existing
+>> > percpu_counter library which solved this problem years ago.
+>> >
+>> >>   for_each_possible_cpu(cpu)
+>> >
+>> > and which doesn't iterate across offlined CPUs.
+>> 
+>> I found [1] and [2] discussing memory layout differences between:
+>> a) existing memcg hand rolled per cpu arrays of counters
+>> vs
+>> b) array of generic percpu_counter
+>> The current approach was claimed to have lower memory overhead and
+>> better cache behavior.
+>> 
+>> I assume it's pretty straightforward to create generic
+>> percpu_counter_array routines which memcg could use.  Possibly something
+>> like this could be made general enough could be created to satisfy
+>> vmstat, but less clear.
+>> 
+>> [1] http://www.spinics.net/lists/cgroups/msg06216.html
+>> [2] https://lkml.org/lkml/2014/9/11/1057
+>
+> That all sounds rather bogus to me.  __percpu_counter_add() doesn't
+> modify struct percpu_counter at all except for when the cpu-local
+> counter overflows the configured batch size.  And for the memcg
+> application I suspect we can set the batch size to INT_MAX...
+
+Nod.  The memory usage will be a bit larger, but the code reuse is
+attractive.  I dusted off Vladimir's
+https://lkml.org/lkml/2014/9/11/710.  Next step is to benchmark it
+before posting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
