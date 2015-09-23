@@ -1,460 +1,281 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A31C6B0253
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 15:56:32 -0400 (EDT)
-Received: by qgez77 with SMTP id z77so28666848qge.1
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 12:56:32 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d51si5682055qge.43.2015.09.23.12.56.30
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id CF3026B0253
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 16:01:26 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so223511778wic.0
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 13:01:26 -0700 (PDT)
+Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
+        by mx.google.com with ESMTPS id pe9si13866682wic.10.2015.09.23.13.01.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Sep 2015 12:56:31 -0700 (PDT)
-Date: Wed, 23 Sep 2015 12:56:29 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: undefined reference to `byte_rev_table'
-Message-Id: <20150923125629.e15ef6ce76a6dad93cd2bebf@linux-foundation.org>
-In-Reply-To: <201509240337.MLtXsNnm%fengguang.wu@intel.com>
-References: <201509240337.MLtXsNnm%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 23 Sep 2015 13:01:25 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so221641591wic.1
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 13:01:25 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20150923132214.GC25020@node.dhcp.inet.fi>
+References: <20150921044600.GA863@swordfish>
+	<20150921150135.GB30755@node.dhcp.inet.fi>
+	<alpine.LSU.2.11.1509211611190.8889@eggly.anvils>
+	<20150923132214.GC25020@node.dhcp.inet.fi>
+Date: Wed, 23 Sep 2015 22:01:25 +0200
+Message-ID: <CADuXt-XU-9Enah81=7nDmDCGA7tnTXpMtmDy_MYEr2DMC6a0nA@mail.gmail.com>
+Subject: Re: [linux-next] khugepaged inconsistent lock state
+From: =?UTF-8?B?RWJydSBBa2Fnw7xuZMO8eg==?= <ebru.akagunduz@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: yalin wang <yalin.wang2010@gmail.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Thu, 24 Sep 2015 03:23:38 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+2015-09-23 15:22 GMT+02:00 Kirill A. Shutemov <kirill@shutemov.name>:
+> On Mon, Sep 21, 2015 at 04:57:05PM -0700, Hugh Dickins wrote:
+>> On Mon, 21 Sep 2015, Kirill A. Shutemov wrote:
+>> > On Mon, Sep 21, 2015 at 01:46:00PM +0900, Sergey Senozhatsky wrote:
+>> > > Hi,
+>> > >
+>> > > 4.3.0-rc1-next-20150918
+>> > >
+>> > > [18344.236625] =================================
+>> > > [18344.236628] [ INFO: inconsistent lock state ]
+>> > > [18344.236633] 4.3.0-rc1-next-20150918-dbg-00014-ge5128d0-dirty #361 Not tainted
+>> > > [18344.236636] ---------------------------------
+>> > > [18344.236640] inconsistent {IN-RECLAIM_FS-W} -> {RECLAIM_FS-ON-W} usage.
+>> > > [18344.236645] khugepaged/32 [HC0[0]:SC0[0]:HE1:SE1] takes:
+>> > > [18344.236648]  (&anon_vma->rwsem){++++?.}, at: [<ffffffff81134403>] khugepaged+0x8b0/0x1987
+>> > > [18344.236662] {IN-RECLAIM_FS-W} state was registered at:
+>> > > [18344.236666]   [<ffffffff8107d747>] __lock_acquire+0x8e2/0x1183
+>> > > [18344.236673]   [<ffffffff8107e7ac>] lock_acquire+0x10b/0x1a6
+>> > > [18344.236678]   [<ffffffff8150a367>] down_write+0x3b/0x6a
+>> > > [18344.236686]   [<ffffffff811360d8>] split_huge_page_to_list+0x5b/0x61f
+>> > > [18344.236689]   [<ffffffff811224b3>] add_to_swap+0x37/0x78
+>> > > [18344.236691]   [<ffffffff810fd650>] shrink_page_list+0x4c2/0xb9a
+>> > > [18344.236694]   [<ffffffff810fe47c>] shrink_inactive_list+0x371/0x5d9
+>> > > [18344.236696]   [<ffffffff810fee2f>] shrink_lruvec+0x410/0x5ae
+>> > > [18344.236698]   [<ffffffff810ff024>] shrink_zone+0x57/0x140
+>> > > [18344.236700]   [<ffffffff810ffc79>] kswapd+0x6a5/0x91b
+>> > > [18344.236702]   [<ffffffff81059588>] kthread+0x107/0x10f
+>> > > [18344.236706]   [<ffffffff8150c7bf>] ret_from_fork+0x3f/0x70
+>> > > [18344.236708] irq event stamp: 6517947
+>> > > [18344.236709] hardirqs last  enabled at (6517947): [<ffffffff810f2d0c>] get_page_from_freelist+0x362/0x59e
+>> > > [18344.236713] hardirqs last disabled at (6517946): [<ffffffff8150ba41>] _raw_spin_lock_irqsave+0x18/0x51
+>> > > [18344.236715] softirqs last  enabled at (6507072): [<ffffffff81041cb0>] __do_softirq+0x2df/0x3f5
+>> > > [18344.236719] softirqs last disabled at (6507055): [<ffffffff81041fb5>] irq_exit+0x40/0x94
+>> > > [18344.236722]
+>> > >                other info that might help us debug this:
+>> > > [18344.236723]  Possible unsafe locking scenario:
+>> > >
+>> > > [18344.236724]        CPU0
+>> > > [18344.236725]        ----
+>> > > [18344.236726]   lock(&anon_vma->rwsem);
+>> > > [18344.236728]   <Interrupt>
+>> > > [18344.236729]     lock(&anon_vma->rwsem);
+>> > > [18344.236731]
+>> > >                 *** DEADLOCK ***
+>> > >
+>> > > [18344.236733] 2 locks held by khugepaged/32:
+>> > > [18344.236733]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff81134122>] khugepaged+0x5cf/0x1987
+>> > > [18344.236738]  #1:  (&anon_vma->rwsem){++++?.}, at: [<ffffffff81134403>] khugepaged+0x8b0/0x1987
+>> > > [18344.236741]
+>> > >                stack backtrace:
+>> > > [18344.236744] CPU: 3 PID: 32 Comm: khugepaged Not tainted 4.3.0-rc1-next-20150918-dbg-00014-ge5128d0-dirty #361
+>> > > [18344.236747]  0000000000000000 ffff880132827a00 ffffffff81230867 ffffffff8237ba90
+>> > > [18344.236750]  ffff880132827a38 ffffffff810ea9b9 000000000000000a ffff8801333b52e0
+>> > > [18344.236753]  ffff8801333b4c00 ffffffff8107b3ce 000000000000000a ffff880132827a78
+>> > > [18344.236755] Call Trace:
+>> > > [18344.236758]  [<ffffffff81230867>] dump_stack+0x4e/0x79
+>> > > [18344.236761]  [<ffffffff810ea9b9>] print_usage_bug.part.24+0x259/0x268
+>> > > [18344.236763]  [<ffffffff8107b3ce>] ? print_shortest_lock_dependencies+0x180/0x180
+>> > > [18344.236765]  [<ffffffff8107c7fc>] mark_lock+0x381/0x567
+>> > > [18344.236766]  [<ffffffff8107ca40>] mark_held_locks+0x5e/0x74
+>> > > [18344.236768]  [<ffffffff8107ee9f>] lockdep_trace_alloc+0xb0/0xb3
+>> > > [18344.236771]  [<ffffffff810f30cc>] __alloc_pages_nodemask+0x99/0x856
+>> > > [18344.236772]  [<ffffffff810ebaf9>] ? find_get_entry+0x14b/0x17a
+>> > > [18344.236774]  [<ffffffff810ebb16>] ? find_get_entry+0x168/0x17a
+>> > > [18344.236777]  [<ffffffff811226d9>] __read_swap_cache_async+0x7b/0x1aa
+>> > > [18344.236778]  [<ffffffff8112281d>] read_swap_cache_async+0x15/0x2d
+>> > > [18344.236780]  [<ffffffff8112294f>] swapin_readahead+0x11a/0x16a
+>> > > [18344.236783]  [<ffffffff81112791>] do_swap_page+0xa7/0x36b
+>> > > [18344.236784]  [<ffffffff81112791>] ? do_swap_page+0xa7/0x36b
+>> > > [18344.236787]  [<ffffffff8113444c>] khugepaged+0x8f9/0x1987
+>> > > [18344.236790]  [<ffffffff810772f3>] ? wait_woken+0x88/0x88
+>> > > [18344.236792]  [<ffffffff81133b53>] ? maybe_pmd_mkwrite+0x1a/0x1a
+>> > > [18344.236794]  [<ffffffff81059588>] kthread+0x107/0x10f
+>> > > [18344.236797]  [<ffffffff81059481>] ? kthread_create_on_node+0x1ea/0x1ea
+>> > > [18344.236799]  [<ffffffff8150c7bf>] ret_from_fork+0x3f/0x70
+>> > > [18344.236801]  [<ffffffff81059481>] ? kthread_create_on_node+0x1ea/0x1ea
+>> >
+>> > Hm. If I read this correctly, we see following scenario:
+>> >
+>> >  - khugepaged tries to swap in a page under mmap_sem and anon_vma lock;
+>> >  - do_swap_page() calls swapin_readahead() with GFP_HIGHUSER_MOVABLE;
+>> >  - __read_swap_cache_async() tries to allocate the page for swap in;
+>> >  - lockdep_trace_alloc() in __alloc_pages_nodemask() notices that with
+>> >    given gfp_mask we could end up in direct relaim.
+>> >  - Lockdep already knows that reclaim sometimes (e.g. in case of
+>> >    split_huge_page()) wants to take anon_vma lock on its own.
+>> >
+>> > Therefore deadlock is possible.
+>>
+>> Oh, thank you for working that out.  As usual with a lockdep trace,
+>> I knew it was telling me something important, but in a language I
+>> just couldn't understand without spending much longer to decode it.
+>> Yes, wrong to call do_swap_page() while holding anon_vma lock.
+>>
+>> >
+>> > I see two ways to fix this:
+>> >
+>> >  - take anon_vma lock *after* __collapse_huge_page_swapin() in
+>> >    collapse_huge_page(): I don't really see why we need the lock
+>> >    during swapin;
+>>
+>> Agreed.
+>
+> Okay. Patch for this is below.
+>
+> Ebru, could you test it?
+>
+I did not test yet. I attend WomENcourage conference for a couple of days.
+I will test changes after when I get back home.
 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> head:   bcee19f424a0d8c26ecf2607b73c690802658b29
-> commit: 8b235f2f16a472b8cfc10e8ef1286fcd3331e033 zlib_deflate/deftree: remove bi_reverse()
-> date:   13 days ago
-> config: x86_64-randconfig-s2-09240230 (attached as .config)
-> reproduce:
->   git checkout 8b235f2f16a472b8cfc10e8ef1286fcd3331e033
->   # save the attached .config to linux build tree
->   make ARCH=x86_64 
-> 
-> All error/warnings (new ones prefixed by >>):
-> 
->    lib/built-in.o: In function `gen_codes':
->    deftree.c:(.text+0xe6c9): undefined reference to `byte_rev_table'
->    deftree.c:(.text+0xe70f): undefined reference to `byte_rev_table'
->    deftree.c:(.text+0xe716): undefined reference to `byte_rev_table'
->    lib/built-in.o: In function `zlib_tr_init':
-> >> (.text+0xecca): undefined reference to `byte_rev_table'
->    drivers/built-in.o: In function `zhenhua_interrupt':
->    zhenhua.c:(.text+0x103b71): undefined reference to `byte_rev_table'
-
-I don't see how 8b235f2f16a472b8cfc10e8ef1286fcd3331e033 could have
-caused this.
-
-The problem is caused by
-
-CONFIG_JOYSTICK_ZHENHUA=y
-CONFIG_BITREVERSE=m
-
-
-It's silly to have a config option to make bitrevX() usable.  I'd say a
-suitable fix is to remove CONFIG_BITREVERSE and, if
-CONFIG_HAVE_ARCH_BITREVERSE=n, link bitrev.o into vmlinux.  Something
-like the below.
-
-
-But I think I'll take the path of least resistance and make
-CONFIG_JOYSTICK_ZHENHUA select BITERVERSE.
-
-
-
- drivers/atm/Kconfig                |    1 -
- drivers/bluetooth/Kconfig          |    1 -
- drivers/char/pcmcia/Kconfig        |    1 -
- drivers/iio/amplifiers/Kconfig     |    1 -
- drivers/isdn/Kconfig               |    1 -
- drivers/isdn/gigaset/Kconfig       |    1 -
- drivers/isdn/hisax/Kconfig         |    1 -
- drivers/media/pci/solo6x10/Kconfig |    1 -
- drivers/media/rc/Kconfig           |    8 --------
- drivers/media/tuners/Kconfig       |    1 -
- drivers/mtd/devices/Kconfig        |    1 -
- drivers/mtd/nand/Kconfig           |    1 -
- drivers/net/ethernet/Kconfig       |    1 -
- drivers/net/ethernet/amd/Kconfig   |    1 -
- drivers/net/fddi/Kconfig           |    1 -
- drivers/net/usb/Kconfig            |    2 --
- drivers/rtc/Kconfig                |    1 -
- drivers/video/fbdev/Kconfig        |    3 ---
- lib/Kconfig                        |    7 +------
- lib/Makefile                       |    5 ++++-
- lib/bitrev.c                       |    3 ---
- sound/pci/Kconfig                  |    1 -
- sound/usb/Kconfig                  |    2 --
- 23 files changed, 5 insertions(+), 41 deletions(-)
-
-diff -puN drivers/atm/Kconfig~a drivers/atm/Kconfig
---- a/drivers/atm/Kconfig~a
-+++ a/drivers/atm/Kconfig
-@@ -246,7 +246,6 @@ config ATM_IDT77252_USE_SUNI
- config ATM_AMBASSADOR
- 	tristate "Madge Ambassador (Collage PCI 155 Server)"
- 	depends on PCI && VIRT_TO_BUS
--	select BITREVERSE
- 	help
- 	  This is a driver for ATMizer based ATM card produced by Madge
- 	  Networks Ltd. Say Y (or M to compile as a module named ambassador)
-diff -puN drivers/bluetooth/Kconfig~a drivers/bluetooth/Kconfig
---- a/drivers/bluetooth/Kconfig~a
-+++ a/drivers/bluetooth/Kconfig
-@@ -88,7 +88,6 @@ config BT_HCIUART_H4
- config BT_HCIUART_BCSP
- 	bool "BCSP protocol support"
- 	depends on BT_HCIUART
--	select BITREVERSE
- 	help
- 	  BCSP (BlueCore Serial Protocol) is serial protocol for communication
- 	  between Bluetooth device and host. This protocol is required for non
-diff -puN drivers/char/pcmcia/Kconfig~a drivers/char/pcmcia/Kconfig
---- a/drivers/char/pcmcia/Kconfig~a
-+++ a/drivers/char/pcmcia/Kconfig
-@@ -21,7 +21,6 @@ config SYNCLINK_CS
- config CARDMAN_4000
- 	tristate "Omnikey Cardman 4000 support"
- 	depends on PCMCIA
--	select BITREVERSE
- 	help
- 	  Enable support for the Omnikey Cardman 4000 PCMCIA Smartcard
- 	  reader.
-diff -puN drivers/iio/amplifiers/Kconfig~a drivers/iio/amplifiers/Kconfig
---- a/drivers/iio/amplifiers/Kconfig~a
-+++ a/drivers/iio/amplifiers/Kconfig
-@@ -8,7 +8,6 @@ menu "Amplifiers"
- config AD8366
- 	tristate "Analog Devices AD8366 VGA"
- 	depends on SPI
--	select BITREVERSE
- 	help
- 	  Say yes here to build support for Analog Devices AD8366
- 	  SPI Dual-Digital Variable Gain Amplifier (VGA).
-diff -puN drivers/isdn/Kconfig~a drivers/isdn/Kconfig
---- a/drivers/isdn/Kconfig~a
-+++ a/drivers/isdn/Kconfig
-@@ -73,6 +73,5 @@ source "drivers/isdn/mISDN/Kconfig"
- config ISDN_HDLC
- 	tristate
- 	select CRC_CCITT
--	select BITREVERSE
- 
- endif # ISDN
-diff -puN drivers/isdn/gigaset/Kconfig~a drivers/isdn/gigaset/Kconfig
---- a/drivers/isdn/gigaset/Kconfig~a
-+++ a/drivers/isdn/gigaset/Kconfig
-@@ -2,7 +2,6 @@ menuconfig ISDN_DRV_GIGASET
- 	tristate "Siemens Gigaset support"
- 	depends on TTY
- 	select CRC_CCITT
--	select BITREVERSE
- 	help
- 	  This driver supports the Siemens Gigaset SX205/255 family of
- 	  ISDN DECT bases, including the predecessors Gigaset 3070/3075
-diff -puN drivers/isdn/hisax/Kconfig~a drivers/isdn/hisax/Kconfig
---- a/drivers/isdn/hisax/Kconfig~a
-+++ a/drivers/isdn/hisax/Kconfig
-@@ -391,7 +391,6 @@ config HISAX_ST5481
- 	depends on USB
- 	select ISDN_HDLC
- 	select CRC_CCITT
--	select BITREVERSE
- 	help
- 	  This enables the driver for ST5481 based USB ISDN adapters,
- 	  e.g. the BeWan Gazel 128 USB
-diff -puN drivers/media/pci/solo6x10/Kconfig~a drivers/media/pci/solo6x10/Kconfig
---- a/drivers/media/pci/solo6x10/Kconfig~a
-+++ a/drivers/media/pci/solo6x10/Kconfig
-@@ -2,7 +2,6 @@ config VIDEO_SOLO6X10
- 	tristate "Bluecherry / Softlogic 6x10 capture cards (MPEG-4/H.264)"
- 	depends on PCI && VIDEO_DEV && SND && I2C
- 	depends on HAS_DMA
--	select BITREVERSE
- 	select FONT_SUPPORT
- 	select FONT_8x16
- 	select VIDEOBUF2_DMA_SG
-diff -puN drivers/media/rc/Kconfig~a drivers/media/rc/Kconfig
---- a/drivers/media/rc/Kconfig~a
-+++ a/drivers/media/rc/Kconfig
-@@ -37,7 +37,6 @@ config IR_LIRC_CODEC
- config IR_NEC_DECODER
- 	tristate "Enable IR raw decoder for the NEC protocol"
- 	depends on RC_CORE
--	select BITREVERSE
- 	default y
- 
- 	---help---
-@@ -47,7 +46,6 @@ config IR_NEC_DECODER
- config IR_RC5_DECODER
- 	tristate "Enable IR raw decoder for the RC-5 protocol"
- 	depends on RC_CORE
--	select BITREVERSE
- 	default y
- 
- 	---help---
-@@ -57,7 +55,6 @@ config IR_RC5_DECODER
- config IR_RC6_DECODER
- 	tristate "Enable IR raw decoder for the RC6 protocol"
- 	depends on RC_CORE
--	select BITREVERSE
- 	default y
- 
- 	---help---
-@@ -67,7 +64,6 @@ config IR_RC6_DECODER
- config IR_JVC_DECODER
- 	tristate "Enable IR raw decoder for the JVC protocol"
- 	depends on RC_CORE
--	select BITREVERSE
- 	default y
- 
- 	---help---
-@@ -77,7 +73,6 @@ config IR_JVC_DECODER
- config IR_SONY_DECODER
- 	tristate "Enable IR raw decoder for the Sony protocol"
- 	depends on RC_CORE
--	select BITREVERSE
- 	default y
- 
- 	---help---
-@@ -106,7 +101,6 @@ config IR_SHARP_DECODER
- config IR_MCE_KBD_DECODER
- 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
- 	depends on RC_CORE
--	select BITREVERSE
- 	default y
- 
- 	---help---
-@@ -117,7 +111,6 @@ config IR_MCE_KBD_DECODER
- config IR_XMP_DECODER
- 	tristate "Enable IR raw decoder for the XMP protocol"
- 	depends on RC_CORE
--	select BITREVERSE
- 	default y
- 
- 	---help---
-@@ -278,7 +271,6 @@ config IR_WINBOND_CIR
- 	depends on RC_CORE
- 	select NEW_LEDS
- 	select LEDS_CLASS
--	select BITREVERSE
- 	---help---
- 	   Say Y here if you want to use the IR remote functionality found
- 	   in some Winbond SuperI/O chips. Currently only the WPCD376I
-diff -puN drivers/media/tuners/Kconfig~a drivers/media/tuners/Kconfig
---- a/drivers/media/tuners/Kconfig~a
-+++ a/drivers/media/tuners/Kconfig
-@@ -260,7 +260,6 @@ config MEDIA_TUNER_R820T
- 	tristate "Rafael Micro R820T silicon tuner"
- 	depends on MEDIA_SUPPORT && I2C
- 	default m if !MEDIA_SUBDRV_AUTOSELECT
--	select BITREVERSE
- 	help
- 	  Rafael Micro R820T silicon tuner driver.
- 
-diff -puN drivers/mtd/devices/Kconfig~a drivers/mtd/devices/Kconfig
---- a/drivers/mtd/devices/Kconfig~a
-+++ a/drivers/mtd/devices/Kconfig
-@@ -209,7 +209,6 @@ config MTD_DOCG3
- 	tristate "M-Systems Disk-On-Chip G3"
- 	select BCH
- 	select BCH_CONST_PARAMS
--	select BITREVERSE
- 	---help---
- 	  This provides an MTD device driver for the M-Systems DiskOnChip
- 	  G3 devices.
-diff -puN drivers/mtd/nand/Kconfig~a drivers/mtd/nand/Kconfig
---- a/drivers/mtd/nand/Kconfig~a
-+++ a/drivers/mtd/nand/Kconfig
-@@ -278,7 +278,6 @@ config MTD_NAND_DOCG4
- 	tristate "Support for DiskOnChip G4"
- 	depends on HAS_IOMEM
- 	select BCH
--	select BITREVERSE
- 	help
- 	  Support for diskonchip G4 nand flash, found in various smartphones and
- 	  PDAs, among them the Palm Treo680, HTC Prophet and Wizard, Toshiba
-diff -puN drivers/net/ethernet/Kconfig~a drivers/net/ethernet/Kconfig
---- a/drivers/net/ethernet/Kconfig~a
-+++ a/drivers/net/ethernet/Kconfig
-@@ -146,7 +146,6 @@ config ETHOC
- 	select MII
- 	select PHYLIB
- 	select CRC32
--	select BITREVERSE
- 	---help---
- 	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
- 
-diff -puN drivers/net/ethernet/amd/Kconfig~a drivers/net/ethernet/amd/Kconfig
---- a/drivers/net/ethernet/amd/Kconfig~a
-+++ a/drivers/net/ethernet/amd/Kconfig
-@@ -175,7 +175,6 @@ config AMD_XGBE
- 	tristate "AMD 10GbE Ethernet driver"
- 	depends on ((OF_NET && OF_ADDRESS) || ACPI) && HAS_IOMEM && HAS_DMA
- 	depends on ARM64 || COMPILE_TEST
--	select BITREVERSE
- 	select CRC32
- 	select PTP_1588_CLOCK
- 	---help---
-diff -puN drivers/net/fddi/Kconfig~a drivers/net/fddi/Kconfig
---- a/drivers/net/fddi/Kconfig~a
-+++ a/drivers/net/fddi/Kconfig
-@@ -45,7 +45,6 @@ config DEFXX_MMIO
- config SKFP
- 	tristate "SysKonnect FDDI PCI support"
- 	depends on FDDI && PCI
--	select BITREVERSE
- 	---help---
- 	  Say Y here if you have a SysKonnect FDDI PCI adapter.
- 	  The following adapters are supported by this driver:
-diff -puN drivers/net/usb/Kconfig~a drivers/net/usb/Kconfig
---- a/drivers/net/usb/Kconfig~a
-+++ a/drivers/net/usb/Kconfig
-@@ -327,7 +327,6 @@ config USB_NET_SR9800
- config USB_NET_SMSC75XX
- 	tristate "SMSC LAN75XX based USB 2.0 gigabit ethernet devices"
- 	depends on USB_USBNET
--	select BITREVERSE
- 	select CRC16
- 	select CRC32
- 	help
-@@ -337,7 +336,6 @@ config USB_NET_SMSC75XX
- config USB_NET_SMSC95XX
- 	tristate "SMSC LAN95XX based USB 2.0 10/100 ethernet devices"
- 	depends on USB_USBNET
--	select BITREVERSE
- 	select CRC16
- 	select CRC32
- 	help
-diff -puN drivers/rtc/Kconfig~a drivers/rtc/Kconfig
---- a/drivers/rtc/Kconfig~a
-+++ a/drivers/rtc/Kconfig
-@@ -539,7 +539,6 @@ config RTC_DRV_RC5T583
- 
- config RTC_DRV_S35390A
- 	tristate "Seiko Instruments S-35390A"
--	select BITREVERSE
- 	help
- 	  If you say yes here you will get support for the Seiko
- 	  Instruments S-35390A.
-diff -puN drivers/video/fbdev/Kconfig~a drivers/video/fbdev/Kconfig
---- a/drivers/video/fbdev/Kconfig~a
-+++ a/drivers/video/fbdev/Kconfig
-@@ -709,7 +709,6 @@ config FB_TGA
- 	select FB_CFB_FILLRECT
- 	select FB_CFB_COPYAREA
- 	select FB_CFB_IMAGEBLIT
--	select BITREVERSE
- 	---help---
- 	  This is the frame buffer device driver for generic TGA and SFB+
- 	  graphic cards.  These include DEC ZLXp-E1, -E2 and -E3 PCI cards,
-@@ -1007,7 +1006,6 @@ config FB_NVIDIA
- 	select FB_CFB_FILLRECT
- 	select FB_CFB_COPYAREA
- 	select FB_CFB_IMAGEBLIT
--	select BITREVERSE
- 	select VGASTATE
- 	help
- 	  This driver supports graphics boards with the nVidia chips, TNT
-@@ -1055,7 +1053,6 @@ config FB_RIVA
- 	select FB_CFB_FILLRECT
- 	select FB_CFB_COPYAREA
- 	select FB_CFB_IMAGEBLIT
--	select BITREVERSE
- 	select VGASTATE
- 	help
- 	  This driver supports graphics boards with the nVidia Riva/Geforce
-diff -puN lib/Kconfig~a lib/Kconfig
---- a/lib/Kconfig~a
-+++ a/lib/Kconfig
-@@ -10,13 +10,9 @@ menu "Library routines"
- config RAID6_PQ
- 	tristate
- 
--config BITREVERSE
--	tristate
--
- config HAVE_ARCH_BITREVERSE
- 	bool
- 	default n
--	depends on BITREVERSE
- 	help
- 	  This option enables the use of hardware bit-reversal instructions on
- 	  architectures which support such operations.
-@@ -95,8 +91,7 @@ config CRC_ITU_T
- config CRC32
- 	tristate "CRC32/CRC32c functions"
- 	default y
--	select BITREVERSE
--	help
-+q	help
- 	  This option is provided for the case where no in-kernel-tree
- 	  modules require CRC32/CRC32c functions, but a module built outside
- 	  the kernel tree does. Such modules that use library CRC32/CRC32c
-diff -puN lib/Makefile~a lib/Makefile
---- a/lib/Makefile~a
-+++ a/lib/Makefile
-@@ -71,7 +71,10 @@ ifneq ($(CONFIG_HAVE_DEC_LOCK),y)
-   lib-y += dec_and_lock.o
- endif
- 
--obj-$(CONFIG_BITREVERSE) += bitrev.o
-+ifneq ($(CONFIG_HAVE_ARCH_BITREVERSE),y)
-+	lib-y += bitrev.o
-+endif
-+
- obj-$(CONFIG_RATIONAL)	+= rational.o
- obj-$(CONFIG_CRC_CCITT)	+= crc-ccitt.o
- obj-$(CONFIG_CRC16)	+= crc16.o
-diff -puN lib/bitrev.c~a lib/bitrev.c
---- a/lib/bitrev.c~a
-+++ a/lib/bitrev.c
-@@ -1,4 +1,3 @@
--#ifndef CONFIG_HAVE_ARCH_BITREVERSE
- #include <linux/types.h>
- #include <linux/module.h>
- #include <linux/bitrev.h>
-@@ -42,5 +41,3 @@ const u8 byte_rev_table[256] = {
- 	0x1f, 0x9f, 0x5f, 0xdf, 0x3f, 0xbf, 0x7f, 0xff,
- };
- EXPORT_SYMBOL_GPL(byte_rev_table);
--
--#endif /* CONFIG_HAVE_ARCH_BITREVERSE */
-diff -puN sound/pci/Kconfig~a sound/pci/Kconfig
---- a/sound/pci/Kconfig~a
-+++ a/sound/pci/Kconfig
-@@ -611,7 +611,6 @@ config SND_ICE1712
- 	tristate "ICEnsemble ICE1712 (Envy24)"
- 	select SND_MPU401_UART
- 	select SND_AC97_CODEC
--	select BITREVERSE
- 	select ZONE_DMA
- 	help
- 	  Say Y here to include support for soundcards based on the
-diff -puN sound/usb/Kconfig~a sound/usb/Kconfig
---- a/sound/usb/Kconfig~a
-+++ a/sound/usb/Kconfig
-@@ -14,7 +14,6 @@ config SND_USB_AUDIO
- 	select SND_HWDEP
- 	select SND_RAWMIDI
- 	select SND_PCM
--	select BITREVERSE
- 	help
- 	  Say Y here to include support for USB audio and USB MIDI
- 	  devices.
-@@ -104,7 +103,6 @@ config SND_USB_US122L
- config SND_USB_6FIRE
-         tristate "TerraTec DMX 6Fire USB"
-         select FW_LOADER
--        select BITREVERSE
-         select SND_RAWMIDI
-         select SND_PCM
-         select SND_VMASTER
-_
+>> >  - respect FAULT_FLAG_RETRY_NOWAIT in do_swap_page(): add GFP_NOWAIT to
+>> >    gfp_mask for swapin_readahead() in this case.
+>>
+>> Sounds like a good idea; though I have some reservations you're welcome
+>> to ignore.  Partly because it goes beyond what's actually needed here,
+>> partly because there's going to be plenty of waiting while the swapin
+>> is done, partly because I think such a change may better belong to a
+>> larger effort, extending FAULT_FLAG_RETRY somehow to cover the memory
+>> allocation as well as the I/O phase (but we might be hoping instead for
+>> a deeper attack on mmap_sem which would make FAULT_FLAG_RETRY redundant).
+>
+> I agree, we need something more coherent here, than what I wanted to do at
+> first. I don't have time for this :-/
+>
+> Anyone?
+>
+>> And the down_write of mmap_sem here, across all of those (63? 511?)
+>> swapins, worries me.  Should the swapins be done higher up, under
+>> just a down_read of mmap_sem (required to guard vma)?  Or should
+>> mmap_sem be dropped and retaken repeatedly, and the various things
+>> (including vma itself) be checked repeatedly?  I don't know.
+>
+> Ebru, would you willing to rework collapse_huge_page() to call
+> __collapse_huge_page_swapin() under down_read(mmap_sem)?
+>
+> From 6d5eba0e7be517b5c0ee1d5492737c17d02f5202 Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Wed, 23 Sep 2015 16:01:02 +0300
+> Subject: [PATCH] thp: do not hold anon_vma lock during swap in
+>
+> khugepaged does swap in during collapse under anon_vma lock. It causes
+> complain from lockdep. The trace below shows following scenario:
+>
+>  - khugepaged tries to swap in a page under mmap_sem and anon_vma lock;
+>  - do_swap_page() calls swapin_readahead() with GFP_HIGHUSER_MOVABLE;
+>  - __read_swap_cache_async() tries to allocate the page for swap in;
+>  - lockdep_trace_alloc() in __alloc_pages_nodemask() notices that with
+>    given gfp_mask we could end up in direct relaim.
+>  - Lockdep already knows that reclaim sometimes (e.g. in case of
+>    split_huge_page()) wants to take anon_vma lock on its own.
+>
+> Therefore deadlock is possible.
+>
+> The fix is to take anon_vma lock after swap in.
+>
+> [18344.236625] =================================
+> [18344.236628] [ INFO: inconsistent lock state ]
+> [18344.236633] 4.3.0-rc1-next-20150918-dbg-00014-ge5128d0-dirty #361 Not tainted
+> [18344.236636] ---------------------------------
+> [18344.236640] inconsistent {IN-RECLAIM_FS-W} -> {RECLAIM_FS-ON-W} usage.
+> [18344.236645] khugepaged/32 [HC0[0]:SC0[0]:HE1:SE1] takes:
+> [18344.236648]  (&anon_vma->rwsem){++++?.}, at: [<ffffffff81134403>] khugepaged+0x8b0/0x1987
+> [18344.236662] {IN-RECLAIM_FS-W} state was registered at:
+> [18344.236666]   [<ffffffff8107d747>] __lock_acquire+0x8e2/0x1183
+> [18344.236673]   [<ffffffff8107e7ac>] lock_acquire+0x10b/0x1a6
+> [18344.236678]   [<ffffffff8150a367>] down_write+0x3b/0x6a
+> [18344.236686]   [<ffffffff811360d8>] split_huge_page_to_list+0x5b/0x61f
+> [18344.236689]   [<ffffffff811224b3>] add_to_swap+0x37/0x78
+> [18344.236691]   [<ffffffff810fd650>] shrink_page_list+0x4c2/0xb9a
+> [18344.236694]   [<ffffffff810fe47c>] shrink_inactive_list+0x371/0x5d9
+> [18344.236696]   [<ffffffff810fee2f>] shrink_lruvec+0x410/0x5ae
+> [18344.236698]   [<ffffffff810ff024>] shrink_zone+0x57/0x140
+> [18344.236700]   [<ffffffff810ffc79>] kswapd+0x6a5/0x91b
+> [18344.236702]   [<ffffffff81059588>] kthread+0x107/0x10f
+> [18344.236706]   [<ffffffff8150c7bf>] ret_from_fork+0x3f/0x70
+> [18344.236708] irq event stamp: 6517947
+> [18344.236709] hardirqs last  enabled at (6517947): [<ffffffff810f2d0c>] get_page_from_freelist+0x362/0x59e
+> [18344.236713] hardirqs last disabled at (6517946): [<ffffffff8150ba41>] _raw_spin_lock_irqsave+0x18/0x51
+> [18344.236715] softirqs last  enabled at (6507072): [<ffffffff81041cb0>] __do_softirq+0x2df/0x3f5
+> [18344.236719] softirqs last disabled at (6507055): [<ffffffff81041fb5>] irq_exit+0x40/0x94
+> [18344.236722]
+>                other info that might help us debug this:
+> [18344.236723]  Possible unsafe locking scenario:
+>
+> [18344.236724]        CPU0
+> [18344.236725]        ----
+> [18344.236726]   lock(&anon_vma->rwsem);
+> [18344.236728]   <Interrupt>
+> [18344.236729]     lock(&anon_vma->rwsem);
+> [18344.236731]
+>                 *** DEADLOCK ***
+>
+> [18344.236733] 2 locks held by khugepaged/32:
+> [18344.236733]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff81134122>] khugepaged+0x5cf/0x1987
+> [18344.236738]  #1:  (&anon_vma->rwsem){++++?.}, at: [<ffffffff81134403>] khugepaged+0x8b0/0x1987
+> [18344.236741]
+>                stack backtrace:
+> [18344.236744] CPU: 3 PID: 32 Comm: khugepaged Not tainted 4.3.0-rc1-next-20150918-dbg-00014-ge5128d0-dirty #361
+> [18344.236747]  0000000000000000 ffff880132827a00 ffffffff81230867 ffffffff8237ba90
+> [18344.236750]  ffff880132827a38 ffffffff810ea9b9 000000000000000a ffff8801333b52e0
+> [18344.236753]  ffff8801333b4c00 ffffffff8107b3ce 000000000000000a ffff880132827a78
+> [18344.236755] Call Trace:
+> [18344.236758]  [<ffffffff81230867>] dump_stack+0x4e/0x79
+> [18344.236761]  [<ffffffff810ea9b9>] print_usage_bug.part.24+0x259/0x268
+> [18344.236763]  [<ffffffff8107b3ce>] ? print_shortest_lock_dependencies+0x180/0x180
+> [18344.236765]  [<ffffffff8107c7fc>] mark_lock+0x381/0x567
+> [18344.236766]  [<ffffffff8107ca40>] mark_held_locks+0x5e/0x74
+> [18344.236768]  [<ffffffff8107ee9f>] lockdep_trace_alloc+0xb0/0xb3
+> [18344.236771]  [<ffffffff810f30cc>] __alloc_pages_nodemask+0x99/0x856
+> [18344.236772]  [<ffffffff810ebaf9>] ? find_get_entry+0x14b/0x17a
+> [18344.236774]  [<ffffffff810ebb16>] ? find_get_entry+0x168/0x17a
+> [18344.236777]  [<ffffffff811226d9>] __read_swap_cache_async+0x7b/0x1aa
+> [18344.236778]  [<ffffffff8112281d>] read_swap_cache_async+0x15/0x2d
+> [18344.236780]  [<ffffffff8112294f>] swapin_readahead+0x11a/0x16a
+> [18344.236783]  [<ffffffff81112791>] do_swap_page+0xa7/0x36b
+> [18344.236784]  [<ffffffff81112791>] ? do_swap_page+0xa7/0x36b
+> [18344.236787]  [<ffffffff8113444c>] khugepaged+0x8f9/0x1987
+> [18344.236790]  [<ffffffff810772f3>] ? wait_woken+0x88/0x88
+> [18344.236792]  [<ffffffff81133b53>] ? maybe_pmd_mkwrite+0x1a/0x1a
+> [18344.236794]  [<ffffffff81059588>] kthread+0x107/0x10f
+> [18344.236797]  [<ffffffff81059481>] ? kthread_create_on_node+0x1ea/0x1ea
+> [18344.236799]  [<ffffffff8150c7bf>] ret_from_fork+0x3f/0x70
+> [18344.236801]  [<ffffffff81059481>] ? kthread_create_on_node+0x1ea/0x1ea
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+> ---
+>  mm/huge_memory.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index dd58ecfcafe6..06c8f6d8fee2 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2725,10 +2725,10 @@ static void collapse_huge_page(struct mm_struct *mm,
+>                 goto out;
+>         }
+>
+> -       anon_vma_lock_write(vma->anon_vma);
+> -
+>         __collapse_huge_page_swapin(mm, vma, address, pmd);
+>
+> +       anon_vma_lock_write(vma->anon_vma);
+> +
+>         pte = pte_offset_map(pmd, address);
+>         pte_ptl = pte_lockptr(mm, pmd);
+>
+thanks,
+Ebru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
