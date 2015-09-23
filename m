@@ -1,358 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id A868E6B0253
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 16:59:12 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so86997085wic.0
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 13:59:12 -0700 (PDT)
-Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
-        by mx.google.com with ESMTPS id gc6si3481640wic.19.2015.09.23.13.59.11
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 947D96B0254
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 16:59:27 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so225419064wic.0
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 13:59:27 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
+        by mx.google.com with ESMTPS id fa4si3463805wib.45.2015.09.23.13.59.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Sep 2015 13:59:11 -0700 (PDT)
-Received: by wicgb1 with SMTP id gb1so223528132wic.1
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 13:59:11 -0700 (PDT)
-Date: Wed, 23 Sep 2015 22:59:00 +0200
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: Re: [PATCH v2] zbud: allow up to PAGE_SIZE allocations
-Message-Id: <20150923225900.64293d4c2c534f00bfa60435@gmail.com>
-In-Reply-To: <CALZtONAhARM8FkxLpNQ9-jx4TOU-RyLm2c8suyOY3iN2yvWvLQ@mail.gmail.com>
-References: <20150922141733.d7d97f59f207d0655c3b881d@gmail.com>
-	<CALZtONAhARM8FkxLpNQ9-jx4TOU-RyLm2c8suyOY3iN2yvWvLQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 23 Sep 2015 13:59:26 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so1992603wic.0
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 13:59:26 -0700 (PDT)
+Date: Wed, 23 Sep 2015 22:59:24 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: can't oom-kill zap the victim's memory?
+Message-ID: <20150923205923.GB19054@dhcp22.suse.cz>
+References: <1442512783-14719-1-git-send-email-kwalker@redhat.com>
+ <20150919150316.GB31952@redhat.com>
+ <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com>
+ <20150920125642.GA2104@redhat.com>
+ <CA+55aFyajHq2W9HhJWbLASFkTx_kLSHtHuY6mDHKxmoW-LnVEw@mail.gmail.com>
+ <20150921134414.GA15974@redhat.com>
+ <20150921142423.GC19811@dhcp22.suse.cz>
+ <20150921153252.GA21988@redhat.com>
+ <20150921161203.GD19811@dhcp22.suse.cz>
+ <20150922160608.GA2716@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150922160608.GA2716@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-Okay, how about this? It's gotten smaller BTW :)
+On Tue 22-09-15 18:06:08, Oleg Nesterov wrote:
+> On 09/21, Michal Hocko wrote:
+> >
+> > On Mon 21-09-15 17:32:52, Oleg Nesterov wrote:
+[...]
+> > > We probably need a
+> > > dedicated kernel thread, but I still think (although I am not sure) that
+> > > initial change can use workueue. In the likely case system_unbound_wq pool
+> > > should have an idle thread, if not - OK, this change won't help in this
+> > > case. This is minor.
+> >
+> > The point is that the implementation should be robust from the very
+> > beginning.
+> 
+> OK, let it be a kthread from the very beginning, I won't argue. This
+> is really minor compared to other problems.
 
-zbud: allow up to PAGE_SIZE allocations
+I am still not sure how you want to implement that kernel thread but I
+am quite skeptical it would be very much useful because all the current
+allocations which end up in the OOM killer path cannot simply back off
+and drop the locks with the current allocator semantic.  So they will
+be sitting on top of unknown pile of locks whether you do an additional
+reclaim (unmap the anon memory) in the direct OOM context or looping
+in the allocator and waiting for kthread/workqueue to do its work. The
+only argument that I can see is the stack usage but I haven't seen stack
+overflows in the OOM path AFAIR.
 
-Currently zbud is only capable of allocating not more than
-PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE. This is okay as
-long as only zswap is using it, but other users of zbud may
-(and likely will) want to allocate up to PAGE_SIZE. This patch
-addresses that by skipping the creation of zbud internal
-structure in the beginning of an allocated page. As a zbud page
-is no longer guaranteed to contain zbud header, the following
-changes have to be applied throughout the code:
-* page->lru to be used for zbud page lists
-* page->private to hold 'under_reclaim' flag
+> > > > So I think we probably need to do this in the OOM killer context (with
+> > > > try_lock)
+> > >
+> > > Yes we should try to do this in the OOM killer context, and in this case
+> > > (of course) we need trylock. Let me quote my previous email:
+> > >
+> > > 	And we want to avoid using workqueues when the caller can do this
+> > > 	directly. And in this case we certainly need trylock. But this needs
+> > > 	some refactoring: we do not want to do this under oom_lock,
+> >
+> > Why do you think oom_lock would be a big deal?
+> 
+> I don't really know... This doesn't look sane to me, but perhaps this
+> is just because I don't understand this code enough.
 
-page->private will also be used to indicate if this page contains
-a zbud header in the beginning or not ('headless' flag).
+Well one of the purpose of this lock is to throttle all the concurrent
+allocators to not step on each other toes because only one task is
+allowed to get killed currently. So they wouldn't be any useful anyway.
 
-Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
----
- mm/zbud.c | 167 ++++++++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 113 insertions(+), 54 deletions(-)
+> And note that the caller can held other locks we do not even know about.
+> Most probably we should not deadlock, at least if we only unmap the anon
+> pages, but still this doesn't look safe.
 
-diff --git a/mm/zbud.c b/mm/zbud.c
-index fa48bcdf..3946fba 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -105,18 +105,20 @@ struct zbud_pool {
- 
- /*
-  * struct zbud_header - zbud page metadata occupying the first chunk of each
-- *			zbud page.
-+ *			zbud page, except for HEADLESS pages
-  * @buddy:	links the zbud page into the unbuddied/buddied lists in the pool
-- * @lru:	links the zbud page into the lru list in the pool
-  * @first_chunks:	the size of the first buddy in chunks, 0 if free
-  * @last_chunks:	the size of the last buddy in chunks, 0 if free
-  */
- struct zbud_header {
- 	struct list_head buddy;
--	struct list_head lru;
- 	unsigned int first_chunks;
- 	unsigned int last_chunks;
--	bool under_reclaim;
-+};
-+
-+enum zbud_page_flags {
-+	UNDER_RECLAIM = 0,
-+	PAGE_HEADLESS,
- };
- 
- /*****************
-@@ -221,6 +223,7 @@ MODULE_ALIAS("zpool-zbud");
- *****************/
- /* Just to make the code easier to read */
- enum buddy {
-+	HEADLESS,
- 	FIRST,
- 	LAST
- };
-@@ -238,11 +241,14 @@ static int size_to_chunks(size_t size)
- static struct zbud_header *init_zbud_page(struct page *page)
- {
- 	struct zbud_header *zhdr = page_address(page);
-+
-+	INIT_LIST_HEAD(&page->lru);
-+	clear_bit(UNDER_RECLAIM, &page->private);
-+	clear_bit(HEADLESS, &page->private);
-+
- 	zhdr->first_chunks = 0;
- 	zhdr->last_chunks = 0;
- 	INIT_LIST_HEAD(&zhdr->buddy);
--	INIT_LIST_HEAD(&zhdr->lru);
--	zhdr->under_reclaim = 0;
- 	return zhdr;
- }
- 
-@@ -267,11 +273,22 @@ static unsigned long encode_handle(struct zbud_header *zhdr, enum buddy bud)
- 	 * over the zbud header in the first chunk.
- 	 */
- 	handle = (unsigned long)zhdr;
--	if (bud == FIRST)
-+	switch (bud) {
-+	case FIRST:
- 		/* skip over zbud header */
- 		handle += ZHDR_SIZE_ALIGNED;
--	else /* bud == LAST */
-+		break;
-+	case LAST:
- 		handle += PAGE_SIZE - (zhdr->last_chunks  << CHUNK_SHIFT);
-+		break;
-+	case HEADLESS:
-+		break;
-+	default:
-+		/* this should never happen */
-+		pr_err("zbud: invalid buddy value %d\n", bud);
-+		handle = 0;
-+		break;
-+	}
- 	return handle;
- }
- 
-@@ -287,6 +304,7 @@ static int num_free_chunks(struct zbud_header *zhdr)
- 	/*
- 	 * Rather than branch for different situations, just use the fact that
- 	 * free buddies have a length of zero to simplify everything.
-+	 * NB: can't be used with HEADLESS pages.
- 	 */
- 	return NCHUNKS - zhdr->first_chunks - zhdr->last_chunks;
- }
-@@ -353,31 +371,39 @@ void zbud_destroy_pool(struct zbud_pool *pool)
- int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
- 			unsigned long *handle)
- {
--	int chunks, i, freechunks;
-+	int chunks = 0, i, freechunks;
- 	struct zbud_header *zhdr = NULL;
- 	enum buddy bud;
- 	struct page *page;
- 
- 	if (!size || (gfp & __GFP_HIGHMEM))
- 		return -EINVAL;
--	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
-+
-+	if (size > PAGE_SIZE)
- 		return -ENOSPC;
--	chunks = size_to_chunks(size);
--	spin_lock(&pool->lock);
- 
--	/* First, try to find an unbuddied zbud page. */
--	zhdr = NULL;
--	for_each_unbuddied_list(i, chunks) {
--		if (!list_empty(&pool->unbuddied[i])) {
--			zhdr = list_first_entry(&pool->unbuddied[i],
--					struct zbud_header, buddy);
--			list_del(&zhdr->buddy);
--			if (zhdr->first_chunks == 0)
--				bud = FIRST;
--			else
--				bud = LAST;
--			goto found;
-+	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
-+		bud = HEADLESS;
-+	else {
-+		chunks = size_to_chunks(size);
-+		spin_lock(&pool->lock);
-+
-+		/* First, try to find an unbuddied zbud page. */
-+		zhdr = NULL;
-+		for_each_unbuddied_list(i, chunks) {
-+			if (!list_empty(&pool->unbuddied[i])) {
-+				zhdr = list_first_entry(&pool->unbuddied[i],
-+						struct zbud_header, buddy);
-+				list_del(&zhdr->buddy);
-+				page = virt_to_page(zhdr);
-+				if (zhdr->first_chunks == 0)
-+					bud = FIRST;
-+				else
-+					bud = LAST;
-+				goto found;
-+			}
- 		}
-+		bud = FIRST;
- 	}
- 
- 	/* Couldn't find unbuddied zbud page, create new one */
-@@ -388,7 +414,11 @@ int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
- 	spin_lock(&pool->lock);
- 	pool->pages_nr++;
- 	zhdr = init_zbud_page(page);
--	bud = FIRST;
-+
-+	if (bud == HEADLESS) {	
-+		set_bit(PAGE_HEADLESS, &page->private);
-+		goto headless;
-+	}
- 
- found:
- 	if (bud == FIRST)
-@@ -405,10 +435,12 @@ found:
- 		list_add(&zhdr->buddy, &pool->buddied);
- 	}
- 
-+headless:
- 	/* Add/move zbud page to beginning of LRU */
--	if (!list_empty(&zhdr->lru))
--		list_del(&zhdr->lru);
--	list_add(&zhdr->lru, &pool->lru);
-+	if (!list_empty(&page->lru))
-+		list_del(&page->lru);
-+
-+	list_add(&page->lru, &pool->lru);
- 
- 	*handle = encode_handle(zhdr, bud);
- 	spin_unlock(&pool->lock);
-@@ -430,28 +462,39 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
- {
- 	struct zbud_header *zhdr;
- 	int freechunks;
-+	struct page *page;
-+	enum buddy bud;
- 
- 	spin_lock(&pool->lock);
- 	zhdr = handle_to_zbud_header(handle);
-+	page = virt_to_page(zhdr);
- 
--	/* If first buddy, handle will be page aligned */
--	if ((handle - ZHDR_SIZE_ALIGNED) & ~PAGE_MASK)
-+	if (!(handle & ~PAGE_MASK)) /* HEADLESS page stored */
-+		bud = HEADLESS;
-+	else if ((handle - ZHDR_SIZE_ALIGNED) & ~PAGE_MASK) {
-+		bud = LAST;
- 		zhdr->last_chunks = 0;
--	else
-+	} else {
-+		/* If first buddy, handle will be page aligned */
-+		bud = FIRST;
- 		zhdr->first_chunks = 0;
-+	}
- 
--	if (zhdr->under_reclaim) {
-+	if (test_bit(UNDER_RECLAIM, &page->private)) {
- 		/* zbud page is under reclaim, reclaim will free */
- 		spin_unlock(&pool->lock);
- 		return;
- 	}
- 
--	/* Remove from existing buddy list */
--	list_del(&zhdr->buddy);
-+	if (bud != HEADLESS) {
-+		/* Remove from existing buddy list */
-+		list_del(&zhdr->buddy);
-+	}
- 
--	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-+	if (bud == HEADLESS ||
-+	    (zhdr->first_chunks == 0 && zhdr->last_chunks == 0)) {
- 		/* zbud page is empty, free */
--		list_del(&zhdr->lru);
-+		list_del(&page->lru);
- 		free_zbud_page(zhdr);
- 		pool->pages_nr--;
- 	} else {
-@@ -503,8 +546,9 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
-  */
- int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
- {
--	int i, ret, freechunks;
-+	int i, ret = 0, freechunks;
- 	struct zbud_header *zhdr;
-+	struct page *page;
- 	unsigned long first_handle = 0, last_handle = 0;
- 
- 	spin_lock(&pool->lock);
-@@ -514,21 +558,30 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
- 		return -EINVAL;
- 	}
- 	for (i = 0; i < retries; i++) {
--		zhdr = list_tail_entry(&pool->lru, struct zbud_header, lru);
--		list_del(&zhdr->lru);
--		list_del(&zhdr->buddy);
-+		page = list_tail_entry(&pool->lru, struct page, lru);
-+		list_del(&page->lru);
-+
- 		/* Protect zbud page against free */
--		zhdr->under_reclaim = true;
--		/*
--		 * We need encode the handles before unlocking, since we can
--		 * race with free that will set (first|last)_chunks to 0
--		 */
--		first_handle = 0;
--		last_handle = 0;
--		if (zhdr->first_chunks)
--			first_handle = encode_handle(zhdr, FIRST);
--		if (zhdr->last_chunks)
--			last_handle = encode_handle(zhdr, LAST);
-+		set_bit(UNDER_RECLAIM, &page->private);
-+		zhdr = page_address(page);
-+		if (!test_bit(PAGE_HEADLESS, &page->private)) {
-+			list_del(&zhdr->buddy);
-+			/*
-+			 * We need encode the handles before unlocking, since
-+			 * we can race with free that will set
-+			 * (first|last)_chunks to 0
-+			 */
-+			first_handle = 0;
-+			last_handle = 0;
-+			if (zhdr->first_chunks)
-+				first_handle = encode_handle(zhdr, FIRST);
-+			if (zhdr->last_chunks)
-+				last_handle = encode_handle(zhdr, LAST);
-+		} else {
-+			first_handle = encode_handle(zhdr, HEADLESS);
-+			last_handle = 0;
-+		}
-+
- 		spin_unlock(&pool->lock);
- 
- 		/* Issue the eviction callback(s) */
-@@ -544,8 +597,14 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
- 		}
- next:
- 		spin_lock(&pool->lock);
--		zhdr->under_reclaim = false;
--		if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-+		clear_bit(UNDER_RECLAIM, &page->private);
-+		if (test_bit(PAGE_HEADLESS, &page->private)) {
-+			if (ret == 0) {
-+				free_zbud_page(zhdr);
-+				pool->pages_nr--;
-+				spin_unlock(&pool->lock);
-+			}
-+		} else if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
- 			/*
- 			 * Both buddies are now free, free the zbud page and
- 			 * return success.
-@@ -565,7 +624,7 @@ next:
- 		}
- 
- 		/* add to beginning of LRU */
--		list_add(&zhdr->lru, &pool->lru);
-+		list_add(&page->lru, &pool->lru);
- 	}
- 	spin_unlock(&pool->lock);
- 	return -EAGAIN;
+The unmapper cannot fall back to reclaim and/or trigger the OOM so
+we should be indeed very careful and mark the allocation context
+appropriately. I can remember mmu_gather but it is only doing
+opportunistic allocation AFAIR.
+
+> But I agree, this probably needs more discussion.
+> 
+> > Address space of the
+> > victim might be really large but we can back off after a batch of
+> > unmapped pages.
+> 
+> Hmm. If we already have mmap_sem and started zap_page_range() then
+> I do not think it makes sense to stop until we free everything we can.
+
+Zapping a huge address space can take quite some time and we really do
+not have to free it all on behalf of the killer when enough memory is
+freed to allow for further progress and the rest can be done by the
+victim. If one batch doesn't seem sufficient then another retry can
+continue.
+
+I do not think that a limited scan would make the implementation more
+complicated but I will leave the decision to you of course.
+
+> > I definitely agree with the simplicity for the first iteration. That
+> > means only unmap private exclusive pages and release at most few megs of
+> > them.
+> 
+> See above, I am not sure this makes sense. And in any case this will
+> complicate the initial changes, not simplify.
+> 
+> > I am still not sure about some details, e.g. futex sitting in such
+> > a memory. Wouldn't threads blow up when they see an unmapped futex page,
+> > try to page it in and it would be in an uninitialized state? Maybe this
+> > is safe
+> 
+> But this must be safe.
+> 
+> We do not care about userspace (assuming that all mm users have a
+> pending SIGKILL).
+> 
+> If this can (say) crash the kernel somehow, then we have a bug which
+> should be fixed. Simply because userspace can exploit this bug doing
+> MADV_DONTEED from another thread or CLONE_VM process.
+
+OK, that makes perfect sense. I should have realized that an in-kernel
+state for a futex must not be controlled from the userspace. So you are
+right and futex shouldn't be a big deal.
+
+> Finally. Whatever we do, we need to change oom_kill_process() first,
+> and I think we should do this regardless. The "Kill all user processes
+> sharing victim->mm" logic looks wrong and suboptimal/overcomplicated.
+> I'll try to make some patches tomorrow if I have time...
+
+That would be appreciated. I do not like that part either. At least we
+shouldn't go over the whole list when we have a good chance that the mm
+is not shared with other processes.
+
+> But. Can't we just remove another ->oom_score_adj check when we try
+> to kill all mm users (the last for_each_process loop). If yes, this
+> all can be simplified.
+> 
+> I guess we can't and its a pity. Because it looks simply pointless
+> to not kill all mm users. This just means the select_bad_process()
+> picked the wrong task.
+
+Yes I am not really sure why oom_score_adj is not per-mm and we are
+doing that per signal struct to be honest. It doesn't make much sense as
+the mm_struct is the primary source of information for the oom victim
+selection. And the fact that mm might be shared withtout sharing signals
+make it double the reason to have it in mm.
+
+It seems David has already tried that 2ff05b2b4eac ("oom: move oom_adj
+value from task_struct to mm_struct") but it was later reverted by
+0753ba01e126 ("mm: revert "oom: move oom_adj value""). I do not agree
+with the reasoning there because vfork is documented to have undefined
+behavior
+"
+       if the process created by vfork() either modifies any data other
+       than a variable of type pid_t used to store the return value
+       from vfork(), or returns from the function in which vfork() was
+       called, or calls any other function before successfully calling
+       _exit(2) or one of the exec(3) family of functions.
+"
+Maybe we can revisit this... It would make the whole semantic much more
+straightforward. The current situation when you kill a task which might
+share the mm with OOM unkillable task is clearly suboptimal and
+confusing.
+
+Thanks!
 -- 
-2.4.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
