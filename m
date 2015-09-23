@@ -1,384 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 616E46B0253
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 18:41:31 -0400 (EDT)
-Received: by qkfq186 with SMTP id q186so23374120qkf.1
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 15:41:31 -0700 (PDT)
-Received: from smtp.variantweb.net (smtp.variantweb.net. [104.131.104.118])
-        by mx.google.com with ESMTPS id b144si8980874qhc.26.2015.09.23.15.41.30
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 38E756B0255
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 18:59:02 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so226539151wic.1
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 15:59:01 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ez6si6552528wid.72.2015.09.23.15.59.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Sep 2015 15:41:30 -0700 (PDT)
-Date: Wed, 23 Sep 2015 17:41:27 -0500
-From: Seth Jennings <sjennings@variantweb.net>
-Subject: Re: [PATCH v2] zbud: allow up to PAGE_SIZE allocations
-Message-ID: <20150923224127.GB17171@cerebellum.local.variantweb.net>
-References: <20150922141733.d7d97f59f207d0655c3b881d@gmail.com>
- <CALZtONAhARM8FkxLpNQ9-jx4TOU-RyLm2c8suyOY3iN2yvWvLQ@mail.gmail.com>
- <20150923225900.64293d4c2c534f00bfa60435@gmail.com>
+        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 23 Sep 2015 15:59:00 -0700 (PDT)
+Date: Wed, 23 Sep 2015 15:58:52 -0700
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: Multiple potential races on vma->vm_flags
+Message-ID: <20150923225852.GA10657@linux-uzut.site>
+References: <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com>
+ <20150911103959.GA7976@node.dhcp.inet.fi>
+ <alpine.LSU.2.11.1509111734480.7660@eggly.anvils>
+ <55F8572D.8010409@oracle.com>
+ <20150915190143.GA18670@node.dhcp.inet.fi>
+ <CAAeHK+wABeppPQCsTmUk6cMswJosgkaXkHO5QTFBh=1ZTi+-3w@mail.gmail.com>
+ <alpine.LSU.2.11.1509221151370.11653@eggly.anvils>
+ <CAAeHK+zkG4L7TJ3M8fus8F5KExHRMhcyjgEQop=wqOpBcrKzYQ@mail.gmail.com>
+ <alpine.LSU.2.11.1509221831570.19790@eggly.anvils>
+ <20150923114636.GB25020@node.dhcp.inet.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20150923225900.64293d4c2c534f00bfa60435@gmail.com>
+In-Reply-To: <20150923114636.GB25020@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>, Andrey Konovalov <andreyknvl@google.com>, Sasha Levin <sasha.levin@oracle.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, Sep 23, 2015 at 10:59:00PM +0200, Vitaly Wool wrote:
-> Okay, how about this? It's gotten smaller BTW :)
-> 
-> zbud: allow up to PAGE_SIZE allocations
-> 
-> Currently zbud is only capable of allocating not more than
-> PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE. This is okay as
-> long as only zswap is using it, but other users of zbud may
-> (and likely will) want to allocate up to PAGE_SIZE. This patch
-> addresses that by skipping the creation of zbud internal
-> structure in the beginning of an allocated page. As a zbud page
-> is no longer guaranteed to contain zbud header, the following
-> changes have to be applied throughout the code:
-> * page->lru to be used for zbud page lists
-> * page->private to hold 'under_reclaim' flag
-> 
-> page->private will also be used to indicate if this page contains
-> a zbud header in the beginning or not ('headless' flag).
-> 
-> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
-> ---
->  mm/zbud.c | 167 ++++++++++++++++++++++++++++++++++++++++++--------------------
->  1 file changed, 113 insertions(+), 54 deletions(-)
-> 
-> diff --git a/mm/zbud.c b/mm/zbud.c
-> index fa48bcdf..3946fba 100644
-> --- a/mm/zbud.c
-> +++ b/mm/zbud.c
-> @@ -105,18 +105,20 @@ struct zbud_pool {
->  
->  /*
->   * struct zbud_header - zbud page metadata occupying the first chunk of each
-> - *			zbud page.
-> + *			zbud page, except for HEADLESS pages
->   * @buddy:	links the zbud page into the unbuddied/buddied lists in the pool
-> - * @lru:	links the zbud page into the lru list in the pool
->   * @first_chunks:	the size of the first buddy in chunks, 0 if free
->   * @last_chunks:	the size of the last buddy in chunks, 0 if free
->   */
->  struct zbud_header {
->  	struct list_head buddy;
-> -	struct list_head lru;
->  	unsigned int first_chunks;
->  	unsigned int last_chunks;
-> -	bool under_reclaim;
-> +};
-> +
-> +enum zbud_page_flags {
-> +	UNDER_RECLAIM = 0,
+On Wed, 23 Sep 2015, Kirill A. Shutemov wrote:
 
-Don't need the "= 0"
+>On Tue, Sep 22, 2015 at 06:39:52PM -0700, Hugh Dickins wrote:
+>>[...]
+>> I'd rather wait to hear whether this appears to work in practice,
+>> and whether you agree that it should work in theory, before writing
+>> the proper description.  I'd love to lose that down_read_trylock.
+>>
+>> You mention how Sasha hit the "Bad page state (mlocked)" back in
+>> November: that was one of the reasons we reverted Davidlohr's
+>> i_mmap_lock_read to i_mmap_lock_write in unmap_mapping_range(),
+>> without understanding why it was needed.  Yes, it would lock out
+>> a concurrent try_to_unmap(), whose setting of PageMlocked was not
+>> sufficiently serialized by the down_read_trylock of mmap_sem.
+>>
+>> But I don't remember the other reasons for that revert (and
+>> haven't looked very hard as yet): anyone else remember?
 
-> +	PAGE_HEADLESS,
+Yeah, I don't think this was ever resolved, but ultimately the patch
+got reverted[1] because it exposed issues in the form of bad pages
+(shmem, vmsplice) and corrupted vm_flags while in untrack_pfn() causing,
+for example, vm_file to dissapear.
 
-Also I think we should prefix the enum values here. With ZPF_ ?
+>I hoped Davidlohr will come back with something after the revert, but it
+>never happend. I think the reverted patch was responsible for most of
+>scalability boost from rwsem for i_mmap_lock...
 
->  };
->  
->  /*****************
-> @@ -221,6 +223,7 @@ MODULE_ALIAS("zpool-zbud");
->  *****************/
->  /* Just to make the code easier to read */
->  enum buddy {
-> +	HEADLESS,
->  	FIRST,
->  	LAST
->  };
-> @@ -238,11 +241,14 @@ static int size_to_chunks(size_t size)
->  static struct zbud_header *init_zbud_page(struct page *page)
->  {
->  	struct zbud_header *zhdr = page_address(page);
-> +
-> +	INIT_LIST_HEAD(&page->lru);
-> +	clear_bit(UNDER_RECLAIM, &page->private);
-> +	clear_bit(HEADLESS, &page->private);
+Actually no, the change that got reverted was something we got in very
+last minute, just because it made sense and had the blessing of some
+key people. The main winner of the series was migration (rmap), which
+later Hugh addressed more specifically for unmapped pages:
 
-I know we are using private in a bitwise flags mode, but maybe we
-should just init with page->private = 0
+https://lkml.org/lkml/2014/11/30/349
 
-> +
->  	zhdr->first_chunks = 0;
->  	zhdr->last_chunks = 0;
->  	INIT_LIST_HEAD(&zhdr->buddy);
-> -	INIT_LIST_HEAD(&zhdr->lru);
-> -	zhdr->under_reclaim = 0;
->  	return zhdr;
->  }
->  
-> @@ -267,11 +273,22 @@ static unsigned long encode_handle(struct zbud_header *zhdr, enum buddy bud)
->  	 * over the zbud header in the first chunk.
->  	 */
->  	handle = (unsigned long)zhdr;
-> -	if (bud == FIRST)
-> +	switch (bud) {
-> +	case FIRST:
->  		/* skip over zbud header */
->  		handle += ZHDR_SIZE_ALIGNED;
-> -	else /* bud == LAST */
-> +		break;
-> +	case LAST:
->  		handle += PAGE_SIZE - (zhdr->last_chunks  << CHUNK_SHIFT);
-> +		break;
-> +	case HEADLESS:
-> +		break;
-> +	default:
-> +		/* this should never happen */
-> +		pr_err("zbud: invalid buddy value %d\n", bud);
-> +		handle = 0;
-> +		break;
-> +	}
+So I really didn't care about the reverted patch, and therefore was never
+on my radar.
 
-Don't need this default case since we have a case for each valid value
-of the enum.
-
-Also, I think we want to add some code to free_zbud_page() to clear
-page->private and init page->lru so we don't leave dangling pointers.
-
-Looks good though :)
+[1] https://lkml.org/lkml/2014/12/22/375
 
 Thanks,
-Seth
-
->  	return handle;
->  }
->  
-> @@ -287,6 +304,7 @@ static int num_free_chunks(struct zbud_header *zhdr)
->  	/*
->  	 * Rather than branch for different situations, just use the fact that
->  	 * free buddies have a length of zero to simplify everything.
-> +	 * NB: can't be used with HEADLESS pages.
->  	 */
->  	return NCHUNKS - zhdr->first_chunks - zhdr->last_chunks;
->  }
-> @@ -353,31 +371,39 @@ void zbud_destroy_pool(struct zbud_pool *pool)
->  int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
->  			unsigned long *handle)
->  {
-> -	int chunks, i, freechunks;
-> +	int chunks = 0, i, freechunks;
->  	struct zbud_header *zhdr = NULL;
->  	enum buddy bud;
->  	struct page *page;
->  
->  	if (!size || (gfp & __GFP_HIGHMEM))
->  		return -EINVAL;
-> -	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
-> +
-> +	if (size > PAGE_SIZE)
->  		return -ENOSPC;
-> -	chunks = size_to_chunks(size);
-> -	spin_lock(&pool->lock);
->  
-> -	/* First, try to find an unbuddied zbud page. */
-> -	zhdr = NULL;
-> -	for_each_unbuddied_list(i, chunks) {
-> -		if (!list_empty(&pool->unbuddied[i])) {
-> -			zhdr = list_first_entry(&pool->unbuddied[i],
-> -					struct zbud_header, buddy);
-> -			list_del(&zhdr->buddy);
-> -			if (zhdr->first_chunks == 0)
-> -				bud = FIRST;
-> -			else
-> -				bud = LAST;
-> -			goto found;
-> +	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
-
-Nit, maybe we should set chunks = 0 here so that in both branches,
-chunks is obviously set.
-
-> +		bud = HEADLESS;
-> +	else {
-> +		chunks = size_to_chunks(size);
-> +		spin_lock(&pool->lock);
-> +
-> +		/* First, try to find an unbuddied zbud page. */
-> +		zhdr = NULL;
-> +		for_each_unbuddied_list(i, chunks) {
-> +			if (!list_empty(&pool->unbuddied[i])) {
-> +				zhdr = list_first_entry(&pool->unbuddied[i],
-> +						struct zbud_header, buddy);
-> +				list_del(&zhdr->buddy);
-> +				page = virt_to_page(zhdr);
-> +				if (zhdr->first_chunks == 0)
-> +					bud = FIRST;
-> +				else
-> +					bud = LAST;
-> +				goto found;
-> +			}
->  		}
-> +		bud = FIRST;
->  	}
->  
->  	/* Couldn't find unbuddied zbud page, create new one */
-> @@ -388,7 +414,11 @@ int zbud_alloc(struct zbud_pool *pool, size_t size, gfp_t gfp,
->  	spin_lock(&pool->lock);
->  	pool->pages_nr++;
->  	zhdr = init_zbud_page(page);
-> -	bud = FIRST;
-> +
-> +	if (bud == HEADLESS) {	
-> +		set_bit(PAGE_HEADLESS, &page->private);
-> +		goto headless;
-> +	}
->  
->  found:
->  	if (bud == FIRST)
-> @@ -405,10 +435,12 @@ found:
->  		list_add(&zhdr->buddy, &pool->buddied);
->  	}
->  
-> +headless:
->  	/* Add/move zbud page to beginning of LRU */
-> -	if (!list_empty(&zhdr->lru))
-> -		list_del(&zhdr->lru);
-> -	list_add(&zhdr->lru, &pool->lru);
-> +	if (!list_empty(&page->lru))
-> +		list_del(&page->lru);
-> +
-> +	list_add(&page->lru, &pool->lru);
->  
->  	*handle = encode_handle(zhdr, bud);
->  	spin_unlock(&pool->lock);
-> @@ -430,28 +462,39 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
->  {
->  	struct zbud_header *zhdr;
->  	int freechunks;
-> +	struct page *page;
-> +	enum buddy bud;
->  
->  	spin_lock(&pool->lock);
->  	zhdr = handle_to_zbud_header(handle);
-> +	page = virt_to_page(zhdr);
->  
-> -	/* If first buddy, handle will be page aligned */
-> -	if ((handle - ZHDR_SIZE_ALIGNED) & ~PAGE_MASK)
-> +	if (!(handle & ~PAGE_MASK)) /* HEADLESS page stored */
-> +		bud = HEADLESS;
-> +	else if ((handle - ZHDR_SIZE_ALIGNED) & ~PAGE_MASK) {
-> +		bud = LAST;
->  		zhdr->last_chunks = 0;
-> -	else
-> +	} else {
-> +		/* If first buddy, handle will be page aligned */
-> +		bud = FIRST;
->  		zhdr->first_chunks = 0;
-> +	}
->  
-> -	if (zhdr->under_reclaim) {
-> +	if (test_bit(UNDER_RECLAIM, &page->private)) {
->  		/* zbud page is under reclaim, reclaim will free */
->  		spin_unlock(&pool->lock);
->  		return;
->  	}
->  
-> -	/* Remove from existing buddy list */
-> -	list_del(&zhdr->buddy);
-> +	if (bud != HEADLESS) {
-> +		/* Remove from existing buddy list */
-> +		list_del(&zhdr->buddy);
-> +	}
->  
-> -	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-> +	if (bud == HEADLESS ||
-> +	    (zhdr->first_chunks == 0 && zhdr->last_chunks == 0)) {
->  		/* zbud page is empty, free */
-> -		list_del(&zhdr->lru);
-> +		list_del(&page->lru);
->  		free_zbud_page(zhdr);
->  		pool->pages_nr--;
->  	} else {
-> @@ -503,8 +546,9 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
->   */
->  int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
->  {
-> -	int i, ret, freechunks;
-> +	int i, ret = 0, freechunks;
->  	struct zbud_header *zhdr;
-> +	struct page *page;
->  	unsigned long first_handle = 0, last_handle = 0;
->  
->  	spin_lock(&pool->lock);
-> @@ -514,21 +558,30 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
->  		return -EINVAL;
->  	}
->  	for (i = 0; i < retries; i++) {
-> -		zhdr = list_tail_entry(&pool->lru, struct zbud_header, lru);
-> -		list_del(&zhdr->lru);
-> -		list_del(&zhdr->buddy);
-> +		page = list_tail_entry(&pool->lru, struct page, lru);
-> +		list_del(&page->lru);
-> +
->  		/* Protect zbud page against free */
-> -		zhdr->under_reclaim = true;
-> -		/*
-> -		 * We need encode the handles before unlocking, since we can
-> -		 * race with free that will set (first|last)_chunks to 0
-> -		 */
-> -		first_handle = 0;
-> -		last_handle = 0;
-> -		if (zhdr->first_chunks)
-> -			first_handle = encode_handle(zhdr, FIRST);
-> -		if (zhdr->last_chunks)
-> -			last_handle = encode_handle(zhdr, LAST);
-> +		set_bit(UNDER_RECLAIM, &page->private);
-> +		zhdr = page_address(page);
-> +		if (!test_bit(PAGE_HEADLESS, &page->private)) {
-> +			list_del(&zhdr->buddy);
-> +			/*
-> +			 * We need encode the handles before unlocking, since
-> +			 * we can race with free that will set
-> +			 * (first|last)_chunks to 0
-> +			 */
-> +			first_handle = 0;
-> +			last_handle = 0;
-> +			if (zhdr->first_chunks)
-> +				first_handle = encode_handle(zhdr, FIRST);
-> +			if (zhdr->last_chunks)
-> +				last_handle = encode_handle(zhdr, LAST);
-> +		} else {
-> +			first_handle = encode_handle(zhdr, HEADLESS);
-> +			last_handle = 0;
-> +		}
-> +
->  		spin_unlock(&pool->lock);
->  
->  		/* Issue the eviction callback(s) */
-> @@ -544,8 +597,14 @@ int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
->  		}
->  next:
->  		spin_lock(&pool->lock);
-> -		zhdr->under_reclaim = false;
-> -		if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-> +		clear_bit(UNDER_RECLAIM, &page->private);
-> +		if (test_bit(PAGE_HEADLESS, &page->private)) {
-> +			if (ret == 0) {
-> +				free_zbud_page(zhdr);
-> +				pool->pages_nr--;
-> +				spin_unlock(&pool->lock);
-> +			}
-> +		} else if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
->  			/*
->  			 * Both buddies are now free, free the zbud page and
->  			 * return success.
-> @@ -565,7 +624,7 @@ next:
->  		}
->  
->  		/* add to beginning of LRU */
-> -		list_add(&zhdr->lru, &pool->lru);
-> +		list_add(&page->lru, &pool->lru);
->  	}
->  	spin_unlock(&pool->lock);
->  	return -EAGAIN;
-> -- 
-> 2.4.2
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
