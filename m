@@ -1,65 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FB1A6B0255
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 04:06:02 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so226914500wic.0
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 01:06:01 -0700 (PDT)
-Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
-        by mx.google.com with ESMTPS id d7si7861319wjb.4.2015.09.23.01.06.01
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E7D86B0256
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 04:06:49 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so2770851pab.3
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 01:06:48 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id f7si8770994pat.138.2015.09.23.01.06.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Sep 2015 01:06:01 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so57033630wic.1
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 01:06:01 -0700 (PDT)
-Date: Wed, 23 Sep 2015 10:05:58 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 10/26] x86, pkeys: notify userspace about protection key
- faults
-Message-ID: <20150923080558.GA28876@gmail.com>
-References: <20150916174903.E112E464@viggo.jf.intel.com>
- <20150916174906.51062FBC@viggo.jf.intel.com>
- <alpine.DEB.2.11.1509222157050.5606@nanos>
- <5601B82F.6070601@sr71.net>
- <alpine.DEB.2.11.1509222226090.5606@nanos>
- <5601BA44.8080604@sr71.net>
+        Wed, 23 Sep 2015 01:06:48 -0700 (PDT)
+Date: Wed, 23 Sep 2015 11:06:32 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [patch] mm, oom: remove task_lock protecting comm printing
+Message-ID: <20150923080632.GD12318@esperanza>
+References: <alpine.DEB.2.10.1509221629440.7794@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <5601BA44.8080604@sr71.net>
+In-Reply-To: <alpine.DEB.2.10.1509221629440.7794@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
+Hi,
 
-* Dave Hansen <dave@sr71.net> wrote:
-
-> On 09/22/2015 01:27 PM, Thomas Gleixner wrote:
-> >> > 
-> >> > So I defined all the kernel-internal types as u16 since I *know* the
-> >> > size of the hardware.
-> >> > 
-> >> > The user-exposed ones should probably be a bit more generic.  I did just
-> >> > realize that this is an int and my proposed syscall is a long.  That I
-> >> > definitely need to make consistent.
-> >> > 
-> >> > Does anybody care whether it's an int or a long?
-> > long is frowned upon due to 32/64bit. Even if that key stuff is only
-> > available on 64bit for now ....
+On Tue, Sep 22, 2015 at 04:30:13PM -0700, David Rientjes wrote:
+> The oom killer takes task_lock() in a couple of places solely to protect
+> printing the task's comm.
 > 
-> Well, it can be used by 32-bit apps on 64-bit kernels.
+> A process's comm, including current's comm, may change due to
+> /proc/pid/comm or PR_SET_NAME.
 > 
-> Ahh, that's why we don't see any longs in the siginfo.  So does that
-> mean 'int' is still our best bet in siginfo?
+> The comm will always be NULL-terminated, so the worst race scenario would
+> only be during update.  We can tolerate a comm being printed that is in
+> the middle of an update to avoid taking the lock.
+> 
+> Other locations in the kernel have already dropped task_lock() when
+> printing comm, so this is consistent.
 
-Use {s|u}{8|16|32|64} integer types in ABI relevant interfaces please, they are 
-our most unambiguous and constant types.
+Without the protection, can't reading task->comm race with PR_SET_NAME
+as described below?
 
-Here that would mean s32 or u32?
+Let T->comm[16] = "name\0rubbish1234"
+
+CPU1                                    CPU2
+----                                    ----
+set_task_comm(T, "longname\0")
+  T->comm[0] = 'l'
+  T->comm[1] = 'o'
+  T->comm[2] = 'n'
+  T->comm[3] = 'g'
+  T->comm[4] = 'n'
+                                        printk("%s\n", T->comm)
+                                          T->comm = "longnrubbish1234"
+                                          OOPS: the string is not
+                                                nil-terminated!
+  T->comm[5] = 'a'
+  T->comm[6] = 'm'
+  T->comm[7] = 'e'
+  T->comm[8] = '\0'
 
 Thanks,
-
-	Ingo
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
