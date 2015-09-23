@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id ADDBA6B0254
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:48:11 -0400 (EDT)
-Received: by pacbt3 with SMTP id bt3so10926455pac.3
-        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 21:48:11 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id wp3si7666520pab.160.2015.09.22.21.48.10
+	by kanga.kvack.org (Postfix) with ESMTP id D958182F64
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 00:48:15 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so29389945pad.1
+        for <linux-mm@kvack.org>; Tue, 22 Sep 2015 21:48:15 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id e5si7649837pas.193.2015.09.22.21.48.15
         for <linux-mm@kvack.org>;
-        Tue, 22 Sep 2015 21:48:11 -0700 (PDT)
-Subject: [PATCH 14/15] mm, dax,
- pmem: introduce {get|put}_dev_pagemap() for dax-gup
+        Tue, 22 Sep 2015 21:48:15 -0700 (PDT)
+Subject: [PATCH 13/15] mm, dax: convert vmf_insert_pfn_pmd() to __pfn_t
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 23 Sep 2015 00:42:27 -0400
-Message-ID: <20150923044227.36490.99741.stgit@dwillia2-desk3.jf.intel.com>
+Date: Wed, 23 Sep 2015 00:42:22 -0400
+Message-ID: <20150923044222.36490.67675.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
 References: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -21,291 +20,287 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Dave Hansen <dave@sr71.net>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Dave Hansen <dave@sr71.net>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>
 
-get_dev_page() enables paths like get_user_pages() to pin a dynamically
-mapped pfn-range (devm_memremap_pages()) while the resulting struct page
-objects are in use.  Unlike get_page() it may fail if the device is, or
-is in the process of being, disabled.  While the initial lookup of the
-range may be an expensive list walk, the result is cached to speed up
-subsequent lookups which are likely to be in the same mapped range.
+Similar to the conversion of vm_insert_mixed() use __pfn_t in the
+vmf_insert_pfn_pmd() to tag the resulting pte with _PAGE_DEVICE when the
+pfn is backed by a devm_memremap_pages() mapping.
 
 Cc: Dave Hansen <dave@sr71.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Matthew Wilcox <willy@linux.intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/nvdimm/pmem.c    |    2 +
- include/linux/io.h       |   17 -----------
- include/linux/mm.h       |   62 ++++++++++++++++++++++++++++++++++++++++
- include/linux/mm_types.h |    6 +++-
- kernel/memremap.c        |   71 ++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 140 insertions(+), 18 deletions(-)
+ arch/sparc/include/asm/pgtable_64.h |    2 ++
+ arch/x86/include/asm/pgtable.h      |    6 ++++++
+ arch/x86/mm/pat.c                   |    4 ++--
+ fs/dax.c                            |    2 +-
+ include/asm-generic/pgtable.h       |    6 ++++--
+ include/linux/huge_mm.h             |    2 +-
+ include/linux/mm.h                  |   27 +++++++++++++++++----------
+ include/linux/pfn.h                 |    9 +++++++++
+ mm/huge_memory.c                    |   10 ++++++----
+ mm/memory.c                         |    2 +-
+ 10 files changed, 49 insertions(+), 21 deletions(-)
 
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 1c670775129b..ac581a2e20e2 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -184,6 +184,7 @@ static void pmem_detach_disk(struct pmem_device *pmem)
- static int pmem_attach_disk(struct device *dev,
- 		struct nd_namespace_common *ndns, struct pmem_device *pmem)
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index 131d36fcd07a..496ef783c68c 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -234,6 +234,7 @@ extern struct page *mem_map_zero;
+  * the first physical page in the machine is at some huge physical address,
+  * such as 4GB.   This is common on a partitioned E10000, for example.
+  */
++#define pfn_pte pfn_pte
+ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
  {
-+	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
- 	int nid = dev_to_node(dev);
- 	struct gendisk *disk;
+ 	unsigned long paddr = pfn << PAGE_SHIFT;
+@@ -244,6 +245,7 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
+ #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
  
-@@ -191,6 +192,7 @@ static int pmem_attach_disk(struct device *dev,
- 	if (!pmem->pmem_queue)
- 		return -ENOMEM;
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
++#define pfn_pmd pfn_pmd
+ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
+ {
+ 	pte_t pte = pfn_pte(page_nr, pgprot);
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 02a54e5b7930..84d1346e1cda 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -282,6 +282,11 @@ static inline pmd_t pmd_mkdirty(pmd_t pmd)
+ 	return pmd_set_flags(pmd, _PAGE_DIRTY | _PAGE_SOFT_DIRTY);
+ }
  
-+	devm_register_pagemap(dev, &nsio->res, &pmem->pmem_queue->dax_ref.count);
- 	blk_queue_make_request(pmem->pmem_queue, pmem_make_request);
- 	blk_queue_physical_block_size(pmem->pmem_queue, PAGE_SIZE);
- 	blk_queue_max_hw_sectors(pmem->pmem_queue, UINT_MAX);
-diff --git a/include/linux/io.h b/include/linux/io.h
-index de64c1e53612..2f2f8859abd9 100644
---- a/include/linux/io.h
-+++ b/include/linux/io.h
-@@ -87,23 +87,6 @@ void *devm_memremap(struct device *dev, resource_size_t offset,
- 		size_t size, unsigned long flags);
- void devm_memunmap(struct device *dev, void *addr);
- 
--void *__devm_memremap_pages(struct device *dev, struct resource *res);
--
--#ifdef CONFIG_ZONE_DEVICE
--void *devm_memremap_pages(struct device *dev, struct resource *res);
--#else
--static inline void *devm_memremap_pages(struct device *dev, struct resource *res)
--{
--	/*
--	 * Fail attempts to call devm_memremap_pages() without
--	 * ZONE_DEVICE support enabled, this requires callers to fall
--	 * back to plain devm_memremap() based on config
--	 */
--	WARN_ON_ONCE(1);
--	return ERR_PTR(-ENXIO);
--}
--#endif
--
- /*
-  * Some systems do not have legacy ISA devices.
-  * /dev/port is not a valid interface on these systems.
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 989c5459bee7..6183549a854c 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -15,12 +15,14 @@
- #include <linux/debug_locks.h>
- #include <linux/mm_types.h>
- #include <linux/range.h>
-+#include <linux/percpu-refcount.h>
- #include <linux/pfn.h>
- #include <linux/bit_spinlock.h>
- #include <linux/shrinker.h>
- #include <linux/resource.h>
- #include <linux/page_ext.h>
- #include <linux/err.h>
-+#include <linux/ioport.h>
- 
- struct mempolicy;
- struct anon_vma;
-@@ -558,6 +560,28 @@ static inline void init_page_count(struct page *page)
- void put_page(struct page *page);
- void put_pages_list(struct list_head *pages);
- 
-+#ifdef CONFIG_ZONE_DEVICE
-+void *devm_memremap_pages(struct device *dev, struct resource *res);
-+void devm_register_pagemap(struct device *dev, struct resource *res,
-+		struct percpu_ref *ref);
-+#else
-+static inline void *devm_memremap_pages(struct device *dev, struct resource *res)
++static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 +{
-+	/*
-+	 * Fail attempts to call devm_memremap_pages() without
-+	 * ZONE_DEVICE support enabled, this requires callers to fall
-+	 * back to plain devm_memremap() based on config
-+	 */
-+	WARN_ON_ONCE(1);
-+	return ERR_PTR(-ENXIO);
++	return pmd_set_flags(pmd, _PAGE_DEVMAP);
 +}
 +
-+static inline void devm_register_pagemap(struct device *dev, struct resource *res,
-+		struct percpu_ref *ref)
+ static inline pmd_t pmd_mkhuge(pmd_t pmd)
+ {
+ 	return pmd_set_flags(pmd, _PAGE_PSE);
+@@ -346,6 +351,7 @@ static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
+ 		     massage_pgprot(pgprot));
+ }
+ 
++#define pfn_pmd pfn_pmd
+ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
+ {
+ 	return __pmd(((phys_addr_t)page_nr << PAGE_SHIFT) |
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index 188e3e07eeeb..2e02064dbe45 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -949,7 +949,7 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+ }
+ 
+ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+-		     unsigned long pfn)
++		     __pfn_t pfn)
+ {
+ 	enum page_cache_mode pcm;
+ 
+@@ -957,7 +957,7 @@ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+ 		return 0;
+ 
+ 	/* Set prot based on lookup */
+-	pcm = lookup_memtype((resource_size_t)pfn << PAGE_SHIFT);
++	pcm = lookup_memtype(__pfn_t_to_phys(pfn));
+ 	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
+ 			 cachemode2protval(pcm));
+ 
+diff --git a/fs/dax.c b/fs/dax.c
+index b93dbf363dc2..321966335f33 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -681,7 +681,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 			goto fallback;
+ 
+ 		result |= vmf_insert_pfn_pmd(vma, address, pmd,
+-				__pfn_t_to_pfn(pfn), write);
++				pfn, write);
+ 	}
+ 
+  out:
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 29c57b2cb344..a65f86061563 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -1,6 +1,8 @@
+ #ifndef _ASM_GENERIC_PGTABLE_H
+ #define _ASM_GENERIC_PGTABLE_H
+ 
++#include <linux/pfn.h>
++
+ #ifndef __ASSEMBLY__
+ #ifdef CONFIG_MMU
+ 
+@@ -521,7 +523,7 @@ static inline int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+  * by vm_insert_pfn().
+  */
+ static inline int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+-				   unsigned long pfn)
++				   __pfn_t pfn)
+ {
+ 	return 0;
+ }
+@@ -549,7 +551,7 @@ extern int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+ 			   unsigned long pfn, unsigned long addr,
+ 			   unsigned long size);
+ extern int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+-			    unsigned long pfn);
++			    __pfn_t pfn);
+ extern int track_pfn_copy(struct vm_area_struct *vma);
+ extern void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+ 			unsigned long size);
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index ecb080d6ff42..824eb98c53fc 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -34,7 +34,7 @@ extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 			unsigned long addr, pgprot_t newprot,
+ 			int prot_numa);
+ int vmf_insert_pfn_pmd(struct vm_area_struct *, unsigned long addr, pmd_t *,
+-			unsigned long pfn, bool write);
++			__pfn_t pfn, bool write);
+ 
+ enum transparent_hugepage_flag {
+ 	TRANSPARENT_HUGEPAGE_FLAG,
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 54fbeda5b896..989c5459bee7 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -906,15 +906,6 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
+ }
+ 
+ /*
+- * __pfn_t: encapsulates a page-frame number that is optionally backed
+- * by memmap (struct page).  Whether a __pfn_t has a 'struct page'
+- * backing is indicated by flags in the low bits of the value;
+- */
+-typedef struct {
+-	unsigned long val;
+-} __pfn_t;
+-
+-/*
+  * PFN_SG_CHAIN - pfn is a pointer to the next scatterlist entry
+  * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
+  * PFN_DEV - pfn is not covered by system memmap by default
+@@ -989,7 +980,14 @@ static inline pte_t __pfn_t_pte(__pfn_t pfn, pgprot_t pgprot)
+ }
+ #endif
+ 
+-#ifdef __HAVE_ARCH_PTE_DEVICE
++#ifdef pfn_pmd
++static inline pmd_t __pfn_t_pmd(__pfn_t pfn, pgprot_t pgprot)
 +{
++	return pfn_pmd(__pfn_t_to_pfn(pfn), pgprot);
 +}
 +#endif
 +
- void split_page(struct page *page, unsigned int order);
- int split_free_page(struct page *page);
- 
-@@ -717,6 +741,44 @@ static inline enum zone_type page_zonenum(const struct page *page)
- 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
- }
- 
-+/**
-+ * struct dev_pagemap - reference count for a devm_memremap_pages mapping
-+ * @res: physical address range covered by @ref
-+ * @ref: reference count that pins the devm_memremap_pages() mapping
-+ * @dev: host device of the mapping for debug
-+ */
-+struct dev_pagemap {
-+	const struct resource *res;
-+	struct percpu_ref *ref;
-+	struct device *dev;
-+};
-+
-+struct dev_pagemap *__get_dev_pagemap(resource_size_t phys);
-+
-+static inline struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
-+		struct dev_pagemap *pgmap)
-+{
-+	resource_size_t phys = PFN_PHYS(pfn);
-+
-+	/*
-+	 * In the cached case we're already holding a reference so we can
-+	 * simply do a blind increment
-+	 */
-+	if (pgmap && phys >= pgmap->res->start && phys <= pgmap->res->end) {
-+		percpu_ref_get(pgmap->ref);
-+		return pgmap;
-+	}
-+
-+	/* fall back to slow path lookup */
-+	return __get_dev_pagemap(phys);
-+}
-+
-+static inline void put_dev_pagemap(struct dev_pagemap *pgmap)
-+{
-+	if (pgmap)
-+		percpu_ref_put(pgmap->ref);
-+}
-+
- #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
- #define SECTION_IN_PAGE_FLAGS
- #endif
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 3d6baa7d4534..20097e7b679a 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -49,12 +49,16 @@ struct page {
- 					 * updated asynchronously */
- 	union {
- 		struct address_space *mapping;	/* If low bit clear, points to
--						 * inode address_space, or NULL.
-+						 * inode address_space, unless
-+						 * the page is in ZONE_DEVICE
-+						 * then it points to its parent
-+						 * dev_pagemap, otherwise NULL.
- 						 * If page mapped as anonymous
- 						 * memory, low bit is set, and
- 						 * it points to anon_vma object:
- 						 * see PAGE_MAPPING_ANON below.
- 						 */
-+		struct dev_pagemap *pgmap;
- 		void *s_mem;			/* slab first object */
- 	};
- 
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 0d818ce04129..74344dc8c31e 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -10,6 +10,7 @@
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  * General Public License for more details.
-  */
-+#include <linux/rculist.h>
- #include <linux/device.h>
- #include <linux/types.h>
- #include <linux/io.h>
-@@ -137,16 +138,86 @@ void devm_memunmap(struct device *dev, void *addr)
- EXPORT_SYMBOL(devm_memunmap);
- 
- #ifdef CONFIG_ZONE_DEVICE
-+static LIST_HEAD(ranges);
-+static DEFINE_SPINLOCK(range_lock);
-+
- struct page_map {
- 	struct resource res;
-+	struct dev_pagemap pgmap;
-+	struct list_head list;
- };
- 
- static void devm_memremap_pages_release(struct device *dev, void *res)
++#ifdef __HAVE_ARCH_PTE_DEVMAP
+ static inline bool __pfn_t_has_dev_pagemap(__pfn_t pfn)
  {
- 	struct page_map *page_map = res;
-+	struct dev_pagemap *pgmap = &page_map->pgmap;
+ 	const unsigned long flags = PFN_DEV|PFN_MAP;
+@@ -1002,6 +1000,7 @@ static inline bool __pfn_t_has_dev_pagemap(__pfn_t pfn)
+ 	return false;
+ }
+ pte_t pte_mkdevmap(pte_t pte);
++pmd_t pmd_mkdevmap(pmd_t pmd);
+ #endif
  
- 	/* pages are dead and unused, undo the arch mapping */
- 	arch_remove_memory(page_map->res.start, resource_size(&page_map->res));
+ /*
+@@ -1767,6 +1766,14 @@ static inline void pgtable_pmd_page_dtor(struct page *page) {}
+ 
+ #endif
+ 
++#ifndef pmd_devmap
++#define pmd_devmap(x) (0)
++#endif
 +
-+	if (pgmap->res) {
-+		spin_lock(&range_lock);
-+		list_del_rcu(&page_map->list);
-+		spin_unlock(&range_lock);
-+		dev_WARN_ONCE(dev, !percpu_ref_is_zero(pgmap->ref),
-+				"page mapping not idle in %s\n", __func__);
-+	}
-+}
++#ifndef pte_devmap
++#define pte_devmap(x) (0)
++#endif
 +
-+static int page_map_match(struct device *dev, void *res, void *match_data)
-+{
-+	struct page_map *page_map = res;
-+	resource_size_t phys = *(resource_size_t *) match_data;
+ static inline spinlock_t *pmd_lock(struct mm_struct *mm, pmd_t *pmd)
+ {
+ 	spinlock_t *ptl = pmd_lockptr(mm, pmd);
+diff --git a/include/linux/pfn.h b/include/linux/pfn.h
+index 7646637221f3..ebe7b30ff912 100644
+--- a/include/linux/pfn.h
++++ b/include/linux/pfn.h
+@@ -3,6 +3,15 @@
+ 
+ #ifndef __ASSEMBLY__
+ #include <linux/types.h>
 +
-+	return page_map->res.start == phys;
-+}
-+
-+void devm_register_pagemap(struct device *dev, struct resource *res,
-+		struct percpu_ref *ref)
-+{
-+	struct page_map *page_map;
-+	struct dev_pagemap *pgmap;
-+	unsigned long pfn;
-+
-+	page_map = devres_find(dev, devm_memremap_pages_release,
-+			page_map_match, &res->start);
-+	dev_WARN_ONCE(dev, !page_map, "%s: no mapping found for %pa\n",
-+			__func__, &res->start);
-+	if (!page_map)
-+		return;
-+
-+	pgmap = &page_map->pgmap;
-+	pgmap->dev = dev;
-+	pgmap->res = &page_map->res;
-+	pgmap->ref = ref;
-+	INIT_LIST_HEAD(&page_map->list);
-+	spin_lock(&range_lock);
-+	list_add_rcu(&page_map->list, &ranges);
-+	spin_unlock(&range_lock);
-+
-+	for (pfn = res->start >> PAGE_SHIFT;
-+			pfn < res->end >> PAGE_SHIFT; pfn++) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		page->pgmap = pgmap;
-+	}
-+}
-+EXPORT_SYMBOL(devm_register_pagemap);
-+
-+struct dev_pagemap *__get_dev_pagemap(resource_size_t phys)
-+{
-+	struct page_map *page_map;
-+	struct dev_pagemap *pgmap = NULL;
-+
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(page_map, &ranges, list)
-+		if (phys >= page_map->res.start && phys <= page_map->res.end) {
-+			if (percpu_ref_tryget_live(page_map->pgmap.ref))
-+				pgmap = &page_map->pgmap;
-+			break;
-+		}
-+	rcu_read_unlock();
-+	return pgmap;
++/*
++ * __pfn_t: encapsulates a page-frame number that is optionally backed
++ * by memmap (struct page).  Whether a __pfn_t has a 'struct page'
++ * backing is indicated by flags in the low bits of the value;
++ */
++typedef struct {
++	unsigned long val;
++} __pfn_t;
+ #endif
+ 
+ #define PFN_ALIGN(x)	(((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 4b06b8db9df2..d8f01783ab88 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -870,7 +870,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
  }
  
- void *devm_memremap_pages(struct device *dev, struct resource *res)
+ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+-		pmd_t *pmd, unsigned long pfn, pgprot_t prot, bool write)
++		pmd_t *pmd, __pfn_t pfn, pgprot_t prot, bool write)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	pmd_t entry;
+@@ -878,7 +878,9 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+ 
+ 	ptl = pmd_lock(mm, pmd);
+ 	if (pmd_none(*pmd)) {
+-		entry = pmd_mkhuge(pfn_pmd(pfn, prot));
++		entry = pmd_mkhuge(__pfn_t_pmd(pfn, prot));
++		if (__pfn_t_has_dev_pagemap(pfn))
++			entry = pmd_mkdevmap(entry);
+ 		if (write) {
+ 			entry = pmd_mkyoung(pmd_mkdirty(entry));
+ 			entry = maybe_pmd_mkwrite(entry, vma);
+@@ -890,7 +892,7 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+ }
+ 
+ int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+-			pmd_t *pmd, unsigned long pfn, bool write)
++			pmd_t *pmd, __pfn_t pfn, bool write)
+ {
+ 	pgprot_t pgprot = vma->vm_page_prot;
+ 	/*
+@@ -902,7 +904,7 @@ int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+ 	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
+ 						(VM_PFNMAP|VM_MIXEDMAP));
+ 	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
+-	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
++	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && __pfn_t_valid(pfn));
+ 
+ 	if (addr < vma->vm_start || addr >= vma->vm_end)
+ 		return VM_FAULT_SIGBUS;
+diff --git a/mm/memory.c b/mm/memory.c
+index 6ec61c120289..2e178d8fdeba 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1583,7 +1583,7 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ 
+ 	if (addr < vma->vm_start || addr >= vma->vm_end)
+ 		return -EFAULT;
+-	if (track_pfn_insert(vma, &pgprot, pfn))
++	if (track_pfn_insert(vma, &pgprot, pfn_to_pfn_t(pfn, PFN_DEV)))
+ 		return -EINVAL;
+ 
+ 	ret = insert_pfn(vma, addr, pfn_to_pfn_t(pfn, PFN_DEV), pgprot);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
