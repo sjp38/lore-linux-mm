@@ -1,96 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C05626B0253
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 10:26:53 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so42686207pac.2
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 07:26:53 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id pc2si10959855pbb.178.2015.09.23.07.26.52
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1513D6B0253
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 11:37:21 -0400 (EDT)
+Received: by igxx6 with SMTP id x6so30346433igx.1
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 08:37:20 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k89si7256885iod.9.2015.09.23.08.37.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 23 Sep 2015 07:26:52 -0700 (PDT)
-Subject: Re: [PATCH] mm, oom: Disable preemption during OOM-kill operation.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201509191605.CAF13520.QVSFHLtFJOMOOF@I-love.SAKURA.ne.jp>
-	<20150922165523.GD4027@dhcp22.suse.cz>
-In-Reply-To: <20150922165523.GD4027@dhcp22.suse.cz>
-Message-Id: <201509232326.JEB43777.SOFMJOVOLFFtQH@I-love.SAKURA.ne.jp>
-Date: Wed, 23 Sep 2015 23:26:35 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Sep 2015 08:37:20 -0700 (PDT)
+Date: Wed, 23 Sep 2015 17:34:16 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: Multiple potential races on vma->vm_flags
+Message-ID: <20150923153416.GA18973@redhat.com>
+References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com> <55EC9221.4040603@oracle.com> <20150907114048.GA5016@node.dhcp.inet.fi> <55F0D5B2.2090205@oracle.com> <20150910083605.GB9526@node.dhcp.inet.fi> <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com> <20150911103959.GA7976@node.dhcp.inet.fi>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150911103959.GA7976@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrey Konovalov <andreyknvl@google.com>, Sasha Levin <sasha.levin@oracle.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
 
-Michal Hocko wrote:
-> On Sat 19-09-15 16:05:12, Tetsuo Handa wrote:
-> > Well, this seems to be a problem which prevents me from testing various
-> > patches that tries to address OOM livelock problem.
-> > 
-> > ---------- rcu-stall.c start ----------
-> > #define _GNU_SOURCE
-> > #include <stdio.h>
-> > #include <stdlib.h>
-> > #include <unistd.h>
-> > #include <sys/types.h>
-> > #include <sys/stat.h>
-> > #include <fcntl.h>
-> > #include <sched.h>
-> > 
-> > static int dummy(void *fd)
-> > {
-> > 	char c;
-> > 	/* Wait until the first child thread is killed by the OOM killer. */
-> > 	read(* (int *) fd, &c, 1);
-> > 	/* Try to consume as much CPU time as possible via preemption. */
-> > 	while (1);
-> 
-> You would kill the system by this alone. Having 1000 busy loops just
-> kills your machine from doing anything useful and you are basically
-> DoS-ed. I am not sure sprinkling preempt_{enable,disable} all around the
-> oom path makes much difference. If anything having a kernel high
-> priority kernel thread sounds like a better approach.
+On 09/11, Kirill A. Shutemov wrote:
+>
+> This one is tricky. I *assume* the mm cannot be generally accessible after
+> mm_users drops to zero, but I'm not entirely sure about it.
+> procfs? ptrace?
 
-Of course, this is not a reproducer which I'm using when I'm bothered by
-this problem. I used 1000 in rcu-stall just as an extreme example. I'm
-bothered by this problem when there are probably only a few runnable tasks.
+Well, all I can say is that proc/ptrace look fine afaics...
 
-If this patch is not applied on preemptive kernels, the OOM-kill operation
-by rcu-stall took 20 minutes. On the other hand, if this patch is applied
-on preemptive kernels, or the kernel is not preemptive from the beginning,
-the OOM-kill operation by rcu-stall took only 3 seconds.
+This is off-topic, but how about the patch below? Different threads can
+expand different vma's at the same time under read_lock(mmap_sem), so
+vma_lock_anon_vma() can't help to serialize "locked_vm += grow".
 
-The delay in OOM-kill operation in preemptive kernels varies depending on
-number of runnable tasks (on a CPU which is executing the oom path) and
-their priority.
+Oleg.
 
-Sprinkling preempt_{enable,disable} all around the oom path can temporarily
-slow down threads with higher priority. But doing so can guarantee that
-the oom path is not delayed indefinitely. Imagine a scenario where a task
-with idle priority called the oom path and other tasks with normal or
-realtime priority preempt. How long will we hold oom_lock and keep the
-system under oom?
-
-So, I think it makes sense to disable preemption during OOM-kill
-operation.
-
-By the way, I'm not familiar with cgroups. If CPU resource the task which
-called the oom path is allowed to use only one percent of single CPU, is
-the delay multiplied by 100 (e.g. 1 second -> 100 seconds)?
-
-> 
-> [...]
-> 
-> > 	for (i = 0; i < 1000; i++) {
-> > 		clone(dummy, malloc(1024) + 1024, CLONE_SIGHAND | CLONE_VM,
-> > 		      &pipe_fd[0]);
-> > 		if (!i)
-> > 			close(pipe_fd[1]);
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
+--- x/mm/mmap.c
++++ x/mm/mmap.c
+@@ -2146,9 +2146,6 @@ static int acct_stack_growth(struct vm_a
+ 	if (security_vm_enough_memory_mm(mm, grow))
+ 		return -ENOMEM;
+ 
+-	/* Ok, everything looks good - let it rip */
+-	if (vma->vm_flags & VM_LOCKED)
+-		mm->locked_vm += grow;
+ 	vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
+ 	return 0;
+ }
+@@ -2210,6 +2207,8 @@ int expand_upwards(struct vm_area_struct
+ 				 * against concurrent vma expansions.
+ 				 */
+ 				spin_lock(&vma->vm_mm->page_table_lock);
++				if (vma->vm_flags & VM_LOCKED)
++					mm->locked_vm += grow;
+ 				anon_vma_interval_tree_pre_update_vma(vma);
+ 				vma->vm_end = address;
+ 				anon_vma_interval_tree_post_update_vma(vma);
+@@ -2281,6 +2280,8 @@ int expand_downwards(struct vm_area_stru
+ 				 * against concurrent vma expansions.
+ 				 */
+ 				spin_lock(&vma->vm_mm->page_table_lock);
++				if (vma->vm_flags & VM_LOCKED)
++					mm->locked_vm += grow;
+ 				anon_vma_interval_tree_pre_update_vma(vma);
+ 				vma->vm_start = address;
+ 				vma->vm_pgoff -= grow;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
