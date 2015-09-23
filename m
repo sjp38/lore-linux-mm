@@ -1,66 +1,65 @@
-From: Charles Keepax <ckeepax@opensource.wolfsonmicro.com>
-Subject: Re: [PATCH V3 2/2] debugfs: don't assume sizeof(bool) to be 4 bytes
-Date: Tue, 15 Sep 2015 10:13:19 +0100
-Message-ID: <20150915091319.GH11200@ck-lbox>
-References: <9b705747a138c96c26faee5218f7b47403195b28.1442305897.git.viresh.kumar@linaro.org>
- <27d37898b4be6b9b9f31b90135f8206ca079a868.1442305897.git.viresh.kumar@linaro.org>
+From: Dave Hansen <dave@sr71.net>
+Subject: Re: [PATCH 11/15] mm, dax, pmem: introduce __pfn_t
+Date: Wed, 23 Sep 2015 09:02:17 -0700
+Message-ID: <5602CD09.3080801@sr71.net>
+References: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
+ <20150923044211.36490.18084.stgit@dwillia2-desk3.jf.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
-Return-path: <ath10k-bounces+gldad-ath10k=m.gmane.org@lists.infradead.org>
-Content-Disposition: inline
-In-Reply-To: <27d37898b4be6b9b9f31b90135f8206ca079a868.1442305897.git.viresh.kumar@linaro.org>
-List-Unsubscribe: <http://lists.infradead.org/mailman/options/ath10k>,
- <mailto:ath10k-request@lists.infradead.org?subject=unsubscribe>
-List-Archive: <http://lists.infradead.org/pipermail/ath10k/>
-List-Post: <mailto:ath10k@lists.infradead.org>
-List-Help: <mailto:ath10k-request@lists.infradead.org?subject=help>
-List-Subscribe: <http://lists.infradead.org/mailman/listinfo/ath10k>,
- <mailto:ath10k-request@lists.infradead.org?subject=subscribe>
-Sender: "ath10k" <ath10k-bounces@lists.infradead.org>
-Errors-To: ath10k-bounces+gldad-ath10k=m.gmane.org@lists.infradead.org
-To: Viresh Kumar <viresh.kumar@linaro.org>
-Cc: "open list:NETWORKING DRIVERS
- (WIRELESS)" <linux-wireless@vger.kernel.org>, "moderated list:SOUND - SOC LAYER /
- DYNAMIC AUDIO POWER MANAGEM..." <alsa-devel@alsa-project.org>, Avri Altman <avri.altman@intel.com>, Stanislaw Gruszka <sgruszka@redhat.com>, Jiri Slaby <jirislaby@gmail.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Will Deacon <will.deacon@arm.com>, Jaroslav Kysela <perex@perex.cz>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Kalle Valo <kvalo@qca.qualcomm.com>, Emmanuel Grumbach <emmanuel.grumbach@intel.com>, Luciano Coelho <luciano.coelho@intel.com>, Wang Long <long.wanglong@huawei.com>, Richard Fitzgerald <rf@opensource.wolfsonmicro.com>, Ingo Molnar <mingo@kernel.org>, open list <linux-kernel@vger.>
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <20150923044211.36490.18084.stgit@dwillia2-desk3.jf.intel.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 List-Id: linux-mm.kvack.org
 
-On Tue, Sep 15, 2015 at 02:04:59PM +0530, Viresh Kumar wrote:
-> Long back 'bool' type used to be a typecast to 'int', but that changed
-> in v2.6.19. And that is a typecast to _Bool now, which (mostly) takes
-> just a byte. Anyway, the bool type is implementation defined, and better
-> we don't assume its size to be 4 bytes or 1.
-> 
-> The problem with current code is that it reads/writes 4 bytes for a
-> boolean, which will read/update 3 excess bytes following the boolean
-> variable (when sizeof(bool) is 1 byte). And that can lead to hard to fix
-> bugs. It was a nightmare cracking this one.
-> 
-> The debugfs code had this bug since the first time it got introduced,
-> but was never got caught, strange. Maybe the bool variables (monitored
-> by debugfs) were followed by an 'int' or something bigger and the pad
-> bytes made sure, we never see this issue.
-> 
-> But the OPP (Operating performance points) library have three booleans
-> allocated to contiguous bytes and this bug got hit quite soon (The
-> debugfs support for OPP is yet to be merged). It showed up as corruption
-> of the debugfs boolean symbols, where Y were becoming N and vice versa.
-> 
-> Fix it properly by changing the last argument of debugfs_create_bool(),
-> to type 'bool *' instead of 'u32 *', so that it doesn't depend on sizeof
-> bool at all.
-> 
-> That required updates to all user sites as well in a single commit.
-> regmap core was also using debugfs_{read|write}_file_bool(), directly
-> and variable types were updated for that to be bool as well.
-> 
-> Acked-by: Mark Brown <broonie@kernel.org>
-> Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
-> ---
+On 09/22/2015 09:42 PM, Dan Williams wrote:
+>  /*
+> + * __pfn_t: encapsulates a page-frame number that is optionally backed
+> + * by memmap (struct page).  Whether a __pfn_t has a 'struct page'
+> + * backing is indicated by flags in the low bits of the value;
+> + */
+> +typedef struct {
+> +	unsigned long val;
+> +} __pfn_t;
+> +
+> +/*
+> + * PFN_SG_CHAIN - pfn is a pointer to the next scatterlist entry
+> + * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
+> + * PFN_DEV - pfn is not covered by system memmap by default
+> + * PFN_MAP - pfn has a dynamic page mapping established by a device driver
+> + */
+> +enum {
+> +	PFN_SHIFT = 4,
+> +	PFN_MASK = (1UL << PFN_SHIFT) - 1,
+> +	PFN_SG_CHAIN = (1UL << 0),
+> +	PFN_SG_LAST = (1UL << 1),
+> +	PFN_DEV = (1UL << 2),
+> +	PFN_MAP = (1UL << 3),
+> +};
 
-For the minor wm_adsp change:
+Please forgive a little bikeshedding here...
 
-Acked-by: Charles Keepax <ckeepax@opensource.wolfsonmicro.com>
+Why __pfn_t?  Because the KVM code has a pfn_t?  If so, I think we
+should rescue pfn_t from KVM and give them a kvm_pfn_t.
 
-Thanks,
-Charles
+I think you should do one of two things:  Make PFN_SHIFT 12 so that a
+physical addr can be stored in a __pfn_t with no work.  Or, use the
+*high* 12 bits of __pfn_t.val.
+
+If you use the high bits, *and* make it store a plain pfn when all the
+bits are 0, then you get a zero-cost pfn<->__pfn_t conversion which will
+hopefully generate the exact same code which is there today.
+
+The one disadvantage here is that it makes it more likely that somebody
+that's just setting __pfn_t.val=foo will get things subtly wrong
+somehow, but that it will work most of the time.
+
+Also, about naming...  PFN_SHIFT is pretty awful name for this.  It
+probably needs to be __PFN_T_SOMETHING.  We don't want folks doing
+craziness like:
+
+	unsigned long phys_addr = pfn << PFN_SHIFT.
+
+Which *looks* OK.
