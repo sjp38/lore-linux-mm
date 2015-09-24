@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 994F882F66
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 11:44:13 -0400 (EDT)
-Received: by iofb144 with SMTP id b144so81266755iof.1
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 08:44:13 -0700 (PDT)
-Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
-        by mx.google.com with ESMTPS id o201si11144299ioe.22.2015.09.24.08.44.12
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A3EAF82F66
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 12:08:31 -0400 (EDT)
+Received: by oiev17 with SMTP id v17so43853290oie.1
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 09:08:31 -0700 (PDT)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id 186si7014123oip.55.2015.09.24.09.08.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 24 Sep 2015 08:44:12 -0700 (PDT)
-Date: Thu, 24 Sep 2015 10:44:00 -0500 (CDT)
+        Thu, 24 Sep 2015 09:08:30 -0700 (PDT)
+Date: Thu, 24 Sep 2015 11:08:29 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 01/16] page-flags: trivial cleanup for PageTrans*
- helpers
-In-Reply-To: <1443106264-78075-2-git-send-email-kirill.shutemov@linux.intel.com>
-Message-ID: <alpine.DEB.2.20.1509241043500.20701@east.gentwo.org>
-References: <20150921153509.fef7ecdf313ef74307c43b65@linux-foundation.org> <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com> <1443106264-78075-2-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 04/16] page-flags: define PG_locked behavior on compound
+ pages
+In-Reply-To: <1443106264-78075-5-git-send-email-kirill.shutemov@linux.intel.com>
+Message-ID: <alpine.DEB.2.20.1509241106320.20701@east.gentwo.org>
+References: <20150921153509.fef7ecdf313ef74307c43b65@linux-foundation.org> <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com> <1443106264-78075-5-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,9 +24,13 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat
 
 On Thu, 24 Sep 2015, Kirill A. Shutemov wrote:
 
-> Use TESTPAGEFLAG_FALSE() to get it a bit cleaner.
+> SLUB uses PG_locked as a bit spin locked.  IIUC, tail pages should never
+> appear there.  VM_BUG_ON() is added to make sure that this assumption is
+> correct.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Correct. However, VM_BUG_ON is superfluous. If there is a tail page there
+then the information in the page will be not as expected (free list
+parameter f.e.) and things will fall apart rapidly with segfaults.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
