@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D76BA82F66
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 10:51:48 -0400 (EDT)
-Received: by pacgz1 with SMTP id gz1so8616039pac.3
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 07:51:48 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id kg10si18899216pad.154.2015.09.24.07.51.45
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C76C82F66
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 10:51:53 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so75329002pad.1
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 07:51:53 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id hv2si18966651pbc.2.2015.09.24.07.51.52
         for <linux-mm@kvack.org>;
-        Thu, 24 Sep 2015 07:51:45 -0700 (PDT)
+        Thu, 24 Sep 2015 07:51:52 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 02/16] page-flags: move code around
-Date: Thu, 24 Sep 2015 17:50:50 +0300
-Message-Id: <1443106264-78075-3-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 14/16] page-flags: define PG_uptodate behavior on compound pages
+Date: Thu, 24 Sep 2015 17:51:02 +0300
+Message-Id: <1443106264-78075-15-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <20150921153509.fef7ecdf313ef74307c43b65@linux-foundation.org>
  <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,92 +20,54 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The preparation patch: we are going to use compound_head(), PageTail()
-and PageCompound() to define page-flags helpers.
-
-Let's define them before macros.
-
-We cannot user PageHead() helper in PageCompound() as it's not yet
-defined -- use test_bit(PG_head, &page->flags) instead.
+We use PG_uptodate on head pages on transparent huge page.
+Let's use PF_NO_TAIL.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/page-flags.h | 41 +++++++++++++++++++++--------------------
- 1 file changed, 21 insertions(+), 20 deletions(-)
+ include/linux/page-flags.h | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
 diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 815246a80e2d..713d3f2c2468 100644
+index 5e52cc6a27c3..e3ccd95de660 100644
 --- a/include/linux/page-flags.h
 +++ b/include/linux/page-flags.h
-@@ -133,6 +133,27 @@ enum pageflags {
+@@ -392,8 +392,9 @@ u64 stable_page_flags(struct page *page);
  
- #ifndef __GENERATING_BOUNDS_H
- 
-+struct page;	/* forward declaration */
-+
-+static inline struct page *compound_head(struct page *page)
-+{
-+	unsigned long head = READ_ONCE(page->compound_head);
-+
-+	if (unlikely(head & 1))
-+		return (struct page *) (head - 1);
-+	return page;
-+}
-+
-+static inline int PageTail(struct page *page)
-+{
-+	return READ_ONCE(page->compound_head) & 1;
-+}
-+
-+static inline int PageCompound(struct page *page)
-+{
-+	return test_bit(PG_head, &page->flags) || PageTail(page);
-+}
-+
- /*
-  * Macros to create function definitions for page flags
-  */
-@@ -204,7 +225,6 @@ static inline int __TestClearPage##uname(struct page *page) { return 0; }
- #define TESTSCFLAG_FALSE(uname)						\
- 	TESTSETFLAG_FALSE(uname) TESTCLEARFLAG_FALSE(uname)
- 
--struct page;	/* forward declaration */
- 
- TESTPAGEFLAG(Locked, locked)
- PAGEFLAG(Error, error) TESTCLEARFLAG(Error, error)
-@@ -395,11 +415,6 @@ static inline void set_page_writeback_keepwrite(struct page *page)
- 
- __PAGEFLAG(Head, head) CLEARPAGEFLAG(Head, head)
- 
--static inline int PageTail(struct page *page)
--{
--	return READ_ONCE(page->compound_head) & 1;
--}
--
- static inline void set_compound_head(struct page *page, struct page *head)
+ static inline int PageUptodate(struct page *page)
  {
- 	WRITE_ONCE(page->compound_head, (unsigned long)head + 1);
-@@ -410,20 +425,6 @@ static inline void clear_compound_head(struct page *page)
- 	WRITE_ONCE(page->compound_head, 0);
+-	int ret = test_bit(PG_uptodate, &(page)->flags);
+-
++	int ret;
++	page = compound_head(page);
++	ret = test_bit(PG_uptodate, &(page)->flags);
+ 	/*
+ 	 * Must ensure that the data we read out of the page is loaded
+ 	 * _after_ we've loaded page->flags to check for PageUptodate.
+@@ -410,12 +411,14 @@ static inline int PageUptodate(struct page *page)
+ 
+ static inline void __SetPageUptodate(struct page *page)
+ {
++	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	smp_wmb();
+ 	__set_bit(PG_uptodate, &page->flags);
  }
  
--static inline struct page *compound_head(struct page *page)
--{
--	unsigned long head = READ_ONCE(page->compound_head);
--
--	if (unlikely(head & 1))
--		return (struct page *) (head - 1);
--	return page;
--}
--
--static inline int PageCompound(struct page *page)
--{
--	return PageHead(page) || PageTail(page);
--
--}
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- static inline void ClearPageCompound(struct page *page)
+ static inline void SetPageUptodate(struct page *page)
  {
++	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	/*
+ 	 * Memory barrier must be issued before setting the PG_uptodate bit,
+ 	 * so that all previous stores issued in order to bring the page
+@@ -425,7 +428,7 @@ static inline void SetPageUptodate(struct page *page)
+ 	set_bit(PG_uptodate, &page->flags);
+ }
+ 
+-CLEARPAGEFLAG(Uptodate, uptodate, PF_ANY)
++CLEARPAGEFLAG(Uptodate, uptodate, PF_NO_TAIL)
+ 
+ int test_clear_page_writeback(struct page *page);
+ int __test_set_page_writeback(struct page *page, bool keep_write);
 -- 
 2.5.1
 
