@@ -1,61 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id E5B1582F7F
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 13:41:10 -0400 (EDT)
-Received: by ioiz6 with SMTP id z6so84563775ioi.2
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 10:41:10 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id e4si5230152igt.51.2015.09.24.10.41.10
-        for <linux-mm@kvack.org>;
-        Thu, 24 Sep 2015 10:41:10 -0700 (PDT)
-Subject: Re: [PATCH 10/26] x86, pkeys: notify userspace about protection key
- faults
-References: <20150916174903.E112E464@viggo.jf.intel.com>
- <20150916174906.51062FBC@viggo.jf.intel.com>
- <20150924092320.GA26876@gmail.com> <20150924093026.GA29699@gmail.com>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <560435B4.1010603@sr71.net>
-Date: Thu, 24 Sep 2015 10:41:08 -0700
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id F2A646B0271
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 14:52:47 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so125667719wic.1
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 11:52:47 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id nb5si9331637wic.78.2015.09.24.11.52.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Sep 2015 11:52:46 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so41197120wic.1
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 11:52:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20150924093026.GA29699@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150924172609.GA29842@redhat.com>
+References: <55EC9221.4040603@oracle.com>
+	<20150907114048.GA5016@node.dhcp.inet.fi>
+	<55F0D5B2.2090205@oracle.com>
+	<20150910083605.GB9526@node.dhcp.inet.fi>
+	<CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com>
+	<20150911103959.GA7976@node.dhcp.inet.fi>
+	<alpine.LSU.2.11.1509111734480.7660@eggly.anvils>
+	<55F8572D.8010409@oracle.com>
+	<20150924131141.GA7623@redhat.com>
+	<5604247A.7010303@oracle.com>
+	<20150924172609.GA29842@redhat.com>
+Date: Thu, 24 Sep 2015 21:52:46 +0300
+Message-ID: <CAPAsAGx660uSk=WbpWmZR9FpSFXmp3G9yXxRXu65gozu3qT63g@mail.gmail.com>
+Subject: Re: Multiple potential races on vma->vm_flags
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrey Konovalov <andreyknvl@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On 09/24/2015 02:30 AM, Ingo Molnar wrote:
->> To answer your question in the comment: it looks useful to have some sort of 
->> 'extended page fault error code' information here, which shows why the page fault 
->> happened. With the regular error_code it's easy - with protection keys there's 16 
->> separate keys possible and user-space might not know the actual key value in the 
->> pte.
-> 
-> Btw., alternatively we could also say that user-space should know what protection 
-> key it used when it created the mapping - there's no need to recover it for every 
-> page fault.
+2015-09-24 20:26 GMT+03:00 Oleg Nesterov <oleg@redhat.com>:
+> On 09/24, Sasha Levin wrote:
+>>
+>> On 09/24/2015 09:11 AM, Oleg Nesterov wrote:
+>> >
+>> > Well, I know absolutely nothing about kasan, to the point I can't even
+>> > unserstand where does this message come from. grep didn't help. But this
+>> > doesn't matter...
+>>
+>> The reason behind this message is that NULL ptr derefs when using kasan are
+>> manifested as GFPs. This is because in order to validate an access to a given
+>> memory address kasan would check (shadow_base + (mem_offset >> 3)), so in the case of
+>> a NULL it would try to access shadow_base + 0, which would GFP.
+>
+> OK, so this just means the kernele derefs the NULL pointer,
+>
+>> I'm running -next + Kirill's THP patchset.
+>>
+>> >     struct mm_struct *mm = vma->vm_mm;
+>>
+>> void unmap_vmas(struct mmu_gather *tlb,
+>>                 struct vm_area_struct *vma, unsigned long start_addr,
+>>                 unsigned long end_addr)
+>> {
+>>         struct mm_struct *mm = vma->vm_mm;
+>>
+>>         mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
+>>         for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next)
+>>                 unmap_single_vma(tlb, vma, start_addr, end_addr, NULL); <--- this
+>>         mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
+>> }
+>
+> And I do not see any dereference at this line,
+>
 
-That's true.  We don't, for instance, tell userspace whether it was a
-write that caused a fault.
+I noticed, that addr2line sometimes doesn't work reliably on
+compiler-instrumented code.
+I've seen couple times that it points to the next line of code.
 
-But, other than smaps we don't have *any* way to tell userspace what
-protection key a page has.  I think some mechanism is going to be
-required for this to be reasonably debuggable.
 
-> OTOH, as long as we don't do a separate find_vma(), it looks cheap enough to look 
-> up the pkey value of that address and give it to user-space in the signal frame.
+>> >>    0:   08 80 3c 02 00 0f       or     %al,0xf00023c(%rax)
+>> >>    6:   85 22                   test   %esp,(%rdx)
+>> >>    8:   01 00                   add    %eax,(%rax)
+>> >>    a:   00 48 8b                add    %cl,-0x75(%rax)
+>> >>    d:   43                      rex.XB
+>> >>    e:   40                      rex
+>> >>    f:   48 8d b8 c8 04 00 00    lea    0x4c8(%rax),%rdi
+>> >>   16:   48 89 45 d0             mov    %rax,-0x30(%rbp)
+>> >>   1a:   48 b8 00 00 00 00 00    movabs $0xdffffc0000000000,%rax
+>> >>   21:   fc ff df
+>> >>   24:   48 89 fa                mov    %rdi,%rdx
+>> >>   27:   48 c1 ea 03             shr    $0x3,%rdx
+>> >>   2b:*  80 3c 02 00             cmpb   $0x0,(%rdx,%rax,1)               <-- trapping instruction
+>> >>   2f:   0f 85 ee 00 00 00       jne    0x123
+>> >>   35:   48 8b 45 d0             mov    -0x30(%rbp),%rax
+>> >>   39:   48 83 b8 c8 04 00 00    cmpq   $0x0,0x4c8(%rax)
+>> >>   40:   00
+>> >
+>> > And I do not see anything similar in "objdump -d". So could you at least
+>> > show mm/memory.c:1337 in your tree?
+>> >
+>> > Hmm. movabs $0xdffffc0000000000,%rax above looks suspicious, this looks
+>> > like kasan_mem_to_shadow(). So perhaps this code was generated by kasan?
+>> > (I can't check, my gcc is very old). Or what?
+>>
+>> This is indeed kasan code. 0xdffffc0000000000 is the shadow base, and you see
+>> kasan trying to access shadow base + (ptr >> 3), which is why we get GFP.
+>
+> and thus this asm can't help, right?
+>
 
-I still think that find_vma() in this case is pretty darn cheap,
-definitely if you compare it to the cost of the entire fault path.
+I think it can.
 
-> Btw., how does pkey support interact with hugepages?
+> So how can we figure out where exactly the kernel hits NULL ? And what
+> exactly it tries to dereference?
 
-Surprisingly little.  I've made sure that everything works with huge
-pages and that the (huge) PTEs and VMAs get set up correctly, but I'm
-not sure I had to touch the huge page code at all.  I have test code to
-ensure that it works the same as with small pages, but everything worked
-pretty naturally.
+So we tried to dereference 0x4c8.  That 0x4c8 is probably offset in some struct.
+The only big struct here is mm_struct.
+So I think that we tried to derefernce null mm, and this asm:
+         > cmpq   $0x0,0x4c8(%rax)
+
+is likely from inlined mm_has_notifiers():
+    static inline int mm_has_notifiers(struct mm_struct *mm)
+    {
+             return unlikely(mm->mmu_notifier_mm);
+    }
+
+
+Sasha, could you confirm that in your kernel mmu_notifier_mm field has
+0x4c8 offset?
+I would use gdb for that:
+gdb vmlinux
+(gdb) p/x &(((struct mm_struct*)0)->mmu_notifier_mm)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
