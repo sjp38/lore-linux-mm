@@ -1,67 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 56F0C82F7F
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 15:10:06 -0400 (EDT)
-Received: by ioiz6 with SMTP id z6so87315038ioi.2
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 12:10:06 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id f6si5491711igg.72.2015.09.24.12.10.04
-        for <linux-mm@kvack.org>;
-        Thu, 24 Sep 2015 12:10:04 -0700 (PDT)
-Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
-References: <20150916174903.E112E464@viggo.jf.intel.com>
- <20150916174913.AF5FEA6D@viggo.jf.intel.com>
- <20150920085554.GA21906@gmail.com> <55FF88BA.6080006@sr71.net>
- <20150924094956.GA30349@gmail.com>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <56044A88.7030203@sr71.net>
-Date: Thu, 24 Sep 2015 12:10:00 -0700
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D86B882F7F
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 15:10:40 -0400 (EDT)
+Received: by obbmp4 with SMTP id mp4so65845699obb.3
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 12:10:40 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id t142si7330566oie.82.2015.09.24.12.10.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Sep 2015 12:10:40 -0700 (PDT)
+Message-ID: <5604489F.8070506@oracle.com>
+Date: Thu, 24 Sep 2015 15:01:51 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20150924094956.GA30349@gmail.com>
-Content-Type: text/plain; charset=windows-1252
+Subject: Re: Multiple potential races on vma->vm_flags
+References: <55EC9221.4040603@oracle.com>	<20150907114048.GA5016@node.dhcp.inet.fi>	<55F0D5B2.2090205@oracle.com>	<20150910083605.GB9526@node.dhcp.inet.fi>	<CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com>	<20150911103959.GA7976@node.dhcp.inet.fi>	<alpine.LSU.2.11.1509111734480.7660@eggly.anvils>	<55F8572D.8010409@oracle.com>	<20150924131141.GA7623@redhat.com>	<5604247A.7010303@oracle.com>	<20150924172609.GA29842@redhat.com> <CAPAsAGx660uSk=WbpWmZR9FpSFXmp3G9yXxRXu65gozu3qT63g@mail.gmail.com>
+In-Reply-To: <CAPAsAGx660uSk=WbpWmZR9FpSFXmp3G9yXxRXu65gozu3qT63g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Kees Cook <keescook@google.com>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Oleg Nesterov <oleg@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrey Konovalov <andreyknvl@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On 09/24/2015 02:49 AM, Ingo Molnar wrote:
-> * Dave Hansen <dave@sr71.net> wrote:
->>> Another question, related to enumeration as well: I'm wondering whether 
->>> there's any way for the kernel to allocate a bit or two for its own purposes - 
->>> such as protecting crypto keys? Or is the facility fundamentally intended for 
->>> user-space use only?
->>
->> No, that's not possible with the current setup.
-> 
-> Ok, then another question, have you considered the following usecase:
-> 
-> AFAICS pkeys only affect data loads and stores. Instruction fetches are notably 
-> absent from the documentation. Can you clarify that instructions can be fetched 
-> and executed from PTE_READ but pkeys-all-access-disabled pags?
+On 09/24/2015 02:52 PM, Andrey Ryabinin wrote:
+> Sasha, could you confirm that in your kernel mmu_notifier_mm field has
+> 0x4c8 offset?
+> I would use gdb for that:
+> gdb vmlinux
+> (gdb) p/x &(((struct mm_struct*)0)->mmu_notifier_mm)
 
-That is my understanding.  I don't have a test for it, but I'll go make one.
+(gdb) p/x &(((struct mm_struct*)0)->mmu_notifier_mm)
+$1 = 0x4c8
 
-> If yes then this could be a significant security feature / usecase for pkeys: 
-> executable sections of shared libraries and binaries could be mapped with pkey 
-> access disabled. If I read the Intel documentation correctly then that should be 
-> possible.
 
-Agreed.  I've even heard from some researchers who are interested in this:
-
-https://www.infsec.cs.uni-saarland.de/wp-content/uploads/sites/2/2014/10/nuernberger2014ccs_disclosure.pdf
-
-> I.e. AFAICS pkeys could be used to create true '--x' permissions for executable 
-> (user-space) pages.
-
-Just remember that all of the protections are dependent on the contents
-of PKRU.  If an attacker controls the Access-Disable bit in PKRU for the
-executable-only region, you're sunk.
-
-But, that either requires being able to construct and execute arbitrary
-code *or* call existing code that sets PKRU to the desired values.
-Which, I guess, gets harder to do if all of the the wrpkru's are *in*
-the execute-only area.
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
