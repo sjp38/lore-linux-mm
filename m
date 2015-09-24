@@ -1,89 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id BC3D96B0253
-	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 20:50:44 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so56312396pac.2
-        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 17:50:44 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id oq4si5455510pbc.68.2015.09.23.17.50.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Sep 2015 17:50:43 -0700 (PDT)
-Message-ID: <560346F2.4050507@oracle.com>
-Date: Wed, 23 Sep 2015 20:42:26 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8764F6B0253
+	for <linux-mm@kvack.org>; Wed, 23 Sep 2015 23:34:15 -0400 (EDT)
+Received: by obbbh8 with SMTP id bh8so49053906obb.0
+        for <linux-mm@kvack.org>; Wed, 23 Sep 2015 20:34:14 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTP id kg2si5646949oeb.87.2015.09.23.20.33.50
+        for <linux-mm@kvack.org>;
+        Wed, 23 Sep 2015 20:34:14 -0700 (PDT)
+From: Tan Xiaojun <tanxiaojun@huawei.com>
+Subject: [PATCH RESEND] CMA: fix CONFIG_CMA_SIZE_MBYTES overflow in 64bit
+Date: Thu, 24 Sep 2015 11:27:47 +0800
+Message-ID: <1443065267-97873-1-git-send-email-tanxiaojun@huawei.com>
 MIME-Version: 1.0
-Subject: Re: Multiple potential races on vma->vm_flags
-References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com>	<55EC9221.4040603@oracle.com>	<20150907114048.GA5016@node.dhcp.inet.fi>	<55F0D5B2.2090205@oracle.com>	<20150910083605.GB9526@node.dhcp.inet.fi>	<CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com>	<20150911103959.GA7976@node.dhcp.inet.fi>	<alpine.LSU.2.11.1509111734480.7660@eggly.anvils>	<55F8572D.8010409@oracle.com>	<20150915190143.GA18670@node.dhcp.inet.fi>	<CAAeHK+wABeppPQCsTmUk6cMswJosgkaXkHO5QTFBh=1ZTi+-3w@mail.gmail.com>	<alpine.LSU.2.11.1509221151370.11653@eggly.anvils>	<CAAeHK+zkG4L7TJ3M8fus8F5KExHRMhcyjgEQop=wqOpBcrKzYQ@mail.gmail.com>	<alpine.LSU.2.11.1509221831570.19790@eggly.anvils> <CAAeHK+wwFG2y3BUbirrSE8v67PR4iZH3adWqPKr2jk17KTpJ_Q@mail.gmail.com>
-In-Reply-To: <CAAeHK+wwFG2y3BUbirrSE8v67PR4iZH3adWqPKr2jk17KTpJ_Q@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Konovalov <andreyknvl@google.com>, Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+To: gregkh@linuxfoundation.org, kyungmin.park@samsung.com, iamjoonsoo.kim@lge.com, grant.likely@linaro.org, arnd@arndb.de, joshc@codeaurora.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Tan Xiaojun <tanxiaojun@huawei.com>
 
-On 09/23/2015 09:08 AM, Andrey Konovalov wrote:
-> On Wed, Sep 23, 2015 at 3:39 AM, Hugh Dickins <hughd@google.com> wrote:
->> > This is totally untested, and one of you may quickly prove me wrong;
->> > but I went in to fix your "Bad page state (mlocked)" by holding pte
->> > lock across the down_read_trylock of mmap_sem in try_to_unmap_one(),
->> > then couldn't see why it would need mmap_sem at all, given how mlock
->> > and munlock first assert intention by setting or clearing VM_LOCKED
->> > in vm_flags, then work their way up the vma, taking pte locks.
->> >
->> > Calling mlock_vma_page() under pte lock may look suspicious
->> > at first: but what it does is similar to clear_page_mlock(),
->> > which we regularly call under pte lock from page_remove_rmap().
->> >
->> > I'd rather wait to hear whether this appears to work in practice,
->> > and whether you agree that it should work in theory, before writing
->> > the proper description.  I'd love to lose that down_read_trylock.
-> No, unfortunately it doesn't work, I still see "Bad page state (mlocked)".
-> 
-> It seems that your patch doesn't fix the race from the report below, since pte
-> lock is not taken when 'vma->vm_flags &= ~VM_LOCKED;' (mlock.c:425)
-> is being executed. (Line numbers are from kernel with your patch applied.)
+In 64bit system, if you set CONFIG_CMA_SIZE_MBYTES>=2048, it will
+overflow and size_bytes will be a big wrong number.
 
-I've fired up my HZ_10000 patch, and this seems to be a real race that is
-somewhat easy to reproduce under those conditions.
+Set CONFIG_CMA_SIZE_MBYTES=2048 and you will get an info below
+during system boot:
 
-Here's a fresh backtrace from my VMs:
+*********
+cma: Failed to reserve 17592186042368 MiB
+*********
 
-[1935109.882343] BUG: Bad page state in process trinity-subchil  pfn:3ca200
-[1935109.884000] page:ffffea000f288000 count:0 mapcount:0 mapping:          (null) index:0x1e00 compound_mapcount: 0
-[1935109.885772] flags: 0x22fffff80144008(uptodate|head|swapbacked|mlocked)
-[1935109.887174] page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
-[1935109.888197] bad because of flags:
-[1935109.888759] flags: 0x100000(mlocked)
-[1935109.889525] Modules linked in:
-[1935109.890165] CPU: 8 PID: 2615 Comm: trinity-subchil Not tainted 4.3.0-rc2-next-20150923-sasha-00079-gec04207-dirty #2569
-[1935109.891876]  1ffffffff6445448 00000000e5dca494 ffff8803f7657708 ffffffffa70402da
-[1935109.893504]  ffffea000f288000 ffff8803f7657738 ffffffffa56e522b 022fffff80144008
-[1935109.894947]  ffffea000f288020 ffffea000f288000 00000000ffffffff ffff8803f76577a8
-[1935109.896413] Call Trace:
-[1935109.899102]  [<ffffffffa70402da>] dump_stack+0x4e/0x84
-[1935109.899821]  [<ffffffffa56e522b>] bad_page+0x17b/0x210
-[1935109.900469]  [<ffffffffa56e85a8>] free_pages_prepare+0xb48/0x1110
-[1935109.902127]  [<ffffffffa56ee0d1>] __free_pages_ok+0x21/0x260
-[1935109.904435]  [<ffffffffa56ee373>] free_compound_page+0x63/0x80
-[1935109.905614]  [<ffffffffa581b51e>] free_transhuge_page+0x6e/0x80
-[1935109.906752]  [<ffffffffa5709f76>] __put_compound_page+0x76/0xa0
-[1935109.907884]  [<ffffffffa570a475>] release_pages+0x4d5/0x9f0
-[1935109.913027]  [<ffffffffa5769bea>] tlb_flush_mmu_free+0x8a/0x120
-[1935109.913957]  [<ffffffffa576f993>] unmap_page_range+0xe73/0x1460
-[1935109.915737]  [<ffffffffa57700a6>] unmap_single_vma+0x126/0x2f0
-[1935109.916646]  [<ffffffffa577270d>] unmap_vmas+0xdd/0x190
-[1935109.917454]  [<ffffffffa5790361>] exit_mmap+0x221/0x430
-[1935109.921176]  [<ffffffffa5366da1>] mmput+0xb1/0x240
-[1935109.921919]  [<ffffffffa537b3b2>] do_exit+0x732/0x27c0
-[1935109.928561]  [<ffffffffa537d599>] do_group_exit+0xf9/0x300
-[1935109.929786]  [<ffffffffa537d7bd>] SyS_exit_group+0x1d/0x20
-[1935109.930617]  [<ffffffffaf59fbf6>] entry_SYSCALL_64_fastpath+0x16/0x7a
+Signed-off-by: Tan Xiaojun <tanxiaojun@huawei.com>
+---
+ drivers/base/dma-contiguous.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-
-Thanks,
-Sasha
+diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+index 950fff9..426ba27 100644
+--- a/drivers/base/dma-contiguous.c
++++ b/drivers/base/dma-contiguous.c
+@@ -46,7 +46,7 @@ struct cma *dma_contiguous_default_area;
+  * Users, who want to set the size of global CMA area for their system
+  * should use cma= kernel parameter.
+  */
+-static const phys_addr_t size_bytes = CMA_SIZE_MBYTES * SZ_1M;
++static const phys_addr_t size_bytes = (phys_addr_t)CMA_SIZE_MBYTES * SZ_1M;
+ static phys_addr_t size_cmdline = -1;
+ static phys_addr_t base_cmdline;
+ static phys_addr_t limit_cmdline;
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
