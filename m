@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D1BEA82F7F
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 16:06:35 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so265379375wic.1
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 13:06:35 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id bz18si704060wib.94.2015.09.24.13.06.34
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DAEC82F7F
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 16:25:07 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so268186302wic.0
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 13:25:07 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com. [209.85.212.176])
+        by mx.google.com with ESMTPS id ec20si9838350wic.70.2015.09.24.13.25.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Sep 2015 13:06:34 -0700 (PDT)
-Date: Thu, 24 Sep 2015 16:06:27 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 03/10] mm, page_alloc: Remove unnecessary taking of a
- seqlock when cpusets are disabled
-Message-ID: <20150924200627.GG3009@cmpxchg.org>
-References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
- <1442832762-7247-4-git-send-email-mgorman@techsingularity.net>
+        Thu, 24 Sep 2015 13:25:06 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so128379327wic.0
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 13:25:05 -0700 (PDT)
+Date: Thu, 24 Sep 2015 23:25:03 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 00/16] Refreshed page-flags patchset
+Message-ID: <20150924202503.GA24381@node.dhcp.inet.fi>
+References: <20150921153509.fef7ecdf313ef74307c43b65@linux-foundation.org>
+ <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.20.1509241111590.21022@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1442832762-7247-4-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <alpine.DEB.2.20.1509241111590.21022@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Sep 21, 2015 at 11:52:35AM +0100, Mel Gorman wrote:
-> There is a seqcounter that protects against spurious allocation failures
-> when a task is changing the allowed nodes in a cpuset. There is no need
-> to check the seqcounter until a cpuset exists.
+On Thu, Sep 24, 2015 at 11:13:22AM -0500, Christoph Lameter wrote:
+> On Thu, 24 Sep 2015, Kirill A. Shutemov wrote:
 > 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Acked-by: Michal Hocko <mhocko@suse.com>
+> > As requested, here's reworked version of page-flags patchset.
+> > Updated version should fit more naturally into current code base.
+> 
+> This is certainly great for specialized debugging hunting for improper
+> handling of page flags for compound pages but a regular debug
+> kernel will get a mass of VM_BUG_ON(s) at numerous page flag uses in the
+> code. Is that really useful in general for a debug kernel?
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+As I said before, it was useful for me in few cases.
+
+I can wrap these VM_BUG_ONs under separate config, if it helps.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
