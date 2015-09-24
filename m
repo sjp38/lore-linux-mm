@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A3EAF82F66
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 12:08:31 -0400 (EDT)
-Received: by oiev17 with SMTP id v17so43853290oie.1
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 09:08:31 -0700 (PDT)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id 186si7014123oip.55.2015.09.24.09.08.30
+Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C59482F66
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 12:13:24 -0400 (EDT)
+Received: by qkcf65 with SMTP id f65so31594623qkc.3
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 09:13:23 -0700 (PDT)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
+        by mx.google.com with ESMTPS id u1si9399129qge.12.2015.09.24.09.13.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 24 Sep 2015 09:08:30 -0700 (PDT)
-Date: Thu, 24 Sep 2015 11:08:29 -0500 (CDT)
+        Thu, 24 Sep 2015 09:13:23 -0700 (PDT)
+Date: Thu, 24 Sep 2015 11:13:22 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 04/16] page-flags: define PG_locked behavior on compound
- pages
-In-Reply-To: <1443106264-78075-5-git-send-email-kirill.shutemov@linux.intel.com>
-Message-ID: <alpine.DEB.2.20.1509241106320.20701@east.gentwo.org>
-References: <20150921153509.fef7ecdf313ef74307c43b65@linux-foundation.org> <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com> <1443106264-78075-5-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 00/16] Refreshed page-flags patchset
+In-Reply-To: <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com>
+Message-ID: <alpine.DEB.2.20.1509241111590.21022@east.gentwo.org>
+References: <20150921153509.fef7ecdf313ef74307c43b65@linux-foundation.org> <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,13 +23,13 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat
 
 On Thu, 24 Sep 2015, Kirill A. Shutemov wrote:
 
-> SLUB uses PG_locked as a bit spin locked.  IIUC, tail pages should never
-> appear there.  VM_BUG_ON() is added to make sure that this assumption is
-> correct.
+> As requested, here's reworked version of page-flags patchset.
+> Updated version should fit more naturally into current code base.
 
-Correct. However, VM_BUG_ON is superfluous. If there is a tail page there
-then the information in the page will be not as expected (free list
-parameter f.e.) and things will fall apart rapidly with segfaults.
+This is certainly great for specialized debugging hunting for improper
+handling of page flags for compound pages but a regular debug
+kernel will get a mass of VM_BUG_ON(s) at numerous page flag uses in the
+code. Is that really useful in general for a debug kernel?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
