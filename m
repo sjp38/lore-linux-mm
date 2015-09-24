@@ -1,75 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A41E82F7F
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 12:51:26 -0400 (EDT)
-Received: by qkap81 with SMTP id p81so32181576qka.2
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 09:51:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k197si2524727qhk.19.2015.09.24.09.51.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Sep 2015 09:51:25 -0700 (PDT)
-Date: Thu, 24 Sep 2015 18:51:22 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC] futex: prevent endless loop on s390x with emulated
- hugepages
-Message-ID: <20150924165122.GU25412@redhat.com>
-References: <1443107148-28625-1-git-send-email-vbabka@suse.cz>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AFE682F7F
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 13:15:08 -0400 (EDT)
+Received: by pacgz1 with SMTP id gz1so11821234pac.3
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 10:15:08 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id jv8si19632478pbc.136.2015.09.24.10.15.06
+        for <linux-mm@kvack.org>;
+        Thu, 24 Sep 2015 10:15:06 -0700 (PDT)
+Subject: Re: [PATCH 10/26] x86, pkeys: notify userspace about protection key
+ faults
+References: <20150916174903.E112E464@viggo.jf.intel.com>
+ <20150916174906.51062FBC@viggo.jf.intel.com>
+ <20150924092320.GA26876@gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <56042F96.6030107@sr71.net>
+Date: Thu, 24 Sep 2015 10:15:02 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1443107148-28625-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <20150924092320.GA26876@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yong Sun <yosun@suse.com>, linux390@de.ibm.com, linux-s390@vger.kernel.org, Zhang Yi <wetpzy@gmail.com>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, borntraeger@de.ibm.com
 
-On Thu, Sep 24, 2015 at 05:05:48PM +0200, Vlastimil Babka wrote:
-> The problem is an endless loop in get_futex_key() when
-> CONFIG_TRANSPARENT_HUGEPAGE is enabled and the s390x machine has emulated
-> hugepages. The code tries to serialize against __split_huge_page_splitting(),
-> but __get_user_pages_fast() fails on the hugetlbfs tail page. This happens
-> because pmd_large() is false for emulated hugepages, so the code will proceed
-> into gup_pte_range() and fail page_cache_get_speculative() through failing
-> get_page_unless_zero() as the tail page count is zero. Failing __gup_fast is
-> supposed to be temporary due to a race, so get_futex_key() will try again
-> endlessly.
+Christian, can you tell us how big s390's storage protection keys are?
+See the discussion below about siginfo...
+
+On 09/24/2015 02:23 AM, Ingo Molnar wrote:
+>> +static u16 fetch_pkey(unsigned long address, struct task_struct *tsk)
+>> +{
+...
+>> +		struct vm_area_struct *vma = find_vma(tsk->mm, address);
+>> +		if (vma) {
+>> +			ret = vma_pkey(vma);
+>> +		} else {
+>> +			WARN_ONCE(1, "no PTE or VMA @ %lx\n", address);
+>> +			ret = 0;
+>> +		}
+>> +	}
+>> +	return ret;
 > 
-> This attempt for a fix is a bandaid solution and probably incomplete.
-> Hopefully something better will emerge from the discussion. Fully fixing
-> emulated hugepages just for stable backports is unlikely due to them being
-> removed. Also THP refcounting redesign should soon remove the trickery from
-> get_futex_key().
+> Yeah, so I have three observations:
+> 
+> 1)
+> 
+> I don't think this warning is entirely right, because this is a fundamentally racy 
+> op.
+> 
+> fetch_pkey(), called by force_sign_info_fault(), can be called while not holding 
+> the vma - and if we race with any other thread of the mm, the vma might be gone 
+> already.
+> 
+> So any threaded app using pkeys and vmas in parallel could trigger that WARN_ON().
 
-THP refcounting redesign will simplify things a lot here because the
-head page cannot be freed from under us if we hold a reference on the
-tail.
+Agreed.  I'll remove the warning.
 
-With the current split_huge_page that cannot fail, it should be
-possible to stop using __get_user_pages_fast to reach the head page
-and pin it before it can be freed from under us by using the
-compound_lock_irqsave too.
+> 2)
+> 
+> And note that this is a somewhat new scenario: in regular page faults, 
+> 'error_code' always carries a then-valid cause of the page fault with itself. So 
+> we can put that into the siginfo and can be sure that it's the reason for the 
+> fault.
+> 
+> With the above pkey code, we fetch the pte separately from the fault, and without 
+> synchronizing with the fault - and we cannot do that, nor do we want to.
+> 
+> So I think this code should just accept the fact that races may happen. Perhaps 
+> warn if we get here with only a single mm user. (but even that would be a bit racy 
+> as we don't serialize against exit())
 
-The old code could have done get_page on a already freed head page (if
-the THP was splitted after compound_head returned) and this is why it
-needed adjustement. Here we just need to safely get a refcount on the
-head page.
+Good point.
 
-If we do get_page_unless_zero() on the head page returned by
-compound_head, take compound_lock_irqsave and check if the tail page
-is still a tail (which means split_huge_page hasn't run yet and it
-cannot run anymore by holding the compound_lock), then we can take a
-reference on the head page. After we take a reference on the head we
-just put_page the tail page and we continue using the page_head.
+> 3)
+> 
+> For user-space that somehow wants to handle pkeys dynamically and drive them via 
+> faults, this seems somewhat inefficient: we already do a find_vma() in the primary 
+> fault lookup - and with the typical pkey usecase it will find a vma, just with the 
+> wrong access permissions. But when we generate the siginfo here, why do we do a 
+> find_vma() again? Why not pass the vma to the siginfo generating function?
 
-It should be the very same logic of __get_page_tail, except we don't
-want the refcount taken on the tail too (i.e. we must not increase the
-mapcount and we should skip the get_huge_page_tail or the head will be
-freed again if split_huge_page runs as result of MADV_DONTNEED and it
-literally frees the head). We want only one more recount on the head
-because the code then only works with page_head and we don't care
-about the tail anymore. A new function get_head_page() may work for
-that and avoid the pagetable walking.
+My assumption was that the signal generation case was pretty slow.
+find_vma() is almost guaranteed to hit the vmacache, and we already hold
+mmap_sem, so the cost is pretty tiny.
+
+I'm happy to change it if you're really concerned, but I didn't think it
+would be worth the trouble of plumbing it down.
+
+>> --- a/include/uapi/asm-generic/siginfo.h~pkeys-09-siginfo	2015-09-16 10:48:15.584161859 -0700
+>> +++ b/include/uapi/asm-generic/siginfo.h	2015-09-16 10:48:15.592162222 -0700
+>> @@ -95,6 +95,13 @@ typedef struct siginfo {
+>>  				void __user *_lower;
+>>  				void __user *_upper;
+>>  			} _addr_bnd;
+>> +			int _pkey; /* FIXME: protection key value??
+>> +				    * Do we really need this in here?
+>> +				    * userspace can get the PKRU value in
+>> +				    * the signal handler, but they do not
+>> +				    * easily have access to the PKEY value
+>> +				    * from the PTE.
+>> +				    */
+>>  		} _sigfault;
+> 
+> A couple of comments:
+> 
+> 1)
+> 
+> Please use our ABI types - this one should be 'u32' I think.
+> 
+> We could use 'u8' as well here, and mark another 3 bytes next to it as reserved 
+> for future flags. Right now protection keys use 4 bits, but do you really think 
+> they'll ever grow beyond 8 bits? PTE bits are a scarce resource in general.
+
+I don't expect them to get bigger, at least with anything resembling the
+current architecture.  Agreed about the scarcity of PTE bits.
+
+siginfo.h is shared everywhere, so I'd ideally like to put a type in
+there that all the other architectures can use.
+
+> 3)
+> 
+> Please add suitable self-tests to tools/tests/selftests/x86/ that both documents 
+> the preferred usage of pkeys, demonstrates all implemented aspects the new ABI and 
+> provokes a fault and prints the resulting siginfo, etc.
+> 
+>> @@ -206,7 +214,8 @@ typedef struct siginfo {
+>>  #define SEGV_MAPERR	(__SI_FAULT|1)	/* address not mapped to object */
+>>  #define SEGV_ACCERR	(__SI_FAULT|2)	/* invalid permissions for mapped object */
+>>  #define SEGV_BNDERR	(__SI_FAULT|3)  /* failed address bound checks */
+>> -#define NSIGSEGV	3
+>> +#define SEGV_PKUERR	(__SI_FAULT|4)  /* failed address bound checks */
+>> +#define NSIGSEGV	4
+> 
+> You copy & pasted the MPX comment here, it should read something like:
+> 
+>    #define SEGV_PKUERR	(__SI_FAULT|4)  /* failed protection keys checks */
+
+Whoops.  Will fix.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
