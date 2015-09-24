@@ -1,40 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A35382F7F
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 15:50:47 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so43173277wic.1
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 12:50:45 -0700 (PDT)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CAB982F7F
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 16:01:34 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so265204280wic.1
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 13:01:34 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id eq6si1197760wjd.12.2015.09.24.12.50.44
+        by mx.google.com with ESMTPS id s16si718718wiv.39.2015.09.24.13.01.33
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Sep 2015 12:50:44 -0700 (PDT)
-Date: Thu, 24 Sep 2015 15:50:21 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Sep 2015 13:01:33 -0700 (PDT)
+Date: Thu, 24 Sep 2015 16:01:23 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] mm/vmscan: make inactive_anon/file_is_low return bool
-Message-ID: <20150924195021.GC3009@cmpxchg.org>
-References: <1442842673-4140-1-git-send-email-bywxiaobai@163.com>
+Subject: Re: [PATCH 01/10] mm, page_alloc: Remove unnecessary parameter from
+ zone_watermark_ok_safe
+Message-ID: <20150924200123.GE3009@cmpxchg.org>
+References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
+ <1442832762-7247-2-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1442842673-4140-1-git-send-email-bywxiaobai@163.com>
+In-Reply-To: <1442832762-7247-2-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yaowei Bai <bywxiaobai@163.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, mhocko@kernel.org, rientjes@google.com, vdavydov@parallels.com, oleg@redhat.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, tj@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Sep 21, 2015 at 09:37:52PM +0800, Yaowei Bai wrote:
-> This patch makes inactive_anon/file_is_low return bool
-> due to these particular functions only using either one
-> or zero as their return value.
+On Mon, Sep 21, 2015 at 11:52:33AM +0100, Mel Gorman wrote:
+> No user of zone_watermark_ok_safe() specifies alloc_flags. This patch
+> removes the unnecessary parameter.
 > 
-> No functional change.
-> 
-> Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Christoph Lameter <cl@linux.com>
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-
-You can probably merge both patches into a single commit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
