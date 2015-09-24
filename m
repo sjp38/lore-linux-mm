@@ -1,71 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 141966B0263
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 05:50:01 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so20282901wic.0
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 02:50:00 -0700 (PDT)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id vu2si7232422wjc.90.2015.09.24.02.49.59
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C0C56B0265
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 07:50:15 -0400 (EDT)
+Received: by igxx6 with SMTP id x6so46864475igx.1
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 04:50:15 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id q31si10468867ioi.93.2015.09.24.04.50.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Sep 2015 02:49:59 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so104830648wic.0
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 02:49:59 -0700 (PDT)
-Date: Thu, 24 Sep 2015 11:49:56 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
-Message-ID: <20150924094956.GA30349@gmail.com>
-References: <20150916174903.E112E464@viggo.jf.intel.com>
- <20150916174913.AF5FEA6D@viggo.jf.intel.com>
- <20150920085554.GA21906@gmail.com>
- <55FF88BA.6080006@sr71.net>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 24 Sep 2015 04:50:14 -0700 (PDT)
+Subject: Re: [PATCH] mm/oom_kill.c: don't kill TASK_UNINTERRUPTIBLE tasks
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201509192333.AGJ30797.OQOFLFSMJVFOtH@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1509211628050.27715@chino.kir.corp.google.com>
+	<201509221433.ICI00012.VFOQMFHLFJtSOO@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1509221631040.7794@chino.kir.corp.google.com>
+	<CAEPKNTK3DOBApeVDpwJ_B7jkLVp4GQ0ihM1PwAusyc8TWQyB_A@mail.gmail.com>
+In-Reply-To: <CAEPKNTK3DOBApeVDpwJ_B7jkLVp4GQ0ihM1PwAusyc8TWQyB_A@mail.gmail.com>
+Message-Id: <201509242050.EHE95837.FVFOOtMQHLJOFS@I-love.SAKURA.ne.jp>
+Date: Thu, 24 Sep 2015 20:50:00 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <55FF88BA.6080006@sr71.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Kees Cook <keescook@google.com>
+To: kwalker@redhat.com, rientjes@google.com
+Cc: mhocko@kernel.org, cl@linux.com, oleg@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
 
+Kyle Walker wrote:
+> I agree, in lieu of treating TASK_UNINTERRUPTIBLE tasks as unkillable,
+> and omitting them from the oom selection process, continuing the
+> carnage is likely to result in more unpredictable results. At this
+> time, I believe Oleg's solution of zapping the process memory use
+> while it sleeps with the fatal signal enroute is ideal.
 
-* Dave Hansen <dave@sr71.net> wrote:
+I cannot help thinking about the worst case.
 
-> > Another question, related to enumeration as well: I'm wondering whether 
-> > there's any way for the kernel to allocate a bit or two for its own purposes - 
-> > such as protecting crypto keys? Or is the facility fundamentally intended for 
-> > user-space use only?
-> 
-> No, that's not possible with the current setup.
+(1) If memory zapping code successfully reclaimed some memory from
+    the mm struct used by the OOM victim, what guarantees that the
+    reclaimed memory is used by OOM victims (and processes which
+    are blocking OOM victims)?
 
-Ok, then another question, have you considered the following usecase:
+    David's "global access to memory reserves" allows a local unprivileged
+    user to deplete memory reserves; could allow that user to deplete the
+    reclaimed memory as well.
 
-AFAICS pkeys only affect data loads and stores. Instruction fetches are notably 
-absent from the documentation. Can you clarify that instructions can be fetched 
-and executed from PTE_READ but pkeys-all-access-disabled pags?
+    I think that my "Favor kthread and dying threads over normal threads"
+    ( http://lkml.kernel.org/r/1442939668-4421-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp )
+    would allow the reclaimed memory to be used by OOM victims and kernel
+    threads if the reclaimed memory is added to free list bit by bit
+    in a way that watermark remains low enough to prevent normal threads
+    from allocating the reclaimed memory.
 
-If yes then this could be a significant security feature / usecase for pkeys: 
-executable sections of shared libraries and binaries could be mapped with pkey 
-access disabled. If I read the Intel documentation correctly then that should be 
-possible.
+    But my patch still fails if normal threads are blocking the OOM
+    victims or unrelated kernel threads consume the reclaimed memory.
 
-The advantage of doing that is that an existing attack method to circumvent ASLR 
-(or to scout out an unknown binary) is to use an existing (user-space) information 
-leak to read the address space of a server process - and to use that to figure out 
-the actual code present at that address.
+(2) If memory zapping code failed to reclaim enough memory from the mm
+    struct needed for the OOM victim, what mechanism can solve the OOM
+    stalls?
 
-The code signature can then be be used to identify the precise layout of the 
-binary, and/or to create ROP gadgets - to escallate permissions using an otherwise 
-not exploitable buffer overflow.
+    Some administrator sets /proc/pid/oom_score_adj to -1000 to most of
+    enterprise processes (e.g. java) and as a consequence only trivial
+    processes (e.g. grep / sed) are candidates for OOM victims.
 
-I.e. AFAICS pkeys could be used to create true '--x' permissions for executable 
-(user-space) pages.
+    Moreover, a local unprivileged user can easily fool the OOM killer using
+    decoy tasks (which consumes little memory and /proc/pid/oom_score_adj is
+    set to 999).
 
-But I might be reading it wrong ...
+(3) If memory zapping code reclaimed no memory due to ->mmap_sem contention,
+    what mechanism can solve the OOM stalls?
 
-Thanks,
+    While we don't allocate much memory with ->mmap_sem held for writing,
+    the task which is holding ->mmap_sem for writing can be chosen as
+    one of OOM victims. If such task receives SIGKILL but TIF_MEMDIE is not
+    set, it can form OOM-livelock unless all memory allocations with
+    ->mmap_sem held for writing are __GFP_FS allocations and that task can
+    reach out_of_memory() (i.e. not blocked by unexpected factors such as
+    waiting for filesystem's writeback).
 
-	Ingo
+After all I think we have to consider what to do if memory zapping code
+failed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
