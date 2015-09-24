@@ -1,46 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 88C0D82F7F
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 15:45:39 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so266866099wic.0
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 12:45:39 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A35382F7F
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 15:50:47 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so43173277wic.1
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 12:50:45 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id ga17si621162wic.55.2015.09.24.12.45.38
+        by mx.google.com with ESMTPS id eq6si1197760wjd.12.2015.09.24.12.50.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Sep 2015 12:45:38 -0700 (PDT)
-Date: Thu, 24 Sep 2015 15:45:28 -0400
+        Thu, 24 Sep 2015 12:50:44 -0700 (PDT)
+Date: Thu, 24 Sep 2015 15:50:21 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm, oom: remove task_lock protecting comm printing
-Message-ID: <20150924194528.GB3009@cmpxchg.org>
-References: <alpine.DEB.2.10.1509221629440.7794@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/2] mm/vmscan: make inactive_anon/file_is_low return bool
+Message-ID: <20150924195021.GC3009@cmpxchg.org>
+References: <1442842673-4140-1-git-send-email-bywxiaobai@163.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1509221629440.7794@chino.kir.corp.google.com>
+In-Reply-To: <1442842673-4140-1-git-send-email-bywxiaobai@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Yaowei Bai <bywxiaobai@163.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, mhocko@kernel.org, rientjes@google.com, vdavydov@parallels.com, oleg@redhat.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, tj@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 22, 2015 at 04:30:13PM -0700, David Rientjes wrote:
-> The oom killer takes task_lock() in a couple of places solely to protect
-> printing the task's comm.
+On Mon, Sep 21, 2015 at 09:37:52PM +0800, Yaowei Bai wrote:
+> This patch makes inactive_anon/file_is_low return bool
+> due to these particular functions only using either one
+> or zero as their return value.
 > 
-> A process's comm, including current's comm, may change due to
-> /proc/pid/comm or PR_SET_NAME.
+> No functional change.
 > 
-> The comm will always be NULL-terminated, so the worst race scenario would
-> only be during update.  We can tolerate a comm being printed that is in
-> the middle of an update to avoid taking the lock.
-> 
-> Other locations in the kernel have already dropped task_lock() when
-> printing comm, so this is consistent.
-> 
-> Suggested-by: Oleg Nesterov <oleg@redhat.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+You can probably merge both patches into a single commit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
