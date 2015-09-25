@@ -1,85 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D09E36B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 12:15:03 -0400 (EDT)
-Received: by igxx6 with SMTP id x6so12724697igx.1
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 09:15:03 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id qf1si2906213igb.68.2015.09.25.09.15.02
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B81CF6B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 12:17:44 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so12921081pab.3
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 09:17:44 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id kw10si6573557pab.162.2015.09.25.09.17.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 25 Sep 2015 09:15:02 -0700 (PDT)
-Subject: Re: can't oom-kill zap the victim's memory?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150921161203.GD19811@dhcp22.suse.cz>
-	<20150922160608.GA2716@redhat.com>
-	<20150923205923.GB19054@dhcp22.suse.cz>
-	<alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
-	<20150925093556.GF16497@dhcp22.suse.cz>
-In-Reply-To: <20150925093556.GF16497@dhcp22.suse.cz>
-Message-Id: <201509260114.ADI35946.OtHOVFOMJQFLFS@I-love.SAKURA.ne.jp>
-Date: Sat, 26 Sep 2015 01:14:50 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Sep 2015 09:17:44 -0700 (PDT)
+Received: by pablk4 with SMTP id lk4so12920855pab.3
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 09:17:43 -0700 (PDT)
+References: <20150925152533.GP16497@dhcp22.suse.cz>
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH] memcg: make mem_cgroup_read_stat() unsigned
+In-reply-to: <20150925152533.GP16497@dhcp22.suse.cz>
+Date: Fri, 25 Sep 2015 09:17:41 -0700
+Message-ID: <xr93h9milbh6.fsf@gthelen.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, rientjes@google.com
-Cc: oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tj@kernel.org
+
 
 Michal Hocko wrote:
-> On Thu 24-09-15 14:15:34, David Rientjes wrote:
-> > > > Finally. Whatever we do, we need to change oom_kill_process() first,
-> > > > and I think we should do this regardless. The "Kill all user processes
-> > > > sharing victim->mm" logic looks wrong and suboptimal/overcomplicated.
-> > > > I'll try to make some patches tomorrow if I have time...
-> > > 
-> > > That would be appreciated. I do not like that part either. At least we
-> > > shouldn't go over the whole list when we have a good chance that the mm
-> > > is not shared with other processes.
-> > > 
-> > 
-> > Heh, it's actually imperative to avoid livelocking based on mm->mmap_sem, 
-> > it's the reason the code exists.  Any optimizations to that is certainly 
-> > welcome, but we definitely need to send SIGKILL to all threads sharing the 
-> > mm to make forward progress, otherwise we are going back to pre-2008 
-> > livelocks.
-> 
-> Yes but mm is not shared between processes most of the time. CLONE_VM
-> without CLONE_THREAD is more a corner case yet we have to crawl all the
-> task_structs for _each_ OOM killer invocation. Yes this is an extreme
-> slow path but still might take quite some unnecessarily time.
 
-Excuse me, but thinking about CLONE_VM without CLONE_THREAD case...
-Isn't there possibility of hitting livelocks at
+> On Tue 22-09-15 15:16:32, Greg Thelen wrote:
+>> mem_cgroup_read_stat() returns a page count by summing per cpu page
+>> counters.  The summing is racy wrt. updates, so a transient negative sum
+>> is possible.  Callers don't want negative values:
+>> - mem_cgroup_wb_stats() doesn't want negative nr_dirty or nr_writeback.
+>
+> OK, this can confuse dirty throttling AFAIU
+>
+>> - oom reports and memory.stat shouldn't show confusing negative usage.
+>
+> I guess this is not earth shattering.
+>
+>> - tree_usage() already avoids negatives.
+>> 
+>> Avoid returning negative page counts from mem_cgroup_read_stat() and
+>> convert it to unsigned.
+>> 
+>> Signed-off-by: Greg Thelen <gthelen@google.com>
+>
+> I guess we want that for stable 4.2 because of the dirty throttling
+> part. Longterm we should use generic per-cpu counter.
+>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+>
+> Thanks!
 
-        /*
-         * If current has a pending SIGKILL or is exiting, then automatically
-         * select it.  The goal is to allow it to allocate so that it may
-         * quickly exit and free its memory.
-         *
-         * But don't select if current has already released its mm and cleared
-         * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
-         */
-        if (current->mm &&
-            (fatal_signal_pending(current) || task_will_free_mem(current))) {
-                mark_oom_victim(current);
-                return true;
-        }
-
-if current thread receives SIGKILL just before reaching here, for we don't
-send SIGKILL to all threads sharing the mm?
-
-Hopefully current thread is not holding inode->i_mutex because reaching here
-(i.e. calling out_of_memory()) suggests that we are doing GFP_KERNEL
-allocation. But it could be !__GFP_NOFS && __GFP_NOFAIL allocation, or
-different locks contended by another thread sharing the mm?
-
-I don't like "That thread will now get access to memory reserves since it
-has a pending fatal signal." line in comments for the "Kill all user
-processes sharing victim->mm" logic. That thread won't get access to memory
-reserves unless that thread can call out_of_memory() (i.e. doing __GFP_FS or
-__GFP_NOFAIL allocations). Since I can observe that that thread may be doing
-!__GFP_NOFS allocation, I think that this comment needs to be updated.
+Correct, this is not an earth shattering patch.  The patch only filters
+out negative memcg stat values from mem_cgroup_read_stat() callers.
+Negative values should only be temporary due to stat update races.  So
+I'm not sure it's worth sending it to stable.  I've heard no reports of
+it troubling anyone.  The worst case without this patch is that memcg
+temporarily burps up a negative dirty and/or writeback count which
+causes balance_dirty_pages() to sleep for a (at most) 200ms nap
+(MAX_PAUSE).  Ccing Tejun in case there are more serious consequences to
+balance_dirty_pages() occasionally seeing a massive (underflowed) dirty
+or writeback count.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
