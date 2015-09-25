@@ -1,94 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A7496B0254
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 08:45:02 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so17956871wic.0
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:45:01 -0700 (PDT)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id p10si4475172wiv.26.2015.09.25.05.45.00
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id BC55A6B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 08:50:31 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so18199314wic.1
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:50:31 -0700 (PDT)
+Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
+        by mx.google.com with ESMTPS id qc8si4679035wjc.78.2015.09.25.05.50.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 25 Sep 2015 05:45:01 -0700 (PDT)
-Date: Fri, 25 Sep 2015 13:44:47 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH 4/4] dma-debug: Allow poisoning nonzero allocations
-Message-ID: <20150925124447.GO21513@n2100.arm.linux.org.uk>
-References: <cover.1443178314.git.robin.murphy@arm.com>
- <0405c6131def5aa179ff4ba5d4201ebde89cede3.1443178314.git.robin.murphy@arm.com>
+        Fri, 25 Sep 2015 05:50:30 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id DFDB5C0043
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 12:50:29 +0000 (UTC)
+Date: Fri, 25 Sep 2015 13:50:28 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 04/10] mm, page_alloc: Use masks and shifts when
+ converting GFP flags to migrate types
+Message-ID: <20150925125028.GF3068@techsingularity.net>
+References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
+ <1442832762-7247-5-git-send-email-mgorman@techsingularity.net>
+ <20150924203445.GH3009@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <0405c6131def5aa179ff4ba5d4201ebde89cede3.1443178314.git.robin.murphy@arm.com>
+In-Reply-To: <20150924203445.GH3009@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, arnd@arndb.de, linux-mm@kvack.org, sakari.ailus@iki.fi, sumit.semwal@linaro.org, linux-arm-kernel@lists.infradead.org, m.szyprowski@samsung.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Sep 25, 2015 at 01:15:46PM +0100, Robin Murphy wrote:
-> Since some dma_alloc_coherent implementations return a zeroed buffer
-> regardless of whether __GFP_ZERO is passed, there exist drivers which
-> are implicitly dependent on this and pass otherwise uninitialised
-> buffers to hardware. This can lead to subtle and awkward-to-debug issues
-> using those drivers on different platforms, where nonzero uninitialised
-> junk may for instance occasionally look like a valid command which
-> causes the hardware to start misbehaving. To help with debugging such
-> issues, add the option to make uninitialised buffers much more obvious.
+On Thu, Sep 24, 2015 at 04:34:45PM -0400, Johannes Weiner wrote:
+> On Mon, Sep 21, 2015 at 11:52:36AM +0100, Mel Gorman wrote:
+> > @@ -14,7 +14,7 @@ struct vm_area_struct;
+> >  #define ___GFP_HIGHMEM		0x02u
+> >  #define ___GFP_DMA32		0x04u
+> >  #define ___GFP_MOVABLE		0x08u
+> > -#define ___GFP_WAIT		0x10u
+> > +#define ___GFP_RECLAIMABLE	0x10u
+> >  #define ___GFP_HIGH		0x20u
+> >  #define ___GFP_IO		0x40u
+> >  #define ___GFP_FS		0x80u
+> > @@ -29,7 +29,7 @@ struct vm_area_struct;
+> >  #define ___GFP_NOMEMALLOC	0x10000u
+> >  #define ___GFP_HARDWALL		0x20000u
+> >  #define ___GFP_THISNODE		0x40000u
+> > -#define ___GFP_RECLAIMABLE	0x80000u
+> > +#define ___GFP_WAIT		0x80000u
+> >  #define ___GFP_NOACCOUNT	0x100000u
+> >  #define ___GFP_NOTRACK		0x200000u
+> >  #define ___GFP_NO_KSWAPD	0x400000u
+> > @@ -126,6 +126,7 @@ struct vm_area_struct;
+> >  
+> >  /* This mask makes up all the page movable related flags */
+> >  #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
+> > +#define GFP_MOVABLE_SHIFT 3
+> 
+> This connects the power-of-two gfp bits to the linear migrate type
+> enum, so shifting back and forth between them works only with up to
+> two items. A hypothetical ___GFP_FOOABLE would translate to 4, not
+> 3. I'm not expecting new migratetypes to show up anytime soon, but
+> this implication does not make the code exactly robust and obvious.
+> 
 
-The reason people started to do this is to stop a security leak in the
-ALSA code: ALSA allocates the ring buffer with dma_alloc_coherent()
-which used to grab pages and return them uninitialised.  These pages
-could contain anything - including the contents of /etc/shadow, or
-your bank details.
+In the event __GFP_FOOABLE is added then it would need to be reverted.
+Adding new migrate types has other consequences as it increases the number
+of free lists in struct zone and depending on the type then new per-cpu
+lists and the the fallbacks have to be updated. It's fairly obvious if a
+new migratetype is added that cares.
 
-ALSA then lets userspace mmap() that memory, which means any user process
-which has access to the sound devices can read data leaked from kernel
-memory.
+> > @@ -152,14 +153,15 @@ struct vm_area_struct;
+> >  /* Convert GFP flags to their corresponding migrate type */
+> >  static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
+> >  {
+> > -	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
+> > +	VM_WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
+> > +	BUILD_BUG_ON((1UL << GFP_MOVABLE_SHIFT) != ___GFP_MOVABLE);
+> > +	BUILD_BUG_ON((___GFP_MOVABLE >> GFP_MOVABLE_SHIFT) != MIGRATE_MOVABLE);
+> >  
+> >  	if (unlikely(page_group_by_mobility_disabled))
+> >  		return MIGRATE_UNMOVABLE;
+> >  
+> >  	/* Group based on mobility */
+> > -	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
+> > -		((gfp_flags & __GFP_RECLAIMABLE) != 0);
+> > +	return (gfp_flags & GFP_MOVABLE_MASK) >> GFP_MOVABLE_SHIFT;
+> 
+> I'm not sure the simplification of this line is worth the fragile
+> dependency between those two tables.
 
-I think I did bring it up at the time I found it, and decided that the
-safest thing to do was to always return an initialised buffer - short of
-constantly auditing every dma_alloc_coherent() user which also mmap()s
-the buffer into userspace, I couldn't convince myself that it was safe
-to avoid initialising the buffer.
-
-I don't know whether the original problem still exists in ALSA or not,
-but I do know that there are dma_alloc_coherent() implementations out
-there which do not initialise prior to returning memory.
-
-> diff --git a/lib/dma-debug.c b/lib/dma-debug.c
-> index 908fb35..40514ed 100644
-> --- a/lib/dma-debug.c
-> +++ b/lib/dma-debug.c
-> @@ -30,6 +30,7 @@
->  #include <linux/sched.h>
->  #include <linux/ctype.h>
->  #include <linux/list.h>
-> +#include <linux/poison.h>
->  #include <linux/slab.h>
->  
->  #include <asm/sections.h>
-> @@ -1447,7 +1448,7 @@ void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
->  EXPORT_SYMBOL(debug_dma_unmap_sg);
->  
->  void debug_dma_alloc_coherent(struct device *dev, size_t size,
-> -			      dma_addr_t dma_addr, void *virt)
-> +			      dma_addr_t dma_addr, void *virt, gfp_t flags)
->  {
->  	struct dma_debug_entry *entry;
->  
-> @@ -1457,6 +1458,9 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
->  	if (unlikely(virt == NULL))
->  		return;
->  
-> +	if (IS_ENABLED(CONFIG_DMA_API_DEBUG_POISON) && !(flags & __GFP_ZERO))
-> +		memset(virt, DMA_ALLOC_POISON, size);
-> +
-
-This is likely to be slow in the case of non-cached memory and large
-allocations.  The config option should come with a warning.
+The BUILD_BUG_ON is there to blow up immediately if the dependency is
+broken. Sure, it's complexity but it's well contained in a single
+place. Do you want to insist the patch is dropped in case someone
+decides to add a new migrate type that has per-cpu lists?
 
 -- 
-FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
-according to speedtest.net.
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
