@@ -1,111 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id B9FD76B0254
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 09:56:21 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so20752576wic.1
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 06:56:21 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id bv15si4993207wjb.142.2015.09.25.06.56.20
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 016036B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 10:29:25 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so70329651qge.0
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 07:29:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 89si2983490qku.59.2015.09.25.07.29.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Sep 2015 06:56:20 -0700 (PDT)
-Date: Fri, 25 Sep 2015 09:56:05 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 04/10] mm, page_alloc: Use masks and shifts when
- converting GFP flags to migrate types
-Message-ID: <20150925135605.GA9653@cmpxchg.org>
-References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
- <1442832762-7247-5-git-send-email-mgorman@techsingularity.net>
- <20150924203445.GH3009@cmpxchg.org>
- <20150925125028.GF3068@techsingularity.net>
+        Fri, 25 Sep 2015 07:29:24 -0700 (PDT)
+Date: Fri, 25 Sep 2015 16:26:18 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: Multiple potential races on vma->vm_flags
+Message-ID: <20150925142618.GA16703@redhat.com>
+References: <CAAeHK+z8o96YeRF-fQXmoApOKXa0b9pWsQHDeP=5GC_hMTuoDg@mail.gmail.com> <55EC9221.4040603@oracle.com> <20150907114048.GA5016@node.dhcp.inet.fi> <55F0D5B2.2090205@oracle.com> <20150910083605.GB9526@node.dhcp.inet.fi> <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com> <20150911103959.GA7976@node.dhcp.inet.fi> <alpine.LSU.2.11.1509111734480.7660@eggly.anvils> <55F8572D.8010409@oracle.com> <560319E4.2060808@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150925125028.GF3068@techsingularity.net>
+In-Reply-To: <560319E4.2060808@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrey Konovalov <andreyknvl@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri, Sep 25, 2015 at 01:50:28PM +0100, Mel Gorman wrote:
-> On Thu, Sep 24, 2015 at 04:34:45PM -0400, Johannes Weiner wrote:
-> > On Mon, Sep 21, 2015 at 11:52:36AM +0100, Mel Gorman wrote:
-> > > @@ -14,7 +14,7 @@ struct vm_area_struct;
-> > >  #define ___GFP_HIGHMEM		0x02u
-> > >  #define ___GFP_DMA32		0x04u
-> > >  #define ___GFP_MOVABLE		0x08u
-> > > -#define ___GFP_WAIT		0x10u
-> > > +#define ___GFP_RECLAIMABLE	0x10u
-> > >  #define ___GFP_HIGH		0x20u
-> > >  #define ___GFP_IO		0x40u
-> > >  #define ___GFP_FS		0x80u
-> > > @@ -29,7 +29,7 @@ struct vm_area_struct;
-> > >  #define ___GFP_NOMEMALLOC	0x10000u
-> > >  #define ___GFP_HARDWALL		0x20000u
-> > >  #define ___GFP_THISNODE		0x40000u
-> > > -#define ___GFP_RECLAIMABLE	0x80000u
-> > > +#define ___GFP_WAIT		0x80000u
-> > >  #define ___GFP_NOACCOUNT	0x100000u
-> > >  #define ___GFP_NOTRACK		0x200000u
-> > >  #define ___GFP_NO_KSWAPD	0x400000u
-> > > @@ -126,6 +126,7 @@ struct vm_area_struct;
-> > >  
-> > >  /* This mask makes up all the page movable related flags */
-> > >  #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
-> > > +#define GFP_MOVABLE_SHIFT 3
-> > 
-> > This connects the power-of-two gfp bits to the linear migrate type
-> > enum, so shifting back and forth between them works only with up to
-> > two items. A hypothetical ___GFP_FOOABLE would translate to 4, not
-> > 3. I'm not expecting new migratetypes to show up anytime soon, but
-> > this implication does not make the code exactly robust and obvious.
-> > 
-> 
-> In the event __GFP_FOOABLE is added then it would need to be reverted.
-> Adding new migrate types has other consequences as it increases the number
-> of free lists in struct zone and depending on the type then new per-cpu
-> lists and the the fallbacks have to be updated. It's fairly obvious if a
-> new migratetype is added that cares.
+On 09/23, Sasha Levin wrote:
+>
+> Another similar trace where we see a problem during process exit:
+>
+> [1922964.887922] kasan: GPF could be caused by NULL-ptr deref or user memory accessgeneral protection fault: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC KASAN
+> [1922964.890234] Modules linked in:
+> [1922964.890844] CPU: 1 PID: 21477 Comm: trinity-c161 Tainted: G        W       4.3.0-rc2-next-20150923-sasha-00079-gec04207-dirty #2569
+> [1922964.892584] task: ffff880251858000 ti: ffff88009f258000 task.ti: ffff88009f258000
+> [1922964.893723] RIP: acct_collect (kernel/acct.c:542)
 
-As I said, I'm not really worried about somebody screwing up when
-actually adding a new migratetype, but rather people having a harder
-time reviewing and verifying the code later on and going through the
-same "how can it translate a power of two to linear with a shift op?
-oh, it relies on the sequences coinciding for the first two elements"
-like I did. The instance works fine, but it's a questionable pattern.
+   530  void acct_collect(long exitcode, int group_dead)
+   531  {
+   532          struct pacct_struct *pacct = &current->signal->pacct;
+   533          cputime_t utime, stime;
+   534          unsigned long vsize = 0;
+   535
+   536          if (group_dead && current->mm) {
+   537                  struct vm_area_struct *vma;
+   538
+   539                  down_read(&current->mm->mmap_sem);
+   540                  vma = current->mm->mmap;
+   541                  while (vma) {
+   542                          vsize += vma->vm_end - vma->vm_start; // !!!!!!!!!!!!
+   543                          vma = vma->vm_next;
+   544                  }
+   545                  up_read(&current->mm->mmap_sem);
+   546          }
 
-> > > @@ -152,14 +153,15 @@ struct vm_area_struct;
-> > >  /* Convert GFP flags to their corresponding migrate type */
-> > >  static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
-> > >  {
-> > > -	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
-> > > +	VM_WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
-> > > +	BUILD_BUG_ON((1UL << GFP_MOVABLE_SHIFT) != ___GFP_MOVABLE);
-> > > +	BUILD_BUG_ON((___GFP_MOVABLE >> GFP_MOVABLE_SHIFT) != MIGRATE_MOVABLE);
-> > >  
-> > >  	if (unlikely(page_group_by_mobility_disabled))
-> > >  		return MIGRATE_UNMOVABLE;
-> > >  
-> > >  	/* Group based on mobility */
-> > > -	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
-> > > -		((gfp_flags & __GFP_RECLAIMABLE) != 0);
-> > > +	return (gfp_flags & GFP_MOVABLE_MASK) >> GFP_MOVABLE_SHIFT;
-> > 
-> > I'm not sure the simplification of this line is worth the fragile
-> > dependency between those two tables.
-> 
-> The BUILD_BUG_ON is there to blow up immediately if the dependency is
-> broken. Sure, it's complexity but it's well contained in a single
-> place. Do you want to insist the patch is dropped in case someone
-> decides to add a new migrate type that has per-cpu lists?
 
-I think the previous code is easier to comprehend and the optimization
-looks miniscule. It doesn't seem worth it to me to add complications
-and subtleties to a complex codebase for microoptimizations whose
-effects are likely in the noise.
+> [1922964.895105] RSP: 0000:ffff88009f25f908  EFLAGS: 00010207
+> [1922964.895935] RAX: dffffc0000000000 RBX: 2ce0ffffffffffff RCX: 0000000000000000
+> [1922964.897008] RDX: ffff2152b153ffff RSI: 059c200000000000 RDI: 2ce1000000000007
+> [1922964.898091] RBP: ffff88009f25f9e8 R08: 0000000000000001 R09: 00000000000003ef
+> [1922964.899178] R10: ffffed014d7a3a01 R11: 0000000000000001 R12: ffff880082b485c0
+> [1922964.901643] R13: ffff2152b153ffff R14: 1ffff10013e4bf24 R15: ffff88009f25f9c0
+...
+>    0:   02 00                   add    (%rax),%al
+>    2:   0f 85 9d 05 00 00       jne    0x5a5
+>    8:   48 8b 1b                mov    (%rbx),%rbx
+>    b:   48 85 db                test   %rbx,%rbx
+>    e:   0f 84 7b 05 00 00       je     0x58f
 
-OTOH several others have acked this patch. If nobody else shares my
-concern then I'm not insisting that the patch be dropped.
+Probably "mov (%rbx),%rbx" is "vma = mm->mmap",
+
+>   14:   48 b8 00 00 00 00 00    movabs $0xdffffc0000000000,%rax
+>   1b:   fc ff df
+>   1e:   31 d2                   xor    %edx,%edx
+>   20:   48 8d 7b 08             lea    0x8(%rbx),%rdi
+
+and this loads the addr of vma->vm_end for kasan,
+
+>   24:   48 89 fe                mov    %rdi,%rsi
+>   27:   48 c1 ee 03             shr    $0x3,%rsi
+>   2b:*  80 3c 06 00             cmpb   $0x0,(%rsi,%rax,1)               <-- trapping instruction
+
+which reporst the error. But in this case this is not NULL-deref,
+note that $rbx = 2ce0ffffffffffff and this is below __PAGE_OFFSET
+(but above TASK_SIZE_MAX). It seems it is not even canonical. In
+any case this odd value can't be valid.
+
+Again, looks like mm->mmap pointer was corrupted. Perhaps you can
+re-test with the stupid patch below. But unlikely it will help. If
+mm was freed we would probably see something else.
+
+Oleg.
+---
+
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -672,6 +672,7 @@ struct mm_struct *mm_alloc(void)
+ void __mmdrop(struct mm_struct *mm)
+ {
+ 	BUG_ON(mm == &init_mm);
++	BUG_ON(atomic_read(&mm->mm_users));
+ 	mm_free_pgd(mm);
+ 	destroy_context(mm);
+ 	mmu_notifier_mm_destroy(mm);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
