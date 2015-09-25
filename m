@@ -1,102 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id DD46B6B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 06:51:35 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so14226877wic.0
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 03:51:35 -0700 (PDT)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id d19si4009073wjr.138.2015.09.25.03.51.34
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 2983E6B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 07:26:20 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so15326459wic.0
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 04:26:19 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fa4si4030160wib.45.2015.09.25.04.26.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Sep 2015 03:51:34 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so14226400wic.0
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 03:51:34 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 25 Sep 2015 04:26:19 -0700 (PDT)
+Date: Fri, 25 Sep 2015 13:26:17 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [RFC v2 07/18] kthread: Allow to cancel kthread work
+Message-ID: <20150925112617.GA3122@pathway.suse.cz>
+References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
+ <1442840639-6963-8-git-send-email-pmladek@suse.com>
+ <20150922193513.GE17659@mtj.duckdns.org>
 MIME-Version: 1.0
-In-Reply-To: <20150925084617.GA23340@blaptop>
-References: <20150922141733.d7d97f59f207d0655c3b881d@gmail.com>
-	<20150923031845.GA31207@cerebellum.local.variantweb.net>
-	<CAMJBoFOEYv05FZqDER9hw79re4vrc3wKwGeuL=uoGbCnwodH8Q@mail.gmail.com>
-	<20150923215726.GA17171@cerebellum.local.variantweb.net>
-	<20150925021325.GA16431@bbox>
-	<CAMJBoFMDaUv2+V8jQra+HNYBLDZq_B22aqYkjigYJ=V00Z+k4A@mail.gmail.com>
-	<20150925084617.GA23340@blaptop>
-Date: Fri, 25 Sep 2015 12:51:34 +0200
-Message-ID: <CAMJBoFOTM2DBBHXikcUkncC40D8DoTpf42zjk5cFv19t1L79pw@mail.gmail.com>
-Subject: Re: [PATCH v2] zbud: allow up to PAGE_SIZE allocations
-From: Vitaly Wool <vitalywool@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150922193513.GE17659@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 25, 2015 at 10:47 AM, Minchan Kim <minchan@kernel.org> wrote:
-> On Fri, Sep 25, 2015 at 10:17:54AM +0200, Vitaly Wool wrote:
->> <snip>
->> > I already said questions, opinion and concerns but anything is not clear
->> > until now. Only clear thing I could hear is just "compaction stats are
->> > better" which is not enough for me. Sorry.
->> >
->> > 1) https://lkml.org/lkml/2015/9/15/33
->> > 2) https://lkml.org/lkml/2015/9/21/2
->>
->> Could you please stop perverting the facts, I did answer to that:
->> https://lkml.org/lkml/2015/9/21/753.
->>
->> Apart from that, an opinion is not necessarily something I would
->> answer. Concerns about zsmalloc are not in the scope of this patch's
->> discussion. If you have any concerns regarding this particular patch,
->> please let us know.
->
-> Yes, I don't want to interrupt zbud thing which is Seth should maintain
-> and I respect his decision but the reason I nacked is you said this patch
-> aims for supporing zbud into zsmalloc for determinism.
-> For that, at least, you should discuss with me and Sergey but I feel
-> you are ignoring our comments.
->
->>
->> > Vitally, Please say what's the root cause of your problem and if it
->> > is external fragmentation, what's the problem of my approach?
->> >
->> > 1) make non-LRU page migrate
->> > 2) provide zsmalloc's migratpage
->>
->> The problem with your approach is that in your world I need to prove
->> my right to use zbud. This is a very strange speculation.
->
-> No. If you want to contribute something, you should prove why yours
-> is better. I already said my concerns and my approach. It's your turn
-> that you should explain why it's better.
+On Tue 2015-09-22 15:35:13, Tejun Heo wrote:
+> On Mon, Sep 21, 2015 at 03:03:48PM +0200, Petr Mladek wrote:
+> >  /**
+> > + * try_to_grab_pending_kthread_work - steal kthread work item from worklist,
+> > + *	and disable irq
+> > + * @work: work item to steal
+> > + * @is_dwork: @work is a delayed_work
+> > + * @flags: place to store irq state
+> > + *
+> > + * Try to grab PENDING bit of @work.  This function can handle @work in any
+> > + * stable state - idle, on timer or on worklist.
+> > + *
+> > + * Return:
+> > + *  1		if @work was pending and we successfully stole PENDING
+> > + *  0		if @work was idle and we claimed PENDING
+> > + *  -EAGAIN	if PENDING couldn't be grabbed at the moment, safe to busy-retry
+> > + *  -ENOENT	if someone else is canceling @work, this state may persist
+> > + *		for arbitrarily long
+> > + *
+> > + * Note:
+> > + * On >= 0 return, the caller owns @work's PENDING bit.  To avoid getting
+> > + * interrupted while holding PENDING and @work off queue, irq must be
+> > + * disabled on return.  This, combined with delayed_work->timer being
+> > + * irqsafe, ensures that we return -EAGAIN for finite short period of time.
+> > + *
+> > + * On successful return, >= 0, irq is disabled and the caller is
+> > + * responsible for releasing it using local_irq_restore(*@flags).
+> > + *
+> > + * This function is safe to call from any context including IRQ handler.
+> > + */
+> 
+> Ugh... I think this is way too much for kthread_worker.  Workqueue is
+> as complex as it is partly for historical reasons and partly because
+> it's used so widely and heavily.  kthread_worker is always guaranteed
+> to have a single worker and in most cases maybe several work items.
+> There's no reason to bring this level of complexity onto it.
+> Providing simliar semantics is fine but it should be possible to do
+> this in a lot simpler way if the requirements on space and concurrency
+> is this much lower.
+> 
+> e.g. always embed timer_list in a work item and use per-worker
+> spinlock to synchronize access to both the work item and timer and use
+> per-work-item mutex to synchronize multiple cancelers.  Let's please
+> keep it simple.
 
-In fact, I do not add any specific functionality, my patches just do
-what should have already been done -- that is, zram should have been
-converted to use zpool api long ago. Your opposing to that is counter
-productive.
+I thought about it a lot and I do not see a way how to make it easier
+using the locks.
 
->> > We should provide it for CMA as well as external fragmentation.
->> > I think we could solve your issue with above approach and
->> > it fundamentally makes zsmalloc/zbud happy in future.
->>
->> I doubt that but I'll answer in this thread:
->> https://lkml.org/lkml/2015/9/15/33 as zsmalloc deficiencies do not
->> have direct relation to this particular patch.
->>
->> > Also, please keep it in mind that zram has been in linux kernel for
->> > memory efficiency for a long time and later zswap/zbud was born
->> > for *determinism* at the cost of memory efficiency.
->>
->> Yep, and determinism is more important to me than the memory
->> efficiency. Dropping the compression ration from 3.2x to 1.8x is okay
->> with me and stalls in UI are not.
->
-> Then, you could use zswap which have aimed for it with small changes
-> to prevent writeback.
+I guess that you are primary interested into the two rather
+complicated things:
 
-Should i come with a patch to zram explicitly stating that it is not
-meant to be used in any environment that is deterministic / worst case
-critical? Is that what you are aiming for?
 
-~vitaly
+1) PENDING state plus -EAGAIN/busy loop cycle
+---------------------------------------------
+
+IMHO, we want to use the timer because it is an elegant solution.
+Then we must release the lock when the timer is running. The lock
+must be taken by the timer->function(). And there is a small window
+when the timer is not longer pending but timer->function is not running:
+
+CPU0                            CPU1
+
+run_timer_softirq()
+  __run_timers()
+    detach_expired_timer()
+      detach_timer()
+	#clear_pending
+
+				try_to_grab_pending_kthread_work()
+				  del_timer()
+				    # fails because not pending
+
+				  test_and_set_bit(KTHREAD_WORK_PENDING_BIT)
+				    # fails because already set
+
+				  if (!list_empty(&work->node))
+				    # fails because still not queued
+
+			!!! problematic window !!!
+
+    call_timer_fn()
+     queue_kthraed_work()
+
+
+2) CANCEL state plus custom waitqueue
+-------------------------------------
+
+cancel_kthread_work_sync() has to wait for the running work. It might take
+quite some time. Therefore we could not block others by a spinlock.
+Also others could not wait for the spin lock in a busy wait.
+
+
+IMHO, the proposed and rather complex solutions are needed in both cases.
+
+Or did I miss a possible trick, please?
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
