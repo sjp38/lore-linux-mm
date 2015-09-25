@@ -1,61 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 294E96B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:58:15 -0400 (EDT)
-Received: by iofb144 with SMTP id b144so105609420iof.1
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:58:15 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id g17si2177489iog.154.2015.09.25.02.58.14
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B4EB6B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 06:32:06 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so13628935wic.0
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 03:32:05 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dv8si3725736wib.80.2015.09.25.03.32.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Sep 2015 02:58:14 -0700 (PDT)
-Received: by pablk4 with SMTP id lk4so5113739pab.3
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:58:14 -0700 (PDT)
-Date: Fri, 25 Sep 2015 18:57:02 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v2] zbud: allow up to PAGE_SIZE allocations
-Message-ID: <20150925095702.GA1049@swordfish>
-References: <20150922141733.d7d97f59f207d0655c3b881d@gmail.com>
- <20150923031845.GA31207@cerebellum.local.variantweb.net>
- <CAMJBoFOEYv05FZqDER9hw79re4vrc3wKwGeuL=uoGbCnwodH8Q@mail.gmail.com>
- <20150923215726.GA17171@cerebellum.local.variantweb.net>
- <20150925021325.GA16431@bbox>
- <20150925080525.GE865@swordfish>
- <CAMJBoFPg+rZqXRdJCLK1RYY8vs0NmBZzuTUD33AMzQn+tyN5Jw@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 25 Sep 2015 03:32:05 -0700 (PDT)
+Subject: Re: [PATCH v2 5/9] mm/compaction: allow to scan nonmovable pageblock
+ when depleted state
+References: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1440382773-16070-6-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <560522A2.50609@suse.cz>
+Date: Fri, 25 Sep 2015 12:32:02 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAMJBoFPg+rZqXRdJCLK1RYY8vs0NmBZzuTUD33AMzQn+tyN5Jw@mail.gmail.com>
+In-Reply-To: <1440382773-16070-6-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On (09/25/15 10:27), Vitaly Wool wrote:
-> > Have you seen those symptoms before? How did you come up to a conclusion
-> > that zram->zbud will do the trick?
+On 08/24/2015 04:19 AM, Joonsoo Kim wrote:
+
+[...]
+
 > 
-> I have data from various tests (partially described here:
-> https://lkml.org/lkml/2015/9/17/244) and once again, I'll post a reply
+> Because we just allow freepage scanner to scan non-movable pageblock
+> in very limited situation, more scanning events happen. But, allowing
+> in very limited situation results in a very important benefit that
+> memory isn't fragmented more than before. Fragmentation effect is
+> measured on following patch so please refer it.
 
-yeah, I guess I'm just not so bright to quickly understand what is wrong
-with zsmalloc from those numbers.
+AFAICS it's measured only for the whole series in the cover letter, no? Just to
+be sure I didn't overlook something.
 
-> to https://lkml.org/lkml/2015/9/15/33 with more detailed test
-> description and explanation why zsmalloc is not the right choice for
-> me.
-
-great, thanks.
-
-> > If those symptoms are some sort of a recent addition, then does it help
-> > when you disable zsmalloc compaction?
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  include/linux/mmzone.h |  1 +
+>  mm/compaction.c        | 27 +++++++++++++++++++++++++--
+>  2 files changed, 26 insertions(+), 2 deletions(-)
 > 
-> No it doesn't. OTOH enabled zsmalloc compaction doesn't seem to have a
-> substantial effect either.
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index e13b732..5cae0ad 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -545,6 +545,7 @@ enum zone_flags {
+>  					 */
+>  	ZONE_FAIR_DEPLETED,		/* fair zone policy batch depleted */
+>  	ZONE_COMPACTION_DEPLETED,	/* compaction possiblity depleted */
+> +	ZONE_COMPACTION_SCANALLFREE,	/* scan all kinds of pageblocks */
 
-hm. ok, that was my quick guess.
-
-	-ss
+"SCANALLFREE" is hard to read. Otherwise yeah, I agree scanning unmovable
+pageblocks is necessary sometimes, and this seems to make a reasonable tradeoff.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
