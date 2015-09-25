@@ -1,157 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D46A6B0257
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 08:16:04 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so19221140wic.1
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:16:03 -0700 (PDT)
-Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [146.101.78.143])
-        by mx.google.com with ESMTPS id p10si4531950wjo.3.2015.09.25.05.15.58
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id CD34A6B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 08:29:24 -0400 (EDT)
+Received: by laclj5 with SMTP id lj5so1367384lac.3
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:29:24 -0700 (PDT)
+Received: from forward-corp1g.mail.yandex.net (forward-corp1g.mail.yandex.net. [2a02:6b8:0:1402::10])
+        by mx.google.com with ESMTPS id bm7si1626282lbc.82.2015.09.25.05.29.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 25 Sep 2015 05:15:59 -0700 (PDT)
-From: Robin Murphy <robin.murphy@arm.com>
-Subject: [PATCH 4/4] dma-debug: Allow poisoning nonzero allocations
-Date: Fri, 25 Sep 2015 13:15:46 +0100
-Message-Id: <0405c6131def5aa179ff4ba5d4201ebde89cede3.1443178314.git.robin.murphy@arm.com>
-In-Reply-To: <cover.1443178314.git.robin.murphy@arm.com>
-References: <cover.1443178314.git.robin.murphy@arm.com>
-Content-Type: text/plain; charset=WINDOWS-1252
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Sep 2015 05:29:23 -0700 (PDT)
+Subject: Re: [PATCH 03/16] page-flags: introduce page flags policies wrt
+ compound pages
+References: <20150921153509.fef7ecdf313ef74307c43b65@linux-foundation.org>
+ <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1443106264-78075-4-git-send-email-kirill.shutemov@linux.intel.com>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <56053E1D.7050001@yandex-team.ru>
+Date: Fri, 25 Sep 2015 15:29:17 +0300
+MIME-Version: 1.0
+In-Reply-To: <1443106264-78075-4-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org
-Cc: arnd@arndb.de, m.szyprowski@samsung.com, sumit.semwal@linaro.org, sakari.ailus@iki.fi, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Since some dma_alloc_coherent implementations return a zeroed buffer
-regardless of whether __GFP_ZERO is passed, there exist drivers which
-are implicitly dependent on this and pass otherwise uninitialised
-buffers to hardware. This can lead to subtle and awkward-to-debug issues
-using those drivers on different platforms, where nonzero uninitialised
-junk may for instance occasionally look like a valid command which
-causes the hardware to start misbehaving. To help with debugging such
-issues, add the option to make uninitialised buffers much more obvious.
+On 24.09.2015 17:50, Kirill A. Shutemov wrote:
+> This patch adds a third argument to macros which create function
+> definitions for page flags.  This argument defines how page-flags helpers
+> behave on compound functions.
+>
+> For now we define four policies:
+>
+> - PF_ANY: the helper function operates on the page it gets, regardless
+>    if it's non-compound, head or tail.
+>
+> - PF_HEAD: the helper function operates on the head page of the compound
+>    page if it gets tail page.
+>
+> - PF_NO_TAIL: only head and non-compond pages are acceptable for this
+>    helper function.
+>
+> - PF_NO_COMPOUND: only non-compound pages are acceptable for this helper
+>    function.
+>
+> For now we use policy PF_ANY for all helpers, which matches current
+> behaviour.
+>
+> We do not enforce the policy for TESTPAGEFLAG, because we have flags
+> checked for random pages all over the kernel.  Noticeable exception to
+> this is PageTransHuge() which triggers VM_BUG_ON() for tail page.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>   include/linux/page-flags.h | 154 ++++++++++++++++++++++++++-------------------
+>   1 file changed, 90 insertions(+), 64 deletions(-)
+>
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 713d3f2c2468..1b3babe5ff69 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -154,49 +154,68 @@ static inline int PageCompound(struct page *page)
+>   	return test_bit(PG_head, &page->flags) || PageTail(page);
+>   }
+>
+> +/* Page flags policies wrt compound pages */
+> +#define PF_ANY(page, enforce)	page
+> +#define PF_HEAD(page, enforce)	compound_head(page)
+> +#define PF_NO_TAIL(page, enforce) ({					\
+> +		if (enforce)						\
+> +			VM_BUG_ON_PAGE(PageTail(page), page);		\
+> +		else							\
+> +			page = compound_head(page);			\
+> +		page;})
+> +#define PF_NO_COMPOUND(page, enforce) ({					\
+> +		if (enforce)						\
+> +			VM_BUG_ON_PAGE(PageCompound(page), page);	\
 
-Signed-off-by: Robin Murphy <robin.murphy@arm.com>
----
- include/asm-generic/dma-mapping-common.h |  2 +-
- include/linux/dma-debug.h                |  6 ++++--
- include/linux/poison.h                   |  3 +++
- lib/Kconfig.debug                        | 10 ++++++++++
- lib/dma-debug.c                          |  6 +++++-
- 5 files changed, 23 insertions(+), 4 deletions(-)
+Linux next-20150925 crashes here (at least in lkvm)
+if CONFIG_DEFERRED_STRUCT_PAGE_INIT=y
 
-diff --git a/include/asm-generic/dma-mapping-common.h b/include/asm-generic=
-/dma-mapping-common.h
-index b1bc954..0f3e16b 100644
---- a/include/asm-generic/dma-mapping-common.h
-+++ b/include/asm-generic/dma-mapping-common.h
-@@ -260,7 +260,7 @@ static inline void *dma_alloc_attrs(struct device *dev,=
- size_t size,
- =09=09return NULL;
-=20
- =09cpu_addr =3D ops->alloc(dev, size, dma_handle, flag, attrs);
--=09debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
-+=09debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr, flag);
- =09return cpu_addr;
- }
-=20
-diff --git a/include/linux/dma-debug.h b/include/linux/dma-debug.h
-index fe8cb61..e5f539d 100644
---- a/include/linux/dma-debug.h
-+++ b/include/linux/dma-debug.h
-@@ -51,7 +51,8 @@ extern void debug_dma_unmap_sg(struct device *dev, struct=
- scatterlist *sglist,
- =09=09=09       int nelems, int dir);
-=20
- extern void debug_dma_alloc_coherent(struct device *dev, size_t size,
--=09=09=09=09     dma_addr_t dma_addr, void *virt);
-+=09=09=09=09     dma_addr_t dma_addr, void *virt,
-+=09=09=09=09     gfp_t flags);
-=20
- extern void debug_dma_free_coherent(struct device *dev, size_t size,
- =09=09=09=09    void *virt, dma_addr_t addr);
-@@ -132,7 +133,8 @@ static inline void debug_dma_unmap_sg(struct device *de=
-v,
- }
-=20
- static inline void debug_dma_alloc_coherent(struct device *dev, size_t siz=
-e,
--=09=09=09=09=09    dma_addr_t dma_addr, void *virt)
-+=09=09=09=09=09    dma_addr_t dma_addr, void *virt,
-+=09=09=09=09=09    gfp_t flags)
- {
- }
-=20
-diff --git a/include/linux/poison.h b/include/linux/poison.h
-index 317e16d..174104e 100644
---- a/include/linux/poison.h
-+++ b/include/linux/poison.h
-@@ -73,6 +73,9 @@
- #define MUTEX_DEBUG_INIT=090x11
- #define MUTEX_DEBUG_FREE=090x22
-=20
-+/********** lib/dma_debug.c **********/
-+#define DMA_ALLOC_POISON=090xee
-+
- /********** lib/flex_array.c **********/
- #define FLEX_ARRAY_FREE=090x6c=09/* for use-after-free poisoning */
-=20
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index ab76b99..f2da7a1 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1752,6 +1752,16 @@ config DMA_API_DEBUG
-=20
- =09  If unsure, say N.
-=20
-+config DMA_API_DEBUG_POISON
-+=09bool "Poison coherent DMA buffers"
-+=09depends on DMA_API_DEBUG && EXPERT
-+=09help
-+=09  Poison DMA buffers returned by dma_alloc_coherent unless __GFP_ZERO
-+=09  is explicitly specified, to catch drivers depending on zeroed buffers
-+=09  without passing the correct flags.
-+
-+=09  Only say Y if you're prepared for almost everything to break.
-+
- config TEST_LKM
- =09tristate "Test module loading with 'hello world' module"
- =09default n
-diff --git a/lib/dma-debug.c b/lib/dma-debug.c
-index 908fb35..40514ed 100644
---- a/lib/dma-debug.c
-+++ b/lib/dma-debug.c
-@@ -30,6 +30,7 @@
- #include <linux/sched.h>
- #include <linux/ctype.h>
- #include <linux/list.h>
-+#include <linux/poison.h>
- #include <linux/slab.h>
-=20
- #include <asm/sections.h>
-@@ -1447,7 +1448,7 @@ void debug_dma_unmap_sg(struct device *dev, struct sc=
-atterlist *sglist,
- EXPORT_SYMBOL(debug_dma_unmap_sg);
-=20
- void debug_dma_alloc_coherent(struct device *dev, size_t size,
--=09=09=09      dma_addr_t dma_addr, void *virt)
-+=09=09=09      dma_addr_t dma_addr, void *virt, gfp_t flags)
- {
- =09struct dma_debug_entry *entry;
-=20
-@@ -1457,6 +1458,9 @@ void debug_dma_alloc_coherent(struct device *dev, siz=
-e_t size,
- =09if (unlikely(virt =3D=3D NULL))
- =09=09return;
-=20
-+=09if (IS_ENABLED(CONFIG_DMA_API_DEBUG_POISON) && !(flags & __GFP_ZERO))
-+=09=09memset(virt, DMA_ALLOC_POISON, size);
-+
- =09entry =3D dma_entry_alloc();
- =09if (!entry)
- =09=09return;
---=20
-1.9.1
+[    0.000000] Policy zone: DMA32
+[    0.000000] Kernel command line: noapic noacpi pci=conf1 reboot=k 
+panic=1 i8042.direct=1 i8042.dumbkbd=1 i8042.nopnp=1 console=ttyS0 
+earlyprintk=serial i8042.noaux=1  root=/dev/root rw 
+rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p init=/virt/init 
+  ip=dhcp
+[    0.000000] PID hash table entries: 2048 (order: 2, 16384 bytes)
+[    0.000000] BUG: unable to handle kernel NULL pointer dereference at 
+000000000000000c
+[    0.000000] IP: [<ffffffff811aaafb>] dump_page_badflags+0x2b/0xe0
+[    0.000000] PGD 0
+[    0.000000] Oops: 0000 [#1] SMP
+[    0.000000] Modules linked in:
+[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 
+4.3.0-rc2-next-20150925+ #2
+[    0.000000] task: ffffffff81c12580 ti: ffffffff81c00000 task.ti: 
+ffffffff81c00000
+[    0.000000] RIP: 0010:[<ffffffff811aaafb>]  [<ffffffff811aaafb>] 
+dump_page_badflags+0x2b/0xe0
+[    0.000000] RSP: 0000:ffffffff81c03ea8  EFLAGS: 00010002
+[    0.000000] RAX: 000000000000000c RBX: ffffea00006dfd40 RCX: 
+0000000000000100
+[    0.000000] RDX: 0000000000000001 RSI: ffffffff81a4aeb8 RDI: 
+ffffea00006dfd40
+[    0.000000] RBP: ffffffff81c03ec0 R08: 0000000000000000 R09: 
+0000000000000000
+[    0.000000] R10: 0000000000000001 R11: 0000000000000000 R12: 
+0000000000000000
+[    0.000000] R13: 000000000001b7f7 R14: ffffffff81fe50c0 R15: 
+ffffffff81c03fb0
+[    0.000000] FS:  0000000000000000(0000) GS:ffff88001a400000(0000) 
+knlGS:0000000000000000
+[    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[    0.000000] CR2: 000000000000000c CR3: 0000000001c0b000 CR4: 
+00000000000406b0
+[    0.000000] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 
+0000000000000000
+[    0.000000] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 
+0000000000000400
+[    0.000000] Stack:
+[    0.000000]  000000000001b7f5 ffffea00006dfd40 000000000001b7f7 
+ffffffff81c03ed0
+[    0.000000]  ffffffff811aabc0 ffffffff81c03ef8 ffffffff81785eda 
+ffffffff81c03f10
+[    0.000000]  0000000000000040 ffffffff81fd99c0 ffffffff81c03f30 
+ffffffff81f66600
+[    0.000000] Call Trace:
+[    0.000000]  [<ffffffff811aabc0>] dump_page+0x10/0x20
+[    0.000000]  [<ffffffff81785eda>] reserve_bootmem_region+0xd9/0xe2
+[    0.000000]  [<ffffffff81f66600>] free_all_bootmem+0x4b/0x11a
+[    0.000000]  [<ffffffff81f5428d>] mem_init+0x6a/0x9d
+[    0.000000]  [<ffffffff81f37d48>] start_kernel+0x214/0x46a
+[    0.000000]  [<ffffffff81f37120>] ? early_idt_handler_array+0x120/0x120
+[    0.000000]  [<ffffffff81f374d7>] x86_64_start_reservations+0x2a/0x2c
+[    0.000000]  [<ffffffff81f3760f>] x86_64_start_kernel+0x136/0x145
+[    0.000000] Code: e8 3b 7b 5e 00 55 48 89 e5 41 55 41 54 49 89 d4 53 
+48 8b 57 20 48 89 fb 4c 8b 4f 10 4c 8b 47 08 48 8d 42 ff 83 e2 01 48 0f 
+44 c7 <48> 8b 00 a8 80 75 4b 8b 4f 18 8b 57 1c 49 89 f5 31 c0 48 89 fe
+[    0.000000] RIP  [<ffffffff811aaafb>] dump_page_badflags+0x2b/0xe0
+[    0.000000]  RSP <ffffffff81c03ea8>
+[    0.000000] CR2: 000000000000000c
+[    0.000000] ---[ end trace cb88537fdc8fa200 ]---
+
+
+> +		page;})
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
