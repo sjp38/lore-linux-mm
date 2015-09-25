@@ -1,50 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id D67246B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:43:07 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so6430375wic.1
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 23:43:07 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bb3si2659559wib.77.2015.09.24.23.43.06
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E7CC6B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 03:11:24 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so7210957wic.1
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 00:11:24 -0700 (PDT)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id om6si3027225wjc.33.2015.09.25.00.11.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 24 Sep 2015 23:43:06 -0700 (PDT)
-Subject: Re: [patch] mm/huge_memory: add a missing tab
-References: <20150921162314.GB5648@mwanda>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5604ECF7.7000002@suse.cz>
-Date: Fri, 25 Sep 2015 08:43:03 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Sep 2015 00:11:23 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so7210378wic.1
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 00:11:22 -0700 (PDT)
+Date: Fri, 25 Sep 2015 09:11:19 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 10/26] x86, pkeys: notify userspace about protection key
+ faults
+Message-ID: <20150925071119.GB15753@gmail.com>
+References: <20150916174903.E112E464@viggo.jf.intel.com>
+ <20150916174906.51062FBC@viggo.jf.intel.com>
+ <20150924092320.GA26876@gmail.com>
+ <20150924093026.GA29699@gmail.com>
+ <560435B4.1010603@sr71.net>
 MIME-Version: 1.0
-In-Reply-To: <20150921162314.GB5648@mwanda>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <560435B4.1010603@sr71.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On 09/21/2015 06:23 PM, Dan Carpenter wrote:
-> This line should be indented one more tab.
-> 
-> Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+* Dave Hansen <dave@sr71.net> wrote:
 
+> On 09/24/2015 02:30 AM, Ingo Molnar wrote:
+> >> To answer your question in the comment: it looks useful to have some sort of 
+> >> 'extended page fault error code' information here, which shows why the page fault 
+> >> happened. With the regular error_code it's easy - with protection keys there's 16 
+> >> separate keys possible and user-space might not know the actual key value in the 
+> >> pte.
+> > 
+> > Btw., alternatively we could also say that user-space should know what protection 
+> > key it used when it created the mapping - there's no need to recover it for every 
+> > page fault.
 > 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 4b057ab..61d2162 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2887,7 +2887,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
->  		khugepaged_node_load[node]++;
->  		VM_BUG_ON_PAGE(PageCompound(page), page);
->  		if (!PageLRU(page)) {
-> -		result = SCAN_SCAN_ABORT;
-> +			result = SCAN_SCAN_ABORT;
->  			goto out_unmap;
->  		}
->  		if (PageLocked(page)) {
+> That's true.  We don't, for instance, tell userspace whether it was a
+> write that caused a fault.
+
+I think we do put it into the signal frame, see setup_sigcontext():
+
+                put_user_ex(current->thread.error_code, &sc->err);
+
+and 'error_code & PF_WRITE' tells us whether it's a write fault.
+
+And I'm pretty sure applications like Valgrind rely on this.
+
+> But, other than smaps we don't have *any* way to tell userspace what protection 
+> key a page has.  I think some mechanism is going to be required for this to be 
+> reasonably debuggable.
+
+I think it's a conceptual extension of sigcontext::err and we need it for similar 
+reasons.
+
+> > OTOH, as long as we don't do a separate find_vma(), it looks cheap enough to 
+> > look up the pkey value of that address and give it to user-space in the signal 
+> > frame.
 > 
+> I still think that find_vma() in this case is pretty darn cheap, definitely if 
+> you compare it to the cost of the entire fault path.
+
+So where's the problem? We have already looked up the vma and know whether there's 
+any vma there or not. Why not pass in that pointer and be done with it? Why 
+complicate the code by looking up a second time (and exposing us to various 
+races)?
+
+> > Btw., how does pkey support interact with hugepages?
+> 
+> Surprisingly little.  I've made sure that everything works with huge pages and 
+> that the (huge) PTEs and VMAs get set up correctly, but I'm not sure I had to 
+> touch the huge page code at all.  I have test code to ensure that it works the 
+> same as with small pages, but everything worked pretty naturally.
+
+Yeah, so the reason I'm asking about expectations is that this code:
+
++       follow_ret = follow_pte(tsk->mm, address, &ptep, &ptl);
++       if (!follow_ret) {
++               /*
++                * On a successful follow, make sure to
++                * drop the lock.
++                */
++               pte = *ptep;
++               pte_unmap_unlock(ptep, ptl);
++               ret = pte_pkey(pte);
+
+is visibly hugepage-unsafe: if a vma is hugepage mapped, there are no ptes, only 
+pmds - and the protection key index lives in the pmd. We don't seem to recover 
+that information properly.
+
+In any case, please put those hugepage tests into tools/tests/selftests/x86/ as 
+well, as part of the pkey series.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
