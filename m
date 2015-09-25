@@ -1,96 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id EC07C6B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 07:41:50 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so18166017wic.0
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 04:41:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t20si4283909wjq.137.2015.09.25.04.41.49
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E51E6B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 08:15:56 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so16993703wic.1
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:15:56 -0700 (PDT)
+Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [146.101.78.143])
+        by mx.google.com with ESMTPS id si6si4320547wic.33.2015.09.25.05.15.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 25 Sep 2015 04:41:49 -0700 (PDT)
-Subject: Re: [PATCH v2 8/9] mm/compaction: don't use higher order freepage
- than compaction aims at
-References: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1440382773-16070-9-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <560532FC.5000800@suse.cz>
-Date: Fri, 25 Sep 2015 13:41:48 +0200
-MIME-Version: 1.0
-In-Reply-To: <1440382773-16070-9-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 25 Sep 2015 05:15:55 -0700 (PDT)
+From: Robin Murphy <robin.murphy@arm.com>
+Subject: [PATCH 0/4] Assorted DMA mapping tweaks
+Date: Fri, 25 Sep 2015 13:15:42 +0100
+Message-Id: <cover.1443178314.git.robin.murphy@arm.com>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+Cc: arnd@arndb.de, m.szyprowski@samsung.com, sumit.semwal@linaro.org, sakari.ailus@iki.fi, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
 
-On 08/24/2015 04:19 AM, Joonsoo Kim wrote:
-> Purpose of compaction is to make high order page. To achive this purpose,
-> it is the best strategy that compaction migrates contiguous used pages
-> to fragmented unused freepages. Currently, freepage scanner don't
-> distinguish whether freepage is fragmented or not and blindly use
-> any freepage for migration target regardless of freepage's order.
-> 
-> Using higher order freepage than compaction aims at is not good because
-> what we do here is breaking high order freepage at somewhere and migrating
-> used pages from elsewhere to this broken high order freepages in order to
-> make new high order freepage. That is just position change of high order
-> freepage.
-> 
-> This is useless effort and doesn't help to make more high order freepages
-> because we can't be sure that migrating used pages makes high order
-> freepage. So, this patch makes freepage scanner only uses the ordered
-> freepage lower than compaction order.
+Hi Andrew,
 
-How often does this happen? If there's a free page of the order we need, then we
-are done compacting anyway, no? Or is this happening because of the current
-high-order watermark checking implementation? It would be interesting to measure
-how often this skip would trigger. Also watermark checking should change with
-Mel's patchset and then this patch shouldn't be needed?
+This is a miscellany of fixes and tweaks to the common DMA mapping code
+which I've been collecting. They don't strictly depend on each other,
+but I figure I may as well send them all together for the sake of
+explaining them in one place:
 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/compaction.c | 15 +++++++++++++++
->  1 file changed, 15 insertions(+)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index ca4d6d1..e61ee77 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -455,6 +455,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  	unsigned long flags = 0;
->  	bool locked = false;
->  	unsigned long blockpfn = *start_pfn;
-> +	unsigned long freepage_order;
->  
->  	cursor = pfn_to_page(blockpfn);
->  
-> @@ -482,6 +483,20 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  		if (!PageBuddy(page))
->  			goto isolate_fail;
->  
-> +		if (!strict && cc->order != -1) {
-> +			freepage_order = page_order_unsafe(page);
-> +
-> +			if (freepage_order > 0 && freepage_order < MAX_ORDER) {
-> +				/*
-> +				 * Do not use high order freepage for migration
-> +				 * taret. It would not be beneficial for
-> +				 * compaction success rate.
-> +				 */
-> +				if (freepage_order >= cc->order)
+#1 is a straightforward and hopefully obvious bugfix.
+#2 has been posted before but I subsequently forgot to follow up on it.
+   It's still possible to hit this at least on arm64 systems, with the
+   SWIOTLB/pl330 combination blowing up just running dmatest.
+#3 follows on from a recent discussion about dma_sync_sg[0]; there's
+   already a related patch in -next from Sakari clarifying the docs.
+#4 seemed worth posting now that the recent rework means it no longer
+   has to be a sprawling touch-all-the-architectures patch for something
+   so small.
 
-It would be better to skip the whole freepage_order.
+Thanks,
+Robin.
 
-> +					goto isolate_fail;
-> +			}
-> +		}
-> +
->  		/*
->  		 * If we already hold the lock, we can skip some rechecking.
->  		 * Note that if we hold the lock now, checked_pageblock was
-> 
+[0]:http://thread.gmane.org/gmane.linux.kernel/2043117
+
+Robin Murphy (4):
+  dmapool: Fix overflow condition in pool_find_page
+  dma-mapping: Tidy up dma_parms default handling
+  dma-debug: Check nents in dma_sync_sg*
+  dma-debug: Allow poisoning nonzero allocations
+
+ include/asm-generic/dma-mapping-common.h |  2 +-
+ include/linux/dma-debug.h                |  6 ++++--
+ include/linux/dma-mapping.h              | 17 ++++++++++-------
+ include/linux/poison.h                   |  3 +++
+ lib/Kconfig.debug                        | 10 ++++++++++
+ lib/dma-debug.c                          | 14 +++++++++++++-
+ mm/dmapool.c                             |  2 +-
+ 7 files changed, 42 insertions(+), 12 deletions(-)
+
+--=20
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
