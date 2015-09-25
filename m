@@ -1,56 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BBDCC6B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:15:28 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so5951802wic.1
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 23:15:28 -0700 (PDT)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id xm4si2549782wib.90.2015.09.24.23.15.27
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D67246B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:43:07 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so6430375wic.1
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 23:43:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bb3si2659559wib.77.2015.09.24.23.43.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Sep 2015 23:15:27 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so7878722wic.0
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 23:15:27 -0700 (PDT)
-Date: Fri, 25 Sep 2015 08:15:23 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
-Message-ID: <20150925061523.GA15753@gmail.com>
-References: <20150916174903.E112E464@viggo.jf.intel.com>
- <20150916174913.AF5FEA6D@viggo.jf.intel.com>
- <20150920085554.GA21906@gmail.com>
- <55FF88BA.6080006@sr71.net>
- <20150924094956.GA30349@gmail.com>
- <56044A88.7030203@sr71.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 24 Sep 2015 23:43:06 -0700 (PDT)
+Subject: Re: [patch] mm/huge_memory: add a missing tab
+References: <20150921162314.GB5648@mwanda>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5604ECF7.7000002@suse.cz>
+Date: Fri, 25 Sep 2015 08:43:03 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56044A88.7030203@sr71.net>
+In-Reply-To: <20150921162314.GB5648@mwanda>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Kees Cook <keescook@google.com>
+To: Dan Carpenter <dan.carpenter@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
 
-
-* Dave Hansen <dave@sr71.net> wrote:
-
-> > I.e. AFAICS pkeys could be used to create true '--x' permissions for executable 
-> > (user-space) pages.
+On 09/21/2015 06:23 PM, Dan Carpenter wrote:
+> This line should be indented one more tab.
 > 
-> Just remember that all of the protections are dependent on the contents of PKRU.  
-> If an attacker controls the Access-Disable bit in PKRU for the executable-only 
-> region, you're sunk.
+> Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
 
-The same is true if the attacker can execute mprotect() calls.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-> But, that either requires being able to construct and execute arbitrary code 
-> *or* call existing code that sets PKRU to the desired values. Which, I guess, 
-> gets harder to do if all of the the wrpkru's are *in* the execute-only area.
-
-Exactly. True --x executable regions makes it harder to 'upgrade' limited attacks.
-
-Thanks,
-
-	Ingo
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 4b057ab..61d2162 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2887,7 +2887,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>  		khugepaged_node_load[node]++;
+>  		VM_BUG_ON_PAGE(PageCompound(page), page);
+>  		if (!PageLRU(page)) {
+> -		result = SCAN_SCAN_ABORT;
+> +			result = SCAN_SCAN_ABORT;
+>  			goto out_unmap;
+>  		}
+>  		if (PageLocked(page)) {
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
