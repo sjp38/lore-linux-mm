@@ -1,118 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C02C6B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:33:44 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so12476472wic.0
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:33:43 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lc2si3667075wjb.25.2015.09.25.02.33.42
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id A74146B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:35:59 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so12556543wic.0
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:35:59 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
+        by mx.google.com with ESMTPS id dc7si3689220wjc.14.2015.09.25.02.35.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 25 Sep 2015 02:33:43 -0700 (PDT)
-Subject: Re: [PATCH v2 4/9] mm/compaction: remove compaction deferring
-References: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1440382773-16070-5-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <560514F2.2060407@suse.cz>
-Date: Fri, 25 Sep 2015 11:33:38 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Sep 2015 02:35:58 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so14087997wic.0
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:35:58 -0700 (PDT)
+Date: Fri, 25 Sep 2015 11:35:56 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: can't oom-kill zap the victim's memory?
+Message-ID: <20150925093556.GF16497@dhcp22.suse.cz>
+References: <CA+55aFwkvbMrGseOsZNaxgP3wzDoVjkGasBKFxpn07SaokvpXA@mail.gmail.com>
+ <20150920125642.GA2104@redhat.com>
+ <CA+55aFyajHq2W9HhJWbLASFkTx_kLSHtHuY6mDHKxmoW-LnVEw@mail.gmail.com>
+ <20150921134414.GA15974@redhat.com>
+ <20150921142423.GC19811@dhcp22.suse.cz>
+ <20150921153252.GA21988@redhat.com>
+ <20150921161203.GD19811@dhcp22.suse.cz>
+ <20150922160608.GA2716@redhat.com>
+ <20150923205923.GB19054@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <1440382773-16070-5-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-On 08/24/2015 04:19 AM, Joonsoo Kim wrote:
-> Now, we have a way to determine compaction depleted state and compaction
-> activity will be limited according this state and depletion depth so
-> compaction overhead would be well controlled without compaction deferring.
-> So, this patch remove compaction deferring completely and enable
-> compaction activity limit.
+On Thu 24-09-15 14:15:34, David Rientjes wrote:
+> On Wed, 23 Sep 2015, Michal Hocko wrote:
 > 
-> Various functions are renamed and tracepoint outputs are changed due to
-> this removing.
+> > I am still not sure how you want to implement that kernel thread but I
+> > am quite skeptical it would be very much useful because all the current
+> > allocations which end up in the OOM killer path cannot simply back off
+> > and drop the locks with the current allocator semantic.  So they will
+> > be sitting on top of unknown pile of locks whether you do an additional
+> > reclaim (unmap the anon memory) in the direct OOM context or looping
+> > in the allocator and waiting for kthread/workqueue to do its work. The
+> > only argument that I can see is the stack usage but I haven't seen stack
+> > overflows in the OOM path AFAIR.
+> > 
+> 
+> Which locks are you specifically interested in?
 
-It's more like renaming "deferred" to "failed" and the whole result is somewhat
-hard to follow, as the changelog doesn't describe a lot. So if I understand
-correctly:
-- compaction has to fail 4 times to cause __reset_isolation_suitable(), which
-also resets the fail counter back to 0
-- thus after each 4 failures, depletion depth is adjusted
-- when successes cross the depletion threshold, compaction_depleted() becomes
-false and then compact_zone will clear the flag
-- with flag clear, scan limit is no longer applied at all, but depletion depth
-stays as it is... it will be set to 0 when the flag is set again
+Any locks they were holding before they entered the page allocator (e.g.
+i_mutex is the easiest one to trigger from the userspace but mmap_sem
+might be involved as well because we are doing kmalloc(GFP_KERNEL) with
+mmap_sem held for write). Those would be locked until the page allocator
+returns, which with the current semantic might be _never_.
 
-Maybe the switch from "depleted with some depth" to "not depleted at all" could
-be more gradual?
-Also I have a suspicion that the main feature of this (IIUC) which is the scan
-limiting (and which I do consider improvement! and IIRC David wished for
-something like that too) could be achieved with less code churn that is renaming
-"deferred" to "failed" and adding another "depleted" state. E.g.
-compact_defer_shift looks similar to compact_depletion_depth, and deferring
-could be repurposed for scan limiting instead of binary go/no-go decisions. BTW
-the name "depleted" also suggests a binary state, so it's not that much better
-name than "deferred" IMHO.
+> We have already discussed 
+> the usefulness of killing all threads on the system sharing the same ->mm, 
+> meaning all threads that are either holding or want to hold mm->mmap_sem 
+> will be able to allocate into memory reserves.  Any allocator holding 
+> down_write(&mm->mmap_sem) should be able to allocate and drop its lock.  
+> (Are you concerned about MAP_POPULATE?)
 
-Also I think my objection from patch 2 stays - __reset_isolation_suitable()
-called from kswapd will set zone->compact_success = 0, potentially increase
-depletion depth etc, with no connection to the number of failed compactions.
+I am not sure I understand. We would have to fail the request in order
+the context which requested the memory could drop the lock. Are we
+talking about the same thing here?
 
-[...]
+The point I've tried to made is that oom unmapper running in a detached
+context (e.g. kernel thread) vs. directly in the oom context doesn't
+make any difference wrt. lock because the holders of the lock would loop
+inside the allocator anyway because we do not fail small allocations.
 
-> @@ -1693,13 +1667,13 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
->  		if (cc->order == -1)
->  			__reset_isolation_suitable(zone);
->  
-> -		if (cc->order == -1 || !compaction_deferred(zone, cc->order))
-> +		if (cc->order == -1)
+> > > Finally. Whatever we do, we need to change oom_kill_process() first,
+> > > and I think we should do this regardless. The "Kill all user processes
+> > > sharing victim->mm" logic looks wrong and suboptimal/overcomplicated.
+> > > I'll try to make some patches tomorrow if I have time...
+> > 
+> > That would be appreciated. I do not like that part either. At least we
+> > shouldn't go over the whole list when we have a good chance that the mm
+> > is not shared with other processes.
+> > 
+> 
+> Heh, it's actually imperative to avoid livelocking based on mm->mmap_sem, 
+> it's the reason the code exists.  Any optimizations to that is certainly 
+> welcome, but we definitely need to send SIGKILL to all threads sharing the 
+> mm to make forward progress, otherwise we are going back to pre-2008 
+> livelocks.
 
-This change means kswapd no longer compacts from balance_pgdat() ->
-compact_pgdat(). Probably you meant to call compact_zone unconditionally here?
+Yes but mm is not shared between processes most of the time. CLONE_VM
+without CLONE_THREAD is more a corner case yet we have to crawl all the
+task_structs for _each_ OOM killer invocation. Yes this is an extreme
+slow path but still might take quite some unnecessarily time.
+ 
+> > Yes I am not really sure why oom_score_adj is not per-mm and we are
+> > doing that per signal struct to be honest. It doesn't make much sense as
+> > the mm_struct is the primary source of information for the oom victim
+> > selection. And the fact that mm might be shared withtout sharing signals
+> > make it double the reason to have it in mm.
+> > 
+> > It seems David has already tried that 2ff05b2b4eac ("oom: move oom_adj
+> > value from task_struct to mm_struct") but it was later reverted by
+> > 0753ba01e126 ("mm: revert "oom: move oom_adj value""). I do not agree
+> > with the reasoning there because vfork is documented to have undefined
+> > behavior
+> > "
+> >        if the process created by vfork() either modifies any data other
+> >        than a variable of type pid_t used to store the return value
+> >        from vfork(), or returns from the function in which vfork() was
+> >        called, or calls any other function before successfully calling
+> >        _exit(2) or one of the exec(3) family of functions.
+> > "
+> > Maybe we can revisit this... It would make the whole semantic much more
+> > straightforward. The current situation when you kill a task which might
+> > share the mm with OOM unkillable task is clearly suboptimal and
+> > confusing.
+> > 
+> 
+> How do you reconcile this with commit 28b83c5193e7 ("oom: move oom_adj 
+> value from task_struct to signal_struct")?
 
->  			compact_zone(zone, cc);
->  
->  		if (cc->order > 0) {
->  			if (zone_watermark_ok(zone, cc->order,
->  						low_wmark_pages(zone), 0, 0))
-> -				compaction_defer_reset(zone, cc->order, false);
-> +				compaction_failed_reset(zone, cc->order, false);
->  		}
->  
->  		VM_BUG_ON(!list_empty(&cc->freepages));
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 0e9cc98..c67f853 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2827,7 +2827,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
->  		struct zone *zone = page_zone(page);
->  
->  		zone->compact_blockskip_flush = false;
-> -		compaction_defer_reset(zone, order, true);
-> +		compaction_failed_reset(zone, order, true);
->  		count_vm_event(COMPACTSUCCESS);
->  		return page;
->  	}
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 37e90db..a561b5f 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2469,10 +2469,10 @@ static inline bool compaction_ready(struct zone *zone, int order)
->  	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0, 0);
->  
->  	/*
-> -	 * If compaction is deferred, reclaim up to a point where
-> +	 * If compaction is depleted, reclaim up to a point where
->  	 * compaction will have a chance of success when re-enabled
->  	 */
-> -	if (compaction_deferred(zone, order))
-> +	if (test_bit(ZONE_COMPACTION_DEPLETED, &zone->flags))
->  		return watermark_ok;
+If the oom_score_adj is per mm then all the threads and processes which
+share the mm would share the same value. So that would naturally extend
+per-process to per address space sharing tasks and would be in line with
+the above commit.
 
-Hm this is a deviation from the "replace go/no-go with scan limit" principle.
-Also compaction_deferred() could recover after some retries, and this flag won't.
+> We also must appreciate the 
+> real-world usecase for an oom disabled process doing fork(), setting 
+> /proc/child/oom_score_adj to non-disabled, and exec().
+
+I guess you meant vfork mentioned in 0753ba01e126. I am not sure this
+is a valid use of set_oom_adj. As the documentation explicitly states
+this leads to an undefined behavior. But if we really want to support
+this particular case, and I can see a reason we would, then we can work
+around it and store the oom_score_adj temporarily to task_struct and
+reset it to mm_struct after exec. Not nice for sure but this is a clear
+violation of the vfork semantic.
+
+The per-mm oom_score_adj has a better semantic but if there is a general
+consensus that an inconsistent value among processes sharing the same mm
+is a configuration bug I can live with that. It surely makes the code
+uglier and more subtly, though.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
