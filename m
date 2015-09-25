@@ -1,110 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A9E56B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 08:44:58 -0400 (EDT)
-Received: by qkcf65 with SMTP id f65so41363030qkc.3
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:44:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 13si2558674qhw.79.2015.09.25.05.44.57
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A7496B0254
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 08:45:02 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so17956871wic.0
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:45:01 -0700 (PDT)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id p10si4475172wiv.26.2015.09.25.05.45.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Sep 2015 05:44:57 -0700 (PDT)
-Date: Fri, 25 Sep 2015 14:41:51 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: Multiple potential races on vma->vm_flags
-Message-ID: <20150925124151.GA5384@redhat.com>
-References: <55F0D5B2.2090205@oracle.com> <20150910083605.GB9526@node.dhcp.inet.fi> <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com> <20150911103959.GA7976@node.dhcp.inet.fi> <alpine.LSU.2.11.1509111734480.7660@eggly.anvils> <55F8572D.8010409@oracle.com> <20150924131141.GA7623@redhat.com> <5604247A.7010303@oracle.com> <20150924172609.GA29842@redhat.com> <CAPAsAGx660uSk=WbpWmZR9FpSFXmp3G9yXxRXu65gozu3qT63g@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 25 Sep 2015 05:45:01 -0700 (PDT)
+Date: Fri, 25 Sep 2015 13:44:47 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH 4/4] dma-debug: Allow poisoning nonzero allocations
+Message-ID: <20150925124447.GO21513@n2100.arm.linux.org.uk>
+References: <cover.1443178314.git.robin.murphy@arm.com>
+ <0405c6131def5aa179ff4ba5d4201ebde89cede3.1443178314.git.robin.murphy@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPAsAGx660uSk=WbpWmZR9FpSFXmp3G9yXxRXu65gozu3qT63g@mail.gmail.com>
+In-Reply-To: <0405c6131def5aa179ff4ba5d4201ebde89cede3.1443178314.git.robin.murphy@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrey Konovalov <andreyknvl@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, arnd@arndb.de, linux-mm@kvack.org, sakari.ailus@iki.fi, sumit.semwal@linaro.org, linux-arm-kernel@lists.infradead.org, m.szyprowski@samsung.com
 
-On 09/24, Andrey Ryabinin wrote:
->
-> 2015-09-24 20:26 GMT+03:00 Oleg Nesterov <oleg@redhat.com>:
-> > On 09/24, Sasha Levin wrote:
-> >>
-> >> void unmap_vmas(struct mmu_gather *tlb,
-> >>                 struct vm_area_struct *vma, unsigned long start_addr,
-> >>                 unsigned long end_addr)
-> >> {
-> >>         struct mm_struct *mm = vma->vm_mm;
-> >>
-> >>         mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
-> >>         for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next)
-> >>                 unmap_single_vma(tlb, vma, start_addr, end_addr, NULL); <--- this
-> >>         mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
-> >> }
-> >
-> > And I do not see any dereference at this line,
-> >
->
-> I noticed, that addr2line sometimes doesn't work reliably on
-> compiler-instrumented code.
-> I've seen couple times that it points to the next line of code.
+On Fri, Sep 25, 2015 at 01:15:46PM +0100, Robin Murphy wrote:
+> Since some dma_alloc_coherent implementations return a zeroed buffer
+> regardless of whether __GFP_ZERO is passed, there exist drivers which
+> are implicitly dependent on this and pass otherwise uninitialised
+> buffers to hardware. This can lead to subtle and awkward-to-debug issues
+> using those drivers on different platforms, where nonzero uninitialised
+> junk may for instance occasionally look like a valid command which
+> causes the hardware to start misbehaving. To help with debugging such
+> issues, add the option to make uninitialised buffers much more obvious.
 
-Yes, I know that we can't trust it. That is why I think (at least in
-this particular case) function+offset would be more helpful. And we
-need more asm probably.
+The reason people started to do this is to stop a security leak in the
+ALSA code: ALSA allocates the ring buffer with dma_alloc_coherent()
+which used to grab pages and return them uninitialised.  These pages
+could contain anything - including the contents of /etc/shadow, or
+your bank details.
 
-> >> >>    0:   08 80 3c 02 00 0f       or     %al,0xf00023c(%rax)
-> >> >>    6:   85 22                   test   %esp,(%rdx)
-> >> >>    8:   01 00                   add    %eax,(%rax)
-> >> >>    a:   00 48 8b                add    %cl,-0x75(%rax)
-> >> >>    d:   43                      rex.XB
-> >> >>    e:   40                      rex
-> >> >>    f:   48 8d b8 c8 04 00 00    lea    0x4c8(%rax),%rdi
-> >> >>   16:   48 89 45 d0             mov    %rax,-0x30(%rbp)
-> >> >>   1a:   48 b8 00 00 00 00 00    movabs $0xdffffc0000000000,%rax
-> >> >>   21:   fc ff df
-> >> >>   24:   48 89 fa                mov    %rdi,%rdx
-> >> >>   27:   48 c1 ea 03             shr    $0x3,%rdx
-> >> >>   2b:*  80 3c 02 00             cmpb   $0x0,(%rdx,%rax,1)               <-- trapping instruction
-> >> >>   2f:   0f 85 ee 00 00 00       jne    0x123
-> >> >>   35:   48 8b 45 d0             mov    -0x30(%rbp),%rax
-> >> >>   39:   48 83 b8 c8 04 00 00    cmpq   $0x0,0x4c8(%rax)
-> >> >>   40:   00
-> >> >
-> >> > And I do not see anything similar in "objdump -d". So could you at least
-> >> > show mm/memory.c:1337 in your tree?
-> >> >
-> >> > Hmm. movabs $0xdffffc0000000000,%rax above looks suspicious, this looks
-> >> > like kasan_mem_to_shadow(). So perhaps this code was generated by kasan?
-> >> > (I can't check, my gcc is very old). Or what?
-> >>
-> >> This is indeed kasan code. 0xdffffc0000000000 is the shadow base, and you see
-> >> kasan trying to access shadow base + (ptr >> 3), which is why we get GFP.
-> >
-> > and thus this asm can't help, right?
-> >
->
-> I think it can.
->
-> > So how can we figure out where exactly the kernel hits NULL ? And what
-> > exactly it tries to dereference?
->
-> So we tried to dereference 0x4c8.  That 0x4c8 is probably offset in some struct.
-> The only big struct here is mm_struct.
-> So I think that we tried to derefernce null mm, and this asm:
->          > cmpq   $0x0,0x4c8(%rax)
->
-> is likely from inlined mm_has_notifiers():
->     static inline int mm_has_notifiers(struct mm_struct *mm)
->     {
->              return unlikely(mm->mmu_notifier_mm);
->     }
+ALSA then lets userspace mmap() that memory, which means any user process
+which has access to the sound devices can read data leaked from kernel
+memory.
 
-Looks reasonable... Thanks.
+I think I did bring it up at the time I found it, and decided that the
+safest thing to do was to always return an initialised buffer - short of
+constantly auditing every dma_alloc_coherent() user which also mmap()s
+the buffer into userspace, I couldn't convince myself that it was safe
+to avoid initialising the buffer.
 
-I was going to say that this is impossible because the caller should have
-crashed if ->mm == NULL. But unmap_vmas() uses mm = vma->vm_mm, so it looks
-like this vma or mm->mmap was corrupted...
+I don't know whether the original problem still exists in ALSA or not,
+but I do know that there are dma_alloc_coherent() implementations out
+there which do not initialise prior to returning memory.
 
-Oleg.
+> diff --git a/lib/dma-debug.c b/lib/dma-debug.c
+> index 908fb35..40514ed 100644
+> --- a/lib/dma-debug.c
+> +++ b/lib/dma-debug.c
+> @@ -30,6 +30,7 @@
+>  #include <linux/sched.h>
+>  #include <linux/ctype.h>
+>  #include <linux/list.h>
+> +#include <linux/poison.h>
+>  #include <linux/slab.h>
+>  
+>  #include <asm/sections.h>
+> @@ -1447,7 +1448,7 @@ void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
+>  EXPORT_SYMBOL(debug_dma_unmap_sg);
+>  
+>  void debug_dma_alloc_coherent(struct device *dev, size_t size,
+> -			      dma_addr_t dma_addr, void *virt)
+> +			      dma_addr_t dma_addr, void *virt, gfp_t flags)
+>  {
+>  	struct dma_debug_entry *entry;
+>  
+> @@ -1457,6 +1458,9 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
+>  	if (unlikely(virt == NULL))
+>  		return;
+>  
+> +	if (IS_ENABLED(CONFIG_DMA_API_DEBUG_POISON) && !(flags & __GFP_ZERO))
+> +		memset(virt, DMA_ALLOC_POISON, size);
+> +
+
+This is likely to be slow in the case of non-cached memory and large
+allocations.  The config option should come with a warning.
+
+-- 
+FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
