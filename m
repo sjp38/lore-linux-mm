@@ -1,91 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 45B886B0038
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 13:53:14 -0400 (EDT)
-Received: by iofb144 with SMTP id b144so119139472iof.1
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 10:53:14 -0700 (PDT)
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com. [209.85.223.180])
-        by mx.google.com with ESMTPS id y42si3685764ioi.100.2015.09.25.10.53.13
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 533F26B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 14:47:44 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so115018847pac.2
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 11:47:43 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com. [209.85.220.45])
+        by mx.google.com with ESMTPS id oj5si7317746pab.238.2015.09.25.11.47.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Sep 2015 10:53:13 -0700 (PDT)
-Received: by iofh134 with SMTP id h134so118583798iof.0
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 10:53:13 -0700 (PDT)
+        Fri, 25 Sep 2015 11:47:43 -0700 (PDT)
+Received: by pacfv12 with SMTP id fv12so115018532pac.2
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 11:47:43 -0700 (PDT)
+Date: Fri, 25 Sep 2015 11:47:41 -0700
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Subject: Re: [PATCH V4 1/2] ACPI / EC: Fix broken 64bit big-endian users of
+ 'global_lock'
+Message-ID: <20150925184741.GF5951@linux>
+References: <e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
+ <1443202945.2161.8.camel@sipsolutions.net>
 MIME-Version: 1.0
-In-Reply-To: <560033FD.9000109@ezchip.com>
-References: <1442340117-3964-1-git-send-email-dwoods@ezchip.com>
-	<CAPvkgC1JYZRc5BEXFxmR927r1asLYZw=oAMyUDcGPAOfC2Yy-A@mail.gmail.com>
-	<560033FD.9000109@ezchip.com>
-Date: Fri, 25 Sep 2015 10:53:13 -0700
-Message-ID: <CAPvkgC0zUx64azwDy9A1MO98fLgSM8ZMzenDjJvt8OsBMzy-kA@mail.gmail.com>
-Subject: Re: [PATCH] arm64: Add support for PTE contiguous bit.
-From: Steve Capper <steve.capper@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1443202945.2161.8.camel@sipsolutions.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Woods <dwoods@ezchip.com>
-Cc: Chris Metcalf <cmetcalf@ezchip.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Marc Zyngier <marc.zyngier@arm.com>, Hugh Dickins <hughd@google.com>, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Suzuki K. Poulose" <suzuki.poulose@arm.com>
+To: Johannes Berg <johannes@sipsolutions.net>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linaro-kernel@lists.linaro.org, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Intel Linux Wireless <ilw@linux.intel.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-acpi@vger.kernel.org, linux-bluetooth@vger.kernel.org, iommu@lists.linux-foundation.org, netdev@vger.kernel.org, linux-wireless@vger.kernel.org, linux-scsi@vger.kernel.org, linux-usb@vger.kernel.org, linux-edac@vger.kernel.org, linux-mm@kvack.org, alsa-devel@alsa-project.org
 
-On 21 September 2015 at 09:44, David Woods <dwoods@ezchip.com> wrote:
->
-> Steve,
+On 25-09-15, 19:42, Johannes Berg wrote:
+> On Fri, 2015-09-25 at 09:41 -0700, Viresh Kumar wrote:
+> 
+> > Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+> > ---
+> > V3->V4:
+> > - Create a local variable instead of changing type of global_lock
+> >   (Rafael)
+> 
+> Err, surely that wasn't what Rafael meant, since it's clearly
+> impossible to use a pointer to the stack, assign to it once, and the
+> expect anything to wkr at all ...
 
-Hi Dave,
+Sorry, I am not sure on what wouldn't work with this patch but this is
+what Rafael said, and I don't think I wrote it differently :)
 
->
-> Thanks for your review and comments.  I take your points about the 16k
-> granule - it's helpful to know that support is in the works. However, I'm
-> not sure I agree with your reading of section 4.4.2. It's clear that for 16k
-> granules, the number of contiguous pages is different for the PTE and PMD
-> levels.  But I don't see anywhere it says that for 4K and 64K that the
-> contig bit is not supported at the PMD level - just that the number of
-> contiguous pages is the same at each level.
+Rafael wrote:
+> Actually, what about adding a local u32 variable, say val, here and doing
+> 
+> >  	if (!debugfs_create_x32("gpe", 0444, dev_dir, (u32 *)&first_ec->gpe))
+> >  		goto error;
+> >  	if (!debugfs_create_bool("use_global_lock", 0444, dev_dir,
+> > -				 (u32 *)&first_ec->global_lock))
+> > +				 &first_ec->global_lock))
+> 
+> 	if (!debugfs_create_bool("use_global_lock", 0444, dev_dir, &val))
+> 
+> >  		goto error;
+> 
+> 	first_ec->global_lock = val;
+> 
+> And then you can turn val into bool just fine without changing the structure
+> definition.
 
-Many apologies, I appear to have led you down the garden path there.
-Having double checked at ARM, the valid contiguous page sizes are indeed:
-4K granule:
-16 x ptes = 64K
-16 x pmds = 32M
-16 x puds = 16G
-
-16K granule:
-128 x ptes = 2M
-32 x pmds = 1G
-
-64K granule:
-32 x ptes = 2M
-32 x pmds = 16G
-
->
-> I tried using the tarmac trace module of the ARM simulator to support this
-> idea by turning on MMU tracing.  Using 4k granule, I created 64k and 32m
-> pages and touched each location in the page.  In both cases, the trace
-> recorded just one TLB fill (rather than the 16 you'd expect if the
-> contiguous bit were being ignored) and it indicated the expected page size.
->
-> 1817498494 clk cpu2 TLB FILL cpu2.S1TLB 64K 0x2000000000_NS vmid=0, nG
-> asid=303:0x08fa360000_NS Normal InnerShareable Inner=WriteBackWriteAllocate
-> Outer=WriteBackWriteAllocate xn=0 pxn=1 ContiguousHint=1
->
-> 1263366314 clk cpu2 TLB FILL cpu2.UTLB 32M 0x2000000000_NS vmid=0, nG
-> asid=300:0x08f6000000_NS Normal InnerShareable Inner=WriteBackWriteAllocate
-> Outer=WriteBackWriteAllocate xn=0 pxn=1 ContiguousHint=1
->
-> I'll try this with a 64k granule next.  I'm not sure what will happen with
-> 16G pages since we are using an A53 model which I don't think supports such
-> large pages.
-
-The Cortex-A53 supported TLB sizes can be found in the TRM:
-http://infocenter.arm.com/help/topic/com.arm.doc.ddi0500f/Chddiifa.html
-
-My understanding is that the core is allowed to ignore the contiguous
-bit if it doesn't support the particular TLB entry size, or substitute
-in a slightly smaller TLB entry than hinted possible. Anyway, do give
-it a go :-).
-
-Cheers,
---
-Steve
+-- 
+viresh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
