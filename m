@@ -1,68 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B81CF6B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 12:17:44 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so12921081pab.3
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 09:17:44 -0700 (PDT)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id kw10si6573557pab.162.2015.09.25.09.17.43
+Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 970AB6B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 12:42:07 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so116287407ioi.2
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 09:42:07 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com. [209.85.220.45])
+        by mx.google.com with ESMTPS id 1si3473003ioo.192.2015.09.25.09.42.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Sep 2015 09:17:44 -0700 (PDT)
-Received: by pablk4 with SMTP id lk4so12920855pab.3
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 09:17:43 -0700 (PDT)
-References: <20150925152533.GP16497@dhcp22.suse.cz>
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH] memcg: make mem_cgroup_read_stat() unsigned
-In-reply-to: <20150925152533.GP16497@dhcp22.suse.cz>
-Date: Fri, 25 Sep 2015 09:17:41 -0700
-Message-ID: <xr93h9milbh6.fsf@gthelen.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Fri, 25 Sep 2015 09:42:06 -0700 (PDT)
+Received: by pacex6 with SMTP id ex6so110216358pac.0
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 09:42:06 -0700 (PDT)
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Subject: [PATCH V4 1/2] ACPI / EC: Fix broken 64bit big-endian users of 'global_lock'
+Date: Fri, 25 Sep 2015 09:41:37 -0700
+Message-Id: <e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tj@kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linaro-kernel@lists.linaro.org, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Intel Linux Wireless <ilw@linux.intel.com>, Viresh Kumar <viresh.kumar@linaro.org>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-acpi@vger.kernel.org, linux-bluetooth@vger.kernel.org, iommu@lists.linux-foundation.org, netdev@vger.kernel.org, linux-wireless@vger.kernel.org, linux-scsi@vger.kernel.org, linux-usb@vger.kernel.org, linux-edac@vger.kernel.org, linux-mm@kvack.org, alsa-devel@alsa-project.org
 
+global_lock is defined as an unsigned long and accessing only its lower
+32 bits from sysfs is incorrect, as we need to consider other 32 bits
+for big endian 64 bit systems. There are no such platforms yet, but the
+code needs to be robust for such a case.
 
-Michal Hocko wrote:
+Fix that by passing a local variable to debugfs_create_bool() and
+assigning its value to global_lock later.
 
-> On Tue 22-09-15 15:16:32, Greg Thelen wrote:
->> mem_cgroup_read_stat() returns a page count by summing per cpu page
->> counters.  The summing is racy wrt. updates, so a transient negative sum
->> is possible.  Callers don't want negative values:
->> - mem_cgroup_wb_stats() doesn't want negative nr_dirty or nr_writeback.
->
-> OK, this can confuse dirty throttling AFAIU
->
->> - oom reports and memory.stat shouldn't show confusing negative usage.
->
-> I guess this is not earth shattering.
->
->> - tree_usage() already avoids negatives.
->> 
->> Avoid returning negative page counts from mem_cgroup_read_stat() and
->> convert it to unsigned.
->> 
->> Signed-off-by: Greg Thelen <gthelen@google.com>
->
-> I guess we want that for stable 4.2 because of the dirty throttling
-> part. Longterm we should use generic per-cpu counter.
->
-> Acked-by: Michal Hocko <mhocko@suse.com>
->
-> Thanks!
+Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+---
+V3->V4:
+- Create a local variable instead of changing type of global_lock
+  (Rafael)
+- Drop the stable tag
+- BCC'd a lot of people (rather than cc'ing them) to make sure
+  - the series reaches them
+  - mailing lists do not block the patchset due to long cc list
+  - and we don't spam the BCC'd people for every reply
+---
+ drivers/acpi/ec_sys.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-Correct, this is not an earth shattering patch.  The patch only filters
-out negative memcg stat values from mem_cgroup_read_stat() callers.
-Negative values should only be temporary due to stat update races.  So
-I'm not sure it's worth sending it to stable.  I've heard no reports of
-it troubling anyone.  The worst case without this patch is that memcg
-temporarily burps up a negative dirty and/or writeback count which
-causes balance_dirty_pages() to sleep for a (at most) 200ms nap
-(MAX_PAUSE).  Ccing Tejun in case there are more serious consequences to
-balance_dirty_pages() occasionally seeing a massive (underflowed) dirty
-or writeback count.
+diff --git a/drivers/acpi/ec_sys.c b/drivers/acpi/ec_sys.c
+index b4c216bab22b..b44b91331a56 100644
+--- a/drivers/acpi/ec_sys.c
++++ b/drivers/acpi/ec_sys.c
+@@ -110,6 +110,7 @@ static int acpi_ec_add_debugfs(struct acpi_ec *ec, unsigned int ec_device_count)
+ 	struct dentry *dev_dir;
+ 	char name[64];
+ 	umode_t mode = 0400;
++	u32 val;
+ 
+ 	if (ec_device_count == 0) {
+ 		acpi_ec_debugfs_dir = debugfs_create_dir("ec", NULL);
+@@ -127,10 +128,11 @@ static int acpi_ec_add_debugfs(struct acpi_ec *ec, unsigned int ec_device_count)
+ 
+ 	if (!debugfs_create_x32("gpe", 0444, dev_dir, (u32 *)&first_ec->gpe))
+ 		goto error;
+-	if (!debugfs_create_bool("use_global_lock", 0444, dev_dir,
+-				 (u32 *)&first_ec->global_lock))
++	if (!debugfs_create_bool("use_global_lock", 0444, dev_dir, &val))
+ 		goto error;
+ 
++	first_ec->global_lock = val;
++
+ 	if (write_support)
+ 		mode = 0600;
+ 	if (!debugfs_create_file("io", mode, dev_dir, ec, &acpi_ec_io_ops))
+-- 
+2.4.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
