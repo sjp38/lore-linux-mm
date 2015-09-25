@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id D137582F7F
-	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 20:03:20 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so1031801wic.0
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 17:03:20 -0700 (PDT)
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
-        by mx.google.com with ESMTPS id wc12si908093wic.115.2015.09.24.17.03.18
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id CC3E76B0253
+	for <linux-mm@kvack.org>; Thu, 24 Sep 2015 21:04:26 -0400 (EDT)
+Received: by qgx61 with SMTP id 61so58925438qgx.3
+        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 18:04:26 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m189si713365qhb.61.2015.09.24.18.04.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Sep 2015 17:03:18 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so1031300wic.0
-        for <linux-mm@kvack.org>; Thu, 24 Sep 2015 17:03:18 -0700 (PDT)
+        Thu, 24 Sep 2015 18:04:26 -0700 (PDT)
+Message-ID: <56049D97.6080106@redhat.com>
+Date: Thu, 24 Sep 2015 21:04:23 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20150924151503.GF24375@infradead.org>
-References: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
-	<20150923044155.36490.2017.stgit@dwillia2-desk3.jf.intel.com>
-	<20150924151503.GF24375@infradead.org>
-Date: Thu, 24 Sep 2015 17:03:18 -0700
-Message-ID: <CAPcyv4g9TFnUK_=Nk+b3_QMX4nUiGN9RN1PnT2zwLv_NgLExLQ@mail.gmail.com>
-Subject: Re: [PATCH 08/15] block, dax, pmem: reference counting infrastructure
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: numa balancing stuck in task_work_run
+References: <5604665D.3030504@stratus.com> <560467B8.6000101@stratus.com>
+In-Reply-To: <560467B8.6000101@stratus.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, linux-nvdimm <linux-nvdimm@ml01.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Joe Lawrence <joe.lawrence@stratus.com>, Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org
 
-On Thu, Sep 24, 2015 at 8:15 AM, Christoph Hellwig <hch@infradead.org> wrote:
-> On Wed, Sep 23, 2015 at 12:41:55AM -0400, Dan Williams wrote:
->> Enable DAX to use a reference count for keeping the virtual address
->> returned by ->direct_access() valid for the duration of its usage in
->> fs/dax.c, or otherwise hold off blk_cleanup_queue() while
->> pmem_make_request is active.  The blk-mq code is already in a position
->> to need low overhead referece counting for races against request_queue
->> destruction (blk_cleanup_queue()).  Given DAX-enabled block drivers do
->> not enable blk-mq, share the storage in 'struct request_queue' between
->> the two implementations.
->
-> Can we just move the refcounting to common code with the same field
-> name, and even initialize it for non-mq, non-dax queues but just never
-> tage a reference there (for now)?
+On 09/24/2015 05:14 PM, Joe Lawrence wrote:
+> [ +cc for linux-mm mailinglist address ]
+> 
+> On 09/24/2015 05:08 PM, Joe Lawrence wrote:
+>> Hi Mel, Rik et al,
+>>
+>> We've encountered interesting NUMA balancing behavior on RHEL7.1,
+>> reproduced with an upstream 4.2 kernel (of similar .config), that can
+>> leave a user process trapped in the kernel performing task_numa_work.
+>>
+>> Our test group set up a server with 256GB memory running a program that
+>> allocates and dirties ~50% of that memory.  They reported the following
+>> condition when they attempted to kill the test process -- the signal was
+>> never handled, instead traces showed the task stuck here:
 
-That makes sense to me, especially because drivers/nvdimm/blk.c is
-broken in the same way as drivers/nvdimm/pmem.c and it would be
-awkward to have it use blk_dax_get() / blk_dax_put().  The
-percpu_refcount should be valid for all queues and it will only ever
-be > 1 in the blk_mq and libnvdimm cases (for now).  Will fix.
+Does the bug still happen with this patch applied?
+
+https://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/commit/?id=4620f8c1fda2af4ccbd11e194e2dd785f7d7f279
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
