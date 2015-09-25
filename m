@@ -1,155 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A8B9E6B0259
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 15:09:17 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so31590169wic.0
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 12:09:17 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id i7si5145551wje.113.2015.09.25.12.09.16
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D86916B025B
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 15:13:10 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so33146377wic.1
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 12:13:10 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
+        by mx.google.com with ESMTPS id t9si6277690wiz.2.2015.09.25.12.13.09
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Sep 2015 12:09:16 -0700 (PDT)
-Date: Fri, 25 Sep 2015 15:09:07 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 07/10] mm, page_alloc: Delete the zonelist_cache
-Message-ID: <20150925190907.GC16359@cmpxchg.org>
-References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
- <1442832762-7247-8-git-send-email-mgorman@techsingularity.net>
+        Fri, 25 Sep 2015 12:13:09 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so31815967wic.1
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 12:13:09 -0700 (PDT)
+Date: Fri, 25 Sep 2015 22:13:07 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 03/16] page-flags: introduce page flags policies wrt
+ compound pages
+Message-ID: <20150925191307.GA25711@node.dhcp.inet.fi>
+References: <20150921153509.fef7ecdf313ef74307c43b65@linux-foundation.org>
+ <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1443106264-78075-4-git-send-email-kirill.shutemov@linux.intel.com>
+ <56053E1D.7050001@yandex-team.ru>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1442832762-7247-8-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <56053E1D.7050001@yandex-team.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Sep 21, 2015 at 11:52:39AM +0100, Mel Gorman wrote:
-> The zonelist cache (zlc) was introduced to skip over zones that were
-> recently known to be full. This avoided expensive operations such as the
-> cpuset checks, watermark calculations and zone_reclaim. The situation
-> today is different and the complexity of zlc is harder to justify.
+On Fri, Sep 25, 2015 at 03:29:17PM +0300, Konstantin Khlebnikov wrote:
+> On 24.09.2015 17:50, Kirill A. Shutemov wrote:
+> >This patch adds a third argument to macros which create function
+> >definitions for page flags.  This argument defines how page-flags helpers
+> >behave on compound functions.
+> >
+> >For now we define four policies:
+> >
+> >- PF_ANY: the helper function operates on the page it gets, regardless
+> >   if it's non-compound, head or tail.
+> >
+> >- PF_HEAD: the helper function operates on the head page of the compound
+> >   page if it gets tail page.
+> >
+> >- PF_NO_TAIL: only head and non-compond pages are acceptable for this
+> >   helper function.
+> >
+> >- PF_NO_COMPOUND: only non-compound pages are acceptable for this helper
+> >   function.
+> >
+> >For now we use policy PF_ANY for all helpers, which matches current
+> >behaviour.
+> >
+> >We do not enforce the policy for TESTPAGEFLAG, because we have flags
+> >checked for random pages all over the kernel.  Noticeable exception to
+> >this is PageTransHuge() which triggers VM_BUG_ON() for tail page.
+> >
+> >Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> >---
+> >  include/linux/page-flags.h | 154 ++++++++++++++++++++++++++-------------------
+> >  1 file changed, 90 insertions(+), 64 deletions(-)
+> >
+> >diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> >index 713d3f2c2468..1b3babe5ff69 100644
+> >--- a/include/linux/page-flags.h
+> >+++ b/include/linux/page-flags.h
+> >@@ -154,49 +154,68 @@ static inline int PageCompound(struct page *page)
+> >  	return test_bit(PG_head, &page->flags) || PageTail(page);
+> >  }
+> >
+> >+/* Page flags policies wrt compound pages */
+> >+#define PF_ANY(page, enforce)	page
+> >+#define PF_HEAD(page, enforce)	compound_head(page)
+> >+#define PF_NO_TAIL(page, enforce) ({					\
+> >+		if (enforce)						\
+> >+			VM_BUG_ON_PAGE(PageTail(page), page);		\
+> >+		else							\
+> >+			page = compound_head(page);			\
+> >+		page;})
+> >+#define PF_NO_COMPOUND(page, enforce) ({					\
+> >+		if (enforce)						\
+> >+			VM_BUG_ON_PAGE(PageCompound(page), page);	\
 > 
-> 1) The cpuset checks are no-ops unless a cpuset is active and in general
->    are a lot cheaper.
-> 
-> 2) zone_reclaim is now disabled by default and I suspect that was a large
->    source of the cost that zlc wanted to avoid. When it is enabled, it's
->    known to be a major source of stalling when nodes fill up and it's
->    unwise to hit every other user with the overhead.
-> 
-> 3) Watermark checks are expensive to calculate for high-order
->    allocation requests. Later patches in this series will reduce the cost
->    of the watermark checking.
-> 
-> 4) The most important issue is that in the current implementation it
->    is possible for a failed THP allocation to mark a zone full for order-0
->    allocations and cause a fallback to remote nodes.
-> 
-> The last issue could be addressed with additional complexity but as the
-> benefit of zlc is questionable, it is better to remove it.  If stalls
-> due to zone_reclaim are ever reported then an alternative would be to
-> introduce deferring logic based on a timeout inside zone_reclaim itself
-> and leave the page allocator fast paths alone.
-> 
-> The impact on page-allocator microbenchmarks is negligible as they don't
-> hit the paths where the zlc comes into play. Most page-reclaim related
-> workloads showed no noticeable difference as a result of the removal.
-> 
-> The impact was noticeable in a workload called "stutter". One part uses a
-> lot of anonymous memory, a second measures mmap latency and a third copies
-> a large file. In an ideal world the latency application would not notice
-> the mmap latency.  On a 2-node machine the results of this patch are
-> 
-> stutter
->                              4.3.0-rc1             4.3.0-rc1
->                               baseline              nozlc-v4
-> Min         mmap     20.9243 (  0.00%)     20.7716 (  0.73%)
-> 1st-qrtle   mmap     22.0612 (  0.00%)     22.0680 ( -0.03%)
-> 2nd-qrtle   mmap     22.3291 (  0.00%)     22.3809 ( -0.23%)
-> 3rd-qrtle   mmap     25.2244 (  0.00%)     25.2396 ( -0.06%)
-> Max-90%     mmap     48.0995 (  0.00%)     28.3713 ( 41.02%)
-> Max-93%     mmap     52.5557 (  0.00%)     36.0170 ( 31.47%)
-> Max-95%     mmap     55.8173 (  0.00%)     47.3163 ( 15.23%)
-> Max-99%     mmap     67.3781 (  0.00%)     70.1140 ( -4.06%)
-> Max         mmap  24447.6375 (  0.00%)  12915.1356 ( 47.17%)
-> Mean        mmap     33.7883 (  0.00%)     27.7944 ( 17.74%)
-> Best99%Mean mmap     27.7825 (  0.00%)     25.2767 (  9.02%)
-> Best95%Mean mmap     26.3912 (  0.00%)     23.7994 (  9.82%)
-> Best90%Mean mmap     24.9886 (  0.00%)     23.2251 (  7.06%)
-> Best50%Mean mmap     22.0157 (  0.00%)     22.0261 ( -0.05%)
-> Best10%Mean mmap     21.6705 (  0.00%)     21.6083 (  0.29%)
-> Best5%Mean  mmap     21.5581 (  0.00%)     21.4611 (  0.45%)
-> Best1%Mean  mmap     21.3079 (  0.00%)     21.1631 (  0.68%)
-> 
-> Note that the maximum stall latency went from 24 seconds to 12 which is still
-> bad but an improvement.  The milage varies considerably 2-node machine on an
-> earlier test went from 494 seconds to 47 seconds and  a 4-node machine that
-> tested an earlier version of this patch went from a worst case stall time of
-> 6 seconds to 67ms. The nature of the benchmark is inherently unpredictable
-> as it is hammering the system and the milage will vary between machines.
-> 
-> There is a secondary impact with potentially more direct reclaim because
-> zones are now being considered instead of being skipped by zlc. In this
-> particular test run it did not occur so will not be described. However,
-> in at least one test the following was observed
-> 
-> 1. Direct reclaim rates were higher. This was likely due to direct reclaim
->   being entered instead of the zlc disabling a zone and busy looping.
->   Busy looping may have the effect of allowing kswapd to make more
->   progress and in some cases may be better overall. If this is found then
->   the correct action is to put direct reclaimers to sleep on a waitqueue
->   and allow kswapd make forward progress. Busy looping on the zlc is even
->   worse than when the allocator used to blindly call congestion_wait().
-> 
-> 2. There was higher swap activity as direct reclaim was active.
-> 
-> 3. Direct reclaim efficiency was lower. This is related to 1 as more
->   scanning activity also encountered more pages that could not be
->   immediately reclaimed
-> 
-> In that case, the direct page scan and reclaim rates are noticeable but
-> it is not considered a problem for a few reasons
-> 
-> 1. The test is primarily concerned with latency. The mmap attempts are also
->    faulted which means there are THP allocation requests. The ZLC could
->    cause zones to be disabled causing the process to busy loop instead
->    of reclaiming.  This looks like elevated direct reclaim activity but
->    it's the correct action to take based on what processes requested.
-> 
-> 2. The test hammers reclaim and compaction heavily. The number of successful
->    THP faults is highly variable but affects the reclaim stats. It's not a
->    realistic or reasonable measure of page reclaim activity.
-> 
-> 3. No other page-reclaim intensive workload that was tested showed a problem.
-> 
-> 4. If a workload is identified that benefitted from the busy looping then it
->    should be fixed by having direct reclaimers sleep on a wait queue until
->    woken by kswapd instead of busy looping. We had this class of problem before
->    when congestion_waits() with a fixed timeout was a brain damaged decision
->    but happened to benefit some workloads.
-> 
-> If a workload is identified that relied on the zlc to busy loop then it
-> should be fixed correctly and have a direct reclaimer sleep on a waitqueue
-> until woken by kswapd.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Acked-by: David Rientjes <rientjes@google.com>
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> ---
->  include/linux/mmzone.h |  74 -----------------
->  mm/page_alloc.c        | 212 -------------------------------------------------
->  2 files changed, 286 deletions(-)
+> Linux next-20150925 crashes here (at least in lkvm)
+> if CONFIG_DEFERRED_STRUCT_PAGE_INIT=y
 
-This patch and its results look great!
+Hm. I don't see the crash in qemu. Could you share your config?
 
-And I agree, should this affect the balance between kswapd and direct
-reclaim, it should be fixed explicitely and not rely on something as
-unrelated as the zonelist cache.
+> [    0.000000] Kernel command line: noapic noacpi pci=conf1 reboot=k panic=1
+> i8042.direct=1 i8042.dumbkbd=1 i8042.nopnp=1 console=ttyS0
+> earlyprintk=serial i8042.noaux=1  root=/dev/root rw
+> rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p init=/virt/init
+> ip=dhcp
+> [    0.000000] PID hash table entries: 2048 (order: 2, 16384 bytes)
+> [    0.000000] BUG: unable to handle kernel NULL pointer dereference at
+> 000000000000000c
+> [    0.000000] IP: [<ffffffff811aaafb>] dump_page_badflags+0x2b/0xe0
+> [    0.000000] PGD 0
+> [    0.000000] Oops: 0000 [#1] SMP
+> [    0.000000] Modules linked in:
+> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted
+> 4.3.0-rc2-next-20150925+ #2
+> [    0.000000] task: ffffffff81c12580 ti: ffffffff81c00000 task.ti:
+> ffffffff81c00000
+> [    0.000000] RIP: 0010:[<ffffffff811aaafb>]  [<ffffffff811aaafb>]
+> dump_page_badflags+0x2b/0xe0
+> [    0.000000] RSP: 0000:ffffffff81c03ea8  EFLAGS: 00010002
+> [    0.000000] RAX: 000000000000000c RBX: ffffea00006dfd40 RCX:
+> 0000000000000100
+> [    0.000000] RDX: 0000000000000001 RSI: ffffffff81a4aeb8 RDI:
+> ffffea00006dfd40
+> [    0.000000] RBP: ffffffff81c03ec0 R08: 0000000000000000 R09:
+> 0000000000000000
+> [    0.000000] R10: 0000000000000001 R11: 0000000000000000 R12:
+> 0000000000000000
+> [    0.000000] R13: 000000000001b7f7 R14: ffffffff81fe50c0 R15:
+> ffffffff81c03fb0
+> [    0.000000] FS:  0000000000000000(0000) GS:ffff88001a400000(0000)
+> knlGS:0000000000000000
+> [    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [    0.000000] CR2: 000000000000000c CR3: 0000000001c0b000 CR4:
+> 00000000000406b0
+> [    0.000000] DR0: 0000000000000000 DR1: 0000000000000000 DR2:
+> 0000000000000000
+> [    0.000000] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7:
+> 0000000000000400
+> [    0.000000] Stack:
+> [    0.000000]  000000000001b7f5 ffffea00006dfd40 000000000001b7f7
+> ffffffff81c03ed0
+> [    0.000000]  ffffffff811aabc0 ffffffff81c03ef8 ffffffff81785eda
+> ffffffff81c03f10
+> [    0.000000]  0000000000000040 ffffffff81fd99c0 ffffffff81c03f30
+> ffffffff81f66600
+> [    0.000000] Call Trace:
+> [    0.000000]  [<ffffffff811aabc0>] dump_page+0x10/0x20
+> [    0.000000]  [<ffffffff81785eda>] reserve_bootmem_region+0xd9/0xe2
+> [    0.000000]  [<ffffffff81f66600>] free_all_bootmem+0x4b/0x11a
+> [    0.000000]  [<ffffffff81f5428d>] mem_init+0x6a/0x9d
+> [    0.000000]  [<ffffffff81f37d48>] start_kernel+0x214/0x46a
+> [    0.000000]  [<ffffffff81f37120>] ? early_idt_handler_array+0x120/0x120
+> [    0.000000]  [<ffffffff81f374d7>] x86_64_start_reservations+0x2a/0x2c
+> [    0.000000]  [<ffffffff81f3760f>] x86_64_start_kernel+0x136/0x145
+> [    0.000000] Code: e8 3b 7b 5e 00 55 48 89 e5 41 55 41 54 49 89 d4 53 48
+> 8b 57 20 48 89 fb 4c 8b 4f 10 4c 8b 47 08 48 8d 42 ff 83 e2 01 48 0f 44 c7
+> <48> 8b 00 a8 80 75 4b 8b 4f 18 8b 57 1c 49 89 f5 31 c0 48 89 fe
+> [    0.000000] RIP  [<ffffffff811aaafb>] dump_page_badflags+0x2b/0xe0
+> [    0.000000]  RSP <ffffffff81c03ea8>
+> [    0.000000] CR2: 000000000000000c
+> [    0.000000] ---[ end trace cb88537fdc8fa200 ]---
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Could you try this:
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9bcfd70b1eb8..eff685f83879 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -929,8 +929,6 @@ static void init_reserved_page(unsigned long pfn)
+ #else
+ static inline void init_reserved_page(unsigned long pfn)
+ {
+-       /* Avoid false-positive PageTail() */
+-       INIT_LIST_HEAD(&pfn_to_page(pfn)->lru);
+ }
+ #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+ 
+@@ -950,6 +948,10 @@ void __meminit reserve_bootmem_region(unsigned long start, unsigned long end)
+                        struct page *page = pfn_to_page(start_pfn);
+ 
+                        init_reserved_page(start_pfn);
++
++                       /* Avoid false-positive PageTail() */
++                       INIT_LIST_HEAD(&pfn_to_page(pfn)->lru);
++
+                        SetPageReserved(page);
+                }
+        }
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
