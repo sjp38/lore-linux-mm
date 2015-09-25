@@ -1,152 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id CD34A6B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 08:29:24 -0400 (EDT)
-Received: by laclj5 with SMTP id lj5so1367384lac.3
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:29:24 -0700 (PDT)
-Received: from forward-corp1g.mail.yandex.net (forward-corp1g.mail.yandex.net. [2a02:6b8:0:1402::10])
-        by mx.google.com with ESMTPS id bm7si1626282lbc.82.2015.09.25.05.29.23
+Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A9E56B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 08:44:58 -0400 (EDT)
+Received: by qkcf65 with SMTP id f65so41363030qkc.3
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:44:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 13si2558674qhw.79.2015.09.25.05.44.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Sep 2015 05:29:23 -0700 (PDT)
-Subject: Re: [PATCH 03/16] page-flags: introduce page flags policies wrt
- compound pages
-References: <20150921153509.fef7ecdf313ef74307c43b65@linux-foundation.org>
- <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1443106264-78075-4-git-send-email-kirill.shutemov@linux.intel.com>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <56053E1D.7050001@yandex-team.ru>
-Date: Fri, 25 Sep 2015 15:29:17 +0300
+        Fri, 25 Sep 2015 05:44:57 -0700 (PDT)
+Date: Fri, 25 Sep 2015 14:41:51 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: Multiple potential races on vma->vm_flags
+Message-ID: <20150925124151.GA5384@redhat.com>
+References: <55F0D5B2.2090205@oracle.com> <20150910083605.GB9526@node.dhcp.inet.fi> <CAAeHK+xSFfgohB70qQ3cRSahLOHtamCftkEChEgpFpqAjb7Sjg@mail.gmail.com> <20150911103959.GA7976@node.dhcp.inet.fi> <alpine.LSU.2.11.1509111734480.7660@eggly.anvils> <55F8572D.8010409@oracle.com> <20150924131141.GA7623@redhat.com> <5604247A.7010303@oracle.com> <20150924172609.GA29842@redhat.com> <CAPAsAGx660uSk=WbpWmZR9FpSFXmp3G9yXxRXu65gozu3qT63g@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1443106264-78075-4-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPAsAGx660uSk=WbpWmZR9FpSFXmp3G9yXxRXu65gozu3qT63g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrey Konovalov <andreyknvl@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On 24.09.2015 17:50, Kirill A. Shutemov wrote:
-> This patch adds a third argument to macros which create function
-> definitions for page flags.  This argument defines how page-flags helpers
-> behave on compound functions.
+On 09/24, Andrey Ryabinin wrote:
 >
-> For now we define four policies:
+> 2015-09-24 20:26 GMT+03:00 Oleg Nesterov <oleg@redhat.com>:
+> > On 09/24, Sasha Levin wrote:
+> >>
+> >> void unmap_vmas(struct mmu_gather *tlb,
+> >>                 struct vm_area_struct *vma, unsigned long start_addr,
+> >>                 unsigned long end_addr)
+> >> {
+> >>         struct mm_struct *mm = vma->vm_mm;
+> >>
+> >>         mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
+> >>         for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next)
+> >>                 unmap_single_vma(tlb, vma, start_addr, end_addr, NULL); <--- this
+> >>         mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
+> >> }
+> >
+> > And I do not see any dereference at this line,
+> >
 >
-> - PF_ANY: the helper function operates on the page it gets, regardless
->    if it's non-compound, head or tail.
->
-> - PF_HEAD: the helper function operates on the head page of the compound
->    page if it gets tail page.
->
-> - PF_NO_TAIL: only head and non-compond pages are acceptable for this
->    helper function.
->
-> - PF_NO_COMPOUND: only non-compound pages are acceptable for this helper
->    function.
->
-> For now we use policy PF_ANY for all helpers, which matches current
-> behaviour.
->
-> We do not enforce the policy for TESTPAGEFLAG, because we have flags
-> checked for random pages all over the kernel.  Noticeable exception to
-> this is PageTransHuge() which triggers VM_BUG_ON() for tail page.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->   include/linux/page-flags.h | 154 ++++++++++++++++++++++++++-------------------
->   1 file changed, 90 insertions(+), 64 deletions(-)
->
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 713d3f2c2468..1b3babe5ff69 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -154,49 +154,68 @@ static inline int PageCompound(struct page *page)
->   	return test_bit(PG_head, &page->flags) || PageTail(page);
->   }
->
-> +/* Page flags policies wrt compound pages */
-> +#define PF_ANY(page, enforce)	page
-> +#define PF_HEAD(page, enforce)	compound_head(page)
-> +#define PF_NO_TAIL(page, enforce) ({					\
-> +		if (enforce)						\
-> +			VM_BUG_ON_PAGE(PageTail(page), page);		\
-> +		else							\
-> +			page = compound_head(page);			\
-> +		page;})
-> +#define PF_NO_COMPOUND(page, enforce) ({					\
-> +		if (enforce)						\
-> +			VM_BUG_ON_PAGE(PageCompound(page), page);	\
+> I noticed, that addr2line sometimes doesn't work reliably on
+> compiler-instrumented code.
+> I've seen couple times that it points to the next line of code.
 
-Linux next-20150925 crashes here (at least in lkvm)
-if CONFIG_DEFERRED_STRUCT_PAGE_INIT=y
+Yes, I know that we can't trust it. That is why I think (at least in
+this particular case) function+offset would be more helpful. And we
+need more asm probably.
 
-[    0.000000] Policy zone: DMA32
-[    0.000000] Kernel command line: noapic noacpi pci=conf1 reboot=k 
-panic=1 i8042.direct=1 i8042.dumbkbd=1 i8042.nopnp=1 console=ttyS0 
-earlyprintk=serial i8042.noaux=1  root=/dev/root rw 
-rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p init=/virt/init 
-  ip=dhcp
-[    0.000000] PID hash table entries: 2048 (order: 2, 16384 bytes)
-[    0.000000] BUG: unable to handle kernel NULL pointer dereference at 
-000000000000000c
-[    0.000000] IP: [<ffffffff811aaafb>] dump_page_badflags+0x2b/0xe0
-[    0.000000] PGD 0
-[    0.000000] Oops: 0000 [#1] SMP
-[    0.000000] Modules linked in:
-[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 
-4.3.0-rc2-next-20150925+ #2
-[    0.000000] task: ffffffff81c12580 ti: ffffffff81c00000 task.ti: 
-ffffffff81c00000
-[    0.000000] RIP: 0010:[<ffffffff811aaafb>]  [<ffffffff811aaafb>] 
-dump_page_badflags+0x2b/0xe0
-[    0.000000] RSP: 0000:ffffffff81c03ea8  EFLAGS: 00010002
-[    0.000000] RAX: 000000000000000c RBX: ffffea00006dfd40 RCX: 
-0000000000000100
-[    0.000000] RDX: 0000000000000001 RSI: ffffffff81a4aeb8 RDI: 
-ffffea00006dfd40
-[    0.000000] RBP: ffffffff81c03ec0 R08: 0000000000000000 R09: 
-0000000000000000
-[    0.000000] R10: 0000000000000001 R11: 0000000000000000 R12: 
-0000000000000000
-[    0.000000] R13: 000000000001b7f7 R14: ffffffff81fe50c0 R15: 
-ffffffff81c03fb0
-[    0.000000] FS:  0000000000000000(0000) GS:ffff88001a400000(0000) 
-knlGS:0000000000000000
-[    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    0.000000] CR2: 000000000000000c CR3: 0000000001c0b000 CR4: 
-00000000000406b0
-[    0.000000] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 
-0000000000000000
-[    0.000000] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 
-0000000000000400
-[    0.000000] Stack:
-[    0.000000]  000000000001b7f5 ffffea00006dfd40 000000000001b7f7 
-ffffffff81c03ed0
-[    0.000000]  ffffffff811aabc0 ffffffff81c03ef8 ffffffff81785eda 
-ffffffff81c03f10
-[    0.000000]  0000000000000040 ffffffff81fd99c0 ffffffff81c03f30 
-ffffffff81f66600
-[    0.000000] Call Trace:
-[    0.000000]  [<ffffffff811aabc0>] dump_page+0x10/0x20
-[    0.000000]  [<ffffffff81785eda>] reserve_bootmem_region+0xd9/0xe2
-[    0.000000]  [<ffffffff81f66600>] free_all_bootmem+0x4b/0x11a
-[    0.000000]  [<ffffffff81f5428d>] mem_init+0x6a/0x9d
-[    0.000000]  [<ffffffff81f37d48>] start_kernel+0x214/0x46a
-[    0.000000]  [<ffffffff81f37120>] ? early_idt_handler_array+0x120/0x120
-[    0.000000]  [<ffffffff81f374d7>] x86_64_start_reservations+0x2a/0x2c
-[    0.000000]  [<ffffffff81f3760f>] x86_64_start_kernel+0x136/0x145
-[    0.000000] Code: e8 3b 7b 5e 00 55 48 89 e5 41 55 41 54 49 89 d4 53 
-48 8b 57 20 48 89 fb 4c 8b 4f 10 4c 8b 47 08 48 8d 42 ff 83 e2 01 48 0f 
-44 c7 <48> 8b 00 a8 80 75 4b 8b 4f 18 8b 57 1c 49 89 f5 31 c0 48 89 fe
-[    0.000000] RIP  [<ffffffff811aaafb>] dump_page_badflags+0x2b/0xe0
-[    0.000000]  RSP <ffffffff81c03ea8>
-[    0.000000] CR2: 000000000000000c
-[    0.000000] ---[ end trace cb88537fdc8fa200 ]---
+> >> >>    0:   08 80 3c 02 00 0f       or     %al,0xf00023c(%rax)
+> >> >>    6:   85 22                   test   %esp,(%rdx)
+> >> >>    8:   01 00                   add    %eax,(%rax)
+> >> >>    a:   00 48 8b                add    %cl,-0x75(%rax)
+> >> >>    d:   43                      rex.XB
+> >> >>    e:   40                      rex
+> >> >>    f:   48 8d b8 c8 04 00 00    lea    0x4c8(%rax),%rdi
+> >> >>   16:   48 89 45 d0             mov    %rax,-0x30(%rbp)
+> >> >>   1a:   48 b8 00 00 00 00 00    movabs $0xdffffc0000000000,%rax
+> >> >>   21:   fc ff df
+> >> >>   24:   48 89 fa                mov    %rdi,%rdx
+> >> >>   27:   48 c1 ea 03             shr    $0x3,%rdx
+> >> >>   2b:*  80 3c 02 00             cmpb   $0x0,(%rdx,%rax,1)               <-- trapping instruction
+> >> >>   2f:   0f 85 ee 00 00 00       jne    0x123
+> >> >>   35:   48 8b 45 d0             mov    -0x30(%rbp),%rax
+> >> >>   39:   48 83 b8 c8 04 00 00    cmpq   $0x0,0x4c8(%rax)
+> >> >>   40:   00
+> >> >
+> >> > And I do not see anything similar in "objdump -d". So could you at least
+> >> > show mm/memory.c:1337 in your tree?
+> >> >
+> >> > Hmm. movabs $0xdffffc0000000000,%rax above looks suspicious, this looks
+> >> > like kasan_mem_to_shadow(). So perhaps this code was generated by kasan?
+> >> > (I can't check, my gcc is very old). Or what?
+> >>
+> >> This is indeed kasan code. 0xdffffc0000000000 is the shadow base, and you see
+> >> kasan trying to access shadow base + (ptr >> 3), which is why we get GFP.
+> >
+> > and thus this asm can't help, right?
+> >
+>
+> I think it can.
+>
+> > So how can we figure out where exactly the kernel hits NULL ? And what
+> > exactly it tries to dereference?
+>
+> So we tried to dereference 0x4c8.  That 0x4c8 is probably offset in some struct.
+> The only big struct here is mm_struct.
+> So I think that we tried to derefernce null mm, and this asm:
+>          > cmpq   $0x0,0x4c8(%rax)
+>
+> is likely from inlined mm_has_notifiers():
+>     static inline int mm_has_notifiers(struct mm_struct *mm)
+>     {
+>              return unlikely(mm->mmu_notifier_mm);
+>     }
 
+Looks reasonable... Thanks.
 
-> +		page;})
-> +
+I was going to say that this is impossible because the caller should have
+crashed if ->mm == NULL. But unmap_vmas() uses mm = vma->vm_mm, so it looks
+like this vma or mm->mmap was corrupted...
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
