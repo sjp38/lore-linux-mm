@@ -1,155 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D6FC6B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:54:59 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so14609114wic.1
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:54:58 -0700 (PDT)
-Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
-        by mx.google.com with ESMTPS id fu4si3568309wib.16.2015.09.25.02.54.57
+Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 294E96B0253
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 05:58:15 -0400 (EDT)
+Received: by iofb144 with SMTP id b144so105609420iof.1
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:58:15 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id g17si2177489iog.154.2015.09.25.02.58.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Sep 2015 02:54:57 -0700 (PDT)
-Received: by wicgb1 with SMTP id gb1so13030735wic.1
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:54:57 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Sep 2015 02:58:14 -0700 (PDT)
+Received: by pablk4 with SMTP id lk4so5113739pab.3
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 02:58:14 -0700 (PDT)
+Date: Fri, 25 Sep 2015 18:57:02 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH v2] zbud: allow up to PAGE_SIZE allocations
+Message-ID: <20150925095702.GA1049@swordfish>
+References: <20150922141733.d7d97f59f207d0655c3b881d@gmail.com>
+ <20150923031845.GA31207@cerebellum.local.variantweb.net>
+ <CAMJBoFOEYv05FZqDER9hw79re4vrc3wKwGeuL=uoGbCnwodH8Q@mail.gmail.com>
+ <20150923215726.GA17171@cerebellum.local.variantweb.net>
+ <20150925021325.GA16431@bbox>
+ <20150925080525.GE865@swordfish>
+ <CAMJBoFPg+rZqXRdJCLK1RYY8vs0NmBZzuTUD33AMzQn+tyN5Jw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20150915061349.GA16485@bbox>
-References: <20150914154901.92c5b7b24e15f04d8204de18@gmail.com>
-	<20150915061349.GA16485@bbox>
-Date: Fri, 25 Sep 2015 11:54:57 +0200
-Message-ID: <CAMJBoFM_bMvQthAJPK+w4uQznqp7eFLdk=c7ZtT-R1aoF-1SeA@mail.gmail.com>
-Subject: Re: [PATCH 0/3] allow zram to use zbud as underlying allocator
-From: Vitaly Wool <vitalywool@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAMJBoFPg+rZqXRdJCLK1RYY8vs0NmBZzuTUD33AMzQn+tyN5Jw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, =?UTF-8?B?6rmA7KSA7IiY?= <iamjoonsoo.kim@lge.com>, Gioh Kim <gioh.kim@lge.com>
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Hello Minchan,
+On (09/25/15 10:27), Vitaly Wool wrote:
+> > Have you seen those symptoms before? How did you come up to a conclusion
+> > that zram->zbud will do the trick?
+> 
+> I have data from various tests (partially described here:
+> https://lkml.org/lkml/2015/9/17/244) and once again, I'll post a reply
 
-the main use case where I see unacceptably long stalls in UI with
-zsmalloc is switching between users in Android.
-There is a way to automate user creation and switching between them so
-the test I run both to get vmstat statistics and to profile stalls is
-to create a user, switch to it and switch back. Each test cycle does
-that 10 times, and all the results presented below are averages for 20
-runs.
+yeah, I guess I'm just not so bright to quickly understand what is wrong
+with zsmalloc from those numbers.
 
-Kernel configurations used for testing:
+> to https://lkml.org/lkml/2015/9/15/33 with more detailed test
+> description and explanation why zsmalloc is not the right choice for
+> me.
 
-(1): vanilla
-(2): (1) plus "make SLUB atomic" patch [1]
-(3): (1) with zbud instead of zsmalloc
-(4): (2) with compaction defer logic mostly disabled
+great, thanks.
 
-> KSM? Is there any reason you mentioned *KSM* in this context?
-> IOW, if you don't use KSM, you couldn't see a problem?
+> > If those symptoms are some sort of a recent addition, then does it help
+> > when you disable zsmalloc compaction?
+> 
+> No it doesn't. OTOH enabled zsmalloc compaction doesn't seem to have a
+> substantial effect either.
 
-If I don't use KSM, latenices get smaller in both cases. Worst case
-wise, zbud still gives more deterministic behavior.
+hm. ok, that was my quick guess.
 
->> I ran into several occasions when moving pages from compressed swap back
->> into the "normal" part of RAM caused significant latencies in system operation.
->
-> What kernel version did you use? Did you enable CMA? ION?
-> What was major factor for the latencies?
-
-CMA and ION are both enabled. The working kernel is 3.18 based with
-most of the mm/ stuff backported from 4.2.
-The major factors for the latencies was a) fragmentation and b)
-compaction deferral. See also below.
-
-> Decompress? zsmalloc-compaction overhead? rmap overheads?
-> compaction overheads?
-> There are several potential culprits.
-> It would be very helpful if you provide some numbers(perf will help you).
-
-The UI is blocked after user switching for, average:
-(1) 1.84 seconds
-(2) 0.89 seconds
-(3) 1.32 seconds
-(4) 0.87 seconds
-
-The UI us blocked after user switching for, worst-case:
-(1) 2.91
-(2) 1.12
-(3) 1.79
-(4) 1.34
-
-Selected vmstat results, average:
-I. allocstall
-(1) 7814
-(2) 4615
-(3) 2004
-(4) 2611
-
-II. compact_stall
-(1) 1869
-(2) 1135
-(3) 727
-(4) 638
-
-III. compact_fail
-(1) 914
-(2) 520
-(3) 230
-(4) 218
-
-IV. compact_success
-(1) 876
-(2) 535
-(3) 419
-(4) 443
-
-More data available on request.
-
->> By using zbud I lose in compression ratio but gain in determinism,
->> lower latencies and lower fragmentation, so in the coming patches
->> I tried to generalize what I've done to enable zbud for zram so far.
->
-> Before that, I'd like to know what is root cause.
-> From my side, I had an similar experience.
-> At that time, problem was that *compaction* which triggered to reclaim
-> lots of page cache pages. The reason compaction triggered a lot was
-> fragmentation caused by zsmalloc, GPU and high-order allocation
-> request by SLUB and somethings(ex, ION, fork).
->
-> Recently, Joonsoo fixed SLUB side.
-> http://marc.info/?l=linux-kernel&m=143891343223853&w=2
-
-Yes, it makes things better, see above. However, worst case is still
-looking not so nice.
-
-> And we added zram-auto-compaction recently so zram try to compact
-> objects to reduce memory usage. It might be helpful for fragment
-> problem as side effect but please keep it mind that it would be opposite.
-> Currently, zram-auto-compaction is not aware of virtual memory compaction
-> so as worst case, zsmalloc can spread out pinned object into movable
-> pageblocks via zsmalloc-compaction.
-> Gioh and I try to solve the issue with below patches but is pending now
-> by other urgent works.
-> https://lwn.net/Articles/650917/
-> https://lkml.org/lkml/2015/8/10/90
->
-> In summary, we need to clarify what's the root cause before diving into
-> code and hiding it.
-
-I'm not "hiding" anything. This statement is utterly bogus.
-
-Summarizing my test results, I would like to stress that:
-* zbud gives better worst-times
-* the system's behavior with zbud is way more stable and predictable
-* zsmalloc-based zram operation depends very much on kernel memory
-management subsystem changes
-* zsmalloc operates significantly worse with compaction deferral logic
-introduced after ca. 3.18
-
-As a bottom line, zsmalloc operation is substantially more fragile and
-far less predictable than zbud's. If that is not a good reason to _at
-least_ have *an option* to use zram with the latter, then I don't know
-what is.
-
-~vitaly
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
