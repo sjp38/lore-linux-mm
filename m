@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E4356B0253
-	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 19:19:00 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so120305031pac.2
-        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 16:18:59 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id ey7si8654007pab.142.2015.09.25.16.18.57
-        for <linux-mm@kvack.org>;
-        Fri, 25 Sep 2015 16:18:58 -0700 (PDT)
-Subject: Re: [PATCH 10/26] x86, pkeys: notify userspace about protection key
- faults
-References: <20150916174903.E112E464@viggo.jf.intel.com>
- <20150916174906.51062FBC@viggo.jf.intel.com>
- <20150924092320.GA26876@gmail.com> <20150924093026.GA29699@gmail.com>
- <560435B4.1010603@sr71.net> <20150925071119.GB15753@gmail.com>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <5605D660.8000009@sr71.net>
-Date: Fri, 25 Sep 2015 16:18:56 -0700
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C801D6B0038
+	for <linux-mm@kvack.org>; Fri, 25 Sep 2015 20:36:38 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so41319717wic.0
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 17:36:38 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
+        by mx.google.com with ESMTPS id lf10si7749006wjc.47.2015.09.25.17.36.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Sep 2015 17:36:37 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so38539564wic.1
+        for <linux-mm@kvack.org>; Fri, 25 Sep 2015 17:36:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20150925071119.GB15753@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150924151002.GA24375@infradead.org>
+References: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
+	<20150923044118.36490.75919.stgit@dwillia2-desk3.jf.intel.com>
+	<20150924151002.GA24375@infradead.org>
+Date: Fri, 25 Sep 2015 17:36:36 -0700
+Message-ID: <CAPcyv4h_UrwTM7QiNMzxC3uV7bLOMKC4cNqwbikyj6w4AiKjWA@mail.gmail.com>
+Subject: Re: [PATCH 01/15] avr32: convert to asm-generic/memory_model.h
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Tony Luck <tony.luck@intel.com>
 
-On 09/25/2015 12:11 AM, Ingo Molnar wrote:
->>> > > Btw., how does pkey support interact with hugepages?
->> > 
->> > Surprisingly little.  I've made sure that everything works with huge pages and 
->> > that the (huge) PTEs and VMAs get set up correctly, but I'm not sure I had to 
->> > touch the huge page code at all.  I have test code to ensure that it works the 
->> > same as with small pages, but everything worked pretty naturally.
-> Yeah, so the reason I'm asking about expectations is that this code:
-> 
-> +       follow_ret = follow_pte(tsk->mm, address, &ptep, &ptl);
-> +       if (!follow_ret) {
-> +               /*
-> +                * On a successful follow, make sure to
-> +                * drop the lock.
-> +                */
-> +               pte = *ptep;
-> +               pte_unmap_unlock(ptep, ptl);
-> +               ret = pte_pkey(pte);
-> 
-> is visibly hugepage-unsafe: if a vma is hugepage mapped, there are no ptes, only 
-> pmds - and the protection key index lives in the pmd. We don't seem to recover 
-> that information properly.
+On Thu, Sep 24, 2015 at 8:10 AM, Christoph Hellwig <hch@infradead.org> wrote:
+> On Wed, Sep 23, 2015 at 12:41:18AM -0400, Dan Williams wrote:
+>> Switch avr32/include/asm/page.h to use the common defintions for
+>> pfn_to_page(), page_to_pfn(), and ARCH_PFN_OFFSET.
+>
+> This was the last architecture not using asm-generic/memory_model.h,
+> so it might be time to move it to linux/ or even fold it into an
+> existing header.
 
-You got me on this one.  I assumed that follow_pte() handled huge pages.
- It does not.
+I went to go attempt this, but ia64 is still a holdout, as its
+DISCONTIGMEM setup can't use the generic memory_model definitions.
 
-But, the code still worked.  Since follow_pte() fails for all huge
-pages, it just falls back to pulling the protection key out of the VMA,
-which _does_ work for huge pages.
-
-I've actually removed the PTE walking and I just now use the VMA
-directly.  I don't see a ton of additional value from walking the page
-tables when we can get what we need from the VMA.
+#ifdef CONFIG_DISCONTIGMEM
+# define page_to_pfn(page)      ((unsigned long) (page - vmem_map))
+# define pfn_to_page(pfn)       (vmem_map + (pfn))
+#else
+# include <asm-generic/memory_model.h>
+#endif
+#else
+# include <asm-generic/memory_model.h>
+#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
