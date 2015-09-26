@@ -1,71 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 60EA66B0255
-	for <linux-mm@kvack.org>; Sat, 26 Sep 2015 15:52:12 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so136200269pac.0
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 12:52:12 -0700 (PDT)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTP id ra1si14753589pbb.202.2015.09.26.12.52.11
-        for <linux-mm@kvack.org>;
-        Sat, 26 Sep 2015 12:52:11 -0700 (PDT)
-Message-ID: <1443297128.2181.11.camel@HansenPartnership.com>
-Subject: Re: [PATCH V4 1/2] ACPI / EC: Fix broken 64bit big-endian users of
- 'global_lock'
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Sat, 26 Sep 2015 12:52:08 -0700
-In-Reply-To: <2524822.pQu4UKMrlb@vostro.rjw.lan>
-References: 
-	<e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
-	 <4357538.Wlf88yQie6@vostro.rjw.lan>
-	 <CAKohpok2Z2m7GZt1GzZzofeHEioF=XJEq8YVgtY=VtS9tmpb_Q@mail.gmail.com>
-	 <2524822.pQu4UKMrlb@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B63D6B0038
+	for <linux-mm@kvack.org>; Sat, 26 Sep 2015 16:10:29 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so139136352pac.2
+        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 13:10:28 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id yk2si14843314pac.192.2015.09.26.13.10.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 26 Sep 2015 13:10:28 -0700 (PDT)
+Date: Sat, 26 Sep 2015 13:10:27 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 01/15] avr32: convert to asm-generic/memory_model.h
+Message-ID: <20150926201027.GB27728@infradead.org>
+References: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
+ <20150923044118.36490.75919.stgit@dwillia2-desk3.jf.intel.com>
+ <20150924151002.GA24375@infradead.org>
+ <CAPcyv4h_UrwTM7QiNMzxC3uV7bLOMKC4cNqwbikyj6w4AiKjWA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4h_UrwTM7QiNMzxC3uV7bLOMKC4cNqwbikyj6w4AiKjWA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Viresh Kumar <viresh.kumar@linaro.org>, Johannes Berg <johannes@sipsolutions.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Intel Linux Wireless <ilw@linux.intel.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "open list:BLUETOOTH DRIVERS" <linux-bluetooth@vger.kernel.org>, "open list:AMD IOMMU (AMD-VI)" <iommu@lists.linux-foundation.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "open list:NETWORKING DRIVERS (WIRELESS)" <linux-wireless@vger.kernel.org>, "open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>, "open list:ULTRA-WIDEBAND (UWB) SUBSYSTEM:" <linux-usb@vger.kernel.org>, "open list:EDAC-CORE" <linux-edac@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "moderated list:SOUND - SOC LAYER / DYNAMIC AUDIO
- POWER MANAGEM..." <alsa-devel@alsa-project.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Tony Luck <tony.luck@intel.com>
 
-On Fri, 2015-09-25 at 22:58 +0200, Rafael J. Wysocki wrote:
-> On Friday, September 25, 2015 01:25:49 PM Viresh Kumar wrote:
-> > On 25 September 2015 at 13:33, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
-> > > You're going to change that into bool in the next patch, right?
-> > 
-> > Yeah.
-> > 
-> > > So what if bool is a byte and the field is not word-aligned
-> > 
-> > Its between two 'unsigned long' variables today, and the struct isn't packed.
-> > So, it will be aligned, isn't it?
-> > 
-> > > and changing
-> > > that byte requires a read-modify-write.  How do we ensure that things remain
-> > > consistent in that case?
-> > 
-> > I didn't understood why a read-modify-write is special here? That's
-> > what will happen
-> > to most of the non-word-sized fields anyway?
-> > 
-> > Probably I didn't understood what you meant..
+On Fri, Sep 25, 2015 at 05:36:36PM -0700, Dan Williams wrote:
+> I went to go attempt this, but ia64 is still a holdout, as its
+> DISCONTIGMEM setup can't use the generic memory_model definitions.
 > 
-> Say you have three adjacent fields in a structure, x, y, z, each one byte long.
-> Initially, all of them are equal to 0.
-> 
-> CPU A writes 1 to x and CPU B writes 2 to y at the same time.
-> 
-> What's the result?
+> #ifdef CONFIG_DISCONTIGMEM
+> # define page_to_pfn(page)      ((unsigned long) (page - vmem_map))
+> # define pfn_to_page(pfn)       (vmem_map + (pfn))
+> #else
+> # include <asm-generic/memory_model.h>
+> #endif
+> #else
+> # include <asm-generic/memory_model.h>
+> #endif
 
-I think every CPU's  cache architecure guarantees adjacent store
-integrity, even in the face of SMP, so it's x==1 and y==2.  If you're
-thinking of old alpha SMP system where the lowest store width is 32 bits
-and thus you have to do RMW to update a byte, this was usually fixed by
-padding (assuming the structure is not packed).  However, it was such a
-problem that even the later alpha chips had byte extensions.
-
-James
-
+Seems like we should simply introduce a CONFIG_VMEM_MAP for ia64
+to get this started.  Does my memory trick me or did we used to have
+vmem_map on other architectures as well but managed to get rid of it
+everywhere but on ia64?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
