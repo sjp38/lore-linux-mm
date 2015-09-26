@@ -1,70 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C0576B0038
-	for <linux-mm@kvack.org>; Sat, 26 Sep 2015 13:56:27 -0400 (EDT)
-Received: by ykft14 with SMTP id t14so141887773ykf.0
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 10:56:27 -0700 (PDT)
-Received: from mail-yk0-x230.google.com (mail-yk0-x230.google.com. [2607:f8b0:4002:c07::230])
-        by mx.google.com with ESMTPS id w64si4443940ywb.54.2015.09.26.10.56.26
+Received: from mail-vk0-f51.google.com (mail-vk0-f51.google.com [209.85.213.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EFA16B0038
+	for <linux-mm@kvack.org>; Sat, 26 Sep 2015 14:40:01 -0400 (EDT)
+Received: by vkgd64 with SMTP id d64so72539407vkg.0
+        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 11:40:01 -0700 (PDT)
+Received: from mail-vk0-f54.google.com (mail-vk0-f54.google.com. [209.85.213.54])
+        by mx.google.com with ESMTPS id p143si4374209vkp.116.2015.09.26.11.40.00
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 26 Sep 2015 10:56:26 -0700 (PDT)
-Received: by ykdg206 with SMTP id g206so139961800ykd.1
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 10:56:26 -0700 (PDT)
-Date: Sat, 26 Sep 2015 13:56:22 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2 5/7] x86, acpi, cpu-hotplug: Introduce
- apicid_to_cpuid[] array to store persistent cpuid <-> apicid mapping.
-Message-ID: <20150926175622.GC3572@htj.duckdns.org>
-References: <1441859269-25831-1-git-send-email-tangchen@cn.fujitsu.com>
- <1441859269-25831-6-git-send-email-tangchen@cn.fujitsu.com>
- <20150910195532.GK8114@mtj.duckdns.org>
- <56066AC9.6020703@cn.fujitsu.com>
+        Sat, 26 Sep 2015 11:40:00 -0700 (PDT)
+Received: by vkfp126 with SMTP id p126so72444056vkf.3
+        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 11:40:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56066AC9.6020703@cn.fujitsu.com>
+In-Reply-To: <CAJZ5v0i+xJ4U13vCVsvXc7S8wP0AokbmNXPidBkDwbjXMM8fCw@mail.gmail.com>
+References: <e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
+	<4357538.Wlf88yQie6@vostro.rjw.lan>
+	<CAKohpok2Z2m7GZt1GzZzofeHEioF=XJEq8YVgtY=VtS9tmpb_Q@mail.gmail.com>
+	<2524822.pQu4UKMrlb@vostro.rjw.lan>
+	<20150925214438.GH5951@linux>
+	<CAJZ5v0i+xJ4U13vCVsvXc7S8wP0AokbmNXPidBkDwbjXMM8fCw@mail.gmail.com>
+Date: Sat, 26 Sep 2015 11:40:00 -0700
+Message-ID: <CAKohpok0A3JRhVCabscfJGuhJerWmypsQnwdqJcmvBBWdpvPwQ@mail.gmail.com>
+Subject: Re: [PATCH V4 1/2] ACPI / EC: Fix broken 64bit big-endian users of 'global_lock'
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: jiang.liu@linux.intel.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, qiaonuohan@cn.fujitsu.com, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Johannes Berg <johannes@sipsolutions.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Intel Linux Wireless <ilw@linux.intel.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "open list:BLUETOOTH DRIVERS" <linux-bluetooth@vger.kernel.org>, "open list:AMD IOMMU (AMD-VI)" <iommu@lists.linux-foundation.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "open list:NETWORKING DRIVERS (WIRELESS)" <linux-wireless@vger.kernel.org>, "open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>, "open list:ULTRA-WIDEBAND (UWB) SUBSYSTEM:" <linux-usb@vger.kernel.org>, "open list:EDAC-CORE" <linux-edac@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "moderated list:SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEM..." <alsa-devel@alsa-project.org>
 
-On Sat, Sep 26, 2015 at 05:52:09PM +0800, Tang Chen wrote:
-> >>+static int allocate_logical_cpuid(int apicid)
-> >>+{
-> >>+	int i;
-> >>+
-> >>+	/*
-> >>+	 * cpuid <-> apicid mapping is persistent, so when a cpu is up,
-> >>+	 * check if the kernel has allocated a cpuid for it.
-> >>+	 */
-> >>+	for (i = 0; i < max_logical_cpuid; i++) {
-> >>+		if (cpuid_to_apicid[i] == apicid)
-> >>+			return i;
-> >>+	}
-> >>+
-> >>+	/* Allocate a new cpuid. */
-> >>+	if (max_logical_cpuid >= nr_cpu_ids) {
-> >>+		WARN_ONCE(1, "Only %d processors supported."
-> >>+			     "Processor %d/0x%x and the rest are ignored.\n",
-> >>+			     nr_cpu_ids - 1, max_logical_cpuid, apicid);
-> >>+		return -1;
-> >>+	}
-> >So, the original code didn't have this failure mode, why is this
-> >different for the new code?
-> 
-> It is not different. Since max_logical_cpuid is new, this is ensure it won't
-> go beyond NR_CPUS.
+On 25 September 2015 at 15:19, Rafael J. Wysocki <rafael@kernel.org> wrote:
+> So if you allow something like debugfs to update your structure, how
+> do you make sure there is the proper locking?
 
-If the above condition can happen, the original code should have had a
-similar check as above, right?  Sure, max_logical_cpuid is a new thing
-but that doesn't seem to change whether the above condition can happen
-or not, no?
+Not really sure at all.. Isn't there some debugfs locking that will
+jump in, to avoid updation of fields to the same device?
 
-Thanks.
+> Is that not a problem in all of the places modified by the [2/2]?
 
--- 
-tejun
+Right, but its not new AFAICT.
+
+We already have u32 fields in those structs and on 64 bit machines
+we have the same read-update-write problems for two consecutive
+u32's. Right?
+
+> How can the future users of the API know what to do to avoid potential
+> problems with it?
+
+No idea really :)
+
+>> Anyway, that problem isn't here for sure as its between two
+>> unsigned-longs. So, should I just move it to bool and resend ?
+>
+> I guess it might be more convenient to fold this into the other patch,
+> because we seem to be splitting hairs here.
+
+I can and that's what I did. But then Arnd asked me to separate it
+out. I can fold it back if that's what you want.
+
+--
+viresh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
