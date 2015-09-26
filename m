@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 644BB6B0038
-	for <linux-mm@kvack.org>; Sat, 26 Sep 2015 04:06:03 -0400 (EDT)
-Received: by lacdq2 with SMTP id dq2so63925713lac.1
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 01:06:02 -0700 (PDT)
-Received: from mail-la0-x22a.google.com (mail-la0-x22a.google.com. [2a00:1450:4010:c03::22a])
-        by mx.google.com with ESMTPS id th8si3325998lbb.153.2015.09.26.01.06.01
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id F22BE6B0038
+	for <linux-mm@kvack.org>; Sat, 26 Sep 2015 04:07:49 -0400 (EDT)
+Received: by laclj5 with SMTP id lj5so23977620lac.3
+        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 01:07:49 -0700 (PDT)
+Received: from mail-la0-x235.google.com (mail-la0-x235.google.com. [2a00:1450:4010:c03::235])
+        by mx.google.com with ESMTPS id o9si3358215lag.30.2015.09.26.01.07.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 26 Sep 2015 01:06:01 -0700 (PDT)
-Received: by laclj5 with SMTP id lj5so23956124lac.3
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 01:06:01 -0700 (PDT)
-Date: Sat, 26 Sep 2015 10:05:51 +0200
+        Sat, 26 Sep 2015 01:07:48 -0700 (PDT)
+Received: by lacdq2 with SMTP id dq2so63947045lac.1
+        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 01:07:48 -0700 (PDT)
+Date: Sat, 26 Sep 2015 10:07:38 +0200
 From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCHv2 1/3] zpool: add compaction api
-Message-Id: <20150926100551.6c16d0ea3bb7758849150a0a@gmail.com>
+Subject: [PATCHv2 2/3] zbud: add compaction callbacks
+Message-Id: <20150926100738.9dc61efc39d39533b02b8f5a@gmail.com>
 In-Reply-To: <20150926100401.96a36c7cd3c913b063887466@gmail.com>
 References: <20150926100401.96a36c7cd3c913b063887466@gmail.com>
 Mime-Version: 1.0
@@ -25,87 +25,43 @@ List-ID: <linux-mm.kvack.org>
 To: ddstreet@ieee.org, akpm@linux-foundation.org, Seth Jennings <sjennings@variantweb.net>
 Cc: Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-This patch adds two functions to the zpool API: zpool_compact()
-and zpool_get_num_compacted(). The former triggers compaction for
-the underlying allocator and the latter retrieves the number of
-pages migrated due to compaction for the whole time of this pool's
-existence.
+Add no-op compaction callbacks to zbud.
 
 Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
-
 ---
- include/linux/zpool.h |  9 +++++++++
- mm/zpool.c            | 23 +++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
+ mm/zbud.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/include/linux/zpool.h b/include/linux/zpool.h
-index 42f8ec9..be1ed58 100644
---- a/include/linux/zpool.h
-+++ b/include/linux/zpool.h
-@@ -58,6 +58,10 @@ void *zpool_map_handle(struct zpool *pool, unsigned long handle,
- 
- void zpool_unmap_handle(struct zpool *pool, unsigned long handle);
- 
-+unsigned long zpool_compact(struct zpool *pool);
-+
-+unsigned long zpool_get_num_compacted(struct zpool *pool);
-+
- u64 zpool_get_total_size(struct zpool *pool);
- 
- 
-@@ -72,6 +76,8 @@ u64 zpool_get_total_size(struct zpool *pool);
-  * @shrink:	shrink the pool.
-  * @map:	map a handle.
-  * @unmap:	unmap a handle.
-+ * @compact:	try to run compaction over a pool
-+ * @get_num_compacted:	get amount of compacted pages for a pool
-  * @total_size:	get total size of a pool.
-  *
-  * This is created by a zpool implementation and registered
-@@ -98,6 +104,9 @@ struct zpool_driver {
- 				enum zpool_mapmode mm);
- 	void (*unmap)(void *pool, unsigned long handle);
- 
-+	unsigned long (*compact)(void *pool);
-+	unsigned long (*get_num_compacted)(void *pool);
-+
- 	u64 (*total_size)(void *pool);
- };
- 
-diff --git a/mm/zpool.c b/mm/zpool.c
-index 8f670d3..e469a66 100644
---- a/mm/zpool.c
-+++ b/mm/zpool.c
-@@ -340,6 +340,29 @@ void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
- 	zpool->driver->unmap(zpool->pool, handle);
+diff --git a/mm/zbud.c b/mm/zbud.c
+index fa48bcdf..d67c0aa 100644
+--- a/mm/zbud.c
++++ b/mm/zbud.c
+@@ -195,6 +195,16 @@ static void zbud_zpool_unmap(void *pool, unsigned long handle)
+ 	zbud_unmap(pool, handle);
  }
  
-+ /**
-+ * zpool_compact() - try to run compaction over zpool
-+ * @pool       The zpool to compact
-+ *
-+ * Returns: the number of migrated pages
-+ */
-+unsigned long zpool_compact(struct zpool *zpool)
++static unsigned long zbud_zpool_compact(void *pool)
 +{
-+	return zpool->driver->compact(zpool->pool);
++	return 0;
 +}
 +
-+
-+/**
-+ * zpool_get_num_compacted() - get the number of migrated/compacted pages
-+ * @stats	stats to fill in
-+ *
-+ * Returns: the total number of migrated pages for the pool
-+ */
-+unsigned long zpool_get_num_compacted(struct zpool *zpool)
++static unsigned long zbud_zpool_get_compacted(void *pool)
 +{
-+	zpool->driver->get_num_compacted(zpool->pool);
++       return 0;
 +}
 +
- /**
-  * zpool_get_total_size() - The total size of the pool
-  * @pool	The zpool to check
+ static u64 zbud_zpool_total_size(void *pool)
+ {
+ 	return zbud_get_pool_size(pool) * PAGE_SIZE;
+@@ -210,6 +220,8 @@ static struct zpool_driver zbud_zpool_driver = {
+ 	.shrink =	zbud_zpool_shrink,
+ 	.map =		zbud_zpool_map,
+ 	.unmap =	zbud_zpool_unmap,
++	.compact =	zbud_zpool_compact,
++	.get_num_compacted =	zbud_zpool_get_compacted,
+ 	.total_size =	zbud_zpool_total_size,
+ };
+ 
 -- 
 1.9.1
 
