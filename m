@@ -1,60 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BC796B0038
-	for <linux-mm@kvack.org>; Sun, 27 Sep 2015 14:04:39 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so74399471wic.1
-        for <linux-mm@kvack.org>; Sun, 27 Sep 2015 11:04:39 -0700 (PDT)
-Received: from mail-wi0-x244.google.com (mail-wi0-x244.google.com. [2a00:1450:400c:c05::244])
-        by mx.google.com with ESMTPS id pe9si17321613wic.10.2015.09.27.11.04.38
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E5D96B0254
+	for <linux-mm@kvack.org>; Sun, 27 Sep 2015 14:04:48 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so77725404wic.0
+        for <linux-mm@kvack.org>; Sun, 27 Sep 2015 11:04:47 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id jj5si17252141wid.119.2015.09.27.11.04.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Sep 2015 11:04:38 -0700 (PDT)
-Received: by wicxq10 with SMTP id xq10so13082240wic.2
-        for <linux-mm@kvack.org>; Sun, 27 Sep 2015 11:04:38 -0700 (PDT)
-Date: Sun, 27 Sep 2015 21:04:16 +0000
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 27 Sep 2015 11:04:47 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so77327600wic.1
+        for <linux-mm@kvack.org>; Sun, 27 Sep 2015 11:04:46 -0700 (PDT)
+Date: Sun, 27 Sep 2015 21:04:25 +0000
 From: Alexandru Moise <00moses.alexander00@gmail.com>
-Subject: [PATCH 1/2] mm: change free_cma and free_pages declarations to
- unsigned
-Message-ID: <20150927210416.GA20144@gmail.com>
+Subject: [PATCH 2/2] mm: fix declarations of nr, delta and
+ nr_pagecache_reclaimable
+Message-ID: <20150927210425.GA20155@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: mgorman@suse.de, vbabka@suse.cz, mhocko@suse.com, rientjes@google.com, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: vdavydov@parallels.com, mhocko@suse.cz, hannes@cmpxchg.org, tj@kernel.org, vbabka@suse.cz, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Their stored values come from zone_page_state() which returns
-an unsigned long. To improve code correctness we should avoid
-mixing signed and unsigned integers.
+The nr variable is meant to be returned by a function which is
+declared as returning "unsigned long", so declare nr as such.
+
+Lower down we should also declare delta and nr_pagecache_reclaimable
+as being unsigned longs because they're used to store the values
+returned by zone_page_state() and zone_unmapped_file_pages() which
+also happen to return unsigned integers.
 
 Signed-off-by: Alexandru Moise <00moses.alexander00@gmail.com>
 ---
- mm/page_alloc.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/vmscan.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 48aaf7b..f55e3a2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2242,7 +2242,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 	/* free_pages may go negative - that's OK */
- 	long min = mark;
- 	int o;
--	long free_cma = 0;
-+	unsigned long free_cma = 0;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7f63a93..41e254e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -194,7 +194,7 @@ static bool sane_reclaim(struct scan_control *sc)
  
- 	free_pages -= (1 << order) - 1;
- 	if (alloc_flags & ALLOC_HIGH)
-@@ -2280,7 +2280,7 @@ bool zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
- bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
- 			unsigned long mark, int classzone_idx, int alloc_flags)
+ static unsigned long zone_reclaimable_pages(struct zone *zone)
  {
--	long free_pages = zone_page_state(z, NR_FREE_PAGES);
-+	unsigned long free_pages = zone_page_state(z, NR_FREE_PAGES);
+-	int nr;
++	unsigned long nr;
  
- 	if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
- 		free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
+ 	nr = zone_page_state(zone, NR_ACTIVE_FILE) +
+ 	     zone_page_state(zone, NR_INACTIVE_FILE);
+@@ -3698,8 +3698,8 @@ static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
+ /* Work out how many page cache pages we can reclaim in this reclaim_mode */
+ static long zone_pagecache_reclaimable(struct zone *zone)
+ {
+-	long nr_pagecache_reclaimable;
+-	long delta = 0;
++	unsigned long nr_pagecache_reclaimable;
++	unsigned long delta = 0;
+ 
+ 	/*
+ 	 * If RECLAIM_UNMAP is set, then all file pages are considered
 -- 
 2.5.3
 
