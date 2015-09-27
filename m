@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 572176B0038
-	for <linux-mm@kvack.org>; Sat, 26 Sep 2015 22:14:55 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so60615618wic.0
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 19:14:54 -0700 (PDT)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id ba4si13496918wjb.106.2015.09.26.19.14.53
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 970676B0038
+	for <linux-mm@kvack.org>; Sat, 26 Sep 2015 22:22:02 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so60913375wic.1
+        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 19:22:02 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id z1si13564100wjw.9.2015.09.26.19.22.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 26 Sep 2015 19:14:54 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so63660272wic.0
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 19:14:53 -0700 (PDT)
-Message-ID: <5607511B.7030808@gmail.com>
-Date: Sun, 27 Sep 2015 04:14:51 +0200
+        Sat, 26 Sep 2015 19:22:01 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so63030670wic.1
+        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 19:22:01 -0700 (PDT)
+Message-ID: <560752C7.80605@gmail.com>
+Date: Sun, 27 Sep 2015 04:21:59 +0200
 From: angelo <angelo70@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mm: fix cpu hangs on truncating last page of a 16t sparse
@@ -23,8 +23,8 @@ Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
 Hi Hugh,
 
@@ -47,7 +47,6 @@ What do you think ?
 
 Best regards
 Angelo Dureghello
-
 
 On 27/09/2015 03:36, Hugh Dickins wrote:
 > Let's Cc linux-fsdevel, who will be more knowledgable.
