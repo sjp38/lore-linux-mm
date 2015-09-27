@@ -1,154 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 970676B0038
-	for <linux-mm@kvack.org>; Sat, 26 Sep 2015 22:22:02 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so60913375wic.1
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 19:22:02 -0700 (PDT)
-Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
-        by mx.google.com with ESMTPS id z1si13564100wjw.9.2015.09.26.19.22.01
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 78E386B0038
+	for <linux-mm@kvack.org>; Sun, 27 Sep 2015 01:31:54 -0400 (EDT)
+Received: by igbkq10 with SMTP id kq10so34029915igb.0
+        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 22:31:54 -0700 (PDT)
+Received: from mail-io0-x230.google.com (mail-io0-x230.google.com. [2607:f8b0:4001:c06::230])
+        by mx.google.com with ESMTPS id i10si7637192ioo.115.2015.09.26.22.31.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 26 Sep 2015 19:22:01 -0700 (PDT)
-Received: by wicgb1 with SMTP id gb1so63030670wic.1
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 19:22:01 -0700 (PDT)
-Message-ID: <560752C7.80605@gmail.com>
-Date: Sun, 27 Sep 2015 04:21:59 +0200
-From: angelo <angelo70@gmail.com>
+        Sat, 26 Sep 2015 22:31:53 -0700 (PDT)
+Received: by ioiz6 with SMTP id z6so146178519ioi.2
+        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 22:31:53 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix cpu hangs on truncating last page of a 16t sparse
- file
-References: <560723F8.3010909@gmail.com> <alpine.LSU.2.11.1509261835360.9917@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1509261835360.9917@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
+References: <e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
+Date: Sun, 27 Sep 2015 07:31:53 +0200
+Message-ID: <CAJPN1uvPyZ+hZ64_0ZXU9wPLuAR-qm06GrRmHTjc9+rgiChYDQ@mail.gmail.com>
+Subject: Re: [PATCH V4 1/2] ACPI / EC: Fix broken 64bit big-endian users of 'global_lock'
+From: Jiri Slaby <jirislaby@gmail.com>
+Content-Type: multipart/alternative; boundary=001a11402966fe4f180520b3e5c2
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Viresh Kumar <viresh.kumar@linaro.org>
+Cc: iommu@lists.linux-foundation.org, linux-acpi@vger.kernel.org, linux-bluetooth@vger.kernel.org, linux-scsi@vger.kernel.org, Intel Linux Wireless <ilw@linux.intel.com>, alsa-devel@alsa-project.org, linux-usb@vger.kernel.org, linaro-kernel@lists.linaro.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-edac@vger.kernel.org, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, linux-wireless@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, netdev@vger.kernel.org
 
-Hi Hugh,
+--001a11402966fe4f180520b3e5c2
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-thanks for the fast reply..
-
-Looks like the XFS file system can support files until 16 Tera
-when CONFIG_LBDAF is enabled.
-
-On XFS, 32 bit arch, s_maxbytes is actually set (CONFIG_LBDAF=y) as
-17592186044415.
-
-But if s_maxbytes doesn't have to be greater than MAX_LFS_FILESIZE,
-i agree the issue should be fixed in layers above.
-
-The fact is that everything still works correct until an index as
-17592186044415 - 4096, and there can be users that could already
-have so big files in use in their setup.
-
-What do you think ?
-
-Best regards
-Angelo Dureghello
-
-On 27/09/2015 03:36, Hugh Dickins wrote:
-> Let's Cc linux-fsdevel, who will be more knowledgable.
+Dne 25. 9. 2015 18:42 napsal u=C5=BEivatel "Viresh Kumar" <
+viresh.kumar@linaro.org>:
 >
-> On Sun, 27 Sep 2015, angelo wrote:
+> global_lock is defined as an unsigned long and accessing only its lower
+> 32 bits from sysfs is incorrect, as we need to consider other 32 bits
+> for big endian 64 bit systems. There are no such platforms yet, but the
+> code needs to be robust for such a case.
 >
->> Hi all,
->>
->> running xfstests, generic 308 on whatever 32bit arch is possible
->> to observe cpu to hang near 100% on unlink.
->> The test removes a sparse file of length 16tera where only the last
->> 4096 bytes block is mapped.
->> At line 265 of truncate.c there is a
->> if (index >= end)
->>      break;
->> But if index is, as in this case, a 4294967295, it match -1 used as
->> eof. Hence the cpu loops 100% just after.
-> That's odd.  I've not checked your patch, because I think the problem
-> would go beyond truncate, and the root cause lie elsewhere.
+> Fix that by passing a local variable to debugfs_create_bool() and
+> assigning its value to global_lock later.
+
+But this has to crash whenever the file is read as val's storage is gone at
+that moment already, right?
+
+> Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+> ---
+> V3->V4:
+> - Create a local variable instead of changing type of global_lock
+>   (Rafael)
+> - Drop the stable tag
+> - BCC'd a lot of people (rather than cc'ing them) to make sure
+>   - the series reaches them
+>   - mailing lists do not block the patchset due to long cc list
+>   - and we don't spam the BCC'd people for every reply
+> ---
+>  drivers/acpi/ec_sys.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
 >
-> My understanding is that the 32-bit
-> #define MAX_LFS_FILESIZE (((loff_t)PAGE_CACHE_SIZE << (BITS_PER_LONG-1))-1)
-> makes a page->index of -1 (or any "negative") impossible to reach.
+> diff --git a/drivers/acpi/ec_sys.c b/drivers/acpi/ec_sys.c
+> index b4c216bab22b..b44b91331a56 100644
+> --- a/drivers/acpi/ec_sys.c
+> +++ b/drivers/acpi/ec_sys.c
+> @@ -110,6 +110,7 @@ static int acpi_ec_add_debugfs(struct acpi_ec *ec,
+unsigned int ec_device_count)
+>         struct dentry *dev_dir;
+>         char name[64];
+>         umode_t mode =3D 0400;
+> +       u32 val;
 >
-> I don't know offhand the rules for mounting a filesystem populated with
-> a 64-bit kernel on a 32-bit kernel, what's to happen when a too-large
-> file is encountered; but assume that's not the case here - you're
-> just running xfstests/tests/generic/308.
+>         if (ec_device_count =3D=3D 0) {
+>                 acpi_ec_debugfs_dir =3D debugfs_create_dir("ec", NULL);
+> @@ -127,10 +128,11 @@ static int acpi_ec_add_debugfs(struct acpi_ec *ec,
+unsigned int ec_device_count)
 >
-> Is pwrite missing a check for offset beyond s_maxbytes?
+>         if (!debugfs_create_x32("gpe", 0444, dev_dir, (u32
+*)&first_ec->gpe))
+>                 goto error;
+> -       if (!debugfs_create_bool("use_global_lock", 0444, dev_dir,
+> -                                (u32 *)&first_ec->global_lock))
+> +       if (!debugfs_create_bool("use_global_lock", 0444, dev_dir, &val))
+>                 goto error;
 >
-> Or is this filesystem-dependent?  Which filesystem?
+> +       first_ec->global_lock =3D val;
+> +
+>         if (write_support)
+>                 mode =3D 0600;
+>         if (!debugfs_create_file("io", mode, dev_dir, ec,
+&acpi_ec_io_ops))
+> --
+> 2.4.0
 >
-> Hugh
+
+--001a11402966fe4f180520b3e5c2
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<p dir=3D"ltr"><br>
+Dne 25. 9. 2015 18:42 napsal u=C5=BEivatel &quot;Viresh Kumar&quot; &lt;<a =
+href=3D"mailto:viresh.kumar@linaro.org">viresh.kumar@linaro.org</a>&gt;:<br=
 >
->> -------------------
->>
->> On 32bit archs, with CONFIG_LBDAF=y, if truncating last page
->> of a 16tera file, "index" variable is set to 4294967295, and hence
->> matches with -1 used as EOF value. This result in an inifite loop
->> when unlink is executed on this file.
->>
->> Signed-off-by: Angelo Dureghello <angelo@sysam.it>
->> ---
->>   mm/truncate.c | 11 ++++++-----
->>   1 file changed, 6 insertions(+), 5 deletions(-)
->>
->> diff --git a/mm/truncate.c b/mm/truncate.c
->> index 76e35ad..3751034 100644
->> --- a/mm/truncate.c
->> +++ b/mm/truncate.c
->> @@ -283,14 +283,15 @@ void truncate_inode_pages_range(struct address_space
->> *mapping,
->>                  pagevec_remove_exceptionals(&pvec);
->>                  pagevec_release(&pvec);
->>                  cond_resched();
->> -               index++;
->> +               if (index < end)
->> +                       index++;
->>          }
->>
->>          if (partial_start) {
->>                  struct page *page = find_lock_page(mapping, start - 1);
->>                  if (page) {
->>                          unsigned int top = PAGE_CACHE_SIZE;
->> -                       if (start > end) {
->> +                       if (start > end && end != -1) {
->>                                  /* Truncation within a single page */
->>                                  top = partial_end;
->>                                  partial_end = 0;
->> @@ -322,7 +323,7 @@ void truncate_inode_pages_range(struct address_space
->> *mapping,
->>           * If the truncation happened within a single page no pages
->>           * will be released, just zeroed, so we can bail out now.
->>           */
->> -       if (start >= end)
->> +       if (start >= end && end != -1)
->>                  return;
->>
->>          index = start;
->> @@ -337,7 +338,7 @@ void truncate_inode_pages_range(struct address_space
->> *mapping,
->>                          index = start;
->>                          continue;
->>                  }
->> -               if (index == start && indices[0] >= end) {
->> +               if (index == start && (indices[0] >= end && end != -1)) {
->>                          /* All gone out of hole to be punched, we're done */
->>                          pagevec_remove_exceptionals(&pvec);
->>                          pagevec_release(&pvec);
->> @@ -348,7 +349,7 @@ void truncate_inode_pages_range(struct address_space
->> *mapping,
->>
->>                          /* We rely upon deletion not changing page->index */
->>                          index = indices[i];
->> -                       if (index >= end) {
->> +                       if (index >= end && (end != -1)) {
->>                                  /* Restart punch to make sure all gone */
->>                                  index = start - 1;
->>                                  break;
->> -- 
->> 2.5.3
+&gt;<br>
+&gt; global_lock is defined as an unsigned long and accessing only its lowe=
+r<br>
+&gt; 32 bits from sysfs is incorrect, as we need to consider other 32 bits<=
+br>
+&gt; for big endian 64 bit systems. There are no such platforms yet, but th=
+e<br>
+&gt; code needs to be robust for such a case.<br>
+&gt;<br>
+&gt; Fix that by passing a local variable to debugfs_create_bool() and<br>
+&gt; assigning its value to global_lock later.</p>
+<p dir=3D"ltr">But this has to crash whenever the file is read as val&#39;s=
+ storage is gone at that moment already, right?</p>
+<p dir=3D"ltr">&gt; Signed-off-by: Viresh Kumar &lt;<a href=3D"mailto:vires=
+h.kumar@linaro.org">viresh.kumar@linaro.org</a>&gt;<br>
+&gt; ---<br>
+&gt; V3-&gt;V4:<br>
+&gt; - Create a local variable instead of changing type of global_lock<br>
+&gt; =C2=A0 (Rafael)<br>
+&gt; - Drop the stable tag<br>
+&gt; - BCC&#39;d a lot of people (rather than cc&#39;ing them) to make sure=
+<br>
+&gt; =C2=A0 - the series reaches them<br>
+&gt; =C2=A0 - mailing lists do not block the patchset due to long cc list<b=
+r>
+&gt; =C2=A0 - and we don&#39;t spam the BCC&#39;d people for every reply<br=
+>
+&gt; ---<br>
+&gt; =C2=A0drivers/acpi/ec_sys.c | 6 ++++--<br>
+&gt; =C2=A01 file changed, 4 insertions(+), 2 deletions(-)<br>
+&gt;<br>
+&gt; diff --git a/drivers/acpi/ec_sys.c b/drivers/acpi/ec_sys.c<br>
+&gt; index b4c216bab22b..b44b91331a56 100644<br>
+&gt; --- a/drivers/acpi/ec_sys.c<br>
+&gt; +++ b/drivers/acpi/ec_sys.c<br>
+&gt; @@ -110,6 +110,7 @@ static int acpi_ec_add_debugfs(struct acpi_ec *ec,=
+ unsigned int ec_device_count)<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct dentry *dev_dir;<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 char name[64];<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 umode_t mode =3D 0400;<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0u32 val;<br>
+&gt;<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (ec_device_count =3D=3D 0) {<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 acpi_ec_debugf=
+s_dir =3D debugfs_create_dir(&quot;ec&quot;, NULL);<br>
+&gt; @@ -127,10 +128,11 @@ static int acpi_ec_add_debugfs(struct acpi_ec *e=
+c, unsigned int ec_device_count)<br>
+&gt;<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!debugfs_create_x32(&quot;gpe&quot;, 0=
+444, dev_dir, (u32 *)&amp;first_ec-&gt;gpe))<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto error;<br=
+>
+&gt; -=C2=A0 =C2=A0 =C2=A0 =C2=A0if (!debugfs_create_bool(&quot;use_global_=
+lock&quot;, 0444, dev_dir,<br>
+&gt; -=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (u32 *)&amp;first_ec-&gt;global_=
+lock))<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0if (!debugfs_create_bool(&quot;use_global_=
+lock&quot;, 0444, dev_dir, &amp;val))<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto error;<br=
+>
+&gt;<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0first_ec-&gt;global_lock =3D val;<br>
+&gt; +<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (write_support)<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mode =3D 0600;=
+<br>
+&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!debugfs_create_file(&quot;io&quot;, m=
+ode, dev_dir, ec, &amp;acpi_ec_io_ops))<br>
+&gt; --<br>
+&gt; 2.4.0<br>
+&gt;<br>
+</p>
+
+--001a11402966fe4f180520b3e5c2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
