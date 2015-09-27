@@ -1,178 +1,274 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 78E386B0038
-	for <linux-mm@kvack.org>; Sun, 27 Sep 2015 01:31:54 -0400 (EDT)
-Received: by igbkq10 with SMTP id kq10so34029915igb.0
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 22:31:54 -0700 (PDT)
-Received: from mail-io0-x230.google.com (mail-io0-x230.google.com. [2607:f8b0:4001:c06::230])
-        by mx.google.com with ESMTPS id i10si7637192ioo.115.2015.09.26.22.31.53
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B8E06B0038
+	for <linux-mm@kvack.org>; Sun, 27 Sep 2015 01:51:20 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so146471001pac.2
+        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 22:51:19 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id fm3si17843305pbb.185.2015.09.26.22.51.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 26 Sep 2015 22:31:53 -0700 (PDT)
-Received: by ioiz6 with SMTP id z6so146178519ioi.2
-        for <linux-mm@kvack.org>; Sat, 26 Sep 2015 22:31:53 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
-References: <e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
-Date: Sun, 27 Sep 2015 07:31:53 +0200
-Message-ID: <CAJPN1uvPyZ+hZ64_0ZXU9wPLuAR-qm06GrRmHTjc9+rgiChYDQ@mail.gmail.com>
-Subject: Re: [PATCH V4 1/2] ACPI / EC: Fix broken 64bit big-endian users of 'global_lock'
-From: Jiri Slaby <jirislaby@gmail.com>
-Content-Type: multipart/alternative; boundary=001a11402966fe4f180520b3e5c2
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 26 Sep 2015 22:51:19 -0700 (PDT)
+Subject: Re: [PATCH] mm, oom: Disable preemption during OOM-kill operation.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201509191605.CAF13520.QVSFHLtFJOMOOF@I-love.SAKURA.ne.jp>
+	<20150922165523.GD4027@dhcp22.suse.cz>
+	<201509232326.JEB43777.SOFMJOVOLFFtQH@I-love.SAKURA.ne.jp>
+	<20150923202311.GA19054@dhcp22.suse.cz>
+In-Reply-To: <20150923202311.GA19054@dhcp22.suse.cz>
+Message-Id: <201509271451.DEB86404.tMFFHSVQFOLOOJ@I-love.SAKURA.ne.jp>
+Date: Sun, 27 Sep 2015 14:51:01 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Viresh Kumar <viresh.kumar@linaro.org>
-Cc: iommu@lists.linux-foundation.org, linux-acpi@vger.kernel.org, linux-bluetooth@vger.kernel.org, linux-scsi@vger.kernel.org, Intel Linux Wireless <ilw@linux.intel.com>, alsa-devel@alsa-project.org, linux-usb@vger.kernel.org, linaro-kernel@lists.linaro.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-edac@vger.kernel.org, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, linux-wireless@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, netdev@vger.kernel.org
+To: mhocko@kernel.org
+Cc: rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org, oleg@redhat.com
 
---001a11402966fe4f180520b3e5c2
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+(Added Oleg, for he might want to combine memory unmapper kernel thread
+and this OOM killer thread shown in this post.)
 
-Dne 25. 9. 2015 18:42 napsal u=C5=BEivatel "Viresh Kumar" <
-viresh.kumar@linaro.org>:
->
-> global_lock is defined as an unsigned long and accessing only its lower
-> 32 bits from sysfs is incorrect, as we need to consider other 32 bits
-> for big endian 64 bit systems. There are no such platforms yet, but the
-> code needs to be robust for such a case.
->
-> Fix that by passing a local variable to debugfs_create_bool() and
-> assigning its value to global_lock later.
+Michal Hocko wrote:
+> On Wed 23-09-15 23:26:35, Tetsuo Handa wrote:
+> [...]
+> > Sprinkling preempt_{enable,disable} all around the oom path can temporarily
+> > slow down threads with higher priority. But doing so can guarantee that
+> > the oom path is not delayed indefinitely. Imagine a scenario where a task
+> > with idle priority called the oom path and other tasks with normal or
+> > realtime priority preempt. How long will we hold oom_lock and keep the
+> > system under oom?
+> 
+> What I've tried to say is that the OOM killer context might get priority
+> boost to make sure it makes sufficient progress. This would be much more
+> systematic approach IMO than sprinkling preempt_{enable,disable} all over
+> the place.
 
-But this has to crash whenever the file is read as val's storage is gone at
-that moment already, right?
+Unlike boosting priority of fatal_signal_pending() OOM victim threads,
+we need to undo it after returning from out_of_memory(). And the priority
+of current thread which is calling out_of_memory() can be manipulated by
+other threads. In order to avoid loosing new priority by restoring old
+priority after returning from out_of_memory(), a dedicated kernel thread
+will be needed. I think we will use a kernel thread named OOM kiiler.
+So, did you mean something like below?
 
-> Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
-> ---
-> V3->V4:
-> - Create a local variable instead of changing type of global_lock
->   (Rafael)
-> - Drop the stable tag
-> - BCC'd a lot of people (rather than cc'ing them) to make sure
->   - the series reaches them
->   - mailing lists do not block the patchset due to long cc list
->   - and we don't spam the BCC'd people for every reply
-> ---
->  drivers/acpi/ec_sys.c | 6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
->
-> diff --git a/drivers/acpi/ec_sys.c b/drivers/acpi/ec_sys.c
-> index b4c216bab22b..b44b91331a56 100644
-> --- a/drivers/acpi/ec_sys.c
-> +++ b/drivers/acpi/ec_sys.c
-> @@ -110,6 +110,7 @@ static int acpi_ec_add_debugfs(struct acpi_ec *ec,
-unsigned int ec_device_count)
->         struct dentry *dev_dir;
->         char name[64];
->         umode_t mode =3D 0400;
-> +       u32 val;
->
->         if (ec_device_count =3D=3D 0) {
->                 acpi_ec_debugfs_dir =3D debugfs_create_dir("ec", NULL);
-> @@ -127,10 +128,11 @@ static int acpi_ec_add_debugfs(struct acpi_ec *ec,
-unsigned int ec_device_count)
->
->         if (!debugfs_create_x32("gpe", 0444, dev_dir, (u32
-*)&first_ec->gpe))
->                 goto error;
-> -       if (!debugfs_create_bool("use_global_lock", 0444, dev_dir,
-> -                                (u32 *)&first_ec->global_lock))
-> +       if (!debugfs_create_bool("use_global_lock", 0444, dev_dir, &val))
->                 goto error;
->
-> +       first_ec->global_lock =3D val;
-> +
->         if (write_support)
->                 mode =3D 0600;
->         if (!debugfs_create_file("io", mode, dev_dir, ec,
-&acpi_ec_io_ops))
-> --
-> 2.4.0
->
+------------------------------------------------------------
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 03e6257..29d6190a 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -31,6 +31,13 @@ struct oom_control {
+ 	 * for display purposes.
+ 	 */
+ 	const int order;
++
++	/* Used for comunicating with OOM-killer kernel thread */
++	struct list_head list;
++	struct task_struct *task;
++	unsigned long totalpages;
++	int cpu;
++	bool done;
+ };
+ 
+ /*
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 03b612b..3b8edd0 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -35,6 +35,8 @@
+ #include <linux/freezer.h>
+ #include <linux/ftrace.h>
+ #include <linux/ratelimit.h>
++#include <linux/kthread.h>
++#include <linux/utsname.h>
+ 
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/oom.h>
+@@ -386,14 +388,23 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ static void dump_header(struct oom_control *oc, struct task_struct *p,
+ 			struct mem_cgroup *memcg)
+ {
+-	task_lock(current);
++	struct task_struct *task = oc->task;
++	task_lock(task);
+ 	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
+ 		"oom_score_adj=%hd\n",
+-		current->comm, oc->gfp_mask, oc->order,
+-		current->signal->oom_score_adj);
+-	cpuset_print_task_mems_allowed(current);
+-	task_unlock(current);
+-	dump_stack();
++		task->comm, oc->gfp_mask, oc->order,
++		task->signal->oom_score_adj);
++	cpuset_print_task_mems_allowed(task);
++	task_unlock(task);
++	/* dump_lock logic is missing here. */
++	printk(KERN_DEFAULT "CPU: %d PID: %d Comm: %.20s %s %s %.*s\n",
++	       oc->cpu, task->pid, task->comm,
++	       print_tainted(), init_utsname()->release,
++	       (int)strcspn(init_utsname()->version, " "),
++	       init_utsname()->version);
++	/* "Hardware name: " line is missing here. */
++	print_worker_info(KERN_DEFAULT, task);
++	show_stack(task, NULL);
+ 	if (memcg)
+ 		mem_cgroup_print_oom_info(memcg, p);
+ 	else
+@@ -408,7 +419,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p,
+ static atomic_t oom_victims = ATOMIC_INIT(0);
+ static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);
+ 
+-bool oom_killer_disabled __read_mostly;
++bool oom_killer_disabled __read_mostly = true;
+ 
+ /**
+  * mark_oom_victim - mark the given task as OOM victim
+@@ -647,6 +658,68 @@ int unregister_oom_notifier(struct notifier_block *nb)
+ }
+ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+ 
++static DECLARE_WAIT_QUEUE_HEAD(oom_request_wait);
++static DECLARE_WAIT_QUEUE_HEAD(oom_response_wait);
++static LIST_HEAD(oom_request_list);
++static DEFINE_SPINLOCK(oom_request_list_lock);
++
++static int oom_killer(void *unused)
++{
++	struct task_struct *p;
++	unsigned int uninitialized_var(points);
++	struct oom_control *oc;
++
++	/* Boost priority in order to send SIGKILL as soon as possible. */
++	set_user_nice(current, MIN_NICE);
++
++ start:
++	wait_event(oom_request_wait, !list_empty(&oom_request_list));
++	oc = NULL;
++	spin_lock(&oom_request_list_lock);
++	if (!list_empty(&oom_request_list))
++		oc = list_first_entry(&oom_request_list, struct oom_control, list);
++	spin_unlock(&oom_request_list_lock);
++	if (!oc)
++		goto start;
++	p = oc->task;
++
++	/* Disable preemption in order to send SIGKILL as soon as possible. */
++	preempt_disable();
++
++	if (sysctl_oom_kill_allocating_task && p->mm &&
++	    !oom_unkillable_task(p, NULL, oc->nodemask) &&
++	    p->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
++		get_task_struct(p);
++		oom_kill_process(oc, p, 0, oc->totalpages, NULL,
++				 "Out of memory (oom_kill_allocating_task)");
++		goto end;
++	}
++
++	p = select_bad_process(oc, &points, oc->totalpages);
++	/* Found nothing?!?! Either we hang forever, or we panic. */
++	if (!p && !is_sysrq_oom(oc)) {
++		dump_header(oc, NULL, NULL);
++		panic("Out of memory and no killable processes...\n");
++	}
++	if (p && p != (void *)-1UL)
++		oom_kill_process(oc, p, points, oc->totalpages, NULL,
++				 "Out of memory");
++ end:
++	preempt_enable();
++	oc->done = true;
++	wake_up_all(&oom_response_wait);
++	goto start;
++}
++
++static int __init run_oom_killer(void)
++{
++	struct task_struct *task = kthread_run(oom_killer, NULL, "OOM-killer");
++	BUG_ON(IS_ERR(task));
++	oom_killer_disabled = false;
++	return 0;
++}
++postcore_initcall(run_oom_killer);
++
+ /**
+  * out_of_memory - kill the "best" process when we run out of memory
+  * @oc: pointer to struct oom_control
+@@ -658,10 +731,8 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+  */
+ bool out_of_memory(struct oom_control *oc)
+ {
+-	struct task_struct *p;
+ 	unsigned long totalpages;
+ 	unsigned long freed = 0;
+-	unsigned int uninitialized_var(points);
+ 	enum oom_constraint constraint = CONSTRAINT_NONE;
+ 
+ 	if (oom_killer_disabled)
+@@ -672,6 +743,7 @@ bool out_of_memory(struct oom_control *oc)
+ 		/* Got some memory back in the last second. */
+ 		return true;
+ 
++	oc->task = current;
+ 	/*
+ 	 * If current has a pending SIGKILL or is exiting, then automatically
+ 	 * select it.  The goal is to allow it to allocate so that it may
+@@ -695,30 +767,23 @@ bool out_of_memory(struct oom_control *oc)
+ 		oc->nodemask = NULL;
+ 	check_panic_on_oom(oc, constraint, NULL);
+ 
+-	if (sysctl_oom_kill_allocating_task && current->mm &&
+-	    !oom_unkillable_task(current, NULL, oc->nodemask) &&
+-	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
+-		get_task_struct(current);
+-		oom_kill_process(oc, current, 0, totalpages, NULL,
+-				 "Out of memory (oom_kill_allocating_task)");
+-		return true;
+-	}
+-
+-	p = select_bad_process(oc, &points, totalpages);
+-	/* Found nothing?!?! Either we hang forever, or we panic. */
+-	if (!p && !is_sysrq_oom(oc)) {
+-		dump_header(oc, NULL, NULL);
+-		panic("Out of memory and no killable processes...\n");
+-	}
+-	if (p && p != (void *)-1UL) {
+-		oom_kill_process(oc, p, points, totalpages, NULL,
+-				 "Out of memory");
+-		/*
+-		 * Give the killed process a good chance to exit before trying
+-		 * to allocate memory again.
+-		 */
+-		schedule_timeout_killable(1);
+-	}
++	/* OK. Let's wait for OOM killer. */
++	oc->cpu = raw_smp_processor_id();
++	oc->totalpages = totalpages;		
++	oc->done = false;
++	spin_lock(&oom_request_list_lock);
++	list_add(&oc->list, &oom_request_list);
++	spin_unlock(&oom_request_list_lock);
++	wake_up(&oom_request_wait);
++	wait_event(oom_response_wait, oc->done);
++	spin_lock(&oom_request_list_lock);
++	list_del(&oc->list);
++	spin_unlock(&oom_request_list_lock);
++	/*
++	 * Give the killed process a good chance to exit before trying
++	 * to allocate memory again.
++	 */
++	schedule_timeout_killable(1);
+ 	return true;
+ }
+ 
+------------------------------------------------------------
 
---001a11402966fe4f180520b3e5c2
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<p dir=3D"ltr"><br>
-Dne 25. 9. 2015 18:42 napsal u=C5=BEivatel &quot;Viresh Kumar&quot; &lt;<a =
-href=3D"mailto:viresh.kumar@linaro.org">viresh.kumar@linaro.org</a>&gt;:<br=
->
-&gt;<br>
-&gt; global_lock is defined as an unsigned long and accessing only its lowe=
-r<br>
-&gt; 32 bits from sysfs is incorrect, as we need to consider other 32 bits<=
-br>
-&gt; for big endian 64 bit systems. There are no such platforms yet, but th=
-e<br>
-&gt; code needs to be robust for such a case.<br>
-&gt;<br>
-&gt; Fix that by passing a local variable to debugfs_create_bool() and<br>
-&gt; assigning its value to global_lock later.</p>
-<p dir=3D"ltr">But this has to crash whenever the file is read as val&#39;s=
- storage is gone at that moment already, right?</p>
-<p dir=3D"ltr">&gt; Signed-off-by: Viresh Kumar &lt;<a href=3D"mailto:vires=
-h.kumar@linaro.org">viresh.kumar@linaro.org</a>&gt;<br>
-&gt; ---<br>
-&gt; V3-&gt;V4:<br>
-&gt; - Create a local variable instead of changing type of global_lock<br>
-&gt; =C2=A0 (Rafael)<br>
-&gt; - Drop the stable tag<br>
-&gt; - BCC&#39;d a lot of people (rather than cc&#39;ing them) to make sure=
-<br>
-&gt; =C2=A0 - the series reaches them<br>
-&gt; =C2=A0 - mailing lists do not block the patchset due to long cc list<b=
-r>
-&gt; =C2=A0 - and we don&#39;t spam the BCC&#39;d people for every reply<br=
->
-&gt; ---<br>
-&gt; =C2=A0drivers/acpi/ec_sys.c | 6 ++++--<br>
-&gt; =C2=A01 file changed, 4 insertions(+), 2 deletions(-)<br>
-&gt;<br>
-&gt; diff --git a/drivers/acpi/ec_sys.c b/drivers/acpi/ec_sys.c<br>
-&gt; index b4c216bab22b..b44b91331a56 100644<br>
-&gt; --- a/drivers/acpi/ec_sys.c<br>
-&gt; +++ b/drivers/acpi/ec_sys.c<br>
-&gt; @@ -110,6 +110,7 @@ static int acpi_ec_add_debugfs(struct acpi_ec *ec,=
- unsigned int ec_device_count)<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct dentry *dev_dir;<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 char name[64];<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 umode_t mode =3D 0400;<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0u32 val;<br>
-&gt;<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (ec_device_count =3D=3D 0) {<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 acpi_ec_debugf=
-s_dir =3D debugfs_create_dir(&quot;ec&quot;, NULL);<br>
-&gt; @@ -127,10 +128,11 @@ static int acpi_ec_add_debugfs(struct acpi_ec *e=
-c, unsigned int ec_device_count)<br>
-&gt;<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!debugfs_create_x32(&quot;gpe&quot;, 0=
-444, dev_dir, (u32 *)&amp;first_ec-&gt;gpe))<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto error;<br=
->
-&gt; -=C2=A0 =C2=A0 =C2=A0 =C2=A0if (!debugfs_create_bool(&quot;use_global_=
-lock&quot;, 0444, dev_dir,<br>
-&gt; -=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (u32 *)&amp;first_ec-&gt;global_=
-lock))<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0if (!debugfs_create_bool(&quot;use_global_=
-lock&quot;, 0444, dev_dir, &amp;val))<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 goto error;<br=
->
-&gt;<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0first_ec-&gt;global_lock =3D val;<br>
-&gt; +<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (write_support)<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mode =3D 0600;=
-<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!debugfs_create_file(&quot;io&quot;, m=
-ode, dev_dir, ec, &amp;acpi_ec_io_ops))<br>
-&gt; --<br>
-&gt; 2.4.0<br>
-&gt;<br>
-</p>
-
---001a11402966fe4f180520b3e5c2--
+By the way, I think that we might want to omit dump_header() call
+if the OOM victim's mm was already reported by previous OOM events
+because output by show_mem() and dump_tasks() in dump_header() is
+noisy. All OOM events between uptime 110 and 303 of
+http://I-love.SAKURA.ne.jp/tmp/serial-20150927.txt.xz are choosing
+the same mm. Even if the first OOM event completed within a few
+seconds by disabling preemption, subsequent OOM events which
+sequentially choose OOM victims without TIF_MEMDIE consumed many
+seconds after all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
