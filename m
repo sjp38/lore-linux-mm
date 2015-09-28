@@ -1,175 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B8ABC6B025F
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 13:51:27 -0400 (EDT)
-Received: by lahh2 with SMTP id h2so169193561lah.0
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 10:51:26 -0700 (PDT)
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com. [209.85.215.41])
-        by mx.google.com with ESMTPS id s71si6973342lfd.169.2015.09.28.10.51.25
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 151156B0261
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 14:08:27 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so180729964pad.1
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 11:08:26 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id xg6si30302882pbc.62.2015.09.28.11.08.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Sep 2015 10:51:25 -0700 (PDT)
-Received: by laer8 with SMTP id r8so40121891lae.2
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 10:51:25 -0700 (PDT)
-Date: Mon, 28 Sep 2015 20:51:23 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 03/16] page-flags: introduce page flags policies wrt
- compound pages
-Message-ID: <20150928175123.GA6590@node>
-References: <20150921153509.fef7ecdf313ef74307c43b65@linux-foundation.org>
- <1443106264-78075-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1443106264-78075-4-git-send-email-kirill.shutemov@linux.intel.com>
- <56053E1D.7050001@yandex-team.ru>
- <20150925191307.GA25711@node.dhcp.inet.fi>
- <5609102B.5020704@yandex-team.ru>
- <20150928110305.GA4721@node>
- <560928FC.2090407@yandex-team.ru>
+        Mon, 28 Sep 2015 11:08:26 -0700 (PDT)
+Received: by padhy16 with SMTP id hy16so180729688pad.1
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 11:08:26 -0700 (PDT)
+Date: Mon, 28 Sep 2015 11:08:06 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: fix cpu hangs on truncating last page of a 16t sparse
+ file
+In-Reply-To: <20150928170332.GA12732@two.firstfloor.org>
+Message-ID: <alpine.LSU.2.11.1509281050510.5679@eggly.anvils>
+References: <560723F8.3010909@gmail.com> <alpine.LSU.2.11.1509261835360.9917@eggly.anvils> <560752C7.80605@gmail.com> <alpine.LSU.2.11.1509270953460.1024@eggly.anvils> <20150928170332.GA12732@two.firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <560928FC.2090407@yandex-team.ru>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Mel Gorman <mgorman@suse.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Hugh Dickins <hughd@google.com>, angelo <angelo70@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Jeff Layton <jlayton@poochiereds.net>, Eryu Guan <eguan@redhat.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Sep 28, 2015 at 02:48:12PM +0300, Konstantin Khlebnikov wrote:
-> On 28.09.2015 14:03, Kirill A. Shutemov wrote:
-> >On Mon, Sep 28, 2015 at 01:02:19PM +0300, Konstantin Khlebnikov wrote:
-> >>On 25.09.2015 22:13, Kirill A. Shutemov wrote:
-> >>>On Fri, Sep 25, 2015 at 03:29:17PM +0300, Konstantin Khlebnikov wrote:
-> >>>>On 24.09.2015 17:50, Kirill A. Shutemov wrote:
-> >>>>>This patch adds a third argument to macros which create function
-> >>>>>definitions for page flags.  This argument defines how page-flags helpers
-> >>>>>behave on compound functions.
-> >>>>>
-> >>>>>For now we define four policies:
-> >>>>>
-> >>>>>- PF_ANY: the helper function operates on the page it gets, regardless
-> >>>>>   if it's non-compound, head or tail.
-> >>>>>
-> >>>>>- PF_HEAD: the helper function operates on the head page of the compound
-> >>>>>   page if it gets tail page.
-> >>>>>
-> >>>>>- PF_NO_TAIL: only head and non-compond pages are acceptable for this
-> >>>>>   helper function.
-> >>>>>
-> >>>>>- PF_NO_COMPOUND: only non-compound pages are acceptable for this helper
-> >>>>>   function.
-> >>>>>
-> >>>>>For now we use policy PF_ANY for all helpers, which matches current
-> >>>>>behaviour.
-> >>>>>
-> >>>>>We do not enforce the policy for TESTPAGEFLAG, because we have flags
-> >>>>>checked for random pages all over the kernel.  Noticeable exception to
-> >>>>>this is PageTransHuge() which triggers VM_BUG_ON() for tail page.
-> >>>>>
-> >>>>>Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >>>>>---
-> >>>>>  include/linux/page-flags.h | 154 ++++++++++++++++++++++++++-------------------
-> >>>>>  1 file changed, 90 insertions(+), 64 deletions(-)
-> >>>>>
-> >>>>>diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> >>>>>index 713d3f2c2468..1b3babe5ff69 100644
-> >>>>>--- a/include/linux/page-flags.h
-> >>>>>+++ b/include/linux/page-flags.h
-> >>>>>@@ -154,49 +154,68 @@ static inline int PageCompound(struct page *page)
-> >>>>>  	return test_bit(PG_head, &page->flags) || PageTail(page);
-> >>>>>  }
-> >>>>>
-> >>>>>+/* Page flags policies wrt compound pages */
-> >>>>>+#define PF_ANY(page, enforce)	page
-> >>>>>+#define PF_HEAD(page, enforce)	compound_head(page)
-> >>>>>+#define PF_NO_TAIL(page, enforce) ({					\
-> >>>>>+		if (enforce)						\
-> >>>>>+			VM_BUG_ON_PAGE(PageTail(page), page);		\
-> >>>>>+		else							\
-> >>>>>+			page = compound_head(page);			\
-> >>>>>+		page;})
-> >>>>>+#define PF_NO_COMPOUND(page, enforce) ({					\
-> >>>>>+		if (enforce)						\
-> >>>>>+			VM_BUG_ON_PAGE(PageCompound(page), page);	\
-> >>>>
-> >>>>Linux next-20150925 crashes here (at least in lkvm)
-> >>>>if CONFIG_DEFERRED_STRUCT_PAGE_INIT=y
+On Mon, 28 Sep 2015, Andi Kleen wrote:
+
+> > I can't tell you why MAX_LFS_FILESIZE was defined to exclude half
+> > of the available range.  I've always assumed that it's because there
+> > were known or feared areas of the code, which manipulate between
+> > bytes and pages, and might hit sign extension issues - though
+> > I cannot identify those places myself.
+> 
+> The limit was intentional to handle old user space. I don't think
+> it has anything to do with the kernel.
+> 
+> off_t is sometimes used signed, mainly with lseek SEEK_CUR/END when you
+> want to seek backwards. It would be quite odd to sometimes
+> have off_t be signed (SEEK_CUR/END) and sometimes be unsigned
+> (when using SEEK_SET).  So it made some sense to set the limit
+> to the signed max value.
+
+Thanks a lot for filling in the history, Andi, I was hoping you could.
+
+I think that's a good argument for MAX_NON_LFS 0x7fffffff, but
+MAX_LFS_FILESIZE 0x7ff ffffffff just a mistake: it's a very long way
+away from any ambiguity between signed and unsigned, and 0xfff ffffffff
+(or perhaps 0xfff fffff000) would have made better use of the space.
+
+Never mind, a bit late now.  (And apologies to those with non-4096
+pagesize, but I find it easier to follow with concrete numbers.)
+
+Hugh
+
+> 
+> Here's the original "Large file standard" that describes
+> the issues in more details:
+> 
+> http://www.unix.org/version2/whatsnew/lfs20mar.html
+> 
+> This document explicitly requests signed off_t:
+> 
 > >>>
-> >>>Hm. I don't see the crash in qemu. Could you share your config?
-> >>
-> >>see in attachment
-> >
-> >Still don't see it. Have you tried patch from my previous mail?
-> >
-> 
-> Just checked: patch fixes oops.
 > 
 > 
-> This part of 7e18adb4f80bea90d30b62158694d97c31f71d37
-> (mm: meminit: initialise remaining struct pages in parallel with kswapd)
-> is unclear:
+> Mixed sizes of off_t
+>     During a period of transition from existing systems to systems able to support an arbitrarily large file size, most systems will need to support binaries with two or more sizes of the off_t data type (and related data types). This mixed off_t environment may occur on a system with an ABI that supports different sizes of off_t. It may occur on a system which has both a 64-bit and a 32-bit ABI. Finally, it may occur when using a distributed system where clients and servers have differing sizes of off_t. In effect, the period of transition will not end until we need 128-bit file sizes, requiring yet another transition! The proposed changes may also be used as a model for the 64 to 128-bit file size transition. 
+> Offset maximum
+>     Most, but unfortunately not all, of the numeric values in the SUS are protected by opaque type definitions. In theory this allows programs to use these types rather than the underlying C language data types to avoid issues like overflow. However, most existing code maps these opaque data types like off_t to long integers that can overflow for the values needed to represent the offsets possible in large files.
 > 
-> +#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-> +static void init_reserved_page(unsigned long pfn)
-> +{
-> +       pg_data_t *pgdat;
-> +       int nid, zid;
-> +
-> +       if (!early_page_uninitialised(pfn))
-> +               return;
-> +
-> +       nid = early_pfn_to_nid(pfn);
-> +       pgdat = NODE_DATA(nid);
-> +
-> +       for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-> +               struct zone *zone = &pgdat->node_zones[zid];
-> +
-> +               if (pfn >= zone->zone_start_pfn && pfn < zone_end_pfn(zone))
-> +                       break;
-> +       }
-> +       __init_single_pfn(pfn, zid, nid);
-> +}
-> +#else
-> +static inline void init_reserved_page(unsigned long pfn)
-> +{
-> +}
-> +#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
-> +
->  /*
->   * Initialised pages do not have PageReserved set. This function is
->   * called for each range allocated by the bootmem allocator and
->   * marks the pages PageReserved. The remaining valid pages are later
->   * sent to the buddy page allocator.
->   */
-> -void reserve_bootmem_region(unsigned long start, unsigned long end)
-> +void __meminit reserve_bootmem_region(unsigned long start, unsigned long
-> end)
->  {
->         unsigned long start_pfn = PFN_DOWN(start);
->         unsigned long end_pfn = PFN_UP(end);
+>     To protect existing binaries from arbitrarily large files, a new value (offset maximum) will be part of the open file description. An offset maximum is the largest offset that can be used as a file offset. Operations attempting to go beyond the offset maximum will return an error. The offset maximum is normally established as the size of the off_t "extended signed integral type" used by the program creating the file description.
 > 
-> -       for (; start_pfn < end_pfn; start_pfn++)
-> -               if (pfn_valid(start_pfn))
-> -                       SetPageReserved(pfn_to_page(start_pfn));
-> +       for (; start_pfn < end_pfn; start_pfn++) {
-> +               if (pfn_valid(start_pfn)) {
-> +                       struct page *page = pfn_to_page(start_pfn);
-> +
-> +                       init_reserved_page(start_pfn);
-> +                       SetPageReserved(page);
-> +               }
-> +       }
->  }
+>     The open() function and other interfaces establish the offset maximum for a file description, returning an error if the file size is larger than the offset maximum at the time of the call. Returning errors when the 
+> <<<
 > 
-> We leave struct page uninitialized but call SetPageReserved for it.
-
-__init_single_pfn() initializes the page.
-
-I guess the problem is false-negative reply from
-early_page_uninitialised(). No idea why it could happen.
-
-Mel?
-
--- 
- Kirill A. Shutemov
+> -Andi
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
