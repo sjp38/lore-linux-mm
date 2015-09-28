@@ -1,84 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 768E26B025B
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 11:32:42 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so80586925pab.3
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 08:32:42 -0700 (PDT)
-Received: from smtp-out4.electric.net (smtp-out4.electric.net. [192.162.216.194])
-        by mx.google.com with ESMTPS id iw10si29304388pbc.140.2015.09.28.08.32.41
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id ABCBD6B0256
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 11:51:20 -0400 (EDT)
+Received: by qgt47 with SMTP id 47so124185594qgt.2
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 08:51:20 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q191si16034146qha.128.2015.09.28.08.51.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Sep 2015 08:32:41 -0700 (PDT)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [PATCH V4 1/2] ACPI / EC: Fix broken 64bit big-endian users of
- 'global_lock'
-Date: Mon, 28 Sep 2015 15:31:17 +0000
-Message-ID: <063D6719AE5E284EB5DD2968C1650D6D1CBA42F5@AcuExch.aculab.com>
-References: <e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
-	 <2524822.pQu4UKMrlb@vostro.rjw.lan>
-	 <1443297128.2181.11.camel@HansenPartnership.com>
-	 <3461169.v5xKdGLGjP@vostro.rjw.lan>
-	 <063D6719AE5E284EB5DD2968C1650D6D1CBA3BF7@AcuExch.aculab.com>
-	 <1443450406.2168.3.camel@HansenPartnership.com>
-	 <063D6719AE5E284EB5DD2968C1650D6D1CBA4232@AcuExch.aculab.com>
- <1443453111.2168.9.camel@HansenPartnership.com>
-In-Reply-To: <1443453111.2168.9.camel@HansenPartnership.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        Mon, 28 Sep 2015 08:51:20 -0700 (PDT)
+Date: Mon, 28 Sep 2015 17:51:14 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH 5/7] slub: support for bulk free with SLUB freelists
+Message-ID: <20150928175114.07e85114@redhat.com>
+In-Reply-To: <alpine.DEB.2.20.1509281011250.30332@east.gentwo.org>
+References: <20150928122444.15409.10498.stgit@canyon>
+	<20150928122629.15409.69466.stgit@canyon>
+	<alpine.DEB.2.20.1509281011250.30332@east.gentwo.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'James Bottomley' <James.Bottomley@HansenPartnership.com>
-Cc: "'Rafael J. Wysocki'" <rjw@rjwysocki.net>, Viresh Kumar <viresh.kumar@linaro.org>, Johannes Berg <johannes@sipsolutions.net>, Greg
- Kroah-Hartman <gregkh@linuxfoundation.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Intel Linux Wireless <ilw@linux.intel.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel
- Mailing List <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "open list:BLUETOOTH DRIVERS" <linux-bluetooth@vger.kernel.org>, "open list:AMD IOMMU (AMD-VI)" <iommu@lists.linux-foundation.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "open list:NETWORKING DRIVERS (WIRELESS)" <linux-wireless@vger.kernel.org>, "open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>, "open list:ULTRA-WIDEBAND (UWB) SUBSYSTEM:" <linux-usb@vger.kernel.org>, "open list:EDAC-CORE" <linux-edac@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "moderated list:SOUND - SOC LAYER / DYNAMIC AUDIO
- POWER MANAGEM..." <alsa-devel@alsa-project.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, brouer@redhat.com
 
-RnJvbTogSmFtZXMgQm90dG9tbGV5IA0KPiBTZW50OiAyOCBTZXB0ZW1iZXIgMjAxNSAxNjoxMg0K
-PiA+ID4gPiBUaGUgeDg2IGNwdXMgd2lsbCBhbHNvIGRvIDMyYml0IHdpZGUgcm13IGN5Y2xlcyBm
-b3IgdGhlICdiaXQnIG9wZXJhdGlvbnMuDQo+ID4gPg0KPiA+ID4gVGhhdCdzIGRpZmZlcmVudDog
-aXQncyBhbiBhdG9taWMgUk1XIG9wZXJhdGlvbi4gIFRoZSBwcm9ibGVtIHdpdGggdGhlDQo+ID4g
-PiBhbHBoYSB3YXMgdGhhdCB0aGUgb3BlcmF0aW9uIHdhc24ndCBhdG9taWMgKG1lYW5pbmcgdGhh
-dCBpdCBjYW4ndCBiZQ0KPiA+ID4gaW50ZXJydXB0ZWQgYW5kIG5vIGludGVybWVkaWF0ZSBvdXRw
-dXQgc3RhdGVzIGFyZSB2aXNpYmxlKS4NCj4gPg0KPiA+IEl0IGlzIG9ubHkgYXRvbWljIGlmIHBy
-ZWZpeGVkIGJ5IHRoZSAnbG9jaycgcHJlZml4Lg0KPiA+IE5vcm1hbGx5IHRoZSByZWFkIGFuZCB3
-cml0ZSBhcmUgc2VwYXJhdGUgYnVzIGN5Y2xlcy4NCj4gDQo+IFRoZSBlc3NlbnRpYWwgcG9pbnQg
-aXMgdGhhdCB4ODYgaGFzIGF0b21pYyBiaXQgb3BzIGFuZCBieXRlIHdyaXRlcy4NCj4gRWFybHkg
-YWxwaGEgZGlkIG5vdC4NCg0KRWFybHkgYWxwaGEgZGlkbid0IGhhdmUgYW55IGJ5dGUgYWNjZXNz
-ZXMuDQoNCk9uIHg4NiBpZiB5b3UgaGF2ZSB0aGUgZm9sbG93aW5nOg0KCXN0cnVjdCB7DQoJCWNo
-YXIgIGE7DQoJCXZvbGF0aWxlIGNoYXIgYjsNCgl9ICpmb287DQoJZm9vLT5hIHw9IDQ7DQoNClRo
-ZSBjb21waWxlciBpcyBsaWtlbHkgdG8gZ2VuZXJhdGUgYSAnYmlzICM0LCAwKHJieCknIChvciBz
-aW1pbGFyKQ0KYW5kIHRoZSBjcHUgd2lsbCBkbyB0d28gMzJiaXQgbWVtb3J5IGN5Y2xlcyB0aGF0
-IHJlYWQgYW5kIHdyaXRlDQp0aGUgJ3ZvbGF0aWxlJyBmaWVsZCAnYicuDQooZ2NjIGRlZmluaXRl
-bHkgdXNlZCB0byBkbyB0aGlzLi4uKQ0KDQpBIGxvdCBvZiBmaWVsZHMgd2VyZSBtYWRlIDMyYml0
-IChhbmQgcHJvYmFibHkgbm90IGJpdGZpZWxkcykgaW4gdGhlIGxpbnV4DQprZXJuZWwgdHJlZSBh
-IHllYXIgb3IgdHdvIGFnbyB0byBhdm9pZCB0aGlzIHZlcnkgcHJvYmxlbS4NCg0KPiA+ID4gPiBZ
-b3Ugc3RpbGwgaGF2ZSB0byBlbnN1cmUgdGhlIGNvbXBpbGVyIGRvZXNuJ3QgZG8gd2lkZXIgcm13
-IGN5Y2xlcy4NCj4gPiA+ID4gSSBiZWxpZXZlIHRoZSByZWNlbnQgdmVyc2lvbnMgb2YgZ2NjIHdv
-bid0IGRvIHdpZGVyIGFjY2Vzc2VzIGZvciB2b2xhdGlsZSBkYXRhLg0KPiA+ID4NCj4gPiA+IEkg
-ZG9uJ3QgdW5kZXJzdGFuZCB0aGlzIGNvbW1lbnQuICBZb3Ugc2VlbSB0byBiZSBpbXBseWluZyBn
-Y2Mgd291bGQgZG8gYQ0KPiA+ID4gNjQgYml0IFJNVyBmb3IgYSAzMiBiaXQgc3RvcmUgLi4uIHRo
-YXQgd291bGQgYmUgZGFmdCB3aGVuIGEgc2luZ2xlDQo+ID4gPiBpbnN0cnVjdGlvbiBleGlzdHMg
-dG8gcGVyZm9ybSB0aGUgb3BlcmF0aW9uIG9uIGFsbCBhcmNoaXRlY3R1cmVzLg0KPiA+DQo+ID4g
-UmVhZCB0aGUgb2JqZWN0IGNvZGUgYW5kIHdlZXAuLi4NCj4gPiBJdCBpcyBtb3N0IGxpa2VseSB0
-byBoYXBwZW4gZm9yIG9wZXJhdGlvbnMgdGhhdCBhcmUgcm13IChlZyBiaXQgc2V0KS4NCj4gPiBG
-b3IgaW5zdGFuY2UgdGhlIGFybSBjcHUgaGFzIGxpbWl0ZWQgb2Zmc2V0cyBmb3IgMTZiaXQgYWNj
-ZXNzZXMsIGZvcg0KPiA+IG5vcm1hbCBzdHJ1Y3R1cmVzIHRoZSBjb21waWxlciBpcyBsaWtlbHkg
-dG8gdXNlIGEgMzJiaXQgcm13IHNlcXVlbmNlDQo+ID4gZm9yIGEgMTZiaXQgZmllbGQgdGhhdCBo
-YXMgYSBsYXJnZSBvZmZzZXQuDQo+ID4gVGhlIEMgbGFuZ3VhZ2UgYWxsb3dzIHRoZSBjb21waWxl
-ciB0byBkbyBpdCBmb3IgYW55IGFjY2VzcyAoSUlSQyBpbmNsdWRpbmcNCj4gPiB2b2xhdGlsZXMp
-Lg0KPiANCj4gSSB0aGluayB5b3UgbWlnaHQgYmUgY29uZnVzaW5nIGRpZmZlcmVudCB0aGluZ3Mu
-ICBNb3N0IFJJU0MgQ1BVcyBjYW4ndA0KPiBkbyAzMiBiaXQgc3RvcmUgaW1tZWRpYXRlcyBiZWNh
-dXNlIHRoZXJlIGFyZW4ndCBlbm91Z2ggYml0cyBpbiB0aGVpcg0KPiBhcnNlbmFsLCBzbyB0aGV5
-IHRlbmQgdG8gc3BsaXQgMzIgYml0IGxvYWRzIGludG8gYSBsZWZ0IGFuZCByaWdodCBwYXJ0DQo+
-IChmaXJzdCB0aGUgdG9wIHRoZW4gdGhlIG9mZnNldCkuICBUaGlzIChhbmQgb3RoZXIgdGhpbmdz
-KSBhcmUgbW9zdGx5DQo+IHdoYXQgeW91IHNlZSBpbiBjb2RlLiAgSG93ZXZlciwgMzIgYml0IHJl
-Z2lzdGVyIHN0b3JlcyBhcmUgc3RpbGwgYXRvbWljLA0KPiB3aGljaCBpcyBhbGwgd2UgcmVxdWly
-ZS4gIEl0J3Mgbm90IHJlYWxseSB0aGUgY29tcGlsZXIncyBmYXVsdCwgaXQncw0KPiBtb3N0bHkg
-YW4gYXJjaGl0ZWN0dXJhbCBsaW1pdGF0aW9uLg0KDQpObywgSSdtIG5vdCB0YWxraW5nIGFib3V0
-IGhvdyAzMmJpdCBjb25zdGFudHMgYXJlIGdlbmVyYXRlZC4NCkknbSB0YWxraW5nIGFib3V0IHN0
-cnVjdHVyZSBvZmZzZXRzLg0KDQoJRGF2aWQNCg0K
+On Mon, 28 Sep 2015 10:16:49 -0500 (CDT)
+Christoph Lameter <cl@linux.com> wrote:
+
+> On Mon, 28 Sep 2015, Jesper Dangaard Brouer wrote:
+> 
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index 1cf98d89546d..13b5f53e4840 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -675,11 +675,18 @@ static void init_object(struct kmem_cache *s, void *object, u8 val)
+> >  {
+> >  	u8 *p = object;
+> >
+> > +	/* Freepointer not overwritten as SLAB_POISON moved it after object */
+> >  	if (s->flags & __OBJECT_POISON) {
+> >  		memset(p, POISON_FREE, s->object_size - 1);
+> >  		p[s->object_size - 1] = POISON_END;
+> >  	}
+> >
+> > +	/*
+> > +	 * If both SLAB_RED_ZONE and SLAB_POISON are enabled, then
+> > +	 * freepointer is still safe, as then s->offset equals
+> > +	 * s->inuse and below redzone is after s->object_size and only
+> > +	 * area between s->object_size and s->inuse.
+> > +	 */
+> >  	if (s->flags & SLAB_RED_ZONE)
+> >  		memset(p + s->object_size, val, s->inuse - s->object_size);
+> >  }
+> 
+> Are these comments really adding something? This is basic metadata
+> handling for SLUB that is commented on elsehwere.
+
+Not knowing SLUB as well as you, it took me several hours to realize
+init_object() didn't overwrite the freepointer in the object.  Thus, I
+think these comments make the reader aware of not-so-obvious
+side-effects of SLAB_POISON and SLAB_RED_ZONE.
+
+
+> > @@ -2584,9 +2646,14 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
+> >   * So we still attempt to reduce cache line usage. Just take the slab
+> >   * lock and free the item. If there is no additional partial page
+> >   * handling required then we can return immediately.
+> > + *
+> > + * Bulk free of a freelist with several objects (all pointing to the
+> > + * same page) possible by specifying freelist_head ptr and object as
+> > + * tail ptr, plus objects count (cnt).
+> >   */
+> >  static void __slab_free(struct kmem_cache *s, struct page *page,
+> > -			void *x, unsigned long addr)
+> > +			void *x, unsigned long addr,
+> > +			void *freelist_head, int cnt)
+> 
+> Do you really need separate parameters for freelist_head? If you just want
+> to deal with one object pass it as freelist_head and set cnt = 1?
+
+Yes, I need it.  We need to know both the head and tail of the list to
+splice it.
+
+See:
+
+> @@ -2612,7 +2681,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+                prior = page->freelist;
+		counters = page->counters;
+>  		set_freepointer(s, object, prior);
+                                   ^^^^^^ 
+Here we update the tail ptr (object) to point to "prior" (page->freelist).
+
+>  		new.counters = counters;
+>  		was_frozen = new.frozen;
+> -		new.inuse--;
+> +		new.inuse -= cnt;
+>  		if ((!new.inuse || !prior) && !was_frozen) {
+>  
+>  			if (kmem_cache_has_cpu_partial(s) && !prior) {
+> @@ -2643,7 +2712,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+>  
+>  	} while (!cmpxchg_double_slab(s, page,
+>  		prior, counters,
+> -		object, new.counters,
+> +		new_freelist, new.counters,
+>  		"__slab_free"));
+
+Here we update page->freelist ("prior") to point to the head. Thus,
+splicing the list.
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
