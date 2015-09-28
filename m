@@ -1,77 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C6DE26B0038
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 10:52:12 -0400 (EDT)
-Received: by oiww128 with SMTP id w128so91410060oiw.2
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 07:52:12 -0700 (PDT)
-Received: from smtp-out6.electric.net (smtp-out6.electric.net. [192.162.217.192])
-        by mx.google.com with ESMTPS id v62si8369399oib.14.2015.09.28.07.52.11
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id C71316B0254
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 10:53:18 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so79753751pab.3
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 07:53:18 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id ud7si29039781pab.185.2015.09.28.07.53.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Sep 2015 07:52:12 -0700 (PDT)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [PATCH V4 1/2] ACPI / EC: Fix broken 64bit big-endian users of
- 'global_lock'
-Date: Mon, 28 Sep 2015 14:50:44 +0000
-Message-ID: <063D6719AE5E284EB5DD2968C1650D6D1CBA4232@AcuExch.aculab.com>
-References: <e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
-	 <2524822.pQu4UKMrlb@vostro.rjw.lan>
-	 <1443297128.2181.11.camel@HansenPartnership.com>
-	 <3461169.v5xKdGLGjP@vostro.rjw.lan>
-	 <063D6719AE5E284EB5DD2968C1650D6D1CBA3BF7@AcuExch.aculab.com>
- <1443450406.2168.3.camel@HansenPartnership.com>
-In-Reply-To: <1443450406.2168.3.camel@HansenPartnership.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Sep 2015 07:53:18 -0700 (PDT)
+Received: by pacfv12 with SMTP id fv12so180426435pac.2
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 07:53:17 -0700 (PDT)
+Subject: Re: [PATCH 7/7] slub: do prefetching in kmem_cache_alloc_bulk()
+References: <20150928122444.15409.10498.stgit@canyon>
+ <20150928122639.15409.21583.stgit@canyon>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Message-ID: <5609545C.4010807@gmail.com>
+Date: Mon, 28 Sep 2015 07:53:16 -0700
 MIME-Version: 1.0
+In-Reply-To: <20150928122639.15409.21583.stgit@canyon>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'James Bottomley' <James.Bottomley@HansenPartnership.com>
-Cc: "'Rafael J. Wysocki'" <rjw@rjwysocki.net>, Viresh Kumar <viresh.kumar@linaro.org>, Johannes Berg <johannes@sipsolutions.net>, Greg
- Kroah-Hartman <gregkh@linuxfoundation.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Intel Linux Wireless <ilw@linux.intel.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel
- Mailing List <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "open list:BLUETOOTH DRIVERS" <linux-bluetooth@vger.kernel.org>, "open list:AMD IOMMU (AMD-VI)" <iommu@lists.linux-foundation.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "open list:NETWORKING DRIVERS (WIRELESS)" <linux-wireless@vger.kernel.org>, "open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>, "open list:ULTRA-WIDEBAND (UWB) SUBSYSTEM:" <linux-usb@vger.kernel.org>, "open list:EDAC-CORE" <linux-edac@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "moderated list:SOUND - SOC LAYER / DYNAMIC AUDIO
- POWER MANAGEM..." <alsa-devel@alsa-project.org>
+To: Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: netdev@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-RnJvbTogSmFtZXMgQm90dG9tbGV5IFttYWlsdG86SmFtZXMuQm90dG9tbGV5QEhhbnNlblBhcnRu
-ZXJzaGlwLmNvbV0NCj4gU2VudDogMjggU2VwdGVtYmVyIDIwMTUgMTU6MjcNCj4gT24gTW9uLCAy
-MDE1LTA5LTI4IGF0IDA4OjU4ICswMDAwLCBEYXZpZCBMYWlnaHQgd3JvdGU6DQo+ID4gRnJvbTog
-UmFmYWVsIEouIFd5c29ja2kNCj4gPiA+IFNlbnQ6IDI3IFNlcHRlbWJlciAyMDE1IDE1OjA5DQo+
-ID4gLi4uDQo+ID4gPiA+ID4gU2F5IHlvdSBoYXZlIHRocmVlIGFkamFjZW50IGZpZWxkcyBpbiBh
-IHN0cnVjdHVyZSwgeCwgeSwgeiwgZWFjaCBvbmUgYnl0ZSBsb25nLg0KPiA+ID4gPiA+IEluaXRp
-YWxseSwgYWxsIG9mIHRoZW0gYXJlIGVxdWFsIHRvIDAuDQo+ID4gPiA+ID4NCj4gPiA+ID4gPiBD
-UFUgQSB3cml0ZXMgMSB0byB4IGFuZCBDUFUgQiB3cml0ZXMgMiB0byB5IGF0IHRoZSBzYW1lIHRp
-bWUuDQo+ID4gPiA+ID4NCj4gPiA+ID4gPiBXaGF0J3MgdGhlIHJlc3VsdD8NCj4gPiA+ID4NCj4g
-PiA+ID4gSSB0aGluayBldmVyeSBDUFUncyAgY2FjaGUgYXJjaGl0ZWN1cmUgZ3VhcmFudGVlcyBh
-ZGphY2VudCBzdG9yZQ0KPiA+ID4gPiBpbnRlZ3JpdHksIGV2ZW4gaW4gdGhlIGZhY2Ugb2YgU01Q
-LCBzbyBpdCdzIHg9PTEgYW5kIHk9PTIuICBJZiB5b3UncmUNCj4gPiA+ID4gdGhpbmtpbmcgb2Yg
-b2xkIGFscGhhIFNNUCBzeXN0ZW0gd2hlcmUgdGhlIGxvd2VzdCBzdG9yZSB3aWR0aCBpcyAzMiBi
-aXRzDQo+ID4gPiA+IGFuZCB0aHVzIHlvdSBoYXZlIHRvIGRvIFJNVyB0byB1cGRhdGUgYSBieXRl
-LCB0aGlzIHdhcyB1c3VhbGx5IGZpeGVkIGJ5DQo+ID4gPiA+IHBhZGRpbmcgKGFzc3VtaW5nIHRo
-ZSBzdHJ1Y3R1cmUgaXMgbm90IHBhY2tlZCkuICBIb3dldmVyLCBpdCB3YXMgc3VjaCBhDQo+ID4g
-PiA+IHByb2JsZW0gdGhhdCBldmVuIHRoZSBsYXRlciBhbHBoYSBjaGlwcyBoYWQgYnl0ZSBleHRl
-bnNpb25zLg0KPiA+DQo+ID4gRG9lcyBsaW51eCBzdGlsbCBzdXBwb3J0IHRob3NlIG9sZCBBbHBo
-YXM/DQo+ID4NCj4gPiBUaGUgeDg2IGNwdXMgd2lsbCBhbHNvIGRvIDMyYml0IHdpZGUgcm13IGN5
-Y2xlcyBmb3IgdGhlICdiaXQnIG9wZXJhdGlvbnMuDQo+IA0KPiBUaGF0J3MgZGlmZmVyZW50OiBp
-dCdzIGFuIGF0b21pYyBSTVcgb3BlcmF0aW9uLiAgVGhlIHByb2JsZW0gd2l0aCB0aGUNCj4gYWxw
-aGEgd2FzIHRoYXQgdGhlIG9wZXJhdGlvbiB3YXNuJ3QgYXRvbWljIChtZWFuaW5nIHRoYXQgaXQg
-Y2FuJ3QgYmUNCj4gaW50ZXJydXB0ZWQgYW5kIG5vIGludGVybWVkaWF0ZSBvdXRwdXQgc3RhdGVz
-IGFyZSB2aXNpYmxlKS4NCg0KSXQgaXMgb25seSBhdG9taWMgaWYgcHJlZml4ZWQgYnkgdGhlICds
-b2NrJyBwcmVmaXguDQpOb3JtYWxseSB0aGUgcmVhZCBhbmQgd3JpdGUgYXJlIHNlcGFyYXRlIGJ1
-cyBjeWNsZXMuDQogDQo+ID4gWW91IHN0aWxsIGhhdmUgdG8gZW5zdXJlIHRoZSBjb21waWxlciBk
-b2Vzbid0IGRvIHdpZGVyIHJtdyBjeWNsZXMuDQo+ID4gSSBiZWxpZXZlIHRoZSByZWNlbnQgdmVy
-c2lvbnMgb2YgZ2NjIHdvbid0IGRvIHdpZGVyIGFjY2Vzc2VzIGZvciB2b2xhdGlsZSBkYXRhLg0K
-PiANCj4gSSBkb24ndCB1bmRlcnN0YW5kIHRoaXMgY29tbWVudC4gIFlvdSBzZWVtIHRvIGJlIGlt
-cGx5aW5nIGdjYyB3b3VsZCBkbyBhDQo+IDY0IGJpdCBSTVcgZm9yIGEgMzIgYml0IHN0b3JlIC4u
-LiB0aGF0IHdvdWxkIGJlIGRhZnQgd2hlbiBhIHNpbmdsZQ0KPiBpbnN0cnVjdGlvbiBleGlzdHMg
-dG8gcGVyZm9ybSB0aGUgb3BlcmF0aW9uIG9uIGFsbCBhcmNoaXRlY3R1cmVzLg0KDQpSZWFkIHRo
-ZSBvYmplY3QgY29kZSBhbmQgd2VlcC4uLg0KSXQgaXMgbW9zdCBsaWtlbHkgdG8gaGFwcGVuIGZv
-ciBvcGVyYXRpb25zIHRoYXQgYXJlIHJtdyAoZWcgYml0IHNldCkuDQpGb3IgaW5zdGFuY2UgdGhl
-IGFybSBjcHUgaGFzIGxpbWl0ZWQgb2Zmc2V0cyBmb3IgMTZiaXQgYWNjZXNzZXMsIGZvcg0Kbm9y
-bWFsIHN0cnVjdHVyZXMgdGhlIGNvbXBpbGVyIGlzIGxpa2VseSB0byB1c2UgYSAzMmJpdCBybXcg
-c2VxdWVuY2UNCmZvciBhIDE2Yml0IGZpZWxkIHRoYXQgaGFzIGEgbGFyZ2Ugb2Zmc2V0Lg0KVGhl
-IEMgbGFuZ3VhZ2UgYWxsb3dzIHRoZSBjb21waWxlciB0byBkbyBpdCBmb3IgYW55IGFjY2VzcyAo
-SUlSQyBpbmNsdWRpbmcNCnZvbGF0aWxlcykuDQoNCglEYXZpZA0KDQo=
+On 09/28/2015 05:26 AM, Jesper Dangaard Brouer wrote:
+> For practical use-cases it is beneficial to prefetch the next freelist
+> object in bulk allocation loop.
+>
+> Micro benchmarking show approx 1 cycle change:
+>
+> bulk -  prev-patch     -  this patch
+>     1 -  49 cycles(tsc) - 49 cycles(tsc) - increase in cycles:0
+>     2 -  30 cycles(tsc) - 31 cycles(tsc) - increase in cycles:1
+>     3 -  23 cycles(tsc) - 25 cycles(tsc) - increase in cycles:2
+>     4 -  20 cycles(tsc) - 22 cycles(tsc) - increase in cycles:2
+>     8 -  18 cycles(tsc) - 19 cycles(tsc) - increase in cycles:1
+>    16 -  17 cycles(tsc) - 18 cycles(tsc) - increase in cycles:1
+>    30 -  18 cycles(tsc) - 17 cycles(tsc) - increase in cycles:-1
+>    32 -  18 cycles(tsc) - 19 cycles(tsc) - increase in cycles:1
+>    34 -  23 cycles(tsc) - 24 cycles(tsc) - increase in cycles:1
+>    48 -  21 cycles(tsc) - 22 cycles(tsc) - increase in cycles:1
+>    64 -  20 cycles(tsc) - 21 cycles(tsc) - increase in cycles:1
+>   128 -  27 cycles(tsc) - 27 cycles(tsc) - increase in cycles:0
+>   158 -  30 cycles(tsc) - 30 cycles(tsc) - increase in cycles:0
+>   250 -  37 cycles(tsc) - 37 cycles(tsc) - increase in cycles:0
+>
+> Note, benchmark done with slab_nomerge to keep it stable enough
+> for accurate comparison.
+>
+> Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> ---
+>   mm/slub.c |    2 ++
+>   1 file changed, 2 insertions(+)
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index c25717ab3b5a..5af75a618b91 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2951,6 +2951,7 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+>   				goto error;
+>   
+>   			c = this_cpu_ptr(s->cpu_slab);
+> +			prefetch_freepointer(s, c->freelist);
+>   			continue; /* goto for-loop */
+>   		}
+>   
+> @@ -2960,6 +2961,7 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+>   			goto error;
+>   
+>   		c->freelist = get_freepointer(s, object);
+> +		prefetch_freepointer(s, c->freelist);
+>   		p[i] = object;
+>   
+>   		/* kmem_cache debug support */
+>
+
+I can see the prefetch in the last item case being possibly useful since 
+you have time between when you call the prefetch and when you are 
+accessing the next object.  However, is there any actual benefit to 
+prefetching inside the loop itself?  Based on your data above it doesn't 
+seem like that is the case since you are now adding one additional cycle 
+to the allocation and I am not seeing any actual gain reported here.
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
