@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 431A482F65
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 15:25:43 -0400 (EDT)
-Received: by ioii196 with SMTP id i196so187618501ioi.3
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 12:25:43 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id 92si13714949iok.118.2015.09.28.12.18.19
+Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 35D2682F65
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 15:25:59 -0400 (EDT)
+Received: by iofb144 with SMTP id b144so187712922iof.1
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 12:25:59 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id z13si9729070igp.58.2015.09.28.12.18.21
         for <linux-mm@kvack.org>;
-        Mon, 28 Sep 2015 12:18:19 -0700 (PDT)
-Subject: [PATCH 03/25] x86, pkeys: cpuid bit definition
+        Mon, 28 Sep 2015 12:18:22 -0700 (PDT)
+Subject: [PATCH 09/25] x86, pkeys: arch-specific protection bits
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 28 Sep 2015 12:18:18 -0700
+Date: Mon, 28 Sep 2015 12:18:21 -0700
 References: <20150928191817.035A64E2@viggo.jf.intel.com>
 In-Reply-To: <20150928191817.035A64E2@viggo.jf.intel.com>
-Message-Id: <20150928191818.CD319CCA@viggo.jf.intel.com>
+Message-Id: <20150928191821.403DB5DA@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dave@sr71.net
@@ -22,180 +22,145 @@ Cc: borntraeger@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-There are two CPUID bits for protection keys.  One is for whether
-the CPU contains the feature, and the other will appear set once
-the OS enables protection keys.  Specifically:
+Lots of things seem to do:
 
-	Bit 04: OSPKE. If 1, OS has set CR4.PKE to enable
-	Protection keys (and the RDPKRU/WRPKRU instructions)
+        vma->vm_page_prot = vm_get_page_prot(flags);
 
-This is because userspace can not see CR4 contents, but it can
-see CPUID contents.
+and the ptes get created right from things we pull out
+of ->vm_page_prot.  So it is very convenient if we can
+store the protection key in flags and vm_page_prot, just
+like the existing permission bits (_PAGE_RW/PRESENT).  It
+greatly reduces the amount of plumbing and arch-specific
+hacking we have to do in generic code.
 
-X86_FEATURE_PKU is referred to as "PKU" in the hardware documentation:
+This also takes the new PROT_PKEY{0,1,2,3} flags and
+turns *those* in to VM_ flags for vma->vm_flags.
 
-	CPUID.(EAX=07H,ECX=0H):ECX.PKU [bit 3]
+The protection key values are stored in 4 places:
+	1. "prot" argument to system calls
+	2. vma->vm_flags, filled from the mmap "prot"
+	3. vma->vm_page prot, filled from vma->vm_flags
+	4. the PTE itself.
 
-X86_FEATURE_OSPKE is "OSPKU":
+The pseudocode for these for steps are as follows:
 
-	CPUID.(EAX=07H,ECX=0H):ECX.OSPKE [bit 4]
+	mmap(PROT_PKEY*)
+	vma->vm_flags 	  = ... | arch_calc_vm_prot_bits(mmap_prot);
+	vma->vm_page_prot = ... | arch_vm_get_page_prot(vma->vm_flags);
+	pte = pfn | vma->vm_page_prot
 
-These are the first CPU features which need to look at the
-ECX word in CPUID leaf 0x7, so this patch also includes
-fetching that word in to the cpuinfo->x86_capability[] array.
+Note that this provides a new definitions for x86:
 
-Add it to the disabled-features mask when its config option is
-off.  Even though we are not using it here, we also extend the
-REQUIRED_MASK_BIT_SET() macro to keep it mirroring the
-DISABLED_MASK_BIT_SET() version.
-
-This means that in almost all code, you should use:
-
-	cpu_has(X86_FEATURE_PKU)
-
-and *not* the CONFIG option.
+	arch_vm_get_page_prot()
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- b/arch/x86/include/asm/cpufeature.h        |   54 +++++++++++++++++------------
- b/arch/x86/include/asm/disabled-features.h |   12 ++++++
- b/arch/x86/include/asm/required-features.h |    4 ++
- b/arch/x86/kernel/cpu/common.c             |    1 
- 4 files changed, 50 insertions(+), 21 deletions(-)
+ b/arch/x86/include/asm/mmu_context.h   |   20 ++++++++++++++++++++
+ b/arch/x86/include/asm/pgtable_types.h |   12 ++++++++++--
+ b/arch/x86/include/uapi/asm/mman.h     |   16 ++++++++++++++++
+ b/include/linux/mm.h                   |    6 ++++++
+ 4 files changed, 52 insertions(+), 2 deletions(-)
 
-diff -puN arch/x86/include/asm/cpufeature.h~pkeys-01-cpuid arch/x86/include/asm/cpufeature.h
---- a/arch/x86/include/asm/cpufeature.h~pkeys-01-cpuid	2015-09-28 11:39:42.296016728 -0700
-+++ b/arch/x86/include/asm/cpufeature.h	2015-09-28 11:39:42.305017137 -0700
-@@ -12,7 +12,7 @@
- #include <asm/disabled-features.h>
- #endif
+diff -puN arch/x86/include/asm/mmu_context.h~pkeys-08-store-pkey-in-vma arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~pkeys-08-store-pkey-in-vma	2015-09-28 11:39:44.957137779 -0700
++++ b/arch/x86/include/asm/mmu_context.h	2015-09-28 11:39:44.965138143 -0700
+@@ -243,4 +243,24 @@ static inline void arch_unmap(struct mm_
+ 		mpx_notify_unmap(mm, vma, start, end);
+ }
  
--#define NCAPINTS	13	/* N 32-bit words worth of info */
-+#define NCAPINTS	14	/* N 32-bit words worth of info */
- #define NBUGINTS	1	/* N 32-bit bug flags */
- 
- /*
-@@ -254,6 +254,10 @@
- /* Intel-defined CPU QoS Sub-leaf, CPUID level 0x0000000F:1 (edx), word 12 */
- #define X86_FEATURE_CQM_OCCUP_LLC (12*32+ 0) /* LLC occupancy monitoring if 1 */
- 
-+/* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx), word 13 */
-+#define X86_FEATURE_PKU		(13*32+ 3) /* Protection Keys for Userspace */
-+#define X86_FEATURE_OSPKE	(13*32+ 4) /* OS Protection Keys Enable */
++static inline u16 vma_pkey(struct vm_area_struct *vma)
++{
++	u16 pkey = 0;
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++	unsigned long vma_pkey_mask = VM_PKEY_BIT0 | VM_PKEY_BIT1 |
++				      VM_PKEY_BIT2 | VM_PKEY_BIT3;
++	/*
++	 * ffs is one-based, not zero-based, so bias back down by 1.
++	 */
++	int vm_pkey_shift = __builtin_ffsl(vma_pkey_mask) - 1;
++	/*
++	 * gcc generates better code if we do this rather than:
++	 * pkey = (flags & mask) >> shift
++	 */
++	pkey = (vma->vm_flags >> vm_pkey_shift) &
++	       (vma_pkey_mask >> vm_pkey_shift);
++#endif
++	return pkey;
++}
 +
- /*
-  * BUG word(s)
-  */
-@@ -294,28 +298,36 @@ extern const char * const x86_bug_flags[
- 	 test_bit(bit, (unsigned long *)((c)->x86_capability))
+ #endif /* _ASM_X86_MMU_CONTEXT_H */
+diff -puN arch/x86/include/asm/pgtable_types.h~pkeys-08-store-pkey-in-vma arch/x86/include/asm/pgtable_types.h
+--- a/arch/x86/include/asm/pgtable_types.h~pkeys-08-store-pkey-in-vma	2015-09-28 11:39:44.959137870 -0700
++++ b/arch/x86/include/asm/pgtable_types.h	2015-09-28 11:39:44.965138143 -0700
+@@ -111,7 +111,12 @@
+ #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
+ 			 _PAGE_DIRTY)
  
- #define REQUIRED_MASK_BIT_SET(bit)					\
--	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & REQUIRED_MASK0)) ||	\
--	   (((bit)>>5)==1 && (1UL<<((bit)&31) & REQUIRED_MASK1)) ||	\
--	   (((bit)>>5)==2 && (1UL<<((bit)&31) & REQUIRED_MASK2)) ||	\
--	   (((bit)>>5)==3 && (1UL<<((bit)&31) & REQUIRED_MASK3)) ||	\
--	   (((bit)>>5)==4 && (1UL<<((bit)&31) & REQUIRED_MASK4)) ||	\
--	   (((bit)>>5)==5 && (1UL<<((bit)&31) & REQUIRED_MASK5)) ||	\
--	   (((bit)>>5)==6 && (1UL<<((bit)&31) & REQUIRED_MASK6)) ||	\
--	   (((bit)>>5)==7 && (1UL<<((bit)&31) & REQUIRED_MASK7)) ||	\
--	   (((bit)>>5)==8 && (1UL<<((bit)&31) & REQUIRED_MASK8)) ||	\
--	   (((bit)>>5)==9 && (1UL<<((bit)&31) & REQUIRED_MASK9)) )
-+	 ( (((bit)>>5)==0  && (1UL<<((bit)&31) & REQUIRED_MASK0 )) ||	\
-+	   (((bit)>>5)==1  && (1UL<<((bit)&31) & REQUIRED_MASK1 )) ||	\
-+	   (((bit)>>5)==2  && (1UL<<((bit)&31) & REQUIRED_MASK2 )) ||	\
-+	   (((bit)>>5)==3  && (1UL<<((bit)&31) & REQUIRED_MASK3 )) ||	\
-+	   (((bit)>>5)==4  && (1UL<<((bit)&31) & REQUIRED_MASK4 )) ||	\
-+	   (((bit)>>5)==5  && (1UL<<((bit)&31) & REQUIRED_MASK5 )) ||	\
-+	   (((bit)>>5)==6  && (1UL<<((bit)&31) & REQUIRED_MASK6 )) ||	\
-+	   (((bit)>>5)==7  && (1UL<<((bit)&31) & REQUIRED_MASK7 )) ||	\
-+	   (((bit)>>5)==8  && (1UL<<((bit)&31) & REQUIRED_MASK8 )) ||	\
-+	   (((bit)>>5)==9  && (1UL<<((bit)&31) & REQUIRED_MASK9 )) ||	\
-+	   (((bit)>>5)==10 && (1UL<<((bit)&31) & REQUIRED_MASK10)) ||	\
-+	   (((bit)>>5)==11 && (1UL<<((bit)&31) & REQUIRED_MASK11)) ||	\
-+	   (((bit)>>5)==12 && (1UL<<((bit)&31) & REQUIRED_MASK12)) ||	\
-+	   (((bit)>>5)==13 && (1UL<<((bit)&31) & REQUIRED_MASK13)) )
+-/* Set of bits not changed in pte_modify */
++/*
++ * Set of bits not changed in pte_modify.  The pte's
++ * protection key is treated like _PAGE_RW, for
++ * instance, and is *not* included in this mask since
++ * pte_modify() does modify it.
++ */
+ #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
+ 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
+ 			 _PAGE_SOFT_DIRTY)
+@@ -227,7 +232,10 @@ enum page_cache_mode {
+ /* PTE_PFN_MASK extracts the PFN from a (pte|pmd|pud|pgd)val_t */
+ #define PTE_PFN_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
  
- #define DISABLED_MASK_BIT_SET(bit)					\
--	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & DISABLED_MASK0)) ||	\
--	   (((bit)>>5)==1 && (1UL<<((bit)&31) & DISABLED_MASK1)) ||	\
--	   (((bit)>>5)==2 && (1UL<<((bit)&31) & DISABLED_MASK2)) ||	\
--	   (((bit)>>5)==3 && (1UL<<((bit)&31) & DISABLED_MASK3)) ||	\
--	   (((bit)>>5)==4 && (1UL<<((bit)&31) & DISABLED_MASK4)) ||	\
--	   (((bit)>>5)==5 && (1UL<<((bit)&31) & DISABLED_MASK5)) ||	\
--	   (((bit)>>5)==6 && (1UL<<((bit)&31) & DISABLED_MASK6)) ||	\
--	   (((bit)>>5)==7 && (1UL<<((bit)&31) & DISABLED_MASK7)) ||	\
--	   (((bit)>>5)==8 && (1UL<<((bit)&31) & DISABLED_MASK8)) ||	\
--	   (((bit)>>5)==9 && (1UL<<((bit)&31) & DISABLED_MASK9)) )
-+	 ( (((bit)>>5)==0  && (1UL<<((bit)&31) & DISABLED_MASK0 )) ||	\
-+	   (((bit)>>5)==1  && (1UL<<((bit)&31) & DISABLED_MASK1 )) ||	\
-+	   (((bit)>>5)==2  && (1UL<<((bit)&31) & DISABLED_MASK2 )) ||	\
-+	   (((bit)>>5)==3  && (1UL<<((bit)&31) & DISABLED_MASK3 )) ||	\
-+	   (((bit)>>5)==4  && (1UL<<((bit)&31) & DISABLED_MASK4 )) ||	\
-+	   (((bit)>>5)==5  && (1UL<<((bit)&31) & DISABLED_MASK5 )) ||	\
-+	   (((bit)>>5)==6  && (1UL<<((bit)&31) & DISABLED_MASK6 )) ||	\
-+	   (((bit)>>5)==7  && (1UL<<((bit)&31) & DISABLED_MASK7 )) ||	\
-+	   (((bit)>>5)==8  && (1UL<<((bit)&31) & DISABLED_MASK8 )) ||	\
-+	   (((bit)>>5)==9  && (1UL<<((bit)&31) & DISABLED_MASK9 )) ||	\
-+	   (((bit)>>5)==10 && (1UL<<((bit)&31) & DISABLED_MASK10)) ||	\
-+	   (((bit)>>5)==11 && (1UL<<((bit)&31) & DISABLED_MASK11)) ||	\
-+	   (((bit)>>5)==12 && (1UL<<((bit)&31) & DISABLED_MASK12)) ||	\
-+	   (((bit)>>5)==13 && (1UL<<((bit)&31) & DISABLED_MASK13)) )
+-/* PTE_FLAGS_MASK extracts the flags from a (pte|pmd|pud|pgd)val_t */
++/*
++ *  PTE_FLAGS_MASK extracts the flags from a (pte|pmd|pud|pgd)val_t
++ *  This includes the protection key value.
++ */
+ #define PTE_FLAGS_MASK		(~PTE_PFN_MASK)
  
- #define cpu_has(c, bit)							\
- 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
-diff -puN arch/x86/include/asm/disabled-features.h~pkeys-01-cpuid arch/x86/include/asm/disabled-features.h
---- a/arch/x86/include/asm/disabled-features.h~pkeys-01-cpuid	2015-09-28 11:39:42.298016819 -0700
-+++ b/arch/x86/include/asm/disabled-features.h	2015-09-28 11:39:42.305017137 -0700
-@@ -28,6 +28,14 @@
- # define DISABLE_CENTAUR_MCR	0
- #endif /* CONFIG_X86_64 */
+ typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
+diff -puN arch/x86/include/uapi/asm/mman.h~pkeys-08-store-pkey-in-vma arch/x86/include/uapi/asm/mman.h
+--- a/arch/x86/include/uapi/asm/mman.h~pkeys-08-store-pkey-in-vma	2015-09-28 11:39:44.960137915 -0700
++++ b/arch/x86/include/uapi/asm/mman.h	2015-09-28 11:39:44.966138188 -0700
+@@ -6,6 +6,22 @@
+ #define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
+ #define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
  
 +#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+# define DISABLE_PKU		(1<<(X86_FEATURE_PKU))
-+# define DISABLE_OSPKE		(1<<(X86_FEATURE_OSPKE))
-+#else
-+# define DISABLE_PKU		0
-+# define DISABLE_OSPKE		0
-+#endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
++/*
++ * Take the 4 protection key bits out of the vma->vm_flags
++ * value and turn them in to the bits that we can put in
++ * to a pte.
++ *
++ * Only override these if Protection Keys are available
++ * (which is only on 64-bit).
++ */
++#define arch_vm_get_page_prot(vm_flags)	__pgprot(	\
++		((vm_flags) & VM_PKEY_BIT0 ? _PAGE_PKEY_BIT0 : 0) |	\
++		((vm_flags) & VM_PKEY_BIT1 ? _PAGE_PKEY_BIT1 : 0) |	\
++		((vm_flags) & VM_PKEY_BIT2 ? _PAGE_PKEY_BIT2 : 0) |	\
++		((vm_flags) & VM_PKEY_BIT3 ? _PAGE_PKEY_BIT3 : 0))
++#endif
 +
- /*
-  * Make sure to add features to the correct mask
-  */
-@@ -41,5 +49,9 @@
- #define DISABLED_MASK7	0
- #define DISABLED_MASK8	0
- #define DISABLED_MASK9	(DISABLE_MPX)
-+#define DISABLED_MASK10	0
-+#define DISABLED_MASK11	0
-+#define DISABLED_MASK12	0
-+#define DISABLED_MASK13	(DISABLE_PKU|DISABLE_OSPKE)
+ #include <asm-generic/mman.h>
  
- #endif /* _ASM_X86_DISABLED_FEATURES_H */
-diff -puN arch/x86/include/asm/required-features.h~pkeys-01-cpuid arch/x86/include/asm/required-features.h
---- a/arch/x86/include/asm/required-features.h~pkeys-01-cpuid	2015-09-28 11:39:42.300016910 -0700
-+++ b/arch/x86/include/asm/required-features.h	2015-09-28 11:39:42.306017183 -0700
-@@ -92,5 +92,9 @@
- #define REQUIRED_MASK7	0
- #define REQUIRED_MASK8	0
- #define REQUIRED_MASK9	0
-+#define REQUIRED_MASK10	0
-+#define REQUIRED_MASK11	0
-+#define REQUIRED_MASK12	0
-+#define REQUIRED_MASK13	0
+ #endif /* _ASM_X86_MMAN_H */
+diff -puN include/linux/mm.h~pkeys-08-store-pkey-in-vma include/linux/mm.h
+--- a/include/linux/mm.h~pkeys-08-store-pkey-in-vma	2015-09-28 11:39:44.962138006 -0700
++++ b/include/linux/mm.h	2015-09-28 11:39:44.967138234 -0700
+@@ -166,6 +166,12 @@ extern unsigned int kobjsize(const void
  
- #endif /* _ASM_X86_REQUIRED_FEATURES_H */
-diff -puN arch/x86/kernel/cpu/common.c~pkeys-01-cpuid arch/x86/kernel/cpu/common.c
---- a/arch/x86/kernel/cpu/common.c~pkeys-01-cpuid	2015-09-28 11:39:42.302017001 -0700
-+++ b/arch/x86/kernel/cpu/common.c	2015-09-28 11:39:42.306017183 -0700
-@@ -619,6 +619,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
- 		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
- 
- 		c->x86_capability[9] = ebx;
-+		c->x86_capability[13] = ecx;
- 	}
- 
- 	/* Extended state features: level 0x0000000d */
+ #if defined(CONFIG_X86)
+ # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
++#if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
++# define VM_PKEY_BIT0	VM_HIGH_ARCH_0	/* A protection key is a 4-bit value */
++# define VM_PKEY_BIT1	VM_HIGH_ARCH_1
++# define VM_PKEY_BIT2	VM_HIGH_ARCH_2
++# define VM_PKEY_BIT3	VM_HIGH_ARCH_3
++#endif
+ #elif defined(CONFIG_PPC)
+ # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
+ #elif defined(CONFIG_PARISC)
 _
 
 --
