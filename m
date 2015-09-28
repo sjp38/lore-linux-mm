@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id DA6146B0265
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 15:18:37 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so182140569pad.1
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 12:18:37 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id rj3si30718105pbc.104.2015.09.28.12.18.23
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E3B8C6B0267
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 15:18:39 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so85260246pab.3
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 12:18:39 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id pg2si30752755pbb.36.2015.09.28.12.18.23
         for <linux-mm@kvack.org>;
         Mon, 28 Sep 2015 12:18:23 -0700 (PDT)
-Subject: [PATCH 06/25] x86, pkeys: PTE bits for storing protection key
+Subject: [PATCH 13/25] mm: factor out VMA fault permission checking
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 28 Sep 2015 12:18:19 -0700
+Date: Mon, 28 Sep 2015 12:18:22 -0700
 References: <20150928191817.035A64E2@viggo.jf.intel.com>
 In-Reply-To: <20150928191817.035A64E2@viggo.jf.intel.com>
-Message-Id: <20150928191819.F8EB3C51@viggo.jf.intel.com>
+Message-Id: <20150928191822.DFCE608C@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dave@sr71.net
@@ -22,57 +22,57 @@ Cc: borntraeger@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Previous documentation has referred to these 4 bits as "ignored".
-That means that software could have made use of them.  But, as
-far as I know, the kernel never used them.
+This code matches a fault condition up with the VMA and ensures
+that the VMA allows the fault to be handled instead of just
+erroring out.
 
-They are still ignored when protection keys is not enabled, so
-they could theoretically still get used for software purposes.
-
-We also implement "empty" versions so that code that references
-to them can be optimized away by the compiler when the config
-option is not enabled.
+We will be extending this in a moment to comprehend protection
+keys.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- b/arch/x86/include/asm/pgtable_types.h |   17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+ b/mm/gup.c |   15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
 
-diff -puN arch/x86/include/asm/pgtable_types.h~pkeys-04-ptebits arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h~pkeys-04-ptebits	2015-09-28 11:39:43.661078823 -0700
-+++ b/arch/x86/include/asm/pgtable_types.h	2015-09-28 11:39:43.665079005 -0700
-@@ -25,7 +25,11 @@
- #define _PAGE_BIT_SPLITTING	_PAGE_BIT_SOFTW2 /* only valid on a PSE pmd */
- #define _PAGE_BIT_HIDDEN	_PAGE_BIT_SOFTW3 /* hidden by kmemcheck */
- #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
--#define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
-+#define _PAGE_BIT_PKEY_BIT0	59       /* Protection Keys, bit 1/4 */
-+#define _PAGE_BIT_PKEY_BIT1	60       /* Protection Keys, bit 2/4 */
-+#define _PAGE_BIT_PKEY_BIT2	61       /* Protection Keys, bit 3/4 */
-+#define _PAGE_BIT_PKEY_BIT3	62       /* Protection Keys, bit 4/4 */
-+#define _PAGE_BIT_NX		63       /* No execute: only valid after cpuid check */
+diff -puN mm/gup.c~pkeys-10-pte-fault mm/gup.c
+--- a/mm/gup.c~pkeys-10-pte-fault	2015-09-28 11:39:46.790221164 -0700
++++ b/mm/gup.c	2015-09-28 11:39:46.794221345 -0700
+@@ -554,6 +554,17 @@ next_page:
+ }
+ EXPORT_SYMBOL(__get_user_pages);
  
- /* If _PAGE_BIT_PRESENT is clear, we use these: */
- /* - if the user mapped it with PROT_NONE; pte_present gives true */
-@@ -47,6 +51,17 @@
- #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
- #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
- #define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+#define _PAGE_PKEY_BIT0	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT0)
-+#define _PAGE_PKEY_BIT1	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT1)
-+#define _PAGE_PKEY_BIT2	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT2)
-+#define _PAGE_PKEY_BIT3	(_AT(pteval_t, 1) << _PAGE_BIT_PKEY_BIT3)
-+#else
-+#define _PAGE_PKEY_BIT0	(_AT(pteval_t, 0))
-+#define _PAGE_PKEY_BIT1	(_AT(pteval_t, 0))
-+#define _PAGE_PKEY_BIT2	(_AT(pteval_t, 0))
-+#define _PAGE_PKEY_BIT3	(_AT(pteval_t, 0))
-+#endif
- #define __HAVE_ARCH_PTE_SPECIAL
++bool vma_permits_fault(struct vm_area_struct *vma, unsigned int fault_flags)
++{
++        vm_flags_t vm_flags =
++		(fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
++
++	if (!(vm_flags & vma->vm_flags))
++		return false;
++
++	return true;
++}
++
+ /*
+  * fixup_user_fault() - manually resolve a user page fault
+  * @tsk:	the task_struct to use for page fault accounting, or
+@@ -585,15 +596,13 @@ int fixup_user_fault(struct task_struct
+ 		     unsigned long address, unsigned int fault_flags)
+ {
+ 	struct vm_area_struct *vma;
+-	vm_flags_t vm_flags;
+ 	int ret;
  
- #ifdef CONFIG_KMEMCHECK
+ 	vma = find_extend_vma(mm, address);
+ 	if (!vma || address < vma->vm_start)
+ 		return -EFAULT;
+ 
+-	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
+-	if (!(vm_flags & vma->vm_flags))
++	if (!vma_permits_fault(vma, fault_flags))
+ 		return -EFAULT;
+ 
+ 	ret = handle_mm_fault(mm, vma, address, fault_flags);
 _
 
 --
