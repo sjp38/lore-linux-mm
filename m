@@ -1,18 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BFA66B0038
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 08:26:08 -0400 (EDT)
-Received: by qgez77 with SMTP id z77so118864341qge.1
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 05:26:08 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 32FE96B0255
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 08:26:13 -0400 (EDT)
+Received: by qgx61 with SMTP id 61so118345673qgx.3
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 05:26:13 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 141si15198894qhx.1.2015.09.28.05.26.07
+        by mx.google.com with ESMTPS id b21si15234300qkj.22.2015.09.28.05.26.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Sep 2015 05:26:07 -0700 (PDT)
-Subject: [PATCH 0/7] Further optimizing SLAB/SLUB bulking
+        Mon, 28 Sep 2015 05:26:12 -0700 (PDT)
+Subject: [PATCH 1/7] slub: create new ___slab_alloc function that can be
+ called with irqs disabled
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Mon, 28 Sep 2015 14:26:04 +0200
-Message-ID: <20150928122444.15409.10498.stgit@canyon>
+Date: Mon, 28 Sep 2015 14:26:09 +0200
+Message-ID: <20150928122609.15409.30765.stgit@canyon>
+In-Reply-To: <20150928122444.15409.10498.stgit@canyon>
+References: <20150928122444.15409.10498.stgit@canyon>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -21,65 +24,106 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: netdev@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, Alexander Duyck <alexander.duyck@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Most important part of this patchset is the introducing of what I call
-detached freelist, for improving SLUB performance of object freeing in
-the "slowpath" of kmem_cache_free_bulk.
+From: Christoph Lameter <cl@linux.com>
 
-Previous patchset V2 thread:
-  http://thread.gmane.org/gmane.linux.kernel.mm/137469
+NOTICE: Accepted by AKPM
+ http://ozlabs.org/~akpm/mmots/broken-out/slub-create-new-___slab_alloc-function-that-can-be-called-with-irqs-disabled.patch
 
-Not using V3 tag as patch titles have changed and I've merged some
-patches. This was joint work with Alexander Duyck while still at Red Hat.
+Bulk alloc needs a function like that because it enables interrupts before
+calling __slab_alloc which promptly disables them again using the expensive
+local_irq_save().
 
-Notes for patches:
- * First two patches (from Christoph) are already in AKPM MMOTS.
- * Patch 3 is trivial
- * Patch 4 is a repost, implements bulking for SLAB.
-  - http://thread.gmane.org/gmane.linux.kernel.mm/138220
- * Patch 5 and 6 are the important patches
-  - Patch 5 handle "freelists" in slab_free() and __slab_free().
-  - Patch 6 intro detached freelists, and significant performance improvement
-
-Patches should be ready for the MM-tree, as I'm now handling kmem
-debug support.
-
-
-Based on top of commit 519f526d39 in net-next, but I've tested it
-applies on top of mmotm-2015-09-18-16-08.
-
-The benchmarking tools are avail here:
- https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm
- See: slab_bulk_test0{1,2,3}.c
-
-
-This patchset is part of my network stack use-case.  I'll post the
-network side of the patchset as soon as I've cleaned it up, rebased it
-on net-next and re-run all the benchmarks.
-
+Signed-off-by: Christoph Lameter <cl@linux.com>
+Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
 ---
+ mm/slub.c |   44 +++++++++++++++++++++++++++++---------------
+ 1 file changed, 29 insertions(+), 15 deletions(-)
 
-Christoph Lameter (2):
-      slub: create new ___slab_alloc function that can be called with irqs disabled
-      slub: Avoid irqoff/on in bulk allocation
-
-Jesper Dangaard Brouer (5):
-      slub: mark the dangling ifdef #else of CONFIG_SLUB_DEBUG
-      slab: implement bulking for SLAB allocator
-      slub: support for bulk free with SLUB freelists
-      slub: optimize bulk slowpath free by detached freelist
-      slub: do prefetching in kmem_cache_alloc_bulk()
-
-
- mm/slab.c |   87 ++++++++++++++-----
- mm/slub.c |  276 +++++++++++++++++++++++++++++++++++++++++++++----------------
- 2 files changed, 267 insertions(+), 96 deletions(-)
-
---
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+diff --git a/mm/slub.c b/mm/slub.c
+index f614b5dc396b..02cfb3a5983e 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2298,23 +2298,15 @@ static inline void *get_freelist(struct kmem_cache *s, struct page *page)
+  * And if we were unable to get a new slab from the partial slab lists then
+  * we need to allocate a new slab. This is the slowest path since it involves
+  * a call to the page allocator and the setup of a new slab.
++ *
++ * Version of __slab_alloc to use when we know that interrupts are
++ * already disabled (which is the case for bulk allocation).
+  */
+-static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
++static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+ 			  unsigned long addr, struct kmem_cache_cpu *c)
+ {
+ 	void *freelist;
+ 	struct page *page;
+-	unsigned long flags;
+-
+-	local_irq_save(flags);
+-#ifdef CONFIG_PREEMPT
+-	/*
+-	 * We may have been preempted and rescheduled on a different
+-	 * cpu before disabling interrupts. Need to reload cpu area
+-	 * pointer.
+-	 */
+-	c = this_cpu_ptr(s->cpu_slab);
+-#endif
+ 
+ 	page = c->page;
+ 	if (!page)
+@@ -2372,7 +2364,6 @@ load_freelist:
+ 	VM_BUG_ON(!c->page->frozen);
+ 	c->freelist = get_freepointer(s, freelist);
+ 	c->tid = next_tid(c->tid);
+-	local_irq_restore(flags);
+ 	return freelist;
+ 
+ new_slab:
+@@ -2389,7 +2380,6 @@ new_slab:
+ 
+ 	if (unlikely(!freelist)) {
+ 		slab_out_of_memory(s, gfpflags, node);
+-		local_irq_restore(flags);
+ 		return NULL;
+ 	}
+ 
+@@ -2405,11 +2395,35 @@ new_slab:
+ 	deactivate_slab(s, page, get_freepointer(s, freelist));
+ 	c->page = NULL;
+ 	c->freelist = NULL;
+-	local_irq_restore(flags);
+ 	return freelist;
+ }
+ 
+ /*
++ * Another one that disabled interrupt and compensates for possible
++ * cpu changes by refetching the per cpu area pointer.
++ */
++static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
++			  unsigned long addr, struct kmem_cache_cpu *c)
++{
++	void *p;
++	unsigned long flags;
++
++	local_irq_save(flags);
++#ifdef CONFIG_PREEMPT
++	/*
++	 * We may have been preempted and rescheduled on a different
++	 * cpu before disabling interrupts. Need to reload cpu area
++	 * pointer.
++	 */
++	c = this_cpu_ptr(s->cpu_slab);
++#endif
++
++	p = ___slab_alloc(s, gfpflags, node, addr, c);
++	local_irq_restore(flags);
++	return p;
++}
++
++/*
+  * Inlined fastpath so that allocation functions (kmalloc, kmem_cache_alloc)
+  * have the fastpath folded into their functions. So no function call
+  * overhead for requests that can be satisfied on the fastpath.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
