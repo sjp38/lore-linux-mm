@@ -1,73 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 14D096B025B
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 12:30:02 -0400 (EDT)
-Received: by igbkq10 with SMTP id kq10so59737922igb.0
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 09:30:01 -0700 (PDT)
-Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
-        by mx.google.com with ESMTPS id gb2si12411492igd.93.2015.09.28.09.30.01
+Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E4356B025D
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 13:03:21 -0400 (EDT)
+Received: by ykdg206 with SMTP id g206so184930083ykd.1
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 10:03:21 -0700 (PDT)
+Received: from mail-yk0-x22e.google.com (mail-yk0-x22e.google.com. [2607:f8b0:4002:c07::22e])
+        by mx.google.com with ESMTPS id a145si9010977ykf.43.2015.09.28.10.03.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 28 Sep 2015 09:30:01 -0700 (PDT)
-Date: Mon, 28 Sep 2015 11:30:00 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 5/7] slub: support for bulk free with SLUB freelists
-In-Reply-To: <20150928175114.07e85114@redhat.com>
-Message-ID: <alpine.DEB.2.20.1509281129100.30876@east.gentwo.org>
-References: <20150928122444.15409.10498.stgit@canyon> <20150928122629.15409.69466.stgit@canyon> <alpine.DEB.2.20.1509281011250.30332@east.gentwo.org> <20150928175114.07e85114@redhat.com>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Sep 2015 10:03:20 -0700 (PDT)
+Received: by ykdz138 with SMTP id z138so187517525ykd.2
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 10:03:20 -0700 (PDT)
+Date: Mon, 28 Sep 2015 13:03:14 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC v2 07/18] kthread: Allow to cancel kthread work
+Message-ID: <20150928170314.GF2589@mtj.duckdns.org>
+References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
+ <1442840639-6963-8-git-send-email-pmladek@suse.com>
+ <20150922193513.GE17659@mtj.duckdns.org>
+ <20150925112617.GA3122@pathway.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150925112617.GA3122@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 28 Sep 2015, Jesper Dangaard Brouer wrote:
+Hello, Petr.
 
-> Not knowing SLUB as well as you, it took me several hours to realize
-> init_object() didn't overwrite the freepointer in the object.  Thus, I
-> think these comments make the reader aware of not-so-obvious
-> side-effects of SLAB_POISON and SLAB_RED_ZONE.
+On Fri, Sep 25, 2015 at 01:26:17PM +0200, Petr Mladek wrote:
+> 1) PENDING state plus -EAGAIN/busy loop cycle
+> ---------------------------------------------
+> 
+> IMHO, we want to use the timer because it is an elegant solution.
+> Then we must release the lock when the timer is running. The lock
+> must be taken by the timer->function(). And there is a small window
+> when the timer is not longer pending but timer->function is not running:
+> 
+> CPU0                            CPU1
+> 
+> run_timer_softirq()
+>   __run_timers()
+>     detach_expired_timer()
+>       detach_timer()
+> 	#clear_pending
+> 
+> 				try_to_grab_pending_kthread_work()
+> 				  del_timer()
+> 				    # fails because not pending
+> 
+> 				  test_and_set_bit(KTHREAD_WORK_PENDING_BIT)
+> 				    # fails because already set
+> 
+> 				  if (!list_empty(&work->node))
+> 				    # fails because still not queued
+> 
+> 			!!! problematic window !!!
+> 
+>     call_timer_fn()
+>      queue_kthraed_work()
 
->From the source:
+Let's say each work item has a state variable which is protected by a
+lock and the state can be one of IDLE, PENDING, CANCELING.  Let's also
+assume that all cancelers synchronize with each other via mutex, so we
+only have to worry about a single canceler.  Wouldn't something like
+the following work while being a lot simpler?
 
-/*
- * Object layout:
- *
- * object address
- *      Bytes of the object to be managed.
- *      If the freepointer may overlay the object then the free
- *      pointer is the first word of the object.
- *
- *      Poisoning uses 0x6b (POISON_FREE) and the last byte is
- *      0xa5 (POISON_END)
- *
- * object + s->object_size
- *      Padding to reach word boundary. This is also used for Redzoning.
- *      Padding is extended by another word if Redzoning is enabled and
- *      object_size == inuse.
- *
- *      We fill with 0xbb (RED_INACTIVE) for inactive objects and with
- *      0xcc (RED_ACTIVE) for objects in use.
- *
- * object + s->inuse
- *      Meta data starts here.
- *
- *      A. Free pointer (if we cannot overwrite object on free)
- *      B. Tracking data for SLAB_STORE_USER
- *      C. Padding to reach required alignment boundary or at mininum
- *              one word if debugging is on to be able to detect writes
- *              before the word boundary.
- *
- *      Padding is done using 0x5a (POISON_INUSE)
- *
- * object + s->size
- *      Nothing is used beyond s->size.
- *
- * If slabcaches are merged then the object_size and inuse boundaries are
-mostly
- * ignored. And therefore no slab options that rely on these boundaries
- * may be used with merged slabcaches.
- */
+Delayed queueing and execution.
+
+1. Lock and check whether state is IDLE.  If not, nothing to do.
+
+2. Set state to PENDING and schedule the timer and unlock.
+
+3. On expiration, timer_fn grabs the lock and see whether state is
+   still PENDING.  If so, schedule the work item for execution;
+   otherwise, nothing to do.
+
+4. After dequeueing from execution queue with lock held, the worker is
+   marked as executing the work item and state is reset to IDLE.
+
+Canceling
+
+1. Lock, dequeue and set the state to CANCELING.
+
+2. Unlock and perform del_timer_sync().
+
+3. Flush the work item.
+
+4. Lock and reset the state to IDLE and unlock.
+
+
+> 2) CANCEL state plus custom waitqueue
+> -------------------------------------
+> 
+> cancel_kthread_work_sync() has to wait for the running work. It might take
+> quite some time. Therefore we could not block others by a spinlock.
+> Also others could not wait for the spin lock in a busy wait.
+
+Hmmm?  Cancelers can synchronize amongst them using a mutex and the
+actual work item wait can use flushing.
+
+> IMHO, the proposed and rather complex solutions are needed in both cases.
+> 
+> Or did I miss a possible trick, please?
+
+I probably have missed something in the above and it is not completley
+correct but I do think it can be way simpler than how workqueue does
+it.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
