@@ -1,40 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2465E82F65
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 15:32:28 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so85528114pab.3
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 12:32:27 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id qy7si30829357pab.12.2015.09.28.12.32.27
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 819C76B0276
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 16:34:10 -0400 (EDT)
+Received: by oibi136 with SMTP id i136so97552421oib.3
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 13:34:10 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id x1si9189303oek.27.2015.09.28.13.34.09
         for <linux-mm@kvack.org>;
-        Mon, 28 Sep 2015 12:32:27 -0700 (PDT)
-Subject: Re: [PATCH 10/26] x86, pkeys: notify userspace about protection key
- faults
-References: <20150916174903.E112E464@viggo.jf.intel.com>
- <20150916174906.51062FBC@viggo.jf.intel.com>
- <20150924092320.GA26876@gmail.com> <56042F96.6030107@sr71.net>
- <56099444.1010902@de.ibm.com>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <560995CA.2000403@sr71.net>
-Date: Mon, 28 Sep 2015 12:32:26 -0700
+        Mon, 28 Sep 2015 13:34:09 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 25/25] x86, pkeys: Documentation
+References: <20150928191817.035A64E2@viggo.jf.intel.com>
+	<20150928191827.0BDF3C64@viggo.jf.intel.com>
+Date: Mon, 28 Sep 2015 13:34:08 -0700
+In-Reply-To: <20150928191827.0BDF3C64@viggo.jf.intel.com> (Dave Hansen's
+	message of "Mon, 28 Sep 2015 12:18:27 -0700")
+Message-ID: <874miez3jz.fsf@tassilo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <56099444.1010902@de.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>, Ingo Molnar <mingo@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: Dave Hansen <dave@sr71.net>
+Cc: borntraeger@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com
 
-On 09/28/2015 12:25 PM, Christian Borntraeger wrote:
-> We do not have the storage keys per page table, but for the page frame instead 
-> (shared among all mappers) so I am not sure if the whole thing will fit for s390.
-> Having a signal for page protection errors might be useful for us - not sure yet.
+Dave Hansen <dave@sr71.net> writes:
 
-Ugh, yeah, that's a pretty different architecture.  The stuff we have
-here (syscall, VMA flags, etc...) is probably useful to you only for
-controlling access to non-shared memory.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 
+Do you have a manpage for the new syscall too?
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
