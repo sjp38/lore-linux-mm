@@ -1,96 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 95B356B0256
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 11:11:54 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so177078163pac.0
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 08:11:54 -0700 (PDT)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTP id ra1si29143503pbb.202.2015.09.28.08.11.53
-        for <linux-mm@kvack.org>;
-        Mon, 28 Sep 2015 08:11:53 -0700 (PDT)
-Message-ID: <1443453111.2168.9.camel@HansenPartnership.com>
-Subject: Re: [PATCH V4 1/2] ACPI / EC: Fix broken 64bit big-endian users of
- 'global_lock'
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Mon, 28 Sep 2015 08:11:51 -0700
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6D1CBA4232@AcuExch.aculab.com>
-References: 
-	<e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org>
-	 <2524822.pQu4UKMrlb@vostro.rjw.lan>
-	 <1443297128.2181.11.camel@HansenPartnership.com>
-	 <3461169.v5xKdGLGjP@vostro.rjw.lan>
-	 <063D6719AE5E284EB5DD2968C1650D6D1CBA3BF7@AcuExch.aculab.com>
-	 <1443450406.2168.3.camel@HansenPartnership.com>
-	 <063D6719AE5E284EB5DD2968C1650D6D1CBA4232@AcuExch.aculab.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3ABB16B0258
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 11:16:52 -0400 (EDT)
+Received: by igbni9 with SMTP id ni9so52307638igb.0
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 08:16:52 -0700 (PDT)
+Received: from resqmta-po-01v.sys.comcast.net (resqmta-po-01v.sys.comcast.net. [2001:558:fe16:19:96:114:154:160])
+        by mx.google.com with ESMTPS id 35si12613014ioq.87.2015.09.28.08.16.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 28 Sep 2015 08:16:51 -0700 (PDT)
+Date: Mon, 28 Sep 2015 10:16:49 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 5/7] slub: support for bulk free with SLUB freelists
+In-Reply-To: <20150928122629.15409.69466.stgit@canyon>
+Message-ID: <alpine.DEB.2.20.1509281011250.30332@east.gentwo.org>
+References: <20150928122444.15409.10498.stgit@canyon> <20150928122629.15409.69466.stgit@canyon>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>
-Cc: "'Rafael J. Wysocki'" <rjw@rjwysocki.net>, Viresh Kumar <viresh.kumar@linaro.org>, Johannes Berg <johannes@sipsolutions.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Intel Linux Wireless <ilw@linux.intel.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "open list:BLUETOOTH DRIVERS" <linux-bluetooth@vger.kernel.org>, "open list:AMD IOMMU (AMD-VI)" <iommu@lists.linux-foundation.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "open list:NETWORKING DRIVERS (WIRELESS)" <linux-wireless@vger.kernel.org>, "open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>, "open list:ULTRA-WIDEBAND (UWB) SUBSYSTEM:" <linux-usb@vger.kernel.org>, "open list:EDAC-CORE" <linux-edac@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, "moderated list:SOUND - SOC LAYER / DYNAMIC AUDIO
- POWER MANAGEM..." <alsa-devel@alsa-project.org>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, 2015-09-28 at 14:50 +0000, David Laight wrote:
-> From: James Bottomley [mailto:James.Bottomley@HansenPartnership.com]
-> > Sent: 28 September 2015 15:27
-> > On Mon, 2015-09-28 at 08:58 +0000, David Laight wrote:
-> > > From: Rafael J. Wysocki
-> > > > Sent: 27 September 2015 15:09
-> > > ...
-> > > > > > Say you have three adjacent fields in a structure, x, y, z, each one byte long.
-> > > > > > Initially, all of them are equal to 0.
-> > > > > >
-> > > > > > CPU A writes 1 to x and CPU B writes 2 to y at the same time.
-> > > > > >
-> > > > > > What's the result?
-> > > > >
-> > > > > I think every CPU's  cache architecure guarantees adjacent store
-> > > > > integrity, even in the face of SMP, so it's x==1 and y==2.  If you're
-> > > > > thinking of old alpha SMP system where the lowest store width is 32 bits
-> > > > > and thus you have to do RMW to update a byte, this was usually fixed by
-> > > > > padding (assuming the structure is not packed).  However, it was such a
-> > > > > problem that even the later alpha chips had byte extensions.
-> > >
-> > > Does linux still support those old Alphas?
-> > >
-> > > The x86 cpus will also do 32bit wide rmw cycles for the 'bit' operations.
-> > 
-> > That's different: it's an atomic RMW operation.  The problem with the
-> > alpha was that the operation wasn't atomic (meaning that it can't be
-> > interrupted and no intermediate output states are visible).
-> 
-> It is only atomic if prefixed by the 'lock' prefix.
-> Normally the read and write are separate bus cycles.
+On Mon, 28 Sep 2015, Jesper Dangaard Brouer wrote:
 
-The essential point is that x86 has atomic bit ops and byte writes.
-Early alpha did not.
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 1cf98d89546d..13b5f53e4840 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -675,11 +675,18 @@ static void init_object(struct kmem_cache *s, void *object, u8 val)
+>  {
+>  	u8 *p = object;
+>
+> +	/* Freepointer not overwritten as SLAB_POISON moved it after object */
+>  	if (s->flags & __OBJECT_POISON) {
+>  		memset(p, POISON_FREE, s->object_size - 1);
+>  		p[s->object_size - 1] = POISON_END;
+>  	}
+>
+> +	/*
+> +	 * If both SLAB_RED_ZONE and SLAB_POISON are enabled, then
+> +	 * freepointer is still safe, as then s->offset equals
+> +	 * s->inuse and below redzone is after s->object_size and only
+> +	 * area between s->object_size and s->inuse.
+> +	 */
+>  	if (s->flags & SLAB_RED_ZONE)
+>  		memset(p + s->object_size, val, s->inuse - s->object_size);
+>  }
 
-> > > You still have to ensure the compiler doesn't do wider rmw cycles.
-> > > I believe the recent versions of gcc won't do wider accesses for volatile data.
-> > 
-> > I don't understand this comment.  You seem to be implying gcc would do a
-> > 64 bit RMW for a 32 bit store ... that would be daft when a single
-> > instruction exists to perform the operation on all architectures.
-> 
-> Read the object code and weep...
-> It is most likely to happen for operations that are rmw (eg bit set).
-> For instance the arm cpu has limited offsets for 16bit accesses, for
-> normal structures the compiler is likely to use a 32bit rmw sequence
-> for a 16bit field that has a large offset.
-> The C language allows the compiler to do it for any access (IIRC including
-> volatiles).
+Are these comments really adding something? This is basic metadata
+handling for SLUB that is commented on elsehwere.
 
-I think you might be confusing different things.  Most RISC CPUs can't
-do 32 bit store immediates because there aren't enough bits in their
-arsenal, so they tend to split 32 bit loads into a left and right part
-(first the top then the offset).  This (and other things) are mostly
-what you see in code.  However, 32 bit register stores are still atomic,
-which is all we require.  It's not really the compiler's fault, it's
-mostly an architectural limitation.
+> @@ -2584,9 +2646,14 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
+>   * So we still attempt to reduce cache line usage. Just take the slab
+>   * lock and free the item. If there is no additional partial page
+>   * handling required then we can return immediately.
+> + *
+> + * Bulk free of a freelist with several objects (all pointing to the
+> + * same page) possible by specifying freelist_head ptr and object as
+> + * tail ptr, plus objects count (cnt).
+>   */
+>  static void __slab_free(struct kmem_cache *s, struct page *page,
+> -			void *x, unsigned long addr)
+> +			void *x, unsigned long addr,
+> +			void *freelist_head, int cnt)
 
-James
-
+Do you really need separate parameters for freelist_head? If you just want
+to deal with one object pass it as freelist_head and set cnt = 1?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
