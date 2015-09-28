@@ -1,76 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B44D46B0038
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 01:59:12 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so88050710wic.1
-        for <linux-mm@kvack.org>; Sun, 27 Sep 2015 22:59:12 -0700 (PDT)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id k9si26467608wif.3.2015.09.27.22.59.11
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 573C06B0038
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 04:25:13 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so89614094wic.0
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 01:25:12 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.187])
+        by mx.google.com with ESMTPS id jq2si20709256wjc.180.2015.09.28.01.25.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Sep 2015 22:59:11 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so85189876wic.0
-        for <linux-mm@kvack.org>; Sun, 27 Sep 2015 22:59:11 -0700 (PDT)
-Date: Mon, 28 Sep 2015 07:59:07 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 10/26] x86, pkeys: notify userspace about protection key
- faults
-Message-ID: <20150928055907.GA2684@gmail.com>
-References: <20150916174903.E112E464@viggo.jf.intel.com>
- <20150916174906.51062FBC@viggo.jf.intel.com>
- <20150924092320.GA26876@gmail.com>
- <20150924093026.GA29699@gmail.com>
- <560435B4.1010603@sr71.net>
- <20150925071119.GB15753@gmail.com>
- <5605D660.8000009@sr71.net>
- <20150926062023.GB27841@gmail.com>
- <5608703E.5070406@sr71.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Sep 2015 01:25:12 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH V4 1/2] ACPI / EC: Fix broken 64bit big-endian users of 'global_lock'
+Date: Mon, 28 Sep 2015 10:24:58 +0200
+Message-ID: <2003030.YkVHTCZahK@wuerfel>
+In-Reply-To: <1578470.DLzaBp4j3T@vostro.rjw.lan>
+References: <e28c4b4deaf766910c366ab87b64325da59c8ad6.1443198783.git.viresh.kumar@linaro.org> <1540878.9slRi6Q7xb@wuerfel> <1578470.DLzaBp4j3T@vostro.rjw.lan>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5608703E.5070406@sr71.net>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: linux-arm-kernel@lists.infradead.org
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, "open list:BLUETOOTH DRIVERS" <linux-bluetooth@vger.kernel.org>, "moderated list:SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEM..." <alsa-devel@alsa-project.org>, linaro-kernel@lists.linaro.org, "open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>, "Rafael J. Wysocki" <rafael@kernel.org>, Viresh Kumar <viresh.kumar@linaro.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "open list:NETWORKING DRIVERS (WIRELESS)" <linux-wireless@vger.kernel.org>, QCA ath9k Development <ath9k-devel@qca.qualcomm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Intel Linux Wireless <ilw@linux.intel.com>, Linux ACPI <linux-acpi@vger.kernel.org>, "open list:AMD IOMMU (AMD-VI)" <iommu@lists.linux-foundation.org>, "open list:ULTRA-WIDEBAND (UWB) SUBSYSTEM:" <linux-usb@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Johannes Berg <johannes@sipsolutions.net>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "open list:EDAC-CORE" <linux-edac@vger.kernel.org>
 
-
-* Dave Hansen <dave@sr71.net> wrote:
-
-> On 09/25/2015 11:20 PM, Ingo Molnar wrote:
-> > * Dave Hansen <dave@sr71.net> wrote:
-> ...
-> >> Since follow_pte() fails for all huge
-> >> pages, it just falls back to pulling the protection key out of the VMA,
-> >> which _does_ work for huge pages.
+On Sunday 27 September 2015 16:10:48 Rafael J. Wysocki wrote:
+> On Saturday, September 26, 2015 09:33:56 PM Arnd Bergmann wrote:
+> > On Saturday 26 September 2015 11:40:00 Viresh Kumar wrote:
+> > > On 25 September 2015 at 15:19, Rafael J. Wysocki <rafael@kernel.org> wrote:
+> > > > So if you allow something like debugfs to update your structure, how
+> > > > do you make sure there is the proper locking?
+> > > 
+> > > Not really sure at all.. Isn't there some debugfs locking that will
+> > > jump in, to avoid updation of fields to the same device?
 > > 
-> > That might be true for explicit hugetlb vmas, but what about transparent hugepages 
-> > that can show up in regular vmas?
+> > No, if you need any locking to access variable, you cannot use the
+> > simple debugfs helpers but have to provide your own functions.
+> > 
+> > > >> Anyway, that problem isn't here for sure as its between two
+> > > >> unsigned-longs. So, should I just move it to bool and resend ?
+> > > >
+> > > > I guess it might be more convenient to fold this into the other patch,
+> > > > because we seem to be splitting hairs here.
+> > > 
+> > > I can and that's what I did. But then Arnd asked me to separate it
+> > > out. I can fold it back if that's what you want.
+> > 
+> > It still makes sense to keep it separate I think, the patch is clearly
+> > different from the other parts.
 > 
-> All PTEs (large or small) established under a given VMA have the same
-> protection key. [...]
+> I just don't see much point in going from unsigned long to u32 and then
+> from 32 to bool if we can go directly to bool in one go.
 
-So a 'pte' is only small. The 'large' thing is called a pmd. So follow_pte() is 
-not adequate. But with that removed everything should be fine as the vma 
-(protection) flags are size independent.
+It's only important to keep the 34-file multi-subsystem trivial cleanup
+that doesn't change any functionality separate from the bugfix. If you
+like to avoid patching one of the files twice, the alternative would
+be to first change the API for all other instances from u32 to bool
+and leave ACPI alone, and then do the second patch that changes ACPI
+from long to bool.
 
-> So I think it's safe to rely on the VMA entirely.  Well, as least as safe as the 
-> PTE.  It's definitely a wee bit racy, which I'll elaborate on when I repost the 
-> patches.
-
-So the race I can see is wrt. mprotect(), and we should fix that, because the 
-existing method of recovering the 'page fault reason', error_code, is not racy - 
-so the extension of it (the protection key) should not be racy either.
-
-By the time user-space processes the signal we might race with other threads, but 
-at least the fault-address/error-reason information itself should be coherent.
-
-This can be solved by getting the protection key while still under the down_read() 
-of the vma - instead of your current solution of a second find_vma().
-
-Thanks,
-
-	Ingo
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
