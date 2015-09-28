@@ -1,119 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E4356B025D
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 13:03:21 -0400 (EDT)
-Received: by ykdg206 with SMTP id g206so184930083ykd.1
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 10:03:21 -0700 (PDT)
-Received: from mail-yk0-x22e.google.com (mail-yk0-x22e.google.com. [2607:f8b0:4002:c07::22e])
-        by mx.google.com with ESMTPS id a145si9010977ykf.43.2015.09.28.10.03.20
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B824E6B025F
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 13:03:35 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so114899091wic.0
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 10:03:35 -0700 (PDT)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id gg17si23473589wjc.5.2015.09.28.10.03.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Sep 2015 10:03:20 -0700 (PDT)
-Received: by ykdz138 with SMTP id z138so187517525ykd.2
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 10:03:20 -0700 (PDT)
-Date: Mon, 28 Sep 2015 13:03:14 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC v2 07/18] kthread: Allow to cancel kthread work
-Message-ID: <20150928170314.GF2589@mtj.duckdns.org>
-References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
- <1442840639-6963-8-git-send-email-pmladek@suse.com>
- <20150922193513.GE17659@mtj.duckdns.org>
- <20150925112617.GA3122@pathway.suse.cz>
+        Mon, 28 Sep 2015 10:03:33 -0700 (PDT)
+Date: Mon, 28 Sep 2015 19:03:32 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] mm: fix cpu hangs on truncating last page of a 16t
+ sparse file
+Message-ID: <20150928170332.GA12732@two.firstfloor.org>
+References: <560723F8.3010909@gmail.com>
+ <alpine.LSU.2.11.1509261835360.9917@eggly.anvils>
+ <560752C7.80605@gmail.com>
+ <alpine.LSU.2.11.1509270953460.1024@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150925112617.GA3122@pathway.suse.cz>
+In-Reply-To: <alpine.LSU.2.11.1509270953460.1024@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: angelo <angelo70@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Andi Kleen <andi@firstfloor.org>, Jeff Layton <jlayton@poochiereds.net>, Eryu Guan <eguan@redhat.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Hello, Petr.
+> I can't tell you why MAX_LFS_FILESIZE was defined to exclude half
+> of the available range.  I've always assumed that it's because there
+> were known or feared areas of the code, which manipulate between
+> bytes and pages, and might hit sign extension issues - though
+> I cannot identify those places myself.
 
-On Fri, Sep 25, 2015 at 01:26:17PM +0200, Petr Mladek wrote:
-> 1) PENDING state plus -EAGAIN/busy loop cycle
-> ---------------------------------------------
-> 
-> IMHO, we want to use the timer because it is an elegant solution.
-> Then we must release the lock when the timer is running. The lock
-> must be taken by the timer->function(). And there is a small window
-> when the timer is not longer pending but timer->function is not running:
-> 
-> CPU0                            CPU1
-> 
-> run_timer_softirq()
->   __run_timers()
->     detach_expired_timer()
->       detach_timer()
-> 	#clear_pending
-> 
-> 				try_to_grab_pending_kthread_work()
-> 				  del_timer()
-> 				    # fails because not pending
-> 
-> 				  test_and_set_bit(KTHREAD_WORK_PENDING_BIT)
-> 				    # fails because already set
-> 
-> 				  if (!list_empty(&work->node))
-> 				    # fails because still not queued
-> 
-> 			!!! problematic window !!!
-> 
->     call_timer_fn()
->      queue_kthraed_work()
+The limit was intentional to handle old user space. I don't think
+it has anything to do with the kernel.
 
-Let's say each work item has a state variable which is protected by a
-lock and the state can be one of IDLE, PENDING, CANCELING.  Let's also
-assume that all cancelers synchronize with each other via mutex, so we
-only have to worry about a single canceler.  Wouldn't something like
-the following work while being a lot simpler?
+off_t is sometimes used signed, mainly with lseek SEEK_CUR/END when you
+want to seek backwards. It would be quite odd to sometimes
+have off_t be signed (SEEK_CUR/END) and sometimes be unsigned
+(when using SEEK_SET).  So it made some sense to set the limit
+to the signed max value.
 
-Delayed queueing and execution.
+Here's the original "Large file standard" that describes
+the issues in more details:
 
-1. Lock and check whether state is IDLE.  If not, nothing to do.
+http://www.unix.org/version2/whatsnew/lfs20mar.html
 
-2. Set state to PENDING and schedule the timer and unlock.
+This document explicitly requests signed off_t:
 
-3. On expiration, timer_fn grabs the lock and see whether state is
-   still PENDING.  If so, schedule the work item for execution;
-   otherwise, nothing to do.
-
-4. After dequeueing from execution queue with lock held, the worker is
-   marked as executing the work item and state is reset to IDLE.
-
-Canceling
-
-1. Lock, dequeue and set the state to CANCELING.
-
-2. Unlock and perform del_timer_sync().
-
-3. Flush the work item.
-
-4. Lock and reset the state to IDLE and unlock.
+>>>
 
 
-> 2) CANCEL state plus custom waitqueue
-> -------------------------------------
-> 
-> cancel_kthread_work_sync() has to wait for the running work. It might take
-> quite some time. Therefore we could not block others by a spinlock.
-> Also others could not wait for the spin lock in a busy wait.
+Mixed sizes of off_t
+    During a period of transition from existing systems to systems able to support an arbitrarily large file size, most systems will need to support binaries with two or more sizes of the off_t data type (and related data types). This mixed off_t environment may occur on a system with an ABI that supports different sizes of off_t. It may occur on a system which has both a 64-bit and a 32-bit ABI. Finally, it may occur when using a distributed system where clients and servers have differing sizes of off_t. In effect, the period of transition will not end until we need 128-bit file sizes, requiring yet another transition! The proposed changes may also be used as a model for the 64 to 128-bit file size transition. 
+Offset maximum
+    Most, but unfortunately not all, of the numeric values in the SUS are protected by opaque type definitions. In theory this allows programs to use these types rather than the underlying C language data types to avoid issues like overflow. However, most existing code maps these opaque data types like off_t to long integers that can overflow for the values needed to represent the offsets possible in large files.
 
-Hmmm?  Cancelers can synchronize amongst them using a mutex and the
-actual work item wait can use flushing.
+    To protect existing binaries from arbitrarily large files, a new value (offset maximum) will be part of the open file description. An offset maximum is the largest offset that can be used as a file offset. Operations attempting to go beyond the offset maximum will return an error. The offset maximum is normally established as the size of the off_t "extended signed integral type" used by the program creating the file description.
 
-> IMHO, the proposed and rather complex solutions are needed in both cases.
-> 
-> Or did I miss a possible trick, please?
+    The open() function and other interfaces establish the offset maximum for a file description, returning an error if the file size is larger than the offset maximum at the time of the call. Returning errors when the 
+<<<
 
-I probably have missed something in the above and it is not completley
-correct but I do think it can be way simpler than how workqueue does
-it.
-
-Thanks.
-
--- 
-tejun
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
