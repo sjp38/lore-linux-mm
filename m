@@ -1,114 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id ABCBD6B0256
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 11:51:20 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so124185594qgt.2
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 08:51:20 -0700 (PDT)
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 41B2D6B0038
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 11:59:08 -0400 (EDT)
+Received: by qgx61 with SMTP id 61so124523564qgx.3
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 08:59:08 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q191si16034146qha.128.2015.09.28.08.51.19
+        by mx.google.com with ESMTPS id m9si16110381qkl.95.2015.09.28.08.59.07
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Sep 2015 08:51:20 -0700 (PDT)
-Date: Mon, 28 Sep 2015 17:51:14 +0200
+        Mon, 28 Sep 2015 08:59:07 -0700 (PDT)
+Date: Mon, 28 Sep 2015 17:59:01 +0200
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 5/7] slub: support for bulk free with SLUB freelists
-Message-ID: <20150928175114.07e85114@redhat.com>
-In-Reply-To: <alpine.DEB.2.20.1509281011250.30332@east.gentwo.org>
+Subject: Re: [PATCH 7/7] slub: do prefetching in kmem_cache_alloc_bulk()
+Message-ID: <20150928175901.39976cdb@redhat.com>
+In-Reply-To: <5609545C.4010807@gmail.com>
 References: <20150928122444.15409.10498.stgit@canyon>
-	<20150928122629.15409.69466.stgit@canyon>
-	<alpine.DEB.2.20.1509281011250.30332@east.gentwo.org>
+	<20150928122639.15409.21583.stgit@canyon>
+	<5609545C.4010807@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, brouer@redhat.com
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, brouer@redhat.com
 
-On Mon, 28 Sep 2015 10:16:49 -0500 (CDT)
-Christoph Lameter <cl@linux.com> wrote:
 
-> On Mon, 28 Sep 2015, Jesper Dangaard Brouer wrote:
-> 
+On Mon, 28 Sep 2015 07:53:16 -0700 Alexander Duyck <alexander.duyck@gmail.com> wrote:
+
+> On 09/28/2015 05:26 AM, Jesper Dangaard Brouer wrote:
+> > For practical use-cases it is beneficial to prefetch the next freelist
+> > object in bulk allocation loop.
+> >
+> > Micro benchmarking show approx 1 cycle change:
+> >
+> > bulk -  prev-patch     -  this patch
+> >     1 -  49 cycles(tsc) - 49 cycles(tsc) - increase in cycles:0
+> >     2 -  30 cycles(tsc) - 31 cycles(tsc) - increase in cycles:1
+> >     3 -  23 cycles(tsc) - 25 cycles(tsc) - increase in cycles:2
+> >     4 -  20 cycles(tsc) - 22 cycles(tsc) - increase in cycles:2
+> >     8 -  18 cycles(tsc) - 19 cycles(tsc) - increase in cycles:1
+> >    16 -  17 cycles(tsc) - 18 cycles(tsc) - increase in cycles:1
+> >    30 -  18 cycles(tsc) - 17 cycles(tsc) - increase in cycles:-1
+> >    32 -  18 cycles(tsc) - 19 cycles(tsc) - increase in cycles:1
+> >    34 -  23 cycles(tsc) - 24 cycles(tsc) - increase in cycles:1
+> >    48 -  21 cycles(tsc) - 22 cycles(tsc) - increase in cycles:1
+> >    64 -  20 cycles(tsc) - 21 cycles(tsc) - increase in cycles:1
+> >   128 -  27 cycles(tsc) - 27 cycles(tsc) - increase in cycles:0
+> >   158 -  30 cycles(tsc) - 30 cycles(tsc) - increase in cycles:0
+> >   250 -  37 cycles(tsc) - 37 cycles(tsc) - increase in cycles:0
+> >
+> > Note, benchmark done with slab_nomerge to keep it stable enough
+> > for accurate comparison.
+> >
+> > Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> > ---
+> >   mm/slub.c |    2 ++
+> >   1 file changed, 2 insertions(+)
+> >
 > > diff --git a/mm/slub.c b/mm/slub.c
-> > index 1cf98d89546d..13b5f53e4840 100644
+> > index c25717ab3b5a..5af75a618b91 100644
 > > --- a/mm/slub.c
 > > +++ b/mm/slub.c
-> > @@ -675,11 +675,18 @@ static void init_object(struct kmem_cache *s, void *object, u8 val)
-> >  {
-> >  	u8 *p = object;
+> > @@ -2951,6 +2951,7 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+> >   				goto error;
+> >   
+> >   			c = this_cpu_ptr(s->cpu_slab);
+> > +			prefetch_freepointer(s, c->freelist);
+> >   			continue; /* goto for-loop */
+> >   		}
+> >   
+> > @@ -2960,6 +2961,7 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+> >   			goto error;
+> >   
+> >   		c->freelist = get_freepointer(s, object);
+> > +		prefetch_freepointer(s, c->freelist);
+> >   		p[i] = object;
+> >   
+> >   		/* kmem_cache debug support */
 > >
-> > +	/* Freepointer not overwritten as SLAB_POISON moved it after object */
-> >  	if (s->flags & __OBJECT_POISON) {
-> >  		memset(p, POISON_FREE, s->object_size - 1);
-> >  		p[s->object_size - 1] = POISON_END;
-> >  	}
-> >
-> > +	/*
-> > +	 * If both SLAB_RED_ZONE and SLAB_POISON are enabled, then
-> > +	 * freepointer is still safe, as then s->offset equals
-> > +	 * s->inuse and below redzone is after s->object_size and only
-> > +	 * area between s->object_size and s->inuse.
-> > +	 */
-> >  	if (s->flags & SLAB_RED_ZONE)
-> >  		memset(p + s->object_size, val, s->inuse - s->object_size);
-> >  }
 > 
-> Are these comments really adding something? This is basic metadata
-> handling for SLUB that is commented on elsehwere.
+> I can see the prefetch in the last item case being possibly useful since 
+> you have time between when you call the prefetch and when you are 
+> accessing the next object.  However, is there any actual benefit to 
+> prefetching inside the loop itself?  Based on your data above it doesn't 
+> seem like that is the case since you are now adding one additional cycle 
+> to the allocation and I am not seeing any actual gain reported here.
 
-Not knowing SLUB as well as you, it took me several hours to realize
-init_object() didn't overwrite the freepointer in the object.  Thus, I
-think these comments make the reader aware of not-so-obvious
-side-effects of SLAB_POISON and SLAB_RED_ZONE.
+The gain will first show up, when using bulk alloc in real use-cases.
 
+As you know, bulk alloc on RX path don't show any improvement. And I
+measured (with perf-mem-record) L1 miss'es here.  I could reduce the L1
+misses here by adding prefetch.  But I cannot remember if I measured
+any PPS improvement with this.
 
-> > @@ -2584,9 +2646,14 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
-> >   * So we still attempt to reduce cache line usage. Just take the slab
-> >   * lock and free the item. If there is no additional partial page
-> >   * handling required then we can return immediately.
-> > + *
-> > + * Bulk free of a freelist with several objects (all pointing to the
-> > + * same page) possible by specifying freelist_head ptr and object as
-> > + * tail ptr, plus objects count (cnt).
-> >   */
-> >  static void __slab_free(struct kmem_cache *s, struct page *page,
-> > -			void *x, unsigned long addr)
-> > +			void *x, unsigned long addr,
-> > +			void *freelist_head, int cnt)
-> 
-> Do you really need separate parameters for freelist_head? If you just want
-> to deal with one object pass it as freelist_head and set cnt = 1?
+As you hint, the time I have between my prefetch and use is very small,
+thus the question is if this will show any benefit for real use-cases.
 
-Yes, I need it.  We need to know both the head and tail of the list to
-splice it.
-
-See:
-
-> @@ -2612,7 +2681,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
-                prior = page->freelist;
-		counters = page->counters;
->  		set_freepointer(s, object, prior);
-                                   ^^^^^^ 
-Here we update the tail ptr (object) to point to "prior" (page->freelist).
-
->  		new.counters = counters;
->  		was_frozen = new.frozen;
-> -		new.inuse--;
-> +		new.inuse -= cnt;
->  		if ((!new.inuse || !prior) && !was_frozen) {
->  
->  			if (kmem_cache_has_cpu_partial(s) && !prior) {
-> @@ -2643,7 +2712,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
->  
->  	} while (!cmpxchg_double_slab(s, page,
->  		prior, counters,
-> -		object, new.counters,
-> +		new_freelist, new.counters,
->  		"__slab_free"));
-
-Here we update page->freelist ("prior") to point to the head. Thus,
-splicing the list.
+We can drop this patch, and then I'll include it in my network
+use-case, and measure the effect? (Although I'll likely be wasting my
+time, as we should likely redesign the alloc API instead).
 
 -- 
 Best regards,
