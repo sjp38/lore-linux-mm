@@ -1,53 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 66F9B6B0255
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 18:57:13 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so20437308qgt.2
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 15:57:13 -0700 (PDT)
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 329996B0038
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 19:07:30 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so20579783qge.0
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 16:07:30 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b66si12549654qkb.102.2015.09.29.15.57.12
+        by mx.google.com with ESMTPS id v45si23604276qgd.56.2015.09.29.16.07.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 15:57:12 -0700 (PDT)
-Date: Tue, 29 Sep 2015 15:57:11 -0700
+        Tue, 29 Sep 2015 16:07:29 -0700 (PDT)
+Date: Tue, 29 Sep 2015 16:07:27 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/5] fs: charge pipe buffers to memcg
-Message-Id: <20150929155711.3b139dab622848a14af64ca4@linux-foundation.org>
-In-Reply-To: <94f055dc719129a26149b0f8b22af7c61a3fb4e6.1443262808.git.vdavydov@parallels.com>
-References: <cover.1443262808.git.vdavydov@parallels.com>
-	<94f055dc719129a26149b0f8b22af7c61a3fb4e6.1443262808.git.vdavydov@parallels.com>
+Subject: Re: [PATCH 2/2] mm: fix declarations of nr, delta and
+ nr_pagecache_reclaimable
+Message-Id: <20150929160727.ef70acf2e44575e9470a4025@linux-foundation.org>
+In-Reply-To: <20150927210425.GA20155@gmail.com>
+References: <20150927210425.GA20155@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexandru Moise <00moses.alexander00@gmail.com>
+Cc: vdavydov@parallels.com, mhocko@suse.cz, hannes@cmpxchg.org, tj@kernel.org, vbabka@suse.cz, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 26 Sep 2015 13:45:54 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
+On Sun, 27 Sep 2015 21:04:25 +0000 Alexandru Moise <00moses.alexander00@gmail.com> wrote:
 
-> Pipe buffers can be generated unrestrictedly by an unprivileged
-> userspace process, so they shouldn't go unaccounted.
+> The nr variable is meant to be returned by a function which is
+> declared as returning "unsigned long", so declare nr as such.
 > 
-> ...
->
-> --- a/fs/pipe.c
-> +++ b/fs/pipe.c
-> @@ -400,7 +400,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
->  			int copied;
+> Lower down we should also declare delta and nr_pagecache_reclaimable
+> as being unsigned longs because they're used to store the values
+> returned by zone_page_state() and zone_unmapped_file_pages() which
+> also happen to return unsigned integers.
+
+I rewrote the changelog rather a lot:
+
+
+
+Subject: mm/vmscan.c: fix types of some locals
+
+In zone_reclaimable_pages(), `nr' is returned by a function which is
+declared as returning "unsigned long", so declare it such.  Negative
+values are meaningless here.
+
+In zone_pagecache_reclaimable() we should also declare `delta' and
+`nr_pagecache_reclaimable' as being unsigned longs because they're used to
+store the values returned by zone_page_state() and
+zone_unmapped_file_pages() which also happen to return unsigned integers.
+
+
+
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -194,7 +194,7 @@ static bool sane_reclaim(struct scan_control *sc)
 >  
->  			if (!page) {
-> -				page = alloc_page(GFP_HIGHUSER);
-> +				page = alloc_kmem_pages(GFP_HIGHUSER, 0);
->  				if (unlikely(!page)) {
->  					ret = ret ? : -ENOMEM;
->  					break;
+>  static unsigned long zone_reclaimable_pages(struct zone *zone)
+>  {
+> -	int nr;
+> +	unsigned long nr;
+>  
+>  	nr = zone_page_state(zone, NR_ACTIVE_FILE) +
+>  	     zone_page_state(zone, NR_INACTIVE_FILE);
 
-This seems broken.  We have a page buffer page which has a weird
-->mapcount.  Now it gets stolen (generic_pipe_buf_steal()) and spliced
-into pagecache.  Then the page gets mmapped and MM starts playing with
-its ->_mapcount?
+OK.
 
+> @@ -3698,8 +3698,8 @@ static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
+>  /* Work out how many page cache pages we can reclaim in this reclaim_mode */
+>  static long zone_pagecache_reclaimable(struct zone *zone)
+>  {
+> -	long nr_pagecache_reclaimable;
+> -	long delta = 0;
+> +	unsigned long nr_pagecache_reclaimable;
+> +	unsigned long delta = 0;
+>  
+>  	/*
+>  	 * If RECLAIM_UNMAP is set, then all file pages are considered
+
+Also OK, because zone_pagecache_reclaimable() takes care to avoid
+returning any negative values.
+
+
+In fact I believe we should also do this:
+
+--- a/mm/vmscan.c~mm-fix-declarations-of-nr-delta-and-nr_pagecache_reclaimable-fix
++++ a/mm/vmscan.c
+@@ -3693,7 +3693,7 @@ static inline unsigned long zone_unmappe
+ }
+ 
+ /* Work out how many page cache pages we can reclaim in this reclaim_mode */
+-static long zone_pagecache_reclaimable(struct zone *zone)
++static unsigned long zone_pagecache_reclaimable(struct zone *zone)
+ {
+ 	unsigned long nr_pagecache_reclaimable;
+ 	unsigned long delta = 0;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
