@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 45EFF6B025E
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 11:47:44 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so9692537qgt.2
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:47:44 -0700 (PDT)
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D1E8E6B0260
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 11:47:58 -0400 (EDT)
+Received: by qgez77 with SMTP id z77so9754307qge.1
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:47:58 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h60si21748209qgh.8.2015.09.29.08.47.43
+        by mx.google.com with ESMTPS id k32si21737441qge.29.2015.09.29.08.47.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 08:47:43 -0700 (PDT)
-Subject: [MM PATCH V4 4/6] slab: implement bulking for SLAB allocator
+        Tue, 29 Sep 2015 08:47:58 -0700 (PDT)
+Subject: [MM PATCH V4 5/6] slub: support for bulk free with SLUB freelists
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Tue, 29 Sep 2015 17:48:02 +0200
-Message-ID: <20150929154738.14465.13241.stgit@canyon>
+Date: Tue, 29 Sep 2015 17:48:17 +0200
+Message-ID: <20150929154807.14465.76422.stgit@canyon>
 In-Reply-To: <20150929154605.14465.98995.stgit@canyon>
 References: <20150929154605.14465.98995.stgit@canyon>
 MIME-Version: 1.0
@@ -23,220 +23,254 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 Cc: netdev@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, Alexander Duyck <alexander.duyck@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Implement a basic approach of bulking in the SLAB allocator. Simply
-use local_irq_{disable,enable} and call single alloc/free in a loop.
-This simple implementation approach is surprising fast.
+Make it possible to free a freelist with several objects by adjusting
+API of slab_free() and __slab_free() to have head, tail and an objects
+counter (cnt).
 
-Notice the normal SLAB fastpath is: 96 cycles (24.119 ns). Below table
-show that single object bulking only takes 42 cycles.  This can be
-explained by the bulk APIs requirement to be called from a known
-interrupt context, that is with interrupts enabled.  This allow us to
-avoid the expensive (37 cycles) local_irq_{save,restore}, and instead
-use the much faster (7 cycles) local_irq_{disable,restore}.
+Tail being NULL indicate single object free of head object.  This
+allow compiler inline constant propagation in slab_free() and
+slab_free_freelist_hook() to avoid adding any overhead in case of
+single object free.
 
-Benchmarked[1] obj size 256 bytes on CPU i7-4790K @ 4.00GHz:
+This allows a freelist with several objects (all within the same
+slab-page) to be free'ed using a single locked cmpxchg_double in
+__slab_free() and with an unlocked cmpxchg_double in slab_free().
 
-bulk - Current                  - simple SLAB bulk implementation
-  1 - 115 cycles(tsc) 28.812 ns - 42 cycles(tsc) 10.715 ns - improved 63.5%
-  2 - 103 cycles(tsc) 25.956 ns - 27 cycles(tsc)  6.985 ns - improved 73.8%
-  3 - 101 cycles(tsc) 25.336 ns - 22 cycles(tsc)  5.733 ns - improved 78.2%
-  4 - 100 cycles(tsc) 25.147 ns - 21 cycles(tsc)  5.319 ns - improved 79.0%
-  8 -  98 cycles(tsc) 24.616 ns - 18 cycles(tsc)  4.620 ns - improved 81.6%
- 16 -  97 cycles(tsc) 24.408 ns - 17 cycles(tsc)  4.344 ns - improved 82.5%
- 30 -  98 cycles(tsc) 24.641 ns - 16 cycles(tsc)  4.202 ns - improved 83.7%
- 32 -  98 cycles(tsc) 24.607 ns - 16 cycles(tsc)  4.199 ns - improved 83.7%
- 34 -  98 cycles(tsc) 24.605 ns - 18 cycles(tsc)  4.579 ns - improved 81.6%
- 48 -  97 cycles(tsc) 24.463 ns - 17 cycles(tsc)  4.405 ns - improved 82.5%
- 64 -  97 cycles(tsc) 24.370 ns - 17 cycles(tsc)  4.384 ns - improved 82.5%
-128 -  99 cycles(tsc) 24.763 ns - 19 cycles(tsc)  4.755 ns - improved 80.8%
-158 -  98 cycles(tsc) 24.708 ns - 18 cycles(tsc)  4.723 ns - improved 81.6%
-250 - 101 cycles(tsc) 25.342 ns - 20 cycles(tsc)  5.035 ns - improved 80.2%
+Object debugging on the free path is also extended to handle these
+freelists.  When CONFIG_SLUB_DEBUG is enabled it will also detect if
+objects don't belong to the same slab-page.
 
-Also notice how well bulking maintains the performance when the bulk
-size increases (which is a soar spot for the SLUB allocator).
+These changes are needed for the next patch to bulk free the detached
+freelists it introduces and constructs.
 
-Increasing the bulk size further:
- 20 cycles(tsc)  5.214 ns (bulk: 512)
- 30 cycles(tsc)  7.734 ns (bulk: 768)
- 40 cycles(tsc) 10.244 ns (bulk:1024)
- 72 cycles(tsc) 18.049 ns (bulk:2048)
- 90 cycles(tsc) 22.585 ns (bulk:4096)
-
-It is not recommended to perform large bulking with SLAB, as
-local interrupts are disabled for the entire period.  If these
-kind of use-cases evolve, this interface should be adjusted to
-mitigate/reduce the interrupts off period.
-
-[1] https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_bulk_test01.c
+Micro benchmarking showed no performance reduction due to this change,
+when debugging is turned off (compiled with CONFIG_SLUB_DEBUG).
 
 Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
-Acked-by: Christoph Lameter <cl@linux.com>
----
- mm/slab.c |   87 +++++++++++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 62 insertions(+), 25 deletions(-)
+Signed-off-by: Alexander Duyck <alexander.h.duyck@redhat.com>
 
-diff --git a/mm/slab.c b/mm/slab.c
-index c77ebe6cc87c..21da6b1ccae3 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3234,11 +3234,15 @@ __do_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
- #endif /* CONFIG_NUMA */
- 
- static __always_inline void *
--slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
-+slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller,
-+	   bool irq_off_needed)
- {
- 	unsigned long save_flags;
- 	void *objp;
- 
-+	/* Compiler need to remove irq_off_needed branch statements */
-+	BUILD_BUG_ON(!__builtin_constant_p(irq_off_needed));
-+
- 	flags &= gfp_allowed_mask;
- 
- 	lockdep_trace_alloc(flags);
-@@ -3249,9 +3253,11 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
- 	cachep = memcg_kmem_get_cache(cachep, flags);
- 
- 	cache_alloc_debugcheck_before(cachep, flags);
--	local_irq_save(save_flags);
-+	if (irq_off_needed)
-+		local_irq_save(save_flags);
- 	objp = __do_cache_alloc(cachep, flags);
--	local_irq_restore(save_flags);
-+	if (irq_off_needed)
-+		local_irq_restore(save_flags);
- 	objp = cache_alloc_debugcheck_after(cachep, flags, objp, caller);
- 	kmemleak_alloc_recursive(objp, cachep->object_size, 1, cachep->flags,
- 				 flags);
-@@ -3407,7 +3413,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
-  */
- void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
- {
--	void *ret = slab_alloc(cachep, flags, _RET_IP_);
-+	void *ret = slab_alloc(cachep, flags, _RET_IP_, true);
- 
- 	trace_kmem_cache_alloc(_RET_IP_, ret,
- 			       cachep->object_size, cachep->size, flags);
-@@ -3416,16 +3422,23 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+---
+V4:
+ - Change API per req of Christoph Lameter
+ - Remove comments in init_object.
+
+ mm/slub.c |   87 ++++++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 69 insertions(+), 18 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 1cf98d89546d..7c2abc33fd4e 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1063,11 +1063,15 @@ bad:
+ 	return 0;
  }
- EXPORT_SYMBOL(kmem_cache_alloc);
  
--void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
--{
--	__kmem_cache_free_bulk(s, size, p);
--}
--EXPORT_SYMBOL(kmem_cache_free_bulk);
--
-+/* Note that interrupts must be enabled when calling this function. */
- bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
--								void **p)
-+			   void **p)
++/* Supports checking bulk free of a constructed freelist */
+ static noinline struct kmem_cache_node *free_debug_processing(
+-	struct kmem_cache *s, struct page *page, void *object,
++	struct kmem_cache *s, struct page *page,
++	void *head, void *tail, int bulk_cnt,
+ 	unsigned long addr, unsigned long *flags)
  {
--	return __kmem_cache_alloc_bulk(s, flags, size, p);
-+	size_t i;
+ 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
++	void *object = head;
++	int cnt = 0;
+ 
+ 	spin_lock_irqsave(&n->list_lock, *flags);
+ 	slab_lock(page);
+@@ -1075,6 +1079,9 @@ static noinline struct kmem_cache_node *free_debug_processing(
+ 	if (!check_slab(s, page))
+ 		goto fail;
+ 
++next_object:
++	cnt++;
 +
-+	local_irq_disable();
-+	for (i = 0; i < size; i++) {
-+		void *x = p[i] = slab_alloc(s, flags, _RET_IP_, false);
+ 	if (!check_valid_pointer(s, page, object)) {
+ 		slab_err(s, page, "Invalid object pointer 0x%p", object);
+ 		goto fail;
+@@ -1105,8 +1112,19 @@ static noinline struct kmem_cache_node *free_debug_processing(
+ 	if (s->flags & SLAB_STORE_USER)
+ 		set_track(s, object, TRACK_FREE, addr);
+ 	trace(s, page, object, 0);
++	/* Freepointer not overwritten by init_object(), SLAB_POISON moved it */
+ 	init_object(s, object, SLUB_RED_INACTIVE);
 +
-+		if (!x) {
-+			__kmem_cache_free_bulk(s, i, p);
-+			return false;
-+		}
++	/* Reached end of constructed freelist yet? */
++	if (object != tail) {
++		object = get_freepointer(s, object);
++		goto next_object;
 +	}
-+	local_irq_enable();
-+	return true;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_bulk);
- 
-@@ -3435,7 +3448,7 @@ kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
- {
- 	void *ret;
- 
--	ret = slab_alloc(cachep, flags, _RET_IP_);
-+	ret = slab_alloc(cachep, flags, _RET_IP_, true);
- 
- 	trace_kmalloc(_RET_IP_, ret,
- 		      size, cachep->size, flags);
-@@ -3526,7 +3539,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
- 	cachep = kmalloc_slab(size, flags);
- 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
- 		return cachep;
--	ret = slab_alloc(cachep, flags, caller);
-+	ret = slab_alloc(cachep, flags, caller, true);
- 
- 	trace_kmalloc(caller, ret,
- 		      size, cachep->size, flags);
-@@ -3546,32 +3559,56 @@ void *__kmalloc_track_caller(size_t size, gfp_t flags, unsigned long caller)
- }
- EXPORT_SYMBOL(__kmalloc_track_caller);
- 
--/**
-- * kmem_cache_free - Deallocate an object
-- * @cachep: The cache the allocation was from.
-- * @objp: The previously allocated object.
-- *
-- * Free an object which was previously allocated from this
-- * cache.
-- */
--void kmem_cache_free(struct kmem_cache *cachep, void *objp)
-+/* Caller is responsible for disabling local IRQs */
-+static __always_inline void __kmem_cache_free(struct kmem_cache *cachep,
-+					      void *objp, bool irq_off_needed)
- {
- 	unsigned long flags;
+ out:
++	if (cnt != bulk_cnt)
++		slab_err(s, page, "Bulk freelist count(%d) invalid(%d)\n",
++			 bulk_cnt, cnt);
 +
-+	/* Compiler need to remove irq_off_needed branch statements */
-+	BUILD_BUG_ON(!__builtin_constant_p(irq_off_needed));
+ 	slab_unlock(page);
+ 	/*
+ 	 * Keep node_lock to preserve integrity
+@@ -1210,7 +1228,8 @@ static inline int alloc_debug_processing(struct kmem_cache *s,
+ 	struct page *page, void *object, unsigned long addr) { return 0; }
+ 
+ static inline struct kmem_cache_node *free_debug_processing(
+-	struct kmem_cache *s, struct page *page, void *object,
++	struct kmem_cache *s, struct page *page,
++	void *head, void *tail, int bulk_cnt,
+ 	unsigned long addr, unsigned long *flags) { return NULL; }
+ 
+ static inline int slab_pad_check(struct kmem_cache *s, struct page *page)
+@@ -1306,6 +1325,31 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
+ 	kasan_slab_free(s, x);
+ }
+ 
++/* Compiler cannot detect that slab_free_freelist_hook() can be
++ * removed if slab_free_hook() evaluates to nothing.  Thus, we need to
++ * catch all relevant config debug options here.
++ */
++#if defined(CONFIG_KMEMCHECK) ||		\
++	defined(CONFIG_LOCKDEP)	||		\
++	defined(CONFIG_DEBUG_KMEMLEAK) ||	\
++	defined(CONFIG_DEBUG_OBJECTS_FREE) ||	\
++	defined(CONFIG_KASAN)
++static inline void slab_free_freelist_hook(struct kmem_cache *s,
++					   void *head, void *tail)
++{
++	void *object = head;
++	void *tail_obj = tail ? : head;
 +
- 	cachep = cache_from_obj(cachep, objp);
- 	if (!cachep)
++	do {
++		slab_free_hook(s, object);
++	} while ((object != tail_obj) &&
++		 (object = get_freepointer(s, object)));
++}
++#else
++static inline void slab_free_freelist_hook(struct kmem_cache *s, void *obj_tail,
++					   void *freelist_head) {}
++#endif
++
+ static void setup_object(struct kmem_cache *s, struct page *page,
+ 				void *object)
+ {
+@@ -2586,10 +2630,11 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
+  * handling required then we can return immediately.
+  */
+ static void __slab_free(struct kmem_cache *s, struct page *page,
+-			void *x, unsigned long addr)
++			void *head, void *tail, int cnt,
++			unsigned long addr)
++
+ {
+ 	void *prior;
+-	void **object = (void *)x;
+ 	int was_frozen;
+ 	struct page new;
+ 	unsigned long counters;
+@@ -2599,7 +2644,8 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 	stat(s, FREE_SLOWPATH);
+ 
+ 	if (kmem_cache_debug(s) &&
+-		!(n = free_debug_processing(s, page, x, addr, &flags)))
++	    !(n = free_debug_processing(s, page, head, tail, cnt,
++					addr, &flags)))
  		return;
  
--	local_irq_save(flags);
-+	if (irq_off_needed)
-+		local_irq_save(flags);
- 	debug_check_no_locks_freed(objp, cachep->object_size);
- 	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
- 		debug_check_no_obj_freed(objp, cachep->object_size);
- 	__cache_free(cachep, objp, _RET_IP_);
--	local_irq_restore(flags);
-+	if (irq_off_needed)
-+		local_irq_restore(flags);
-+}
+ 	do {
+@@ -2609,10 +2655,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 		}
+ 		prior = page->freelist;
+ 		counters = page->counters;
+-		set_freepointer(s, object, prior);
++		set_freepointer(s, tail, prior);
+ 		new.counters = counters;
+ 		was_frozen = new.frozen;
+-		new.inuse--;
++		new.inuse -= cnt;
+ 		if ((!new.inuse || !prior) && !was_frozen) {
  
-+/**
-+ * kmem_cache_free - Deallocate an object
-+ * @cachep: The cache the allocation was from.
-+ * @objp: The previously allocated object.
+ 			if (kmem_cache_has_cpu_partial(s) && !prior) {
+@@ -2643,7 +2689,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 
+ 	} while (!cmpxchg_double_slab(s, page,
+ 		prior, counters,
+-		object, new.counters,
++		head, new.counters,
+ 		"__slab_free"));
+ 
+ 	if (likely(!n)) {
+@@ -2708,15 +2754,20 @@ slab_empty:
+  *
+  * If fastpath is not possible then fall back to __slab_free where we deal
+  * with all sorts of special processing.
 + *
-+ * Free an object which was previously allocated from this
-+ * cache.
-+ */
-+void kmem_cache_free(struct kmem_cache *cachep, void *objp)
-+{
-+	__kmem_cache_free(cachep, objp, true);
- 	trace_kmem_cache_free(_RET_IP_, objp);
++ * Bulk free of a freelist with several objects (all pointing to the
++ * same page) possible by specifying head and tail ptr, plus objects
++ * count (cnt). Bulk free indicated by tail pointer being set.
+  */
+-static __always_inline void slab_free(struct kmem_cache *s,
+-			struct page *page, void *x, unsigned long addr)
++static __always_inline void slab_free(struct kmem_cache *s, struct page *page,
++				      void *head, void *tail, int cnt,
++				      unsigned long addr)
+ {
+-	void **object = (void *)x;
++	void *tail_obj = tail ? : head;
+ 	struct kmem_cache_cpu *c;
+ 	unsigned long tid;
+ 
+-	slab_free_hook(s, x);
++	slab_free_freelist_hook(s, head, tail);
+ 
+ redo:
+ 	/*
+@@ -2735,19 +2786,19 @@ redo:
+ 	barrier();
+ 
+ 	if (likely(page == c->page)) {
+-		set_freepointer(s, object, c->freelist);
++		set_freepointer(s, tail_obj, c->freelist);
+ 
+ 		if (unlikely(!this_cpu_cmpxchg_double(
+ 				s->cpu_slab->freelist, s->cpu_slab->tid,
+ 				c->freelist, tid,
+-				object, next_tid(tid)))) {
++				head, next_tid(tid)))) {
+ 
+ 			note_cmpxchg_failure("slab_free", s, tid);
+ 			goto redo;
+ 		}
+ 		stat(s, FREE_FASTPATH);
+ 	} else
+-		__slab_free(s, page, x, addr);
++		__slab_free(s, page, head, tail_obj, cnt, addr);
+ 
+ }
+ 
+@@ -2756,7 +2807,7 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
+ 	s = cache_from_obj(s, x);
+ 	if (!s)
+ 		return;
+-	slab_free(s, virt_to_head_page(x), x, _RET_IP_);
++	slab_free(s, virt_to_head_page(x), x, NULL, 1, _RET_IP_);
+ 	trace_kmem_cache_free(_RET_IP_, x);
  }
  EXPORT_SYMBOL(kmem_cache_free);
+@@ -2791,7 +2842,7 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+ 			c->tid = next_tid(c->tid);
+ 			local_irq_enable();
+ 			/* Slowpath: overhead locked cmpxchg_double_slab */
+-			__slab_free(s, page, object, _RET_IP_);
++			__slab_free(s, page, object, object, 1, _RET_IP_);
+ 			local_irq_disable();
+ 			c = this_cpu_ptr(s->cpu_slab);
+ 		}
+@@ -3531,7 +3582,7 @@ void kfree(const void *x)
+ 		__free_kmem_pages(page, compound_order(page));
+ 		return;
+ 	}
+-	slab_free(page->slab_cache, page, object, _RET_IP_);
++	slab_free(page->slab_cache, page, object, NULL, 1, _RET_IP_);
+ }
+ EXPORT_SYMBOL(kfree);
  
-+/* Note that interrupts must be enabled when calling this function. */
-+void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
-+{
-+	size_t i;
-+
-+	local_irq_disable();
-+	for (i = 0; i < size; i++)
-+		__kmem_cache_free(s, p[i], false);
-+	local_irq_enable();
-+}
-+EXPORT_SYMBOL(kmem_cache_free_bulk);
-+
- /**
-  * kfree - free previously allocated memory
-  * @objp: pointer returned by kmalloc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
