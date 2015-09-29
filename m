@@ -1,136 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id A421D6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 11:34:53 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so156192242wic.0
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:34:53 -0700 (PDT)
-Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
-        by mx.google.com with ESMTPS id d16si30103271wik.32.2015.09.29.08.34.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 08:34:51 -0700 (PDT)
-Received: by wicgb1 with SMTP id gb1so154878001wic.1
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:34:51 -0700 (PDT)
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 758556B0255
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 11:43:23 -0400 (EDT)
+Received: by obbbh8 with SMTP id bh8so8765555obb.0
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:43:23 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id cw3si11849521oec.8.2015.09.29.08.43.22
+        for <linux-mm@kvack.org>;
+        Tue, 29 Sep 2015 08:43:22 -0700 (PDT)
+Date: Tue, 29 Sep 2015 23:42:29 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: drivers/hid/i2c-hid/i2c-hid.c:1134:3-8: No need to set .owner here.
+ The core will do it.
+Message-ID: <201509292326.febSgyj7%fengguang.wu@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20150929083814.GA32127@gmail.com>
-References: <1442482692-6416-1-git-send-email-ryabinin.a.a@gmail.com>
-	<1442482692-6416-4-git-send-email-ryabinin.a.a@gmail.com>
-	<20150929083814.GA32127@gmail.com>
-Date: Tue, 29 Sep 2015 18:34:51 +0300
-Message-ID: <CAPAsAGwKh2sWMwEqhrtfV_YGWcFRWDqj6_vfgBMFW-Eqh+Dtjw@mail.gmail.com>
-Subject: Re: [PATCH v6 3/6] x86, efi, kasan: #undef memset/memcpy/memmove per arch.
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org, Matt Fleming <matt.fleming@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, linux-efi@vger.kernel.org, kbuild test robot <fengguang.wu@intel.com>, Linus Walleij <linus.walleij@linaro.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Arnd Bergmann <arnd@arndb.de>, LKML <linux-kernel@vger.kernel.org>, David Keitel <dkeitel@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Alexey Klimov <klimov.linux@gmail.com>, Yury <yury.norov@gmail.com>, Andrey Konovalov <andreyknvl@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Sedat Dilek <sedat.dilek@gmail.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-2015-09-29 11:38 GMT+03:00 Ingo Molnar <mingo@kernel.org>:
->
-> * Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
->
->> In not-instrumented code KASAN replaces instrumented
->> memset/memcpy/memmove with not-instrumented analogues
->> __memset/__memcpy/__memove.
->> However, on x86 the EFI stub is not linked with the kernel.
->> It uses not-instrumented mem*() functions from
->> arch/x86/boot/compressed/string.c
->> So we don't replace them with __mem*() variants in EFI stub.
->>
->> On ARM64 the EFI stub is linked with the kernel, so we should
->> replace mem*() functions with __mem*(), because the EFI stub
->> runs before KASAN sets up early shadow.
->>
->> So let's move these #undef mem* into arch's asm/efi.h which is
->> also included by the EFI stub.
->>
->> Also, this will fix the warning in 32-bit build reported by
->> kbuild test robot <fengguang.wu@intel.com>:
->>       efi-stub-helper.c:599:2: warning: implicit declaration of function=
- 'memcpy'
->>
->> Signed-off-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
->> ---
->>  arch/x86/include/asm/efi.h             | 12 ++++++++++++
->>  drivers/firmware/efi/libstub/efistub.h |  4 ----
->>  2 files changed, 12 insertions(+), 4 deletions(-)
->>
->> diff --git a/arch/x86/include/asm/efi.h b/arch/x86/include/asm/efi.h
->> index 155162e..6db2742 100644
->> --- a/arch/x86/include/asm/efi.h
->> +++ b/arch/x86/include/asm/efi.h
->> @@ -86,6 +86,18 @@ extern u64 asmlinkage efi_call(void *fp, ...);
->>  extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned lo=
-ng size,
->>                                       u32 type, u64 attribute);
->>
->> +/*
->> + * CONFIG_KASAN may redefine memset to __memset.
->> + * __memset function is present only in kernel binary.
->> + * Since the EFI stub linked into a separate binary it
->> + * doesn't have __memset(). So we should use standard
->> + * memset from arch/x86/boot/compressed/string.c
->> + * The same applies to memcpy and memmove.
->> + */
->> +#undef memcpy
->> +#undef memset
->> +#undef memmove
->
-> Hm, so this hack got upstream via -mm, and it breaks the 64-bit x86 build=
- with
-> some configs:
->
->  arch/x86/platform/efi/efi.c:673:3: error: implicit declaration of functi=
-on =E2=80=98memcpy=E2=80=99 [-Werror=3Dimplicit-function-declaration]
->  arch/x86/platform/efi/efi_64.c:139:2: error: implicit declaration of fun=
-ction =E2=80=98memcpy=E2=80=99 [-Werror=3Dimplicit-function-declaration]
->  ./arch/x86/include/asm/desc.h:121:2: error: implicit declaration of func=
-tion =E2=80=98memcpy=E2=80=99 [-Werror=3Dimplicit-function-declaration]
->
-> I guess it's about EFI=3Dy but KASAN=3Dn. Config attached.
+Hi Sasha,
 
-It's actually, it's about KMEMCHECK=3Dy and KASAN=3Dn, because declaration
-of memcpy() is hidden under ifndef.
+First bad commit (maybe != root cause):
 
-arch/x86/include/asm/string_64.h:
-    #ifndef CONFIG_KMEMCHECK
-    #if (__GNUC__ =3D=3D 4 && __GNUC_MINOR__ >=3D 3) || __GNUC__ > 4
-    extern void *memcpy(void *to, const void *from, size_t len);
-    #else
-    #define memcpy(dst, src, len)                                   \
-    .......
-    #endif
-    #else
-    /*
-     * kmemcheck becomes very happy if we use the REP instructions
-unconditionally,
-     * because it means that we know both memory operands in advance.
-     */
-    #define memcpy(dst, src, len) __inline_memcpy((dst), (src), (len))
-    #endif
-
-So it also broke build with GCCs 4.0 - 4.3.
-And it also breaks clang build, because AFAIK clang defines GNUC,
-GNUC_MINOR as 4.2.
-
->
-> beyond fixing the build bug ... could we also engineer this in a better f=
-ashion
-> than spreading random #undefs across various KASAN unrelated headers?
-
-I think we can add something like -DNOT_KERNEL (anyone has a better name ?)
-to the CFLAGS for everything that is not linked with the kernel binary
-(efistub, arch/x86/boot)
-
-So, if NOT_KERNEL is defined we will not #define memcpy(), so we won't
-need these undefs.
+tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+head:   097f70b3c4d84ffccca15195bdfde3a37c0a7c0f
+commit: 71458cfc782eafe4b27656e078d379a34e472adf kernel: add support for gcc 5
+date:   12 months ago
 
 
-> Thanks,
->
->         Ingo
+coccinelle warnings: (new ones prefixed by >>)
+
+>> drivers/hid/i2c-hid/i2c-hid.c:1134:3-8: No need to set .owner here. The core will do it.
+
+vim +1134 drivers/hid/i2c-hid/i2c-hid.c
+
+34f439e4 Mika Westerberg    2014-01-29  1118  static const struct dev_pm_ops i2c_hid_pm = {
+34f439e4 Mika Westerberg    2014-01-29  1119  	SET_SYSTEM_SLEEP_PM_OPS(i2c_hid_suspend, i2c_hid_resume)
+34f439e4 Mika Westerberg    2014-01-29  1120  	SET_RUNTIME_PM_OPS(i2c_hid_runtime_suspend, i2c_hid_runtime_resume,
+34f439e4 Mika Westerberg    2014-01-29  1121  			   NULL)
+34f439e4 Mika Westerberg    2014-01-29  1122  };
+4a200c3b Benjamin Tissoires 2012-11-12  1123  
+4a200c3b Benjamin Tissoires 2012-11-12  1124  static const struct i2c_device_id i2c_hid_id_table[] = {
+24ebb37e Benjamin Tissoires 2012-12-04  1125  	{ "hid", 0 },
+4a200c3b Benjamin Tissoires 2012-11-12  1126  	{ },
+4a200c3b Benjamin Tissoires 2012-11-12  1127  };
+4a200c3b Benjamin Tissoires 2012-11-12  1128  MODULE_DEVICE_TABLE(i2c, i2c_hid_id_table);
+4a200c3b Benjamin Tissoires 2012-11-12  1129  
+4a200c3b Benjamin Tissoires 2012-11-12  1130  
+4a200c3b Benjamin Tissoires 2012-11-12  1131  static struct i2c_driver i2c_hid_driver = {
+4a200c3b Benjamin Tissoires 2012-11-12  1132  	.driver = {
+4a200c3b Benjamin Tissoires 2012-11-12  1133  		.name	= "i2c_hid",
+4a200c3b Benjamin Tissoires 2012-11-12 @1134  		.owner	= THIS_MODULE,
+4a200c3b Benjamin Tissoires 2012-11-12  1135  		.pm	= &i2c_hid_pm,
+92241e67 Mika Westerberg    2013-01-09  1136  		.acpi_match_table = ACPI_PTR(i2c_hid_acpi_match),
+3d7d248c Benjamin Tissoires 2013-06-13  1137  		.of_match_table = of_match_ptr(i2c_hid_of_match),
+4a200c3b Benjamin Tissoires 2012-11-12  1138  	},
+4a200c3b Benjamin Tissoires 2012-11-12  1139  
+4a200c3b Benjamin Tissoires 2012-11-12  1140  	.probe		= i2c_hid_probe,
+0fe763c5 Greg Kroah-Hartman 2012-12-21  1141  	.remove		= i2c_hid_remove,
+4a200c3b Benjamin Tissoires 2012-11-12  1142  
+
+:::::: The code at line 1134 was first introduced by commit
+:::::: 4a200c3b9a40242652b5734630bdd0bcf3aca75f HID: i2c-hid: introduce HID over i2c specification implementation
+
+:::::: TO: Benjamin Tissoires <benjamin.tissoires@gmail.com>
+:::::: CC: Jiri Kosina <jkosina@suse.cz>
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
