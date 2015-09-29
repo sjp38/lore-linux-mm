@@ -1,135 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 161496B0255
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 10:23:51 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so153130832wic.0
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 07:23:50 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id br17si29696200wib.49.2015.09.29.07.23.49
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A421D6B0038
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 11:34:53 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so156192242wic.0
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:34:53 -0700 (PDT)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id d16si30103271wik.32.2015.09.29.08.34.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 29 Sep 2015 07:23:49 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id E1ED498CAF
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 14:23:48 +0000 (UTC)
-Date: Tue, 29 Sep 2015 15:23:47 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] mm: swap: Use swap_lock to prevent parallel swapon
- activations instead of i_mutex
-Message-ID: <20150929142347.GK3068@techsingularity.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Sep 2015 08:34:51 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so154878001wic.1
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:34:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+In-Reply-To: <20150929083814.GA32127@gmail.com>
+References: <1442482692-6416-1-git-send-email-ryabinin.a.a@gmail.com>
+	<1442482692-6416-4-git-send-email-ryabinin.a.a@gmail.com>
+	<20150929083814.GA32127@gmail.com>
+Date: Tue, 29 Sep 2015 18:34:51 +0300
+Message-ID: <CAPAsAGwKh2sWMwEqhrtfV_YGWcFRWDqj6_vfgBMFW-Eqh+Dtjw@mail.gmail.com>
+Subject: Re: [PATCH v6 3/6] x86, efi, kasan: #undef memset/memcpy/memmove per arch.
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jerome Marchand <jmarchan@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, Hugh Dickins <hughd@google.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arm-kernel@lists.infradead.org, Matt Fleming <matt.fleming@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, linux-efi@vger.kernel.org, kbuild test robot <fengguang.wu@intel.com>, Linus Walleij <linus.walleij@linaro.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Arnd Bergmann <arnd@arndb.de>, LKML <linux-kernel@vger.kernel.org>, David Keitel <dkeitel@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Alexey Klimov <klimov.linux@gmail.com>, Yury <yury.norov@gmail.com>, Andrey Konovalov <andreyknvl@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Sedat Dilek <sedat.dilek@gmail.com>
 
-Jerome Marchand reported a lockdep warning as follows
+2015-09-29 11:38 GMT+03:00 Ingo Molnar <mingo@kernel.org>:
+>
+> * Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+>
+>> In not-instrumented code KASAN replaces instrumented
+>> memset/memcpy/memmove with not-instrumented analogues
+>> __memset/__memcpy/__memove.
+>> However, on x86 the EFI stub is not linked with the kernel.
+>> It uses not-instrumented mem*() functions from
+>> arch/x86/boot/compressed/string.c
+>> So we don't replace them with __mem*() variants in EFI stub.
+>>
+>> On ARM64 the EFI stub is linked with the kernel, so we should
+>> replace mem*() functions with __mem*(), because the EFI stub
+>> runs before KASAN sets up early shadow.
+>>
+>> So let's move these #undef mem* into arch's asm/efi.h which is
+>> also included by the EFI stub.
+>>
+>> Also, this will fix the warning in 32-bit build reported by
+>> kbuild test robot <fengguang.wu@intel.com>:
+>>       efi-stub-helper.c:599:2: warning: implicit declaration of function=
+ 'memcpy'
+>>
+>> Signed-off-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+>> ---
+>>  arch/x86/include/asm/efi.h             | 12 ++++++++++++
+>>  drivers/firmware/efi/libstub/efistub.h |  4 ----
+>>  2 files changed, 12 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/arch/x86/include/asm/efi.h b/arch/x86/include/asm/efi.h
+>> index 155162e..6db2742 100644
+>> --- a/arch/x86/include/asm/efi.h
+>> +++ b/arch/x86/include/asm/efi.h
+>> @@ -86,6 +86,18 @@ extern u64 asmlinkage efi_call(void *fp, ...);
+>>  extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned lo=
+ng size,
+>>                                       u32 type, u64 attribute);
+>>
+>> +/*
+>> + * CONFIG_KASAN may redefine memset to __memset.
+>> + * __memset function is present only in kernel binary.
+>> + * Since the EFI stub linked into a separate binary it
+>> + * doesn't have __memset(). So we should use standard
+>> + * memset from arch/x86/boot/compressed/string.c
+>> + * The same applies to memcpy and memmove.
+>> + */
+>> +#undef memcpy
+>> +#undef memset
+>> +#undef memmove
+>
+> Hm, so this hack got upstream via -mm, and it breaks the 64-bit x86 build=
+ with
+> some configs:
+>
+>  arch/x86/platform/efi/efi.c:673:3: error: implicit declaration of functi=
+on =E2=80=98memcpy=E2=80=99 [-Werror=3Dimplicit-function-declaration]
+>  arch/x86/platform/efi/efi_64.c:139:2: error: implicit declaration of fun=
+ction =E2=80=98memcpy=E2=80=99 [-Werror=3Dimplicit-function-declaration]
+>  ./arch/x86/include/asm/desc.h:121:2: error: implicit declaration of func=
+tion =E2=80=98memcpy=E2=80=99 [-Werror=3Dimplicit-function-declaration]
+>
+> I guess it's about EFI=3Dy but KASAN=3Dn. Config attached.
 
-    [ 6819.501009] =================================
-    [ 6819.501009] [ INFO: inconsistent lock state ]
-    [ 6819.501009] 4.2.0-rc1-shmacct-babka-v2-next-20150709+ #255 Not tainted
-    [ 6819.501009] ---------------------------------
-    [ 6819.501009] inconsistent {RECLAIM_FS-ON-W} -> {IN-RECLAIM_FS-W} usage.
-    [ 6819.501009] kswapd0/38 [HC0[0]:SC0[0]:HE1:SE1] takes:
-    [ 6819.501009]  (&sb->s_type->i_mutex_key#17){+.+.?.}, at: [<ffffffffa03772a5>] nfs_file_direct_write+0x85/0x3f0 [nfs]
-    [ 6819.501009] {RECLAIM_FS-ON-W} state was registered at:
-    [ 6819.501009]   [<ffffffff81107f51>] mark_held_locks+0x71/0x90
-    [ 6819.501009]   [<ffffffff8110b775>] lockdep_trace_alloc+0x75/0xe0
-    [ 6819.501009]   [<ffffffff81245529>] kmem_cache_alloc_node_trace+0x39/0x440
-    [ 6819.501009]   [<ffffffff81225b8f>] __get_vm_area_node+0x7f/0x160
-    [ 6819.501009]   [<ffffffff81226eb2>] __vmalloc_node_range+0x72/0x2c0
-    [ 6819.501009]   [<ffffffff81227424>] vzalloc+0x54/0x60
-    [ 6819.501009]   [<ffffffff8122c7c8>] SyS_swapon+0x628/0xfc0
-    [ 6819.501009]   [<ffffffff81867772>] entry_SYSCALL_64_fastpath+0x12/0x76
+It's actually, it's about KMEMCHECK=3Dy and KASAN=3Dn, because declaration
+of memcpy() is hidden under ifndef.
 
-It's due to NFS acquiring i_mutex since a9ab5e840669 ("nfs: page
-cache invalidation for dio") to invalidate page cache before direct I/O.
-Filesystems may safely acquire i_mutex during direct writes but NFS is unique
-in its treatment of swap files. Ordinarily swap files are supported by the
-core VM looking up the physical block for a given offset in advance. There
-is no physical block for NFS and the direct write paths are used after
-calling mapping->swap_activate.
+arch/x86/include/asm/string_64.h:
+    #ifndef CONFIG_KMEMCHECK
+    #if (__GNUC__ =3D=3D 4 && __GNUC_MINOR__ >=3D 3) || __GNUC__ > 4
+    extern void *memcpy(void *to, const void *from, size_t len);
+    #else
+    #define memcpy(dst, src, len)                                   \
+    .......
+    #endif
+    #else
+    /*
+     * kmemcheck becomes very happy if we use the REP instructions
+unconditionally,
+     * because it means that we know both memory operands in advance.
+     */
+    #define memcpy(dst, src, len) __inline_memcpy((dst), (src), (len))
+    #endif
 
-The lockdep warning is triggered by swapon(), which is not in reclaim
-context, acquiring the i_mutex to ensure a swapfile is not activated twice.
+So it also broke build with GCCs 4.0 - 4.3.
+And it also breaks clang build, because AFAIK clang defines GNUC,
+GNUC_MINOR as 4.2.
 
-swapon does not need the i_mutex for this purpose.  There is a requirement
-that fallocate not be used on swapfiles but this is protected by the inode
-flag S_SWAPFILE and nothing to do with i_mutex. In fact, the current
-protection does nothing for block devices. This patch expands the role
-of swap_lock to protect against parallel activations of block devices and
-swapfiles and removes the use of i_mutex. This both improves the protection
-for swapon and avoids the lockdep warning.
+>
+> beyond fixing the build bug ... could we also engineer this in a better f=
+ashion
+> than spreading random #undefs across various KASAN unrelated headers?
 
-Reported-and-tested-by: Jerome Marchand <jmarchan@redhat.com>
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/swapfile.c | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+I think we can add something like -DNOT_KERNEL (anyone has a better name ?)
+to the CFLAGS for everything that is not linked with the kernel binary
+(efistub, arch/x86/boot)
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 58877312cf6b..e55a69fd24e4 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1970,9 +1970,9 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 		set_blocksize(bdev, old_block_size);
- 		blkdev_put(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
- 	} else {
--		mutex_lock(&inode->i_mutex);
-+		spin_lock(&swap_lock);
- 		inode->i_flags &= ~S_SWAPFILE;
--		mutex_unlock(&inode->i_mutex);
-+		spin_unlock(&swap_lock);
- 	}
- 	filp_close(swap_file, NULL);
- 
-@@ -2197,7 +2197,6 @@ static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
- 		p->flags |= SWP_BLKDEV;
- 	} else if (S_ISREG(inode->i_mode)) {
- 		p->bdev = inode->i_sb->s_bdev;
--		mutex_lock(&inode->i_mutex);
- 		if (IS_SWAPFILE(inode))
- 			return -EBUSY;
- 	} else
-@@ -2426,12 +2425,15 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		goto bad_swap;
- 	}
- 
-+	/* prevent parallel swapons */
-+	spin_lock(&swap_lock);
- 	p->swap_file = swap_file;
- 	mapping = swap_file->f_mapping;
- 	inode = mapping->host;
- 
- 	/* If S_ISREG(inode->i_mode) will do mutex_lock(&inode->i_mutex); */
- 	error = claim_swapfile(p, inode);
-+	spin_unlock(&swap_lock);
- 	if (unlikely(error))
- 		goto bad_swap;
- 
-@@ -2574,10 +2576,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	vfree(swap_map);
- 	vfree(cluster_info);
- 	if (swap_file) {
--		if (inode && S_ISREG(inode->i_mode)) {
--			mutex_unlock(&inode->i_mutex);
-+		if (inode && S_ISREG(inode->i_mode))
- 			inode = NULL;
--		}
- 		filp_close(swap_file, NULL);
- 	}
- out:
-@@ -2587,8 +2587,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	}
- 	if (name)
- 		putname(name);
--	if (inode && S_ISREG(inode->i_mode))
--		mutex_unlock(&inode->i_mutex);
- 	return error;
- }
- 
+So, if NOT_KERNEL is defined we will not #define memcpy(), so we won't
+need these undefs.
+
+
+> Thanks,
+>
+>         Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
