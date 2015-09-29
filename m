@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id EFA266B0258
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 11:46:53 -0400 (EDT)
-Received: by qgx61 with SMTP id 61so9653757qgx.3
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:46:53 -0700 (PDT)
+Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BB356B0259
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 11:47:01 -0400 (EDT)
+Received: by qkcf65 with SMTP id f65so4863824qkc.3
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:47:01 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 71si21670313qhx.74.2015.09.29.08.46.52
+        by mx.google.com with ESMTPS id o20si5223890qki.35.2015.09.29.08.46.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 08:46:53 -0700 (PDT)
-Subject: [MM PATCH V4 1/6] slub: create new ___slab_alloc function that can
- be called with irqs disabled
+        Tue, 29 Sep 2015 08:47:00 -0700 (PDT)
+Subject: [MM PATCH V4 2/6] slub: Avoid irqoff/on in bulk allocation
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Tue, 29 Sep 2015 17:47:12 +0200
-Message-ID: <20150929154702.14465.68483.stgit@canyon>
+Date: Tue, 29 Sep 2015 17:47:18 +0200
+Message-ID: <20150929154717.14465.67508.stgit@canyon>
 In-Reply-To: <20150929154605.14465.98995.stgit@canyon>
 References: <20150929154605.14465.98995.stgit@canyon>
 MIME-Version: 1.0
@@ -27,103 +26,70 @@ Cc: netdev@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, Alexande
 From: Christoph Lameter <cl@linux.com>
 
 NOTICE: Accepted by AKPM
- http://ozlabs.org/~akpm/mmots/broken-out/slub-create-new-___slab_alloc-function-that-can-be-called-with-irqs-disabled.patch
+ http://ozlabs.org/~akpm/mmots/broken-out/slub-avoid-irqoff-on-in-bulk-allocation.patch
 
-Bulk alloc needs a function like that because it enables interrupts before
-calling __slab_alloc which promptly disables them again using the expensive
-local_irq_save().
+Use the new function that can do allocation while
+interrupts are disabled.  Avoids irq on/off sequences.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
 ---
- mm/slub.c |   44 +++++++++++++++++++++++++++++---------------
- 1 file changed, 29 insertions(+), 15 deletions(-)
+ mm/slub.c |   24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index f614b5dc396b..02cfb3a5983e 100644
+index 02cfb3a5983e..024eed32da2c 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -2298,23 +2298,15 @@ static inline void *get_freelist(struct kmem_cache *s, struct page *page)
-  * And if we were unable to get a new slab from the partial slab lists then
-  * we need to allocate a new slab. This is the slowest path since it involves
-  * a call to the page allocator and the setup of a new slab.
-+ *
-+ * Version of __slab_alloc to use when we know that interrupts are
-+ * already disabled (which is the case for bulk allocation).
-  */
--static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
-+static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
- 			  unsigned long addr, struct kmem_cache_cpu *c)
- {
- 	void *freelist;
- 	struct page *page;
--	unsigned long flags;
--
--	local_irq_save(flags);
--#ifdef CONFIG_PREEMPT
--	/*
--	 * We may have been preempted and rescheduled on a different
--	 * cpu before disabling interrupts. Need to reload cpu area
--	 * pointer.
--	 */
--	c = this_cpu_ptr(s->cpu_slab);
--#endif
+@@ -2821,30 +2821,23 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+ 		void *object = c->freelist;
  
- 	page = c->page;
- 	if (!page)
-@@ -2372,7 +2364,6 @@ load_freelist:
- 	VM_BUG_ON(!c->page->frozen);
- 	c->freelist = get_freepointer(s, freelist);
- 	c->tid = next_tid(c->tid);
--	local_irq_restore(flags);
- 	return freelist;
+ 		if (unlikely(!object)) {
+-			local_irq_enable();
+ 			/*
+ 			 * Invoking slow path likely have side-effect
+ 			 * of re-populating per CPU c->freelist
+ 			 */
+-			p[i] = __slab_alloc(s, flags, NUMA_NO_NODE,
++			p[i] = ___slab_alloc(s, flags, NUMA_NO_NODE,
+ 					    _RET_IP_, c);
+-			if (unlikely(!p[i])) {
+-				__kmem_cache_free_bulk(s, i, p);
+-				return false;
+-			}
+-			local_irq_disable();
++			if (unlikely(!p[i]))
++				goto error;
++
+ 			c = this_cpu_ptr(s->cpu_slab);
+ 			continue; /* goto for-loop */
+ 		}
  
- new_slab:
-@@ -2389,7 +2380,6 @@ new_slab:
+ 		/* kmem_cache debug support */
+ 		s = slab_pre_alloc_hook(s, flags);
+-		if (unlikely(!s)) {
+-			__kmem_cache_free_bulk(s, i, p);
+-			c->tid = next_tid(c->tid);
+-			local_irq_enable();
+-			return false;
+-		}
++		if (unlikely(!s))
++			goto error;
  
- 	if (unlikely(!freelist)) {
- 		slab_out_of_memory(s, gfpflags, node);
--		local_irq_restore(flags);
- 		return NULL;
+ 		c->freelist = get_freepointer(s, object);
+ 		p[i] = object;
+@@ -2864,6 +2857,11 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
  	}
  
-@@ -2405,11 +2395,35 @@ new_slab:
- 	deactivate_slab(s, page, get_freepointer(s, freelist));
- 	c->page = NULL;
- 	c->freelist = NULL;
--	local_irq_restore(flags);
- 	return freelist;
+ 	return true;
++
++error:
++	__kmem_cache_free_bulk(s, i, p);
++	local_irq_enable();
++	return false;
  }
+ EXPORT_SYMBOL(kmem_cache_alloc_bulk);
  
- /*
-+ * Another one that disabled interrupt and compensates for possible
-+ * cpu changes by refetching the per cpu area pointer.
-+ */
-+static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
-+			  unsigned long addr, struct kmem_cache_cpu *c)
-+{
-+	void *p;
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+#ifdef CONFIG_PREEMPT
-+	/*
-+	 * We may have been preempted and rescheduled on a different
-+	 * cpu before disabling interrupts. Need to reload cpu area
-+	 * pointer.
-+	 */
-+	c = this_cpu_ptr(s->cpu_slab);
-+#endif
-+
-+	p = ___slab_alloc(s, gfpflags, node, addr, c);
-+	local_irq_restore(flags);
-+	return p;
-+}
-+
-+/*
-  * Inlined fastpath so that allocation functions (kmalloc, kmem_cache_alloc)
-  * have the fastpath folded into their functions. So no function call
-  * overhead for requests that can be satisfied on the fastpath.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
