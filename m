@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DFC36B0038
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 19:55:26 -0400 (EDT)
-Received: by qgx61 with SMTP id 61so135544954qgx.3
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 16:55:26 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 79si18265754qhs.124.2015.09.28.16.55.25
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id F29CB6B0038
+	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 21:06:50 -0400 (EDT)
+Received: by obcxm10 with SMTP id xm10so39153418obc.3
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 18:06:50 -0700 (PDT)
+Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
+        by mx.google.com with ESMTPS id s196si9679307oie.91.2015.09.28.18.06.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Sep 2015 16:55:25 -0700 (PDT)
-Date: Mon, 28 Sep 2015 16:55:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 06/10] mm, page_alloc: Rename __GFP_WAIT to
- __GFP_RECLAIM
-Message-Id: <20150928165523.a52facb27c7ff4c29d902b6c@linux-foundation.org>
-In-Reply-To: <1442832762-7247-7-git-send-email-mgorman@techsingularity.net>
-References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
-	<1442832762-7247-7-git-send-email-mgorman@techsingularity.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Sep 2015 18:06:50 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
+	Tue, 29 Sep 2015 06:36:46 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id DD18FE0054
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 06:36:26 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8T16gWw6160678
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 06:36:42 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8T16fdn000802
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 06:36:42 +0530
+From: Wei Yang <weiyang@linux.vnet.ibm.com>
+Subject: [PATCH 1/2] mm/slub: correct the comment in calculate_order()
+Date: Tue, 29 Sep 2015 09:06:26 +0800
+Message-Id: <1443488787-2232-1-git-send-email-weiyang@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com
+Cc: linux-mm@kvack.org, Wei Yang <weiyang@linux.vnet.ibm.com>
 
-On Mon, 21 Sep 2015 11:52:38 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
+In calculate_order(), it tries to calculate the best order by adjusting the
+fraction and min_objects. On each iteration on min_objects, fraction
+iterates on 16, 8, 4. Which means the acceptable waste increases with 1/16,
+1/8, 1/4.
 
-> __GFP_WAIT was used to signal that the caller was in atomic context and
-> could not sleep.  Now it is possible to distinguish between true atomic
-> context and callers that are not willing to sleep. The latter should clear
-> __GFP_DIRECT_RECLAIM so kswapd will still wake. As clearing __GFP_WAIT
-> behaves differently, there is a risk that people will clear the wrong
-> flags. This patch renames __GFP_WAIT to __GFP_RECLAIM to clearly indicate
-> what it does -- setting it allows all reclaim activity, clearing them
-> prevents it.
+This patch corrects the comment according to the code.
 
-We have quite a history of remote parts of the kernel using
-weird/wrong/inexplicable combinations of __GFP_ flags.  I tend to think
-that this is because we didn't adequately explain the interface.
+Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
+---
+ mm/slub.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-And I don't think that gfp.h really improved much in this area as a
-result of this patchset.  Could you go through it some time and decide
-if we've adequately documented all this stuff?
-
-GFP_ATOMIC vs GFP_NOWAIT?
-
-GFP_USER vs GFP_HIGHUSER?
-
-When should I use GFP_HIGHUSER_MOVABLE instead?
-
-Why isn't there a GFP_USER_MOVABLE?
-
-What's GFP_IOFS?
-
-GFP_RECLAIM_MASK through GFP_SLAB_BUG_MASK are mm-internal, but look
-the same as the exported interface definitions.
-
-__GFP_MOVABLE is documented twice, the second in an odd place.
-
-etcetera.
-
-
-It's rather unclear which symbols are part of the exported interface
-and which are "mm internal only".
+diff --git a/mm/slub.c b/mm/slub.c
+index f614b5d..a94b9f4 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2943,7 +2943,7 @@ static inline int calculate_order(int size, int reserved)
+ 	 * works by first attempting to generate a layout with
+ 	 * the best configuration and backing off gradually.
+ 	 *
+-	 * First we reduce the acceptable waste in a slab. Then
++	 * First we increase the acceptable waste in a slab. Then
+ 	 * we reduce the minimum objects required in a slab.
+ 	 */
+ 	min_objects = slub_min_objects;
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
