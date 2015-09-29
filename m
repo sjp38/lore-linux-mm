@@ -1,70 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 26F846B0038
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 02:39:49 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so100509405pab.3
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 23:39:48 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id n2si34866377pap.239.2015.09.28.23.39.47
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F01A6B0038
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 03:12:26 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so140974838qge.0
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 00:12:26 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 9si19740840qhx.90.2015.09.29.00.12.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Sep 2015 23:39:48 -0700 (PDT)
-Message-ID: <1443508783.29119.2.camel@ellerman.id.au>
-Subject: Re: [PATCH 21/25] mm: implement new mprotect_key() system call
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Tue, 29 Sep 2015 16:39:43 +1000
-In-Reply-To: <20150928191826.F1CD5256@viggo.jf.intel.com>
-References: <20150928191817.035A64E2@viggo.jf.intel.com>
-	 <20150928191826.F1CD5256@viggo.jf.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Tue, 29 Sep 2015 00:12:25 -0700 (PDT)
+Date: Tue, 29 Sep 2015 09:12:19 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH 5/7] slub: support for bulk free with SLUB freelists
+Message-ID: <20150929091219.40d1e217@redhat.com>
+In-Reply-To: <alpine.DEB.2.20.1509281129100.30876@east.gentwo.org>
+References: <20150928122444.15409.10498.stgit@canyon>
+	<20150928122629.15409.69466.stgit@canyon>
+	<alpine.DEB.2.20.1509281011250.30332@east.gentwo.org>
+	<20150928175114.07e85114@redhat.com>
+	<alpine.DEB.2.20.1509281129100.30876@east.gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: borntraeger@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com, linux-api@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, Alexander Duyck <alexander.duyck@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, brouer@redhat.com
 
-On Mon, 2015-09-28 at 12:18 -0700, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+
+On Mon, 28 Sep 2015 11:30:00 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
+
+> On Mon, 28 Sep 2015, Jesper Dangaard Brouer wrote:
 > 
-> mprotect_key() is just like mprotect, except it also takes a
-> protection key as an argument.  On systems that do not support
-> protection keys, it still works, but requires that key=0.
-
-I'm not sure how userspace is going to use the key=0 feature? ie. userspace
-will still have to detect that keys are not supported and use key 0 everywhere.
-At that point it could just as well skip the mprotect_key() syscalls entirely
-couldn't it?
-
-> I expect it to get used like this, if you want to guarantee that
-> any mapping you create can *never* be accessed without the right
-> protection keys set up.
+> > Not knowing SLUB as well as you, it took me several hours to realize
+> > init_object() didn't overwrite the freepointer in the object.  Thus, I
+> > think these comments make the reader aware of not-so-obvious
+> > side-effects of SLAB_POISON and SLAB_RED_ZONE.
 > 
-> 	pkey_deny_access(11); // random pkey
-> 	int real_prot = PROT_READ|PROT_WRITE;
-> 	ptr = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-> 	ret = mprotect_key(ptr, PAGE_SIZE, real_prot, 11);
+> From the source:
 > 
-> This way, there is *no* window where the mapping is accessible
-> since it was always either PROT_NONE or had a protection key set.
-> 
-> We settled on 'unsigned long' for the type of the key here.  We
-> only need 4 bits on x86 today, but I figured that other
-> architectures might need some more space.
+> /*
+>  * Object layout:
+>  *
+>  * object address
+>  *      Bytes of the object to be managed.
+>  *      If the freepointer may overlay the object then the free
+>  *      pointer is the first word of the object.
+>  *
+>  *      Poisoning uses 0x6b (POISON_FREE) and the last byte is
+>  *      0xa5 (POISON_END)
+>  *
+>  * object + s->object_size
+>  *      Padding to reach word boundary. This is also used for Redzoning.
+>  *      Padding is extended by another word if Redzoning is enabled and
+>  *      object_size == inuse.
+>  *
+>  *      We fill with 0xbb (RED_INACTIVE) for inactive objects and with
+>  *      0xcc (RED_ACTIVE) for objects in use.
+>  *
+>  * object + s->inuse
+>  *      Meta data starts here.
+>  *
+>  *      A. Free pointer (if we cannot overwrite object on free)
+>  *      B. Tracking data for SLAB_STORE_USER
+>  *      C. Padding to reach required alignment boundary or at mininum
+>  *              one word if debugging is on to be able to detect writes
+>  *              before the word boundary.
 
-If the existing mprotect() syscall had a flags argument you could have just
-used that. So is it worth just adding mprotect2() now and using it for this? ie:
+Okay, I will remove the comment.
 
-int mprotect2(unsigned long start, size_t len, unsigned long prot, unsigned long flags) ..
+The best doc on SLUB and SLAB layout comes from your slides titled:
+ "Slab allocators in the Linux Kernel: SLAB, SLOB, SLUB"
 
-And then you define bit zero of flags to say you're passing a pkey, and it's in
-bits 1-63?
+Lets gracefully add a link to the slides here:
+ http://events.linuxfoundation.org/sites/events/files/slides/slaballocators.pdf
 
-That way if other arches need to do something different you at least have the
-flags available?
-
-cheers
-
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
