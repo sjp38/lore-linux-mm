@@ -1,77 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 758556B0255
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 11:43:23 -0400 (EDT)
-Received: by obbbh8 with SMTP id bh8so8765555obb.0
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:43:23 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id cw3si11849521oec.8.2015.09.29.08.43.22
-        for <linux-mm@kvack.org>;
-        Tue, 29 Sep 2015 08:43:22 -0700 (PDT)
-Date: Tue, 29 Sep 2015 23:42:29 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: drivers/hid/i2c-hid/i2c-hid.c:1134:3-8: No need to set .owner here.
- The core will do it.
-Message-ID: <201509292326.febSgyj7%fengguang.wu@intel.com>
+Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E8386B0257
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 11:46:40 -0400 (EDT)
+Received: by qkcf65 with SMTP id f65so4858658qkc.3
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 08:46:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c2si15405631qkh.34.2015.09.29.08.46.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Sep 2015 08:46:39 -0700 (PDT)
+Subject: [MM PATCH V4 0/6] Further optimizing SLAB/SLUB bulking
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Tue, 29 Sep 2015 17:46:57 +0200
+Message-ID: <20150929154605.14465.98995.stgit@canyon>
+In-Reply-To: <20150928122444.15409.10498.stgit@canyon>
+References: <20150928122444.15409.10498.stgit@canyon>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
+Cc: netdev@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, Alexander Duyck <alexander.duyck@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hi Sasha,
+Most important part of this patchset is the introducing of what I call
+detached freelist, for improving SLUB performance of object freeing in
+the "slowpath" of kmem_cache_free_bulk.
 
-First bad commit (maybe != root cause):
+Tagging patchset with "V4" to avoid confusion with "V2":
+ (V2) http://thread.gmane.org/gmane.linux.kernel.mm/137469
 
-tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   097f70b3c4d84ffccca15195bdfde3a37c0a7c0f
-commit: 71458cfc782eafe4b27656e078d379a34e472adf kernel: add support for gcc 5
-date:   12 months ago
+Addressing comments from:
+ ("V3") http://thread.gmane.org/gmane.linux.kernel.mm/139268
+
+I've added Christoph Lameter's ACKs from prev review.
+ * Only patch 5 is changed significantly and needs review.
+ * Benchmarked, performance is the same
+
+Notes for patches:
+ * First two patches (from Christoph) are already in AKPM MMOTS.
+ * Patch 3 is trivial
+ * Patch 4 is a repost, implements bulking for SLAB.
+  - http://thread.gmane.org/gmane.linux.kernel.mm/138220
+ * Patch 5 and 6 are the important patches
+  - Patch 5 handle "freelists" in slab_free() and __slab_free().
+  - Patch 6 intro detached freelists, and significant performance improvement
+
+Patches should be ready for the MM-tree, as I'm now handling kmem
+debug support.
 
 
-coccinelle warnings: (new ones prefixed by >>)
+Based on top of commit 519f526d39 in net-next, but I've tested it
+applies on top of mmotm-2015-09-18-16-08.
 
->> drivers/hid/i2c-hid/i2c-hid.c:1134:3-8: No need to set .owner here. The core will do it.
+The benchmarking tools are avail here:
+ https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm
+ See: slab_bulk_test0{1,2,3}.c
 
-vim +1134 drivers/hid/i2c-hid/i2c-hid.c
+This was joint work with Alexander Duyck while still at Red Hat.
 
-34f439e4 Mika Westerberg    2014-01-29  1118  static const struct dev_pm_ops i2c_hid_pm = {
-34f439e4 Mika Westerberg    2014-01-29  1119  	SET_SYSTEM_SLEEP_PM_OPS(i2c_hid_suspend, i2c_hid_resume)
-34f439e4 Mika Westerberg    2014-01-29  1120  	SET_RUNTIME_PM_OPS(i2c_hid_runtime_suspend, i2c_hid_runtime_resume,
-34f439e4 Mika Westerberg    2014-01-29  1121  			   NULL)
-34f439e4 Mika Westerberg    2014-01-29  1122  };
-4a200c3b Benjamin Tissoires 2012-11-12  1123  
-4a200c3b Benjamin Tissoires 2012-11-12  1124  static const struct i2c_device_id i2c_hid_id_table[] = {
-24ebb37e Benjamin Tissoires 2012-12-04  1125  	{ "hid", 0 },
-4a200c3b Benjamin Tissoires 2012-11-12  1126  	{ },
-4a200c3b Benjamin Tissoires 2012-11-12  1127  };
-4a200c3b Benjamin Tissoires 2012-11-12  1128  MODULE_DEVICE_TABLE(i2c, i2c_hid_id_table);
-4a200c3b Benjamin Tissoires 2012-11-12  1129  
-4a200c3b Benjamin Tissoires 2012-11-12  1130  
-4a200c3b Benjamin Tissoires 2012-11-12  1131  static struct i2c_driver i2c_hid_driver = {
-4a200c3b Benjamin Tissoires 2012-11-12  1132  	.driver = {
-4a200c3b Benjamin Tissoires 2012-11-12  1133  		.name	= "i2c_hid",
-4a200c3b Benjamin Tissoires 2012-11-12 @1134  		.owner	= THIS_MODULE,
-4a200c3b Benjamin Tissoires 2012-11-12  1135  		.pm	= &i2c_hid_pm,
-92241e67 Mika Westerberg    2013-01-09  1136  		.acpi_match_table = ACPI_PTR(i2c_hid_acpi_match),
-3d7d248c Benjamin Tissoires 2013-06-13  1137  		.of_match_table = of_match_ptr(i2c_hid_of_match),
-4a200c3b Benjamin Tissoires 2012-11-12  1138  	},
-4a200c3b Benjamin Tissoires 2012-11-12  1139  
-4a200c3b Benjamin Tissoires 2012-11-12  1140  	.probe		= i2c_hid_probe,
-0fe763c5 Greg Kroah-Hartman 2012-12-21  1141  	.remove		= i2c_hid_remove,
-4a200c3b Benjamin Tissoires 2012-11-12  1142  
-
-:::::: The code at line 1134 was first introduced by commit
-:::::: 4a200c3b9a40242652b5734630bdd0bcf3aca75f HID: i2c-hid: introduce HID over i2c specification implementation
-
-:::::: TO: Benjamin Tissoires <benjamin.tissoires@gmail.com>
-:::::: CC: Jiri Kosina <jkosina@suse.cz>
+This patchset is part of my network stack use-case.  I'll post the
+network side of the patchset as soon as I've cleaned it up, rebased it
+on net-next and re-run all the benchmarks.
 
 ---
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+Christoph Lameter (2):
+      slub: create new ___slab_alloc function that can be called with irqs disabled
+      slub: Avoid irqoff/on in bulk allocation
+
+Jesper Dangaard Brouer (4):
+      slub: mark the dangling ifdef #else of CONFIG_SLUB_DEBUG
+      slab: implement bulking for SLAB allocator
+      slub: support for bulk free with SLUB freelists
+      slub: optimize bulk slowpath free by detached freelist
+
+
+ mm/slab.c |   87 ++++++++++++++------
+ mm/slub.c |  263 +++++++++++++++++++++++++++++++++++++++++++------------------
+ 2 files changed, 249 insertions(+), 101 deletions(-)
+
+--
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
