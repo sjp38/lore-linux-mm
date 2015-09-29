@@ -1,63 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DAA06B0254
-	for <linux-mm@kvack.org>; Mon, 28 Sep 2015 21:06:53 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so193182173pac.2
-        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 18:06:52 -0700 (PDT)
-Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
-        by mx.google.com with ESMTPS id xt7si32863323pab.187.2015.09.28.18.06.51
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 26F846B0038
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 02:39:49 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so100509405pab.3
+        for <linux-mm@kvack.org>; Mon, 28 Sep 2015 23:39:48 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id n2si34866377pap.239.2015.09.28.23.39.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Sep 2015 18:06:52 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Tue, 29 Sep 2015 06:36:48 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id BE1E1E0058
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 06:36:30 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8T16kB536044902
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 06:36:46 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8T16j81027050
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 06:36:46 +0530
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: [PATCH 2/2] mm/slub: use get_order() instead of fls()
-Date: Tue, 29 Sep 2015 09:06:27 +0800
-Message-Id: <1443488787-2232-2-git-send-email-weiyang@linux.vnet.ibm.com>
-In-Reply-To: <1443488787-2232-1-git-send-email-weiyang@linux.vnet.ibm.com>
-References: <1443488787-2232-1-git-send-email-weiyang@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Sep 2015 23:39:48 -0700 (PDT)
+Message-ID: <1443508783.29119.2.camel@ellerman.id.au>
+Subject: Re: [PATCH 21/25] mm: implement new mprotect_key() system call
+From: Michael Ellerman <mpe@ellerman.id.au>
+Date: Tue, 29 Sep 2015 16:39:43 +1000
+In-Reply-To: <20150928191826.F1CD5256@viggo.jf.intel.com>
+References: <20150928191817.035A64E2@viggo.jf.intel.com>
+	 <20150928191826.F1CD5256@viggo.jf.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com
-Cc: linux-mm@kvack.org, Wei Yang <weiyang@linux.vnet.ibm.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: borntraeger@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com, linux-api@vger.kernel.org
 
-get_order() is more easy to understand.
+On Mon, 2015-09-28 at 12:18 -0700, Dave Hansen wrote:
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> mprotect_key() is just like mprotect, except it also takes a
+> protection key as an argument.  On systems that do not support
+> protection keys, it still works, but requires that key=0.
 
-This patch just replaces it.
+I'm not sure how userspace is going to use the key=0 feature? ie. userspace
+will still have to detect that keys are not supported and use key 0 everywhere.
+At that point it could just as well skip the mprotect_key() syscalls entirely
+couldn't it?
 
-Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
----
- mm/slub.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+> I expect it to get used like this, if you want to guarantee that
+> any mapping you create can *never* be accessed without the right
+> protection keys set up.
+> 
+> 	pkey_deny_access(11); // random pkey
+> 	int real_prot = PROT_READ|PROT_WRITE;
+> 	ptr = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+> 	ret = mprotect_key(ptr, PAGE_SIZE, real_prot, 11);
+> 
+> This way, there is *no* window where the mapping is accessible
+> since it was always either PROT_NONE or had a protection key set.
+> 
+> We settled on 'unsigned long' for the type of the key here.  We
+> only need 4 bits on x86 today, but I figured that other
+> architectures might need some more space.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index a94b9f4..e309ed1 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2912,8 +2912,7 @@ static inline int slab_order(int size, int min_objects,
- 	if (order_objects(min_order, size, reserved) > MAX_OBJS_PER_PAGE)
- 		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
- 
--	for (order = max(min_order,
--				fls(min_objects * size - 1) - PAGE_SHIFT);
-+	for (order = max(min_order, get_order(min_objects * size));
- 			order <= max_order; order++) {
- 
- 		unsigned long slab_size = PAGE_SIZE << order;
--- 
-2.5.0
+If the existing mprotect() syscall had a flags argument you could have just
+used that. So is it worth just adding mprotect2() now and using it for this? ie:
+
+int mprotect2(unsigned long start, size_t len, unsigned long prot, unsigned long flags) ..
+
+And then you define bit zero of flags to say you're passing a pkey, and it's in
+bits 1-63?
+
+That way if other arches need to do something different you at least have the
+flags available?
+
+cheers
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
