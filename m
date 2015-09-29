@@ -1,58 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E62B6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 04:44:27 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so139586299wic.0
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 01:44:26 -0700 (PDT)
-Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com. [2a00:1450:400c:c05::22a])
-        by mx.google.com with ESMTPS id h6si27886931wib.97.2015.09.29.01.44.26
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 488B36B0038
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 06:13:36 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so143297066wic.0
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 03:13:35 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fn15si28468909wjc.114.2015.09.29.03.13.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 01:44:26 -0700 (PDT)
-Received: by wicgb1 with SMTP id gb1so138326127wic.1
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 01:44:26 -0700 (PDT)
-Date: Tue, 29 Sep 2015 10:44:22 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 06/11] x86/virt/guest/xen: Remove use of pgd_list from
- the Xen guest code
-Message-ID: <20150929084422.GB332@gmail.com>
-References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
- <1442903021-3893-7-git-send-email-mingo@kernel.org>
- <CA+55aFw5BLBTFWQpcOGYv4ALAM02aywTk1vz5ng=wqPnNH3qKw@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 29 Sep 2015 03:13:34 -0700 (PDT)
+Date: Tue, 29 Sep 2015 11:13:27 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/2] mm: change free_cma and free_pages declarations to
+ unsigned
+Message-ID: <20150929101327.GW25655@suse.de>
+References: <20150927210416.GA20144@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CA+55aFw5BLBTFWQpcOGYv4ALAM02aywTk1vz5ng=wqPnNH3qKw@mail.gmail.com>
+In-Reply-To: <20150927210416.GA20144@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Alexandru Moise <00moses.alexander00@gmail.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, mhocko@suse.com, rientjes@google.com, js1304@gmail.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-* Linus Torvalds <torvalds@linux-foundation.org> wrote:
-
-> On Mon, Sep 21, 2015 at 11:23 PM, Ingo Molnar <mingo@kernel.org> wrote:
-> > xen_mm_pin_all()/unpin_all() are used to implement full guest instance
-> > suspend/restore. It's a stop-all method that needs to iterate through
-> > all allocated pgds in the system to fix them up for Xen's use.
+On Sun, Sep 27, 2015 at 09:04:16PM +0000, Alexandru Moise wrote:
+> Their stored values come from zone_page_state() which returns
+> an unsigned long. To improve code correctness we should avoid
+> mixing signed and unsigned integers.
 > 
-> And _this_ is why I'd reall ylike that "for_each_mm()" helper.
+> Signed-off-by: Alexandru Moise <00moses.alexander00@gmail.com>
+> ---
+>  mm/page_alloc.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> Yeah, yeah, maybe it would require syntax like
-> 
->     for_each_mm (tsk, mm) {
->         ...
->     } end_for_each_mm(mm);
-> 
-> to do variable allocation things or cleanups (ie "end_for_each_mm()" might drop 
-> the task lock etc), but wouldn't that still be better than this complex 
-> boilerplate thing?
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 48aaf7b..f55e3a2 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2242,7 +2242,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+>  	/* free_pages may go negative - that's OK */
+>  	long min = mark;
+>  	int o;
+> -	long free_cma = 0;
+> +	unsigned long free_cma = 0;
+>  
 
-Yeah, agreed absolutely.
+NAK.
 
-Thanks,
+free_cma is used with free_pages which is explicitly commented as saying
+it can go negative. With your patch, there is a signed/unsigned operation
+where the unsigned type cannot fit into the signed type which casts them
+both to unsigned which is then broken for the comparison.  This patch
+looks broken for very subtle reasons. Please do not do any similar style
+patches to this because they can introduce subtle breakage if issues are
+not caught at review.
 
-	Ingo
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
