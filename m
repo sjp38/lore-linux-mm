@@ -1,145 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E76326B0038
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 17:05:09 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so18257878qgt.2
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 14:05:09 -0700 (PDT)
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id ABADE6B0038
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 17:27:30 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so18719163qge.0
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 14:27:30 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s9si10286232qkl.0.2015.09.29.14.05.08
+        by mx.google.com with ESMTPS id i130si23172877qhc.89.2015.09.29.14.27.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 14:05:09 -0700 (PDT)
-Date: Tue, 29 Sep 2015 14:05:07 -0700
+        Tue, 29 Sep 2015 14:27:29 -0700 (PDT)
+Date: Tue, 29 Sep 2015 14:27:27 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 10/10] mm, page_alloc: Only enforce watermarks for
- order-0 allocations
-Message-Id: <20150929140507.82b5e02f300038e4bb5b2493@linux-foundation.org>
-In-Reply-To: <20150921120317.GC3068@techsingularity.net>
-References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
-	<20150921120317.GC3068@techsingularity.net>
+Subject: Re: [PATCH 4/4] dma-debug: Allow poisoning nonzero allocations
+Message-Id: <20150929142727.e95a2d2ebff65dda86315248@linux-foundation.org>
+In-Reply-To: <560585EB.3060908@arm.com>
+References: <cover.1443178314.git.robin.murphy@arm.com>
+	<0405c6131def5aa179ff4ba5d4201ebde89cede3.1443178314.git.robin.murphy@arm.com>
+	<20150925124447.GO21513@n2100.arm.linux.org.uk>
+	<560585EB.3060908@arm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "arnd@arndb.de" <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "sakari.ailus@iki.fi" <sakari.ailus@iki.fi>, "sumit.semwal@linaro.org" <sumit.semwal@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>
 
-On Mon, 21 Sep 2015 13:03:17 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
+On Fri, 25 Sep 2015 18:35:39 +0100 Robin Murphy <robin.murphy@arm.com> wrote:
 
-> The primary purpose of watermarks is to ensure that reclaim can always
-> make forward progress in PF_MEMALLOC context (kswapd and direct reclaim).
-> These assume that order-0 allocations are all that is necessary for
-> forward progress.
+> Hi Russell,
 > 
-> High-order watermarks serve a different purpose. Kswapd
-> had no high-order awareness before they were introduced
-> (https://lkml.kernel.org/r/413AA7B2.4000907@yahoo.com.au).  This was
-> particularly important when there were high-order atomic requests.
-> The watermarks both gave kswapd awareness and made a reserve for those
-> atomic requests.
+> On 25/09/15 13:44, Russell King - ARM Linux wrote:
+> > On Fri, Sep 25, 2015 at 01:15:46PM +0100, Robin Murphy wrote:
+> >> Since some dma_alloc_coherent implementations return a zeroed buffer
+> >> regardless of whether __GFP_ZERO is passed, there exist drivers which
+> >> are implicitly dependent on this and pass otherwise uninitialised
+> >> buffers to hardware. This can lead to subtle and awkward-to-debug issues
+> >> using those drivers on different platforms, where nonzero uninitialised
+> >> junk may for instance occasionally look like a valid command which
+> >> causes the hardware to start misbehaving. To help with debugging such
+> >> issues, add the option to make uninitialised buffers much more obvious.
+> >
+> > The reason people started to do this is to stop a security leak in the
+> > ALSA code: ALSA allocates the ring buffer with dma_alloc_coherent()
+> > which used to grab pages and return them uninitialised.  These pages
+> > could contain anything - including the contents of /etc/shadow, or
+> > your bank details.
+> >
+> > ALSA then lets userspace mmap() that memory, which means any user process
+> > which has access to the sound devices can read data leaked from kernel
+> > memory.
+> >
+> > I think I did bring it up at the time I found it, and decided that the
+> > safest thing to do was to always return an initialised buffer - short of
+> > constantly auditing every dma_alloc_coherent() user which also mmap()s
+> > the buffer into userspace, I couldn't convince myself that it was safe
+> > to avoid initialising the buffer.
+> >
+> > I don't know whether the original problem still exists in ALSA or not,
+> > but I do know that there are dma_alloc_coherent() implementations out
+> > there which do not initialise prior to returning memory.
 > 
-> There are two important side-effects of this. The most important is that
-> a non-atomic high-order request can fail even though free pages are available
-> and the order-0 watermarks are ok. The second is that high-order watermark
-> checks are expensive as the free list counts up to the requested order must
-> be examined.
-> 
-> With the introduction of MIGRATE_HIGHATOMIC it is no longer necessary to
-> have high-order watermarks. Kswapd and compaction still need high-order
-> awareness which is handled by checking that at least one suitable high-order
-> page is free.
-> 
-> With the patch applied, there was little difference in the allocation
-> failure rates as the atomic reserves are small relative to the number of
-> allocation attempts. The expected impact is that there will never be an
-> allocation failure report that shows suitable pages on the free lists.
-> 
-> The one potential side-effect of this is that in a vanilla kernel, the
-> watermark checks may have kept a free page for an atomic allocation. Now,
-> we are 100% relying on the HighAtomic reserves and an early allocation to
-> have allocated them.  If the first high-order atomic allocation is after
-> the system is already heavily fragmented then it'll fail.
-> 
-> ...
->
->  static bool __zone_watermark_ok(struct zone *z, unsigned int order,
->  			unsigned long mark, int classzone_idx, int alloc_flags,
-> @@ -2317,7 +2319,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
->  {
->  	long min = mark;
->  	int o;
-> -	long free_cma = 0;
-> +	const bool alloc_harder = (alloc_flags & ALLOC_HARDER);
+> Indeed, I think we've discussed this before, and I don't imagine we'll 
+> be changing the actual behaviour of the existing allocators any time soon.
 
-hmpf.  Setting a bool to 0x10 is a bit grubby.
-  
->  	/* free_pages may go negative - that's OK */
->  	free_pages -= (1 << order) - 1;
-> @@ -2330,7 +2332,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
->  	 * the high-atomic reserves. This will over-estimate the size of the
->  	 * atomic reserve but it avoids a search.
->  	 */
-> -	if (likely(!(alloc_flags & ALLOC_HARDER)))
-> +	if (likely(!alloc_harder))
->  		free_pages -= z->nr_reserved_highatomic;
->  	else
->  		min -= min / 4;
-> @@ -2338,22 +2340,43 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
->  #ifdef CONFIG_CMA
->  	/* If allocation can't use CMA areas don't use free CMA pages */
->  	if (!(alloc_flags & ALLOC_CMA))
-> -		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
-> +		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
->  #endif
->  
-> -	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
-> +	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
->  		return false;
-> -	for (o = 0; o < order; o++) {
-> -		/* At the next order, this order's pages become unavailable */
-> -		free_pages -= z->free_area[o].nr_free << o;
->  
-> -		/* Require fewer higher order pages to be free */
-> -		min >>= 1;
-> +	/* order-0 watermarks are ok */
+If I'm understanding things correctly, some allocators zero the memory
+by default and others do not.  And we have an unknown number of drivers
+which are assuming that the memory is zeroed.
 
-because?
+Correct?
 
-> +	if (!order)
-> +		return true;
-> +
-> +	/* Check at least one high-order page is free */
-> +	for (o = order; o < MAX_ORDER; o++) {
-> +		struct free_area *area = &z->free_area[o];
-> +		int mt;
-> +
-> +		if (!area->nr_free)
-> +			continue;
-> +
-> +		if (alloc_harder) {
-> +			if (area->nr_free)
-> +				return true;
-> +			continue;
-> +		}
->  
-> -		if (free_pages <= min)
-> -			return false;
-> +		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
-> +			if (!list_empty(&area->free_list[mt]))
-> +				return true;
-> +		}
-> +
-> +#ifdef CONFIG_CMA
-> +		if ((alloc_flags & ALLOC_CMA) &&
-> +		    !list_empty(&area->free_list[MIGRATE_CMA])) {
-> +			return true;
-> +		}
-> +#endif
->  	}
-> -	return true;
-> +	return false;
->  }
+If so, our options are
+
+a) audit all callers, find the ones which expect zeroed memory but
+   aren't passing __GFP_ZERO and fix them.
+
+b) convert all allocators to zero the memory by default.
+
+Obviously, a) is better.  How big a job is it?
+
+This patch will help the process, if people use it.
+
+> >> +	if (IS_ENABLED(CONFIG_DMA_API_DEBUG_POISON) && !(flags & __GFP_ZERO))
+> >> +		memset(virt, DMA_ALLOC_POISON, size);
+> >> +
+> >
+> > This is likely to be slow in the case of non-cached memory and large
+> > allocations.  The config option should come with a warning.
+> 
+> It depends on DMA_API_DEBUG, which already has a stern performance 
+> warning, is additionally hidden behind EXPERT, and carries a slightly 
+> flippant yet largely truthful warning that actually using it could break 
+> pretty much every driver in your system; is that not enough?
+
+It might be helpful to provide a runtime knob as well - having to
+rebuild&reinstall just to enable/disable this feature is a bit painful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
