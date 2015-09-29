@@ -1,105 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BB5B6B0254
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 03:54:51 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so203695814pac.2
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 00:54:51 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id v10si35373035pbs.184.2015.09.29.00.54.50
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B3696B0254
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 03:57:40 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so199590925pac.0
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 00:57:40 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id qq4si35415129pbc.157.2015.09.29.00.57.39
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 00:54:50 -0700 (PDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: [PATCH] mm: optimize PageHighMem() check
-Date: Tue, 29 Sep 2015 13:24:20 +0530
-Message-ID: <1443513260-14598-1-git-send-email-vgupta@synopsys.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1 cipher=RC4-SHA bits=128/128);
+        Tue, 29 Sep 2015 00:57:39 -0700 (PDT)
+Subject: Re: can't oom-kill zap the victim's memory?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150922160608.GA2716@redhat.com>
+	<20150923205923.GB19054@dhcp22.suse.cz>
+	<alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
+	<20150925093556.GF16497@dhcp22.suse.cz>
+	<alpine.DEB.2.10.1509281512330.13657@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1509281512330.13657@chino.kir.corp.google.com>
+Message-Id: <201509291657.HHD73972.MOFVSHQtOJFOLF@I-love.SAKURA.ne.jp>
+Date: Tue, 29 Sep 2015 16:57:25 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Vineet Gupta <Vineet.Gupta1@synopsys.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, "Kirill A.  Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, Jennifer Herbert <jennifer.herbert@citrix.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org
+To: rientjes@google.com, mhocko@kernel.org
+Cc: oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
 
-This came up when implementing HIHGMEM/PAE40 for ARC.
-The kmap() / kmap_atomic() generated code seemed needlessly bloated due
-to the way PageHighMem() macro is implemented.
-It derives the exact zone for page and then does pointer subtraction
-with first zone to infer the zone_type.
-The pointer arithmatic in turn generates the code bloat.
+David Rientjes wrote:
+> On Fri, 25 Sep 2015, Michal Hocko wrote:
+> > > > I am still not sure how you want to implement that kernel thread but I
+> > > > am quite skeptical it would be very much useful because all the current
+> > > > allocations which end up in the OOM killer path cannot simply back off
+> > > > and drop the locks with the current allocator semantic.  So they will
+> > > > be sitting on top of unknown pile of locks whether you do an additional
+> > > > reclaim (unmap the anon memory) in the direct OOM context or looping
+> > > > in the allocator and waiting for kthread/workqueue to do its work. The
+> > > > only argument that I can see is the stack usage but I haven't seen stack
+> > > > overflows in the OOM path AFAIR.
+> > > > 
+> > > 
+> > > Which locks are you specifically interested in?
+> > 
+> > Any locks they were holding before they entered the page allocator (e.g.
+> > i_mutex is the easiest one to trigger from the userspace but mmap_sem
+> > might be involved as well because we are doing kmalloc(GFP_KERNEL) with
+> > mmap_sem held for write). Those would be locked until the page allocator
+> > returns, which with the current semantic might be _never_.
+> > 
+> 
+> I agree that i_mutex seems to be one of the most common offenders.  
+> However, I'm not sure I understand why holding it while trying to allocate 
+> infinitely for an order-0 allocation is problematic wrt the proposed 
+> kthread.  The kthread itself need only take mmap_sem for read.  If all 
+> threads sharing the mm with a victim have been SIGKILL'd, they should get 
+> TIF_MEMDIE set when reclaim fails and be able to allocate so that they can 
+> drop mmap_sem.  We must ensure that any holder of mmap_sem cannot quickly 
+> deplete memory reserves without properly checking for 
+> fatal_signal_pending().
 
-PageHighMem(page)
-  is_highmem(page_zone(page))
-     zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones
+Is the story such simple? I think there are factors which disturb memory
+allocation with mmap_sem held for writing.
 
-Instead use is_highmem_idx() to work on zone_type available in page flags
+  down_write(&mm->mmap_sem);
+  kmalloc(GFP_KERNEL);
+  up_write(&mm->mmap_sem);
 
-   ----- Before -----
-80756348:	mov_s      r13,r0
-8075634a:	ld_s       r2,[r13,0]
-8075634c:	lsr_s      r2,r2,30
-8075634e:	mpy        r2,r2,0x2a4
-80756352:	add_s      r2,r2,0x80aef880
-80756358:	ld_s       r3,[r2,28]
-8075635a:	sub_s      r2,r2,r3
-8075635c:	breq       r2,0x2a4,80756378 <kmap+0x48>
-80756364:	breq       r2,0x548,80756378 <kmap+0x48>
+can involve locks inside __alloc_pages_slowpath().
 
-   ----- After  -----
-80756330:	mov_s      r13,r0
-80756332:	ld_s       r2,[r13,0]
-80756334:	lsr_s      r2,r2,30
-80756336:	sub_s      r2,r2,1
-80756338:	brlo       r2,2,80756348 <kmap+0x30>
+Say, there are three userspace tasks named P1, P2T1, P2T2 and
+one kernel thread named KT1. Only P2T1 and P2T2 shares the same mm.
+KT1 is a kernel thread for fs writeback (maybe kswapd?).
+I think sequence shown below is possible.
 
-For x86 defconfig build (32 bit only) it saves around 900 bytes.
-For ARC defconfig with HIGHMEM, it saved around 2K bytes.
+(1) P1 enters into kernel mode via write() syscall.
 
-   ---->8-------
-./scripts/bloat-o-meter x86/vmlinux-defconfig-pre x86/vmlinux-defconfig-post
-add/remove: 0/0 grow/shrink: 0/36 up/down: 0/-934 (-934)
-function                                     old     new   delta
-saveable_page                                162     154      -8
-saveable_highmem_page                        154     146      -8
-skb_gro_reset_offset                         147     131     -16
-...
-...
-__change_page_attr_set_clr                  1715    1678     -37
-setup_data_read                              434     394     -40
-mon_bin_event                               1967    1927     -40
-swsusp_save                                 1148    1105     -43
-_set_pages_array                             549     493     -56
-   ---->8-------
+(2) P1 allocates memory for buffered write.
 
-e.g. For ARC kmap()
+(3) P2T1 enters into kernel mode and calls kmalloc().
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Jennifer Herbert <jennifer.herbert@citrix.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-kernel@vger.kernel.org
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
----
- include/linux/page-flags.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+(4) P2T1 arrives at __alloc_pages_may_oom() because there was no
+    reclaimable memory. (Memory allocated by P1 is not reclaimable
+    as of this moment.)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 41c93844fb1d..2953aaa06d67 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -252,7 +252,7 @@ PAGEFLAG(Readahead, reclaim) TESTCLEARFLAG(Readahead, reclaim)
-  * Must use a macro here due to header dependency issues. page_zone() is not
-  * available at this point.
-  */
--#define PageHighMem(__p) is_highmem(page_zone(__p))
-+#define PageHighMem(__p) is_highmem_idx(page_zonenum(__p))
- #else
- PAGEFLAG_FALSE(HighMem)
- #endif
--- 
-1.9.1
+(5) P1 dirties memory allocated for buffered write.
+
+(6) P2T2 enters into kernel mode and calls kmalloc() with
+    mmap_sem held for writing.
+
+(7) KT1 finds dirtied memory.
+
+(8) KT1 holds fs's unkillable lock for fs writeback.
+
+(9) P2T2 is blocked at unkillable lock for fs writeback held by KT1.
+
+(10) P2T1 calls out_of_memory() and the OOM killer chooses P2T1 and sets
+     TIF_MEMDIE on both P2T1 and P2T2.
+
+(11) P2T2 got TIF_MEMDIE but is blocked at unkillable lock for fs writeback
+     held by KT1.
+
+(12) KT1 is trying to allocate memory for fs writeback. But since P2T1 and
+     P2T2 cannot release memory because memory unmapping code cannot hold
+     mmap_sem for reading, KT1 waits forever.... OOM livelock completed!
+
+I think sequence shown below is also possible. Say, there are three
+userspace tasks named P1, P2, P3 and one kernel thread named KT1.
+
+(1) P1 enters into kernel mode via write() syscall.
+
+(2) P1 allocates memory for buffered write.
+
+(3) P2 enters into kernel mode and holds mmap_sem for writing.
+
+(4) P3 enters into kernel mode and calls kmalloc().
+
+(5) P3 arrives at __alloc_pages_may_oom() because there was no
+    reclaimable memory. (Memory allocated by P1 is not reclaimable
+    as of this moment.)
+
+(6) P1 dirties memory allocated for buffered write.
+
+(7) KT1 finds dirtied memory.
+
+(8) KT1 holds fs's unkillable lock for fs writeback.
+
+(9) P2 calls kmalloc() and is blocked at unkillable lock for fs writeback
+    held by KT1.
+
+(10) P3 calls out_of_memory() and the OOM killer chooses P2 and sets
+     TIF_MEMDIE on P2.
+
+(11) P2 got TIF_MEMDIE but is blocked at unkillable lock for fs writeback
+     held by KT1.
+
+(12) KT1 is trying to allocate memory for fs writeback. But since P2 cannot
+     release memory because memory unmapping code cannot hold mmap_sem for
+     reading, KT1 waits forever.... OOM livelock completed!
+
+So, allowing all OOM victim threads to use memory reserves does not guarantee
+that a thread which held mmap_sem for writing to make forward progress.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
