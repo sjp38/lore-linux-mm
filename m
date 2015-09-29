@@ -1,100 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id ABADE6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 17:27:30 -0400 (EDT)
-Received: by qgev79 with SMTP id v79so18719163qge.0
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 14:27:30 -0700 (PDT)
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FC4C6B0038
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 18:02:49 -0400 (EDT)
+Received: by qgx61 with SMTP id 61so19432986qgx.3
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 15:02:49 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i130si23172877qhc.89.2015.09.29.14.27.29
+        by mx.google.com with ESMTPS id s5si14740994qks.69.2015.09.29.15.02.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 14:27:29 -0700 (PDT)
-Date: Tue, 29 Sep 2015 14:27:27 -0700
+        Tue, 29 Sep 2015 15:02:48 -0700 (PDT)
+Date: Tue, 29 Sep 2015 15:02:46 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/4] dma-debug: Allow poisoning nonzero allocations
-Message-Id: <20150929142727.e95a2d2ebff65dda86315248@linux-foundation.org>
-In-Reply-To: <560585EB.3060908@arm.com>
-References: <cover.1443178314.git.robin.murphy@arm.com>
-	<0405c6131def5aa179ff4ba5d4201ebde89cede3.1443178314.git.robin.murphy@arm.com>
-	<20150925124447.GO21513@n2100.arm.linux.org.uk>
-	<560585EB.3060908@arm.com>
+Subject: Re: [PATCH] mm, fs: Obey gfp_mapping for add_to_page_cache
+Message-Id: <20150929150246.286cc6013bce3eec170376aa@linux-foundation.org>
+In-Reply-To: <1443193461-31402-1-git-send-email-mhocko@kernel.org>
+References: <1443193461-31402-1-git-send-email-mhocko@kernel.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "arnd@arndb.de" <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "sakari.ailus@iki.fi" <sakari.ailus@iki.fi>, "sumit.semwal@linaro.org" <sumit.semwal@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Ming Lei <ming.lei@canonical.com>, Andreas Dilger <andreas.dilger@intel.com>, Oleg Drokin <oleg.drokin@intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-nfs@vger.kernel.org, linux-cifs@vger.kernel.org, Michal Hocko <mhocko@suse.com>
 
-On Fri, 25 Sep 2015 18:35:39 +0100 Robin Murphy <robin.murphy@arm.com> wrote:
+On Fri, 25 Sep 2015 17:04:21 +0200 mhocko@kernel.org wrote:
 
-> Hi Russell,
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> On 25/09/15 13:44, Russell King - ARM Linux wrote:
-> > On Fri, Sep 25, 2015 at 01:15:46PM +0100, Robin Murphy wrote:
-> >> Since some dma_alloc_coherent implementations return a zeroed buffer
-> >> regardless of whether __GFP_ZERO is passed, there exist drivers which
-> >> are implicitly dependent on this and pass otherwise uninitialised
-> >> buffers to hardware. This can lead to subtle and awkward-to-debug issues
-> >> using those drivers on different platforms, where nonzero uninitialised
-> >> junk may for instance occasionally look like a valid command which
-> >> causes the hardware to start misbehaving. To help with debugging such
-> >> issues, add the option to make uninitialised buffers much more obvious.
-> >
-> > The reason people started to do this is to stop a security leak in the
-> > ALSA code: ALSA allocates the ring buffer with dma_alloc_coherent()
-> > which used to grab pages and return them uninitialised.  These pages
-> > could contain anything - including the contents of /etc/shadow, or
-> > your bank details.
-> >
-> > ALSA then lets userspace mmap() that memory, which means any user process
-> > which has access to the sound devices can read data leaked from kernel
-> > memory.
-> >
-> > I think I did bring it up at the time I found it, and decided that the
-> > safest thing to do was to always return an initialised buffer - short of
-> > constantly auditing every dma_alloc_coherent() user which also mmap()s
-> > the buffer into userspace, I couldn't convince myself that it was safe
-> > to avoid initialising the buffer.
-> >
-> > I don't know whether the original problem still exists in ALSA or not,
-> > but I do know that there are dma_alloc_coherent() implementations out
-> > there which do not initialise prior to returning memory.
+> 6afdb859b710 ("mm: do not ignore mapping_gfp_mask in page cache
+> allocation paths) has caught some users of hardcoded GFP_KERNEL
+> used in the page cache allocation paths. This, however, wasn't complete
+> and there were others which went unnoticed.
 > 
-> Indeed, I think we've discussed this before, and I don't imagine we'll 
-> be changing the actual behaviour of the existing allocators any time soon.
-
-If I'm understanding things correctly, some allocators zero the memory
-by default and others do not.  And we have an unknown number of drivers
-which are assuming that the memory is zeroed.
-
-Correct?
-
-If so, our options are
-
-a) audit all callers, find the ones which expect zeroed memory but
-   aren't passing __GFP_ZERO and fix them.
-
-b) convert all allocators to zero the memory by default.
-
-Obviously, a) is better.  How big a job is it?
-
-This patch will help the process, if people use it.
-
-> >> +	if (IS_ENABLED(CONFIG_DMA_API_DEBUG_POISON) && !(flags & __GFP_ZERO))
-> >> +		memset(virt, DMA_ALLOC_POISON, size);
-> >> +
-> >
-> > This is likely to be slow in the case of non-cached memory and large
-> > allocations.  The config option should come with a warning.
+> Dave Chinner has reported the following deadlock for xfs on loop device:
+> : With the recent merge of the loop device changes, I'm now seeing
+> : XFS deadlock on my single CPU, 1GB RAM VM running xfs/073.
+> :
+> : The deadlocked is as follows:
+> :
+> : kloopd1: loop_queue_read_work
+> :       xfs_file_iter_read
+> :       lock XFS inode XFS_IOLOCK_SHARED (on image file)
+> :       page cache read (GFP_KERNEL)
+> :       radix tree alloc
+> :       memory reclaim
+> :       reclaim XFS inodes
+> :       log force to unpin inodes
+> :       <wait for log IO completion>
+> :
+> : xfs-cil/loop1: <does log force IO work>
+> :       xlog_cil_push
+> :       xlog_write
+> :       <loop issuing log writes>
+> :               xlog_state_get_iclog_space()
+> :               <blocks due to all log buffers under write io>
+> :               <waits for IO completion>
+> :
+> : kloopd1: loop_queue_write_work
+> :       xfs_file_write_iter
+> :       lock XFS inode XFS_IOLOCK_EXCL (on image file)
+> :       <wait for inode to be unlocked>
+> :
+> : i.e. the kloopd, with it's split read and write work queues, has
+> : introduced a dependency through memory reclaim. i.e. that writes
+> : need to be able to progress for reads make progress.
+> :
+> : The problem, fundamentally, is that mpage_readpages() does a
+> : GFP_KERNEL allocation, rather than paying attention to the inode's
+> : mapping gfp mask, which is set to GFP_NOFS.
+> :
+> : The didn't used to happen, because the loop device used to issue
+> : reads through the splice path and that does:
+> :
+> :       error = add_to_page_cache_lru(page, mapping, index,
+> :                       GFP_KERNEL & mapping_gfp_mask(mapping));
 > 
-> It depends on DMA_API_DEBUG, which already has a stern performance 
-> warning, is additionally hidden behind EXPERT, and carries a slightly 
-> flippant yet largely truthful warning that actually using it could break 
-> pretty much every driver in your system; is that not enough?
+> This has changed by aa4d86163e4 (block: loop: switch to VFS ITER_BVEC).
 
-It might be helpful to provide a runtime knob as well - having to
-rebuild&reinstall just to enable/disable this feature is a bit painful.
+xfs-on-loop deadlocks since April would appear to warrant a -stable
+backport, yes?
+
+> this is a rebase on top of the current mmotm
+> (2015-09-22-15-28)
+
+So I've redone the patch against current mainline.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
