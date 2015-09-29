@@ -1,72 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 478DA6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 18:43:50 -0400 (EDT)
-Received: by qkap81 with SMTP id p81so10189634qka.2
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 15:43:50 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h70si23506282qkh.122.2015.09.29.15.43.49
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 25FF76B0038
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 18:56:33 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so18359273pab.3
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 15:56:32 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id ba5si40717497pbb.193.2015.09.29.15.56.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 15:43:49 -0700 (PDT)
-Date: Tue, 29 Sep 2015 15:43:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/5] mm: uncharge kmem pages from generic free_page path
-Message-Id: <20150929154347.c22bc340458d534d5cdb096c@linux-foundation.org>
-In-Reply-To: <bd8dc6295b2984a55233904fe6e85ff3b32052d7.1443262808.git.vdavydov@parallels.com>
-References: <cover.1443262808.git.vdavydov@parallels.com>
-	<bd8dc6295b2984a55233904fe6e85ff3b32052d7.1443262808.git.vdavydov@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Sep 2015 15:56:32 -0700 (PDT)
+Received: by pacfv12 with SMTP id fv12so19171534pac.2
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 15:56:32 -0700 (PDT)
+Date: Tue, 29 Sep 2015 15:56:30 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: can't oom-kill zap the victim's memory?
+In-Reply-To: <201509291657.HHD73972.MOFVSHQtOJFOLF@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.10.1509291547560.3375@chino.kir.corp.google.com>
+References: <20150922160608.GA2716@redhat.com> <20150923205923.GB19054@dhcp22.suse.cz> <alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com> <20150925093556.GF16497@dhcp22.suse.cz> <alpine.DEB.2.10.1509281512330.13657@chino.kir.corp.google.com>
+ <201509291657.HHD73972.MOFVSHQtOJFOLF@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@kernel.org, oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
 
-On Sat, 26 Sep 2015 13:45:53 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
+On Tue, 29 Sep 2015, Tetsuo Handa wrote:
 
-> Currently, to charge a page to kmemcg one should use alloc_kmem_pages
-> helper. When the page is not needed anymore it must be freed with
-> free_kmem_pages helper, which will uncharge the page before freeing it.
-> Such a design is acceptable for thread info pages and kmalloc large
-> allocations, which are currently the only users of alloc_kmem_pages, but
-> it gets extremely inconvenient if one wants to make use of batched free
-> (e.g. to charge page tables - see release_pages) or page reference
-> counter (pipe buffers - see anon_pipe_buf_release).
+> Is the story such simple? I think there are factors which disturb memory
+> allocation with mmap_sem held for writing.
 > 
-> To overcome this limitation, this patch moves kmemcg uncharge code to
-> the generic free path and zaps free_kmem_pages helper. To distinguish
-> kmem pages from other page types, it makes alloc_kmem_pages initialize
-> page->_mapcount to a special value and introduces a new PageKmem helper,
-> which returns true if it sees this value.
+>   down_write(&mm->mmap_sem);
+>   kmalloc(GFP_KERNEL);
+>   up_write(&mm->mmap_sem);
+> 
+> can involve locks inside __alloc_pages_slowpath().
+> 
+> Say, there are three userspace tasks named P1, P2T1, P2T2 and
+> one kernel thread named KT1. Only P2T1 and P2T2 shares the same mm.
+> KT1 is a kernel thread for fs writeback (maybe kswapd?).
+> I think sequence shown below is possible.
+> 
+> (1) P1 enters into kernel mode via write() syscall.
+> 
+> (2) P1 allocates memory for buffered write.
+> 
+> (3) P2T1 enters into kernel mode and calls kmalloc().
+> 
+> (4) P2T1 arrives at __alloc_pages_may_oom() because there was no
+>     reclaimable memory. (Memory allocated by P1 is not reclaimable
+>     as of this moment.)
+> 
+> (5) P1 dirties memory allocated for buffered write.
+> 
+> (6) P2T2 enters into kernel mode and calls kmalloc() with
+>     mmap_sem held for writing.
+> 
+> (7) KT1 finds dirtied memory.
+> 
+> (8) KT1 holds fs's unkillable lock for fs writeback.
+> 
+> (9) P2T2 is blocked at unkillable lock for fs writeback held by KT1.
+> 
+> (10) P2T1 calls out_of_memory() and the OOM killer chooses P2T1 and sets
+>      TIF_MEMDIE on both P2T1 and P2T2.
+> 
+> (11) P2T2 got TIF_MEMDIE but is blocked at unkillable lock for fs writeback
+>      held by KT1.
+> 
+> (12) KT1 is trying to allocate memory for fs writeback. But since P2T1 and
+>      P2T2 cannot release memory because memory unmapping code cannot hold
+>      mmap_sem for reading, KT1 waits forever.... OOM livelock completed!
+> 
+> I think sequence shown below is also possible. Say, there are three
+> userspace tasks named P1, P2, P3 and one kernel thread named KT1.
+> 
+> (1) P1 enters into kernel mode via write() syscall.
+> 
+> (2) P1 allocates memory for buffered write.
+> 
+> (3) P2 enters into kernel mode and holds mmap_sem for writing.
+> 
+> (4) P3 enters into kernel mode and calls kmalloc().
+> 
+> (5) P3 arrives at __alloc_pages_may_oom() because there was no
+>     reclaimable memory. (Memory allocated by P1 is not reclaimable
+>     as of this moment.)
+> 
+> (6) P1 dirties memory allocated for buffered write.
+> 
+> (7) KT1 finds dirtied memory.
+> 
+> (8) KT1 holds fs's unkillable lock for fs writeback.
+> 
+> (9) P2 calls kmalloc() and is blocked at unkillable lock for fs writeback
+>     held by KT1.
+> 
+> (10) P3 calls out_of_memory() and the OOM killer chooses P2 and sets
+>      TIF_MEMDIE on P2.
+> 
+> (11) P2 got TIF_MEMDIE but is blocked at unkillable lock for fs writeback
+>      held by KT1.
+> 
+> (12) KT1 is trying to allocate memory for fs writeback. But since P2 cannot
+>      release memory because memory unmapping code cannot hold mmap_sem for
+>      reading, KT1 waits forever.... OOM livelock completed!
+> 
+> So, allowing all OOM victim threads to use memory reserves does not guarantee
+> that a thread which held mmap_sem for writing to make forward progress.
+> 
 
-As far as I can tell, this new use of page._mapcount is OK, but...
+Thank you for writing this all out, it definitely helps to understand the 
+concerns.
 
-- The documentation for _mapcount needs to be updated (mm_types.h)
+This, in my understanding, is the same scenario that requires not only oom 
+victims to be able to access memory reserves, but also any thread after an 
+oom victim has failed to make a timely exit.
 
-- Don't believe the documentation!  Because someone else may have
-  done what you tried to do.  Please manually audit mm/ for _mapcount
-  uses.
+I point out mm->mmap_sem as a special case because we have had fixes in 
+the past, such as the special fatal_signal_pending() handling in 
+__get_user_pages(), that try to ensure forward progress since we know that 
+we need exclusive mm->mmap_sem for the victim to make an exit.
 
-- One such use is "For recording whether a page is in the buddy
-  system, we set ->_mapcount PAGE_BUDDY_MAPCOUNT_VALUE".  Please update
-  the comment for this while you're in there.  (Including description
-  of the state's lifetime).
+I think both of your illustrations show why it is not helpful to kill 
+additional processes after a time period has elapsed and a victim has 
+failed to exit.  In both of your scenarios, it would require that KT1 be 
+killed to allow forward progress and we know that's not possible.
 
-- And please update _mapcount docs for PageBalloon()
+Perhaps this is an argument that we need to provide access to memory 
+reserves for threads even for !__GFP_WAIT and !__GFP_FS in such scenarios, 
+but I would wait to make that extension until we see it in practice.
 
-- Why is the code accessing ->_mapcount directly?  afaict page_mapcount()
-  and friends will work OK?
-
-- The patch adds overhead to all kernels, even non-kmemcg and
-  non-memcg kernels.  Bad.  Fixable?
-
-- PAGE_BUDDY_MAPCOUNT_VALUE, PAGE_BALLOON_MAPCOUNT_VALUE and
-  PAGE_KMEM_MAPCOUNT_VALUE should all be put next to each other so
-  readers can see all the possible values and so we don't get
-  duplicates, etc.
-
+Killing all mm->mmap_sem threads certainly isn't meant to solve all oom 
+killer livelocks, as you show.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
