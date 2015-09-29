@@ -1,88 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E927D6B0258
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 14:16:11 -0400 (EDT)
-Received: by qgez77 with SMTP id z77so13829990qge.1
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 11:16:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n7si22374322qge.126.2015.09.29.11.16.11
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EDC756B0254
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 15:21:42 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so15538476qge.0
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 12:21:42 -0700 (PDT)
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com. [209.85.192.50])
+        by mx.google.com with ESMTPS id g197si22620896qhc.129.2015.09.29.12.21.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 11:16:11 -0700 (PDT)
-Date: Tue, 29 Sep 2015 20:16:05 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [MM PATCH V4 5/6] slub: support for bulk free with SLUB
- freelists
-Message-ID: <20150929201605.18626b1b@redhat.com>
-In-Reply-To: <560AC854.6040601@gmail.com>
-References: <20150929154605.14465.98995.stgit@canyon>
-	<20150929154807.14465.76422.stgit@canyon>
-	<560ABE86.9050508@gmail.com>
-	<20150929190029.01ca01f2@redhat.com>
-	<560AC854.6040601@gmail.com>
+        Tue, 29 Sep 2015 12:21:41 -0700 (PDT)
+Received: by qgt47 with SMTP id 47so15560972qgt.2
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 12:21:41 -0700 (PDT)
+Date: Tue, 29 Sep 2015 15:21:39 -0400 (EDT)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: Re: [PATCH v2 2/9] mm: move __phys_to_pfn and __pfn_to_phys to
+ asm/generic/memory_model.h
+In-Reply-To: <20150826012735.8851.49787.stgit@dwillia2-desk3.amr.corp.intel.com>
+Message-ID: <alpine.LFD.2.20.1509291511440.11346@knanqh.ubzr>
+References: <20150826010220.8851.18077.stgit@dwillia2-desk3.amr.corp.intel.com> <20150826012735.8851.49787.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, netdev@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, brouer@redhat.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Russell King <linux@arm.linux.org.uk>, linux-nvdimm@lists.01.org, boaz@plexistor.com, david@fromorbit.com, linux-kernel@vger.kernel.org, hch@lst.de, linux-mm@kvack.org, hpa@zytor.com, ross.zwisler@linux.intel.com, mingo@kernel.org
 
-On Tue, 29 Sep 2015 10:20:20 -0700
-Alexander Duyck <alexander.duyck@gmail.com> wrote:
+On Tue, 25 Aug 2015, Dan Williams wrote:
 
-> On 09/29/2015 10:00 AM, Jesper Dangaard Brouer wrote:
-> > On Tue, 29 Sep 2015 09:38:30 -0700
-> > Alexander Duyck <alexander.duyck@gmail.com> wrote:
-> >
-> >> On 09/29/2015 08:48 AM, Jesper Dangaard Brouer wrote:
-> >>> +#if defined(CONFIG_KMEMCHECK) ||		\
-> >>> +	defined(CONFIG_LOCKDEP)	||		\
-> >>> +	defined(CONFIG_DEBUG_KMEMLEAK) ||	\
-> >>> +	defined(CONFIG_DEBUG_OBJECTS_FREE) ||	\
-> >>> +	defined(CONFIG_KASAN)
-> >>> +static inline void slab_free_freelist_hook(struct kmem_cache *s,
-> >>> +					   void *head, void *tail)
-> >>> +{
-> >>> +	void *object = head;
-> >>> +	void *tail_obj = tail ? : head;
-> >>> +
-> >>> +	do {
-> >>> +		slab_free_hook(s, object);
-> >>> +	} while ((object != tail_obj) &&
-> >>> +		 (object = get_freepointer(s, object)));
-> >>> +}
-> >>> +#else
-> >>> +static inline void slab_free_freelist_hook(struct kmem_cache *s, void *obj_tail,
-> >>> +					   void *freelist_head) {}
-> >>> +#endif
-> >>> +
-> >> Instead of messing around with an #else you might just wrap the contents
-> >> of slab_free_freelist_hook in the #if/#endif instead of the entire
-> >> function declaration.
-> >
-> > I had it that way in an earlier version of the patch, but I liked
-> > better this way.
+> From: Christoph Hellwig <hch@lst.de>
 > 
-> It would be nice if the argument names were the same for both cases.  
-> Having the names differ will make it more difficult to maintain when 
-> changes need to be made to the function.
+> Three architectures already define these, and we'll need them genericly
+> soon.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  arch/arm/include/asm/memory.h       |    6 ------
+>  arch/arm64/include/asm/memory.h     |    6 ------
+>  arch/unicore32/include/asm/memory.h |    6 ------
+>  include/asm-generic/memory_model.h  |    6 ++++++
+>  4 files changed, 6 insertions(+), 18 deletions(-)
+> 
+> diff --git a/arch/arm/include/asm/memory.h b/arch/arm/include/asm/memory.h
+> index b7f6fb462ea0..98d58bb04ac5 100644
+> --- a/arch/arm/include/asm/memory.h
+> +++ b/arch/arm/include/asm/memory.h
+> @@ -119,12 +119,6 @@
+>  #endif
+>  
+>  /*
+> - * Convert a physical address to a Page Frame Number and back
+> - */
+> -#define	__phys_to_pfn(paddr)	((unsigned long)((paddr) >> PAGE_SHIFT))
+> -#define	__pfn_to_phys(pfn)	((phys_addr_t)(pfn) << PAGE_SHIFT)
+> -
+> -/*
+>   * Convert a page to/from a physical address
+>   */
+>  #define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))
 
-Nice spotted, I forgot to change arg names of the empty function, when
-I updated the patch. Guess, it is an argument for moving the "if
-defined()" into the function body.
+[...]
 
-It just looked strange to have such a big ifdef block inside the
-function.  I also earlier had it define another def and use that inside
-the function, but then the code-reader would not know if this new def
-was/could-be used later (nitpicking alert...)
+> diff --git a/include/asm-generic/memory_model.h b/include/asm-generic/memory_model.h
+> index 14909b0b9cae..f20f407ce45d 100644
+> --- a/include/asm-generic/memory_model.h
+> +++ b/include/asm-generic/memory_model.h
+> @@ -69,6 +69,12 @@
+>  })
+>  #endif /* CONFIG_FLATMEM/DISCONTIGMEM/SPARSEMEM */
+>  
+> +/*
+> + * Convert a physical address to a Page Frame Number and back
+> + */
+> +#define	__phys_to_pfn(paddr)	((unsigned long)((paddr) >> PAGE_SHIFT))
+> +#define	__pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
+> +
 
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+This patch, currently in mainline as commit 012dcef3f0, breaks LPAE on 
+ARM32 with more than 4GB of RAM. The phys_addr_t cast in the original 
+ARM definition is important when LPAE is enabled as phys_addr_t is 64 
+bits while longs are 32 bits.
+
+
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
