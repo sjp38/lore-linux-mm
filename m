@@ -1,277 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id F2B056B0259
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 07:44:00 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so31826517qgt.2
-        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 04:44:00 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c2si166532qkh.34.2015.09.30.04.44.00
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id F1F116B025B
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 08:26:29 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so59142743wic.0
+        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 05:26:29 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ay2si393427wjb.206.2015.09.30.05.26.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Sep 2015 04:44:00 -0700 (PDT)
-Subject: [MM PATCH V4.1 5/6] slub: support for bulk free with SLUB freelists
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Wed, 30 Sep 2015 13:44:19 +0200
-Message-ID: <20150930114255.13505.2618.stgit@canyon>
-In-Reply-To: <560ABE86.9050508@gmail.com>
-References: <560ABE86.9050508@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 30 Sep 2015 05:26:28 -0700 (PDT)
+Subject: Re: [PATCH 05/10] mm, page_alloc: Distinguish between being unable to
+ sleep, unwilling to sleep and avoiding waking kswapd
+References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
+ <1442832762-7247-6-git-send-email-mgorman@techsingularity.net>
+ <20150924205509.GI3009@cmpxchg.org>
+ <20150925125106.GG3068@techsingularity.net>
+ <20150925190138.GA16359@cmpxchg.org>
+ <20150929133547.GI3068@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <560BD4F0.3080402@suse.cz>
+Date: Wed, 30 Sep 2015 14:26:24 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20150929133547.GI3068@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, netdev@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>
 
-Make it possible to free a freelist with several objects by adjusting
-API of slab_free() and __slab_free() to have head, tail and an objects
-counter (cnt).
+[+CC lustre maintainers]
 
-Tail being NULL indicate single object free of head object.  This
-allow compiler inline constant propagation in slab_free() and
-slab_free_freelist_hook() to avoid adding any overhead in case of
-single object free.
+On 09/29/2015 03:35 PM, Mel Gorman wrote:
+>>> Ok, I'll add a TODO to create a patch that removes GFP_IOFS entirely. It
+>>> can be tacked on to the end of the series.
+>>
+>> Okay, that makes sense to me. Thanks!
+>>
+>
+> This?
 
-This allows a freelist with several objects (all within the same
-slab-page) to be free'ed using a single locked cmpxchg_double in
-__slab_free() and with an unlocked cmpxchg_double in slab_free().
+Thanks for adding this, I think I also pointed this GFP_IOFS oddness in 
+earlier versions.
 
-Object debugging on the free path is also extended to handle these
-freelists.  When CONFIG_SLUB_DEBUG is enabled it will also detect if
-objects don't belong to the same slab-page.
+> ---8<---
+> mm: page_alloc: Remove GFP_IOFS
+>
+> GFP_IOFS was intended to be shorthand for clearing two flags, not a
+> set of allocation flags. There is only one user of this flag combination
+> now and there appears to be no reason why Lustre had to be protected
 
-These changes are needed for the next patch to bulk free the detached
-freelists it introduces and constructs.
+Looks like a mistake to me. __GFP_IO | __GFP_FS have no effect without 
+(former) __GFP_WAIT, so I doubt __GFP_WAIT was omitted on purpose, while 
+leaving the other two. The naming of GFP_IOFS suggested it was to be 
+used in allocations, leading to the mistake.
 
-Micro benchmarking showed no performance reduction due to this change,
-when debugging is turned off (compiled with CONFIG_SLUB_DEBUG).
+But I see you also converted several instances of GFP_NOFS to 
+GFP_KERNEL. Is that correct? This is a filesystem driver after all...
 
-Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
-Signed-off-by: Alexander Duyck <alexander.h.duyck@redhat.com>
+> from reclaim stalls. As none of the sites appear to be atomic, this
+> patch simply deletes GFP_IOFS and converts Lustre to using GFP_KERNEL.
+>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> ---
+>   drivers/staging/lustre/lnet/lnet/router.c           |  2 +-
+>   drivers/staging/lustre/lnet/selftest/conrpc.c       |  2 +-
+>   drivers/staging/lustre/lnet/selftest/rpc.c          |  2 +-
+>   drivers/staging/lustre/lustre/libcfs/module.c       |  2 +-
+>   drivers/staging/lustre/lustre/libcfs/tracefile.c    |  2 +-
+>   drivers/staging/lustre/lustre/llite/remote_perm.c   |  2 +-
+>   drivers/staging/lustre/lustre/mgc/mgc_request.c     | 10 +++++-----
+>   drivers/staging/lustre/lustre/obdecho/echo_client.c |  2 +-
+>   drivers/staging/lustre/lustre/osc/osc_cache.c       |  2 +-
+>   include/linux/gfp.h                                 |  1 -
+>   10 files changed, 13 insertions(+), 14 deletions(-)
+>
+> diff --git a/drivers/staging/lustre/lnet/lnet/router.c b/drivers/staging/lustre/lnet/lnet/router.c
+> index 4fbae5ef44a9..dad9816dfee7 100644
+> --- a/drivers/staging/lustre/lnet/lnet/router.c
+> +++ b/drivers/staging/lustre/lnet/lnet/router.c
+> @@ -1246,7 +1246,7 @@ lnet_new_rtrbuf(lnet_rtrbufpool_t *rbp, int cpt)
+>   	for (i = 0; i < npages; i++) {
+>   		page = alloc_pages_node(
+>   				cfs_cpt_spread_node(lnet_cpt_table(), cpt),
+> -				__GFP_ZERO | GFP_IOFS, 0);
+> +				GFP_KERNEL | __GFP_ZERO, 0);
+>   		if (page == NULL) {
+>   			while (--i >= 0)
+>   				__free_page(rb->rb_kiov[i].kiov_page);
+> diff --git a/drivers/staging/lustre/lnet/selftest/conrpc.c b/drivers/staging/lustre/lnet/selftest/conrpc.c
+> index a1a4e08f7391..3fc37de8d304 100644
+> --- a/drivers/staging/lustre/lnet/selftest/conrpc.c
+> +++ b/drivers/staging/lustre/lnet/selftest/conrpc.c
+> @@ -861,7 +861,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
+>   			bulk->bk_iovs[i].kiov_offset = 0;
+>   			bulk->bk_iovs[i].kiov_len    = len;
+>   			bulk->bk_iovs[i].kiov_page   =
+> -				alloc_page(GFP_IOFS);
+> +				alloc_page(GFP_KERNEL);
+>
+>   			if (bulk->bk_iovs[i].kiov_page == NULL) {
+>   				lstcon_rpc_put(*crpc);
+> diff --git a/drivers/staging/lustre/lnet/selftest/rpc.c b/drivers/staging/lustre/lnet/selftest/rpc.c
+> index 6ae133138b17..aa0f88fbb221 100644
+> --- a/drivers/staging/lustre/lnet/selftest/rpc.c
+> +++ b/drivers/staging/lustre/lnet/selftest/rpc.c
+> @@ -146,7 +146,7 @@ srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
+>   		int nob;
+>
+>   		pg = alloc_pages_node(cfs_cpt_spread_node(lnet_cpt_table(), cpt),
+> -				      GFP_IOFS, 0);
+> +				      GFP_KERNEL, 0);
+>   		if (pg == NULL) {
+>   			CERROR("Can't allocate page %d of %d\n", i, bulk_npg);
+>   			srpc_free_bulk(bk);
+> diff --git a/drivers/staging/lustre/lustre/libcfs/module.c b/drivers/staging/lustre/lustre/libcfs/module.c
+> index 806f9747a3a2..303143f28c06 100644
+> --- a/drivers/staging/lustre/lustre/libcfs/module.c
+> +++ b/drivers/staging/lustre/lustre/libcfs/module.c
+> @@ -321,7 +321,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
+>   	struct libcfs_ioctl_data *data;
+>   	int err = 0;
+>
+> -	LIBCFS_ALLOC_GFP(buf, 1024, GFP_IOFS);
+> +	LIBCFS_ALLOC_GFP(buf, 1024, GFP_KERNEL);
+>   	if (buf == NULL)
+>   		return -ENOMEM;
+>
+> diff --git a/drivers/staging/lustre/lustre/libcfs/tracefile.c b/drivers/staging/lustre/lustre/libcfs/tracefile.c
+> index effa2af58c13..a7d72f69c4eb 100644
+> --- a/drivers/staging/lustre/lustre/libcfs/tracefile.c
+> +++ b/drivers/staging/lustre/lustre/libcfs/tracefile.c
+> @@ -810,7 +810,7 @@ int cfs_trace_allocate_string_buffer(char **str, int nob)
+>   	if (nob > 2 * PAGE_CACHE_SIZE)	    /* string must be "sensible" */
+>   		return -EINVAL;
+>
+> -	*str = kmalloc(nob, GFP_IOFS | __GFP_ZERO);
+> +	*str = kmalloc(nob, GFP_KERNEL | __GFP_ZERO);
 
----
-V4:
- - Change API per req of Christoph Lameter
- - Remove comments in init_object.
+This could use kzalloc.
 
-V4.1:
- - Took Alex'es approach on defines inside slab_free_freelist_hook()
-
- mm/slub.c |   85 ++++++++++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 67 insertions(+), 18 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 1cf98d89546d..99fcfa8ed0c7 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1063,11 +1063,15 @@ bad:
- 	return 0;
- }
- 
-+/* Supports checking bulk free of a constructed freelist */
- static noinline struct kmem_cache_node *free_debug_processing(
--	struct kmem_cache *s, struct page *page, void *object,
-+	struct kmem_cache *s, struct page *page,
-+	void *head, void *tail, int bulk_cnt,
- 	unsigned long addr, unsigned long *flags)
- {
- 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
-+	void *object = head;
-+	int cnt = 0;
- 
- 	spin_lock_irqsave(&n->list_lock, *flags);
- 	slab_lock(page);
-@@ -1075,6 +1079,9 @@ static noinline struct kmem_cache_node *free_debug_processing(
- 	if (!check_slab(s, page))
- 		goto fail;
- 
-+next_object:
-+	cnt++;
-+
- 	if (!check_valid_pointer(s, page, object)) {
- 		slab_err(s, page, "Invalid object pointer 0x%p", object);
- 		goto fail;
-@@ -1105,8 +1112,19 @@ static noinline struct kmem_cache_node *free_debug_processing(
- 	if (s->flags & SLAB_STORE_USER)
- 		set_track(s, object, TRACK_FREE, addr);
- 	trace(s, page, object, 0);
-+	/* Freepointer not overwritten by init_object(), SLAB_POISON moved it */
- 	init_object(s, object, SLUB_RED_INACTIVE);
-+
-+	/* Reached end of constructed freelist yet? */
-+	if (object != tail) {
-+		object = get_freepointer(s, object);
-+		goto next_object;
-+	}
- out:
-+	if (cnt != bulk_cnt)
-+		slab_err(s, page, "Bulk freelist count(%d) invalid(%d)\n",
-+			 bulk_cnt, cnt);
-+
- 	slab_unlock(page);
- 	/*
- 	 * Keep node_lock to preserve integrity
-@@ -1210,7 +1228,8 @@ static inline int alloc_debug_processing(struct kmem_cache *s,
- 	struct page *page, void *object, unsigned long addr) { return 0; }
- 
- static inline struct kmem_cache_node *free_debug_processing(
--	struct kmem_cache *s, struct page *page, void *object,
-+	struct kmem_cache *s, struct page *page,
-+	void *head, void *tail, int bulk_cnt,
- 	unsigned long addr, unsigned long *flags) { return NULL; }
- 
- static inline int slab_pad_check(struct kmem_cache *s, struct page *page)
-@@ -1306,6 +1325,29 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
- 	kasan_slab_free(s, x);
- }
- 
-+static inline void slab_free_freelist_hook(struct kmem_cache *s,
-+					   void *head, void *tail)
-+{
-+/*
-+ * Compiler cannot detect this function can be removed if slab_free_hook()
-+ * evaluates to nothing.  Thus, catch all relevant config debug options here.
-+ */
-+#if defined(CONFIG_KMEMCHECK) ||		\
-+	defined(CONFIG_LOCKDEP)	||		\
-+	defined(CONFIG_DEBUG_KMEMLEAK) ||	\
-+	defined(CONFIG_DEBUG_OBJECTS_FREE) ||	\
-+	defined(CONFIG_KASAN)
-+
-+	void *object = head;
-+	void *tail_obj = tail ? : head;
-+
-+	do {
-+		slab_free_hook(s, object);
-+	} while ((object != tail_obj) &&
-+		 (object = get_freepointer(s, object)));
-+#endif
-+}
-+
- static void setup_object(struct kmem_cache *s, struct page *page,
- 				void *object)
- {
-@@ -2586,10 +2628,11 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
-  * handling required then we can return immediately.
-  */
- static void __slab_free(struct kmem_cache *s, struct page *page,
--			void *x, unsigned long addr)
-+			void *head, void *tail, int cnt,
-+			unsigned long addr)
-+
- {
- 	void *prior;
--	void **object = (void *)x;
- 	int was_frozen;
- 	struct page new;
- 	unsigned long counters;
-@@ -2599,7 +2642,8 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 	stat(s, FREE_SLOWPATH);
- 
- 	if (kmem_cache_debug(s) &&
--		!(n = free_debug_processing(s, page, x, addr, &flags)))
-+	    !(n = free_debug_processing(s, page, head, tail, cnt,
-+					addr, &flags)))
- 		return;
- 
- 	do {
-@@ -2609,10 +2653,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 		}
- 		prior = page->freelist;
- 		counters = page->counters;
--		set_freepointer(s, object, prior);
-+		set_freepointer(s, tail, prior);
- 		new.counters = counters;
- 		was_frozen = new.frozen;
--		new.inuse--;
-+		new.inuse -= cnt;
- 		if ((!new.inuse || !prior) && !was_frozen) {
- 
- 			if (kmem_cache_has_cpu_partial(s) && !prior) {
-@@ -2643,7 +2687,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
- 
- 	} while (!cmpxchg_double_slab(s, page,
- 		prior, counters,
--		object, new.counters,
-+		head, new.counters,
- 		"__slab_free"));
- 
- 	if (likely(!n)) {
-@@ -2708,15 +2752,20 @@ slab_empty:
-  *
-  * If fastpath is not possible then fall back to __slab_free where we deal
-  * with all sorts of special processing.
-+ *
-+ * Bulk free of a freelist with several objects (all pointing to the
-+ * same page) possible by specifying head and tail ptr, plus objects
-+ * count (cnt). Bulk free indicated by tail pointer being set.
-  */
--static __always_inline void slab_free(struct kmem_cache *s,
--			struct page *page, void *x, unsigned long addr)
-+static __always_inline void slab_free(struct kmem_cache *s, struct page *page,
-+				      void *head, void *tail, int cnt,
-+				      unsigned long addr)
- {
--	void **object = (void *)x;
-+	void *tail_obj = tail ? : head;
- 	struct kmem_cache_cpu *c;
- 	unsigned long tid;
- 
--	slab_free_hook(s, x);
-+	slab_free_freelist_hook(s, head, tail);
- 
- redo:
- 	/*
-@@ -2735,19 +2784,19 @@ redo:
- 	barrier();
- 
- 	if (likely(page == c->page)) {
--		set_freepointer(s, object, c->freelist);
-+		set_freepointer(s, tail_obj, c->freelist);
- 
- 		if (unlikely(!this_cpu_cmpxchg_double(
- 				s->cpu_slab->freelist, s->cpu_slab->tid,
- 				c->freelist, tid,
--				object, next_tid(tid)))) {
-+				head, next_tid(tid)))) {
- 
- 			note_cmpxchg_failure("slab_free", s, tid);
- 			goto redo;
- 		}
- 		stat(s, FREE_FASTPATH);
- 	} else
--		__slab_free(s, page, x, addr);
-+		__slab_free(s, page, head, tail_obj, cnt, addr);
- 
- }
- 
-@@ -2756,7 +2805,7 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
- 	s = cache_from_obj(s, x);
- 	if (!s)
- 		return;
--	slab_free(s, virt_to_head_page(x), x, _RET_IP_);
-+	slab_free(s, virt_to_head_page(x), x, NULL, 1, _RET_IP_);
- 	trace_kmem_cache_free(_RET_IP_, x);
- }
- EXPORT_SYMBOL(kmem_cache_free);
-@@ -2791,7 +2840,7 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
- 			c->tid = next_tid(c->tid);
- 			local_irq_enable();
- 			/* Slowpath: overhead locked cmpxchg_double_slab */
--			__slab_free(s, page, object, _RET_IP_);
-+			__slab_free(s, page, object, object, 1, _RET_IP_);
- 			local_irq_disable();
- 			c = this_cpu_ptr(s->cpu_slab);
- 		}
-@@ -3531,7 +3580,7 @@ void kfree(const void *x)
- 		__free_kmem_pages(page, compound_order(page));
- 		return;
- 	}
--	slab_free(page->slab_cache, page, object, _RET_IP_);
-+	slab_free(page->slab_cache, page, object, NULL, 1, _RET_IP_);
- }
- EXPORT_SYMBOL(kfree);
- 
+>   	if (*str == NULL)
+>   		return -ENOMEM;
+>
+> diff --git a/drivers/staging/lustre/lustre/llite/remote_perm.c b/drivers/staging/lustre/lustre/llite/remote_perm.c
+> index 39022ea88b5f..b27f016c3dd4 100644
+> --- a/drivers/staging/lustre/lustre/llite/remote_perm.c
+> +++ b/drivers/staging/lustre/lustre/llite/remote_perm.c
+> @@ -84,7 +84,7 @@ static struct hlist_head *alloc_rmtperm_hash(void)
+>
+>   	OBD_SLAB_ALLOC_GFP(hash, ll_rmtperm_hash_cachep,
+>   			   REMOTE_PERM_HASHSIZE * sizeof(*hash),
+> -			   GFP_IOFS);
+> +			   GFP_KERNEL);
+>   	if (!hash)
+>   		return NULL;
+>
+> diff --git a/drivers/staging/lustre/lustre/mgc/mgc_request.c b/drivers/staging/lustre/lustre/mgc/mgc_request.c
+> index 019ee2f256aa..79551319d754 100644
+> --- a/drivers/staging/lustre/lustre/mgc/mgc_request.c
+> +++ b/drivers/staging/lustre/lustre/mgc/mgc_request.c
+> @@ -198,7 +198,7 @@ struct config_llog_data *do_config_log_add(struct obd_device *obd,
+>   	CDEBUG(D_MGC, "do adding config log %s:%p\n", logname,
+>   	       cfg ? cfg->cfg_instance : NULL);
+>
+> -	cld = kzalloc(sizeof(*cld) + strlen(logname) + 1, GFP_NOFS);
+> +	cld = kzalloc(sizeof(*cld) + strlen(logname) + 1, GFP_KERNEL);
+>   	if (!cld)
+>   		return ERR_PTR(-ENOMEM);
+>
+> @@ -1127,7 +1127,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
+>   	LASSERT(cfg->cfg_instance != NULL);
+>   	LASSERT(cfg->cfg_sb == cfg->cfg_instance);
+>
+> -	inst = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
+> +	inst = kzalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
+>   	if (!inst)
+>   		return -ENOMEM;
+>
+> @@ -1334,14 +1334,14 @@ static int mgc_process_recover_log(struct obd_device *obd,
+>   	if (cfg->cfg_last_idx == 0) /* the first time */
+>   		nrpages = CONFIG_READ_NRPAGES_INIT;
+>
+> -	pages = kcalloc(nrpages, sizeof(*pages), GFP_NOFS);
+> +	pages = kcalloc(nrpages, sizeof(*pages), GFP_KERNEL);
+>   	if (pages == NULL) {
+>   		rc = -ENOMEM;
+>   		goto out;
+>   	}
+>
+>   	for (i = 0; i < nrpages; i++) {
+> -		pages[i] = alloc_page(GFP_IOFS);
+> +		pages[i] = alloc_page(GFP_KERNEL);
+>   		if (pages[i] == NULL) {
+>   			rc = -ENOMEM;
+>   			goto out;
+> @@ -1492,7 +1492,7 @@ static int mgc_process_cfg_log(struct obd_device *mgc,
+>   	if (cld->cld_cfg.cfg_sb)
+>   		lsi = s2lsi(cld->cld_cfg.cfg_sb);
+>
+> -	env = kzalloc(sizeof(*env), GFP_NOFS);
+> +	env = kzalloc(sizeof(*env), GFP_KERNEL);
+>   	if (!env)
+>   		return -ENOMEM;
+>
+> diff --git a/drivers/staging/lustre/lustre/obdecho/echo_client.c b/drivers/staging/lustre/lustre/obdecho/echo_client.c
+> index 27bd170c3a28..7c8443644300 100644
+> --- a/drivers/staging/lustre/lustre/obdecho/echo_client.c
+> +++ b/drivers/staging/lustre/lustre/obdecho/echo_client.c
+> @@ -1561,7 +1561,7 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
+>   		  (oa->o_valid & OBD_MD_FLFLAGS) != 0 &&
+>   		  (oa->o_flags & OBD_FL_DEBUG_CHECK) != 0);
+>
+> -	gfp_mask = ((ostid_id(&oa->o_oi) & 2) == 0) ? GFP_IOFS : GFP_HIGHUSER;
+> +	gfp_mask = ((ostid_id(&oa->o_oi) & 2) == 0) ? GFP_KERNEL : GFP_HIGHUSER;
+>
+>   	LASSERT(rw == OBD_BRW_WRITE || rw == OBD_BRW_READ);
+>   	LASSERT(lsm != NULL);
+> diff --git a/drivers/staging/lustre/lustre/osc/osc_cache.c b/drivers/staging/lustre/lustre/osc/osc_cache.c
+> index c72035e048aa..6fa6bc6874ab 100644
+> --- a/drivers/staging/lustre/lustre/osc/osc_cache.c
+> +++ b/drivers/staging/lustre/lustre/osc/osc_cache.c
+> @@ -346,7 +346,7 @@ static struct osc_extent *osc_extent_alloc(struct osc_object *obj)
+>   {
+>   	struct osc_extent *ext;
+>
+> -	OBD_SLAB_ALLOC_PTR_GFP(ext, osc_extent_kmem, GFP_IOFS);
+> +	OBD_SLAB_ALLOC_PTR_GFP(ext, osc_extent_kmem, GFP_KERNEL);
+>   	if (ext == NULL)
+>   		return NULL;
+>
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 60b2db94d49d..369227202ac2 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -134,7 +134,6 @@ struct vm_area_struct;
+>   #define GFP_USER	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+>   #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
+>   #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
+> -#define GFP_IOFS	(__GFP_IO | __GFP_FS | __GFP_KSWAPD_RECLAIM)
+>   #define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+>   			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
+>   			 ~__GFP_KSWAPD_RECLAIM)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
