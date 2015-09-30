@@ -1,120 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D0FE6B0255
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 06:24:15 -0400 (EDT)
-Received: by igbni9 with SMTP id ni9so27126003igb.0
-        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 03:24:15 -0700 (PDT)
-Received: from DNVWSMAILOUT1.mcafee.com (dnvwsmailout1.mcafee.com. [161.69.31.173])
-        by mx.google.com with ESMTPS id k4si12219478igu.50.2015.09.30.03.24.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Sep 2015 03:24:14 -0700 (PDT)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B9DB66B0257
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 06:33:55 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so37291938pac.0
+        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 03:33:55 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id ir5si608692pbb.212.2015.09.30.03.33.33
+        for <linux-mm@kvack.org>;
+        Wed, 30 Sep 2015 03:33:54 -0700 (PDT)
+Message-ID: <560BBA12.5090102@cn.fujitsu.com>
+Date: Wed, 30 Sep 2015 18:31:46 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH] mm: fix overflow in find_zone_movable_pfns_for_nodes()
+References: <560BAC76.6050002@huawei.com>
+In-Reply-To: <560BAC76.6050002@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 30 Sep 2015 10:24:02 +0000
-From: MB McAfee SR Update <support_reply@McAfee.com>
-Reply-To: MB McAfee SR Update <support_reply@McAfee.com>
-Subject: RE: SR # <4-10997886031> Performance issues
-Message-ID: <316c8443-14c6-459f-a69f-ed155c28d0f8@DNVEXAPP1N04.corpzone.internalzone.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-
-Hello Oleksandr,
-
-The node became unresponsive due to a system load of more than 50 and then it raises more and more until all queues are filled up. Please stop the machines and raise the memory and add addtional vCPUs and cores. This most limiting factor are the CPUs at the moment. 
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, zhongjiang@huawei.com, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, tangchen@cn.fujitsu.com
 
 
-With kind regards,
+Seems OK to me.
 
-Intel Security Technical Support
+Thanks.
 
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
-
-
------------------
-From: MFE Support Outbound Profile
-Sent: 09/30/2015 09:05:39
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-This is VMware. There are rcu stalls in the logs, which indicates that the VMs don't get enough CPU time assigned, the host might be overloaded or CPUs are overcommited. There are also network transmit timeouts in the logs, indicating the same.
-
-The minimum memory for VMware is 16GB, please see the installation guide. The VMs only have 8GB assigned. Since there are load issues, I'd also suggest to assign more then the minimum CPU.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
------------------
-From: MFE Support Outbound Profile
-Sent: 09/28/2015 07:30:17
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: SR # <4-10997886031>  Performance issues
-
-Hello Oleksandr,
-
-Thank you for contacting Intel Security technical support.
-
-I have escalated this SR together with the provided data to our development team. I could not figure out why the directory node (node 3) was so overloaded.
-
-I will keep you updated on their findings.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+On 09/30/2015 05:33 PM, Xishi Qiu wrote:
+> If user set "movablecore=xx" to a large number, corepages will overflow,
+> this patch fix the problem.
+>
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>   mm/page_alloc.c | 1 +
+>   1 file changed, 1 insertion(+)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 48aaf7b..af3c9bd 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5668,6 +5668,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+>   		 */
+>   		required_movablecore =
+>   			roundup(required_movablecore, MAX_ORDER_NR_PAGES);
+> +		required_movablecore = min(totalpages, required_movablecore);
+>   		corepages = totalpages - required_movablecore;
+>   
+>   		required_kernelcore = max(required_kernelcore, corepages);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
