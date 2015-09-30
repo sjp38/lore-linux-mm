@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C4956B026C
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 10:43:03 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so201977178wic.0
-        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 07:43:02 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q2si1254523wie.9.2015.09.30.07.43.01
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 314A86B026F
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 11:12:38 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so199950878wic.1
+        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 08:12:37 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id fb6si1373402wib.38.2015.09.30.08.12.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 30 Sep 2015 07:43:02 -0700 (PDT)
-Subject: Re: [PATCH 12/12] mm, page_alloc: Only enforce watermarks for order-0
- allocations
-References: <1440418191-10894-1-git-send-email-mgorman@techsingularity.net>
- <20150824123015.GJ12432@techsingularity.net>
- <CAAmzW4NbjqOpDhNKp7POVLZyaoUJa6YU5-B9Xz2b+crkzD25+g@mail.gmail.com>
- <20150909123901.GA12432@techsingularity.net>
- <CAMJBoFORrhY++4PeT1xcvHCU=tyNs4T0uMhoUxrKsru6QC1NWw@mail.gmail.com>
- <560BE934.3030808@suse.cz>
- <CAMJBoFOKGchN7LQny+tsWd-wL0LVyt8NL+7FZE__TvskanFhsg@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <560BF4F4.9010000@suse.cz>
-Date: Wed, 30 Sep 2015 16:43:00 +0200
+        (version=TLS1 cipher=RC4-SHA bits=128/128);
+        Wed, 30 Sep 2015 08:12:36 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id D963E98B36
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 15:12:35 +0000 (UTC)
+Date: Wed, 30 Sep 2015 16:12:34 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 10/10] mm, page_alloc: Only enforce watermarks for
+ order-0 allocations
+Message-ID: <20150930151234.GP3068@techsingularity.net>
+References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
+ <20150921120317.GC3068@techsingularity.net>
+ <20150929140507.82b5e02f300038e4bb5b2493@linux-foundation.org>
+ <20150930084650.GM3068@techsingularity.net>
+ <560BEF08.60704@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAMJBoFOKGchN7LQny+tsWd-wL0LVyt8NL+7FZE__TvskanFhsg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <560BEF08.60704@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 09/30/2015 04:16 PM, Vitaly Wool wrote:
->>>>>
->>>>
->>>> So what do you suggest instead? A fixed number, some other heuristic?
->>>> You have pushed several times now for the series to focus on the latency
->>>> of standard high-order allocations but again I will say that it is
->>>> outside
->>>> the scope of this series. If you want to take steps to reduce the latency
->>>> of ordinary high-order allocation requests that can sleep then it should
->>>> be a separate series.
->>>
->>>
->>> I do believe https://lkml.org/lkml/2015/9/9/313 does a better job
->>
->>
->> Does a better job regarding what exactly? It does fix the CMA-specific
->> issue, but so does this patch - without affecting allocation fastpaths by
->> making them update another counter. But the issues discussed here are not
->> related to that CMA problem.
->
-> Let me disagree. Guaranteeing one suitable high-order page is not
-> enough, so the suggested patch does not work that well for me.
-> Existing broken watermark calculation doesn't work for me either, as
-> opposed to the one with my patch applied. Both solutions are related
-> to the CMA issue but one does make compaction work harder and cause
-> bigger latencies -- why do you think these are not related?
+On Wed, Sep 30, 2015 at 04:17:44PM +0200, Vlastimil Babka wrote:
+> >---
+> >  mm/page_alloc.c | 11 ++++++++---
+> >  1 file changed, 8 insertions(+), 3 deletions(-)
+> >
+> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >index 25731624d734..fedec98aafca 100644
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -2332,7 +2332,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+> >  {
+> >  	long min = mark;
+> >  	int o;
+> >-	const bool alloc_harder = (alloc_flags & ALLOC_HARDER);
+> >+	const int alloc_harder = (alloc_flags & ALLOC_HARDER);
+> 
+> How bout the !!(alloc_flags & ALLOC_HARDER) conversion to bool? Unless it
+> forces to make the compiler some extra work...
+> 
 
-Well you didn't mention which issues you have with this patch. If you 
-did measure bigger latencies and more compaction work, please post the 
-numbers and details about the test.
+Some people frown upon that trick as being obscure when it's not unnecessary
+and a modern compiler is meant to get it right. The int is clear and
+obvious in this context so I just went with it.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
