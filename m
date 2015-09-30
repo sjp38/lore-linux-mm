@@ -1,81 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B6E6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 22:31:45 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so24113331pac.0
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 19:31:44 -0700 (PDT)
-Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com. [202.81.31.143])
-        by mx.google.com with ESMTPS id cc1si41892332pad.49.2015.09.29.19.31.43
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4857D6B0038
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 00:26:04 -0400 (EDT)
+Received: by obcgx8 with SMTP id gx8so22420250obc.3
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 21:26:04 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id p187si13270463oih.136.2015.09.29.21.26.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Sep 2015 19:31:44 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Wed, 30 Sep 2015 12:31:40 +1000
-Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id DF40F2BB004D
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 12:31:38 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8U2VU0m24444970
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 12:31:38 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8U2V6Ai013202
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 12:31:06 +1000
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: [PATCH] mm/slub: calculate start order with reserved in consideration
-Date: Wed, 30 Sep 2015 10:30:02 +0800
-Message-Id: <1443580202-4311-1-git-send-email-weiyang@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 29 Sep 2015 21:26:03 -0700 (PDT)
+Subject: Re: can't oom-kill zap the victim's memory?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
+	<20150925093556.GF16497@dhcp22.suse.cz>
+	<alpine.DEB.2.10.1509281512330.13657@chino.kir.corp.google.com>
+	<201509291657.HHD73972.MOFVSHQtOJFOLF@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1509291547560.3375@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1509291547560.3375@chino.kir.corp.google.com>
+Message-Id: <201509301325.AAH13553.MOSVOOtHFFFQLJ@I-love.SAKURA.ne.jp>
+Date: Wed, 30 Sep 2015 13:25:53 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com
-Cc: linux-mm@kvack.org, Wei Yang <weiyang@linux.vnet.ibm.com>
+To: rientjes@google.com
+Cc: mhocko@kernel.org, oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
 
-In function slub_order(), the order starts from max(min_order,
-get_order(min_objects * size)). When (min_objects * size) has different
-order with (min_objects * size + reserved), it will skip this order by the
-check in the loop.
+David Rientjes wrote:
+> I think both of your illustrations show why it is not helpful to kill 
+> additional processes after a time period has elapsed and a victim has 
+> failed to exit.  In both of your scenarios, it would require that KT1 be 
+> killed to allow forward progress and we know that's not possible.
 
-This patch optimizes this a little by calculating the start order with
-reserved in consideration and remove the check in loop.
+My illustrations show why it is helpful to kill additional processes after
+a time period has elapsed and a victim has failed to exit. We don't need
+to kill KT1 if we combine memory unmapping approach and timeout based OOM
+killing approach.
 
-Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
+Simply choosing more OOM victims (processes which do not share other OOM
+victim's mm) based on timeout itself does not guarantee that other OOM
+victims can exit. But if timeout based OOM killing is used together with
+memory unmapping approach, the possibility that OOM victims can exit
+significantly increases because the only case where memory unmapping
+approach stucks will be when mm->mmap_sem was held for writing (which
+should unlikely occur).
 
----
-This patch is based on the previous one "mm/slub: use get_order() instead of
-fls()", so may not apply on current tree.
+If we choose only 1 OOM victim, the possibility of hitting this memory
+unmapping livelock is (say) 1%. But if we choose multiple OOM victims, the
+possibility becomes (almost) 0%. And if we still hit this livelock even
+after choosing many OOM victims, it is time to call panic().
 
----
- mm/slub.c | 6 +-----
- 1 file changed, 1 insertion(+), 5 deletions(-)
+(Well, do we need to change __alloc_pages_slowpath() that OOM victims do not
+enter direct reclaim paths in order to avoid being blocked by unkillable fs
+locks?)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index e309ed1..e1bb147 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2912,19 +2912,15 @@ static inline int slab_order(int size, int min_objects,
- 	if (order_objects(min_order, size, reserved) > MAX_OBJS_PER_PAGE)
- 		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
- 
--	for (order = max(min_order, get_order(min_objects * size));
-+	for (order = max(min_order, get_order(min_objects * size + reserved));
- 			order <= max_order; order++) {
- 
- 		unsigned long slab_size = PAGE_SIZE << order;
- 
--		if (slab_size < min_objects * size + reserved)
--			continue;
--
- 		rem = (slab_size - reserved) % size;
- 
- 		if (rem <= slab_size / fract_leftover)
- 			break;
--
- 	}
- 
- 	return order;
--- 
-2.5.0
+> 
+> Perhaps this is an argument that we need to provide access to memory 
+> reserves for threads even for !__GFP_WAIT and !__GFP_FS in such scenarios, 
+> but I would wait to make that extension until we see it in practice.
+
+I think that GFP_ATOMIC allocations already access memory reserves via
+ALLOC_HIGH priority.
+
+> 
+> Killing all mm->mmap_sem threads certainly isn't meant to solve all oom 
+> killer livelocks, as you show.
+> 
+
+Good.
+
+I'm not denying memory unmapping approach. I'm just pointing out that
+use of memory unmapping approach alone still leaves room for hang up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
