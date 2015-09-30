@@ -1,100 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 329996B0038
-	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 19:07:30 -0400 (EDT)
-Received: by qgev79 with SMTP id v79so20579783qge.0
-        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 16:07:30 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v45si23604276qgd.56.2015.09.29.16.07.29
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 593316B0038
+	for <linux-mm@kvack.org>; Tue, 29 Sep 2015 22:24:13 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so23399838pab.3
+        for <linux-mm@kvack.org>; Tue, 29 Sep 2015 19:24:13 -0700 (PDT)
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
+        by mx.google.com with ESMTPS id px2si22188518pbb.156.2015.09.29.19.24.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Sep 2015 16:07:29 -0700 (PDT)
-Date: Tue, 29 Sep 2015 16:07:27 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm: fix declarations of nr, delta and
- nr_pagecache_reclaimable
-Message-Id: <20150929160727.ef70acf2e44575e9470a4025@linux-foundation.org>
-In-Reply-To: <20150927210425.GA20155@gmail.com>
-References: <20150927210425.GA20155@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Sep 2015 19:24:12 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
+	Wed, 30 Sep 2015 12:24:08 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 038512BB004D
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 12:24:05 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8U2NuJV61079622
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 12:24:04 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8U2NVG9010011
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 12:23:32 +1000
+Date: Wed, 30 Sep 2015 10:23:14 +0800
+From: Wei Yang <weiyang@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/2] mm/slub: use get_order() instead of fls()
+Message-ID: <20150930022314.GA4058@Richards-MacBook-Pro.local>
+Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
+References: <1443488787-2232-1-git-send-email-weiyang@linux.vnet.ibm.com>
+ <1443488787-2232-2-git-send-email-weiyang@linux.vnet.ibm.com>
+ <560A46FC.8050205@iki.fi>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <560A46FC.8050205@iki.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandru Moise <00moses.alexander00@gmail.com>
-Cc: vdavydov@parallels.com, mhocko@suse.cz, hannes@cmpxchg.org, tj@kernel.org, vbabka@suse.cz, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pekka Enberg <penberg@iki.fi>
+Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, linux-mm@kvack.org
 
-On Sun, 27 Sep 2015 21:04:25 +0000 Alexandru Moise <00moses.alexander00@gmail.com> wrote:
+On Tue, Sep 29, 2015 at 11:08:28AM +0300, Pekka Enberg wrote:
+>On 09/29/2015 04:06 AM, Wei Yang wrote:
+>>get_order() is more easy to understand.
+>>
+>>This patch just replaces it.
+>>
+>>Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
+>
+>Reviewed-by: Pekka Enberg <penberg@kernel.org>
 
-> The nr variable is meant to be returned by a function which is
-> declared as returning "unsigned long", so declare nr as such.
-> 
-> Lower down we should also declare delta and nr_pagecache_reclaimable
-> as being unsigned longs because they're used to store the values
-> returned by zone_page_state() and zone_unmapped_file_pages() which
-> also happen to return unsigned integers.
+Thanks Pekka ~
 
-I rewrote the changelog rather a lot:
-
-
-
-Subject: mm/vmscan.c: fix types of some locals
-
-In zone_reclaimable_pages(), `nr' is returned by a function which is
-declared as returning "unsigned long", so declare it such.  Negative
-values are meaningless here.
-
-In zone_pagecache_reclaimable() we should also declare `delta' and
-`nr_pagecache_reclaimable' as being unsigned longs because they're used to
-store the values returned by zone_page_state() and
-zone_unmapped_file_pages() which also happen to return unsigned integers.
-
-
-
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -194,7 +194,7 @@ static bool sane_reclaim(struct scan_control *sc)
->  
->  static unsigned long zone_reclaimable_pages(struct zone *zone)
->  {
-> -	int nr;
-> +	unsigned long nr;
->  
->  	nr = zone_page_state(zone, NR_ACTIVE_FILE) +
->  	     zone_page_state(zone, NR_INACTIVE_FILE);
-
-OK.
-
-> @@ -3698,8 +3698,8 @@ static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
->  /* Work out how many page cache pages we can reclaim in this reclaim_mode */
->  static long zone_pagecache_reclaimable(struct zone *zone)
->  {
-> -	long nr_pagecache_reclaimable;
-> -	long delta = 0;
-> +	unsigned long nr_pagecache_reclaimable;
-> +	unsigned long delta = 0;
->  
->  	/*
->  	 * If RECLAIM_UNMAP is set, then all file pages are considered
-
-Also OK, because zone_pagecache_reclaimable() takes care to avoid
-returning any negative values.
-
-
-In fact I believe we should also do this:
-
---- a/mm/vmscan.c~mm-fix-declarations-of-nr-delta-and-nr_pagecache_reclaimable-fix
-+++ a/mm/vmscan.c
-@@ -3693,7 +3693,7 @@ static inline unsigned long zone_unmappe
- }
- 
- /* Work out how many page cache pages we can reclaim in this reclaim_mode */
--static long zone_pagecache_reclaimable(struct zone *zone)
-+static unsigned long zone_pagecache_reclaimable(struct zone *zone)
- {
- 	unsigned long nr_pagecache_reclaimable;
- 	unsigned long delta = 0;
-_
+-- 
+Richard Yang
+Help you, Help me
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
