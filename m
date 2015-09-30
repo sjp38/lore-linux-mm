@@ -1,137 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E5766B0038
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 04:27:03 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so33294602pab.3
-        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 01:27:03 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id hc1si43960804pbc.117.2015.09.30.01.27.02
-        for <linux-mm@kvack.org>;
-        Wed, 30 Sep 2015 01:27:02 -0700 (PDT)
-Date: Wed, 30 Sep 2015 17:28:22 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 4/9] mm/compaction: remove compaction deferring
-Message-ID: <20150930082822.GB29589@js1304-P5Q-DELUXE>
-References: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1440382773-16070-5-git-send-email-iamjoonsoo.kim@lge.com>
- <560514F2.2060407@suse.cz>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B3C36B0254
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 04:27:29 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so50018106wic.1
+        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 01:27:29 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id az7si23805110wjb.136.2015.09.30.01.27.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 30 Sep 2015 01:27:28 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id A479FF4022
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 08:27:27 +0000 (UTC)
+Date: Wed, 30 Sep 2015 09:27:26 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 09/10] mm, page_alloc: Reserve pageblocks for high-order
+ atomic allocations on demand
+Message-ID: <20150930082725.GL3068@techsingularity.net>
+References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
+ <1442832762-7247-10-git-send-email-mgorman@techsingularity.net>
+ <20150929140141.6a52407aa75934a08a3f864d@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <560514F2.2060407@suse.cz>
+In-Reply-To: <20150929140141.6a52407aa75934a08a3f864d@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Sep 25, 2015 at 11:33:38AM +0200, Vlastimil Babka wrote:
-> On 08/24/2015 04:19 AM, Joonsoo Kim wrote:
-> > Now, we have a way to determine compaction depleted state and compaction
-> > activity will be limited according this state and depletion depth so
-> > compaction overhead would be well controlled without compaction deferring.
-> > So, this patch remove compaction deferring completely and enable
-> > compaction activity limit.
-> > 
-> > Various functions are renamed and tracepoint outputs are changed due to
-> > this removing.
+On Tue, Sep 29, 2015 at 02:01:41PM -0700, Andrew Morton wrote:
+> > ...
+> >
+> > +/*
+> > + * Reserve a pageblock for exclusive use of high-order atomic allocations if
+> > + * there are no empty page blocks that contain a page with a suitable order
+> > + */
+> > +static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
+> > +				unsigned int alloc_order)
+> > +{
+> > +	int mt;
+> > +	unsigned long max_managed, flags;
+> > +
+> > +	/*
+> > +	 * Limit the number reserved to 1 pageblock or roughly 1% of a zone.
+> > +	 * Check is race-prone but harmless.
+> > +	 */
+> > +	max_managed = (zone->managed_pages / 100) + pageblock_nr_pages;
+> > +	if (zone->nr_reserved_highatomic >= max_managed)
+> > +		return;
+> > +
+> > +	/* Yoink! */
+> > +	spin_lock_irqsave(&zone->lock, flags);
+> > +
+> > +	mt = get_pageblock_migratetype(page);
+> > +	if (mt != MIGRATE_HIGHATOMIC &&
+> > +			!is_migrate_isolate(mt) && !is_migrate_cma(mt)) {
 > 
-> It's more like renaming "deferred" to "failed" and the whole result is somewhat
-> hard to follow, as the changelog doesn't describe a lot. So if I understand
-> correctly:
-> - compaction has to fail 4 times to cause __reset_isolation_suitable(), which
-> also resets the fail counter back to 0
-> - thus after each 4 failures, depletion depth is adjusted
-> - when successes cross the depletion threshold, compaction_depleted() becomes
-> false and then compact_zone will clear the flag
-> - with flag clear, scan limit is no longer applied at all, but depletion depth
-> stays as it is... it will be set to 0 when the flag is set again
-
-Correct! I will add this description at some place.
-
+> Do the above checks really need to be inside zone->lock?  I don't think
+> get_pageblock_migratetype() needs zone->lock?  (Actually I suspect it
+> does, but we don't...)
 > 
-> Maybe the switch from "depleted with some depth" to "not depleted at all" could
-> be more gradual?
-> Also I have a suspicion that the main feature of this (IIUC) which is the scan
-> limiting (and which I do consider improvement! and IIRC David wished for
-> something like that too) could be achieved with less code churn that is renaming
-> "deferred" to "failed" and adding another "depleted" state. E.g.
-> compact_defer_shift looks similar to compact_depletion_depth, and deferring
-> could be repurposed for scan limiting instead of binary go/no-go decisions. BTW
-> the name "depleted" also suggests a binary state, so it's not that much better
-> name than "deferred" IMHO.
 
-Okay. I will try to change current deferred logic to scan limit logic
-and make code less churn.
-Naming? I will think more.
+The get_pageblock_migratetype does not require zone->lock but it's race-prone
+without it and there have been cases (CMA, isolation) that cared. In this
+case, without the lock two parallel allocations may try to reserve the same
+block so we'd have to recheck the type under the lock to avoid corrupting
+nr_reserved_highatomic. As the move between free lists absolutely requires
+the zone->lock, it's best to just do the full operation under the lock.
 
-> Also I think my objection from patch 2 stays - __reset_isolation_suitable()
-> called from kswapd will set zone->compact_success = 0, potentially increase
-> depletion depth etc, with no connection to the number of failed compactions.
+> > +		zone->nr_reserved_highatomic += pageblock_nr_pages;
 > 
-> [...]
+> And I don't think it would hurt to recheck
+> nr_reserved_highatomic>=max_managed after taking zone->lock, to plug
+> that race.  We've had VM we-dont-care races in the past which ended up
+> causing problems in rare circumstances...
 > 
-> > @@ -1693,13 +1667,13 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
-> >  		if (cc->order == -1)
-> >  			__reset_isolation_suitable(zone);
-> >  
-> > -		if (cc->order == -1 || !compaction_deferred(zone, cc->order))
-> > +		if (cc->order == -1)
+
+That makes sense, patch is below.
+
+> > +		set_pageblock_migratetype(page, MIGRATE_HIGHATOMIC);
+> > +		move_freepages_block(zone, page, MIGRATE_HIGHATOMIC);
+> > +	}
+> > +	spin_unlock_irqrestore(&zone->lock, flags);
+> > +}
+> > +
+> > +/*
+> > + * Used when an allocation is about to fail under memory pressure. This
+> > + * potentially hurts the reliability of high-order allocations when under
+> > + * intense memory pressure but failed atomic allocations should be easier
+> > + * to recover from than an OOM.
+> > + */
+> > +static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
+> > +{
+> > +	struct zonelist *zonelist = ac->zonelist;
+> > +	unsigned long flags;
+> > +	struct zoneref *z;
+> > +	struct zone *zone;
+> > +	struct page *page;
+> > +	int order;
+> > +
+> > +	for_each_zone_zonelist_nodemask(zone, z, zonelist, ac->high_zoneidx,
+> > +								ac->nodemask) {
+> > +		/* Preserve at least one pageblock */
+> > +		if (zone->nr_reserved_highatomic <= pageblock_nr_pages)
+> > +			continue;
+> > +
+> > +		spin_lock_irqsave(&zone->lock, flags);
+> > +		for (order = 0; order < MAX_ORDER; order++) {
+> > +			struct free_area *area = &(zone->free_area[order]);
+> > +
+> > +			if (list_empty(&area->free_list[MIGRATE_HIGHATOMIC]))
+> > +				continue;
+> > +
+> > +			page = list_entry(area->free_list[MIGRATE_HIGHATOMIC].next,
+> > +						struct page, lru);
+> > +
+> > +			zone->nr_reserved_highatomic -= pageblock_nr_pages;
 > 
-> This change means kswapd no longer compacts from balance_pgdat() ->
-> compact_pgdat(). Probably you meant to call compact_zone unconditionally here?
-
-Yes, that's what I want. I will fix it.
-
-> >  			compact_zone(zone, cc);
-> >  
-> >  		if (cc->order > 0) {
-> >  			if (zone_watermark_ok(zone, cc->order,
-> >  						low_wmark_pages(zone), 0, 0))
-> > -				compaction_defer_reset(zone, cc->order, false);
-> > +				compaction_failed_reset(zone, cc->order, false);
-> >  		}
-> >  
-> >  		VM_BUG_ON(!list_empty(&cc->freepages));
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 0e9cc98..c67f853 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2827,7 +2827,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
-> >  		struct zone *zone = page_zone(page);
-> >  
-> >  		zone->compact_blockskip_flush = false;
-> > -		compaction_defer_reset(zone, order, true);
-> > +		compaction_failed_reset(zone, order, true);
-> >  		count_vm_event(COMPACTSUCCESS);
-> >  		return page;
-> >  	}
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 37e90db..a561b5f 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2469,10 +2469,10 @@ static inline bool compaction_ready(struct zone *zone, int order)
-> >  	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0, 0);
-> >  
-> >  	/*
-> > -	 * If compaction is deferred, reclaim up to a point where
-> > +	 * If compaction is depleted, reclaim up to a point where
-> >  	 * compaction will have a chance of success when re-enabled
-> >  	 */
-> > -	if (compaction_deferred(zone, order))
-> > +	if (test_bit(ZONE_COMPACTION_DEPLETED, &zone->flags))
-> >  		return watermark_ok;
+> So if the race happened here, zone->nr_reserved_highatomic underflows?
 > 
-> Hm this is a deviation from the "replace go/no-go with scan limit" principle.
-> Also compaction_deferred() could recover after some retries, and this flag won't.
 
-This means that if compaction success possibility is depleted there is
-no need to reclaim more pages above watermark because more reclaim effort
-is waste in this situation. It is same with compaction_deferred case.
-Recover is done by attemping actual compaction by kswapd or direct
-compaction because there is no blocker like as compaction_deferring
-logic. I think that this code change is okay.
+It shouldn't. If there are entries on the MIGRATE_HIGHATOMIC list then
+it should be accounted for in nr_reserved_highatomic. However, I see your
+point as a spill from per-cpu lists has caused us problems in the past.
 
-Thanks.
+---8<---
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm, page_alloc: Reserve pageblocks for high-order atomic
+ allocations on demand -fix
+
+nr_reserved_highatomic is checked outside the zone lock so there is a race
+whereby the reserve is larger than the limit allows. This patch rechecks
+the count under the zone lock.
+
+During unreserving, there is a possibility we could underflow if there
+ever was a race between per-cpu drains, reserve and unreserving. This
+patch adds a comment about the potential race and protects against it.
+
+These are two fixes to the mmotm patch
+mm-page_alloc-reserve-pageblocks-for-high-order-atomic-allocations-on-demand.patch .
+They are not separate patches and they should all be folded together.
+
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ mm/page_alloc.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 811d6fc4ad5d..b1892dc51b55 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1633,9 +1633,13 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
+ 	if (zone->nr_reserved_highatomic >= max_managed)
+ 		return;
+ 
+-	/* Yoink! */
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 
++	/* Recheck the nr_reserved_highatomic limit under the lock */
++	if (zone->nr_reserved_highatomic >= max_managed)
++		goto out_unlock;
++
++	/* Yoink! */
+ 	mt = get_pageblock_migratetype(page);
+ 	if (mt != MIGRATE_HIGHATOMIC &&
+ 			!is_migrate_isolate(mt) && !is_migrate_cma(mt)) {
+@@ -1643,6 +1647,8 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
+ 		set_pageblock_migratetype(page, MIGRATE_HIGHATOMIC);
+ 		move_freepages_block(zone, page, MIGRATE_HIGHATOMIC);
+ 	}
++
++out_unlock:
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ }
+ 
+@@ -1677,7 +1683,14 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
+ 			page = list_entry(area->free_list[MIGRATE_HIGHATOMIC].next,
+ 						struct page, lru);
+ 
+-			zone->nr_reserved_highatomic -= pageblock_nr_pages;
++			/*
++			 * It should never happen but changes to locking could
++			 * inadvertently allow a per-cpu drain to add pages
++			 * to MIGRATE_HIGHATOMIC while unreserving so be safe
++			 * and watch for underflows.
++			 */
++			zone->nr_reserved_highatomic -= min(pageblock_nr_pages,
++				zone->nr_reserved_highatomic);
+ 
+ 			/*
+ 			 * Convert to ac->migratetype and avoid the normal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
