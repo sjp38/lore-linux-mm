@@ -1,53 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B9DB66B0257
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 06:33:55 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so37291938pac.0
-        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 03:33:55 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id ir5si608692pbb.212.2015.09.30.03.33.33
-        for <linux-mm@kvack.org>;
-        Wed, 30 Sep 2015 03:33:54 -0700 (PDT)
-Message-ID: <560BBA12.5090102@cn.fujitsu.com>
-Date: Wed, 30 Sep 2015 18:31:46 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id F2B056B0259
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 07:44:00 -0400 (EDT)
+Received: by qgt47 with SMTP id 47so31826517qgt.2
+        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 04:44:00 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c2si166532qkh.34.2015.09.30.04.44.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Sep 2015 04:44:00 -0700 (PDT)
+Subject: [MM PATCH V4.1 5/6] slub: support for bulk free with SLUB freelists
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Wed, 30 Sep 2015 13:44:19 +0200
+Message-ID: <20150930114255.13505.2618.stgit@canyon>
+In-Reply-To: <560ABE86.9050508@gmail.com>
+References: <560ABE86.9050508@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix overflow in find_zone_movable_pfns_for_nodes()
-References: <560BAC76.6050002@huawei.com>
-In-Reply-To: <560BAC76.6050002@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, zhongjiang@huawei.com, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, tangchen@cn.fujitsu.com
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, netdev@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
+Make it possible to free a freelist with several objects by adjusting
+API of slab_free() and __slab_free() to have head, tail and an objects
+counter (cnt).
 
-Seems OK to me.
+Tail being NULL indicate single object free of head object.  This
+allow compiler inline constant propagation in slab_free() and
+slab_free_freelist_hook() to avoid adding any overhead in case of
+single object free.
 
-Thanks.
+This allows a freelist with several objects (all within the same
+slab-page) to be free'ed using a single locked cmpxchg_double in
+__slab_free() and with an unlocked cmpxchg_double in slab_free().
 
-On 09/30/2015 05:33 PM, Xishi Qiu wrote:
-> If user set "movablecore=xx" to a large number, corepages will overflow,
-> this patch fix the problem.
->
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->   mm/page_alloc.c | 1 +
->   1 file changed, 1 insertion(+)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 48aaf7b..af3c9bd 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5668,6 +5668,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
->   		 */
->   		required_movablecore =
->   			roundup(required_movablecore, MAX_ORDER_NR_PAGES);
-> +		required_movablecore = min(totalpages, required_movablecore);
->   		corepages = totalpages - required_movablecore;
->   
->   		required_kernelcore = max(required_kernelcore, corepages);
+Object debugging on the free path is also extended to handle these
+freelists.  When CONFIG_SLUB_DEBUG is enabled it will also detect if
+objects don't belong to the same slab-page.
+
+These changes are needed for the next patch to bulk free the detached
+freelists it introduces and constructs.
+
+Micro benchmarking showed no performance reduction due to this change,
+when debugging is turned off (compiled with CONFIG_SLUB_DEBUG).
+
+Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+Signed-off-by: Alexander Duyck <alexander.h.duyck@redhat.com>
+
+---
+V4:
+ - Change API per req of Christoph Lameter
+ - Remove comments in init_object.
+
+V4.1:
+ - Took Alex'es approach on defines inside slab_free_freelist_hook()
+
+ mm/slub.c |   85 ++++++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 67 insertions(+), 18 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 1cf98d89546d..99fcfa8ed0c7 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1063,11 +1063,15 @@ bad:
+ 	return 0;
+ }
+ 
++/* Supports checking bulk free of a constructed freelist */
+ static noinline struct kmem_cache_node *free_debug_processing(
+-	struct kmem_cache *s, struct page *page, void *object,
++	struct kmem_cache *s, struct page *page,
++	void *head, void *tail, int bulk_cnt,
+ 	unsigned long addr, unsigned long *flags)
+ {
+ 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
++	void *object = head;
++	int cnt = 0;
+ 
+ 	spin_lock_irqsave(&n->list_lock, *flags);
+ 	slab_lock(page);
+@@ -1075,6 +1079,9 @@ static noinline struct kmem_cache_node *free_debug_processing(
+ 	if (!check_slab(s, page))
+ 		goto fail;
+ 
++next_object:
++	cnt++;
++
+ 	if (!check_valid_pointer(s, page, object)) {
+ 		slab_err(s, page, "Invalid object pointer 0x%p", object);
+ 		goto fail;
+@@ -1105,8 +1112,19 @@ static noinline struct kmem_cache_node *free_debug_processing(
+ 	if (s->flags & SLAB_STORE_USER)
+ 		set_track(s, object, TRACK_FREE, addr);
+ 	trace(s, page, object, 0);
++	/* Freepointer not overwritten by init_object(), SLAB_POISON moved it */
+ 	init_object(s, object, SLUB_RED_INACTIVE);
++
++	/* Reached end of constructed freelist yet? */
++	if (object != tail) {
++		object = get_freepointer(s, object);
++		goto next_object;
++	}
+ out:
++	if (cnt != bulk_cnt)
++		slab_err(s, page, "Bulk freelist count(%d) invalid(%d)\n",
++			 bulk_cnt, cnt);
++
+ 	slab_unlock(page);
+ 	/*
+ 	 * Keep node_lock to preserve integrity
+@@ -1210,7 +1228,8 @@ static inline int alloc_debug_processing(struct kmem_cache *s,
+ 	struct page *page, void *object, unsigned long addr) { return 0; }
+ 
+ static inline struct kmem_cache_node *free_debug_processing(
+-	struct kmem_cache *s, struct page *page, void *object,
++	struct kmem_cache *s, struct page *page,
++	void *head, void *tail, int bulk_cnt,
+ 	unsigned long addr, unsigned long *flags) { return NULL; }
+ 
+ static inline int slab_pad_check(struct kmem_cache *s, struct page *page)
+@@ -1306,6 +1325,29 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
+ 	kasan_slab_free(s, x);
+ }
+ 
++static inline void slab_free_freelist_hook(struct kmem_cache *s,
++					   void *head, void *tail)
++{
++/*
++ * Compiler cannot detect this function can be removed if slab_free_hook()
++ * evaluates to nothing.  Thus, catch all relevant config debug options here.
++ */
++#if defined(CONFIG_KMEMCHECK) ||		\
++	defined(CONFIG_LOCKDEP)	||		\
++	defined(CONFIG_DEBUG_KMEMLEAK) ||	\
++	defined(CONFIG_DEBUG_OBJECTS_FREE) ||	\
++	defined(CONFIG_KASAN)
++
++	void *object = head;
++	void *tail_obj = tail ? : head;
++
++	do {
++		slab_free_hook(s, object);
++	} while ((object != tail_obj) &&
++		 (object = get_freepointer(s, object)));
++#endif
++}
++
+ static void setup_object(struct kmem_cache *s, struct page *page,
+ 				void *object)
+ {
+@@ -2586,10 +2628,11 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
+  * handling required then we can return immediately.
+  */
+ static void __slab_free(struct kmem_cache *s, struct page *page,
+-			void *x, unsigned long addr)
++			void *head, void *tail, int cnt,
++			unsigned long addr)
++
+ {
+ 	void *prior;
+-	void **object = (void *)x;
+ 	int was_frozen;
+ 	struct page new;
+ 	unsigned long counters;
+@@ -2599,7 +2642,8 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 	stat(s, FREE_SLOWPATH);
+ 
+ 	if (kmem_cache_debug(s) &&
+-		!(n = free_debug_processing(s, page, x, addr, &flags)))
++	    !(n = free_debug_processing(s, page, head, tail, cnt,
++					addr, &flags)))
+ 		return;
+ 
+ 	do {
+@@ -2609,10 +2653,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 		}
+ 		prior = page->freelist;
+ 		counters = page->counters;
+-		set_freepointer(s, object, prior);
++		set_freepointer(s, tail, prior);
+ 		new.counters = counters;
+ 		was_frozen = new.frozen;
+-		new.inuse--;
++		new.inuse -= cnt;
+ 		if ((!new.inuse || !prior) && !was_frozen) {
+ 
+ 			if (kmem_cache_has_cpu_partial(s) && !prior) {
+@@ -2643,7 +2687,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 
+ 	} while (!cmpxchg_double_slab(s, page,
+ 		prior, counters,
+-		object, new.counters,
++		head, new.counters,
+ 		"__slab_free"));
+ 
+ 	if (likely(!n)) {
+@@ -2708,15 +2752,20 @@ slab_empty:
+  *
+  * If fastpath is not possible then fall back to __slab_free where we deal
+  * with all sorts of special processing.
++ *
++ * Bulk free of a freelist with several objects (all pointing to the
++ * same page) possible by specifying head and tail ptr, plus objects
++ * count (cnt). Bulk free indicated by tail pointer being set.
+  */
+-static __always_inline void slab_free(struct kmem_cache *s,
+-			struct page *page, void *x, unsigned long addr)
++static __always_inline void slab_free(struct kmem_cache *s, struct page *page,
++				      void *head, void *tail, int cnt,
++				      unsigned long addr)
+ {
+-	void **object = (void *)x;
++	void *tail_obj = tail ? : head;
+ 	struct kmem_cache_cpu *c;
+ 	unsigned long tid;
+ 
+-	slab_free_hook(s, x);
++	slab_free_freelist_hook(s, head, tail);
+ 
+ redo:
+ 	/*
+@@ -2735,19 +2784,19 @@ redo:
+ 	barrier();
+ 
+ 	if (likely(page == c->page)) {
+-		set_freepointer(s, object, c->freelist);
++		set_freepointer(s, tail_obj, c->freelist);
+ 
+ 		if (unlikely(!this_cpu_cmpxchg_double(
+ 				s->cpu_slab->freelist, s->cpu_slab->tid,
+ 				c->freelist, tid,
+-				object, next_tid(tid)))) {
++				head, next_tid(tid)))) {
+ 
+ 			note_cmpxchg_failure("slab_free", s, tid);
+ 			goto redo;
+ 		}
+ 		stat(s, FREE_FASTPATH);
+ 	} else
+-		__slab_free(s, page, x, addr);
++		__slab_free(s, page, head, tail_obj, cnt, addr);
+ 
+ }
+ 
+@@ -2756,7 +2805,7 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
+ 	s = cache_from_obj(s, x);
+ 	if (!s)
+ 		return;
+-	slab_free(s, virt_to_head_page(x), x, _RET_IP_);
++	slab_free(s, virt_to_head_page(x), x, NULL, 1, _RET_IP_);
+ 	trace_kmem_cache_free(_RET_IP_, x);
+ }
+ EXPORT_SYMBOL(kmem_cache_free);
+@@ -2791,7 +2840,7 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+ 			c->tid = next_tid(c->tid);
+ 			local_irq_enable();
+ 			/* Slowpath: overhead locked cmpxchg_double_slab */
+-			__slab_free(s, page, object, _RET_IP_);
++			__slab_free(s, page, object, object, 1, _RET_IP_);
+ 			local_irq_disable();
+ 			c = this_cpu_ptr(s->cpu_slab);
+ 		}
+@@ -3531,7 +3580,7 @@ void kfree(const void *x)
+ 		__free_kmem_pages(page, compound_order(page));
+ 		return;
+ 	}
+-	slab_free(page->slab_cache, page, object, _RET_IP_);
++	slab_free(page->slab_cache, page, object, NULL, 1, _RET_IP_);
+ }
+ EXPORT_SYMBOL(kfree);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
