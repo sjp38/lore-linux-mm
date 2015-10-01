@@ -1,119 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 862EF6B029C
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 09:12:40 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so32538673wic.1
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 06:12:39 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
-        by mx.google.com with ESMTPS id jc9si7245023wjb.143.2015.10.01.06.12.36
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A2F46B02A6
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 09:30:03 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so75130582pac.0
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 06:30:02 -0700 (PDT)
+Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
+        by mx.google.com with ESMTPS id fd1si9029656pad.44.2015.10.01.06.30.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Oct 2015 06:12:38 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so32535563wic.1
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 06:12:35 -0700 (PDT)
-Date: Thu, 1 Oct 2015 15:12:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: optimize PageHighMem() check
-Message-ID: <20151001131234.GF24077@dhcp22.suse.cz>
-References: <1443513260-14598-1-git-send-email-vgupta@synopsys.com>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Thu, 01 Oct 2015 06:30:01 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 1 Oct 2015 18:59:58 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 57E96E005A
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 18:59:43 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t91DTeMa9896208
+	for <linux-mm@kvack.org>; Thu, 1 Oct 2015 18:59:40 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t91DTdAp014268
+	for <linux-mm@kvack.org>; Thu, 1 Oct 2015 18:59:39 +0530
+Message-ID: <560D3542.6060903@linux.vnet.ibm.com>
+Date: Thu, 01 Oct 2015 18:59:38 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1443513260-14598-1-git-send-email-vgupta@synopsys.com>
+Subject: Re: [PATCH 1/1] mm: vmstat: Add OOM kill count in vmstat counter
+References: <1443696523-27262-1-git-send-email-pintu.k@samsung.com>
+In-Reply-To: <1443696523-27262-1-git-send-email-pintu.k@samsung.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, "Kirill A.  Shutemov" <kirill.shutemov@linux.intel.com>, Jennifer Herbert <jennifer.herbert@citrix.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org
+To: Pintu Kumar <pintu.k@samsung.com>, akpm@linux-foundation.org, minchan@kernel.org, dave@stgolabs.net, mhocko@suse.cz, koct9i@gmail.com, rientjes@google.com, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp, bywxiaobai@163.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, kirill.shutemov@linux.intel.com, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.ping@gmail.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, c.rajkumar@samsung.com, sreenathd@samsung.com
 
-On Tue 29-09-15 13:24:20, Vineet Gupta wrote:
-> This came up when implementing HIHGMEM/PAE40 for ARC.
-> The kmap() / kmap_atomic() generated code seemed needlessly bloated due
-> to the way PageHighMem() macro is implemented.
-> It derives the exact zone for page and then does pointer subtraction
-> with first zone to infer the zone_type.
-> The pointer arithmatic in turn generates the code bloat.
-> 
-> PageHighMem(page)
->   is_highmem(page_zone(page))
->      zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones
-> 
-> Instead use is_highmem_idx() to work on zone_type available in page flags
-> 
->    ----- Before -----
-> 80756348:	mov_s      r13,r0
-> 8075634a:	ld_s       r2,[r13,0]
-> 8075634c:	lsr_s      r2,r2,30
-> 8075634e:	mpy        r2,r2,0x2a4
-> 80756352:	add_s      r2,r2,0x80aef880
-> 80756358:	ld_s       r3,[r2,28]
-> 8075635a:	sub_s      r2,r2,r3
-> 8075635c:	breq       r2,0x2a4,80756378 <kmap+0x48>
-> 80756364:	breq       r2,0x548,80756378 <kmap+0x48>
-> 
->    ----- After  -----
-> 80756330:	mov_s      r13,r0
-> 80756332:	ld_s       r2,[r13,0]
-> 80756334:	lsr_s      r2,r2,30
-> 80756336:	sub_s      r2,r2,1
-> 80756338:	brlo       r2,2,80756348 <kmap+0x30>
-> 
-> For x86 defconfig build (32 bit only) it saves around 900 bytes.
-> For ARC defconfig with HIGHMEM, it saved around 2K bytes.
-> 
->    ---->8-------
-> ./scripts/bloat-o-meter x86/vmlinux-defconfig-pre x86/vmlinux-defconfig-post
-> add/remove: 0/0 grow/shrink: 0/36 up/down: 0/-934 (-934)
-> function                                     old     new   delta
-> saveable_page                                162     154      -8
-> saveable_highmem_page                        154     146      -8
-> skb_gro_reset_offset                         147     131     -16
-> ...
-> ...
-> __change_page_attr_set_clr                  1715    1678     -37
-> setup_data_read                              434     394     -40
-> mon_bin_event                               1967    1927     -40
-> swsusp_save                                 1148    1105     -43
-> _set_pages_array                             549     493     -56
->    ---->8-------
-> 
-> e.g. For ARC kmap()
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Jennifer Herbert <jennifer.herbert@citrix.com>
-> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> Cc: linux-kernel@vger.kernel.org
-> Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+On 10/01/2015 04:18 PM, Pintu Kumar wrote:
+> This patch maintains number of oom calls and number of oom kill
+> count in /proc/vmstat.
+> It is helpful during sluggish, aging or long duration tests.
+> Currently if the OOM happens, it can be only seen in kernel ring buffer.
+> But during long duration tests, all the dmesg and /var/log/messages* could
+> be overwritten.
+> So, just like other counters, the oom can also be maintained in
+> /proc/vmstat.
+> It can be also seen if all logs are disabled in kernel.
 
-Looks reasonably to me.
-Acked-by: Michal Hocko <mhocko@suse.com>
+Makes sense.
 
+> 
+> A snapshot of the result of over night test is shown below:
+> $ cat /proc/vmstat
+> oom_stall 610
+> oom_kill_count 1763
+> 
+> Here, oom_stall indicates that there are 610 times, kernel entered into OOM
+> cases. However, there were around 1763 oom killing happens.
+> The OOM is bad for the any system. So, this counter can help the developer
+> in tuning the memory requirement at least during initial bringup.
+
+Can you please fix the formatting of the commit message above ?
+
+> 
+> Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
 > ---
->  include/linux/page-flags.h | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+>  include/linux/vm_event_item.h |    2 ++
+>  mm/oom_kill.c                 |    2 ++
+>  mm/page_alloc.c               |    2 +-
+>  mm/vmstat.c                   |    2 ++
+>  4 files changed, 7 insertions(+), 1 deletion(-)
 > 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 41c93844fb1d..2953aaa06d67 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -252,7 +252,7 @@ PAGEFLAG(Readahead, reclaim) TESTCLEARFLAG(Readahead, reclaim)
->   * Must use a macro here due to header dependency issues. page_zone() is not
->   * available at this point.
->   */
-> -#define PageHighMem(__p) is_highmem(page_zone(__p))
-> +#define PageHighMem(__p) is_highmem_idx(page_zonenum(__p))
->  #else
->  PAGEFLAG_FALSE(HighMem)
+> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+> index 2b1cef8..ade0851 100644
+> --- a/include/linux/vm_event_item.h
+> +++ b/include/linux/vm_event_item.h
+> @@ -57,6 +57,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+>  #ifdef CONFIG_HUGETLB_PAGE
+>  		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
 >  #endif
-> -- 
-> 1.9.1
+> +		OOM_STALL,
+> +		OOM_KILL_COUNT,
 
--- 
-Michal Hocko
-SUSE Labs
+Removing the COUNT will be better and in sync with others.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
