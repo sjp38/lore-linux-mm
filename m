@@ -1,65 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A9EE82F69
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 19:43:22 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so55559103pac.2
-        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 16:43:21 -0700 (PDT)
-Received: from e28smtp08.in.ibm.com (e28smtp08.in.ibm.com. [122.248.162.8])
-        by mx.google.com with ESMTPS id pp2si4234274pbb.235.2015.09.30.16.43.20
+Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D8D782F69
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 20:06:31 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so50695249qge.0
+        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 17:06:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w72si3201769qha.53.2015.09.30.17.06.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Sep 2015 16:43:21 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Thu, 1 Oct 2015 05:13:18 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 956013940061
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 05:13:14 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t8UNhDHW19268000
-	for <linux-mm@kvack.org>; Thu, 1 Oct 2015 05:13:13 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t8UNhDA1009964
-	for <linux-mm@kvack.org>; Thu, 1 Oct 2015 05:13:13 +0530
-Date: Thu, 1 Oct 2015 07:43:09 +0800
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/slub: calculate start order with reserved in
- consideration
-Message-ID: <20150930234309.GA1225@Richards-MBP.lan>
-Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
-References: <1443580202-4311-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <alpine.DEB.2.20.1509300852500.16540@east.gentwo.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Sep 2015 17:06:30 -0700 (PDT)
+Date: Thu, 1 Oct 2015 02:06:25 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 00/12] userfaultfd non-x86 and selftest updates for 4.2.0+
+Message-ID: <20151001000625.GF19466@redhat.com>
+References: <1441745010-14314-1-git-send-email-aarcange@redhat.com>
+ <560C5A83.9080103@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1509300852500.16540@east.gentwo.org>
+In-Reply-To: <560C5A83.9080103@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, penberg@kernel.org, rientjes@google.com, linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Pavel Emelyanov <xemul@parallels.com>, zhang.zhanghailiang@huawei.com, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Michael Ellerman <mpe@ellerman.id.au>, Bamvor Zhang Jian <bamvor.zhangjian@linaro.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>
 
-On Wed, Sep 30, 2015 at 08:53:03AM -0500, Christoph Lameter wrote:
->On Wed, 30 Sep 2015, Wei Yang wrote:
->
->> In function slub_order(), the order starts from max(min_order,
->> get_order(min_objects * size)). When (min_objects * size) has different
->> order with (min_objects * size + reserved), it will skip this order by the
->> check in the loop.
->
->Acked-by: Christoph Lameter <cl@linux.com>
+Hello Mike,
 
-Christoph,
+On Wed, Sep 30, 2015 at 02:56:19PM -0700, Mike Kravetz wrote:
+> On 09/08/2015 01:43 PM, Andrea Arcangeli wrote:
+> > Here are some pending updates for userfaultfd mostly to the self test,
+> > the rest are cleanups.
+> 
+> I have a potential use case for userfualtfd.  So, I started experimenting
 
-Glad to see your Ack.
-Thanks :-)
+Glad to hear you may have one more use case.
 
-BTW, do you have any comment for this patch "mm/slub: correct the comment in
-calculate_order()"? I hope my understanding is correct.
+On a side note, there's also a patch posted to CRIU to pagein lazily
+anonymous memory during restore using userfaultfd, that's yet another
+recent user.
 
--- 
-Richard Yang
-Help you, Help me
+> with the self test code.  I replaced the posix_memalign() calls to allocate
+> area_src and area_dst with mmap().  mmap(MAP_PRIVATE | MAP_ANONYMOUS) works
+> as expected.  However, mmap(MAP_SHARED | MAP_ANONYMOUS) causes the test to
+> fail without any errros from the userfaultfd APIs.
+> 
+> --------------------
+> running userfaultfd
+> --------------------
+> nr_pages: 32768, nr_pages_per_cpu: 8192
+> bounces: 31, mode: rnd racing ver poll, page_nr 31523 wrong count 0 1
+> 
+> I would expect some type of error from the ioctl() that registers the
+> range, or perhaps the poll/copy code?  Just curious about the expected
+> behavior.
+
+That should return an error during UFFDIO_REGISTER and the testcase
+shouldn't start, not sure what went wrong. Can you send the
+modification to the testcase?
+
+UFFDIO_REGISTER is the point where userfaultfd is first told which
+kind of memory you want to manage with userfaults. It was planned to
+fail there (and it cannot fail any earlier).
+
+This check has to fail and return -EINVAL in the ioctl(UFFDIO_REGISTER).
+
+		/* check not compatible vmas */
+		ret = -EINVAL;
+		if (cur->vm_ops)
+			goto out_unlock;
+
+In the testcase you should get an exit 1 and the fprintf printed:
+
+		if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register)) {
+			fprintf(stderr, "register failure\n");
+			return 1;
+		}
+
+Could you double check these two paths to find what's wrong?
+
+> FYI - My use case is for hugetlbfs.  I would like a mechanism to catch all
+> new huge page allocations as a result of page faults.  I have some very
+> rough code to extend userfualtfd and add the required functionality to
+> hugetlbfs.  Still working on it.
+
+Adding support for hugetlbfs sounds great to me.
+
+Only anonymous memory has null vm_ops, so once you extend the code to
+track hugetlbfs (tracking at least tmpfs and not just anonymous memory
+is needed for volatile pages which also work on tmpfs) you should
+relax the above check to accept &hugetlb_vm_ops.
+
+You then need to specify which kind of ioctl you supported in the
+current kernel for that kind of memory you registered on in the
+uffdio_register->ioctl parameter.
+
+		/*
+		 * Now that we scanned all vmas we can already tell
+		 * userland which ioctls methods are guaranteed to
+		 * succeed on this range.
+		 */
+		if (put_user(UFFD_API_RANGE_IOCTLS,
+			     &user_uffdio_register->ioctls))
+			ret = -EFAULT;
+
+#define UFFD_API_RANGE_IOCTLS			\
+	((__u64)1 << _UFFDIO_WAKE |		\
+	 (__u64)1 << _UFFDIO_COPY |		\
+	 (__u64)1 << _UFFDIO_ZEROPAGE)
+
+hugetlbfs doesn't seem to support the zeropage. So if vma->vm_ops ==
+&hugetlb_vm_ops, it should return only WAKE|COPY in
+uffdio_register->ioctl.
+
+hugetlbfs is non standard, there's no sysconf(_SC_PAGE_SIZE) to know
+the minimum granularity supported by the UFFDIO_COPY|WAKE of
+hugetlbfs. This is a generic issue with hugetlbfs, not really related
+to userfaultfd. The same constraints of hugetlbfs minimum granularity
+and alignment applies to all other memory management syscalls too.
+
+So the app itself using hugetlbfs will have to know by other means
+(i.e. sysfs mangling) that the minimum granularity supported by
+UFFDIO_COPY is 2MB (or 1GB). That is again because it registered
+userfaultfd on hugetlbfs, and hugetlbfs has non standard
+constraints. In turn UFFDIO_COPY of hugetlbfs has to fail if len is
+not a multiple of 2MB (never the case for all other kinds of memory
+that userfaultfd could ever manage).
+
+There's flexibility in the userfaultfd API to gradually expand the
+coverage to a variety of types of virtual memory while at the same
+time not risking random behavior from a new app if run on a old
+kernel. The new app will be able to tell reliably to the user, to
+upgrade the kernel (or it can fallback to a non-userfaultfd mode with
+just a warning to the user).
+
+We need to handle the write protection faults too as soon as possible
+(VM_UFFD_WP/UFFD_FEATURE_PAGEFAULT_FLAG_WP). The uffdio_api->features
+are already prepared to report to userland the availability of the
+UFFD_FEATURE_PAGEFAULT_FLAG_WP. Then the app can set
+UFFDIO_REGISTER_MODE_WP in uffdio_register.mode.
+
+I mentioned this because while there's flexibility to expand the
+coverage gradually, it'd be great if all kinds of memory supporting
+UFFDIO_REGISTER_MODE_MISSING would also support
+UFFDIO_REGISTER_MODE_WP once that gets available, as it'd keep
+userfaultfd_register() a bit simpler to maintain.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
