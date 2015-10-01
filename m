@@ -1,94 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C96282F7C
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 11:43:03 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so34673944wic.0
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 08:43:03 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 51BBD82F7C
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 11:59:46 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so36700450wic.0
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 08:59:45 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id yn9si8008675wjc.128.2015.10.01.08.43.01
+        by mx.google.com with ESMTPS id h3si8135612wjw.15.2015.10.01.08.59.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 01 Oct 2015 08:43:02 -0700 (PDT)
-Date: Thu, 1 Oct 2015 17:43:00 +0200
+        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 01 Oct 2015 08:59:45 -0700 (PDT)
+Date: Thu, 1 Oct 2015 17:59:43 +0200
 From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [RFC v2 17/18] rcu: Convert RCU gp kthreads into kthread worker
- API
-Message-ID: <20151001154300.GD9603@pathway.suse.cz>
+Subject: Re: [RFC v2 00/18] kthread: Use kthread worker API more widely
+Message-ID: <20151001155943.GE9603@pathway.suse.cz>
 References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
- <1442840639-6963-18-git-send-email-pmladek@suse.com>
- <20150928171437.GB5182@linux.vnet.ibm.com>
+ <20150930050833.GA4412@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150928171437.GB5182@linux.vnet.ibm.com>
+In-Reply-To: <20150930050833.GA4412@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 2015-09-28 10:14:37, Paul E. McKenney wrote:
-> On Mon, Sep 21, 2015 at 03:03:58PM +0200, Petr Mladek wrote:
-> > Kthreads are currently implemented as an infinite loop. Each
-> > has its own variant of checks for terminating, freezing,
-> > awakening. In many cases it is unclear to say in which state
-> > it is and sometimes it is done a wrong way.
+On Tue 2015-09-29 22:08:33, Paul E. McKenney wrote:
+> On Mon, Sep 21, 2015 at 03:03:41PM +0200, Petr Mladek wrote:
+> > My intention is to make it easier to manipulate kthreads. This RFC tries
+> > to use the kthread worker API. It is based on comments from the
+> > first attempt. See https://lkml.org/lkml/2015/7/28/648 and
+> > the list of changes below.
 > > 
-> > The plan is to convert kthreads into kthread_worker or workqueues
-> > API. It allows to split the functionality into separate operations.
-> > It helps to make a better structure. Also it defines a clean state
-> > where no locks are taken, IRQs blocked, the kthread might sleep
-> > or even be safely migrated.
+> > 1st..8th patches: improve the existing kthread worker API
 > > 
-> > The kthread worker API is useful when we want to have a dedicated
-> > single kthread for the work. It helps to make sure that it is
-> > available when needed. Also it allows a better control, e.g.
-> > define a scheduling priority.
+> > 9th, 12th, 17th patches: convert three kthreads into the new API,
+> >      namely: khugepaged, ring buffer benchmark, RCU gp kthreads[*]
 > > 
-> > This patch converts RCU gp threads into the kthread worker API.
-> > They modify the scheduling, have their own logic to bind the process.
-> > They provide functions that are critical for the system to work
-> > and thus deserve a dedicated kthread.
+> > 10th, 11th patches: fix potential problems in the ring buffer
+> >       benchmark; also sent separately
 > > 
-> > This patch tries to split start of the grace period and the quiescent
-> > state handling into separate works. The motivation is to avoid
-> > wait_events inside the work. Instead it queues the works when
-> > appropriate which is more typical for this API.
+> > 13th patch: small fix for RCU kthread; also sent separately;
+> >      being tested by Paul
 > > 
-> > On one hand, it should reduce spurious wakeups where the condition
-> > in the wait_event failed and the kthread went to sleep again.
+> > 14th..16th patches: preparation steps for the RCU threads
+> >      conversion; they are needed _only_ if we split GP start
+> >      and QS handling into separate works[*]
 > > 
-> > On the other hand, there is a small race window when the other
-> > work might get queued. We could detect and fix this situation
-> > at the beginning of the work but it is a bit ugly.
+> > 18th patch: does a possible improvement of the kthread worker API;
+> >      it adds an extra parameter to the create*() functions, so I
+> >      rather put it into this draft
+> >      
 > > 
-> > The patch renames the functions kthread_wake() to kthread_worker_poke()
-> > that sounds more appropriate.
-> > 
-> > Otherwise, the logic should stay the same. I did a lot of torturing
-> > and I did not see any problem with the current patch. But of course,
-> > it would deserve much more testing and reviewing before applying.
+> > [*] IMPORTANT: I tried to split RCU GP start and GS state handling
+> >     into separate works this time. But there is a problem with
+> >     a race in rcu_gp_kthread_worker_poke(). It might queue
+> >     the wrong work. It can be detected and fixed by the work
+> >     itself but it is a bit ugly. Alternative solution is to
+> >     do both operations in one work. But then we sleep too much
+> >     in the work which is ugly as well. Any idea is appreciated.
 > 
-> Suppose I later need to add helper kthreads to parallelize grace-period
-> initialization.  How would I implement that in a freeze-friendly way?
+> I think that the kernel is trying really hard to tell you that splitting
+> up the RCU grace-period kthreads in this manner is not such a good idea.
 
-I have been convinced that there only few kthreads that really need
-freezing. See the discussion around my first attempt at
-https://lkml.org/lkml/2015/6/13/190
+Yup, I guess that it would be better to stay with the approach taken
+in the previous RFC. I mean to start the grace period and handle
+the quiescent state in a single work. See
+https://lkml.org/lkml/2015/7/28/650  It basically keeps the
+functionality. The only difference is that we regularly leave
+the RCU-specific function, so it will be possible to patch it.
 
-In fact, RCU is a good example of kthreads that should not get
-frozen because they are needed even later when the system
-is suspended.
+The RCU kthreads are very special because they basically ignore
+freezer and they never stop. They do not show well the advantage
+of any new API. I tried to convert them primary because they were
+so sensitive. I thought that it was good for testing limits
+of the API.
 
-If I understand it correctly, they will do the job until most devices
-and all non-boot CPUs are disabled. Then the task doing the suspend
-will get scheduled. It will write the image and stop the machine.
-RCU should not be needed by this very last step.
 
-By other words. RCU should not be much concerned about freezing.
+> So what are we really trying to accomplish here?  I am guessing something
+> like the following:
+> 
+> 1.	Get each grace-period kthread to a known safe state within a
+> 	short time of having requested a safe state.  If I recall
+> 	correctly, the point of this is to allow no-downtime kernel
+> 	patches to the functions executed by the grace-period kthreads.
+> 
+> 2.	At the same time, if someone suddenly needs a grace period
+> 	at some point in this process, the grace period kthreads are
+> 	going to have to wake back up and handle the grace period.
+> 	Or do you have some tricky way to guarantee that no one is
+> 	going to need a grace period beyond the time you freeze
+> 	the grace-period kthreads?
+> 
+> 3.	The boost kthreads should not be a big problem because failing
+> 	to boost simply lets the grace period run longer.
+> 
+> 4.	The callback-offload kthreads are likely to be a big problem,
+> 	because in systems configured with them, they need to be running
+> 	to invoke the callbacks, and if the callbacks are not invoked,
+> 	the grace period might just as well have failed to end.
+> 
+> 5.	The per-CPU kthreads are in the same boat as the callback-offload
+> 	kthreads.  One approach is to offline all the CPUs but one, and
+> 	that will park all but the last per-CPU kthread.  But handling
+> 	that last per-CPU kthread would likely be "good clean fun"...
+> 
+> 6.	Other requirements?
+> 
+> One approach would be to simply say that the top-level rcu_gp_kthread()
+> function cannot be patched, and arrange for the grace-period kthreads
+> to park at some point within this function.  Or is there some requirement
+> that I am missing?
 
-If you are concerned about adding more kthreads, it should be
-possible to just add more workers if we agree on using the
-kthreads worker API.
+I am a bit confused by the above paragraphs because they mix patching,
+stopping, and parking. Note that we do not need to stop any process
+when live patching.
+
+I hope that it is more clear after my response in the other mail about
+freezing. Or maybe, I am missing something.
+
+Anyway, thanks a lot for looking at the patches and feedback.
 
 
 Best Regards,
