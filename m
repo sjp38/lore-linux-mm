@@ -1,90 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C09C82F71
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 14:52:25 -0400 (EDT)
-Received: by labzv5 with SMTP id zv5so80644603lab.1
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 11:52:24 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id qg5si3613817lbb.18.2015.10.01.11.52.23
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 12A7C82F84
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 16:02:42 -0400 (EDT)
+Received: by qgx61 with SMTP id 61so77663143qgx.3
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 13:02:41 -0700 (PDT)
+Received: from mail-qg0-x232.google.com (mail-qg0-x232.google.com. [2607:f8b0:400d:c04::232])
+        by mx.google.com with ESMTPS id h4si7090663qgf.120.2015.10.01.13.02.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Oct 2015 11:52:23 -0700 (PDT)
-Date: Thu, 1 Oct 2015 21:52:09 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 1/5] mm: uncharge kmem pages from generic free_page path
-Message-ID: <20151001185209.GJ2302@esperanza>
-References: <bd8dc6295b2984a55233904fe6e85ff3b32052d7.1443262808.git.vdavydov@parallels.com>
- <xr93twqbk7nt.fsf@gthelen.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <xr93twqbk7nt.fsf@gthelen.mtv.corp.google.com>
+        Thu, 01 Oct 2015 13:02:41 -0700 (PDT)
+Received: by qgev79 with SMTP id v79so77441208qge.0
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 13:02:41 -0700 (PDT)
+Message-ID: <560d9160.0c5b8c0a.eb9c4.169d@mx.google.com>
+Date: Thu, 01 Oct 2015 13:02:40 -0700 (PDT)
+From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Subject: Re: [PATCH] mm: fix overflow in find_zone_movable_pfns_for_nodes()
+In-Reply-To: <560BAC76.6050002@huawei.com>
+References: <560BAC76.6050002@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tang Chen <tangchen@cn.fujitsu.com>, zhongjiang@huawei.com, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Sep 30, 2015 at 12:51:18PM -0700, Greg Thelen wrote:
-> 
-> Vladimir Davydov wrote:
-...
-> > diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> > index 416509e26d6d..a190719c2f46 100644
-> > --- a/include/linux/page-flags.h
-> > +++ b/include/linux/page-flags.h
-> > @@ -594,6 +594,28 @@ static inline void __ClearPageBalloon(struct page *page)
-> >  }
-> >  
-> >  /*
-> > + * PageKmem() returns true if the page was allocated with alloc_kmem_pages().
-> > + */
-> > +#define PAGE_KMEM_MAPCOUNT_VALUE (-512)
-> > +
-> > +static inline int PageKmem(struct page *page)
-> > +{
-> > +	return atomic_read(&page->_mapcount) == PAGE_KMEM_MAPCOUNT_VALUE;
-> > +}
-> > +
-> > +static inline void __SetPageKmem(struct page *page)
-> > +{
-> > +	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
-> > +	atomic_set(&page->_mapcount, PAGE_KMEM_MAPCOUNT_VALUE);
-> > +}
-> 
-> What do you think about several special mapcount values for various
-> types of kmem?
-> 
-> It's helps user and administrators break down memory usage.
-> 
-> A nice equation is:
->   memory.usage_in_bytes = memory.stat[file + anon + unevictable + kmem]
-> 
-> Next, it's helpful to be able to breakdown kmem into:
->   kmem = stack + pgtable + slab + ...
-> 
-> On one hand (and the kernel I use internally) we can use separate per
-> memcg counters for each kmem type.  Then reconstitute memory.kmem as
-> needed by adding them together.  But using keeping a single kernel kmem
-> counter is workable if there is a way to breakdown the memory charge to
-> a container (e.g. by walking /proc/kpageflags-ish or per memcg
-> memory.kpageflags-ish file).
 
-I don't think that storing information about kmem type on the page
-struct just to report it via /proc/kpageflags is a good idea, because
-the number of unused bits left on the page struct is limited so we'd
-better (ab)use them carefully, only when it's really difficult to get
-along w/o them.
+On Wed, 30 Sep 2015 17:33:42 +0800
+Xishi Qiu <qiuxishi@huawei.com> wrote:
 
-OTOH I do agree that some extra info showing what "kmem" is actually
-used for could be helpful. To accumulate this info we can always use
-per-cpu counters, which are pretty cheap and won't degrade performance,
-and then report it via memory.stat. Furthermore, it will be more
-convenient for administrators to read this info in human-readable format
-than parsing /proc/kpageflags, which in addition takes long on systems
-with a lot of RAM.
+> If user set "movablecore=xx" to a large number, corepages will overflow,
+> this patch fix the problem.
+> 
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+
+Looks good to me.
+
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
 Thanks,
-Vladimir
+Yasuaki Ishimatsu
+
+>  mm/page_alloc.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 48aaf7b..af3c9bd 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5668,6 +5668,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+>  		 */
+>  		required_movablecore =
+>  			roundup(required_movablecore, MAX_ORDER_NR_PAGES);
+> +		required_movablecore = min(totalpages, required_movablecore);
+>  		corepages = totalpages - required_movablecore;
+>  
+>  		required_kernelcore = max(required_kernelcore, corepages);
+> -- 
+> 2.0.0
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
