@@ -1,107 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 83EEB82F71
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 08:13:51 -0400 (EDT)
-Received: by ioiz6 with SMTP id z6so82356417ioi.2
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 05:13:51 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id j8si1980540igx.70.2015.10.01.05.13.49
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 862EF6B029C
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 09:12:40 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so32538673wic.1
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 06:12:39 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
+        by mx.google.com with ESMTPS id jc9si7245023wjb.143.2015.10.01.06.12.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 01 Oct 2015 05:13:50 -0700 (PDT)
-Subject: Re: can't oom-kill zap the victim's memory?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <alpine.DEB.2.10.1509281512330.13657@chino.kir.corp.google.com>
-	<201509291657.HHD73972.MOFVSHQtOJFOLF@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.10.1509291547560.3375@chino.kir.corp.google.com>
-	<201509301325.AAH13553.MOSVOOtHFFFQLJ@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.10.1509301404380.1148@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1509301404380.1148@chino.kir.corp.google.com>
-Message-Id: <201510012113.HEA98301.SVFQOFtFOHLMOJ@I-love.SAKURA.ne.jp>
-Date: Thu, 1 Oct 2015 21:13:38 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Oct 2015 06:12:38 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so32535563wic.1
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 06:12:35 -0700 (PDT)
+Date: Thu, 1 Oct 2015 15:12:34 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: optimize PageHighMem() check
+Message-ID: <20151001131234.GF24077@dhcp22.suse.cz>
+References: <1443513260-14598-1-git-send-email-vgupta@synopsys.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1443513260-14598-1-git-send-email-vgupta@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: mhocko@kernel.org, oleg@redhat.com, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, "Kirill A.  Shutemov" <kirill.shutemov@linux.intel.com>, Jennifer Herbert <jennifer.herbert@citrix.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org
 
-David Rientjes wrote:
-> On Wed, 30 Sep 2015, Tetsuo Handa wrote:
+On Tue 29-09-15 13:24:20, Vineet Gupta wrote:
+> This came up when implementing HIHGMEM/PAE40 for ARC.
+> The kmap() / kmap_atomic() generated code seemed needlessly bloated due
+> to the way PageHighMem() macro is implemented.
+> It derives the exact zone for page and then does pointer subtraction
+> with first zone to infer the zone_type.
+> The pointer arithmatic in turn generates the code bloat.
 > 
-> > If we choose only 1 OOM victim, the possibility of hitting this memory
-> > unmapping livelock is (say) 1%. But if we choose multiple OOM victims, the
-> > possibility becomes (almost) 0%. And if we still hit this livelock even
-> > after choosing many OOM victims, it is time to call panic().
-> > 
+> PageHighMem(page)
+>   is_highmem(page_zone(page))
+>      zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones
 > 
-> Again, this is a fundamental disagreement between your approach of 
-> randomly killing processes hoping that we target one that can make a quick 
-> exit vs. my approach where we give threads access to memory reserves after 
-> reclaim has failed in an oom livelock so they at least make forward 
-> progress.  We're going around in circles.
-
-I don't like that memory management subsystem shows an expectant attitude
-when memory allocation is failing. There are many possible silent hang up
-paths. And my customer's servers might be hitting such paths. But I can't
-go in front of their servers and capture SysRq. Thus, I want to let memory
-management subsystem try to recover automatically; at least emit some
-diagnostic kernel messages automatically.
-
+> Instead use is_highmem_idx() to work on zone_type available in page flags
 > 
-> > (Well, do we need to change __alloc_pages_slowpath() that OOM victims do not
-> > enter direct reclaim paths in order to avoid being blocked by unkillable fs
-> > locks?)
-> > 
+>    ----- Before -----
+> 80756348:	mov_s      r13,r0
+> 8075634a:	ld_s       r2,[r13,0]
+> 8075634c:	lsr_s      r2,r2,30
+> 8075634e:	mpy        r2,r2,0x2a4
+> 80756352:	add_s      r2,r2,0x80aef880
+> 80756358:	ld_s       r3,[r2,28]
+> 8075635a:	sub_s      r2,r2,r3
+> 8075635c:	breq       r2,0x2a4,80756378 <kmap+0x48>
+> 80756364:	breq       r2,0x548,80756378 <kmap+0x48>
 > 
-> OOM victims shouldn't need to enter reclaim, and there have been patches 
-> before to abort reclaim if current has a pending SIGKILL,
-
-Yes. shrink_inactive_list() and throttle_direct_reclaim() recognize
-fatal_signal_pending() tasks.
-
->                                                           if they have 
-> access to memory reserves.
-
-What does this mean?
-
-shrink_inactive_list() and throttle_direct_reclaim() do not check whether
-OOM victims have access to memory reserves, do they?
-
-We don't allow access to memory reserves by OOM victims without TIF_MEMDIE.
-I think that we should favor kthread and dying threads over normal threads
-at __alloc_pages_slowpath() but there is no response on
-http://lkml.kernel.org/r/1442939668-4421-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
-
->                             Nothing prevents the victim from already being 
-> in reclaim, however, when it is killed.
-
-I think this is problematic because there are unkillable locks in reclaim
-paths. The memory management subsystem reports nothing.
-
+>    ----- After  -----
+> 80756330:	mov_s      r13,r0
+> 80756332:	ld_s       r2,[r13,0]
+> 80756334:	lsr_s      r2,r2,30
+> 80756336:	sub_s      r2,r2,1
+> 80756338:	brlo       r2,2,80756348 <kmap+0x30>
 > 
-> > > Perhaps this is an argument that we need to provide access to memory 
-> > > reserves for threads even for !__GFP_WAIT and !__GFP_FS in such scenarios, 
-> > > but I would wait to make that extension until we see it in practice.
-> > 
-> > I think that GFP_ATOMIC allocations already access memory reserves via
-> > ALLOC_HIGH priority.
-> > 
+> For x86 defconfig build (32 bit only) it saves around 900 bytes.
+> For ARC defconfig with HIGHMEM, it saved around 2K bytes.
 > 
-> Yes, that's true.  It doesn't help for GFP_NOFS, however.  It may be 
-> possible that GFP_ATOMIC reserves have been depleted or there is a 
-> GFP_NOFS allocation that gets stuck looping forever that doesn't get the 
-> ability to allocate without watermarks.
-
-Why can't we emit some diagnostic kernel messages automatically?
-Memory allocation requests which did not complete within e.g. 30 seconds
-deserve possible memory allocation deadlock warning messages.
-
->                                          I'd wait to see it in practice 
-> before making this extension since it relies on scanning the tasklist.
+>    ---->8-------
+> ./scripts/bloat-o-meter x86/vmlinux-defconfig-pre x86/vmlinux-defconfig-post
+> add/remove: 0/0 grow/shrink: 0/36 up/down: 0/-934 (-934)
+> function                                     old     new   delta
+> saveable_page                                162     154      -8
+> saveable_highmem_page                        154     146      -8
+> skb_gro_reset_offset                         147     131     -16
+> ...
+> ...
+> __change_page_attr_set_clr                  1715    1678     -37
+> setup_data_read                              434     394     -40
+> mon_bin_event                               1967    1927     -40
+> swsusp_save                                 1148    1105     -43
+> _set_pages_array                             549     493     -56
+>    ---->8-------
 > 
+> e.g. For ARC kmap()
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Jennifer Herbert <jennifer.herbert@citrix.com>
+> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Cc: linux-kernel@vger.kernel.org
+> Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
 
-Is this extension something like check_hung_uninterruptible_tasks()?
+Looks reasonably to me.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/page-flags.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 41c93844fb1d..2953aaa06d67 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -252,7 +252,7 @@ PAGEFLAG(Readahead, reclaim) TESTCLEARFLAG(Readahead, reclaim)
+>   * Must use a macro here due to header dependency issues. page_zone() is not
+>   * available at this point.
+>   */
+> -#define PageHighMem(__p) is_highmem(page_zone(__p))
+> +#define PageHighMem(__p) is_highmem_idx(page_zonenum(__p))
+>  #else
+>  PAGEFLAG_FALSE(HighMem)
+>  #endif
+> -- 
+> 1.9.1
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
