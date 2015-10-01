@@ -1,184 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D7B1882F64
-	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 20:42:55 -0400 (EDT)
-Received: by qgx61 with SMTP id 61so51422556qgx.3
-        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 17:42:55 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id f127si3324343qka.68.2015.09.30.17.42.54
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 878FB6B027A
+	for <linux-mm@kvack.org>; Wed, 30 Sep 2015 23:01:52 -0400 (EDT)
+Received: by igxx6 with SMTP id x6so5491117igx.1
+        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 20:01:52 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id x4si536866igr.34.2015.09.30.20.01.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Sep 2015 17:42:55 -0700 (PDT)
-Subject: Re: [PATCH 00/12] userfaultfd non-x86 and selftest updates for 4.2.0+
-References: <1441745010-14314-1-git-send-email-aarcange@redhat.com>
- <560C5A83.9080103@oracle.com> <20151001000625.GF19466@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <560C8161.5020602@oracle.com>
-Date: Wed, 30 Sep 2015 17:42:09 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Sep 2015 20:01:51 -0700 (PDT)
+Received: by padhy16 with SMTP id hy16so59343281pad.1
+        for <linux-mm@kvack.org>; Wed, 30 Sep 2015 20:01:51 -0700 (PDT)
+Date: Wed, 30 Sep 2015 20:01:43 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/2] mm: fix the racy mm->locked_vm change in
+In-Reply-To: <20150929182756.GA21740@redhat.com>
+Message-ID: <alpine.LSU.2.11.1509301911320.4528@eggly.anvils>
+References: <20150929182756.GA21740@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20151001000625.GF19466@redhat.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Pavel Emelyanov <xemul@parallels.com>, zhang.zhanghailiang@huawei.com, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Michael Ellerman <mpe@ellerman.id.au>, Bamvor Zhang Jian <bamvor.zhangjian@linaro.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Geert Uytterhoeven <geert@linux-m68k.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <andreyknvl@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Sasha Levin <sasha.levin@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/30/2015 05:06 PM, Andrea Arcangeli wrote:
-> Hello Mike,
-> 
-> On Wed, Sep 30, 2015 at 02:56:19PM -0700, Mike Kravetz wrote:
->> On 09/08/2015 01:43 PM, Andrea Arcangeli wrote:
->>> Here are some pending updates for userfaultfd mostly to the self test,
->>> the rest are cleanups.
->>
->> I have a potential use case for userfualtfd.  So, I started experimenting
-> 
-> Glad to hear you may have one more use case.
-> 
-> On a side note, there's also a patch posted to CRIU to pagein lazily
-> anonymous memory during restore using userfaultfd, that's yet another
-> recent user.
-> 
->> with the self test code.  I replaced the posix_memalign() calls to allocate
->> area_src and area_dst with mmap().  mmap(MAP_PRIVATE | MAP_ANONYMOUS) works
->> as expected.  However, mmap(MAP_SHARED | MAP_ANONYMOUS) causes the test to
->> fail without any errros from the userfaultfd APIs.
->>
->> --------------------
->> running userfaultfd
->> --------------------
->> nr_pages: 32768, nr_pages_per_cpu: 8192
->> bounces: 31, mode: rnd racing ver poll, page_nr 31523 wrong count 0 1
->>
->> I would expect some type of error from the ioctl() that registers the
->> range, or perhaps the poll/copy code?  Just curious about the expected
->> behavior.
-> 
-> That should return an error during UFFDIO_REGISTER and the testcase
-> shouldn't start, not sure what went wrong. Can you send the
-> modification to the testcase?
-> 
-> UFFDIO_REGISTER is the point where userfaultfd is first told which
-> kind of memory you want to manage with userfaults. It was planned to
-> fail there (and it cannot fail any earlier).
-> 
-> This check has to fail and return -EINVAL in the ioctl(UFFDIO_REGISTER).
-> 
-> 		/* check not compatible vmas */
-> 		ret = -EINVAL;
-> 		if (cur->vm_ops)
-> 			goto out_unlock;
-> 
-> In the testcase you should get an exit 1 and the fprintf printed:
-> 
-> 		if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register)) {
-> 			fprintf(stderr, "register failure\n");
-> 			return 1;
-> 		}
-> 
-> Could you double check these two paths to find what's wrong?
+On Tue, 29 Sep 2015, Oleg Nesterov wrote:
 
-My apologies!!!!
+> "mm->locked_vm += grow" and vm_stat_account() in acct_stack_growth()
+> are not safe; multiple threads using the same ->mm can do this at the
+> same time trying to expans different vma's under down_read(mmap_sem).
+                      expand
+> This means that one of the "locked_vm += grow" changes can be lost
+> and we can miss munlock_vma_pages_all() later.
 
-This was running in my hacked up kernel.  I removed the cur->vm_ops check
-as a quick and dirty way for me to register hugetlb vmas.  Sorry, I forgot
-I was still running this kernel.
+>From the Cc list, I guess you are thinking this might be the fix to
+the "Bad state page (mlocked)" issues Andrey and Sasha have reported.
 
->> FYI - My use case is for hugetlbfs.  I would like a mechanism to catch all
->> new huge page allocations as a result of page faults.  I have some very
->> rough code to extend userfualtfd and add the required functionality to
->> hugetlbfs.  Still working on it.
-> 
-> Adding support for hugetlbfs sounds great to me.
-
-The use case I have is pretty simple.  Recently, fallocate hole punch
-support was added to hugetlbfs.  The reason for this is that the database
-people want to 'free up' huge pages they know will no longer be used.
-However, these huge pages are part of SGA areas sometimes mapped by tens
-of thousands of tasks.  They would like to 'catch' any tasks that
-(incorrectly) fault in a page after hole punch.  The thought is that
-this can be done with userfaultfd by registering these mappings with
-UFFDIO_REGISTER_MODE_MISSING.  No need for UFFDIO_COPY or UFFDIO_ZEROPAGE.
-We would just send a signal to the task (such as SIGBUS) and then do
-a UFFDIO_WAKE.  The only downside to this approach is having thousands
-of threads monitoring userfault fds to catch a database error condition.
-I believe the MADV_USERFAULT/NOUSERFAULT code you proposed some time back
-would be the ideal solution for this use case.  Unfortunately, I did not
-know of this use case or your proposal back then. :(
-
--- 
-Mike Kravetz
+I've not been able to explain those from the direction in which
+I was thinking (despite giving it more hours of thought meanwhile),
+so I am glad you're looking at it from a very different direction,
+and hope you're right with this.
 
 > 
-> Only anonymous memory has null vm_ops, so once you extend the code to
-> track hugetlbfs (tracking at least tmpfs and not just anonymous memory
-> is needed for volatile pages which also work on tmpfs) you should
-> relax the above check to accept &hugetlb_vm_ops.
+> Move this code into the caller(s) under mm->page_table_lock. All other
+> updates to ->locked_vm hold mmap_sem for writing.
+
+So it looks like Andrea and I broke this back in v2.6.7: page_table_lock
+was used here before then, and we thought the anon_vma lock was better.
+
+Confession: from that time until today, I thought MAP_GROWSDOWN was
+one of those flags (say, like MAP_DENYWRITE) which the kernel accepts
+from userspace but ignores; I thought ia64 was the only architecture
+on which an mm might contain more than one VM_GROWS* vma (excepting
+the case where the original gets split; but surely stack would have
+its anon_vma allocated by then, and shared across the split).  It's
+only this patch of yours that leads me to calc_vm_flag_bits(), and
+to how Michel brought page_table_lock back here to guard vma_gap.
+
 > 
-> You then need to specify which kind of ioctl you supported in the
-> current kernel for that kind of memory you registered on in the
-> uffdio_register->ioctl parameter.
+> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+
+Acked-by: Hugh Dickins <hughd@google.com>
+
+with some hesitation.  I don't like very much that the preliminary
+mm->locked_vm + grow check is still done without complete locking,
+so racing threads could get more locked_vm than they're permitted;
+but I'm not sure that we care enough to put page_table_lock back
+over all of that (and security_vm_enough_memory wants to have final
+say on whether to go ahead); even if it was that way years ago.
+
+(And if we did care, shouldn't __vm_enough_memory() be using
+percpu_counter_compare instead of percpu_counter_read_positive?
+but that's a digression.)
+
+It would be even nicer if we could kill these expand_stack()
+anomalies once and for all, with down_write of mmap_sem here too.
+But can't be done without revisiting every architecture's mm/fault.c,
+which I have no stomach for at this time, and probably you neither.
+
+Let's accept that your patch is a significant improvement,
+and hope that it fixes the "Bad page state (mlocked)".
+
+> ---
+>  mm/mmap.c | 12 ++++++++----
+>  1 file changed, 8 insertions(+), 4 deletions(-)
 > 
-> 		/*
-> 		 * Now that we scanned all vmas we can already tell
-> 		 * userland which ioctls methods are guaranteed to
-> 		 * succeed on this range.
-> 		 */
-> 		if (put_user(UFFD_API_RANGE_IOCTLS,
-> 			     &user_uffdio_register->ioctls))
-> 			ret = -EFAULT;
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 8393580..4efdc37 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2138,10 +2138,6 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
+>  	if (security_vm_enough_memory_mm(mm, grow))
+>  		return -ENOMEM;
+>  
+> -	/* Ok, everything looks good - let it rip */
+> -	if (vma->vm_flags & VM_LOCKED)
+> -		mm->locked_vm += grow;
+> -	vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
+>  	return 0;
+>  }
+>  
+> @@ -2202,6 +2198,10 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
+>  				 * against concurrent vma expansions.
+>  				 */
+>  				spin_lock(&vma->vm_mm->page_table_lock);
+> +				if (vma->vm_flags & VM_LOCKED)
+> +					vma->vm_mm->locked_vm += grow;
+> +				vm_stat_account(vma->vm_mm, vma->vm_flags,
+> +						vma->vm_file, grow);
+>  				anon_vma_interval_tree_pre_update_vma(vma);
+>  				vma->vm_end = address;
+>  				anon_vma_interval_tree_post_update_vma(vma);
+> @@ -2273,6 +2273,10 @@ int expand_downwards(struct vm_area_struct *vma,
+>  				 * against concurrent vma expansions.
+>  				 */
+>  				spin_lock(&vma->vm_mm->page_table_lock);
+> +				if (vma->vm_flags & VM_LOCKED)
+> +					vma->vm_mm->locked_vm += grow;
+> +				vm_stat_account(vma->vm_mm, vma->vm_flags,
+> +						vma->vm_file, grow);
+>  				anon_vma_interval_tree_pre_update_vma(vma);
+>  				vma->vm_start = address;
+>  				vma->vm_pgoff -= grow;
+> -- 
+> 2.4.3
 > 
-> #define UFFD_API_RANGE_IOCTLS			\
-> 	((__u64)1 << _UFFDIO_WAKE |		\
-> 	 (__u64)1 << _UFFDIO_COPY |		\
-> 	 (__u64)1 << _UFFDIO_ZEROPAGE)
 > 
-> hugetlbfs doesn't seem to support the zeropage. So if vma->vm_ops ==
-> &hugetlb_vm_ops, it should return only WAKE|COPY in
-> uffdio_register->ioctl.
-> 
-> hugetlbfs is non standard, there's no sysconf(_SC_PAGE_SIZE) to know
-> the minimum granularity supported by the UFFDIO_COPY|WAKE of
-> hugetlbfs. This is a generic issue with hugetlbfs, not really related
-> to userfaultfd. The same constraints of hugetlbfs minimum granularity
-> and alignment applies to all other memory management syscalls too.
-> 
-> So the app itself using hugetlbfs will have to know by other means
-> (i.e. sysfs mangling) that the minimum granularity supported by
-> UFFDIO_COPY is 2MB (or 1GB). That is again because it registered
-> userfaultfd on hugetlbfs, and hugetlbfs has non standard
-> constraints. In turn UFFDIO_COPY of hugetlbfs has to fail if len is
-> not a multiple of 2MB (never the case for all other kinds of memory
-> that userfaultfd could ever manage).
-> 
-> There's flexibility in the userfaultfd API to gradually expand the
-> coverage to a variety of types of virtual memory while at the same
-> time not risking random behavior from a new app if run on a old
-> kernel. The new app will be able to tell reliably to the user, to
-> upgrade the kernel (or it can fallback to a non-userfaultfd mode with
-> just a warning to the user).
-> 
-> We need to handle the write protection faults too as soon as possible
-> (VM_UFFD_WP/UFFD_FEATURE_PAGEFAULT_FLAG_WP). The uffdio_api->features
-> are already prepared to report to userland the availability of the
-> UFFD_FEATURE_PAGEFAULT_FLAG_WP. Then the app can set
-> UFFDIO_REGISTER_MODE_WP in uffdio_register.mode.
-> 
-> I mentioned this because while there's flexibility to expand the
-> coverage gradually, it'd be great if all kinds of memory supporting
-> UFFDIO_REGISTER_MODE_MISSING would also support
-> UFFDIO_REGISTER_MODE_WP once that gets available, as it'd keep
-> userfaultfd_register() a bit simpler to maintain.
-> 
-> Thanks,
-> Andrea
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
