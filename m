@@ -1,84 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EEA4182F7A
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 10:48:22 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so33589519wic.0
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 07:48:22 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id f2si4105904wix.119.2015.10.01.07.48.21
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 01F0582F7A
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 10:53:05 -0400 (EDT)
+Received: by qgt47 with SMTP id 47so68833317qgt.2
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 07:53:04 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g192si5900697qhc.93.2015.10.01.07.53.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Oct 2015 07:48:21 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so37047590wic.1
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 07:48:21 -0700 (PDT)
-Date: Thu, 1 Oct 2015 16:48:20 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: can't oom-kill zap the victim's memory?
-Message-ID: <20151001144820.GI24077@dhcp22.suse.cz>
-References: <CA+55aFyajHq2W9HhJWbLASFkTx_kLSHtHuY6mDHKxmoW-LnVEw@mail.gmail.com>
- <20150921134414.GA15974@redhat.com>
- <20150921142423.GC19811@dhcp22.suse.cz>
- <20150921153252.GA21988@redhat.com>
- <20150921161203.GD19811@dhcp22.suse.cz>
- <20150922160608.GA2716@redhat.com>
- <20150923205923.GB19054@dhcp22.suse.cz>
- <alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
- <20150925093556.GF16497@dhcp22.suse.cz>
- <alpine.DEB.2.10.1509281512330.13657@chino.kir.corp.google.com>
+        Thu, 01 Oct 2015 07:53:04 -0700 (PDT)
+Date: Thu, 1 Oct 2015 16:49:51 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 1/2] mm: fix the racy mm->locked_vm change in
+Message-ID: <20151001144951.GA6781@redhat.com>
+References: <20150929182756.GA21740@redhat.com> <alpine.LSU.2.11.1509301911320.4528@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1509281512330.13657@chino.kir.corp.google.com>
+In-Reply-To: <alpine.LSU.2.11.1509301911320.4528@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <andreyknvl@google.com>, Davidlohr Bueso <dave@stgolabs.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Sasha Levin <sasha.levin@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 28-09-15 15:24:06, David Rientjes wrote:
-> On Fri, 25 Sep 2015, Michal Hocko wrote:
-> 
-> > > > I am still not sure how you want to implement that kernel thread but I
-> > > > am quite skeptical it would be very much useful because all the current
-> > > > allocations which end up in the OOM killer path cannot simply back off
-> > > > and drop the locks with the current allocator semantic.  So they will
-> > > > be sitting on top of unknown pile of locks whether you do an additional
-> > > > reclaim (unmap the anon memory) in the direct OOM context or looping
-> > > > in the allocator and waiting for kthread/workqueue to do its work. The
-> > > > only argument that I can see is the stack usage but I haven't seen stack
-> > > > overflows in the OOM path AFAIR.
-> > > > 
-> > > 
-> > > Which locks are you specifically interested in?
-> > 
-> > Any locks they were holding before they entered the page allocator (e.g.
-> > i_mutex is the easiest one to trigger from the userspace but mmap_sem
-> > might be involved as well because we are doing kmalloc(GFP_KERNEL) with
-> > mmap_sem held for write). Those would be locked until the page allocator
-> > returns, which with the current semantic might be _never_.
-> > 
-> 
-> I agree that i_mutex seems to be one of the most common offenders.  
-> However, I'm not sure I understand why holding it while trying to allocate 
-> infinitely for an order-0 allocation is problematic wrt the proposed 
-> kthread. 
+On 09/30, Hugh Dickins wrote:
+>
+> On Tue, 29 Sep 2015, Oleg Nesterov wrote:
+>
+> > "mm->locked_vm += grow" and vm_stat_account() in acct_stack_growth()
+> > are not safe; multiple threads using the same ->mm can do this at the
+> > same time trying to expans different vma's under down_read(mmap_sem).
+>                       expand
+> > This means that one of the "locked_vm += grow" changes can be lost
+> > and we can miss munlock_vma_pages_all() later.
+>
+> From the Cc list, I guess you are thinking this might be the fix to
+> the "Bad state page (mlocked)" issues Andrey and Sasha have reported.
 
-I didn't say it would be problematic. We are talking past each other
-here. All I wanted to say was that a separate kernel oom thread wouldn't
-_help_ with the lock dependencies.
+Yes, I found this when I tried to explain this problem, but I doubt
+this change can fix it... Firstly I think it is very unlikely that
+trinity hits this race. And even if mm->locked_vm is wrongly equal
+to zero in exit_mmap(), it seems that page_remove_rmap() should do
+clear_page_mlock(). But I do not understand this code enough. So if
+this patch can actually help I would really like to know why ;)
 
-> The kthread itself need only take mmap_sem for read.  If all 
-> threads sharing the mm with a victim have been SIGKILL'd, they should get 
-> TIF_MEMDIE set when reclaim fails and be able to allocate so that they can 
-> drop mmap_sem. 
+And of course this can not explain other traces which look like
+mm->mmap corruption.
 
-which is the case if the direct oom context used trylock...
-So just to make it clear. I am not objecting a specialized oom kernel
-thread. It would work as well. I am just not convinced that it is really
-needed because the direct oom context can use trylock and do the same
-work directly.
--- 
-Michal Hocko
-SUSE Labs
+> Acked-by: Hugh Dickins <hughd@google.com>
+
+Thanks!
+
+> with some hesitation.  I don't like very much that the preliminary
+> mm->locked_vm + grow check is still done without complete locking,
+> so racing threads could get more locked_vm than they're permitted;
+> but I'm not sure that we care enough to put page_table_lock back
+> over all of that (and security_vm_enough_memory wants to have final
+> say on whether to go ahead); even if it was that way years ago.
+
+Yes. Plus all these RLIMIT_MEMLOCK/etc and security_* checks assume
+that we are going to expand current->mm, but this is not necessarily
+true. Debugger or sys_process_vm_* can expand a foreign vma.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
