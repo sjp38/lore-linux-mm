@@ -1,69 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id ECB4F6B0266
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 04:58:37 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so70089987pac.2
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 01:58:37 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id rb8si7436512pbb.243.2015.10.01.01.58.37
-        for <linux-mm@kvack.org>;
-        Thu, 01 Oct 2015 01:58:37 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] mm: avoid false-positive PageTail() during meminit
-Date: Thu,  1 Oct 2015 11:58:00 +0300
-Message-Id: <1443689880-147129-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id EEF2D82F71
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 07:02:02 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so27227574wic.1
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 04:02:02 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id i7si6622748wje.113.2015.10.01.04.02.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 01 Oct 2015 04:02:01 -0700 (PDT)
+Date: Thu, 1 Oct 2015 13:01:19 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 01/25] x86, fpu: add placeholder for Processor Trace
+ XSAVE state
+In-Reply-To: <20150928191818.34AAC17E@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.11.1510011237580.4500@nanos>
+References: <20150928191817.035A64E2@viggo.jf.intel.com> <20150928191818.34AAC17E@viggo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: borntraeger@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com
 
-Since compound_head() rework we encode PageTail() into bit 0 of
-page->lru.next (aka page->compound_head). We need to make sure that
-page->lru is initialized before first use of compound_head() or
-PageTail().
+On Mon, 28 Sep 2015, Dave Hansen wrote:
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> There is an XSAVE state component for Intel Processor Trace.  But,
+> we do not use it and do not expect to ever use it.
+> 
+> We add a placeholder in the code for it so it is not a mystery and
+> also so we do not need an explicit enum initialization for Protection
+> Keys in a moment.
+> 
+> Why will we never use it?  According to Andi Kleen:
+> 
+> 	The XSAVE support assumes that there is a single buffer
+> 	for each thread. But perf generally doesn't work this
+> 	way, it usually has only a single perf event per CPU per
+> 	user, and when tracing multiple threads on that CPU it
+> 	inherits perf event buffers between different threads. So
+> 	XSAVE per thread cannot handle this inheritance case
+> 	directly.
+> 
+> 	Using multiple XSAVE areas (another one per perf event)
+> 	would defeat some of the state caching that the CPUs do.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
-My page-flags patchset makes sure that we don't use PG_reserved on
-compound pages. That means we have PageTail() check as eary as in
-SetPageReserved() in reserve_bootmem_region()
-
-Let's initialize page->lru before that to avoid false positive from
-PageTail().
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
-
-Andrew, this can be folded into "mm: make compound_head() robust"
-
----
- mm/page_alloc.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 778eb3a0f103..95fbc43a93dd 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -926,8 +926,6 @@ static void init_reserved_page(unsigned long pfn)
- #else
- static inline void init_reserved_page(unsigned long pfn)
- {
--	/* Avoid false-positive PageTail() */
--	INIT_LIST_HEAD(&pfn_to_page(pfn)->lru);
- }
- #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
- 
-@@ -947,6 +945,10 @@ void __meminit reserve_bootmem_region(unsigned long start, unsigned long end)
- 			struct page *page = pfn_to_page(start_pfn);
- 
- 			init_reserved_page(start_pfn);
-+
-+			/* Avoid false-positive PageTail() */
-+			INIT_LIST_HEAD(&page->lru);
-+
- 			SetPageReserved(page);
- 		}
- 	}
--- 
-2.5.1
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
