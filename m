@@ -1,56 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 08C486B0291
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 07:54:48 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so24670004wic.0
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 04:54:47 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id bb3si3271085wib.77.2015.10.01.04.54.46
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 83EEB82F71
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 08:13:51 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so82356417ioi.2
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 05:13:51 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id j8si1980540igx.70.2015.10.01.05.13.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 01 Oct 2015 04:54:46 -0700 (PDT)
-Date: Thu, 1 Oct 2015 13:54:05 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 07/25] x86, pkeys: new page fault error code bit: PF_PK
-In-Reply-To: <20150928191820.BF4CBF05@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.11.1510011351150.4500@nanos>
-References: <20150928191817.035A64E2@viggo.jf.intel.com> <20150928191820.BF4CBF05@viggo.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 01 Oct 2015 05:13:50 -0700 (PDT)
+Subject: Re: can't oom-kill zap the victim's memory?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <alpine.DEB.2.10.1509281512330.13657@chino.kir.corp.google.com>
+	<201509291657.HHD73972.MOFVSHQtOJFOLF@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1509291547560.3375@chino.kir.corp.google.com>
+	<201509301325.AAH13553.MOSVOOtHFFFQLJ@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1509301404380.1148@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1509301404380.1148@chino.kir.corp.google.com>
+Message-Id: <201510012113.HEA98301.SVFQOFtFOHLMOJ@I-love.SAKURA.ne.jp>
+Date: Thu, 1 Oct 2015 21:13:38 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: borntraeger@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com
+To: rientjes@google.com
+Cc: mhocko@kernel.org, oleg@redhat.com, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
 
-On Mon, 28 Sep 2015, Dave Hansen wrote:
->  
->  /*
-> @@ -916,7 +918,10 @@ static int spurious_fault_check(unsigned
->  
->  	if ((error_code & PF_INSTR) && !pte_exec(*pte))
->  		return 0;
-> -
-> +	/*
-> +	 * Note: We do not do lazy flushing on protection key
-> +	 * changes, so no spurious fault will ever set PF_PK.
-> +	 */
+David Rientjes wrote:
+> On Wed, 30 Sep 2015, Tetsuo Handa wrote:
+> 
+> > If we choose only 1 OOM victim, the possibility of hitting this memory
+> > unmapping livelock is (say) 1%. But if we choose multiple OOM victims, the
+> > possibility becomes (almost) 0%. And if we still hit this livelock even
+> > after choosing many OOM victims, it is time to call panic().
+> > 
+> 
+> Again, this is a fundamental disagreement between your approach of 
+> randomly killing processes hoping that we target one that can make a quick 
+> exit vs. my approach where we give threads access to memory reserves after 
+> reclaim has failed in an oom livelock so they at least make forward 
+> progress.  We're going around in circles.
 
-It might be a bit more clear to have:
+I don't like that memory management subsystem shows an expectant attitude
+when memory allocation is failing. There are many possible silent hang up
+paths. And my customer's servers might be hitting such paths. But I can't
+go in front of their servers and capture SysRq. Thus, I want to let memory
+management subsystem try to recover automatically; at least emit some
+diagnostic kernel messages automatically.
 
-   	/* Comment .... */
-  	if ((error_code & PF_PK))
-  		return 1;
+> 
+> > (Well, do we need to change __alloc_pages_slowpath() that OOM victims do not
+> > enter direct reclaim paths in order to avoid being blocked by unkillable fs
+> > locks?)
+> > 
+> 
+> OOM victims shouldn't need to enter reclaim, and there have been patches 
+> before to abort reclaim if current has a pending SIGKILL,
 
-  	return 1;
+Yes. shrink_inactive_list() and throttle_direct_reclaim() recognize
+fatal_signal_pending() tasks.
 
-That way the comment is associated to obviously redundant code, but
-it's easier to read, especially if we add some new PF_ thingy after
-that.
+>                                                           if they have 
+> access to memory reserves.
 
-Other than that:
+What does this mean?
 
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+shrink_inactive_list() and throttle_direct_reclaim() do not check whether
+OOM victims have access to memory reserves, do they?
 
+We don't allow access to memory reserves by OOM victims without TIF_MEMDIE.
+I think that we should favor kthread and dying threads over normal threads
+at __alloc_pages_slowpath() but there is no response on
+http://lkml.kernel.org/r/1442939668-4421-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
+
+>                             Nothing prevents the victim from already being 
+> in reclaim, however, when it is killed.
+
+I think this is problematic because there are unkillable locks in reclaim
+paths. The memory management subsystem reports nothing.
+
+> 
+> > > Perhaps this is an argument that we need to provide access to memory 
+> > > reserves for threads even for !__GFP_WAIT and !__GFP_FS in such scenarios, 
+> > > but I would wait to make that extension until we see it in practice.
+> > 
+> > I think that GFP_ATOMIC allocations already access memory reserves via
+> > ALLOC_HIGH priority.
+> > 
+> 
+> Yes, that's true.  It doesn't help for GFP_NOFS, however.  It may be 
+> possible that GFP_ATOMIC reserves have been depleted or there is a 
+> GFP_NOFS allocation that gets stuck looping forever that doesn't get the 
+> ability to allocate without watermarks.
+
+Why can't we emit some diagnostic kernel messages automatically?
+Memory allocation requests which did not complete within e.g. 30 seconds
+deserve possible memory allocation deadlock warning messages.
+
+>                                          I'd wait to see it in practice 
+> before making this extension since it relies on scanning the tasklist.
+> 
+
+Is this extension something like check_hung_uninterruptible_tasks()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
