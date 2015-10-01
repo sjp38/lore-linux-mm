@@ -1,57 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A0BF782F87
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 18:48:48 -0400 (EDT)
-Received: by igxx6 with SMTP id x6so5488995igx.1
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 15:48:48 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id i34si6546951ioo.198.2015.10.01.15.48.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Oct 2015 15:48:47 -0700 (PDT)
-Received: by igbkq10 with SMTP id kq10so5743139igb.0
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 15:48:47 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <560DB4A6.6050107@sr71.net>
-References: <20150916174903.E112E464@viggo.jf.intel.com>
-	<20150916174913.AF5FEA6D@viggo.jf.intel.com>
-	<20150920085554.GA21906@gmail.com>
-	<55FF88BA.6080006@sr71.net>
-	<20150924094956.GA30349@gmail.com>
-	<56044A88.7030203@sr71.net>
-	<20151001111718.GA25333@gmail.com>
-	<CAGXu5j+j92EPEwv9O4cX92zJDTyBEz3WtQ2CDHT0KmqJ6bCmGQ@mail.gmail.com>
-	<560DB4A6.6050107@sr71.net>
-Date: Thu, 1 Oct 2015 18:48:47 -0400
-Message-ID: <CA+55aFwUAY01QC8A3mCOoq5aYjT7Lw-gVx6DvqYBr0UMZ9kZEQ@mail.gmail.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E693A82F87
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 18:56:44 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so89307106pac.2
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 15:56:44 -0700 (PDT)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id ba5si12007765pbb.193.2015.10.01.15.56.38
+        for <linux-mm@kvack.org>;
+        Thu, 01 Oct 2015 15:56:38 -0700 (PDT)
 Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+References: <20150916174903.E112E464@viggo.jf.intel.com>
+ <20150916174913.AF5FEA6D@viggo.jf.intel.com>
+ <20150920085554.GA21906@gmail.com> <55FF88BA.6080006@sr71.net>
+ <20150924094956.GA30349@gmail.com> <56044A88.7030203@sr71.net>
+ <20151001111718.GA25333@gmail.com>
+ <CAGXu5j+j92EPEwv9O4cX92zJDTyBEz3WtQ2CDHT0KmqJ6bCmGQ@mail.gmail.com>
+ <560DB4A6.6050107@sr71.net>
+ <CA+55aFwUAY01QC8A3mCOoq5aYjT7Lw-gVx6DvqYBr0UMZ9kZEQ@mail.gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <560DBA24.5010201@sr71.net>
+Date: Thu, 1 Oct 2015 15:56:36 -0700
+MIME-Version: 1.0
+In-Reply-To: <CA+55aFwUAY01QC8A3mCOoq5aYjT7Lw-gVx6DvqYBr0UMZ9kZEQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
+To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Kees Cook <keescook@google.com>, Ingo Molnar <mingo@kernel.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
 
-On Thu, Oct 1, 2015 at 6:33 PM, Dave Hansen <dave@sr71.net> wrote:
->
-> Here it is in a quite fugly form (well, it's not opt-in).  Init crashes
-> if I boot with this, though.
->
-> I'll see if I can turn it in to a bit more of an opt-in and see what's
-> actually going wrong.
+On 10/01/2015 03:48 PM, Linus Torvalds wrote:
+> On Thu, Oct 1, 2015 at 6:33 PM, Dave Hansen <dave@sr71.net> wrote:
+>>
+>> Here it is in a quite fugly form (well, it's not opt-in).  Init crashes
+>> if I boot with this, though.
+>>
+>> I'll see if I can turn it in to a bit more of an opt-in and see what's
+>> actually going wrong.
+...
+> That said, I don't understand your patch. Why check PROT_WRITE? We've
+> had :"execute but not write" forever. It's "execute and not *read*"
+> that is interesting.
 
-It's quite likely that you will find that compilers put read-only
-constants in the text section, knowing that executable means readable.
+I was thinking that almost anybody doing a PROT_WRITE|PROT_EXEC really
+*is* going to write to it so they'll notice pretty fast if we completely
+deny them access to it.
 
-So it's entirely possible that it's pretty much all over.
-
-That said, I don't understand your patch. Why check PROT_WRITE? We've
-had :"execute but not write" forever. It's "execute and not *read*"
-that is interesting.
-
-So I wonder if your testing is just bogus. But maybe I'm mis-reading this?
-
-                Linus
+Also, a quick ftrace showed that most mmap() callers that set PROT_EXEC
+also set PROT_READ.  I'm just assuming that folks are setting PROT_READ
+but aren't _really_ going to read it, so we can safely deny them all
+access other than exec.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
