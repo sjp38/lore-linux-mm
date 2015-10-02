@@ -1,99 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id F2A9482F99
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 03:16:04 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so101348943pac.2
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 00:16:04 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id iv8si14770116pbc.11.2015.10.02.00.16.04
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 7601A82F99
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 03:25:26 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so20314860wic.0
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 00:25:25 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
+        by mx.google.com with ESMTPS id l10si11851290wjr.34.2015.10.02.00.25.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Oct 2015 00:16:04 -0700 (PDT)
-Received: by pacex6 with SMTP id ex6so99468793pac.0
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 00:16:04 -0700 (PDT)
-Subject: Re: [PATCH] mm: optimize PageHighMem() check
-References: <1443513260-14598-1-git-send-email-vgupta@synopsys.com>
- <20151001162528.32c5338efdff2bdea838befd@linux-foundation.org>
-From: Vineet Gupta <vgupta@synopsys.com>
-Message-ID: <560E2F29.5070807@synopsys.com>
-Date: Fri, 2 Oct 2015 12:45:53 +0530
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Oct 2015 00:25:25 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so20093866wic.1
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 00:25:24 -0700 (PDT)
+Date: Fri, 2 Oct 2015 09:25:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: linux-next: kernel BUG at mm/slub.c:1447!
+Message-ID: <20151002072522.GC30354@dhcp22.suse.cz>
+References: <560D59F7.4070002@roeck-us.net>
+ <20151001134904.127ccc7bea14e969fbfba0d5@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20151001162528.32c5338efdff2bdea838befd@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151001134904.127ccc7bea14e969fbfba0d5@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, Jennifer Herbert <jennifer.herbert@citrix.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org
+Cc: Guenter Roeck <linux@roeck-us.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>
 
-On Friday 02 October 2015 04:55 AM, Andrew Morton wrote:
-> On Tue, 29 Sep 2015 13:24:20 +0530 Vineet Gupta <Vineet.Gupta1@synopsys.com> wrote:
+On Thu 01-10-15 13:49:04, Andrew Morton wrote:
+[...]
+> mpage_readpage() is getting the __GFP_HIGHMEM from mapping_gfp_mask()
+> and that got passed all the way into kmem_cache_alloc() to allocate a
+> bio.  slab goes BUG if asked for highmem.
 > 
->> > This came up when implementing HIHGMEM/PAE40 for ARC.
->> > The kmap() / kmap_atomic() generated code seemed needlessly bloated due
->> > to the way PageHighMem() macro is implemented.
->> > It derives the exact zone for page and then does pointer subtraction
->> > with first zone to infer the zone_type.
->> > The pointer arithmatic in turn generates the code bloat.
->> > 
->> > PageHighMem(page)
->> >   is_highmem(page_zone(page))
->> >      zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones
->> > 
->> > Instead use is_highmem_idx() to work on zone_type available in page flags
->> > 
->> >    ----- Before -----
->> > 80756348:	mov_s      r13,r0
->> > 8075634a:	ld_s       r2,[r13,0]
->> > 8075634c:	lsr_s      r2,r2,30
->> > 8075634e:	mpy        r2,r2,0x2a4
->> > 80756352:	add_s      r2,r2,0x80aef880
->> > 80756358:	ld_s       r3,[r2,28]
->> > 8075635a:	sub_s      r2,r2,r3
->> > 8075635c:	breq       r2,0x2a4,80756378 <kmap+0x48>
->> > 80756364:	breq       r2,0x548,80756378 <kmap+0x48>
->> > 
->> >    ----- After  -----
->> > 80756330:	mov_s      r13,r0
->> > 80756332:	ld_s       r2,[r13,0]
->> > 80756334:	lsr_s      r2,r2,30
->> > 80756336:	sub_s      r2,r2,1
->> > 80756338:	brlo       r2,2,80756348 <kmap+0x30>
->> > 
->> > For x86 defconfig build (32 bit only) it saves around 900 bytes.
->> > For ARC defconfig with HIGHMEM, it saved around 2K bytes.
->> > 
->> >    ---->8-------
->> > ./scripts/bloat-o-meter x86/vmlinux-defconfig-pre x86/vmlinux-defconfig-post
->> > add/remove: 0/0 grow/shrink: 0/36 up/down: 0/-934 (-934)
->> > function                                     old     new   delta
->> > saveable_page                                162     154      -8
->> > saveable_highmem_page                        154     146      -8
->> > skb_gro_reset_offset                         147     131     -16
->> > ...
->> > ...
->> > __change_page_attr_set_clr                  1715    1678     -37
->> > setup_data_read                              434     394     -40
->> > mon_bin_event                               1967    1927     -40
->> > swsusp_save                                 1148    1105     -43
->> > _set_pages_array                             549     493     -56
->> >    ---->8-------
->> > 
->> > e.g. For ARC kmap()
->> > 
-> is_highmem() is deranged.  Can't we use a bit in zone->flags or
-> something?
+> A fix would be to mask off __GFP_HIGHMEM right there in
+> mpage_readpage().
 
-It won't be "a" bit since zone_type is an enum. However zone->flags could be split
-into 2 bitfields to hold enum zone_flags and enum zone_type.
-However this patch still is independent of that since we have struct page as
-starting point and zone_type is available from there directly w/o monkeying around
-with any zone structs.
+Yes, this is an obvious bug in the patch. It should only make the gfp
+mask more restrictive.
 
--Vineet
+> But I think the patch needs a bit of a rethink.  mapping_gfp_mask() is
+> the mask for allocating a file's pagecache.  It isn't designed for
+> allocation of memory for IO structures, file metadata, etc.
+>
+> Now, we could redefine mapping_gfp_mask()'s purpose (or formalize
+> stuff which has been sneaking in anyway).  Treat mapping_gfp_mask() as
+> a constraint mask - instead of it being "use this gfp for this
+> mapping", it becomes "don't use these gfp flags for this mapping".
+> 
+> Hence something like:
+> 
+> gfp_t mapping_gfp_constraint(struct address_space *mapping, gfp_t gfp_in)
+> {
+> 	return mapping_gfp_mask(mapping) & gfp_in;
+> }
+> 
+> So instead of doing this:
+> 
+> @@ -370,12 +371,13 @@ mpage_readpages(struct address_space *ma
+>  		prefetchw(&page->flags);
+>  		list_del(&page->lru);
+>  		if (!add_to_page_cache_lru(page, mapping,
+> -					page->index, GFP_KERNEL)) {
+> +					page->index,
+> +					gfp)) {
+> 
+> Michal's patch will do:
+> 
+> @@ -370,12 +371,13 @@ mpage_readpages(struct address_space *ma
+>  		prefetchw(&page->flags);
+>  		list_del(&page->lru);
+>  		if (!add_to_page_cache_lru(page, mapping,
+> -				page->index, GFP_KERNEL)) {
+> +				page->index,
+> +				mapping_gfp_constraint(mapping, GFP_KERNEL))) {
+> 
+> ie: use mapping_gfp_mask() to strip out any GFP flags which the
+> filesystem doesn't want used.  If the filesystem has *added* flags to
+> mapping_gfp_mask() then obviously this won't work and we'll need two
+> fields in the address_space or something.
+> 
+> Meanwhile I'll drop "mm, fs: obey gfp_mapping for add_to_page_cache()",
+> thanks for the report.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+mapping_gfp_mask is used at many places so I think it would be better to
+fix this particular place (others seem to be correct). It would make the
+stable backport much easier. We can build a more sane API on top. What
+do you think?
+
+Here is the respin of the original patch. I will post another one which
+will add mapping_gfp_constraint on top. It will surely be less error
+prone.
+---
