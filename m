@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ED0582F92
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 02:23:46 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so19523253wic.0
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 23:23:45 -0700 (PDT)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id p8si8041832wiw.2.2015.10.01.23.23.44
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6887F82F99
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 03:09:48 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so18650657wic.1
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 00:09:47 -0700 (PDT)
+Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com. [2a00:1450:400c:c05::230])
+        by mx.google.com with ESMTPS id td12si8183400wic.52.2015.10.02.00.09.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Oct 2015 23:23:44 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so17417617wic.0
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 23:23:44 -0700 (PDT)
-Date: Fri, 2 Oct 2015 08:23:40 +0200
+        Fri, 02 Oct 2015 00:09:47 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so20756762wic.0
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 00:09:46 -0700 (PDT)
+Date: Fri, 2 Oct 2015 09:09:43 +0200
 From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
-Message-ID: <20151002062340.GB30051@gmail.com>
+Message-ID: <20151002070943.GA1623@gmail.com>
 References: <20150916174903.E112E464@viggo.jf.intel.com>
  <20150916174913.AF5FEA6D@viggo.jf.intel.com>
  <20150920085554.GA21906@gmail.com>
@@ -23,108 +23,61 @@ References: <20150916174903.E112E464@viggo.jf.intel.com>
  <56044A88.7030203@sr71.net>
  <20151001111718.GA25333@gmail.com>
  <CAGXu5j+j92EPEwv9O4cX92zJDTyBEz3WtQ2CDHT0KmqJ6bCmGQ@mail.gmail.com>
- <CALCETrWaar55uTv5q3Ym1KEdQjfgjDfwMM=PPnjb9eV+ASS_ig@mail.gmail.com>
+ <560DB4A6.6050107@sr71.net>
+ <CA+55aFwUAY01QC8A3mCOoq5aYjT7Lw-gVx6DvqYBr0UMZ9kZEQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrWaar55uTv5q3Ym1KEdQjfgjDfwMM=PPnjb9eV+ASS_ig@mail.gmail.com>
+In-Reply-To: <CA+55aFwUAY01QC8A3mCOoq5aYjT7Lw-gVx6DvqYBr0UMZ9kZEQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Kees Cook <keescook@google.com>, Dave Hansen <dave@sr71.net>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Hansen <dave@sr71.net>, Kees Cook <keescook@google.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
 
 
-* Andy Lutomirski <luto@amacapital.net> wrote:
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-> >> Assuming it boots up fine on a typical distro, i.e. assuming that there are no
-> >> surprises where PROT_READ && PROT_EXEC sections are accessed as data.
+> On Thu, Oct 1, 2015 at 6:33 PM, Dave Hansen <dave@sr71.net> wrote:
 > >
-> > I can't wait to find out what implicitly expects PROT_READ from
-> > PROT_EXEC mappings. :)
-
-So what seems to happen is that there are no pure PROT_EXEC mappings in practice - 
-they are only omnibus PROT_READ|PROT_EXEC mappings, an unknown proportion of which 
-truly relies on PROT_READ:
-
-  $ for C in firefox ls perf libreoffice google-chrome Xorg xterm \
-      konsole; do echo; echo "# $C:"; strace -e trace=mmap -f $C -h 2>&1 | cut -d, -f3 | \
-      grep PROT | sort | uniq -c; done
-
-# firefox:
-     13  PROT_READ
-     82  PROT_READ|PROT_EXEC
-    184  PROT_READ|PROT_WRITE
-      2  PROT_READ|PROT_WRITE|PROT_EXEC
-
-# ls:
-      2  PROT_READ
-      7  PROT_READ|PROT_EXEC
-     17  PROT_READ|PROT_WRITE
-
-# perf:
-      1  PROT_READ
-     20  PROT_READ|PROT_EXEC
-     44  PROT_READ|PROT_WRITE
-
-# libreoffice:
-      2  PROT_NONE
-     87  PROT_READ
-    148  PROT_READ|PROT_EXEC
-    339  PROT_READ|PROT_WRITE
-
-# google-chrome:
-     39  PROT_READ
-    121  PROT_READ|PROT_EXEC
-    345  PROT_READ|PROT_WRITE
-
-# Xorg:
-      1  PROT_READ
-     22  PROT_READ|PROT_EXEC
-     39  PROT_READ|PROT_WRITE
-
-# xterm:
-      1  PROT_READ
-     25  PROT_READ|PROT_EXEC
-     46  PROT_READ|PROT_WRITE
-
-# konsole:
-      1  PROT_READ
-    101  PROT_READ|PROT_EXEC
-    175  PROT_READ|PROT_WRITE
-
-So whatever kernel side method we come up with, it's not something that I expect 
-to become production quality. "Proper" conversion to pkeys has to be driven from 
-the user-space side.
-
-That does not mean we can not try! :-)
-
-> There's one annoying issue at least:
+> > Here it is in a quite fugly form (well, it's not opt-in).  Init crashes if I 
+> > boot with this, though.
+> >
+> > I'll see if I can turn it in to a bit more of an opt-in and see what's 
+> > actually going wrong.
 > 
-> mprotect_pkey(..., PROT_READ | PROT_EXEC, 0) sets protection key 0.
-> mprotect_pkey(..., PROT_EXEC, 0) maybe sets protection key 15 or
-> whatever we use for this.  What does mprotect_pkey(..., PROT_EXEC, 0)
-> do?  What if the caller actually wants key 0?  What if some CPU vendor
-> some day implements --x for real?
+> It's quite likely that you will find that compilers put read-only constants in 
+> the text section, knowing that executable means readable.
 
-That comes from the hardcoded "user-space has 4 bits to itself, not managed by the 
-kernel" assumption in the whole design. So no layering between different 
-user-space libraries using pkeys in a different fashion, no transparent kernel use 
-of pkeys (such as it may be), etc.
+At least with pkeys enabling true --x mappings, that compiler practice becomes a 
+(mild) security problem: it provides a readable and executable return target for 
+stack/buffer overflow attacks - FWIIW. (It's a limited concern because the true 
+code areas are executable already.)
 
-I'm not sure it's _worth_ managing these 4 bits, but '16 separate keys' does seem 
-to be to me above a certain resource threshold that should be more explicitly 
-managed than telling user-space: "it's all yours!".
+I'd expect such readonly data to eventually move out into the regular data 
+sections, the moment the kernel gives a tool to distros to enforce true PROT_EXEC 
+mappings.
 
-> Also, how do we do mprotect_pkey and say "don't change the key"?
+> So it's entirely possible that it's pretty much all over.
 
-So if we start managing keys as a resource (i.e. alloc/free up to 16 of them), and 
-provide APIs for user-space to do all that, then user-space is not supposed to 
-touch keys it has not allocated for itself - just like it's not supposed to write 
-to fds it has not opened.
+I'd expect that too.
 
-Such an allocation method can still 'mess up', and if the kernel allocates a key 
-for its purposes it should not assume that user-space cannot change it, but at 
-least for non-buggy code there's no interaction and it would work out fine.
+> That said, I don't understand your patch. Why check PROT_WRITE? We've had
+> :"execute but not write" forever. It's "execute and not *read*" that is
+> interesting.
+
+Yeah, but almost none of user-space seems to be using it.
+
+> So I wonder if your testing is just bogus. But maybe I'm mis-reading this?
+
+I don't think you are mis-reading it: my (hacky! bad! not signed off!) debug idea 
+was to fudge PROT_EXEC|PROT_READ bits into pure PROT_EXEC only - at least to get 
+pkeys used in a much more serious fashion than standalone testcases, without 
+having to change the distro itself.
+
+You are probably right that true data reads from executable sections are very 
+common, so this might not be a viable technique even for testing purposes.
+
+But worth a try.
 
 Thanks,
 
