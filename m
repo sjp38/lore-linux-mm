@@ -1,57 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EFF054402FE
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 18:14:41 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so117432991pad.1
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 15:14:41 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id ks7si19745859pab.9.2015.10.02.15.14.41
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 502BD4402FE
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 18:37:05 -0400 (EDT)
+Received: by qgt47 with SMTP id 47so107275717qgt.2
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 15:37:05 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id e13si12287989qhc.3.2015.10.02.15.37.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Oct 2015 15:14:41 -0700 (PDT)
-Message-ID: <560F01CD.7060504@deltatee.com>
-Date: Fri, 02 Oct 2015 16:14:37 -0600
-From: Logan Gunthorpe <logang@deltatee.com>
-MIME-Version: 1.0
-References: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>	<20150923044227.36490.99741.stgit@dwillia2-desk3.jf.intel.com>	<20151002212137.GB30448@deltatee.com> <CAPcyv4iwJJX-rSgC0ramLrvccdzDXgnUAUMQbTMpoODo2f7kOw@mail.gmail.com>
-In-Reply-To: <CAPcyv4iwJJX-rSgC0ramLrvccdzDXgnUAUMQbTMpoODo2f7kOw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+        Fri, 02 Oct 2015 15:37:04 -0700 (PDT)
+Date: Fri, 2 Oct 2015 15:37:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 2/4] mm, proc: account for shmem swap in
+ /proc/pid/smaps
+Message-Id: <20151002153702.7bdc4c0483cd9b2ee9e0fba3@linux-foundation.org>
+In-Reply-To: <1443792951-13944-3-git-send-email-vbabka@suse.cz>
+References: <1443792951-13944-1-git-send-email-vbabka@suse.cz>
+	<1443792951-13944-3-git-send-email-vbabka@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 14/15] mm, dax, pmem: introduce {get|put}_dev_pagemap()
- for dax-gup
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@sr71.net>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Stephen Bates <Stephen.Bates@pmcs.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-Hi Dan,
+On Fri,  2 Oct 2015 15:35:49 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
 
-Good to know you've already addressed the struct page issue. We'll watch 
-out for an updated patchset to try.
+> Currently, /proc/pid/smaps will always show "Swap: 0 kB" for shmem-backed
+> mappings, even if the mapped portion does contain pages that were swapped out.
+> This is because unlike private anonymous mappings, shmem does not change pte
+> to swap entry, but pte_none when swapping the page out. In the smaps page
+> walk, such page thus looks like it was never faulted in.
+> 
+> This patch changes smaps_pte_entry() to determine the swap status for such
+> pte_none entries for shmem mappings, similarly to how mincore_page() does it.
+> Swapped out pages are thus accounted for.
+> 
+> The accounting is arguably still not as precise as for private anonymous
+> mappings, since now we will count also pages that the process in question never
+> accessed, but only another process populated them and then let them become
+> swapped out. I believe it is still less confusing and subtle than not showing
+> any swap usage by shmem mappings at all. Also, swapped out pages only becomee a
+> performance issue for future accesses, and we cannot predict those for neither
+> kind of mapping.
+> 
+> ...
+>
+> --- a/include/linux/shmem_fs.h
+> +++ b/include/linux/shmem_fs.h
+> @@ -60,6 +60,12 @@ extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
+>  extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
+>  extern int shmem_unuse(swp_entry_t entry, struct page *page);
+>  
+> +#ifdef CONFIG_SWAP
+> +extern unsigned long shmem_swap_usage(struct inode *inode);
+> +extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
+> +						pgoff_t start, pgoff_t end);
+> +#endif
+
+CONFIG_SWAP is wrong, isn't it?  It should be CONFIG_SHMEM if anything.
+
+I'd just do
+
+--- a/include/linux/shmem_fs.h~mm-proc-account-for-shmem-swap-in-proc-pid-smaps-fix
++++ a/include/linux/shmem_fs.h
+@@ -60,11 +60,9 @@ extern struct page *shmem_read_mapping_p
+ extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
+ extern int shmem_unuse(swp_entry_t entry, struct page *page);
+ 
+-#ifdef CONFIG_SWAP
+ extern unsigned long shmem_swap_usage(struct inode *inode);
+ extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
+ 						pgoff_t start, pgoff_t end);
+-#endif
+ 
+ static inline struct page *shmem_read_mapping_page(
+ 				struct address_space *mapping, pgoff_t index)
 
 
-On 02/10/15 03:53 PM, Dan Williams wrote:
-> Hmm, I didn't have peer-to-peer PCI-E in mind for this mechanism, but
-> the test report is welcome nonetheless.  The definition of dma_addr_t
-> is the device view of host memory, not necessarily the device view of
-> a peer device's memory range, so I expect you'll run into issues with
-> IOMMUs and other parts of the kernel that assume this definition.
-
-Yeah, we've actually been doing this with a number of more "hacky" 
-techniques for some time. ZONE_DEVICE just provides us with a much 
-cleaner way to set this up that doesn't require patching around 
-get_user_pages in various places in the kernel.
-
-We've never had any issues with the IOMMU getting in the way (at least 
-on Intel x86). My understanding always was that the IOMMU sits between a 
-PCI card and main memory; it doesn't get in the way of peer-to-peer 
-transfers. Though admittedly, I don't have a complete understanding of 
-how the IOMMU works in the kernel. I'm just speaking from experimental 
-experience. We've never actually tried this on other architectures.
-
-Thanks,
-
-Logan
+We don't need the ifdefs around declarations and they're a pain to
+maintain and they'd add a *ton* of clutter if we even tried to do this
+for real.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
