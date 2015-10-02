@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id CF2BF4402F8
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 13:50:41 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so111611069pab.3
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 10:50:41 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id wv1si18241628pab.150.2015.10.02.10.50.39
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id CD77A4402F8
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 14:08:30 -0400 (EDT)
+Received: by iofh134 with SMTP id h134so128970735iof.0
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 11:08:30 -0700 (PDT)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id q93si9645748ioi.48.2015.10.02.11.08.29
         for <linux-mm@kvack.org>;
-        Fri, 02 Oct 2015 10:50:39 -0700 (PDT)
+        Fri, 02 Oct 2015 11:08:29 -0700 (PDT)
 Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
 References: <20150916174903.E112E464@viggo.jf.intel.com>
  <20150916174913.AF5FEA6D@viggo.jf.intel.com>
@@ -15,54 +15,41 @@ References: <20150916174903.E112E464@viggo.jf.intel.com>
  <20150924094956.GA30349@gmail.com> <56044A88.7030203@sr71.net>
  <20151001111718.GA25333@gmail.com>
  <CAGXu5j+j92EPEwv9O4cX92zJDTyBEz3WtQ2CDHT0KmqJ6bCmGQ@mail.gmail.com>
- <CALCETrWaar55uTv5q3Ym1KEdQjfgjDfwMM=PPnjb9eV+ASS_ig@mail.gmail.com>
- <20151002062340.GB30051@gmail.com>
+ <560DB4A6.6050107@sr71.net>
+ <CA+55aFwUAY01QC8A3mCOoq5aYjT7Lw-gVx6DvqYBr0UMZ9kZEQ@mail.gmail.com>
+ <560DBA24.5010201@sr71.net>
+ <CA+55aFxf3ExQEq2zhNhj4zk5nC5in9=1acVfynOVxZdN9RLbdA@mail.gmail.com>
 From: Dave Hansen <dave@sr71.net>
-Message-ID: <560EC3EC.2080803@sr71.net>
-Date: Fri, 2 Oct 2015 10:50:36 -0700
+Message-ID: <560EC81B.60809@sr71.net>
+Date: Fri, 2 Oct 2015 11:08:27 -0700
 MIME-Version: 1.0
-In-Reply-To: <20151002062340.GB30051@gmail.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <CA+55aFxf3ExQEq2zhNhj4zk5nC5in9=1acVfynOVxZdN9RLbdA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@amacapital.net>
-Cc: Kees Cook <keescook@google.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Kees Cook <keescook@google.com>, Ingo Molnar <mingo@kernel.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
 
-On 10/01/2015 11:23 PM, Ingo Molnar wrote:
->> > Also, how do we do mprotect_pkey and say "don't change the key"?
-> So if we start managing keys as a resource (i.e. alloc/free up to 16 of them), and 
-> provide APIs for user-space to do all that, then user-space is not supposed to 
-> touch keys it has not allocated for itself - just like it's not supposed to write 
-> to fds it has not opened.
+On 10/01/2015 06:38 PM, Linus Torvalds wrote:
+> On Thu, Oct 1, 2015 at 6:56 PM, Dave Hansen <dave@sr71.net> wrote:
+>>
+>> Also, a quick ftrace showed that most mmap() callers that set PROT_EXEC
+>> also set PROT_READ.  I'm just assuming that folks are setting PROT_READ
+>> but aren't _really_ going to read it, so we can safely deny them all
+>> access other than exec.
+> 
+> That's a completely insane assumption. There are tons of reasons to
+> have code and read-only data in the same segment, and it's very
+> traditional. Just assuming that you only execute out of something that
+> has PROT_EXEC | PROT_READ is insane.
 
-I like that.  It gives us at least a "soft" indicator to userspace about
-what keys it should or shouldn't be using.
+Yes, it's insane, and I confirmed that ld.so actually reads some stuff
+out of the first page of the r-x part of the executable.
 
-> Such an allocation method can still 'mess up', and if the kernel allocates a key 
-> for its purposes it should not assume that user-space cannot change it, but at 
-> least for non-buggy code there's no interaction and it would work out fine.
-
-Yeah.  It also provides a clean interface so that future hardware could
-enforce enforce kernel "ownership" of a key which could protect against
-even buggy code.
-
-So, we add a pair of syscalls,
-
-	unsigned long sys_alloc_pkey(unsigned long flags??)
-	unsigned long sys_free_pkey(unsigned long pkey)
-
-keep the metadata in the mm, and then make sure that userspace allocated
-it before it is allowed to do an mprotect_pkey() with it.
-
-mprotect_pkey(add, flags, pkey)
-{
-	if (!(mm->pkeys_allocated & (1 << pkey))
-		return -EINVAL;
-}
-
-That should be pretty easy to implement.  The only real overhead is the
-16 bits we need to keep in the mm somewhere.
+But, it did find a bug in my code where I wouldn't allow instruction
+fetches to fault in pages in a pkey-protected area, so it wasn't a
+completely worthless exercise.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
