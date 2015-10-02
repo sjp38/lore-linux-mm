@@ -1,85 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 8706782F87
-	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 19:25:30 -0400 (EDT)
-Received: by qkas79 with SMTP id s79so36303293qka.0
-        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 16:25:30 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j188si7843044qhc.56.2015.10.01.16.25.29
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F4BB82F7A
+	for <linux-mm@kvack.org>; Thu,  1 Oct 2015 21:38:11 -0400 (EDT)
+Received: by igcrk20 with SMTP id rk20so7876369igc.1
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 18:38:11 -0700 (PDT)
+Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
+        by mx.google.com with ESMTPS id q93si6923915ioi.48.2015.10.01.18.38.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Oct 2015 16:25:29 -0700 (PDT)
-Date: Thu, 1 Oct 2015 16:25:28 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: optimize PageHighMem() check
-Message-Id: <20151001162528.32c5338efdff2bdea838befd@linux-foundation.org>
-In-Reply-To: <1443513260-14598-1-git-send-email-vgupta@synopsys.com>
-References: <1443513260-14598-1-git-send-email-vgupta@synopsys.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 01 Oct 2015 18:38:10 -0700 (PDT)
+Received: by igbkq10 with SMTP id kq10so7861605igb.0
+        for <linux-mm@kvack.org>; Thu, 01 Oct 2015 18:38:10 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <560DBA24.5010201@sr71.net>
+References: <20150916174903.E112E464@viggo.jf.intel.com>
+	<20150916174913.AF5FEA6D@viggo.jf.intel.com>
+	<20150920085554.GA21906@gmail.com>
+	<55FF88BA.6080006@sr71.net>
+	<20150924094956.GA30349@gmail.com>
+	<56044A88.7030203@sr71.net>
+	<20151001111718.GA25333@gmail.com>
+	<CAGXu5j+j92EPEwv9O4cX92zJDTyBEz3WtQ2CDHT0KmqJ6bCmGQ@mail.gmail.com>
+	<560DB4A6.6050107@sr71.net>
+	<CA+55aFwUAY01QC8A3mCOoq5aYjT7Lw-gVx6DvqYBr0UMZ9kZEQ@mail.gmail.com>
+	<560DBA24.5010201@sr71.net>
+Date: Thu, 1 Oct 2015 21:38:10 -0400
+Message-ID: <CA+55aFxf3ExQEq2zhNhj4zk5nC5in9=1acVfynOVxZdN9RLbdA@mail.gmail.com>
+Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, "Kirill A.  Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, Jennifer Herbert <jennifer.herbert@citrix.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: Kees Cook <keescook@google.com>, Ingo Molnar <mingo@kernel.org>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
 
-On Tue, 29 Sep 2015 13:24:20 +0530 Vineet Gupta <Vineet.Gupta1@synopsys.com> wrote:
+On Thu, Oct 1, 2015 at 6:56 PM, Dave Hansen <dave@sr71.net> wrote:
+>
+> Also, a quick ftrace showed that most mmap() callers that set PROT_EXEC
+> also set PROT_READ.  I'm just assuming that folks are setting PROT_READ
+> but aren't _really_ going to read it, so we can safely deny them all
+> access other than exec.
 
-> This came up when implementing HIHGMEM/PAE40 for ARC.
-> The kmap() / kmap_atomic() generated code seemed needlessly bloated due
-> to the way PageHighMem() macro is implemented.
-> It derives the exact zone for page and then does pointer subtraction
-> with first zone to infer the zone_type.
-> The pointer arithmatic in turn generates the code bloat.
-> 
-> PageHighMem(page)
->   is_highmem(page_zone(page))
->      zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones
-> 
-> Instead use is_highmem_idx() to work on zone_type available in page flags
-> 
->    ----- Before -----
-> 80756348:	mov_s      r13,r0
-> 8075634a:	ld_s       r2,[r13,0]
-> 8075634c:	lsr_s      r2,r2,30
-> 8075634e:	mpy        r2,r2,0x2a4
-> 80756352:	add_s      r2,r2,0x80aef880
-> 80756358:	ld_s       r3,[r2,28]
-> 8075635a:	sub_s      r2,r2,r3
-> 8075635c:	breq       r2,0x2a4,80756378 <kmap+0x48>
-> 80756364:	breq       r2,0x548,80756378 <kmap+0x48>
-> 
->    ----- After  -----
-> 80756330:	mov_s      r13,r0
-> 80756332:	ld_s       r2,[r13,0]
-> 80756334:	lsr_s      r2,r2,30
-> 80756336:	sub_s      r2,r2,1
-> 80756338:	brlo       r2,2,80756348 <kmap+0x30>
-> 
-> For x86 defconfig build (32 bit only) it saves around 900 bytes.
-> For ARC defconfig with HIGHMEM, it saved around 2K bytes.
-> 
->    ---->8-------
-> ./scripts/bloat-o-meter x86/vmlinux-defconfig-pre x86/vmlinux-defconfig-post
-> add/remove: 0/0 grow/shrink: 0/36 up/down: 0/-934 (-934)
-> function                                     old     new   delta
-> saveable_page                                162     154      -8
-> saveable_highmem_page                        154     146      -8
-> skb_gro_reset_offset                         147     131     -16
-> ...
-> ...
-> __change_page_attr_set_clr                  1715    1678     -37
-> setup_data_read                              434     394     -40
-> mon_bin_event                               1967    1927     -40
-> swsusp_save                                 1148    1105     -43
-> _set_pages_array                             549     493     -56
->    ---->8-------
-> 
-> e.g. For ARC kmap()
-> 
+That's a completely insane assumption. There are tons of reasons to
+have code and read-only data in the same segment, and it's very
+traditional. Just assuming that you only execute out of something that
+has PROT_EXEC | PROT_READ is insane.
 
-is_highmem() is deranged.  Can't we use a bit in zone->flags or
-something?
+No, what you *should* look at is to use the protection keys to
+actually enforce a plain PROT_EXEC. That has never worked before
+(because traditionally R implies X, and then we got NX).
+
+That would at least allow people who know they don't intersperse
+read-only constants in the code to use PROT_EXE only.
+
+Of course, there may well be users who use PROT_EXE that actually *do*
+do reads, and just relied on the old hardware behavior. So it's not
+guaranteed to work either without any extra flags. But at least it's
+worth a try, unlike the "yeah, the user asked for read, but the user
+doesn't know what he's doing" thinking that is just crazy talk.
+
+           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
