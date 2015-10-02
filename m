@@ -1,53 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id C761A82FA1
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 10:57:02 -0400 (EDT)
-Received: by qkas79 with SMTP id s79so43670906qka.0
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 07:57:02 -0700 (PDT)
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 6915682FA1
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 11:00:29 -0400 (EDT)
+Received: by obbzf10 with SMTP id zf10so83816535obb.2
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 08:00:29 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g90si10594460qge.81.2015.10.02.07.57.02
+        by mx.google.com with ESMTPS id o1si6181379oew.33.2015.10.02.08.00.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Oct 2015 07:57:02 -0700 (PDT)
-Subject: Re: [PATCH v4 1/4] mm, documentation: clarify /proc/pid/status VmSwap
- limitations
+        Fri, 02 Oct 2015 08:00:28 -0700 (PDT)
+Subject: Re: [PATCH v4 2/4] mm, proc: account for shmem swap in
+ /proc/pid/smaps
 References: <1443792951-13944-1-git-send-email-vbabka@suse.cz>
- <1443792951-13944-2-git-send-email-vbabka@suse.cz>
+ <1443792951-13944-3-git-send-email-vbabka@suse.cz>
 From: Jerome Marchand <jmarchan@redhat.com>
-Message-ID: <560E9B31.6070208@redhat.com>
-Date: Fri, 2 Oct 2015 16:56:49 +0200
+Message-ID: <560E9C05.2030807@redhat.com>
+Date: Fri, 2 Oct 2015 17:00:21 +0200
 MIME-Version: 1.0
-In-Reply-To: <1443792951-13944-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1443792951-13944-3-git-send-email-vbabka@suse.cz>
 Content-Type: multipart/signed; micalg=pgp-sha256;
  protocol="application/pgp-signature";
- boundary="7KP3ftr3XiO8Js2rOWKgRIuJF9CDO4qWg"
+ boundary="1u0lcuBlVInXJWOwELmlikb1anvCAvrGl"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
 Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
 This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---7KP3ftr3XiO8Js2rOWKgRIuJF9CDO4qWg
+--1u0lcuBlVInXJWOwELmlikb1anvCAvrGl
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
 
 On 10/02/2015 03:35 PM, Vlastimil Babka wrote:
-> The documentation for /proc/pid/status does not mention that the value =
-of
-> VmSwap counts only swapped out anonymous private pages and not shmem. T=
-his is
-> not obvious, so document this limitation.
+> Currently, /proc/pid/smaps will always show "Swap: 0 kB" for shmem-back=
+ed
+> mappings, even if the mapped portion does contain pages that were swapp=
+ed out.
+> This is because unlike private anonymous mappings, shmem does not chang=
+e pte
+> to swap entry, but pte_none when swapping the page out. In the smaps pa=
+ge
+> walk, such page thus looks like it was never faulted in.
+>=20
+> This patch changes smaps_pte_entry() to determine the swap status for s=
+uch
+> pte_none entries for shmem mappings, similarly to how mincore_page() do=
+es it.
+> Swapped out pages are thus accounted for.
+>=20
+> The accounting is arguably still not as precise as for private anonymou=
+s
+> mappings, since now we will count also pages that the process in questi=
+on never
+> accessed, but only another process populated them and then let them bec=
+ome
+> swapped out. I believe it is still less confusing and subtle than not s=
+howing
+> any swap usage by shmem mappings at all. Also, swapped out pages only b=
+ecomee a
+> performance issue for future accesses, and we cannot predict those for =
+neither
+> kind of mapping.
+
+Agreed, this is much better than the current situation. I don't think
+there is such a thing as a perfect accounting of shared pages anyway.
+
 >=20
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Acked-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> Acked-by: Michal Hocko <mhocko@suse.com>
 
 Acked-by: Jerome Marchand <jmarchan@redhat.com>
 
 
 
 
---7KP3ftr3XiO8Js2rOWKgRIuJF9CDO4qWg
+--1u0lcuBlVInXJWOwELmlikb1anvCAvrGl
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: OpenPGP digital signature
 Content-Disposition: attachment; filename="signature.asc"
@@ -55,16 +82,16 @@ Content-Disposition: attachment; filename="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQEcBAEBCAAGBQJWDpsxAAoJEHTzHJCtsuoCt/IIAKHif77cU7ZjriV3cY6EfsAA
-32SWUYj0gRvBsEi5Ig4HTG7RRwux95f6U4TQIaqqPWh8jaOx7bx8MyCf5NrMtY9D
-zbI9oSbvvByWx185CIQ/uVavqWErxRJFJhNbkKj3nDo7XfOfN1HmBGOfb+8xLvgp
-G7YjYq9MdDczx4FdiJM6F6/Z+Joz+AMZCQLICs5grjtgGB/9Yd3RSiWQtD1spoeU
-Kbq8MW6Pv0vVSFFQATipyFJZykUKhqrDCqV7WUj+xOdQYi0oIYjNQRzOGuHzJv0c
-zBAayqkmbGHruzIzk3JEOyUSk2h7vVdDl0bez3RNPodKWpvIE5RUIvtpBlpcOxo=
-=HE6n
+iQEcBAEBCAAGBQJWDpwFAAoJEHTzHJCtsuoCTXEIAKZfIObBQ8Z0CI/KQ+DDVYh+
+5miYBipTa7OtygOj2MqZijOBq4Clb0laZKImXBsdvC3bBTcRcc/w3wv0KOO+isVd
+nciL6CDeonlDyM7ZFkcHuK0XbEVLD4npknbqjG7jhRAoyvsUoPI7BwYDKrBdA1vf
+gPSVlX4ralcMseKO7lAIvEHy9HhtTP0u8U9uUpNAyIDzc4L1sONWWD3o262rW8Xx
+esZJhJxh6rP9YoICBOMl5e6/j0XKoeIEnEfFFbGhbZzfIhGpz7pO/uTZzSZBgYpz
+G1lOFjgnYnXVGwnT1/TQ68TB7wJBN0Ka2EtDL9L3yQ61NdVaFHz8bC1nO2nLfTM=
+=PbMz
 -----END PGP SIGNATURE-----
 
---7KP3ftr3XiO8Js2rOWKgRIuJF9CDO4qWg--
+--1u0lcuBlVInXJWOwELmlikb1anvCAvrGl--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
