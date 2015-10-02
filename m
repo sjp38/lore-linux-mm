@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 866A86B0292
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 09:36:09 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so34263593wic.0
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 06:36:09 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 9112C6B0292
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 09:36:11 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so31414785wic.1
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 06:36:11 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v8si3164941wiz.88.2015.10.02.06.36.05
+        by mx.google.com with ESMTPS id y10si13413191wjx.70.2015.10.02.06.36.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Fri, 02 Oct 2015 06:36:05 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v4 3/4] mm, shmem: Add shmem resident memory accounting
-Date: Fri,  2 Oct 2015 15:35:50 +0200
-Message-Id: <1443792951-13944-4-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v4 2/4] mm, proc: account for shmem swap in /proc/pid/smaps
+Date: Fri,  2 Oct 2015 15:35:49 +0200
+Message-Id: <1443792951-13944-3-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1443792951-13944-1-git-send-email-vbabka@suse.cz>
 References: <1443792951-13944-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,269 +20,212 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
 Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Vlastimil Babka <vbabka@suse.cz>
 
-From: Jerome Marchand <jmarchan@redhat.com>
+Currently, /proc/pid/smaps will always show "Swap: 0 kB" for shmem-backed
+mappings, even if the mapped portion does contain pages that were swapped out.
+This is because unlike private anonymous mappings, shmem does not change pte
+to swap entry, but pte_none when swapping the page out. In the smaps page
+walk, such page thus looks like it was never faulted in.
 
-Currently looking at /proc/<pid>/status or statm, there is no way to
-distinguish shmem pages from pages mapped to a regular file (shmem
-pages are mapped to /dev/zero), even though their implication in
-actual memory use is quite different.
-This patch adds MM_SHMEMPAGES counter to mm_rss_stat to account for
-shmem pages instead of MM_FILEPAGES.
+This patch changes smaps_pte_entry() to determine the swap status for such
+pte_none entries for shmem mappings, similarly to how mincore_page() does it.
+Swapped out pages are thus accounted for.
 
-Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+The accounting is arguably still not as precise as for private anonymous
+mappings, since now we will count also pages that the process in question never
+accessed, but only another process populated them and then let them become
+swapped out. I believe it is still less confusing and subtle than not showing
+any swap usage by shmem mappings at all. Also, swapped out pages only becomee a
+performance issue for future accesses, and we cannot predict those for neither
+kind of mapping.
+
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/s390/mm/pgtable.c   |  5 +----
- fs/proc/task_mmu.c       |  3 ++-
- include/linux/mm.h       | 18 +++++++++++++++++-
- include/linux/mm_types.h |  7 ++++---
- kernel/events/uprobes.c  |  2 +-
- mm/memory.c              | 30 ++++++++++--------------------
- mm/oom_kill.c            |  5 +++--
- mm/rmap.c                | 12 +++---------
- 8 files changed, 41 insertions(+), 41 deletions(-)
+ Documentation/filesystems/proc.txt |  6 ++--
+ fs/proc/task_mmu.c                 | 48 ++++++++++++++++++++++++++++++
+ include/linux/shmem_fs.h           |  6 ++++
+ mm/shmem.c                         | 61 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 119 insertions(+), 2 deletions(-)
 
-diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-index 54ef3bc..9816f25 100644
---- a/arch/s390/mm/pgtable.c
-+++ b/arch/s390/mm/pgtable.c
-@@ -603,10 +603,7 @@ static void gmap_zap_swap_entry(swp_entry_t entry, struct mm_struct *mm)
- 	else if (is_migration_entry(entry)) {
- 		struct page *page = migration_entry_to_page(entry);
- 
--		if (PageAnon(page))
--			dec_mm_counter(mm, MM_ANONPAGES);
--		else
--			dec_mm_counter(mm, MM_FILEPAGES);
-+		dec_mm_counter(mm, mm_counter(page));
- 	}
- 	free_swap_and_cache(entry);
- }
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 7ef50cb..82d3657 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -457,8 +457,10 @@ accessed.
+ a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
+ and a page is modified, the file page is replaced by a private anonymous copy.
+ "Swap" shows how much would-be-anonymous memory is also used, but out on
+-swap.
+-"SwapPss" shows proportional swap share of this mapping.
++swap. For shmem mappings, "Swap" shows how much of the mapped portion of the
++underlying shmem object is on swap.
++"SwapPss" shows proportional swap share of this mapping. Shmem mappings will
++currently show 0 here.
+ "AnonHugePages" shows the ammount of memory backed by transparent hugepage.
+ "Shared_Hugetlb" and "Private_Hugetlb" show the ammounts of memory backed by
+ hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 103457c..9b9708e 100644
+index 04999b2..103457c 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -83,7 +83,8 @@ unsigned long task_statm(struct mm_struct *mm,
- 			 unsigned long *shared, unsigned long *text,
- 			 unsigned long *data, unsigned long *resident)
+@@ -14,6 +14,7 @@
+ #include <linux/swapops.h>
+ #include <linux/mmu_notifier.h>
+ #include <linux/page_idle.h>
++#include <linux/shmem_fs.h>
+ 
+ #include <asm/elf.h>
+ #include <asm/uaccess.h>
+@@ -657,6 +658,51 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
+ }
+ #endif /* HUGETLB_PAGE */
+ 
++#ifdef CONFIG_SHMEM
++static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)
++{
++	struct inode *inode;
++	unsigned long swapped;
++	pgoff_t start, end;
++
++	if (!vma->vm_file)
++		return 0;
++
++	inode = file_inode(vma->vm_file);
++
++	if (!shmem_mapping(inode->i_mapping))
++		return 0;
++
++	/*
++	 * The easier cases are when the shmem object has nothing in swap, or
++	 * we have the whole object mapped. Then we can simply use the stats
++	 * that are already tracked by shmem.
++	 */
++	swapped = shmem_swap_usage(inode);
++
++	if (swapped == 0)
++		return 0;
++
++	if (vma->vm_end - vma->vm_start >= inode->i_size)
++		return swapped;
++
++	/*
++	 * Here we have to inspect individual pages in our mapped range to
++	 * determine how much of them are swapped out. Thanks to RCU, we don't
++	 * need i_mutex to protect against truncating or hole punching.
++	 */
++	start = linear_page_index(vma, vma->vm_start);
++	end = linear_page_index(vma, vma->vm_end);
++
++	return shmem_partial_swap_usage(inode->i_mapping, start, end);
++}
++#else
++static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)
++{
++	return 0;
++}
++#endif
++
+ static int show_smap(struct seq_file *m, void *v, int is_pid)
  {
--	*shared = get_mm_counter(mm, MM_FILEPAGES);
-+	*shared = get_mm_counter(mm, MM_FILEPAGES) +
-+			get_mm_counter(mm, MM_SHMEMPAGES);
- 	*text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK))
- 								>> PAGE_SHIFT;
- 	*data = mm->total_vm - mm->shared_vm;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index d30eea3..8be4efc 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1361,10 +1361,26 @@ static inline void dec_mm_counter(struct mm_struct *mm, int member)
- 	atomic_long_dec(&mm->rss_stat.count[member]);
+ 	struct vm_area_struct *vma = v;
+@@ -674,6 +720,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 	/* mmap_sem is held in m_start */
+ 	walk_page_vma(vma, &smaps_walk);
+ 
++	mss.swap += smaps_shmem_swap(vma);
++
+ 	show_map_vma(m, vma, is_pid);
+ 
+ 	seq_printf(m,
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index 50777b5..12519e4 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -60,6 +60,12 @@ extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
+ extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
+ extern int shmem_unuse(swp_entry_t entry, struct page *page);
+ 
++#ifdef CONFIG_SWAP
++extern unsigned long shmem_swap_usage(struct inode *inode);
++extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
++						pgoff_t start, pgoff_t end);
++#endif
++
+ static inline struct page *shmem_read_mapping_page(
+ 				struct address_space *mapping, pgoff_t index)
+ {
+diff --git a/mm/shmem.c b/mm/shmem.c
+index b543cc7..b0e9e30 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -360,6 +360,67 @@ static int shmem_free_swap(struct address_space *mapping,
  }
  
-+/* Optimized variant when page is already known not to be PageAnon */
-+static inline int mm_counter_file(struct page *page)
+ /*
++ * Determine (in bytes) how much of the whole shmem object is swapped out.
++ */
++unsigned long shmem_swap_usage(struct inode *inode)
 +{
-+	if (PageSwapBacked(page))
-+		return MM_SHMEMPAGES;
-+	return MM_FILEPAGES;
++	struct shmem_inode_info *info = SHMEM_I(inode);
++	unsigned long swapped;
++
++	/* Mostly an overkill, but it's not atomic64_t */
++	spin_lock(&info->lock);
++	swapped = info->swapped;
++	spin_unlock(&info->lock);
++
++	return swapped << PAGE_SHIFT;
 +}
 +
-+static inline int mm_counter(struct page *page)
++/*
++ * Determine (in bytes) how many pages within the given range are swapped out.
++ *
++ * Can be called without i_mutex or mapping->tree_lock thanks to RCU.
++ */
++unsigned long shmem_partial_swap_usage(struct address_space *mapping,
++						pgoff_t start, pgoff_t end)
 +{
-+	if (PageAnon(page))
-+		return MM_ANONPAGES;
-+	return mm_counter_file(page);
++	struct radix_tree_iter iter;
++	void **slot;
++	struct page *page;
++	unsigned long swapped = 0;
++
++	rcu_read_lock();
++
++restart:
++	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
++		if (iter.index >= end)
++			break;
++
++		page = radix_tree_deref_slot(slot);
++
++		/*
++		 * This should only be possible to happen at index 0, so we
++		 * don't need to reset the counter, nor do we risk infinite
++		 * restarts.
++		 */
++		if (radix_tree_deref_retry(page))
++			goto restart;
++
++		if (radix_tree_exceptional_entry(page))
++			swapped++;
++
++		if (need_resched()) {
++			cond_resched_rcu();
++			start = iter.index + 1;
++			goto restart;
++		}
++	}
++
++	rcu_read_unlock();
++
++	return swapped << PAGE_SHIFT;
 +}
 +
- static inline unsigned long get_mm_rss(struct mm_struct *mm)
- {
- 	return get_mm_counter(mm, MM_FILEPAGES) +
--		get_mm_counter(mm, MM_ANONPAGES);
-+		get_mm_counter(mm, MM_ANONPAGES) +
-+		get_mm_counter(mm, MM_SHMEMPAGES);
- }
- 
- static inline unsigned long get_mm_hiwater_rss(struct mm_struct *mm)
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index f8d1492..207890b 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -369,9 +369,10 @@ struct core_state {
- };
- 
- enum {
--	MM_FILEPAGES,
--	MM_ANONPAGES,
--	MM_SWAPENTS,
-+	MM_FILEPAGES,	/* Resident file mapping pages */
-+	MM_ANONPAGES,	/* Resident anonymous pages */
-+	MM_SWAPENTS,	/* Anonymous swap entries */
-+	MM_SHMEMPAGES,	/* Resident shared memory pages */
- 	NR_MM_COUNTERS
- };
- 
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 4e5e979..6288606 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -180,7 +180,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
- 	lru_cache_add_active_or_unevictable(kpage, vma);
- 
- 	if (!PageAnon(page)) {
--		dec_mm_counter(mm, MM_FILEPAGES);
-+		dec_mm_counter(mm, mm_counter_file(page));
- 		inc_mm_counter(mm, MM_ANONPAGES);
- 	}
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 3bd465a..f10d458 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -832,10 +832,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		} else if (is_migration_entry(entry)) {
- 			page = migration_entry_to_page(entry);
- 
--			if (PageAnon(page))
--				rss[MM_ANONPAGES]++;
--			else
--				rss[MM_FILEPAGES]++;
-+			rss[mm_counter(page)]++;
- 
- 			if (is_write_migration_entry(entry) &&
- 					is_cow_mapping(vm_flags)) {
-@@ -874,10 +871,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	if (page) {
- 		get_page(page);
- 		page_dup_rmap(page);
--		if (PageAnon(page))
--			rss[MM_ANONPAGES]++;
--		else
--			rss[MM_FILEPAGES]++;
-+		rss[mm_counter(page)]++;
- 	}
- 
- out_set_pte:
-@@ -1113,9 +1107,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 			tlb_remove_tlb_entry(tlb, pte, addr);
- 			if (unlikely(!page))
- 				continue;
--			if (PageAnon(page))
--				rss[MM_ANONPAGES]--;
--			else {
-+
-+			if (!PageAnon(page)) {
- 				if (pte_dirty(ptent)) {
- 					force_flush = 1;
- 					set_page_dirty(page);
-@@ -1123,8 +1116,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 				if (pte_young(ptent) &&
- 				    likely(!(vma->vm_flags & VM_SEQ_READ)))
- 					mark_page_accessed(page);
--				rss[MM_FILEPAGES]--;
- 			}
-+			rss[mm_counter(page)]--;
- 			page_remove_rmap(page);
- 			if (unlikely(page_mapcount(page) < 0))
- 				print_bad_pte(vma, addr, ptent, page);
-@@ -1146,11 +1139,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 			struct page *page;
- 
- 			page = migration_entry_to_page(entry);
--
--			if (PageAnon(page))
--				rss[MM_ANONPAGES]--;
--			else
--				rss[MM_FILEPAGES]--;
-+			rss[mm_counter(page)]--;
- 		}
- 		if (unlikely(!free_swap_and_cache(entry)))
- 			print_bad_pte(vma, addr, ptent, NULL);
-@@ -1460,7 +1449,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
- 
- 	/* Ok, finally just insert the thing.. */
- 	get_page(page);
--	inc_mm_counter_fast(mm, MM_FILEPAGES);
-+	inc_mm_counter_fast(mm, mm_counter_file(page));
- 	page_add_file_rmap(page);
- 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
- 
-@@ -2097,7 +2086,8 @@ static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (likely(pte_same(*page_table, orig_pte))) {
- 		if (old_page) {
- 			if (!PageAnon(old_page)) {
--				dec_mm_counter_fast(mm, MM_FILEPAGES);
-+				dec_mm_counter_fast(mm,
-+						mm_counter_file(old_page));
- 				inc_mm_counter_fast(mm, MM_ANONPAGES);
- 			}
- 		} else {
-@@ -2818,7 +2808,7 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
- 		inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
- 		page_add_new_anon_rmap(page, vma, address);
- 	} else {
--		inc_mm_counter_fast(vma->vm_mm, MM_FILEPAGES);
-+		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
- 		page_add_file_rmap(page);
- 	}
- 	set_pte_at(vma->vm_mm, address, pte, entry);
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 4766e25..127e2d6 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -567,10 +567,11 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	 */
- 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
- 	mark_oom_victim(victim);
--	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
-+	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
- 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
- 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
--		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
-+		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
-+		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
- 	task_unlock(victim);
- 
- 	/*
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 0ce371a..6c89356 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1383,10 +1383,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		if (PageHuge(page)) {
- 			hugetlb_count_sub(1 << compound_order(page), mm);
- 		} else {
--			if (PageAnon(page))
--				dec_mm_counter(mm, MM_ANONPAGES);
--			else
--				dec_mm_counter(mm, MM_FILEPAGES);
-+			dec_mm_counter(mm, mm_counter(page));
- 		}
- 		set_pte_at(mm, address, pte,
- 			   swp_entry_to_pte(make_hwpoison_entry(page)));
-@@ -1396,10 +1393,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		 * interest anymore. Simply discard the pte, vmscan
- 		 * will take care of the rest.
- 		 */
--		if (PageAnon(page))
--			dec_mm_counter(mm, MM_ANONPAGES);
--		else
--			dec_mm_counter(mm, MM_FILEPAGES);
-+		dec_mm_counter(mm, mm_counter(page));
- 	} else if (PageAnon(page)) {
- 		swp_entry_t entry = { .val = page_private(page) };
- 		pte_t swp_pte;
-@@ -1455,7 +1449,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		entry = make_migration_entry(page, pte_write(pteval));
- 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
- 	} else
--		dec_mm_counter(mm, MM_FILEPAGES);
-+		dec_mm_counter(mm, mm_counter_file(page));
- 
- discard:
- 	page_remove_rmap(page);
++/*
+  * SysV IPC SHM_UNLOCK restore Unevictable pages to their evictable lists.
+  */
+ void shmem_unlock_mapping(struct address_space *mapping)
 -- 
 2.5.2
 
