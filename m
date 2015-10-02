@@ -1,202 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2AA4402FE
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 17:02:47 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so118401392pac.2
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 14:02:47 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id pw1si19378900pbb.1.2015.10.02.14.02.45
-        for <linux-mm@kvack.org>;
-        Fri, 02 Oct 2015 14:02:45 -0700 (PDT)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH 3/3] Revert "dax: fix race between simultaneous faults"
-Date: Fri,  2 Oct 2015 15:02:32 -0600
-Message-Id: <1443819752-17091-4-git-send-email-ross.zwisler@linux.intel.com>
-In-Reply-To: <1443819752-17091-1-git-send-email-ross.zwisler@linux.intel.com>
-References: <1443819752-17091-1-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 75B474402FE
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 17:21:51 -0400 (EDT)
+Received: by ioii196 with SMTP id i196so133540789ioi.3
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 14:21:51 -0700 (PDT)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id e14si10192906ioi.65.2015.10.02.14.21.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Oct 2015 14:21:50 -0700 (PDT)
+Date: Fri, 2 Oct 2015 15:21:37 -0600
+From: Logan Gunthorpe <logang@deltatee.com>
+Subject: Re: [PATCH 14/15] mm, dax, pmem: introduce {get|put}_dev_pagemap()
+ for dax-gup
+Message-ID: <20151002212137.GB30448@deltatee.com>
+References: <20150923043737.36490.70547.stgit@dwillia2-desk3.jf.intel.com>
+ <20150923044227.36490.99741.stgit@dwillia2-desk3.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150923044227.36490.99741.stgit@dwillia2-desk3.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <willy@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <dchinner@redhat.com>, Jan Kara <jack@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-nvdimm@lists.01.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Dave Hansen <dave@sr71.net>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Stephen Bates <Stephen.Bates@pmcs.com>
 
-This reverts commit 843172978bb92997310d2f7fbc172ece423cfc02.
+Hi Dan,
 
-The following two locking commits in the DAX code:
+We've been doing some experimenting and testing with this patchset.
+Specifically, we are trying to use you're ZONE_DEVICE work to enable
+peer to peer PCIe transfers. This is actually working pretty well
+(though we're still testing and working through some things).
 
-commit 843172978bb9 ("dax: fix race between simultaneous faults")
-commit 46c043ede471 ("mm: take i_mmap_lock in unmap_mapping_range() for DAX")
+However, we've found a couple of issues:
 
-introduced a number of deadlocks and other issues, and need to be
-reverted for the v4.3 kernel.  The list of issues in DAX after these
-commits (some newly introduced by the commits, some preexisting) can be
-found here:
+On Wed, Sep 23, 2015 at 12:42:27AM -0400, Dan Williams wrote:
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 3d6baa7d4534..20097e7b679a 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -49,12 +49,16 @@ struct page {
+>  					 * updated asynchronously */
+>  	union {
+>  		struct address_space *mapping;	/* If low bit clear, points to
+> -						 * inode address_space, or NULL.
+> +						 * inode address_space, unless
+> +						 * the page is in ZONE_DEVICE
+> +						 * then it points to its parent
+> +						 * dev_pagemap, otherwise NULL.
+>  						 * If page mapped as anonymous
+>  						 * memory, low bit is set, and
+>  						 * it points to anon_vma object:
+>  						 * see PAGE_MAPPING_ANON below.
+>  						 */
+> +		struct dev_pagemap *pgmap;
+>  		void *s_mem;			/* slab first object */
+>  	};
 
-https://lkml.org/lkml/2015/9/25/602
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
----
- fs/dax.c    | 33 ++++++++++++++++-----------------
- mm/memory.c | 11 +++--------
- 2 files changed, 19 insertions(+), 25 deletions(-)
+When you add to this union and overide the mapping value, we see bugs
+in calls to set_page_dirty when it tries to dereference mapping. I believe
+a change to page_mapping is required such as the patch that's at the end of
+this email.
 
-diff --git a/fs/dax.c b/fs/dax.c
-index de3f53e..f364c90 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -285,6 +285,7 @@ static int copy_user_bh(struct page *to, struct buffer_head *bh,
- static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 			struct vm_area_struct *vma, struct vm_fault *vmf)
- {
-+	struct address_space *mapping = inode->i_mapping;
- 	sector_t sector = bh->b_blocknr << (inode->i_blkbits - 9);
- 	unsigned long vaddr = (unsigned long)vmf->virtual_address;
- 	void __pmem *addr;
-@@ -292,6 +293,8 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 	pgoff_t size;
- 	int error;
- 
-+	i_mmap_lock_read(mapping);
+
+> diff --git a/mm/gup.c b/mm/gup.c
+> index a798293fc648..1064e9a489a4 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -98,7 +98,16 @@ retry:
+>  	}
+>
+>  	page = vm_normal_page(vma, address, pte);
+> -	if (unlikely(!page)) {
+> +	if (!page && pte_devmap(pte) && (flags & FOLL_GET)) {
+> +		/*
+> +		 * Only return device mapping pages in the FOLL_GET case since
+> +		 * they are only valid while holding the pgmap reference.
+> +		 */
+> +		if (get_dev_pagemap(pte_pfn(pte), NULL))
+> +			page = pte_page(pte);
+> +		else
+> +			goto no_page;
+> +	} else if (unlikely(!page)) {
+
+I've found that if a driver creates a ZONE_DEVICE mapping but doesn't
+create the pagemap (using devm_register_pagemap) then the get_user_pages code
+will go into an infinite loop. I'm not really sure if this as an issue or
+not but it seems a bit undesirable for a buggy driver to be able to cause this.
+
+My thoughts are that either devm_register_pagemap needs to be done by
+devm_memremap_pages so a driver cannot use one without the other,
+or the GUP code needs to return EFAULT if no pagemap was registered so
+it doesn't loop forever.
+
+Thanks!
+
+Logan
+
+
+
+diff --git a/mm/util.c b/mm/util.c
+index 68ff8a5..19af683 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -368,6 +368,9 @@ struct address_space *page_mapping(struct page *page)
+ 		return swap_address_space(entry);
+ 	}
+
++	if (unlikely(is_zone_device_page(page)))
++		return NULL;
 +
- 	/*
- 	 * Check truncate didn't happen while we were allocating a block.
- 	 * If it did, this block may or may not be still allocated to the
-@@ -321,6 +324,8 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 	error = vm_insert_mixed(vma, vaddr, pfn);
- 
-  out:
-+	i_mmap_unlock_read(mapping);
-+
- 	return error;
- }
- 
-@@ -382,17 +387,15 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 			 * from a read fault and we've raced with a truncate
- 			 */
- 			error = -EIO;
--			goto unlock;
-+			goto unlock_page;
- 		}
--	} else {
--		i_mmap_lock_write(mapping);
- 	}
- 
- 	error = get_block(inode, block, &bh, 0);
- 	if (!error && (bh.b_size < PAGE_SIZE))
- 		error = -EIO;		/* fs corruption? */
- 	if (error)
--		goto unlock;
-+		goto unlock_page;
- 
- 	if (!buffer_mapped(&bh) && !buffer_unwritten(&bh) && !vmf->cow_page) {
- 		if (vmf->flags & FAULT_FLAG_WRITE) {
-@@ -403,9 +406,8 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 			if (!error && (bh.b_size < PAGE_SIZE))
- 				error = -EIO;
- 			if (error)
--				goto unlock;
-+				goto unlock_page;
- 		} else {
--			i_mmap_unlock_write(mapping);
- 			return dax_load_hole(mapping, page, vmf);
- 		}
- 	}
-@@ -417,15 +419,17 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 		else
- 			clear_user_highpage(new_page, vaddr);
- 		if (error)
--			goto unlock;
-+			goto unlock_page;
- 		vmf->page = page;
- 		if (!page) {
-+			i_mmap_lock_read(mapping);
- 			/* Check we didn't race with truncate */
- 			size = (i_size_read(inode) + PAGE_SIZE - 1) >>
- 								PAGE_SHIFT;
- 			if (vmf->pgoff >= size) {
-+				i_mmap_unlock_read(mapping);
- 				error = -EIO;
--				goto unlock;
-+				goto out;
- 			}
- 		}
- 		return VM_FAULT_LOCKED;
-@@ -461,8 +465,6 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 			WARN_ON_ONCE(!(vmf->flags & FAULT_FLAG_WRITE));
- 	}
- 
--	if (!page)
--		i_mmap_unlock_write(mapping);
-  out:
- 	if (error == -ENOMEM)
- 		return VM_FAULT_OOM | major;
-@@ -471,14 +473,11 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 		return VM_FAULT_SIGBUS | major;
- 	return VM_FAULT_NOPAGE | major;
- 
-- unlock:
-+ unlock_page:
- 	if (page) {
- 		unlock_page(page);
- 		page_cache_release(page);
--	} else {
--		i_mmap_unlock_write(mapping);
- 	}
--
- 	goto out;
- }
- EXPORT_SYMBOL(__dax_fault);
-@@ -556,10 +555,10 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	block = (sector_t)pgoff << (PAGE_SHIFT - blkbits);
- 
- 	bh.b_size = PMD_SIZE;
--	i_mmap_lock_write(mapping);
- 	length = get_block(inode, block, &bh, write);
- 	if (length)
- 		return VM_FAULT_SIGBUS;
-+	i_mmap_lock_read(mapping);
- 
- 	/*
- 	 * If the filesystem isn't willing to tell us the length of a hole,
-@@ -634,11 +633,11 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	}
- 
-  out:
-+	i_mmap_unlock_read(mapping);
-+
- 	if (buffer_unwritten(&bh))
- 		complete_unwritten(&bh, !(result & VM_FAULT_ERROR));
- 
--	i_mmap_unlock_write(mapping);
--
- 	return result;
- 
-  fallback:
-diff --git a/mm/memory.c b/mm/memory.c
-index 5ec066f..deb679c 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2427,16 +2427,11 @@ void unmap_mapping_range(struct address_space *mapping,
- 		details.last_index = ULONG_MAX;
- 
- 
--	/*
--	 * DAX already holds i_mmap_lock to serialise file truncate vs
--	 * page fault and page fault vs page fault.
--	 */
--	if (!IS_DAX(mapping->host))
--		i_mmap_lock_write(mapping);
-+	/* DAX uses i_mmap_lock to serialise file truncate vs page fault */
-+	i_mmap_lock_write(mapping);
- 	if (unlikely(!RB_EMPTY_ROOT(&mapping->i_mmap)))
- 		unmap_mapping_range_tree(&mapping->i_mmap, &details);
--	if (!IS_DAX(mapping->host))
--		i_mmap_unlock_write(mapping);
-+	i_mmap_unlock_write(mapping);
- }
- EXPORT_SYMBOL(unmap_mapping_range);
- 
--- 
-2.1.0
+ 	mapping = (unsigned long)page->mapping;
+ 	if (mapping & PAGE_MAPPING_FLAGS)
+ 		return NULL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
