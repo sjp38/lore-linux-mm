@@ -1,67 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 5531582F99
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 04:53:27 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so23992476wic.1
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 01:53:26 -0700 (PDT)
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com. [209.85.212.178])
-        by mx.google.com with ESMTPS id b18si12152777wjs.105.2015.10.02.01.53.25
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B149E82F99
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 05:41:24 -0400 (EDT)
+Received: by qgev79 with SMTP id v79so89698337qge.0
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 02:41:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q72si9566877qkl.121.2015.10.02.02.41.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Oct 2015 01:53:25 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so23342887wic.0
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 01:53:25 -0700 (PDT)
-Date: Fri, 2 Oct 2015 10:53:24 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: linux-next: kernel BUG at mm/slub.c:1447!
-Message-ID: <20151002085324.GA2927@dhcp22.suse.cz>
-References: <560D59F7.4070002@roeck-us.net>
- <20151001134904.127ccc7bea14e969fbfba0d5@linux-foundation.org>
- <20151002072522.GC30354@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Oct 2015 02:41:23 -0700 (PDT)
+Date: Fri, 2 Oct 2015 11:41:18 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [MM PATCH V4.1 5/6] slub: support for bulk free with SLUB
+ freelists
+Message-ID: <20151002114118.75aae2f9@redhat.com>
+In-Reply-To: <20151001151015.c59a1360c7720a257f655578@linux-foundation.org>
+References: <560ABE86.9050508@gmail.com>
+	<20150930114255.13505.2618.stgit@canyon>
+	<20151001151015.c59a1360c7720a257f655578@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151002072522.GC30354@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Guenter Roeck <linux@roeck-us.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Alexander Duyck <alexander.duyck@gmail.com>, Pekka Enberg <penberg@kernel.org>, netdev@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, brouer@redhat.com
 
-On Fri 02-10-15 09:25:22, Michal Hocko wrote:
-> On Thu 01-10-15 13:49:04, Andrew Morton wrote:
-[...]
-> > Now, we could redefine mapping_gfp_mask()'s purpose (or formalize
-> > stuff which has been sneaking in anyway).  Treat mapping_gfp_mask() as
-> > a constraint mask - instead of it being "use this gfp for this
-> > mapping", it becomes "don't use these gfp flags for this mapping".
-> > 
-> > Hence something like:
-> > 
-> > gfp_t mapping_gfp_constraint(struct address_space *mapping, gfp_t gfp_in)
-> > {
-> > 	return mapping_gfp_mask(mapping) & gfp_in;
-> > }
-> > 
-> > So instead of doing this:
-> > 
-> > @@ -370,12 +371,13 @@ mpage_readpages(struct address_space *ma
-> >  		prefetchw(&page->flags);
-> >  		list_del(&page->lru);
-> >  		if (!add_to_page_cache_lru(page, mapping,
-> > -					page->index, GFP_KERNEL)) {
-> > +					page->index,
-> > +					gfp)) {
-> > 
-[...]
-> I will post another one which
-> will add mapping_gfp_constraint on top. It will surely be less error
-> prone.
+On Thu, 1 Oct 2015 15:10:15 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-OK, so here we go. There are still few direct users of mapping_gfp_mask
-but most of them use it unrestricted. The only exception seems to be
-loop driver and luste lloop which save and restrict mapping_gfp which
-didn't seem worthwhile converting.
+> On Wed, 30 Sep 2015 13:44:19 +0200 Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+> 
+> > Make it possible to free a freelist with several objects by adjusting
+> > API of slab_free() and __slab_free() to have head, tail and an objects
+> > counter (cnt).
+> > 
+> > Tail being NULL indicate single object free of head object.  This
+> > allow compiler inline constant propagation in slab_free() and
+> > slab_free_freelist_hook() to avoid adding any overhead in case of
+> > single object free.
+> > 
+> > This allows a freelist with several objects (all within the same
+> > slab-page) to be free'ed using a single locked cmpxchg_double in
+> > __slab_free() and with an unlocked cmpxchg_double in slab_free().
+> > 
+> > Object debugging on the free path is also extended to handle these
+> > freelists.  When CONFIG_SLUB_DEBUG is enabled it will also detect if
+> > objects don't belong to the same slab-page.
+> > 
+> > These changes are needed for the next patch to bulk free the detached
+> > freelists it introduces and constructs.
+> > 
+> > Micro benchmarking showed no performance reduction due to this change,
+> > when debugging is turned off (compiled with CONFIG_SLUB_DEBUG).
+> > 
+> 
+> checkpatch says
+> 
+> WARNING: Avoid crashing the kernel - try using WARN_ON & recovery code rather than BUG() or BUG_ON()
+> #205: FILE: mm/slub.c:2888:
+> +       BUG_ON(!size);
+> 
+> 
+> Linus will get mad at you if he finds out, and we wouldn't want that.
+> 
+> --- a/mm/slub.c~slub-optimize-bulk-slowpath-free-by-detached-freelist-fix
+> +++ a/mm/slub.c
+> @@ -2885,7 +2885,8 @@ static int build_detached_freelist(struc
+>  /* Note that interrupts must be enabled when calling this function. */
+>  void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+>  {
+> -	BUG_ON(!size);
+> +	if (WARN_ON(!size))
+> +		return;
+>  
+>  	do {
+>  		struct detached_freelist df;
+> _
 
-This is on top of the current linux-next + the updated fix for the loop
-hang.
----
+My problem with this change is that WARN_ON generates (slightly) larger
+code size, which is critical for instruction-cache usage...
+
+ [net-next-mm]$ ./scripts/bloat-o-meter vmlinux-with_BUG_ON vmlinux-with_WARN_ON 
+ add/remove: 0/0 grow/shrink: 1/0 up/down: 17/0 (17)
+ function                                     old     new   delta
+ kmem_cache_free_bulk                         438     455     +17
+
+My IP-forwarding benchmark is actually a very challenging use-case,
+because the code path "size" a packet have to travel is larger than the
+instruction-cache of the CPU.
+
+Thus, I need introducing new code like this patch and at the same time
+have to reduce the number of instruction-cache misses/usage.  In this
+case we solve the problem by kmem_cache_free_bulk() not getting called
+too often. Thus, +17 bytes will hopefully not matter too much... but on
+the other hand we sort-of know that calling kmem_cache_free_bulk() will
+cause icache misses.
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
