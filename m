@@ -1,68 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D48A4402F8
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 15:01:08 -0400 (EDT)
-Received: by ioii196 with SMTP id i196so129900968ioi.3
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 12:01:08 -0700 (PDT)
-Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
-        by mx.google.com with ESMTPS id r9si290942igh.88.2015.10.02.12.01.07
+Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D63E14402F8
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 15:24:58 -0400 (EDT)
+Received: by ykdt18 with SMTP id t18so120077656ykd.3
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 12:24:58 -0700 (PDT)
+Received: from mail-yk0-x22b.google.com (mail-yk0-x22b.google.com. [2607:f8b0:4002:c07::22b])
+        by mx.google.com with ESMTPS id z9si6175232ywb.9.2015.10.02.12.24.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Oct 2015 12:01:07 -0700 (PDT)
-Received: by ioiz6 with SMTP id z6so130002068ioi.2
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 12:01:07 -0700 (PDT)
+        Fri, 02 Oct 2015 12:24:58 -0700 (PDT)
+Received: by ykdt18 with SMTP id t18so120077368ykd.3
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 12:24:58 -0700 (PDT)
+Date: Fri, 2 Oct 2015 15:24:53 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC v2 07/18] kthread: Allow to cancel kthread work
+Message-ID: <20151002192453.GA7564@mtj.duckdns.org>
+References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
+ <1442840639-6963-8-git-send-email-pmladek@suse.com>
+ <20150922193513.GE17659@mtj.duckdns.org>
+ <20150925112617.GA3122@pathway.suse.cz>
+ <20150928170314.GF2589@mtj.duckdns.org>
+ <20151002154336.GC3122@pathway.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20151002123639.GA13914@dhcp22.suse.cz>
-References: <20150922160608.GA2716@redhat.com>
-	<20150923205923.GB19054@dhcp22.suse.cz>
-	<alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
-	<20150925093556.GF16497@dhcp22.suse.cz>
-	<201509260114.ADI35946.OtHOVFOMJQFLFS@I-love.SAKURA.ne.jp>
-	<201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
-	<20151002123639.GA13914@dhcp22.suse.cz>
-Date: Fri, 2 Oct 2015 15:01:06 -0400
-Message-ID: <CA+55aFw=OLSdh-5Ut2vjy=4Yf1fTXqpzoDHdF7XnT5gDHs6sYA@mail.gmail.com>
-Subject: Re: can't oom-kill zap the victim's memory?
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151002154336.GC3122@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Oct 2, 2015 at 8:36 AM, Michal Hocko <mhocko@kernel.org> wrote:
->
-> Have they been reported/fixed? All kernel paths doing an allocation are
-> _supposed_ to check and handle ENOMEM. If they are not then they are
-> buggy and should be fixed.
+Hello,
 
-No. Stop this theoretical idiocy.
+On Fri, Oct 02, 2015 at 05:43:36PM +0200, Petr Mladek wrote:
+> IMHO, we need both locks. The worker manipulates more works and
+> need its own lock. We need work-specific lock because the work
+> might be assigned to different workers and we need to be sure
+> that the operations are really serialized, e.g. queuing.
 
-We've tried it. I objected before people tried it, and it turns out
-that it was a horrible idea.
+I don't think we need per-work lock.  Do we have such usage in kernel
+at all?  If you're worried, let the first queueing record the worker
+and trigger warning if someone tries to queue it anywhere else.  This
+doesn't need to be full-on general like workqueue.  Let's make
+reasonable trade-offs where possible.
 
-Small kernel allocations should basically never fail, because we end
-up needing memory for random things, and if a kmalloc() fails it's
-because some application is using too much memory, and the application
-should be killed. Never should the kernel allocation fail. It really
-is that simple. If we are out of memory, that does not mean that we
-should start failing random kernel things.
+Thanks.
 
-So this "people should check for allocation failures" is bullshit.
-It's a computer science myth. It's simply not true in all cases.
-
-Kernel allocators that know that they do large allocations (ie bigger
-than a few pages) need to be able to handle the failure, but not the
-general case. Also, kernel allocators that know they have a good
-fallback (eg they try a large allocation first but can fall back to a
-smaller one) should use __GFP_NORETRY, but again, that does *not* in
-any way mean that general kernel allocations should randomly fail.
-
-So no. The answer is ABSOLUTELY NOT "everybody should check allocation
-failure". Get over it. I refuse to go through that circus again. It's
-stupid.
-
-             Linus
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
