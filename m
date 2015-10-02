@@ -1,80 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id CDAAC82F99
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 09:06:23 -0400 (EDT)
-Received: by obbda8 with SMTP id da8so81306609obb.1
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 06:06:23 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id r184si5940731oih.53.2015.10.02.06.06.22
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 684616B0291
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 09:36:06 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so31411206wic.1
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 06:36:05 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ub1si9816579wib.30.2015.10.02.06.36.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=RC4-SHA bits=128/128);
-        Fri, 02 Oct 2015 06:06:22 -0700 (PDT)
-Subject: Re: can't oom-kill zap the victim's memory?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150923205923.GB19054@dhcp22.suse.cz>
-	<alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
-	<20150925093556.GF16497@dhcp22.suse.cz>
-	<alpine.DEB.2.10.1509281512330.13657@chino.kir.corp.google.com>
-	<20151001144820.GI24077@dhcp22.suse.cz>
-In-Reply-To: <20151001144820.GI24077@dhcp22.suse.cz>
-Message-Id: <201510022206.BHF13585.MSOHOFFLQtVOJF@I-love.SAKURA.ne.jp>
-Date: Fri, 2 Oct 2015 22:06:09 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 02 Oct 2015 06:36:05 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v4 0/4] enhance shmem process and swap accounting
+Date: Fri,  2 Oct 2015 15:35:47 +0200
+Message-Id: <1443792951-13944-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, rientjes@google.com
-Cc: oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Vlastimil Babka <vbabka@suse.cz>
 
-Michal Hocko wrote:
-> On Mon 28-09-15 15:24:06, David Rientjes wrote:
-> > I agree that i_mutex seems to be one of the most common offenders.  
-> > However, I'm not sure I understand why holding it while trying to allocate 
-> > infinitely for an order-0 allocation is problematic wrt the proposed 
-> > kthread. 
-> 
-> I didn't say it would be problematic. We are talking past each other
-> here. All I wanted to say was that a separate kernel oom thread wouldn't
-> _help_ with the lock dependencies.
-> 
-Oops. I misunderstood that you are skeptical about memory unmapping approach
-due to lock dependency. But rather, you are skeptical about use of a dedicated
-kernel thread for memory unmapping approach.
+Hugh, you commented on the earlier patches from Jerome, can you take a look
+please so we can have this merged? Especially at the changes to shmem.c
+in Patch 2 and if they are indeed safe without extra locking. Thanks!
 
-> > The kthread itself need only take mmap_sem for read.  If all 
-> > threads sharing the mm with a victim have been SIGKILL'd, they should get 
-> > TIF_MEMDIE set when reclaim fails and be able to allocate so that they can 
-> > drop mmap_sem. 
-> 
-> which is the case if the direct oom context used trylock...
-> So just to make it clear. I am not objecting a specialized oom kernel
-> thread. It would work as well. I am just not convinced that it is really
-> needed because the direct oom context can use trylock and do the same
-> work directly.
+Changes since v3:
+o Rebase on next-20151002
+o Apply (feedb)acks from Michal Hocko and Konstantin Khlebnikov (Thanks!)
+  - drop CONFIG_SHMEM ifdefs, as it was the 2nd suggestion already
+  - add comments about not taking i_mutex in patch 2
+o Rename VmAnon/VmFile/VmShm to RssAnon/RssFile... to make it hopefully more
+  obvious that it's a breakdown of VmRSS. Naming things sucks.
 
-Well, I think it depends on from where we call memory unmapping code.
+Changes since v2:
+o Rebase on next-20150805.
+o This means that /proc/pid/maps has the proportional swap share (SwapPss:)
+  field as per https://lkml.org/lkml/2015/6/15/274
+  It's not clear what to do with shmem here so it's 0 for now.
+  - swapped out shmem doesn't have swap entries, so we would have to look at who
+    else has the shmem object (partially) mapped
+  - to be more precise we should also check if his range actually includes 
+    the offset in question, which could get rather involved
+  - or is there some easy way I don't see?
+o Konstantin suggested for patch 3/4 that I drop the CONFIG_SHMEM #ifdefs
+  I didn't see the point in going against tinyfication when the work is
+  already done, but I can do that if more people think it's better and it
+  would block the series.
 
-The first candidate is oom_kill_process() because it is a location where
-the mm struct to unmap is determined. But since select_bad_process()
-aborts upon encountering a TIF_MEMDIE task, we will fail to call memory
-unmapping code again if the first down_trylock(&mm->mmap_sem) attempt in
-oom_kill_process() failed. (Here I assumed that we allow all OOM victims
-to access memory reserves so that subsequent down_trylock(&mm->mmap_sem)
-attempts could succeed.)
+Changes since v1:
+o In Patch 2, rely on SHMEM_I(inode)->swapped if possible, and fallback to
+  radix tree iterator on partially mapped shmem objects, i.e. decouple shmem
+  swap usage determination from the page walk, for performance reasons.
+  Thanks to Jerome and Konstantin for the tips.
+  The downside is that mm/shmem.c had to be touched.
 
-The second candidate is select_bad_process() because it is a location
-where we can call memory unmapping code again upon encountering a
-TIF_MEMDIE task.
+This series is based on Jerome Marchand's [1] so let me quote the first
+paragraph from there:
 
-The third candidate is caller of out_of_memory() because it is a location
-where we can call memory unmapping code again even when the OOM victims
-are blocked. (Our discussion seems to assume that TIF_MEMDIE tasks can
-make forward progress and die. But since TIF_MEMDIE tasks might encounter
-unkillable locks after returning from allocation (e.g.
-http://lkml.kernel.org/r/201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp ),
-it will be safer not to assume that out_of_memory() can be always called.
-So, I thought that a dedicated kernel thread makes it easy to call memory
-unmapping code periodically again and again.
+There are several shortcomings with the accounting of shared memory
+(sysV shm, shared anonymous mapping, mapping to a tmpfs file). The
+values in /proc/<pid>/status and statm don't allow to distinguish
+between shmem memory and a shared mapping to a regular file, even
+though theirs implication on memory usage are quite different: at
+reclaim, file mapping can be dropped or write back on disk while shmem
+needs a place in swap. As for shmem pages that are swapped-out or in
+swap cache, they aren't accounted at all.
+
+The original motivation for myself is that a customer found (IMHO rightfully)
+confusing that e.g. top output for process swap usage is unreliable with
+respect to swapped out shmem pages, which are not accounted for.
+
+The fundamental difference between private anonymous and shmem pages is that
+the latter has PTE's converted to pte_none, and not swapents. As such, they are
+not accounted to the number of swapents visible e.g. in /proc/pid/status VmSwap
+row. It might be theoretically possible to use swapents when swapping out shmem
+(without extra cost, as one has to change all mappers anyway), and on swap in
+only convert the swapent for the faulting process, leaving swapents in other
+processes until they also fault (so again no extra cost). But I don't know how
+many assumptions this would break, and it would be too disruptive change for a
+relatively small benefit.
+
+Instead, my approach is to document the limitation of VmSwap, and provide means
+to determine the swap usage for shmem areas for those who are interested and
+willing to pay the price, using /proc/pid/smaps. Because outside of ipcs, I
+don't think it's possible to currently to determine the usage at all.  The
+previous patchset [1] did introduce new shmem-specific fields into smaps
+output, and functions to determine the values. I take a simpler approach,
+noting that smaps output already has a "Swap: X kB" line, where currently X ==
+0 always for shmem areas. I think we can just consider this a bug and provide
+the proper value by consulting the radix tree, as e.g. mincore_page() does. In the
+patch changelog I explain why this is also not perfect (and cannot be without
+swapents), but still arguably much better than showing a 0.
+
+The last two patches are adapted from Jerome's patchset and provide a VmRSS
+breakdown to VmAnon, VmFile and VmShm in /proc/pid/status. Hugh noted that
+this is a welcome addition, and I agree that it might help e.g. debugging
+process memory usage at albeit non-zero, but still rather low cost of extra
+per-mm counter and some page flag checks. I updated these patches to 4.0-rc1,
+made them respect !CONFIG_SHMEM so that tiny systems don't pay the cost, and
+optimized the page flag checking somewhat.
+
+[1] http://lwn.net/Articles/611966/
+
+Jerome Marchand (2):
+  mm, shmem: Add shmem resident memory accounting
+  mm, procfs: Display VmAnon, VmFile and VmShm in /proc/pid/status
+
+Vlastimil Babka (2):
+  mm, documentation: clarify /proc/pid/status VmSwap limitations
+  mm, proc: account for shmem swap in /proc/pid/smaps
+
+ Documentation/filesystems/proc.txt | 18 +++++++++--
+ arch/s390/mm/pgtable.c             |  5 +--
+ fs/proc/task_mmu.c                 | 65 ++++++++++++++++++++++++++++++++++++--
+ include/linux/mm.h                 | 18 ++++++++++-
+ include/linux/mm_types.h           |  7 ++--
+ include/linux/shmem_fs.h           |  6 ++++
+ kernel/events/uprobes.c            |  2 +-
+ mm/memory.c                        | 30 ++++++------------
+ mm/oom_kill.c                      |  5 +--
+ mm/rmap.c                          | 12 ++-----
+ mm/shmem.c                         | 61 +++++++++++++++++++++++++++++++++++
+ 11 files changed, 183 insertions(+), 46 deletions(-)
+
+-- 
+2.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
