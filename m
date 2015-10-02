@@ -1,91 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 70BAB82F99
-	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 08:36:42 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so29168793wic.1
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 05:36:42 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id fq6si9497472wib.110.2015.10.02.05.36.41
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 5955882F99
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 09:03:50 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so32693684wic.1
+        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 06:03:49 -0700 (PDT)
+Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
+        by mx.google.com with ESMTPS id ws7si13243461wjb.101.2015.10.02.06.03.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Oct 2015 05:36:41 -0700 (PDT)
-Received: by wicgb1 with SMTP id gb1so30966407wic.1
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 05:36:41 -0700 (PDT)
-Date: Fri, 2 Oct 2015 14:36:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: can't oom-kill zap the victim's memory?
-Message-ID: <20151002123639.GA13914@dhcp22.suse.cz>
-References: <20150922160608.GA2716@redhat.com>
- <20150923205923.GB19054@dhcp22.suse.cz>
- <alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
- <20150925093556.GF16497@dhcp22.suse.cz>
- <201509260114.ADI35946.OtHOVFOMJQFLFS@I-love.SAKURA.ne.jp>
- <201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 02 Oct 2015 06:03:48 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id A513099228
+	for <linux-mm@kvack.org>; Fri,  2 Oct 2015 13:03:47 +0000 (UTC)
+Date: Fri, 2 Oct 2015 14:03:45 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm: page_alloc: Hide some GFP internals and document the
+ bits and flag combinations -fix
+Message-ID: <20151002130345.GS3068@techsingularity.net>
+References: <1442832762-7247-1-git-send-email-mgorman@techsingularity.net>
+ <1442832762-7247-7-git-send-email-mgorman@techsingularity.net>
+ <20150928165523.a52facb27c7ff4c29d902b6c@linux-foundation.org>
+ <20150929133721.GJ3068@techsingularity.net>
+ <560CF134.2060107@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <560CF134.2060107@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 29-09-15 01:18:00, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > The point I've tried to made is that oom unmapper running in a detached
-> > context (e.g. kernel thread) vs. directly in the oom context doesn't
-> > make any difference wrt. lock because the holders of the lock would loop
-> > inside the allocator anyway because we do not fail small allocations.
-> 
-> We tried to allow small allocations to fail. It resulted in unstable system
-> with obscure bugs.
+This patch address minor comment nitpicks from Vlastimil. It is a fix for the
+mmotm patch
+mm-page_alloc-hide-some-GFP-internals-and-document-the-bit-and-flag-combinations.patch
 
-Have they been reported/fixed? All kernel paths doing an allocation are
-_supposed_ to check and handle ENOMEM. If they are not then they are
-buggy and should be fixed.
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ include/linux/gfp.h | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)
 
-> We tried to allow small !__GFP_FS allocations to fail. It failed to fail by
-> effectively __GFP_NOFAIL allocations.
-
-What do you mean by that? An opencoded __GFP_NOFAIL?
- 
-> We are now trying to allow zapping OOM victim's mm. Michal is already
-> skeptical about this approach due to lock dependency.
-
-I am not sure where this came from. I am all for this approach. It will
-not solve the problem completely for sure but it can help in many cases
-already.
-
-> We already spent 9 months on this OOM livelock. No silver bullet yet.
-> Proposed approaches are too drastic to backport for existing users.
-> I think we are out of bullet.
-
-Not at all. We have this problem since ever basically. And we have a lot
-of legacy issues to care about. But nobody could reasonably expect this
-will be solved in a short time period.
-
-> Until we complete adding/testing __GFP_NORETRY (or __GFP_KILLABLE) to most
-> of callsites,
-
-This is simply not doable. There are thousand of allocation sites all
-over the kernel.
-
-> timeout based workaround will be the only bullet we can use.
-
-Those are the last resort which only paper over real bugs which should
-be fixed. I would agree with your urging if this was something that can
-easily happen on a _properly_ configured system. System which can blow
-into an OOM storm is far from being configured properly. If you have an
-untrusted users running on your system you should better put them into a
-highly restricted environment and limit as much as possible.
-
-I can completely understand your frustration about the pace of the
-progress here but this is nothing new and we should strive for long term
-vision which would be much less fragile than what we have right now. No
-timeout based solution is the way in that direction.
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 67654f08a28b..4ab8cfa0aa9f 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -110,17 +110,18 @@ struct vm_area_struct;
+  *
+  * __GFP_IO can start physical IO.
+  *
+- * __GFP_FS can call down to the low-level FS. Avoids the allocator
+- *   recursing into the filesystem which might already be holding locks.
++ * __GFP_FS can call down to the low-level FS. Clearing the flag avoids the
++ *   allocator recursing into the filesystem which might already be holding
++ *   locks.
+  *
+  * __GFP_DIRECT_RECLAIM indicates that the caller may enter direct reclaim.
+  *   This flag can be cleared to avoid unnecessary delays when a fallback
+  *   option is available.
+  *
+- * __GFP_KSWAPD_RECLAIM indicates that the caller wants kswapd when the low
+- *   watermark is reached and have it reclaim pages until the high watermark
+- *   is reached. A caller may wish to clear this flag when fallback options
+- *   are available and the reclaim is likely to disrupt the system. The
++ * __GFP_KSWAPD_RECLAIM indicates that the caller wants to wake kswapd when
++ *   the low watermark is reached and have it reclaim pages until the high
++ *   watermark is reached. A caller may wish to clear this flag when fallback
++ *   options are available and the reclaim is likely to disrupt the system. The
+  *   canonical example is THP allocation where a fallback is cheap but
+  *   reclaim/compaction may cause indirect stalls.
+  *
+@@ -208,11 +209,6 @@ struct vm_area_struct;
+  *   for buffers that are mapped to userspace (e.g. graphics) that hardware
+  *   still must DMA to. cpuset limits are enforced for these allocations.
+  *
+- * GFP_HIGHUSER is for userspace allocations that may be mapped to userspace,
+- *   do not need to be directly accessible by the kernel but that cannot
+- *   move once in use. An example may be a hardware allocation that maps
+- *   data directly into userspace but has no addressing limitations.
+- *
+  * GFP_DMA exists for historical reasons and should be avoided where possible.
+  *   The flags indicates that the caller requires that the lowest zone be
+  *   used (ZONE_DMA or 16M on x86-64). Ideally, this would be removed but
+@@ -223,6 +219,11 @@ struct vm_area_struct;
+  * GFP_DMA32 is similar to GFP_DMA except that the caller requires a 32-bit
+  *   address.
+  *
++ * GFP_HIGHUSER is for userspace allocations that may be mapped to userspace,
++ *   do not need to be directly accessible by the kernel but that cannot
++ *   move once in use. An example may be a hardware allocation that maps
++ *   data directly into userspace but has no addressing limitations.
++ *
+  * GFP_HIGHUSER_MOVABLE is for userspace allocations that the kernel does not
+  *   need direct access to but can use kmap() when access is required. They
+  *   are expected to be movable via page reclaim or page migration. Typically,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
