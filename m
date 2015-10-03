@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 717A344030A
-	for <linux-mm@kvack.org>; Sat,  3 Oct 2015 02:59:35 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so59060595wic.0
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 23:59:34 -0700 (PDT)
-Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
-        by mx.google.com with ESMTPS id gc14si3161939wic.73.2015.10.02.23.59.34
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A932244030A
+	for <linux-mm@kvack.org>; Sat,  3 Oct 2015 03:28:00 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so59295807wic.0
+        for <linux-mm@kvack.org>; Sat, 03 Oct 2015 00:28:00 -0700 (PDT)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id o5si17776566wjf.27.2015.10.03.00.27.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Oct 2015 23:59:34 -0700 (PDT)
-Received: by wicfx3 with SMTP id fx3so58710960wic.1
-        for <linux-mm@kvack.org>; Fri, 02 Oct 2015 23:59:34 -0700 (PDT)
-Date: Sat, 3 Oct 2015 08:59:06 +0200
+        Sat, 03 Oct 2015 00:27:59 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so55557432wic.0
+        for <linux-mm@kvack.org>; Sat, 03 Oct 2015 00:27:59 -0700 (PDT)
+Date: Sat, 3 Oct 2015 09:27:55 +0200
 From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
-Message-ID: <20151003065906.GA23206@gmail.com>
+Message-ID: <20151003072755.GA23524@gmail.com>
 References: <20150916174913.AF5FEA6D@viggo.jf.intel.com>
  <20150920085554.GA21906@gmail.com>
  <55FF88BA.6080006@sr71.net>
@@ -22,61 +22,108 @@ References: <20150916174913.AF5FEA6D@viggo.jf.intel.com>
  <56044A88.7030203@sr71.net>
  <20151001111718.GA25333@gmail.com>
  <CAGXu5j+j92EPEwv9O4cX92zJDTyBEz3WtQ2CDHT0KmqJ6bCmGQ@mail.gmail.com>
- <560DB4A6.6050107@sr71.net>
- <CA+55aFwUAY01QC8A3mCOoq5aYjT7Lw-gVx6DvqYBr0UMZ9kZEQ@mail.gmail.com>
- <20151002070943.GA1623@gmail.com>
+ <CALCETrWaar55uTv5q3Ym1KEdQjfgjDfwMM=PPnjb9eV+ASS_ig@mail.gmail.com>
+ <20151002062340.GB30051@gmail.com>
+ <560EC3EC.2080803@sr71.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151002070943.GA1623@gmail.com>
+In-Reply-To: <560EC3EC.2080803@sr71.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave@sr71.net>, Kees Cook <keescook@google.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
+To: Dave Hansen <dave@sr71.net>
+Cc: Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@google.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
 
 
-* Ingo Molnar <mingo@kernel.org> wrote:
+* Dave Hansen <dave@sr71.net> wrote:
 
-> > It's quite likely that you will find that compilers put read-only constants in 
-> > the text section, knowing that executable means readable.
+> On 10/01/2015 11:23 PM, Ingo Molnar wrote:
+> >> > Also, how do we do mprotect_pkey and say "don't change the key"?
+> >
+> > So if we start managing keys as a resource (i.e. alloc/free up to 16 of them), 
+> > and provide APIs for user-space to do all that, then user-space is not 
+> > supposed to touch keys it has not allocated for itself - just like it's not 
+> > supposed to write to fds it has not opened.
 > 
-> At least with pkeys enabling true --x mappings, that compiler practice becomes a 
-> (mild) security problem: it provides a readable and executable return target for 
-> stack/buffer overflow attacks - FWIIW. (It's a limited concern because the true 
-> code areas are executable already.)
+> I like that.  It gives us at least a "soft" indicator to userspace about what 
+> keys it should or shouldn't be using.
 
-Btw., it's not just security, there will also a robustness advantage to creating 
-true PROT_EXEC mappings: right now if buggy user-space code accidentally 
-references into an executable section: say uses a negative index in a table put 
-into .rodata, the code will not crash, it will happily read from the .text area.
+Yes. A 16-bit allocation bitmap would solve this nicely.
 
-But if we mapped .text with true PROT_EXEC (and the CPU enforced that) then we'd 
-get a nice segfault.
+> > Such an allocation method can still 'mess up', and if the kernel allocates a key 
+> > for its purposes it should not assume that user-space cannot change it, but at 
+> > least for non-buggy code there's no interaction and it would work out fine.
+> 
+> Yeah.  It also provides a clean interface so that future hardware could
+> enforce enforce kernel "ownership" of a key which could protect against
+> even buggy code.
+> 
+> So, we add a pair of syscalls,
+> 
+> 	unsigned long sys_alloc_pkey(unsigned long flags??)
+> 	unsigned long sys_free_pkey(unsigned long pkey)
+> 
+> keep the metadata in the mm, and then make sure that userspace allocated
+> it before it is allowed to do an mprotect_pkey() with it.
 
-This has additional security benefits as well, beyond not providing readable ROP 
-sites - which in fact look more significant than the ROP readability angle I 
-mentioned initially.
+Yeah, so such an interface would allow the clean, transparent usage of pkeys for 
+pure PROT_EXEC mappings.
 
-So to sum it up, if we use true --x (non-readable PROT_EXEC) mappings using pkeys, 
-we get the following benefits:
+I'd expect the --x/PROT_EXEC mappings to be _by far_ more frequently used than 
+pure pkeys - but we still need the management interface to keep the kernel's use 
+of pkeys separate from user-space's use.
 
- - Overflows and other out of bounds accesses from .rodata (and other data
-   sections near .text) will be caught by the CPU instead of silent data flow 
-   corruption. This has robustness (and thus security) advantages.
+If all the necessary tooling changes are propagated through then in fact I'd 
+expect every pkeys capable Linux system to use pkeys, for almost every user-space 
+task.
 
- - True --x code is not readable, thus not 'soft-discoverable' via information 
-   leaks for ROP purposes.
+To have maximum future flexibility for pkeys I'd suggest the following additional 
+changes to the syscall ABI:
 
- - The version fingerprinting of unknown remote target binaries via information 
-   leaks becomes harder as well.
+ - Please name them with a pkey_ prefix, along the sys_pkey_* nomenclature, so 
+   that it becomes an easily identified 'family' of system calls.
 
- - The local (and remote) guessing of ASLR offsets via information leaks gets
-   harder as well.
+ - I'd also suggest providing an initial value with the 'alloc' call. It's true 
+   that user-space can do this itself in assembly, OTOH there's no reason not to 
+   provide a C interface for this.
 
- - We get to test pkeys much more seriously than the opt-in special uses! :-)
+ - Make the pkey identifier 'int', not 'long', like fds are. There's very little
+   expectation to ever have more than 4 billion pkeys per mm, right?
 
-Intel sent me pkeys test hardware, so I can give it a go in practice as well and 
-see how well it works.
+ - How far do we want the kernel to manage this? Any reason we don't want a
+   'set pkey' operation, if user-space wants to use pure C interfaces? That could 
+   be vDSO accelerated as well, to use the unprivileged op. An advantage of such
+   an interface would be that it would enable the kernel to more actively manage
+   the actual mappings as well in the future: for example to automatically not
+   allow accidental RWX mappings. Such an interface would also allow the future
+   introduction of privileged pkey mappings on the hardware side, without having
+   to change user-space, since everything goes via the kernel interface.
+
+ - Along similar considerations, also add a sys_pkey_query() system call to query 
+   the mapping of a specific pkey. (returns -EBADF or so if the key is not mapped
+   at the moment.) This too could be vDSO accelerated in the future.
+
+I.e. something like:
+
+     unsigned long sys_pkey_alloc (unsigned long flags, unsigned long init_val)
+     unsigned long sys_pkey_set   (int pkey, unsigned long new_val)
+     unsigned long sys_pkey_get   (int pkey)
+     unsigned long sys_pkey_free  (int pkey)
+
+Optional suggestion:
+
+ - _Maybe_ also allow the 'remote managed' setup of pkeys: of non-local tasks - 
+   but I'm not sure about that: it looks expensive and complex, and a TID argument 
+   can always be added later if there's some real need.
+
+> That should be pretty easy to implement.  The only real overhead is the 16 bits 
+> we need to keep in the mm somewhere.
+
+Yes.
+
+Note that if we use the C syscall interface suggestions I outlined above, we could 
+in the future also change to have a full table, and manage it explicitly - without 
+user-space changes - if the hardware side is tweaked to allow kernel side pkeys.
 
 Thanks,
 
