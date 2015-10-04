@@ -1,75 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B9D37680DC6
-	for <linux-mm@kvack.org>; Sun,  4 Oct 2015 00:53:32 -0400 (EDT)
-Received: by qgez77 with SMTP id z77so125757862qge.1
-        for <linux-mm@kvack.org>; Sat, 03 Oct 2015 21:53:32 -0700 (PDT)
-Received: from BLU004-OMC1S9.hotmail.com (blu004-omc1s9.hotmail.com. [65.55.116.20])
-        by mx.google.com with ESMTPS id 84si17701594qhx.86.2015.10.03.21.53.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 03 Oct 2015 21:53:31 -0700 (PDT)
-Message-ID: <BLU436-SMTP233624CAE8A4C054B5DFFF8B9490@phx.gbl>
-Date: Sun, 4 Oct 2015 12:55:29 +0800
-From: Chen Gang <xili_gchen_5257@hotmail.com>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id BB16C680DC6
+	for <linux-mm@kvack.org>; Sun,  4 Oct 2015 01:24:35 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so144201855pac.0
+        for <linux-mm@kvack.org>; Sat, 03 Oct 2015 22:24:35 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id gr2si29825886pbc.174.2015.10.03.22.24.34
+        for <linux-mm@kvack.org>;
+        Sat, 03 Oct 2015 22:24:34 -0700 (PDT)
+Date: Sat, 3 Oct 2015 23:24:33 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 0/2] Revert locking changes in DAX for v4.3
+Message-ID: <20151004052433.GA10753@linux.intel.com>
+References: <1443830494-8748-2-git-send-email-ross.zwisler@linux.intel.com>
+ <1443830494-8748-1-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/mmap.c: Remove redundant vma looping
-References: <COL130-W38E921DBAB9CFCFCC45F73B94A0@phx.gbl> <CAFLxGvyFeyV+kNoD5+4jzfid5dgkZP0uhhQ7Q7Dk-ObDJq4ByA@mail.gmail.com>
-In-Reply-To: <CAFLxGvyFeyV+kNoD5+4jzfid5dgkZP0uhhQ7Q7Dk-ObDJq4ByA@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1443830494-8748-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard.weinberger@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "oleg@redhat.com" <oleg@redhat.com>, "asha.levin@oracle.com" <asha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <willy@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-nvdimm@lists.01.org
 
-On 10/4/15 04:09=2C Richard Weinberger wrote:
-> With that change you're reintroducing an issue.
-> Please see:
-> commit 7cd5a02f54f4c9d16cf7fdffa2122bc73bb09b43
-> Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Date:   Mon Aug 11 09:30:25 2008 +0200
->=20
->     mm: fix mm_take_all_locks() locking order
->=20
->     Lockdep spotted:
->=20
->     =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D
->     [ INFO: possible circular locking dependency detected ]
->     2.6.27-rc1 #270
->     -------------------------------------------------------
->     qemu-kvm/2033 is trying to acquire lock:
->      (&inode->i_data.i_mmap_lock){----}=2C at: [<ffffffff802996cc>]
-> mm_take_all_locks+0xc2/0xea
->=20
->     but task is already holding lock:
->      (&anon_vma->lock){----}=2C at: [<ffffffff8029967a>]
-> mm_take_all_locks+0x70/0xea
->=20
->     which lock already depends on the new lock.
->
+On Fri, Oct 02, 2015 at 06:01:32PM -0600, Ross Zwisler wrote:
+> This series reverts some recent changes to the locking scheme in DAX introduced
+> by these two commits:
+> 
+> commit 843172978bb9 ("dax: fix race between simultaneous faults")
+> commit 46c043ede471 ("mm: take i_mmap_lock in unmap_mapping_range() for DAX")
+> 
+> Changes from v1:
+>  -  Squashed patches 1 and 2 from the first series into a single patch to avoid
+>     adding another spot in the git history where we could end up referencing an
+>     uninitialized pointer.
+> 
+> Ross Zwisler (2):
+>   Revert "mm: take i_mmap_lock in unmap_mapping_range() for DAX"
+>   Revert "dax: fix race between simultaneous faults"
+> 
+>  fs/dax.c    | 83 +++++++++++++++++++++++++------------------------------------
+>  mm/memory.c |  2 ++
+>  2 files changed, 36 insertions(+), 49 deletions(-)
+> 
+> -- 
+> 2.1.0
 
-Oh=2C really. Thanks.
+*sigh* - even after these reverts we can deadlock on in the DAX PMD code with
+its original locking scheme.  I can hit them 100% of the time with either
+generic/074 or generic/198 using either XFS or ext4.  I'll debug exactly
+what's going on on Monday.
 
->=20
-> git blame often explains funky code. :-)
->=20
+The quick and easy workaround for this is to do a "return VM_FAULT_FALLBACK;"
+at the beginning of __dax_pmd_fault() to just turn off PMD faults while we
+rework the locking for v4.4.  This saves us reverting and re-adding all the
+PMD code, and will let us ship v4.3 without known deadlocks.
 
-Next=2C I shall check the git log before make patches=2C each time. :-)
+Other better ideas?
 
-Theoretically=2C the lock and unlock need to be symmetric=2C if we have to
-lock f_mapping all firstly=2C then lock all anon_vma=2C probably=2C we also
-need to unlock anon_vma all=2C then unlock all f_mapping.
-
-
-Thanks.
---=20
-Chen Gang (=E9=99=88=E5=88=9A)
-
-Open=2C share=2C and attitude like air=2C water=2C and life which God bless=
-ed
+- Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
