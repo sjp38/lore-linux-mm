@@ -1,88 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F541680DC6
-	for <linux-mm@kvack.org>; Sat,  3 Oct 2015 16:09:16 -0400 (EDT)
-Received: by oixx17 with SMTP id x17so73709169oix.0
-        for <linux-mm@kvack.org>; Sat, 03 Oct 2015 13:09:16 -0700 (PDT)
-Received: from mail-ob0-x236.google.com (mail-ob0-x236.google.com. [2607:f8b0:4003:c01::236])
-        by mx.google.com with ESMTPS id c22si9167578oib.95.2015.10.03.13.09.15
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B9D37680DC6
+	for <linux-mm@kvack.org>; Sun,  4 Oct 2015 00:53:32 -0400 (EDT)
+Received: by qgez77 with SMTP id z77so125757862qge.1
+        for <linux-mm@kvack.org>; Sat, 03 Oct 2015 21:53:32 -0700 (PDT)
+Received: from BLU004-OMC1S9.hotmail.com (blu004-omc1s9.hotmail.com. [65.55.116.20])
+        by mx.google.com with ESMTPS id 84si17701594qhx.86.2015.10.03.21.53.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Oct 2015 13:09:15 -0700 (PDT)
-Received: by obbbh8 with SMTP id bh8so104252572obb.0
-        for <linux-mm@kvack.org>; Sat, 03 Oct 2015 13:09:15 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 03 Oct 2015 21:53:31 -0700 (PDT)
+Message-ID: <BLU436-SMTP233624CAE8A4C054B5DFFF8B9490@phx.gbl>
+Date: Sun, 4 Oct 2015 12:55:29 +0800
+From: Chen Gang <xili_gchen_5257@hotmail.com>
 MIME-Version: 1.0
-In-Reply-To: <COL130-W38E921DBAB9CFCFCC45F73B94A0@phx.gbl>
-References: <COL130-W38E921DBAB9CFCFCC45F73B94A0@phx.gbl>
-Date: Sat, 3 Oct 2015 22:09:15 +0200
-Message-ID: <CAFLxGvyFeyV+kNoD5+4jzfid5dgkZP0uhhQ7Q7Dk-ObDJq4ByA@mail.gmail.com>
 Subject: Re: [PATCH] mm/mmap.c: Remove redundant vma looping
-From: Richard Weinberger <richard.weinberger@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+References: <COL130-W38E921DBAB9CFCFCC45F73B94A0@phx.gbl> <CAFLxGvyFeyV+kNoD5+4jzfid5dgkZP0uhhQ7Q7Dk-ObDJq4ByA@mail.gmail.com>
+In-Reply-To: <CAFLxGvyFeyV+kNoD5+4jzfid5dgkZP0uhhQ7Q7Dk-ObDJq4ByA@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <xili_gchen_5257@hotmail.com>
+To: Richard Weinberger <richard.weinberger@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "oleg@redhat.com" <oleg@redhat.com>, "asha.levin@oracle.com" <asha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
 
-On Sat, Oct 3, 2015 at 9:38 PM, Chen Gang <xili_gchen_5257@hotmail.com> wrote:
-> From 36dbcc145819655682f80efd49e72b01515b4e9a Mon Sep 17 00:00:00 2001
-> From: Chen Gang <gang.chen.5i5j@gmail.com>
-> Date: Sun, 4 Oct 2015 03:22:41 +0800
-> Subject: [PATCH] mm/mmap.c: Remove redundant vma looping
+On 10/4/15 04:09=2C Richard Weinberger wrote:
+> With that change you're reintroducing an issue.
+> Please see:
+> commit 7cd5a02f54f4c9d16cf7fdffa2122bc73bb09b43
+> Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Date:   Mon Aug 11 09:30:25 2008 +0200
+>=20
+>     mm: fix mm_take_all_locks() locking order
+>=20
+>     Lockdep spotted:
+>=20
+>     =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D
+>     [ INFO: possible circular locking dependency detected ]
+>     2.6.27-rc1 #270
+>     -------------------------------------------------------
+>     qemu-kvm/2033 is trying to acquire lock:
+>      (&inode->i_data.i_mmap_lock){----}=2C at: [<ffffffff802996cc>]
+> mm_take_all_locks+0xc2/0xea
+>=20
+>     but task is already holding lock:
+>      (&anon_vma->lock){----}=2C at: [<ffffffff8029967a>]
+> mm_take_all_locks+0x70/0xea
+>=20
+>     which lock already depends on the new lock.
 >
-> vma->vm_file->f_mapping and vma->anon_vma are shared with the same vma
-> looping, so merge them.
->
-> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
-> ---
->  mm/mmap.c | 2 --
->  1 file changed, 2 deletions(-)
->
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 8393580..f7c1631 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -3201,9 +3201,7 @@ int mm_take_all_locks(struct mm_struct *mm)
->                         goto out_unlock;
->                 if (vma->vm_file && vma->vm_file->f_mapping)
->                         vm_lock_mapping(mm, vma->vm_file->f_mapping);
-> -       }
->
-> -       for (vma = mm->mmap; vma; vma = vma->vm_next) {
->                 if (signal_pending(current))
->                         goto out_unlock;
->                 if (vma->anon_vma)
 
-With that change you're reintroducing an issue.
-Please see:
-commit 7cd5a02f54f4c9d16cf7fdffa2122bc73bb09b43
-Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date:   Mon Aug 11 09:30:25 2008 +0200
+Oh=2C really. Thanks.
 
-    mm: fix mm_take_all_locks() locking order
+>=20
+> git blame often explains funky code. :-)
+>=20
 
-    Lockdep spotted:
+Next=2C I shall check the git log before make patches=2C each time. :-)
 
-    =======================================================
-    [ INFO: possible circular locking dependency detected ]
-    2.6.27-rc1 #270
-    -------------------------------------------------------
-    qemu-kvm/2033 is trying to acquire lock:
-     (&inode->i_data.i_mmap_lock){----}, at: [<ffffffff802996cc>]
-mm_take_all_locks+0xc2/0xea
-
-    but task is already holding lock:
-     (&anon_vma->lock){----}, at: [<ffffffff8029967a>]
-mm_take_all_locks+0x70/0xea
-
-    which lock already depends on the new lock.
+Theoretically=2C the lock and unlock need to be symmetric=2C if we have to
+lock f_mapping all firstly=2C then lock all anon_vma=2C probably=2C we also
+need to unlock anon_vma all=2C then unlock all f_mapping.
 
 
-git blame often explains funky code. :-)
+Thanks.
+--=20
+Chen Gang (=E9=99=88=E5=88=9A)
 
--- 
-Thanks,
-//richard
+Open=2C share=2C and attitude like air=2C water=2C and life which God bless=
+ed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
