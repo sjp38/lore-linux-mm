@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 24379680DC6
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id CCDFA680DC6
 	for <linux-mm@kvack.org>; Sun,  4 Oct 2015 18:21:57 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so16271553pad.1
-        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 15:21:56 -0700 (PDT)
+Received: by pacfv12 with SMTP id fv12so159722953pac.2
+        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 15:21:57 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id wk1si26518064pbc.139.2015.10.04.15.21.55
+        by mx.google.com with ESMTPS id bz4si35149674pbd.70.2015.10.04.15.21.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sun, 04 Oct 2015 15:21:56 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH 1/3] memcg: simplify charging kmem pages
-Date: Mon, 5 Oct 2015 01:21:41 +0300
-Message-ID: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
+Subject: [PATCH 2/3] memcg: unify slab and other kmem pages charging
+Date: Mon, 5 Oct 2015 01:21:42 +0300
+Message-ID: <41bbfbf1268f7cce22ac9e1656ddc196ae56a409.1443996201.git.vdavydov@virtuozzo.com>
+In-Reply-To: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
+References: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,250 +22,306 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Charging kmem pages proceeds in two steps. First, we try to charge the
-allocation size to the memcg the current task belongs to, then we
-allocate a page and "commit" the charge storing the pointer to the memcg
-in the page struct.
+We have memcg_kmem_charge and memcg_kmem_uncharge methods for charging
+and uncharging kmem pages to memcg, but currently they are not used for
+charging slab pages (i.e. they are only used for charging pages
+allocated with alloc_kmem_pages). The only reason why the slab subsystem
+uses special helpers, memcg_charge_slab and memcg_uncharge_slab, is that
+it needs to charge to the memcg of kmem cache while memcg_charge_kmem
+charges to the memcg that the current task belongs to.
 
-Such a design looks overcomplicated, because there is no much sense in
-trying charging the allocation before actually allocating a page: we
-won't be able to consume much memory over the limit even if we charge
-after doing the actual allocation, besides we already charge user pages
-post factum, so being pedantic with kmem pages just looks pointless.
+To remove this diversity, this patch adds an extra argument to
+__memcg_kmem_charge that can be a pointer to a memcg or NULL. If it is
+not NULL, the function tries to charge to the memcg it points to,
+otherwise it charge to the current context. Next, it makes the slab
+subsystem use this function to charge slab pages.
 
-So this patch simplifies the design by merging the "charge" and the
-"commit" steps into the same function, which takes the allocated page.
+Since memcg_charge_kmem and memcg_uncharge_kmem helpers are now used
+only in __memcg_kmem_charge and __memcg_kmem_uncharge, they are inlined.
+Since __memcg_kmem_charge stores a pointer to the memcg in the page
+struct, we don't need memcg_uncharge_slab anymore and can use
+free_kmem_pages. Besides, one can now detect which memcg a slab page
+belongs to by reading /proc/kpagecgroup.
 
-Also, rename the charge and uncharge methods to memcg_kmem_charge and
-memcg_kmem_uncharge and make the charge method return error code instead
-of bool to conform to mem_cgroup_try_charge.
+Note, this patch switches slab to charge-after-alloc design. Since this
+design is already used for all other memcg charges, it should not make
+any difference.
 
 Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 ---
- include/linux/memcontrol.h | 69 +++++++++++++---------------------------------
- mm/memcontrol.c            | 39 +++-----------------------
- mm/page_alloc.c            | 18 ++++++------
- 3 files changed, 32 insertions(+), 94 deletions(-)
+ include/linux/memcontrol.h |  9 ++----
+ mm/memcontrol.c            | 73 +++++++++++++++++++++-------------------------
+ mm/slab.c                  | 12 ++++----
+ mm/slab.h                  | 24 +++++----------
+ mm/slub.c                  | 12 ++++----
+ 5 files changed, 55 insertions(+), 75 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index a3e0296eb063..9e1f4d5efc56 100644
+index 9e1f4d5efc56..8a9b7a798f14 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -752,11 +752,8 @@ static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+@@ -752,7 +752,8 @@ static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
   * conditions, but because they are pretty simple, they are expected to be
   * fast.
   */
--bool __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg,
--					int order);
--void __memcg_kmem_commit_charge(struct page *page,
--				       struct mem_cgroup *memcg, int order);
--void __memcg_kmem_uncharge_pages(struct page *page, int order);
-+int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
-+void __memcg_kmem_uncharge(struct page *page, int order);
+-int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
++int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order,
++			struct mem_cgroup *memcg);
+ void __memcg_kmem_uncharge(struct page *page, int order);
  
  /*
-  * helper for acessing a memcg's index. It will be used as an index in the
-@@ -789,52 +786,30 @@ static inline bool __memcg_kmem_bypass(gfp_t gfp)
- }
+@@ -770,10 +771,6 @@ void __memcg_kmem_put_cache(struct kmem_cache *cachep);
  
- /**
-- * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
-- * @gfp: the gfp allocation flags.
-- * @memcg: a pointer to the memcg this was charged against.
-- * @order: allocation order.
-+ * memcg_kmem_charge: charge a kmem page
-+ * @page: page to charge
-+ * @gfp: reclaim mode
-+ * @order: allocation order
-  *
-- * returns true if the memcg where the current task belongs can hold this
-- * allocation.
-- *
-- * We return true automatically if this allocation is not to be accounted to
-- * any memcg.
-+ * Returns 0 on success, an error code on failure.
-  */
--static inline bool
--memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
-+static __always_inline int memcg_kmem_charge(struct page *page,
-+					     gfp_t gfp, int order)
+ struct mem_cgroup *__mem_cgroup_from_kmem(void *ptr);
+ 
+-int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp,
+-		      unsigned long nr_pages);
+-void memcg_uncharge_kmem(struct mem_cgroup *memcg, unsigned long nr_pages);
+-
+ static inline bool __memcg_kmem_bypass(gfp_t gfp)
+ {
+ 	if (!memcg_kmem_enabled())
+@@ -798,7 +795,7 @@ static __always_inline int memcg_kmem_charge(struct page *page,
  {
  	if (__memcg_kmem_bypass(gfp))
--		return true;
--	return __memcg_kmem_newpage_charge(gfp, memcg, order);
-+		return 0;
-+	return __memcg_kmem_charge(page, gfp, order);
+ 		return 0;
+-	return __memcg_kmem_charge(page, gfp, order);
++	return __memcg_kmem_charge(page, gfp, order, NULL);
  }
  
  /**
-- * memcg_kmem_uncharge_pages: uncharge pages from memcg
-- * @page: pointer to struct page being freed
-- * @order: allocation order.
-+ * memcg_kmem_uncharge: uncharge a kmem page
-+ * @page: page to uncharge
-+ * @order: allocation order
-  */
--static inline void
--memcg_kmem_uncharge_pages(struct page *page, int order)
-+static __always_inline void memcg_kmem_uncharge(struct page *page, int order)
- {
- 	if (memcg_kmem_enabled())
--		__memcg_kmem_uncharge_pages(page, order);
--}
--
--/**
-- * memcg_kmem_commit_charge: embeds correct memcg in a page
-- * @page: pointer to struct page recently allocated
-- * @memcg: the memcg structure we charged against
-- * @order: allocation order.
-- *
-- * Needs to be called after memcg_kmem_newpage_charge, regardless of success or
-- * failure of the allocation. if @page is NULL, this function will revert the
-- * charges. Otherwise, it will commit @page to @memcg.
-- */
--static inline void
--memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
--{
--	if (memcg_kmem_enabled() && memcg)
--		__memcg_kmem_commit_charge(page, memcg, order);
-+		__memcg_kmem_uncharge(page, order);
- }
- 
- /**
-@@ -878,18 +853,12 @@ static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
- 	return false;
- }
- 
--static inline bool
--memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
--{
--	return true;
--}
--
--static inline void memcg_kmem_uncharge_pages(struct page *page, int order)
-+static inline int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
- {
-+	return 0;
- }
- 
--static inline void
--memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
-+static inline void memcg_kmem_uncharge(struct page *page, int order)
- {
- }
- 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 44706a17cddc..7c0af36fc8d0 100644
+index 7c0af36fc8d0..1d6413e0dd29 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2404,57 +2404,26 @@ void __memcg_kmem_put_cache(struct kmem_cache *cachep)
+@@ -2215,34 +2215,6 @@ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
+ }
+ 
+ #ifdef CONFIG_MEMCG_KMEM
+-int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp,
+-		      unsigned long nr_pages)
+-{
+-	struct page_counter *counter;
+-	int ret = 0;
+-
+-	ret = page_counter_try_charge(&memcg->kmem, nr_pages, &counter);
+-	if (ret < 0)
+-		return ret;
+-
+-	ret = try_charge(memcg, gfp, nr_pages);
+-	if (ret)
+-		page_counter_uncharge(&memcg->kmem, nr_pages);
+-
+-	return ret;
+-}
+-
+-void memcg_uncharge_kmem(struct mem_cgroup *memcg, unsigned long nr_pages)
+-{
+-	page_counter_uncharge(&memcg->memory, nr_pages);
+-	if (do_swap_account)
+-		page_counter_uncharge(&memcg->memsw, nr_pages);
+-
+-	page_counter_uncharge(&memcg->kmem, nr_pages);
+-
+-	css_put_many(&memcg->css, nr_pages);
+-}
+-
+ static int memcg_alloc_cache_id(void)
+ {
+ 	int id, size;
+@@ -2404,36 +2376,59 @@ void __memcg_kmem_put_cache(struct kmem_cache *cachep)
  		css_put(&cachep->memcg_params.memcg->css);
  }
  
--/*
-- * We need to verify if the allocation against current->mm->owner's memcg is
-- * possible for the given order. But the page is not allocated yet, so we'll
-- * need a further commit step to do the final arrangements.
-- *
-- * It is possible for the task to switch cgroups in this mean time, so at
-- * commit time, we can't rely on task conversion any longer.  We'll then use
-- * the handle argument to return to the caller which cgroup we should commit
-- * against. We could also return the memcg directly and avoid the pointer
-- * passing, but a boolean return value gives better semantics considering
-- * the compiled-out case as well.
-- *
-- * Returning true means the allocation is possible.
-- */
--bool
--__memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
-+int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+-int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
++/*
++ * If @memcg != NULL, charge to @memcg, otherwise charge to the memcg the
++ * current task belongs to.
++ */
++int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order,
++			struct mem_cgroup *memcg)
  {
- 	struct mem_cgroup *memcg;
- 	int ret;
- 
--	*_memcg = NULL;
+-	struct mem_cgroup *memcg;
+-	int ret;
 -
- 	memcg = get_mem_cgroup_from_mm(current->mm);
+-	memcg = get_mem_cgroup_from_mm(current->mm);
++	struct page_counter *counter;
++	unsigned int nr_pages = 1 << order;
++	bool put = false;
++	int ret = 0;
  
- 	if (!memcg_kmem_is_active(memcg)) {
- 		css_put(&memcg->css);
--		return true;
-+		return 0;
+-	if (!memcg_kmem_is_active(memcg)) {
+-		css_put(&memcg->css);
+-		return 0;
++	if (!memcg) {
++		memcg = get_mem_cgroup_from_mm(current->mm);
++		put = true;
  	}
++	if (!memcg_kmem_is_active(memcg))
++		goto out;
  
- 	ret = memcg_charge_kmem(memcg, gfp, 1 << order);
--	if (!ret)
--		*_memcg = memcg;
+-	ret = memcg_charge_kmem(memcg, gfp, 1 << order);
++	ret = page_counter_try_charge(&memcg->kmem, nr_pages, &counter);
++	if (ret)
++		goto out;
++
++	ret = try_charge(memcg, gfp, nr_pages);
++	if (ret) {
++		page_counter_uncharge(&memcg->kmem, nr_pages);
++		goto out;
++	}
  
- 	css_put(&memcg->css);
--	return (ret == 0);
--}
--
--void __memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg,
--			      int order)
--{
--	VM_BUG_ON(mem_cgroup_is_root(memcg));
--
--	/* The page allocation failed. Revert */
--	if (!page) {
--		memcg_uncharge_kmem(memcg, 1 << order);
--		return;
--	}
+-	css_put(&memcg->css);
  	page->mem_cgroup = memcg;
-+	return ret;
++out:
++	if (put)
++		css_put(&memcg->css);
+ 	return ret;
  }
  
--void __memcg_kmem_uncharge_pages(struct page *page, int order)
-+void __memcg_kmem_uncharge(struct page *page, int order)
+ void __memcg_kmem_uncharge(struct page *page, int order)
  {
  	struct mem_cgroup *memcg = page->mem_cgroup;
++	unsigned int nr_pages = 1 << order;
  
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e19132074404..91d1a1923eb8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3414,24 +3414,24 @@ EXPORT_SYMBOL(__free_page_frag);
- struct page *alloc_kmem_pages(gfp_t gfp_mask, unsigned int order)
- {
- 	struct page *page;
--	struct mem_cgroup *memcg = NULL;
+ 	if (!memcg)
+ 		return;
  
--	if (!memcg_kmem_newpage_charge(gfp_mask, &memcg, order))
+ 	VM_BUG_ON_PAGE(mem_cgroup_is_root(memcg), page);
+ 
+-	memcg_uncharge_kmem(memcg, 1 << order);
++	page_counter_uncharge(&memcg->kmem, nr_pages);
++	page_counter_uncharge(&memcg->memory, nr_pages);
++	if (do_swap_account)
++		page_counter_uncharge(&memcg->memsw, nr_pages);
++
+ 	page->mem_cgroup = NULL;
++	css_put_many(&memcg->css, nr_pages);
+ }
+ 
+ struct mem_cgroup *__mem_cgroup_from_kmem(void *ptr)
+diff --git a/mm/slab.c b/mm/slab.c
+index ad6c6f8385d9..037d9d71633a 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1592,16 +1592,17 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+ 		flags |= __GFP_RECLAIMABLE;
+ 
+-	if (memcg_charge_slab(cachep, flags, cachep->gfporder))
 -		return NULL;
- 	page = alloc_pages(gfp_mask, order);
--	memcg_kmem_commit_charge(page, memcg, order);
-+	if (page && memcg_kmem_charge(page, gfp_mask, order) != 0) {
+-
+ 	page = __alloc_pages_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
+ 	if (!page) {
+-		memcg_uncharge_slab(cachep, cachep->gfporder);
+ 		slab_out_of_memory(cachep, flags, nodeid);
+ 		return NULL;
+ 	}
+ 
++	if (memcg_charge_slab(page, flags, cachep->gfporder, cachep)) {
++		__free_pages(page, cachep->gfporder);
++		return NULL;
++	}
++
+ 	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
+ 	if (page_is_pfmemalloc(page))
+ 		pfmemalloc_active = true;
+@@ -1653,8 +1654,7 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
+ 
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += nr_freed;
+-	__free_pages(page, cachep->gfporder);
+-	memcg_uncharge_slab(cachep, cachep->gfporder);
++	__free_kmem_pages(page, cachep->gfporder);
+ }
+ 
+ static void kmem_rcu_free(struct rcu_head *head)
+diff --git a/mm/slab.h b/mm/slab.h
+index a3a967d7d7c2..16cc5b0de1d8 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -240,23 +240,16 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
+ 	return s->memcg_params.root_cache;
+ }
+ 
+-static __always_inline int memcg_charge_slab(struct kmem_cache *s,
+-					     gfp_t gfp, int order)
++static __always_inline int memcg_charge_slab(struct page *page,
++					     gfp_t gfp, int order,
++					     struct kmem_cache *s)
+ {
+ 	if (!memcg_kmem_enabled())
+ 		return 0;
+ 	if (is_root_cache(s))
+ 		return 0;
+-	return memcg_charge_kmem(s->memcg_params.memcg, gfp, 1 << order);
+-}
+-
+-static __always_inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
+-{
+-	if (!memcg_kmem_enabled())
+-		return;
+-	if (is_root_cache(s))
+-		return;
+-	memcg_uncharge_kmem(s->memcg_params.memcg, 1 << order);
++	return __memcg_kmem_charge(page, gfp, order,
++				   s->memcg_params.memcg);
+ }
+ 
+ extern void slab_init_memcg_params(struct kmem_cache *);
+@@ -295,15 +288,12 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
+ 	return s;
+ }
+ 
+-static inline int memcg_charge_slab(struct kmem_cache *s, gfp_t gfp, int order)
++static inline int memcg_charge_slab(struct page *page, gfp_t gfp, int order,
++				    struct kmem_cache *s)
+ {
+ 	return 0;
+ }
+ 
+-static inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
+-{
+-}
+-
+ static inline void slab_init_memcg_params(struct kmem_cache *s)
+ {
+ }
+diff --git a/mm/slub.c b/mm/slub.c
+index 2b40c186e941..a05388e8a80f 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1330,16 +1330,15 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
+ 
+ 	flags |= __GFP_NOTRACK;
+ 
+-	if (memcg_charge_slab(s, flags, order))
+-		return NULL;
+-
+ 	if (node == NUMA_NO_NODE)
+ 		page = alloc_pages(flags, order);
+ 	else
+ 		page = __alloc_pages_node(node, flags, order);
+ 
+-	if (!page)
+-		memcg_uncharge_slab(s, order);
++	if (page && memcg_charge_slab(page, flags, order, s)) {
 +		__free_pages(page, order);
 +		page = NULL;
 +	}
+ 
  	return page;
  }
- 
- struct page *alloc_kmem_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
- {
- 	struct page *page;
--	struct mem_cgroup *memcg = NULL;
- 
--	if (!memcg_kmem_newpage_charge(gfp_mask, &memcg, order))
--		return NULL;
- 	page = alloc_pages_node(nid, gfp_mask, order);
--	memcg_kmem_commit_charge(page, memcg, order);
-+	if (page && memcg_kmem_charge(page, gfp_mask, order) != 0) {
-+		__free_pages(page, order);
-+		page = NULL;
-+	}
- 	return page;
+@@ -1478,8 +1477,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 	page_mapcount_reset(page);
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += pages;
+-	__free_pages(page, order);
+-	memcg_uncharge_slab(s, order);
++	__free_kmem_pages(page, order);
  }
  
-@@ -3441,7 +3441,7 @@ struct page *alloc_kmem_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
-  */
- void __free_kmem_pages(struct page *page, unsigned int order)
- {
--	memcg_kmem_uncharge_pages(page, order);
-+	memcg_kmem_uncharge(page, order);
- 	__free_pages(page, order);
- }
- 
+ #define need_reserve_slab_rcu						\
 -- 
 2.1.4
 
