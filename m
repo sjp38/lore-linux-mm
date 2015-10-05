@@ -1,78 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id A0C036B0338
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 09:28:44 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so176592662pab.3
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 06:28:44 -0700 (PDT)
-Received: from m50-134.163.com (m50-134.163.com. [123.125.50.134])
-        by mx.google.com with ESMTP id cr7si40327179pad.107.2015.10.05.06.28.41
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 730626B0339
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 09:29:14 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so37266808pad.1
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 06:29:14 -0700 (PDT)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id nz10si22331973pbb.208.2015.10.05.06.29.13
         for <linux-mm@kvack.org>;
-        Mon, 05 Oct 2015 06:28:43 -0700 (PDT)
-From: Geliang Tang <geliangtang@163.com>
-Subject: [PATCH v2 3/3] mm/nommu: drop unlikely behind BUG_ON()
-Date: Mon,  5 Oct 2015 21:26:06 +0800
-Message-Id: <4f765364227f9cdb0e837b165afe24ceb895548f.1444051018.git.geliangtang@163.com>
-In-Reply-To: <482d18783d6df356809b67431de95addfa20aa79.1444051018.git.geliangtang@163.com>
-References: <482d18783d6df356809b67431de95addfa20aa79.1444051018.git.geliangtang@163.com>
-In-Reply-To: <6fa7125979f98bbeac26e268271769b6ca935c8d.1444051018.git.geliangtang@163.com>
-References: <482d18783d6df356809b67431de95addfa20aa79.1444051018.git.geliangtang@163.com> <6fa7125979f98bbeac26e268271769b6ca935c8d.1444051018.git.geliangtang@163.com>
+        Mon, 05 Oct 2015 06:29:13 -0700 (PDT)
+Date: Mon, 05 Oct 2015 06:44:51 -0700 (PDT)
+Message-Id: <20151005.064451.2162263446408087981.davem@davemloft.net>
+Subject: Re: [PATCH] ovs: do not allocate memory from offline numa node
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20151002101822.12499.27658.stgit@buzz>
+References: <20151002101822.12499.27658.stgit@buzz>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Davidlohr Bueso <dave@stgolabs.net>, Joonsoo Kim <js1304@gmail.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Leon Romanovsky <leon@leon.nu>, Oleg Nesterov <oleg@redhat.com>
-Cc: Geliang Tang <geliangtang@163.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: khlebnikov@yandex-team.ru
+Cc: dev@openvswitch.org, pshelar@nicira.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, vbabka@suse.cz, linux-mm@kvack.org
 
-(1) For !CONFIG_BUG cases, the bug call is a no-op, so we couldn't care
-less and the change is ok.
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Fri, 02 Oct 2015 13:18:22 +0300
 
-(2) ppc and mips, which HAVE_ARCH_BUG_ON, do not rely on branch predictions
-as it seems to be pointless[1] and thus callers should not be trying to
-push an optimization in the first place.
+> When openvswitch tries allocate memory from offline numa node 0:
+> stats = kmem_cache_alloc_node(flow_stats_cache, GFP_KERNEL | __GFP_ZERO, 0)
+> It catches VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid))
+> [ replaced with VM_WARN_ON(!node_online(nid)) recently ] in linux/gfp.h
+> This patch disables numa affinity in this case.
+> 
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-(3) For CONFIG_BUG and !HAVE_ARCH_BUG_ON cases, BUG_ON() contains an
-unlikely compiler flag already.
-
-Hence, we can drop unlikely behind BUG_ON().
-
-[1] http://lkml.iu.edu/hypermail/linux/kernel/1101.3/02289.html
-
-Signed-off-by: Geliang Tang <geliangtang@163.com>
-Acked-by: Davidlohr Bueso <dave@stgolabs.net>
----
-Changes in v2:
- - Just rewrite the commit log.
----
- mm/nommu.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
-
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 1e0f168..92be862 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -578,16 +578,16 @@ static noinline void validate_nommu_regions(void)
- 		return;
- 
- 	last = rb_entry(lastp, struct vm_region, vm_rb);
--	BUG_ON(unlikely(last->vm_end <= last->vm_start));
--	BUG_ON(unlikely(last->vm_top < last->vm_end));
-+	BUG_ON(last->vm_end <= last->vm_start);
-+	BUG_ON(last->vm_top < last->vm_end);
- 
- 	while ((p = rb_next(lastp))) {
- 		region = rb_entry(p, struct vm_region, vm_rb);
- 		last = rb_entry(lastp, struct vm_region, vm_rb);
- 
--		BUG_ON(unlikely(region->vm_end <= region->vm_start));
--		BUG_ON(unlikely(region->vm_top < region->vm_end));
--		BUG_ON(unlikely(region->vm_start < last->vm_top));
-+		BUG_ON(region->vm_end <= region->vm_start);
-+		BUG_ON(region->vm_top < region->vm_end);
-+		BUG_ON(region->vm_start < last->vm_top);
- 
- 		lastp = p;
- 	}
--- 
-2.5.0
-
+Applied, but this should probably use NUMA_NO_NODE unconditionally.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
