@@ -1,106 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id B13D4440313
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 02:19:02 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so170239608pac.2
-        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 23:19:02 -0700 (PDT)
-Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id w5si14119090pbt.36.2015.10.04.23.19.01
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C3239440313
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 03:31:11 -0400 (EDT)
+Received: by ioiz6 with SMTP id z6so175991021ioi.2
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 00:31:11 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id qq6si7455460igb.69.2015.10.05.00.31.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 04 Oct 2015 23:19:01 -0700 (PDT)
-Received: from epcpsbgr1.samsung.com
- (u141.gpu120.samsung.co.kr [203.254.230.141])
- by mailout1.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
- 64bit (built May  5 2014))
- with ESMTP id <0NVQ01Q2OHJOX360@mailout1.samsung.com> for linux-mm@kvack.org;
- Mon, 05 Oct 2015 15:19:00 +0900 (KST)
-From: PINTU KUMAR <pintu.k@samsung.com>
-References: <1443696523-27262-1-git-send-email-pintu.k@samsung.com>
- <560D3542.6060903@linux.vnet.ibm.com>
-In-reply-to: <560D3542.6060903@linux.vnet.ibm.com>
-Subject: RE: [PATCH 1/1] mm: vmstat: Add OOM kill count in vmstat counter
-Date: Mon, 05 Oct 2015 11:49:13 +0530
-Message-id: <010501d0ff35$def59390$9ce0bab0$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7bit
-Content-language: en-us
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Oct 2015 00:31:10 -0700 (PDT)
+Received: by pacex6 with SMTP id ex6so168981227pac.0
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 00:31:10 -0700 (PDT)
+Date: Mon, 5 Oct 2015 00:31:01 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: ksm: deadlock in oom killing process while breaking ksm
+ pages
+In-Reply-To: <560D448F.9050507@oracle.com>
+Message-ID: <alpine.LSU.2.11.1510050011280.17707@eggly.anvils>
+References: <560D448F.9050507@oracle.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Anshuman Khandual' <khandual@linux.vnet.ibm.com>, akpm@linux-foundation.org, minchan@kernel.org, dave@stgolabs.net, mhocko@suse.cz, koct9i@gmail.com, rientjes@google.com, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp, bywxiaobai@163.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, kirill.shutemov@linux.intel.com, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.ping@gmail.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, c.rajkumar@samsung.com, sreenathd@samsung.com
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi,
+On Thu, 1 Oct 2015, Sasha Levin wrote:
 
-> -----Original Message-----
-> From: Anshuman Khandual [mailto:khandual@linux.vnet.ibm.com]
-> Sent: Thursday, October 01, 2015 7:00 PM
-> To: Pintu Kumar; akpm@linux-foundation.org; minchan@kernel.org;
-> dave@stgolabs.net; mhocko@suse.cz; koct9i@gmail.com; rientjes@google.com;
-> hannes@cmpxchg.org; penguin-kernel@i-love.sakura.ne.jp;
-> bywxiaobai@163.com; mgorman@suse.de; vbabka@suse.cz; js1304@gmail.com;
-> kirill.shutemov@linux.intel.com; alexander.h.duyck@redhat.com;
-> sasha.levin@oracle.com; cl@linux.com; fengguang.wu@intel.com; linux-
-> kernel@vger.kernel.org; linux-mm@kvack.org
-> Cc: cpgs@samsung.com; pintu_agarwal@yahoo.com; pintu.ping@gmail.com;
-> vishnu.ps@samsung.com; rohit.kr@samsung.com; c.rajkumar@samsung.com;
-> sreenathd@samsung.com
-> Subject: Re: [PATCH 1/1] mm: vmstat: Add OOM kill count in vmstat counter
+> Hi Hugh,
 > 
-> On 10/01/2015 04:18 PM, Pintu Kumar wrote:
-> > This patch maintains number of oom calls and number of oom kill count
-> > in /proc/vmstat.
-> > It is helpful during sluggish, aging or long duration tests.
-> > Currently if the OOM happens, it can be only seen in kernel ring buffer.
-> > But during long duration tests, all the dmesg and /var/log/messages*
-> > could be overwritten.
-> > So, just like other counters, the oom can also be maintained in
-> > /proc/vmstat.
-> > It can be also seen if all logs are disabled in kernel.
+> I've hit this (actual) lockup during testing. It seems that we were trying to allocate
+> a new page to break KSM on an existing page, ended up in the oom killer who killed our
+> process, and locked up in __ksm_exit() trying to get a write lock while already holding
+> a read lock.
 > 
-> Makes sense.
+> A very similar scenario is presented in the patch that introduced this behaviour
+> (9ba6929480 ("ksm: fix oom deadlock")):
 > 
-> >
-> > A snapshot of the result of over night test is shown below:
-> > $ cat /proc/vmstat
-> > oom_stall 610
-> > oom_kill_count 1763
-> >
-> > Here, oom_stall indicates that there are 610 times, kernel entered
-> > into OOM cases. However, there were around 1763 oom killing happens.
-> > The OOM is bad for the any system. So, this counter can help the
-> > developer in tuning the memory requirement at least during initial bringup.
+>     There's a now-obvious deadlock in KSM's out-of-memory handling:
+>     imagine ksmd or KSM_RUN_UNMERGE handling, holding ksm_thread_mutex,
+>     trying to allocate a page to break KSM in an mm which becomes the
+>     OOM victim (quite likely in the unmerge case): it's killed and goes
+>     to exit, and hangs there waiting to acquire ksm_thread_mutex.
 > 
-> Can you please fix the formatting of the commit message above ?
-> 
-Not sure if there is any formatting issue here. I cannot see it.
-The checkpatch returns no error/warnings.
-Please point me out exactly, if there is any issue.
+> So I'm guessing that the solution is incomplete for the slow path.
 
-> >
-> > Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
-> > ---
-> >  include/linux/vm_event_item.h |    2 ++
-> >  mm/oom_kill.c                 |    2 ++
-> >  mm/page_alloc.c               |    2 +-
-> >  mm/vmstat.c                   |    2 ++
-> >  4 files changed, 7 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/include/linux/vm_event_item.h
-> > b/include/linux/vm_event_item.h index 2b1cef8..ade0851 100644
-> > --- a/include/linux/vm_event_item.h
-> > +++ b/include/linux/vm_event_item.h
-> > @@ -57,6 +57,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN,
-> > PSWPOUT,  #ifdef CONFIG_HUGETLB_PAGE
-> >  		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,  #endif
-> > +		OOM_STALL,
-> > +		OOM_KILL_COUNT,
+Thank you, Sasha, this is a nice one.  I've only just started ruminating
+on it, will do so (intermittently!) for a few days.  Maybe the answer
+will be to take an additional reference to the mm when unmerging; but
+done wrong that can frustrate OOM freeing memory altogether, so it's
+not a solution I'll rush into without consideration.
+
+Plus it's not clear to me yet whether it can only be a problem when
+unmerging, or could hit other calls to break_ksm().  I do have a
+v3.9-era patch to remove all the calls to break_cow(), but IIRC
+it's a patch I didn't quite get working reliably at the time.
+
+This does reinforce my suspicion that, one way or another, you
+happen to be targetting trinity at ksm more effectively these days:
+I don't see any cause for alarm over recent kernel changes yet.
+
 > 
-> Removing the COUNT will be better and in sync with others.
+> [3201844.610523] =============================================
+> [3201844.610988] [ INFO: possible recursive locking detected ]
+> [3201844.611405] 4.3.0-rc3-next-20150930-sasha-00077-g3434920 #4 Not tainted
+> [3201844.611907] ---------------------------------------------
+> [3201844.612373] ksm02/28830 is trying to acquire lock:
+> [3201844.612749] (&mm->mmap_sem){++++++}, at: __ksm_exit (mm/ksm.c:1821)
+> [3201844.613472] RWsem: count: 1 owner: None
+> [3201844.613782]
+> [3201844.613782] but task is already holding lock:
+> [3201844.614248] (&mm->mmap_sem){++++++}, at: run_store (mm/ksm.c:769 mm/ksm.c:2124)
+> [3201844.614904] RWsem: count: 1 owner: None
+> [3201844.615212]
+> [3201844.615212] other info that might help us debug this:
+> [3201844.615727]  Possible unsafe locking scenario:
+> [3201844.615727]
+> [3201844.616240]        CPU0
+> [3201844.616446]        ----
+> [3201844.616650]   lock(&mm->mmap_sem);
+> [3201844.616952]   lock(&mm->mmap_sem);
+> [3201844.617252]
+> [3201844.617252]  *** DEADLOCK ***
+> [3201844.617252]
+> [3201844.617733]  May be due to missing lock nesting notation
+> [3201844.617733]
+> [3201844.618265] 6 locks held by ksm02/28830:
+> [3201844.618576] #0: (sb_writers#5){.+.+.+}, at: __sb_start_write (fs/super.c:1176)
+> [3201844.619327] RWsem: count: 0 owner: None
+> [3201844.619633] #1: (&of->mutex){+.+.+.}, at: kernfs_fop_write (fs/kernfs/file.c:298)
+> [3201844.624648] Mutex: counter: 0 owner: ksm02
+> [3201844.624978] #2: (s_active#448){.+.+.+}, at: kernfs_fop_write (fs/kernfs/file.c:298)
+> [3201844.625733] #3: (ksm_thread_mutex){+.+.+.}, at: run_store (mm/ksm.c:2120)
+> [3201844.626448] Mutex: counter: -1 owner: ksm02
+> [3201844.626786] #4: (&mm->mmap_sem){++++++}, at: run_store (mm/ksm.c:769 mm/ksm.c:2124)
+> [3201844.627486] RWsem: count: 1 owner: None
+> [3201844.627792] #5: (oom_lock){+.+...}, at: __alloc_pages_nodemask (mm/page_alloc.c:2779 mm/page_alloc.c:3213 mm/page_alloc.c:3300)
+> [3201844.628594] Mutex: counter: 0 owner: ksm02
+> [3201844.628919]
+> [3201844.628919] stack backtrace:
+> [3201844.629276] CPU: 0 PID: 28830 Comm: ksm02 Not tainted 4.3.0-rc3-next-20150930-sasha-00077-g3434920 #4
+> [3201844.629970]  ffffffffaf41d680 00000000b8d5e1f1 ffff88065e42eec0 ffffffffa1d454c8
+> [3201844.630663]  ffffffffaf41d680 ffff88065e42f080 ffffffffa04269ee ffff88065e42f088
+> [3201844.631292]  ffffffffa0427746 ffff882c88b24008 ffff8806845b8e10 ffffffffafb842c0
+> [3201844.631952] Call Trace:
+> [3201844.632204] dump_stack (lib/dump_stack.c:52)
+> [3201844.636449] __lock_acquire (kernel/locking/lockdep.c:1776 kernel/locking/lockdep.c:1820 kernel/locking/lockdep.c:2152 kernel/locking/lockdep.c:3239)
+> [3201844.639909] lock_acquire (kernel/locking/lockdep.c:3620)
+> [3201844.640997] down_write (./arch/x86/include/asm/rwsem.h:130 kernel/locking/rwsem.c:51)
+> [3201844.642011] __ksm_exit (mm/ksm.c:1821)
+> [3201844.642501] mmput (./arch/x86/include/asm/bitops.h:311 include/linux/khugepaged.h:35 kernel/fork.c:701)
 
-Ok, even suggested by Michal Hocko and being discussed in another thread.
+I assume this interesting reference to khugepaged_exit()
+is just one of those off-by-one-line things?
 
+> [3201844.642920] oom_kill_process (mm/oom_kill.c:604)
+> [3201844.644528] out_of_memory (mm/oom_kill.c:700)
+> [3201844.646626] __alloc_pages_nodemask (mm/page_alloc.c:2822 mm/page_alloc.c:3213 mm/page_alloc.c:3300)
+> [3201844.649972] alloc_pages_vma (mm/mempolicy.c:2044)
+> [3201844.650462] ? wp_page_copy.isra.36 (mm/memory.c:2074)
+> [3201844.651000] wp_page_copy.isra.36 (mm/memory.c:2074)
+> [3201844.652544] do_wp_page (mm/memory.c:2349)
+> [3201844.654048] handle_mm_fault (mm/memory.c:3310 mm/memory.c:3404 mm/memory.c:3433)
+> [3201844.657519] break_ksm (mm/ksm.c:374)
+> [3201844.659348] unmerge_ksm_pages (mm/ksm.c:673)
+> [3201844.659831] run_store (mm/ksm.c:776 mm/ksm.c:2124)
+> [3201844.661837] kobj_attr_store (lib/kobject.c:792)
+> [3201844.662743] sysfs_kf_write (fs/sysfs/file.c:131)
+> [3201844.663656] kernfs_fop_write (fs/kernfs/file.c:312)
+> [3201844.664154] __vfs_write (fs/read_write.c:489)
+> [3201844.666502] vfs_write (fs/read_write.c:539)
+> [3201844.666935] SyS_write (fs/read_write.c:586 fs/read_write.c:577)
+> [3201844.668965] tracesys_phase2 (arch/x86/entry/entry_64.S:270)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
