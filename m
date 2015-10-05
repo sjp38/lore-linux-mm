@@ -1,97 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 64C83680DCF
-	for <linux-mm@kvack.org>; Sun,  4 Oct 2015 18:22:01 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so16272505pad.1
-        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 15:22:01 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id xc2si35112253pbc.187.2015.10.04.15.22.00
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E8DB5440313
+	for <linux-mm@kvack.org>; Sun,  4 Oct 2015 21:05:57 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so19018883pad.1
+        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 18:05:57 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id ct3si35978764pad.103.2015.10.04.18.05.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Oct 2015 15:22:00 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH 3/3] memcg: simplify and inline __mem_cgroup_from_kmem
-Date: Mon, 5 Oct 2015 01:21:43 +0300
-Message-ID: <517ab1701f4b53be8bfd6691a1499598efb358e7.1443996201.git.vdavydov@virtuozzo.com>
-In-Reply-To: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
-References: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 04 Oct 2015 18:05:57 -0700 (PDT)
+Received: by pablk4 with SMTP id lk4so158363326pab.3
+        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 18:05:56 -0700 (PDT)
+Date: Sun, 4 Oct 2015 18:05:46 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v4 1/4] mm, documentation: clarify /proc/pid/status VmSwap
+ limitations
+In-Reply-To: <1443792951-13944-2-git-send-email-vbabka@suse.cz>
+Message-ID: <alpine.LSU.2.11.1510041756330.15067@eggly.anvils>
+References: <1443792951-13944-1-git-send-email-vbabka@suse.cz> <1443792951-13944-2-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-Before the previous patch, __mem_cgroup_from_kmem had to handle two
-types of kmem - slab pages and pages allocated with alloc_kmem_pages -
-differently, because slab pages did not store information about owner
-memcg in the page struct. Now we can unify it. Since after it, this
-function becomes tiny we can fold it into mem_cgroup_from_kmem.
+On Fri, 2 Oct 2015, Vlastimil Babka wrote:
 
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
----
- include/linux/memcontrol.h |  7 ++++---
- mm/memcontrol.c            | 18 ------------------
- 2 files changed, 4 insertions(+), 21 deletions(-)
+> The documentation for /proc/pid/status does not mention that the value of
+> VmSwap counts only swapped out anonymous private pages and not shmem. This is
+> not obvious, so document this limitation.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Acked-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  Documentation/filesystems/proc.txt | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index a99b208..7ef50cb 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -239,6 +239,8 @@ Table 1-2: Contents of the status files (as of 4.1)
+>   VmPTE                       size of page table entries
+>   VmPMD                       size of second level page tables
+>   VmSwap                      size of swap usage (the number of referred swapents)
+> +                             by anonymous private data (shmem swap usage is not
+> +                             included)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 8a9b7a798f14..0e2e039609d1 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -769,8 +769,6 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
- struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep);
- void __memcg_kmem_put_cache(struct kmem_cache *cachep);
- 
--struct mem_cgroup *__mem_cgroup_from_kmem(void *ptr);
--
- static inline bool __memcg_kmem_bypass(gfp_t gfp)
- {
- 	if (!memcg_kmem_enabled())
-@@ -832,9 +830,12 @@ static __always_inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
- 
- static __always_inline struct mem_cgroup *mem_cgroup_from_kmem(void *ptr)
- {
-+	struct page *page;
-+
- 	if (!memcg_kmem_enabled())
- 		return NULL;
--	return __mem_cgroup_from_kmem(ptr);
-+	page = virt_to_head_page(ptr);
-+	return page->mem_cgroup;
- }
- #else
- #define for_each_memcg_cache_index(_idx)	\
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 1d6413e0dd29..6329e6182d89 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2430,24 +2430,6 @@ void __memcg_kmem_uncharge(struct page *page, int order)
- 	page->mem_cgroup = NULL;
- 	css_put_many(&memcg->css, nr_pages);
- }
--
--struct mem_cgroup *__mem_cgroup_from_kmem(void *ptr)
--{
--	struct mem_cgroup *memcg = NULL;
--	struct kmem_cache *cachep;
--	struct page *page;
--
--	page = virt_to_head_page(ptr);
--	if (PageSlab(page)) {
--		cachep = page->slab_cache;
--		if (!is_root_cache(cachep))
--			memcg = cachep->memcg_params.memcg;
--	} else
--		/* page allocated by alloc_kmem_pages */
--		memcg = page->mem_cgroup;
--
--	return memcg;
--}
- #endif /* CONFIG_MEMCG_KMEM */
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--- 
-2.1.4
+I have difficulty in reading "size of swap usage (the number of referred
+swapents) by anonymous private data (shmem swap usage is not included)".
+
+Luckily, VmSwap never was "the number of referred swapents", it's in kB.
+So I suggest                    amount of swap used by anonymous private data
+                                (shmem swap usage is not included)
+
+for which you can assume Acked-by: Hugh Dickins <hughd@google.com>
+
+Hugh
+
+>   HugetlbPages                size of hugetlb memory portions
+>   Threads                     number of threads
+>   SigQ                        number of signals queued/max. number for queue
+> -- 
+> 2.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
