@@ -1,40 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 327866B02F6
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 08:23:53 -0400 (EDT)
-Received: by ioiz6 with SMTP id z6so182638608ioi.2
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 05:23:53 -0700 (PDT)
-Received: from COL004-OMC1S6.hotmail.com (col004-omc1s6.hotmail.com. [65.55.34.16])
-        by mx.google.com with ESMTPS id e41si17767212ioi.126.2015.10.05.05.23.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 05 Oct 2015 05:23:52 -0700 (PDT)
-Message-ID: <COL130-W277AB820846A550742188BB9480@phx.gbl>
-From: Chen Gang <xili_gchen_5257@hotmail.com>
-Subject: RE: [PATCH] mm/mmap.c: Remove redundant vma looping
-Date: Mon, 5 Oct 2015 20:23:51 +0800
-In-Reply-To: <20151004172645.GO19466@redhat.com>
-References: 
- <COL130-W38E921DBAB9CFCFCC45F73B94A0@phx.gbl>,<CAFLxGvyFeyV+kNoD5+4jzfid5dgkZP0uhhQ7Q7Dk-ObDJq4ByA@mail.gmail.com>,<BLU436-SMTP233624CAE8A4C054B5DFFF8B9490@phx.gbl>,<20151004172645.GO19466@redhat.com>
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id A0C036B0338
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 09:28:44 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so176592662pab.3
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 06:28:44 -0700 (PDT)
+Received: from m50-134.163.com (m50-134.163.com. [123.125.50.134])
+        by mx.google.com with ESMTP id cr7si40327179pad.107.2015.10.05.06.28.41
+        for <linux-mm@kvack.org>;
+        Mon, 05 Oct 2015 06:28:43 -0700 (PDT)
+From: Geliang Tang <geliangtang@163.com>
+Subject: [PATCH v2 3/3] mm/nommu: drop unlikely behind BUG_ON()
+Date: Mon,  5 Oct 2015 21:26:06 +0800
+Message-Id: <4f765364227f9cdb0e837b165afe24ceb895548f.1444051018.git.geliangtang@163.com>
+In-Reply-To: <482d18783d6df356809b67431de95addfa20aa79.1444051018.git.geliangtang@163.com>
+References: <482d18783d6df356809b67431de95addfa20aa79.1444051018.git.geliangtang@163.com>
+In-Reply-To: <6fa7125979f98bbeac26e268271769b6ca935c8d.1444051018.git.geliangtang@163.com>
+References: <482d18783d6df356809b67431de95addfa20aa79.1444051018.git.geliangtang@163.com> <6fa7125979f98bbeac26e268271769b6ca935c8d.1444051018.git.geliangtang@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "aarcange@redhat.com" <aarcange@redhat.com>
-Cc: Richard Weinberger <richard.weinberger@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "oleg@redhat.com" <oleg@redhat.com>, "asha.levin@oracle.com" <asha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>, Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Davidlohr Bueso <dave@stgolabs.net>, Joonsoo Kim <js1304@gmail.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Leon Romanovsky <leon@leon.nu>, Oleg Nesterov <oleg@redhat.com>
+Cc: Geliang Tang <geliangtang@163.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-PiBGcm9tOiBhYXJjYW5nZUByZWRoYXQuY29tCj4KPiBIZWxsbyBDaGVuLAo+Cj4gT24gU3VuLCBP
-Y3QgMDQsIDIwMTUgYXQgMTI6NTU6MjlQTSArMDgwMCwgQ2hlbiBHYW5nIHdyb3RlOgo+PiBUaGVv
-cmV0aWNhbGx5LCB0aGUgbG9jayBhbmQgdW5sb2NrIG5lZWQgdG8gYmUgc3ltbWV0cmljLCBpZiB3
-ZSBoYXZlIHRvCj4+IGxvY2sgZl9tYXBwaW5nIGFsbCBmaXJzdGx5LCB0aGVuIGxvY2sgYWxsIGFu
-b25fdm1hLCBwcm9iYWJseSwgd2UgYWxzbwo+PiBuZWVkIHRvIHVubG9jayBhbm9uX3ZtYSBhbGws
-IHRoZW4gdW5sb2NrIGFsbCBmX21hcHBpbmcuCj4KPiBUaGV5IGRvbid0IG5lZWQgdG8gYmUgc3lt
-bWV0cmljIGJlY2F1c2UgdGhlIHVubG9ja2luZyBvcmRlciBkb2Vzbid0Cj4gbWF0dGVyLiBUbyBh
-dm9pZCBsb2NrIGludmVyc2lvbiBkZWFkbG9ja3MgaXQgaXMgZW5vdWdoIHRvIGVuZm9yY2UgdGhl
-Cj4gbG9jayBvcmRlci4KCk9LLCB0aGFua3MuIEkgc2hhbGwgY29udGludWUgdG8gZmluZCBhbm90
-aGVyIHBhdGNoZXMuIDotKQoKLS0KQ2hlbiBHYW5nCgpPcGVuLCBzaGFyZSwgYW5kIGF0dGl0dWRl
-IGxpa2UgYWlyLCB3YXRlciwgYW5kIGxpZmUgd2hpY2ggR29kIGJsZXNzZWQKIAkJIAkgICAJCSAg
+(1) For !CONFIG_BUG cases, the bug call is a no-op, so we couldn't care
+less and the change is ok.
+
+(2) ppc and mips, which HAVE_ARCH_BUG_ON, do not rely on branch predictions
+as it seems to be pointless[1] and thus callers should not be trying to
+push an optimization in the first place.
+
+(3) For CONFIG_BUG and !HAVE_ARCH_BUG_ON cases, BUG_ON() contains an
+unlikely compiler flag already.
+
+Hence, we can drop unlikely behind BUG_ON().
+
+[1] http://lkml.iu.edu/hypermail/linux/kernel/1101.3/02289.html
+
+Signed-off-by: Geliang Tang <geliangtang@163.com>
+Acked-by: Davidlohr Bueso <dave@stgolabs.net>
+---
+Changes in v2:
+ - Just rewrite the commit log.
+---
+ mm/nommu.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 1e0f168..92be862 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -578,16 +578,16 @@ static noinline void validate_nommu_regions(void)
+ 		return;
+ 
+ 	last = rb_entry(lastp, struct vm_region, vm_rb);
+-	BUG_ON(unlikely(last->vm_end <= last->vm_start));
+-	BUG_ON(unlikely(last->vm_top < last->vm_end));
++	BUG_ON(last->vm_end <= last->vm_start);
++	BUG_ON(last->vm_top < last->vm_end);
+ 
+ 	while ((p = rb_next(lastp))) {
+ 		region = rb_entry(p, struct vm_region, vm_rb);
+ 		last = rb_entry(lastp, struct vm_region, vm_rb);
+ 
+-		BUG_ON(unlikely(region->vm_end <= region->vm_start));
+-		BUG_ON(unlikely(region->vm_top < region->vm_end));
+-		BUG_ON(unlikely(region->vm_start < last->vm_top));
++		BUG_ON(region->vm_end <= region->vm_start);
++		BUG_ON(region->vm_top < region->vm_end);
++		BUG_ON(region->vm_start < last->vm_top);
+ 
+ 		lastp = p;
+ 	}
+-- 
+2.5.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
