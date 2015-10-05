@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id AD5CD440313
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 00:28:06 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so164148300pac.0
-        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 21:28:06 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id z10si37162443pas.74.2015.10.04.21.28.05
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 44BD6440313
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 00:55:07 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so163783205pab.3
+        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 21:55:07 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id fd1si37297282pad.44.2015.10.04.21.55.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Oct 2015 21:28:05 -0700 (PDT)
-Received: by pacex6 with SMTP id ex6so164147956pac.0
-        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 21:28:05 -0700 (PDT)
-Date: Sun, 4 Oct 2015 21:28:02 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 04 Oct 2015 21:55:06 -0700 (PDT)
+Received: by pacfv12 with SMTP id fv12so168035357pac.2
+        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 21:55:05 -0700 (PDT)
+Date: Sun, 4 Oct 2015 21:55:02 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v4 3/4] mm, shmem: Add shmem resident memory accounting
-In-Reply-To: <1443792951-13944-4-git-send-email-vbabka@suse.cz>
-Message-ID: <alpine.LSU.2.11.1510042124580.15067@eggly.anvils>
-References: <1443792951-13944-1-git-send-email-vbabka@suse.cz> <1443792951-13944-4-git-send-email-vbabka@suse.cz>
+Subject: Re: [PATCH v4 4/4] mm, procfs: Display VmAnon, VmFile and VmShm in
+ /proc/pid/status
+In-Reply-To: <1443792951-13944-5-git-send-email-vbabka@suse.cz>
+Message-ID: <alpine.LSU.2.11.1510042128170.15067@eggly.anvils>
+References: <1443792951-13944-1-git-send-email-vbabka@suse.cz> <1443792951-13944-5-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -28,277 +29,156 @@ On Fri, 2 Oct 2015, Vlastimil Babka wrote:
 
 > From: Jerome Marchand <jmarchan@redhat.com>
 > 
-> Currently looking at /proc/<pid>/status or statm, there is no way to
-> distinguish shmem pages from pages mapped to a regular file (shmem
-> pages are mapped to /dev/zero), even though their implication in
-> actual memory use is quite different.
-> This patch adds MM_SHMEMPAGES counter to mm_rss_stat to account for
-> shmem pages instead of MM_FILEPAGES.
+> It's currently inconvenient to retrieve MM_ANONPAGES value from status
+> and statm files and there is no way to separate MM_FILEPAGES and
+> MM_SHMEMPAGES. Add RssAnon, RssFile and RssShm lines in /proc/<pid>/status
+> to solve these issues.
 > 
 > Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Acked-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 > Acked-by: Michal Hocko <mhocko@suse.com>
 
+Mostly
 Acked-by: Hugh Dickins <hughd@google.com>
-
-Good, this one long overdue, I've grown tired for writing those if/elses.
-I'd have probably have done without mm_counter_file(), but it's okay.
+but I loathe the alignment...
 
 > ---
->  arch/s390/mm/pgtable.c   |  5 +----
->  fs/proc/task_mmu.c       |  3 ++-
->  include/linux/mm.h       | 18 +++++++++++++++++-
->  include/linux/mm_types.h |  7 ++++---
->  kernel/events/uprobes.c  |  2 +-
->  mm/memory.c              | 30 ++++++++++--------------------
->  mm/oom_kill.c            |  5 +++--
->  mm/rmap.c                | 12 +++---------
->  8 files changed, 41 insertions(+), 41 deletions(-)
+>  Documentation/filesystems/proc.txt | 10 +++++++++-
+>  fs/proc/task_mmu.c                 | 14 ++++++++++++--
+>  2 files changed, 21 insertions(+), 3 deletions(-)
 > 
-> diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-> index 54ef3bc..9816f25 100644
-> --- a/arch/s390/mm/pgtable.c
-> +++ b/arch/s390/mm/pgtable.c
-> @@ -603,10 +603,7 @@ static void gmap_zap_swap_entry(swp_entry_t entry, struct mm_struct *mm)
->  	else if (is_migration_entry(entry)) {
->  		struct page *page = migration_entry_to_page(entry);
->  
-> -		if (PageAnon(page))
-> -			dec_mm_counter(mm, MM_ANONPAGES);
-> -		else
-> -			dec_mm_counter(mm, MM_FILEPAGES);
-> +		dec_mm_counter(mm, mm_counter(page));
->  	}
->  	free_swap_and_cache(entry);
->  }
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index 82d3657..c887a42 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -169,6 +169,9 @@ For example, to get the status information of a process, all you have to do is
+>    VmLck:         0 kB
+>    VmHWM:       476 kB
+>    VmRSS:       476 kB
+> +  RssAnon      352 kB
+> +  RssFile:     120 kB
+> +  RssShm:        4 kB
+
+That looks nice...
+
+>    VmData:      156 kB
+>    VmStk:        88 kB
+>    VmExe:        68 kB
+> @@ -231,7 +234,12 @@ Table 1-2: Contents of the status files (as of 4.1)
+>   VmSize                      total program size
+>   VmLck                       locked memory size
+>   VmHWM                       peak resident set size ("high water mark")
+> - VmRSS                       size of memory portions
+> + VmRSS                       size of memory portions. It contains the three
+> +                             following parts (VmRSS = RssAnon + RssFile + RssShm)
+> + RssAnon                     size of resident anonymous memory
+> + RssFile                     size of resident file mappings
+> + RssShm                      size of resident shmem memory (includes SysV shm,
+> +                             mapping of tmpfs and shared anonymous mappings)
+>   VmData                      size of data, stack, and text segments
+>   VmStk                       size of data, stack, and text segments
+>   VmExe                       size of text segment
 > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 103457c..9b9708e 100644
+> index 9b9708e..7332afd 100644
 > --- a/fs/proc/task_mmu.c
 > +++ b/fs/proc/task_mmu.c
-> @@ -83,7 +83,8 @@ unsigned long task_statm(struct mm_struct *mm,
->  			 unsigned long *shared, unsigned long *text,
->  			 unsigned long *data, unsigned long *resident)
+> @@ -23,9 +23,13 @@
+>  
+>  void task_mem(struct seq_file *m, struct mm_struct *mm)
 >  {
-> -	*shared = get_mm_counter(mm, MM_FILEPAGES);
-> +	*shared = get_mm_counter(mm, MM_FILEPAGES) +
-> +			get_mm_counter(mm, MM_SHMEMPAGES);
->  	*text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK))
->  								>> PAGE_SHIFT;
->  	*data = mm->total_vm - mm->shared_vm;
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index d30eea3..8be4efc 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1361,10 +1361,26 @@ static inline void dec_mm_counter(struct mm_struct *mm, int member)
->  	atomic_long_dec(&mm->rss_stat.count[member]);
->  }
+> -	unsigned long data, text, lib, swap, ptes, pmds;
+> +	unsigned long data, text, lib, swap, ptes, pmds, anon, file, shmem;
+>  	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
 >  
-> +/* Optimized variant when page is already known not to be PageAnon */
-> +static inline int mm_counter_file(struct page *page)
-> +{
-> +	if (PageSwapBacked(page))
-> +		return MM_SHMEMPAGES;
-> +	return MM_FILEPAGES;
-> +}
+> +	anon = get_mm_counter(mm, MM_ANONPAGES);
+> +	file = get_mm_counter(mm, MM_FILEPAGES);
+> +	shmem = get_mm_counter(mm, MM_SHMEMPAGES);
 > +
-> +static inline int mm_counter(struct page *page)
-> +{
-> +	if (PageAnon(page))
-> +		return MM_ANONPAGES;
-> +	return mm_counter_file(page);
-> +}
-> +
->  static inline unsigned long get_mm_rss(struct mm_struct *mm)
->  {
->  	return get_mm_counter(mm, MM_FILEPAGES) +
-> -		get_mm_counter(mm, MM_ANONPAGES);
-> +		get_mm_counter(mm, MM_ANONPAGES) +
-> +		get_mm_counter(mm, MM_SHMEMPAGES);
->  }
->  
->  static inline unsigned long get_mm_hiwater_rss(struct mm_struct *mm)
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index f8d1492..207890b 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -369,9 +369,10 @@ struct core_state {
->  };
->  
->  enum {
-> -	MM_FILEPAGES,
-> -	MM_ANONPAGES,
-> -	MM_SWAPENTS,
-> +	MM_FILEPAGES,	/* Resident file mapping pages */
-> +	MM_ANONPAGES,	/* Resident anonymous pages */
-> +	MM_SWAPENTS,	/* Anonymous swap entries */
-> +	MM_SHMEMPAGES,	/* Resident shared memory pages */
->  	NR_MM_COUNTERS
->  };
->  
-> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-> index 4e5e979..6288606 100644
-> --- a/kernel/events/uprobes.c
-> +++ b/kernel/events/uprobes.c
-> @@ -180,7 +180,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
->  	lru_cache_add_active_or_unevictable(kpage, vma);
->  
->  	if (!PageAnon(page)) {
-> -		dec_mm_counter(mm, MM_FILEPAGES);
-> +		dec_mm_counter(mm, mm_counter_file(page));
->  		inc_mm_counter(mm, MM_ANONPAGES);
->  	}
->  
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 3bd465a..f10d458 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -832,10 +832,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->  		} else if (is_migration_entry(entry)) {
->  			page = migration_entry_to_page(entry);
->  
-> -			if (PageAnon(page))
-> -				rss[MM_ANONPAGES]++;
-> -			else
-> -				rss[MM_FILEPAGES]++;
-> +			rss[mm_counter(page)]++;
->  
->  			if (is_write_migration_entry(entry) &&
->  					is_cow_mapping(vm_flags)) {
-> @@ -874,10 +871,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->  	if (page) {
->  		get_page(page);
->  		page_dup_rmap(page);
-> -		if (PageAnon(page))
-> -			rss[MM_ANONPAGES]++;
-> -		else
-> -			rss[MM_FILEPAGES]++;
-> +		rss[mm_counter(page)]++;
->  	}
->  
->  out_set_pte:
-> @@ -1113,9 +1107,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
->  			tlb_remove_tlb_entry(tlb, pte, addr);
->  			if (unlikely(!page))
->  				continue;
-> -			if (PageAnon(page))
-> -				rss[MM_ANONPAGES]--;
-> -			else {
-> +
-> +			if (!PageAnon(page)) {
->  				if (pte_dirty(ptent)) {
->  					force_flush = 1;
->  					set_page_dirty(page);
-> @@ -1123,8 +1116,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
->  				if (pte_young(ptent) &&
->  				    likely(!(vma->vm_flags & VM_SEQ_READ)))
->  					mark_page_accessed(page);
-> -				rss[MM_FILEPAGES]--;
->  			}
-> +			rss[mm_counter(page)]--;
->  			page_remove_rmap(page);
->  			if (unlikely(page_mapcount(page) < 0))
->  				print_bad_pte(vma, addr, ptent, page);
-> @@ -1146,11 +1139,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
->  			struct page *page;
->  
->  			page = migration_entry_to_page(entry);
-> -
-> -			if (PageAnon(page))
-> -				rss[MM_ANONPAGES]--;
-> -			else
-> -				rss[MM_FILEPAGES]--;
-> +			rss[mm_counter(page)]--;
->  		}
->  		if (unlikely(!free_swap_and_cache(entry)))
->  			print_bad_pte(vma, addr, ptent, NULL);
-> @@ -1460,7 +1449,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
->  
->  	/* Ok, finally just insert the thing.. */
->  	get_page(page);
-> -	inc_mm_counter_fast(mm, MM_FILEPAGES);
-> +	inc_mm_counter_fast(mm, mm_counter_file(page));
->  	page_add_file_rmap(page);
->  	set_pte_at(mm, addr, pte, mk_pte(page, prot));
->  
-> @@ -2097,7 +2086,8 @@ static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,
->  	if (likely(pte_same(*page_table, orig_pte))) {
->  		if (old_page) {
->  			if (!PageAnon(old_page)) {
-> -				dec_mm_counter_fast(mm, MM_FILEPAGES);
-> +				dec_mm_counter_fast(mm,
-> +						mm_counter_file(old_page));
->  				inc_mm_counter_fast(mm, MM_ANONPAGES);
->  			}
->  		} else {
-> @@ -2818,7 +2808,7 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
->  		inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
->  		page_add_new_anon_rmap(page, vma, address);
->  	} else {
-> -		inc_mm_counter_fast(vma->vm_mm, MM_FILEPAGES);
-> +		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
->  		page_add_file_rmap(page);
->  	}
->  	set_pte_at(vma->vm_mm, address, pte, entry);
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 4766e25..127e2d6 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -567,10 +567,11 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  	 */
->  	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
->  	mark_oom_victim(victim);
-> -	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
-> +	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
->  		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
->  		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
-> -		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
-> +		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
-> +		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
->  	task_unlock(victim);
->  
 >  	/*
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 0ce371a..6c89356 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1383,10 +1383,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  		if (PageHuge(page)) {
->  			hugetlb_count_sub(1 << compound_order(page), mm);
->  		} else {
-> -			if (PageAnon(page))
-> -				dec_mm_counter(mm, MM_ANONPAGES);
-> -			else
-> -				dec_mm_counter(mm, MM_FILEPAGES);
-> +			dec_mm_counter(mm, mm_counter(page));
->  		}
->  		set_pte_at(mm, address, pte,
->  			   swp_entry_to_pte(make_hwpoison_entry(page)));
-> @@ -1396,10 +1393,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  		 * interest anymore. Simply discard the pte, vmscan
->  		 * will take care of the rest.
->  		 */
-> -		if (PageAnon(page))
-> -			dec_mm_counter(mm, MM_ANONPAGES);
-> -		else
-> -			dec_mm_counter(mm, MM_FILEPAGES);
-> +		dec_mm_counter(mm, mm_counter(page));
->  	} else if (PageAnon(page)) {
->  		swp_entry_t entry = { .val = page_private(page) };
->  		pte_t swp_pte;
-> @@ -1455,7 +1449,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  		entry = make_migration_entry(page, pte_write(pteval));
->  		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
->  	} else
-> -		dec_mm_counter(mm, MM_FILEPAGES);
-> +		dec_mm_counter(mm, mm_counter_file(page));
+>  	 * Note: to minimize their overhead, mm maintains hiwater_vm and
+>  	 * hiwater_rss only when about to *lower* total_vm or rss.  Any
+> @@ -36,7 +40,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  	hiwater_vm = total_vm = mm->total_vm;
+>  	if (hiwater_vm < mm->hiwater_vm)
+>  		hiwater_vm = mm->hiwater_vm;
+> -	hiwater_rss = total_rss = get_mm_rss(mm);
+> +	hiwater_rss = total_rss = anon + file + shmem;
+>  	if (hiwater_rss < mm->hiwater_rss)
+>  		hiwater_rss = mm->hiwater_rss;
 >  
->  discard:
->  	page_remove_rmap(page);
+> @@ -53,6 +57,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  		"VmPin:\t%8lu kB\n"
+>  		"VmHWM:\t%8lu kB\n"
+>  		"VmRSS:\t%8lu kB\n"
+> +		"RssAnon:\t%8lu kB\n"
+> +		"RssFile:\t%8lu kB\n"
+> +		"RssShm:\t%8lu kB\n"
+
+... but on my terminal that comes out as
+
+VmPeak:     4584 kB
+VmSize:     4584 kB
+VmLck:         0 kB
+VmPin:         0 kB
+VmHWM:      1264 kB
+VmRSS:      1264 kB
+RssAnon:              84 kB
+RssFile:            1180 kB
+RssShm:        0 kB
+VmData:      184 kB
+VmStk:       136 kB
+VmExe:        48 kB
+VmLib:      1808 kB
+VmPTE:        32 kB
+VmPMD:        12 kB
+VmSwap:        0 kB
+HugetlbPages:          0 kB
+
+Notice anything ugly about that?  Of course, what's really wrong was
+the years-ago choice of absurdly short names, with a tab after them.
+Ugh.  The HugetlbPages line probably can't be helped (even HugeTLB:
+would be too long).  But your three, I hope we can do better: I can
+understand why Rss instead of Vm, sure, Vm on the front contributes
+nothing but incorrectness, and it wasn't a bad idea to group them as
+contributors to VmRSS.
+
+I suggest either indenting them with spaces to keep the alignment,
+
+"  Anon:\t%8lu kB\n"
+"  File:\t%8lu kB\n"
+" Shmem:\t%8lu kB\n"
+
+or keeping your Rss prefix but misaligning the three together,
+
+"RssAnon:\t%8lu kB\n"
+"RssFile:\t%8lu kB\n"
+"RssShmem:\t%8lu kB\n"
+
+I somewhat prefer "Shmem" to "Shm" because "Shmem" is what
+/proc/meminfo already says, and "Shm" makes me think of SysV SHM only.
+But I'd happily settle for Shm if it helped in the alignment.
+
+I realize that /proc/<pid>/status is not universally loved for its
+aesthetic charm, and I may be the only one who feels this way...
+
+Hugh
+
+>  		"VmData:\t%8lu kB\n"
+>  		"VmStk:\t%8lu kB\n"
+>  		"VmExe:\t%8lu kB\n"
+> @@ -66,6 +73,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  		mm->pinned_vm << (PAGE_SHIFT-10),
+>  		hiwater_rss << (PAGE_SHIFT-10),
+>  		total_rss << (PAGE_SHIFT-10),
+> +		anon << (PAGE_SHIFT-10),
+> +		file << (PAGE_SHIFT-10),
+> +		shmem << (PAGE_SHIFT-10),
+>  		data << (PAGE_SHIFT-10),
+>  		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
+>  		ptes >> 10,
 > -- 
 > 2.5.2
-> 
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
