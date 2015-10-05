@@ -1,137 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C3239440313
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 03:31:11 -0400 (EDT)
-Received: by ioiz6 with SMTP id z6so175991021ioi.2
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 00:31:11 -0700 (PDT)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id qq6si7455460igb.69.2015.10.05.00.31.10
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D7A6440313
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 03:53:24 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so106710046wic.1
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 00:53:23 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id gz7si14909624wib.35.2015.10.05.00.53.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Oct 2015 00:31:10 -0700 (PDT)
-Received: by pacex6 with SMTP id ex6so168981227pac.0
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 00:31:10 -0700 (PDT)
-Date: Mon, 5 Oct 2015 00:31:01 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: ksm: deadlock in oom killing process while breaking ksm
- pages
-In-Reply-To: <560D448F.9050507@oracle.com>
-Message-ID: <alpine.LSU.2.11.1510050011280.17707@eggly.anvils>
-References: <560D448F.9050507@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Oct 2015 00:53:23 -0700 (PDT)
+Date: Mon, 5 Oct 2015 09:53:18 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 2/4] mm, proc: account for shmem swap in
+ /proc/pid/smaps
+Message-ID: <20151005075318.GE2903@worktop.programming.kicks-ass.net>
+References: <1443792951-13944-1-git-send-email-vbabka@suse.cz>
+ <1443792951-13944-3-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1443792951-13944-3-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-On Thu, 1 Oct 2015, Sasha Levin wrote:
+On Fri, Oct 02, 2015 at 03:35:49PM +0200, Vlastimil Babka wrote:
+> +static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)
+> +{
+> +	struct inode *inode;
+> +	unsigned long swapped;
+> +	pgoff_t start, end;
+> +
+> +	if (!vma->vm_file)
+> +		return 0;
+> +
+> +	inode = file_inode(vma->vm_file);
+> +
+> +	if (!shmem_mapping(inode->i_mapping))
+> +		return 0;
+> +
+> +	/*
+> +	 * The easier cases are when the shmem object has nothing in swap, or
+> +	 * we have the whole object mapped. Then we can simply use the stats
+> +	 * that are already tracked by shmem.
+> +	 */
+> +	swapped = shmem_swap_usage(inode);
+> +
+> +	if (swapped == 0)
+> +		return 0;
+> +
+> +	if (vma->vm_end - vma->vm_start >= inode->i_size)
+> +		return swapped;
+> +
+> +	/*
+> +	 * Here we have to inspect individual pages in our mapped range to
+> +	 * determine how much of them are swapped out. Thanks to RCU, we don't
+> +	 * need i_mutex to protect against truncating or hole punching.
+> +	 */
 
-> Hi Hugh,
-> 
-> I've hit this (actual) lockup during testing. It seems that we were trying to allocate
-> a new page to break KSM on an existing page, ended up in the oom killer who killed our
-> process, and locked up in __ksm_exit() trying to get a write lock while already holding
-> a read lock.
-> 
-> A very similar scenario is presented in the patch that introduced this behaviour
-> (9ba6929480 ("ksm: fix oom deadlock")):
-> 
->     There's a now-obvious deadlock in KSM's out-of-memory handling:
->     imagine ksmd or KSM_RUN_UNMERGE handling, holding ksm_thread_mutex,
->     trying to allocate a page to break KSM in an mm which becomes the
->     OOM victim (quite likely in the unmerge case): it's killed and goes
->     to exit, and hangs there waiting to acquire ksm_thread_mutex.
-> 
-> So I'm guessing that the solution is incomplete for the slow path.
+At the very least put in an assertion that we hold the RCU read lock,
+otherwise RCU doesn't guarantee anything and its not obvious it is held
+here.
 
-Thank you, Sasha, this is a nice one.  I've only just started ruminating
-on it, will do so (intermittently!) for a few days.  Maybe the answer
-will be to take an additional reference to the mm when unmerging; but
-done wrong that can frustrate OOM freeing memory altogether, so it's
-not a solution I'll rush into without consideration.
+> +	start = linear_page_index(vma, vma->vm_start);
+> +	end = linear_page_index(vma, vma->vm_end);
+> +
+> +	return shmem_partial_swap_usage(inode->i_mapping, start, end);
+> +}
 
-Plus it's not clear to me yet whether it can only be a problem when
-unmerging, or could hit other calls to break_ksm().  I do have a
-v3.9-era patch to remove all the calls to break_cow(), but IIRC
-it's a patch I didn't quite get working reliably at the time.
+> + * Determine (in bytes) how much of the whole shmem object is swapped out.
+> + */
+> +unsigned long shmem_swap_usage(struct inode *inode)
+> +{
+> +	struct shmem_inode_info *info = SHMEM_I(inode);
+> +	unsigned long swapped;
+> +
+> +	/* Mostly an overkill, but it's not atomic64_t */
 
-This does reinforce my suspicion that, one way or another, you
-happen to be targetting trinity at ksm more effectively these days:
-I don't see any cause for alarm over recent kernel changes yet.
+Yeah, that don't make any kind of sense.
 
-> 
-> [3201844.610523] =============================================
-> [3201844.610988] [ INFO: possible recursive locking detected ]
-> [3201844.611405] 4.3.0-rc3-next-20150930-sasha-00077-g3434920 #4 Not tainted
-> [3201844.611907] ---------------------------------------------
-> [3201844.612373] ksm02/28830 is trying to acquire lock:
-> [3201844.612749] (&mm->mmap_sem){++++++}, at: __ksm_exit (mm/ksm.c:1821)
-> [3201844.613472] RWsem: count: 1 owner: None
-> [3201844.613782]
-> [3201844.613782] but task is already holding lock:
-> [3201844.614248] (&mm->mmap_sem){++++++}, at: run_store (mm/ksm.c:769 mm/ksm.c:2124)
-> [3201844.614904] RWsem: count: 1 owner: None
-> [3201844.615212]
-> [3201844.615212] other info that might help us debug this:
-> [3201844.615727]  Possible unsafe locking scenario:
-> [3201844.615727]
-> [3201844.616240]        CPU0
-> [3201844.616446]        ----
-> [3201844.616650]   lock(&mm->mmap_sem);
-> [3201844.616952]   lock(&mm->mmap_sem);
-> [3201844.617252]
-> [3201844.617252]  *** DEADLOCK ***
-> [3201844.617252]
-> [3201844.617733]  May be due to missing lock nesting notation
-> [3201844.617733]
-> [3201844.618265] 6 locks held by ksm02/28830:
-> [3201844.618576] #0: (sb_writers#5){.+.+.+}, at: __sb_start_write (fs/super.c:1176)
-> [3201844.619327] RWsem: count: 0 owner: None
-> [3201844.619633] #1: (&of->mutex){+.+.+.}, at: kernfs_fop_write (fs/kernfs/file.c:298)
-> [3201844.624648] Mutex: counter: 0 owner: ksm02
-> [3201844.624978] #2: (s_active#448){.+.+.+}, at: kernfs_fop_write (fs/kernfs/file.c:298)
-> [3201844.625733] #3: (ksm_thread_mutex){+.+.+.}, at: run_store (mm/ksm.c:2120)
-> [3201844.626448] Mutex: counter: -1 owner: ksm02
-> [3201844.626786] #4: (&mm->mmap_sem){++++++}, at: run_store (mm/ksm.c:769 mm/ksm.c:2124)
-> [3201844.627486] RWsem: count: 1 owner: None
-> [3201844.627792] #5: (oom_lock){+.+...}, at: __alloc_pages_nodemask (mm/page_alloc.c:2779 mm/page_alloc.c:3213 mm/page_alloc.c:3300)
-> [3201844.628594] Mutex: counter: 0 owner: ksm02
-> [3201844.628919]
-> [3201844.628919] stack backtrace:
-> [3201844.629276] CPU: 0 PID: 28830 Comm: ksm02 Not tainted 4.3.0-rc3-next-20150930-sasha-00077-g3434920 #4
-> [3201844.629970]  ffffffffaf41d680 00000000b8d5e1f1 ffff88065e42eec0 ffffffffa1d454c8
-> [3201844.630663]  ffffffffaf41d680 ffff88065e42f080 ffffffffa04269ee ffff88065e42f088
-> [3201844.631292]  ffffffffa0427746 ffff882c88b24008 ffff8806845b8e10 ffffffffafb842c0
-> [3201844.631952] Call Trace:
-> [3201844.632204] dump_stack (lib/dump_stack.c:52)
-> [3201844.636449] __lock_acquire (kernel/locking/lockdep.c:1776 kernel/locking/lockdep.c:1820 kernel/locking/lockdep.c:2152 kernel/locking/lockdep.c:3239)
-> [3201844.639909] lock_acquire (kernel/locking/lockdep.c:3620)
-> [3201844.640997] down_write (./arch/x86/include/asm/rwsem.h:130 kernel/locking/rwsem.c:51)
-> [3201844.642011] __ksm_exit (mm/ksm.c:1821)
-> [3201844.642501] mmput (./arch/x86/include/asm/bitops.h:311 include/linux/khugepaged.h:35 kernel/fork.c:701)
-
-I assume this interesting reference to khugepaged_exit()
-is just one of those off-by-one-line things?
-
-> [3201844.642920] oom_kill_process (mm/oom_kill.c:604)
-> [3201844.644528] out_of_memory (mm/oom_kill.c:700)
-> [3201844.646626] __alloc_pages_nodemask (mm/page_alloc.c:2822 mm/page_alloc.c:3213 mm/page_alloc.c:3300)
-> [3201844.649972] alloc_pages_vma (mm/mempolicy.c:2044)
-> [3201844.650462] ? wp_page_copy.isra.36 (mm/memory.c:2074)
-> [3201844.651000] wp_page_copy.isra.36 (mm/memory.c:2074)
-> [3201844.652544] do_wp_page (mm/memory.c:2349)
-> [3201844.654048] handle_mm_fault (mm/memory.c:3310 mm/memory.c:3404 mm/memory.c:3433)
-> [3201844.657519] break_ksm (mm/ksm.c:374)
-> [3201844.659348] unmerge_ksm_pages (mm/ksm.c:673)
-> [3201844.659831] run_store (mm/ksm.c:776 mm/ksm.c:2124)
-> [3201844.661837] kobj_attr_store (lib/kobject.c:792)
-> [3201844.662743] sysfs_kf_write (fs/sysfs/file.c:131)
-> [3201844.663656] kernfs_fop_write (fs/kernfs/file.c:312)
-> [3201844.664154] __vfs_write (fs/read_write.c:489)
-> [3201844.666502] vfs_write (fs/read_write.c:539)
-> [3201844.666935] SyS_write (fs/read_write.c:586 fs/read_write.c:577)
-> [3201844.668965] tracesys_phase2 (arch/x86/entry/entry_64.S:270)
+> +	spin_lock(&info->lock);
+> +	swapped = info->swapped;
+> +	spin_unlock(&info->lock);
+> +
+> +	return swapped << PAGE_SHIFT;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
