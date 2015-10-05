@@ -1,82 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D0C62440321
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 04:31:43 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so108097537wic.1
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 01:31:43 -0700 (PDT)
-Received: from mx3-phx2.redhat.com (mx3-phx2.redhat.com. [209.132.183.24])
-        by mx.google.com with ESMTPS id h7si29520920wjz.55.2015.10.05.01.31.42
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 852BC440321
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 06:08:03 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so106982897wic.1
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 03:08:03 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h2si29898950wjx.151.2015.10.05.03.08.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Mon, 05 Oct 2015 01:31:42 -0700 (PDT)
-Date: Mon, 5 Oct 2015 04:31:36 -0400 (EDT)
-From: Jan Stancek <jstancek@redhat.com>
-Message-ID: <966246330.24706612.1444033896827.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20151004120639.GA18078@kroah.com>
-References: <1a7c81db42986a6fa27260fe189890bffc8a9cce.1440665740.git.jstancek@redhat.com> <b12da2996a30cb739146a5eccd068bbe650092a1.1440665740.git.jstancek@redhat.com> <20150901071553.GD23114@localhost.localdomain> <1670445670.7779783.1441797083045.JavaMail.zimbra@redhat.com> <1327703113.14884616.1442910421398.JavaMail.zimbra@redhat.com> <20151004120639.GA18078@kroah.com>
-Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections in
- register_mem_sect_under_node
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 05 Oct 2015 03:08:02 -0700 (PDT)
+Date: Mon, 5 Oct 2015 12:07:58 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [RFC v2 07/18] kthread: Allow to cancel kthread work
+Message-ID: <20151005100758.GK9603@pathway.suse.cz>
+References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
+ <1442840639-6963-8-git-send-email-pmladek@suse.com>
+ <20150922193513.GE17659@mtj.duckdns.org>
+ <20150925112617.GA3122@pathway.suse.cz>
+ <20150928170314.GF2589@mtj.duckdns.org>
+ <20151002154336.GC3122@pathway.suse.cz>
+ <20151002192453.GA7564@mtj.duckdns.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151002192453.GA7564@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Young <dyoung@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-
-
-
-
------ Original Message -----
-> From: "Greg KH" <gregkh@linuxfoundation.org>
-> To: "Jan Stancek" <jstancek@redhat.com>
-> Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Dave Young" <dyoung@redhat.com>
-> Sent: Sunday, 4 October, 2015 2:06:39 PM
-> Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections in register_mem_sect_under_node
+On Fri 2015-10-02 15:24:53, Tejun Heo wrote:
+> Hello,
 > 
-> On Tue, Sep 22, 2015 at 04:27:01AM -0400, Jan Stancek wrote:
-> > 
-> > 
-> > 
-> > 
-> > ----- Original Message -----
-> > > From: "Jan Stancek" <jstancek@redhat.com>
-> > > To: gregkh@linuxfoundation.org
-> > > Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Dave Young"
-> > > <dyoung@redhat.com>
-> > > Sent: Wednesday, 9 September, 2015 1:11:23 PM
-> > > Subject: Re: [PATCH 2/2] drivers/base/node.c: skip non-present sections
-> > > in register_mem_sect_under_node
-> > > 
-> > > Greg,
-> > > 
-> > > any thoughts about the patch?
-> > 
-> > ping
+> On Fri, Oct 02, 2015 at 05:43:36PM +0200, Petr Mladek wrote:
+> > IMHO, we need both locks. The worker manipulates more works and
+> > need its own lock. We need work-specific lock because the work
+> > might be assigned to different workers and we need to be sure
+> > that the operations are really serialized, e.g. queuing.
 > 
-> I need some -mm people to sign off on it, as this code is tricky and I
-> think has caused problems in the past, and I know nothing about it...
+> I don't think we need per-work lock.  Do we have such usage in kernel
+> at all?  If you're worried, let the first queueing record the worker
+> and trigger warning if someone tries to queue it anywhere else.  This
+> doesn't need to be full-on general like workqueue.  Let's make
+> reasonable trade-offs where possible.
 
-Thanks for response, get_maintainer.pl was giving me only your name.
+I actually thought about this simplification as well. But then I am
+in doubts about the API. It would make sense to assign the worker
+when the work is being initialized and avoid the duplicate information
+when the work is being queued:
 
-> 
-> So please resend and get some acks from them and I'll be glad to take
-> it.
+	init_kthread_work(work, fn, worker);
+	queue_work(work);
 
-It looks like someone has already beat me to it:
+Or would you prefer to keep the API similar to workqueues even when
+it makes less sense here?
 
-commit 04697858d89e4bf2650364f8d6956e2554e8ef88
-  mm: check if section present during memory block registering
 
-Regards,
-Jan
+In each case, we need a way to switch the worker if the old one
+is destroyed and a new one is started later. We would need
+something like:
 
-> 
-> thanks,
-> 
-> greg k-h
-> 
+	reset_work(work, worker)
+or
+	reinit_work(work, fn, worker)
+
+
+Thanks for feedback.
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
