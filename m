@@ -1,106 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F31D6B0332
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 10:44:07 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so117892500wic.0
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 07:44:07 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
-        by mx.google.com with ESMTPS id h6si16825221wib.97.2015.10.05.07.44.06
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 702626B02C6
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 11:55:36 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so180772831pac.0
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 08:55:36 -0700 (PDT)
+Received: from COL004-OMC1S15.hotmail.com (col004-omc1s15.hotmail.com. [65.55.34.25])
+        by mx.google.com with ESMTPS id vb1si41153815pac.165.2015.10.05.08.55.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Oct 2015 07:44:06 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so124173595wic.0
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 07:44:06 -0700 (PDT)
-Date: Mon, 5 Oct 2015 16:44:04 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: can't oom-kill zap the victim's memory?
-Message-ID: <20151005144404.GD7023@dhcp22.suse.cz>
-References: <20150922160608.GA2716@redhat.com>
- <20150923205923.GB19054@dhcp22.suse.cz>
- <alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
- <20150925093556.GF16497@dhcp22.suse.cz>
- <201509260114.ADI35946.OtHOVFOMJQFLFS@I-love.SAKURA.ne.jp>
- <201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
- <20151002123639.GA13914@dhcp22.suse.cz>
- <CA+55aFw=OLSdh-5Ut2vjy=4Yf1fTXqpzoDHdF7XnT5gDHs6sYA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 05 Oct 2015 08:55:35 -0700 (PDT)
+Message-ID: <COL130-W55A6DE834A523637B79293B9480@phx.gbl>
+Content-Type: multipart/mixed;
+	boundary="_51bf969f-87e7-4aec-9804-682a6baf25f7_"
+From: Chen Gang <xili_gchen_5257@hotmail.com>
+Subject: [PATCH] mm/mmap.c: Remove redundant statement "error = -ENOMEM"
+Date: Mon, 5 Oct 2015 23:55:35 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFw=OLSdh-5Ut2vjy=4Yf1fTXqpzoDHdF7XnT5gDHs6sYA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "oleg@redhat.com" <oleg@redhat.com>, "emunson@akamai.com" <emunson@akamai.com>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "pfeiner@google.com" <pfeiner@google.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>
+Cc: Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
 
-On Fri 02-10-15 15:01:06, Linus Torvalds wrote:
-> On Fri, Oct 2, 2015 at 8:36 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > Have they been reported/fixed? All kernel paths doing an allocation are
-> > _supposed_ to check and handle ENOMEM. If they are not then they are
-> > buggy and should be fixed.
-> 
-> No. Stop this theoretical idiocy.
-> 
-> We've tried it. I objected before people tried it, and it turns out
-> that it was a horrible idea.
-> 
-> Small kernel allocations should basically never fail, because we end
-> up needing memory for random things, and if a kmalloc() fails it's
-> because some application is using too much memory, and the application
-> should be killed. Never should the kernel allocation fail. It really
-> is that simple. If we are out of memory, that does not mean that we
-> should start failing random kernel things.
+--_51bf969f-87e7-4aec-9804-682a6baf25f7_
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-But you do realize that killing a task as a memory reclaim technique is
-not 100% reliable, right?
+>From 4150fd59c4aa35d36e81920ecb2a522c8c7b68b9 Mon Sep 17 00:00:00 2001=0A=
+From: Chen Gang <gang.chen.5i5j@gmail.com>=0A=
+Date: Mon=2C 5 Oct 2015 23:43:30 +0800=0A=
+Subject: [PATCH] mm/mmap.c: Remove redundant statement "error =3D -ENOMEM"=
+=0A=
+=0A=
+It is still a little better to remove it=2C although it should be skipped=
+=0A=
+by "-O2".=0A=
+=0A=
+Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>=0A=
+---=0A=
+=A0mm/mmap.c | 1 -=0A=
+=A01 file changed=2C 1 deletion(-)=0A=
+=0A=
+diff --git a/mm/mmap.c b/mm/mmap.c=0A=
+index 8393580..1da4600 100644=0A=
+--- a/mm/mmap.c=0A=
++++ b/mm/mmap.c=0A=
+@@ -1562=2C7 +1562=2C6 @@ unsigned long mmap_region(struct file *file=2C un=
+signed long addr=2C=0A=
+=A0	}=0A=
+=A0=0A=
+=A0	/* Clear old maps */=0A=
+-	error =3D -ENOMEM=3B=0A=
+=A0	while (find_vma_links(mm=2C addr=2C addr + len=2C &prev=2C &rb_link=2C=
+=0A=
+=A0			 =A0 =A0 =A0&rb_parent)) {=0A=
+=A0		if (do_munmap(mm=2C addr=2C len))=0A=
+--=A0=0A=
+1.9.3=0A=
+=0A=
+ 		 	   		  =
 
-Any task might be blocked in an uninterruptible context (e.g. a mutex)
-waiting for completion which depends on the allocation success. The page
-allocator (resp. OOM killer) is not aware of these dependencies and I am
-really skeptical it will ever be because dependency tracking is way too
-expensive. So killing a task doesn't guarantee a forward progress.
+--_51bf969f-87e7-4aec-9804-682a6baf25f7_
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+	filename="0001-mm-mmap.c-Remove-redundant-statement-error-ENOMEM.patch"
 
-So I can see basically only few ways out of this deadlock situation.
-Either we face the reality and allow small allocations (withtout
-__GFP_NOFAIL) to fail after all attempts to reclaim memory have failed
-(so after even OOM killer hasn't made any progress).
-Or we can start killing other tasks but this might end up in the same
-state and the time to resolve the problem might be basically unbounded
-(it is trivial to construct loads where hundreds of tasks are bashing
-against a single i_mutex and all of them depending on an allocation...).
-Or we can panic/reboot the system if the OOM situation cannot be solved
-within a selected timeout.
+RnJvbSA0MTUwZmQ1OWM0YWEzNWQzNmU4MTkyMGVjYjJhNTIyYzhjN2I2OGI5IE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQpGcm9tOiBDaGVuIEdhbmcgPGdhbmcuY2hlbi41aTVqQGdtYWlsLmNvbT4K
+RGF0ZTogTW9uLCA1IE9jdCAyMDE1IDIzOjQzOjMwICswODAwClN1YmplY3Q6IFtQQVRDSF0gbW0v
+bW1hcC5jOiBSZW1vdmUgcmVkdW5kYW50IHN0YXRlbWVudCAiZXJyb3IgPSAtRU5PTUVNIgoKSXQg
+aXMgc3RpbGwgYSBsaXR0bGUgYmV0dGVyIHRvIHJlbW92ZSBpdCwgYWx0aG91Z2ggaXQgc2hvdWxk
+IGJlIHNraXBwZWQKYnkgIi1PMiIuCgpTaWduZWQtb2ZmLWJ5OiBDaGVuIEdhbmcgPGdhbmcuY2hl
+bi41aTVqQGdtYWlsLmNvbT4KLS0tCiBtbS9tbWFwLmMgfCAxIC0KIDEgZmlsZSBjaGFuZ2VkLCAx
+IGRlbGV0aW9uKC0pCgpkaWZmIC0tZ2l0IGEvbW0vbW1hcC5jIGIvbW0vbW1hcC5jCmluZGV4IDgz
+OTM1ODAuLjFkYTQ2MDAgMTAwNjQ0Ci0tLSBhL21tL21tYXAuYworKysgYi9tbS9tbWFwLmMKQEAg
+LTE1NjIsNyArMTU2Miw2IEBAIHVuc2lnbmVkIGxvbmcgbW1hcF9yZWdpb24oc3RydWN0IGZpbGUg
+KmZpbGUsIHVuc2lnbmVkIGxvbmcgYWRkciwKIAl9CiAKIAkvKiBDbGVhciBvbGQgbWFwcyAqLwot
+CWVycm9yID0gLUVOT01FTTsKIAl3aGlsZSAoZmluZF92bWFfbGlua3MobW0sIGFkZHIsIGFkZHIg
+KyBsZW4sICZwcmV2LCAmcmJfbGluaywKIAkJCSAgICAgICZyYl9wYXJlbnQpKSB7CiAJCWlmIChk
+b19tdW5tYXAobW0sIGFkZHIsIGxlbikpCi0tIAoxLjkuMwoK
 
-There are other ways to micro-optimize the current implementation by
-playing with memory reserves but all that is just postponing the final
-disaster and there is still a point of no further progress that we have
-to deal with somehow.
-
-> So this "people should check for allocation failures" is bullshit.
-> It's a computer science myth. It's simply not true in all cases.
-
-Sure it is not true in _all_ cases. If some paths cannot fail they can
-use __GFP_NOFAIL for that purpose. The point is that most allocations
-_can_ handle the failure. People are taught to check for allocation
-failures. We even have scripts/coccinelle/null/kmerr.cocci which helps
-to detect slab allocator users to some degree.
-
-> Kernel allocators that know that they do large allocations (ie bigger
-> than a few pages) need to be able to handle the failure, but not the
-> general case. Also, kernel allocators that know they have a good
-> fallback (eg they try a large allocation first but can fall back to a
-> smaller one) should use __GFP_NORETRY, but again, that does *not* in
-> any way mean that general kernel allocations should randomly fail.
-> 
-> So no. The answer is ABSOLUTELY NOT "everybody should check allocation
-> failure". Get over it. I refuse to go through that circus again. It's
-> stupid.
-> 
->              Linus
-
--- 
-Michal Hocko
-SUSE Labs
+--_51bf969f-87e7-4aec-9804-682a6baf25f7_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
