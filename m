@@ -1,58 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id BFA3A6B02F9
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 09:59:23 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so121392609wic.1
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 06:59:23 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mw14si7684499wic.6.2015.10.05.06.59.22
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F31D6B0332
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 10:44:07 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so117892500wic.0
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 07:44:07 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
+        by mx.google.com with ESMTPS id h6si16825221wib.97.2015.10.05.07.44.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 05 Oct 2015 06:59:22 -0700 (PDT)
-Subject: Re: [PATCH] ovs: do not allocate memory from offline numa node
-References: <20151002101822.12499.27658.stgit@buzz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56128238.8010305@suse.cz>
-Date: Mon, 5 Oct 2015 15:59:20 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Oct 2015 07:44:06 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so124173595wic.0
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 07:44:06 -0700 (PDT)
+Date: Mon, 5 Oct 2015 16:44:04 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: can't oom-kill zap the victim's memory?
+Message-ID: <20151005144404.GD7023@dhcp22.suse.cz>
+References: <20150922160608.GA2716@redhat.com>
+ <20150923205923.GB19054@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
+ <20150925093556.GF16497@dhcp22.suse.cz>
+ <201509260114.ADI35946.OtHOVFOMJQFLFS@I-love.SAKURA.ne.jp>
+ <201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
+ <20151002123639.GA13914@dhcp22.suse.cz>
+ <CA+55aFw=OLSdh-5Ut2vjy=4Yf1fTXqpzoDHdF7XnT5gDHs6sYA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20151002101822.12499.27658.stgit@buzz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFw=OLSdh-5Ut2vjy=4Yf1fTXqpzoDHdF7XnT5gDHs6sYA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, dev@openvswitch.org, Pravin Shelar <pshelar@nicira.com>, "David S. Miller" <davem@davemloft.net>
-Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>
 
-On 10/02/2015 12:18 PM, Konstantin Khlebnikov wrote:
-> When openvswitch tries allocate memory from offline numa node 0:
-> stats = kmem_cache_alloc_node(flow_stats_cache, GFP_KERNEL | __GFP_ZERO, 0)
-> It catches VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES || !node_online(nid))
-> [ replaced with VM_WARN_ON(!node_online(nid)) recently ] in linux/gfp.h
-> This patch disables numa affinity in this case.
->
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+On Fri 02-10-15 15:01:06, Linus Torvalds wrote:
+> On Fri, Oct 2, 2015 at 8:36 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > Have they been reported/fixed? All kernel paths doing an allocation are
+> > _supposed_ to check and handle ENOMEM. If they are not then they are
+> > buggy and should be fixed.
+> 
+> No. Stop this theoretical idiocy.
+> 
+> We've tried it. I objected before people tried it, and it turns out
+> that it was a horrible idea.
+> 
+> Small kernel allocations should basically never fail, because we end
+> up needing memory for random things, and if a kmalloc() fails it's
+> because some application is using too much memory, and the application
+> should be killed. Never should the kernel allocation fail. It really
+> is that simple. If we are out of memory, that does not mean that we
+> should start failing random kernel things.
 
-...
+But you do realize that killing a task as a memory reclaim technique is
+not 100% reliable, right?
 
-> diff --git a/net/openvswitch/flow_table.c b/net/openvswitch/flow_table.c
-> index f2ea83ba4763..c7f74aab34b9 100644
-> --- a/net/openvswitch/flow_table.c
-> +++ b/net/openvswitch/flow_table.c
-> @@ -93,7 +93,8 @@ struct sw_flow *ovs_flow_alloc(void)
->
->   	/* Initialize the default stat node. */
->   	stats = kmem_cache_alloc_node(flow_stats_cache,
-> -				      GFP_KERNEL | __GFP_ZERO, 0);
-> +				      GFP_KERNEL | __GFP_ZERO,
-> +				      node_online(0) ? 0 : NUMA_NO_NODE);
+Any task might be blocked in an uninterruptible context (e.g. a mutex)
+waiting for completion which depends on the allocation success. The page
+allocator (resp. OOM killer) is not aware of these dependencies and I am
+really skeptical it will ever be because dependency tracking is way too
+expensive. So killing a task doesn't guarantee a forward progress.
 
-Stupid question: can node 0 become offline between this check, and the 
-VM_WARN_ON? :) BTW what kind of system has node 0 offline?
+So I can see basically only few ways out of this deadlock situation.
+Either we face the reality and allow small allocations (withtout
+__GFP_NOFAIL) to fail after all attempts to reclaim memory have failed
+(so after even OOM killer hasn't made any progress).
+Or we can start killing other tasks but this might end up in the same
+state and the time to resolve the problem might be basically unbounded
+(it is trivial to construct loads where hundreds of tasks are bashing
+against a single i_mutex and all of them depending on an allocation...).
+Or we can panic/reboot the system if the OOM situation cannot be solved
+within a selected timeout.
 
->   	if (!stats)
->   		goto err;
->
->
+There are other ways to micro-optimize the current implementation by
+playing with memory reserves but all that is just postponing the final
+disaster and there is still a point of no further progress that we have
+to deal with somehow.
+
+> So this "people should check for allocation failures" is bullshit.
+> It's a computer science myth. It's simply not true in all cases.
+
+Sure it is not true in _all_ cases. If some paths cannot fail they can
+use __GFP_NOFAIL for that purpose. The point is that most allocations
+_can_ handle the failure. People are taught to check for allocation
+failures. We even have scripts/coccinelle/null/kmerr.cocci which helps
+to detect slab allocator users to some degree.
+
+> Kernel allocators that know that they do large allocations (ie bigger
+> than a few pages) need to be able to handle the failure, but not the
+> general case. Also, kernel allocators that know they have a good
+> fallback (eg they try a large allocation first but can fall back to a
+> smaller one) should use __GFP_NORETRY, but again, that does *not* in
+> any way mean that general kernel allocations should randomly fail.
+> 
+> So no. The answer is ABSOLUTELY NOT "everybody should check allocation
+> failure". Get over it. I refuse to go through that circus again. It's
+> stupid.
+> 
+>              Linus
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
