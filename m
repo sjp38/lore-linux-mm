@@ -1,75 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E4E7C82F66
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 15:29:38 -0400 (EDT)
-Received: by qgev79 with SMTP id v79so158849333qge.0
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 12:29:38 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 9si24426521qhu.104.2015.10.05.12.29.38
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 9894682F6B
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 16:03:50 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so136884917wic.0
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 13:03:50 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
+        by mx.google.com with ESMTPS id m11si18584711wij.112.2015.10.05.13.03.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Oct 2015 12:29:38 -0700 (PDT)
-Date: Mon, 5 Oct 2015 12:29:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: linux-next: kernel BUG at mm/slub.c:1447!
-Message-Id: <20151005122936.8a3b0fe21629390c9aa8bc2a@linux-foundation.org>
-In-Reply-To: <20151005134713.GC7023@dhcp22.suse.cz>
-References: <560D59F7.4070002@roeck-us.net>
-	<20151001134904.127ccc7bea14e969fbfba0d5@linux-foundation.org>
-	<20151002072522.GC30354@dhcp22.suse.cz>
-	<20151002134953.551e6379ee9f6b5a0aeb7af7@linux-foundation.org>
-	<20151005134713.GC7023@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 05 Oct 2015 13:03:49 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so130256777wic.0
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 13:03:49 -0700 (PDT)
+Date: Mon, 5 Oct 2015 22:03:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 99471] System locks with kswapd0 and kworker taking full IO
+ and mem
+Message-ID: <20151005200345.GA12889@dhcp22.suse.cz>
+References: <bug-99471-27@https.bugzilla.kernel.org/>
+ <bug-99471-27-hjYeBz7jw2@https.bugzilla.kernel.org/>
+ <20150910140418.73b33d3542bab739f8fd1826@linux-foundation.org>
+ <20150915083919.GG2858@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150915083919.GG2858@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Guenter Roeck <linux@roeck-us.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, gaguilar@aguilardelgado.com, sgh@sgh.dk, Rik van Riel <riel@redhat.com>, Daniel Vetter <daniel.vetter@ffwll.ch>
 
-On Mon, 5 Oct 2015 15:47:13 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+[Sorry for replying here but I couldn't find the original Andrew's email
+in my mailbox]
 
-> > The fourth best way of fixing this is a nasty short-term bodge, such a
-> > the one you just sent ;) But if we're going to do this, it should be
-> > the minimal bodge which fixes this deadlock.  Is it possible to come up
-> > with a one-liner (plus suitable comment) to get us out of this mess?
-> 
-> Yes I do agree that the fix I am proposing is short-term but this seems
-> like the easiest way to go for stable and older kernels that might be
-> affected. I thought your proposal for mapping_gfp_constraint was exactly
-> to have all such places annotated for an easier future transition to
-> something more reasonable.
+On Tue 15-09-15 10:39:19, Johannes Weiner wrote:
+> On Thu, Sep 10, 2015 at 02:04:18PM -0700, Andrew Morton wrote:
+> > (switched to email.  Please respond via emailed reply-to-all, not via the
+> > bugzilla web interface).
+> > 
+> > On Tue, 01 Sep 2015 12:32:10 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> > 
+> > > https://bugzilla.kernel.org/show_bug.cgi?id=99471
+> > 
+> > Guys, could you take a look please?
+> > 
+> > The machine went oom when there's heaps of unused swap and most memory
+> > is being used on active_anon and inactive_anon.  We should have just
+> > swapped that stuff out and kept going.
 
-hm, OK, let's go that way.  But I expect this mess will continue to
-float around for a long time - fixing it nicely will be somewhat
-intrusive.
+I would strongly suspect the memory is pinned by somebody which
+completely ruins all the get_scan_count assumptions. The first
+referenced OOM report might contain a hint:
+[ 2162.123944] Purging GPU memory, 368640 bytes freed, 615292928 bytes still pinned.
+[ 2175.996060] Purging GPU memory, 499712 bytes freed, 615251968 bytes still pinned.
+[ 2175.998841] bash invoked oom-killer: gfp_mask=0x20858, order=0, oom_score_adj=0
+[ 2175.998844] bash cpuset=/ mems_allowed=0
+[...]
+[ 2175.999016] active_anon:305425 inactive_anon:141206 isolated_anon:0
+                active_file:5109 inactive_file:4666 isolated_file:0
+                unevictable:4 dirty:2 writeback:0 unstable:0
+                free:13218 slab_reclaimable:6552 slab_unreclaimable:11310
+                mapped:21203 shmem:155079 pagetables:10921 bounce:0
+                free_cma:0
+[...]
+[ 2175.999074] 169619 total pagecache pages
+[ 2175.999076] 4752 pages in swap cache
+[ 2175.999078] Swap cache stats: add 468915, delete 464163, find 76521/98873
+[ 2175.999080] Free swap  = 1615656kB
+[ 2175.999082] Total swap = 2097148kB
+[ 2175.999083] 521838 pages RAM
+[ 2175.999084] 0 pages HighMem/MovableOnly
+[ 2175.999086] 11811 pages reserved
+[ 2175.999087] 0 pages hwpoisoned
 
-> > Longer-term I suggest we look at generalising the memalloc_noio_foo()
-> > stuff so as to permit callers to mask off (ie: zero) __GFP_ flags in
-> > callees.  I have a suspicion we should have done this 15 years ago
-> > (which is about when I started wanting to do it).
-> 
-> I am not sure memalloc_noio_foo is a huge win. It is an easy hack where
-> the whole allocation transaction is clear - like in the PM code. I am
-> not sure this is true also for the FS.
+So there is more than 600MB used by the GPU. Later OOM invocations do
+not mention GPU OOM shrinker at all. Anon+File+Unevict+Free+Slab+Pagetbl
+gives us 1.9G so considerable amount of pinned memory has to be sitting
+on LRU lists. I would bet it is shmem here but there is still more than
+1G on the anon LRU lists. Is it possible they are pinned indirectly?
+I am CCing Daniel for the GPU memory consumption. Maybe there is some
+additional diagnostic to look at.
 
-mm..  I think it'll work out OK - a set/restore around particular
-callsites.
+Another interesting thing to note is that
+[ 2175.999473] Out of memory: Kill process 3566 (java) score 170 or sacrifice child
+[ 2175.999477] Killed process 3566 (java) total-vm:3417044kB, anon-rss:703656kB, file-rss:0kB
+[...]
+[ 2176.000641] bash invoked oom-killer: gfp_mask=0x20858, order=0, oom_score_adj=0
+[ 2176.000644] bash cpuset=/ mems_allowed=0
+[...]
+[ 2176.000798] active_anon:305425 inactive_anon:141206 isolated_anon:0
+                active_file:5109 inactive_file:4666 isolated_file:0
+                unevictable:4 dirty:2 writeback:0 unstable:0
+                free:13187 slab_reclaimable:6552 slab_unreclaimable:11310
+                mapped:21203 shmem:155079 pagetables:10921 bounce:0
+                free_cma:0
 
-It might get messy in core MM though.  Do we apply current->mask at the
-very low levels of the page allocator?  If so, that might muck up
-intermediate callers who are peeking into specific gfp_t flags.
+So the anon LRU lists are intact even after java has exited so something
+is clearly wrong the anon LRU list and it looks like a leak via elevated
+page ref. counting.
 
-Perhaps it would be better to apply the mask at the highest possible
-level: wherever a function which was not passed a gfp_t decides to
-create one.  Basically a grep for "GFP_".  But then we need to decide
-*which* gfp_t-creators need the treatment.  All of them (yikes) or is
-this mechanism only for called-via-address_space_operations code?  That
-might work.
-
-Maybe it would be better to add the gfp_t argument to the
-address_space_operations.  At a minimum, writepage(), readpage(),
-writepages(), readpages().  What a pickle.
+It sounds like this is reproducible for you Gonzalo, could you invoke a
+crash dump and save the vmcore so that the LRU can be investigated? We
+would see the state after something went wrong but maybe there will be
+some pattern to help us.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
