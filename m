@@ -1,91 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D7A6440313
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 03:53:24 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so106710046wic.1
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 00:53:23 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id gz7si14909624wib.35.2015.10.05.00.53.22
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CD79440321
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 03:53:27 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so107629806wic.0
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 00:53:26 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com. [209.85.212.176])
+        by mx.google.com with ESMTPS id gz7si14909808wib.35.2015.10.05.00.53.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Oct 2015 00:53:23 -0700 (PDT)
-Date: Mon, 5 Oct 2015 09:53:18 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v4 2/4] mm, proc: account for shmem swap in
- /proc/pid/smaps
-Message-ID: <20151005075318.GE2903@worktop.programming.kicks-ass.net>
-References: <1443792951-13944-1-git-send-email-vbabka@suse.cz>
- <1443792951-13944-3-git-send-email-vbabka@suse.cz>
+        Mon, 05 Oct 2015 00:53:25 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so106647144wic.1
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 00:53:25 -0700 (PDT)
+Date: Mon, 5 Oct 2015 10:49:19 +0300
+From: Leon Romanovsky <leon@leon.nu>
+Subject: Re: [PATCH 3/3] mm/nommu: drop unlikely behind BUG_ON()
+Message-ID: <20151005074919.GA10359@leon.nu>
+References: <cf38aa69e23adb31ebb4c9d80384dabe9b91b75e.1443937856.git.geliangtang@163.com>
+ <a89c7bef0699c3d3f5e592c58ff3f0a4db482b69.1443937856.git.geliangtang@163.com>
+ <45bf632d263280847a2a894017c62b7f2a71eda1.1443937856.git.geliangtang@163.com>
+ <CALq1K=JTWq+p0M+45nKm4yMs06k=Mt3y7+hbv6Usx+eX+=2MLQ@mail.gmail.com>
+ <20151005020406.GB8831@linux-uzut.site>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1443792951-13944-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <20151005020406.GB8831@linux-uzut.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+To: Geliang Tang <geliangtang@163.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Fri, Oct 02, 2015 at 03:35:49PM +0200, Vlastimil Babka wrote:
-> +static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)
-> +{
-> +	struct inode *inode;
-> +	unsigned long swapped;
-> +	pgoff_t start, end;
-> +
-> +	if (!vma->vm_file)
-> +		return 0;
-> +
-> +	inode = file_inode(vma->vm_file);
-> +
-> +	if (!shmem_mapping(inode->i_mapping))
-> +		return 0;
-> +
-> +	/*
-> +	 * The easier cases are when the shmem object has nothing in swap, or
-> +	 * we have the whole object mapped. Then we can simply use the stats
-> +	 * that are already tracked by shmem.
-> +	 */
-> +	swapped = shmem_swap_usage(inode);
-> +
-> +	if (swapped == 0)
-> +		return 0;
-> +
-> +	if (vma->vm_end - vma->vm_start >= inode->i_size)
-> +		return swapped;
-> +
-> +	/*
-> +	 * Here we have to inspect individual pages in our mapped range to
-> +	 * determine how much of them are swapped out. Thanks to RCU, we don't
-> +	 * need i_mutex to protect against truncating or hole punching.
-> +	 */
+On Sun, Oct 04, 2015 at 07:04:06PM -0700, Davidlohr Bueso wrote:
+> On Sun, 04 Oct 2015, Leon Romanovsky wrote:
+> 
+> >On Sun, Oct 4, 2015 at 9:18 AM, Geliang Tang <geliangtang@163.com> wrote:
+> >>BUG_ON() already contain an unlikely compiler flag. Drop it.
+> >It is not the case if CONFIG_BUG and HAVE_ARCH_BUG_ON are not set.
+> 
+> Yeah, but that's like the 1% of the cases -- and those probably don't even care
+> about the branch prediction (I could be wrong). So overall I like getting rid of
+> explicit BUG_ON(unlikely(... calls. In fact there's a _reason_ why there are so
+> few of them in the kernel.
+I agree with you that this change is welcomed and I would like to see it
+is accepted.
 
-At the very least put in an assertion that we hold the RCU read lock,
-otherwise RCU doesn't guarantee anything and its not obvious it is held
-here.
+My main concern that I would expect to see it's coming after the change
+of BUG_ON definition to be similar in all places, with "unlikely" in all
+definitions, and not instead.
 
-> +	start = linear_page_index(vma, vma->vm_start);
-> +	end = linear_page_index(vma, vma->vm_end);
-> +
-> +	return shmem_partial_swap_usage(inode->i_mapping, start, end);
-> +}
-
-> + * Determine (in bytes) how much of the whole shmem object is swapped out.
-> + */
-> +unsigned long shmem_swap_usage(struct inode *inode)
-> +{
-> +	struct shmem_inode_info *info = SHMEM_I(inode);
-> +	unsigned long swapped;
-> +
-> +	/* Mostly an overkill, but it's not atomic64_t */
-
-Yeah, that don't make any kind of sense.
-
-> +	spin_lock(&info->lock);
-> +	swapped = info->swapped;
-> +	spin_unlock(&info->lock);
-> +
-> +	return swapped << PAGE_SHIFT;
-> +}
+> 
+> Thanks,
+> Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
