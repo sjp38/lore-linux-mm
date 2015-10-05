@@ -1,44 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CE931440313
-	for <linux-mm@kvack.org>; Sun,  4 Oct 2015 22:04:22 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so94223779wic.0
-        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 19:04:22 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id he6si28099983wjc.75.2015.10.04.19.04.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 04 Oct 2015 19:04:21 -0700 (PDT)
-Date: Sun, 4 Oct 2015 19:04:06 -0700
-From: Davidlohr Bueso <dave@stgolabs.net>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E222440313
+	for <linux-mm@kvack.org>; Sun,  4 Oct 2015 22:30:41 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so164510320pac.2
+        for <linux-mm@kvack.org>; Sun, 04 Oct 2015 19:30:40 -0700 (PDT)
+Received: from m50-135.163.com (m50-135.163.com. [123.125.50.135])
+        by mx.google.com with ESMTP id j6si36489617pbq.56.2015.10.04.19.30.39
+        for <linux-mm@kvack.org>;
+        Sun, 04 Oct 2015 19:30:40 -0700 (PDT)
+Date: Mon, 5 Oct 2015 10:30:00 +0800
+From: Geliang Tang <geliangtang@163.com>
 Subject: Re: [PATCH 3/3] mm/nommu: drop unlikely behind BUG_ON()
-Message-ID: <20151005020406.GB8831@linux-uzut.site>
-References: <cf38aa69e23adb31ebb4c9d80384dabe9b91b75e.1443937856.git.geliangtang@163.com>
- <a89c7bef0699c3d3f5e592c58ff3f0a4db482b69.1443937856.git.geliangtang@163.com>
+Message-ID: <20151005023000.GA1607@bogon>
+References: <a89c7bef0699c3d3f5e592c58ff3f0a4db482b69.1443937856.git.geliangtang@163.com>
+ <cf38aa69e23adb31ebb4c9d80384dabe9b91b75e.1443937856.git.geliangtang@163.com>
  <45bf632d263280847a2a894017c62b7f2a71eda1.1443937856.git.geliangtang@163.com>
- <CALq1K=JTWq+p0M+45nKm4yMs06k=Mt3y7+hbv6Usx+eX+=2MLQ@mail.gmail.com>
+ <20151005015055.GA8831@linux-uzut.site>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALq1K=JTWq+p0M+45nKm4yMs06k=Mt3y7+hbv6Usx+eX+=2MLQ@mail.gmail.com>
+In-Reply-To: <20151005015055.GA8831@linux-uzut.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Romanovsky <leon@leon.nu>
-Cc: Geliang Tang <geliangtang@163.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Oleg Nesterov <oleg@redhat.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, "Peter Zij    lstra (Intel)" <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Leon Romanovsky <leon@leon.nu>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, 04 Oct 2015, Leon Romanovsky wrote:
+On Sun, Oct 04, 2015 at 06:50:55PM -0700, Davidlohr Bueso wrote:
+> On Sun, 04 Oct 2015, Geliang Tang wrote:
+> 
+> >BUG_ON() already contain an unlikely compiler flag. Drop it.
+> >
+> >Signed-off-by: Geliang Tang <geliangtang@163.com>
+> 
+> Acked-by: Davidlohr Bueso <dave@stgolabs.net>
+> 
+> ... but I believe you do have some left:
+> 
+> drivers/scsi/scsi_lib.c:                BUG_ON(unlikely(count > ivecs));
+> drivers/scsi/scsi_lib.c:                BUG_ON(unlikely(count > queue_max_integrity_segments(rq->q)));
+> kernel/sched/core.c:    BUG_ON(unlikely(task_stack_end_corrupted(prev)));
 
->On Sun, Oct 4, 2015 at 9:18 AM, Geliang Tang <geliangtang@163.com> wrote:
->> BUG_ON() already contain an unlikely compiler flag. Drop it.
->It is not the case if CONFIG_BUG and HAVE_ARCH_BUG_ON are not set.
-
-Yeah, but that's like the 1% of the cases -- and those probably don't even care
-about the branch prediction (I could be wrong). So overall I like getting rid of
-explicit BUG_ON(unlikely(... calls. In fact there's a _reason_ why there are so
-few of them in the kernel.
-
-Thanks,
-Davidlohr
+Thanks for your review, the left have been sended out already in two other patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
