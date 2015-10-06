@@ -1,78 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 6227382FAD
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 19:53:42 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so194391963pac.2
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 16:53:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id id10si44011398pbc.42.2015.10.05.16.53.41
+Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 21F486B02EC
+	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 22:07:54 -0400 (EDT)
+Received: by qkbi190 with SMTP id i190so56903995qkb.1
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 19:07:53 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 8si26077402qhq.109.2015.10.05.19.07.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Oct 2015 16:53:41 -0700 (PDT)
-Date: Tue, 6 Oct 2015 01:53:37 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [MM PATCH V4.1 5/6] slub: support for bulk free with SLUB
- freelists
-Message-ID: <20151006015337.0fab1547@redhat.com>
-In-Reply-To: <20151005212639.35932b6c@redhat.com>
-References: <560ABE86.9050508@gmail.com>
-	<20150930114255.13505.2618.stgit@canyon>
-	<20151001151015.c59a1360c7720a257f655578@linux-foundation.org>
-	<20151002114118.75aae2f9@redhat.com>
-	<20151002154039.69f82bdc@redhat.com>
-	<20151002145044.781c911ea98e3ea74ae5cf3b@linux-foundation.org>
-	<20151005212639.35932b6c@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        Mon, 05 Oct 2015 19:07:53 -0700 (PDT)
+Date: Mon, 5 Oct 2015 19:12:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: linux-next: kernel BUG at mm/slub.c:1447!
+Message-Id: <20151005191217.48008dc7.akpm@linux-foundation.org>
+In-Reply-To: <20151005122936.8a3b0fe21629390c9aa8bc2a@linux-foundation.org>
+References: <560D59F7.4070002@roeck-us.net>
+	<20151001134904.127ccc7bea14e969fbfba0d5@linux-foundation.org>
+	<20151002072522.GC30354@dhcp22.suse.cz>
+	<20151002134953.551e6379ee9f6b5a0aeb7af7@linux-foundation.org>
+	<20151005134713.GC7023@dhcp22.suse.cz>
+	<20151005122936.8a3b0fe21629390c9aa8bc2a@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, netdev@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, brouer@redhat.com
+To: Michal Hocko <mhocko@kernel.org>, Guenter Roeck <linux@roeck-us.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>
 
-On Mon, 5 Oct 2015 21:26:39 +0200
-Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+On Mon, 5 Oct 2015 12:29:36 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> My only problem left, is I want a perf measurement that pinpoint these
-> kind of spots.  The difference in L1-icache-load-misses were significant
-> (1,278,276 vs 2,719,158).  I tried to somehow perf record this with
-> different perf events without being able to pinpoint the location (even
-> though I know the spot now).  Even tried Andi's ocperf.py... maybe he
-> will know what event I should try?
+> Maybe it would be better to add the gfp_t argument to the
+> address_space_operations.  At a minimum, writepage(), readpage(),
+> writepages(), readpages().  What a pickle.
 
-Using: 'ocperf.py -e icache_misses' and looking closer at the perf
-annotate and considering "skid" I think I can see the icache misses
-happening in the end of the function, due to the UD2 inst.
+I'm being dumb.  All we need to do is to add a new
 
-Annotation of kmem_cache_free_bulk (last/end of func):
+	address_space_operations.readpage_gfp(..., gfp_t gfp)
 
-       =E2=94=8217b:   test   %r12,%r12
-       =E2=94=82     =E2=86=91 jne    2e
-       =E2=94=82184:   pop    %rbx
-       =E2=94=82       pop    %r12
-       =E2=94=82       pop    %r13
-       =E2=94=82       pop    %r14
-       =E2=94=82       pop    %r15
-       =E2=94=82       pop    %rbp
-       =E2=94=82     =E2=86=90 retq
-  8.57 =E2=94=8218f:   mov    0x30(%rdx),%rdx
-  5.71 =E2=94=82     =E2=86=91 jmp    116
-       =E2=94=82195:   ud2
-  2.86 =E2=94=82197:   mov    %rdi,%rsi
-       =E2=94=82       mov    %r11d,%r8d
-       =E2=94=82       mov    %r10,%rcx
-       =E2=94=82       mov    %rbx,%rdx
-       =E2=94=82       mov    %r15,%rdi
-       =E2=94=82     =E2=86=92 callq  __slab_free
-       =E2=94=82     =E2=86=91 jmp    17b
-  2.86 =E2=94=821ad:   mov    0x30(%rdi),%rdi
-       =E2=94=82     =E2=86=91 jmpq   99
+etc.  That should be trivial.  Each fs type only has 2-4 instances of
+address_space_operations so the overhead is miniscule.
 
---=20
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+As a background janitorial thing we can migrate filesystems over to the
+new interface then remove address_space_operations.readpage() etc.  But
+this *would* add overhead: more stack and more text for no gain.  So
+perhaps we just leave things as they are.
+
+That's so simple that I expect we can short-term fix this bug with that
+approach.  umm, something like
+
+--- a/fs/mpage.c~a
++++ a/fs/mpage.c
+@@ -139,7 +139,8 @@ map_buffer_to_page(struct page *page, st
+ static struct bio *
+ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
+ 		sector_t *last_block_in_bio, struct buffer_head *map_bh,
+-		unsigned long *first_logical_block, get_block_t get_block)
++		unsigned long *first_logical_block, get_block_t get_block,
++		gfp_t gfp)
+ {
+ 	struct inode *inode = page->mapping->host;
+ 	const unsigned blkbits = inode->i_blkbits;
+@@ -278,7 +279,7 @@ alloc_new:
+ 		}
+ 		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
+ 				min_t(int, nr_pages, BIO_MAX_PAGES),
+-				GFP_KERNEL);
++				gfp);
+ 		if (bio == NULL)
+ 			goto confused;
+ 	}
+@@ -310,7 +311,7 @@ confused:
+ }
+ 
+ /**
+- * mpage_readpages - populate an address space with some pages & start reads against them
++ * mpage_readpages_gfp - populate an address space with some pages & start reads against them
+  * @mapping: the address_space
+  * @pages: The address of a list_head which contains the target pages.  These
+  *   pages have their ->index populated and are otherwise uninitialised.
+@@ -318,6 +319,7 @@ confused:
+  *   issued in @pages->prev to @pages->next order.
+  * @nr_pages: The number of pages at *@pages
+  * @get_block: The filesystem's block mapper function.
++ * @gfp: memory allocation constraints
+  *
+  * This function walks the pages and the blocks within each page, building and
+  * emitting large BIOs.
+@@ -352,9 +354,8 @@ confused:
+  *
+  * This all causes the disk requests to be issued in the correct order.
+  */
+-int
+-mpage_readpages(struct address_space *mapping, struct list_head *pages,
+-				unsigned nr_pages, get_block_t get_block)
++int mpage_readpages_gfp(struct address_space *mapping, struct list_head *pages,
++			unsigned nr_pages, get_block_t get_block, gfp_t gfp)
+ {
+ 	struct bio *bio = NULL;
+ 	unsigned page_idx;
+@@ -370,12 +371,12 @@ mpage_readpages(struct address_space *ma
+ 		prefetchw(&page->flags);
+ 		list_del(&page->lru);
+ 		if (!add_to_page_cache_lru(page, mapping,
+-					page->index, GFP_KERNEL)) {
++					page->index, gfp)) {
+ 			bio = do_mpage_readpage(bio, page,
+ 					nr_pages - page_idx,
+ 					&last_block_in_bio, &map_bh,
+ 					&first_logical_block,
+-					get_block);
++					get_block, gfp);
+ 		}
+ 		page_cache_release(page);
+ 	}
+@@ -384,6 +385,14 @@ mpage_readpages(struct address_space *ma
+ 		mpage_bio_submit(READ, bio);
+ 	return 0;
+ }
++EXPORT_SYMBOL(mpage_readpages_gfp);
++
++int mpage_readpages(struct address_space *mapping, struct list_head *pages,
++			unsigned nr_pages, get_block_t get_block)
++{
++	return mpage_readpages_gfp(mapping, pages, nr_pages, get_block,
++				   GFP_KERNEL);
++}
+ EXPORT_SYMBOL(mpage_readpages);
+ 
+ /*
+@@ -399,7 +408,7 @@ int mpage_readpage(struct page *page, ge
+ 	map_bh.b_state = 0;
+ 	map_bh.b_size = 0;
+ 	bio = do_mpage_readpage(bio, page, 1, &last_block_in_bio,
+-			&map_bh, &first_logical_block, get_block);
++			&map_bh, &first_logical_block, get_block, GFP_KERNEL);
+ 	if (bio)
+ 		mpage_bio_submit(READ, bio);
+ 	return 0;
+diff -puN include/linux/fs.h~a include/linux/fs.h
+diff -puN include/linux/mpage.h~a include/linux/mpage.h
+--- a/include/linux/mpage.h~a
++++ a/include/linux/mpage.h
+@@ -15,6 +15,8 @@ struct writeback_control;
+ 
+ int mpage_readpages(struct address_space *mapping, struct list_head *pages,
+ 				unsigned nr_pages, get_block_t get_block);
++int mpage_readpages_gfp(struct address_space *mapping, struct list_head *pages,
++			unsigned nr_pages, get_block_t get_block, gfp_t gfp);
+ int mpage_readpage(struct page *page, get_block_t get_block);
+ int mpage_writepages(struct address_space *mapping,
+ 		struct writeback_control *wbc, get_block_t get_block);
+diff -puN fs/xfs/xfs_aops.c~a fs/xfs/xfs_aops.c
+--- a/fs/xfs/xfs_aops.c~a
++++ a/fs/xfs/xfs_aops.c
+@@ -1908,13 +1908,14 @@ xfs_vm_readpage(
+ }
+ 
+ STATIC int
+-xfs_vm_readpages(
++xfs_vm_readpages_gfp(
+ 	struct file		*unused,
+ 	struct address_space	*mapping,
+ 	struct list_head	*pages,
+ 	unsigned		nr_pages)
+ {
+-	return mpage_readpages(mapping, pages, nr_pages, xfs_get_blocks);
++	return mpage_readpages_gfp(mapping, pages, nr_pages, xfs_get_blocks,
++				   GFP_NOFS);
+ }
+ 
+ /*
+@@ -1987,7 +1988,7 @@ xfs_vm_set_page_dirty(
+ 
+ const struct address_space_operations xfs_address_space_operations = {
+ 	.readpage		= xfs_vm_readpage,
+-	.readpages		= xfs_vm_readpages,
++	.readpages		= xfs_vm_readpages_gfp,
+ 	.writepage		= xfs_vm_writepage,
+ 	.writepages		= xfs_vm_writepages,
+ 	.set_page_dirty		= xfs_vm_set_page_dirty,
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
