@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A6B2D6B025D
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 11:24:36 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so73172015pad.1
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 08:24:36 -0700 (PDT)
+Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C0106B025E
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 11:24:38 -0400 (EDT)
+Received: by iow1 with SMTP id 1so189091367iow.1
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 08:24:38 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id yd7si49643743pab.46.2015.10.06.08.24.24
+        by mx.google.com with ESMTP id a19si13676843igr.24.2015.10.06.08.24.24
         for <linux-mm@kvack.org>;
         Tue, 06 Oct 2015 08:24:24 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv12 21/37] s390, thp: remove infrastructure for handling splitting PMDs
-Date: Tue,  6 Oct 2015 18:23:48 +0300
-Message-Id: <1444145044-72349-22-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv12 19/37] mips, thp: remove infrastructure for handling splitting PMDs
+Date: Tue,  6 Oct 2015 18:23:46 +0300
+Message-Id: <1444145044-72349-20-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -28,114 +28,127 @@ needed for fast_gup.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/s390/include/asm/pgtable.h | 15 +--------------
- arch/s390/mm/gup.c              | 11 +----------
- arch/s390/mm/pgtable.c          | 16 ----------------
- 3 files changed, 2 insertions(+), 40 deletions(-)
+ arch/mips/include/asm/pgtable-bits.h |  6 ++----
+ arch/mips/include/asm/pgtable.h      | 18 ------------------
+ arch/mips/mm/gup.c                   | 13 +------------
+ arch/mips/mm/pgtable-64.c            | 14 --------------
+ arch/mips/mm/tlbex.c                 |  1 -
+ 5 files changed, 3 insertions(+), 49 deletions(-)
 
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index f66d82798a6a..dad92c3a5678 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -280,7 +280,6 @@ static inline int is_module_addr(void *addr)
+diff --git a/arch/mips/include/asm/pgtable-bits.h b/arch/mips/include/asm/pgtable-bits.h
+index c28a8499aec7..9bf8b2b87364 100644
+--- a/arch/mips/include/asm/pgtable-bits.h
++++ b/arch/mips/include/asm/pgtable-bits.h
+@@ -131,14 +131,12 @@
+ /* Huge TLB page */
+ #define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
+ #define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
+-#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+-#define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
  
- #define _SEGMENT_ENTRY_DIRTY	0x2000	/* SW segment dirty bit */
- #define _SEGMENT_ENTRY_YOUNG	0x1000	/* SW segment young bit */
--#define _SEGMENT_ENTRY_SPLIT	0x0800	/* THP splitting bit */
- #define _SEGMENT_ENTRY_LARGE	0x0400	/* STE-format control, large page */
- #define _SEGMENT_ENTRY_READ	0x0002	/* SW segment read bit */
- #define _SEGMENT_ENTRY_WRITE	0x0001	/* SW segment write bit */
-@@ -306,8 +305,6 @@ static inline int is_module_addr(void *addr)
-  * SW-bits: y young, d dirty, r read, w write
-  */
+ /* Only R2 or newer cores have the XI bit */
+ #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
+-#define _PAGE_NO_EXEC_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
++#define _PAGE_NO_EXEC_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+ #else
+-#define _PAGE_GLOBAL_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
++#define _PAGE_GLOBAL_SHIFT	(_PAGE_HUGE_SHIFT + 1)
+ #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
+ #endif	/* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
  
--#define _SEGMENT_ENTRY_SPLIT_BIT 11	/* THP splitting bit number */
--
- /* Page status table bits for virtualization */
- #define PGSTE_ACC_BITS	0xf000000000000000UL
- #define PGSTE_FP_BIT	0x0800000000000000UL
-@@ -511,10 +508,6 @@ static inline int pmd_bad(pmd_t pmd)
- 	return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS) != 0;
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index ae8569475264..e70f13ab4303 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -480,27 +480,9 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
+ 	return pmd;
  }
- 
--#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
--extern void pmdp_splitting_flush(struct vm_area_struct *vma,
--				 unsigned long addr, pmd_t *pmdp);
--
- #define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
- extern int pmdp_set_access_flags(struct vm_area_struct *vma,
- 				 unsigned long address, pmd_t *pmdp,
-@@ -1358,7 +1351,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
- 	if (pmd_large(pmd)) {
- 		pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN_LARGE |
- 			_SEGMENT_ENTRY_DIRTY | _SEGMENT_ENTRY_YOUNG |
--			_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_SPLIT;
-+			_SEGMENT_ENTRY_LARGE;
- 		pmd_val(pmd) |= massage_pgprot_pmd(newprot);
- 		if (!(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
- 			pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
-@@ -1466,12 +1459,6 @@ extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- #define __HAVE_ARCH_PGTABLE_WITHDRAW
- extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
  
 -static inline int pmd_trans_splitting(pmd_t pmd)
 -{
--	return (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) &&
--		(pmd_val(pmd) & _SEGMENT_ENTRY_SPLIT);
+-	return !!(pmd_val(pmd) & _PAGE_SPLITTING);
 -}
 -
- static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 			      pmd_t *pmdp, pmd_t entry)
+-static inline pmd_t pmd_mksplitting(pmd_t pmd)
+-{
+-	pmd_val(pmd) |= _PAGE_SPLITTING;
+-
+-	return pmd;
+-}
+-
+ extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+ 		       pmd_t *pmdp, pmd_t pmd);
+ 
+-#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+-/* Extern to avoid header file madness */
+-extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+-					unsigned long address,
+-					pmd_t *pmdp);
+-
+ #define __HAVE_ARCH_PMD_WRITE
+ static inline int pmd_write(pmd_t pmd)
  {
-diff --git a/arch/s390/mm/gup.c b/arch/s390/mm/gup.c
-index f8112899f6fe..0be19bae998e 100644
---- a/arch/s390/mm/gup.c
-+++ b/arch/s390/mm/gup.c
-@@ -102,16 +102,7 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
- 		pmd = *pmdp;
- 		barrier();
+diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
+index 36a35115dc2e..1afd87c999b0 100644
+--- a/arch/mips/mm/gup.c
++++ b/arch/mips/mm/gup.c
+@@ -107,18 +107,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 		pmd_t pmd = *pmdp;
+ 
  		next = pmd_addr_end(addr, end);
 -		/*
 -		 * The pmd_trans_splitting() check below explains why
--		 * pmdp_splitting_flush() has to serialize with
--		 * smp_call_function() against our disabled IRQs, to stop
+-		 * pmdp_splitting_flush has to flush the tlb, to stop
 -		 * this gup-fast code from running while we set the
 -		 * splitting bit in the pmd. Returning zero will take
 -		 * the slow path that will call wait_split_huge_page()
--		 * if the pmd is still in splitting state.
+-		 * if the pmd is still in splitting state. gup-fast
+-		 * can't because it has irq disabled and
+-		 * wait_split_huge_page() would never return as the
+-		 * tlb flush IPI wouldn't run.
 -		 */
 -		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
 +		if (pmd_none(pmd))
  			return 0;
- 		if (unlikely(pmd_large(pmd))) {
- 			if (!gup_huge_pmd(pmdp, pmd, addr, next,
-diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-index b33f66110ca9..4a2134ffc74f 100644
---- a/arch/s390/mm/pgtable.c
-+++ b/arch/s390/mm/pgtable.c
-@@ -1355,22 +1355,6 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
- 	return 1;
+ 		if (unlikely(pmd_huge(pmd))) {
+ 			if (!gup_huge_pmd(pmd, addr, next, write, pages,nr))
+diff --git a/arch/mips/mm/pgtable-64.c b/arch/mips/mm/pgtable-64.c
+index e8adc0069d66..ce4473e7c0d2 100644
+--- a/arch/mips/mm/pgtable-64.c
++++ b/arch/mips/mm/pgtable-64.c
+@@ -62,20 +62,6 @@ void pmd_init(unsigned long addr, unsigned long pagetable)
  }
+ #endif
  
--static void pmdp_splitting_flush_sync(void *arg)
--{
--	/* Simply deliver the interrupt */
--}
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 -
--void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
--			  pmd_t *pmdp)
+-void pmdp_splitting_flush(struct vm_area_struct *vma,
+-			 unsigned long address,
+-			 pmd_t *pmdp)
 -{
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
--	if (!test_and_set_bit(_SEGMENT_ENTRY_SPLIT_BIT,
--			      (unsigned long *) pmdp)) {
--		/* need to serialize against gup-fast (IRQ disabled) */
--		smp_call_function(pmdp_splitting_flush_sync, NULL, 1);
+-	if (!pmd_trans_splitting(*pmdp)) {
+-		pmd_t pmd = pmd_mksplitting(*pmdp);
+-		set_pmd_at(vma->vm_mm, address, pmdp, pmd);
 -	}
 -}
 -
- void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
- 				pgtable_t pgtable)
+-#endif
+-
+ pmd_t mk_pmd(struct page *page, pgprot_t prot)
  {
+ 	pmd_t pmd;
+diff --git a/arch/mips/mm/tlbex.c b/arch/mips/mm/tlbex.c
+index 323d1d302f2b..b190ae9fe909 100644
+--- a/arch/mips/mm/tlbex.c
++++ b/arch/mips/mm/tlbex.c
+@@ -240,7 +240,6 @@ static void output_pgtable_bits_defines(void)
+ 	pr_define("_PAGE_MODIFIED_SHIFT %d\n", _PAGE_MODIFIED_SHIFT);
+ #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
+ 	pr_define("_PAGE_HUGE_SHIFT %d\n", _PAGE_HUGE_SHIFT);
+-	pr_define("_PAGE_SPLITTING_SHIFT %d\n", _PAGE_SPLITTING_SHIFT);
+ #endif
+ #ifdef CONFIG_CPU_MIPSR2
+ 	if (cpu_has_rixi) {
 -- 
 2.5.3
 
