@@ -1,46 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C8A66B0254
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 15:22:28 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so183802070qgt.2
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 12:22:28 -0700 (PDT)
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 299596B0038
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 18:13:30 -0400 (EDT)
+Received: by qgez77 with SMTP id z77so188297108qge.1
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 15:13:30 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l9si29997229qhl.13.2015.10.06.12.22.27
+        by mx.google.com with ESMTPS id i78si17089450qkh.10.2015.10.06.15.13.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Oct 2015 12:22:27 -0700 (PDT)
-Date: Tue, 6 Oct 2015 12:22:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg: convert threshold to bytes
-Message-Id: <20151006122225.8a499b42f49d8484b61632a8@linux-foundation.org>
-In-Reply-To: <20151006170122.GB2752@dhcp22.suse.cz>
-References: <fc100a5a381d1961c3b917489eb82b098d9e0840.1444081366.git.shli@fb.com>
-	<20151006170122.GB2752@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 06 Oct 2015 15:13:29 -0700 (PDT)
+Date: Tue, 06 Oct 2015 15:13:28 -0700
+From: akpm@linux-foundation.org
+Subject: [patch 1/1] mm/vmstat.c: uninline node_page_state()
+Message-ID: <56144788.RD/yrs/8D4zm1CBk%akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-mm@kvack.org, akpm@linux-foundation.org
 
-On Tue, 6 Oct 2015 19:01:23 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm/vmstat.c: uninline node_page_state()
 
-> On Mon 05-10-15 14:44:22, Shaohua Li wrote:
-> > The page_counter_memparse() returns pages for the threshold, while
-> > mem_cgroup_usage() returns bytes for memory usage. Convert the threshold
-> > to bytes.
-> > 
-> > Looks a regression introduced by 3e32cb2e0a12b69150
-> 
-> Yes. This suggests
-> Cc: stable # 3.19+
+With x86_64 (config http://ozlabs.org/~akpm/config-akpm2.txt) and old gcc
+(4.4.4), drivers/base/node.c:node_read_meminfo() is using 2344 bytes of
+stack.  Uninlining node_page_state() reduces this to 440 bytes.
 
-But it's been this way for 2 years and nobody noticed it.  How come?
+The stack consumption issue is fixed by newer gcc (4.8.4) however with
+that compiler this patch reduces the node.o text size from 7314 bytes to
+4578.
 
-Or at least, nobody reported it.  Maybe people *have* noticed it, and
-adjusted their userspace appropriately.  In which case this patch will
-cause breakage.
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ include/linux/vmstat.h |   24 +-----------------------
+ mm/vmstat.c            |   24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 23 deletions(-)
+
+diff -puN include/linux/vmstat.h~mm-vmstatc-uninline-node_page_state include/linux/vmstat.h
+--- a/include/linux/vmstat.h~mm-vmstatc-uninline-node_page_state
++++ a/include/linux/vmstat.h
+@@ -161,30 +161,8 @@ static inline unsigned long zone_page_st
+ }
+ 
+ #ifdef CONFIG_NUMA
+-/*
+- * Determine the per node value of a stat item. This function
+- * is called frequently in a NUMA machine, so try to be as
+- * frugal as possible.
+- */
+-static inline unsigned long node_page_state(int node,
+-				 enum zone_stat_item item)
+-{
+-	struct zone *zones = NODE_DATA(node)->node_zones;
+-
+-	return
+-#ifdef CONFIG_ZONE_DMA
+-		zone_page_state(&zones[ZONE_DMA], item) +
+-#endif
+-#ifdef CONFIG_ZONE_DMA32
+-		zone_page_state(&zones[ZONE_DMA32], item) +
+-#endif
+-#ifdef CONFIG_HIGHMEM
+-		zone_page_state(&zones[ZONE_HIGHMEM], item) +
+-#endif
+-		zone_page_state(&zones[ZONE_NORMAL], item) +
+-		zone_page_state(&zones[ZONE_MOVABLE], item);
+-}
+ 
++extern unsigned long node_page_state(int node, enum zone_stat_item item);
+ extern void zone_statistics(struct zone *, struct zone *, gfp_t gfp);
+ 
+ #else
+diff -puN mm/vmstat.c~mm-vmstatc-uninline-node_page_state mm/vmstat.c
+--- a/mm/vmstat.c~mm-vmstatc-uninline-node_page_state
++++ a/mm/vmstat.c
+@@ -591,6 +591,30 @@ void zone_statistics(struct zone *prefer
+ 	else
+ 		__inc_zone_state(z, NUMA_OTHER);
+ }
++
++/*
++ * Determine the per node value of a stat item. This function
++ * is called frequently in a NUMA machine, so try to be as
++ * frugal as possible.
++ */
++unsigned long node_page_state(int node, enum zone_stat_item item)
++{
++	struct zone *zones = NODE_DATA(node)->node_zones;
++
++	return
++#ifdef CONFIG_ZONE_DMA
++		zone_page_state(&zones[ZONE_DMA], item) +
++#endif
++#ifdef CONFIG_ZONE_DMA32
++		zone_page_state(&zones[ZONE_DMA32], item) +
++#endif
++#ifdef CONFIG_HIGHMEM
++		zone_page_state(&zones[ZONE_HIGHMEM], item) +
++#endif
++		zone_page_state(&zones[ZONE_NORMAL], item) +
++		zone_page_state(&zones[ZONE_MOVABLE], item);
++}
++
+ #endif
+ 
+ #ifdef CONFIG_COMPACTION
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
