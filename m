@@ -1,96 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 13F8B82FAC
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 01:12:23 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so197629334pab.3
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 22:12:22 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id bt3si45938971pbb.173.2015.10.05.22.12.20
-        for <linux-mm@kvack.org>;
-        Mon, 05 Oct 2015 22:12:21 -0700 (PDT)
-Date: Tue, 6 Oct 2015 16:12:18 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: linux-next: kernel BUG at mm/slub.c:1447!
-Message-ID: <20151006051218.GB32150@dastard>
-References: <560D59F7.4070002@roeck-us.net>
- <20151001134904.127ccc7bea14e969fbfba0d5@linux-foundation.org>
- <20151002072522.GC30354@dhcp22.suse.cz>
- <20151002134953.551e6379ee9f6b5a0aeb7af7@linux-foundation.org>
- <20151005134713.GC7023@dhcp22.suse.cz>
- <20151005122936.8a3b0fe21629390c9aa8bc2a@linux-foundation.org>
- <20151005191217.48008dc7.akpm@linux-foundation.org>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 379A66B02E8
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 01:36:34 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so58967530pad.1
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 22:36:34 -0700 (PDT)
+Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id ck5si46084686pbb.91.2015.10.05.22.36.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Oct 2015 22:36:33 -0700 (PDT)
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Subject: Re: New helper to free highmem pages in larger chunks
+Date: Tue, 6 Oct 2015 05:35:57 +0000
+Message-ID: <C2D7FE5348E1B147BCA15975FBA23075D781AB03@IN01WEMBXB.internal.synopsys.com>
+References: <560FD031.3030909@synopsys.com>
+ <20151005150955.3e1da261449ae046e1be3989@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151005191217.48008dc7.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Guenter Roeck <linux@roeck-us.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org
+Cc: "arc-linux-dev@synopsys.com" <arc-linux-dev@synopsys.com>, Robin Holt <robin.m.holt@gmail.com>, Nathan Zimmer <nzimmer@sgi.com>, Jiang Liu <liuj97@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Mon, Oct 05, 2015 at 07:12:17PM -0700, Andrew Morton wrote:
-> On Mon, 5 Oct 2015 12:29:36 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > Maybe it would be better to add the gfp_t argument to the
-> > address_space_operations.  At a minimum, writepage(), readpage(),
-> > writepages(), readpages().  What a pickle.
-> 
-> I'm being dumb.  All we need to do is to add a new
-> 
-> 	address_space_operations.readpage_gfp(..., gfp_t gfp)
-> 
-> etc.  That should be trivial.  Each fs type only has 2-4 instances of
-> address_space_operations so the overhead is miniscule.
-> 
-> As a background janitorial thing we can migrate filesystems over to the
-> new interface then remove address_space_operations.readpage() etc.  But
-> this *would* add overhead: more stack and more text for no gain.  So
-> perhaps we just leave things as they are.
-> 
-> That's so simple that I expect we can short-term fix this bug with that
-> approach.  umm, something like
-> 
-> --- a/fs/mpage.c~a
-> +++ a/fs/mpage.c
-> @@ -139,7 +139,8 @@ map_buffer_to_page(struct page *page, st
->  static struct bio *
->  do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
->  		sector_t *last_block_in_bio, struct buffer_head *map_bh,
-> -		unsigned long *first_logical_block, get_block_t get_block)
-> +		unsigned long *first_logical_block, get_block_t get_block,
-> +		gfp_t gfp)
-
-Simple enough, but not sufficient to avoid deadlocks because this
-doesn't address the common vector for deadlock that was reported.
-i.e. deadlocks due to the layering dependency the loop device
-creates between two otherwise independent filesystems.
-
-If read IO through the loop device does GFP_KERNEL allocations, then
-it is susceptible to deadlock as that can force writeback and
-transactions from the filesystem on top of the loop device, which
-does more IO to the loop device, which then backs up on the backing
-file inode mutex. Forwards progress cannot be made until the
-GFP_KERNEL allocation succeeds, but that depends on the loop device
-making forwards progress...
-
-The loop device indicates this is a known problems tries to avoid
-these deadlocks by doing this on it's backing file:
-
-	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS))
-
-to try to ensure that mapping related allocations do not cause
-inappropriate reclaim contexts to be triggered.
-
-This is a problem independent of any specific filesystem - let's not
-hack a workaround into a specific filesystem just because the
-problem was reported on that filesystem....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+On Tuesday 06 October 2015 03:40 AM, Andrew Morton wrote:=0A=
+> On Sat, 3 Oct 2015 18:25:13 +0530 Vineet Gupta <Vineet.Gupta1@synopsys.co=
+m> wrote:=0A=
+>=0A=
+>> Hi,=0A=
+>>=0A=
+>> I noticed increased boot time when enabling highmem for ARC. Turns out t=
+hat=0A=
+>> freeing highmem pages into buddy allocator is done page at a time, while=
+ it is=0A=
+>> batched for low mem pages. Below is call flow.=0A=
+>>=0A=
+>> I'm thinking of writing free_highmem_pages() which takes start and end p=
+fn and=0A=
+>> want to solicit some ideas whether to write it from scratch or preferabl=
+y call=0A=
+>> existing __free_pages_memory() to reuse the logic to convert a pfn range=
+ into=0A=
+>> {pfn, order} tuples.=0A=
+>>=0A=
+>> For latter however there are semantical differences as you can see below=
+ which I'm=0A=
+>> not sure of:=0A=
+>>   -highmem page->count is set to 1, while 0 for low mem=0A=
+> That would be weird.=0A=
+>=0A=
+> Look more closely at __free_pages_boot_core() - it uses=0A=
+> set_page_refcounted() to set the page's refcount to 1.  Those=0A=
+> set_page_count() calls look superfluous to me.=0A=
+=0A=
+If you closer still, set_page_refcounted() is called outside the loop for t=
+he=0A=
+first page only. For all pages, loop iterator sets them to 1. Turns out the=
+re's=0A=
+more fun here....=0A=
+=0A=
+I ran this under a debugger and much earlier in boot process, there's exist=
+ing=0A=
+setting of page count to 1 for *all* pages of *all* zones (include highmem =
+pages).=0A=
+See call flow below.=0A=
+=0A=
+free_area_init_node=0A=
+    free_area_init_core=0A=
+        loops thru all zones=0A=
+            memmap_init_zone=0A=
+               loops thru all pages of zones=0A=
+               __init_single_page=0A=
+=0A=
+This means the subsequent setting of page count to 0 (or 1 for the special =
+first=0A=
+page) is superfluous - actually buggy at best. I will send a patch to fix t=
+hat. I=0A=
+hope I don't break some obscure init path which doesn't hit the above init.=
+=0A=
+=0A=
+=0A=
+>=0A=
+>>   -atomic clearing of page reserved flag vs. non atomic=0A=
+> I doubt if the atomic is needed - who else can be looking at this page=0A=
+> at this time?=0A=
+=0A=
+I'll send another one to separately fix that as well. Seems like boot mem s=
+etup is=0A=
+a relatively neglect part of kernel.=0A=
+=0A=
+-Vineet=0A=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
