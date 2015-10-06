@@ -1,52 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 1910782F6F
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 05:24:59 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so157468986wic.0
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 02:24:58 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F37982F6F
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 05:25:01 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so157531125wic.0
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 02:25:00 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fq6si22324796wib.110.2015.10.06.02.24.52
+        by mx.google.com with ESMTPS id l20si36838397wjw.125.2015.10.06.02.24.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Tue, 06 Oct 2015 02:24:52 -0700 (PDT)
 From: Jan Kara <jack@suse.com>
-Subject: [PATCH 5/7] IB/mthca: Convert mthca_map_user_db() to use get_user_pages_fast()
-Date: Tue,  6 Oct 2015 11:24:28 +0200
-Message-Id: <1444123470-4932-6-git-send-email-jack@suse.com>
+Subject: [PATCH 4/7] fsl_hypervisor: Convert ioctl_memcpy() to use get_user_pages_fast()
+Date: Tue,  6 Oct 2015 11:24:27 +0200
+Message-Id: <1444123470-4932-5-git-send-email-jack@suse.com>
 In-Reply-To: <1444123470-4932-1-git-send-email-jack@suse.com>
 References: <1444123470-4932-1-git-send-email-jack@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Jan Kara <jack@suse.cz>, Roland Dreier <roland@kernel.org>, linux-rdma@vger.kernel.org
+Cc: Jan Kara <jack@suse.cz>, Timur Tabi <timur@freescale.com>
 
 From: Jan Kara <jack@suse.cz>
 
-Function mthca_map_user_db() appears to call get_user_pages() without
-holding mmap_sem. Fix the bug by using get_user_pages_fast() instead
-which also takes care of the locking.
-
-CC: Roland Dreier <roland@kernel.org>
-CC: linux-rdma@vger.kernel.org
+CC: Timur Tabi <timur@freescale.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/infiniband/hw/mthca/mthca_memfree.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ drivers/virt/fsl_hypervisor.c | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/infiniband/hw/mthca/mthca_memfree.c b/drivers/infiniband/hw/mthca/mthca_memfree.c
-index 7d2e42dd6926..c3543b27a2a7 100644
---- a/drivers/infiniband/hw/mthca/mthca_memfree.c
-+++ b/drivers/infiniband/hw/mthca/mthca_memfree.c
-@@ -472,8 +472,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
- 		goto out;
- 	}
+diff --git a/drivers/virt/fsl_hypervisor.c b/drivers/virt/fsl_hypervisor.c
+index 32c8fc5f7a5c..c65e5e60d7fd 100644
+--- a/drivers/virt/fsl_hypervisor.c
++++ b/drivers/virt/fsl_hypervisor.c
+@@ -243,13 +243,8 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
+ 	sg_list = PTR_ALIGN(sg_list_unaligned, sizeof(struct fh_sg_list));
  
--	ret = get_user_pages(current, current->mm, uaddr & PAGE_MASK, 1, 1, 0,
--			     pages, NULL);
-+	ret = get_user_pages_fast(uaddr & PAGE_MASK, 1, 1, pages);
- 	if (ret < 0)
- 		goto out;
- 
+ 	/* Get the physical addresses of the source buffer */
+-	down_read(&current->mm->mmap_sem);
+-	num_pinned = get_user_pages(current, current->mm,
+-		param.local_vaddr - lb_offset, num_pages,
+-		(param.source == -1) ? READ : WRITE,
+-		0, pages, NULL);
+-	up_read(&current->mm->mmap_sem);
+-
++	num_pinned = get_user_pages_fast(param.local_vaddr - lb_offset,
++		num_pages, (param.source == -1) ? READ : WRITE, pages);
+ 	if (num_pinned != num_pages) {
+ 		/* get_user_pages() failed */
+ 		pr_debug("fsl-hv: could not lock source buffer\n");
 -- 
 2.1.4
 
