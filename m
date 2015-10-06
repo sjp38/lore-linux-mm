@@ -1,86 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 040A56B0038
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 11:00:50 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so211934274pab.3
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 08:00:49 -0700 (PDT)
-Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
-        by mx.google.com with ESMTPS id ys5si49563031pbb.23.2015.10.06.08.00.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA256 bits=128/128);
-        Tue, 06 Oct 2015 08:00:49 -0700 (PDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20150922160608.GA2716@redhat.com>
-	<20150923205923.GB19054@dhcp22.suse.cz>
-	<alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
-	<20150925093556.GF16497@dhcp22.suse.cz>
-	<201509260114.ADI35946.OtHOVFOMJQFLFS@I-love.SAKURA.ne.jp>
-	<201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
-	<20151002123639.GA13914@dhcp22.suse.cz>
-	<CA+55aFw=OLSdh-5Ut2vjy=4Yf1fTXqpzoDHdF7XnT5gDHs6sYA@mail.gmail.com>
-	<87k2r0ph21.fsf@x220.int.ebiederm.org>
-	<CA+55aFxxfbCuTjnK_TpxrTftQOXeTi4PBawbv27P_Xqz4Y5ibw@mail.gmail.com>
-	<CA+55aFz1HFLVNeAaOWK=-Wyq8FF5bhWpWk8Dnwpa-8vD2k+b+A@mail.gmail.com>
-Date: Tue, 06 Oct 2015 09:52:50 -0500
-In-Reply-To: <CA+55aFz1HFLVNeAaOWK=-Wyq8FF5bhWpWk8Dnwpa-8vD2k+b+A@mail.gmail.com>
-	(Linus Torvalds's message of "Tue, 6 Oct 2015 09:55:33 +0100")
-Message-ID: <87lhbgf3r1.fsf@x220.int.ebiederm.org>
-MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: can't oom-kill zap the victim's memory?
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B077A6B0038
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 11:24:15 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so213601366pac.0
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 08:24:15 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ep1si49593225pbd.256.2015.10.06.08.24.14
+        for <linux-mm@kvack.org>;
+        Tue, 06 Oct 2015 08:24:14 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv12 04/37] mm, thp: adjust conditions when we can reuse the page on WP fault
+Date: Tue,  6 Oct 2015 18:23:31 +0300
+Message-Id: <1444145044-72349-5-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Linus Torvalds <torvalds@linux-foundation.org> writes:
+With new refcounting we will be able map the same compound page with
+PTEs and PMDs. It requires adjustment to conditions when we can reuse
+the page on write-protection fault.
 
-> On Tue, Oct 6, 2015 at 9:49 AM, Linus Torvalds
-> <torvalds@linux-foundation.org> wrote:
->>
->> The basic fact remains: kernel allocations are so important that
->> rather than fail, you should kill user space. Only kernel allocations
->> that *explicitly* know that they have fallback code should fail, and
->> they should just do the __GFP_NORETRY.
+For PTE fault we can't reuse the page if it's part of huge page.
 
-If you have reached the point of killing userspace you might as well
-panic the box.  Userspace will recover more cleanly and more quickly.
-The oom-killer is like an oops.  Nice for debugging but not something
-you want on a production workload.
+For PMD we can only reuse the page if nobody else maps the huge page or
+it's part. We can do it by checking page_mapcount() on each sub-page,
+but it's expensive.
 
-> To be clear: "big" orders (I forget if the limit is at order-3 or
-> order-4) do fail much more aggressively. But no, we do not limit retry
-> to just order-0, because even small kmalloc sizes tend to often do
-> order-1 or order-2 just because of memory packing issues (ie trying to
-> pack into a single page wastes too much memory if the allocation sizes
-> don't come out right).
+The cheaper way is to check page_count() to be equal 1: every mapcount
+takes page reference, so this way we can guarantee, that the PMD is the
+only mapping.
 
-I am not asking that we limit retry to just order-0 pages.  I am asking
-that we limit the oom-killer on failure to just order-0 pages.
+This approach can give false negative if somebody pinned the page, but
+that doesn't affect correctness.
 
-> So no, order-0 isn't special. 1/2 are rather important too.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Sasha Levin <sasha.levin@oracle.com>
+Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Jerome Marchand <jmarchan@redhat.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/swap.h |  3 ++-
+ mm/huge_memory.c     | 12 +++++++++++-
+ mm/swapfile.c        |  3 +++
+ 3 files changed, 16 insertions(+), 2 deletions(-)
 
-That is a justification for retrying.  That is not a justification for
-killing the box.
-
-> [ Checking /proc/slabinfo: it looks like several slabs are order-3,
-> for things like files_cache, signal_cache and sighand_cache for me at
-> least. So I think it's up to order-3 that we basically need to
-> consider "we'll need to shrink user space aggressively unless we have
-> an explicit fallback for the allocation" ]
-
-What I know is that order-3 is definitely too big.  I had 4G of RAM
-free.  I needed 16K to exapand the fd table.  The box died.  That is
-not good.
-
-We have static checkers now, failure to check and handle errors tends to
-be caught.
-
-So yes for the rare case of order-[123] allocations failing we should
-return the failure to the caller.  The kernel can handle it.  Userspace
-can handle just about anything better than random processes dying.
-
-Eric
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 9c7c4b418498..1184fdbd30ba 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -540,7 +540,8 @@ static inline int swp_swapcount(swp_entry_t entry)
+ 	return 0;
+ }
+ 
+-#define reuse_swap_page(page)	(page_mapcount(page) == 1)
++#define reuse_swap_page(page) \
++	(!PageTransCompound(page) && page_mapcount(page) == 1)
+ 
+ static inline int try_to_free_swap(struct page *page)
+ {
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 7c41c0606e98..76a845b12d8d 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1230,7 +1230,17 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 
+ 	page = pmd_page(orig_pmd);
+ 	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
+-	if (page_mapcount(page) == 1) {
++	/*
++	 * We can only reuse the page if nobody else maps the huge page or it's
++	 * part. We can do it by checking page_mapcount() on each sub-page, but
++	 * it's expensive.
++	 * The cheaper way is to check page_count() to be equal 1: every
++	 * mapcount takes page reference reference, so this way we can
++	 * guarantee, that the PMD is the only mapping.
++	 * This can give false negative if somebody pinned the page, but that's
++	 * fine.
++	 */
++	if (page_mapcount(page) == 1 && page_count(page) == 1) {
+ 		pmd_t entry;
+ 		entry = pmd_mkyoung(orig_pmd);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index f131bc1838d3..c6aec93c8c0b 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -929,6 +929,9 @@ int reuse_swap_page(struct page *page)
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	if (unlikely(PageKsm(page)))
+ 		return 0;
++	/* The page is part of THP and cannot be reused */
++	if (PageTransCompound(page))
++		return 0;
+ 	count = page_mapcount(page);
+ 	if (count <= 1 && PageSwapCache(page)) {
+ 		count += page_swapcount(page);
+-- 
+2.5.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
