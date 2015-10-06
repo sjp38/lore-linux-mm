@@ -1,115 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id DBBEF82F6F
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 05:53:31 -0400 (EDT)
-Received: by lbcao8 with SMTP id ao8so73009796lbc.3
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 02:53:31 -0700 (PDT)
-Received: from bes.se.axis.com (bes.se.axis.com. [195.60.68.10])
-        by mx.google.com with ESMTP id xu2si20284243lbb.104.2015.10.06.02.53.30
-        for <linux-mm@kvack.org>;
-        Tue, 06 Oct 2015 02:53:30 -0700 (PDT)
-From: Mikael Starvik <mikael.starvik@axis.com>
-Date: Tue, 6 Oct 2015 11:53:27 +0200
-Subject: Re: [PATCH 1/7] cris: Convert cryptocop to use get_user_pages_fast()
-Message-ID: <4A71022F-5EB7-40D5-9646-A200C5C140A0@axis.com>
-References: <1444123470-4932-1-git-send-email-jack@suse.com>
- <1444123470-4932-2-git-send-email-jack@suse.com>
-In-Reply-To: <1444123470-4932-2-git-send-email-jack@suse.com>
-Content-Language: sv-SE
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id D7B2682F66
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 06:59:09 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so206683255pab.3
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 03:59:09 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id n2si47959001pap.239.2015.10.06.03.59.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Oct 2015 03:59:08 -0700 (PDT)
+Received: by pacfv12 with SMTP id fv12so211704059pac.2
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 03:59:08 -0700 (PDT)
+Date: Tue, 6 Oct 2015 19:59:03 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] zsmalloc: fix obj_to_head use page_private(page) as
+ value but not pointer
+Message-ID: <20151006105903.GA8462@swordfish>
+References: <1444033381-5726-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1444033381-5726-1-git-send-email-zhuhui@xiaomi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, linux-cris-kernel <linux-cris-kernel@axis.com>, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jespern@axis.com>
+To: Hui Zhu <zhuhui@xiaomi.com>
+Cc: minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, teawater@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Thank you! I will do the same change in our out-of-tree modules! Jesper wil=
-l do the ack.
+On (10/05/15 16:23), Hui Zhu wrote:
+> In function obj_malloc:
+> 	if (!class->huge)
+> 		/* record handle in the header of allocated chunk */
+> 		link->handle = handle;
+> 	else
+> 		/* record handle in first_page->private */
+> 		set_page_private(first_page, handle);
+> The huge's page save handle to private directly.
+> 
+> But in obj_to_head:
+> 	if (class->huge) {
+> 		VM_BUG_ON(!is_first_page(page));
+> 		return page_private(page);
+> 	} else
+> 		return *(unsigned long *)obj;
+> It is used as a pointer.
+> 
+
+um...
+obj_to_head() is not for obj_malloc(), but for record_obj() that follows.
+handle is a `void *' returned from alloc_handle()->kmem_cache_alloc(), and
+casted to 'unsigned long'.
+
+we store obj as:
+
+static void record_obj(unsigned long handle, unsigned long obj)
+{
+	*(unsigned long *)handle = obj;
+}
+
+regardless `class->huge'.
 
 
+and retrieve it as  `*(unsigned long *)foo', which is either
+	`*(unsigned long *)page_private(page)'
+or
+	`*(unsigned long *)obj'
 
-> 6 okt 2015 kl. 11:43 skrev Jan Kara <jack@suse.com>:
->=20
-> From: Jan Kara <jack@suse.cz>
->=20
-> CC: linux-cris-kernel@axis.com
-> CC: Mikael Starvik <starvik@axis.com>
-> CC: Jesper Nilsson <jesper.nilsson@axis.com>
-> Signed-off-by: Jan Kara <jack@suse.cz>
+'return p' and `return *p' do slightly different things for pointers.
+
+
+am I missing something?
+
+	-ss
+
+> So change obj_to_head use page_private(page) as value but not pointer
+> in obj_to_head.
+> 
+> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
 > ---
-> arch/cris/arch-v32/drivers/cryptocop.c | 35 ++++++++++-------------------=
------
-> 1 file changed, 10 insertions(+), 25 deletions(-)
->=20
-> diff --git a/arch/cris/arch-v32/drivers/cryptocop.c b/arch/cris/arch-v32/=
-drivers/cryptocop.c
-> index 877da1908234..df7ceeff1086 100644
-> --- a/arch/cris/arch-v32/drivers/cryptocop.c
-> +++ b/arch/cris/arch-v32/drivers/cryptocop.c
-> @@ -2716,43 +2716,28 @@ static int cryptocop_ioctl_process(struct inode *=
-inode, struct file *filp, unsig
->        }
->    }
->=20
-> -    /* Acquire the mm page semaphore. */
-> -    down_read(&current->mm->mmap_sem);
-> -
-> -    err =3D get_user_pages(current,
-> -                 current->mm,
-> -                 (unsigned long int)(oper.indata + prev_ix),
-> -                 noinpages,
-> -                 0,  /* read access only for in data */
-> -                 0, /* no force */
-> -                 inpages,
-> -                 NULL);
-> +    err =3D get_user_pages_fast((unsigned long)(oper.indata + prev_ix),
-> +                  noinpages,
-> +                  0,  /* read access only for in data */
-> +                  inpages);
->=20
->    if (err < 0) {
-> -        up_read(&current->mm->mmap_sem);
->        nooutpages =3D noinpages =3D 0;
-> -        DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages indata=
-\n"));
-> +        DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages_fast i=
-ndata\n"));
->        goto error_cleanup;
->    }
->    noinpages =3D err;
->    if (oper.do_cipher){
-> -        err =3D get_user_pages(current,
-> -                     current->mm,
-> -                     (unsigned long int)oper.cipher_outdata,
-> -                     nooutpages,
-> -                     1, /* write access for out data */
-> -                     0, /* no force */
-> -                     outpages,
-> -                     NULL);
-> -        up_read(&current->mm->mmap_sem);
-> +        err =3D get_user_pages_fast((unsigned long)oper.cipher_outdata,
-> +                      nooutpages,
-> +                      1, /* write access for out data */
-> +                      outpages);
->        if (err < 0) {
->            nooutpages =3D 0;
-> -            DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages ou=
-tdata\n"));
-> +            DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages_fa=
-st outdata\n"));
->            goto error_cleanup;
->        }
->        nooutpages =3D err;
-> -    } else {
-> -        up_read(&current->mm->mmap_sem);
->    }
->=20
->    /* Add 6 to nooutpages to make room for possibly inserted buffers for =
-storing digest and
-> --=20
-> 2.1.4
->=20
+>  mm/zsmalloc.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index f135b1b..e881d4f 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -824,7 +824,7 @@ static unsigned long obj_to_head(struct size_class *class, struct page *page,
+>  {
+>  	if (class->huge) {
+>  		VM_BUG_ON(!is_first_page(page));
+> -		return *(unsigned long *)page_private(page);
+> +		return page_private(page);
+>  	} else
+>  		return *(unsigned long *)obj;
+>  }
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
