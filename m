@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 41B896B029B
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 04:49:20 -0400 (EDT)
-Received: by ioiz6 with SMTP id z6so213732188ioi.2
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 01:49:20 -0700 (PDT)
-Received: from mail-ig0-x22c.google.com (mail-ig0-x22c.google.com. [2607:f8b0:4001:c05::22c])
-        by mx.google.com with ESMTPS id g12si21713336iod.92.2015.10.06.01.49.19
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 027D482FAC
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 04:55:35 -0400 (EDT)
+Received: by igcpb10 with SMTP id pb10so82171095igc.1
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 01:55:34 -0700 (PDT)
+Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
+        by mx.google.com with ESMTPS id e9si12236661igi.58.2015.10.06.01.55.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Oct 2015 01:49:19 -0700 (PDT)
-Received: by igbkq10 with SMTP id kq10so82046157igb.0
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 01:49:19 -0700 (PDT)
+        Tue, 06 Oct 2015 01:55:34 -0700 (PDT)
+Received: by ioii196 with SMTP id i196so213783726ioi.3
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 01:55:34 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <87k2r0ph21.fsf@x220.int.ebiederm.org>
+In-Reply-To: <CA+55aFxxfbCuTjnK_TpxrTftQOXeTi4PBawbv27P_Xqz4Y5ibw@mail.gmail.com>
 References: <20150922160608.GA2716@redhat.com>
 	<20150923205923.GB19054@dhcp22.suse.cz>
 	<alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
@@ -22,8 +22,9 @@ References: <20150922160608.GA2716@redhat.com>
 	<20151002123639.GA13914@dhcp22.suse.cz>
 	<CA+55aFw=OLSdh-5Ut2vjy=4Yf1fTXqpzoDHdF7XnT5gDHs6sYA@mail.gmail.com>
 	<87k2r0ph21.fsf@x220.int.ebiederm.org>
-Date: Tue, 6 Oct 2015 09:49:19 +0100
-Message-ID: <CA+55aFxxfbCuTjnK_TpxrTftQOXeTi4PBawbv27P_Xqz4Y5ibw@mail.gmail.com>
+	<CA+55aFxxfbCuTjnK_TpxrTftQOXeTi4PBawbv27P_Xqz4Y5ibw@mail.gmail.com>
+Date: Tue, 6 Oct 2015 09:55:33 +0100
+Message-ID: <CA+55aFz1HFLVNeAaOWK=-Wyq8FF5bhWpWk8Dnwpa-8vD2k+b+A@mail.gmail.com>
 Subject: Re: can't oom-kill zap the victim's memory?
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
@@ -32,43 +33,28 @@ List-ID: <linux-mm.kvack.org>
 To: "Eric W. Biederman" <ebiederm@xmission.com>
 Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>
 
-On Tue, Oct 6, 2015 at 8:55 AM, Eric W. Biederman <ebiederm@xmission.com> wrote:
+On Tue, Oct 6, 2015 at 9:49 AM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
-> Not to take away from your point about very small allocations.  However
-> assuming allocations larger than a page will always succeed is down
-> right dangerous.
+> The basic fact remains: kernel allocations are so important that
+> rather than fail, you should kill user space. Only kernel allocations
+> that *explicitly* know that they have fallback code should fail, and
+> they should just do the __GFP_NORETRY.
 
-We've required retrying for *at least* order-1 allocations. Exactly
-because things like fork() etc have wanted them, and:
+To be clear: "big" orders (I forget if the limit is at order-3 or
+order-4) do fail much more aggressively. But no, we do not limit retry
+to just order-0, because even small kmalloc sizes tend to often do
+order-1 or order-2 just because of memory packing issues (ie trying to
+pack into a single page wastes too much memory if the allocation sizes
+don't come out right).
 
- - as you say, you can be unlucky even with reasonable amounts of free memory
+So no, order-0 isn't special. 1/2 are rather important too.
 
- - the page-out code is approximate and doesn't guarantee that you get
-buddy coalescing
-
- - just failing after a couple of loops has been known to result in
-fork() and similar friends returning -EAGAIN and breaking user space.
-
-Really. Stop this idiocy. We have gone through this before. It's a disaster.
-
-The basic fact remains: kernel allocations are so important that
-rather than fail, you should kill user space. Only kernel allocations
-that *explicitly* know that they have fallback code should fail, and
-they should just do the __GFP_NORETRY.
-
-So the rule ends up being that we retry the memory freeing loop for
-small allocations (where "small" is something like "order 2 or less")
-
-So really. If you find some particular case that is painful because it
-wants an order-1 or order-2 allocation, then you do this:
-
- - do the allocation with GFP_NORETRY
-
- - have a fallback that uses vmalloc or just is able to make the
-buffer even smaller.
-
-But by default we will continue to make small orders retry. As
-mentioned, we have tried the alternatives. It doesn't work.
+[ Checking /proc/slabinfo: it looks like several slabs are order-3,
+for things like files_cache, signal_cache and sighand_cache for me at
+least. So I think it's up to order-3 that we basically need to
+consider "we'll need to shrink user space aggressively unless we have
+an explicit fallback for the allocation" ]
 
             Linus
 
