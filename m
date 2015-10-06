@@ -1,78 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 115BB6B0038
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 09:54:44 -0400 (EDT)
-Received: by ioiz6 with SMTP id z6so221831849ioi.2
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 06:54:43 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id 85si22748761iot.140.2015.10.06.06.54.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Oct 2015 06:54:43 -0700 (PDT)
-Received: by pacex6 with SMTP id ex6so211602478pac.0
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 06:54:43 -0700 (PDT)
-Date: Tue, 6 Oct 2015 22:54:31 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zsmalloc: fix obj_to_head use page_private(page) as
- value but not pointer
-Message-ID: <20151006135303.GA31853@blaptop>
-References: <1444033381-5726-1-git-send-email-zhuhui@xiaomi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1444033381-5726-1-git-send-email-zhuhui@xiaomi.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B5E56B0038
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 10:35:31 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so72064068pad.1
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 07:35:30 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id pj9si33646067pbb.124.2015.10.06.07.35.30
+        for <linux-mm@kvack.org>;
+        Tue, 06 Oct 2015 07:35:30 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] hugetlb: clear PG_reserved before setting PG_head on gigantic pages
+Date: Tue,  6 Oct 2015 17:35:24 +0300
+Message-Id: <1444142124-21921-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <zhuhui@xiaomi.com>
-Cc: ngupta@vflare.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, teawater@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hello,
+PF_NO_COMPOUND for PG_reserved assumes we don't use PG_reserved for
+compound pages. And we generally don't. But during allocation of
+gigantic pages we set PG_head before clearing PG_reserved and
+__ClearPageReserved() steps on the VM_BUG_ON_PAGE().
 
-On Mon, Oct 05, 2015 at 04:23:01PM +0800, Hui Zhu wrote:
-> In function obj_malloc:
-> 	if (!class->huge)
-> 		/* record handle in the header of allocated chunk */
-> 		link->handle = handle;
-> 	else
-> 		/* record handle in first_page->private */
-> 		set_page_private(first_page, handle);
-> The huge's page save handle to private directly.
-> 
-> But in obj_to_head:
-> 	if (class->huge) {
-> 		VM_BUG_ON(!is_first_page(page));
-> 		return page_private(page);
+The fix is trivial: set PG_head after PG_reserved.
 
-Typo.
- 		return *(unsigned long*)page_private(page);
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+---
 
-Please fix the description.
+Andrew, this patch can be folded into "page-flags: define PG_reserved behavior on compound pages".
 
-> 	} else
-> 		return *(unsigned long *)obj;
-> It is used as a pointer.
-> 
-> So change obj_to_head use page_private(page) as value but not pointer
-> in obj_to_head.
+---
+ mm/hugetlb.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-The reason why there is no problem until now is huge-class page is
-born with ZS_FULL so it couldn't be migrated.
-Therefore, it shouldn't be real bug in practice.
-However, we need this patch for future-work "VM-aware zsmalloced
-page migration" to reduce external fragmentation.
-
-> 
-> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
-
-With fixing the comment,
-
-Acked-by: Minchan Kim <minchan@kernel.org>
-
-Thanks for the fix, Hui.
-
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 6ecf61ffa65d..bd3f3e20313b 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1258,8 +1258,8 @@ static void prep_compound_gigantic_page(struct page *page, unsigned int order)
+ 
+ 	/* we rely on prep_new_huge_page to set the destructor */
+ 	set_compound_order(page, order);
+-	__SetPageHead(page);
+ 	__ClearPageReserved(page);
++	__SetPageHead(page);
+ 	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
+ 		/*
+ 		 * For gigantic hugepages allocated through bootmem at
 -- 
-Kind regards,
-Minchan Kim
+2.5.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
