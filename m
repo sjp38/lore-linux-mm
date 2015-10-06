@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id BB38482F65
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 11:24:42 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so213611319pac.0
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 08:24:42 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id km1si49651920pab.52.2015.10.06.08.24.24
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C49E682F68
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 11:24:44 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so212484919pab.3
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 08:24:44 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id a7si9796975pat.63.2015.10.06.08.24.24
         for <linux-mm@kvack.org>;
-        Tue, 06 Oct 2015 08:24:24 -0700 (PDT)
+        Tue, 06 Oct 2015 08:24:25 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv12 17/37] arm64, thp: remove infrastructure for handling splitting PMDs
-Date: Tue,  6 Oct 2015 18:23:44 +0300
-Message-Id: <1444145044-72349-18-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv12 15/37] ksm: prepare to new THP semantics
+Date: Tue,  6 Oct 2015 18:23:42 +0300
+Message-Id: <1444145044-72349-16-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,68 +19,131 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting we don't need to mark PMDs splitting. Let's drop
-code to handle this.
+We don't need special code to stabilize THP. If you've got reference to
+any subpage of THP it will not be split under you.
 
-pmdp_splitting_flush() is not needed too: on splitting PMD we will do
-pmdp_clear_flush() + set_pte_at(). pmdp_clear_flush() will do IPI as
-needed for fast_gup.
+New split_huge_page() also accepts tail pages: no need in special code
+to get reference to head page.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tested-by: Sasha Levin <sasha.levin@oracle.com>
+Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- arch/arm64/include/asm/pgtable.h |  8 --------
- arch/arm64/mm/flush.c            | 16 ----------------
- 2 files changed, 24 deletions(-)
+ mm/ksm.c | 57 ++++++++++-----------------------------------------------
+ 1 file changed, 10 insertions(+), 47 deletions(-)
 
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index bd5db28324ba..26c7dea80062 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -274,20 +274,12 @@ static inline pgprot_t mk_sect_prot(pgprot_t prot)
+diff --git a/mm/ksm.c b/mm/ksm.c
+index fe09f3ddc912..fb333d8188fc 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -441,20 +441,6 @@ static void break_cow(struct rmap_item *rmap_item)
+ 	up_read(&mm->mmap_sem);
+ }
  
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
--#define pmd_trans_splitting(pmd)	pte_special(pmd_pte(pmd))
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
--struct vm_area_struct;
--void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
--			  pmd_t *pmdp);
--#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
- #define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
- #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
- #define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
- #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
--#define pmd_mksplitting(pmd)	pte_pmd(pte_mkspecial(pmd_pte(pmd)))
- #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
- #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
- #define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
-diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
-index 4dfa3975ce5b..fc9c657e6f41 100644
---- a/arch/arm64/mm/flush.c
-+++ b/arch/arm64/mm/flush.c
-@@ -103,19 +103,3 @@ EXPORT_SYMBOL(flush_dcache_page);
-  * Additional functions defined in assembly.
-  */
- EXPORT_SYMBOL(flush_icache_range);
--
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--#ifdef CONFIG_HAVE_RCU_TABLE_FREE
--void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
--			  pmd_t *pmdp)
+-static struct page *page_trans_compound_anon(struct page *page)
 -{
--	pmd_t pmd = pmd_mksplitting(*pmdp);
--
--	VM_BUG_ON(address & ~PMD_MASK);
--	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
--
--	/* dummy IPI to serialise against fast_gup */
--	kick_all_cpus_sync();
+-	if (PageTransCompound(page)) {
+-		struct page *head = compound_head(page);
+-		/*
+-		 * head may actually be splitted and freed from under
+-		 * us but it's ok here.
+-		 */
+-		if (PageAnon(head))
+-			return head;
+-	}
+-	return NULL;
 -}
--#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
--#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+-
+ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+ {
+ 	struct mm_struct *mm = rmap_item->mm;
+@@ -470,7 +456,7 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+ 	page = follow_page(vma, addr, FOLL_GET);
+ 	if (IS_ERR_OR_NULL(page))
+ 		goto out;
+-	if (PageAnon(page) || page_trans_compound_anon(page)) {
++	if (PageAnon(page)) {
+ 		flush_anon_page(vma, page, addr);
+ 		flush_dcache_page(page);
+ 	} else {
+@@ -976,33 +962,6 @@ out:
+ 	return err;
+ }
+ 
+-static int page_trans_compound_anon_split(struct page *page)
+-{
+-	int ret = 0;
+-	struct page *transhuge_head = page_trans_compound_anon(page);
+-	if (transhuge_head) {
+-		/* Get the reference on the head to split it. */
+-		if (get_page_unless_zero(transhuge_head)) {
+-			/*
+-			 * Recheck we got the reference while the head
+-			 * was still anonymous.
+-			 */
+-			if (PageAnon(transhuge_head))
+-				ret = split_huge_page(transhuge_head);
+-			else
+-				/*
+-				 * Retry later if split_huge_page run
+-				 * from under us.
+-				 */
+-				ret = 1;
+-			put_page(transhuge_head);
+-		} else
+-			/* Retry later if split_huge_page run from under us. */
+-			ret = 1;
+-	}
+-	return ret;
+-}
+-
+ /*
+  * try_to_merge_one_page - take two pages and merge them into one
+  * @vma: the vma that holds the pte pointing to page
+@@ -1023,9 +982,6 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
+ 
+ 	if (!(vma->vm_flags & VM_MERGEABLE))
+ 		goto out;
+-	if (PageTransCompound(page) && page_trans_compound_anon_split(page))
+-		goto out;
+-	BUG_ON(PageTransCompound(page));
+ 	if (!PageAnon(page))
+ 		goto out;
+ 
+@@ -1038,6 +994,13 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
+ 	 */
+ 	if (!trylock_page(page))
+ 		goto out;
++
++	if (PageTransCompound(page)) {
++		err = split_huge_page(page);
++		if (err)
++			goto out_unlock;
++	}
++
+ 	/*
+ 	 * If this anonymous page is mapped only here, its pte may need
+ 	 * to be write-protected.  If it's mapped elsewhere, all of its
+@@ -1068,6 +1031,7 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
+ 		}
+ 	}
+ 
++out_unlock:
+ 	unlock_page(page);
+ out:
+ 	return err;
+@@ -1620,8 +1584,7 @@ next_mm:
+ 				cond_resched();
+ 				continue;
+ 			}
+-			if (PageAnon(*page) ||
+-			    page_trans_compound_anon(*page)) {
++			if (PageAnon(*page)) {
+ 				flush_anon_page(vma, *page, ksm_scan.address);
+ 				flush_dcache_page(*page);
+ 				rmap_item = get_next_rmap_item(slot,
 -- 
 2.5.3
 
