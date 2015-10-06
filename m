@@ -1,67 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BE6D82F6F
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 05:25:05 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so149734827wic.0
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 02:25:05 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fd7si36837694wjc.157.2015.10.06.02.24.53
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Oct 2015 02:24:53 -0700 (PDT)
-From: Jan Kara <jack@suse.com>
-Subject: [PATCH 7/7] [media] ivtv: Convert to get_user_pages_unlocked()
-Date: Tue,  6 Oct 2015 11:24:30 +0200
-Message-Id: <1444123470-4932-8-git-send-email-jack@suse.com>
-In-Reply-To: <1444123470-4932-1-git-send-email-jack@suse.com>
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
+	by kanga.kvack.org (Postfix) with ESMTP id DBBEF82F6F
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 05:53:31 -0400 (EDT)
+Received: by lbcao8 with SMTP id ao8so73009796lbc.3
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 02:53:31 -0700 (PDT)
+Received: from bes.se.axis.com (bes.se.axis.com. [195.60.68.10])
+        by mx.google.com with ESMTP id xu2si20284243lbb.104.2015.10.06.02.53.30
+        for <linux-mm@kvack.org>;
+        Tue, 06 Oct 2015 02:53:30 -0700 (PDT)
+From: Mikael Starvik <mikael.starvik@axis.com>
+Date: Tue, 6 Oct 2015 11:53:27 +0200
+Subject: Re: [PATCH 1/7] cris: Convert cryptocop to use get_user_pages_fast()
+Message-ID: <4A71022F-5EB7-40D5-9646-A200C5C140A0@axis.com>
 References: <1444123470-4932-1-git-send-email-jack@suse.com>
+ <1444123470-4932-2-git-send-email-jack@suse.com>
+In-Reply-To: <1444123470-4932-2-git-send-email-jack@suse.com>
+Content-Language: sv-SE
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Jan Kara <jack@suse.cz>, Andy Walls <awalls@md.metrocast.net>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-media@vger.kernel.org
+To: Jan Kara <jack@suse.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, linux-cris-kernel <linux-cris-kernel@axis.com>, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jespern@axis.com>
 
-From: Jan Kara <jack@suse.cz>
+Thank you! I will do the same change in our out-of-tree modules! Jesper wil=
+l do the ack.
 
-Convert ivtv_yuv_prep_user_dma() to use get_user_pages_unlocked() so
-that we don't unnecessarily leak knowledge about mm locking into drivers
-code.
 
-CC: Andy Walls <awalls@md.metrocast.net>
-CC: Mauro Carvalho Chehab <mchehab@osg.samsung.com>
-CC: linux-media@vger.kernel.org
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- drivers/media/pci/ivtv/ivtv-yuv.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/media/pci/ivtv/ivtv-yuv.c b/drivers/media/pci/ivtv/ivtv-yuv.c
-index 2ad65eb29832..2b8e7b2f2b86 100644
---- a/drivers/media/pci/ivtv/ivtv-yuv.c
-+++ b/drivers/media/pci/ivtv/ivtv-yuv.c
-@@ -75,15 +75,15 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
- 	ivtv_udma_get_page_info (&uv_dma, (unsigned long)args->uv_source, 360 * uv_decode_height);
- 
- 	/* Get user pages for DMA Xfer */
--	down_read(&current->mm->mmap_sem);
--	y_pages = get_user_pages(current, current->mm, y_dma.uaddr, y_dma.page_count, 0, 1, &dma->map[0], NULL);
-+	y_pages = get_user_pages_unlocked(current, current->mm,
-+				y_dma.uaddr, y_dma.page_count, 0, 1,
-+				&dma->map[0]);
- 	uv_pages = 0; /* silence gcc. value is set and consumed only if: */
- 	if (y_pages == y_dma.page_count) {
--		uv_pages = get_user_pages(current, current->mm,
--					  uv_dma.uaddr, uv_dma.page_count, 0, 1,
--					  &dma->map[y_pages], NULL);
-+		uv_pages = get_user_pages_unlocked(current, current->mm,
-+					uv_dma.uaddr, uv_dma.page_count, 0, 1,
-+					&dma->map[y_pages]);
- 	}
--	up_read(&current->mm->mmap_sem);
- 
- 	if (y_pages != y_dma.page_count || uv_pages != uv_dma.page_count) {
- 		int rc = -EFAULT;
--- 
-2.1.4
+> 6 okt 2015 kl. 11:43 skrev Jan Kara <jack@suse.com>:
+>=20
+> From: Jan Kara <jack@suse.cz>
+>=20
+> CC: linux-cris-kernel@axis.com
+> CC: Mikael Starvik <starvik@axis.com>
+> CC: Jesper Nilsson <jesper.nilsson@axis.com>
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+> arch/cris/arch-v32/drivers/cryptocop.c | 35 ++++++++++-------------------=
+-----
+> 1 file changed, 10 insertions(+), 25 deletions(-)
+>=20
+> diff --git a/arch/cris/arch-v32/drivers/cryptocop.c b/arch/cris/arch-v32/=
+drivers/cryptocop.c
+> index 877da1908234..df7ceeff1086 100644
+> --- a/arch/cris/arch-v32/drivers/cryptocop.c
+> +++ b/arch/cris/arch-v32/drivers/cryptocop.c
+> @@ -2716,43 +2716,28 @@ static int cryptocop_ioctl_process(struct inode *=
+inode, struct file *filp, unsig
+>        }
+>    }
+>=20
+> -    /* Acquire the mm page semaphore. */
+> -    down_read(&current->mm->mmap_sem);
+> -
+> -    err =3D get_user_pages(current,
+> -                 current->mm,
+> -                 (unsigned long int)(oper.indata + prev_ix),
+> -                 noinpages,
+> -                 0,  /* read access only for in data */
+> -                 0, /* no force */
+> -                 inpages,
+> -                 NULL);
+> +    err =3D get_user_pages_fast((unsigned long)(oper.indata + prev_ix),
+> +                  noinpages,
+> +                  0,  /* read access only for in data */
+> +                  inpages);
+>=20
+>    if (err < 0) {
+> -        up_read(&current->mm->mmap_sem);
+>        nooutpages =3D noinpages =3D 0;
+> -        DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages indata=
+\n"));
+> +        DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages_fast i=
+ndata\n"));
+>        goto error_cleanup;
+>    }
+>    noinpages =3D err;
+>    if (oper.do_cipher){
+> -        err =3D get_user_pages(current,
+> -                     current->mm,
+> -                     (unsigned long int)oper.cipher_outdata,
+> -                     nooutpages,
+> -                     1, /* write access for out data */
+> -                     0, /* no force */
+> -                     outpages,
+> -                     NULL);
+> -        up_read(&current->mm->mmap_sem);
+> +        err =3D get_user_pages_fast((unsigned long)oper.cipher_outdata,
+> +                      nooutpages,
+> +                      1, /* write access for out data */
+> +                      outpages);
+>        if (err < 0) {
+>            nooutpages =3D 0;
+> -            DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages ou=
+tdata\n"));
+> +            DEBUG_API(printk("cryptocop_ioctl_process: get_user_pages_fa=
+st outdata\n"));
+>            goto error_cleanup;
+>        }
+>        nooutpages =3D err;
+> -    } else {
+> -        up_read(&current->mm->mmap_sem);
+>    }
+>=20
+>    /* Add 6 to nooutpages to make room for possibly inserted buffers for =
+storing digest and
+> --=20
+> 2.1.4
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
