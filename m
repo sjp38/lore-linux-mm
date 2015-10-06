@@ -1,126 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id BE30182FAC
-	for <linux-mm@kvack.org>; Mon,  5 Oct 2015 23:35:51 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so195129901pab.3
-        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 20:35:51 -0700 (PDT)
-Received: from mgwym01.jp.fujitsu.com (mgwym01.jp.fujitsu.com. [211.128.242.40])
-        by mx.google.com with ESMTPS id zg9si45319598pac.171.2015.10.05.20.35.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Oct 2015 20:35:50 -0700 (PDT)
-Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
-	by yt-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 6A29CAC0105
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 12:35:46 +0900 (JST)
-Subject: Re: [PATCH 03/11] x86/mm/hotplug: Don't remove PGD entries in
- remove_pagetable()
-References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
- <1442903021-3893-4-git-send-email-mingo@kernel.org>
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <56134169.1070500@jp.fujitsu.com>
-Date: Tue, 6 Oct 2015 12:35:05 +0900
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 13F8B82FAC
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 01:12:23 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so197629334pab.3
+        for <linux-mm@kvack.org>; Mon, 05 Oct 2015 22:12:22 -0700 (PDT)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id bt3si45938971pbb.173.2015.10.05.22.12.20
+        for <linux-mm@kvack.org>;
+        Mon, 05 Oct 2015 22:12:21 -0700 (PDT)
+Date: Tue, 6 Oct 2015 16:12:18 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: linux-next: kernel BUG at mm/slub.c:1447!
+Message-ID: <20151006051218.GB32150@dastard>
+References: <560D59F7.4070002@roeck-us.net>
+ <20151001134904.127ccc7bea14e969fbfba0d5@linux-foundation.org>
+ <20151002072522.GC30354@dhcp22.suse.cz>
+ <20151002134953.551e6379ee9f6b5a0aeb7af7@linux-foundation.org>
+ <20151005134713.GC7023@dhcp22.suse.cz>
+ <20151005122936.8a3b0fe21629390c9aa8bc2a@linux-foundation.org>
+ <20151005191217.48008dc7.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1442903021-3893-4-git-send-email-mingo@kernel.org>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151005191217.48008dc7.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?UTF-8?B?SXNoaW1hdHN1LCBZYXN1YWtpL+efs+adviDpnZbnq6A=?= <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>, =?UTF-8?B?SXp1bWksIFRha3Uv5rOJIOaLkw==?= <izumi.taku@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Guenter Roeck <linux@roeck-us.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org
 
-On 2015/09/22 15:23, Ingo Molnar wrote:
-> So when memory hotplug removes a piece of physical memory from pagetable
-> mappings, it also frees the underlying PGD entry.
+On Mon, Oct 05, 2015 at 07:12:17PM -0700, Andrew Morton wrote:
+> On Mon, 5 Oct 2015 12:29:36 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
-> This complicates PGD management, so don't do this. We can keep the
-> PGD mapped and the PUD table all clear - it's only a single 4K page
-> per 512 GB of memory hotplugged.
+> > Maybe it would be better to add the gfp_t argument to the
+> > address_space_operations.  At a minimum, writepage(), readpage(),
+> > writepages(), readpages().  What a pickle.
 > 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Andy Lutomirski <luto@amacapital.net>
-> Cc: Borislav Petkov <bp@alien8.de>
-> Cc: Brian Gerst <brgerst@gmail.com>
-> Cc: Denys Vlasenko <dvlasenk@redhat.com>
-> Cc: H. Peter Anvin <hpa@zytor.com>
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Waiman Long <Waiman.Long@hp.com>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Ingo Molnar <mingo@kernel.org>
-
-Ishimatsu-san, Tang-san, please check.
-
-Doesn't this patch affects the issues of 
- 5255e0a79fcc0ff47b387af92bd9ef5729b1b859
- 9661d5bcd058fe15b4138a00d96bd36516134543
-
-?
-
--Kame
-
-> ---
->   arch/x86/mm/init_64.c | 27 ---------------------------
->   1 file changed, 27 deletions(-)
+> I'm being dumb.  All we need to do is to add a new
 > 
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 7129e7647a76..60b0cc3f2819 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -780,27 +780,6 @@ static void __meminit free_pmd_table(pmd_t *pmd_start, pud_t *pud)
->   	spin_unlock(&init_mm.page_table_lock);
->   }
->   
-> -/* Return true if pgd is changed, otherwise return false. */
-> -static bool __meminit free_pud_table(pud_t *pud_start, pgd_t *pgd)
-> -{
-> -	pud_t *pud;
-> -	int i;
-> -
-> -	for (i = 0; i < PTRS_PER_PUD; i++) {
-> -		pud = pud_start + i;
-> -		if (pud_val(*pud))
-> -			return false;
-> -	}
-> -
-> -	/* free a pud table */
-> -	free_pagetable(pgd_page(*pgd), 0);
-> -	spin_lock(&init_mm.page_table_lock);
-> -	pgd_clear(pgd);
-> -	spin_unlock(&init_mm.page_table_lock);
-> -
-> -	return true;
-> -}
-> -
->   static void __meminit
->   remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
->   		 bool direct)
-> @@ -992,7 +971,6 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
->   	unsigned long addr;
->   	pgd_t *pgd;
->   	pud_t *pud;
-> -	bool pgd_changed = false;
->   
->   	for (addr = start; addr < end; addr = next) {
->   		next = pgd_addr_end(addr, end);
-> @@ -1003,13 +981,8 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
->   
->   		pud = (pud_t *)pgd_page_vaddr(*pgd);
->   		remove_pud_table(pud, addr, next, direct);
-> -		if (free_pud_table(pud, pgd))
-> -			pgd_changed = true;
->   	}
->   
-> -	if (pgd_changed)
-> -		sync_global_pgds(start, end - 1, 1);
-> -
->   	flush_tlb_all();
->   }
->   
+> 	address_space_operations.readpage_gfp(..., gfp_t gfp)
 > 
+> etc.  That should be trivial.  Each fs type only has 2-4 instances of
+> address_space_operations so the overhead is miniscule.
+> 
+> As a background janitorial thing we can migrate filesystems over to the
+> new interface then remove address_space_operations.readpage() etc.  But
+> this *would* add overhead: more stack and more text for no gain.  So
+> perhaps we just leave things as they are.
+> 
+> That's so simple that I expect we can short-term fix this bug with that
+> approach.  umm, something like
+> 
+> --- a/fs/mpage.c~a
+> +++ a/fs/mpage.c
+> @@ -139,7 +139,8 @@ map_buffer_to_page(struct page *page, st
+>  static struct bio *
+>  do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
+>  		sector_t *last_block_in_bio, struct buffer_head *map_bh,
+> -		unsigned long *first_logical_block, get_block_t get_block)
+> +		unsigned long *first_logical_block, get_block_t get_block,
+> +		gfp_t gfp)
 
+Simple enough, but not sufficient to avoid deadlocks because this
+doesn't address the common vector for deadlock that was reported.
+i.e. deadlocks due to the layering dependency the loop device
+creates between two otherwise independent filesystems.
+
+If read IO through the loop device does GFP_KERNEL allocations, then
+it is susceptible to deadlock as that can force writeback and
+transactions from the filesystem on top of the loop device, which
+does more IO to the loop device, which then backs up on the backing
+file inode mutex. Forwards progress cannot be made until the
+GFP_KERNEL allocation succeeds, but that depends on the loop device
+making forwards progress...
+
+The loop device indicates this is a known problems tries to avoid
+these deadlocks by doing this on it's backing file:
+
+	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS))
+
+to try to ensure that mapping related allocations do not cause
+inappropriate reclaim contexts to be triggered.
+
+This is a problem independent of any specific filesystem - let's not
+hack a workaround into a specific filesystem just because the
+problem was reported on that filesystem....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
