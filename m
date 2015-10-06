@@ -1,119 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id E21D06B0038
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 10:52:07 -0400 (EDT)
-Received: by igbkq10 with SMTP id kq10so86343263igb.0
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 07:52:07 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id p19si13504043igs.80.2015.10.06.07.52.05
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 040A56B0038
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 11:00:50 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so211934274pab.3
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 08:00:49 -0700 (PDT)
+Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
+        by mx.google.com with ESMTPS id ys5si49563031pbb.23.2015.10.06.08.00.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=RC4-SHA bits=128/128);
-        Tue, 06 Oct 2015 07:52:06 -0700 (PDT)
-Subject: Re: Can't we use timeout based OOM warning/killing?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150925093556.GF16497@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=AES128-SHA256 bits=128/128);
+        Tue, 06 Oct 2015 08:00:49 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20150922160608.GA2716@redhat.com>
+	<20150923205923.GB19054@dhcp22.suse.cz>
+	<alpine.DEB.2.10.1509241359100.32488@chino.kir.corp.google.com>
+	<20150925093556.GF16497@dhcp22.suse.cz>
 	<201509260114.ADI35946.OtHOVFOMJQFLFS@I-love.SAKURA.ne.jp>
 	<201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
 	<20151002123639.GA13914@dhcp22.suse.cz>
-	<201510031502.BJD59536.HFJMtQOOLFFVSO@I-love.SAKURA.ne.jp>
-In-Reply-To: <201510031502.BJD59536.HFJMtQOOLFFVSO@I-love.SAKURA.ne.jp>
-Message-Id: <201510062351.JHJ57310.VFQLFHFOJtSMOO@I-love.SAKURA.ne.jp>
-Date: Tue, 6 Oct 2015 23:51:49 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	<CA+55aFw=OLSdh-5Ut2vjy=4Yf1fTXqpzoDHdF7XnT5gDHs6sYA@mail.gmail.com>
+	<87k2r0ph21.fsf@x220.int.ebiederm.org>
+	<CA+55aFxxfbCuTjnK_TpxrTftQOXeTi4PBawbv27P_Xqz4Y5ibw@mail.gmail.com>
+	<CA+55aFz1HFLVNeAaOWK=-Wyq8FF5bhWpWk8Dnwpa-8vD2k+b+A@mail.gmail.com>
+Date: Tue, 06 Oct 2015 09:52:50 -0500
+In-Reply-To: <CA+55aFz1HFLVNeAaOWK=-Wyq8FF5bhWpWk8Dnwpa-8vD2k+b+A@mail.gmail.com>
+	(Linus Torvalds's message of "Tue, 6 Oct 2015 09:55:33 +0100")
+Message-ID: <87lhbgf3r1.fsf@x220.int.ebiederm.org>
+MIME-Version: 1.0
+Content-Type: text/plain
+Subject: Re: can't oom-kill zap the victim's memory?
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: rientjes@google.com, oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>
 
-Tetsuo Handa wrote:
-> Sorry. This was my misunderstanding. But I still think that we need to be
-> prepared for cases where zapping OOM victim's mm approach fails.
-> ( http://lkml.kernel.org/r/201509242050.EHE95837.FVFOOtMQHLJOFS@I-love.SAKURA.ne.jp )
+Linus Torvalds <torvalds@linux-foundation.org> writes:
 
-I tested whether it is easy/difficult to make zapping OOM victim's mm
-approach fail. The result seems that not difficult to make it fail.
+> On Tue, Oct 6, 2015 at 9:49 AM, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+>>
+>> The basic fact remains: kernel allocations are so important that
+>> rather than fail, you should kill user space. Only kernel allocations
+>> that *explicitly* know that they have fallback code should fail, and
+>> they should just do the __GFP_NORETRY.
 
----------- Reproducer start ----------
-#define _GNU_SOURCE
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sched.h>
-#include <sys/mman.h>
+If you have reached the point of killing userspace you might as well
+panic the box.  Userspace will recover more cleanly and more quickly.
+The oom-killer is like an oops.  Nice for debugging but not something
+you want on a production workload.
 
-static int reader(void *unused)
-{
-	char c;
-	int fd = open("/proc/self/cmdline", O_RDONLY);
-	while (pread(fd, &c, 1, 0) == 1);
-	return 0;
-}
+> To be clear: "big" orders (I forget if the limit is at order-3 or
+> order-4) do fail much more aggressively. But no, we do not limit retry
+> to just order-0, because even small kmalloc sizes tend to often do
+> order-1 or order-2 just because of memory packing issues (ie trying to
+> pack into a single page wastes too much memory if the allocation sizes
+> don't come out right).
 
-static int writer(void *unused)
-{
-	const int fd = open("/proc/self/exe", O_RDONLY);
-	static void *ptr[10000];
-	int i;
-	sleep(2);
-	while (1) {
-		for (i = 0; i < 10000; i++)
-			ptr[i] = mmap(NULL, 4096, PROT_READ, MAP_PRIVATE, fd,
-				      0);
-		for (i = 0; i < 10000; i++)
-			munmap(ptr[i], 4096);
-	}
-	return 0;
-}
+I am not asking that we limit retry to just order-0 pages.  I am asking
+that we limit the oom-killer on failure to just order-0 pages.
 
-int main(int argc, char *argv[])
-{
-	int zero_fd = open("/dev/zero", O_RDONLY);
-	char *buf = NULL;
-	unsigned long size = 0;
-	int i;
-	for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
-		char *cp = realloc(buf, size);
-		if (!cp) {
-			size >>= 1;
-			break;
-		}
-		buf = cp;
-	}
-	for (i = 0; i < 100; i++) {
-		clone(reader, malloc(1024) + 1024, CLONE_THREAD | CLONE_SIGHAND | CLONE_VM,
-		      NULL);
-	}
-	clone(writer, malloc(1024) + 1024, CLONE_THREAD | CLONE_SIGHAND | CLONE_VM, NULL);
-	read(zero_fd, buf, size); /* Will cause OOM due to overcommit */
-	return * (char *) NULL; /* Kill all threads. */
-}
----------- Reproducer end ----------
+> So no, order-0 isn't special. 1/2 are rather important too.
 
-(I wrote this program for trying to mimic a trouble that a customer's system
- hung up with a lot of ps processes blocked at reading /proc/pid/ entries
- due to unkillable down_read(&mm->mmap_sem) in __access_remote_vm(). Though
- I couldn't identify what function was holding the mmap_sem for writing...)
+That is a justification for retrying.  That is not a justification for
+killing the box.
 
-Uptime > 429 of http://I-love.SAKURA.ne.jp/tmp/serial-20151006.txt.xz showed
-a OOM livelock that
+> [ Checking /proc/slabinfo: it looks like several slabs are order-3,
+> for things like files_cache, signal_cache and sighand_cache for me at
+> least. So I think it's up to order-3 that we basically need to
+> consider "we'll need to shrink user space aggressively unless we have
+> an explicit fallback for the allocation" ]
 
-  (1) thread group leader is blocked at down_read(&mm->mmap_sem) in exit_mm()
-      called from do_exit().
+What I know is that order-3 is definitely too big.  I had 4G of RAM
+free.  I needed 16K to exapand the fd table.  The box died.  That is
+not good.
 
-  (2) writer thread is blocked at down_write(&mm->mmap_sem) in vm_mmap_pgoff()
-      called from SyS_mmap_pgoff() called from SyS_mmap().
+We have static checkers now, failure to check and handle errors tends to
+be caught.
 
-  (3) many reader threads are blocking the writer thread because of
-      down_read(&mm->mmap_sem) called from proc_pid_cmdline_read().
+So yes for the rare case of order-[123] allocations failing we should
+return the failure to the caller.  The kernel can handle it.  Userspace
+can handle just about anything better than random processes dying.
 
-  (4) while the thread group leader is blocked at down_read(&mm->mmap_sem),
-      some of the reader threads are trying to allocate memory via page fault.
-
-So, zapping the first OOM victim's mm might fail by chance.
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
