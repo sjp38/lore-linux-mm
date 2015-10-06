@@ -1,50 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CD3182FB0
-	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 03:08:06 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so145217963wic.1
-        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 00:08:06 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e1si26056016wiy.2.2015.10.06.00.08.05
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 653EA82FB0
+	for <linux-mm@kvack.org>; Tue,  6 Oct 2015 03:18:54 -0400 (EDT)
+Received: by pacfv12 with SMTP id fv12so205946126pac.2
+        for <linux-mm@kvack.org>; Tue, 06 Oct 2015 00:18:54 -0700 (PDT)
+Received: from DNVWSMAILOUT1.mcafee.com (dnvwsmailout1.mcafee.com. [161.69.31.173])
+        by mx.google.com with ESMTPS id qo8si46690342pac.117.2015.10.06.00.18.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Oct 2015 00:08:05 -0700 (PDT)
-Subject: Re: [PATCH v4 2/4] mm, proc: account for shmem swap in
- /proc/pid/smaps
-References: <1443792951-13944-1-git-send-email-vbabka@suse.cz>
- <1443792951-13944-3-git-send-email-vbabka@suse.cz>
- <20151002153702.7bdc4c0483cd9b2ee9e0fba3@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56137353.2010600@suse.cz>
-Date: Tue, 6 Oct 2015 09:08:03 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Oct 2015 00:18:53 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20151002153702.7bdc4c0483cd9b2ee9e0fba3@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 6 Oct 2015 07:18:28 +0000
+From: MB McAfee SR Update <support_reply@McAfee.com>
+Reply-To: MB McAfee SR Update <support_reply@McAfee.com>
+Subject: RE: SR # <4-10997886031> Performance issues
+Message-ID: <d3289900-3097-4d9f-a284-774fc6a3ddad@DNVEXAPP1N04.corpzone.internalzone.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
 
-On 10/03/2015 12:37 AM, Andrew Morton wrote:
-> On Fri,  2 Oct 2015 15:35:49 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
->
->>
->> --- a/include/linux/shmem_fs.h
->> +++ b/include/linux/shmem_fs.h
->> @@ -60,6 +60,12 @@ extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
->>   extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
->>   extern int shmem_unuse(swp_entry_t entry, struct page *page);
->>
->> +#ifdef CONFIG_SWAP
->> +extern unsigned long shmem_swap_usage(struct inode *inode);
->> +extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
->> +						pgoff_t start, pgoff_t end);
->> +#endif
->
-> CONFIG_SWAP is wrong, isn't it?  It should be CONFIG_SHMEM if anything.
+Hello Oleksandr,
 
-Yeah, I overlooked this while removing the other ifdefs. Thanks.
+The 3rd node is currently the director node and will have more connections because it receives all incoming connections:
+
+https://community.mcafee.com/docs/DOC-4819
+
+The load has reduced, but is still too high:
+
+Load on machine when feedback was done:load average: 25.65, 27.69, 26.05; number of threads running or waiting per core: 4.27, 4.62, 4.34
+
+
+I will update development with the new data and let you know.
+
+
+With kind regards,
+
+Stefan Bluemel
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+
+-----------------
+From: MFE Support Outbound Profile
+Sent: 10/02/2015 07:35:51
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
+Subject: RE: SR # <4-10997886031> Performance issues
+
+Hello Oleksandr,
+
+I hope you are doing well.
+
+Do you see any change in the load after raising the CPUs and the memory? 
+
+When you have an opportunity could you let me know if you have any updates on progress of your outstanding service request? If you need any assistance please don't hesitate to contact me. 
+
+
+With kind regards,
+
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+
+-----------------
+From: MFE Support Outbound Profile
+Sent: 09/30/2015 12:19:54
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
+Subject: RE: SR # <4-10997886031> Performance issues
+
+Hello Oleksandr,
+
+The node became unresponsive due to a system load of more than 50 and then it raises more and more until all queues are filled up. Please stop the machines and raise the memory and add addtional vCPUs and cores. This most limiting factor are the CPUs at the moment. 
+
+
+With kind regards,
+
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+
+
+-----------------
+From: MFE Support Outbound Profile
+Sent: 09/30/2015 09:05:39
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
+Subject: RE: SR # <4-10997886031> Performance issues
+
+Hello Oleksandr,
+
+This is VMware. There are rcu stalls in the logs, which indicates that the VMs don't get enough CPU time assigned, the host might be overloaded or CPUs are overcommited. There are also network transmit timeouts in the logs, indicating the same.
+
+The minimum memory for VMware is 16GB, please see the installation guide. The VMs only have 8GB assigned. Since there are load issues, I'd also suggest to assign more then the minimum CPU.
+
+
+With kind regards,
+
+Stefan Bluemel
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+-----------------
+From: MFE Support Outbound Profile
+Sent: 09/28/2015 07:30:17
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
+Subject: SR # <4-10997886031>  Performance issues
+
+Hello Oleksandr,
+
+Thank you for contacting Intel Security technical support.
+
+I have escalated this SR together with the provided data to our development team. I could not figure out why the directory node (node 3) was so overloaded.
+
+I will keep you updated on their findings.
+
+
+With kind regards,
+
+Stefan Bluemel
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
