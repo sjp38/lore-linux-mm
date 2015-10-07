@@ -1,68 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
-	by kanga.kvack.org (Postfix) with ESMTP id B1E1C6B0254
-	for <linux-mm@kvack.org>; Wed,  7 Oct 2015 15:33:53 -0400 (EDT)
-Received: by qkap81 with SMTP id p81so10105214qka.2
-        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 12:33:53 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 203si35488308qhu.22.2015.10.07.12.33.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Oct 2015 12:33:52 -0700 (PDT)
-Date: Wed, 7 Oct 2015 12:33:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/4] dma-debug: Allow poisoning nonzero allocations
-Message-Id: <20151007123351.763b98a8fe82a86ce7fdaf0c@linux-foundation.org>
-In-Reply-To: <56156FAF.9020002@arm.com>
-References: <cover.1443178314.git.robin.murphy@arm.com>
-	<0405c6131def5aa179ff4ba5d4201ebde89cede3.1443178314.git.robin.murphy@arm.com>
-	<20150925124447.GO21513@n2100.arm.linux.org.uk>
-	<560585EB.3060908@arm.com>
-	<20150929142727.e95a2d2ebff65dda86315248@linux-foundation.org>
-	<56156FAF.9020002@arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E269F6B0038
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2015 16:24:06 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so30837869pad.1
+        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 13:24:06 -0700 (PDT)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id fn8si60273077pad.50.2015.10.07.13.24.02
+        for <linux-mm@kvack.org>;
+        Wed, 07 Oct 2015 13:24:02 -0700 (PDT)
+Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
+References: <20150916174903.E112E464@viggo.jf.intel.com>
+ <20150916174913.AF5FEA6D@viggo.jf.intel.com>
+ <20150920085554.GA21906@gmail.com> <55FF88BA.6080006@sr71.net>
+ <20150924094956.GA30349@gmail.com> <20151003081710.GA26206@gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <56157F60.1000503@sr71.net>
+Date: Wed, 7 Oct 2015 13:24:00 -0700
+MIME-Version: 1.0
+In-Reply-To: <20151003081710.GA26206@gmail.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "arnd@arndb.de" <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "sakari.ailus@iki.fi" <sakari.ailus@iki.fi>, "sumit.semwal@linaro.org" <sumit.semwal@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Kees Cook <keescook@google.com>, Brian Gerst <brgerst@gmail.com>
 
-On Wed, 7 Oct 2015 20:17:03 +0100 Robin Murphy <robin.murphy@arm.com> wrote:
-
-> > It might be helpful to provide a runtime knob as well - having to
-> > rebuild&reinstall just to enable/disable this feature is a bit painful.
+On 10/03/2015 01:17 AM, Ingo Molnar wrote:
+> Right now the native x86 PTE format allows two protection related bits for 
+> user-space pages:
 > 
-> Good point - there's always the global DMA debug disable knob, but this 
-> particular feature probably does warrant finer-grained control to be 
-> really practical. Having thought about it some more, it's also probably 
-> wrong that this doesn't respect the dma_debug_driver filter, given that 
-> it is actually invasive; in fixing that, how about if it also *only* 
-> applied when a specific driver is filtered? Then there would be no 
-> problematic "break anything and everything" mode, and the existing 
-> debugfs controls should suffice.
+>   _PAGE_BIT_RW:                   if 0 the page is read-only,  if 1 then it's read-write
+>   _PAGE_BIT_NX:                   if 0 the page is executable, if 1 then it's not executable
+> 
+> As discussed previously, pkeys allows 'true execute only (--x)' mappings.
+> 
+> Another possibility would be 'true write-only (-w-)' mappings.
 
-Yes, this should respect the driver filtering.
+How would those work?
 
-On reflection...
+Protection Keys has a Write-Disable and an Access-Disable bit.  But,
+Access-Disable denies _all_ data access to the region.  There's no way
+to allow only writes.
 
-The patch poisons dma buffers if CONFIG_DMA_API_DEBUG and if __GFP_ZERO
-wasn't explicitly used.  I'm rather surprised that the dma-debug code
-didn't do this from day one.
-
-I'd be inclined to enable this buffer-poisoning by default.  Do you
-have a feeling for how much overhead that will add?  Presumably not
-much, if __GFP_ZERO is acceptable.
-
-Also, how about we remove CONFIG_DMA_API_DEBUG_POISON and switch to a
-debugfs knob?
-
-
-btw, the documentation could do with a bit of a tune-up.  The comments
-in dma-debug.c regarding driver filtering are non-existent. 
-Documentation/kernel-parameters.txt says "The filter can be disabled or
-changed to another driver later using sysfs" but
-Documentation/DMA-API.txt talks about debugfs.
+Or am I missing something?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
