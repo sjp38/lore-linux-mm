@@ -1,416 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C5B976B0038
-	for <linux-mm@kvack.org>; Wed,  7 Oct 2015 04:47:02 -0400 (EDT)
-Received: by pacfv12 with SMTP id fv12so15506279pac.2
-        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 01:47:02 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id zv5si30329044pac.189.2015.10.07.01.47.01
-        for <linux-mm@kvack.org>;
-        Wed, 07 Oct 2015 01:47:02 -0700 (PDT)
-Date: Wed, 7 Oct 2015 16:46:26 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [linux-next:master 5871/6146]
- arch/sparc/include/asm/string_64.h:25:25: warning: 'start' may be used
- uninitialized in this function
-Message-ID: <201510071617.hCOD5FXZ%fengguang.wu@intel.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id EA6A26B0038
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2015 05:21:33 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so203540886wic.0
+        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 02:21:33 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f12si11113358wjs.18.2015.10.07.02.21.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 07 Oct 2015 02:21:32 -0700 (PDT)
+Date: Wed, 7 Oct 2015 11:21:30 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [RFC v2 07/18] kthread: Allow to cancel kthread work
+Message-ID: <20151007092130.GD3122@pathway.suse.cz>
+References: <1442840639-6963-1-git-send-email-pmladek@suse.com>
+ <1442840639-6963-8-git-send-email-pmladek@suse.com>
+ <20150922193513.GE17659@mtj.duckdns.org>
+ <20150925112617.GA3122@pathway.suse.cz>
+ <20150928170314.GF2589@mtj.duckdns.org>
+ <20151002154336.GC3122@pathway.suse.cz>
+ <20151002192453.GA7564@mtj.duckdns.org>
+ <20151005100758.GK9603@pathway.suse.cz>
+ <20151005110924.GL9603@pathway.suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="UlVJffcvxoiEqYs2"
-Content-Disposition: inline
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
-
-
---UlVJffcvxoiEqYs2
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20151005110924.GL9603@pathway.suse.cz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, live-patching@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-head:   15e5b1b566ed0689093effb31f13fe29e4c9905a
-commit: 5196456ab776a5974d24994aea1b20afe0c8d020 [5871/6146] slab.h: sprinkle __assume_aligned attributes
-config: sparc64-defconfig (attached as .config)
-reproduce:
-        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        git checkout 5196456ab776a5974d24994aea1b20afe0c8d020
-        # save the attached .config to linux build tree
-        make.cross ARCH=sparc64 
+On Mon 2015-10-05 13:09:24, Petr Mladek wrote:
+> On Mon 2015-10-05 12:07:58, Petr Mladek wrote:
+> > On Fri 2015-10-02 15:24:53, Tejun Heo wrote:
+> > > Hello,
+> > > 
+> > > On Fri, Oct 02, 2015 at 05:43:36PM +0200, Petr Mladek wrote:
+> > > > IMHO, we need both locks. The worker manipulates more works and
+> > > > need its own lock. We need work-specific lock because the work
+> > > > might be assigned to different workers and we need to be sure
+> > > > that the operations are really serialized, e.g. queuing.
+> > > 
+> > > I don't think we need per-work lock.  Do we have such usage in kernel
+> > > at all?  If you're worried, let the first queueing record the worker
+> > > and trigger warning if someone tries to queue it anywhere else.  This
+> > > doesn't need to be full-on general like workqueue.  Let's make
+> > > reasonable trade-offs where possible.
+> > 
+> > I actually thought about this simplification as well. But then I am
+> > in doubts about the API. It would make sense to assign the worker
+> > when the work is being initialized and avoid the duplicate information
+> > when the work is being queued:
+> > 
+> > 	init_kthread_work(work, fn, worker);
+> > 	queue_work(work);
+> > 
+> > Or would you prefer to keep the API similar to workqueues even when
+> > it makes less sense here?
+> > 
+> > 
+> > In each case, we need a way to switch the worker if the old one
+> > is destroyed and a new one is started later. We would need
+> > something like:
+> > 
+> > 	reset_work(work, worker)
+> > or
+> > 	reinit_work(work, fn, worker)
+> 
+> I was too fast. We could set "work->worker = NULL" when the work
+> finishes and it is not pending. It means that it will be connected
+> to the particular worker only when used. Then we could keep the
+> workqueues-like API and do not need reset_work().
 
-Note: it may well be a FALSE warning. FWIW you are at least aware of it now.
-http://gcc.gnu.org/wiki/Better_Uninitialized_Warnings
+I have played with this idea and the result is not satisfactory.
+I am not able to make the code easier using the single lock.
 
-All warnings (new ones prefixed by >>):
+First, the worker lock is not enough to safely queue the work
+without a test_and_set() atomic operation. Let me show this on
+a pseudo code:
 
-   In file included from arch/sparc/include/asm/string.h:4:0,
-                    from include/linux/string.h:17,
-                    from include/linux/dynamic_debug.h:111,
-                    from include/linux/printk.h:277,
-                    from include/linux/kernel.h:13,
-                    from include/linux/list.h:8,
-                    from include/linux/module.h:9,
-                    from drivers/net/ethernet/broadcom/tg3.c:19:
-   drivers/net/ethernet/broadcom/tg3.c: In function 'tg3_set_eeprom':
->> arch/sparc/include/asm/string_64.h:25:25: warning: 'start' may be used uninitialized in this function [-Wmaybe-uninitialized]
-    #define memcpy(t, f, n) __builtin_memcpy(t, f, n)
-                            ^
-   drivers/net/ethernet/broadcom/tg3.c:12021:9: note: 'start' was declared here
-     __be32 start, end;
-            ^
+bool queue_kthread_work(worker, work)
+{
+	bool ret = false;
 
-vim +/start +25 arch/sparc/include/asm/string_64.h
+	lock(&worker->lock);
 
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17   9  #ifndef __SPARC64_STRING_H__
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  10  #define __SPARC64_STRING_H__
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  11  
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  12  /* Really, userland/ksyms should not see any of this stuff. */
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  13  
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  14  #ifdef __KERNEL__
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  15  
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  16  #include <asm/asi.h>
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  17  
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  18  #ifndef EXPORT_SYMTAB_STROPS
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  19  
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  20  /* First the mem*() things. */
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  21  #define __HAVE_ARCH_MEMMOVE
-f05a6865 arch/sparc/include/asm/string_64.h Sam Ravnborg    2014-05-16  22  void *memmove(void *, const void *, __kernel_size_t);
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  23  
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  24  #define __HAVE_ARCH_MEMCPY
-4d14a459 arch/sparc/include/asm/string_64.h David S. Miller 2009-12-10 @25  #define memcpy(t, f, n) __builtin_memcpy(t, f, n)
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  26  
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  27  #define __HAVE_ARCH_MEMSET
-4d14a459 arch/sparc/include/asm/string_64.h David S. Miller 2009-12-10  28  #define memset(s, c, count) __builtin_memset(s, c, count)
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  29  
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  30  #define __HAVE_ARCH_MEMSCAN
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  31  
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  32  #undef memscan
-f5e706ad include/asm-sparc/string_64.h      Sam Ravnborg    2008-07-17  33  #define memscan(__arg0, __char, __arg2)					\
+	if (test_bit(WORK_PENDING, work->flags);
+		goto out;
 
-:::::: The code at line 25 was first introduced by commit
-:::::: 4d14a459857bd151ecbd14bcd37b4628da00792b sparc: Stop trying to be so fancy and use __builtin_{memcpy,memset}()
+	if (WARN(work->worker != worker,
+		 "Work could not be used by two workers at the same time\n"))
+		goto out;
 
-:::::: TO: David S. Miller <davem@davemloft.net>
-:::::: CC: David S. Miller <davem@davemloft.net>
+	set_bit(WORK_PENDING, work->flags);
+	work->worker = worker;
+	insert_work(worker->work_list, work);
+	ret = true;
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+out:
+	unlock(&worker->lock);
+	return ret;
+}
 
---UlVJffcvxoiEqYs2
-Content-Type: application/octet-stream
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
+Now, let's have one work: W, two workers: A, B, and try to queue
+the same work to the two workers at the same time:
 
-H4sICP/aFFYAAy5jb25maWcAjFxdc+O2zr7vr9Bs34t25nSTOIk3mXdyQVOUxVpfESnbyY0m
-63i7niZ2ju20239/AOqLlEmlF+c0BsAvEAQegNT+/NPPHnk/7l6fjpvV08vLP94f6+16/3Rc
-P3vfNi/r//f81EtS6TGfy88gHG227z/ODm9P+9X4yrv6fPn5/Lf96sqbrffb9YtHd9tvmz/e
-oYPNbvvTzz/RNAn4tBxfTbi8+6f5KTKSU/j5s6cTLkfe5uBtd0fvsD4aouOrri38DEufBdXP
-u08wke/VfM5WavBDM7vyef2tIn0yGmd5SssZTXNWSrbUpsXTOC7KkEUZy7XJSkJnMieUlaLI
-sjTXWkQpnfksO2WEZM7KiEiW0AeZWgTUTEI+YXlCJE+TMkuF4JOIaSIF6FwJ9voVTBZZCZMs
-aVaAACOdQMKY37JYPIFfAc+FLGlYJDOHXEamzC4GCul+PKYJK/24PxpQyphkqCjJejwxVeyI
-JVMZ9lZf60TAbk6KqZoEiUCjnVg2lQRUAs3nLBJ3Vw293f4y4kLefTp72Xw9e909v7+sD2f/
-VyQkZmXOIkYEO/vcMwGe35eLNMc1gn3+7E2Vvb+gzb2/dRbLE9A9S+YwVRwlBvO9HDVMmsNm
-lTSNMw4b9ulTZ8g1DQxLSIs1w+pINGe5gB032ukM2HiZWhrDqkkRyTJMhcQl3n36Zbvbrn9t
-lyYWJNPs9kHMeUZPCPhfKiNNy6ngyzK+L1jB7NSTJpUCYhan+UNJJJyQUD/OQUgSP2KWNRSC
-RXyiyyort0gqS1d2oiRwBmAdza7BLnqH96+Hfw7H9Wu3a1OWsJxTtckiTBfa2QZKlrMgShdl
-QIRkKe+YTbNYcBQ0HZVgJq0Rpnj4wTATKZpZyc3ren+wTUxyOivh+MCkNCeQpGX4iDYTgzlo
-OgEiHE2e+pxaNFO14r7yFW2bihoUUeRqonkRPg3hgAiYVgw210wfXMGZfDr86R1hHd7T9tk7
-HJ+OB+9ptdq9b4+b7R+9BSn3Q2laJJInU302c57LHhsVp0+tlZ0IX/lkBiYF4tIqJImYoYMR
-OlfNOqeFJywazxk4AVros4KfJVuCam0GJ3rCakRsYpHFjmA2UWTZvGbgUsUM62KaeYBds3KS
-pvYlTwoe+eWEJyNq5fNZ9YfVz2DzAM4AD+TdxY1Ox12JyVLnjzQHNs3TIhPWAWnI6CxLeSLR
-eCQEUJupgWeCYwO72dlbAU4+0X6jF1K/267BL+RAsvSXcd9omzDZaytgXr5ymmru1qmD+wgw
-0IALoBClfNuesog8dONMohnIz1UgyH1t7vibxNCbSIucKvff9OCX00euuWAgTIAwMijRox5B
-gbB87PHT3u8rfbWUlmkG55Y/QshO81LAHzZr7nlskkBg4Unq6/uifGzB/YuxESWgIZgnZZkC
-JsqMNb1kgT4d53HqdRtD5OK4y9pIUyZjOGRl59uN3erI+jbi5GqOZdQZkMVDbNhHQyvtTbIc
-DFqDPIBFuh8sCkpEihobQIVysx0pKABHam2y1FgMnyYkCjQTUl5XJ6googjd4c+CgWWKEGKv
-trlcMxniz7lgTeOTU6YwRGA7ABnl5X3B85lmITDMhOQ5V/vWbTriSt96ipRJgUkEZRsam+6R
-CDMo53ED85T/rjOHbL3/ttu/Pm1Xa4/9td5C3CEQgShGHgiqnWM3O2/nVIPI3iCWGc7jqnWp
-AlMV/gz8RmQ5yWc2rUfEgC4iKiYubyNZXPpEkhJAHQ84VSDfan1pwKMqerYBBA6ccrOa9tJK
-kN29Gppuya3gDCgTZizq9yLOIBmZsMg626Jq4dpMlbvB2QEzRjdLMU5rw+VMtiPqzWZ2qks8
-iXm5IJKGfjrtsRQIVEoJ03TWY2J2AQA01/prAJqAVSNKKmUIKZJva5jxym5sI3Za63FVbFd5
-SQChvp/SNYsRJGAljbMlDac9mQUB68MYWKHLJh+wCNXm+K9kUwALnXwvZKgkFhQvGYW47dpq
-+BszYqXsmWGTiu0AdY7tShA84zkLiynD5E7zKqlfRAA/8aCih8XQq5m675cwEPhNQqWxWFwi
-kEUhMpZoG1ovu2a3rar8jqbz374+HdbP3p+Vp3nb775tXio02+oIxcoZZOOOQ1JvrqgE61PX
-jygdgEdFNHaIlkbTkKEyHF6FJ4Ee9CWES9gI/ZCosCPQqd2d99Sob3VFQmBAIW1Oic1F1zJF
-gvz+ptRNLcza9MRJCwDObeZqhutGwMSofTbuHuBJmwNqDEVh6ghOf6EnuFhYiSH15IkenzEt
-O4VxE2HkJxoZ8lE7/G4BoGTTnMsHpxSNffDgrDqixuFSFpY97Y8brId58p+39UG3OmghuUJZ
-ELVJQq0hNRZ+KjpRTQFFYiOzgNvISjH1UWnT6NQTq+9rLJzoIZanFaZO0lTTd0P1wZlGhs4b
-Dg3uzZBcFSyaBgM1DUdLnMBAq3rcu0+rb//tCjyJ2gyR8USZMSzayN9rPoaEmj/Es7Zd5Ji4
-ORrrTLO1WfUiMo3BO+SxVqVQx76aOthEukh0vJwvBIAKB1ON1ud1BRk4P48209zvVuvDYbf3
-jmCaKuX/tn46vu/XmjVAHNXSL1UxFHfjthgXPpYX5+e98sXo+tzuGB/Ly3MnC/o5t8Wmxzvg
-tNNRphbmWIHoKweDLYHwQaJpCtsQahi58cbhgvFpKE8ZgJb5JIfkEMzLyATVtsXkoca2tAx8
-vapWFahNLTGSRw/BRJNiFE+eFipTmUWFysa18osX7Nf/fV9vV/94h9VTP0Zh6IWdvLfW1S7L
-WJtVUhhlWkz76mT/qkfMCNiLDDH9NpPDylpZBIihqfSBO9bRUCWhvB4IlCwhZv3aZNeHVtfJ
-QN9du5gkBbFx9JoAWITKMDOIJ7Yktx4E4wxEYdswgHty+MPGmsP/YYG7v8ATidNBe9HIIKuJ
-lkazJFXloGpxJpqo6SVCBdXSlkwAygoiMhW4GkBIzNcnGwGMz2QVBfAIt5agYkIPasV8mhOT
-lIUP4LV8Py9l/0KnuRkocfS7izbkAEqkRpVyJuIBf660HPNEjXJ3c3GrFaZsiNJepYoYRFKA
-BXZ2kAPIxUq5vXFMrPTHLE3tUO9xUvh2hjhNQbvaHeYl6tqlwdp2n9hdEFn5mU2blYMUsW7m
-ihQbWQGcBRZnGGOtkblhz9MIoD7JHyxtHSqs0NCkpzHlySbvB2/3hmDo4P2SUe6tj6vPv2qx
-ZlJoRxd/0ZDoNSOAPJGfxnpdgXLjRwlswhNT4rTGhETo3mHQyI0FN9ZM62TRvhPAzav7q9pP
-nFzjGLJCOmoHyOTp3MnLcu7mEcH90yAPav6+Oxy91W573O9eAOt5z/vNXxXk0zqgJLfhT9R5
-CgkXJD1xILoCRBP5jA3QiLUC1Rjsx3r1fnz6+rJW18qeKvUcNZCBKVAsMRs8SevsrBwcDmbo
-je/APDIE3Mb0UkDdVNCcZ/LEpZK0sCVkdaOYC9otFgfE8fqzM4qW6nqtT5+xB3FCTFiLwZP1
-8e/d/k+I9c3J0Gpd4BuYMfGKUvqc2Or+RcKXRsEPfrtkl0GuhVD8pWBTj6RKtq9dj4ooikmZ
-pRGnD45+6/BhuP6qpQRnJgC62bI9JQEqNIAS1vtBhd1O1ARtiBZ/M/0yP6sQASXCUCDQm1yr
-zMEATFSsi2WJLffA4XnGM10pFW2KJsniYulsVcoiSXSUg5NUkzBIGY8FYIoLG3GkG1wCdpXO
-uFkCqIaaS7ubQG7hNzNxigRpMcTr1mLbR9yIkoTmzpRMZD1Kf6sVURnBiZ6QYyVW1oZAqgII
-xiOLvsRwBxPG+m2jPO1R8DD150WzhtyZT6Pn/uHr8Ay0gj+nQ5l/K0OLCdfQfePzGj4kwO9f
-N6tPZu+xfy2st4NgHWPdtubj+iSoG3IbpzQLVIpR3ULhWS594ps6GeP2v5oU3P8eqTaAV/3Y
-Qc8xz8aOQwlcHhGHzY0N4+mNZad+aD7jD+xnfGpAhhHofKXK+vLOjenUInvHV2cJ3vNnFa0c
-W4O3Yic+xDKVNMiHjPX2sVWM2eU0t+PnaoeaXEvVwe23xZWgWrPLleA7HEyNY2K9b8EzlEkw
-8YgIwYOHnpdTrSEpUfdpEFjizAWjQTjg0YCr9ym15wPAE1TaeblvXzhoxg76iYyt9GjkGGGS
-c39qA+fVLQO6I6Gl+fMIcvmb89HFvb6bHbWcznP7QJpM7JLxGYUR7QuI6MihvqVDEySaWTnL
-0bV9CJI58HKYuqY1jtJFRhynjDGGC76+csY5lTTZVUHtc/ETgS8jUnzJZd9QMAGiir1WNqLs
-uVhwSUP7Ngl8ciTtZgdThrxrppLoQQFnSIqzyN51KOzLUVpS0/XZ3GKmeaZh8TxQz3t0B7rM
-eg87cnyWIh5K8wZ9cm/cKuDV+O/WN2MKneALr+rBngmwveP6YL5hUv5lJvEKy0CXEDzVHWUf
-4vk5XjikCe9doWlZRZwTn9uzPuqyxNy31xwmdqsmAagpz2xX2wuOrx6FeaMdTNHOL+ynik9O
-mFVO2LTartfPB++4876uvfUWE7hnTN68mFAl0GmzoSDGx5uyUL0ywucpd+fdiAsOVLs7DWbc
-cZ2Gyr91FGwID+wMloWl624nCeweOlqc4mLd5dam11iWv/5rs1p7fptMdy9KN6ua7KX9pK6o
-nh/03xkbZMjzZHj36ezwdbM9+747vr28/6HBOzhuMs4CG/gG7Sc+idLESL4A2KneA57HCwKJ
-inpcZmkeLNS1oT6xtg1P6htSrdC9BNzUShhPWtueqsdd9boCEkUTyGEtQ2PxZKGu3LRku/e+
-w8+5y7fWAmyeOwAJJOhlCPgnn3PhOMDtXUBWYE+cOrrCUqcIYcU+PqMLLDcrWOh6Vuah7Tz8
-J1EX8LpniaVtH1INh6cBXjjH0nhtAEQj34XfMbiezpNhK2pUsICSgvYiYkvbq1sOvBpp7zky
-kteAWL+wRJKtalJdl9ouWZMiivDH4DVrYA+1DRuWAo7NB23x7HK0tLsQdRmb3ZeUC1G6vGrd
-oU/o7dh+E9WIFDGzA7ZGgIK9Vg9A3QrBa2st8dGpqtStXlLc3fT5NH/IZFq3PZ18PrEZTavw
-iW9rlcxjOxRvBMRseBPE8maQnxNbPZpC3Iwx0FJ/7msVNZ1cHyPRKcJkL1RBX7tbghiDtlwy
-qSWaokjmPrUtPRxeWE+dp3xhWpw64vHmsNLOeOdnWAL+ReC3CZfR/Hxk75r416PrZelnjte/
-4P/iB7w/dqBeksjUbp1iihVkage2kgex8q92LELF7eVIXJ3b4QJLaJSKIsdPUHK3dwwzSNLt
-IIhkvrgFmEAcSJOLaHR7fn45wBzZD22jdQlC147b50ZmEl58uflY5MuwiFrL7bndFYUxHV9e
-27MiX1yMb+ysSZyd31yX3PHkuxCTGnCXgSC3V65F9A5iB4pGfe9dVecZxhfv8P72ttsfdVuu
-OHDcRnZzqvkRmxJqfyBTSwDqG998sed2tcjtJV3a6z508uXi/MRqq08u1j+eDh7fHo7791f1
-avTw/WkPIPW4f9oecDney2a79p7hsG7e8E/XUe0rXcmRl+N6/+QF2ZR43zb717+hb+959/f2
-Zff07FWfHOkdEqwyEARh2enlF98e1y9ezKlCBxU8bECjoIBjT8ldkxBvcFxM+rR/tnXYknSE
-s7i3H35GQ0fmsozU+zMns0KF+JzSKcKYkdLqoJr7eklK/ajurV7WT4c1iAPC3q3U7qrPCs82
-z2v83+fjj6PKRb6vX97ONttvO2+39aCD6nZLf8/ks3IJ4UWV4YyxsHbEk6kwiRBdMm5DMsgU
-wLUV2oA19c1+pj52ZVTrWmpmK/Bp41CtL4OMb0AnKb6czPPUfL2sycEADhePi8ZX9xAipC3R
-QQH1iWTQfhiEOl1937yBVOMkzr6+//Ft88OMfC1Yi4gM0twGBrQpKhAdBO12U64PdNDc0Wlb
-486x+o0QES9009w3Hz81zWpwPxjosTo7Hl18PPEetG64hNFxD532JSJ+cb28tDaO/S9XA9BW
-4cLYH18Ni8icBxEblgkzeTm2O9tG5HdwLLmjRt1uNOfD43B5c/HFEeo6kdGFPeAbIsMDJeLm
-y9WFPb60s/Xp6Bx2Bx8K/zvBhC2GAfF8MbMDmVaC89j1UqWViejtOftgO2QeA/gZFJlzcjOi
-yw8sSNKbMT0//9jGm4MpqOA1zj09k8hEt6rV+Qj36yf5r7qU/hoF2hjfEStKXZ/UT0bV+31z
-4WUrd6BEz12pCdczrR42/gLh/8//eMent/V/POr/BnDj11O/IowvcGiYV1THM5eanQrrl75t
-n/lp7idy8OGJn2o1lnawqZ69tFRqC55q6fA3VnzMb2EUJ0qnU9eFiBIQFEvR4iE5hT1Kg7JB
-UIfedouM97+5UPSAtmRzJK7+X/EGpkPEvxGJ+AT+MyCTZ6fdmHpZqO/JjbCsONJ1CaS4+ACv
-+jLNPThdTieXlfyw0NVHQpNkORqQmbDRALO2s8tFCc5gqU6ke6QwE/ZKieJCH7cuj9IIDO4H
-6b8q6rEJHZ4e4fTL4ARQ4PYDgVtXWK0czHxwBfG8iAd2St3fg10MSOQ0dtygKD6D4Ud2fgyJ
-lXKoEIlc30+3MgNZWCszvNJMjj4SuBwUKAIR0kFjkzy1nzI42I6qfHWuEwd0q6PJ8vLi9mJg
-5KCQWLioHge6xbjj2+eKmeA3FYN8cuF43l4tQjpwWcV9iK8v6Q2cWDtiUkL34Nc5LS9Grty/
-E8ocb4BqEVIO6Rv5H/ioKBvqwKeXt9c/Bk4FLvb2i72uoCQW/peL2wF9uV9jVuosEiYcn4Mr
-1BB/4Hqy+ObcUQmrfHQwrEIaskjwFGRSOwCsVmG/61W8VPiV0RHXlaM9GY0tyWOs1V5jcBY8
-YSQ3SKiN8xPKxSnlVOjqemzQqgciRBVnOyfklwrGOb6kOnmz3VuAH6tbK8mT08X5sT4QSNpB
-oy5xYj0da1IE+k0KUFQ53qCIhGTqX/Mwx5UhTxCPzjl+EOfCX9ij84U6MFlu21VcFsekvzcm
-/qsOeMem/tkFV5d9U+84jyxP+9prts+tvN4tks6sbjJd3CAiM+Zsi59LOwwEle5+G1HrQX19
-5XiXQ/Ipk+7id1CI3pusqvjBGPMuLm+vvF+CzX69gP/9aiuVBjxneAFv77tmlkkqbLdvkPvU
-943mg4j63x7oDkma+E6jwhsDe2XvviARf3RcnKpXE3Y3pl5DMEcxOSYU3w3ZIXPmZM2XLg6M
-hulMGjkfjOG7EOdEkak+Yc7hD8daZWEfGujlXClc/ctGjhnMmeNEJJH9DhBC0JTF+EhNP2CA
-B3tPlio7wqcMXdn62XxV4G8Ox/3m6zv+y2zi781x9d0j+9X3zXG9wu/1bC/66wdiAGBvbtj4
-f4xdSZPbOLL+K3WcOfRrkZQo6tAHiKREWNxMgBJVF0Z12R1dMW7b4SXizb+fTHARQSJBH8oO
-4fuIfUkAmQlKiF6wet9gpcnxTYyWYtq9M37e7WZbLyw0u6VrUVHyjryXSWGsskl8LGKljDWj
-lT4ID9irEzXYztWsnQxRn2N9YMXS8RxKc3v4KJWx7usH5ltKLO1vAqQwOsmZRJpppw7wM3Ac
-p6V6Woldx+wpr85TVCTWdZmGVKrQ2GQM27PQduxMpmbxEwCzMISAuSUQoaqHquyQRfHMagxm
-mqO9Fo9VwaJZ9ztuzbLlMczwKNh4agO7bu0AZta6Q+/l5yL3tHtm+JCQVJUvEEJpQi8Bllwr
-QG6SAibfhOzKa63MMqlzVLmBfLelWTFqSrmuU45nc7lS/r7mM103Qw47EVg/V+ukYmnuTCNs
-PhIeYXPbPmC9aIacweZGyxc5kiNzX5nEFemTVGeskHLKfGT4an7aGaWuWUcGhnaEQ9seXwxS
-W6yZ/xxjdzXv8XOY8NI4OcQN0y5ShEtsfq+NUUt5ElWi6XIlpWM09J58gF4XtCO62PwJBk+2
-I+qnprjJz2YVQAgnej9vqE8AIC7VEKGi226IjwAgvjllzobSiB8qKHB3jdbavJzbz4/Qu2yl
-fTJWXeOZ845rRqmyigtxoyEud9PSNE0IUmF5oWU8S5ttSx1uIUaK7IDurKi4LWBDnnhY6Z3t
-IoJg50AEZmnzIp6DYNvgJeBKzPdKuybE386GqLxTzNJ8RQTJGQgUmRZnH2SW7UTgBe7KUAu8
-w0afvtzLetHyK8z+2t228hwTrYpexYXrgldidNOlJPrO2DHOz1xXZ02Y8vtiLPM9Rj3SE18R
-Lrsjsmmk71PmUULy+3QuCkwgoj0hsSbOW7MIMc0JbM5Qi9A4B6NNsYy1ZSKAzShxU4GQLMyD
-tgoc/2DPSQVikWDCnJFIq6zK32xX+lWFxgqVMTLBMtwaaYsLTqFzsdfwZRy/N0fJYV7Rb54O
-7sYzXXNqX+m3VVwcqPNbLhzi/lWcVlpYZEKrvLjkIXlODNyDQ9x2K3C7NqCFVFf3WsFkBiPm
-F6q31tx5leU9gw44XU+BcYSoKDnlvWmu7bbBmmCNFl25aYpBHU7cYD52Mbw2bmnEPS9KkK61
-YvZhbXRThW3fF6Z7wEksMk5qqU1IXcjKV/oXvA1LWGkYcWwgZwcey/iu+kwKP9sqmXlM0lBY
-rItwdlC2jPbGn3PdJLELaW87qvuNBMpNzymKzPMuSJFGnaYyuaPL5396pVnOnyBk0CcwnFow
-mA9zCWVEmnlTGWy8hoaziMR6MYfEI9hQhUVG4u9xpSXRtJEkFnLY3dFluuKppYhJHM8SoF14
-KEgKzg0kOOyPaUKY4TWrDQ/2FpyHZVrTmeuXMRLvfJwwumVgE+1sGuLmEO9QpbNxHLoCOhmP
-bvgSBCV/b/28wI0SyTjxJrZ0PBCl2yOXR0Yc3ipCEeIBkyUCqOGsbtos4yDUWiKC1kLfD7N5
-ehiQ5cQeAX6gA+7eDnsSGKEnIRnrgZ0V7WOFwLCsLGcsdXvQb24fwcWMpTRP9CAMaaXUDkuF
-eR8t0mTyMepFdxZ6aB4083l7hNVG0vrUF3ajDtsQLuMzE7X5RgHxSqaBQ+ibP3DziRrisDbs
-A0LqRBz+KPtWhHmZULm/zZadTtVb2fA93d7QDO9fS98j/0ZbP1S5/fH3wDLM0TfqbD9r8HjS
-PEOIyHC58vnrzx+kchnPy3pmUQ8B7emEPrTSmcvIGQlvA2ZWqTNG577rQpnLdqSMyYo3c5LK
-e/3947dP6DLvDT0U//WimXr1Xxe1iDurKGN4WwpWNyQqYM6CHUTzh7Nxt3bO/Y+9H8wz/664
-mw1zOzi+zgy2huDZxeikpRYWj9qXl/h+LFilHWgPYS2Lyt0uMBsQzUimbcqDIi9HcwrvYQ0g
-bDYmHNfxTfLzyEgvF918akRkyPytY1bTnJKCrbNSzDQLPM88TEYODL29tzuskELzGHgQyspx
-zSetIyePb5JYdkYOmqbjScpKckIWN3YzGhg+OHVOtWAB48x8sDtSGmx+OyVkJWygTCcpk7Hz
-GHTqJ4xE1xAEMn0pTOF4egD/l6UJhHWMlSismcDwrrzdmiDlC055/tYOjUY8hhldxsQF+CT5
-GA9PieOKSWpFHSYXoyH9g3TCh2kwzXl+RVxxli7zCXvGNFZRW5IH+WRHqf50jPDOSrNaYodj
-VZBmUh3lKkCgZbZIxnZaienBgyXXsljAfIv+cMyH+B1FOUwxL+c9Aauum9TpDsz184QulEV7
-hzAN6Aiwb6cklX7m95oNCJlSGm9mH6tmKMpLtcxAlsHUZ00gK2tvY2XAPgA2C1khY8KjyLDQ
-KMelHdNGbOQ78xQ6SAm3uII13hbHHfYuIMxaGGHmbGyp1Oo/WzbCU7AjxsPQuE3qWVs3zJhH
-nf93DB7FMKgiFKmj+MgIbziKGlVX1/d3eAQ0d9ZmZO5NTCU3JC/fPiirOf578TTXJsdHjiZG
-vUsT9BlD/Wx5sNm62rGPCoZ/iWvWDi9DnLEnRgkqNOVHbervQit20zYhKrC/0ge6eYvapSLc
-jNI666OpwpU4WHmkCGeWxUYbzvDvl28vrz/Qt+Pc7QDuqB5Ogia6G2GnbdP5vkrVFlxMmQNh
-ciR4W4YB7xGM3hMj7ekA9EF4CNpS6kd1IHqWUjw8SXFlx0CZFHeqzSoSst5Yir5MO/8XhMp5
-XjwX1FVJexZmPaf+7b/ZFPAoxsxbL4RcZo4DOpuKj9/eXj6ZdlN95oOZ0+zOec2Xz78p4Hv3
-uVINMmif9XHUDPabXBoPYTsGSF9zpbIH8sxBrrF+K2p9qAyhy24xQdmRCLZ9lVwXofpLPJPA
-STzzUr0jWnVIKAxz4lhpZDg+F3vKgKAjnSuYR2BwcpHGFY5fbAjbB/1c8k6y8y9S12gNHrk0
-MLOsMmECssFVSc9NAJ9E2qblWhrwK27wWZKIn3lYpIT6Mi8z3navBRpfJbnBTJxHhXZ3MAZ2
-DynxYjbaFrTcrXLNrqryDr55sUXpFU+AzYeY7GZzQCND+DN6ZMa5buZIBVorvR/r5XqJkujy
-IMSdqG/Bj1ZtdGZOGd2J79lHBWNoAmTqKARws8tSRHqnPejJWE8IPcUeH46QMNPjQo9W7I8S
-9La9TyLD8F/wQ9xFz52dZ7bmHHGfOGca8MaCZ9F+R/iY7GBUwiNxEEAsoCC2PgiiwSwh5gGa
-qyt0QvAFXHCx2x3oagHc9wgJsIMPPiFCAnzl5r1Sj5VVYe6s6uHFpz/R4VHXmk//+gea+dN/
-nz7+8+fHDx8+fnj6vWf9BqsZ2nf/e97gUYzPpCkvUybjcZIbmhdzpBX0cYVqiZCtJ1U2zJqG
-4BnsjUm4m5KXZ7D/D2LaZ1jMgfN7Ny5ePrx8/UGPh4gXuN+tqZcg3dFZE8izID+TrKo4FvJU
-Pz+3hSAcpyFNskK0INnQBJ7f55thlenix99QjEfBJt1iXijSBboCU9gBWLoA+vqi3diMFJyn
-VihH4nBfEN4sRElIkIluK9VNfKVYzuYQOF2N4OfSGGX8+vXTW+fWZCnz4YdhytGv20UthcZs
-TVgp+oFdI51LvhzomJP+ZfAv35bTuywhn19e/2MoqyxbZxcE3XO5wy1wfwvRXQ2rZ2dIf66T
-64iXDx/UO0owclRq3//vkc7kHbSyv0rEgsweG+6DjFVwM0/p6oRAvdqTmq/2OgK7Gh/Qu81f
-9sUAmE3N25MO7Tt3wpdXDvnLDxhK5j1E75Qo2m8dwqZuSjEfUD8ombMhjo11jnkx0jnmhVbn
-mI9PNI63mp+DuyWUakaOhLL/CmctLeD4lJg84ay5kFKclToU4d5fawvZlHZGJPwVx1nolWol
-Gb67gGxEvHnZc057J9jszEvLlBO4J8J2cyTtvP2O2u53nHO6cwJygzdy3M0aZ+9vCCP4B8Pe
-3AlPfIcQvsb6k8HeSngXbu2pwGRTOe5KSyrTTkpDd+DI0D1s7T0POFtnZ+8SyHEJvysax7UX
-THF+IT8u4bNR59jznLHG8Te+PTFFcuzTkuL49qkUOQd7q6NvNN9bTcr3VzqH4qy4vlOclfwk
-sl6ZCLKw9NbWhzQjNmgPwn6VsNIhsr29JECwt06arfgBxJvaNcJaJlcGfZpReqUPwsrgyQ5r
-mTzsXM8uFijOdq1NkWMvbxkGe29llCJn69qrJZewzUjiCt+YIE6PRmooYRjaqwA5+5X+BJx9
-sLHXNXIOG3tVquucAyFPZuSGo/9aJHJlaAEjXGFYTgrGBT+Lnb1nb4Q4C50t4Y5zwnGddY5/
-cylnCkOmMxFu99mvkVaGREc7eitTnQiTnd80Bi++hhgzf2XNYFHouEEUrErXwtmsrJnA2Qfu
-SjxQqcGayJYzl7ibnFLI0+3eqWpI+ekYCEkWrqw8MiudlbGlKPaOBBTKO+2UslIrV878wLdL
-fFfpUG7zH5TAXdmV3AJvH1B+aSYc0nfNlEO4EtY49upTFHvPA0q6D3bEKxM6y6f8iz1YvrtP
-7LuBjhSvsOpUVoxYetQywcy2WsOj8obduUD1zkII3r3q2d3Sffn89vr9Sbx9env98vnp+PL6
-n6+fXmZeY4XJGvkYolvIWXTHb19ePrx++efp+9ePr29/vb0+wf6JaT4zZ09OdlryPz/9ePvr
-5+dX9Ww0rSufnSKL+RuATHh7ohMPMCGYl/g4sVLHI3Yb6nuZxWmbpGFEqM8AR+n6bIgJRkXS
-lC7hRVllImKHjUd/jvDOpTV4Boq56wwwsbsbYfOw6mFKq0bBaU5HDasrmpxZM59wkPsdVRVG
-DsgC6uHH0JzFtAxbTtxIIEbdVmDS71j+3IZZQdmBIucSZyXhThPhIFBelFZwum0U7hPdQ1Uh
-7K+2O2If0BP2e5jtVwjExDkSgq2VEBw21iwEB+KobMQJSeWBm4UBhUufEnQUHOcn1zlmdB+7
-8hKdClNqE0ipYml+EhBBEHh3MEboGqqi0KNcuCpcioU57Yyw29jix+8p5TxFCHdyR2wRFH4J
-NnQFV/lO+oRUh7iIQ/s8LPh27zcrnGxHSDYKvdwD6Oj0XIISrxFkx2a3WbpP1z8GocmC3kVI
-2aUALNGZm+ftmlaKkFmWgrT0DpZhlJbBnlAQV52MpRnhe1CWwnc2O8LXDIC7zZ7ufB2B2ISP
-BNehR1hPoPOuCAFx+doTYJokhEl5S2ETZmlCIKA9rr2Nb6nj7j07J828nWWYydDbBYRLPoVn
-lpXi2gSWRZhV/LnImXUpvGXB1rKWAOw59sUUKbvNGuVwMO92qvhcp6QrviyOOFM3RSb9vPO3
-l69/o2i5uCK7nhmUfqIi1Qeo97PO+FK74z9Siaqlatnp28s/H5/+/PnXXx+/9SYaE/W/k3YF
-Nr7mBLk1PgB1HF7wfmQIwiLd/BtClD/cayyMRZ5EBn8nnqZVHEotRgTCorxDXtgCUE6zj6n+
-1GWPVcrxeBOnuHVtj3dCeReYaAk8pG3jDNmwccYcUaQTjCt+zts4h25gniyHLBWEk1HEofGp
-G8oTdgkUxwi1BmwUFl4WGgCTz/EZ0k6pR2h1LnmqCic71c1lr/p70O4x7ELg+3MF+aYyFfKq
-Is68AC0z85oGEEi1KdQlWeU8E5IEa+yb5mroX5nXKu5G5iI8e0TXPvtaJZ5mIw2qNTTPlepj
-4poWq+RAmWcDmMYmn0sANNcK1nktRxDkGsKUzxw9p3b7HqwzJ3JI9xiAd/5AKLTiVxLje+LW
-VvV3WRUm7TSMk0WdO7Z5UK8up6XfAcbhYeDRnmWxV8q7o5/MaZiWIfjdhvNJDAOHl+bSkJiE
-FakxfLlaBmFevxFhV+peEFFONn4eFzD9ERtQwC/3yrzuA+ZFJ7LTXIsiKgqz0IOwDHyXLI2s
-eET5GcW6qswmG2rKISMNWZVRjhewjkDIruny1JH5EArLwitZE2dU2NFj6Oh5QTzQhoRjMH9Z
-RJu/0MBfJDFhW4T1URftxaHeq1LtDzt5S8n3DvGQx9AhsTObhIGRCWuEkDNjm24h+fL5+5dP
-6pWmr59e/tsvMktRqXsULZwrjWvB8H9aZ7n4I9iY8aq4iT/c3TjWKpbF3fNzy5gNIEwOEuSJ
-tqxAJKi0R6lN7KqQi7e+e3panDUnLfgbL+/Rwh/6gvnI5sGB2iSMUSekMK2lqz/eNSWJOh8o
-E8X6os4nzqLVT3znYq5/r4XjE6NhyvjEjZHQYsmjTl9bDyrDTA+o2C2DlUQPFPH7Gp1CVovg
-rm31YMgS+sLTMtJmIDFWCC3SJwPbMq3PfGoSo+VFfTc1OAAwqWhFPMSje87wTBPmmML8REU+
-DiF8pqbtHqKa5m1862QSODwJheBpkakHynNJeBjEvBEOsVUUsPPWPD9MmgprRDOWwiYoUw9N
-qxAjEwTSdpUkjuwWWxnQ1s7m4sw507Yv6+3GUXYRekOz8LCH3ov+G7Xwhx+JaWDf07TEGT7R
-SVUabLUWXTmTJbvOYxmsdxyffLpwLAYJq8L06ooz5Vmtb/N5/2CREwTEHaEqovCMvhc7kO+2
-O2dRLZJzyqxmhNV2hFDMQlIdBJSuXg9TilA9TKljIUzI+wp7lp5H3b0CfpQBcZqEaMg2zoZQ
-eUQ449Q5pxoTzZ1650N9LbZuQHcBgH3qKhdh2ZzopCNWpcxSo2d1l0zCKbtbP++iJ66Rh+hp
-uIuexmHFJO5z1eRPY/jsoUdcY+b4/ELECR3yB0z5yRwJ0bvVGOhmG6KgGf0UuIZbIsiF41HK
-qiNuSUA4B48eMQhTenIAnzLKoEatqRH1ikcP0lMID2OHEltH3NKplBfaoKHrZSDQWbgU1dlx
-LXlIi5TunGnjb/0t9aA59mwWC9g5ELf+ndxDmuoBnGcuYQjVLRZNQgszFS8lvthI4lns0eUG
-9ECnrFDitqNbMYnDdAUWOQ+v/GipN9vmsVu7WUBqxTzwlSVMbfoKQc8O14ZUjAX0np1ma0Vn
-Uh/9xn5+ePui6SSoscC6Dkms1YiX6IktLdB06Tn+w99O8Voc56IBuphiNekHuGfUzLGM384D
-F2e0BIcMn3TnPzASfqLeN1Grchi5lP+DIYqyIDRoHjjxUvjAkEW+sL9fkK4MxDnTqZXqnGXn
-jF/vsbAPQ6PEg0cJWmqnBqu/t5C1EImOFb2wi4Kw91UbONzHmoRFJU7iQWlvs5PwaLkhh0DN
-vIVDOzAJO4V7C9NSnJ8J32RAhN2DEaoT470ERt0fmo26OqhT8/JJ5ezD3CMV8tm291yjZZCF
-ldHgVWHovWbxAQZy8zyo8BoHFRHjMU4vPF9UUiyLsj2ZfNQjHCZxVU1OErswDr/u85hgyxdx
-9IdCRTV3N4SBUPnnIq+40Mr6CJ3lTEswzoQVTmPKfrqDTafXCnmGUsxLd46zIye0EhBPCnQr
-ScIQI+2KSBHu5gkFsTpULqJJ/MZSadz7qYzfK3XsMy8QugE1jTbE5I3nCcv1prqA6MVhHC2j
-SkO12SPzl8Z5caVqG4tmGhxDOP4oCXebA4XoBYhXdXZM45JFro11Pmw3NvyWxHjLZ+lt6lRa
-OWkiyqkcd4riJPVahd0CTFLL/qbckSy6zISQg+Bw1uPCV24uelDJctRJTAvdF94k2FaoMs6h
-SLnpDq+DJUvvebOYCdDPAvH4osLRe1iFopFZLOpmE54xs9SDcFWEITOvfYl6XJLPRqMGLnx+
-q+AyjiPSv5JiSOwFMPHH1BwH8aL32XnUVWbyR6xGJ7rXYkL3ujwG0vOyyECWflfc56lNw20t
-Kzk5IGEqEVATej+SSVULOZ69jXFNw23p3ZhtLm449DMiO/go3LyUQ5gtxed7xMhnw1UVKn3e
-NqmXtuOov2WUMjrpbyFplEZBoSd3ri0f3im0eMdolJMLMpoiCXmLt+Jp3F/rT9waAd4f1OqB
-nSmBHqaskxMm2iSMNGTuqZblOYz8MEafjG3/ItyinrK3768fP6FW8pef31Wt9c5b9Rrr3z9s
-8bKfCzlPij6K1miFPLe3hKNDQeIl7IF1Iows1Q4hLTlpaY8EyvoCsZuq1iM7mXsMuhQJHy5F
-oqWCgvre3zebTUu9TouUBps7MV7IIhz38FT+HsMr1IaBTt0SCgkjUUpsWwESnjUdPKY1pQPp
-291WqNZoatfZJKW1tFyUjuP/r7FrbWocZ9Z/JbWf9lSd2SUhQDin5oN8Ixp8Q5aTwJdUBrJM
-aoeESkK9M//+7ZZsR7LVDlW7A6gfybq0Wq1Ldy/OYi6vR72YCP6Zjs50bQQMAlXq6d2s7t3f
-rtT2sbVNc/SHyXvEuBXxZDjsrbWYsOvrK9gG9YGwBjIspDoKcHJo5TTX/7k6OJ1hqInv08Op
-7m0IRU/Nj4DOK+1Xv9qLQCbD/xuoLpCZwBcBL+v39fblMNhtdej37x/HQROtPhi8rX7Xrh5W
-Pw+7wff1YLtev6xf/n+AvhnMkqbrn++Df3b7wdtuvx5stv/sbKFU4TpjoZN7Hl6YqMqb/Flc
-wCSLmPsxlYmLYOWnFkoTxws8YjgLg98JJclEFUEgCMusNox4NmnCvpWJCkd7FshiVgbuA0cT
-lqU9TlxN4D0Tyfniql0ohiv2z48HbPOXpXc96nGrXrLuuohzjb+tXtGd+ckJor3MBD5ljaDI
-uFvo4Sye089nVX4lEALCv5padeeEnUZFpB3Fo0MQ9ODZK6xvbMPbpltaEUXtXleXj85stqZB
-5A8TTljPVFTCAYgSe0EpS/d+Q1dtVhBxDpR85tlVz2jG4V0myS2yQvTI9TikaTU7+483PmEa
-pGHKMo0esaCzdbVXTRlw5emY7j88mgpg5KlwzKoXeQE/qAeaqq10U9E3qA+KqCfIh8+qKdmc
-CRgPGoFrZI9qVKhQw7CMRnwhy545xgt8axQRh4cAeITcNEuFT6pnFzTHTgvQiuGXyyvCFlX1
-GOxY8U4yFP0N86csK1rxrpvplf/4fdg8r34O4tVvt/MvtfxTMVOyXKutfsjdzv0aFY44nUf6
-HQvuqPgSc8KehrIkChPa/TVuaIBV3TsA5sM+p+Aej6ng3xz+TbnHUpf+KKS/1J6ejAQ/Zuax
-JyZNfZnpiFHdxGq39fWP/fH54g8TgBFcQde0c1WJrVxNdRHi9uklMBSJI2AE5gA1L8KSo1YV
-VTq+7XEkt0I4mOnLkocqKqizR1UVxazDvs2WGWvqYMk6H/O8q6eQeGx6Ai0mxIvDGhIUwJ9u
-0xoTQhigG5DrG/ecPkEuR8R9ZA2ZPiYTyq9kjUEPKlSQuBojiiv/8kx1eBEPR4TNmY0hbght
-0FV/Fy4Q0ovI/Wg0JHxyGJjJFfEi18Kc6UOFoYxqLRBhstcMxngoCQ8uNcR7uCTC6taI4vLq
-8pbw/1RjouSS8u7UDPoCqusWtAaEcplWQ8Lk8uLMKIgZQG5tVVFfiOW8NWu1e76fqyNsyd5a
-tFapfmLHATdm1oiwnjUgV4SVuQm56h9LnMKTq2XEEk642jOQN4QvpBNkNCa8tDTDLu+HN5L1
-z8BkPJFnWo8Q21etA3B16+rbpEiuR3ZLOtw7BpZx5RX5lU+s6zUE+aSfZ58e04ek62dwt/3i
-52U/vxRlOp7ZC5LuVSbwKt9V5SKddXdtePxarLeH3f7cimMcH0tOvJQPEuY4Nj0pGuWiV1um
-Alxz0QQX6zRgttkfNztXxTGbDjxAlgrkJHE43Ew2z/vdYffPcTD9/b7ef5kNXj/Wh6PT9btk
-d5xwxOFPRZacfOr2hGco3jdb5cKzJTx8lVjsPvZEuEblAiIn7OKKqX70DdLlDCCRJfEQpkbI
-xG2AHlaOwKEjCPtxxmPPaUXEsyQpjWN8bamJfk43zwNFHOSr1/VReSstbKenYv22O67f97tn
-pz9OGeq3QTBPRdY9gxPvb4fXdl/jQ40/C+1POdsOfPSUfPIc4jjYhjm44MtCMOIJUoaeep2k
-PEENMRLEu+pwIX3K4jtMMkEo6cT0SaV7IzED1qQuBfI54X0Yg0KTuWBXHqqwFVJkcUzs/CPH
-mShusoqP79pNtdnFtaEWtQtDh7XoJno0SRO1dTyPgm0XYUnjJ8t7NIJGBP1FPNLwiah1id+9
-V8thswHL/2oLM/htt90cd3uXHBGUcf20TAM0IYi7+wS2fdnvNi+WQEgDkREObmGTls4CnriH
-Np254mbgGdQg3mw/fv2tnk51VyR8AIX2izDREm5Z1GRevoxgH+g+xpQsyFX4k2J4MVqWvhTu
-nZLn+aTFeJjOyHzVSnPTOsLSxrUbkCia24yWwLQbWcYdVcJywaQU3eQ8K/gCds9xl1SEfim4
-aY4IlMt24Zd0KZdkKeN2KWO6lHGrFFPCjKH3fPGYt82jbAxllvLNCyy9CP8mwVCJxPOZP7X1
-kpAXoQBa5Ob8bzRpQZPuIoyb5qZ5sudzKY97skajTs5T4xydH3FgbXS6bUXjiYo0kzwyBjRo
-J3CdAELIfnQQMU1w1u6hzKR7B6UovnRPEYwsERVjss0YfY2gZaCMwexqkbUkWj3/sM/+o0IN
-fhcZfAGh8XcwC9SMPE3I03pTZLfX1xdULcogctUgyIq/Iyb/TiVVblIAhip1BnlJLpEdPtBS
-/rD+eNkN/rE+Vy8ZbaMxlXBv2/OpNHT1IuNWYo6XMkmWcplZHKGI/pTHgXBGq7sPRWqZqtlH
-WzLJbWM1lXDiZbfQVhglDx1fnJZ3oYw98ytVkmqE+TH9g5pTGGJPTSE86AsTq5osoOcwi2ha
-qIQdRZ3SGYGk390QQiWks3o91aFJcXZHUHzQNQlS8VDCSktxdI/ATHgKA36GqEKEz8I+9xpZ
-0tOFOU17SBfjXuo1TRV9H83xQpN4sf5YzEiZQjFlHSSB4Mu0Z2mJCrdG5of5lMrkc6o0Pyfz
-ZAGj5wbVrtiYr/BH/XTp6x+bw24yubr9MjTO1hGANptKKo0JB7YWiPJya4MI58AWaEJcSbdA
-bvW+BfrU5z5R8QnhbLkFch8VtUCfqThxbNsCuc/eWqDPdMG1+/StBXI/pLBAt5efKOn2MwN8
-S1wj2KDxJ+o0Ia41EASaB/L+0n1AaRUzpJ5KtFE0E7DC50RkRKMudP4aQfdMjaDZp0ac7xOa
-cWoEPdY1gp5aNYIewKY/zjeGcPNjQejm3Gd8snQfYzRk97EYkhOGIZ8SYr2sEX4YS+Lc4gRJ
-ZVgSTl4akMhgjT73sUfBYyo4dQ26Y2T86gYiQuKdTo3gPj6dIAKB1pi0JE4ure471yhZintO
-nDIgppSRNYuVwn6/3m/XPwc/Vs//bravRrhWFW+Ui4coZndF+3Tyfb/ZHv9VMZNe3taH1+7b
-X+3mQZ2JnlbVJCwKlAGg2cXhLIybJXZs6Ir4hrXKHYTUGXn9bth9ve3v3t5hB/LluHlbD2AX
-9vzvQdX1WafvjeqeSlQBjzCaIXHEgjGzl3Mm0DETuhlh0vl4tgImZSHRgso3jDKUZxZVxNfR
-xXhi6GFS8ByEXwIaWUKoeCELVMGMeuCcwjYVvWQmXhYTmqB6UzdPnVEudfutPQt8MhRF04pW
-VxWhj2cmuElJ0L21e5x0qRhRcDkP2T2+A1/irY5js4NWNKiSigeDY06JzVNy3cNfL34N7brj
-Ri+MaxZN1m+7/e9BsP7+8fqqWdvuiHAh0aqJOPXRRSJQWar2YDLvG/SEu8ernoqZy1e3Ci9d
-VT0Jkxi6p9vLNaWveImH0WVBedXSqJk7JiiS9GE68L7t6bDqAj1gMBKEv8CqElOQFd0TCOz9
-Qbx7/vfjXU/B6Wr7aogJPBoq88qbkb2vR0GQM5gyS7ScqoA5iEHf0RAavJyxuARuOTVZOU6a
-limevRbG9Kz5qyEp6ZWV8utwdOGq1wl4vlotbFMrgycxGeZT1nLM6KK3G6WJdXWNUtUTf9qp
-jqLaEVxVGjrIsm2LFFJzWpgGWib0sANW5T4Mc+pKsL4rY/bEUUyD7HKat4M/D9Wl4OF/B28f
-x/WvNfyyPj7/9ddf/9MV4EKC6JXhgrh6rZgV6oU80gM5X8h8rkEwvbN5zggbY43Fjy1pQZKL
-bNYckxJnIVAAdlfPR5jMcEksYuj3M3WBz6BTJ5DhcYRPr6gDGPgozEp8Cdl5odUsXcASSllw
-yC4tGvtFH/xfuYYyZ2KH0m4EZQdUCS1+DlG4+1kT1REzDwmDpCo0ogjRdwNncZeDhV8SC48a
-aCQ7j2NAVBSKvMwz2tqCGpGTrgAFnBk2hKBUh+GL40ZwjIatQgTl6wCp4YMjZGirlzzFQ7DU
-4kUvoeNWnb0MhcgESKNvWrFwgrWE7sfEoJml/qPbLBrfq6pmGRdZihujMtX6TD/1TrB8+ilM
-lKvOb4FqxTWq54xVgta6Ex8Nb0Hl87XprgnBo3E1ZIhUXFK0EH6VUZdiHHSrsnUE1NODGZQE
-2lmgcWM2wxCsiLdubeCHxJEs5hzUvU4fGEUpUTcHIMvt71vl1Zfa7YIqYNewMerImdagOdkB
-9BLQCaI+iF7degDVwFSdT9xQq+zLImUdG5haG8BX7FMUAupaLM1SqzF1OppfooPKoMpArEIN
-HLihF6hX7W7r6lpVJlY8W3b6F77hhZofiLuxqmMkA3GT0yLpxK5LDybnNKEco5pc9Hnk574P
-mkuZoCKrzq67UvtjqzaMcn04tuR2fB9I97ZLWQvgWgOKJ+GQ5V71IuyhQUmTj3QdvXolVcty
-j3j3pAh7xL9aOUBBXPbDQLHHFYCka3XietwoCW5U8ZiCxGE8uO7pfeykabgIysStmSgA7oLT
-u9ozOI27B6AkPJUpgJiyYipxk+hi95LHoBFnfmE7wAkSplQiekXTQ33fwwd4Wa38uNMQL3eb
-rVdWJ9otfs8X6CMR2MX1DwCqjyBu225aTnKCoetdp3sDXFeU+fj9XWCZi+PfPct/4EdxaR9J
-6Tdm6+eP/eb4u3tuhLWzJJC2G1fhxcNHZBDiirHKSxzeqEvPMOhpfPU6BAMSFuoJF3Aj4bC/
-xvYSnXdM9Rbz9DXmdzegzUuVPxoTkAVoRkqXMpzE6qmnrs9bacAKfv7YToUy2kn5QztFz2TU
-IGYnkuq9rD5Z8fe/34+7wTPa1u72gx/rn+/r/WkENRiD3ltuY63kUTc9ZIEzsQuFBcvn+dRU
-GdqUbiYUCc7ELlSAkvLWTXMCmxPMdobcz5Lc0Uyjgg3L1MU5IwVUxISl7M7R5CrdVR5Ko7MF
-4vswda6otoGd4u+i4WiCbozb7UvLOO6gMdFVk1z9pOuC98kPZViGjrzqB3FtXLWkC2l1eimn
-IAI61VXqeeVYjH0cf6xh/X9eHdcvg3D7jEyOce/+szn+GLDDYfe8UaRgdVyZqkFdTcJ0vu7H
-frI/ZfDf6CLP4sfhJWEjU2GL8MG2tLPJIRTEUz6rG+app9NvuxfTzqv+rOe7ely6leCG7JJs
-zde9DqvEYu6YHp7fSVzIk5+31eFHU+lODRLmOmyrJ3XCukO9cDd11ipJH1puXkED7HaW8C9H
-zv5SBO1Sj7hxNpFnAHJ4EXC3jlDz0pR6S1p3roOLWlMmGHclSXDlaBykulrWAnFgujDGn6ZP
-hVquJcGQcGRsIIj3AycE5SL0hLgcufwW1tNmyoaO9mHy+QYCCj7vaJsmfKqAq+HIXQAQzhcg
-78TwdtSZMvNcF6tnyeb9h/UmuVlGC0fLGW5Jzn2WpaXHi85nIde4kwj6yTzisMxShNorUZvu
-sySMY84c3VOTztfUZ3jhRn2gkFfO1OtOauDsrOAznRWpn50S76fsiQWusWdxQTmrbi0MPZyF
-/rran4SVPweVuZMuQ9ZNm2fOUavST33aXK3u14cDLI0dPgNdCM/eHN33REWTqpeIJ/eta0We
-EHZ2Te5eqQvkqcP2ZbV92b0N0o+37+u9NrdZHXWrOjMlLfjSz0XqukOp2y483IKlZZehkFIt
-Sh22UrQz4lyBfOdLUwPR+e43ji5QQzRCyR8d3Kc2q7jjPff9BlhUyuunwIIyBmvhUMfvWczn
-zsk4W6ac3THBevkCcVMepcubWyIqI+x5Egx6o7fFS/mYO15nr/dHNH0C7e+gnAodNq/b1fFj
-Xz0taB0V6SeRS4m+8fSGU3An43g8ZeJRP3WI6r1VvPm+X+1/D/a7j+Nma5nmq42ZuWHzuBQh
-GgPavmKbvfqJ7vh6ffgK29wU9orLSGRJ/djeAYnDlKCmoVyWkpuPJxtrJZ+jcZt5CFyTeGbq
-H7CL9YFbTRb2h9f2yPvLXs0IipTl0r3HAKWrVdblyHmqZQNi7ofe48SRVVMooaMgTMwZERNQ
-IzziyQ9Qbxx1AgFaKaDWTPbdehV6y5aaC3AfymTd8e4DRZYGWdLfJyjB8aa4EvBm6kns13V9
-wrmHH7ad/oIgdqYvnjC5/fdyMbnupCmzs7yL5ex63ElkInGlyWmZeB1C7RHbTvX8b+b4V6lE
-H53atrx74gbXGwQPCCMnJX5KmJOweCLwGZFu9AQriszn+tE6E4KZ7pxZgbMzTNpJKuyPNWsx
-PTBrhwfHwoIED8ZxQBrblmKN58nmTFmNWaSsLLButkmECAhGDQLXIhhlqXRcFmWp/YRBwSa/
-3BOmIhKhrBT1+hfhXUBRb35RkRSRmodMxP0fZ9DutA2xW5hiBTtNgvTh6BfhnkMhhhe/iKjA
-BV46t8KJtscMMOpIAT78X0a+DtypDQEA
+CPU0					CPU1
 
---UlVJffcvxoiEqYs2--
+queue_kthread_work(A, W);		queue_kthread_work(B, W);
+  lock(&A->lock);			lock(&B->lock);
+  test_bit(WORK_PENDING, W->flags)      test_bit(WORK_PENDING, W->flags)
+    # false				  # false
+  WARN(W->worker != A);			WARN(W->worker != B);
+    # false				  # false
+
+  set_bit(WORK_PENDING, W->flags);	set_bit(WORK_PENDING, W->flags);
+  W->worker = A;			W->worker = B;
+  insert_work(A->work_list, W);		insert_work(B->work_list, W);
+
+  unlock(&A->lock);			unlock(&B->lock);
+
+=> It is possible and the result is unclear.
+
+We would need to set either WORK_PENDING flag or the work->worker
+using a test_and_set atomic operation and bail out if it fails.
+But then we are back in the original code.
+
+
+Second, we still need the busy waiting for the pending timer callback.
+Yes, we could set some flag so that the call back does not queue
+the work. But cancel_kthread_work_sync() still has to wait.
+It could not return if there is still some pending operation
+with the struct kthread_work. Otherwise, it never could
+be freed a safe way.
+
+Also note that we still need the WORK_PENDING flag. Otherwise, we
+would not be able to detect the race when timer is removed but
+the callback has not run yet.
+
+
+Let me to repeat that using per-work and per-worker lock is not an
+option either. We would need some crazy hacks to avoid ABBA deadlocks.
+
+
+All in all, I would prefer to keep the original approach that is
+heavily inspired by the workqueues. I think that it is actually
+an advantage to reuse some working concept that reinventing wheels.
+
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
