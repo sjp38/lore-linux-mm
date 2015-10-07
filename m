@@ -1,132 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 128D16B0038
-	for <linux-mm@kvack.org>; Wed,  7 Oct 2015 12:43:33 -0400 (EDT)
-Received: by lbbwt4 with SMTP id wt4so18271438lbb.1
-        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 09:43:32 -0700 (PDT)
-Received: from mail-lb0-x22f.google.com (mail-lb0-x22f.google.com. [2a00:1450:4010:c04::22f])
-        by mx.google.com with ESMTPS id e76si25920265lfb.35.2015.10.07.09.43.30
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 259DE6B0038
+	for <linux-mm@kvack.org>; Wed,  7 Oct 2015 13:47:22 -0400 (EDT)
+Received: by igcrk20 with SMTP id rk20so114841334igc.1
+        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 10:47:22 -0700 (PDT)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com. [209.85.220.44])
+        by mx.google.com with ESMTPS id qh9si3419201igb.88.2015.10.07.10.47.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Oct 2015 09:43:31 -0700 (PDT)
-Received: by lbwr8 with SMTP id r8so17925768lbw.2
-        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 09:43:30 -0700 (PDT)
-MIME-Version: 1.0
-Date: Wed, 7 Oct 2015 18:43:30 +0200
-Message-ID: <CAAeHK+xssNPqHVFGbHqCd1bp7n_yJy6m443Be5jsvJM2GEizMw@mail.gmail.com>
-Subject: Potential use-after-free in shrink_page_list
-From: Andrey Konovalov <andreyknvl@google.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Oct 2015 10:47:21 -0700 (PDT)
+Received: by pacex6 with SMTP id ex6so27615533pac.0
+        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 10:47:21 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
+Subject: Re: [ovs-dev] [PATCH] ovs: do not allocate memory from offline numa node
+From: Jarno Rajahalme <jrajahalme@nicira.com>
+In-Reply-To: <CAEP_g=9JB2GptbZn9ayTPRGPbuOvVujCQ1Hui7fOijUX10HURg@mail.gmail.com>
+Date: Wed, 7 Oct 2015 10:47:17 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <FB2084BE-D591-415F-BA39-DFE82FE6FC30@nicira.com>
+References: <20151002101822.12499.27658.stgit@buzz> <56128238.8010305@suse.cz> <5612DCC8.4040605@gmail.com> <CAEP_g=9JB2GptbZn9ayTPRGPbuOvVujCQ1Hui7fOijUX10HURg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>
+To: Jesse Gross <jesse@nicira.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "dev@openvswitch.org" <dev@openvswitch.org>, Pravin Shelar <pshelar@nicira.com>, "David S. Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Hi!
 
-While fuzzing the kernel (4.3-rc4) with KASAN and Trinity I got the
-following report:
+> On Oct 6, 2015, at 6:01 PM, Jesse Gross <jesse@nicira.com> wrote:
+>=20
+> On Mon, Oct 5, 2015 at 1:25 PM, Alexander Duyck
+> <alexander.duyck@gmail.com> wrote:
+>> On 10/05/2015 06:59 AM, Vlastimil Babka wrote:
+>>>=20
+>>> On 10/02/2015 12:18 PM, Konstantin Khlebnikov wrote:
+>>>>=20
+>>>> When openvswitch tries allocate memory from offline numa node 0:
+>>>> stats =3D kmem_cache_alloc_node(flow_stats_cache, GFP_KERNEL | =
+__GFP_ZERO,
+>>>> 0)
+>>>> It catches VM_BUG_ON(nid < 0 || nid >=3D MAX_NUMNODES || =
+!node_online(nid))
+>>>> [ replaced with VM_WARN_ON(!node_online(nid)) recently ] in =
+linux/gfp.h
+>>>> This patch disables numa affinity in this case.
+>>>>=20
+>>>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+>>>=20
+>>>=20
+>>> ...
+>>>=20
+>>>> diff --git a/net/openvswitch/flow_table.c =
+b/net/openvswitch/flow_table.c
+>>>> index f2ea83ba4763..c7f74aab34b9 100644
+>>>> --- a/net/openvswitch/flow_table.c
+>>>> +++ b/net/openvswitch/flow_table.c
+>>>> @@ -93,7 +93,8 @@ struct sw_flow *ovs_flow_alloc(void)
+>>>>=20
+>>>>      /* Initialize the default stat node. */
+>>>>      stats =3D kmem_cache_alloc_node(flow_stats_cache,
+>>>> -                      GFP_KERNEL | __GFP_ZERO, 0);
+>>>> +                      GFP_KERNEL | __GFP_ZERO,
+>>>> +                      node_online(0) ? 0 : NUMA_NO_NODE);
+>>>=20
+>>>=20
+>>> Stupid question: can node 0 become offline between this check, and =
+the
+>>> VM_WARN_ON? :) BTW what kind of system has node 0 offline?
+>>=20
+>>=20
+>> Another question to ask would be is it possible for node 0 to be =
+online, but
+>> be a memoryless node?
+>>=20
+>> I would say you are better off just making this call =
+kmem_cache_alloc.  I
+>> don't see anything that indicates the memory has to come from node 0, =
+so
+>> adding the extra overhead doesn't provide any value.
+>=20
+> I agree that this at least makes me wonder, though I actually have
+> concerns in the opposite direction - I see assumptions about this
+> being on node 0 in net/openvswitch/flow.c.
+>=20
+> Jarno, since you original wrote this code, can you take a look to see
+> if everything still makes sense?
 
-==================================================================
-BUG: KASan: use after free in shrink_page_list+0x93a/0xf10 at addr
-ffff88003487da80
-Read of size 8 by task kswapd0/622
-=============================================================================
-BUG kmalloc-16 (Not tainted): kasan: bad access detected
------------------------------------------------------------------------------
+We keep the pre-allocated stats node at array index 0, which is =
+initially used by all CPUs, but if CPUs from multiple numa nodes start =
+updating the stats, we allocate additional stats nodes (up to one per =
+numa node), and the CPUs on node 0 keep using the preallocated entry. If =
+stats cannot be allocated from CPUs local node, then those CPUs keep =
+using the entry at index 0. Currently the code in net/openvswitch/flow.c =
+will try to allocate the local memory repeatedly, which may not be =
+optimal when there is no memory at the local node.
 
-Disabling lock debugging due to kernel taint
-INFO: Allocated in bdi_init+0xb9/0x480 age=235622 cpu=0 pid=6
-[<      none      >] __slab_alloc+0x44a/0x480 mm/slub.c:2402
-[<     inline     >] slab_alloc mm/slub.c:2470
-[<      none      >] kmem_cache_alloc_trace+0x12a/0x160 mm/slub.c:2529
-[<     inline     >] kmalloc include/linux/slab.h:440
-[<     inline     >] kzalloc include/linux/slab.h:593
-[<     inline     >] cgwb_bdi_init mm/backing-dev.c:749
-[<      none      >] bdi_init+0xb9/0x480 mm/backing-dev.c:775
-[<      none      >] blk_alloc_queue_node+0xfc/0x380 block/blk-core.c:656
-[<      none      >] blk_init_queue_node+0x1f/0x60 block/blk-core.c:754
-[<      none      >] blk_init_queue+0xe/0x10 block/blk-core.c:745
-[<      none      >] __scsi_alloc_queue+0x14/0x30 drivers/scsi/scsi_lib.c:2139
-[<      none      >] scsi_alloc_queue+0x1c/0x80 drivers/scsi/scsi_lib.c:2151
-[<      none      >] scsi_alloc_sdev+0x3cd/0x5f0 scsi_scan.c:0
-[<      none      >] scsi_probe_and_add_lun+0xc3a/0x10a0 scsi_scan.c:0
-[<      none      >] __scsi_add_device+0x112/0x120 ??:0
-[<      none      >] ata_scsi_scan_host+0xed/0x260 ??:0
-[<      none      >] async_port_probe+0x61/0x80 drivers/ata/libata-core.c:6097
-[<      none      >] async_run_entry_fn+0x74/0x190 async.c:0
-[<      none      >] process_one_work+0x276/0x630 kernel/workqueue.c:2030
-[<      none      >] worker_thread+0x98/0x720 kernel/workqueue.c:2162
-INFO: Freed in bdi_destroy+0x1d9/0x200 age=1073 cpu=0 pid=5919
-[<      none      >] __slab_free+0x150/0x270 mm/slub.c:2587
-[<     inline     >] slab_free mm/slub.c:2736
-[<      none      >] kfree+0x13a/0x150 mm/slub.c:3522
-[<     inline     >] wb_exit include/linux/backing-dev.h:483
-[<      none      >] bdi_destroy+0x1d9/0x200 mm/backing-dev.c:839
-[<      none      >] blk_cleanup_queue+0x158/0x190 block/blk-core.c:579
-[<      none      >] __scsi_remove_device+0x63/0x110 ??:0
-[<      none      >] scsi_remove_device+0x27/0x40 ??:0
-[<      none      >] sdev_store_delete+0x22/0x30 scsi_sysfs.c:0
-[<      none      >] dev_attr_store+0x39/0x50 drivers/base/core.c:137
-[<      none      >] sysfs_kf_write+0x8a/0xa0 file.c:0
-[<      none      >] kernfs_fop_write+0x167/0x200 file.c:0
-[<      none      >] __vfs_write+0x57/0x170 ??:0
-[<      none      >] vfs_write+0xeb/0x250 ??:0
-[<      none      >] SyS_write+0x53/0xb0 ??:0
-[<      none      >] entry_SYSCALL_64_fastpath+0x12/0x71
-arch/x86/entry/entry_64.S:185
+Allocating the memory for the index 0 from other than node 0, as =
+discussed here, just means that the CPUs on node 0 will keep on using =
+non-local memory for stats. In a scenario where there are CPUs on two =
+nodes (0, 1), but only the node 1 has memory, a shared flow entry will =
+still end up having separate memory allocated for both nodes, but both =
+of the nodes would be at node 1. However, there is still a high =
+likelihood that the memory allocations would not share a cache line, =
+which should prevent the nodes from invalidating each other=E2=80=99s =
+caches. Based on this I do not see a problem relaxing the memory =
+allocation for the default stats node. If node 0 has memory, however, it =
+would be better to allocate the memory from node 0.
 
-INFO: Slab 0xffffea0000d21f40 objects=12 used=4 fp=0xffff88003487d3f0
-flags=0x100000000000080
-INFO: Object 0xffff88003487da80 @offset=2688 fp=0x          (null)
-
-Bytes b4 ffff88003487da70: a3 08 ff ff 00 00 00 00 aa 18 57 81 ff ff
-ff ff  ..........W.....
-Object ffff88003487da80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-00  ................
-Redzone ffff88003487da90: bb bb bb bb bb bb bb bb
-    ........
-Padding ffff88003487dbc8: 84 d5 76 81 ff ff ff ff
-    ..v.....
-CPU: 0 PID: 622 Comm: kswapd0 Tainted: G    B           4.3.0-rc4-kasan #16
-Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2007
- ffff88003487da80 ffff880034c0f878 ffffffff814a3e7c ffff880036003b00
- ffff880034c0f8a8 ffffffff812090b8 ffff880036003b00 ffffea0000d21f40
- ffff88003487da80 ffffea0000ceaf98 ffff880034c0f8d0 ffffffff8120def1
-Call Trace:
- [<ffffffff814a3e7c>] dump_stack+0x44/0x58 lib/dump_stack.c:15
- [<ffffffff812090b8>] print_trailer+0xf8/0x150 mm/slub.c:650
- [<ffffffff8120def1>] object_err+0x31/0x40 mm/slub.c:657
- [<ffffffff81210215>] kasan_report_error+0x1e5/0x3f0 ??:0
- [<ffffffff81210804>] kasan_report+0x34/0x40 ??:0
- [<     inline     >] ? inode_write_congested include/linux/backing-dev.h:193
- [<ffffffff811bcc1a>] ? shrink_page_list+0x93a/0xf10 mm/vmscan.c:957
- [<ffffffff8120f564>] __asan_load8+0x64/0xa0 ??:0
- [<ffffffff811c814f>] ? page_mapping+0x2f/0x70 ??:0
- [<     inline     >] inode_write_congested include/linux/backing-dev.h:193
- [<ffffffff811bcc1a>] shrink_page_list+0x93a/0xf10 mm/vmscan.c:957
- [<ffffffff811bda74>] shrink_inactive_list+0x2f4/0x5f0 mm/vmscan.c:1610
- [<     inline     >] shrink_list mm/vmscan.c:1945
- [<ffffffff811bea0a>] shrink_lruvec+0x87a/0xa50 mm/vmscan.c:2229
- [<ffffffff811beca0>] shrink_zone+0xc0/0x2c0 mm/vmscan.c:2413
- [<     inline     >] kswapd_shrink_zone mm/vmscan.c:3116
- [<     inline     >] balance_pgdat mm/vmscan.c:3291
- [<ffffffff811bffad>] kswapd+0x64d/0xb70 mm/vmscan.c:3499
- [<ffffffff811bf960>] ? zone_reclaim+0x2a0/0x2a0 mm/vmscan.c:3820
- [<ffffffff810a491f>] kthread+0x10f/0x130 kthread.c:0
- [<ffffffff810a4810>] ? kthread_park+0x70/0x70 ??:0
- [<ffffffff81d4fb5f>] ret_from_fork+0x3f/0x70 arch/x86/entry/entry_64.S:472
- [<ffffffff810a4810>] ? kthread_park+0x70/0x70 ??:0
-Memory state around the buggy address:
- ffff88003487d980: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
- ffff88003487da00: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
->ffff88003487da80: fb fb fc fc fc fc fc fc fc fc fc fc fc fc fc fc
-                   ^
- ffff88003487db00: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
- ffff88003487db80: fc fc fc fc fc fc fc fc fc fc 00 00 fc fc fc fc
-==================================================================
-
-Thanks!
+  Jarno
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
