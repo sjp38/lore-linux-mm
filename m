@@ -1,501 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 8108E6B0253
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 05:46:13 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so50299211pab.3
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 02:46:13 -0700 (PDT)
-Received: from DNVWSMAILOUT1.mcafee.com (dnvwsmailout1.mcafee.com. [161.69.31.173])
-        by mx.google.com with ESMTPS id tw1si65152138pab.195.2015.10.08.02.46.10
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 979C46B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 06:36:10 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so19238680wic.0
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 03:36:10 -0700 (PDT)
+Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
+        by mx.google.com with ESMTPS id az7si52245036wjb.136.2015.10.08.03.36.09
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Oct 2015 02:46:12 -0700 (PDT)
+        Thu, 08 Oct 2015 03:36:09 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so21779801wic.1
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 03:36:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: Quoted-Printable
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 8 Oct 2015 09:41:49 +0000
-From: MB McAfee SR Update <support_reply@McAfee.com>
-Reply-To: MB McAfee SR Update <support_reply@McAfee.com>
-Subject: RE: SR # <4-10997886031> Performance issues
-Message-ID: <3272d585-c647-45c0-9c14-26c703f30107@DNVEXAPP1N04.corpzone.internalzone.com>
+In-Reply-To: <20151007100411.GG3069@e104818-lin.cambridge.arm.com>
+References: <1442482692-6416-1-git-send-email-ryabinin.a.a@gmail.com>
+	<20151007100411.GG3069@e104818-lin.cambridge.arm.com>
+Date: Thu, 8 Oct 2015 13:36:09 +0300
+Message-ID: <CAPAsAGxR-yqtmFeo65Xw_0RQyEy=mN1uG=GKtqoMLr_x_N0u5w@mail.gmail.com>
+Subject: Re: [PATCH v6 0/6] KASAN for arm64
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: oleksandr.chernykh@playtech.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
-
-Hello,
-
-Are these priorities used to choose VRRP master? =
-
-
-The director will be used for the load balancing. You can find this in the =
-provided community article.
-
-Is the node that will have higher director priority should also have GUI =
-attached? =
-
-
-No, the Central Management is not related to the Proxy HA setup. Please =
-see https://community.mcafee.com/docs/DOC-4823
-Where is my master?
-
-Is it possible to make 2 other nodes handle more traffic then VRRP master =
-and thus make it less loaded?
-
-Only via hardwareload balancing with an external LB. This MWG solution =
-will work based on round robin for all available nodes. =
-
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 =
-
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-=
-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support =
-Notification Service (SNS) to get timely technical info. =
-
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, =
-confidential and protected from disclosure. If you are not the intended =
-recipient, any review, dissemination, distribution or copying is strictly =
-prohibited. If you have received this email message in error, please =
-notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: Oleksandr.Chernykh@playtech.com
-Sent: 10/08/2015 11:33:34
-To: MB McAfee SR Update <support_reply@McAfee.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello,
-
-Are these priorities used to choose VRRP master?  Is the node that will =
-have higher director priority should also have GUI attached? Is it =
-possible to make 2 other nodes handle more traffic then VRRP master and =
-thus make it less loaded?
-
-Best regards,
-Oleksandr
-
------Original Message-----
-From: MB McAfee SR Update [mailto:support_reply@McAfee.com]
-Sent: Thursday, October 8, 2015 12:19 PM
-To: Oleksandr Chernykh <Oleksandr.Chernykh@playtech.com>
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-I also recommend different director priorities for the cluster members. =
-Currently all are on 75. Better is 90 - 60 - 30
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:            00800-1225-5624
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-=
-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support =
-Notification Service (SNS) to get timely technical info.
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, =
-confidential and protected from disclosure. If you are not the intended =
-recipient, any review, dissemination, distribution or copying is strictly =
-prohibited. If you have received this email message in error, please =
-notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: MFE Support Outbound Profile
-Sent: 10/08/2015 09:20:35
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-We see that the current director can't find scanning nodes and that's the =
-reason why it handles the traffic on his own until it is overloaded.
-
-Do you have more information about the different nodes? Are all of them on =
-the same VMware host?
-
-Do you use overprovisioning/oversubscription for these hosts - this is =
-highly not recommended.
-
-The issue is caused due to non-working Proxy HA - the settings seem to =
-work - I don't see any mis-configuration, but due to so many issues I =
-would recommend a cluster split and new HA setup from scratch:
-https://community.mcafee.com/docs/DOC-4819
-
-
-I also recommend some tcpdumps for VRRP traffic and for port 253 (Filters: =
-ip.proto eq 253, vrrp)
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:            00800-1225-5624
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-=
-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support =
-Notification Service (SNS) to get timely technical info.
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, =
-confidential and protected from disclosure. If you are not the intended =
-recipient, any review, dissemination, distribution or copying is strictly =
-prohibited. If you have received this email message in error, please =
-notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: MFE Support Outbound Profile
-Sent: 10/08/2015 06:20:30
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-I hope you are doing well.
-
-I have a short update from development. Due to some research we have found =
-the following:
-
-Oct  2 10:28:16 ua-is-proxy-1 kernel: [141521.487780] TX Too many =
-directors in too short a time delaying Oct  2 10:28:16 ua-is-proxy-1 =
-kernel: [141521.487781]  172.29.50.103 Oct  2 10:28:17 ua-is-proxy-1 =
-kernel: [141522.486814] TX Too many directors in too short a time delaying =
-Oct  2 10:28:17 ua-is-proxy-1 kernel: [141522.486816]  172.29.50.103
-
-Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) =
-Transition to MASTER STATE Oct  2 10:50:26 ua-is-proxy-2 =
-Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Received higher prio advert =
-Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) =
-Entering BACKUP STATE Oct  2 10:57:26 ua-is-proxy-2 =
-Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE Oct =
- 2 10:57:27 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) =
-Received higher prio advert Oct  2 10:57:27 ua-is-proxy-2 =
-Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE Oct  2 =
-10:58:31 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) =
-Transition to MASTER STATE Oct  2 10:58:32 ua-is-proxy-2 =
-Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering MASTER STATE Oct  2 =
-10:58:33 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) =
-Received higher prio advert Oct  2 10:58:33 ua-is-proxy-2 =
-Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE Oct  2 =
-10:58:42 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) =
-Transition to MASTER STATE ....
-
-
-There is still instability in the network. In case scanning nodes fails =
-all IPs that still have traffic will create sticky table entries on the =
-director, which will only go away if there is no traffic for some time. =
-That probably explains why the director got more traffic.
-
-So next thing would be to solve the network issue.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:            00800-1225-5624
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-=
-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support =
-Notification Service (SNS) to get timely technical info.
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, =
-confidential and protected from disclosure. If you are not the intended =
-recipient, any review, dissemination, distribution or copying is strictly =
-prohibited. If you have received this email message in error, please =
-notify the sender by reply email and delete the message and any attachments.
------------------
-From: MFE Support Outbound Profile
-Sent: 10/06/2015 08:11:45
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-The 3rd node is currently the director node and will have more connections =
-because it receives all incoming connections:
-
-https://community.mcafee.com/docs/DOC-4819
-
-The load has reduced, but is still too high:
-
-Load on machine when feedback was done:load average: 25.65, 27.69, 26.05; =
-number of threads running or waiting per core: 4.27, 4.62, 4.34
-
-
-I will update development with the new data and let you know.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:            00800-1225-5624
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-=
-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support =
-Notification Service (SNS) to get timely technical info.
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, =
-confidential and protected from disclosure. If you are not the intended =
-recipient, any review, dissemination, distribution or copying is strictly =
-prohibited. If you have received this email message in error, please =
-notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: MFE Support Outbound Profile
-Sent: 10/02/2015 07:35:51
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-I hope you are doing well.
-
-Do you see any change in the load after raising the CPUs and the memory?
-
-When you have an opportunity could you let me know if you have any updates =
-on progress of your outstanding service request? If you need any =
-assistance please don't hesitate to contact me.
-
-
-With kind regards,
-
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:            00800-1225-5624
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-=
-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support =
-Notification Service (SNS) to get timely technical info.
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, =
-confidential and protected from disclosure. If you are not the intended =
-recipient, any review, dissemination, distribution or copying is strictly =
-prohibited. If you have received this email message in error, please =
-notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: MFE Support Outbound Profile
-Sent: 09/30/2015 12:19:54
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-The node became unresponsive due to a system load of more than 50 and then =
-it raises more and more until all queues are filled up. Please stop the =
-machines and raise the memory and add addtional vCPUs and cores. This most =
-limiting factor are the CPUs at the moment.
-
-
-With kind regards,
-
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:            00800-1225-5624
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-=
-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support =
-Notification Service (SNS) to get timely technical info.
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, =
-confidential and protected from disclosure. If you are not the intended =
-recipient, any review, dissemination, distribution or copying is strictly =
-prohibited. If you have received this email message in error, please =
-notify the sender by reply email and delete the message and any attachments.
-
-
------------------
-From: MFE Support Outbound Profile
-Sent: 09/30/2015 09:05:39
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-This is VMware. There are rcu stalls in the logs, which indicates that the =
-VMs don't get enough CPU time assigned, the host might be overloaded or =
-CPUs are overcommited. There are also network transmit timeouts in the =
-logs, indicating the same.
-
-The minimum memory for VMware is 16GB, please see the installation guide. =
-The VMs only have 8GB assigned. Since there are load issues, I'd also =
-suggest to assign more then the minimum CPU.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:            00800-1225-5624
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-=
-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support =
-Notification Service (SNS) to get timely technical info.
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, =
-confidential and protected from disclosure. If you are not the intended =
-recipient, any review, dissemination, distribution or copying is strictly =
-prohibited. If you have received this email message in error, please =
-notify the sender by reply email and delete the message and any attachments.
------------------
-From: MFE Support Outbound Profile
-Sent: 09/28/2015 07:30:17
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: SR # <4-10997886031>  Performance issues
-
-Hello Oleksandr,
-
-Thank you for contacting Intel Security technical support.
-
-I have escalated this SR together with the provided data to our =
-development team. I could not figure out why the directory node (node 3) =
-was so overloaded.
-
-I will keep you updated on their findings.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:            00800-1225-5624
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-=
-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support =
-Notification Service (SNS) to get timely technical info.
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, =
-confidential and protected from disclosure. If you are not the intended =
-recipient, any review, dissemination, distribution or copying is strictly =
-prohibited. If you have received this email message in error, please =
-notify the sender by reply email and delete the message and any attachments.
-This communication, which includes any attachments, is sent on behalf of =
-Playtech plc or one of its subsidiaries (Playtech Group). It contains =
-information which is privileged and confidential and is exclusively =
-intended only for the individual(s) or entity named above (Recipient). If =
-you are not the intended Recipient, or the person responsible for =
-delivering it to the intended Recipient, you are notified that any review, =
-disclosure, dissemination, distribution or reproduction of this =
-communication in any way is not authorised by the Playtech Group and may =
-be prohibited. If you receive this communication by mistake, please notify =
-the sender immediately and then destroy any copies of it. Unless expressly =
-stated to the contrary, nothing in this communication shall constitute a =
-contractual offer capable of acceptance or indicate any intention to =
-create legal relations. Please note that the Playtech Group monitors =
-communications sent or received by it for security and other purposes. Any =
-views or opinions presented are solely those of the author and do not =
-necessarily represent those of the Playtech Group. Details of the =
-companies in the Playtech Group are available here<http://www.playtech.=
-com/info/mail_disclaimer>. Playtech plc is registered in the Isle of Man =
-(company number 008505V) with its registered office at Ground Floor, St =
-George's Court, Upper Church Street, Douglas IM1 1EE
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Yury <yury.norov@gmail.com>, Alexey Klimov <klimov.linux@gmail.com>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Linus Walleij <linus.walleij@linaro.org>, LKML <linux-kernel@vger.kernel.org>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, Mark Salter <msalter@redhat.com>, linux-efi@vger.kernel.org
+
+2015-10-07 13:04 GMT+03:00 Catalin Marinas <catalin.marinas@arm.com>:
+> On Thu, Sep 17, 2015 at 12:38:06PM +0300, Andrey Ryabinin wrote:
+>> As usual patches available in git
+>>       git://github.com/aryabinin/linux.git kasan/arm64v6
+>>
+>> Changes since v5:
+>>  - Rebase on top of 4.3-rc1
+>>  - Fixed EFI boot.
+>>  - Updated Doc/features/KASAN.
+>
+> I tried to merge these patches (apart from the x86 one which is already
+> merged) but it still doesn't boot on Juno as an EFI application.
+>
+
+4.3-rc1 was ok and 4.3-rc4 is not. Break caused by 0ce3cc008ec04
+("arm64/efi: Fix boot crash by not padding between EFI_MEMORY_RUNTIME
+regions")
+It introduced sort() call in efi_get_virtmap().
+sort() is generic kernel function and it's instrumented, so we crash
+when KASAN tries to access shadow in sort().
+
+[+CC efi some guys]
+
+Comment in drivers/firmware/efi/libstub/Makefile says that EFI stub
+executes with MMU disabled:
+    # The stub may be linked into the kernel proper or into a separate
+boot binary,
+    # but in either case, it executes before the kernel does (with MMU
+disabled) so
+    # things like ftrace and stack-protector are likely to cause trouble if left
+    # enabled, even if doing so doesn't break the build.
+
+But in arch/arm64/kernel/efi-entry.S:
+* We arrive here from the EFI boot manager with:
+*
+*    * CPU in little-endian mode
+*    * MMU on with identity-mapped RAM
+
+So is MMU enabled in ARM64 efi-stub?
+If yes, we could solve this issue by mapping KASAN early shadow in efi stub.
+
+> --
+> Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
