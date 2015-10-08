@@ -1,80 +1,295 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D9146B0253
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 03:24:29 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so14984531wic.0
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 00:24:28 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id gn10si51276704wjc.141.2015.10.08.00.24.27
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F44E6B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 03:46:16 -0400 (EDT)
+Received: by iow1 with SMTP id 1so49412551iow.1
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 00:46:16 -0700 (PDT)
+Received: from DNVWSMAILOUT1.mcafee.com (dnvwsmailout1.mcafee.com. [161.69.31.173])
+        by mx.google.com with ESMTPS id i192si30686675ioe.47.2015.10.08.00.46.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Oct 2015 00:24:28 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so11909754wic.1
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 00:24:27 -0700 (PDT)
-Date: Thu, 8 Oct 2015 10:24:25 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/3] page: add new flags "PG_movable" and add interfaces
- to control these pages
-Message-ID: <20151008072425.GA884@node>
-References: <1444286152-30175-1-git-send-email-zhuhui@xiaomi.com>
- <1444286152-30175-2-git-send-email-zhuhui@xiaomi.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Oct 2015 00:46:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1444286152-30175-2-git-send-email-zhuhui@xiaomi.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 8 Oct 2015 07:46:11 +0000
+From: MB McAfee SR Update <support_reply@McAfee.com>
+Reply-To: MB McAfee SR Update <support_reply@McAfee.com>
+Subject: RE: SR # <4-10997886031> Performance issues
+Message-ID: <13876a6b-33d1-4dbe-a7cb-53d35aeb689a@DNVEXAPP1N04.corpzone.internalzone.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <zhuhui@xiaomi.com>
-Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Dave Hansen <dave.hansen@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jennifer Herbert <jennifer.herbert@citrix.com>, Hugh Dickins <hughd@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, "Steven Rostedt (Red Hat)" <rostedt@goodmis.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <wanpeng.li@hotmail.com>, Geert Uytterhoeven <geert+renesas@glider.be>, Greg Thelen <gthelen@google.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, teawater@gmail.com
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
 
-On Thu, Oct 08, 2015 at 02:35:50PM +0800, Hui Zhu wrote:
-> This patch add PG_movable to mark a page as movable.
-> And when system call migrate function, it will call the interfaces isolate,
-> put and migrate to control it.
-> 
-> There is a patch for page migrate interface in LKML.  But for zsmalloc,
-> it is too deep inside the file system.  So I add another one.
-> 
-> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
-> ---
->  include/linux/mm_types.h   |  6 ++++++
->  include/linux/page-flags.h |  3 +++
->  mm/compaction.c            |  6 ++++++
->  mm/debug.c                 |  1 +
->  mm/migrate.c               | 17 +++++++++++++----
->  mm/vmscan.c                |  2 +-
->  6 files changed, 30 insertions(+), 5 deletions(-)
-> 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 3d6baa7..132afb0 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -12,6 +12,7 @@
->  #include <linux/cpumask.h>
->  #include <linux/uprobes.h>
->  #include <linux/page-flags-layout.h>
-> +#include <linux/migrate_mode.h>
->  #include <asm/page.h>
->  #include <asm/mmu.h>
->  
-> @@ -196,6 +197,11 @@ struct page {
->  #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
->  	int _last_cpupid;
->  #endif
-> +
-> +	int (*isolate)(struct page *page);
-> +	void (*put)(struct page *page);
-> +	int (*migrate)(struct page *page, struct page *newpage, int force,
-> +		       enum migrate_mode mode);
->  }
+Hello Oleksandr,
 
-That's no-go. We are not going to add three pointers to struct page. It
-would cost ~0.5% of system memory.
+We see that the current director can't find scanning nodes and that's the reason why it handles the traffic on his own until it is overloaded. 
 
-NAK.
+Do you have more information about the different nodes? Are all of them on the same VMware host?
 
--- 
- Kirill A. Shutemov
+Do you use overprovisioning/oversubscription for these hosts - this is highly not recommended.
+
+The issue is caused due to non-working Proxy HA - the settings seem to work - I don't see any mis-configuration, but due to so many issues I would recommend a cluster split and new HA setup from scratch:
+https://community.mcafee.com/docs/DOC-4819
+
+
+I also recommend some tcpdumps for VRRP traffic and for port 253 (Filters: ip.proto eq 253, vrrp)
+
+
+With kind regards,
+
+Stefan Bluemel
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+
+-----------------
+From: MFE Support Outbound Profile
+Sent: 10/08/2015 06:20:30
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
+Subject: RE: SR # <4-10997886031> Performance issues
+
+Hello Oleksandr,
+
+I hope you are doing well.
+
+I have a short update from development. Due to some research we have found the following:
+
+Oct  2 10:28:16 ua-is-proxy-1 kernel: [141521.487780] TX Too many directors in too short a time delaying
+Oct  2 10:28:16 ua-is-proxy-1 kernel: [141521.487781]  172.29.50.103
+Oct  2 10:28:17 ua-is-proxy-1 kernel: [141522.486814] TX Too many directors in too short a time delaying
+Oct  2 10:28:17 ua-is-proxy-1 kernel: [141522.486816]  172.29.50.103
+
+Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
+Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Received higher prio advert
+Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE
+Oct  2 10:57:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
+Oct  2 10:57:27 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Received higher prio advert
+Oct  2 10:57:27 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE
+Oct  2 10:58:31 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
+Oct  2 10:58:32 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering MASTER STATE
+Oct  2 10:58:33 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Received higher prio advert
+Oct  2 10:58:33 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE
+Oct  2 10:58:42 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
+....
+
+
+There is still instability in the network. In case scanning nodes fails all IPs that still have traffic will
+create sticky table entries on the director, which will only go away if there is no traffic for some time. That probably explains why the director got more traffic.
+
+So next thing would be to solve the network issue.
+
+
+With kind regards,
+
+Stefan Bluemel
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+-----------------
+From: MFE Support Outbound Profile
+Sent: 10/06/2015 08:11:45
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
+Subject: RE: SR # <4-10997886031> Performance issues
+
+Hello Oleksandr,
+
+The 3rd node is currently the director node and will have more connections because it receives all incoming connections:
+
+https://community.mcafee.com/docs/DOC-4819
+
+The load has reduced, but is still too high:
+
+Load on machine when feedback was done:load average: 25.65, 27.69, 26.05; number of threads running or waiting per core: 4.27, 4.62, 4.34
+
+
+I will update development with the new data and let you know.
+
+
+With kind regards,
+
+Stefan Bluemel
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+
+-----------------
+From: MFE Support Outbound Profile
+Sent: 10/02/2015 07:35:51
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
+Subject: RE: SR # <4-10997886031> Performance issues
+
+Hello Oleksandr,
+
+I hope you are doing well.
+
+Do you see any change in the load after raising the CPUs and the memory? 
+
+When you have an opportunity could you let me know if you have any updates on progress of your outstanding service request? If you need any assistance please don't hesitate to contact me. 
+
+
+With kind regards,
+
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+
+-----------------
+From: MFE Support Outbound Profile
+Sent: 09/30/2015 12:19:54
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
+Subject: RE: SR # <4-10997886031> Performance issues
+
+Hello Oleksandr,
+
+The node became unresponsive due to a system load of more than 50 and then it raises more and more until all queues are filled up. Please stop the machines and raise the memory and add addtional vCPUs and cores. This most limiting factor are the CPUs at the moment. 
+
+
+With kind regards,
+
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+
+
+-----------------
+From: MFE Support Outbound Profile
+Sent: 09/30/2015 09:05:39
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
+Subject: RE: SR # <4-10997886031> Performance issues
+
+Hello Oleksandr,
+
+This is VMware. There are rcu stalls in the logs, which indicates that the VMs don't get enough CPU time assigned, the host might be overloaded or CPUs are overcommited. There are also network transmit timeouts in the logs, indicating the same.
+
+The minimum memory for VMware is 16GB, please see the installation guide. The VMs only have 8GB assigned. Since there are load issues, I'd also suggest to assign more then the minimum CPU.
+
+
+With kind regards,
+
+Stefan Bluemel
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+-----------------
+From: MFE Support Outbound Profile
+Sent: 09/28/2015 07:30:17
+To: oleksandr.chernykh@playtech.com
+Cc: linux-mm@kvack.org
+Subject: SR # <4-10997886031>  Performance issues
+
+Hello Oleksandr,
+
+Thank you for contacting Intel Security technical support.
+
+I have escalated this SR together with the provided data to our development team. I could not figure out why the directory node (node 3) was so overloaded.
+
+I will keep you updated on their findings.
+
+
+With kind regards,
+
+Stefan Bluemel
+Intel Security Technical Support
+
+International:  +1-888-847-8766
+United Kingdom: 00800-6247-7463
+Germany:	    00800-1225-5624 
+Australia:      +1-800-073-267
+
+Web: http://www.mcafee.com
+Web: http://mysupport.mcafee.com
+
+Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
+
+Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
+Go to: http://my.mcafee.com/content/SNS_Subscription_Center
+
+The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
