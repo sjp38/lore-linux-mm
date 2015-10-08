@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 47FC16B0038
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 16:20:40 -0400 (EDT)
-Received: by qkdo1 with SMTP id o1so15330437qkd.1
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 13:20:40 -0700 (PDT)
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 7743C6B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 17:17:37 -0400 (EDT)
+Received: by qgt47 with SMTP id 47so53635228qgt.2
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 14:17:37 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l4si41263080qgf.19.2015.10.08.13.20.39
+        by mx.google.com with ESMTPS id o84si30139583qkh.77.2015.10.08.14.17.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Oct 2015 13:20:39 -0700 (PDT)
-Date: Thu, 8 Oct 2015 13:20:37 -0700
+        Thu, 08 Oct 2015 14:17:36 -0700 (PDT)
+Date: Thu, 8 Oct 2015 14:17:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Intel-wired-lan] [Patch V3 5/9] i40e: Use numa_mem_id() to
- better support memoryless node
-Message-Id: <20151008132037.fc3887da0818e7d011cb752f@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1508191717450.30666@chino.kir.corp.google.com>
-References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
-	<1439781546-7217-6-git-send-email-jiang.liu@linux.intel.com>
-	<4197C471DCF8714FBA1FE32565271C148FFFF4D3@ORSMSX103.amr.corp.intel.com>
-	<alpine.DEB.2.10.1508191717450.30666@chino.kir.corp.google.com>
+Subject: Re: [PATCH 2/3] slab_common: clear pointers to per memcg caches on
+ destroy
+Message-Id: <20151008141735.d545d3fa1ab0244f69c41cdf@linux-foundation.org>
+In-Reply-To: <833ae913932949814d1063e11248e6747d0c3a2b.1444319304.git.vdavydov@virtuozzo.com>
+References: <6a18aab2f1c3088377d7fd2207b4cc1a1a743468.1444319304.git.vdavydov@virtuozzo.com>
+	<833ae913932949814d1063e11248e6747d0c3a2b.1444319304.git.vdavydov@virtuozzo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: "Patil, Kiran" <kiran.patil@intel.com>, Jiang Liu <jiang.liu@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Wysocki, Rafael J" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, "Kirsher, Jeffrey T" <jeffrey.t.kirsher@intel.com>, "Brandeburg, Jesse" <jesse.brandeburg@intel.com>, "Nelson, Shannon" <shannon.nelson@intel.com>, "Wyborny, Carolyn" <carolyn.wyborny@intel.com>, "Skidmore, Donald C" <donald.c.skidmore@intel.com>, "Vick, Matthew" <matthew.vick@intel.com>, "Ronciak, John" <john.ronciak@intel.com>, "Williams, Mitch A" <mitch.a.williams@intel.com>, "Luck, Tony" <tony.luck@intel.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-hotplug@vger.kernel.org" <linux-hotplug@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "intel-wired-lan@lists.osuosl.org" <intel-wired-lan@lists.osuosl.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 19 Aug 2015 17:18:15 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+On Thu, 8 Oct 2015 19:02:40 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
 
-> On Wed, 19 Aug 2015, Patil, Kiran wrote:
-> 
-> > Acked-by: Kiran Patil <kiran.patil@intel.com>
-> 
-> Where's the call to preempt_disable() to prevent kernels with preemption 
-> from making numa_node_id() invalid during this iteration?
+> Currently, we do not clear pointers to per memcg caches in the
+> memcg_params.memcg_caches array when a global cache is destroyed with
+> kmem_cache_destroy. It is fine if the global cache does get destroyed.
+> However, a cache can be left on the list if it still has active objects
+> when kmem_cache_destroy is called (due to a memory leak). If this
+> happens, the entries in the array will point to already freed areas,
+> which is likely to result in data corruption when the cache is reused
+> (via slab merging).
 
-David asked this question twice, received no answer and now the patch
-is in the maintainer tree, destined for mainline.
-
-If I was asked this question I would respond
-
-  The use of numa_mem_id() is racy and best-effort.  If the unlikely
-  race occurs, the memory allocation will occur on the wrong node, the
-  overall result being very slightly suboptimal performance.  The
-  existing use of numa_node_id() suffers from the same issue.
-
-But I'm not the person proposing the patch.  Please don't just ignore
-reviewer comments!
+It's important that we report these leaks so the kernel bug can get
+fixed.  The patch doesn't add such detection and reporting, but it
+could do so?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
