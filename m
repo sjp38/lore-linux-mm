@@ -1,35 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EF316B0038
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 12:54:06 -0400 (EDT)
-Received: by qkap81 with SMTP id p81so21744236qka.2
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 09:54:06 -0700 (PDT)
-Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
-        by mx.google.com with ESMTPS id l77si22441869qkh.74.2015.10.08.09.54.05
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A24496B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 12:55:55 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so34267420wic.1
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 09:55:55 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q13si12845600wiv.18.2015.10.08.09.55.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 08 Oct 2015 09:54:05 -0700 (PDT)
-Date: Thu, 8 Oct 2015 11:54:03 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] slab_common: rename cache create/destroy helpers
-In-Reply-To: <6a18aab2f1c3088377d7fd2207b4cc1a1a743468.1444319304.git.vdavydov@virtuozzo.com>
-Message-ID: <alpine.DEB.2.20.1510081153480.23849@east.gentwo.org>
-References: <6a18aab2f1c3088377d7fd2207b4cc1a1a743468.1444319304.git.vdavydov@virtuozzo.com>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 08 Oct 2015 09:55:54 -0700 (PDT)
+Date: Thu, 8 Oct 2015 09:55:39 -0700
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: [PATCH -next] mm/vmacache: inline vmacache_valid_mm()
+Message-ID: <20151008165539.GA2594@linux-uzut.site>
+References: <1444277879-22039-1-git-send-email-dave@stgolabs.net>
+ <20151008062115.GA876@swordfish>
+ <20151008132331.GC3353@linux-uzut.site>
+ <20151008134358.GA601@swordfish>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20151008134358.GA601@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
 
-On Thu, 8 Oct 2015, Vladimir Davydov wrote:
+On Thu, 08 Oct 2015, Sergey Senozhatsky wrote:
 
-> do_kmem_cache_create, do_kmem_cache_shutdown, and do_kmem_cache_release
-> sound awkward for static helper functions that are not supposed to be
-> used outside slab_common.c. Rename them to create_cache, shutdown_cache,
-> and release_caches, respectively. This patch is a pure cleanup and does
-> not introduce any functional changes.
+>> >+/*
+>> >+ * This task may be accessing a foreign mm via (for example)
+>> >+ * get_user_pages()->find_vma().  The vmacache is task-local and this
+>> >+ * task's vmacache pertains to a different mm (ie, its own).  There is
+>> >+ * nothing we can do here.
+>> >+ *
+>> >+ * Also handle the case where a kernel thread has adopted this mm via use_mm().
+>> >+ * That kernel thread's vmacache is not applicable to this mm.
+>> >+ */
+>> >+static bool vmacache_valid_mm(struct mm_struct *mm)
+>>
+>> This needs (explicit) inlined, no?
+>>
+>
+>oh, yeah. Funny how I said "both `static inline'" and made 'inline' only
+>one of them.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Thinking a bit more about it, we don't want to be making vmacache_valid_mm()
+visible, as users should only stick to vmacache_valid() calls. I doubt that
+this would infact ever occur, but it's a bad idea regardless.
+
+So I'd rather keep my patch as is. Yes, the compiler can already inline it for
+us, but making it explicit is certainly won't harm.
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
