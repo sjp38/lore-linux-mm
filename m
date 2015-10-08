@@ -1,94 +1,286 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B83B6B0254
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 10:18:54 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so27481824wic.0
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 07:18:53 -0700 (PDT)
-Received: from mail-wi0-f195.google.com (mail-wi0-f195.google.com. [209.85.212.195])
-        by mx.google.com with ESMTPS id q7si11916286wia.93.2015.10.08.07.18.52
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id CBA2C6B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 10:40:09 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so28604343wic.1
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 07:40:09 -0700 (PDT)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com. [209.85.212.178])
+        by mx.google.com with ESMTPS id xb2si53604318wjb.84.2015.10.08.07.40.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Oct 2015 07:18:52 -0700 (PDT)
-Received: by wicxq10 with SMTP id xq10so4870927wic.2
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 07:18:52 -0700 (PDT)
-Date: Thu, 8 Oct 2015 16:18:51 +0200
+        Thu, 08 Oct 2015 07:40:08 -0700 (PDT)
+Received: by wicge5 with SMTP id ge5so28947537wic.0
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 07:40:08 -0700 (PDT)
+Date: Thu, 8 Oct 2015 16:40:06 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/1] mm: vmstat: Add OOM kill count in vmstat counter
-Message-ID: <20151008141851.GD426@dhcp22.suse.cz>
-References: <1443696523-27262-1-git-send-email-pintu.k@samsung.com>
- <20151001133843.GG24077@dhcp22.suse.cz>
- <010401d0ff34$f48e8eb0$ddabac10$@samsung.com>
- <20151005122258.GA7023@dhcp22.suse.cz>
- <014e01d10004$c45bba30$4d132e90$@samsung.com>
- <20151006154152.GC20600@dhcp22.suse.cz>
- <023601d1010f$787696b0$6963c410$@samsung.com>
+Subject: Re: [PATCH 1/3] memcg: simplify charging kmem pages
+Message-ID: <20151008144006.GE426@dhcp22.suse.cz>
+References: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <023601d1010f$787696b0$6963c410$@samsung.com>
+In-Reply-To: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu.k@samsung.com>
-Cc: akpm@linux-foundation.org, minchan@kernel.org, dave@stgolabs.net, koct9i@gmail.com, rientjes@google.com, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp, bywxiaobai@163.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, kirill.shutemov@linux.intel.com, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.ping@gmail.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, c.rajkumar@samsung.com, sreenathd@samsung.com
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 07-10-15 20:18:16, PINTU KUMAR wrote:
-[...]
-> Ok, let me explain the real case that we have experienced.
-> In our case, we have low memory killer in user space itself that invoked based
-> on some memory threshold.
-> Something like, below 100MB threshold starting killing until it comes back to
-> 150MB.
-> During our long duration ageing test (more than 72 hours) we observed that many
-> applications are killed.
-> Now, we were not sure if killing happens in user space or kernel space.
-> When we saw the kernel logs, it generated many logs such as;
-> /var/log/{messages, messages.0, messages.1, messages.2, messages.3, etc.}
-> But, none of the logs contains kernel OOM messages. Although there were some LMK
-> kill in user space.
-> Then in another round of test we keep dumping _dmesg_ output to a file after
-> each iteration.
-> After 3 days of tests this time we observed that dmesg output dump contains many
-> kernel oom messages.
+On Mon 05-10-15 01:21:41, Vladimir Davydov wrote:
+> Charging kmem pages proceeds in two steps. First, we try to charge the
+> allocation size to the memcg the current task belongs to, then we
+> allocate a page and "commit" the charge storing the pointer to the memcg
+> in the page struct.
+> 
+> Such a design looks overcomplicated, because there is no much sense in
+> trying charging the allocation before actually allocating a page: we
+> won't be able to consume much memory over the limit even if we charge
+> after doing the actual allocation, besides we already charge user pages
+> post factum, so being pedantic with kmem pages just looks pointless.
+> 
+> So this patch simplifies the design by merging the "charge" and the
+> "commit" steps into the same function, which takes the allocated page.
 
-I am confused. So you suspect that the OOM report didn't get to
-/var/log/messages while it was in dmesg?
+Yes this makes sense.
 
-> Now, every time this dumping is not feasible. And instead of counting manually
-> in log file, we wanted to know number of oom kills happened during this tests.
-> So we decided to add a counter in /proc/vmstat to track the kernel oom_kill, and
-> monitor it during our ageing test.
->
-> Basically, we wanted to tune our user space LMK killer for different threshold
-> values, so that we can completely avoid the kernel oom kill.
-> So, just by looking into this counter, we could able to tune the LMK threshold
-> values without depending on the kernel log messages.
+> Also, rename the charge and uncharge methods to memcg_kmem_charge and
+> memcg_kmem_uncharge and make the charge method return error code instead
+> of bool to conform to mem_cgroup_try_charge.
 
-Wouldn't a trace point suit you better for this particular use case
-considering this is a testing environment?
- 
-> Also, in most of the system /var/log/messages are not present and we just
-> depends on kernel dmesg output, which is petty small for longer run.
-> Even if we reduce the loglevel to 4, it may not be suitable to capture all logs.
+OK
 
-Hmm, I would consider a logless system considerably crippled but I see
-your point and I can imagine that especially small devices might try
-to save every single B of the storage. Such a system is basically
-undebugable IMO but it still might be interesting to see OOM killer
-traces.
- 
-> > What is even more confusing is the mixing of memcg and global oom
-> > conditions.  They are really different things. Memcg API will even
-> > give you notification about the OOM event.
-> > 
-> Ok, you are suggesting to divide the oom_kill counter into 2 parts (global &
-> memcg) ?
-> May be something like:
-> nr_oom_victims
-> nr_memcg_oom_victims
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-You do not need the later. Memcg interface already provides you with a
-notification API and if a counter is _really_ needed then it should be
-per-memcg not a global cumulative number.
+Nice cleanup!
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/memcontrol.h | 69 +++++++++++++---------------------------------
+>  mm/memcontrol.c            | 39 +++-----------------------
+>  mm/page_alloc.c            | 18 ++++++------
+>  3 files changed, 32 insertions(+), 94 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index a3e0296eb063..9e1f4d5efc56 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -752,11 +752,8 @@ static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+>   * conditions, but because they are pretty simple, they are expected to be
+>   * fast.
+>   */
+> -bool __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg,
+> -					int order);
+> -void __memcg_kmem_commit_charge(struct page *page,
+> -				       struct mem_cgroup *memcg, int order);
+> -void __memcg_kmem_uncharge_pages(struct page *page, int order);
+> +int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
+> +void __memcg_kmem_uncharge(struct page *page, int order);
+>  
+>  /*
+>   * helper for acessing a memcg's index. It will be used as an index in the
+> @@ -789,52 +786,30 @@ static inline bool __memcg_kmem_bypass(gfp_t gfp)
+>  }
+>  
+>  /**
+> - * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
+> - * @gfp: the gfp allocation flags.
+> - * @memcg: a pointer to the memcg this was charged against.
+> - * @order: allocation order.
+> + * memcg_kmem_charge: charge a kmem page
+> + * @page: page to charge
+> + * @gfp: reclaim mode
+> + * @order: allocation order
+>   *
+> - * returns true if the memcg where the current task belongs can hold this
+> - * allocation.
+> - *
+> - * We return true automatically if this allocation is not to be accounted to
+> - * any memcg.
+> + * Returns 0 on success, an error code on failure.
+>   */
+> -static inline bool
+> -memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
+> +static __always_inline int memcg_kmem_charge(struct page *page,
+> +					     gfp_t gfp, int order)
+>  {
+>  	if (__memcg_kmem_bypass(gfp))
+> -		return true;
+> -	return __memcg_kmem_newpage_charge(gfp, memcg, order);
+> +		return 0;
+> +	return __memcg_kmem_charge(page, gfp, order);
+>  }
+>  
+>  /**
+> - * memcg_kmem_uncharge_pages: uncharge pages from memcg
+> - * @page: pointer to struct page being freed
+> - * @order: allocation order.
+> + * memcg_kmem_uncharge: uncharge a kmem page
+> + * @page: page to uncharge
+> + * @order: allocation order
+>   */
+> -static inline void
+> -memcg_kmem_uncharge_pages(struct page *page, int order)
+> +static __always_inline void memcg_kmem_uncharge(struct page *page, int order)
+>  {
+>  	if (memcg_kmem_enabled())
+> -		__memcg_kmem_uncharge_pages(page, order);
+> -}
+> -
+> -/**
+> - * memcg_kmem_commit_charge: embeds correct memcg in a page
+> - * @page: pointer to struct page recently allocated
+> - * @memcg: the memcg structure we charged against
+> - * @order: allocation order.
+> - *
+> - * Needs to be called after memcg_kmem_newpage_charge, regardless of success or
+> - * failure of the allocation. if @page is NULL, this function will revert the
+> - * charges. Otherwise, it will commit @page to @memcg.
+> - */
+> -static inline void
+> -memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
+> -{
+> -	if (memcg_kmem_enabled() && memcg)
+> -		__memcg_kmem_commit_charge(page, memcg, order);
+> +		__memcg_kmem_uncharge(page, order);
+>  }
+>  
+>  /**
+> @@ -878,18 +853,12 @@ static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+>  	return false;
+>  }
+>  
+> -static inline bool
+> -memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
+> -{
+> -	return true;
+> -}
+> -
+> -static inline void memcg_kmem_uncharge_pages(struct page *page, int order)
+> +static inline int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+>  {
+> +	return 0;
+>  }
+>  
+> -static inline void
+> -memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
+> +static inline void memcg_kmem_uncharge(struct page *page, int order)
+>  {
+>  }
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 44706a17cddc..7c0af36fc8d0 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2404,57 +2404,26 @@ void __memcg_kmem_put_cache(struct kmem_cache *cachep)
+>  		css_put(&cachep->memcg_params.memcg->css);
+>  }
+>  
+> -/*
+> - * We need to verify if the allocation against current->mm->owner's memcg is
+> - * possible for the given order. But the page is not allocated yet, so we'll
+> - * need a further commit step to do the final arrangements.
+> - *
+> - * It is possible for the task to switch cgroups in this mean time, so at
+> - * commit time, we can't rely on task conversion any longer.  We'll then use
+> - * the handle argument to return to the caller which cgroup we should commit
+> - * against. We could also return the memcg directly and avoid the pointer
+> - * passing, but a boolean return value gives better semantics considering
+> - * the compiled-out case as well.
+> - *
+> - * Returning true means the allocation is possible.
+> - */
+> -bool
+> -__memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
+> +int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+>  {
+>  	struct mem_cgroup *memcg;
+>  	int ret;
+>  
+> -	*_memcg = NULL;
+> -
+>  	memcg = get_mem_cgroup_from_mm(current->mm);
+>  
+>  	if (!memcg_kmem_is_active(memcg)) {
+>  		css_put(&memcg->css);
+> -		return true;
+> +		return 0;
+>  	}
+>  
+>  	ret = memcg_charge_kmem(memcg, gfp, 1 << order);
+> -	if (!ret)
+> -		*_memcg = memcg;
+>  
+>  	css_put(&memcg->css);
+> -	return (ret == 0);
+> -}
+> -
+> -void __memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg,
+> -			      int order)
+> -{
+> -	VM_BUG_ON(mem_cgroup_is_root(memcg));
+> -
+> -	/* The page allocation failed. Revert */
+> -	if (!page) {
+> -		memcg_uncharge_kmem(memcg, 1 << order);
+> -		return;
+> -	}
+>  	page->mem_cgroup = memcg;
+> +	return ret;
+>  }
+>  
+> -void __memcg_kmem_uncharge_pages(struct page *page, int order)
+> +void __memcg_kmem_uncharge(struct page *page, int order)
+>  {
+>  	struct mem_cgroup *memcg = page->mem_cgroup;
+>  
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index e19132074404..91d1a1923eb8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3414,24 +3414,24 @@ EXPORT_SYMBOL(__free_page_frag);
+>  struct page *alloc_kmem_pages(gfp_t gfp_mask, unsigned int order)
+>  {
+>  	struct page *page;
+> -	struct mem_cgroup *memcg = NULL;
+>  
+> -	if (!memcg_kmem_newpage_charge(gfp_mask, &memcg, order))
+> -		return NULL;
+>  	page = alloc_pages(gfp_mask, order);
+> -	memcg_kmem_commit_charge(page, memcg, order);
+> +	if (page && memcg_kmem_charge(page, gfp_mask, order) != 0) {
+> +		__free_pages(page, order);
+> +		page = NULL;
+> +	}
+>  	return page;
+>  }
+>  
+>  struct page *alloc_kmem_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
+>  {
+>  	struct page *page;
+> -	struct mem_cgroup *memcg = NULL;
+>  
+> -	if (!memcg_kmem_newpage_charge(gfp_mask, &memcg, order))
+> -		return NULL;
+>  	page = alloc_pages_node(nid, gfp_mask, order);
+> -	memcg_kmem_commit_charge(page, memcg, order);
+> +	if (page && memcg_kmem_charge(page, gfp_mask, order) != 0) {
+> +		__free_pages(page, order);
+> +		page = NULL;
+> +	}
+>  	return page;
+>  }
+>  
+> @@ -3441,7 +3441,7 @@ struct page *alloc_kmem_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
+>   */
+>  void __free_kmem_pages(struct page *page, unsigned int order)
+>  {
+> -	memcg_kmem_uncharge_pages(page, order);
+> +	memcg_kmem_uncharge(page, order);
+>  	__free_pages(page, order);
+>  }
+>  
+> -- 
+> 2.1.4
+
 -- 
 Michal Hocko
 SUSE Labs
