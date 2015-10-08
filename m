@@ -1,70 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CCEA6B0038
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 08:09:30 -0400 (EDT)
-Received: by igbkq10 with SMTP id kq10so13136361igb.0
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 05:09:29 -0700 (PDT)
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com. [209.85.213.173])
-        by mx.google.com with ESMTPS id qq6si6486934igb.69.2015.10.08.05.09.28
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C19076B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 09:23:48 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so25011761wic.0
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 06:23:48 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ht8si3828189wib.54.2015.10.08.06.23.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Oct 2015 05:09:29 -0700 (PDT)
-Received: by igbkq10 with SMTP id kq10so11059532igb.0
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 05:09:26 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 08 Oct 2015 06:23:47 -0700 (PDT)
+Date: Thu, 8 Oct 2015 06:23:31 -0700
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: [PATCH -next] mm/vmacache: inline vmacache_valid_mm()
+Message-ID: <20151008132331.GC3353@linux-uzut.site>
+References: <1444277879-22039-1-git-send-email-dave@stgolabs.net>
+ <20151008062115.GA876@swordfish>
 MIME-Version: 1.0
-In-Reply-To: <56165228.8060201@gmail.com>
-References: <1442482692-6416-1-git-send-email-ryabinin.a.a@gmail.com>
-	<20151007100411.GG3069@e104818-lin.cambridge.arm.com>
-	<CAPAsAGxR-yqtmFeo65Xw_0RQyEy=mN1uG=GKtqoMLr_x_N0u5w@mail.gmail.com>
-	<20151008111144.GC7275@leverpostej>
-	<56165228.8060201@gmail.com>
-Date: Thu, 8 Oct 2015 14:09:26 +0200
-Message-ID: <CAKv+Gu_v7J1BA+xFcowBrW05bRFs=_WFf_HCeCmWgdZVRo0eQw@mail.gmail.com>
-Subject: Re: [PATCH v6 0/6] KASAN for arm64
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20151008062115.GA876@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Yury <yury.norov@gmail.com>, Alexey Klimov <klimov.linux@gmail.com>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Konovalov <andreyknvl@google.com>, Linus Walleij <linus.walleij@linaro.org>, LKML <linux-kernel@vger.kernel.org>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Mark Salter <msalter@redhat.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On 8 October 2015 at 13:23, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
-> On 10/08/2015 02:11 PM, Mark Rutland wrote:
->> On Thu, Oct 08, 2015 at 01:36:09PM +0300, Andrey Ryabinin wrote:
->>> 2015-10-07 13:04 GMT+03:00 Catalin Marinas <catalin.marinas@arm.com>:
->>>> On Thu, Sep 17, 2015 at 12:38:06PM +0300, Andrey Ryabinin wrote:
->>>>> As usual patches available in git
->>>>>       git://github.com/aryabinin/linux.git kasan/arm64v6
->>>>>
->>>>> Changes since v5:
->>>>>  - Rebase on top of 4.3-rc1
->>>>>  - Fixed EFI boot.
->>>>>  - Updated Doc/features/KASAN.
->>>>
->>>> I tried to merge these patches (apart from the x86 one which is already
->>>> merged) but it still doesn't boot on Juno as an EFI application.
->>>>
->>>
->>> 4.3-rc1 was ok and 4.3-rc4 is not. Break caused by 0ce3cc008ec04
->>> ("arm64/efi: Fix boot crash by not padding between EFI_MEMORY_RUNTIME
->>> regions")
->>> It introduced sort() call in efi_get_virtmap().
->>> sort() is generic kernel function and it's instrumented, so we crash
->>> when KASAN tries to access shadow in sort().
->>
->> I believe this is solved by Ard's stub isolation series [1,2], which
->> will build a stub-specific copy of sort() and various other functions
->> (see the arm-deps in [2]).
->>
->> So long as the stub is not built with ASAN, that should work.
->
-> Thanks, this should help, as we already build the stub without ASAN instrumentation.
->
+On Thu, 08 Oct 2015, Sergey Senozhatsky wrote:
 
-Indeed. I did not mention instrumentation in the commit log for those
-patches, but obviously, something like KASAN instrumentation cannot be
-tolerated in the stub since it makes assumptions about the memory
-layout
+>After moving vmacache_update() and vmacache_valid_mm() to include/linux/vmacache.h
+>(both `static inline')
+>
+>
+>./scripts/bloat-o-meter vmlinux.o.old vmlinux.o
+>add/remove: 0/1 grow/shrink: 1/0 up/down: 22/-54 (-32)
+>function                                     old     new   delta
+>find_vma                                      97     119     +22
+>vmacache_update                               54       -     -54
+>
+>
+>Something like this, perhaps?
+
+iirc we actually had something like this in its original form, and akpm was forced
+to move things around for all users to be happy and not break the build. But yeah,
+that vmacache_update() could certainly be inlined if we can have it so. It's no
+where near as hot a path as the mm validity check (we have a good hit rate), but still
+seems reasonable.
+
+>
+>---
+>
+> include/linux/vmacache.h | 21 ++++++++++++++++++++-
+> mm/vmacache.c            | 20 --------------------
+> 2 files changed, 20 insertions(+), 21 deletions(-)
+>
+>diff --git a/include/linux/vmacache.h b/include/linux/vmacache.h
+>index c3fa0fd4..0ec750b 100644
+>--- a/include/linux/vmacache.h
+>+++ b/include/linux/vmacache.h
+>@@ -15,8 +15,27 @@ static inline void vmacache_flush(struct task_struct *tsk)
+> 	memset(tsk->vmacache, 0, sizeof(tsk->vmacache));
+> }
+>
+>+/*
+>+ * This task may be accessing a foreign mm via (for example)
+>+ * get_user_pages()->find_vma().  The vmacache is task-local and this
+>+ * task's vmacache pertains to a different mm (ie, its own).  There is
+>+ * nothing we can do here.
+>+ *
+>+ * Also handle the case where a kernel thread has adopted this mm via use_mm().
+>+ * That kernel thread's vmacache is not applicable to this mm.
+>+ */
+>+static bool vmacache_valid_mm(struct mm_struct *mm)
+
+This needs (explicit) inlined, no?
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
