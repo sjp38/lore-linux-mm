@@ -1,147 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FD976B0038
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 02:20:27 -0400 (EDT)
-Received: by pabve7 with SMTP id ve7so4015943pab.2
-        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 23:20:26 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id iu1si63901226pbb.24.2015.10.07.23.20.26
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id DA9E26B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 02:36:04 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so45289260pad.1
+        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 23:36:04 -0700 (PDT)
+Received: from xiaomi.com (outboundhk.mxmail.xiaomi.com. [207.226.244.122])
+        by mx.google.com with ESMTPS id fe1si63916482pab.169.2015.10.07.23.36.04
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Oct 2015 23:20:26 -0700 (PDT)
-Received: by padhy16 with SMTP id hy16so44867065pad.1
-        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 23:20:26 -0700 (PDT)
-Date: Thu, 8 Oct 2015 15:21:15 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH -next] mm/vmacache: inline vmacache_valid_mm()
-Message-ID: <20151008062115.GA876@swordfish>
-References: <1444277879-22039-1-git-send-email-dave@stgolabs.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 07 Oct 2015 23:36:04 -0700 (PDT)
+From: Hui Zhu <zhuhui@xiaomi.com>
+Subject: [RFC 0/3] zsmalloc: make its pages movable
+Date: Thu, 8 Oct 2015 14:35:49 +0800
+Message-ID: <1444286152-30175-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1444277879-22039-1-git-send-email-dave@stgolabs.net>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey
+ Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Dave Hansen <dave.hansen@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal
+ Hocko <mhocko@suse.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jennifer Herbert <jennifer.herbert@citrix.com>, Hugh Dickins <hughd@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Vlastimil
+ Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, "Steven Rostedt (Red Hat)" <rostedt@goodmis.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <wanpeng.li@hotmail.com>, Geert Uytterhoeven <geert+renesas@glider.be>, Greg
+ Thelen <gthelen@google.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
 
-On (10/07/15 21:17), Davidlohr Bueso wrote:
-> This function incurs in very hot paths and merely
-> does a few loads for validity check. Lets inline it,
-> such that we can save the function call overhead.
-> 
-> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
-> ---
->  mm/vmacache.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/vmacache.c b/mm/vmacache.c
-> index b6e3662..fd09dc9 100644
-> --- a/mm/vmacache.c
-> +++ b/mm/vmacache.c
-> @@ -52,7 +52,7 @@ void vmacache_flush_all(struct mm_struct *mm)
->   * Also handle the case where a kernel thread has adopted this mm via use_mm().
->   * That kernel thread's vmacache is not applicable to this mm.
->   */
-> -static bool vmacache_valid_mm(struct mm_struct *mm)
-> +static inline bool vmacache_valid_mm(struct mm_struct *mm)
->  {
->  	return current->mm == mm && !(current->flags & PF_KTHREAD);
->  }
+As the discussion in the list, the zsmalloc introduce some problems
+around pages because its pages are unmovable.
 
-Seems to be inlined anyway. do you want to inline vmacache_update()?
-It looks simple enough (vmacache_valid_mm() is inlined):
+These patches introduced page move function to zsmalloc.  And they also
+add interface to struct page.
 
-void vmacache_update(unsigned long addr, struct vm_area_struct *newvma)
-{
-	if (vmacache_valid_mm(newvma->vm_mm))
-		current->vmacache[VMACACHE_HASH(addr)] = newvma;
-}
-
-
-After moving vmacache_update() and vmacache_valid_mm() to include/linux/vmacache.h
-(both `static inline')
-
-
-./scripts/bloat-o-meter vmlinux.o.old vmlinux.o
-add/remove: 0/1 grow/shrink: 1/0 up/down: 22/-54 (-32)
-function                                     old     new   delta
-find_vma                                      97     119     +22
-vmacache_update                               54       -     -54
-
-
-Something like this, perhaps?
-
----
-
- include/linux/vmacache.h | 21 ++++++++++++++++++++-
- mm/vmacache.c            | 20 --------------------
- 2 files changed, 20 insertions(+), 21 deletions(-)
-
-diff --git a/include/linux/vmacache.h b/include/linux/vmacache.h
-index c3fa0fd4..0ec750b 100644
---- a/include/linux/vmacache.h
-+++ b/include/linux/vmacache.h
-@@ -15,8 +15,27 @@ static inline void vmacache_flush(struct task_struct *tsk)
- 	memset(tsk->vmacache, 0, sizeof(tsk->vmacache));
- }
- 
-+/*
-+ * This task may be accessing a foreign mm via (for example)
-+ * get_user_pages()->find_vma().  The vmacache is task-local and this
-+ * task's vmacache pertains to a different mm (ie, its own).  There is
-+ * nothing we can do here.
-+ *
-+ * Also handle the case where a kernel thread has adopted this mm via use_mm().
-+ * That kernel thread's vmacache is not applicable to this mm.
-+ */
-+static bool vmacache_valid_mm(struct mm_struct *mm)
-+{
-+	return current->mm == mm && !(current->flags & PF_KTHREAD);
-+}
-+
-+static inline void vmacache_update(unsigned long addr, struct vm_area_struct *newvma)
-+{
-+	if (vmacache_valid_mm(newvma->vm_mm))
-+		current->vmacache[VMACACHE_HASH(addr)] = newvma;
-+}
-+
- extern void vmacache_flush_all(struct mm_struct *mm);
--extern void vmacache_update(unsigned long addr, struct vm_area_struct *newvma);
- extern struct vm_area_struct *vmacache_find(struct mm_struct *mm,
- 						    unsigned long addr);
- 
-diff --git a/mm/vmacache.c b/mm/vmacache.c
-index b6e3662..14fec21 100644
---- a/mm/vmacache.c
-+++ b/mm/vmacache.c
-@@ -43,26 +43,6 @@ void vmacache_flush_all(struct mm_struct *mm)
- 	rcu_read_unlock();
- }
- 
--/*
-- * This task may be accessing a foreign mm via (for example)
-- * get_user_pages()->find_vma().  The vmacache is task-local and this
-- * task's vmacache pertains to a different mm (ie, its own).  There is
-- * nothing we can do here.
-- *
-- * Also handle the case where a kernel thread has adopted this mm via use_mm().
-- * That kernel thread's vmacache is not applicable to this mm.
-- */
--static bool vmacache_valid_mm(struct mm_struct *mm)
--{
--	return current->mm == mm && !(current->flags & PF_KTHREAD);
--}
--
--void vmacache_update(unsigned long addr, struct vm_area_struct *newvma)
--{
--	if (vmacache_valid_mm(newvma->vm_mm))
--		current->vmacache[VMACACHE_HASH(addr)] = newvma;
--}
--
- static bool vmacache_valid(struct mm_struct *mm)
- {
- 	struct task_struct *curr;
+Hui Zhu (3):
+page: add new flags "PG_movable" and add interfaces to control these pages
+zsmalloc: mark its page "PG_movable"
+zram: make create "__GFP_MOVABLE" pool
+ drivers/block/zram/zram_drv.c |    4 
+ include/linux/mm_types.h      |   11 +
+ include/linux/page-flags.h    |    3 
+ mm/compaction.c               |    6 
+ mm/debug.c                    |    1 
+ mm/migrate.c                  |   17 +
+ mm/vmscan.c                   |    2 
+ mm/zsmalloc.c                 |  409 ++++++++++++++++++++++++++++++++++++++++--
+ 8 files changed, 428 insertions(+), 25 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
