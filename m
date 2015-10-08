@@ -1,74 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D987B6B0038
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 11:33:59 -0400 (EDT)
-Received: by igbkq10 with SMTP id kq10so15548718igb.0
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 08:33:59 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id g8si7314548igh.103.2015.10.08.08.33.57
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B3206B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 12:01:33 -0400 (EDT)
+Received: by igcpb10 with SMTP id pb10so18259969igc.1
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 09:01:33 -0700 (PDT)
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com. [209.85.213.182])
+        by mx.google.com with ESMTPS id c24si32450587ioj.38.2015.10.08.09.01.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 08 Oct 2015 08:33:58 -0700 (PDT)
-Subject: Re: Can't we use timeout based OOM warning/killing?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201509260114.ADI35946.OtHOVFOMJQFLFS@I-love.SAKURA.ne.jp>
-	<201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
-	<20151002123639.GA13914@dhcp22.suse.cz>
-	<201510031502.BJD59536.HFJMtQOOLFFVSO@I-love.SAKURA.ne.jp>
-	<CA+55aFy5QBd-T2WXr5s4oAxcC1UoSjkFnd8v5f26LYzrtyFqAg@mail.gmail.com>
-In-Reply-To: <CA+55aFy5QBd-T2WXr5s4oAxcC1UoSjkFnd8v5f26LYzrtyFqAg@mail.gmail.com>
-Message-Id: <201510090033.AGG81243.FJOHOLOSQMVtFF@I-love.SAKURA.ne.jp>
-Date: Fri, 9 Oct 2015 00:33:44 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Oct 2015 09:01:32 -0700 (PDT)
+Received: by igxx6 with SMTP id x6so16021456igx.1
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 09:01:32 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20151008151144.GM17192@e104818-lin.cambridge.arm.com>
+References: <1442482692-6416-1-git-send-email-ryabinin.a.a@gmail.com>
+	<20151007100411.GG3069@e104818-lin.cambridge.arm.com>
+	<CAPAsAGxR-yqtmFeo65Xw_0RQyEy=mN1uG=GKtqoMLr_x_N0u5w@mail.gmail.com>
+	<20151008111144.GC7275@leverpostej>
+	<56165228.8060201@gmail.com>
+	<CAKv+Gu_v7J1BA+xFcowBrW05bRFs=_WFf_HCeCmWgdZVRo0eQw@mail.gmail.com>
+	<20151008151144.GM17192@e104818-lin.cambridge.arm.com>
+Date: Thu, 8 Oct 2015 18:01:32 +0200
+Message-ID: <CAKv+Gu-qn-1SLy6HopaVb1h2Lfp0pXC4sAm0yQum18tsEFw81w@mail.gmail.com>
+Subject: Re: [PATCH v6 0/6] KASAN for arm64
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: cl@linux.com, linux-kernel@vger.kernel.org, mhocko@kernel.org, kwalker@redhat.com, oleg@redhat.com, vdavydov@parallels.com, skozina@redhat.com, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org
+To: Catalin Marinas <catalin.marinas@arm.com>, Matt Fleming <matt.fleming@intel.com>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Mark Rutland <mark.rutland@arm.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Yury <yury.norov@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Walleij <linus.walleij@linaro.org>, Mark Salter <msalter@redhat.com>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, Alexey Klimov <klimov.linux@gmail.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, David Keitel <dkeitel@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-Linus Torvalds wrote:
-> Because another thing that tends to affect this is that oom without swap is
-> very different from oom with lots of swap, so different people will see
-> very different issues. If you have some particular case you want to check,
-> and could make a VM image for it, maybe that would get more mm people
-> looking at it and agreeing about the issues.
+(+ Matt)
 
-I was working at support center for troubleshooting RHEL systems. I saw
-many trouble cases where customer's servers hung up / rebooted unexpectedly.
-In most cases, their servers hung up without OOM killer messages. (I saw
-few cases where OOM killer messages are discovered by analyzing vmcore.)
+On 8 October 2015 at 17:11, Catalin Marinas <catalin.marinas@arm.com> wrote:
+> On Thu, Oct 08, 2015 at 02:09:26PM +0200, Ard Biesheuvel wrote:
+>> On 8 October 2015 at 13:23, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+>> > On 10/08/2015 02:11 PM, Mark Rutland wrote:
+>> >> On Thu, Oct 08, 2015 at 01:36:09PM +0300, Andrey Ryabinin wrote:
+>> >>> 2015-10-07 13:04 GMT+03:00 Catalin Marinas <catalin.marinas@arm.com>:
+>> >>>> On Thu, Sep 17, 2015 at 12:38:06PM +0300, Andrey Ryabinin wrote:
+>> >>>>> As usual patches available in git
+>> >>>>>       git://github.com/aryabinin/linux.git kasan/arm64v6
+>> >>>>>
+>> >>>>> Changes since v5:
+>> >>>>>  - Rebase on top of 4.3-rc1
+>> >>>>>  - Fixed EFI boot.
+>> >>>>>  - Updated Doc/features/KASAN.
+>> >>>>
+>> >>>> I tried to merge these patches (apart from the x86 one which is already
+>> >>>> merged) but it still doesn't boot on Juno as an EFI application.
+>> >>>>
+>> >>>
+>> >>> 4.3-rc1 was ok and 4.3-rc4 is not. Break caused by 0ce3cc008ec04
+>> >>> ("arm64/efi: Fix boot crash by not padding between EFI_MEMORY_RUNTIME
+>> >>> regions")
+>> >>> It introduced sort() call in efi_get_virtmap().
+>> >>> sort() is generic kernel function and it's instrumented, so we crash
+>> >>> when KASAN tries to access shadow in sort().
+>> >>
+>> >> I believe this is solved by Ard's stub isolation series [1,2], which
+>> >> will build a stub-specific copy of sort() and various other functions
+>> >> (see the arm-deps in [2]).
+>> >>
+>> >> So long as the stub is not built with ASAN, that should work.
+>> >
+>> > Thanks, this should help, as we already build the stub without ASAN instrumentation.
+>>
+>> Indeed. I did not mention instrumentation in the commit log for those
+>> patches, but obviously, something like KASAN instrumentation cannot be
+>> tolerated in the stub since it makes assumptions about the memory
+>> layout
+>
+> I'll review your latest EFI stub isolation patches and try Kasan again
+> on top (most likely tomorrow).
+>
 
-No messages are recorded to log files such as /var/log/messages and
-/var/log/sa/ when their servers hung up. According to /var/log/sa/ ,
-there was little free memory just before their servers hung up.
-I suspected that something memory related problem happened and suggested
-customers to install serial console or netconsole in case the kernel was
-printing some messages, but I don't know whether they were able to install
-serial console or netconsole into their production systems.
+OK.
 
-The origin of this OOM livelock discussion was a local OOM-DoS vulnerability
-which exists since Linux 2.0. When I tested this vulnerability on RHEL 7,
-I saw strange stalls on XFS. The discussion went to public by developing
-a reproducer which does not make use of the vulnerability. We recognized
-the "too small to fail" memory-allocation rule. I tested various corner
-cases using variants of the reproducer. I realized that we have race window
-where the memory allocation can fall into infinite loop without OOM killer
-messages.
+If you (and Matt) are ok with those, I'd like to spin a new version
+that only adds strcmp(). We need that in a separate series that only
+touches libstub, so with strcmp() added, we are completely independent
+in terms of merging order.
 
-I made a hypothesis that customer's servers hit a race where __GFP_FS
-allocations are blocked at too_many_isolated() or unkillable locks in
-direct reclaim paths whereas !__GFP_FS allocations are retrying forever
-without calling out_of_memory(). But even if they install serial console
-or netconsole, we are currently emitting no warning messages. The timeout
-based OOM warning corresponds to check_memalloc_delay() in
-http://marc.info/?l=linux-kernel&m=143239201905479 . The timeout based
-OOM warning is not only for stalls after an OOM victim was chosen but also
-for stalls before an OOM victim is chosen.
-
-Whether we should call out_of_memory() upon timeout might depend on
-hardware / ram / swap / workload etc. But I think that whether we can
-have a mechanism for warning about possible OOM livelock is independent.
-Thus, I think that making a VM image is not helpful.
+Thanks,
+Ard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
