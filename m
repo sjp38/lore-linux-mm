@@ -1,253 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1494B6B0038
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 01:09:38 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so42948154pab.3
-        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 22:09:37 -0700 (PDT)
-Received: from DNVWSMAILOUT1.mcafee.com (dnvwsmailout1.mcafee.com. [161.69.31.173])
-        by mx.google.com with ESMTPS id we9si63393668pac.164.2015.10.07.22.09.34
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id E7E226B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 01:30:05 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so8935010wic.1
+        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 22:30:05 -0700 (PDT)
+Received: from mail2.protonmail.ch (mail2.protonmail.ch. [185.70.40.22])
+        by mx.google.com with ESMTPS id yn9si50757618wjc.128.2015.10.07.22.30.04
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Oct 2015 22:09:36 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Oct 2015 22:30:04 -0700 (PDT)
+Subject: Re: ========== Re: RAM encryption and key storing in CPU ==========
+Date: Thu, 8 Oct 2015 01:30:03 -0400
+From: ngabor <ngabor@protonmail.ch>
+Reply-To: ngabor <ngabor@protonmail.ch>
+Message-ID: <uywjiEnwKZXpN_45W7m7NCUzBWvntcu6YsAFaAgM2kJLHBFbArd1Z3pDt1Hxpx6XUgp8iI36V9_v53lGBNBT1A==@protonmail.ch>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 8 Oct 2015 05:08:57 +0000
-From: MB McAfee SR Update <support_reply@McAfee.com>
-Reply-To: MB McAfee SR Update <support_reply@McAfee.com>
-Subject: RE: SR # <4-10997886031> Performance issues
-Message-ID: <066cdc53-b4d4-40bb-8192-6446181b6e7a@DNVEXAPP1N04.corpzone.internalzone.com>
+Content-Type: multipart/alternative;
+	boundary="b1_98c0d73f61f6fc956081ddeb8f060a65"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-
-Hello Oleksandr,
-
-I hope you are doing well.
-
-I have a short update from development. Due to some research we have found the following:
-
-Oct  2 10:28:16 ua-is-proxy-1 kernel: [141521.487780] TX Too many directors in too short a time delaying
-Oct  2 10:28:16 ua-is-proxy-1 kernel: [141521.487781]  172.29.50.103
-Oct  2 10:28:17 ua-is-proxy-1 kernel: [141522.486814] TX Too many directors in too short a time delaying
-Oct  2 10:28:17 ua-is-proxy-1 kernel: [141522.486816]  172.29.50.103
-
-Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
-Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Received higher prio advert
-Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE
-Oct  2 10:57:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
-Oct  2 10:57:27 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Received higher prio advert
-Oct  2 10:57:27 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE
-Oct  2 10:58:31 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
-Oct  2 10:58:32 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering MASTER STATE
-Oct  2 10:58:33 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Received higher prio advert
-Oct  2 10:58:33 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE
-Oct  2 10:58:42 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
-....
-
-
-There is still instability in the network. In case scanning nodes fails all IPs that still have traffic will
-create sticky table entries on the director, which will only go away if there is no traffic for some time. That probably explains why the director got more traffic.
-
-So next thing would be to solve the network issue.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
------------------
-From: MFE Support Outbound Profile
-Sent: 10/06/2015 08:11:45
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-The 3rd node is currently the director node and will have more connections because it receives all incoming connections:
-
-https://community.mcafee.com/docs/DOC-4819
-
-The load has reduced, but is still too high:
-
-Load on machine when feedback was done:load average: 25.65, 27.69, 26.05; number of threads running or waiting per core: 4.27, 4.62, 4.34
-
-
-I will update development with the new data and let you know.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: MFE Support Outbound Profile
-Sent: 10/02/2015 07:35:51
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-I hope you are doing well.
-
-Do you see any change in the load after raising the CPUs and the memory? 
-
-When you have an opportunity could you let me know if you have any updates on progress of your outstanding service request? If you need any assistance please don't hesitate to contact me. 
-
-
-With kind regards,
-
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: MFE Support Outbound Profile
-Sent: 09/30/2015 12:19:54
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-The node became unresponsive due to a system load of more than 50 and then it raises more and more until all queues are filled up. Please stop the machines and raise the memory and add addtional vCPUs and cores. This most limiting factor are the CPUs at the moment. 
-
-
-With kind regards,
-
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
-
-
------------------
-From: MFE Support Outbound Profile
-Sent: 09/30/2015 09:05:39
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-This is VMware. There are rcu stalls in the logs, which indicates that the VMs don't get enough CPU time assigned, the host might be overloaded or CPUs are overcommited. There are also network transmit timeouts in the logs, indicating the same.
-
-The minimum memory for VMware is 16GB, please see the installation guide. The VMs only have 8GB assigned. Since there are load issues, I'd also suggest to assign more then the minimum CPU.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
------------------
-From: MFE Support Outbound Profile
-Sent: 09/28/2015 07:30:17
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: SR # <4-10997886031>  Performance issues
-
-Hello Oleksandr,
-
-Thank you for contacting Intel Security technical support.
-
-I have escalated this SR together with the provided data to our development team. I could not figure out why the directory node (node 3) was so overloaded.
-
-I will keep you updated on their findings.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "bp@alien8.de" <bp@alien8.de>, "lizefan@huawei.com" <lizefan@huawei.com>, "tj@kernel.org" <tj@kernel.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>
+
+This is a multi-part message in MIME format.
+
+--b1_98c0d73f61f6fc956081ddeb8f060a65
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+UGxlYXNlIHJlcGx5PwoKCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KU3ViamVj
+dDogUmU6ID09PT09PT09PT0gUmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBD
+UFUgPT09PT09PT09PQpUaW1lIChVVEMpOiBTZXB0ZW1iZXIgMyAyMDE1IDI6MjkgcG0KRnJvbTog
+bmdhYm9yQHByb3Rvbm1haWwuY2gKVG86IGxpbnV4LW1tQGt2YWNrLm9yZyxicEBhbGllbjguZGUs
+bGl6ZWZhbkBodWF3ZWkuY29tLHRqQGtlcm5lbC5vcmcsY2xAbGludXgtZm91bmRhdGlvbi5vcmcK
+CklzIGFueWJvZHkgaGVyZT8gOikKCgotLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0t
+ClN1YmplY3Q6IFJlOiA9PT09PT09PT09IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3Jp
+bmcgaW4gQ1BVID09PT09PT09PT0KVGltZSAoVVRDKTogQXVndXN0IDQgMjAxNSA3OjQyIGFtCkZy
+b206IG5nYWJvckBwcm90b25tYWlsLmNoClRvOiBsaW51eC1tbUBrdmFjay5vcmcsYnBAYWxpZW44
+LmRlLGxpemVmYW5AaHVhd2VpLmNvbSx0akBrZXJuZWwub3JnLGNsQGxpbnV4LWZvdW5kYXRpb24u
+b3JnCgpIYWxsbz8KCi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2UgLS0tLS0tLS0KU3ViamVjdDog
+PT09PT09PT09PSBSZTogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5nIGluIENQVSA9PT09
+PT09PT09ClRpbWUgKEdNVCk6IEp1biAyMyAyMDE1IDA0OjQyOjM0CkZyb206IG5nYWJvckBwcm90
+b25tYWlsLmNoClRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBo
+dWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZwoKSXMgYW55
+Ym9keSByZWFkaW5nIHRoaXM/CgotLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tClN1
+YmplY3Q6IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVClRpbWUgKEdN
+VCk6IEp1biAxOSAyMDE1IDE3OjIyOjQ5CkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoClRvOiBs
+aW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBr
+ZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZwoKSGFsbG8/IDopCgotLS0tLS0tLSBP
+cmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tClN1YmplY3Q6IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQg
+a2V5IHN0b3JpbmcgaW4gQ1BVClRpbWUgKEdNVCk6IE1heSAyMyAyMDE1IDA5OjAxOjI2CkZyb206
+IG5nYWJvckBwcm90b25tYWlsLmNoClRvOiBsaW51eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5k
+ZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJuZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9u
+Lm9yZwoKQW55IGNvbW1lbnRzPwoKLS0tLS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLS0tLQpT
+dWJqZWN0OiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVClRpbWUgKEdNVCk6
+IE1heSAyMSAyMDE1IDEwOjE3OjI1CkZyb206IG5nYWJvckBwcm90b25tYWlsLmNoClRvOiBsaW51
+eC1tbUBrdmFjay5vcmcsIGJwQGFsaWVuOC5kZSwgbGl6ZWZhbkBodWF3ZWkuY29tLCB0akBrZXJu
+ZWwub3JnLCBjbEBsaW51eC1mb3VuZGF0aW9uLm9yZwoKSGVsbG8sCgo9PT09PT09PT09ClByb2Js
+ZW06CgpFdmVyeXRoaW5nIGlzIHN0b3JlZCBpbiBwbGFpbnRleHQgaW4gdGhlIE1lbW9yeS4KClNv
+IGlmIGFsdGhvdWdoIGZ1bGwgZGlzYyBlbmNyeXB0aW9uIGlzIHVzZWQgb24gYSBMaW51eCBEZXNr
+dG9wLCBpdCBpcyBwb3NzaWJsZSB0byBjb3B5IHRoZSBjb250ZW50IG9mIHRoZSBtZW1vcnksIHdo
+aWxlIHRoZSBub3RlYm9vayB3YXMgb24gc3VzcGVuZCBvciBpdCB3YXMgcnVubmluZzoKCmh0dHBz
+Oi8vY2l0cC5wcmluY2V0b24uZWR1L3Jlc2VhcmNoL21lbW9yeS9tZWRpYS8KCj09PT09PT09PT0K
+U29sdXRpb246CgpDYW4gd2UgKG9wdGlvbmFsbHkqKSBlbmNyeXB0IHRoZSBjb250ZW50IG9mIHRo
+ZSBtZW1vcnkgYW5kIHN0b3JlIHRoZSBrZXkgZm9yIGRlY3J5cHRpb24gaW4gdGhlIENQVSB0byBh
+dm9pZCBpbiBnZW5lcmFsIHRoZXNlIGtpbmQgb2YgYXR0YWNrcz8KCmh0dHBzOi8vd3d3MS5pbmZv
+cm1hdGlrLnVuaS1lcmxhbmdlbi5kZS90cmVzb3IKCklzIHRoaXMgc29sdXRpb24gYWxyZWFkeSBp
+biB0aGUgTGludXgga2VybmVsPyBJZiB5ZXMsIGhvdyBjYW4gYSBMaW51eCBlbmR1c2VyIHR1cm4g
+aXQgb24/IElmIG5vLCBob3cgY2FuIHdlIGdldCB0aGUgY29kZS9pZGVhIGluIHRoZSBtYWlubGlu
+ZT8gV2hhdCBhcmUgdGhlIGFyZ3VtZW50cyBhZ2FpbnN0IGl0PwoKKmlmIHNvbWVvbmUgd291bGQg
+d2FudCB0byBoYXJkZW4gaXQncyBMaW51eCBEZXNrdG9wIChzaW5jZSBub3RlYm9va3MgY291bGQg
+YmUgc3RvbGVuLi4pIGl0IGNvdWxkIHR1cm4gb24gdGhpcyBmZWF0dXJlIHRvIGF2b2lkIGEgcG9s
+aWN5IHRvIGFsd2F5cyB0dXJuIG9mZiB0aGUgbm90ZWJvb2sgd2hpbGUgbm90IHVzaW5nIGl0LgoK
+VGhhbmsgeW91IGZvciB5b3VyIGNvbW1lbnRzLg==
+
+
+--b1_98c0d73f61f6fc956081ddeb8f060a65
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+PGRpdj5QbGVhc2UgcmVwbHk/IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48YmxvY2txdW90ZSBj
+bGFzcz0icHJvdG9ubWFpbF9xdW90ZSI+PGRpdj4tLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0t
+LS0tLS0tPGJyPjwvZGl2PjxkaXY+U3ViamVjdDogUmU6ID09PT09PT09PT0gUmU6IFJBTSBlbmNy
+eXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFUgPT09PT09PT09PTxicj48L2Rpdj48ZGl2PlRp
+bWUgKFVUQyk6IFNlcHRlbWJlciAzIDIwMTUgMjoyOSBwbTxicj48L2Rpdj48ZGl2PkZyb206IG5n
+YWJvckBwcm90b25tYWlsLmNoPGJyPjwvZGl2PjxkaXY+VG86IGxpbnV4LW1tQGt2YWNrLm9yZyxi
+cEBhbGllbjguZGUsbGl6ZWZhbkBodWF3ZWkuY29tLHRqQGtlcm5lbC5vcmcsY2xAbGludXgtZm91
+bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5JcyBhbnlib2R5IGhlcmU/
+IDopPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxibG9ja3F1b3RlPjxkaXY+LS0tLS0tLS0gT3Jp
+Z2luYWwgTWVzc2FnZSAtLS0tLS0tLTxicj48L2Rpdj48ZGl2PlN1YmplY3Q6IFJlOiA9PT09PT09
+PT09IFJlOiBSQU0gZW5jcnlwdGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVID09PT09PT09PT08
+YnI+PC9kaXY+PGRpdj5UaW1lIChVVEMpOiBBdWd1c3QgNCAyMDE1IDc6NDIgYW08YnI+PC9kaXY+
+PGRpdj5Gcm9tOiBuZ2Fib3JAcHJvdG9ubWFpbC5jaDxicj48L2Rpdj48ZGl2PlRvOiBsaW51eC1t
+bUBrdmFjay5vcmcsYnBAYWxpZW44LmRlLGxpemVmYW5AaHVhd2VpLmNvbSx0akBrZXJuZWwub3Jn
+LGNsQGxpbnV4LWZvdW5kYXRpb24ub3JnPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SGFs
+bG8/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3NhZ2Ug
+LS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiA9PT09PT09PT09IFJlOiBSQU0gZW5jcnlw
+dGlvbiBhbmQga2V5IHN0b3JpbmcgaW4gQ1BVID09PT09PT09PT08YnI+PC9kaXY+PGRpdj5UaW1l
+IChHTVQpOiBKdW4gMjMgMjAxNSAwNDo0MjozNDxicj48L2Rpdj48ZGl2PkZyb206IG5nYWJvckBw
+cm90b25tYWlsLmNoPGJyPjwvZGl2PjxkaXY+VG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBAYWxp
+ZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZvdW5k
+YXRpb24ub3JnPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SXMgYW55Ym9keSByZWFkaW5n
+IHRoaXM/IDxicj48L2Rpdj48YmxvY2txdW90ZT48ZGl2Pi0tLS0tLS0tIE9yaWdpbmFsIE1lc3Nh
+Z2UgLS0tLS0tLS08YnI+PC9kaXY+PGRpdj5TdWJqZWN0OiBSZTogUkFNIGVuY3J5cHRpb24gYW5k
+IGtleSBzdG9yaW5nIGluIENQVTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6IEp1biAxOSAyMDE1
+IDE3OjIyOjQ5PGJyPjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9k
+aXY+PGRpdj5UbzogbGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVh
+d2VpLmNvbSwgdGpAa2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+
+PGRpdj48YnI+PC9kaXY+PGRpdj5IYWxsbz8gOik8YnI+PC9kaXY+PGJsb2NrcXVvdGU+PGRpdj4t
+LS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0tLS0tPGJyPjwvZGl2PjxkaXY+U3ViamVjdDog
+UmU6IFJBTSBlbmNyeXB0aW9uIGFuZCBrZXkgc3RvcmluZyBpbiBDUFU8YnI+PC9kaXY+PGRpdj5U
+aW1lIChHTVQpOiBNYXkgMjMgMjAxNSAwOTowMToyNjxicj48L2Rpdj48ZGl2PkZyb206IG5nYWJv
+ckBwcm90b25tYWlsLmNoPGJyPjwvZGl2PjxkaXY+VG86IGxpbnV4LW1tQGt2YWNrLm9yZywgYnBA
+YWxpZW44LmRlLCBsaXplZmFuQGh1YXdlaS5jb20sIHRqQGtlcm5lbC5vcmcsIGNsQGxpbnV4LWZv
+dW5kYXRpb24ub3JnPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+QW55IGNvbW1lbnRzPyA8
+YnI+PC9kaXY+PGJsb2NrcXVvdGU+PGRpdj4tLS0tLS0tLSBPcmlnaW5hbCBNZXNzYWdlIC0tLS0t
+LS0tPGJyPjwvZGl2PjxkaXY+U3ViamVjdDogUkFNIGVuY3J5cHRpb24gYW5kIGtleSBzdG9yaW5n
+IGluIENQVTxicj48L2Rpdj48ZGl2PlRpbWUgKEdNVCk6IE1heSAyMSAyMDE1IDEwOjE3OjI1PGJy
+PjwvZGl2PjxkaXY+RnJvbTogbmdhYm9yQHByb3Rvbm1haWwuY2g8YnI+PC9kaXY+PGRpdj5Ubzog
+bGludXgtbW1Aa3ZhY2sub3JnLCBicEBhbGllbjguZGUsIGxpemVmYW5AaHVhd2VpLmNvbSwgdGpA
+a2VybmVsLm9yZywgY2xAbGludXgtZm91bmRhdGlvbi5vcmc8YnI+PC9kaXY+PGRpdj48YnI+PC9k
+aXY+PGRpdj5IZWxsbywgPGJyPjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+PT09PT09PT09PTxi
+cj48L2Rpdj48ZGl2PjxiPlByb2JsZW08L2I+OiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRp
+dj5FdmVyeXRoaW5nIGlzIHN0b3JlZCBpbiBwbGFpbnRleHQgaW4gdGhlIE1lbW9yeS4gPGJyPjwv
+ZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+U28gaWYgYWx0aG91Z2ggZnVsbCBkaXNjIGVuY3J5cHRp
+b24gaXMgdXNlZCBvbiBhIExpbnV4IERlc2t0b3AsIGl0IGlzIHBvc3NpYmxlIHRvIGNvcHkgdGhl
+IGNvbnRlbnQgb2YgdGhlIG1lbW9yeSwgd2hpbGUgdGhlIG5vdGVib29rIHdhcyBvbiBzdXNwZW5k
+IG9yIGl0IHdhcyBydW5uaW5nOiA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj48YSBocmVm
+PSJodHRwczovL2NpdHAucHJpbmNldG9uLmVkdS9yZXNlYXJjaC9tZW1vcnkvbWVkaWEvIj5odHRw
+czovL2NpdHAucHJpbmNldG9uLmVkdS9yZXNlYXJjaC9tZW1vcnkvbWVkaWEvPC9hPjxicj48L2Rp
+dj48ZGl2Pjxicj48L2Rpdj48ZGl2Pj09PT09PT09PT08YnI+PC9kaXY+PGRpdj48Yj5Tb2x1dGlv
+bjwvYj46IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PkNhbiB3ZSAob3B0aW9uYWxseSop
+IGVuY3J5cHQgdGhlIGNvbnRlbnQgb2YgdGhlIG1lbW9yeSBhbmQgc3RvcmUgdGhlIGtleSBmb3Ig
+ZGVjcnlwdGlvbiBpbiB0aGUgQ1BVIHRvIGF2b2lkIGluIGdlbmVyYWwgdGhlc2Uga2luZCBvZiBh
+dHRhY2tzPyA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj48YSBocmVmPSJodHRwczovL3d3
+dzEuaW5mb3JtYXRpay51bmktZXJsYW5nZW4uZGUvdHJlc29yIj5odHRwczovL3d3dzEuaW5mb3Jt
+YXRpay51bmktZXJsYW5nZW4uZGUvdHJlc29yPC9hPjxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48
+ZGl2PklzIHRoaXMgc29sdXRpb24gYWxyZWFkeSBpbiB0aGUgTGludXgga2VybmVsPyBJZiB5ZXMs
+IGhvdyBjYW4gYSBMaW51eCBlbmR1c2VyIHR1cm4gaXQgb24/IElmIG5vLCBob3cgY2FuIHdlIGdl
+dCB0aGUgY29kZS9pZGVhIGluIHRoZSBtYWlubGluZT8gV2hhdCBhcmUgdGhlIGFyZ3VtZW50cyBh
+Z2FpbnN0IGl0PyA8YnI+PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj4qaWYgc29tZW9uZSB3b3Vs
+ZCB3YW50IHRvIGhhcmRlbiBpdCdzIExpbnV4IERlc2t0b3AgKHNpbmNlIG5vdGVib29rcyBjb3Vs
+ZCBiZSBzdG9sZW4uLikgaXQgY291bGQgdHVybiBvbiB0aGlzIGZlYXR1cmUgdG8gYXZvaWQgYSBw
+b2xpY3kgdG8gYWx3YXlzIHR1cm4gb2ZmIHRoZSBub3RlYm9vayB3aGlsZSBub3QgdXNpbmcgaXQu
+IDxicj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PlRoYW5rIHlvdSBmb3IgeW91ciBjb21tZW50
+cy4gPGJyPjwvZGl2PjwvYmxvY2txdW90ZT48L2Jsb2NrcXVvdGU+PC9ibG9ja3F1b3RlPjwvYmxv
+Y2txdW90ZT48L2Jsb2NrcXVvdGU+PC9ibG9ja3F1b3RlPjxkaXY+PGJyPjwvZGl2Pg==
+
+
+
+--b1_98c0d73f61f6fc956081ddeb8f060a65--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
