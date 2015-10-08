@@ -1,327 +1,306 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 521A26B0038
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 05:23:42 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so49720368pab.3
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 02:23:42 -0700 (PDT)
-Received: from DNVWSMAILOUT1.mcafee.com (dnvwsmailout1.mcafee.com. [161.69.31.173])
-        by mx.google.com with ESMTPS id wk3si65022278pab.93.2015.10.08.02.23.40
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id E76186B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 05:33:17 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so16940871wic.0
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 02:33:17 -0700 (PDT)
+Received: from mx6.playtech.com (mx6.playtech.com. [195.50.194.148])
+        by mx.google.com with ESMTPS id us2si347002wjc.196.2015.10.08.02.33.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Oct 2015 02:23:41 -0700 (PDT)
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 8 Oct 2015 09:18:50 +0000
-From: MB McAfee SR Update <support_reply@McAfee.com>
-Reply-To: MB McAfee SR Update <support_reply@McAfee.com>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 08 Oct 2015 02:33:16 -0700 (PDT)
+From: Oleksandr Chernykh <Oleksandr.Chernykh@playtech.com>
 Subject: RE: SR # <4-10997886031> Performance issues
-Message-ID: <058cbccd-fafe-4664-b85f-e498a198d658@DNVEXAPP1N04.corpzone.internalzone.com>
+Date: Thu, 8 Oct 2015 09:33:12 +0000
+Message-ID: <E58E4D48CD638041A088648FEC9E1B5D3B5FACDF@ee-exch2.EE.playtech.corp>
+References: <058cbccd-fafe-4664-b85f-e498a198d658@DNVEXAPP1N04.corpzone.internalzone.com>
+In-Reply-To: <058cbccd-fafe-4664-b85f-e498a198d658@DNVEXAPP1N04.corpzone.internalzone.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-
-Hello Oleksandr,
-
-I also recommend different director priorities for the cluster members. Currently all are on 75. Better is 90 - 60 - 30
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: MFE Support Outbound Profile
-Sent: 10/08/2015 09:20:35
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-We see that the current director can't find scanning nodes and that's the reason why it handles the traffic on his own until it is overloaded. 
-
-Do you have more information about the different nodes? Are all of them on the same VMware host?
-
-Do you use overprovisioning/oversubscription for these hosts - this is highly not recommended.
-
-The issue is caused due to non-working Proxy HA - the settings seem to work - I don't see any mis-configuration, but due to so many issues I would recommend a cluster split and new HA setup from scratch:
-https://community.mcafee.com/docs/DOC-4819
-
-
-I also recommend some tcpdumps for VRRP traffic and for port 253 (Filters: ip.proto eq 253, vrrp)
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: MFE Support Outbound Profile
-Sent: 10/08/2015 06:20:30
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-I hope you are doing well.
-
-I have a short update from development. Due to some research we have found the following:
-
-Oct  2 10:28:16 ua-is-proxy-1 kernel: [141521.487780] TX Too many directors in too short a time delaying
-Oct  2 10:28:16 ua-is-proxy-1 kernel: [141521.487781]  172.29.50.103
-Oct  2 10:28:17 ua-is-proxy-1 kernel: [141522.486814] TX Too many directors in too short a time delaying
-Oct  2 10:28:17 ua-is-proxy-1 kernel: [141522.486816]  172.29.50.103
-
-Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
-Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Received higher prio advert
-Oct  2 10:50:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE
-Oct  2 10:57:26 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
-Oct  2 10:57:27 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Received higher prio advert
-Oct  2 10:57:27 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE
-Oct  2 10:58:31 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
-Oct  2 10:58:32 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering MASTER STATE
-Oct  2 10:58:33 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Received higher prio advert
-Oct  2 10:58:33 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Entering BACKUP STATE
-Oct  2 10:58:42 ua-is-proxy-2 Keepalived_vrrp[28016]: VRRP_Instance(VI_1) Transition to MASTER STATE
-....
-
-
-There is still instability in the network. In case scanning nodes fails all IPs that still have traffic will
-create sticky table entries on the director, which will only go away if there is no traffic for some time. That probably explains why the director got more traffic.
-
-So next thing would be to solve the network issue.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
------------------
-From: MFE Support Outbound Profile
-Sent: 10/06/2015 08:11:45
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-The 3rd node is currently the director node and will have more connections because it receives all incoming connections:
-
-https://community.mcafee.com/docs/DOC-4819
-
-The load has reduced, but is still too high:
-
-Load on machine when feedback was done:load average: 25.65, 27.69, 26.05; number of threads running or waiting per core: 4.27, 4.62, 4.34
-
-
-I will update development with the new data and let you know.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: MFE Support Outbound Profile
-Sent: 10/02/2015 07:35:51
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-I hope you are doing well.
-
-Do you see any change in the load after raising the CPUs and the memory? 
-
-When you have an opportunity could you let me know if you have any updates on progress of your outstanding service request? If you need any assistance please don't hesitate to contact me. 
-
-
-With kind regards,
-
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
-
------------------
-From: MFE Support Outbound Profile
-Sent: 09/30/2015 12:19:54
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-The node became unresponsive due to a system load of more than 50 and then it raises more and more until all queues are filled up. Please stop the machines and raise the memory and add addtional vCPUs and cores. This most limiting factor are the CPUs at the moment. 
-
-
-With kind regards,
-
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
-
-
------------------
-From: MFE Support Outbound Profile
-Sent: 09/30/2015 09:05:39
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: RE: SR # <4-10997886031> Performance issues
-
-Hello Oleksandr,
-
-This is VMware. There are rcu stalls in the logs, which indicates that the VMs don't get enough CPU time assigned, the host might be overloaded or CPUs are overcommited. There are also network transmit timeouts in the logs, indicating the same.
-
-The minimum memory for VMware is 16GB, please see the installation guide. The VMs only have 8GB assigned. Since there are load issues, I'd also suggest to assign more then the minimum CPU.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
------------------
-From: MFE Support Outbound Profile
-Sent: 09/28/2015 07:30:17
-To: oleksandr.chernykh@playtech.com
-Cc: linux-mm@kvack.org
-Subject: SR # <4-10997886031>  Performance issues
-
-Hello Oleksandr,
-
-Thank you for contacting Intel Security technical support.
-
-I have escalated this SR together with the provided data to our development team. I could not figure out why the directory node (node 3) was so overloaded.
-
-I will keep you updated on their findings.
-
-
-With kind regards,
-
-Stefan Bluemel
-Intel Security Technical Support
-
-International:  +1-888-847-8766
-United Kingdom: 00800-6247-7463
-Germany:	    00800-1225-5624 
-Australia:      +1-800-073-267
-
-Web: http://www.mcafee.com
-Web: http://mysupport.mcafee.com
-
-Please respond only to support_reply@mcafee.com, keeping "SR # <4-XXXXXXXXX>" with your respective service request number in the subject line.
-
-Keep up-to-date on your McAfee products! Subscribe to McAfee's NEW Support Notification Service (SNS) to get timely technical info. 
-Go to: http://my.mcafee.com/content/SNS_Subscription_Center
-
-The information contained in this email message may be privileged, confidential and protected from disclosure. If you are not the intended recipient, any review, dissemination, distribution or copying is strictly prohibited. If you have received this email message in error, please notify the sender by reply email and delete the message and any attachments.
+To: MB McAfee SR Update <support_reply@McAfee.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+
+SGVsbG8sDQoNCkFyZSB0aGVzZSBwcmlvcml0aWVzIHVzZWQgdG8gY2hvb3NlIFZSUlAgbWFzdGVy
+PyAgSXMgdGhlIG5vZGUgdGhhdCB3aWxsIGhhdmUgaGlnaGVyIGRpcmVjdG9yIHByaW9yaXR5IHNo
+b3VsZCBhbHNvIGhhdmUgR1VJIGF0dGFjaGVkPyBJcyBpdCBwb3NzaWJsZSB0byBtYWtlIDIgb3Ro
+ZXIgbm9kZXMgaGFuZGxlIG1vcmUgdHJhZmZpYyB0aGVuIFZSUlAgbWFzdGVyIGFuZCB0aHVzIG1h
+a2UgaXQgbGVzcyBsb2FkZWQ/DQoNCkJlc3QgcmVnYXJkcywNCk9sZWtzYW5kcg0KDQotLS0tLU9y
+aWdpbmFsIE1lc3NhZ2UtLS0tLQ0KRnJvbTogTUIgTWNBZmVlIFNSIFVwZGF0ZSBbbWFpbHRvOnN1
+cHBvcnRfcmVwbHlATWNBZmVlLmNvbV0NClNlbnQ6IFRodXJzZGF5LCBPY3RvYmVyIDgsIDIwMTUg
+MTI6MTkgUE0NClRvOiBPbGVrc2FuZHIgQ2hlcm55a2ggPE9sZWtzYW5kci5DaGVybnlraEBwbGF5
+dGVjaC5jb20+DQpDYzogbGludXgtbW1Aa3ZhY2sub3JnDQpTdWJqZWN0OiBSRTogU1IgIyA8NC0x
+MDk5Nzg4NjAzMT4gUGVyZm9ybWFuY2UgaXNzdWVzDQoNCkhlbGxvIE9sZWtzYW5kciwNCg0KSSBh
+bHNvIHJlY29tbWVuZCBkaWZmZXJlbnQgZGlyZWN0b3IgcHJpb3JpdGllcyBmb3IgdGhlIGNsdXN0
+ZXIgbWVtYmVycy4gQ3VycmVudGx5IGFsbCBhcmUgb24gNzUuIEJldHRlciBpcyA5MCAtIDYwIC0g
+MzANCg0KDQpXaXRoIGtpbmQgcmVnYXJkcywNCg0KU3RlZmFuIEJsdWVtZWwNCkludGVsIFNlY3Vy
+aXR5IFRlY2huaWNhbCBTdXBwb3J0DQoNCkludGVybmF0aW9uYWw6ICArMS04ODgtODQ3LTg3NjYN
+ClVuaXRlZCBLaW5nZG9tOiAwMDgwMC02MjQ3LTc0NjMNCkdlcm1hbnk6ICAgICAgICAgICAgMDA4
+MDAtMTIyNS01NjI0DQpBdXN0cmFsaWE6ICAgICAgKzEtODAwLTA3My0yNjcNCg0KV2ViOiBodHRw
+Oi8vd3d3Lm1jYWZlZS5jb20NCldlYjogaHR0cDovL215c3VwcG9ydC5tY2FmZWUuY29tDQoNClBs
+ZWFzZSByZXNwb25kIG9ubHkgdG8gc3VwcG9ydF9yZXBseUBtY2FmZWUuY29tLCBrZWVwaW5nICJT
+UiAjIDw0LVhYWFhYWFhYWD4iIHdpdGggeW91ciByZXNwZWN0aXZlIHNlcnZpY2UgcmVxdWVzdCBu
+dW1iZXIgaW4gdGhlIHN1YmplY3QgbGluZS4NCg0KS2VlcCB1cC10by1kYXRlIG9uIHlvdXIgTWNB
+ZmVlIHByb2R1Y3RzISBTdWJzY3JpYmUgdG8gTWNBZmVlJ3MgTkVXIFN1cHBvcnQgTm90aWZpY2F0
+aW9uIFNlcnZpY2UgKFNOUykgdG8gZ2V0IHRpbWVseSB0ZWNobmljYWwgaW5mby4NCkdvIHRvOiBo
+dHRwOi8vbXkubWNhZmVlLmNvbS9jb250ZW50L1NOU19TdWJzY3JpcHRpb25fQ2VudGVyDQoNClRo
+ZSBpbmZvcm1hdGlvbiBjb250YWluZWQgaW4gdGhpcyBlbWFpbCBtZXNzYWdlIG1heSBiZSBwcml2
+aWxlZ2VkLCBjb25maWRlbnRpYWwgYW5kIHByb3RlY3RlZCBmcm9tIGRpc2Nsb3N1cmUuIElmIHlv
+dSBhcmUgbm90IHRoZSBpbnRlbmRlZCByZWNpcGllbnQsIGFueSByZXZpZXcsIGRpc3NlbWluYXRp
+b24sIGRpc3RyaWJ1dGlvbiBvciBjb3B5aW5nIGlzIHN0cmljdGx5IHByb2hpYml0ZWQuIElmIHlv
+dSBoYXZlIHJlY2VpdmVkIHRoaXMgZW1haWwgbWVzc2FnZSBpbiBlcnJvciwgcGxlYXNlIG5vdGlm
+eSB0aGUgc2VuZGVyIGJ5IHJlcGx5IGVtYWlsIGFuZCBkZWxldGUgdGhlIG1lc3NhZ2UgYW5kIGFu
+eSBhdHRhY2htZW50cy4NCg0KLS0tLS0tLS0tLS0tLS0tLS0NCkZyb206IE1GRSBTdXBwb3J0IE91
+dGJvdW5kIFByb2ZpbGUNClNlbnQ6IDEwLzA4LzIwMTUgMDk6MjA6MzUNClRvOiBvbGVrc2FuZHIu
+Y2hlcm55a2hAcGxheXRlY2guY29tDQpDYzogbGludXgtbW1Aa3ZhY2sub3JnDQpTdWJqZWN0OiBS
+RTogU1IgIyA8NC0xMDk5Nzg4NjAzMT4gUGVyZm9ybWFuY2UgaXNzdWVzDQoNCkhlbGxvIE9sZWtz
+YW5kciwNCg0KV2Ugc2VlIHRoYXQgdGhlIGN1cnJlbnQgZGlyZWN0b3IgY2FuJ3QgZmluZCBzY2Fu
+bmluZyBub2RlcyBhbmQgdGhhdCdzIHRoZSByZWFzb24gd2h5IGl0IGhhbmRsZXMgdGhlIHRyYWZm
+aWMgb24gaGlzIG93biB1bnRpbCBpdCBpcyBvdmVybG9hZGVkLg0KDQpEbyB5b3UgaGF2ZSBtb3Jl
+IGluZm9ybWF0aW9uIGFib3V0IHRoZSBkaWZmZXJlbnQgbm9kZXM/IEFyZSBhbGwgb2YgdGhlbSBv
+biB0aGUgc2FtZSBWTXdhcmUgaG9zdD8NCg0KRG8geW91IHVzZSBvdmVycHJvdmlzaW9uaW5nL292
+ZXJzdWJzY3JpcHRpb24gZm9yIHRoZXNlIGhvc3RzIC0gdGhpcyBpcyBoaWdobHkgbm90IHJlY29t
+bWVuZGVkLg0KDQpUaGUgaXNzdWUgaXMgY2F1c2VkIGR1ZSB0byBub24td29ya2luZyBQcm94eSBI
+QSAtIHRoZSBzZXR0aW5ncyBzZWVtIHRvIHdvcmsgLSBJIGRvbid0IHNlZSBhbnkgbWlzLWNvbmZp
+Z3VyYXRpb24sIGJ1dCBkdWUgdG8gc28gbWFueSBpc3N1ZXMgSSB3b3VsZCByZWNvbW1lbmQgYSBj
+bHVzdGVyIHNwbGl0IGFuZCBuZXcgSEEgc2V0dXAgZnJvbSBzY3JhdGNoOg0KaHR0cHM6Ly9jb21t
+dW5pdHkubWNhZmVlLmNvbS9kb2NzL0RPQy00ODE5DQoNCg0KSSBhbHNvIHJlY29tbWVuZCBzb21l
+IHRjcGR1bXBzIGZvciBWUlJQIHRyYWZmaWMgYW5kIGZvciBwb3J0IDI1MyAoRmlsdGVyczogaXAu
+cHJvdG8gZXEgMjUzLCB2cnJwKQ0KDQoNCldpdGgga2luZCByZWdhcmRzLA0KDQpTdGVmYW4gQmx1
+ZW1lbA0KSW50ZWwgU2VjdXJpdHkgVGVjaG5pY2FsIFN1cHBvcnQNCg0KSW50ZXJuYXRpb25hbDog
+ICsxLTg4OC04NDctODc2Ng0KVW5pdGVkIEtpbmdkb206IDAwODAwLTYyNDctNzQ2Mw0KR2VybWFu
+eTogICAgICAgICAgICAwMDgwMC0xMjI1LTU2MjQNCkF1c3RyYWxpYTogICAgICArMS04MDAtMDcz
+LTI2Nw0KDQpXZWI6IGh0dHA6Ly93d3cubWNhZmVlLmNvbQ0KV2ViOiBodHRwOi8vbXlzdXBwb3J0
+Lm1jYWZlZS5jb20NCg0KUGxlYXNlIHJlc3BvbmQgb25seSB0byBzdXBwb3J0X3JlcGx5QG1jYWZl
+ZS5jb20sIGtlZXBpbmcgIlNSICMgPDQtWFhYWFhYWFhYPiIgd2l0aCB5b3VyIHJlc3BlY3RpdmUg
+c2VydmljZSByZXF1ZXN0IG51bWJlciBpbiB0aGUgc3ViamVjdCBsaW5lLg0KDQpLZWVwIHVwLXRv
+LWRhdGUgb24geW91ciBNY0FmZWUgcHJvZHVjdHMhIFN1YnNjcmliZSB0byBNY0FmZWUncyBORVcg
+U3VwcG9ydCBOb3RpZmljYXRpb24gU2VydmljZSAoU05TKSB0byBnZXQgdGltZWx5IHRlY2huaWNh
+bCBpbmZvLg0KR28gdG86IGh0dHA6Ly9teS5tY2FmZWUuY29tL2NvbnRlbnQvU05TX1N1YnNjcmlw
+dGlvbl9DZW50ZXINCg0KVGhlIGluZm9ybWF0aW9uIGNvbnRhaW5lZCBpbiB0aGlzIGVtYWlsIG1l
+c3NhZ2UgbWF5IGJlIHByaXZpbGVnZWQsIGNvbmZpZGVudGlhbCBhbmQgcHJvdGVjdGVkIGZyb20g
+ZGlzY2xvc3VyZS4gSWYgeW91IGFyZSBub3QgdGhlIGludGVuZGVkIHJlY2lwaWVudCwgYW55IHJl
+dmlldywgZGlzc2VtaW5hdGlvbiwgZGlzdHJpYnV0aW9uIG9yIGNvcHlpbmcgaXMgc3RyaWN0bHkg
+cHJvaGliaXRlZC4gSWYgeW91IGhhdmUgcmVjZWl2ZWQgdGhpcyBlbWFpbCBtZXNzYWdlIGluIGVy
+cm9yLCBwbGVhc2Ugbm90aWZ5IHRoZSBzZW5kZXIgYnkgcmVwbHkgZW1haWwgYW5kIGRlbGV0ZSB0
+aGUgbWVzc2FnZSBhbmQgYW55IGF0dGFjaG1lbnRzLg0KDQotLS0tLS0tLS0tLS0tLS0tLQ0KRnJv
+bTogTUZFIFN1cHBvcnQgT3V0Ym91bmQgUHJvZmlsZQ0KU2VudDogMTAvMDgvMjAxNSAwNjoyMDoz
+MA0KVG86IG9sZWtzYW5kci5jaGVybnlraEBwbGF5dGVjaC5jb20NCkNjOiBsaW51eC1tbUBrdmFj
+ay5vcmcNClN1YmplY3Q6IFJFOiBTUiAjIDw0LTEwOTk3ODg2MDMxPiBQZXJmb3JtYW5jZSBpc3N1
+ZXMNCg0KSGVsbG8gT2xla3NhbmRyLA0KDQpJIGhvcGUgeW91IGFyZSBkb2luZyB3ZWxsLg0KDQpJ
+IGhhdmUgYSBzaG9ydCB1cGRhdGUgZnJvbSBkZXZlbG9wbWVudC4gRHVlIHRvIHNvbWUgcmVzZWFy
+Y2ggd2UgaGF2ZSBmb3VuZCB0aGUgZm9sbG93aW5nOg0KDQpPY3QgIDIgMTA6Mjg6MTYgdWEtaXMt
+cHJveHktMSBrZXJuZWw6IFsxNDE1MjEuNDg3NzgwXSBUWCBUb28gbWFueSBkaXJlY3RvcnMgaW4g
+dG9vIHNob3J0IGEgdGltZSBkZWxheWluZyBPY3QgIDIgMTA6Mjg6MTYgdWEtaXMtcHJveHktMSBr
+ZXJuZWw6IFsxNDE1MjEuNDg3NzgxXSAgMTcyLjI5LjUwLjEwMyBPY3QgIDIgMTA6Mjg6MTcgdWEt
+aXMtcHJveHktMSBrZXJuZWw6IFsxNDE1MjIuNDg2ODE0XSBUWCBUb28gbWFueSBkaXJlY3RvcnMg
+aW4gdG9vIHNob3J0IGEgdGltZSBkZWxheWluZyBPY3QgIDIgMTA6Mjg6MTcgdWEtaXMtcHJveHkt
+MSBrZXJuZWw6IFsxNDE1MjIuNDg2ODE2XSAgMTcyLjI5LjUwLjEwMw0KDQpPY3QgIDIgMTA6NTA6
+MjYgdWEtaXMtcHJveHktMiBLZWVwYWxpdmVkX3ZycnBbMjgwMTZdOiBWUlJQX0luc3RhbmNlKFZJ
+XzEpIFRyYW5zaXRpb24gdG8gTUFTVEVSIFNUQVRFIE9jdCAgMiAxMDo1MDoyNiB1YS1pcy1wcm94
+eS0yIEtlZXBhbGl2ZWRfdnJycFsyODAxNl06IFZSUlBfSW5zdGFuY2UoVklfMSkgUmVjZWl2ZWQg
+aGlnaGVyIHByaW8gYWR2ZXJ0IE9jdCAgMiAxMDo1MDoyNiB1YS1pcy1wcm94eS0yIEtlZXBhbGl2
+ZWRfdnJycFsyODAxNl06IFZSUlBfSW5zdGFuY2UoVklfMSkgRW50ZXJpbmcgQkFDS1VQIFNUQVRF
+IE9jdCAgMiAxMDo1NzoyNiB1YS1pcy1wcm94eS0yIEtlZXBhbGl2ZWRfdnJycFsyODAxNl06IFZS
+UlBfSW5zdGFuY2UoVklfMSkgVHJhbnNpdGlvbiB0byBNQVNURVIgU1RBVEUgT2N0ICAyIDEwOjU3
+OjI3IHVhLWlzLXByb3h5LTIgS2VlcGFsaXZlZF92cnJwWzI4MDE2XTogVlJSUF9JbnN0YW5jZShW
+SV8xKSBSZWNlaXZlZCBoaWdoZXIgcHJpbyBhZHZlcnQgT2N0ICAyIDEwOjU3OjI3IHVhLWlzLXBy
+b3h5LTIgS2VlcGFsaXZlZF92cnJwWzI4MDE2XTogVlJSUF9JbnN0YW5jZShWSV8xKSBFbnRlcmlu
+ZyBCQUNLVVAgU1RBVEUgT2N0ICAyIDEwOjU4OjMxIHVhLWlzLXByb3h5LTIgS2VlcGFsaXZlZF92
+cnJwWzI4MDE2XTogVlJSUF9JbnN0YW5jZShWSV8xKSBUcmFuc2l0aW9uIHRvIE1BU1RFUiBTVEFU
+RSBPY3QgIDIgMTA6NTg6MzIgdWEtaXMtcHJveHktMiBLZWVwYWxpdmVkX3ZycnBbMjgwMTZdOiBW
+UlJQX0luc3RhbmNlKFZJXzEpIEVudGVyaW5nIE1BU1RFUiBTVEFURSBPY3QgIDIgMTA6NTg6MzMg
+dWEtaXMtcHJveHktMiBLZWVwYWxpdmVkX3ZycnBbMjgwMTZdOiBWUlJQX0luc3RhbmNlKFZJXzEp
+IFJlY2VpdmVkIGhpZ2hlciBwcmlvIGFkdmVydCBPY3QgIDIgMTA6NTg6MzMgdWEtaXMtcHJveHkt
+MiBLZWVwYWxpdmVkX3ZycnBbMjgwMTZdOiBWUlJQX0luc3RhbmNlKFZJXzEpIEVudGVyaW5nIEJB
+Q0tVUCBTVEFURSBPY3QgIDIgMTA6NTg6NDIgdWEtaXMtcHJveHktMiBLZWVwYWxpdmVkX3ZycnBb
+MjgwMTZdOiBWUlJQX0luc3RhbmNlKFZJXzEpIFRyYW5zaXRpb24gdG8gTUFTVEVSIFNUQVRFIC4u
+Li4NCg0KDQpUaGVyZSBpcyBzdGlsbCBpbnN0YWJpbGl0eSBpbiB0aGUgbmV0d29yay4gSW4gY2Fz
+ZSBzY2FubmluZyBub2RlcyBmYWlscyBhbGwgSVBzIHRoYXQgc3RpbGwgaGF2ZSB0cmFmZmljIHdp
+bGwgY3JlYXRlIHN0aWNreSB0YWJsZSBlbnRyaWVzIG9uIHRoZSBkaXJlY3Rvciwgd2hpY2ggd2ls
+bCBvbmx5IGdvIGF3YXkgaWYgdGhlcmUgaXMgbm8gdHJhZmZpYyBmb3Igc29tZSB0aW1lLiBUaGF0
+IHByb2JhYmx5IGV4cGxhaW5zIHdoeSB0aGUgZGlyZWN0b3IgZ290IG1vcmUgdHJhZmZpYy4NCg0K
+U28gbmV4dCB0aGluZyB3b3VsZCBiZSB0byBzb2x2ZSB0aGUgbmV0d29yayBpc3N1ZS4NCg0KDQpX
+aXRoIGtpbmQgcmVnYXJkcywNCg0KU3RlZmFuIEJsdWVtZWwNCkludGVsIFNlY3VyaXR5IFRlY2hu
+aWNhbCBTdXBwb3J0DQoNCkludGVybmF0aW9uYWw6ICArMS04ODgtODQ3LTg3NjYNClVuaXRlZCBL
+aW5nZG9tOiAwMDgwMC02MjQ3LTc0NjMNCkdlcm1hbnk6ICAgICAgICAgICAgMDA4MDAtMTIyNS01
+NjI0DQpBdXN0cmFsaWE6ICAgICAgKzEtODAwLTA3My0yNjcNCg0KV2ViOiBodHRwOi8vd3d3Lm1j
+YWZlZS5jb20NCldlYjogaHR0cDovL215c3VwcG9ydC5tY2FmZWUuY29tDQoNClBsZWFzZSByZXNw
+b25kIG9ubHkgdG8gc3VwcG9ydF9yZXBseUBtY2FmZWUuY29tLCBrZWVwaW5nICJTUiAjIDw0LVhY
+WFhYWFhYWD4iIHdpdGggeW91ciByZXNwZWN0aXZlIHNlcnZpY2UgcmVxdWVzdCBudW1iZXIgaW4g
+dGhlIHN1YmplY3QgbGluZS4NCg0KS2VlcCB1cC10by1kYXRlIG9uIHlvdXIgTWNBZmVlIHByb2R1
+Y3RzISBTdWJzY3JpYmUgdG8gTWNBZmVlJ3MgTkVXIFN1cHBvcnQgTm90aWZpY2F0aW9uIFNlcnZp
+Y2UgKFNOUykgdG8gZ2V0IHRpbWVseSB0ZWNobmljYWwgaW5mby4NCkdvIHRvOiBodHRwOi8vbXku
+bWNhZmVlLmNvbS9jb250ZW50L1NOU19TdWJzY3JpcHRpb25fQ2VudGVyDQoNClRoZSBpbmZvcm1h
+dGlvbiBjb250YWluZWQgaW4gdGhpcyBlbWFpbCBtZXNzYWdlIG1heSBiZSBwcml2aWxlZ2VkLCBj
+b25maWRlbnRpYWwgYW5kIHByb3RlY3RlZCBmcm9tIGRpc2Nsb3N1cmUuIElmIHlvdSBhcmUgbm90
+IHRoZSBpbnRlbmRlZCByZWNpcGllbnQsIGFueSByZXZpZXcsIGRpc3NlbWluYXRpb24sIGRpc3Ry
+aWJ1dGlvbiBvciBjb3B5aW5nIGlzIHN0cmljdGx5IHByb2hpYml0ZWQuIElmIHlvdSBoYXZlIHJl
+Y2VpdmVkIHRoaXMgZW1haWwgbWVzc2FnZSBpbiBlcnJvciwgcGxlYXNlIG5vdGlmeSB0aGUgc2Vu
+ZGVyIGJ5IHJlcGx5IGVtYWlsIGFuZCBkZWxldGUgdGhlIG1lc3NhZ2UgYW5kIGFueSBhdHRhY2ht
+ZW50cy4NCi0tLS0tLS0tLS0tLS0tLS0tDQpGcm9tOiBNRkUgU3VwcG9ydCBPdXRib3VuZCBQcm9m
+aWxlDQpTZW50OiAxMC8wNi8yMDE1IDA4OjExOjQ1DQpUbzogb2xla3NhbmRyLmNoZXJueWtoQHBs
+YXl0ZWNoLmNvbQ0KQ2M6IGxpbnV4LW1tQGt2YWNrLm9yZw0KU3ViamVjdDogUkU6IFNSICMgPDQt
+MTA5OTc4ODYwMzE+IFBlcmZvcm1hbmNlIGlzc3Vlcw0KDQpIZWxsbyBPbGVrc2FuZHIsDQoNClRo
+ZSAzcmQgbm9kZSBpcyBjdXJyZW50bHkgdGhlIGRpcmVjdG9yIG5vZGUgYW5kIHdpbGwgaGF2ZSBt
+b3JlIGNvbm5lY3Rpb25zIGJlY2F1c2UgaXQgcmVjZWl2ZXMgYWxsIGluY29taW5nIGNvbm5lY3Rp
+b25zOg0KDQpodHRwczovL2NvbW11bml0eS5tY2FmZWUuY29tL2RvY3MvRE9DLTQ4MTkNCg0KVGhl
+IGxvYWQgaGFzIHJlZHVjZWQsIGJ1dCBpcyBzdGlsbCB0b28gaGlnaDoNCg0KTG9hZCBvbiBtYWNo
+aW5lIHdoZW4gZmVlZGJhY2sgd2FzIGRvbmU6bG9hZCBhdmVyYWdlOiAyNS42NSwgMjcuNjksIDI2
+LjA1OyBudW1iZXIgb2YgdGhyZWFkcyBydW5uaW5nIG9yIHdhaXRpbmcgcGVyIGNvcmU6IDQuMjcs
+IDQuNjIsIDQuMzQNCg0KDQpJIHdpbGwgdXBkYXRlIGRldmVsb3BtZW50IHdpdGggdGhlIG5ldyBk
+YXRhIGFuZCBsZXQgeW91IGtub3cuDQoNCg0KV2l0aCBraW5kIHJlZ2FyZHMsDQoNClN0ZWZhbiBC
+bHVlbWVsDQpJbnRlbCBTZWN1cml0eSBUZWNobmljYWwgU3VwcG9ydA0KDQpJbnRlcm5hdGlvbmFs
+OiAgKzEtODg4LTg0Ny04NzY2DQpVbml0ZWQgS2luZ2RvbTogMDA4MDAtNjI0Ny03NDYzDQpHZXJt
+YW55OiAgICAgICAgICAgIDAwODAwLTEyMjUtNTYyNA0KQXVzdHJhbGlhOiAgICAgICsxLTgwMC0w
+NzMtMjY3DQoNCldlYjogaHR0cDovL3d3dy5tY2FmZWUuY29tDQpXZWI6IGh0dHA6Ly9teXN1cHBv
+cnQubWNhZmVlLmNvbQ0KDQpQbGVhc2UgcmVzcG9uZCBvbmx5IHRvIHN1cHBvcnRfcmVwbHlAbWNh
+ZmVlLmNvbSwga2VlcGluZyAiU1IgIyA8NC1YWFhYWFhYWFg+IiB3aXRoIHlvdXIgcmVzcGVjdGl2
+ZSBzZXJ2aWNlIHJlcXVlc3QgbnVtYmVyIGluIHRoZSBzdWJqZWN0IGxpbmUuDQoNCktlZXAgdXAt
+dG8tZGF0ZSBvbiB5b3VyIE1jQWZlZSBwcm9kdWN0cyEgU3Vic2NyaWJlIHRvIE1jQWZlZSdzIE5F
+VyBTdXBwb3J0IE5vdGlmaWNhdGlvbiBTZXJ2aWNlIChTTlMpIHRvIGdldCB0aW1lbHkgdGVjaG5p
+Y2FsIGluZm8uDQpHbyB0bzogaHR0cDovL215Lm1jYWZlZS5jb20vY29udGVudC9TTlNfU3Vic2Ny
+aXB0aW9uX0NlbnRlcg0KDQpUaGUgaW5mb3JtYXRpb24gY29udGFpbmVkIGluIHRoaXMgZW1haWwg
+bWVzc2FnZSBtYXkgYmUgcHJpdmlsZWdlZCwgY29uZmlkZW50aWFsIGFuZCBwcm90ZWN0ZWQgZnJv
+bSBkaXNjbG9zdXJlLiBJZiB5b3UgYXJlIG5vdCB0aGUgaW50ZW5kZWQgcmVjaXBpZW50LCBhbnkg
+cmV2aWV3LCBkaXNzZW1pbmF0aW9uLCBkaXN0cmlidXRpb24gb3IgY29weWluZyBpcyBzdHJpY3Rs
+eSBwcm9oaWJpdGVkLiBJZiB5b3UgaGF2ZSByZWNlaXZlZCB0aGlzIGVtYWlsIG1lc3NhZ2UgaW4g
+ZXJyb3IsIHBsZWFzZSBub3RpZnkgdGhlIHNlbmRlciBieSByZXBseSBlbWFpbCBhbmQgZGVsZXRl
+IHRoZSBtZXNzYWdlIGFuZCBhbnkgYXR0YWNobWVudHMuDQoNCi0tLS0tLS0tLS0tLS0tLS0tDQpG
+cm9tOiBNRkUgU3VwcG9ydCBPdXRib3VuZCBQcm9maWxlDQpTZW50OiAxMC8wMi8yMDE1IDA3OjM1
+OjUxDQpUbzogb2xla3NhbmRyLmNoZXJueWtoQHBsYXl0ZWNoLmNvbQ0KQ2M6IGxpbnV4LW1tQGt2
+YWNrLm9yZw0KU3ViamVjdDogUkU6IFNSICMgPDQtMTA5OTc4ODYwMzE+IFBlcmZvcm1hbmNlIGlz
+c3Vlcw0KDQpIZWxsbyBPbGVrc2FuZHIsDQoNCkkgaG9wZSB5b3UgYXJlIGRvaW5nIHdlbGwuDQoN
+CkRvIHlvdSBzZWUgYW55IGNoYW5nZSBpbiB0aGUgbG9hZCBhZnRlciByYWlzaW5nIHRoZSBDUFVz
+IGFuZCB0aGUgbWVtb3J5Pw0KDQpXaGVuIHlvdSBoYXZlIGFuIG9wcG9ydHVuaXR5IGNvdWxkIHlv
+dSBsZXQgbWUga25vdyBpZiB5b3UgaGF2ZSBhbnkgdXBkYXRlcyBvbiBwcm9ncmVzcyBvZiB5b3Vy
+IG91dHN0YW5kaW5nIHNlcnZpY2UgcmVxdWVzdD8gSWYgeW91IG5lZWQgYW55IGFzc2lzdGFuY2Ug
+cGxlYXNlIGRvbid0IGhlc2l0YXRlIHRvIGNvbnRhY3QgbWUuDQoNCg0KV2l0aCBraW5kIHJlZ2Fy
+ZHMsDQoNCkludGVsIFNlY3VyaXR5IFRlY2huaWNhbCBTdXBwb3J0DQoNCkludGVybmF0aW9uYWw6
+ICArMS04ODgtODQ3LTg3NjYNClVuaXRlZCBLaW5nZG9tOiAwMDgwMC02MjQ3LTc0NjMNCkdlcm1h
+bnk6ICAgICAgICAgICAgMDA4MDAtMTIyNS01NjI0DQpBdXN0cmFsaWE6ICAgICAgKzEtODAwLTA3
+My0yNjcNCg0KV2ViOiBodHRwOi8vd3d3Lm1jYWZlZS5jb20NCldlYjogaHR0cDovL215c3VwcG9y
+dC5tY2FmZWUuY29tDQoNClBsZWFzZSByZXNwb25kIG9ubHkgdG8gc3VwcG9ydF9yZXBseUBtY2Fm
+ZWUuY29tLCBrZWVwaW5nICJTUiAjIDw0LVhYWFhYWFhYWD4iIHdpdGggeW91ciByZXNwZWN0aXZl
+IHNlcnZpY2UgcmVxdWVzdCBudW1iZXIgaW4gdGhlIHN1YmplY3QgbGluZS4NCg0KS2VlcCB1cC10
+by1kYXRlIG9uIHlvdXIgTWNBZmVlIHByb2R1Y3RzISBTdWJzY3JpYmUgdG8gTWNBZmVlJ3MgTkVX
+IFN1cHBvcnQgTm90aWZpY2F0aW9uIFNlcnZpY2UgKFNOUykgdG8gZ2V0IHRpbWVseSB0ZWNobmlj
+YWwgaW5mby4NCkdvIHRvOiBodHRwOi8vbXkubWNhZmVlLmNvbS9jb250ZW50L1NOU19TdWJzY3Jp
+cHRpb25fQ2VudGVyDQoNClRoZSBpbmZvcm1hdGlvbiBjb250YWluZWQgaW4gdGhpcyBlbWFpbCBt
+ZXNzYWdlIG1heSBiZSBwcml2aWxlZ2VkLCBjb25maWRlbnRpYWwgYW5kIHByb3RlY3RlZCBmcm9t
+IGRpc2Nsb3N1cmUuIElmIHlvdSBhcmUgbm90IHRoZSBpbnRlbmRlZCByZWNpcGllbnQsIGFueSBy
+ZXZpZXcsIGRpc3NlbWluYXRpb24sIGRpc3RyaWJ1dGlvbiBvciBjb3B5aW5nIGlzIHN0cmljdGx5
+IHByb2hpYml0ZWQuIElmIHlvdSBoYXZlIHJlY2VpdmVkIHRoaXMgZW1haWwgbWVzc2FnZSBpbiBl
+cnJvciwgcGxlYXNlIG5vdGlmeSB0aGUgc2VuZGVyIGJ5IHJlcGx5IGVtYWlsIGFuZCBkZWxldGUg
+dGhlIG1lc3NhZ2UgYW5kIGFueSBhdHRhY2htZW50cy4NCg0KLS0tLS0tLS0tLS0tLS0tLS0NCkZy
+b206IE1GRSBTdXBwb3J0IE91dGJvdW5kIFByb2ZpbGUNClNlbnQ6IDA5LzMwLzIwMTUgMTI6MTk6
+NTQNClRvOiBvbGVrc2FuZHIuY2hlcm55a2hAcGxheXRlY2guY29tDQpDYzogbGludXgtbW1Aa3Zh
+Y2sub3JnDQpTdWJqZWN0OiBSRTogU1IgIyA8NC0xMDk5Nzg4NjAzMT4gUGVyZm9ybWFuY2UgaXNz
+dWVzDQoNCkhlbGxvIE9sZWtzYW5kciwNCg0KVGhlIG5vZGUgYmVjYW1lIHVucmVzcG9uc2l2ZSBk
+dWUgdG8gYSBzeXN0ZW0gbG9hZCBvZiBtb3JlIHRoYW4gNTAgYW5kIHRoZW4gaXQgcmFpc2VzIG1v
+cmUgYW5kIG1vcmUgdW50aWwgYWxsIHF1ZXVlcyBhcmUgZmlsbGVkIHVwLiBQbGVhc2Ugc3RvcCB0
+aGUgbWFjaGluZXMgYW5kIHJhaXNlIHRoZSBtZW1vcnkgYW5kIGFkZCBhZGR0aW9uYWwgdkNQVXMg
+YW5kIGNvcmVzLiBUaGlzIG1vc3QgbGltaXRpbmcgZmFjdG9yIGFyZSB0aGUgQ1BVcyBhdCB0aGUg
+bW9tZW50Lg0KDQoNCldpdGgga2luZCByZWdhcmRzLA0KDQpJbnRlbCBTZWN1cml0eSBUZWNobmlj
+YWwgU3VwcG9ydA0KDQpJbnRlcm5hdGlvbmFsOiAgKzEtODg4LTg0Ny04NzY2DQpVbml0ZWQgS2lu
+Z2RvbTogMDA4MDAtNjI0Ny03NDYzDQpHZXJtYW55OiAgICAgICAgICAgIDAwODAwLTEyMjUtNTYy
+NA0KQXVzdHJhbGlhOiAgICAgICsxLTgwMC0wNzMtMjY3DQoNCldlYjogaHR0cDovL3d3dy5tY2Fm
+ZWUuY29tDQpXZWI6IGh0dHA6Ly9teXN1cHBvcnQubWNhZmVlLmNvbQ0KDQpQbGVhc2UgcmVzcG9u
+ZCBvbmx5IHRvIHN1cHBvcnRfcmVwbHlAbWNhZmVlLmNvbSwga2VlcGluZyAiU1IgIyA8NC1YWFhY
+WFhYWFg+IiB3aXRoIHlvdXIgcmVzcGVjdGl2ZSBzZXJ2aWNlIHJlcXVlc3QgbnVtYmVyIGluIHRo
+ZSBzdWJqZWN0IGxpbmUuDQoNCktlZXAgdXAtdG8tZGF0ZSBvbiB5b3VyIE1jQWZlZSBwcm9kdWN0
+cyEgU3Vic2NyaWJlIHRvIE1jQWZlZSdzIE5FVyBTdXBwb3J0IE5vdGlmaWNhdGlvbiBTZXJ2aWNl
+IChTTlMpIHRvIGdldCB0aW1lbHkgdGVjaG5pY2FsIGluZm8uDQpHbyB0bzogaHR0cDovL215Lm1j
+YWZlZS5jb20vY29udGVudC9TTlNfU3Vic2NyaXB0aW9uX0NlbnRlcg0KDQpUaGUgaW5mb3JtYXRp
+b24gY29udGFpbmVkIGluIHRoaXMgZW1haWwgbWVzc2FnZSBtYXkgYmUgcHJpdmlsZWdlZCwgY29u
+ZmlkZW50aWFsIGFuZCBwcm90ZWN0ZWQgZnJvbSBkaXNjbG9zdXJlLiBJZiB5b3UgYXJlIG5vdCB0
+aGUgaW50ZW5kZWQgcmVjaXBpZW50LCBhbnkgcmV2aWV3LCBkaXNzZW1pbmF0aW9uLCBkaXN0cmli
+dXRpb24gb3IgY29weWluZyBpcyBzdHJpY3RseSBwcm9oaWJpdGVkLiBJZiB5b3UgaGF2ZSByZWNl
+aXZlZCB0aGlzIGVtYWlsIG1lc3NhZ2UgaW4gZXJyb3IsIHBsZWFzZSBub3RpZnkgdGhlIHNlbmRl
+ciBieSByZXBseSBlbWFpbCBhbmQgZGVsZXRlIHRoZSBtZXNzYWdlIGFuZCBhbnkgYXR0YWNobWVu
+dHMuDQoNCg0KLS0tLS0tLS0tLS0tLS0tLS0NCkZyb206IE1GRSBTdXBwb3J0IE91dGJvdW5kIFBy
+b2ZpbGUNClNlbnQ6IDA5LzMwLzIwMTUgMDk6MDU6MzkNClRvOiBvbGVrc2FuZHIuY2hlcm55a2hA
+cGxheXRlY2guY29tDQpDYzogbGludXgtbW1Aa3ZhY2sub3JnDQpTdWJqZWN0OiBSRTogU1IgIyA8
+NC0xMDk5Nzg4NjAzMT4gUGVyZm9ybWFuY2UgaXNzdWVzDQoNCkhlbGxvIE9sZWtzYW5kciwNCg0K
+VGhpcyBpcyBWTXdhcmUuIFRoZXJlIGFyZSByY3Ugc3RhbGxzIGluIHRoZSBsb2dzLCB3aGljaCBp
+bmRpY2F0ZXMgdGhhdCB0aGUgVk1zIGRvbid0IGdldCBlbm91Z2ggQ1BVIHRpbWUgYXNzaWduZWQs
+IHRoZSBob3N0IG1pZ2h0IGJlIG92ZXJsb2FkZWQgb3IgQ1BVcyBhcmUgb3ZlcmNvbW1pdGVkLiBU
+aGVyZSBhcmUgYWxzbyBuZXR3b3JrIHRyYW5zbWl0IHRpbWVvdXRzIGluIHRoZSBsb2dzLCBpbmRp
+Y2F0aW5nIHRoZSBzYW1lLg0KDQpUaGUgbWluaW11bSBtZW1vcnkgZm9yIFZNd2FyZSBpcyAxNkdC
+LCBwbGVhc2Ugc2VlIHRoZSBpbnN0YWxsYXRpb24gZ3VpZGUuIFRoZSBWTXMgb25seSBoYXZlIDhH
+QiBhc3NpZ25lZC4gU2luY2UgdGhlcmUgYXJlIGxvYWQgaXNzdWVzLCBJJ2QgYWxzbyBzdWdnZXN0
+IHRvIGFzc2lnbiBtb3JlIHRoZW4gdGhlIG1pbmltdW0gQ1BVLg0KDQoNCldpdGgga2luZCByZWdh
+cmRzLA0KDQpTdGVmYW4gQmx1ZW1lbA0KSW50ZWwgU2VjdXJpdHkgVGVjaG5pY2FsIFN1cHBvcnQN
+Cg0KSW50ZXJuYXRpb25hbDogICsxLTg4OC04NDctODc2Ng0KVW5pdGVkIEtpbmdkb206IDAwODAw
+LTYyNDctNzQ2Mw0KR2VybWFueTogICAgICAgICAgICAwMDgwMC0xMjI1LTU2MjQNCkF1c3RyYWxp
+YTogICAgICArMS04MDAtMDczLTI2Nw0KDQpXZWI6IGh0dHA6Ly93d3cubWNhZmVlLmNvbQ0KV2Vi
+OiBodHRwOi8vbXlzdXBwb3J0Lm1jYWZlZS5jb20NCg0KUGxlYXNlIHJlc3BvbmQgb25seSB0byBz
+dXBwb3J0X3JlcGx5QG1jYWZlZS5jb20sIGtlZXBpbmcgIlNSICMgPDQtWFhYWFhYWFhYPiIgd2l0
+aCB5b3VyIHJlc3BlY3RpdmUgc2VydmljZSByZXF1ZXN0IG51bWJlciBpbiB0aGUgc3ViamVjdCBs
+aW5lLg0KDQpLZWVwIHVwLXRvLWRhdGUgb24geW91ciBNY0FmZWUgcHJvZHVjdHMhIFN1YnNjcmli
+ZSB0byBNY0FmZWUncyBORVcgU3VwcG9ydCBOb3RpZmljYXRpb24gU2VydmljZSAoU05TKSB0byBn
+ZXQgdGltZWx5IHRlY2huaWNhbCBpbmZvLg0KR28gdG86IGh0dHA6Ly9teS5tY2FmZWUuY29tL2Nv
+bnRlbnQvU05TX1N1YnNjcmlwdGlvbl9DZW50ZXINCg0KVGhlIGluZm9ybWF0aW9uIGNvbnRhaW5l
+ZCBpbiB0aGlzIGVtYWlsIG1lc3NhZ2UgbWF5IGJlIHByaXZpbGVnZWQsIGNvbmZpZGVudGlhbCBh
+bmQgcHJvdGVjdGVkIGZyb20gZGlzY2xvc3VyZS4gSWYgeW91IGFyZSBub3QgdGhlIGludGVuZGVk
+IHJlY2lwaWVudCwgYW55IHJldmlldywgZGlzc2VtaW5hdGlvbiwgZGlzdHJpYnV0aW9uIG9yIGNv
+cHlpbmcgaXMgc3RyaWN0bHkgcHJvaGliaXRlZC4gSWYgeW91IGhhdmUgcmVjZWl2ZWQgdGhpcyBl
+bWFpbCBtZXNzYWdlIGluIGVycm9yLCBwbGVhc2Ugbm90aWZ5IHRoZSBzZW5kZXIgYnkgcmVwbHkg
+ZW1haWwgYW5kIGRlbGV0ZSB0aGUgbWVzc2FnZSBhbmQgYW55IGF0dGFjaG1lbnRzLg0KLS0tLS0t
+LS0tLS0tLS0tLS0NCkZyb206IE1GRSBTdXBwb3J0IE91dGJvdW5kIFByb2ZpbGUNClNlbnQ6IDA5
+LzI4LzIwMTUgMDc6MzA6MTcNClRvOiBvbGVrc2FuZHIuY2hlcm55a2hAcGxheXRlY2guY29tDQpD
+YzogbGludXgtbW1Aa3ZhY2sub3JnDQpTdWJqZWN0OiBTUiAjIDw0LTEwOTk3ODg2MDMxPiAgUGVy
+Zm9ybWFuY2UgaXNzdWVzDQoNCkhlbGxvIE9sZWtzYW5kciwNCg0KVGhhbmsgeW91IGZvciBjb250
+YWN0aW5nIEludGVsIFNlY3VyaXR5IHRlY2huaWNhbCBzdXBwb3J0Lg0KDQpJIGhhdmUgZXNjYWxh
+dGVkIHRoaXMgU1IgdG9nZXRoZXIgd2l0aCB0aGUgcHJvdmlkZWQgZGF0YSB0byBvdXIgZGV2ZWxv
+cG1lbnQgdGVhbS4gSSBjb3VsZCBub3QgZmlndXJlIG91dCB3aHkgdGhlIGRpcmVjdG9yeSBub2Rl
+IChub2RlIDMpIHdhcyBzbyBvdmVybG9hZGVkLg0KDQpJIHdpbGwga2VlcCB5b3UgdXBkYXRlZCBv
+biB0aGVpciBmaW5kaW5ncy4NCg0KDQpXaXRoIGtpbmQgcmVnYXJkcywNCg0KU3RlZmFuIEJsdWVt
+ZWwNCkludGVsIFNlY3VyaXR5IFRlY2huaWNhbCBTdXBwb3J0DQoNCkludGVybmF0aW9uYWw6ICAr
+MS04ODgtODQ3LTg3NjYNClVuaXRlZCBLaW5nZG9tOiAwMDgwMC02MjQ3LTc0NjMNCkdlcm1hbnk6
+ICAgICAgICAgICAgMDA4MDAtMTIyNS01NjI0DQpBdXN0cmFsaWE6ICAgICAgKzEtODAwLTA3My0y
+NjcNCg0KV2ViOiBodHRwOi8vd3d3Lm1jYWZlZS5jb20NCldlYjogaHR0cDovL215c3VwcG9ydC5t
+Y2FmZWUuY29tDQoNClBsZWFzZSByZXNwb25kIG9ubHkgdG8gc3VwcG9ydF9yZXBseUBtY2FmZWUu
+Y29tLCBrZWVwaW5nICJTUiAjIDw0LVhYWFhYWFhYWD4iIHdpdGggeW91ciByZXNwZWN0aXZlIHNl
+cnZpY2UgcmVxdWVzdCBudW1iZXIgaW4gdGhlIHN1YmplY3QgbGluZS4NCg0KS2VlcCB1cC10by1k
+YXRlIG9uIHlvdXIgTWNBZmVlIHByb2R1Y3RzISBTdWJzY3JpYmUgdG8gTWNBZmVlJ3MgTkVXIFN1
+cHBvcnQgTm90aWZpY2F0aW9uIFNlcnZpY2UgKFNOUykgdG8gZ2V0IHRpbWVseSB0ZWNobmljYWwg
+aW5mby4NCkdvIHRvOiBodHRwOi8vbXkubWNhZmVlLmNvbS9jb250ZW50L1NOU19TdWJzY3JpcHRp
+b25fQ2VudGVyDQoNClRoZSBpbmZvcm1hdGlvbiBjb250YWluZWQgaW4gdGhpcyBlbWFpbCBtZXNz
+YWdlIG1heSBiZSBwcml2aWxlZ2VkLCBjb25maWRlbnRpYWwgYW5kIHByb3RlY3RlZCBmcm9tIGRp
+c2Nsb3N1cmUuIElmIHlvdSBhcmUgbm90IHRoZSBpbnRlbmRlZCByZWNpcGllbnQsIGFueSByZXZp
+ZXcsIGRpc3NlbWluYXRpb24sIGRpc3RyaWJ1dGlvbiBvciBjb3B5aW5nIGlzIHN0cmljdGx5IHBy
+b2hpYml0ZWQuIElmIHlvdSBoYXZlIHJlY2VpdmVkIHRoaXMgZW1haWwgbWVzc2FnZSBpbiBlcnJv
+ciwgcGxlYXNlIG5vdGlmeSB0aGUgc2VuZGVyIGJ5IHJlcGx5IGVtYWlsIGFuZCBkZWxldGUgdGhl
+IG1lc3NhZ2UgYW5kIGFueSBhdHRhY2htZW50cy4NClRoaXMgY29tbXVuaWNhdGlvbiwgd2hpY2gg
+aW5jbHVkZXMgYW55IGF0dGFjaG1lbnRzLCBpcyBzZW50IG9uIGJlaGFsZiBvZiBQbGF5dGVjaCBw
+bGMgb3Igb25lIG9mIGl0cyBzdWJzaWRpYXJpZXMgKFBsYXl0ZWNoIEdyb3VwKS4gSXQgY29udGFp
+bnMgaW5mb3JtYXRpb24gd2hpY2ggaXMgcHJpdmlsZWdlZCBhbmQgY29uZmlkZW50aWFsIGFuZCBp
+cyBleGNsdXNpdmVseSBpbnRlbmRlZCBvbmx5IGZvciB0aGUgaW5kaXZpZHVhbChzKSBvciBlbnRp
+dHkgbmFtZWQgYWJvdmUgKFJlY2lwaWVudCkuIElmIHlvdSBhcmUgbm90IHRoZSBpbnRlbmRlZCBS
+ZWNpcGllbnQsIG9yIHRoZSBwZXJzb24gcmVzcG9uc2libGUgZm9yIGRlbGl2ZXJpbmcgaXQgdG8g
+dGhlIGludGVuZGVkIFJlY2lwaWVudCwgeW91IGFyZSBub3RpZmllZCB0aGF0IGFueSByZXZpZXcs
+IGRpc2Nsb3N1cmUsIGRpc3NlbWluYXRpb24sIGRpc3RyaWJ1dGlvbiBvciByZXByb2R1Y3Rpb24g
+b2YgdGhpcyBjb21tdW5pY2F0aW9uIGluIGFueSB3YXkgaXMgbm90IGF1dGhvcmlzZWQgYnkgdGhl
+IFBsYXl0ZWNoIEdyb3VwIGFuZCBtYXkgYmUgcHJvaGliaXRlZC4gSWYgeW91IHJlY2VpdmUgdGhp
+cyBjb21tdW5pY2F0aW9uIGJ5IG1pc3Rha2UsIHBsZWFzZSBub3RpZnkgdGhlIHNlbmRlciBpbW1l
+ZGlhdGVseSBhbmQgdGhlbiBkZXN0cm95IGFueSBjb3BpZXMgb2YgaXQuIFVubGVzcyBleHByZXNz
+bHkgc3RhdGVkIHRvIHRoZSBjb250cmFyeSwgbm90aGluZyBpbiB0aGlzIGNvbW11bmljYXRpb24g
+c2hhbGwgY29uc3RpdHV0ZSBhIGNvbnRyYWN0dWFsIG9mZmVyIGNhcGFibGUgb2YgYWNjZXB0YW5j
+ZSBvciBpbmRpY2F0ZSBhbnkgaW50ZW50aW9uIHRvIGNyZWF0ZSBsZWdhbCByZWxhdGlvbnMuIFBs
+ZWFzZSBub3RlIHRoYXQgdGhlIFBsYXl0ZWNoIEdyb3VwIG1vbml0b3JzIGNvbW11bmljYXRpb25z
+IHNlbnQgb3IgcmVjZWl2ZWQgYnkgaXQgZm9yIHNlY3VyaXR5IGFuZCBvdGhlciBwdXJwb3Nlcy4g
+QW55IHZpZXdzIG9yIG9waW5pb25zIHByZXNlbnRlZCBhcmUgc29sZWx5IHRob3NlIG9mIHRoZSBh
+dXRob3IgYW5kIGRvIG5vdCBuZWNlc3NhcmlseSByZXByZXNlbnQgdGhvc2Ugb2YgdGhlIFBsYXl0
+ZWNoIEdyb3VwLiBEZXRhaWxzIG9mIHRoZSBjb21wYW5pZXMgaW4gdGhlIFBsYXl0ZWNoIEdyb3Vw
+IGFyZSBhdmFpbGFibGUgaGVyZTxodHRwOi8vd3d3LnBsYXl0ZWNoLmNvbS9pbmZvL21haWxfZGlz
+Y2xhaW1lcj4uIFBsYXl0ZWNoIHBsYyBpcyByZWdpc3RlcmVkIGluIHRoZSBJc2xlIG9mIE1hbiAo
+Y29tcGFueSBudW1iZXIgMDA4NTA1Vikgd2l0aCBpdHMgcmVnaXN0ZXJlZCBvZmZpY2UgYXQgR3Jv
+dW5kIEZsb29yLCBTdCBHZW9yZ2UncyBDb3VydCwgVXBwZXIgQ2h1cmNoIFN0cmVldCwgRG91Z2xh
+cyBJTTEgMUVFDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
