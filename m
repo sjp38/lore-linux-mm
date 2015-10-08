@@ -1,56 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id DA0386B0256
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 02:36:10 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so45231634pab.3
-        for <linux-mm@kvack.org>; Wed, 07 Oct 2015 23:36:10 -0700 (PDT)
-Received: from xiaomi.com (outboundhk.mxmail.xiaomi.com. [207.226.244.122])
-        by mx.google.com with ESMTPS id qp7si63996015pbc.93.2015.10.07.23.36.09
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id D48656B0038
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 03:02:32 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so46140699pac.0
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 00:02:32 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id a4si64091712pas.197.2015.10.08.00.02.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 07 Oct 2015 23:36:09 -0700 (PDT)
-From: Hui Zhu <zhuhui@xiaomi.com>
-Subject: [PATCH 3/3] zram: make create "__GFP_MOVABLE" pool
-Date: Thu, 8 Oct 2015 14:35:52 +0800
-Message-ID: <1444286152-30175-4-git-send-email-zhuhui@xiaomi.com>
-In-Reply-To: <1444286152-30175-1-git-send-email-zhuhui@xiaomi.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Oct 2015 00:02:32 -0700 (PDT)
+Received: by pablk4 with SMTP id lk4so45954800pab.3
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 00:02:31 -0700 (PDT)
+Date: Thu, 8 Oct 2015 16:03:20 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [RFC 0/3] zsmalloc: make its pages movable
+Message-ID: <20151008070320.GA447@swordfish>
 References: <1444286152-30175-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1444286152-30175-1-git-send-email-zhuhui@xiaomi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey
- Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Dave Hansen <dave.hansen@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal
- Hocko <mhocko@suse.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jennifer Herbert <jennifer.herbert@citrix.com>, Hugh Dickins <hughd@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Vlastimil
- Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, "Steven Rostedt (Red Hat)" <rostedt@goodmis.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <wanpeng.li@hotmail.com>, Geert Uytterhoeven <geert+renesas@glider.be>, Greg
- Thelen <gthelen@google.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
+To: Hui Zhu <zhuhui@xiaomi.com>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Dave Hansen <dave.hansen@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jennifer Herbert <jennifer.herbert@citrix.com>, Hugh Dickins <hughd@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, "Steven Rostedt (Red Hat)" <rostedt@goodmis.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <wanpeng.li@hotmail.com>, Geert Uytterhoeven <geert+renesas@glider.be>, Greg Thelen <gthelen@google.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, teawater@gmail.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Change the flags when call zs_create_pool to make zram alloc movable
-zsmalloc page.
+On (10/08/15 14:35), Hui Zhu wrote:
+> 
+> As the discussion in the list, the zsmalloc introduce some problems
+> around pages because its pages are unmovable.
+> 
+> These patches introduced page move function to zsmalloc.  And they also
+> add interface to struct page.
+> 
 
-Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
----
- drivers/block/zram/zram_drv.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+Hi,
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 9fa15bb..8f3f524 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -514,7 +514,9 @@ static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
- 		goto out_error;
- 	}
- 
--	meta->mem_pool = zs_create_pool(pool_name, GFP_NOIO | __GFP_HIGHMEM);
-+	meta->mem_pool
-+		= zs_create_pool(pool_name,
-+				 GFP_NOIO | __GFP_HIGHMEM | __GFP_MOVABLE);
- 	if (!meta->mem_pool) {
- 		pr_err("Error creating memory pool\n");
- 		goto out_error;
--- 
-1.9.1
+have you seen
+ http://lkml.iu.edu/hypermail/linux/kernel/1507.0/03233.html
+ http://lkml.iu.edu/hypermail/linux/kernel/1508.1/00696.html
+
+?
+
+
+	-ss
+
+> Hui Zhu (3):
+> page: add new flags "PG_movable" and add interfaces to control these pages
+> zsmalloc: mark its page "PG_movable"
+> zram: make create "__GFP_MOVABLE" pool
+>  drivers/block/zram/zram_drv.c |    4 
+>  include/linux/mm_types.h      |   11 +
+>  include/linux/page-flags.h    |    3 
+>  mm/compaction.c               |    6 
+>  mm/debug.c                    |    1 
+>  mm/migrate.c                  |   17 +
+>  mm/vmscan.c                   |    2 
+>  mm/zsmalloc.c                 |  409 ++++++++++++++++++++++++++++++++++++++++--
+>  8 files changed, 428 insertions(+), 25 deletions(-)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
