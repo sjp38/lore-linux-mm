@@ -1,57 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id BEF8F6B0038
-	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 05:40:11 -0400 (EDT)
-Received: by wicfx3 with SMTP id fx3so16703377wic.0
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 02:40:11 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mw8si10389513wic.89.2015.10.08.02.40.10
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id B6B5D6B0253
+	for <linux-mm@kvack.org>; Thu,  8 Oct 2015 05:41:14 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so19914010wic.0
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 02:41:14 -0700 (PDT)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id v12si13368160wjr.183.2015.10.08.02.41.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 08 Oct 2015 02:40:10 -0700 (PDT)
-Subject: Re: can't oom-kill zap the victim's memory?
-References: <201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
- <20151002123639.GA13914@dhcp22.suse.cz>
- <CA+55aFw=OLSdh-5Ut2vjy=4Yf1fTXqpzoDHdF7XnT5gDHs6sYA@mail.gmail.com>
- <20151005144404.GD7023@dhcp22.suse.cz> <5614AAC0.60002@suse.cz>
- <201510071943.DCJ01080.JOFOFFOtLSMQHV@I-love.SAKURA.ne.jp>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <561639F7.3080504@suse.cz>
-Date: Thu, 8 Oct 2015 11:40:07 +0200
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 08 Oct 2015 02:41:12 -0700 (PDT)
+Date: Thu, 8 Oct 2015 10:40:55 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH V4 2/3] arm64: support initrd outside kernel linear map
+Message-ID: <20151008094055.GC32532@n2100.arm.linux.org.uk>
+References: <1439830867-14935-1-git-send-email-msalter@redhat.com>
+ <1439830867-14935-3-git-send-email-msalter@redhat.com>
+ <20150908113113.GA20562@leverpostej>
+ <20151006171140.GE26433@leverpostej>
+ <1444151812.10788.14.camel@redhat.com>
+ <20151008084953.GA20114@cbox>
+ <FC378C09-F140-4A62-9FFA-09293E65E866@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <201510071943.DCJ01080.JOFOFFOtLSMQHV@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <FC378C09-F140-4A62-9FFA-09293E65E866@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: Christoffer Dall <christoffer.dall@linaro.org>, Mark Rutland <mark.rutland@arm.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "x86@kernel.org" <x86@kernel.org>, Will Deacon <Will.Deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mark Salter <msalter@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On 10/07/2015 12:43 PM, Tetsuo Handa wrote:
-> Vlastimil Babka wrote:
->> On 5.10.2015 16:44, Michal Hocko wrote:
->>> So I can see basically only few ways out of this deadlock situation.
->>> Either we face the reality and allow small allocations (withtout
->>> __GFP_NOFAIL) to fail after all attempts to reclaim memory have failed
->>> (so after even OOM killer hasn't made any progress).
->>
->> Note that small allocations already *can* fail if they are done in the context
->> of a task selected as OOM victim (i.e. TIF_MEMDIE). And yeah I've seen a case
->> when they failed in a code that "handled" the allocation failure with a
->> BUG_ON(!page).
->>
-> Did You hit a race described below?
+On Thu, Oct 08, 2015 at 05:18:14PM +0800, yalin wang wrote:
+> is it also possible to implement it on ARM platforms?
+> ARM64 platform dona??t have HIGH_MEM zone .
+> but ARM platform have .
+> i remember boot loader must put init rd  into low memory region,
+> so if some boot loader put init rd into HIGH men zone
+> we can also relocate it to low men region ?
+> then boot loader dona??t need care about this ,
+> and since vmalloc= boot option will change HIGH mem region size,
+> if we can relocate init rd , boot loader dona??t need care about init rd load address,
+> when change vmalloc= boot options .
 
-I don't know, I don't even have direct evidence of TIF_MEMDIE being set, 
-but OOMs were happening all over the place, and I haven't found another 
-reason why the allocation would not be too-small-to-fail otherwise.
+I'd be more inclined to say yes if the kernel wasn't buggering around
+passing virtual addresses (initrd_start) of the initrd image around,
+but instead used a physical address.  initrd_start must be a lowmem
+address.
 
-> http://lkml.kernel.org/r/201508272249.HDH81838.FtQOLMFFOVSJOH@I-love.SAKURA.ne.jp
->
-> Where was the BUG_ON(!page) ? Maybe it is a candidate for adding __GFP_NOFAIL.
-
-Yes, I suggested so:
-http://marc.info/?l=linux-kernel&m=144181523115244&w=2
+-- 
+FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
