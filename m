@@ -1,114 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C25006B0253
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 05:25:09 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so82256714pac.0
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 02:25:09 -0700 (PDT)
-Received: from mgwym02.jp.fujitsu.com (mgwym02.jp.fujitsu.com. [211.128.242.41])
-        by mx.google.com with ESMTPS id bi5si1167996pbc.38.2015.10.09.02.25.08
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id AE6E26B0253
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 05:26:02 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so59871784wic.0
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 02:26:02 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
+        by mx.google.com with ESMTPS id yp6si792462wjc.166.2015.10.09.02.26.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Oct 2015 02:25:08 -0700 (PDT)
-Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
-	by yt-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 737FAAC073E
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 18:25:05 +0900 (JST)
-Subject: Re: [PATCH][RFC] mm: Introduce kernelcore=reliable option
-References: <1444402599-15274-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <561762DC.3080608@huawei.com>
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <561787DA.4040809@jp.fujitsu.com>
-Date: Fri, 9 Oct 2015 18:24:42 +0900
+        Fri, 09 Oct 2015 02:26:01 -0700 (PDT)
+Received: by wicge5 with SMTP id ge5so59871190wic.0
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 02:26:01 -0700 (PDT)
+Date: Fri, 9 Oct 2015 12:25:59 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv12 25/37] mm, thp: remove infrastructure for handling
+ splitting PMDs
+Message-ID: <20151009092559.GA7346@node>
+References: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1444145044-72349-26-git-send-email-kirill.shutemov@linux.intel.com>
+ <56162EC9.8030803@synopsys.com>
 MIME-Version: 1.0
-In-Reply-To: <561762DC.3080608@huawei.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56162EC9.8030803@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, mel@csn.ul.ie, akpm@linux-foundation.org, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2015/10/09 15:46, Xishi Qiu wrote:
-> On 2015/10/9 22:56, Taku Izumi wrote:
->
->> Xeon E7 v3 based systems supports Address Range Mirroring
->> and UEFI BIOS complied with UEFI spec 2.5 can notify which
->> ranges are reliable (mirrored) via EFI memory map.
->> Now Linux kernel utilize its information and allocates
->> boot time memory from reliable region.
->>
->> My requirement is:
->>    - allocate kernel memory from reliable region
->>    - allocate user memory from non-reliable region
->>
->> In order to meet my requirement, ZONE_MOVABLE is useful.
->> By arranging non-reliable range into ZONE_MOVABLE,
->> reliable memory is only used for kernel allocations.
->>
->
-> Hi Taku,
->
-> You mean set non-mirrored memory to movable zone, and set
-> mirrored memory to normal zone, right? So kernel allocations
-> will use mirrored memory in normal zone, and user allocations
-> will use non-mirrored memory in movable zone.
->
-> My question is:
-> 1) do we need to change the fallback function?
+On Thu, Oct 08, 2015 at 02:22:25PM +0530, Vineet Gupta wrote:
+> On Tuesday 06 October 2015 08:53 PM, Kirill A. Shutemov wrote:
+> > With new refcounting we don't need to mark PMDs splitting. Let's drop code
+> > to handle this.
+> > 
+> ....
+> >  
+> > diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+> > index 29c57b2cb344..010a7e3f6ad1 100644
+> > --- a/include/asm-generic/pgtable.h
+> > +++ b/include/asm-generic/pgtable.h
+> > @@ -184,11 +184,6 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+> >  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+> >  #endif
+> >  
+> > -#ifndef __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+> > -extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+> > -				 unsigned long address, pmd_t *pmdp);
+> > -#endif
+> 
+> 
+> Hi Kirill,
+> 
+> While at it - you would also want to nuke
+> 
+> Documentation/features/vm/pmdp_splitting_flush/
 
-For *our* requirement, it's not required. But if someone want to prevent
-user's memory allocation from NORMAL_ZONE, we need some change in zonelist
-walking.
+Sure.
 
-> 2) the mirrored region should locate at the start of normal
-> zone, right?
+The patch below can be folded into this one.
 
-Precisely, "not-reliable" range of memory are handled by ZONE_MOVABLE.
-This patch does only that.
-
->
-> I remember Kame has already suggested this idea. In my opinion,
-> I still think it's better to add a new migratetype or a new zone,
-> so both user and kernel could use mirrored memory.
-
-Hi, Xishi.
-
-I and Izumi-san discussed the implementation much and found using "zone"
-is better approach.
-
-The biggest reason is that zone is a unit of vmscan and all statistics and
-handling the range of memory for a purpose. We can reuse all vmscan and
-information codes by making use of zones. Introdcing other structure will be messy.
-His patch is very simple.
-
-For your requirements. I and Izumi-san are discussing following plan.
-
-  - Add a flag to show the zone is reliable or not, then, mark ZONE_MOVABLE as not-reliable.
-  - Add __GFP_RELIABLE. This will allow alloc_pages() to skip not-reliable zone.
-  - Add madivse() MADV_RELIABLE and modify page fault code's gfp flag with that flag.
-
-
-Thanks,
--Kame
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+diff --git a/Documentation/features/vm/pmdp_splitting_flush/arch-support.txt b/Documentation/features/vm/pmdp_splitting_flush/arch-support.txt
+deleted file mode 100644
+index 26f74b457e0b..000000000000
+--- a/Documentation/features/vm/pmdp_splitting_flush/arch-support.txt
++++ /dev/null
+@@ -1,40 +0,0 @@
+-#
+-# Feature name:          pmdp_splitting_flush
+-#         Kconfig:       __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+-#         description:   arch supports the pmdp_splitting_flush() VM API
+-#
+-    -----------------------
+-    |         arch |status|
+-    -----------------------
+-    |       alpha: | TODO |
+-    |         arc: | TODO |
+-    |         arm: |  ok  |
+-    |       arm64: |  ok  |
+-    |       avr32: | TODO |
+-    |    blackfin: | TODO |
+-    |         c6x: | TODO |
+-    |        cris: | TODO |
+-    |         frv: | TODO |
+-    |       h8300: | TODO |
+-    |     hexagon: | TODO |
+-    |        ia64: | TODO |
+-    |        m32r: | TODO |
+-    |        m68k: | TODO |
+-    |       metag: | TODO |
+-    |  microblaze: | TODO |
+-    |        mips: |  ok  |
+-    |     mn10300: | TODO |
+-    |       nios2: | TODO |
+-    |    openrisc: | TODO |
+-    |      parisc: | TODO |
+-    |     powerpc: |  ok  |
+-    |        s390: |  ok  |
+-    |       score: | TODO |
+-    |          sh: | TODO |
+-    |       sparc: | TODO |
+-    |        tile: | TODO |
+-    |          um: | TODO |
+-    |   unicore32: | TODO |
+-    |         x86: |  ok  |
+-    |      xtensa: | TODO |
+-    -----------------------
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
