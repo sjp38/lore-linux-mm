@@ -1,114 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 432C56B0253
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 05:09:46 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so81874467pac.0
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 02:09:46 -0700 (PDT)
-Received: from mgwym01.jp.fujitsu.com (mgwym01.jp.fujitsu.com. [211.128.242.40])
-        by mx.google.com with ESMTPS id gh10si1089791pbd.13.2015.10.09.02.09.44
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C25006B0253
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 05:25:09 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so82256714pac.0
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 02:25:09 -0700 (PDT)
+Received: from mgwym02.jp.fujitsu.com (mgwym02.jp.fujitsu.com. [211.128.242.41])
+        by mx.google.com with ESMTPS id bi5si1167996pbc.38.2015.10.09.02.25.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Oct 2015 02:09:45 -0700 (PDT)
+        Fri, 09 Oct 2015 02:25:08 -0700 (PDT)
 Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
-	by yt-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 28FA8AC03C0
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 18:09:42 +0900 (JST)
-Subject: Re: [Intel-wired-lan] [Patch V3 5/9] i40e: Use numa_mem_id() to
- better support memoryless node
-References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
- <1439781546-7217-6-git-send-email-jiang.liu@linux.intel.com>
- <4197C471DCF8714FBA1FE32565271C148FFFF4D3@ORSMSX103.amr.corp.intel.com>
- <alpine.DEB.2.10.1508191717450.30666@chino.kir.corp.google.com>
- <20151008132037.fc3887da0818e7d011cb752f@linux-foundation.org>
- <56175637.50102@linux.intel.com>
+	by yt-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 737FAAC073E
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 18:25:05 +0900 (JST)
+Subject: Re: [PATCH][RFC] mm: Introduce kernelcore=reliable option
+References: <1444402599-15274-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <561762DC.3080608@huawei.com>
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <56178419.6090503@jp.fujitsu.com>
-Date: Fri, 9 Oct 2015 18:08:41 +0900
+Message-ID: <561787DA.4040809@jp.fujitsu.com>
+Date: Fri, 9 Oct 2015 18:24:42 +0900
 MIME-Version: 1.0
-In-Reply-To: <56175637.50102@linux.intel.com>
+In-Reply-To: <561762DC.3080608@huawei.com>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: "Patil, Kiran" <kiran.patil@intel.com>, Mel Gorman <mgorman@suse.de>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Wysocki, Rafael J" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, "Kirsher, Jeffrey T" <jeffrey.t.kirsher@intel.com>, "Brandeburg, Jesse" <jesse.brandeburg@intel.com>, "Nelson, Shannon" <shannon.nelson@intel.com>, "Wyborny, Carolyn" <carolyn.wyborny@intel.com>, "Skidmore, Donald C" <donald.c.skidmore@intel.com>, "Vick, Matthew" <matthew.vick@intel.com>, "Ronciak, John" <john.ronciak@intel.com>, "Williams, Mitch A" <mitch.a.williams@intel.com>, "Luck, Tony" <tony.luck@intel.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-hotplug@vger.kernel.org" <linux-hotplug@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "intel-wired-lan@lists.osuosl.org" <intel-wired-lan@lists.osuosl.org>
+To: Xishi Qiu <qiuxishi@huawei.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, mel@csn.ul.ie, akpm@linux-foundation.org, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>
 
-On 2015/10/09 14:52, Jiang Liu wrote:
-> On 2015/10/9 4:20, Andrew Morton wrote:
->> On Wed, 19 Aug 2015 17:18:15 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+On 2015/10/09 15:46, Xishi Qiu wrote:
+> On 2015/10/9 22:56, Taku Izumi wrote:
+>
+>> Xeon E7 v3 based systems supports Address Range Mirroring
+>> and UEFI BIOS complied with UEFI spec 2.5 can notify which
+>> ranges are reliable (mirrored) via EFI memory map.
+>> Now Linux kernel utilize its information and allocates
+>> boot time memory from reliable region.
 >>
->>> On Wed, 19 Aug 2015, Patil, Kiran wrote:
->>>
->>>> Acked-by: Kiran Patil <kiran.patil@intel.com>
->>>
->>> Where's the call to preempt_disable() to prevent kernels with preemption
->>> from making numa_node_id() invalid during this iteration?
+>> My requirement is:
+>>    - allocate kernel memory from reliable region
+>>    - allocate user memory from non-reliable region
 >>
->> David asked this question twice, received no answer and now the patch
->> is in the maintainer tree, destined for mainline.
+>> In order to meet my requirement, ZONE_MOVABLE is useful.
+>> By arranging non-reliable range into ZONE_MOVABLE,
+>> reliable memory is only used for kernel allocations.
 >>
->> If I was asked this question I would respond
->>
->>    The use of numa_mem_id() is racy and best-effort.  If the unlikely
->>    race occurs, the memory allocation will occur on the wrong node, the
->>    overall result being very slightly suboptimal performance.  The
->>    existing use of numa_node_id() suffers from the same issue.
->>
->> But I'm not the person proposing the patch.  Please don't just ignore
->> reviewer comments!
-> Hi Andrew,
-> 	Apologize for the slow response due to personal reasons!
-> And thanks for answering the question from David. To be honest,
-> I didn't know how to answer this question before. Actually this
-> question has puzzled me for a long time when dealing with memory
-> hot-removal. For normal cases, it only causes sub-optimal memory
-> allocation if schedule event happens between querying NUMA node id
-> and calling alloc_pages_node(). But what happens if system run into
-> following execution sequence?
-> 1) node = numa_mem_id();
-> 2) memory hot-removal event triggers
-> 2.1) remove affected memory
-> 2.2) reset pgdat to zero if node becomes empty after memory removal
+>
+> Hi Taku,
+>
+> You mean set non-mirrored memory to movable zone, and set
+> mirrored memory to normal zone, right? So kernel allocations
+> will use mirrored memory in normal zone, and user allocations
+> will use non-mirrored memory in movable zone.
+>
+> My question is:
+> 1) do we need to change the fallback function?
 
-I'm sorry if I misunderstand something.
-After commit b0dc3a342af36f95a68fe229b8f0f73552c5ca08, there is no memset().
+For *our* requirement, it's not required. But if someone want to prevent
+user's memory allocation from NORMAL_ZONE, we need some change in zonelist
+walking.
 
-> 3) alloc_pages_node(), which may access zero-ed pgdat structure.
+> 2) the mirrored region should locate at the start of normal
+> zone, right?
 
-?
+Precisely, "not-reliable" range of memory are handled by ZONE_MOVABLE.
+This patch does only that.
 
 >
-> I haven't found a mechanism to protect system from above sequence yet,
-> so puzzled for a long time already:(. Does stop_machine() protect
-> system from such a execution sequence?
+> I remember Kame has already suggested this idea. In my opinion,
+> I still think it's better to add a new migratetype or a new zone,
+> so both user and kernel could use mirrored memory.
 
-To access pgdat, a pgdat's zone should be on per-pgdat-zonelist.
-Now, __build_all_zonelists() is called under stop_machine(). That's the reason
-why you're asking what stop_machine() does. And, as you know, stop_machine() is not
-protecting anything. The caller may fallback into removed zone.
+Hi, Xishi.
 
-Then, let's think.
+I and Izumi-san discussed the implementation much and found using "zone"
+is better approach.
 
-At first, please note "pgdat" is not removed (and cannot be removed),
-accessing pgdat's memory will not cause segmentation fault.
+The biggest reason is that zone is a unit of vmscan and all statistics and
+handling the range of memory for a purpose. We can reuse all vmscan and
+information codes by making use of zones. Introdcing other structure will be messy.
+His patch is very simple.
 
-Just contents are problem. At removal, zone's page related information
-and pgdat's page related information is cleared.
+For your requirements. I and Izumi-san are discussing following plan.
 
-alloc_pages uses zonelist/zoneref/cache to walk each zones without accessing
-pgdat itself. I think accessing zonelist is safe because it's an array updated
-by stop_machine().
+  - Add a flag to show the zone is reliable or not, then, mark ZONE_MOVABLE as not-reliable.
+  - Add __GFP_RELIABLE. This will allow alloc_pages() to skip not-reliable zone.
+  - Add madivse() MADV_RELIABLE and modify page fault code's gfp flag with that flag.
 
-So, the problem is alloc_pages() can work correctly even if zone contains no page.
-I think it should work.
-
-(Note: zones are included in pgdat. So, zeroing pgdat means zeroing zone and other
-  structures. it will not work.)
-
-So, what problem you see now ?
-I'm sorry I can't chase old discusions.
 
 Thanks,
 -Kame
+
+
+
+
+
+
 
 
 
