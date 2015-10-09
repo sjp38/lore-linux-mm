@@ -1,76 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F32E6B0253
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 04:03:34 -0400 (EDT)
-Received: by wiclk2 with SMTP id lk2so55974382wic.1
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 01:03:33 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id r8si16964335wiw.74.2015.10.09.01.03.33
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EA396B0253
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 04:08:52 -0400 (EDT)
+Received: by lbbwt4 with SMTP id wt4so72366470lbb.1
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 01:08:51 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id uk5si288056lbb.90.2015.10.09.01.08.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Oct 2015 01:03:33 -0700 (PDT)
-Received: by wiclk2 with SMTP id lk2so59294690wic.0
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 01:03:33 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/2] ext4: Fix possible deadlock with local interrupts
- disabled and page-draining IPI
-References: <062501d10262$d40d0a50$7c271ef0$@alibaba-inc.com>
- <56176C10.8040709@kyup.com> <062801d10265$5a749fc0$0f5ddf40$@alibaba-inc.com>
-From: Nikolay Borisov <kernel@kyup.com>
-Message-ID: <561774D2.3050002@kyup.com>
-Date: Fri, 9 Oct 2015 11:03:30 +0300
+        Fri, 09 Oct 2015 01:08:51 -0700 (PDT)
+Date: Fri, 9 Oct 2015 11:08:36 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 2/3] slab_common: clear pointers to per memcg caches on
+ destroy
+Message-ID: <20151009080835.GC2302@esperanza>
+References: <6a18aab2f1c3088377d7fd2207b4cc1a1a743468.1444319304.git.vdavydov@virtuozzo.com>
+ <833ae913932949814d1063e11248e6747d0c3a2b.1444319304.git.vdavydov@virtuozzo.com>
+ <20151008141735.d545d3fa1ab0244f69c41cdf@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <062801d10265$5a749fc0$0f5ddf40$@alibaba-inc.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20151008141735.d545d3fa1ab0244f69c41cdf@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'linux-kernel' <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-fsdevel@vger.kernel.org, SiteGround Operations <operations@siteground.com>, vbabka@suse.cz, gilad@benyossef.com, mgorman@suse.de, linux-mm@kvack.org, Marian Marinov <mm@1h.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/09/2015 10:37 AM, Hillf Danton wrote:
->>>> @@ -109,8 +109,8 @@ static void ext4_finish_bio(struct bio *bio)
->>>>  			if (bio->bi_error)
->>>>  				buffer_io_error(bh);
->>>>  		} while ((bh = bh->b_this_page) != head);
->>>> -		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
->>>>  		local_irq_restore(flags);
->>>
->>> What if it takes 100ms to unlock after IRQ restored?
->>
->> I'm not sure I understand in what direction you are going? Care to
->> elaborate?
->>
-> Your change introduces extra time cost the lock waiter has to pay in
-> the case that irq happens before the lock is released.
-
-[CC filesystem and mm people. For reference the thread starts here:
- http://thread.gmane.org/gmane.linux.kernel/2056996 ]
-
-Right, I see what you mean and it's a good point but when doing the
-patches I was striving for correctness and starting a discussion, hence
-the RFC. In any case I'd personally choose correctness over performance
-always ;).
-
-As I'm not an fs/ext4 expert and have added the relevant parties (please
-use reply-all from now on so that the thread is not being cut in the
-middle) who will be able to say whether it impact is going to be that
-big. I guess in this particular code path worrying about this is prudent
-as writeback sounds like a heavily used path.
-
-Maybe the problem should be approached from a different angle e.g.
-drain_all_pages and its reliance on the fact that the IPI will always be
-delivered in some finite amount of time? But what if a cpu with disabled
-interrupts is waiting on the task issuing the IPI?
-
+On Thu, Oct 08, 2015 at 02:17:35PM -0700, Andrew Morton wrote:
+> On Thu, 8 Oct 2015 19:02:40 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
 > 
->>>> +		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
->>>>  		if (!under_io) {
->>>>  #ifdef CONFIG_EXT4_FS_ENCRYPTION
->>>>  			if (ctx)
->>>> --
->>>> 2.5.0
->>>
+> > Currently, we do not clear pointers to per memcg caches in the
+> > memcg_params.memcg_caches array when a global cache is destroyed with
+> > kmem_cache_destroy. It is fine if the global cache does get destroyed.
+> > However, a cache can be left on the list if it still has active objects
+> > when kmem_cache_destroy is called (due to a memory leak). If this
+> > happens, the entries in the array will point to already freed areas,
+> > which is likely to result in data corruption when the cache is reused
+> > (via slab merging).
 > 
+> It's important that we report these leaks so the kernel bug can get
+> fixed.  The patch doesn't add such detection and reporting, but it
+> could do so?
+
+Reporting individual leaks is up to the slab implementation, we simply
+can't do it from the generic code, so we just warn that there is a leak
+there. SLUB already dumps addresses of all leaked objects to the log
+(see kmem_cache_close -> free_partial -> list_slab_objects).
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
