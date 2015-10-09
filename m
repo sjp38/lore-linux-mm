@@ -1,82 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 61C816B0253
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 01:53:03 -0400 (EDT)
-Received: by pabve7 with SMTP id ve7so18016500pab.2
-        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 22:53:03 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id b9si72175706pas.200.2015.10.08.22.53.02
-        for <linux-mm@kvack.org>;
-        Thu, 08 Oct 2015 22:53:02 -0700 (PDT)
-Subject: Re: [Intel-wired-lan] [Patch V3 5/9] i40e: Use numa_mem_id() to
- better support memoryless node
-References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
- <1439781546-7217-6-git-send-email-jiang.liu@linux.intel.com>
- <4197C471DCF8714FBA1FE32565271C148FFFF4D3@ORSMSX103.amr.corp.intel.com>
- <alpine.DEB.2.10.1508191717450.30666@chino.kir.corp.google.com>
- <20151008132037.fc3887da0818e7d011cb752f@linux-foundation.org>
-From: Jiang Liu <jiang.liu@linux.intel.com>
-Message-ID: <56175637.50102@linux.intel.com>
-Date: Fri, 9 Oct 2015 13:52:55 +0800
-MIME-Version: 1.0
-In-Reply-To: <20151008132037.fc3887da0818e7d011cb752f@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id DE7746B0254
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 01:53:58 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so76635821pab.3
+        for <linux-mm@kvack.org>; Thu, 08 Oct 2015 22:53:58 -0700 (PDT)
+Received: from mgwym01.jp.fujitsu.com (mgwym01.jp.fujitsu.com. [211.128.242.40])
+        by mx.google.com with ESMTPS id yw10si55099722pac.86.2015.10.08.22.53.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Oct 2015 22:53:58 -0700 (PDT)
+Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
+	by yt-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id A9320AC016A
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 14:53:54 +0900 (JST)
+From: Taku Izumi <izumi.taku@jp.fujitsu.com>
+Subject: [PATCH][RFC] mm: Introduce kernelcore=reliable option
+Date: Fri,  9 Oct 2015 23:56:39 +0900
+Message-Id: <1444402599-15274-1-git-send-email-izumi.taku@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: "Patil, Kiran" <kiran.patil@intel.com>, Mel Gorman <mgorman@suse.de>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Wysocki, Rafael J" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, "Kirsher, Jeffrey T" <jeffrey.t.kirsher@intel.com>, "Brandeburg, Jesse" <jesse.brandeburg@intel.com>, "Nelson, Shannon" <shannon.nelson@intel.com>, "Wyborny, Carolyn" <carolyn.wyborny@intel.com>, "Skidmore, Donald C" <donald.c.skidmore@intel.com>, "Vick, Matthew" <matthew.vick@intel.com>, "Ronciak, John" <john.ronciak@intel.com>, "Williams, Mitch A" <mitch.a.williams@intel.com>, "Luck, Tony" <tony.luck@intel.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-hotplug@vger.kernel.org" <linux-hotplug@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "intel-wired-lan@lists.osuosl.org" <intel-wired-lan@lists.osuosl.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: tony.luck@intel.com, qiuxishi@huawei.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, akpm@linux-foundation.org, Taku Izumi <izumi.taku@jp.fujitsu.com>
 
-On 2015/10/9 4:20, Andrew Morton wrote:
-> On Wed, 19 Aug 2015 17:18:15 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-> 
->> On Wed, 19 Aug 2015, Patil, Kiran wrote:
->>
->>> Acked-by: Kiran Patil <kiran.patil@intel.com>
->>
->> Where's the call to preempt_disable() to prevent kernels with preemption 
->> from making numa_node_id() invalid during this iteration?
-> 
-> David asked this question twice, received no answer and now the patch
-> is in the maintainer tree, destined for mainline.
-> 
-> If I was asked this question I would respond
-> 
->   The use of numa_mem_id() is racy and best-effort.  If the unlikely
->   race occurs, the memory allocation will occur on the wrong node, the
->   overall result being very slightly suboptimal performance.  The
->   existing use of numa_node_id() suffers from the same issue.
-> 
-> But I'm not the person proposing the patch.  Please don't just ignore
-> reviewer comments!
-Hi Andrew,
-	Apologize for the slow response due to personal reasons!
-And thanks for answering the question from David. To be honest,
-I didn't know how to answer this question before. Actually this
-question has puzzled me for a long time when dealing with memory
-hot-removal. For normal cases, it only causes sub-optimal memory
-allocation if schedule event happens between querying NUMA node id
-and calling alloc_pages_node(). But what happens if system run into
-following execution sequence?
-1) node = numa_mem_id();
-2) memory hot-removal event triggers
-2.1) remove affected memory
-2.2) reset pgdat to zero if node becomes empty after memory removal
-3) alloc_pages_node(), which may access zero-ed pgdat structure.
+Xeon E7 v3 based systems supports Address Range Mirroring
+and UEFI BIOS complied with UEFI spec 2.5 can notify which
+ranges are reliable (mirrored) via EFI memory map.
+Now Linux kernel utilize its information and allocates
+boot time memory from reliable region.
 
-I haven't found a mechanism to protect system from above sequence yet,
-so puzzled for a long time already:(. Does stop_machine() protect
-system from such a execution sequence?
-Thanks!
-Gerry
+My requirement is:
+  - allocate kernel memory from reliable region
+  - allocate user memory from non-reliable region
 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+In order to meet my requirement, ZONE_MOVABLE is useful.
+By arranging non-reliable range into ZONE_MOVABLE,
+reliable memory is only used for kernel allocations.
+
+This patch extends existing "kernelcore" option and
+introduces kernelcore=reliable option. By specifying
+"reliable" instead of specifying the amount of memory,
+non-reliable region will be arranged into ZONE_MOVABLE.
+
+Signed-off-by: Taku Izumi <izumi.taku@jp.fujitsu.com>
+---
+ Documentation/kernel-parameters.txt |  9 ++++++++-
+ mm/page_alloc.c                     | 26 ++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index 50fc09b..6791cbb 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -1669,7 +1669,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+ 
+ 	keepinitrd	[HW,ARM]
+ 
+-	kernelcore=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
++	kernelcore=	Format: nn[KMG] | "reliable"
++			[KNL,X86,IA-64,PPC] This parameter
+ 			specifies the amount of memory usable by the kernel
+ 			for non-movable allocations.  The requested amount is
+ 			spread evenly throughout all nodes in the system. The
+@@ -1685,6 +1686,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+ 			use the HighMem zone if it exists, and the Normal
+ 			zone if it does not.
+ 
++			Instead of specifying the amount of memory (nn[KMS]),
++			you can specify "reliable" option. In case "reliable"
++			option is specified, reliable memory is used for
++			non-movable allocations and remaining memory is used
++			for Movable pages.
++
+ 	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
+ 			Format: <Controller#>[,poll interval]
+ 			The controller # is the number of the ehci usb debug
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 48aaf7b..91d7556 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -242,6 +242,7 @@ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
+ static unsigned long __initdata required_kernelcore;
+ static unsigned long __initdata required_movablecore;
+ static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
++static bool reliable_kernelcore __initdata;
+ 
+ /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
+ int movable_zone;
+@@ -5652,6 +5653,25 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 	}
+ 
+ 	/*
++	 * If kernelcore=reliable is specified, ignore movablecore option
++	 */
++	if (reliable_kernelcore) {
++		for_each_memblock(memory, r) {
++			if (memblock_is_mirror(r))
++				continue;
++
++			nid = r->nid;
++
++			usable_startpfn = PFN_DOWN(r->base);
++			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
++				min(usable_startpfn, zone_movable_pfn[nid]) :
++				usable_startpfn;
++		}
++
++		goto out2;
++	}
++
++	/*
+ 	 * If movablecore=nn[KMG] was specified, calculate what size of
+ 	 * kernelcore that corresponds so that memory usable for
+ 	 * any allocation type is evenly spread. If both kernelcore
+@@ -5907,6 +5927,12 @@ static int __init cmdline_parse_core(char *p, unsigned long *core)
+  */
+ static int __init cmdline_parse_kernelcore(char *p)
+ {
++	/* parse kernelcore=reliable */
++	if (parse_option_str(p, "reliable")) {
++		reliable_kernelcore = true;
++		return 0;
++	}
++
+ 	return cmdline_parse_core(p, &required_kernelcore);
+ }
+ 
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
