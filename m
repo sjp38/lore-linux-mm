@@ -1,40 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D1C096B0253
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 06:54:53 -0400 (EDT)
-Received: by igbkq10 with SMTP id kq10so32530372igb.0
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 03:54:53 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id m2si10557748igr.10.2015.10.09.03.54.53
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AE4B6B0254
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 07:00:38 -0400 (EDT)
+Received: by wicfx3 with SMTP id fx3so65157282wic.1
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 04:00:38 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
+        by mx.google.com with ESMTPS id av9si1272687wjc.100.2015.10.09.04.00.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Oct 2015 03:54:53 -0700 (PDT)
-Subject: Re: [PATCH v2 10/12] mm,thp: introduce flush_pmd_tlb_range
-References: <1442918096-17454-1-git-send-email-vgupta@synopsys.com>
- <1442918096-17454-11-git-send-email-vgupta@synopsys.com>
- <20151009100816.GC7873@node>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <56179CE5.5000807@synopsys.com>
-Date: Fri, 9 Oct 2015 16:24:29 +0530
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Oct 2015 04:00:35 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so65154655wic.1
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 04:00:33 -0700 (PDT)
+From: Nikolay Borisov <kernel@kyup.com>
+Subject: Making per-cpu lists draining dependant on a flag
+Message-ID: <56179E4F.5010507@kyup.com>
+Date: Fri, 9 Oct 2015 14:00:31 +0300
 MIME-Version: 1.0
-In-Reply-To: <20151009100816.GC7873@node>
-Content-Type: text/plain; charset="windows-1252"
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Matthew
- Wilcox <matthew.r.wilcox@intel.com>, Minchan Kim <minchan@kernel.org>, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: mgorman@suse.de, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Marian Marinov <mm@1h.com>, SiteGround Operations <operations@siteground.com>
 
-On Friday 09 October 2015 03:38 PM, Kirill A. Shutemov wrote:
-> On Tue, Sep 22, 2015 at 04:04:54PM +0530, Vineet Gupta wrote:
-> 
-> Commit message: -ENOENT.
-> 
-> Otherwise, looks good:
-> 
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Hello mm people,
 
-With updated change log and some reworking in the source code comment !
 
----------------->
+I want to ask you the following question which stemmed from analysing
+and chasing this particular deadlock:
+http://permalink.gmane.org/gmane.linux.kernel/2056730
+
+To summarise it:
+
+For simplicity I will use the following nomenclature:
+t1 - kworker/u96:0
+t2 - kworker/u98:39
+t3 - kworker/u98:7
+
+t1 issues drain_all_pages which generates IPI's, at the same time
+however, t2 has already started doing async write of pages
+as part of its normal operation but is blocked upon t1 completion of
+its IPI (generated from drain_all_pages) since they both work on the
+same dm-thin volume. At the same time again, t3 is executing
+ext4_finish_bio, which disables interrupts, yet is dependent on t2
+completing its writes.  But since it has disabled interrupts, it wont
+respond to t1's IPI and at this point a hard lock up occurs. This
+happens, since drain_all_pages calls on_each_cpu_mask with the last
+argument equal to  "true" meaning "wait until the ipi handler has
+finished", which of course will never happen in the described situation.
+
+Based on that I was wondering whether avoiding such situation might
+merit making drain_all_pages invocation from
+__alloc_pages_direct_reclaim dependent on a particular GFP being passed
+e.g. GFP_NOPCPDRAIN or something along those lines?
+
+Alternatively would it be possible to make the IPI asycnrhonous e.g.
+calling on_each_cpu_mask with the last argument equal to false?
+
+Regards,
+Nikolay
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
