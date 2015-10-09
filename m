@@ -1,61 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CF4E6B0253
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 09:41:27 -0400 (EDT)
-Received: by iofh134 with SMTP id h134so91321255iof.0
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 06:41:27 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id rh3si11165637igc.34.2015.10.09.06.41.26
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EDC26B0253
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 10:34:44 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so73433248wic.0
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 07:34:43 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id hs10si18939838wib.46.2015.10.09.07.34.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Oct 2015 06:41:26 -0700 (PDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: Re: [PATCH v3] mm,thp: reduce ifdef'ery for THP in generic code
-Date: Fri, 9 Oct 2015 13:39:31 +0000
-Message-ID: <C2D7FE5348E1B147BCA15975FBA23075D781C2C9@IN01WEMBXB.internal.synopsys.com>
-References: <1444391029-25332-1-git-send-email-vgupta@synopsys.com>
- <5617BB4A.4040704@synopsys.com> <20151009133450.GA8597@node>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Oct 2015 07:34:42 -0700 (PDT)
+Received: by wicfx3 with SMTP id fx3so73240280wic.1
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 07:34:42 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20151009124253.GA21629@leverpostej>
+References: <20151007100411.GG3069@e104818-lin.cambridge.arm.com>
+	<CAPAsAGxR-yqtmFeo65Xw_0RQyEy=mN1uG=GKtqoMLr_x_N0u5w@mail.gmail.com>
+	<20151008111144.GC7275@leverpostej>
+	<56165228.8060201@gmail.com>
+	<CAKv+Gu_v7J1BA+xFcowBrW05bRFs=_WFf_HCeCmWgdZVRo0eQw@mail.gmail.com>
+	<20151008151144.GM17192@e104818-lin.cambridge.arm.com>
+	<CAPAsAGxhcRtks40u3O29t=KMKkuLy4Pf8u8TeeBy2f2-MuSf+A@mail.gmail.com>
+	<561789A2.5050601@gmail.com>
+	<20151009094851.GA20507@leverpostej>
+	<CAPAsAGzOXOXDu+K3VG31BgcKCkk0LPmRv_YE4syNLCwr9h+2ug@mail.gmail.com>
+	<20151009124253.GA21629@leverpostej>
+Date: Fri, 9 Oct 2015 17:34:42 +0300
+Message-ID: <CAPAsAGzjNyMjFaFc4zzhjpRFi0=v7-HSAzDje7O195UGkAE8LA@mail.gmail.com>
+Subject: Re: [PATCH v6 0/6] KASAN for arm64
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Yury <yury.norov@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Walleij <linus.walleij@linaro.org>, Mark Salter <msalter@redhat.com>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, Alexey Klimov <klimov.linux@gmail.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, David Keitel <dkeitel@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Matt Fleming <matt.fleming@intel.com>
 
-On Friday 09 October 2015 07:04 PM, Kirill A. Shutemov wrote:
-
-On Fri, Oct 09, 2015 at 06:34:10PM +0530, Vineet Gupta wrote:
-
-
-> On Friday 09 October 2015 05:13 PM, Vineet Gupta wrote:
-
-
-> > - pgtable-generic.c: Fold individual #ifdef for each helper into a top
-> >   level #ifdef. Makes code more readable
-> >
-> > - Converted the stub helpers for !THP to BUILD_BUG() vs. runtime BUG()
-> >
-> > Signed-off-by: Vineet Gupta <vgupta@synopsys.com><mailto:vgupta@synopsy=
-s.com>
-
-
+2015-10-09 15:42 GMT+03:00 Mark Rutland <mark.rutland@arm.com>:
+> On Fri, Oct 09, 2015 at 01:18:09PM +0300, Andrey Ryabinin wrote:
+>> 2015-10-09 12:48 GMT+03:00 Mark Rutland <mark.rutland@arm.com>:
+>> > On Fri, Oct 09, 2015 at 12:32:18PM +0300, Andrey Ryabinin wrote:
+>> > [...]
+>> >
+>> >> I thought the EFI stub isolation patches create a copy of mem*() functions in the stub,
+>> >> but they are just create aliases with __efistub_ prefix.
+>> >>
+>> >> We only need to create some more aliases for KASAN.
+>> >> The following patch on top of the EFI stub isolation series works for me.
+>> >>
+>> >>
+>> >> Signed-off-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+>> >> ---
+>> >>  arch/arm64/kernel/image.h | 6 ++++++
+>> >>  1 file changed, 6 insertions(+)
+>> >>
+>> >> diff --git a/arch/arm64/kernel/image.h b/arch/arm64/kernel/image.h
+>> >> index e083af0..6eb8fee 100644
+>> >> --- a/arch/arm64/kernel/image.h
+>> >> +++ b/arch/arm64/kernel/image.h
+>> >> @@ -80,6 +80,12 @@ __efistub_strcmp           = __pi_strcmp;
+>> >>  __efistub_strncmp            = __pi_strncmp;
+>> >>  __efistub___flush_dcache_area        = __pi___flush_dcache_area;
+>> >>
+>> >> +#ifdef CONFIG_KASAN
+>> >> +__efistub___memcpy           = __pi_memcpy;
+>> >> +__efistub___memmove          = __pi_memmove;
+>> >> +__efistub___memset           = __pi_memset;
+>> >> +#endif
+>> >
+>> > Ard's v4 stub isolation series has these aliases [1], as the stub
+>> > requires these aliases regardless of KASAN in order to link.
+>>
+>> Stub isolation series has __efistub_memcpy, not __efistub___memcpy
+>> (two additional '_').
 >
-> Sorry for sounding pushy - an Ack here will unblock me from dumping boat =
-load of
-> patches into linux-next via my tree !
+> Ah, I see, sorry for my sloppy reading.
+>
+>> The thing is, KASAN provides own implementation of memcpy() which
+>> checks memory before access.
+>> The original 'memcpy()' becomes __memcpy(), so we could still use it.
+>
+> Ok.
+>
+>> In code that not instrumented by KASAN (like the EFI stub) we replace
+>> KASAN's memcpy() with the original __mempcy():
+>> #define memcpy() __memcpy()
+>
+> I'm a little confused by this. Surely that doesn't override implicit
+> calls generated by the compiler, leaving us with a mixture of calls to
+> memcpy and __memcpy?
+>
+> That doesn't matter for the stub, as both __efistub_mem* and
+> __efistub___mem* would point at __pe_mem*, but doesn't that matter for
+> other users that shouldn't be instrumented?
+>
+> Is that not a problem, or do we inhibit/override that somehow?
+>
 
+You are right, GCC could emit memcpy() call. It's just not a problem so far.
+The amount of not instrumented code is fairly small (some low-level
+x86 code, kasan internals and slub allocator).
 
-I hope you've tested it with different .configs...
+The purpose of these defines is to not spread kasan-specific details
+across unrelated code.
+E.g. there are a lot of memcpy()/memset() calls in slub that used to
+access object's redzone or
+freed objects. So it simpler to redefine memset, rather then somehow
+mangle that code.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com><mailto:kiril=
-l.shutemov@linux.intel.com>
-
-Atleast 2 configs with CONFIG_TRANSPARENT_HUGEPAGE on and off - for ARC !
-
-I can test some more if u point me to.
-
+>> So with CONFIG_KASAN=y the EFI stub uses __memcpy, thus we need to
+>> create the __efistub___memcpy alias.
+>
+> Ok, that makes sense to me.
+>
+> Thanks,
+> Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
