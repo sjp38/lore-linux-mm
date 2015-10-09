@@ -1,85 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 702356B0253
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 05:27:01 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so81954460pad.1
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 02:27:01 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id fw7si1160306pbd.82.2015.10.09.02.27.00
-        for <linux-mm@kvack.org>;
-        Fri, 09 Oct 2015 02:27:00 -0700 (PDT)
-Subject: Re: [Intel-wired-lan] [Patch V3 5/9] i40e: Use numa_mem_id() to
- better support memoryless node
-References: <1439781546-7217-1-git-send-email-jiang.liu@linux.intel.com>
- <1439781546-7217-6-git-send-email-jiang.liu@linux.intel.com>
- <4197C471DCF8714FBA1FE32565271C148FFFF4D3@ORSMSX103.amr.corp.intel.com>
- <alpine.DEB.2.10.1508191717450.30666@chino.kir.corp.google.com>
- <20151008132037.fc3887da0818e7d011cb752f@linux-foundation.org>
- <56175637.50102@linux.intel.com> <56178419.6090503@jp.fujitsu.com>
-From: Jiang Liu <jiang.liu@linux.intel.com>
-Message-ID: <56178810.8040200@linux.intel.com>
-Date: Fri, 9 Oct 2015 17:25:36 +0800
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 631A16B0253
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 05:32:07 -0400 (EDT)
+Received: by lbwr8 with SMTP id r8so73959942lbw.2
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 02:32:06 -0700 (PDT)
+Received: from mail-lb0-x22a.google.com (mail-lb0-x22a.google.com. [2a00:1450:4010:c04::22a])
+        by mx.google.com with ESMTPS id jf7si497859lbc.131.2015.10.09.02.32.05
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Oct 2015 02:32:06 -0700 (PDT)
+Received: by lbbwt4 with SMTP id wt4so74424991lbb.1
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 02:32:05 -0700 (PDT)
+Subject: Re: [PATCH v6 0/6] KASAN for arm64
+References: <1442482692-6416-1-git-send-email-ryabinin.a.a@gmail.com>
+ <20151007100411.GG3069@e104818-lin.cambridge.arm.com>
+ <CAPAsAGxR-yqtmFeo65Xw_0RQyEy=mN1uG=GKtqoMLr_x_N0u5w@mail.gmail.com>
+ <20151008111144.GC7275@leverpostej> <56165228.8060201@gmail.com>
+ <CAKv+Gu_v7J1BA+xFcowBrW05bRFs=_WFf_HCeCmWgdZVRo0eQw@mail.gmail.com>
+ <20151008151144.GM17192@e104818-lin.cambridge.arm.com>
+ <CAPAsAGxhcRtks40u3O29t=KMKkuLy4Pf8u8TeeBy2f2-MuSf+A@mail.gmail.com>
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Message-ID: <561789A2.5050601@gmail.com>
+Date: Fri, 9 Oct 2015 12:32:18 +0300
 MIME-Version: 1.0
-In-Reply-To: <56178419.6090503@jp.fujitsu.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <CAPAsAGxhcRtks40u3O29t=KMKkuLy4Pf8u8TeeBy2f2-MuSf+A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: "Patil, Kiran" <kiran.patil@intel.com>, Mel Gorman <mgorman@suse.de>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Wysocki, Rafael J" <rafael.j.wysocki@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, "Kirsher, Jeffrey T" <jeffrey.t.kirsher@intel.com>, "Brandeburg, Jesse" <jesse.brandeburg@intel.com>, "Nelson, Shannon" <shannon.nelson@intel.com>, "Wyborny, Carolyn" <carolyn.wyborny@intel.com>, "Skidmore, Donald C" <donald.c.skidmore@intel.com>, "Vick, Matthew" <matthew.vick@intel.com>, "Ronciak, John" <john.ronciak@intel.com>, "Williams, Mitch A" <mitch.a.williams@intel.com>, "Luck, Tony" <tony.luck@intel.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-hotplug@vger.kernel.org" <linux-hotplug@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "intel-wired-lan@lists.osuosl.org" <intel-wired-lan@lists.osuosl.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Yury <yury.norov@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Walleij <linus.walleij@linaro.org>, Mark Salter <msalter@redhat.com>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, Alexey Klimov <klimov.linux@gmail.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, David Keitel <dkeitel@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Matt Fleming <matt.fleming@intel.com>
 
-On 2015/10/9 17:08, Kamezawa Hiroyuki wrote:
-> On 2015/10/09 14:52, Jiang Liu wrote:
->> On 2015/10/9 4:20, Andrew Morton wrote:
->>> On Wed, 19 Aug 2015 17:18:15 -0700 (PDT) David Rientjes
->>> <rientjes@google.com> wrote:
->>>
->>>> On Wed, 19 Aug 2015, Patil, Kiran wrote:
+On 10/08/2015 07:07 PM, Andrey Ryabinin wrote:
+> 2015-10-08 18:11 GMT+03:00 Catalin Marinas <catalin.marinas@arm.com>:
+>> On Thu, Oct 08, 2015 at 02:09:26PM +0200, Ard Biesheuvel wrote:
+>>> On 8 October 2015 at 13:23, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+>>>> On 10/08/2015 02:11 PM, Mark Rutland wrote:
+>>>>> On Thu, Oct 08, 2015 at 01:36:09PM +0300, Andrey Ryabinin wrote:
+>>>>>> 2015-10-07 13:04 GMT+03:00 Catalin Marinas <catalin.marinas@arm.com>:
+>>>>>>> On Thu, Sep 17, 2015 at 12:38:06PM +0300, Andrey Ryabinin wrote:
+>>>>>>>> As usual patches available in git
+>>>>>>>>       git://github.com/aryabinin/linux.git kasan/arm64v6
+>>>>>>>>
+>>>>>>>> Changes since v5:
+>>>>>>>>  - Rebase on top of 4.3-rc1
+>>>>>>>>  - Fixed EFI boot.
+>>>>>>>>  - Updated Doc/features/KASAN.
+>>>>>>>
+>>>>>>> I tried to merge these patches (apart from the x86 one which is already
+>>>>>>> merged) but it still doesn't boot on Juno as an EFI application.
+>>>>>>>
+>>>>>>
+>>>>>> 4.3-rc1 was ok and 4.3-rc4 is not. Break caused by 0ce3cc008ec04
+>>>>>> ("arm64/efi: Fix boot crash by not padding between EFI_MEMORY_RUNTIME
+>>>>>> regions")
+>>>>>> It introduced sort() call in efi_get_virtmap().
+>>>>>> sort() is generic kernel function and it's instrumented, so we crash
+>>>>>> when KASAN tries to access shadow in sort().
+>>>>>
+>>>>> I believe this is solved by Ard's stub isolation series [1,2], which
+>>>>> will build a stub-specific copy of sort() and various other functions
+>>>>> (see the arm-deps in [2]).
+>>>>>
+>>>>> So long as the stub is not built with ASAN, that should work.
 >>>>
->>>>> Acked-by: Kiran Patil <kiran.patil@intel.com>
->>>>
->>>> Where's the call to preempt_disable() to prevent kernels with
->>>> preemption
->>>> from making numa_node_id() invalid during this iteration?
+>>>> Thanks, this should help, as we already build the stub without ASAN instrumentation.
 >>>
->>> David asked this question twice, received no answer and now the patch
->>> is in the maintainer tree, destined for mainline.
->>>
->>> If I was asked this question I would respond
->>>
->>>    The use of numa_mem_id() is racy and best-effort.  If the unlikely
->>>    race occurs, the memory allocation will occur on the wrong node, the
->>>    overall result being very slightly suboptimal performance.  The
->>>    existing use of numa_node_id() suffers from the same issue.
->>>
->>> But I'm not the person proposing the patch.  Please don't just ignore
->>> reviewer comments!
->> Hi Andrew,
->>     Apologize for the slow response due to personal reasons!
->> And thanks for answering the question from David. To be honest,
->> I didn't know how to answer this question before. Actually this
->> question has puzzled me for a long time when dealing with memory
->> hot-removal. For normal cases, it only causes sub-optimal memory
->> allocation if schedule event happens between querying NUMA node id
->> and calling alloc_pages_node(). But what happens if system run into
->> following execution sequence?
->> 1) node = numa_mem_id();
->> 2) memory hot-removal event triggers
->> 2.1) remove affected memory
->> 2.2) reset pgdat to zero if node becomes empty after memory removal
+>>> Indeed. I did not mention instrumentation in the commit log for those
+>>> patches, but obviously, something like KASAN instrumentation cannot be
+>>> tolerated in the stub since it makes assumptions about the memory
+>>> layout
+>>
+>> I'll review your latest EFI stub isolation patches and try Kasan again
+>> on top (most likely tomorrow).
 > 
-> I'm sorry if I misunderstand something.
-> After commit b0dc3a342af36f95a68fe229b8f0f73552c5ca08, there is no
-> memset().
-Hi Kamezawa,
-	Thanks for the information. The commit solved the issue what
-I was puzzling about. With this change applied, thing should work
-as expected. Seems it would be better to enhance __build_all_zonelists()
-to handle those offlined empty nodes too, but that really doesn't
-make to much difference:)
-	Thanks for the info again!
-Thanks!
-Gerry
+> You'd better wait for v7, because kasan patches will need some adjustment.
+> Since stub is isolated,  we need to handle memcpy vs __memcpy stuff the same
+> way as we do in x86. Now we also need to #undef memset/memcpy/memmove in ARM64
+> (just like this was done for x86).
+> 
+
+Hm, I was wrong, we don't need that.
+
+I thought the EFI stub isolation patches create a copy of mem*() functions in the stub,
+but they are just create aliases with __efistub_ prefix.
+
+We only need to create some more aliases for KASAN.
+The following patch on top of the EFI stub isolation series works for me.
+
+
+Signed-off-by: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+---
+ arch/arm64/kernel/image.h | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm64/kernel/image.h b/arch/arm64/kernel/image.h
+index e083af0..6eb8fee 100644
+--- a/arch/arm64/kernel/image.h
++++ b/arch/arm64/kernel/image.h
+@@ -80,6 +80,12 @@ __efistub_strcmp		= __pi_strcmp;
+ __efistub_strncmp		= __pi_strncmp;
+ __efistub___flush_dcache_area	= __pi___flush_dcache_area;
+ 
++#ifdef CONFIG_KASAN
++__efistub___memcpy		= __pi_memcpy;
++__efistub___memmove		= __pi_memmove;
++__efistub___memset		= __pi_memset;
++#endif
++
+ __efistub__text			= _text;
+ __efistub__end			= _end;
+ __efistub__edata		= _edata;
+-- 
+2.4.9
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
