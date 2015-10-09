@@ -1,231 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AB276B0253
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 14:13:18 -0400 (EDT)
-Received: by qkht68 with SMTP id t68so35933045qkh.3
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 11:13:18 -0700 (PDT)
-Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
-        by mx.google.com with ESMTPS id 68si2688210qhu.42.2015.10.09.11.13.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Oct 2015 11:13:17 -0700 (PDT)
-Received: by qgx61 with SMTP id 61so75497473qgx.3
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 11:13:17 -0700 (PDT)
-Message-ID: <561803bc.92c38c0a.c7a5b.5820@mx.google.com>
-Date: Fri, 09 Oct 2015 11:13:16 -0700 (PDT)
-From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Subject: Re: [PATCH V6] mm: memory hot-add: memory can not be added to
- movable zone defaultly
-In-Reply-To: <561773EA.3090804@cn.fujitsu.com>
-References: <1444374737-26086-1-git-send-email-liuchangsheng@inspur.com>
-	<561773EA.3090804@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 433CC6B0253
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 14:51:37 -0400 (EDT)
+Received: by pablk4 with SMTP id lk4so93789098pab.3
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 11:51:37 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id kz9si4501505pbc.150.2015.10.09.11.51.36
+        for <linux-mm@kvack.org>;
+        Fri, 09 Oct 2015 11:51:36 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH][RFC] mm: Introduce kernelcore=reliable option
+Date: Fri, 9 Oct 2015 18:51:34 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F32B523DB@ORSMSX114.amr.corp.intel.com>
+References: <1444402599-15274-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <561762DC.3080608@huawei.com> <561787DA.4040809@jp.fujitsu.com>
+ <5617989E.9070700@huawei.com> <5617D878.5060903@intel.com>
+In-Reply-To: <5617D878.5060903@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Changsheng Liu <liuchangsheng@inspur.com>, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wangnan0@huawei.com, dave.hansen@intel.com, yinghai@kernel.org, toshi.kani@hp.com, qiuxishi@huawei.com, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
+To: "Hansen, Dave" <dave.hansen@intel.com>, Xishi Qiu <qiuxishi@huawei.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Taku Izumi <izumi.taku@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, "zhongjiang@huawei.com" <zhongjiang@huawei.com>
 
-Hi Tang,
+> I understand if the mirrored regions are always at the start of the zone
+> today, but is that somehow guaranteed going forward on all future hardwar=
+e?
+>
+> I think it's important to at least consider what we would do if DMA32
+> turned out to be non-reliable.
 
-On Fri, 9 Oct 2015 15:59:38 +0800
-Tang Chen <tangchen@cn.fujitsu.com> wrote:
+Current hardware can map one mirrored region from each memory controller.
+We have two memory controllers per socket.  So on a 4-socket machine we wil=
+l
+usually have 8 separate mirrored ranges. Two per NUMA node (assuming
+cluster on die is not enabled).
 
-> Hi,
-> 
-> I don't mean to offend, but I really think it is not necessary to do this.
-> 
+Practically I think it is safe to assume that any sane configuration will a=
+lways
+choose to mirror the <4GB range:
 
-> hot-added memory will be added to ZONE_NORMAL by default. You can
-> modify it when you online memory. I think it is enough for users.
+1) It's a trivial percentage of total memory on a system that supports mirr=
+or
+(2GB[1] out of my, essentially minimal, 512GB[2] machine). So 0.4% ... why =
+would
+you not mirror it?
+2) It contains a bunch of things that you are likely to want mirrored. Curr=
+ently
+our boot loaders put the kernel there (don't they??). All sorts of BIOS spa=
+ce that
+might be accessed at any time by SMI is there.
 
-But we cannot automatically create movable memory even if we use udev rules.
-Thus user must create original scrip to online memory as movable.
+BUT ... we might want the kernel to ignore its mirrored status precisely be=
+cause
+we want to make sure that anyone who really needs DMA or DMA32 allocations
+is not prevented from using it.
 
-Do you think every user understand the rule that ZONE_NORMAL must be on the
-left side of ZONE_MOVABLE?
+-Tony
 
-If we can change the behavir of kernel by sysctl, user can create
-movable memory by only the following udev rule.
-
-SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
-
-Thanks,
-Yasuaki Ishimatsu
-
-> 
-> And a sysctl interface is also unnecessary. I think one default behaviour
-> is enough for kernel. We'd better keep it in the current way, or change it
-> and document it. It just makes no sense to enable users to modify it.
-> Can you please share any use case of this sysctl interface ?
-> 
-> I suggest just keep the current implement. But I'm OK with that if other
-> reviewers or users could clarify it is useful. :)
-> 
-> And BTW, please don't cc the following reviewers. Their email addresses
-> have changed.
-> 
-> Cc: Zhang Yanfei<zhangyanfei@cn.fujitsu.com>
-> Cc: Hu Tao<hutao@cn.fujitsu.com>
-> Cc: Lai Jiangshan<laijs@cn.fujitsu.com>
-> Cc: Gu Zheng<guz.fnst@cn.fujitsu.com>
-> 
-> 
-> Thanks. :)
-> 
-> On 10/09/2015 03:12 PM, Changsheng Liu wrote:
-> > From: Changsheng Liu <liuchangcheng@inspur.com>
-> >
-> > After the user config CONFIG_MOVABLE_NODE,
-> > When the memory is hot added, should_add_memory_movable() return 0
-> > because all zones including movable zone are empty,
-> > so the memory that was hot added will be added  to the normal zone
-> > and the normal zone will be created firstly.
-> > But we want the whole node to be added to movable zone defaultly.
-> >
-> > So we change should_add_memory_movable(): if the user config
-> > CONFIG_MOVABLE_NODE and sysctl parameter hotadd_memory_as_movable and
-> > the ZONE_NORMAL is empty or the pfn of the hot-added memory
-> > is after the end of the ZONE_NORMAL it will always return 1
-> > and all zones is empty at the same time,
-> > so that the movable zone will be created firstly
-> > and then the whole node will be added to movable zone defaultly.
-> > If we want the node to be added to normal zone,
-> > we can do it as follows:
-> > "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
-> >
-> > Signed-off-by: Changsheng Liu <liuchangsheng@inspur.com>
-> > Signed-off-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
-> > Tested-by: Dongdong Fan <fandd@inspur.com>
-> > Cc: Wang Nan <wangnan0@huawei.com>
-> > Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-> > Cc: Dave Hansen <dave.hansen@intel.com>
-> > Cc: Yinghai Lu <yinghai@kernel.org>
-> > Cc: Tang Chen <tangchen@cn.fujitsu.com>
-> > Cc: Hu Tao <hutao@cn.fujitsu.com>
-> > Cc: Lai Jiangshan <laijs@cn.fujitsu.com>
-> > Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> > Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>
-> > Cc: Toshi Kani <toshi.kani@hp.com>
-> > Cc: Xishi Qiu <qiuxishi@huawei.com>
-> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> > ---
-> >   Documentation/memory-hotplug.txt |    5 ++++-
-> >   kernel/sysctl.c                  |   15 +++++++++++++++
-> >   mm/memory_hotplug.c              |   23 +++++++++++++++++++++++
-> >   3 files changed, 42 insertions(+), 1 deletions(-)
-> >
-> > diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-> > index ce2cfcf..7e6b4f4 100644
-> > --- a/Documentation/memory-hotplug.txt
-> > +++ b/Documentation/memory-hotplug.txt
-> > @@ -277,7 +277,7 @@ And if the memory block is in ZONE_MOVABLE, you can change it to ZONE_NORMAL:
-> >   After this, memory block XXX's state will be 'online' and the amount of
-> >   available memory will be increased.
-> >   
-> > -Currently, newly added memory is added as ZONE_NORMAL (for powerpc, ZONE_DMA).
-> > +Currently, newly added memory is added as ZONE_NORMAL or ZONE_MOVABLE (for powerpc, ZONE_DMA).
-> >   This may be changed in future.
-> >   
-> >   
-> > @@ -319,6 +319,9 @@ creates ZONE_MOVABLE as following.
-> >     Size of memory not for movable pages (not for offline) is TOTAL - ZZZZ.
-> >     Size of memory for movable pages (for offline) is ZZZZ.
-> >   
-> > +And a sysctl parameter for assigning the hot added memory to ZONE_MOVABLE is
-> > +supported. If the value of "kernel/hotadd_memory_as_movable" is 1,the hot added
-> > +memory will be assigned to ZONE_MOVABLE defautly.
-> >   
-> >   Note: Unfortunately, there is no information to show which memory block belongs
-> >   to ZONE_MOVABLE. This is TBD.
-> > diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> > index 19b62b5..855c48e 100644
-> > --- a/kernel/sysctl.c
-> > +++ b/kernel/sysctl.c
-> > @@ -166,6 +166,10 @@ extern int unaligned_dump_stack;
-> >   extern int no_unaligned_warning;
-> >   #endif
-> >   
-> > +#ifdef CONFIG_MOVABLE_NODE
-> > +extern int hotadd_memory_as_movable;
-> > +#endif
-> > +
-> >   #ifdef CONFIG_PROC_SYSCTL
-> >   
-> >   #define SYSCTL_WRITES_LEGACY	-1
-> > @@ -1139,6 +1143,17 @@ static struct ctl_table kern_table[] = {
-> >   		.proc_handler	= timer_migration_handler,
-> >   	},
-> >   #endif
-> > +/*If the value of "kernel/hotadd_memory_as_movable" is 1,the hot added
-> > + * memory will be assigned to ZONE_MOVABLE defautly.*/
-> > +#ifdef CONFIG_MOVABLE_NODE
-> > +	{
-> > +		.procname	= "hotadd_memory_as_movable",
-> > +		.data		= &hotadd_memory_as_movable,
-> > +		.maxlen		= sizeof(int),
-> > +		.mode		= 0644,
-> > +		.proc_handler	= proc_dointvec,
-> > +	},
-> > +#endif
-> >   	{ }
-> >   };
-> >   
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index 26fbba7..5bcaf74 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -37,6 +37,10 @@
-> >   
-> >   #include "internal.h"
-> >   
-> > +/*If the global variable value is 1,
-> > + * the hot added memory will be assigned to ZONE_MOVABLE defautly*/
-> > +int hotadd_memory_as_movable;
-> > +
-> >   /*
-> >    * online_page_callback contains pointer to current page onlining function.
-> >    * Initially it is generic_online_page(). If it is required it could be
-> > @@ -1190,6 +1194,9 @@ static int check_hotplug_memory_range(u64 start, u64 size)
-> >   /*
-> >    * If movable zone has already been setup, newly added memory should be check.
-> >    * If its address is higher than movable zone, it should be added as movable.
-> > + * And if system config CONFIG_MOVABLE_NODE and set the sysctl parameter
-> > + * "hotadd_memory_as_movable" and added memory does not overlap the zone
-> > + * before MOVABLE_ZONE,the memory is added as movable.
-> >    * Without this check, movable zone may overlap with other zone.
-> >    */
-> >   static int should_add_memory_movable(int nid, u64 start, u64 size)
-> > @@ -1197,6 +1204,22 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
-> >   	unsigned long start_pfn = start >> PAGE_SHIFT;
-> >   	pg_data_t *pgdat = NODE_DATA(nid);
-> >   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
-> > +	struct zone *pre_zone = pgdat->node_zones + (ZONE_MOVABLE - 1);
-> > +	/*
-> > +	 * The system configs CONFIG_MOVABLE_NODE to assign a node
-> > +	 * which has only movable memory,so the hot-added memory should
-> > +	 * be assigned to ZONE_MOVABLE defaultly,
-> > +	 * but the function zone_for_memory() assign the hot-added memory
-> > +	 * to ZONE_NORMAL(x86_64) defaultly.Kernel does not allow to
-> > +	 * create ZONE_MOVABLE before ZONE_NORMAL,so If the value of
-> > +	 * sysctl parameter "hotadd_memory_as_movable" is 1
-> > +	 * and the ZONE_NORMAL is empty or the pfn of the hot-added memory
-> > +	 * is after the end of the ZONE_NORMAL
-> > +	 * the hot-added memory will be assigned to ZONE_MOVABLE.
-> > +	 */
-> > +	if (hotadd_memory_as_movable
-> > +	&& (zone_is_empty(pre_zone) || zone_end_pfn(pre_zone) <= start_pfn))
-> > +		return 1;
-> >   
-> >   	if (zone_is_empty(movable_zone))
-> >   		return 0;
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+[*] 2GB-4GB is MMIO space, so only 2GB of actual memory below the 4GB line.
+[2] Big servers should always have at least one DIMM populated in every cha=
+nnel
+to provide enough memory bandwidth to feed all the cores. This machine has
+4 sockets * 2 memory controllers * 4 channels =3D 32 total. Fill them with =
+a single
+16GB DIMM each gives 512G. Big systems can use larger DIMMs, and fill up to
+3 DIMMS on each channel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
