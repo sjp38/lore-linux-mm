@@ -1,41 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id CEE9E6B0254
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 10:42:14 -0400 (EDT)
-Received: by lbos8 with SMTP id s8so82383023lbo.0
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 07:42:14 -0700 (PDT)
-Received: from bes.se.axis.com (bes.se.axis.com. [195.60.68.10])
-        by mx.google.com with ESMTP id bc7si1466081lbc.6.2015.10.09.07.42.12
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4105682F65
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 11:08:43 -0400 (EDT)
+Received: by pabve7 with SMTP id ve7so30680826pab.2
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 08:08:43 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id a6si3186399pbu.198.2015.10.09.08.08.42
         for <linux-mm@kvack.org>;
-        Fri, 09 Oct 2015 07:42:12 -0700 (PDT)
-Date: Fri, 9 Oct 2015 16:41:57 +0200
-From: Jesper Nilsson <jesper.nilsson@axis.com>
-Subject: Re: [PATCH 1/7] cris: Convert cryptocop to use get_user_pages_fast()
-Message-ID: <20151009144157.GZ4919@axis.com>
-References: <1444123470-4932-1-git-send-email-jack@suse.com>
- <1444123470-4932-2-git-send-email-jack@suse.com>
+        Fri, 09 Oct 2015 08:08:42 -0700 (PDT)
+Subject: Re: [PATCH][RFC] mm: Introduce kernelcore=reliable option
+References: <1444402599-15274-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <561762DC.3080608@huawei.com> <561787DA.4040809@jp.fujitsu.com>
+ <5617989E.9070700@huawei.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <5617D878.5060903@intel.com>
+Date: Fri, 9 Oct 2015 08:08:40 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1444123470-4932-2-git-send-email-jack@suse.com>
+In-Reply-To: <5617989E.9070700@huawei.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, linux-cris-kernel <linux-cris-kernel@axis.com>, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jespern@axis.com>
+To: Xishi Qiu <qiuxishi@huawei.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Taku Izumi <izumi.taku@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, mel@csn.ul.ie, akpm@linux-foundation.org, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, zhongjiang@huawei.com
 
-On Tue, Oct 06, 2015 at 11:24:24AM +0200, Jan Kara wrote:
-> From: Jan Kara <jack@suse.cz>
+On 10/09/2015 03:36 AM, Xishi Qiu wrote:
+> I mean the mirrored region can not at the middle or end of the zone,
+> BIOS should report the memory like this, 
 > 
-> CC: linux-cris-kernel@axis.com
-> CC: Mikael Starvik <starvik@axis.com>
+> e.g.
+> BIOS
+> node0: 0-4G mirrored, 4-8G mirrored, 8-16G non-mirrored
+> node1: 16-24G mirrored, 24-32G non-mirrored
+> 
+> OS
+> node0: DMA DMA32 are both mirrored, NORMAL(4-8G), MOVABLE(8-16G)
+> node1: NORMAL(16-24G), MOVABLE(24-32G)
 
-Acked-by: Jesper Nilsson <jesper.nilsson@axis.com>
+I understand if the mirrored regions are always at the start of the zone
+today, but is that somehow guaranteed going forward on all future hardware?
 
-> Signed-off-by: Jan Kara <jack@suse.cz>
-
-/^JN - Jesper Nilsson
--- 
-               Jesper Nilsson -- jesper.nilsson@axis.com
+I think it's important to at least consider what we would do if DMA32
+turned out to be non-reliable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
