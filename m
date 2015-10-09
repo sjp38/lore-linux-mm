@@ -1,375 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C5C96B0253
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 11:54:39 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so90463849pac.0
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 08:54:39 -0700 (PDT)
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com. [209.85.220.44])
-        by mx.google.com with ESMTPS id qa3si3521080pbc.31.2015.10.09.08.54.38
+Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB276B0253
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 14:13:18 -0400 (EDT)
+Received: by qkht68 with SMTP id t68so35933045qkh.3
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 11:13:18 -0700 (PDT)
+Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
+        by mx.google.com with ESMTPS id 68si2688210qhu.42.2015.10.09.11.13.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Oct 2015 08:54:38 -0700 (PDT)
-Received: by pabve7 with SMTP id ve7so31624349pab.2
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 08:54:38 -0700 (PDT)
-Content-Type: multipart/alternative; boundary="Apple-Mail=_22333FEE-64E2-41A4-8C50-C3841C7CAF21"
-Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
-Subject: Re: [ovs-dev] [PATCH] ovs: do not allocate memory from offline numa node
-From: Jarno Rajahalme <jrajahalme@nicira.com>
-In-Reply-To: <CAEP_g=9bqj_CKMTvd4dHTS+J82u7idtqa_PFA9=-CmO2ZcUMow@mail.gmail.com>
-Date: Fri, 9 Oct 2015 08:54:35 -0700
-Message-Id: <ECF39603-F56D-483A-A398-480C28C93F97@nicira.com>
-References: <20151002101822.12499.27658.stgit@buzz> <56128238.8010305@suse.cz> <5612DCC8.4040605@gmail.com> <CAEP_g=9JB2GptbZn9ayTPRGPbuOvVujCQ1Hui7fOijUX10HURg@mail.gmail.com> <FB2084BE-D591-415F-BA39-DFE82FE6FC30@nicira.com> <CAEP_g=9bqj_CKMTvd4dHTS+J82u7idtqa_PFA9=-CmO2ZcUMow@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Oct 2015 11:13:17 -0700 (PDT)
+Received: by qgx61 with SMTP id 61so75497473qgx.3
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 11:13:17 -0700 (PDT)
+Message-ID: <561803bc.92c38c0a.c7a5b.5820@mx.google.com>
+Date: Fri, 09 Oct 2015 11:13:16 -0700 (PDT)
+From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Subject: Re: [PATCH V6] mm: memory hot-add: memory can not be added to
+ movable zone defaultly
+In-Reply-To: <561773EA.3090804@cn.fujitsu.com>
+References: <1444374737-26086-1-git-send-email-liuchangsheng@inspur.com>
+	<561773EA.3090804@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesse Gross <jesse@nicira.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "dev@openvswitch.org" <dev@openvswitch.org>, Pravin Shelar <pshelar@nicira.com>, "David S. Miller" <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Changsheng Liu <liuchangsheng@inspur.com>, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wangnan0@huawei.com, dave.hansen@intel.com, yinghai@kernel.org, toshi.kani@hp.com, qiuxishi@huawei.com, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
 
+Hi Tang,
 
---Apple-Mail=_22333FEE-64E2-41A4-8C50-C3841C7CAF21
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
-	charset=utf-8
+On Fri, 9 Oct 2015 15:59:38 +0800
+Tang Chen <tangchen@cn.fujitsu.com> wrote:
 
+> Hi,
+> 
+> I don't mean to offend, but I really think it is not necessary to do this.
+> 
 
-> On Oct 8, 2015, at 4:03 PM, Jesse Gross <jesse@nicira.com> wrote:
->=20
-> On Wed, Oct 7, 2015 at 10:47 AM, Jarno Rajahalme =
-<jrajahalme@nicira.com <mailto:jrajahalme@nicira.com>> wrote:
->>=20
->>> On Oct 6, 2015, at 6:01 PM, Jesse Gross <jesse@nicira.com> wrote:
->>>=20
->>> On Mon, Oct 5, 2015 at 1:25 PM, Alexander Duyck
->>> <alexander.duyck@gmail.com> wrote:
->>>> On 10/05/2015 06:59 AM, Vlastimil Babka wrote:
->>>>>=20
->>>>> On 10/02/2015 12:18 PM, Konstantin Khlebnikov wrote:
->>>>>>=20
->>>>>> When openvswitch tries allocate memory from offline numa node 0:
->>>>>> stats =3D kmem_cache_alloc_node(flow_stats_cache, GFP_KERNEL | =
-__GFP_ZERO,
->>>>>> 0)
->>>>>> It catches VM_BUG_ON(nid < 0 || nid >=3D MAX_NUMNODES || =
-!node_online(nid))
->>>>>> [ replaced with VM_WARN_ON(!node_online(nid)) recently ] in =
-linux/gfp.h
->>>>>> This patch disables numa affinity in this case.
->>>>>>=20
->>>>>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->>>>>=20
->>>>>=20
->>>>> ...
->>>>>=20
->>>>>> diff --git a/net/openvswitch/flow_table.c =
-b/net/openvswitch/flow_table.c
->>>>>> index f2ea83ba4763..c7f74aab34b9 100644
->>>>>> --- a/net/openvswitch/flow_table.c
->>>>>> +++ b/net/openvswitch/flow_table.c
->>>>>> @@ -93,7 +93,8 @@ struct sw_flow *ovs_flow_alloc(void)
->>>>>>=20
->>>>>>     /* Initialize the default stat node. */
->>>>>>     stats =3D kmem_cache_alloc_node(flow_stats_cache,
->>>>>> -                      GFP_KERNEL | __GFP_ZERO, 0);
->>>>>> +                      GFP_KERNEL | __GFP_ZERO,
->>>>>> +                      node_online(0) ? 0 : NUMA_NO_NODE);
->>>>>=20
->>>>>=20
->>>>> Stupid question: can node 0 become offline between this check, and =
-the
->>>>> VM_WARN_ON? :) BTW what kind of system has node 0 offline?
->>>>=20
->>>>=20
->>>> Another question to ask would be is it possible for node 0 to be =
-online, but
->>>> be a memoryless node?
->>>>=20
->>>> I would say you are better off just making this call =
-kmem_cache_alloc.  I
->>>> don't see anything that indicates the memory has to come from node =
-0, so
->>>> adding the extra overhead doesn't provide any value.
->>>=20
->>> I agree that this at least makes me wonder, though I actually have
->>> concerns in the opposite direction - I see assumptions about this
->>> being on node 0 in net/openvswitch/flow.c.
->>>=20
->>> Jarno, since you original wrote this code, can you take a look to =
-see
->>> if everything still makes sense?
->>=20
->> We keep the pre-allocated stats node at array index 0, which is =
-initially used by all CPUs, but if CPUs from multiple numa nodes start =
-updating the stats, we allocate additional stats nodes (up to one per =
-numa node), and the CPUs on node 0 keep using the preallocated entry. If =
-stats cannot be allocated from CPUs local node, then those CPUs keep =
-using the entry at index 0. Currently the code in net/openvswitch/flow.c =
-will try to allocate the local memory repeatedly, which may not be =
-optimal when there is no memory at the local node.
->>=20
->> Allocating the memory for the index 0 from other than node 0, as =
-discussed here, just means that the CPUs on node 0 will keep on using =
-non-local memory for stats. In a scenario where there are CPUs on two =
-nodes (0, 1), but only the node 1 has memory, a shared flow entry will =
-still end up having separate memory allocated for both nodes, but both =
-of the nodes would be at node 1. However, there is still a high =
-likelihood that the memory allocations would not share a cache line, =
-which should prevent the nodes from invalidating each other=E2=80=99s =
-caches. Based on this I do not see a problem relaxing the memory =
-allocation for the default stats node. If node 0 has memory, however, it =
-would be better to allocate the memory from node 0.
->=20
-> Thanks for going through all of that.
->=20
-> It seems like the question that is being raised is whether it actually
-> makes sense to try to get the initial memory on node 0, especially
-> since it seems to introduce some corner cases? Is there any reason why
-> the flow is more likely to hit node 0 than a randomly chosen one?
-> (Assuming that this is a multinode system, otherwise it's kind of a
-> moot point.) We could have a separate pointer to the default allocated
-> memory, so it wouldn't conflict with memory that was intentionally
-> allocated for node 0.
+> hot-added memory will be added to ZONE_NORMAL by default. You can
+> modify it when you online memory. I think it is enough for users.
 
-It would still be preferable to know from which node the default stats =
-node was allocated, and store it in the appropriate pointer in the =
-array. We could then add a new =E2=80=9Cdefault stats node index=E2=80=9D =
-that would be used to locate the node in the array of pointers we =
-already have. That way we would avoid extra allocation and processing of =
-the default stats node.
+But we cannot automatically create movable memory even if we use udev rules.
+Thus user must create original scrip to online memory as movable.
 
-  Jarno
+Do you think every user understand the rule that ZONE_NORMAL must be on the
+left side of ZONE_MOVABLE?
 
+If we can change the behavir of kernel by sysctl, user can create
+movable memory by only the following udev rule.
 
---Apple-Mail=_22333FEE-64E2-41A4-8C50-C3841C7CAF21
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/html;
-	charset=utf-8
+SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
 
-<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html =
-charset=3Dutf-8"></head><body style=3D"word-wrap: break-word; =
--webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" =
-class=3D""><br class=3D""><div><blockquote type=3D"cite" class=3D""><div =
-class=3D"">On Oct 8, 2015, at 4:03 PM, Jesse Gross &lt;<a =
-href=3D"mailto:jesse@nicira.com" class=3D"">jesse@nicira.com</a>&gt; =
-wrote:</div><br class=3D"Apple-interchange-newline"><div class=3D""><span =
-style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
-font-variant: normal; font-weight: normal; letter-spacing: normal; =
-line-height: normal; orphans: auto; text-align: start; text-indent: 0px; =
-text-transform: none; white-space: normal; widows: auto; word-spacing: =
-0px; -webkit-text-stroke-width: 0px; float: none; display: inline =
-!important;" class=3D"">On Wed, Oct 7, 2015 at 10:47 AM, Jarno Rajahalme =
-&lt;</span><a href=3D"mailto:jrajahalme@nicira.com" style=3D"font-family: =
-Helvetica; font-size: 12px; font-style: normal; font-variant: normal; =
-font-weight: normal; letter-spacing: normal; line-height: normal; =
-orphans: auto; text-align: start; text-indent: 0px; text-transform: =
-none; white-space: normal; widows: auto; word-spacing: 0px; =
--webkit-text-stroke-width: 0px;" class=3D"">jrajahalme@nicira.com</a><span=
- style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
-font-variant: normal; font-weight: normal; letter-spacing: normal; =
-line-height: normal; orphans: auto; text-align: start; text-indent: 0px; =
-text-transform: none; white-space: normal; widows: auto; word-spacing: =
-0px; -webkit-text-stroke-width: 0px; float: none; display: inline =
-!important;" class=3D"">&gt; wrote:</span><br style=3D"font-family: =
-Helvetica; font-size: 12px; font-style: normal; font-variant: normal; =
-font-weight: normal; letter-spacing: normal; line-height: normal; =
-orphans: auto; text-align: start; text-indent: 0px; text-transform: =
-none; white-space: normal; widows: auto; word-spacing: 0px; =
--webkit-text-stroke-width: 0px;" class=3D""><blockquote type=3D"cite" =
-style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
-font-variant: normal; font-weight: normal; letter-spacing: normal; =
-line-height: normal; orphans: auto; text-align: start; text-indent: 0px; =
-text-transform: none; white-space: normal; widows: auto; word-spacing: =
-0px; -webkit-text-stroke-width: 0px;" class=3D""><br =
-class=3D""><blockquote type=3D"cite" class=3D"">On Oct 6, 2015, at 6:01 =
-PM, Jesse Gross &lt;<a href=3D"mailto:jesse@nicira.com" =
-class=3D"">jesse@nicira.com</a>&gt; wrote:<br class=3D""><br class=3D"">On=
- Mon, Oct 5, 2015 at 1:25 PM, Alexander Duyck<br class=3D"">&lt;<a =
-href=3D"mailto:alexander.duyck@gmail.com" =
-class=3D"">alexander.duyck@gmail.com</a>&gt; wrote:<br =
-class=3D""><blockquote type=3D"cite" class=3D"">On 10/05/2015 06:59 AM, =
-Vlastimil Babka wrote:<br class=3D""><blockquote type=3D"cite" =
-class=3D""><br class=3D"">On 10/02/2015 12:18 PM, Konstantin Khlebnikov =
-wrote:<br class=3D""><blockquote type=3D"cite" class=3D""><br =
-class=3D"">When openvswitch tries allocate memory from offline numa node =
-0:<br class=3D"">stats =3D kmem_cache_alloc_node(flow_stats_cache, =
-GFP_KERNEL | __GFP_ZERO,<br class=3D"">0)<br class=3D"">It catches =
-VM_BUG_ON(nid &lt; 0 || nid &gt;=3D MAX_NUMNODES || =
-!node_online(nid))<br class=3D"">[ replaced with =
-VM_WARN_ON(!node_online(nid)) recently ] in linux/gfp.h<br class=3D"">This=
- patch disables numa affinity in this case.<br class=3D""><br =
-class=3D"">Signed-off-by: Konstantin Khlebnikov &lt;<a =
-href=3D"mailto:khlebnikov@yandex-team.ru" =
-class=3D"">khlebnikov@yandex-team.ru</a>&gt;<br =
-class=3D""></blockquote><br class=3D""><br class=3D"">...<br =
-class=3D""><br class=3D""><blockquote type=3D"cite" class=3D"">diff =
---git a/net/openvswitch/flow_table.c b/net/openvswitch/flow_table.c<br =
-class=3D"">index f2ea83ba4763..c7f74aab34b9 100644<br class=3D"">--- =
-a/net/openvswitch/flow_table.c<br class=3D"">+++ =
-b/net/openvswitch/flow_table.c<br class=3D"">@@ -93,7 +93,8 @@ struct =
-sw_flow *ovs_flow_alloc(void)<br class=3D""><br =
-class=3D"">&nbsp;&nbsp;&nbsp;&nbsp;/* Initialize the default stat node. =
-*/<br class=3D"">&nbsp;&nbsp;&nbsp;&nbsp;stats =3D =
-kmem_cache_alloc_node(flow_stats_cache,<br class=3D"">- =
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
-bsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GFP_KERNEL | =
-__GFP_ZERO, 0);<br class=3D"">+ =
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
-bsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GFP_KERNEL | =
-__GFP_ZERO,<br class=3D"">+ =
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
-bsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;node_online(0) ? 0 : =
-NUMA_NO_NODE);<br class=3D""></blockquote><br class=3D""><br =
-class=3D"">Stupid question: can node 0 become offline between this =
-check, and the<br class=3D"">VM_WARN_ON? :) BTW what kind of system has =
-node 0 offline?<br class=3D""></blockquote><br class=3D""><br =
-class=3D"">Another question to ask would be is it possible for node 0 to =
-be online, but<br class=3D"">be a memoryless node?<br class=3D""><br =
-class=3D"">I would say you are better off just making this call =
-kmem_cache_alloc. &nbsp;I<br class=3D"">don't see anything that =
-indicates the memory has to come from node 0, so<br class=3D"">adding =
-the extra overhead doesn't provide any value.<br =
-class=3D""></blockquote><br class=3D"">I agree that this at least makes =
-me wonder, though I actually have<br class=3D"">concerns in the opposite =
-direction - I see assumptions about this<br class=3D"">being on node 0 =
-in net/openvswitch/flow.c.<br class=3D""><br class=3D"">Jarno, since you =
-original wrote this code, can you take a look to see<br class=3D"">if =
-everything still makes sense?<br class=3D""></blockquote><br class=3D"">We=
- keep the pre-allocated stats node at array index 0, which is initially =
-used by all CPUs, but if CPUs from multiple numa nodes start updating =
-the stats, we allocate additional stats nodes (up to one per numa node), =
-and the CPUs on node 0 keep using the preallocated entry. If stats =
-cannot be allocated from CPUs local node, then those CPUs keep using the =
-entry at index 0. Currently the code in net/openvswitch/flow.c will try =
-to allocate the local memory repeatedly, which may not be optimal when =
-there is no memory at the local node.<br class=3D""><br =
-class=3D"">Allocating the memory for the index 0 from other than node 0, =
-as discussed here, just means that the CPUs on node 0 will keep on using =
-non-local memory for stats. In a scenario where there are CPUs on two =
-nodes (0, 1), but only the node 1 has memory, a shared flow entry will =
-still end up having separate memory allocated for both nodes, but both =
-of the nodes would be at node 1. However, there is still a high =
-likelihood that the memory allocations would not share a cache line, =
-which should prevent the nodes from invalidating each other=E2=80=99s =
-caches. Based on this I do not see a problem relaxing the memory =
-allocation for the default stats node. If node 0 has memory, however, it =
-would be better to allocate the memory from node 0.<br =
-class=3D""></blockquote><br style=3D"font-family: Helvetica; font-size: =
-12px; font-style: normal; font-variant: normal; font-weight: normal; =
-letter-spacing: normal; line-height: normal; orphans: auto; text-align: =
-start; text-indent: 0px; text-transform: none; white-space: normal; =
-widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
-class=3D""><span style=3D"font-family: Helvetica; font-size: 12px; =
-font-style: normal; font-variant: normal; font-weight: normal; =
-letter-spacing: normal; line-height: normal; orphans: auto; text-align: =
-start; text-indent: 0px; text-transform: none; white-space: normal; =
-widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: =
-none; display: inline !important;" class=3D"">Thanks for going through =
-all of that.</span><br style=3D"font-family: Helvetica; font-size: 12px; =
-font-style: normal; font-variant: normal; font-weight: normal; =
-letter-spacing: normal; line-height: normal; orphans: auto; text-align: =
-start; text-indent: 0px; text-transform: none; white-space: normal; =
-widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
-class=3D""><br style=3D"font-family: Helvetica; font-size: 12px; =
-font-style: normal; font-variant: normal; font-weight: normal; =
-letter-spacing: normal; line-height: normal; orphans: auto; text-align: =
-start; text-indent: 0px; text-transform: none; white-space: normal; =
-widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
-class=3D""><span style=3D"font-family: Helvetica; font-size: 12px; =
-font-style: normal; font-variant: normal; font-weight: normal; =
-letter-spacing: normal; line-height: normal; orphans: auto; text-align: =
-start; text-indent: 0px; text-transform: none; white-space: normal; =
-widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: =
-none; display: inline !important;" class=3D"">It seems like the question =
-that is being raised is whether it actually</span><br =
-style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
-font-variant: normal; font-weight: normal; letter-spacing: normal; =
-line-height: normal; orphans: auto; text-align: start; text-indent: 0px; =
-text-transform: none; white-space: normal; widows: auto; word-spacing: =
-0px; -webkit-text-stroke-width: 0px;" class=3D""><span =
-style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
-font-variant: normal; font-weight: normal; letter-spacing: normal; =
-line-height: normal; orphans: auto; text-align: start; text-indent: 0px; =
-text-transform: none; white-space: normal; widows: auto; word-spacing: =
-0px; -webkit-text-stroke-width: 0px; float: none; display: inline =
-!important;" class=3D"">makes sense to try to get the initial memory on =
-node 0, especially</span><br style=3D"font-family: Helvetica; font-size: =
-12px; font-style: normal; font-variant: normal; font-weight: normal; =
-letter-spacing: normal; line-height: normal; orphans: auto; text-align: =
-start; text-indent: 0px; text-transform: none; white-space: normal; =
-widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
-class=3D""><span style=3D"font-family: Helvetica; font-size: 12px; =
-font-style: normal; font-variant: normal; font-weight: normal; =
-letter-spacing: normal; line-height: normal; orphans: auto; text-align: =
-start; text-indent: 0px; text-transform: none; white-space: normal; =
-widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: =
-none; display: inline !important;" class=3D"">since it seems to =
-introduce some corner cases? Is there any reason why</span><br =
-style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
-font-variant: normal; font-weight: normal; letter-spacing: normal; =
-line-height: normal; orphans: auto; text-align: start; text-indent: 0px; =
-text-transform: none; white-space: normal; widows: auto; word-spacing: =
-0px; -webkit-text-stroke-width: 0px;" class=3D""><span =
-style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
-font-variant: normal; font-weight: normal; letter-spacing: normal; =
-line-height: normal; orphans: auto; text-align: start; text-indent: 0px; =
-text-transform: none; white-space: normal; widows: auto; word-spacing: =
-0px; -webkit-text-stroke-width: 0px; float: none; display: inline =
-!important;" class=3D"">the flow is more likely to hit node 0 than a =
-randomly chosen one?</span><br style=3D"font-family: Helvetica; =
-font-size: 12px; font-style: normal; font-variant: normal; font-weight: =
-normal; letter-spacing: normal; line-height: normal; orphans: auto; =
-text-align: start; text-indent: 0px; text-transform: none; white-space: =
-normal; widows: auto; word-spacing: 0px; -webkit-text-stroke-width: =
-0px;" class=3D""><span style=3D"font-family: Helvetica; font-size: 12px; =
-font-style: normal; font-variant: normal; font-weight: normal; =
-letter-spacing: normal; line-height: normal; orphans: auto; text-align: =
-start; text-indent: 0px; text-transform: none; white-space: normal; =
-widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: =
-none; display: inline !important;" class=3D"">(Assuming that this is a =
-multinode system, otherwise it's kind of a</span><br style=3D"font-family:=
- Helvetica; font-size: 12px; font-style: normal; font-variant: normal; =
-font-weight: normal; letter-spacing: normal; line-height: normal; =
-orphans: auto; text-align: start; text-indent: 0px; text-transform: =
-none; white-space: normal; widows: auto; word-spacing: 0px; =
--webkit-text-stroke-width: 0px;" class=3D""><span style=3D"font-family: =
-Helvetica; font-size: 12px; font-style: normal; font-variant: normal; =
-font-weight: normal; letter-spacing: normal; line-height: normal; =
-orphans: auto; text-align: start; text-indent: 0px; text-transform: =
-none; white-space: normal; widows: auto; word-spacing: 0px; =
--webkit-text-stroke-width: 0px; float: none; display: inline =
-!important;" class=3D"">moot point.) We could have a separate pointer to =
-the default allocated</span><br style=3D"font-family: Helvetica; =
-font-size: 12px; font-style: normal; font-variant: normal; font-weight: =
-normal; letter-spacing: normal; line-height: normal; orphans: auto; =
-text-align: start; text-indent: 0px; text-transform: none; white-space: =
-normal; widows: auto; word-spacing: 0px; -webkit-text-stroke-width: =
-0px;" class=3D""><span style=3D"font-family: Helvetica; font-size: 12px; =
-font-style: normal; font-variant: normal; font-weight: normal; =
-letter-spacing: normal; line-height: normal; orphans: auto; text-align: =
-start; text-indent: 0px; text-transform: none; white-space: normal; =
-widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: =
-none; display: inline !important;" class=3D"">memory, so it wouldn't =
-conflict with memory that was intentionally</span><br =
-style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
-font-variant: normal; font-weight: normal; letter-spacing: normal; =
-line-height: normal; orphans: auto; text-align: start; text-indent: 0px; =
-text-transform: none; white-space: normal; widows: auto; word-spacing: =
-0px; -webkit-text-stroke-width: 0px;" class=3D""><span =
-style=3D"font-family: Helvetica; font-size: 12px; font-style: normal; =
-font-variant: normal; font-weight: normal; letter-spacing: normal; =
-line-height: normal; orphans: auto; text-align: start; text-indent: 0px; =
-text-transform: none; white-space: normal; widows: auto; word-spacing: =
-0px; -webkit-text-stroke-width: 0px; float: none; display: inline =
-!important;" class=3D"">allocated for node =
-0.</span></div></blockquote></div><br class=3D""><div class=3D"">It =
-would still be preferable to know from which node the default stats node =
-was allocated, and store it in the appropriate pointer in the array. We =
-could then add a new =E2=80=9Cdefault stats node index=E2=80=9D that =
-would be used to locate the node in the array of pointers we already =
-have. That way we would avoid extra allocation and processing of the =
-default stats node.</div><div class=3D""><br class=3D""></div><div =
-class=3D"">&nbsp; Jarno</div><div class=3D""><br =
-class=3D""></div></body></html>=
+Thanks,
+Yasuaki Ishimatsu
 
---Apple-Mail=_22333FEE-64E2-41A4-8C50-C3841C7CAF21--
+> 
+> And a sysctl interface is also unnecessary. I think one default behaviour
+> is enough for kernel. We'd better keep it in the current way, or change it
+> and document it. It just makes no sense to enable users to modify it.
+> Can you please share any use case of this sysctl interface ?
+> 
+> I suggest just keep the current implement. But I'm OK with that if other
+> reviewers or users could clarify it is useful. :)
+> 
+> And BTW, please don't cc the following reviewers. Their email addresses
+> have changed.
+> 
+> Cc: Zhang Yanfei<zhangyanfei@cn.fujitsu.com>
+> Cc: Hu Tao<hutao@cn.fujitsu.com>
+> Cc: Lai Jiangshan<laijs@cn.fujitsu.com>
+> Cc: Gu Zheng<guz.fnst@cn.fujitsu.com>
+> 
+> 
+> Thanks. :)
+> 
+> On 10/09/2015 03:12 PM, Changsheng Liu wrote:
+> > From: Changsheng Liu <liuchangcheng@inspur.com>
+> >
+> > After the user config CONFIG_MOVABLE_NODE,
+> > When the memory is hot added, should_add_memory_movable() return 0
+> > because all zones including movable zone are empty,
+> > so the memory that was hot added will be added  to the normal zone
+> > and the normal zone will be created firstly.
+> > But we want the whole node to be added to movable zone defaultly.
+> >
+> > So we change should_add_memory_movable(): if the user config
+> > CONFIG_MOVABLE_NODE and sysctl parameter hotadd_memory_as_movable and
+> > the ZONE_NORMAL is empty or the pfn of the hot-added memory
+> > is after the end of the ZONE_NORMAL it will always return 1
+> > and all zones is empty at the same time,
+> > so that the movable zone will be created firstly
+> > and then the whole node will be added to movable zone defaultly.
+> > If we want the node to be added to normal zone,
+> > we can do it as follows:
+> > "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
+> >
+> > Signed-off-by: Changsheng Liu <liuchangsheng@inspur.com>
+> > Signed-off-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
+> > Tested-by: Dongdong Fan <fandd@inspur.com>
+> > Cc: Wang Nan <wangnan0@huawei.com>
+> > Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> > Cc: Dave Hansen <dave.hansen@intel.com>
+> > Cc: Yinghai Lu <yinghai@kernel.org>
+> > Cc: Tang Chen <tangchen@cn.fujitsu.com>
+> > Cc: Hu Tao <hutao@cn.fujitsu.com>
+> > Cc: Lai Jiangshan <laijs@cn.fujitsu.com>
+> > Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> > Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>
+> > Cc: Toshi Kani <toshi.kani@hp.com>
+> > Cc: Xishi Qiu <qiuxishi@huawei.com>
+> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > ---
+> >   Documentation/memory-hotplug.txt |    5 ++++-
+> >   kernel/sysctl.c                  |   15 +++++++++++++++
+> >   mm/memory_hotplug.c              |   23 +++++++++++++++++++++++
+> >   3 files changed, 42 insertions(+), 1 deletions(-)
+> >
+> > diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+> > index ce2cfcf..7e6b4f4 100644
+> > --- a/Documentation/memory-hotplug.txt
+> > +++ b/Documentation/memory-hotplug.txt
+> > @@ -277,7 +277,7 @@ And if the memory block is in ZONE_MOVABLE, you can change it to ZONE_NORMAL:
+> >   After this, memory block XXX's state will be 'online' and the amount of
+> >   available memory will be increased.
+> >   
+> > -Currently, newly added memory is added as ZONE_NORMAL (for powerpc, ZONE_DMA).
+> > +Currently, newly added memory is added as ZONE_NORMAL or ZONE_MOVABLE (for powerpc, ZONE_DMA).
+> >   This may be changed in future.
+> >   
+> >   
+> > @@ -319,6 +319,9 @@ creates ZONE_MOVABLE as following.
+> >     Size of memory not for movable pages (not for offline) is TOTAL - ZZZZ.
+> >     Size of memory for movable pages (for offline) is ZZZZ.
+> >   
+> > +And a sysctl parameter for assigning the hot added memory to ZONE_MOVABLE is
+> > +supported. If the value of "kernel/hotadd_memory_as_movable" is 1,the hot added
+> > +memory will be assigned to ZONE_MOVABLE defautly.
+> >   
+> >   Note: Unfortunately, there is no information to show which memory block belongs
+> >   to ZONE_MOVABLE. This is TBD.
+> > diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> > index 19b62b5..855c48e 100644
+> > --- a/kernel/sysctl.c
+> > +++ b/kernel/sysctl.c
+> > @@ -166,6 +166,10 @@ extern int unaligned_dump_stack;
+> >   extern int no_unaligned_warning;
+> >   #endif
+> >   
+> > +#ifdef CONFIG_MOVABLE_NODE
+> > +extern int hotadd_memory_as_movable;
+> > +#endif
+> > +
+> >   #ifdef CONFIG_PROC_SYSCTL
+> >   
+> >   #define SYSCTL_WRITES_LEGACY	-1
+> > @@ -1139,6 +1143,17 @@ static struct ctl_table kern_table[] = {
+> >   		.proc_handler	= timer_migration_handler,
+> >   	},
+> >   #endif
+> > +/*If the value of "kernel/hotadd_memory_as_movable" is 1,the hot added
+> > + * memory will be assigned to ZONE_MOVABLE defautly.*/
+> > +#ifdef CONFIG_MOVABLE_NODE
+> > +	{
+> > +		.procname	= "hotadd_memory_as_movable",
+> > +		.data		= &hotadd_memory_as_movable,
+> > +		.maxlen		= sizeof(int),
+> > +		.mode		= 0644,
+> > +		.proc_handler	= proc_dointvec,
+> > +	},
+> > +#endif
+> >   	{ }
+> >   };
+> >   
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index 26fbba7..5bcaf74 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -37,6 +37,10 @@
+> >   
+> >   #include "internal.h"
+> >   
+> > +/*If the global variable value is 1,
+> > + * the hot added memory will be assigned to ZONE_MOVABLE defautly*/
+> > +int hotadd_memory_as_movable;
+> > +
+> >   /*
+> >    * online_page_callback contains pointer to current page onlining function.
+> >    * Initially it is generic_online_page(). If it is required it could be
+> > @@ -1190,6 +1194,9 @@ static int check_hotplug_memory_range(u64 start, u64 size)
+> >   /*
+> >    * If movable zone has already been setup, newly added memory should be check.
+> >    * If its address is higher than movable zone, it should be added as movable.
+> > + * And if system config CONFIG_MOVABLE_NODE and set the sysctl parameter
+> > + * "hotadd_memory_as_movable" and added memory does not overlap the zone
+> > + * before MOVABLE_ZONE,the memory is added as movable.
+> >    * Without this check, movable zone may overlap with other zone.
+> >    */
+> >   static int should_add_memory_movable(int nid, u64 start, u64 size)
+> > @@ -1197,6 +1204,22 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
+> >   	unsigned long start_pfn = start >> PAGE_SHIFT;
+> >   	pg_data_t *pgdat = NODE_DATA(nid);
+> >   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+> > +	struct zone *pre_zone = pgdat->node_zones + (ZONE_MOVABLE - 1);
+> > +	/*
+> > +	 * The system configs CONFIG_MOVABLE_NODE to assign a node
+> > +	 * which has only movable memory,so the hot-added memory should
+> > +	 * be assigned to ZONE_MOVABLE defaultly,
+> > +	 * but the function zone_for_memory() assign the hot-added memory
+> > +	 * to ZONE_NORMAL(x86_64) defaultly.Kernel does not allow to
+> > +	 * create ZONE_MOVABLE before ZONE_NORMAL,so If the value of
+> > +	 * sysctl parameter "hotadd_memory_as_movable" is 1
+> > +	 * and the ZONE_NORMAL is empty or the pfn of the hot-added memory
+> > +	 * is after the end of the ZONE_NORMAL
+> > +	 * the hot-added memory will be assigned to ZONE_MOVABLE.
+> > +	 */
+> > +	if (hotadd_memory_as_movable
+> > +	&& (zone_is_empty(pre_zone) || zone_end_pfn(pre_zone) <= start_pfn))
+> > +		return 1;
+> >   
+> >   	if (zone_is_empty(movable_zone))
+> >   		return 0;
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
