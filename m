@@ -1,200 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 941D36B0253
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 04:01:27 -0400 (EDT)
-Received: by pablk4 with SMTP id lk4so79932371pab.3
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 01:01:27 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id vo7si652287pbc.86.2015.10.09.01.01.24
-        for <linux-mm@kvack.org>;
-        Fri, 09 Oct 2015 01:01:26 -0700 (PDT)
-Message-ID: <561773EA.3090804@cn.fujitsu.com>
-Date: Fri, 9 Oct 2015 15:59:38 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F32E6B0253
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 04:03:34 -0400 (EDT)
+Received: by wiclk2 with SMTP id lk2so55974382wic.1
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 01:03:33 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
+        by mx.google.com with ESMTPS id r8si16964335wiw.74.2015.10.09.01.03.33
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Oct 2015 01:03:33 -0700 (PDT)
+Received: by wiclk2 with SMTP id lk2so59294690wic.0
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 01:03:33 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/2] ext4: Fix possible deadlock with local interrupts
+ disabled and page-draining IPI
+References: <062501d10262$d40d0a50$7c271ef0$@alibaba-inc.com>
+ <56176C10.8040709@kyup.com> <062801d10265$5a749fc0$0f5ddf40$@alibaba-inc.com>
+From: Nikolay Borisov <kernel@kyup.com>
+Message-ID: <561774D2.3050002@kyup.com>
+Date: Fri, 9 Oct 2015 11:03:30 +0300
 MIME-Version: 1.0
-Subject: Re: [PATCH V6] mm: memory hot-add: memory can not be added to movable
- zone defaultly
-References: <1444374737-26086-1-git-send-email-liuchangsheng@inspur.com>
-In-Reply-To: <1444374737-26086-1-git-send-email-liuchangsheng@inspur.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
+In-Reply-To: <062801d10265$5a749fc0$0f5ddf40$@alibaba-inc.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Changsheng Liu <liuchangsheng@inspur.com>, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, yasu.isimatu@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, wangnan0@huawei.com, tangchen@cn.fujitsu.com, dave.hansen@intel.com, yinghai@kernel.org, toshi.kani@hp.com, qiuxishi@huawei.com, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'linux-kernel' <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-fsdevel@vger.kernel.org, SiteGround Operations <operations@siteground.com>, vbabka@suse.cz, gilad@benyossef.com, mgorman@suse.de, linux-mm@kvack.org, Marian Marinov <mm@1h.com>
 
-Hi,
+On 10/09/2015 10:37 AM, Hillf Danton wrote:
+>>>> @@ -109,8 +109,8 @@ static void ext4_finish_bio(struct bio *bio)
+>>>>  			if (bio->bi_error)
+>>>>  				buffer_io_error(bh);
+>>>>  		} while ((bh = bh->b_this_page) != head);
+>>>> -		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
+>>>>  		local_irq_restore(flags);
+>>>
+>>> What if it takes 100ms to unlock after IRQ restored?
+>>
+>> I'm not sure I understand in what direction you are going? Care to
+>> elaborate?
+>>
+> Your change introduces extra time cost the lock waiter has to pay in
+> the case that irq happens before the lock is released.
 
-I don't mean to offend, but I really think it is not necessary to do this.
+[CC filesystem and mm people. For reference the thread starts here:
+ http://thread.gmane.org/gmane.linux.kernel/2056996 ]
 
-hot-added memory will be added to ZONE_NORMAL by default. You can
-modify it when you online memory. I think it is enough for users.
+Right, I see what you mean and it's a good point but when doing the
+patches I was striving for correctness and starting a discussion, hence
+the RFC. In any case I'd personally choose correctness over performance
+always ;).
 
-And a sysctl interface is also unnecessary. I think one default behaviour
-is enough for kernel. We'd better keep it in the current way, or change it
-and document it. It just makes no sense to enable users to modify it.
-Can you please share any use case of this sysctl interface ?
+As I'm not an fs/ext4 expert and have added the relevant parties (please
+use reply-all from now on so that the thread is not being cut in the
+middle) who will be able to say whether it impact is going to be that
+big. I guess in this particular code path worrying about this is prudent
+as writeback sounds like a heavily used path.
 
-I suggest just keep the current implement. But I'm OK with that if other
-reviewers or users could clarify it is useful. :)
+Maybe the problem should be approached from a different angle e.g.
+drain_all_pages and its reliance on the fact that the IPI will always be
+delivered in some finite amount of time? But what if a cpu with disabled
+interrupts is waiting on the task issuing the IPI?
 
-And BTW, please don't cc the following reviewers. Their email addresses
-have changed.
-
-Cc: Zhang Yanfei<zhangyanfei@cn.fujitsu.com>
-Cc: Hu Tao<hutao@cn.fujitsu.com>
-Cc: Lai Jiangshan<laijs@cn.fujitsu.com>
-Cc: Gu Zheng<guz.fnst@cn.fujitsu.com>
-
-
-Thanks. :)
-
-On 10/09/2015 03:12 PM, Changsheng Liu wrote:
-> From: Changsheng Liu <liuchangcheng@inspur.com>
->
-> After the user config CONFIG_MOVABLE_NODE,
-> When the memory is hot added, should_add_memory_movable() return 0
-> because all zones including movable zone are empty,
-> so the memory that was hot added will be added  to the normal zone
-> and the normal zone will be created firstly.
-> But we want the whole node to be added to movable zone defaultly.
->
-> So we change should_add_memory_movable(): if the user config
-> CONFIG_MOVABLE_NODE and sysctl parameter hotadd_memory_as_movable and
-> the ZONE_NORMAL is empty or the pfn of the hot-added memory
-> is after the end of the ZONE_NORMAL it will always return 1
-> and all zones is empty at the same time,
-> so that the movable zone will be created firstly
-> and then the whole node will be added to movable zone defaultly.
-> If we want the node to be added to normal zone,
-> we can do it as follows:
-> "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
->
-> Signed-off-by: Changsheng Liu <liuchangsheng@inspur.com>
-> Signed-off-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
-> Tested-by: Dongdong Fan <fandd@inspur.com>
-> Cc: Wang Nan <wangnan0@huawei.com>
-> Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Yinghai Lu <yinghai@kernel.org>
-> Cc: Tang Chen <tangchen@cn.fujitsu.com>
-> Cc: Hu Tao <hutao@cn.fujitsu.com>
-> Cc: Lai Jiangshan <laijs@cn.fujitsu.com>
-> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>
-> Cc: Toshi Kani <toshi.kani@hp.com>
-> Cc: Xishi Qiu <qiuxishi@huawei.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
->   Documentation/memory-hotplug.txt |    5 ++++-
->   kernel/sysctl.c                  |   15 +++++++++++++++
->   mm/memory_hotplug.c              |   23 +++++++++++++++++++++++
->   3 files changed, 42 insertions(+), 1 deletions(-)
->
-> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-> index ce2cfcf..7e6b4f4 100644
-> --- a/Documentation/memory-hotplug.txt
-> +++ b/Documentation/memory-hotplug.txt
-> @@ -277,7 +277,7 @@ And if the memory block is in ZONE_MOVABLE, you can change it to ZONE_NORMAL:
->   After this, memory block XXX's state will be 'online' and the amount of
->   available memory will be increased.
->   
-> -Currently, newly added memory is added as ZONE_NORMAL (for powerpc, ZONE_DMA).
-> +Currently, newly added memory is added as ZONE_NORMAL or ZONE_MOVABLE (for powerpc, ZONE_DMA).
->   This may be changed in future.
->   
->   
-> @@ -319,6 +319,9 @@ creates ZONE_MOVABLE as following.
->     Size of memory not for movable pages (not for offline) is TOTAL - ZZZZ.
->     Size of memory for movable pages (for offline) is ZZZZ.
->   
-> +And a sysctl parameter for assigning the hot added memory to ZONE_MOVABLE is
-> +supported. If the value of "kernel/hotadd_memory_as_movable" is 1,the hot added
-> +memory will be assigned to ZONE_MOVABLE defautly.
->   
->   Note: Unfortunately, there is no information to show which memory block belongs
->   to ZONE_MOVABLE. This is TBD.
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index 19b62b5..855c48e 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -166,6 +166,10 @@ extern int unaligned_dump_stack;
->   extern int no_unaligned_warning;
->   #endif
->   
-> +#ifdef CONFIG_MOVABLE_NODE
-> +extern int hotadd_memory_as_movable;
-> +#endif
-> +
->   #ifdef CONFIG_PROC_SYSCTL
->   
->   #define SYSCTL_WRITES_LEGACY	-1
-> @@ -1139,6 +1143,17 @@ static struct ctl_table kern_table[] = {
->   		.proc_handler	= timer_migration_handler,
->   	},
->   #endif
-> +/*If the value of "kernel/hotadd_memory_as_movable" is 1,the hot added
-> + * memory will be assigned to ZONE_MOVABLE defautly.*/
-> +#ifdef CONFIG_MOVABLE_NODE
-> +	{
-> +		.procname	= "hotadd_memory_as_movable",
-> +		.data		= &hotadd_memory_as_movable,
-> +		.maxlen		= sizeof(int),
-> +		.mode		= 0644,
-> +		.proc_handler	= proc_dointvec,
-> +	},
-> +#endif
->   	{ }
->   };
->   
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 26fbba7..5bcaf74 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -37,6 +37,10 @@
->   
->   #include "internal.h"
->   
-> +/*If the global variable value is 1,
-> + * the hot added memory will be assigned to ZONE_MOVABLE defautly*/
-> +int hotadd_memory_as_movable;
-> +
->   /*
->    * online_page_callback contains pointer to current page onlining function.
->    * Initially it is generic_online_page(). If it is required it could be
-> @@ -1190,6 +1194,9 @@ static int check_hotplug_memory_range(u64 start, u64 size)
->   /*
->    * If movable zone has already been setup, newly added memory should be check.
->    * If its address is higher than movable zone, it should be added as movable.
-> + * And if system config CONFIG_MOVABLE_NODE and set the sysctl parameter
-> + * "hotadd_memory_as_movable" and added memory does not overlap the zone
-> + * before MOVABLE_ZONE,the memory is added as movable.
->    * Without this check, movable zone may overlap with other zone.
->    */
->   static int should_add_memory_movable(int nid, u64 start, u64 size)
-> @@ -1197,6 +1204,22 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
->   	unsigned long start_pfn = start >> PAGE_SHIFT;
->   	pg_data_t *pgdat = NODE_DATA(nid);
->   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
-> +	struct zone *pre_zone = pgdat->node_zones + (ZONE_MOVABLE - 1);
-> +	/*
-> +	 * The system configs CONFIG_MOVABLE_NODE to assign a node
-> +	 * which has only movable memory,so the hot-added memory should
-> +	 * be assigned to ZONE_MOVABLE defaultly,
-> +	 * but the function zone_for_memory() assign the hot-added memory
-> +	 * to ZONE_NORMAL(x86_64) defaultly.Kernel does not allow to
-> +	 * create ZONE_MOVABLE before ZONE_NORMAL,so If the value of
-> +	 * sysctl parameter "hotadd_memory_as_movable" is 1
-> +	 * and the ZONE_NORMAL is empty or the pfn of the hot-added memory
-> +	 * is after the end of the ZONE_NORMAL
-> +	 * the hot-added memory will be assigned to ZONE_MOVABLE.
-> +	 */
-> +	if (hotadd_memory_as_movable
-> +	&& (zone_is_empty(pre_zone) || zone_end_pfn(pre_zone) <= start_pfn))
-> +		return 1;
->   
->   	if (zone_is_empty(movable_zone))
->   		return 0;
+> 
+>>>> +		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
+>>>>  		if (!under_io) {
+>>>>  #ifdef CONFIG_EXT4_FS_ENCRYPTION
+>>>>  			if (ctx)
+>>>> --
+>>>> 2.5.0
+>>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
