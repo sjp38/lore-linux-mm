@@ -1,280 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id D73D86B0038
-	for <linux-mm@kvack.org>; Sat, 10 Oct 2015 08:51:12 -0400 (EDT)
-Received: by iow1 with SMTP id 1so116213610iow.1
-        for <linux-mm@kvack.org>; Sat, 10 Oct 2015 05:51:12 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id s29si4078605ioe.40.2015.10.10.05.51.11
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 89C606B0038
+	for <linux-mm@kvack.org>; Sat, 10 Oct 2015 11:34:57 -0400 (EDT)
+Received: by lbos8 with SMTP id s8so106574590lbo.0
+        for <linux-mm@kvack.org>; Sat, 10 Oct 2015 08:34:55 -0700 (PDT)
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com. [209.85.217.179])
+        by mx.google.com with ESMTPS id i82si4766414lfb.12.2015.10.10.08.34.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 10 Oct 2015 05:51:11 -0700 (PDT)
-Subject: Re: Can't we use timeout based OOM warning/killing?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150925093556.GF16497@dhcp22.suse.cz>
-	<201509260114.ADI35946.OtHOVFOMJQFLFS@I-love.SAKURA.ne.jp>
-	<201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
-	<20151002123639.GA13914@dhcp22.suse.cz>
-	<201510031502.BJD59536.HFJMtQOOLFFVSO@I-love.SAKURA.ne.jp>
-In-Reply-To: <201510031502.BJD59536.HFJMtQOOLFFVSO@I-love.SAKURA.ne.jp>
-Message-Id: <201510102150.CHH51580.QSHOFOtFLVOJFM@I-love.SAKURA.ne.jp>
-Date: Sat, 10 Oct 2015 21:50:58 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 10 Oct 2015 08:34:54 -0700 (PDT)
+Received: by lbwr8 with SMTP id r8so106930997lbw.2
+        for <linux-mm@kvack.org>; Sat, 10 Oct 2015 08:34:54 -0700 (PDT)
+Date: Sat, 10 Oct 2015 17:35:11 +0200
+From: Christoffer Dall <christoffer.dall@linaro.org>
+Subject: Re: [PATCH v2 11/20] kvm: rename pfn_t to kvm_pfn_t
+Message-ID: <20151010153511.GG29128@cbox>
+References: <20151010005522.17221.87557.stgit@dwillia2-desk3.jf.intel.com>
+ <20151010005622.17221.44373.stgit@dwillia2-desk3.jf.intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151010005622.17221.44373.stgit@dwillia2-desk3.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: rientjes@google.com, oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, Dave Hansen <dave@sr71.net>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Gleb Natapov <gleb@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, Marc Zyngier <marc.zyngier@arm.com>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paolo Bonzini <pbonzini@redhat.com>, ross.zwisler@linux.intel.com, hch@lst.de, Alexander Graf <agraf@suse.com>
 
-Tetsuo Handa wrote:
-> Without means to find out what was happening, we will "overlook real bugs"
-> before "paper over real bugs". The means are expected to work without
-> knowledge to use trace points functionality, are expected to run without
-> memory allocation, are expected to dump output without administrator's
-> operation, are expected to work before power reset by watchdog timers.
+On Fri, Oct 09, 2015 at 08:56:22PM -0400, Dan Williams wrote:
+> The core has developed a need for a "pfn_t" type [1].  Move the existing
+> pfn_t in KVM to kvm_pfn_t [2].
+> 
+> [1]: https://lists.01.org/pipermail/linux-nvdimm/2015-September/002199.html
+> [2]: https://lists.01.org/pipermail/linux-nvdimm/2015-September/002218.html
+> 
+> Cc: Dave Hansen <dave@sr71.net>
+> Cc: Gleb Natapov <gleb@kernel.org>
+> Cc: Paolo Bonzini <pbonzini@redhat.com>
+> Cc: Christoffer Dall <christoffer.dall@linaro.org>
+> Cc: Marc Zyngier <marc.zyngier@arm.com>
+> Cc: Russell King <linux@arm.linux.org.uk>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Ralf Baechle <ralf@linux-mips.org>
+> Cc: Alexander Graf <agraf@suse.com>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  arch/arm/include/asm/kvm_mmu.h        |    5 ++--
+>  arch/arm/kvm/mmu.c                    |   10 ++++---
+>  arch/arm64/include/asm/kvm_mmu.h      |    3 +-
+>  arch/mips/include/asm/kvm_host.h      |    6 ++--
+>  arch/mips/kvm/emulate.c               |    2 +
+>  arch/mips/kvm/tlb.c                   |   14 +++++-----
+>  arch/powerpc/include/asm/kvm_book3s.h |    4 +--
+>  arch/powerpc/include/asm/kvm_ppc.h    |    2 +
+>  arch/powerpc/kvm/book3s.c             |    6 ++--
+>  arch/powerpc/kvm/book3s_32_mmu_host.c |    2 +
+>  arch/powerpc/kvm/book3s_64_mmu_host.c |    2 +
+>  arch/powerpc/kvm/e500.h               |    2 +
+>  arch/powerpc/kvm/e500_mmu_host.c      |    8 +++---
+>  arch/powerpc/kvm/trace_pr.h           |    2 +
+>  arch/x86/kvm/iommu.c                  |   11 ++++----
+>  arch/x86/kvm/mmu.c                    |   37 +++++++++++++-------------
+>  arch/x86/kvm/mmu_audit.c              |    2 +
+>  arch/x86/kvm/paging_tmpl.h            |    6 ++--
+>  arch/x86/kvm/vmx.c                    |    2 +
+>  arch/x86/kvm/x86.c                    |    2 +
+>  include/linux/kvm_host.h              |   37 +++++++++++++-------------
+>  include/linux/kvm_types.h             |    2 +
+>  virt/kvm/kvm_main.c                   |   47 +++++++++++++++++----------------
+>  23 files changed, 110 insertions(+), 104 deletions(-)
+> 
+> diff --git a/arch/arm/include/asm/kvm_mmu.h b/arch/arm/include/asm/kvm_mmu.h
+> index 405aa1883307..8ebd282dfc2b 100644
+> --- a/arch/arm/include/asm/kvm_mmu.h
+> +++ b/arch/arm/include/asm/kvm_mmu.h
+> @@ -182,7 +182,8 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
+>  	return (vcpu->arch.cp15[c1_SCTLR] & 0b101) == 0b101;
+>  }
+>  
+> -static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
+> +static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
+> +					       kvm_pfn_t pfn,
+>  					       unsigned long size,
+>  					       bool ipa_uncached)
+>  {
+> @@ -246,7 +247,7 @@ static inline void __kvm_flush_dcache_pte(pte_t pte)
+>  static inline void __kvm_flush_dcache_pmd(pmd_t pmd)
+>  {
+>  	unsigned long size = PMD_SIZE;
+> -	pfn_t pfn = pmd_pfn(pmd);
+> +	kvm_pfn_t pfn = pmd_pfn(pmd);
+>  
+>  	while (size) {
+>  		void *va = kmap_atomic_pfn(pfn);
+> diff --git a/arch/arm/kvm/mmu.c b/arch/arm/kvm/mmu.c
+> index 6984342da13d..e2dcbfdc4a8c 100644
+> --- a/arch/arm/kvm/mmu.c
+> +++ b/arch/arm/kvm/mmu.c
+> @@ -988,9 +988,9 @@ out:
+>  	return ret;
+>  }
+>  
+> -static bool transparent_hugepage_adjust(pfn_t *pfnp, phys_addr_t *ipap)
+> +static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)
+>  {
+> -	pfn_t pfn = *pfnp;
+> +	kvm_pfn_t pfn = *pfnp;
+>  	gfn_t gfn = *ipap >> PAGE_SHIFT;
+>  
+>  	if (PageTransCompound(pfn_to_page(pfn))) {
+> @@ -1202,7 +1202,7 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
+>  	kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
+>  }
+>  
+> -static void coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
+> +static void coherent_cache_guest_page(struct kvm_vcpu *vcpu, kvm_pfn_t pfn,
+>  				      unsigned long size, bool uncached)
+>  {
+>  	__coherent_cache_guest_page(vcpu, pfn, size, uncached);
+> @@ -1219,7 +1219,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
+>  	struct kvm *kvm = vcpu->kvm;
+>  	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
+>  	struct vm_area_struct *vma;
+> -	pfn_t pfn;
+> +	kvm_pfn_t pfn;
+>  	pgprot_t mem_type = PAGE_S2;
+>  	bool fault_ipa_uncached;
+>  	bool logging_active = memslot_is_logging(memslot);
+> @@ -1347,7 +1347,7 @@ static void handle_access_fault(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
+>  {
+>  	pmd_t *pmd;
+>  	pte_t *pte;
+> -	pfn_t pfn;
+> +	kvm_pfn_t pfn;
+>  	bool pfn_valid = false;
+>  
+>  	trace_kvm_access_fault(fault_ipa);
+> diff --git a/arch/arm64/include/asm/kvm_mmu.h b/arch/arm64/include/asm/kvm_mmu.h
+> index 61505676d085..385fc8cef82d 100644
+> --- a/arch/arm64/include/asm/kvm_mmu.h
+> +++ b/arch/arm64/include/asm/kvm_mmu.h
+> @@ -230,7 +230,8 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
+>  	return (vcpu_sys_reg(vcpu, SCTLR_EL1) & 0b101) == 0b101;
+>  }
+>  
+> -static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
+> +static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
+> +					       kvm_pfn_t pfn,
+>  					       unsigned long size,
+>  					       bool ipa_uncached)
+>  {
+[...]
 
-I want to use something like this patch (CONFIG_DEBUG_something is fine).
-Complete log is at http://I-love.SAKURA.ne.jp/tmp/serial-20151010.txt.xz
-----------------------------------------
->From 0f749ddbc2bd9ce57ba56787e77595c3f13e9cc3 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sat, 10 Oct 2015 20:48:09 +0900
-Subject: [PATCH] Memory allocation watchdog kernel thread.
-
-This patch adds a kernel thread which periodically reports number of
-memory allocating tasks, dying tasks and OOM victim tasks.
-This kernel thread helps reporting whether we are failing to solve OOM
-conditions after OOM killer is invoked, in addition to reporting stalls
-before OOM killer is invoked (e.g. all __GFP_FS allocating tasks are
-blocked by locks or throttling whereas all !__GFP_FS allocating tasks
-are unable to invoke the OOM killer).
-
-$ grep MemAlloc serial.txt | grep -A 5 MemAlloc-Info:
-[  101.937548] MemAlloc-Info: 4 stalling task, 32 dying task, 1 victim task.
-[  101.939460] MemAlloc: sync4(10598) gfp=0x24280ca order=0 delay=17338
-[  101.975433] MemAlloc: sync4(10602) gfp=0x24280ca order=0 delay=17115
-[  102.015519] MemAlloc: sync4(10599) gfp=0x24280ca order=0 delay=17097
-[  102.053884] MemAlloc: sync4(10607) gfp=0x24280ca order=0 delay=15970
-[  112.094349] MemAlloc-Info: 176 stalling task, 32 dying task, 1 victim task.
-[  112.098411] MemAlloc: sync4(10598) gfp=0x24280ca order=0 delay=27494
-[  112.138381] MemAlloc: sync4(10602) gfp=0x24280ca order=0 delay=27271
-[  112.178710] MemAlloc: sync4(10599) gfp=0x24280ca order=0 delay=27253
-[  112.218674] MemAlloc: sync4(10607) gfp=0x24280ca order=0 delay=26126
-[  112.257749] MemAlloc: sync4(10608) gfp=0x24280ca order=0 delay=14083
---
-[  128.952137] MemAlloc-Info: 176 stalling task, 32 dying task, 1 victim task.
-[  128.954056] MemAlloc: sync4(10598) gfp=0x24280ca order=0 delay=44352
-[  128.992231] MemAlloc: sync4(10602) gfp=0x24280ca order=0 delay=44129
-[  129.034180] MemAlloc: sync4(10599) gfp=0x24280ca order=0 delay=44111
-[  129.071755] MemAlloc: sync4(10607) gfp=0x24280ca order=0 delay=42984
-[  129.109851] MemAlloc: sync4(10608) gfp=0x24280ca order=0 delay=30941
---
-[  145.683171] MemAlloc-Info: 175 stalling task, 32 dying task, 1 victim task.
-[  145.685344] MemAlloc: sync4(10598) gfp=0x24280ca order=0 delay=61084
-[  145.736475] MemAlloc: sync4(10599) gfp=0x24280ca order=0 delay=60843
-[  145.778084] MemAlloc: sync4(10607) gfp=0x24280ca order=0 delay=59716
-[  145.815363] MemAlloc: sync4(10608) gfp=0x24280ca order=0 delay=47673
-[  145.853610] MemAlloc: sync4(10601) gfp=0x24280ca order=0 delay=47673
---
-[  158.030038] MemAlloc-Info: 178 stalling task, 32 dying task, 1 victim task.
-[  158.031945] MemAlloc: sync4(10598) gfp=0x24280ca order=0 delay=73430
-[  158.071066] MemAlloc: sync4(10599) gfp=0x24280ca order=0 delay=73189
-[  158.108835] MemAlloc: sync4(10607) gfp=0x24280ca order=0 delay=72062
-[  158.146500] MemAlloc: sync4(10608) gfp=0x24280ca order=0 delay=60019
-[  158.184146] MemAlloc: sync4(10601) gfp=0x24280ca order=0 delay=60019
---
-[  174.851184] MemAlloc-Info: 178 stalling task, 32 dying task, 1 victim task.
-[  174.853106] MemAlloc: sync4(10598) gfp=0x24280ca order=0 delay=90252
-[  174.896592] MemAlloc: sync4(10599) gfp=0x24280ca order=0 delay=90011
-[  174.935838] MemAlloc: sync4(10607) gfp=0x24280ca order=0 delay=88884
-[  174.978799] MemAlloc: sync4(10608) gfp=0x24280ca order=0 delay=76841
-[  175.022003] MemAlloc: sync4(10601) gfp=0x24280ca order=0 delay=76841
---
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/page_alloc.c | 145 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 145 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0d6f540..0473eec 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2972,6 +2972,147 @@ static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
- 	return (gfp_mask & (GFP_TRANSHUGE | __GFP_KSWAPD_RECLAIM)) == GFP_TRANSHUGE;
- }
- 
-+#if 1
-+
-+static u8 memalloc_counter_active_index; /* Either 0 or 1. */
-+static int memalloc_counter[2]; /* Number of tasks doing memory allocation. */
-+
-+struct memalloc {
-+	struct list_head list; /* Connected to memalloc_list. */
-+	struct task_struct *task; /* Iniatilized to current. */
-+	unsigned long start; /* Initialized to jiffies. */
-+	unsigned int order;
-+	gfp_t gfp;
-+	u8 index; /* Initialized to memalloc_counter_active_index. */
-+};
-+
-+static LIST_HEAD(memalloc_list); /* List of "struct memalloc".*/
-+static DEFINE_SPINLOCK(memalloc_list_lock); /* Lock for memalloc_list. */
-+
-+/*
-+ * malloc_watchdog - A kernel thread for monitoring memory allocation stalls.
-+ *
-+ * @unused: Not used.
-+ *
-+ * This kernel thread does not terminate.
-+ */
-+static int malloc_watchdog(void *unused)
-+{
-+	static const unsigned long timeout = 10 * HZ;
-+	struct memalloc *m;
-+	struct task_struct *g, *p;
-+	unsigned long now;
-+	unsigned long spent;
-+	unsigned int sigkill_pending;
-+	unsigned int memdie_pending;
-+	unsigned int stalling_tasks;
-+	u8 index;
-+
-+ not_stalling: /* Healty case. */
-+	/*
-+	 * Switch active counter and wait for timeout duration.
-+	 * This is a kind of open coded implementation of synchronize_srcu()
-+	 * because synchronize_srcu_timeout() is missing.
-+	 */
-+	spin_lock(&memalloc_list_lock);
-+	index = memalloc_counter_active_index;
-+	memalloc_counter_active_index ^= 1;
-+	spin_unlock(&memalloc_list_lock);
-+	schedule_timeout_interruptible(timeout);
-+	/*
-+	 * If memory allocations are working, the counter should remain 0
-+	 * because tasks will be able to call both start_memalloc_timer()
-+	 * and stop_memalloc_timer() within timeout duration.
-+	 */
-+	if (likely(!memalloc_counter[index]))
-+		goto not_stalling;
-+ maybe_stalling: /* Maybe something is wrong. Let's check. */
-+	/* First, report whether there are SIGKILL tasks and/or OOM victims. */
-+	sigkill_pending = 0;
-+	memdie_pending = 0;
-+	stalling_tasks = 0;
-+	preempt_disable();
-+	rcu_read_lock();
-+	for_each_process_thread(g, p) {
-+		if (test_tsk_thread_flag(p, TIF_MEMDIE))
-+			memdie_pending++;
-+		if (fatal_signal_pending(p))
-+			sigkill_pending++;
-+	}
-+	rcu_read_unlock();
-+	preempt_enable();
-+	spin_lock(&memalloc_list_lock);
-+	now = jiffies;
-+	list_for_each_entry(m, &memalloc_list, list) {
-+		spent = now - m->start;
-+		if (time_before(spent, timeout))
-+			continue;
-+		stalling_tasks++;
-+	}
-+	pr_warn("MemAlloc-Info: %u stalling task, %u dying task, %u victim task.\n",
-+		stalling_tasks, sigkill_pending, memdie_pending);
-+	/* Next, report tasks stalled at memory allocation. */
-+	list_for_each_entry(m, &memalloc_list, list) {
-+		spent = now - m->start;
-+		if (time_before(spent, timeout))
-+			continue;
-+		p = m->task;
-+		pr_warn("MemAlloc%s: %s(%u) gfp=0x%x order=%u delay=%lu\n",
-+			test_tsk_thread_flag(p, TIF_MEMDIE) ? "-victim" :
-+			(fatal_signal_pending(p) ? "-dying" : ""),
-+			p->comm, p->pid, m->gfp, m->order, spent);
-+		show_stack(p, NULL);
-+	}
-+	spin_unlock(&memalloc_list_lock);
-+	/* Wait until next timeout duration. */
-+	schedule_timeout_interruptible(timeout);
-+	if (memalloc_counter[index])
-+		goto maybe_stalling;
-+	goto not_stalling;
-+	return 0;
-+}
-+
-+static int __init start_malloc_watchdog(void)
-+{
-+	struct task_struct *task = kthread_run(malloc_watchdog, NULL,
-+					       "MallocWatchdog");
-+	BUG_ON(IS_ERR(task));
-+	return 0;
-+}
-+late_initcall(start_malloc_watchdog);
-+
-+#define DEFINE_MEMALLOC_TIMER(m) struct memalloc m = { .task = NULL }
-+
-+static void start_memalloc_timer(struct memalloc *m, gfp_t gfp_mask, int order)
-+{
-+	if (m->task)
-+		return;
-+	m->task = current;
-+	m->start = jiffies;
-+	m->gfp = gfp_mask;
-+	order = order;
-+	spin_lock(&memalloc_list_lock);
-+	m->index = memalloc_counter_active_index;
-+	memalloc_counter[m->index]++;
-+	list_add_tail(&m->list, &memalloc_list);
-+	spin_unlock(&memalloc_list_lock);
-+}
-+
-+static void stop_memalloc_timer(struct memalloc *m)
-+{
-+	if (!m->task)
-+		return;
-+	spin_lock(&memalloc_list_lock);
-+	memalloc_counter[m->index]--;
-+	list_del(&m->list);
-+	spin_unlock(&memalloc_list_lock);
-+}
-+#else
-+#define DEFINE_MEMALLOC_TIMER(m)
-+#define start_memalloc_timer(m, gfp_mask, order)
-+#define stop_memalloc_timer(m)
-+#endif
-+
- static inline struct page *
- __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 						struct alloc_context *ac)
-@@ -2984,6 +3125,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	enum migrate_mode migration_mode = MIGRATE_ASYNC;
- 	bool deferred_compaction = false;
- 	int contended_compaction = COMPACT_CONTENDED_NONE;
-+	DEFINE_MEMALLOC_TIMER(m);
- 
- 	/*
- 	 * In the slowpath, we sanity check order to avoid ever trying to
-@@ -3075,6 +3217,8 @@ retry:
- 	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
- 		goto nopage;
- 
-+	start_memalloc_timer(&m, gfp_mask, order);
-+
- 	/*
- 	 * Try direct compaction. The first pass is asynchronous. Subsequent
- 	 * attempts after direct reclaim are synchronous
-@@ -3168,6 +3312,7 @@ noretry:
- nopage:
- 	warn_alloc_failed(gfp_mask, order, NULL);
- got_pg:
-+	stop_memalloc_timer(&m);
- 	return page;
- }
- 
--- 
-1.8.3.1
+For the arm/arm64 part:
+Acked-by: Christoffer Dall <christoffer.dall@linaro.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
