@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 7783182F64
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 21:02:44 -0400 (EDT)
-Received: by pabve7 with SMTP id ve7so42216406pab.2
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 18:02:44 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id te5si6495223pab.28.2015.10.09.18.02.43
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 2287B82F64
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 21:02:50 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so100984512pac.0
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 18:02:49 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id cr7si6455976pad.107.2015.10.09.18.02.49
         for <linux-mm@kvack.org>;
-        Fri, 09 Oct 2015 18:02:43 -0700 (PDT)
-Subject: [PATCH v2 18/20] block: notify queue death confirmation
+        Fri, 09 Oct 2015 18:02:49 -0700 (PDT)
+Subject: [PATCH v2 19/20] mm, pmem: devm_memunmap_pages(),
+ truncate and unmap ZONE_DEVICE pages
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 09 Oct 2015 20:57:00 -0400
-Message-ID: <20151010005700.17221.88874.stgit@dwillia2-desk3.jf.intel.com>
+Date: Fri, 09 Oct 2015 20:57:06 -0400
+Message-ID: <20151010005706.17221.46569.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151010005522.17221.87557.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151010005522.17221.87557.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -20,157 +21,242 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, ross.zwisler@linux.intel.com, hch@lst.de, linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave@sr71.net>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, hch@lst.de, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <willy@linux.intel.com>, ross.zwisler@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>
 
-The pmem driver arranges for references to be taken against the queue
-while pages it allocated via devm_memremap_pages() are in use.  At
-shutdown time, before those pages can be deallocated, they need to be
-truncated, unmapped, and guaranteed to be idle.  Scanning the pages to
-initiate truncation can only be done once we are certain no new page
-references will be taken.  Once the blk queue percpu_ref is confirmed
-dead __get_dev_pagemap() will cease allowing new references and we can
-reclaim these "device" pages.
+Before we allow ZONE_DEVICE pages to be put into active use outside of
+the pmem driver, we need to arrange for them to be reclaimed when the
+driver is shutdown.  devm_memunmap_pages() must wait for all pages to
+return to the initial mapcount of 1.  If a given page is mapped by a
+process we will truncate it out of its inode mapping and unmap it out of
+the process vma.
 
-Cc: Jens Axboe <axboe@kernel.dk>
+This truncation is done while the dev_pagemap reference count is "dead",
+preventing new references from being taken while the truncate+unmap scan
+is in progress.
+
+Cc: Dave Hansen <dave@sr71.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Christoph Hellwig <hch@lst.de>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Dave Chinner <david@fromorbit.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- block/blk-core.c       |   12 +++++++++---
- block/blk-mq.c         |   19 +++++++++++++++----
- include/linux/blkdev.h |    4 +++-
- 3 files changed, 27 insertions(+), 8 deletions(-)
+ drivers/nvdimm/pmem.c |   42 ++++++++++++++++++++++++++++++++++++------
+ fs/dax.c              |    2 ++
+ include/linux/mm.h    |    5 +++++
+ kernel/memremap.c     |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 91 insertions(+), 6 deletions(-)
 
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 9b4d735cb5b8..74aaa208a8e9 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -516,6 +516,12 @@ void blk_set_queue_dying(struct request_queue *q)
- }
- EXPORT_SYMBOL_GPL(blk_set_queue_dying);
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index f7acce594fa0..2c9aebbc3fea 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -24,12 +24,15 @@
+ #include <linux/memory_hotplug.h>
+ #include <linux/moduleparam.h>
+ #include <linux/vmalloc.h>
++#include <linux/async.h>
+ #include <linux/slab.h>
+ #include <linux/pmem.h>
+ #include <linux/nd.h>
+ #include "pfn.h"
+ #include "nd.h"
  
-+void blk_wait_queue_dead(struct request_queue *q)
-+{
-+	wait_event(q->q_freeze_wq, q->q_usage_dead);
-+}
-+EXPORT_SYMBOL(blk_wait_queue_dead);
++static ASYNC_DOMAIN_EXCLUSIVE(async_pmem);
 +
- /**
-  * blk_cleanup_queue - shutdown a request queue
-  * @q: request queue to shutdown
-@@ -638,7 +644,7 @@ int blk_queue_enter(struct request_queue *q, gfp_t gfp)
- 		if (!(gfp & __GFP_WAIT))
- 			return -EBUSY;
- 
--		ret = wait_event_interruptible(q->mq_freeze_wq,
-+		ret = wait_event_interruptible(q->q_freeze_wq,
- 				!atomic_read(&q->mq_freeze_depth) ||
- 				blk_queue_dying(q));
- 		if (blk_queue_dying(q))
-@@ -658,7 +664,7 @@ static void blk_queue_usage_counter_release(struct percpu_ref *ref)
- 	struct request_queue *q =
- 		container_of(ref, struct request_queue, q_usage_counter);
- 
--	wake_up_all(&q->mq_freeze_wq);
-+	wake_up_all(&q->q_freeze_wq);
+ struct pmem_device {
+ 	struct request_queue	*pmem_queue;
+ 	struct gendisk		*pmem_disk;
+@@ -164,14 +167,43 @@ static struct pmem_device *pmem_alloc(struct device *dev,
+ 	return pmem;
  }
  
- struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
-@@ -720,7 +726,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
- 	q->bypass_depth = 1;
- 	__set_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
- 
--	init_waitqueue_head(&q->mq_freeze_wq);
-+	init_waitqueue_head(&q->q_freeze_wq);
- 
- 	/*
- 	 * Init percpu_ref in atomic mode so that it's faster to shutdown.
-diff --git a/block/blk-mq.c b/block/blk-mq.c
-index c371aeda2986..d52f9d91f5c1 100644
---- a/block/blk-mq.c
-+++ b/block/blk-mq.c
-@@ -77,13 +77,23 @@ static void blk_mq_hctx_clear_pending(struct blk_mq_hw_ctx *hctx,
- 	clear_bit(CTX_TO_BIT(hctx, ctx), &bm->word);
- }
- 
-+static void blk_confirm_queue_death(struct percpu_ref *ref)
-+{
-+	struct request_queue *q = container_of(ref, typeof(*q),
-+			q_usage_counter);
+-static void pmem_detach_disk(struct pmem_device *pmem)
 +
-+	q->q_usage_dead = 1;
-+	wake_up_all(&q->q_freeze_wq);
++static void async_blk_cleanup_queue(void *data, async_cookie_t cookie)
++{
++	struct pmem_device *pmem = data;
++
++	blk_cleanup_queue(pmem->pmem_queue);
 +}
 +
- void blk_mq_freeze_queue_start(struct request_queue *q)
++static void pmem_detach_disk(struct device *dev)
  {
- 	int freeze_depth;
++	struct pmem_device *pmem = dev_get_drvdata(dev);
++	struct request_queue *q = pmem->pmem_queue;
++
+ 	if (!pmem->pmem_disk)
+ 		return;
  
- 	freeze_depth = atomic_inc_return(&q->mq_freeze_depth);
- 	if (freeze_depth == 1) {
--		percpu_ref_kill(&q->q_usage_counter);
-+		percpu_ref_kill_and_confirm(&q->q_usage_counter,
-+				blk_confirm_queue_death);
- 		blk_mq_run_hw_queues(q, false);
+ 	del_gendisk(pmem->pmem_disk);
+ 	put_disk(pmem->pmem_disk);
+-	blk_cleanup_queue(pmem->pmem_queue);
++	async_schedule_domain(async_blk_cleanup_queue, pmem, &async_pmem);
++
++	if (pmem->pfn_flags & PFN_MAP) {
++		/*
++		 * Wait for queue to go dead so that we know no new
++		 * references will be taken against the pages allocated
++		 * by devm_memremap_pages().
++		 */
++		blk_wait_queue_dead(q);
++
++		/*
++		 * Manually release the page mapping so that
++		 * blk_cleanup_queue() can complete queue draining.
++		 */
++		devm_memunmap_pages(dev, (void __force *) pmem->virt_addr);
++	}
++
++	/* Wait for blk_cleanup_queue() to finish */
++	async_synchronize_full_domain(&async_pmem);
+ }
+ 
+ static int pmem_attach_disk(struct device *dev,
+@@ -299,11 +331,9 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+ static int nvdimm_namespace_detach_pfn(struct nd_namespace_common *ndns)
+ {
+ 	struct nd_pfn *nd_pfn = to_nd_pfn(ndns->claim);
+-	struct pmem_device *pmem;
+ 
+ 	/* free pmem disk */
+-	pmem = dev_get_drvdata(&nd_pfn->dev);
+-	pmem_detach_disk(pmem);
++	pmem_detach_disk(&nd_pfn->dev);
+ 
+ 	/* release nd_pfn resources */
+ 	kfree(nd_pfn->pfn_sb);
+@@ -446,7 +476,7 @@ static int nd_pmem_remove(struct device *dev)
+ 	else if (is_nd_pfn(dev))
+ 		nvdimm_namespace_detach_pfn(pmem->ndns);
+ 	else
+-		pmem_detach_disk(pmem);
++		pmem_detach_disk(dev);
+ 
+ 	return 0;
+ }
+diff --git a/fs/dax.c b/fs/dax.c
+index 87a070d6e6dc..208e064fafe5 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -46,6 +46,7 @@ static void __pmem *__dax_map_atomic(struct block_device *bdev, sector_t sector,
+ 		blk_queue_exit(q);
+ 		return (void __pmem *) ERR_PTR(rc);
  	}
++	rcu_read_lock();
+ 	return addr;
  }
-@@ -91,7 +101,7 @@ EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_start);
  
- static void blk_mq_freeze_queue_wait(struct request_queue *q)
- {
--	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->q_usage_counter));
-+	wait_event(q->q_freeze_wq, percpu_ref_is_zero(&q->q_usage_counter));
+@@ -62,6 +63,7 @@ static void dax_unmap_atomic(struct block_device *bdev, void __pmem *addr)
+ 	if (IS_ERR(addr))
+ 		return;
+ 	blk_queue_exit(bdev->bd_queue);
++	rcu_read_unlock();
  }
  
  /*
-@@ -129,7 +139,8 @@ void blk_mq_unfreeze_queue(struct request_queue *q)
- 	WARN_ON_ONCE(freeze_depth < 0);
- 	if (!freeze_depth) {
- 		percpu_ref_reinit(&q->q_usage_counter);
--		wake_up_all(&q->mq_freeze_wq);
-+		q->q_usage_dead = 0;
-+		wake_up_all(&q->q_freeze_wq);
- 	}
- }
- EXPORT_SYMBOL_GPL(blk_mq_unfreeze_queue);
-@@ -148,7 +159,7 @@ void blk_mq_wake_waiters(struct request_queue *q)
- 	 * dying, we need to ensure that processes currently waiting on
- 	 * the queue are notified as well.
- 	 */
--	wake_up_all(&q->mq_freeze_wq);
-+	wake_up_all(&q->q_freeze_wq);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8a84bfb6fa6a..af7597410cb9 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -801,6 +801,7 @@ struct dev_pagemap {
+ 
+ #ifdef CONFIG_ZONE_DEVICE
+ struct dev_pagemap *__get_dev_pagemap(resource_size_t phys);
++void devm_memunmap_pages(struct device *dev, void *addr);
+ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 		struct percpu_ref *ref, struct vmem_altmap *altmap);
+ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start);
+@@ -810,6 +811,10 @@ static inline struct dev_pagemap *__get_dev_pagemap(resource_size_t phys)
+ 	return NULL;
  }
  
- bool blk_mq_can_queue(struct blk_mq_hw_ctx *hctx)
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index fb3e6886c479..a1340654e360 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -427,6 +427,7 @@ struct request_queue {
- 	 */
- 	unsigned int		flush_flags;
- 	unsigned int		flush_not_queueable:1;
-+	unsigned int		q_usage_dead:1;
- 	struct blk_flush_queue	*fq;
++static inline void devm_memunmap_pages(struct device *dev, void *addr)
++{
++}
++
+ static inline void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 		struct percpu_ref *ref, struct vmem_altmap *altmap)
+ {
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 246446ba6e2f..fa0cf1be2992 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -13,6 +13,7 @@
+ #include <linux/rculist.h>
+ #include <linux/device.h>
+ #include <linux/types.h>
++#include <linux/fs.h>
+ #include <linux/io.h>
+ #include <linux/mm.h>
+ #include <linux/memory_hotplug.h>
+@@ -187,10 +188,39 @@ static unsigned long pfn_end(struct dev_pagemap *pgmap)
  
- 	struct list_head	requeue_list;
-@@ -449,7 +450,7 @@ struct request_queue {
- 	struct throtl_data *td;
- #endif
- 	struct rcu_head		rcu_head;
--	wait_queue_head_t	mq_freeze_wq;
-+	wait_queue_head_t	q_freeze_wq;
- 	struct percpu_ref	q_usage_counter;
- 	struct list_head	all_q_node;
+ static void devm_memremap_pages_release(struct device *dev, void *data)
+ {
++	unsigned long pfn;
+ 	struct page_map *page_map = data;
+ 	struct resource *res = &page_map->res;
++	struct address_space *mapping_prev = NULL;
+ 	struct dev_pagemap *pgmap = &page_map->pgmap;
  
-@@ -949,6 +950,7 @@ extern struct request_queue *blk_init_queue_node(request_fn_proc *rfn,
- extern struct request_queue *blk_init_queue(request_fn_proc *, spinlock_t *);
- extern struct request_queue *blk_init_allocated_queue(struct request_queue *,
- 						      request_fn_proc *, spinlock_t *);
-+extern void blk_wait_queue_dead(struct request_queue *q);
- extern void blk_cleanup_queue(struct request_queue *);
- extern void blk_queue_make_request(struct request_queue *, make_request_fn *);
- extern void blk_queue_bounce_limit(struct request_queue *, u64);
++	if (percpu_ref_tryget_live(pgmap->ref)) {
++		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
++		percpu_ref_put(pgmap->ref);
++	}
++
++	/* flush in-flight dax_map_atomic() operations */
++	synchronize_rcu();
++
++	for_each_device_pfn(pfn, pgmap) {
++		struct page *page = pfn_to_page(pfn);
++		struct address_space *mapping = page->mapping;
++		struct inode *inode = mapping ? mapping->host : NULL;
++
++		dev_WARN_ONCE(dev, atomic_read(&page->_count) < 1,
++				"%s: ZONE_DEVICE page was freed!\n", __func__);
++
++		if (!mapping || !inode || mapping == mapping_prev) {
++			dev_WARN_ONCE(dev, atomic_read(&page->_count) > 1,
++					"%s: unexpected elevated page count pfn: %lx\n",
++					__func__, pfn);
++			continue;
++		}
++
++		truncate_pagecache(inode, 0);
++		mapping_prev = mapping;
++	}
++
+ 	/* pages are dead and unused, undo the arch mapping */
+ 	arch_remove_memory(res->start, resource_size(res));
+ 	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
+@@ -287,6 +317,24 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ }
+ EXPORT_SYMBOL(devm_memremap_pages);
+ 
++static int page_map_match(struct device *dev, void *res, void *match_data)
++{
++	struct page_map *page_map = res;
++	resource_size_t phys = *(resource_size_t *) match_data;
++
++	return page_map->res.start == phys;
++}
++
++void devm_memunmap_pages(struct device *dev, void *addr)
++{
++	resource_size_t start = __pa(addr);
++
++	if (devres_release(dev, devm_memremap_pages_release, page_map_match,
++				&start) != 0)
++		dev_WARN(dev, "failed to find page map to release\n");
++}
++EXPORT_SYMBOL(devm_memunmap_pages);
++
+ /*
+  * Uncoditionally retrieve a dev_pagemap associated with the given physical
+  * address, this is only for use in the arch_{add|remove}_memory() for setting
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
