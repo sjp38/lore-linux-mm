@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 32B4582F64
-	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 21:02:29 -0400 (EDT)
-Received: by pabve7 with SMTP id ve7so42211682pab.2
-        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 18:02:29 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id zp7si6401862pac.216.2015.10.09.18.02.28
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0104682F64
+	for <linux-mm@kvack.org>; Fri,  9 Oct 2015 21:02:33 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so100503339pad.1
+        for <linux-mm@kvack.org>; Fri, 09 Oct 2015 18:02:32 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id w5si6500797pbt.36.2015.10.09.18.02.31
         for <linux-mm@kvack.org>;
-        Fri, 09 Oct 2015 18:02:28 -0700 (PDT)
-Subject: [PATCH v2 15/20] mm, dax: convert vmf_insert_pfn_pmd() to pfn_t
+        Fri, 09 Oct 2015 18:02:32 -0700 (PDT)
+Subject: [PATCH v2 13/20] mm, dax, pmem: introduce pfn_t
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 09 Oct 2015 20:56:44 -0400
-Message-ID: <20151010005644.17221.68344.stgit@dwillia2-desk3.jf.intel.com>
+Date: Fri, 09 Oct 2015 20:56:33 -0400
+Message-ID: <20151010005633.17221.70857.stgit@dwillia2-desk3.jf.intel.com>
 In-Reply-To: <20151010005522.17221.87557.stgit@dwillia2-desk3.jf.intel.com>
 References: <20151010005522.17221.87557.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
@@ -20,301 +20,409 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, ross.zwisler@linux.intel.com, Matthew Wilcox <willy@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, hch@lst.de
+Cc: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ross.zwisler@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, hch@lst.de
 
-Similar to the conversion of vm_insert_mixed() use pfn_t in the
-vmf_insert_pfn_pmd() to tag the resulting pte with _PAGE_DEVICE when the
-pfn is backed by a devm_memremap_pages() mapping.
+In preparation for enabling get_user_pages() operations on dax mappings,
+introduce a type that encapsulates a page-frame-number that can also be
+used to encode other information.  This other information is the
+historical "page_link" encoding in a scatterlist, but can also denote
+"device memory".  Where "device memory" is a set of pfns that are not
+part of the kernel's linear mapping by default, but are accessed via the
+same memory controller as ram.  The motivation for this new type is
+large capacity persistent memory that optionally has struct page entries
+in the 'memmap'.
 
+When a driver, like pmem, has established a devm_memremap_pages()
+mapping it needs to communicate to upper layers that the pfn has a page
+backing.  This property will be leveraged in a later patch to enable
+dax-gup.  For now, update all the ->direct_access() implementations to
+communicate whether the returned pfn range is mapped.
+
+Cc: Christoph Hellwig <hch@lst.de>
 Cc: Dave Hansen <dave@sr71.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/sparc/include/asm/pgtable_64.h     |    2 ++
- arch/x86/include/asm/pgtable.h          |    6 ++++++
- arch/x86/mm/pat.c                       |    4 ++--
- drivers/gpu/drm/exynos/exynos_drm_gem.c |    2 +-
- drivers/gpu/drm/msm/msm_gem.c           |    2 +-
- drivers/gpu/drm/omapdrm/omap_gem.c      |    4 ++--
- fs/dax.c                                |    2 +-
- include/asm-generic/pgtable.h           |    6 ++++--
- include/linux/huge_mm.h                 |    2 +-
- include/linux/mm.h                      |   18 +++++++++++++++++-
- mm/huge_memory.c                        |   10 ++++++----
- mm/memory.c                             |    2 +-
- 12 files changed, 44 insertions(+), 16 deletions(-)
+ arch/powerpc/sysdev/axonram.c |    8 ++---
+ drivers/block/brd.c           |    4 +--
+ drivers/nvdimm/pmem.c         |   25 ++++++----------
+ drivers/s390/block/dcssblk.c  |   10 +++---
+ fs/block_dev.c                |    2 +
+ fs/dax.c                      |   19 ++++++------
+ include/linux/blkdev.h        |    4 +--
+ include/linux/mm.h            |   65 +++++++++++++++++++++++++++++++++++++++++
+ include/linux/pfn.h           |    9 ++++++
+ 9 files changed, 105 insertions(+), 41 deletions(-)
 
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 131d36fcd07a..496ef783c68c 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -234,6 +234,7 @@ extern struct page *mem_map_zero;
-  * the first physical page in the machine is at some huge physical address,
-  * such as 4GB.   This is common on a partitioned E10000, for example.
+diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
+index d2b79bc336c1..59ca4c0ab529 100644
+--- a/arch/powerpc/sysdev/axonram.c
++++ b/arch/powerpc/sysdev/axonram.c
+@@ -141,15 +141,13 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
   */
-+#define pfn_pte pfn_pte
- static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
+ static long
+ axon_ram_direct_access(struct block_device *device, sector_t sector,
+-		       void __pmem **kaddr, unsigned long *pfn)
++		       void __pmem **kaddr, pfn_t *pfn)
  {
- 	unsigned long paddr = pfn << PAGE_SHIFT;
-@@ -244,6 +245,7 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
- #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
+ 	struct axon_ram_bank *bank = device->bd_disk->private_data;
+ 	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
+-	void *addr = (void *)(bank->ph_addr + offset);
+-
+-	*kaddr = (void __pmem *)addr;
+-	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
  
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pfn_pmd pfn_pmd
- static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
- {
- 	pte_t pte = pfn_pte(page_nr, pgprot);
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 02a54e5b7930..84d1346e1cda 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -282,6 +282,11 @@ static inline pmd_t pmd_mkdirty(pmd_t pmd)
- 	return pmd_set_flags(pmd, _PAGE_DIRTY | _PAGE_SOFT_DIRTY);
++	*kaddr = (void __pmem __force *) bank->io_addr + offset;
++	*pfn = phys_to_pfn_t(bank->ph_addr + offset, PFN_DEV);
+ 	return bank->size - offset;
  }
  
-+static inline pmd_t pmd_mkdevmap(pmd_t pmd)
-+{
-+	return pmd_set_flags(pmd, _PAGE_DEVMAP);
-+}
-+
- static inline pmd_t pmd_mkhuge(pmd_t pmd)
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index b9794aeeb878..0bbc60463779 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -374,7 +374,7 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
+ 
+ #ifdef CONFIG_BLK_DEV_RAM_DAX
+ static long brd_direct_access(struct block_device *bdev, sector_t sector,
+-			void __pmem **kaddr, unsigned long *pfn)
++			void __pmem **kaddr, pfn_t *pfn)
  {
- 	return pmd_set_flags(pmd, _PAGE_PSE);
-@@ -346,6 +351,7 @@ static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
- 		     massage_pgprot(pgprot));
+ 	struct brd_device *brd = bdev->bd_disk->private_data;
+ 	struct page *page;
+@@ -385,7 +385,7 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
+ 	if (!page)
+ 		return -ENOSPC;
+ 	*kaddr = (void __pmem *)page_address(page);
+-	*pfn = page_to_pfn(page);
++	*pfn = page_to_pfn_t(page);
+ 
+ 	return PAGE_SIZE;
+ }
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index bb66158c0505..c950602bbf0b 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -39,6 +39,7 @@ struct pmem_device {
+ 	phys_addr_t		phys_addr;
+ 	/* when non-zero this device is hosting a 'pfn' instance */
+ 	phys_addr_t		data_offset;
++	unsigned long		pfn_flags;
+ 	void __pmem		*virt_addr;
+ 	size_t			size;
+ };
+@@ -100,26 +101,15 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
  }
  
-+#define pfn_pmd pfn_pmd
- static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
+ static long pmem_direct_access(struct block_device *bdev, sector_t sector,
+-		      void __pmem **kaddr, unsigned long *pfn)
++		      void __pmem **kaddr, pfn_t *pfn)
  {
- 	return __pmd(((phys_addr_t)page_nr << PAGE_SHIFT) |
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 188e3e07eeeb..98efd3c02374 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -949,7 +949,7 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+ 	struct pmem_device *pmem = bdev->bd_disk->private_data;
+ 	resource_size_t offset = sector * 512 + pmem->data_offset;
+-	resource_size_t size;
+-
+-	if (pmem->data_offset) {
+-		/*
+-		 * Limit the direct_access() size to what is covered by
+-		 * the memmap
+-		 */
+-		size = (pmem->size - offset) & ~ND_PFN_MASK;
+-	} else
+-		size = pmem->size - offset;
+ 
+-	/* FIXME convert DAX to comprehend that this mapping has a lifetime */
+ 	*kaddr = pmem->virt_addr + offset;
+-	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
++	*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
+ 
+-	return size;
++	return pmem->size - offset;
  }
  
- int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
--		     unsigned long pfn)
-+		     pfn_t pfn)
- {
- 	enum page_cache_mode pcm;
- 
-@@ -957,7 +957,7 @@ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
- 		return 0;
- 
- 	/* Set prot based on lookup */
--	pcm = lookup_memtype((resource_size_t)pfn << PAGE_SHIFT);
-+	pcm = lookup_memtype(pfn_t_to_phys(pfn));
- 	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
- 			 cachemode2protval(pcm));
- 
-diff --git a/drivers/gpu/drm/exynos/exynos_drm_gem.c b/drivers/gpu/drm/exynos/exynos_drm_gem.c
-index 778764bebc00..aa7709ed9ae2 100644
---- a/drivers/gpu/drm/exynos/exynos_drm_gem.c
-+++ b/drivers/gpu/drm/exynos/exynos_drm_gem.c
-@@ -480,7 +480,7 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 
- 	pfn = page_to_pfn(exynos_gem_obj->pages[page_offset]);
- 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
--			pfn_to_pfn_t(pfn, PFN_DEV));
-+			__pfn_to_pfn_t(pfn, PFN_DEV));
- 
- out:
- 	switch (ret) {
-diff --git a/drivers/gpu/drm/msm/msm_gem.c b/drivers/gpu/drm/msm/msm_gem.c
-index 0f4ed5bfda83..6509d9b23912 100644
---- a/drivers/gpu/drm/msm/msm_gem.c
-+++ b/drivers/gpu/drm/msm/msm_gem.c
-@@ -223,7 +223,7 @@ int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 			pfn, pfn << PAGE_SHIFT);
- 
- 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
--			pfn_to_pfn_t(pfn, PFN_DEV));
-+			__pfn_to_pfn_t(pfn, PFN_DEV));
- 
- out_unlock:
- 	mutex_unlock(&dev->struct_mutex);
-diff --git a/drivers/gpu/drm/omapdrm/omap_gem.c b/drivers/gpu/drm/omapdrm/omap_gem.c
-index 910cb276a7ea..94b6d23ec202 100644
---- a/drivers/gpu/drm/omapdrm/omap_gem.c
-+++ b/drivers/gpu/drm/omapdrm/omap_gem.c
-@@ -386,7 +386,7 @@ static int fault_1d(struct drm_gem_object *obj,
- 			pfn, pfn << PAGE_SHIFT);
- 
- 	return vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
--			pfn_to_pfn_t(pfn, PFN_DEV));
-+			__pfn_to_pfn_t(pfn, PFN_DEV));
- }
- 
- /* Special handling for the case of faulting in 2d tiled buffers */
-@@ -480,7 +480,7 @@ static int fault_2d(struct drm_gem_object *obj,
- 
- 	for (i = n; i > 0; i--) {
- 		vm_insert_mixed(vma, (unsigned long)vaddr,
--				pfn_to_pfn_t(pfn, PFN_DEV));
-+				__pfn_to_pfn_t(pfn, PFN_DEV));
- 		pfn += usergart[fmt].stride_pfn;
- 		vaddr += PAGE_SIZE * m;
+ static const struct block_device_operations pmem_fops = {
+@@ -150,10 +140,12 @@ static struct pmem_device *pmem_alloc(struct device *dev,
+ 		return ERR_PTR(-EBUSY);
  	}
+ 
+-	if (pmem_should_map_pages(dev))
++	pmem->pfn_flags = PFN_DEV;
++	if (pmem_should_map_pages(dev)) {
+ 		pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, res,
+ 				NULL);
+-	else
++		pmem->pfn_flags |= PFN_MAP;
++	} else
+ 		pmem->virt_addr = (void __pmem *) devm_memremap(dev,
+ 				pmem->phys_addr, pmem->size,
+ 				ARCH_MEMREMAP_PMEM);
+@@ -380,6 +372,7 @@ static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
+ 	devm_memunmap(dev, (void __force *) pmem->virt_addr);
+ 	pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, &nsio->res,
+ 			altmap);
++	pmem->pfn_flags |= PFN_MAP;
+ 	if (IS_ERR(pmem->virt_addr)) {
+ 		rc = PTR_ERR(pmem->virt_addr);
+ 		goto err;
+diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
+index 5ed44fe21380..e2b2839e4de5 100644
+--- a/drivers/s390/block/dcssblk.c
++++ b/drivers/s390/block/dcssblk.c
+@@ -29,7 +29,7 @@ static int dcssblk_open(struct block_device *bdev, fmode_t mode);
+ static void dcssblk_release(struct gendisk *disk, fmode_t mode);
+ static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
+ static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
+-			 void __pmem **kaddr, unsigned long *pfn);
++			 void __pmem **kaddr, pfn_t *pfn);
+ 
+ static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
+ 
+@@ -881,20 +881,18 @@ fail:
+ 
+ static long
+ dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
+-			void __pmem **kaddr, unsigned long *pfn)
++			void __pmem **kaddr, pfn_t *pfn)
+ {
+ 	struct dcssblk_dev_info *dev_info;
+ 	unsigned long offset, dev_sz;
+-	void *addr;
+ 
+ 	dev_info = bdev->bd_disk->private_data;
+ 	if (!dev_info)
+ 		return -ENODEV;
+ 	dev_sz = dev_info->end - dev_info->start;
+ 	offset = secnum * 512;
+-	addr = (void *) (dev_info->start + offset);
+-	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
+-	*kaddr = (void __pmem *) addr;
++	*kaddr = (void __pmem *) (dev_info->start + offset);
++	*pfn = phys_to_pfn_t(dev_info->start + offset, PFN_DEV);
+ 
+ 	return dev_sz - offset;
+ }
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 073bb57adab1..c37a193695d4 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -442,7 +442,7 @@ EXPORT_SYMBOL_GPL(bdev_write_page);
+  * accessible at this address.
+  */
+ long bdev_direct_access(struct block_device *bdev, sector_t sector,
+-			void __pmem **addr, unsigned long *pfn, long size)
++			void __pmem **addr, pfn_t *pfn, long size)
+ {
+ 	long avail;
+ 	const struct block_device_operations *ops = bdev->bd_disk->fops;
 diff --git a/fs/dax.c b/fs/dax.c
-index 1588edf297a2..87a070d6e6dc 100644
+index 9549cd523649..7496a776e1a6 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -685,7 +685,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+@@ -31,7 +31,7 @@
+ #include <linux/sizes.h>
+ 
+ static void __pmem *__dax_map_atomic(struct block_device *bdev, sector_t sector,
+-		long size, unsigned long *pfn, long *len)
++		long size, pfn_t *pfn, long *len)
+ {
+ 	long rc;
+ 	void __pmem *addr;
+@@ -52,7 +52,7 @@ static void __pmem *__dax_map_atomic(struct block_device *bdev, sector_t sector,
+ static void __pmem *dax_map_atomic(struct block_device *bdev, sector_t sector,
+ 		long size)
+ {
+-	unsigned long pfn;
++	pfn_t pfn;
+ 
+ 	return __dax_map_atomic(bdev, sector, size, &pfn, NULL);
+ }
+@@ -77,8 +77,8 @@ int dax_clear_blocks(struct inode *inode, sector_t block, long size)
+ 	might_sleep();
+ 	do {
+ 		void __pmem *addr;
+-		unsigned long pfn;
+ 		long count, sz;
++		pfn_t pfn;
+ 
+ 		sz = min_t(long, size, SZ_1M);
+ 		addr = __dax_map_atomic(bdev, sector, size, &pfn, &count);
+@@ -146,7 +146,7 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
+ 	struct block_device *bdev = NULL;
+ 	int rw = iov_iter_rw(iter), rc;
+ 	long map_len = 0;
+-	unsigned long pfn;
++	pfn_t pfn;
+ 	void __pmem *addr = NULL;
+ 	void __pmem *kmap = (void __pmem *) ERR_PTR(-EIO);
+ 	bool hole = false;
+@@ -338,9 +338,9 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
+ 	unsigned long vaddr = (unsigned long)vmf->virtual_address;
+ 	struct address_space *mapping = inode->i_mapping;
+ 	struct block_device *bdev = bh->b_bdev;
+-	unsigned long pfn;
+ 	void __pmem *addr;
+ 	pgoff_t size;
++	pfn_t pfn;
+ 	int error;
+ 
+ 	i_mmap_lock_read(mapping);
+@@ -371,7 +371,7 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
+ 	}
+ 	dax_unmap_atomic(bdev, addr);
+ 
+-	error = vm_insert_mixed(vma, vaddr, pfn);
++	error = vm_insert_mixed(vma, vaddr, pfn_t_to_pfn(pfn));
+ 
+  out:
+ 	i_mmap_unlock_read(mapping);
+@@ -660,8 +660,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		result = VM_FAULT_NOPAGE;
+ 		spin_unlock(ptl);
+ 	} else {
++		pfn_t pfn;
+ 		long length;
+-		unsigned long pfn;
+ 		void __pmem *kaddr = __dax_map_atomic(bdev,
+ 				to_sector(&bh, inode), HPAGE_SIZE, &pfn,
+ 				&length);
+@@ -670,7 +670,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 			result = VM_FAULT_SIGBUS;
+ 			goto out;
+ 		}
+-		if ((length < PMD_SIZE) || (pfn & PG_PMD_COLOUR)) {
++		if ((length < PMD_SIZE) || (pfn_t_to_pfn(pfn) & PG_PMD_COLOUR)) {
+ 			dax_unmap_atomic(bdev, kaddr);
+ 			goto fallback;
+ 		}
+@@ -684,7 +684,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		}
  		dax_unmap_atomic(bdev, kaddr);
  
- 		result |= vmf_insert_pfn_pmd(vma, address, pmd,
--				pfn_t_to_pfn(pfn), write);
-+				pfn, write);
+-		result |= vmf_insert_pfn_pmd(vma, address, pmd, pfn, write);
++		result |= vmf_insert_pfn_pmd(vma, address, pmd,
++				pfn_t_to_pfn(pfn), write);
  	}
  
   out:
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 29c57b2cb344..16d2244c686f 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -1,6 +1,8 @@
- #ifndef _ASM_GENERIC_PGTABLE_H
- #define _ASM_GENERIC_PGTABLE_H
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index cd091cb2b96e..fb3e6886c479 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1624,7 +1624,7 @@ struct block_device_operations {
+ 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+ 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+ 	long (*direct_access)(struct block_device *, sector_t, void __pmem **,
+-			unsigned long *pfn);
++			pfn_t *);
+ 	unsigned int (*check_events) (struct gendisk *disk,
+ 				      unsigned int clearing);
+ 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
+@@ -1643,7 +1643,7 @@ extern int bdev_read_page(struct block_device *, sector_t, struct page *);
+ extern int bdev_write_page(struct block_device *, sector_t, struct page *,
+ 						struct writeback_control *);
+ extern long bdev_direct_access(struct block_device *, sector_t,
+-		void __pmem **addr, unsigned long *pfn, long size);
++		void __pmem **addr, pfn_t *pfn, long size);
+ #else /* CONFIG_BLOCK */
  
-+#include <linux/pfn.h>
-+
- #ifndef __ASSEMBLY__
- #ifdef CONFIG_MMU
- 
-@@ -521,7 +523,7 @@ static inline int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
-  * by vm_insert_pfn().
-  */
- static inline int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
--				   unsigned long pfn)
-+				   pfn_t pfn)
- {
- 	return 0;
- }
-@@ -549,7 +551,7 @@ extern int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
- 			   unsigned long pfn, unsigned long addr,
- 			   unsigned long size);
- extern int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
--			    unsigned long pfn);
-+			    pfn_t pfn);
- extern int track_pfn_copy(struct vm_area_struct *vma);
- extern void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
- 			unsigned long size);
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index ecb080d6ff42..d218abedfeb9 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -34,7 +34,7 @@ extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			unsigned long addr, pgprot_t newprot,
- 			int prot_numa);
- int vmf_insert_pfn_pmd(struct vm_area_struct *, unsigned long addr, pmd_t *,
--			unsigned long pfn, bool write);
-+			pfn_t pfn, bool write);
- 
- enum transparent_hugepage_flag {
- 	TRANSPARENT_HUGEPAGE_FLAG,
+ struct block_device;
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 1d405ca21c9f..ce173327215d 100644
+index b5628cfbf649..7045099f1654 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -1109,7 +1109,14 @@ static inline pte_t pfn_t_pte(pfn_t pfn, pgprot_t pgprot)
- }
- #endif
- 
--#ifdef __HAVE_ARCH_PTE_DEVICE
-+#ifdef pfn_pmd
-+static inline pmd_t pfn_t_pmd(pfn_t pfn, pgprot_t pgprot)
-+{
-+	return pfn_pmd(pfn_t_to_pfn(pfn), pgprot);
-+}
-+#endif
-+
-+#ifdef __HAVE_ARCH_PTE_DEVMAP
- static inline bool pfn_t_has_dev_pagemap(pfn_t pfn)
- {
- 	const unsigned long flags = PFN_DEV|PFN_MAP;
-@@ -1122,6 +1129,7 @@ static inline bool pfn_t_has_dev_pagemap(pfn_t pfn)
- 	return false;
- }
- pte_t pte_mkdevmap(pte_t pte);
-+pmd_t pmd_mkdevmap(pmd_t pmd);
+@@ -1033,6 +1033,71 @@ static inline void set_page_memcg(struct page *page, struct mem_cgroup *memcg)
  #endif
  
  /*
-@@ -1887,6 +1895,14 @@ static inline void pgtable_pmd_page_dtor(struct page *page) {}
++ * PFN_FLAGS_MASK - mask of all the possible valid pfn_t flags
++ * PFN_SG_CHAIN - pfn is a pointer to the next scatterlist entry
++ * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
++ * PFN_DEV - pfn is not covered by system memmap by default
++ * PFN_MAP - pfn has a dynamic page mapping established by a device driver
++ */
++#define PFN_FLAGS_MASK (~PAGE_MASK << (BITS_PER_LONG - PAGE_SHIFT))
++#define PFN_SG_CHAIN (1UL << (BITS_PER_LONG - 1))
++#define PFN_SG_LAST (1UL << (BITS_PER_LONG - 2))
++#define PFN_DEV (1UL << (BITS_PER_LONG - 3))
++#define PFN_MAP (1UL << (BITS_PER_LONG - 4))
++
++static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, unsigned long flags)
++{
++	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
++
++	return pfn_t;
++}
++
++/* a default pfn to pfn_t conversion assumes that @pfn is pfn_valid() */
++static inline pfn_t pfn_to_pfn_t(unsigned long pfn)
++{
++	return __pfn_to_pfn_t(pfn, 0);
++}
++
++static inline pfn_t phys_to_pfn_t(dma_addr_t addr, unsigned long flags)
++{
++	return __pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
++}
++
++static inline bool pfn_t_has_page(pfn_t pfn)
++{
++	return (pfn.val & PFN_MAP) == PFN_MAP || (pfn.val & PFN_DEV) == 0;
++}
++
++static inline unsigned long pfn_t_to_pfn(pfn_t pfn)
++{
++	return pfn.val & ~PFN_FLAGS_MASK;
++}
++
++static inline struct page *pfn_t_to_page(pfn_t pfn)
++{
++	if (pfn_t_has_page(pfn))
++		return pfn_to_page(pfn_t_to_pfn(pfn));
++	return NULL;
++}
++
++static inline dma_addr_t pfn_t_to_phys(pfn_t pfn)
++{
++	return PFN_PHYS(pfn_t_to_pfn(pfn));
++}
++
++static inline void *pfn_t_to_virt(pfn_t pfn)
++{
++	if (pfn_t_has_page(pfn))
++		return __va(pfn_t_to_phys(pfn));
++	return NULL;
++}
++
++static inline pfn_t page_to_pfn_t(struct page *page)
++{
++	return pfn_to_pfn_t(page_to_pfn(page));
++}
++
++/*
+  * Some inline functions in vmstat.h depend on page_zone()
+  */
+ #include <linux/vmstat.h>
+diff --git a/include/linux/pfn.h b/include/linux/pfn.h
+index 7646637221f3..96df85985f16 100644
+--- a/include/linux/pfn.h
++++ b/include/linux/pfn.h
+@@ -3,6 +3,15 @@
  
+ #ifndef __ASSEMBLY__
+ #include <linux/types.h>
++
++/*
++ * pfn_t: encapsulates a page-frame number that is optionally backed
++ * by memmap (struct page).  Whether a pfn_t has a 'struct page'
++ * backing is indicated by flags in the high bits of the value.
++ */
++typedef struct {
++	unsigned long val;
++} pfn_t;
  #endif
  
-+#ifndef pmd_devmap
-+#define pmd_devmap(x) (0)
-+#endif
-+
-+#ifndef pte_devmap
-+#define pte_devmap(x) (0)
-+#endif
-+
- static inline spinlock_t *pmd_lock(struct mm_struct *mm, pmd_t *pmd)
- {
- 	spinlock_t *ptl = pmd_lockptr(mm, pmd);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4b06b8db9df2..952b65a55bc9 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -870,7 +870,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- }
- 
- static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
--		pmd_t *pmd, unsigned long pfn, pgprot_t prot, bool write)
-+		pmd_t *pmd, pfn_t pfn, pgprot_t prot, bool write)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	pmd_t entry;
-@@ -878,7 +878,9 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- 
- 	ptl = pmd_lock(mm, pmd);
- 	if (pmd_none(*pmd)) {
--		entry = pmd_mkhuge(pfn_pmd(pfn, prot));
-+		entry = pmd_mkhuge(pfn_t_pmd(pfn, prot));
-+		if (pfn_t_has_dev_pagemap(pfn))
-+			entry = pmd_mkdevmap(entry);
- 		if (write) {
- 			entry = pmd_mkyoung(pmd_mkdirty(entry));
- 			entry = maybe_pmd_mkwrite(entry, vma);
-@@ -890,7 +892,7 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- }
- 
- int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
--			pmd_t *pmd, unsigned long pfn, bool write)
-+			pmd_t *pmd, pfn_t pfn, bool write)
- {
- 	pgprot_t pgprot = vma->vm_page_prot;
- 	/*
-@@ -902,7 +904,7 @@ int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- 	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
- 						(VM_PFNMAP|VM_MIXEDMAP));
- 	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
--	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
-+	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_t_valid(pfn));
- 
- 	if (addr < vma->vm_start || addr >= vma->vm_end)
- 		return VM_FAULT_SIGBUS;
-diff --git a/mm/memory.c b/mm/memory.c
-index 5fc858570f58..06d78ac37343 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1583,7 +1583,7 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 
- 	if (addr < vma->vm_start || addr >= vma->vm_end)
- 		return -EFAULT;
--	if (track_pfn_insert(vma, &pgprot, pfn))
-+	if (track_pfn_insert(vma, &pgprot, __pfn_to_pfn_t(pfn, PFN_DEV)))
- 		return -EINVAL;
- 
- 	ret = insert_pfn(vma, addr, __pfn_to_pfn_t(pfn, PFN_DEV), pgprot);
+ #define PFN_ALIGN(x)	(((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
