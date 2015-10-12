@@ -1,97 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EC556B0253
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 09:40:27 -0400 (EDT)
-Received: by wijq8 with SMTP id q8so58552137wij.0
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 06:40:26 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qp9si7121972wjc.189.2015.10.12.06.40.25
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BD7FC6B0253
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 09:47:53 -0400 (EDT)
+Received: by pacex6 with SMTP id ex6so948328pac.3
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 06:47:53 -0700 (PDT)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id tg4si14005838pab.100.2015.10.12.06.47.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 Oct 2015 06:40:25 -0700 (PDT)
-Date: Mon, 12 Oct 2015 15:40:20 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC PATCH 1/2] ext4: Fix possible deadlock with local
- interrupts disabled and page-draining IPI
-Message-ID: <20151012134020.GA21302@quack.suse.cz>
-References: <062501d10262$d40d0a50$7c271ef0$@alibaba-inc.com>
- <56176C10.8040709@kyup.com>
- <062801d10265$5a749fc0$0f5ddf40$@alibaba-inc.com>
- <561774D2.3050002@kyup.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <561774D2.3050002@kyup.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 12 Oct 2015 06:47:52 -0700 (PDT)
+Received: from epcpsbgr1.samsung.com
+ (u141.gpu120.samsung.co.kr [203.254.230.141])
+ by mailout4.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0NW4035W50ZQH610@mailout4.samsung.com> for linux-mm@kvack.org;
+ Mon, 12 Oct 2015 22:47:50 +0900 (KST)
+From: Pintu Kumar <pintu.k@samsung.com>
+Subject: [PATCH 1/1] mm: vmstat: Add OOM victims count in vmstat counter
+Date: Mon, 12 Oct 2015 19:03:20 +0530
+Message-id: <1444656800-29915-1-git-send-email-pintu.k@samsung.com>
+In-reply-to: <1443696523-27262-1-git-send-email-pintu.k@samsung.com>
+References: <1443696523-27262-1-git-send-email-pintu.k@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <kernel@kyup.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'linux-kernel' <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-fsdevel@vger.kernel.org, SiteGround Operations <operations@siteground.com>, vbabka@suse.cz, gilad@benyossef.com, mgorman@suse.de, linux-mm@kvack.org, Marian Marinov <mm@1h.com>
+To: akpm@linux-foundation.org, minchan@kernel.org, dave@stgolabs.net, pintu.k@samsung.com, mhocko@suse.cz, koct9i@gmail.com, rientjes@google.com, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp, bywxiaobai@163.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, kirill.shutemov@linux.intel.com, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.ping@gmail.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, c.rajkumar@samsung.com, sreenathd@samsung.com
 
-On Fri 09-10-15 11:03:30, Nikolay Borisov wrote:
-> On 10/09/2015 10:37 AM, Hillf Danton wrote:
-> >>>> @@ -109,8 +109,8 @@ static void ext4_finish_bio(struct bio *bio)
-> >>>>  			if (bio->bi_error)
-> >>>>  				buffer_io_error(bh);
-> >>>>  		} while ((bh = bh->b_this_page) != head);
-> >>>> -		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
-> >>>>  		local_irq_restore(flags);
-> >>>
-> >>> What if it takes 100ms to unlock after IRQ restored?
-> >>
-> >> I'm not sure I understand in what direction you are going? Care to
-> >> elaborate?
-> >>
-> > Your change introduces extra time cost the lock waiter has to pay in
-> > the case that irq happens before the lock is released.
-> 
-> [CC filesystem and mm people. For reference the thread starts here:
->  http://thread.gmane.org/gmane.linux.kernel/2056996 ]
-> 
-> Right, I see what you mean and it's a good point but when doing the
-> patches I was striving for correctness and starting a discussion, hence
-> the RFC. In any case I'd personally choose correctness over performance
-> always ;).
-> 
-> As I'm not an fs/ext4 expert and have added the relevant parties (please
-> use reply-all from now on so that the thread is not being cut in the
-> middle) who will be able to say whether it impact is going to be that
-> big. I guess in this particular code path worrying about this is prudent
-> as writeback sounds like a heavily used path.
-> 
-> Maybe the problem should be approached from a different angle e.g.
-> drain_all_pages and its reliance on the fact that the IPI will always be
-> delivered in some finite amount of time? But what if a cpu with disabled
-> interrupts is waiting on the task issuing the IPI?
+This patch maintains the number of oom victims kill count in
+/proc/vmstat.
+Currently, we are dependent upon kernel logs when the kernel OOM occurs.
+But kernel OOM can went passed unnoticed by the developer as it can
+silently kill some background applications/services.
+In some small embedded system, it might be possible that OOM is captured
+in the logs but it was over-written due to ring-buffer.
+Thus this interface can quickly help the user in analyzing, whether there
+were any OOM kill happened in the past, or whether the system have ever
+entered the oom kill stage till date.
 
-So I have looked through your patch and also original report (thread starts
-here: https://lkml.org/lkml/2015/10/8/341) and IMHO one question hasn't
-been properly answered yet: Who is holding BH_Uptodate_Lock we are spinning
-on? You have suggested in https://lkml.org/lkml/2015/10/8/464 that it was
-__block_write_full_page_endio() call but that cannot really be the case.
-BH_Uptodate_Lock is used only in IO completion handlers -
-end_buffer_async_read, end_buffer_async_write, ext4_finish_bio. So there
-really should be some end_io function running on some other CPU which holds
-BH_Uptodate_Lock for that buffer.
+Thus, it can be beneficial under following cases:
+1. User can monitor kernel oom kill scenario without looking into the
+   kernel logs.
+2. It can help in tuning the watermark level in the system.
+3. It can help in tuning the low memory killer behavior in user space.
+4. It can be helpful on a logless system or if klogd logging
+   (/var/log/messages) are disabled.
 
-BTW: I suppose the filesystem uses 4k blocksize, doesn't it?
+A snapshot of the result of 3 days of over night test is shown below:
+System: ARM Cortex A7, 1GB RAM, 8GB EMMC
+Linux: 3.10.xx
+Category: reference smart phone device
+Loglevel: 7
+Conditions: Fully loaded, BT/WiFi/GPS ON
+Tests: auto launching of ~30+ apps using test scripts, in a loop for
+3 days.
+At the end of tests, check:
+$ cat /proc/vmstat
+nr_oom_victims 6
 
-								Honza
+As we noticed, there were around 6 oom kill victims.
 
-> >>>> +		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
-> >>>>  		if (!under_io) {
-> >>>>  #ifdef CONFIG_EXT4_FS_ENCRYPTION
-> >>>>  			if (ctx)
-> >>>> --
-> >>>> 2.5.0
-> >>>
-> > 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+The OOM is bad for any system. So, this counter can help in quickly
+tuning the OOM behavior of the system, without depending on the logs.
+
+Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
+---
+ include/linux/vm_event_item.h |    1 +
+ mm/oom_kill.c                 |    2 ++
+ mm/page_alloc.c               |    1 -
+ mm/vmstat.c                   |    1 +
+ 4 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 2b1cef8..dd2600d 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -57,6 +57,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ #ifdef CONFIG_HUGETLB_PAGE
+ 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
+ #endif
++		NR_OOM_VICTIMS,
+ 		UNEVICTABLE_PGCULLED,	/* culled to noreclaim list */
+ 		UNEVICTABLE_PGSCANNED,	/* scanned for reclaimability */
+ 		UNEVICTABLE_PGRESCUED,	/* rescued from noreclaim list */
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 03b612b..802b8a1 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -570,6 +570,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	 * space under its control.
+ 	 */
+ 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
++	count_vm_event(NR_OOM_VICTIMS);
+ 	mark_oom_victim(victim);
+ 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+ 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+@@ -600,6 +601,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 				task_pid_nr(p), p->comm);
+ 			task_unlock(p);
+ 			do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
++			count_vm_event(NR_OOM_VICTIMS);
+ 		}
+ 	rcu_read_unlock();
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9bcfd70..fafb09d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2761,7 +2761,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 		schedule_timeout_uninterruptible(1);
+ 		return NULL;
+ 	}
+-
+ 	/*
+ 	 * Go through the zonelist yet one more time, keep very high watermark
+ 	 * here, this is only to catch a parallel oom killing, we must fail if
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 1fd0886..8503a2e 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -808,6 +808,7 @@ const char * const vmstat_text[] = {
+ 	"htlb_buddy_alloc_success",
+ 	"htlb_buddy_alloc_fail",
+ #endif
++	"nr_oom_victims",
+ 	"unevictable_pgs_culled",
+ 	"unevictable_pgs_scanned",
+ 	"unevictable_pgs_rescued",
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
