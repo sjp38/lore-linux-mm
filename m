@@ -1,75 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 01CC56B0253
-	for <linux-mm@kvack.org>; Sun, 11 Oct 2015 21:51:34 -0400 (EDT)
-Received: by pabve7 with SMTP id ve7so81388507pab.2
-        for <linux-mm@kvack.org>; Sun, 11 Oct 2015 18:51:33 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id ks7si22084803pab.9.2015.10.11.18.51.32
-        for <linux-mm@kvack.org>;
-        Sun, 11 Oct 2015 18:51:33 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] thp: use is_zero_pfn after pte_present check
-Date: Mon, 12 Oct 2015 10:54:16 +0900
-Message-Id: <1444614856-18543-1-git-send-email-minchan@kernel.org>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 31A9E6B0253
+	for <linux-mm@kvack.org>; Sun, 11 Oct 2015 22:40:32 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so140251781pad.1
+        for <linux-mm@kvack.org>; Sun, 11 Oct 2015 19:40:31 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id we9si22272064pac.164.2015.10.11.19.40.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 11 Oct 2015 19:40:31 -0700 (PDT)
+Received: by pacik9 with SMTP id ik9so17519656pac.3
+        for <linux-mm@kvack.org>; Sun, 11 Oct 2015 19:40:31 -0700 (PDT)
+From: yalin wang <yalin.wang2010@gmail.com>
+Subject: [RFC] mm: fix a BUG, the page is allocated 2 times
+Date: Mon, 12 Oct 2015 10:40:06 +0800
+Message-Id: <1444617606-8685-1-git-send-email-yalin.wang2010@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
+To: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@suse.com, rientjes@google.com, js1304@gmail.com, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: yalin wang <yalin.wang2010@gmail.com>
 
-Use is_zero_pfn on pteval only after pte_present check on pteval
-(It might be better idea to introduce is_zero_pte where checks
-pte_present first). Otherwise, it could work with swap or
-migration entry and if pte_pfn's result is equal to zero_pfn
-by chance, we lose user's data in __collapse_huge_page_copy.
-So if you're luck, the application is segfaulted and finally you
-could see below message when the application is exit.
+Remove unlikely(order), because we are sure order is not zero if
+code reach here, also add if (page == NULL), only allocate page again if
+__rmqueue_smallest() failed or alloc_flags & ALLOC_HARDER == 0
 
-BUG: Bad rss-counter state mm:ffff88007f099300 idx:2 val:3
-
-Signed-off-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
 ---
+ mm/page_alloc.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-I found this bug with MADV_FREE hard test. Sometime, I saw
-"Bad rss-counter" message with MM_SWAPENTS but it's really
-rare, once a day if I was luck or once in five days if I was
-unlucky so I am doing test still and just pass a few days but
-I hope it will fix the issue.
-
- mm/huge_memory.c | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4b06b8db9df2..349590aa4533 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2665,15 +2665,25 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 	for (_address = address, _pte = pte; _pte < pte+HPAGE_PMD_NR;
- 	     _pte++, _address += PAGE_SIZE) {
- 		pte_t pteval = *_pte;
--		if (pte_none(pteval) || is_zero_pfn(pte_pfn(pteval))) {
-+		if (pte_none(pteval)) {
- 			if (!userfaultfd_armed(vma) &&
- 			    ++none_or_zero <= khugepaged_max_ptes_none)
- 				continue;
- 			else
- 				goto out_unmap;
- 		}
-+
- 		if (!pte_present(pteval))
- 			goto out_unmap;
-+
-+		if (is_zero_pfn(pte_pfn(pteval))) {
-+			if (!userfaultfd_armed(vma) &&
-+			    ++none_or_zero <= khugepaged_max_ptes_none)
-+				continue;
-+			else
-+				goto out_unmap;
-+		}
-+
- 		if (pte_write(pteval))
- 			writable = true;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0d6f540..de82e2c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2241,13 +2241,13 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
+ 		spin_lock_irqsave(&zone->lock, flags);
  
+ 		page = NULL;
+-		if (unlikely(order) && (alloc_flags & ALLOC_HARDER)) {
++		if (alloc_flags & ALLOC_HARDER) {
+ 			page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+ 			if (page)
+ 				trace_mm_page_alloc_zone_locked(page, order, migratetype);
+ 		}
+-
+-		page = __rmqueue(zone, order, migratetype, gfp_flags);
++		if (page == NULL)
++			page = __rmqueue(zone, order, migratetype, gfp_flags);
+ 		spin_unlock(&zone->lock);
+ 		if (!page)
+ 			goto failed;
 -- 
 1.9.1
 
