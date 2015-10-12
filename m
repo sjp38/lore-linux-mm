@@ -1,147 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CE396B0253
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 13:41:42 -0400 (EDT)
-Received: by qgt47 with SMTP id 47so124856807qgt.2
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 10:41:42 -0700 (PDT)
-Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com. [2607:f8b0:400d:c04::22f])
-        by mx.google.com with ESMTPS id l49si15923889qgd.66.2015.10.12.10.41.41
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id AC7F06B0253
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 13:50:02 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so27108261wic.0
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 10:50:02 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id eq6si21186617wjd.12.2015.10.12.10.50.01
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Oct 2015 10:41:41 -0700 (PDT)
-Received: by qgez77 with SMTP id z77so125531837qge.1
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 10:41:41 -0700 (PDT)
-Date: Mon, 12 Oct 2015 13:41:31 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
- handler.
-Message-ID: <20151012174130.GA8037@gmail.com>
-References: <20140701210620.GL26537@8bytes.org>
- <20140701213208.GC3322@gmail.com>
- <20140703183024.GA3306@gmail.com>
- <20140703231541.GR26537@8bytes.org>
- <019CCE693E457142B37B791721487FD918085329@storexdag01.amd.com>
- <20140707101158.GD1958@8bytes.org>
- <1404729783.31606.1.camel@tlv-gabbay-ws.amd.com>
- <20140708080059.GF1958@8bytes.org>
- <20140708170355.GA2469@gmail.com>
- <1444590209.92154.116.camel@infradead.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 12 Oct 2015 10:50:01 -0700 (PDT)
+Date: Mon, 12 Oct 2015 10:49:45 -0700
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: GPF in shm_lock ipc
+Message-ID: <20151012174945.GC3170@linux-uzut.site>
+References: <CACT4Y+aqaR8QYk2nyN1n1iaSZWofBEkWuffvsfcqpvmGGQyMAw@mail.gmail.com>
+ <20151012122702.GC2544@node>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1444590209.92154.116.camel@infradead.org>
+In-Reply-To: <20151012122702.GC2544@node>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: "joro@8bytes.org" <joro@8bytes.org>, "peterz@infradead.org" <peterz@infradead.org>, "SCheung@nvidia.com" <SCheung@nvidia.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ldunning@nvidia.com" <ldunning@nvidia.com>, "hpa@zytor.com" <hpa@zytor.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "jakumar@nvidia.com" <jakumar@nvidia.com>, "mgorman@suse.de" <mgorman@suse.de>, "jweiner@redhat.com" <jweiner@redhat.com>, "sgutti@nvidia.com" <sgutti@nvidia.com>, "riel@redhat.com" <riel@redhat.com>, "Bridgman, John" <John.Bridgman@amd.com>, "jhubbard@nvidia.com" <jhubbard@nvidia.com>, "mhairgrove@nvidia.com" <mhairgrove@nvidia.com>, "cabuschardt@nvidia.com" <cabuschardt@nvidia.com>, "dpoole@nvidia.com" <dpoole@nvidia.com>, "Cornwall, Jay" <Jay.Cornwall@amd.com>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "arvindg@nvidia.com" <arvindg@nvidia.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, dave.hansen@linux.intel.com, Hugh Dickins <hughd@google.com>, Joe Perches <joe@perches.com>, sds@tycho.nsa.gov, Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, mhocko@suse.cz, gang.chen.5i5j@gmail.com, Peter Feiner <pfeiner@google.com>, aarcange@redhat.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzkaller@googlegroups.com, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Andrey Konovalov <andreyknvl@google.com>, Sasha Levin <sasha.levin@oracle.com>
 
+On Mon, 12 Oct 2015, Kirill A. Shutemov wrote:
 
-Note that i am no longer actively pushing this patch serie but i believe the
-solution it provides to be needed in one form or another. So I still think
-discussion on this to be useful so see below for my answer.
-
-On Sun, Oct 11, 2015 at 08:03:29PM +0100, David Woodhouse wrote:
-> On Tue, 2014-07-08 at 13:03 -0400, Jerome Glisse wrote:
-> > 
-> > Now regarding the device side, if we were to cleanup inside the file release
-> > callback than we would be broken in front of fork. Imagine the following :
-> >   - process A open device file and mirror its address space (hmm or kfd)
-> >     through a device file.
-> >   - process A forks itself (child is B) while having the device file open.
-> >   - process A quits
-> > 
-> > Now the file release will not be call until child B exit which might infinite.
-> > Thus we would be leaking memory. As we already pointed out we can not free the
-> > resources from the mmu_notifier >release callback.
-> 
-> So if your library just registers a pthread_atfork() handler to close
-> the file descriptor in the child, that problem goes away? Like any
-> other "if we continue to hold file descriptors open when we should
-> close them, resources don't get freed" problem?
-
-
-I was just pointing out existing device driver usage pattern where user
-space open device file and do ioctl on it without necessarily caring
-about the mm struct.
-
-New usecase where device actually run thread against a specific process
-mm is different and require proper synchronization as file lifetime is
-different from process lifetime in many case when fork is involve.
-
-> 
-> Perhaps we could even handled that automatically in the kernel, with
-> something like an O_CLOFORK flag on the file descriptor. Although
-> that's a little horrid.
-> 
-> You've argued that the amdkfd code is special and not just a device
-> driver. I'm not going to contradict you there, but now we *are* going
-> to see device drivers doing this kind of thing. And we definitely
-> *don't* want to be calling back into device driver code from the
-> mmu_notifier's .release() function.
-
-Well that's the current solution, call back into device driver from the
-mmu_notifer release() call back. Since changes to mmu_notifier this is
-a workable solution (thanks to mmu_notifier_unregister_no_release()).
-
-> 
-> I think amdkfd absolutely is *not* a useful precedent for normal device
-> drivers, and we *don't* want to follow this model in the general case.
-> 
-> As we try to put together a generic API for device access to processes'
-> address space, I definitely think we want to stick with the model that
-> we take a reference on the mm, and we *keep* it until the device driver
-> unbinds from the mm (because its file descriptor is closed, or
-> whatever).
-
-Well i think when a process is kill (for whatever reasons) we do want to
-also kill all device threads at the same time. For instance we do not want
-to have zombie GPU threads that can keep running indefinitly. This is why
-use mmu_notifier.release() callback is kind of right place as it will be
-call once all threads using a given mm are killed.
-
-The exit_mm() or do_exit() are also places from where we could a callback
-to let device know that it must kill all thread related to a given mm.
-
+>On Mon, Oct 12, 2015 at 11:55:44AM +0200, Dmitry Vyukov wrote:
+>Here's slightly simplified and more human readable reproducer:
 >
-> Perhaps you can keep a back door into the AMD IOMMU code to continue to
-> do what you're doing, or perhaps the explicit management of off-cpu
-> tasks that is being posited will give you a sane cleanup path that
-> *doesn't* involve the IOMMU's mmu_notifier calling back to you. But
-> either way, I *really* don't want this to be the way it works for
-> device drivers.
+>#define _GNU_SOURCE
+>#include <stdlib.h>
+>#include <sys/ipc.h>
+>#include <sys/mman.h>
+>#include <sys/shm.h>
+>
+>#define PAGE_SIZE 4096
+>
+>int main()
+>{
+>	int id;
+>	void *p;
+>
+>	id = shmget(IPC_PRIVATE, 3 * PAGE_SIZE, 0);
+>	p = shmat(id, NULL, 0);
+>	shmctl(id, IPC_RMID, NULL);
+>	remap_file_pages(p, 3 * PAGE_SIZE, 0, 7, 0);
+>
+>        return 0;
+>}
 
-So at kernel summit we are supposedly gonna have a discussion about device
-thread and scheduling and i think device thread lifetime belongs to that
-discussion too. My opinion is that device threads must be kill when a
-process quits.
+Thanks!
+
+>>
+>> On commit dd36d7393d6310b0c1adefb22fba79c3cf8a577c
+>> (git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git)
+>>
+>> ------------[ cut here ]------------
+>> WARNING: CPU: 2 PID: 2636 at ipc/shm.c:162 shm_open+0x74/0x80()
+>> Modules linked in:
+>> CPU: 2 PID: 2636 Comm: a.out Not tainted 4.3.0-rc3+ #37
+>> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>>  ffffffff81bcb43c ffff88081bf0bd70 ffffffff812fe8d6 0000000000000000
+>>  ffff88081bf0bda8 ffffffff81051ff1 ffffffffffffffea ffff88081b896ca8
+>>  ffff880819b81620 ffff8800bbaa6d00 ffff880819b81600 ffff88081bf0bdb8
+>> Call Trace:
+>>  [<     inline     >] __dump_stack lib/dump_stack.c:15
+>>  [<ffffffff812fe8d6>] dump_stack+0x44/0x5e lib/dump_stack.c:50
+>>  [<ffffffff81051ff1>] warn_slowpath_common+0x81/0xc0 kernel/panic.c:447
+>>  [<ffffffff810520e5>] warn_slowpath_null+0x15/0x20 kernel/panic.c:480
+>>  [<     inline     >] shm_lock ipc/shm.c:162
+>>  [<ffffffff81295c64>] shm_open+0x74/0x80 ipc/shm.c:196
+>>  [<ffffffff81295cbe>] shm_mmap+0x4e/0x80 ipc/shm.c:399 (discriminator 2)
+>>  [<ffffffff81142d14>] mmap_region+0x3c4/0x5e0 mm/mmap.c:1627
+>>  [<ffffffff81143227>] do_mmap+0x2f7/0x3d0 mm/mmap.c:1402
+>>  [<     inline     >] do_mmap_pgoff include/linux/mm.h:1930
+>>  [<     inline     >] SYSC_remap_file_pages mm/mmap.c:2694
+>>  [<ffffffff811434a9>] SyS_remap_file_pages+0x179/0x240 mm/mmap.c:2641
+>>  [<ffffffff81859a97>] entry_SYSCALL_64_fastpath+0x12/0x6a
+>> arch/x86/entry/entry_64.S:185
+>> ---[ end trace 0873e743fc645a8c ]---
+>
+>Okay. The problem is that SysV IPC SHM doesn't expect the memory region to
+>be mmap'ed after IPC_RMID, but remap_file_pages() manages to create new
+>VMA using existing one.
+
+Indeed, naughty users should not be mapping/(re)attaching after IPC_RMID.
+This is common to all things ipc, not only to shm. And while Linux nowadays
+does enforce that nothing touch a segment marked for deletion[1], we have
+contradictory scenarios where the resource is only freed once the last attached
+process exits. 
+
+[1] https://lkml.org/lkml/2015/10/12/483
+
+So this warning used to in fact be a full BUG_ON, but ultimately the ipc
+subsystem acknowledges that this situation is possible but fully blames the
+user responsible, and therefore we only warn about bogus usage.
+
+>I'm not sure what the right way to fix it. The SysV SHM VMA is pretty
+>normal from mm POV (no special flags, etc.) and it meats remap_file_pages
+>criteria (shared mapping). Every fix I can think of on mm side is ugly.
+>
+>Probably better to teach shm_mmap() to fall off gracefully in case of
+>non-existing shmid? I'm not familiar with IPC code.
+>Could anyone look into it?
+
+Yeah, this was my approach as well. Very little tested other than it solves
+the above warning. Basically we don't want to be doing mmap if the segment
+was deleted, thus return a corresponding error instead of triggering the
+same error later on after mmaping, via shm_open(). I still need to think
+a bit more about this, but seems legit if we don't hurt userspace while
+at it (at least the idea, not considering any overhead in doing the idr
+lookup). Thoughts?
+
+Thanks,
+Davidlohr
+
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 4178727..9615f19 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -385,9 +385,25 @@ static struct mempolicy *shm_get_policy(struct vm_area_struct *vma,
+  
+  static int shm_mmap(struct file *file, struct vm_area_struct *vma)
+  {
+-	struct shm_file_data *sfd = shm_file_data(file);
++	struct file *vma_file = vma->vm_file;
++	struct shm_file_data *sfd = shm_file_data(vma_file);
++	struct ipc_ids *ids = &shm_ids(sfd->ns);
++	struct kern_ipc_perm *shp;
+  	int ret;
+  
++	rcu_read_lock();
++	shp = ipc_obtain_object_check(ids, sfd->id);
++	if (IS_ERR(shp)) {
++		ret = -EINVAL;
++		goto err;
++	}
++
++	if (!ipc_valid_object(shp)) {
++		ret = -EIDRM;
++		goto err;
++	}
++	rcu_read_unlock();
++
+  	ret = sfd->file->f_op->mmap(sfd->file, vma);
+  	if (ret != 0)
+  		return ret;
+@@ -399,6 +415,9 @@ static int shm_mmap(struct file *file, struct vm_area_struct *vma)
+  	shm_open(vma);
+  
+  	return ret;
++err:
++	rcu_read_unlock();
++	return ret;
+  }
+  
+  static int shm_release(struct inode *ino, struct file *file)
 
 
-> > One hacky way to do it would be to schedule some delayed job from 
-> > >release callback but then again we would have no way to properly 
-> > synchronize ourself with other mm destruction code ie the delayed job 
-> > could run concurently with other mm destruction code and interfer
-> > badly.
-> 
-> With the RCU-based free of the struct containing the notifier, your
-> 'schedule some delayed job' is basically what we have now, isn't it?
-> 
-> I note that you also have your *own* notifier which does other things,
-> and has to cope with being called before or after the IOMMU's notifier.
-> 
-> Seriously, we don't want device drivers having to do this. We really
-> need to keep it simple.
 
-So right now in HMM what happens is that device driver get a callback as
-a result of mmu_notifier.release() and can call the unregister functions
-and device driver must then schedule through whatever means a call to the
-unregister function (can be a workqueue or other a kernel thread).
 
-Basicly i am hidding the issue inside the device driver until we can agree
-on a common proper way to do this.
 
-Cheers,
-Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
