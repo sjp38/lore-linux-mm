@@ -1,115 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A2D6B0253
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 05:56:05 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so43606275wic.1
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 02:56:05 -0700 (PDT)
-Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
-        by mx.google.com with ESMTPS id dm8si18613727wjb.19.2015.10.12.02.56.04
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F78A6B0253
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 06:05:17 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so43905911wic.1
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 03:05:16 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
+        by mx.google.com with ESMTPS id cl14si18623287wjb.118.2015.10.12.03.05.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Oct 2015 02:56:04 -0700 (PDT)
-Received: by wicgb1 with SMTP id gb1so43605578wic.1
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 02:56:04 -0700 (PDT)
+        Mon, 12 Oct 2015 03:05:15 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so43905438wic.1
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 03:05:15 -0700 (PDT)
+Date: Mon, 12 Oct 2015 13:05:14 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC] mm: fix a BUG, the page is allocated 2 times
+Message-ID: <20151012100514.GA2544@node>
+References: <1444617606-8685-1-git-send-email-yalin.wang2010@gmail.com>
+ <561B6379.2070407@suse.cz>
+ <4D925B19-2187-4892-A99A-E59D575C2147@gmail.com>
 MIME-Version: 1.0
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 12 Oct 2015 11:55:44 +0200
-Message-ID: <CACT4Y+aqaR8QYk2nyN1n1iaSZWofBEkWuffvsfcqpvmGGQyMAw@mail.gmail.com>
-Subject: GPF in shm_lock ipc
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4D925B19-2187-4892-A99A-E59D575C2147@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, dave@stgolabs.net, dave.hansen@linux.intel.com, Hugh Dickins <hughd@google.com>, Joe Perches <joe@perches.com>, sds@tycho.nsa.gov, Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, mhocko@suse.cz, gang.chen.5i5j@gmail.com, Peter Feiner <pfeiner@google.com>, aarcange@redhat.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: syzkaller@googlegroups.com, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Andrey Konovalov <andreyknvl@google.com>, Sasha Levin <sasha.levin@oracle.com>
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, mgorman@techsingularity.net, mhocko@suse.com, David Rientjes <rientjes@google.com>, js1304@gmail.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
+On Mon, Oct 12, 2015 at 03:58:51PM +0800, yalin wang wrote:
+> 
+> > On Oct 12, 2015, at 15:38, Vlastimil Babka <vbabka@suse.cz> wrote:
+> > 
+> > On 10/12/2015 04:40 AM, yalin wang wrote:
+> >> Remove unlikely(order), because we are sure order is not zero if
+> >> code reach here, also add if (page == NULL), only allocate page again if
+> >> __rmqueue_smallest() failed or alloc_flags & ALLOC_HARDER == 0
+> > 
+> > The second mentioned change is actually more important as it removes a memory leak! Thanks for catching this. The problem is in patch mm-page_alloc-reserve-pageblocks-for-high-order-atomic-allocations-on-demand.patch and seems to have been due to a change in the last submitted version to make sure the tracepoint is called.
+> > 
+> >> Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+> >> ---
+> >>  mm/page_alloc.c | 6 +++---
+> >>  1 file changed, 3 insertions(+), 3 deletions(-)
+> >> 
+> >> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >> index 0d6f540..de82e2c 100644
+> >> --- a/mm/page_alloc.c
+> >> +++ b/mm/page_alloc.c
+> >> @@ -2241,13 +2241,13 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
+> >>  		spin_lock_irqsave(&zone->lock, flags);
+> >> 
+> >>  		page = NULL;
+> >> -		if (unlikely(order) && (alloc_flags & ALLOC_HARDER)) {
+> >> +		if (alloc_flags & ALLOC_HARDER) {
+> >>  			page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+> >>  			if (page)
+> >>  				trace_mm_page_alloc_zone_locked(page, order, migratetype);
+> >>  		}
+> >> -
+> >> -		page = __rmqueue(zone, order, migratetype, gfp_flags);
+> >> +		if (page == NULL)
+> > 
+> > "if (!page)" is more common and already used below.
+> > We could skip the check for !page in case we don't go through the ALLOC_HARDER branch, but I guess it's not worth the goto, and hopefully the compiler is smart enough anywaya?|
+> agree with your comments,
+> do i need send a new patch for this ?
 
-The following program crashes kernel:
+Looks like a two patches to me: memory leak and removing always-true part
+of condifition.
 
-// autogenerated by syzkaller (http://github.com/google/syzkaller)
-#include <syscall.h>
-#include <string.h>
-#include <stdint.h>
-
-int main()
-{
-        long r0 = syscall(SYS_shmget, 0x0ul, 0x2ul, 0x8ul);
-        long r1 = syscall(SYS_shmat, r0, 0x20000000ul, 0x0ul);
-        long r2 = syscall(SYS_mremap, 0x20000000ul, 0x1000ul,
-0x3000ul, 0x3ul, 0x207f9000ul);
-        long r19 = syscall(SYS_shmctl, r0, 0x0ul, 0);
-        long r20 = syscall(SYS_remap_file_pages, 0x207f9000ul,
-0x3000ul, 0x0ul, 0x7ul, 0x0ul);
-        return 0;
-}
-
-On commit dd36d7393d6310b0c1adefb22fba79c3cf8a577c
-(git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git)
-
-------------[ cut here ]------------
-WARNING: CPU: 2 PID: 2636 at ipc/shm.c:162 shm_open+0x74/0x80()
-Modules linked in:
-CPU: 2 PID: 2636 Comm: a.out Not tainted 4.3.0-rc3+ #37
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- ffffffff81bcb43c ffff88081bf0bd70 ffffffff812fe8d6 0000000000000000
- ffff88081bf0bda8 ffffffff81051ff1 ffffffffffffffea ffff88081b896ca8
- ffff880819b81620 ffff8800bbaa6d00 ffff880819b81600 ffff88081bf0bdb8
-Call Trace:
- [<     inline     >] __dump_stack lib/dump_stack.c:15
- [<ffffffff812fe8d6>] dump_stack+0x44/0x5e lib/dump_stack.c:50
- [<ffffffff81051ff1>] warn_slowpath_common+0x81/0xc0 kernel/panic.c:447
- [<ffffffff810520e5>] warn_slowpath_null+0x15/0x20 kernel/panic.c:480
- [<     inline     >] shm_lock ipc/shm.c:162
- [<ffffffff81295c64>] shm_open+0x74/0x80 ipc/shm.c:196
- [<ffffffff81295cbe>] shm_mmap+0x4e/0x80 ipc/shm.c:399 (discriminator 2)
- [<ffffffff81142d14>] mmap_region+0x3c4/0x5e0 mm/mmap.c:1627
- [<ffffffff81143227>] do_mmap+0x2f7/0x3d0 mm/mmap.c:1402
- [<     inline     >] do_mmap_pgoff include/linux/mm.h:1930
- [<     inline     >] SYSC_remap_file_pages mm/mmap.c:2694
- [<ffffffff811434a9>] SyS_remap_file_pages+0x179/0x240 mm/mmap.c:2641
- [<ffffffff81859a97>] entry_SYSCALL_64_fastpath+0x12/0x6a
-arch/x86/entry/entry_64.S:185
----[ end trace 0873e743fc645a8c ]---
-BUG: unable to handle kernel NULL pointer dereference at 000000000000003a
-IP: [<ffffffff81295c25>] shm_open+0x35/0x80 ipc/shm.c:197
-PGD 81a08b067 PUD 81a01b067 PMD 0
-Oops: 0002 [#1] SMP
-Modules linked in:
-CPU: 2 PID: 2636 Comm: a.out Tainted: G        W       4.3.0-rc3+ #37
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-task: ffff880819b26800 ti: ffff88081bf08000 task.ti: ffff88081bf08000
-RIP: 0010:[<ffffffff81295c25>]  [<ffffffff81295c25>] shm_open+0x35/0x80
-RSP: 0018:ffff88081bf0bdc8  EFLAGS: 00010296
-RAX: 00000000560d1d13 RBX: ffffffffffffffea RCX: ffffffff8151e710
-RDX: 0000000000000001 RSI: 0000000000000000 RDI: 0000000000000009
-RBP: ffff88081bf0bdd0 R08: 000000000000000a R09: 0000000000000001
-R10: 0000000000000000 R11: 00000000000001bc R12: ffff88081b896ca8
-R13: ffff880819b81620 R14: ffff8800bbaa6d00 R15: ffff880819b81600
-FS:  00007fbfd966f700(0000) GS:ffff88083fd00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 000000000000003a CR3: 0000000819a97000 CR4: 00000000000006e0
-Stack:
- ffff880819b81200 ffff88081bf0bdf8 ffffffff81295cbe 0000000019b81620
- ffff880819b81628 00000000207f9000 ffff88081bf0be80 ffffffff81142d14
- ffff8800bbaa6d00 0000000000000007 0000000000000000 0000000000000007
-Call Trace:
- [<ffffffff81295cbe>] shm_mmap+0x4e/0x80 ipc/shm.c:399 (discriminator 2)
- [<ffffffff81142d14>] mmap_region+0x3c4/0x5e0 mm/mmap.c:1627
- [<ffffffff81143227>] do_mmap+0x2f7/0x3d0 mm/mmap.c:1402
- [<     inline     >] do_mmap_pgoff include/linux/mm.h:1930
- [<     inline     >] SYSC_remap_file_pages mm/mmap.c:2694
- [<ffffffff811434a9>] SyS_remap_file_pages+0x179/0x240 mm/mmap.c:2641
- [<ffffffff81859a97>] entry_SYSCALL_64_fastpath+0x12/0x6a
-arch/x86/entry/entry_64.S:185
-Code: 00 00 48 8b 80 d0 00 00 00 48 8b 50 08 8b 30 48 8d ba c8 00 00
-00 e8 6b b1 ff ff 48 3d 00 f0 ff ff 48 89 c3 77 33 e8 5b 6b e1 ff <48>
-89 43 50 65 48 8b 04 25 c0 ad 00 00 48 8b 80 40 04 00 00 48
-RIP  [<ffffffff81295c25>] shm_open+0x35/0x80 ipc/shm.c:197
- RSP <ffff88081bf0bdc8>
-CR2: 000000000000003a
----[ end trace 0873e743fc645a8d ]---
-
-Found with syzkaller fuzzer.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
