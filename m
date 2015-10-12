@@ -1,127 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id BE87E6B0253
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 10:51:11 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so20977482wic.0
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 07:51:11 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
-        by mx.google.com with ESMTPS id lj8si20173202wjc.46.2015.10.12.07.51.09
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A99DB6B0254
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 10:55:08 -0400 (EDT)
+Received: by pabrc13 with SMTP id rc13so21229318pab.0
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 07:55:08 -0700 (PDT)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id a7si2229388pbu.61.2015.10.12.07.55.07
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Oct 2015 07:51:10 -0700 (PDT)
-Received: by wicge5 with SMTP id ge5so153652233wic.0
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 07:51:09 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/2] ext4: Fix possible deadlock with local interrupts
- disabled and page-draining IPI
-References: <062501d10262$d40d0a50$7c271ef0$@alibaba-inc.com>
- <56176C10.8040709@kyup.com> <062801d10265$5a749fc0$0f5ddf40$@alibaba-inc.com>
- <561774D2.3050002@kyup.com> <20151012134020.GA21302@quack.suse.cz>
-From: Nikolay Borisov <kernel@kyup.com>
-Message-ID: <561BC8DB.6070600@kyup.com>
-Date: Mon, 12 Oct 2015 17:51:07 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Oct 2015 07:55:07 -0700 (PDT)
+Received: by palb17 with SMTP id b17so19220970pal.2
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 07:55:07 -0700 (PDT)
+Date: Mon, 12 Oct 2015 23:57:46 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] thp: use is_zero_pfn after pte_present check
+Message-ID: <20151012145746.GA11396@bbox>
+References: <1444614856-18543-1-git-send-email-minchan@kernel.org>
+ <20151012101320.GB2544@node>
 MIME-Version: 1.0
-In-Reply-To: <20151012134020.GA21302@quack.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151012101320.GB2544@node>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'linux-kernel' <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-fsdevel@vger.kernel.org, SiteGround Operations <operations@siteground.com>, vbabka@suse.cz, gilad@benyossef.com, mgorman@suse.de, linux-mm@kvack.org, Marian Marinov <mm@1h.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello and thanks for the reply,
+Hello,
 
-On 10/12/2015 04:40 PM, Jan Kara wrote:
-> On Fri 09-10-15 11:03:30, Nikolay Borisov wrote:
->> On 10/09/2015 10:37 AM, Hillf Danton wrote:
->>>>>> @@ -109,8 +109,8 @@ static void ext4_finish_bio(struct bio *bio)
->>>>>>  			if (bio->bi_error)
->>>>>>  				buffer_io_error(bh);
->>>>>>  		} while ((bh = bh->b_this_page) != head);
->>>>>> -		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
->>>>>>  		local_irq_restore(flags);
->>>>>
->>>>> What if it takes 100ms to unlock after IRQ restored?
->>>>
->>>> I'm not sure I understand in what direction you are going? Care to
->>>> elaborate?
->>>>
->>> Your change introduces extra time cost the lock waiter has to pay in
->>> the case that irq happens before the lock is released.
->>
->> [CC filesystem and mm people. For reference the thread starts here:
->>  http://thread.gmane.org/gmane.linux.kernel/2056996 ]
->>
->> Right, I see what you mean and it's a good point but when doing the
->> patches I was striving for correctness and starting a discussion, hence
->> the RFC. In any case I'd personally choose correctness over performance
->> always ;).
->>
->> As I'm not an fs/ext4 expert and have added the relevant parties (please
->> use reply-all from now on so that the thread is not being cut in the
->> middle) who will be able to say whether it impact is going to be that
->> big. I guess in this particular code path worrying about this is prudent
->> as writeback sounds like a heavily used path.
->>
->> Maybe the problem should be approached from a different angle e.g.
->> drain_all_pages and its reliance on the fact that the IPI will always be
->> delivered in some finite amount of time? But what if a cpu with disabled
->> interrupts is waiting on the task issuing the IPI?
+On Mon, Oct 12, 2015 at 01:13:20PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Oct 12, 2015 at 10:54:16AM +0900, Minchan Kim wrote:
+> > Use is_zero_pfn on pteval only after pte_present check on pteval
+> > (It might be better idea to introduce is_zero_pte where checks
+> > pte_present first). Otherwise, it could work with swap or
+> > migration entry and if pte_pfn's result is equal to zero_pfn
+> > by chance, we lose user's data in __collapse_huge_page_copy.
+> > So if you're luck, the application is segfaulted and finally you
+> > could see below message when the application is exit.
+> > 
+> > BUG: Bad rss-counter state mm:ffff88007f099300 idx:2 val:3
 > 
-> So I have looked through your patch and also original report (thread starts
-> here: https://lkml.org/lkml/2015/10/8/341) and IMHO one question hasn't
-> been properly answered yet: Who is holding BH_Uptodate_Lock we are spinning
-> on? You have suggested in https://lkml.org/lkml/2015/10/8/464 that it was
-> __block_write_full_page_endio() call but that cannot really be the case.
-> BH_Uptodate_Lock is used only in IO completion handlers -
-> end_buffer_async_read, end_buffer_async_write, ext4_finish_bio. So there
-> really should be some end_io function running on some other CPU which holds
-> BH_Uptodate_Lock for that buffer.
+> Did you acctually steped on the bug?
+> If yes it's subject for stable@, I think.
 
-I did check all the call traces of the current processes on the machine
-at the time of the hard lockup and none of the 3 functions you mentioned
-were in any of the call chains. But while I was looking the code of
-end_buffer_async_write and in the comments I saw it was mentioned that
-those completion handler were called from __block_write_full_page_endio
-so that's what pointed my attention to that function. But you are right
-that it doesn't take the BH lock.
-
-Furthermore the fact that the BH_Async_Write flag is set points me in
-the direction that end_buffer_async_write should have been executing but
-as I said issuing "bt" for all the tasks didn't show this function.
-
-I'm beginning to wonder if it's possible that a single bit memory error
-has crept up, but this still seems like a long shot...
-
-Btw I think in any case the spin_lock patch is wrong as this code can be
-called from within softirq context and we do want to be interrupt safe
-at that point.
+Yes, I did with my testing program which made heavy swap-in/out/
+swapoff with MADV_DONTNEED in a memcg.
+Actually, I marked this patch as -stable but removed it right before
+sending because my test program is artificial and didn't see any
+report about rss bad counting with MM_SWAPENTS in linux-mm(Of course,
+I might miss it).
+In addition, sometime I saw someone insists on "It's not a stable
+material if it's not a bug with real workload". I don't want to
+involve such non-technical stuff so waited someone nudges me to
+mark it as -stable and finally, you did. ;-)
+If other reviewers are not against, I will Cc -stable in next spin.
 
 > 
-> BTW: I suppose the filesystem uses 4k blocksize, doesn't it?
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> > 
+> > I found this bug with MADV_FREE hard test. Sometime, I saw
+> > "Bad rss-counter" message with MM_SWAPENTS but it's really
+> > rare, once a day if I was luck or once in five days if I was
+> > unlucky so I am doing test still and just pass a few days but
+> > I hope it will fix the issue.
+> > 
+> >  mm/huge_memory.c | 12 +++++++++++-
+> >  1 file changed, 11 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index 4b06b8db9df2..349590aa4533 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -2665,15 +2665,25 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+> >  	for (_address = address, _pte = pte; _pte < pte+HPAGE_PMD_NR;
+> >  	     _pte++, _address += PAGE_SIZE) {
+> >  		pte_t pteval = *_pte;
+> > -		if (pte_none(pteval) || is_zero_pfn(pte_pfn(pteval))) {
+> > +		if (pte_none(pteval)) {
+> 
+> In -mm tree we have is_swap_pte() check before this point in
+> khugepaged_scan_pmd()
 
-Unfortunately I cannot tell you with 100% certainty, since on this
-server there are multiple block devices with blocksize either 1k or 4k.
-So it is one of these. If you know a way to extract this information
-from a vmcore file I'd be happy to do it.
+Actually, I tested this patch with v4.2 kernel so it doesn't have
+the check.
+Now, I look through optimistic check for swapin readahead patch
+in current mmotm.
+It seems the check couldn't prevent this problem because it releases
+pte lock and anon_vma lock before being isolated the page in
+__collapse_huge_page_isolate so the page could be swapped out again.
 
 > 
-> 								Honza
-> 
->>>>>> +		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
->>>>>>  		if (!under_io) {
->>>>>>  #ifdef CONFIG_EXT4_FS_ENCRYPTION
->>>>>>  			if (ctx)
->>>>>> --
->>>>>> 2.5.0
->>>>>
->>>
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Also, what about similar pattern in __collapse_huge_page_isolate() and
+> __collapse_huge_page_copy()? Shouldn't they be fixed as well?
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I see what's wrong here.
+/me slaps self.
+The line I was about to change was in __collapse_huge_page_isolate
+but I changed khugepaged_scan_pmd by mistake at last modification
+since that part is almost same. :(
+Fortunately my testing kernel is doing right version.
+Here it goes.
