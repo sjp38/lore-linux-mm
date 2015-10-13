@@ -1,115 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 170866B0253
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 20:01:14 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so1929651pad.1
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 17:01:13 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id db1si272992pad.204.2015.10.12.17.01.13
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 6060E6B0253
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 20:09:10 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so167345172wic.1
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 17:09:09 -0700 (PDT)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com. [209.85.212.170])
+        by mx.google.com with ESMTPS id p6si19339193wia.41.2015.10.12.17.09.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Oct 2015 17:01:13 -0700 (PDT)
-From: Rohit Vaswani <rvaswani@codeaurora.org>
-Subject: [PATCH] mm: cma: Fix incorrect type conversion for size during dma allocation
-Date: Mon, 12 Oct 2015 17:00:47 -0700
-Message-Id: <1444694447-23826-1-git-send-email-rvaswani@codeaurora.org>
+        Mon, 12 Oct 2015 17:09:09 -0700 (PDT)
+Received: by wieq12 with SMTP id q12so6317360wie.1
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 17:09:09 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20151011125935.GA3726@lst.de>
+References: <20151010005522.17221.87557.stgit@dwillia2-desk3.jf.intel.com>
+	<20151010005528.17221.4466.stgit@dwillia2-desk3.jf.intel.com>
+	<20151011125935.GA3726@lst.de>
+Date: Mon, 12 Oct 2015 17:09:08 -0700
+Message-ID: <CAPcyv4ht4y7_ed92U+GpS6M-Ei+95FTAMW+owPM7S5FCLip2og@mail.gmail.com>
+Subject: Re: [PATCH v2 01/20] block: generic request_queue reference counting
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Rohit Vaswani <rvaswani@codeaurora.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>
+Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Keith Busch <keith.busch@intel.com>, Linux MM <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-This was found during userspace fuzzing test when a large size
-dma cma allocation is made by driver(like ion) through userspace.
+On Sun, Oct 11, 2015 at 5:59 AM, Christoph Hellwig <hch@lst.de> wrote:
+> Looks good,
+>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+>
+> We could still clean up draing or only release the reference on
+> bio_done, but let's do that separately and get this infrastructure in
+> ASAP.
 
- show_stack+0x10/0x1c
- dump_stack+0x74/0xc8
- kasan_report_error+0x2b0/0x408
- kasan_report+0x34/0x40
- __asan_storeN+0x15c/0x168
- memset+0x20/0x44
- __dma_alloc_coherent+0x114/0x18c
+Thanks Christoph.
 
-Change-Id: I4e2db81c496604ecbe93ec21fe8ee94589c8eb63
-Signed-off-by: Rohit Vaswani <rvaswani@codeaurora.org>
----
- drivers/base/dma-contiguous.c  | 2 +-
- include/linux/cma.h            | 2 +-
- include/linux/dma-contiguous.h | 4 ++--
- mm/cma.c                       | 4 ++--
- 4 files changed, 6 insertions(+), 6 deletions(-)
-
-diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
-index 950fff9..a12ff98 100644
---- a/drivers/base/dma-contiguous.c
-+++ b/drivers/base/dma-contiguous.c
-@@ -187,7 +187,7 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
-  * global one. Requires architecture specific dev_get_cma_area() helper
-  * function.
-  */
--struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-+struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
- 				       unsigned int align)
- {
- 	if (align > CONFIG_CMA_ALIGNMENT)
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index f7ef093..29f9e77 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -26,6 +26,6 @@ extern int __init cma_declare_contiguous(phys_addr_t base,
- extern int cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
- 					unsigned int order_per_bit,
- 					struct cma **res_cma);
--extern struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align);
-+extern struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align);
- extern bool cma_release(struct cma *cma, const struct page *pages, unsigned int count);
- #endif
-diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
-index 569bbd0..fec734d 100644
---- a/include/linux/dma-contiguous.h
-+++ b/include/linux/dma-contiguous.h
-@@ -111,7 +111,7 @@ static inline int dma_declare_contiguous(struct device *dev, phys_addr_t size,
- 	return ret;
- }
- 
--struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-+struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
- 				       unsigned int order);
- bool dma_release_from_contiguous(struct device *dev, struct page *pages,
- 				 int count);
-@@ -144,7 +144,7 @@ int dma_declare_contiguous(struct device *dev, phys_addr_t size,
- }
- 
- static inline
--struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-+struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
- 				       unsigned int order)
- {
- 	return NULL;
-diff --git a/mm/cma.c b/mm/cma.c
-index e7d1db5..4eb56bad 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -361,7 +361,7 @@ err:
-  * This function allocates part of contiguous memory on specific
-  * contiguous memory area.
-  */
--struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align)
-+struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
- {
- 	unsigned long mask, offset, pfn, start = 0;
- 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
-@@ -371,7 +371,7 @@ struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align)
- 	if (!cma || !cma->count)
- 		return NULL;
- 
--	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
-+	pr_debug("%s(cma %p, count %zu, align %d)\n", __func__, (void *)cma,
- 		 count, align);
- 
- 	if (!count)
--- 
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-hosted by The Linux Foundation
+Jens, do you want to take this, or ok for me to take this through nvdimm.git?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
