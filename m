@@ -1,48 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F2B96B0257
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 11:13:46 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so62724688wic.0
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 08:13:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ol8si5284563wic.74.2015.10.13.07.43.37
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D8EE6B0253
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 12:07:22 -0400 (EDT)
+Received: by wijq8 with SMTP id q8so38868016wij.0
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 09:07:21 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
+        by mx.google.com with ESMTPS id gl16si4794409wjc.187.2015.10.13.09.06.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 13 Oct 2015 07:43:38 -0700 (PDT)
-Date: Tue, 13 Oct 2015 16:43:36 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Making per-cpu lists draining dependant on a flag
-Message-ID: <20151013144335.GB31034@dhcp22.suse.cz>
-References: <56179E4F.5010507@kyup.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Oct 2015 09:06:58 -0700 (PDT)
+Received: by wicge5 with SMTP id ge5so199418263wic.0
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 09:06:58 -0700 (PDT)
+Date: Tue, 13 Oct 2015 19:06:56 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: pmd_modify() semantics
+Message-ID: <20151013160656.GA14071@node>
+References: <C2D7FE5348E1B147BCA15975FBA23075D781CC4F@IN01WEMBXB.internal.synopsys.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56179E4F.5010507@kyup.com>
+In-Reply-To: <C2D7FE5348E1B147BCA15975FBA23075D781CC4F@IN01WEMBXB.internal.synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <kernel@kyup.com>
-Cc: linux-mm@kvack.org, mgorman@suse.de, Andrew Morton <akpm@linux-foundation.org>, Marian Marinov <mm@1h.com>, SiteGround Operations <operations@siteground.com>
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>
 
-On Fri 09-10-15 14:00:31, Nikolay Borisov wrote:
-> Hello mm people,
+On Tue, Oct 13, 2015 at 01:58:39PM +0000, Vineet Gupta wrote:
+> Hi Kirill,
 > 
+> I'm running LTP tests on the new ARC THP code and thp03 seems to be triggering mm
+> spew.
 > 
-> I want to ask you the following question which stemmed from analysing
-> and chasing this particular deadlock:
-> http://permalink.gmane.org/gmane.linux.kernel/2056730
+> --------------->8---------------------
+> [ARCLinux]# ./ltp-thp03-extract
+> PID 60
+> bad pmd bf1c4600 be600231
+> ../mm/pgtable-generic.c:34: bad pgd be600231.
+> bad pmd bf1c4604 bd800231
+> ../mm/pgtable-generic.c:34: bad pgd bd800231.
+> BUG: Bad rss-counter state mm:bf12e900 idx:1 val:512
+> BUG: non-zero nr_ptes on freeing mm: 2
+> --------------->8---------------------
 > 
-> To summarise it:
+> I know what exactly is happening and the likely fix, but would want to get some
+> thoughts from you if possible.
 > 
-> For simplicity I will use the following nomenclature:
-> t1 - kworker/u96:0
-> t2 - kworker/u98:39
-> t3 - kworker/u98:7
+> background: ARC is software page walked with PGD -> PTE -> page for normal and PMD
+> -> page for THP case. A vanilla PGD doesn't have any flags - only pointer to PTE
+> 
+> A reduced version of thp03 allocates a THP, dirties it, followed by
+> mprotect(PROT_NONE).
+> At the time of mprotect() -> change_huge_pmd() -> pmd_modify() needs to change
+> some of the bits.
+> 
+> The issue is ARC implementation of pmd_modify() based on pte variant, which
+> retains the soft pte bits (dirty and accessed).
+> 
+> static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+> {
+>     return pte_pmd(pte_modify(pmd_pte(pmd), newprot));
+> }
+> 
+> Obvious fix is to rewrite pmd_modify() so that it clears out all pte type flags
+> but that assumes PMD is becoming PGD (a vanilla PGD on ARC doesn't have any
+> flags). Can we have pmd_modify() ever be called for NOT splitting pmd e.g.
+> mprotect Write to Read which won't split the THP like it does now and simply
+> changes the prot flags. My proposed version of pmd_modify() will loose the dirty bit.
 
-Could you be more specific about the trace of all three parties?
-I am not sure I am completely following your description. Thanks!
+Hm? pmd_modify() is nothing to do with splitting. The mprotect() codepath
+you've mentioned above calls pmd_modify() only if the THP is fully in
+mprotect range.
+
+> In short, what are the semantics of pmd_modify() - essentially does it imply pmd
+> is being split so are free to make it like PGD.
+
+No, pmd_modify() cannot make such assumption. That's just not true -- we
+don't split PMD in such codepath. And even if we do, we construct new PMD
+entry from scratch instead of modifying existing one.
+
+So the semantics of pmd_modify(): you can assume that the entry is
+pmd_large(), going to stay this way and you need to touch only
+protection-related bit.
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
