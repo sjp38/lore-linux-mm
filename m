@@ -1,47 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 26A946B0254
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 05:08:54 -0400 (EDT)
-Received: by wieq12 with SMTP id q12so21667311wie.1
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 02:08:53 -0700 (PDT)
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
-        by mx.google.com with ESMTPS id q13si21810422wiv.18.2015.10.13.02.08.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Oct 2015 02:08:53 -0700 (PDT)
-Received: by wijq8 with SMTP id q8so21578080wij.0
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 02:08:52 -0700 (PDT)
-Date: Tue, 13 Oct 2015 12:08:50 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH V2] mm, page_alloc: reserve pageblocks for high-order
- atomic allocations on demand -fix
-Message-ID: <20151013090850.GA11942@node>
-References: <1444700544-22666-1-git-send-email-yalin.wang2010@gmail.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 926226B0256
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 05:10:09 -0400 (EDT)
+Received: by pabrc13 with SMTP id rc13so15981856pab.0
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 02:10:09 -0700 (PDT)
+Received: from us-alimail-mta2.hst.scl.en.alidc.net (mail113-249.mail.alibaba.com. [205.204.113.249])
+        by mx.google.com with ESMTP id fd1si3720726pad.44.2015.10.13.02.10.07
+        for <linux-mm@kvack.org>;
+        Tue, 13 Oct 2015 02:10:08 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <004b01d10596$60e7eae0$22b7c0a0$@alibaba-inc.com>
+In-Reply-To: <004b01d10596$60e7eae0$22b7c0a0$@alibaba-inc.com>
+Subject: Re: [PATCH] hugetlb: clear PG_reserved before setting PG_head on gigantic pages
+Date: Tue, 13 Oct 2015 17:09:52 +0800
+Message-ID: <004e01d10596$eba6de70$c2f49b50$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1444700544-22666-1-git-send-email-yalin.wang2010@gmail.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yalin wang <yalin.wang2010@gmail.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@suse.com, rientjes@google.com, js1304@gmail.com, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, alexander.h.duyck@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, Oct 13, 2015 at 09:42:24AM +0800, yalin wang wrote:
-> There is a redundant check and a memory leak introduced by a patch in
-> mmotm. This patch removes an unlikely(order) check as we are sure order
-> is not zero at the time. It also checks if a page is already allocated
-> to avoid a memory leak.
+> PF_NO_COMPOUND for PG_reserved assumes we don't use PG_reserved for
+> compound pages. And we generally don't. But during allocation of
+> gigantic pages we set PG_head before clearing PG_reserved and
+> __ClearPageReserved() steps on the VM_BUG_ON_PAGE().
 > 
-> This is a fix to the mmotm patch
-> mm-page_alloc-reserve-pageblocks-for-high-order-atomic-allocations-on-demand.patch
+> The fix is trivial: set PG_head after PG_reserved.
 > 
-> Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
-> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Sasha Levin <sasha.levin@oracle.com>
+> ---
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> 
+> Andrew, this patch can be folded into "page-flags: define PG_reserved behavior on compound pages".
+> 
+> ---
+>  mm/hugetlb.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 6ecf61ffa65d..bd3f3e20313b 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1258,8 +1258,8 @@ static void prep_compound_gigantic_page(struct page *page, unsigned int order)
+> 
+>  	/* we rely on prep_new_huge_page to set the destructor */
+>  	set_compound_order(page, order);
+> -	__SetPageHead(page);
+>  	__ClearPageReserved(page);
+> +	__SetPageHead(page);
+>  	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
+>  		/*
+>  		 * For gigantic hugepages allocated through bootmem at
+> --
+> 2.5.3
+> 
 
--- 
- Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
