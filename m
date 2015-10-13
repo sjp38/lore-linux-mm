@@ -1,57 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 41FBC6B0253
-	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 18:53:33 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so477314pac.3
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 15:53:33 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id di4si29558010pad.183.2015.10.12.15.53.31
-        for <linux-mm@kvack.org>;
-        Mon, 12 Oct 2015 15:53:32 -0700 (PDT)
-Date: Tue, 13 Oct 2015 09:53:27 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v5] mm, dax: fix DAX deadlocks
-Message-ID: <20151012225327.GF27164@dastard>
-References: <1444258729-21974-1-git-send-email-ross.zwisler@linux.intel.com>
- <1444258729-21974-2-git-send-email-ross.zwisler@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1444258729-21974-2-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 170866B0253
+	for <linux-mm@kvack.org>; Mon, 12 Oct 2015 20:01:14 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so1929651pad.1
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 17:01:13 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id db1si272992pad.204.2015.10.12.17.01.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Oct 2015 17:01:13 -0700 (PDT)
+From: Rohit Vaswani <rvaswani@codeaurora.org>
+Subject: [PATCH] mm: cma: Fix incorrect type conversion for size during dma allocation
+Date: Mon, 12 Oct 2015 17:00:47 -0700
+Message-Id: <1444694447-23826-1-git-send-email-rvaswani@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <willy@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <matthew.r.wilcox@intel.com>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Rohit Vaswani <rvaswani@codeaurora.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 07, 2015 at 04:58:49PM -0600, Ross Zwisler wrote:
-> The following two locking commits in the DAX code:
-> 
-> commit 843172978bb9 ("dax: fix race between simultaneous faults")
-> commit 46c043ede471 ("mm: take i_mmap_lock in unmap_mapping_range() for DAX")
-> 
-> introduced a number of deadlocks and other issues which need to be fixed
-> for the v4.3 kernel. The list of issues in DAX after these commits (some
-> newly introduced by the commits, some preexisting) can be found here:
-> 
-> https://lkml.org/lkml/2015/9/25/602
-> 
-> This undoes most of the changes introduced by those two commits,
-> essentially returning us to the DAX locking scheme that was used in v4.2.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+This was found during userspace fuzzing test when a large size
+dma cma allocation is made by driver(like ion) through userspace.
 
-I've run this through some testing, the deadlocks aren't present and
-there don't appear to be any new regressions, so IMO this is fine to
-go to Linus.
+ show_stack+0x10/0x1c
+ dump_stack+0x74/0xc8
+ kasan_report_error+0x2b0/0x408
+ kasan_report+0x34/0x40
+ __asan_storeN+0x15c/0x168
+ memset+0x20/0x44
+ __dma_alloc_coherent+0x114/0x18c
 
-Tested-by: Dave Chinner <dchinner@redhat.com>
+Change-Id: I4e2db81c496604ecbe93ec21fe8ee94589c8eb63
+Signed-off-by: Rohit Vaswani <rvaswani@codeaurora.org>
+---
+ drivers/base/dma-contiguous.c  | 2 +-
+ include/linux/cma.h            | 2 +-
+ include/linux/dma-contiguous.h | 4 ++--
+ mm/cma.c                       | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)
 
-Cheers,
-
-Dave.
+diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+index 950fff9..a12ff98 100644
+--- a/drivers/base/dma-contiguous.c
++++ b/drivers/base/dma-contiguous.c
+@@ -187,7 +187,7 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+  * global one. Requires architecture specific dev_get_cma_area() helper
+  * function.
+  */
+-struct page *dma_alloc_from_contiguous(struct device *dev, int count,
++struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+ 				       unsigned int align)
+ {
+ 	if (align > CONFIG_CMA_ALIGNMENT)
+diff --git a/include/linux/cma.h b/include/linux/cma.h
+index f7ef093..29f9e77 100644
+--- a/include/linux/cma.h
++++ b/include/linux/cma.h
+@@ -26,6 +26,6 @@ extern int __init cma_declare_contiguous(phys_addr_t base,
+ extern int cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
+ 					unsigned int order_per_bit,
+ 					struct cma **res_cma);
+-extern struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align);
++extern struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align);
+ extern bool cma_release(struct cma *cma, const struct page *pages, unsigned int count);
+ #endif
+diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
+index 569bbd0..fec734d 100644
+--- a/include/linux/dma-contiguous.h
++++ b/include/linux/dma-contiguous.h
+@@ -111,7 +111,7 @@ static inline int dma_declare_contiguous(struct device *dev, phys_addr_t size,
+ 	return ret;
+ }
+ 
+-struct page *dma_alloc_from_contiguous(struct device *dev, int count,
++struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+ 				       unsigned int order);
+ bool dma_release_from_contiguous(struct device *dev, struct page *pages,
+ 				 int count);
+@@ -144,7 +144,7 @@ int dma_declare_contiguous(struct device *dev, phys_addr_t size,
+ }
+ 
+ static inline
+-struct page *dma_alloc_from_contiguous(struct device *dev, int count,
++struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+ 				       unsigned int order)
+ {
+ 	return NULL;
+diff --git a/mm/cma.c b/mm/cma.c
+index e7d1db5..4eb56bad 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -361,7 +361,7 @@ err:
+  * This function allocates part of contiguous memory on specific
+  * contiguous memory area.
+  */
+-struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align)
++struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
+ {
+ 	unsigned long mask, offset, pfn, start = 0;
+ 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
+@@ -371,7 +371,7 @@ struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align)
+ 	if (!cma || !cma->count)
+ 		return NULL;
+ 
+-	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
++	pr_debug("%s(cma %p, count %zu, align %d)\n", __func__, (void *)cma,
+ 		 count, align);
+ 
+ 	if (!count)
 -- 
-Dave Chinner
-david@fromorbit.com
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
