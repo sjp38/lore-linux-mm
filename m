@@ -1,99 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 45C7282F64
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 12:19:26 -0400 (EDT)
-Received: by pacex6 with SMTP id ex6so25477450pac.3
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 09:19:26 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id ae3si6090961pad.156.2015.10.13.09.19.25
+Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 48A806B0253
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 12:37:07 -0400 (EDT)
+Received: by iow1 with SMTP id 1so27310397iow.1
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 09:37:07 -0700 (PDT)
+Received: from mail-io0-x22c.google.com (mail-io0-x22c.google.com. [2607:f8b0:4001:c06::22c])
+        by mx.google.com with ESMTPS id u68si206277ioi.25.2015.10.13.09.37.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 13 Oct 2015 09:19:25 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Oct 2015 09:37:06 -0700 (PDT)
+Received: by ioii196 with SMTP id i196so27048308ioi.3
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 09:37:06 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <201510132121.GDE13044.FOSHLJOMFOtQVF@I-love.SAKURA.ne.jp>
+References: <201510031502.BJD59536.HFJMtQOOLFFVSO@I-love.SAKURA.ne.jp>
+	<201510062351.JHJ57310.VFQLFHFOJtSMOO@I-love.SAKURA.ne.jp>
+	<201510121543.EJF21858.LtJFHOOOSQVMFF@I-love.SAKURA.ne.jp>
+	<201510130025.EJF21331.FFOQJtVOMLFHSO@I-love.SAKURA.ne.jp>
+	<CA+55aFwapaED7JV6zm-NVkP-jKie+eQ1vDXWrKD=SkbshZSgmw@mail.gmail.com>
+	<201510132121.GDE13044.FOSHLJOMFOtQVF@I-love.SAKURA.ne.jp>
+Date: Tue, 13 Oct 2015 09:37:06 -0700
+Message-ID: <CA+55aFxwg=vS2nrXsQhAUzPQDGb8aQpZi0M7UUh21ftBo-z46Q@mail.gmail.com>
 Subject: Re: Silent hang up caused by pages being not scanned?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201510130025.EJF21331.FFOQJtVOMLFHSO@I-love.SAKURA.ne.jp>
-	<20151013133225.GA31034@dhcp22.suse.cz>
-In-Reply-To: <20151013133225.GA31034@dhcp22.suse.cz>
-Message-Id: <201510140119.FGC17641.FSOHMtQOFLJOVF@I-love.SAKURA.ne.jp>
-Date: Wed, 14 Oct 2015 01:19:09 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: rientjes@google.com, oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>
 
-Michal Hocko wrote:
-> I can see two options here. Either we teach zone_reclaimable to be less
-> fragile or remove zone_reclaimable from shrink_zones altogether. Both of
-> them are risky because we have a long history of changes in this areas
-> which made other subtle behavior changes but I guess that the first
-> option should be less fragile. What about the following patch? I am not
-> happy about it because the condition is rather rough and a deeper
-> inspection is really needed to check all the call sites but it should be
-> good for testing.
+On Tue, Oct 13, 2015 at 5:21 AM, Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+>
+> If I remove
+>
+>         /* Any of the zones still reclaimable?  Don't OOM. */
+>         if (zones_reclaimable)
+>                 return 1;
+>
+> the OOM killer is invoked even when there are so much memory which can be
+> reclaimed after written to disk. This is definitely premature invocation of
+> the OOM killer.
 
-While zone_reclaimable() for Node 0 DMA32 became false by your patch,
-zone_reclaimable() for Node 0 DMA kept returning true, and as a result
-overall result (i.e. zones_reclaimable) remained true.
+Right. The rest of the code knows that the return value right now
+means "there is no memory at all" rather than "I made progress".
 
-  $ ./a.out
+> Yes. But we can't simply do
+>
+>         if (order <= PAGE_ALLOC_COSTLY_ORDER || ..
+>
+> because we won't be able to call out_of_memory(), can we?
 
----------- When there is no data to write ----------
-[  162.942371] MIN=11163 FREE=11155 (ACTIVE_FILE=0+INACTIVE_FILE=0) * 6 > PAGES_SCANNED=16
-[  162.944541] MIN=100 FREE=1824 (ACTIVE_FILE=3+INACTIVE_FILE=0) * 6 > PAGES_SCANNED=5
-[  162.946560] zone_reclaimable returned 1 at line 2665
-[  162.948722] shrink_zones returned 1 at line 2716
-(...snipped...)
-[  164.897587] zones_reclaimable=1 at line 2775
-[  164.899172] do_try_to_free_pages returned 1 at line 2948
-[  167.087119] __perform_reclaim returned 1 at line 2854
-[  167.088868] did_some_progress=1 at line 3301
-(...snipped...)
-[  261.577944] MIN=11163 FREE=11155 (ACTIVE_FILE=0+INACTIVE_FILE=0) * 6 > PAGES_SCANNED=0
-[  261.580093] MIN=100 FREE=1824 (ACTIVE_FILE=3+INACTIVE_FILE=0) * 6 > PAGES_SCANNED=5
-[  261.582333] zone_reclaimable returned 1 at line 2665
-[  261.583841] shrink_zones returned 1 at line 2716
-(...snipped...)
-[  264.728434] zones_reclaimable=1 at line 2775
-[  264.730002] do_try_to_free_pages returned 1 at line 2948
-[  268.191368] __perform_reclaim returned 1 at line 2854
-[  268.193113] did_some_progress=1 at line 3301
----------- When there is no data to write ----------
+So I think that whole thing is kind of senseless. Not just that
+particular conditional, but what it *does* too.
 
-Complete log (with your patch inside) is at
-http://I-love.SAKURA.ne.jp/tmp/serial-20151014.txt.xz .
+What can easily happen is that we are a blocking allocation, but
+because we're __GFP_FS or something, the code doesn't actually start
+writing anything out. Nor is anything congested. So the thing just
+loops.
 
-By the way, the OOM killer seems to be invoked prematurely for different load
-if your patch is applied.
+And looping is stupid, because we may be not able to actually free
+anything exactly because of limitations like __GFP_FS.
 
-  $ cat < /dev/zero > /tmp/log & sleep 10; ./a.out
+So
 
----------- When there is a lot of data to write ----------
-[   69.019271] Mem-Info:
-[   69.019755] active_anon:335006 inactive_anon:2084 isolated_anon:23
-[   69.019755]  active_file:12197 inactive_file:65310 isolated_file:31
-[   69.019755]  unevictable:0 dirty:533 writeback:51020 unstable:0
-[   69.019755]  slab_reclaimable:4753 slab_unreclaimable:4134
-[   69.019755]  mapped:9639 shmem:2144 pagetables:2030 bounce:0
-[   69.019755]  free:12972 free_pcp:45 free_cma:0
-[   69.026260] Node 0 DMA free:7300kB min:400kB low:500kB high:600kB active_anon:5232kB inactive_anon:96kB active_file:424kB inactive_file:1068kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15988kB managed:15904kB mlocked:0kB dirty:164kB writeback:972kB mapped:416kB shmem:104kB slab_reclaimable:304kB slab_unreclaimable:244kB kernel_stack:96kB pagetables:256kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:128 all_unreclaimable? no
-[   69.037189] lowmem_reserve[]: 0 1729 1729 1729
-[   69.039152] Node 0 DMA32 free:74224kB min:44652kB low:55812kB high:66976kB active_anon:1334792kB inactive_anon:8240kB active_file:48364kB inactive_file:230752kB unevictable:0kB isolated(anon):92kB isolated(file):0kB present:2080640kB managed:1774264kB mlocked:0kB dirty:9328kB writeback:199060kB mapped:38140kB shmem:8472kB slab_reclaimable:17840kB slab_unreclaimable:16292kB kernel_stack:3840kB pagetables:7864kB unstable:0kB bounce:0kB free_pcp:784kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-[   69.052017] lowmem_reserve[]: 0 0 0 0
-[   69.053818] Node 0 DMA: 17*4kB (UME) 8*8kB (UME) 6*16kB (UME) 2*32kB (UM) 2*64kB (UE) 4*128kB (UME) 1*256kB (U) 2*512kB (UE) 3*1024kB (UME) 1*2048kB (U) 0*4096kB = 7332kB
-[   69.059597] Node 0 DMA32: 632*4kB (UME) 454*8kB (UME) 507*16kB (UME) 310*32kB (UME) 177*64kB (UE) 61*128kB (UME) 15*256kB (ME) 19*512kB (M) 10*1024kB (M) 0*2048kB 0*4096kB = 67136kB
-[   69.065810] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
-[   69.068305] 72477 total pagecache pages
-[   69.069932] 0 pages in swap cache
-[   69.071435] Swap cache stats: add 0, delete 0, find 0/0
-[   69.073354] Free swap  = 0kB
-[   69.074822] Total swap = 0kB
-[   69.076660] 524157 pages RAM
-[   69.078113] 0 pages HighMem/MovableOnly
-[   69.079930] 76615 pages reserved
-[   69.081406] 0 pages hwpoisoned
----------- When there is a lot of data to write ----------
+ (a) the looping condition is senseless
+
+ (b) what we do when looping is senseless
+
+and we actually do try to wake up kswapd in the loop, but we never
+*wait* for it, so that's largely pointless too.
+
+So *of*course* the direct reclaim code has to set "I made progress",
+because if it doesn't lie and say so, then the code will randomly not
+loop, and will oom, and things go to hell.
+
+But I hate the "let's tweak the zone_reclaimable" idea, because it
+doesn't actually fix anything. It just perpetuates this "the code
+doesn't make sense, so let's add *more* senseless heusristics to this
+whole loop".
+
+So instead of that senseless thing, how about trying something
+*sensible*. Make the code do something that we can actually explain as
+making sense.
+
+I'd suggest something like:
+
+ - add a "retry count"
+
+ - if direct reclaim made no progress, or made less progress than the target:
+
+      if (order > PAGE_ALLOC_COSTLY_ORDER) goto noretry;
+
+ - regardless of whether we made progress or not:
+
+      if (retry count < X) goto retry;
+
+      if (retry count < 2*X) yield/sleep 10ms/wait-for-kswapd and then
+goto retry
+
+   where 'X" is something sane that limits our CPU use, but also
+guarantees that we don't end up waiting *too* long (if a single
+allocation takes more than a big fraction of a second, we should
+probably stop trying).
+
+The whole time-based thing might even be explicit. There's nothing
+wrong with doing something like
+
+    unsigned long timeout = jiffies + HZ/4;
+
+at the top of the function, and making the whole retry logic actually
+say something like
+
+    if (time_after(timeout, jiffies)) goto noretry;
+
+(or make *that* trigger the oom logic, or whatever).
+
+Now, I realize the above suggestions are big changes, and they'll
+likely break things and we'll still need to tweak things, but dammit,
+wouldn't that be better than just randomly tweaking the insane
+zone_reclaimable logic?
+
+                    Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
