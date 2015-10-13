@@ -1,198 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 20E4E6B0253
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 06:37:21 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so51356354wic.0
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 03:37:20 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id fr17si3201315wjc.2.2015.10.13.03.37.19
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 312FF6B0253
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 07:28:59 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so85136560wic.1
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 04:28:58 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
+        by mx.google.com with ESMTPS id bp5si3457158wjc.7.2015.10.13.04.28.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Oct 2015 03:37:19 -0700 (PDT)
-Received: by wicgb1 with SMTP id gb1so182733592wic.1
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 03:37:19 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/2] ext4: Fix possible deadlock with local interrupts
- disabled and page-draining IPI
-References: <062501d10262$d40d0a50$7c271ef0$@alibaba-inc.com>
- <56176C10.8040709@kyup.com> <062801d10265$5a749fc0$0f5ddf40$@alibaba-inc.com>
- <561774D2.3050002@kyup.com> <20151012134020.GA21302@quack.suse.cz>
- <561BC8DB.6070600@kyup.com> <20151013081512.GJ17050@quack.suse.cz>
-From: Nikolay Borisov <kernel@kyup.com>
-Message-ID: <561CDEDC.30707@kyup.com>
-Date: Tue, 13 Oct 2015 13:37:16 +0300
+        Tue, 13 Oct 2015 04:28:57 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [RFC] arm: add __initbss section attribute
+Date: Tue, 13 Oct 2015 13:28:18 +0200
+Message-ID: <5171473.bOz59Zi81c@wuerfel>
+In-Reply-To: <8004E8C3-F1EC-45C3-A995-88726B257563@gmail.com>
+References: <1444622356-8263-1-git-send-email-yalin.wang2010@gmail.com> <5369261.8uuGVmeUFP@wuerfel> <8004E8C3-F1EC-45C3-A995-88726B257563@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20151013081512.GJ17050@quack.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'linux-kernel' <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-fsdevel@vger.kernel.org, SiteGround Operations <operations@siteground.com>, vbabka@suse.cz, gilad@benyossef.com, mgorman@suse.de, linux-mm@kvack.org, Marian Marinov <mm@1h.com>
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: Sam Ravnborg <sam@ravnborg.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nico@linaro.org>, Kees Cook <keescook@chromium.org>, Catalin Marinas <catalin.marinas@arm.com>, Victor Kamensky <victor.kamensky@linaro.org>, Mark Salter <msalter@redhat.com>, vladimir.murzin@arm.com, ggdavisiv@gmail.com, paul.gortmaker@windriver.com, mingo@kernel.org, rusty@rustcorp.com.au, mcgrof@suse.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mhocko@suse.com, jack@suse.cz, iamjoonsoo.kim@lge.com, xiexiuqi@huawei.com, vbabka@suse.cz, Vineet.Gupta1@synopsys.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
+On Tuesday 13 October 2015 17:51:32 yalin wang wrote:
 
+> > 32	__earlycon_table_sentinel
+> > 200	__earlycon_of_table_sentinel
+> > 6	__irf_end
+> > 
+> > 
+> > 26398 total
+> i am curious about your scripts ,
+> could you show me ?
 
-On 10/13/2015 11:15 AM, Jan Kara wrote:
-> On Mon 12-10-15 17:51:07, Nikolay Borisov wrote:
->> Hello and thanks for the reply,
->>
->> On 10/12/2015 04:40 PM, Jan Kara wrote:
->>> On Fri 09-10-15 11:03:30, Nikolay Borisov wrote:
->>>> On 10/09/2015 10:37 AM, Hillf Danton wrote:
->>>>>>>> @@ -109,8 +109,8 @@ static void ext4_finish_bio(struct bio *bio)
->>>>>>>>  			if (bio->bi_error)
->>>>>>>>  				buffer_io_error(bh);
->>>>>>>>  		} while ((bh = bh->b_this_page) != head);
->>>>>>>> -		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
->>>>>>>>  		local_irq_restore(flags);
->>>>>>>
->>>>>>> What if it takes 100ms to unlock after IRQ restored?
->>>>>>
->>>>>> I'm not sure I understand in what direction you are going? Care to
->>>>>> elaborate?
->>>>>>
->>>>> Your change introduces extra time cost the lock waiter has to pay in
->>>>> the case that irq happens before the lock is released.
->>>>
->>>> [CC filesystem and mm people. For reference the thread starts here:
->>>>  http://thread.gmane.org/gmane.linux.kernel/2056996 ]
->>>>
->>>> Right, I see what you mean and it's a good point but when doing the
->>>> patches I was striving for correctness and starting a discussion, hence
->>>> the RFC. In any case I'd personally choose correctness over performance
->>>> always ;).
->>>>
->>>> As I'm not an fs/ext4 expert and have added the relevant parties (please
->>>> use reply-all from now on so that the thread is not being cut in the
->>>> middle) who will be able to say whether it impact is going to be that
->>>> big. I guess in this particular code path worrying about this is prudent
->>>> as writeback sounds like a heavily used path.
->>>>
->>>> Maybe the problem should be approached from a different angle e.g.
->>>> drain_all_pages and its reliance on the fact that the IPI will always be
->>>> delivered in some finite amount of time? But what if a cpu with disabled
->>>> interrupts is waiting on the task issuing the IPI?
->>>
->>> So I have looked through your patch and also original report (thread starts
->>> here: https://lkml.org/lkml/2015/10/8/341) and IMHO one question hasn't
->>> been properly answered yet: Who is holding BH_Uptodate_Lock we are spinning
->>> on? You have suggested in https://lkml.org/lkml/2015/10/8/464 that it was
->>> __block_write_full_page_endio() call but that cannot really be the case.
->>> BH_Uptodate_Lock is used only in IO completion handlers -
->>> end_buffer_async_read, end_buffer_async_write, ext4_finish_bio. So there
->>> really should be some end_io function running on some other CPU which holds
->>> BH_Uptodate_Lock for that buffer.
->>
->> I did check all the call traces of the current processes on the machine
->> at the time of the hard lockup and none of the 3 functions you mentioned
->> were in any of the call chains. But while I was looking the code of
->> end_buffer_async_write and in the comments I saw it was mentioned that
->> those completion handler were called from __block_write_full_page_endio
->> so that's what pointed my attention to that function. But you are right
->> that it doesn't take the BH lock.
->>
->> Furthermore the fact that the BH_Async_Write flag is set points me in
->> the direction that end_buffer_async_write should have been executing but
->> as I said issuing "bt" for all the tasks didn't show this function.
-> 
-> Actually ext4_bio_write_page() also sets BH_Async_Write so that seems like
-> a more likely place where that flag got set since ext4_finish_bio() was
-> then handling IO completion.
-> 
->> I'm beginning to wonder if it's possible that a single bit memory error
->> has crept up, but this still seems like a long shot...
-> 
-> Yup. Possible but a long shot. Is the problem reproducible in any way?
+I was using some ad-hoc command line tricks, including
 
-Okay, I rule out hardware issue since a different server today 
-experienced the same hard lockup. One thing which looks 
-suspicious to me are the repetitions of bio_endio/clone_endio: 
+objcopy  -j .init.data  build/multi_v7_defconfig/vmlinux   /tmp/initdata
+nm initdata  | sort -n | { read start b sym ; while read a b c ; do objdump -Dr --start-address=0x$start --stop-address=0x$a initdata > initdata.d/$sym  ; start=$a ; sym=$c  ; done }
+(some manual sorting to delete the files that have pre-initialized symbols)
+sum=0 ; nm /tmp/initdata  | sort -n | { read start b sym ; while read a b c ; do test -e ../$sym  && { echo $[0x$a - 0x$start]\      $sym  ; sum=$[$sum + $[0x$a - 0x$start]] ; } ; start=$a ; sym=$c ; done ; echo $sum;}
 
-Oct 13 03:16:54 10.80.5.48 Call Trace:
-Oct 13 03:16:54 10.80.5.48 <NMI>
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81651631>] dump_stack+0x58/0x7f
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81089a6c>] warn_slowpath_common+0x8c/0xc0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81089b56>] warn_slowpath_fmt+0x46/0x50
-Oct 13 03:16:54 10.80.5.48 [<ffffffff811015f8>] watchdog_overflow_callback+0x98/0xc0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81132d0c>] __perf_event_overflow+0x9c/0x250
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81133664>] perf_event_overflow+0x14/0x20
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81061796>] intel_pmu_handle_irq+0x1d6/0x3e0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff8105b4c4>] perf_event_nmi_handler+0x34/0x60
-Oct 13 03:16:54 10.80.5.48 [<ffffffff8104c152>] nmi_handle+0xa2/0x1a0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff8104c3b4>] do_nmi+0x164/0x430
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81656e2e>] end_repeat_nmi+0x1a/0x1e
-Oct 13 03:16:54 10.80.5.48 [<ffffffff8125be19>] ? ext4_finish_bio+0x279/0x2a0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff8125be19>] ? ext4_finish_bio+0x279/0x2a0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff8125be19>] ? ext4_finish_bio+0x279/0x2a0
-Oct 13 03:16:54 10.80.5.48 <<EOE>> 
-Oct 13 03:16:54 10.80.5.48 <IRQ> 
-Oct 13 03:16:54 10.80.5.48 [<ffffffff8125c2c8>] ext4_end_bio+0xc8/0x120
-Oct 13 03:16:54 10.80.5.48 [<ffffffff811dbf1d>] bio_endio+0x1d/0x40
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81546781>] dec_pending+0x1c1/0x360
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81546996>] clone_endio+0x76/0xa0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff811dbf1d>] bio_endio+0x1d/0x40
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81546781>] dec_pending+0x1c1/0x360
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81546996>] clone_endio+0x76/0xa0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff811dbf1d>] bio_endio+0x1d/0x40
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81546781>] dec_pending+0x1c1/0x360
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81546996>] clone_endio+0x76/0xa0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff811dbf1d>] bio_endio+0x1d/0x40
-Oct 13 03:16:54 10.80.5.48 [<ffffffff812fad2b>] blk_update_request+0x21b/0x450
-Oct 13 03:16:54 10.80.5.48 [<ffffffff810e7797>] ? generic_exec_single+0xa7/0xb0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff812faf87>] blk_update_bidi_request+0x27/0xb0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff810e7817>] ? __smp_call_function_single+0x77/0x120
-Oct 13 03:16:54 10.80.5.48 [<ffffffff812fcc7f>] blk_end_bidi_request+0x2f/0x80
-Oct 13 03:16:54 10.80.5.48 [<ffffffff812fcd20>] blk_end_request+0x10/0x20
-Oct 13 03:16:54 10.80.5.48 [<ffffffff813fdc1c>] scsi_io_completion+0xbc/0x620
-Oct 13 03:16:54 10.80.5.48 [<ffffffff813f57f9>] scsi_finish_command+0xc9/0x130
-Oct 13 03:16:54 10.80.5.48 [<ffffffff813fe2e7>] scsi_softirq_done+0x147/0x170
-Oct 13 03:16:54 10.80.5.48 [<ffffffff813035ad>] blk_done_softirq+0x7d/0x90
-Oct 13 03:16:54 10.80.5.48 [<ffffffff8108ed87>] __do_softirq+0x137/0x2e0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81658a0c>] call_softirq+0x1c/0x30
-Oct 13 03:16:54 10.80.5.48 [<ffffffff8104a35d>] do_softirq+0x8d/0xc0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff8108e925>] irq_exit+0x95/0xa0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81658f76>] do_IRQ+0x66/0xe0
-Oct 13 03:16:54 10.80.5.48 [<ffffffff816567ef>] common_interrupt+0x6f/0x6f
-Oct 13 03:16:54 10.80.5.48 <EOI> 
-Oct 13 03:16:54 10.80.5.48 [<ffffffff81656836>] ? retint_swapgs+0xe/0x13
-Oct 13 03:16:54 10.80.5.48 ---[ end trace 4a0584a583c66b92 ]---
+I'm sure there are better ways to do this, and the manual step I used at
+first was faulty.
 
-Doing addr2line on ffffffff8125c2c8 shows: /home/projects/linux-stable/fs/ext4/page-io.c:335
-which for me is the last bio_put in ext4_end_bio. However, the ? addresses, 
-right at the beginning of the NMI stack (ffffffff8125be19) map to inner loop in
-bit_spin_lock:
-
-} while (test_bit(bitnum, addr));
-
-and this is in line with my initial bug report. 
-
-Unfortunately I wasn't able to acquire a crashdump since the machine hard-locked
-way too fast. On a slightly different note is it possible to panic the machine 
-via NMIs? Since if all the CPUs are hard lockedup they cannot process sysrq interrupts?
-
-> 
->> Btw I think in any case the spin_lock patch is wrong as this code can be
->> called from within softirq context and we do want to be interrupt safe
->> at that point.
-> 
-> Agreed, that patch is definitely wrong.
-> 
->>> BTW: I suppose the filesystem uses 4k blocksize, doesn't it?
->>
->> Unfortunately I cannot tell you with 100% certainty, since on this
->> server there are multiple block devices with blocksize either 1k or 4k.
->> So it is one of these. If you know a way to extract this information
->> from a vmcore file I'd be happy to do it.
-> 
-> Well, if you have a crashdump, then bh->b_size is the block size. So just
-> check that for the bh we are spinning on.
-
-Turns out in my original email the bh->b_size was shown : 
-b_size = 0x400 == 1k. So the filesystem is not 4k but 1k. 
-
-
-> 
-> 								Honza
-> 
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
