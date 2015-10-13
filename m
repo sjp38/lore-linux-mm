@@ -1,158 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8371A6B0254
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 05:51:56 -0400 (EDT)
-Received: by pabrc13 with SMTP id rc13so17068498pab.0
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 02:51:56 -0700 (PDT)
-Received: from mgwkm04.jp.fujitsu.com (mgwkm04.jp.fujitsu.com. [202.219.69.171])
-        by mx.google.com with ESMTPS id l11si3891598pbq.245.2015.10.13.02.51.54
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 20E4E6B0253
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 06:37:21 -0400 (EDT)
+Received: by wicge5 with SMTP id ge5so51356354wic.0
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 03:37:20 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id fr17si3201315wjc.2.2015.10.13.03.37.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Oct 2015 02:51:55 -0700 (PDT)
-Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
-	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 00BD4AC018F
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 18:51:52 +0900 (JST)
-Subject: Re: [PATCH][RFC] mm: Introduce kernelcore=reliable option
-References: <1444402599-15274-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <561762DC.3080608@huawei.com> <561787DA.4040809@jp.fujitsu.com>
- <5617989E.9070700@huawei.com>
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <561CD415.9010804@jp.fujitsu.com>
-Date: Tue, 13 Oct 2015 18:51:17 +0900
+        Tue, 13 Oct 2015 03:37:19 -0700 (PDT)
+Received: by wicgb1 with SMTP id gb1so182733592wic.1
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 03:37:19 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/2] ext4: Fix possible deadlock with local interrupts
+ disabled and page-draining IPI
+References: <062501d10262$d40d0a50$7c271ef0$@alibaba-inc.com>
+ <56176C10.8040709@kyup.com> <062801d10265$5a749fc0$0f5ddf40$@alibaba-inc.com>
+ <561774D2.3050002@kyup.com> <20151012134020.GA21302@quack.suse.cz>
+ <561BC8DB.6070600@kyup.com> <20151013081512.GJ17050@quack.suse.cz>
+From: Nikolay Borisov <kernel@kyup.com>
+Message-ID: <561CDEDC.30707@kyup.com>
+Date: Tue, 13 Oct 2015 13:37:16 +0300
 MIME-Version: 1.0
-In-Reply-To: <5617989E.9070700@huawei.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <20151013081512.GJ17050@quack.suse.cz>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Taku Izumi <izumi.taku@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tony.luck@intel.com, mel@csn.ul.ie, akpm@linux-foundation.org, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, zhongjiang@huawei.com
+To: Jan Kara <jack@suse.cz>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'linux-kernel' <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-fsdevel@vger.kernel.org, SiteGround Operations <operations@siteground.com>, vbabka@suse.cz, gilad@benyossef.com, mgorman@suse.de, linux-mm@kvack.org, Marian Marinov <mm@1h.com>
 
-On 2015/10/09 19:36, Xishi Qiu wrote:
-> On 2015/10/9 17:24, Kamezawa Hiroyuki wrote:
->
->> On 2015/10/09 15:46, Xishi Qiu wrote:
->>> On 2015/10/9 22:56, Taku Izumi wrote:
->>>
->>>> Xeon E7 v3 based systems supports Address Range Mirroring
->>>> and UEFI BIOS complied with UEFI spec 2.5 can notify which
->>>> ranges are reliable (mirrored) via EFI memory map.
->>>> Now Linux kernel utilize its information and allocates
->>>> boot time memory from reliable region.
+
+
+On 10/13/2015 11:15 AM, Jan Kara wrote:
+> On Mon 12-10-15 17:51:07, Nikolay Borisov wrote:
+>> Hello and thanks for the reply,
+>>
+>> On 10/12/2015 04:40 PM, Jan Kara wrote:
+>>> On Fri 09-10-15 11:03:30, Nikolay Borisov wrote:
+>>>> On 10/09/2015 10:37 AM, Hillf Danton wrote:
+>>>>>>>> @@ -109,8 +109,8 @@ static void ext4_finish_bio(struct bio *bio)
+>>>>>>>>  			if (bio->bi_error)
+>>>>>>>>  				buffer_io_error(bh);
+>>>>>>>>  		} while ((bh = bh->b_this_page) != head);
+>>>>>>>> -		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
+>>>>>>>>  		local_irq_restore(flags);
+>>>>>>>
+>>>>>>> What if it takes 100ms to unlock after IRQ restored?
+>>>>>>
+>>>>>> I'm not sure I understand in what direction you are going? Care to
+>>>>>> elaborate?
+>>>>>>
+>>>>> Your change introduces extra time cost the lock waiter has to pay in
+>>>>> the case that irq happens before the lock is released.
 >>>>
->>>> My requirement is:
->>>>     - allocate kernel memory from reliable region
->>>>     - allocate user memory from non-reliable region
+>>>> [CC filesystem and mm people. For reference the thread starts here:
+>>>>  http://thread.gmane.org/gmane.linux.kernel/2056996 ]
 >>>>
->>>> In order to meet my requirement, ZONE_MOVABLE is useful.
->>>> By arranging non-reliable range into ZONE_MOVABLE,
->>>> reliable memory is only used for kernel allocations.
+>>>> Right, I see what you mean and it's a good point but when doing the
+>>>> patches I was striving for correctness and starting a discussion, hence
+>>>> the RFC. In any case I'd personally choose correctness over performance
+>>>> always ;).
 >>>>
+>>>> As I'm not an fs/ext4 expert and have added the relevant parties (please
+>>>> use reply-all from now on so that the thread is not being cut in the
+>>>> middle) who will be able to say whether it impact is going to be that
+>>>> big. I guess in this particular code path worrying about this is prudent
+>>>> as writeback sounds like a heavily used path.
+>>>>
+>>>> Maybe the problem should be approached from a different angle e.g.
+>>>> drain_all_pages and its reliance on the fact that the IPI will always be
+>>>> delivered in some finite amount of time? But what if a cpu with disabled
+>>>> interrupts is waiting on the task issuing the IPI?
 >>>
->>> Hi Taku,
->>>
->>> You mean set non-mirrored memory to movable zone, and set
->>> mirrored memory to normal zone, right? So kernel allocations
->>> will use mirrored memory in normal zone, and user allocations
->>> will use non-mirrored memory in movable zone.
->>>
->>> My question is:
->>> 1) do we need to change the fallback function?
+>>> So I have looked through your patch and also original report (thread starts
+>>> here: https://lkml.org/lkml/2015/10/8/341) and IMHO one question hasn't
+>>> been properly answered yet: Who is holding BH_Uptodate_Lock we are spinning
+>>> on? You have suggested in https://lkml.org/lkml/2015/10/8/464 that it was
+>>> __block_write_full_page_endio() call but that cannot really be the case.
+>>> BH_Uptodate_Lock is used only in IO completion handlers -
+>>> end_buffer_async_read, end_buffer_async_write, ext4_finish_bio. So there
+>>> really should be some end_io function running on some other CPU which holds
+>>> BH_Uptodate_Lock for that buffer.
 >>
->> For *our* requirement, it's not required. But if someone want to prevent
->> user's memory allocation from NORMAL_ZONE, we need some change in zonelist
->> walking.
+>> I did check all the call traces of the current processes on the machine
+>> at the time of the hard lockup and none of the 3 functions you mentioned
+>> were in any of the call chains. But while I was looking the code of
+>> end_buffer_async_write and in the comments I saw it was mentioned that
+>> those completion handler were called from __block_write_full_page_endio
+>> so that's what pointed my attention to that function. But you are right
+>> that it doesn't take the BH lock.
 >>
->
-> Hi Kame,
->
-> So we assume kernel will only use normal zone(mirrored), and users use movable
-> zone(non-mirrored) first if the memory is not enough, then use normal zone too.
->
+>> Furthermore the fact that the BH_Async_Write flag is set points me in
+>> the direction that end_buffer_async_write should have been executing but
+>> as I said issuing "bt" for all the tasks didn't show this function.
+> 
+> Actually ext4_bio_write_page() also sets BH_Async_Write so that seems like
+> a more likely place where that flag got set since ext4_finish_bio() was
+> then handling IO completion.
+> 
+>> I'm beginning to wonder if it's possible that a single bit memory error
+>> has crept up, but this still seems like a long shot...
+> 
+> Yup. Possible but a long shot. Is the problem reproducible in any way?
 
-Yes.
+Okay, I rule out hardware issue since a different server today 
+experienced the same hard lockup. One thing which looks 
+suspicious to me are the repetitions of bio_endio/clone_endio: 
 
->>> 2) the mirrored region should locate at the start of normal
->>> zone, right?
+Oct 13 03:16:54 10.80.5.48 Call Trace:
+Oct 13 03:16:54 10.80.5.48 <NMI>
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81651631>] dump_stack+0x58/0x7f
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81089a6c>] warn_slowpath_common+0x8c/0xc0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81089b56>] warn_slowpath_fmt+0x46/0x50
+Oct 13 03:16:54 10.80.5.48 [<ffffffff811015f8>] watchdog_overflow_callback+0x98/0xc0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81132d0c>] __perf_event_overflow+0x9c/0x250
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81133664>] perf_event_overflow+0x14/0x20
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81061796>] intel_pmu_handle_irq+0x1d6/0x3e0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff8105b4c4>] perf_event_nmi_handler+0x34/0x60
+Oct 13 03:16:54 10.80.5.48 [<ffffffff8104c152>] nmi_handle+0xa2/0x1a0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff8104c3b4>] do_nmi+0x164/0x430
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81656e2e>] end_repeat_nmi+0x1a/0x1e
+Oct 13 03:16:54 10.80.5.48 [<ffffffff8125be19>] ? ext4_finish_bio+0x279/0x2a0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff8125be19>] ? ext4_finish_bio+0x279/0x2a0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff8125be19>] ? ext4_finish_bio+0x279/0x2a0
+Oct 13 03:16:54 10.80.5.48 <<EOE>> 
+Oct 13 03:16:54 10.80.5.48 <IRQ> 
+Oct 13 03:16:54 10.80.5.48 [<ffffffff8125c2c8>] ext4_end_bio+0xc8/0x120
+Oct 13 03:16:54 10.80.5.48 [<ffffffff811dbf1d>] bio_endio+0x1d/0x40
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81546781>] dec_pending+0x1c1/0x360
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81546996>] clone_endio+0x76/0xa0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff811dbf1d>] bio_endio+0x1d/0x40
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81546781>] dec_pending+0x1c1/0x360
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81546996>] clone_endio+0x76/0xa0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff811dbf1d>] bio_endio+0x1d/0x40
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81546781>] dec_pending+0x1c1/0x360
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81546996>] clone_endio+0x76/0xa0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff811dbf1d>] bio_endio+0x1d/0x40
+Oct 13 03:16:54 10.80.5.48 [<ffffffff812fad2b>] blk_update_request+0x21b/0x450
+Oct 13 03:16:54 10.80.5.48 [<ffffffff810e7797>] ? generic_exec_single+0xa7/0xb0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff812faf87>] blk_update_bidi_request+0x27/0xb0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff810e7817>] ? __smp_call_function_single+0x77/0x120
+Oct 13 03:16:54 10.80.5.48 [<ffffffff812fcc7f>] blk_end_bidi_request+0x2f/0x80
+Oct 13 03:16:54 10.80.5.48 [<ffffffff812fcd20>] blk_end_request+0x10/0x20
+Oct 13 03:16:54 10.80.5.48 [<ffffffff813fdc1c>] scsi_io_completion+0xbc/0x620
+Oct 13 03:16:54 10.80.5.48 [<ffffffff813f57f9>] scsi_finish_command+0xc9/0x130
+Oct 13 03:16:54 10.80.5.48 [<ffffffff813fe2e7>] scsi_softirq_done+0x147/0x170
+Oct 13 03:16:54 10.80.5.48 [<ffffffff813035ad>] blk_done_softirq+0x7d/0x90
+Oct 13 03:16:54 10.80.5.48 [<ffffffff8108ed87>] __do_softirq+0x137/0x2e0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81658a0c>] call_softirq+0x1c/0x30
+Oct 13 03:16:54 10.80.5.48 [<ffffffff8104a35d>] do_softirq+0x8d/0xc0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff8108e925>] irq_exit+0x95/0xa0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81658f76>] do_IRQ+0x66/0xe0
+Oct 13 03:16:54 10.80.5.48 [<ffffffff816567ef>] common_interrupt+0x6f/0x6f
+Oct 13 03:16:54 10.80.5.48 <EOI> 
+Oct 13 03:16:54 10.80.5.48 [<ffffffff81656836>] ? retint_swapgs+0xe/0x13
+Oct 13 03:16:54 10.80.5.48 ---[ end trace 4a0584a583c66b92 ]---
+
+Doing addr2line on ffffffff8125c2c8 shows: /home/projects/linux-stable/fs/ext4/page-io.c:335
+which for me is the last bio_put in ext4_end_bio. However, the ? addresses, 
+right at the beginning of the NMI stack (ffffffff8125be19) map to inner loop in
+bit_spin_lock:
+
+} while (test_bit(bitnum, addr));
+
+and this is in line with my initial bug report. 
+
+Unfortunately I wasn't able to acquire a crashdump since the machine hard-locked
+way too fast. On a slightly different note is it possible to panic the machine 
+via NMIs? Since if all the CPUs are hard lockedup they cannot process sysrq interrupts?
+
+> 
+>> Btw I think in any case the spin_lock patch is wrong as this code can be
+>> called from within softirq context and we do want to be interrupt safe
+>> at that point.
+> 
+> Agreed, that patch is definitely wrong.
+> 
+>>> BTW: I suppose the filesystem uses 4k blocksize, doesn't it?
 >>
->> Precisely, "not-reliable" range of memory are handled by ZONE_MOVABLE.
->> This patch does only that.
->
-> I mean the mirrored region can not at the middle or end of the zone,
-> BIOS should report the memory like this,
->
-> e.g.
-> BIOS
-> node0: 0-4G mirrored, 4-8G mirrored, 8-16G non-mirrored
-> node1: 16-24G mirrored, 24-32G non-mirrored
->
-> OS
-> node0: DMA DMA32 are both mirrored, NORMAL(4-8G), MOVABLE(8-16G)
-> node1: NORMAL(16-24G), MOVABLE(24-32G)
->
+>> Unfortunately I cannot tell you with 100% certainty, since on this
+>> server there are multiple block devices with blocksize either 1k or 4k.
+>> So it is one of these. If you know a way to extract this information
+>> from a vmcore file I'd be happy to do it.
+> 
+> Well, if you have a crashdump, then bh->b_size is the block size. So just
+> check that for the bh we are spinning on.
 
-I think zones can be overlapped even while they are aligned to MAX_ORDER.
+Turns out in my original email the bh->b_size was shown : 
+b_size = 0x400 == 1k. So the filesystem is not 4k but 1k. 
 
 
->>
->>>
->>> I remember Kame has already suggested this idea. In my opinion,
->>> I still think it's better to add a new migratetype or a new zone,
->>> so both user and kernel could use mirrored memory.
->>
->> Hi, Xishi.
->>
->> I and Izumi-san discussed the implementation much and found using "zone"
->> is better approach.
->>
->> The biggest reason is that zone is a unit of vmscan and all statistics and
->> handling the range of memory for a purpose. We can reuse all vmscan and
->> information codes by making use of zones. Introdcing other structure will be messy.
->
-> Yes, add a new zone is better, but it will change much code, so reuse ZONE_MOVABLE
-> is simpler and easier, right?
->
-
-I think so. If someone feels difficulty with ZONE_MOVABLE, adding zone will be another job.
-(*)Taku-san's bootoption is to specify kernelcore to be placed into reliable memory and
-    doesn't specify anything about users.
-
-
->> His patch is very simple.
->>
->
-> The following plan sounds good to me. Shall we rename the zone name when it is
-> used for mirrored memory, "movable" is a little confusion.
->
-
-Maybe. I think it should be another discussion. With this patch and his fake-reliable-memory
-patch, everyone can give a try.
-
-
->> For your requirements. I and Izumi-san are discussing following plan.
->>
->>   - Add a flag to show the zone is reliable or not, then, mark ZONE_MOVABLE as not-reliable.
->>   - Add __GFP_RELIABLE. This will allow alloc_pages() to skip not-reliable zone.
->>   - Add madivse() MADV_RELIABLE and modify page fault code's gfp flag with that flag.
->>
->
-> like this?
-> user: madvise()/mmap()/or others -> add vma_reliable flag -> add gfp_reliable flag -> alloc_pages
-> kernel: use __GFP_RELIABLE flag in buddy allocation/slab/vmalloc...
-yes.
-
->
-> Also we can introduce some interfaces in procfs or sysfs, right?
->
-
-It's based on your use case. I think madvise() will be the 1st choice.
-
-Thanks,
--kame
-
-
-
-
+> 
+> 								Honza
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
