@@ -1,63 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ABCF6B0253
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 02:24:12 -0400 (EDT)
-Received: by pabve7 with SMTP id ve7so11544824pab.2
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 23:24:12 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id bc7si2671095pbd.145.2015.10.12.23.24.11
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B44526B0253
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 02:31:19 -0400 (EDT)
+Received: by pabve7 with SMTP id ve7so11738917pab.2
+        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 23:31:19 -0700 (PDT)
+Received: from xiaomi.com (outboundhk.mxmail.xiaomi.com. [207.226.244.122])
+        by mx.google.com with ESMTPS id nu8si2735759pbb.87.2015.10.12.23.31.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Oct 2015 23:24:11 -0700 (PDT)
-Received: by pabve7 with SMTP id ve7so11544492pab.2
-        for <linux-mm@kvack.org>; Mon, 12 Oct 2015 23:24:11 -0700 (PDT)
-Date: Tue, 13 Oct 2015 15:26:52 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] thp: use is_zero_pfn only after pte_present check
-Message-ID: <20151013062630.GA16146@bbox>
-References: <1444703918-16597-1-git-send-email-minchan@kernel.org>
- <20151013054124.GB20952@kroah.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 12 Oct 2015 23:31:18 -0700 (PDT)
+From: Hui Zhu <zhuhui@xiaomi.com>
+Subject: [PATCH] zsmalloc: remove unless line in obj_free
+Date: Tue, 13 Oct 2015 14:31:02 +0800
+Message-ID: <1444717862-27234-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151013054124.GB20952@kroah.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
 
-On Mon, Oct 12, 2015 at 10:41:24PM -0700, Greg Kroah-Hartman wrote:
-> On Tue, Oct 13, 2015 at 11:38:38AM +0900, Minchan Kim wrote:
-> > Use is_zero_pfn on pteval only after pte_present check on pteval
-> > (It might be better idea to introduce is_zero_pte where checks
-> > pte_present first). Otherwise, it could work with swap or
-> > migration entry and if pte_pfn's result is equal to zero_pfn
-> > by chance, we lose user's data in __collapse_huge_page_copy.
-> > So if you're luck, the application is segfaulted and finally you
-> > could see below message when the application is exit.
-> > 
-> > BUG: Bad rss-counter state mm:ffff88007f099300 idx:2 val:3
-> > 
-> > Cc: <stable@vger.kernel.org>
-> > Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> > Hello Greg,
-> > 
-> > This patch should go to -stable but when you will apply it
-> > after merging of linus tree, it will be surely conflicted due
-> > to userfaultfd part.
-> > 
-> > I want to know how to handle it.
-> 
-> You will get an automated email saying it didn't apply and then you
-> provide a backported version.  Or you send a properly backported version
-> to stable@vger.kernel.org before then, with the git commit id of the
-> patch in Linus's tree.
+Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
+---
+ mm/zsmalloc.c | 3 ---
+ 1 file changed, 3 deletions(-)
 
-Okay, I will send a right version when I received automatd email.
-Thanks.
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index f135b1b..c7338f0 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1428,8 +1428,6 @@ static void obj_free(struct zs_pool *pool, struct size_class *class,
+ 	struct page *first_page, *f_page;
+ 	unsigned long f_objidx, f_offset;
+ 	void *vaddr;
+-	int class_idx;
+-	enum fullness_group fullness;
+ 
+ 	BUG_ON(!obj);
+ 
+@@ -1437,7 +1435,6 @@ static void obj_free(struct zs_pool *pool, struct size_class *class,
+ 	obj_to_location(obj, &f_page, &f_objidx);
+ 	first_page = get_first_page(f_page);
+ 
+-	get_zspage_mapping(first_page, &class_idx, &fullness);
+ 	f_offset = obj_idx_to_offset(f_page, f_objidx, class->size);
+ 
+ 	vaddr = kmap_atomic(f_page);
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
