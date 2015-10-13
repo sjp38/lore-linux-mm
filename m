@@ -1,85 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id DD2186B0253
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 09:58:43 -0400 (EDT)
-Received: by padhy16 with SMTP id hy16so22402108pad.1
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 06:58:43 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay4.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id wv8si5304934pbc.216.2015.10.13.06.58.43
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ADBE6B0253
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 10:55:56 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so192312543wic.1
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 07:55:55 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
+        by mx.google.com with ESMTPS id h7si4488000wjz.55.2015.10.13.07.55.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Oct 2015 06:58:43 -0700 (PDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: pmd_modify() semantics
-Date: Tue, 13 Oct 2015 13:58:39 +0000
-Message-ID: <C2D7FE5348E1B147BCA15975FBA23075D781CC4F@IN01WEMBXB.internal.synopsys.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Oct 2015 07:55:45 -0700 (PDT)
+Received: by wieq12 with SMTP id q12so36666085wie.1
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 07:55:44 -0700 (PDT)
+Subject: Re: Making per-cpu lists draining dependant on a flag
+References: <56179E4F.5010507@kyup.com>
+ <20151013144335.GB31034@dhcp22.suse.cz>
+From: Nikolay Borisov <kernel@kyup.com>
+Message-ID: <561D1B6F.8080509@kyup.com>
+Date: Tue, 13 Oct 2015 17:55:43 +0300
 MIME-Version: 1.0
+In-Reply-To: <20151013144335.GB31034@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, mgorman@suse.de, Andrew Morton <akpm@linux-foundation.org>, Marian Marinov <mm@1h.com>, SiteGround Operations <operations@siteground.com>
 
-Hi Kirill,=0A=
-=0A=
-I'm running LTP tests on the new ARC THP code and thp03 seems to be trigger=
-ing mm=0A=
-spew.=0A=
-=0A=
---------------->8---------------------=0A=
-[ARCLinux]# ./ltp-thp03-extract=0A=
-PID 60=0A=
-bad pmd bf1c4600 be600231=0A=
-../mm/pgtable-generic.c:34: bad pgd be600231.=0A=
-bad pmd bf1c4604 bd800231=0A=
-../mm/pgtable-generic.c:34: bad pgd bd800231.=0A=
-BUG: Bad rss-counter state mm:bf12e900 idx:1 val:512=0A=
-BUG: non-zero nr_ptes on freeing mm: 2=0A=
---------------->8---------------------=0A=
-=0A=
-I know what exactly is happening and the likely fix, but would want to get =
-some=0A=
-thoughts from you if possible.=0A=
-=0A=
-background: ARC is software page walked with PGD -> PTE -> page for normal =
-and PMD=0A=
--> page for THP case. A vanilla PGD doesn't have any flags - only pointer t=
-o PTE=0A=
-=0A=
-A reduced version of thp03 allocates a THP, dirties it, followed by=0A=
-mprotect(PROT_NONE).=0A=
-At the time of mprotect() -> change_huge_pmd() -> pmd_modify() needs to cha=
-nge=0A=
-some of the bits.=0A=
-=0A=
-The issue is ARC implementation of pmd_modify() based on pte variant, which=
-=0A=
-retains the soft pte bits (dirty and accessed).=0A=
-=0A=
-static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)=0A=
-{=0A=
-    return pte_pmd(pte_modify(pmd_pte(pmd), newprot));=0A=
-}=0A=
-=0A=
-Obvious fix is to rewrite pmd_modify() so that it clears out all pte type f=
-lags=0A=
-but that assumes PMD is becoming PGD (a vanilla PGD on ARC doesn't have any=
-=0A=
-flags). Can we have pmd_modify() ever be called for NOT splitting pmd e.g.=
-=0A=
-mprotect Write to Read which won't split the THP like it does now and simpl=
-y=0A=
-changes the prot flags. My proposed version of pmd_modify() will loose the =
-dirty bit.=0A=
-=0A=
-In short, what are the semantics of pmd_modify() - essentially does it impl=
-y pmd=0A=
-is being split so are free to make it like PGD.=0A=
-=0A=
-TIA,=0A=
--Vineet=0A=
+
+
+On 10/13/2015 05:43 PM, Michal Hocko wrote:
+> On Fri 09-10-15 14:00:31, Nikolay Borisov wrote:
+>> Hello mm people,
+>>
+>>
+>> I want to ask you the following question which stemmed from analysing
+>> and chasing this particular deadlock:
+>> http://permalink.gmane.org/gmane.linux.kernel/2056730
+>>
+>> To summarise it:
+>>
+>> For simplicity I will use the following nomenclature:
+>> t1 - kworker/u96:0
+>> t2 - kworker/u98:39
+>> t3 - kworker/u98:7
+> 
+> Could you be more specific about the trace of all three parties?
+> I am not sure I am completely following your description. Thanks!
+
+Hi,
+
+Maybe you'd want to check this thread:
+http://thread.gmane.org/gmane.linux.kernel/2056996
+
+Essentially, in the beginning I thought the problem could be in the
+memory manager but after discussing with Jan Kara I thought the problem
+doesn't like in the memory manager.
+
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
