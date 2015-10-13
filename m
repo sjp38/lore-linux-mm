@@ -1,102 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 680C36B0253
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 09:51:50 -0400 (EDT)
-Received: by wicge5 with SMTP id ge5so59307902wic.0
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 06:51:49 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bv15si4127850wjb.142.2015.10.13.06.51.24
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id DD2186B0253
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 09:58:43 -0400 (EDT)
+Received: by padhy16 with SMTP id hy16so22402108pad.1
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 06:58:43 -0700 (PDT)
+Received: from smtprelay.synopsys.com (smtprelay4.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id wv8si5304934pbc.216.2015.10.13.06.58.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 13 Oct 2015 06:51:24 -0700 (PDT)
-Subject: Re: [RFC] futex: prevent endless loop on s390x with emulated
- hugepages
-References: <1443107148-28625-1-git-send-email-vbabka@suse.cz>
- <20150928134928.2214dae2@mschwide> <561CEF77.3050309@suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <561D0C5A.6030505@suse.cz>
-Date: Tue, 13 Oct 2015 15:51:22 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Oct 2015 06:58:43 -0700 (PDT)
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Subject: pmd_modify() semantics
+Date: Tue, 13 Oct 2015 13:58:39 +0000
+Message-ID: <C2D7FE5348E1B147BCA15975FBA23075D781CC4F@IN01WEMBXB.internal.synopsys.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <561CEF77.3050309@suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yong Sun <yosun@suse.com>, linux390@de.ibm.com, linux-s390@vger.kernel.org, Zhang Yi <wetpzy@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>
 
-On 10/13/2015 01:48 PM, Vlastimil Babka wrote:
-> On 09/28/2015 01:49 PM, Martin Schwidefsky wrote:
->> On Thu, 24 Sep 2015 17:05:48 +0200
->> Vlastimil Babka <vbabka@suse.cz> wrote:
->
-> [...]
->
->>> However, __get_user_pages_fast() is still broken. The get_user_pages_fast()
->>> wrapper will hide this in the common case. The other user of the __ variant
->>> is kvm, which is mentioned as the reason for removal of emulated hugepages.
->>> The call of page_cache_get_speculative() looks also broken in this scenario
->>> on debug builds because of VM_BUG_ON_PAGE(PageTail(page), page). With
->>> CONFIG_TINY_RCU enabled, there's plain atomic_inc(&page->_count) which also
->>> probably shouldn't happen for a tail page...
->>
->> It boils down to __get_user_pages_fast being broken for emulated large pages,
->> doesn't it? My preferred fix would be to get __get_user_page_fast to work
->> in this case.
->
-> I agree, but didn't know enough of the architecture to attempt such fix
-> :) Thanks!
->
->> For 3.12 a patch would look like this (needs more testing
->> though):
->
-> FWIW it works for me in the particular LTP test, but as you said, it
-> needs more testing and breaking stable would suck.
-
-I'm trying to break the patch on 3.12 with trinity, let's see...
-Tried also to review it, although it's unlikely I'll catch some 
-s390x-specific gotchas. For example, can't say what the effect of 
-_SEGMENT_ENTRY_CO removal will be - before, the bit was set for 
-non-emulated hugepages, and now the same bit is set for emulated ones?
-Or if pmd_bad() was also broken before, and now isn't? But otherwise the 
-change seems OK, besides some nitpick below.
-
-[...]
-
->> @@ -103,7 +104,7 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
->>    		unsigned long end, int write, struct page **pages, int *nr)
->>    {
->>    	unsigned long next;
->> -	pmd_t *pmdp, pmd;
->> +	pmd_t *pmdp, pmd, pmd_orig;
->>
->>    	pmdp = (pmd_t *) pudp;
->>    #ifdef CONFIG_64BIT
->> @@ -112,7 +113,7 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
->>    	pmdp += pmd_index(addr);
->>    #endif
->>    	do {
->> -		pmd = *pmdp;
->> +		pmd = pmd_orig = *pmdp;
->>    		barrier();
->>    		next = pmd_addr_end(addr, end);
->>    		/*
->> @@ -127,8 +128,9 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
->>    		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
->>    			return 0;
->>    		if (unlikely(pmd_large(pmd))) {
->> -			if (!gup_huge_pmd(pmdp, pmd, addr, next,
->> -					  write, pages, nr))
->> +			if (!gup_huge_pmd(pmdp, pmd_orig,
->> +					  pmd_swlarge_deref(pmd),
->> +					  addr, next, write, pages, nr))
->>    				return 0;
->>    		} else if (!gup_pte_range(pmdp, pmd, addr, next,
->>    					  write, pages, nr))
-
-The "pmd" variable isn't changed anywhere in this loop after the initial 
-assignment, so the extra "pmd_orig" variable isn't needed.
-
+Hi Kirill,=0A=
+=0A=
+I'm running LTP tests on the new ARC THP code and thp03 seems to be trigger=
+ing mm=0A=
+spew.=0A=
+=0A=
+--------------->8---------------------=0A=
+[ARCLinux]# ./ltp-thp03-extract=0A=
+PID 60=0A=
+bad pmd bf1c4600 be600231=0A=
+../mm/pgtable-generic.c:34: bad pgd be600231.=0A=
+bad pmd bf1c4604 bd800231=0A=
+../mm/pgtable-generic.c:34: bad pgd bd800231.=0A=
+BUG: Bad rss-counter state mm:bf12e900 idx:1 val:512=0A=
+BUG: non-zero nr_ptes on freeing mm: 2=0A=
+--------------->8---------------------=0A=
+=0A=
+I know what exactly is happening and the likely fix, but would want to get =
+some=0A=
+thoughts from you if possible.=0A=
+=0A=
+background: ARC is software page walked with PGD -> PTE -> page for normal =
+and PMD=0A=
+-> page for THP case. A vanilla PGD doesn't have any flags - only pointer t=
+o PTE=0A=
+=0A=
+A reduced version of thp03 allocates a THP, dirties it, followed by=0A=
+mprotect(PROT_NONE).=0A=
+At the time of mprotect() -> change_huge_pmd() -> pmd_modify() needs to cha=
+nge=0A=
+some of the bits.=0A=
+=0A=
+The issue is ARC implementation of pmd_modify() based on pte variant, which=
+=0A=
+retains the soft pte bits (dirty and accessed).=0A=
+=0A=
+static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)=0A=
+{=0A=
+    return pte_pmd(pte_modify(pmd_pte(pmd), newprot));=0A=
+}=0A=
+=0A=
+Obvious fix is to rewrite pmd_modify() so that it clears out all pte type f=
+lags=0A=
+but that assumes PMD is becoming PGD (a vanilla PGD on ARC doesn't have any=
+=0A=
+flags). Can we have pmd_modify() ever be called for NOT splitting pmd e.g.=
+=0A=
+mprotect Write to Read which won't split the THP like it does now and simpl=
+y=0A=
+changes the prot flags. My proposed version of pmd_modify() will loose the =
+dirty bit.=0A=
+=0A=
+In short, what are the semantics of pmd_modify() - essentially does it impl=
+y pmd=0A=
+is being split so are free to make it like PGD.=0A=
+=0A=
+TIA,=0A=
+-Vineet=0A=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
