@@ -1,158 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A63182F64
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 09:41:54 -0400 (EDT)
-Received: by payp3 with SMTP id p3so7100078pay.1
-        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 06:41:54 -0700 (PDT)
-Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
-        by mx.google.com with ESMTPS id v9si13382183pbs.198.2015.10.14.06.41.53
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A157E6B0038
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 10:38:21 -0400 (EDT)
+Received: by oixx6 with SMTP id x6so12944505oix.2
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 07:38:21 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 201si4831014oia.85.2015.10.14.07.38.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 14 Oct 2015 06:41:53 -0700 (PDT)
-Received: from epcpsbgr1.samsung.com
- (u141.gpu120.samsung.co.kr [203.254.230.141])
- by mailout3.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
- 64bit (built May  5 2014))
- with ESMTP id <0NW702117Q1RLW80@mailout3.samsung.com> for linux-mm@kvack.org;
- Wed, 14 Oct 2015 22:41:51 +0900 (KST)
-From: PINTU KUMAR <pintu.k@samsung.com>
-References: <1444656800-29915-1-git-send-email-pintu.k@samsung.com>
- <1444660139-30125-1-git-send-email-pintu.k@samsung.com>
- <alpine.DEB.2.10.1510132000270.18525@chino.kir.corp.google.com>
-In-reply-to: <alpine.DEB.2.10.1510132000270.18525@chino.kir.corp.google.com>
-Subject: RE: [RESEND PATCH 1/1] mm: vmstat: Add OOM victims count in vmstat
- counter
-Date: Wed, 14 Oct 2015 19:11:05 +0530
-Message-id: <081301d10686$370d2e10$a5278a30$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7bit
-Content-language: en-us
+        Wed, 14 Oct 2015 07:38:20 -0700 (PDT)
+Subject: Re: Silent hang up caused by pages being not scanned?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201510130025.EJF21331.FFOQJtVOMLFHSO@I-love.SAKURA.ne.jp>
+	<20151013133225.GA31034@dhcp22.suse.cz>
+	<201510140119.FGC17641.FSOHMtQOFLJOVF@I-love.SAKURA.ne.jp>
+	<20151014132248.GH28333@dhcp22.suse.cz>
+In-Reply-To: <20151014132248.GH28333@dhcp22.suse.cz>
+Message-Id: <201510142338.IEE21387.LFHSQVtMOFOFJO@I-love.SAKURA.ne.jp>
+Date: Wed, 14 Oct 2015 23:38:00 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'David Rientjes' <rientjes@google.com>
-Cc: akpm@linux-foundation.org, minchan@kernel.org, dave@stgolabs.net, mhocko@suse.cz, koct9i@gmail.com, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp, bywxiaobai@163.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, kirill.shutemov@linux.intel.com, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.ping@gmail.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, c.rajkumar@samsung.com
+To: mhocko@kernel.org
+Cc: rientjes@google.com, oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
 
-Hi,
+Michal Hocko wrote:
+> The OOM report is really interesting:
+> 
+> > [   69.039152] Node 0 DMA32 free:74224kB min:44652kB low:55812kB high:66976kB active_anon:1334792kB inactive_anon:8240kB active_file:48364kB inactive_file:230752kB unevictable:0kB isolated(anon):92kB isolated(file):0kB present:2080640kB managed:1774264kB mlocked:0kB dirty:9328kB writeback:199060kB mapped:38140kB shmem:8472kB slab_reclaimable:17840kB slab_unreclaimable:16292kB kernel_stack:3840kB pagetables:7864kB unstable:0kB bounce:0kB free_pcp:784kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+> 
+> so your whole file LRUs are either dirty or under writeback and
+> reclaimable pages are below min wmark. This alone is quite suspicious.
 
-Thank you very much for your review and comments.
+I did
 
-> -----Original Message-----
-> From: David Rientjes [mailto:rientjes@google.com]
-> Sent: Wednesday, October 14, 2015 8:36 AM
-> To: Pintu Kumar
-> Cc: akpm@linux-foundation.org; minchan@kernel.org; dave@stgolabs.net;
-> mhocko@suse.cz; koct9i@gmail.com; hannes@cmpxchg.org; penguin-kernel@i-
-> love.sakura.ne.jp; bywxiaobai@163.com; mgorman@suse.de; vbabka@suse.cz;
-> js1304@gmail.com; kirill.shutemov@linux.intel.com;
-> alexander.h.duyck@redhat.com; sasha.levin@oracle.com; cl@linux.com;
-> fengguang.wu@intel.com; linux-kernel@vger.kernel.org; linux-mm@kvack.org;
-> cpgs@samsung.com; pintu_agarwal@yahoo.com; pintu.ping@gmail.com;
-> vishnu.ps@samsung.com; rohit.kr@samsung.com; c.rajkumar@samsung.com;
-> sreenathd@samsung.com
-> Subject: Re: [RESEND PATCH 1/1] mm: vmstat: Add OOM victims count in vmstat
-> counter
-> 
-> On Mon, 12 Oct 2015, Pintu Kumar wrote:
-> 
-> > This patch maintains the number of oom victims kill count in
-> > /proc/vmstat.
-> > Currently, we are dependent upon kernel logs when the kernel OOM occurs.
-> > But kernel OOM can went passed unnoticed by the developer as it can
-> > silently kill some background applications/services.
-> > In some small embedded system, it might be possible that OOM is
-> > captured in the logs but it was over-written due to ring-buffer.
-> > Thus this interface can quickly help the user in analyzing, whether
-> > there were any OOM kill happened in the past, or whether the system
-> > have ever entered the oom kill stage till date.
-> >
-> > Thus, it can be beneficial under following cases:
-> > 1. User can monitor kernel oom kill scenario without looking into the
-> >    kernel logs.
-> 
-> I'm not sure how helpful that would be since we don't know anything about the
-> oom kill itself, only that at some point during the uptime there were oom
-kills.
-> 
-Not sure about others.
-For me it was very helpful during sluggish and long duration ageing tests.
-With this, I don't have to look into the logs manually.
-I just monitor this count in a script. 
-The moment I get nr_oom_victims > 1, I know that kernel OOM would have happened
-and I need to take the log dump.
-So, then I do: dmesg >> oom_logs.txt
-Or, even stop the tests for further tuning.
+  $ cat < /dev/zero > /tmp/log
 
-> > 2. It can help in tuning the watermark level in the system.
-> 
-> I disagree with this one, because we can encounter oom kills due to
-> fragmentation rather than low memory conditions for high-order allocations.
-> The amount of free memory may be substantially higher than all zone
-> watermarks.
-> 
-AFAIK, kernel oom happens only for lower-order (PAGE_ALLOC_COSTLY_ORDER).
-For higher-order we get page allocation failure.
+for 10 seconds before starting
 
-> > 3. It can help in tuning the low memory killer behavior in user space.
-> 
-> Same reason as above.
-> 
-> > 4. It can be helpful on a logless system or if klogd logging
-> >    (/var/log/messages) are disabled.
-> >
-> 
-> This would be similar to point (1) above, and I question how helpful it would
-be.
-> I notice that all oom kills (system, cpuset, mempolicy, and
-> memcg) are treated equally in this case and there's no way to differentiate
-them.
-> That would lead me to believe that you are targeting this change for systems
-> that don't use mempolicies or cgroups.  That's fine, but I doubt it will be
-helpful
-> for anybody else.
-> 
-No, we are not targeting any specific category.
-Our goal is simple, track and report kernel oom kill as soon as it occurs.
+  $ ./a.out
 
-> > A snapshot of the result of 3 days of over night test is shown below:
-> > System: ARM Cortex A7, 1GB RAM, 8GB EMMC
-> > Linux: 3.10.xx
-> > Category: reference smart phone device
-> > Loglevel: 7
-> > Conditions: Fully loaded, BT/WiFi/GPS ON
-> > Tests: auto launching of ~30+ apps using test scripts, in a loop for
-> > 3 days.
-> > At the end of tests, check:
-> > $ cat /proc/vmstat
-> > nr_oom_victims 6
-> >
-> > As we noticed, there were around 6 oom kill victims.
-> >
-> > The OOM is bad for any system. So, this counter can help in quickly
-> > tuning the OOM behavior of the system, without depending on the logs.
-> >
-> 
-> NACK to the patch since it isn't justified.
-> 
-> We've long had a desire to have a better oom reporting mechanism rather than
-> just the kernel log.  It seems like you're feeling the same pain.  I think it
-would be
-> better to have an eventfd notifier for system oom conditions so we can track
-> kernel oom kills (and conditions) in userspace.  I have a patch for that, and
-it
-> works quite well when userspace is mlocked with a buffer in memory.
-> 
-Ok, this would be interesting.
-Can you point me to the patches?
-I will quickly check if it is useful for us.
+Thus, so much memory was waiting for writeback on XFS filesystem.
 
-> If you are only interested in a strict count of system oom kills, this could
-then
-> easily be implemented without adding vmstat counters.
->
-We are interested only to know when kernel OOM occurs and not even the oom
-victim count. So that we can tune something is user space to avoid or delay it
-as far as possible.
+> Why hasn't balance_dirty_pages throttled writers and allowed them to
+> make the whole LRU dirty? What is your dirty{_background}_{ratio,bytes}
+> configuration on that system.
+
+All values are defaults of plain CentOS 7 installation.
+
+# sysctl -a | grep ^vm.
+vm.admin_reserve_kbytes = 8192
+vm.block_dump = 0
+vm.compact_unevictable_allowed = 1
+vm.dirty_background_bytes = 0
+vm.dirty_background_ratio = 10
+vm.dirty_bytes = 0
+vm.dirty_expire_centisecs = 3000
+vm.dirty_ratio = 30
+vm.dirty_writeback_centisecs = 500
+vm.dirtytime_expire_seconds = 43200
+vm.drop_caches = 0
+vm.extfrag_threshold = 500
+vm.hugepages_treat_as_movable = 0
+vm.hugetlb_shm_group = 0
+vm.laptop_mode = 0
+vm.legacy_va_layout = 0
+vm.lowmem_reserve_ratio = 256   256     32
+vm.max_map_count = 65530
+vm.memory_failure_early_kill = 0
+vm.memory_failure_recovery = 1
+vm.min_free_kbytes = 45056
+vm.min_slab_ratio = 5
+vm.min_unmapped_ratio = 1
+vm.mmap_min_addr = 4096
+vm.nr_hugepages = 0
+vm.nr_hugepages_mempolicy = 0
+vm.nr_overcommit_hugepages = 0
+vm.nr_pdflush_threads = 0
+vm.numa_zonelist_order = default
+vm.oom_dump_tasks = 1
+vm.oom_kill_allocating_task = 0
+vm.overcommit_kbytes = 0
+vm.overcommit_memory = 0
+vm.overcommit_ratio = 50
+vm.page-cluster = 3
+vm.panic_on_oom = 0
+vm.percpu_pagelist_fraction = 0
+vm.stat_interval = 1
+vm.swappiness = 30
+vm.user_reserve_kbytes = 54808
+vm.vfs_cache_pressure = 100
+vm.zone_reclaim_mode = 0
+
+> 
+> Also why throttle_vm_writeout haven't slown the reclaim down?
+
+Too difficult question for me.
+
+> 
+> Anyway this is exactly the case where zone_reclaimable helps us to
+> prevent OOM because we are looping over the remaining LRU pages without
+> making progress... This just shows how subtle all this is :/
+> 
+> I have to think about this much more..
+
+I'm suspicious about tweaking current reclaim logic.
+Could you please respond to Linus's comments?
+
+There are more moles than kernel developers can find. I think that
+what we can do for short term is to prepare for moles that kernel
+developers could not find, and for long term is to reform page
+allocator for preventing moles from living.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
