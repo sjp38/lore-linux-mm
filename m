@@ -1,40 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C2AB6B0253
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 22:35:52 -0400 (EDT)
-Received: by pabrc13 with SMTP id rc13so39094095pab.0
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 19:35:51 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id hw8si9437243pac.167.2015.10.13.19.35.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Oct 2015 19:35:51 -0700 (PDT)
-Received: by padcn9 with SMTP id cn9so7996787pad.2
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 19:35:51 -0700 (PDT)
-Date: Tue, 13 Oct 2015 19:35:50 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] slab_common: rename cache create/destroy helpers
-In-Reply-To: <6a18aab2f1c3088377d7fd2207b4cc1a1a743468.1444319304.git.vdavydov@virtuozzo.com>
-Message-ID: <alpine.DEB.2.10.1510131935380.12718@chino.kir.corp.google.com>
-References: <6a18aab2f1c3088377d7fd2207b4cc1a1a743468.1444319304.git.vdavydov@virtuozzo.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id EEE3B6B0253
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 22:52:41 -0400 (EDT)
+Received: by padcn9 with SMTP id cn9so8406210pad.2
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 19:52:41 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id os5si9504964pab.233.2015.10.13.19.52.40
+        for <linux-mm@kvack.org>;
+        Tue, 13 Oct 2015 19:52:41 -0700 (PDT)
+Message-ID: <561DC30C.70909@cn.fujitsu.com>
+Date: Wed, 14 Oct 2015 10:50:52 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: skip if required_kernelcore is larger than totalpages
+References: <5615D311.5030908@huawei.com> <5617e00e.0c5b8c0a.2d0dd.3faa@mx.google.com> <561B0ECD.5000507@huawei.com>
+In-Reply-To: <561B0ECD.5000507@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, zhongjiang@huawei.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 8 Oct 2015, Vladimir Davydov wrote:
+Hi, Qiu
 
-> do_kmem_cache_create, do_kmem_cache_shutdown, and do_kmem_cache_release
-> sound awkward for static helper functions that are not supposed to be
-> used outside slab_common.c. Rename them to create_cache, shutdown_cache,
-> and release_caches, respectively. This patch is a pure cleanup and does
-> not introduce any functional changes.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+The patch seems OK to me. Only one little concern below.
 
-Acked-by: David Rientjes <rientjes@google.com>
+On 10/12/2015 09:37 AM, Xishi Qiu wrote:
+> On 2015/10/9 23:41, Yasuaki Ishimatsu wrote:
+>
+>> On Thu, 8 Oct 2015 10:21:05 +0800
+>> Xishi Qiu <qiuxishi@huawei.com> wrote:
+>>
+>>> If kernelcore was not specified, or the kernelcore size is zero
+>>> (required_movablecore >= totalpages), or the kernelcore size is larger
+>> Why does required_movablecore become larger than totalpages, when the
+>> kernelcore size is zero? I read the code but I could not find that you
+>> mention.
+>>
+> If user only set boot option movablecore, and the value is larger than
+> totalpages, the calculation of kernelcore is zero, but we can't fill
+> the zone only with kernelcore, so skip it.
+>
+> I have send a patch before this patch.
+> "fix overflow in find_zone_movable_pfns_for_nodes()"
+> 		...
+>   		required_movablecore =
+>   			roundup(required_movablecore, MAX_ORDER_NR_PAGES);
+> +		required_movablecore = min(totalpages, required_movablecore);
+>   		corepages = totalpages - required_movablecore;
+> 		...
+
+
+So if required_movablecore >= totalpages, there won't be any ZONE_MOVABLE.
+How about add a warning or debug info to tell the user he has specified a
+too large movablecore, and it is ignored ?
+
+Thanks.
+
+
+>
+> Thanks,
+> Xishi Qiu
+>
+>> Thanks,
+>> Yasuaki Ishimatsu
+>>
+>>> than totalpages, there is no ZONE_MOVABLE. We should fill the zone
+>>> with both kernel memory and movable memory.
+>>>
+>>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+>>> ---
+>>>   mm/page_alloc.c | 7 +++++--
+>>>   1 file changed, 5 insertions(+), 2 deletions(-)
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index af3c9bd..6a6da0d 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -5674,8 +5674,11 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+>>>   		required_kernelcore = max(required_kernelcore, corepages);
+>>>   	}
+>>>   
+>>> -	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
+>>> -	if (!required_kernelcore)
+>>> +	/*
+>>> +	 * If kernelcore was not specified or kernelcore size is larger
+>>> +	 * than totalpages, there is no ZONE_MOVABLE.
+>>> +	 */
+>>> +	if (!required_kernelcore || required_kernelcore >= totalpages)
+>>>   		goto out;
+>>>   
+>>>   	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+>>> -- 
+>>> 2.0.0
+>>>
+>>>
+>>> --
+>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>> see: http://www.linux-mm.org/ .
+>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> .
+>>
+>
+>
+> .
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
