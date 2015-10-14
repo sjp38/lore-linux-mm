@@ -1,112 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id EEE3B6B0253
-	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 22:52:41 -0400 (EDT)
-Received: by padcn9 with SMTP id cn9so8406210pad.2
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 19:52:41 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id os5si9504964pab.233.2015.10.13.19.52.40
-        for <linux-mm@kvack.org>;
-        Tue, 13 Oct 2015 19:52:41 -0700 (PDT)
-Message-ID: <561DC30C.70909@cn.fujitsu.com>
-Date: Wed, 14 Oct 2015 10:50:52 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D6DF6B0253
+	for <linux-mm@kvack.org>; Tue, 13 Oct 2015 23:05:59 -0400 (EDT)
+Received: by igbhv6 with SMTP id hv6so7871956igb.0
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 20:05:59 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id f63si2420186ioi.86.2015.10.13.20.05.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Oct 2015 20:05:58 -0700 (PDT)
+Received: by pabrc13 with SMTP id rc13so39834927pab.0
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 20:05:58 -0700 (PDT)
+Date: Tue, 13 Oct 2015 20:05:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RESEND PATCH 1/1] mm: vmstat: Add OOM victims count in vmstat
+ counter
+In-Reply-To: <1444660139-30125-1-git-send-email-pintu.k@samsung.com>
+Message-ID: <alpine.DEB.2.10.1510132000270.18525@chino.kir.corp.google.com>
+References: <1444656800-29915-1-git-send-email-pintu.k@samsung.com> <1444660139-30125-1-git-send-email-pintu.k@samsung.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: skip if required_kernelcore is larger than totalpages
-References: <5615D311.5030908@huawei.com> <5617e00e.0c5b8c0a.2d0dd.3faa@mx.google.com> <561B0ECD.5000507@huawei.com>
-In-Reply-To: <561B0ECD.5000507@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, zhongjiang@huawei.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Pintu Kumar <pintu.k@samsung.com>
+Cc: akpm@linux-foundation.org, minchan@kernel.org, dave@stgolabs.net, mhocko@suse.cz, koct9i@gmail.com, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp, bywxiaobai@163.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, kirill.shutemov@linux.intel.com, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.ping@gmail.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, c.rajkumar@samsung.com, sreenathd@samsung.com
 
-Hi, Qiu
+On Mon, 12 Oct 2015, Pintu Kumar wrote:
 
-The patch seems OK to me. Only one little concern below.
+> This patch maintains the number of oom victims kill count in
+> /proc/vmstat.
+> Currently, we are dependent upon kernel logs when the kernel OOM occurs.
+> But kernel OOM can went passed unnoticed by the developer as it can
+> silently kill some background applications/services.
+> In some small embedded system, it might be possible that OOM is captured
+> in the logs but it was over-written due to ring-buffer.
+> Thus this interface can quickly help the user in analyzing, whether there
+> were any OOM kill happened in the past, or whether the system have ever
+> entered the oom kill stage till date.
+> 
+> Thus, it can be beneficial under following cases:
+> 1. User can monitor kernel oom kill scenario without looking into the
+>    kernel logs.
 
-On 10/12/2015 09:37 AM, Xishi Qiu wrote:
-> On 2015/10/9 23:41, Yasuaki Ishimatsu wrote:
->
->> On Thu, 8 Oct 2015 10:21:05 +0800
->> Xishi Qiu <qiuxishi@huawei.com> wrote:
->>
->>> If kernelcore was not specified, or the kernelcore size is zero
->>> (required_movablecore >= totalpages), or the kernelcore size is larger
->> Why does required_movablecore become larger than totalpages, when the
->> kernelcore size is zero? I read the code but I could not find that you
->> mention.
->>
-> If user only set boot option movablecore, and the value is larger than
-> totalpages, the calculation of kernelcore is zero, but we can't fill
-> the zone only with kernelcore, so skip it.
->
-> I have send a patch before this patch.
-> "fix overflow in find_zone_movable_pfns_for_nodes()"
-> 		...
->   		required_movablecore =
->   			roundup(required_movablecore, MAX_ORDER_NR_PAGES);
-> +		required_movablecore = min(totalpages, required_movablecore);
->   		corepages = totalpages - required_movablecore;
-> 		...
+I'm not sure how helpful that would be since we don't know anything about 
+the oom kill itself, only that at some point during the uptime there were 
+oom kills.
 
+> 2. It can help in tuning the watermark level in the system.
 
-So if required_movablecore >= totalpages, there won't be any ZONE_MOVABLE.
-How about add a warning or debug info to tell the user he has specified a
-too large movablecore, and it is ignored ?
+I disagree with this one, because we can encounter oom kills due to 
+fragmentation rather than low memory conditions for high-order 
+allocations.  The amount of free memory may be substantially higher than 
+all zone watermarks.
 
-Thanks.
+> 3. It can help in tuning the low memory killer behavior in user space.
 
+Same reason as above.
 
->
-> Thanks,
-> Xishi Qiu
->
->> Thanks,
->> Yasuaki Ishimatsu
->>
->>> than totalpages, there is no ZONE_MOVABLE. We should fill the zone
->>> with both kernel memory and movable memory.
->>>
->>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->>> ---
->>>   mm/page_alloc.c | 7 +++++--
->>>   1 file changed, 5 insertions(+), 2 deletions(-)
->>>
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index af3c9bd..6a6da0d 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -5674,8 +5674,11 @@ static void __init find_zone_movable_pfns_for_nodes(void)
->>>   		required_kernelcore = max(required_kernelcore, corepages);
->>>   	}
->>>   
->>> -	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
->>> -	if (!required_kernelcore)
->>> +	/*
->>> +	 * If kernelcore was not specified or kernelcore size is larger
->>> +	 * than totalpages, there is no ZONE_MOVABLE.
->>> +	 */
->>> +	if (!required_kernelcore || required_kernelcore >= totalpages)
->>>   		goto out;
->>>   
->>>   	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
->>> -- 
->>> 2.0.0
->>>
->>>
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> .
->>
->
->
-> .
->
+> 4. It can be helpful on a logless system or if klogd logging
+>    (/var/log/messages) are disabled.
+> 
+
+This would be similar to point (1) above, and I question how helpful it 
+would be.  I notice that all oom kills (system, cpuset, mempolicy, and 
+memcg) are treated equally in this case and there's no way to 
+differentiate them.  That would lead me to believe that you are targeting 
+this change for systems that don't use mempolicies or cgroups.  That's 
+fine, but I doubt it will be helpful for anybody else.
+
+> A snapshot of the result of 3 days of over night test is shown below:
+> System: ARM Cortex A7, 1GB RAM, 8GB EMMC
+> Linux: 3.10.xx
+> Category: reference smart phone device
+> Loglevel: 7
+> Conditions: Fully loaded, BT/WiFi/GPS ON
+> Tests: auto launching of ~30+ apps using test scripts, in a loop for
+> 3 days.
+> At the end of tests, check:
+> $ cat /proc/vmstat
+> nr_oom_victims 6
+> 
+> As we noticed, there were around 6 oom kill victims.
+> 
+> The OOM is bad for any system. So, this counter can help in quickly
+> tuning the OOM behavior of the system, without depending on the logs.
+> 
+
+NACK to the patch since it isn't justified.
+
+We've long had a desire to have a better oom reporting mechanism rather 
+than just the kernel log.  It seems like you're feeling the same pain.  I 
+think it would be better to have an eventfd notifier for system oom 
+conditions so we can track kernel oom kills (and conditions) in 
+userspace.  I have a patch for that, and it works quite well when 
+userspace is mlocked with a buffer in memory.
+
+If you are only interested in a strict count of system oom kills, this 
+could then easily be implemented without adding vmstat counters.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
