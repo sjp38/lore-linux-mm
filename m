@@ -1,61 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 97C8C6B0253
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 04:03:34 -0400 (EDT)
-Received: by pabws5 with SMTP id ws5so16640441pab.1
-        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 01:03:34 -0700 (PDT)
-Received: from out11.biz.mail.alibaba.com (out114-135.biz.mail.alibaba.com. [205.204.114.135])
-        by mx.google.com with ESMTP id tl10si11303118pbc.253.2015.10.14.01.03.32
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 790776B0253
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 04:20:26 -0400 (EDT)
+Received: by pabrc13 with SMTP id rc13so47702523pab.0
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 01:20:26 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id rp16si11481689pab.8.2015.10.14.01.20.25
         for <linux-mm@kvack.org>;
-        Wed, 14 Oct 2015 01:03:33 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-Subject: Re: Silent hang up caused by pages being not scanned?
-Date: Wed, 14 Oct 2015 16:03:15 +0800
-Message-ID: <00bc01d10656$c7f19ef0$57d4dcd0$@alibaba-inc.com>
+        Wed, 14 Oct 2015 01:20:25 -0700 (PDT)
+Message-ID: <561E0F9B.6090305@intel.com>
+Date: Wed, 14 Oct 2015 16:17:31 +0800
+From: Pan Xinhui <xinhuix.pan@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Subject: Re: [PATCH] gfp: GFP_RECLAIM_MASK should include __GFP_NO_KSWAPD
+References: <561DE9F3.504@intel.com> <20151014073428.GC28333@dhcp22.suse.cz>
+In-Reply-To: <20151014073428.GC28333@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, vbabka@suse.cz, rientjes@google.com, hannes@cmpxchg.org, nasa4836@gmail.com, mgorman@suse.de, alexander.h.duyck@redhat.com, aneesh.kumar@linux.vnet.ibm.com, "yanmin_zhang@linux.intel.com" <yanmin_zhang@linux.intel.com>
 
-> > 
-> > In particular, I think that you'll find that you will have to change
-> > the heuristics in __alloc_pages_slowpath() where we currently do
-> > 
-> >         if ((did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER) || ..
-> > 
-> > when the "did_some_progress" logic changes that radically.
-> > 
+hi, Michal
+	thanks for your reply :)
+
+On 2015a1'10ae??14ae?JPY 15:34, Michal Hocko wrote:
+> On Wed 14-10-15 13:36:51, Pan Xinhui wrote:
+>> From: Pan Xinhui <xinhuix.pan@intel.com>
+>>
+>> GFP_RECLAIM_MASK was introduced in commit 6cb062296f73 ("Categorize GFP
+>> flags"). In slub subsystem, this macro controls slub's allocation
+>> behavior. In particular, some flags which are not in GFP_RECLAIM_MASK
+>> will be cleared. So when slub pass this new gfp_flag into page
+>> allocator, we might lost some very important flags.
+>>
+>> There are some mistakes when we introduce __GFP_NO_KSWAPD. This flag is
+>> used to avoid any scheduler-related codes recursive.  But it seems like
+>> patch author forgot to add it into GFP_RECLAIM_MASK. So lets add it now.
 > 
-> Yes. But we can't simply do
+> This is no longer needed because GFP_RECLAIM_MASK contains __GFP_RECLAIM
+> now - have  a look at
+> http://lkml.kernel.org/r/1442832762-7247-7-git-send-email-mgorman%40techsingularity.net
+> which is sitting in the mmotm tree.
 > 
->	if (order <= PAGE_ALLOC_COSTLY_ORDER || ..
-> 
-> because we won't be able to call out_of_memory(), can we?
->
-Can you please try a simplified retry logic?
+
+I have a look at Mel's patchset. yes, it can help fix my kswapd issue. :)
+So I just need change my kmalloc's gfp_flag to GFP_ATOMIC &~ __GFP_KSWAPD_RECLAIM, then slub will not wakeup kswpad.
 
 thanks
-Hillf
---- a/mm/page_alloc.c	Wed Oct 14 14:45:28 2015
-+++ b/mm/page_alloc.c	Wed Oct 14 15:43:31 2015
-@@ -3154,8 +3154,7 @@ retry:
+xinhui
  
- 	/* Keep reclaiming pages as long as there is reasonable progress */
- 	pages_reclaimed += did_some_progress;
--	if ((did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER) ||
--	    ((gfp_mask & __GFP_REPEAT) && pages_reclaimed < (1 << order))) {
-+	if (did_some_progress) {
- 		/* Wait for some write requests to complete then retry */
- 		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
- 		goto retry;
---
-
+>> Signed-off-by: Pan Xinhui <xinhuix.pan@intel.com>
+>> ---
+>>  include/linux/gfp.h | 3 ++-
+>>  1 file changed, 2 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+>> index f92cbd2..9ebad4d 100644
+>> --- a/include/linux/gfp.h
+>> +++ b/include/linux/gfp.h
+>> @@ -130,7 +130,8 @@ struct vm_area_struct;
+>>  /* Control page allocator reclaim behavior */
+>>  #define GFP_RECLAIM_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS|\
+>>  			__GFP_NOWARN|__GFP_REPEAT|__GFP_NOFAIL|\
+>> -			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC)
+>> +			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC|\
+>> +			__GFP_NO_KSWAPD)
+>>  
+>>  /* Control slab gfp mask during early boot */
+>>  #define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_WAIT|__GFP_IO|__GFP_FS))
+>> -- 
+>> 1.9.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
