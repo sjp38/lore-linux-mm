@@ -1,137 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B16B82F64
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 09:28:50 -0400 (EDT)
-Received: by wicgb1 with SMTP id gb1so231049916wic.1
-        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 06:28:49 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hq5si10580072wjb.134.2015.10.14.06.28.46
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A63182F64
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 09:41:54 -0400 (EDT)
+Received: by payp3 with SMTP id p3so7100078pay.1
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 06:41:54 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id v9si13382183pbs.198.2015.10.14.06.41.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 Oct 2015 06:28:47 -0700 (PDT)
-Subject: Re: [PATCH 0/3] allow zram to use zbud as underlying allocator
-References: <20150914154901.92c5b7b24e15f04d8204de18@gmail.com>
- <20150915061349.GA16485@bbox>
- <CAMJBoFM_bMvQthAJPK+w4uQznqp7eFLdk=c7ZtT-R1aoF-1SeA@mail.gmail.com>
- <560C01BF.3040604@suse.cz>
- <CAMJBoFNpqrr_5iuQ68TrRPP=Uv0SYPra6XH27NAcG+Apq=CoSg@mail.gmail.com>
- <560CE630.6060207@suse.cz>
- <CAMJBoFOuyis9JUK91m_jfPsaNN6DT1XAd-mvH0=iu3F0j9H7Sg@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <561E588D.3090805@suse.cz>
-Date: Wed, 14 Oct 2015 15:28:45 +0200
-MIME-Version: 1.0
-In-Reply-To: <CAMJBoFOuyis9JUK91m_jfPsaNN6DT1XAd-mvH0=iu3F0j9H7Sg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 14 Oct 2015 06:41:53 -0700 (PDT)
+Received: from epcpsbgr1.samsung.com
+ (u141.gpu120.samsung.co.kr [203.254.230.141])
+ by mailout3.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0NW702117Q1RLW80@mailout3.samsung.com> for linux-mm@kvack.org;
+ Wed, 14 Oct 2015 22:41:51 +0900 (KST)
+From: PINTU KUMAR <pintu.k@samsung.com>
+References: <1444656800-29915-1-git-send-email-pintu.k@samsung.com>
+ <1444660139-30125-1-git-send-email-pintu.k@samsung.com>
+ <alpine.DEB.2.10.1510132000270.18525@chino.kir.corp.google.com>
+In-reply-to: <alpine.DEB.2.10.1510132000270.18525@chino.kir.corp.google.com>
+Subject: RE: [RESEND PATCH 1/1] mm: vmstat: Add OOM victims count in vmstat
+ counter
+Date: Wed, 14 Oct 2015 19:11:05 +0530
+Message-id: <081301d10686$370d2e10$a5278a30$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7bit
+Content-language: en-us
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, =?UTF-8?B?6rmA7KSA7IiY?= <iamjoonsoo.kim@lge.com>, Gioh Kim <gioh.kim@lge.com>
+To: 'David Rientjes' <rientjes@google.com>
+Cc: akpm@linux-foundation.org, minchan@kernel.org, dave@stgolabs.net, mhocko@suse.cz, koct9i@gmail.com, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp, bywxiaobai@163.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, kirill.shutemov@linux.intel.com, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.ping@gmail.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, c.rajkumar@samsung.com
 
-On 10/10/2015 11:33 AM, Vitaly Wool wrote:
-> On Thu, Oct 1, 2015 at 9:52 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->> On 09/30/2015 05:46 PM, Vitaly Wool wrote:
->>>
->>> On Wed, Sep 30, 2015 at 5:37 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>>>
->>>> On 09/25/2015 11:54 AM, Vitaly Wool wrote:
->>>>>
->>>>>
->>>>> Hello Minchan,
->>>>>
->>>>> the main use case where I see unacceptably long stalls in UI with
->>>>> zsmalloc is switching between users in Android.
->>>>> There is a way to automate user creation and switching between them so
->>>>> the test I run both to get vmstat statistics and to profile stalls is
->>>>> to create a user, switch to it and switch back. Each test cycle does
->>>>> that 10 times, and all the results presented below are averages for 20
->>>>> runs.
->>>>>
->>>>> Kernel configurations used for testing:
->>>>>
->>>>> (1): vanilla
->>>>> (2): (1) plus "make SLUB atomic" patch [1]
->>>>> (3): (1) with zbud instead of zsmalloc
->>>>> (4): (2) with compaction defer logic mostly disabled
->>>>
->>>>
->>>>
->>>> Disabling compaction deferring leads to less compaction stalls? That
->>>> indeed
->>>> looks very weird and counter-intuitive. Also what's "mostly" disabled
->>>> mean?
->>>
->>>
->>> Not that I'm not surprised myself. However, this is how it goes.
->>> Namely, I reverted the following patches:
->>> - mm, compaction: defer each zone individually instead of preferred zone
->>
->>
->> Oh, I see. Then you didn't disable compaction defer logic, but made it
->> coarse again instead of per-zone. Which means that an allocation that can be
->> satisfied from Normal zone will use the Normal zone's deferred state to
->> decide whether to compact also DMA and DMA32 zones *within the same
->> allocation attempt*. So by reverting the patch you might indeed get less
->> compact_stall (and success+failure) counts, but each stall will try to
->> compact all three zones. With individual defer, some stall might be just for
->> DMA32, some just for Normal, and the total number might be higher, but the
->> compaction overhead should be better distributed among all the attempts.
-> 
-> The thing is, this happens on an ARM64 and I only have one zone there.
+Hi,
 
-Hmm, then it shouldn't make a difference... unless there's a bug.
+Thank you very much for your review and comments.
 
->> Looking at your latencies, looks like that's working fine:
->>
->>>
->>> The UI is blocked after user switching for, average:
->>> (1) 1.84 seconds
->>> (2) 0.89 seconds
->>> (3) 1.32 seconds
->>> (4) 0.87 seconds
->>
->>
->> Average for (2) vs (4) is roughly the same, I would guess within noise.
+> -----Original Message-----
+> From: David Rientjes [mailto:rientjes@google.com]
+> Sent: Wednesday, October 14, 2015 8:36 AM
+> To: Pintu Kumar
+> Cc: akpm@linux-foundation.org; minchan@kernel.org; dave@stgolabs.net;
+> mhocko@suse.cz; koct9i@gmail.com; hannes@cmpxchg.org; penguin-kernel@i-
+> love.sakura.ne.jp; bywxiaobai@163.com; mgorman@suse.de; vbabka@suse.cz;
+> js1304@gmail.com; kirill.shutemov@linux.intel.com;
+> alexander.h.duyck@redhat.com; sasha.levin@oracle.com; cl@linux.com;
+> fengguang.wu@intel.com; linux-kernel@vger.kernel.org; linux-mm@kvack.org;
+> cpgs@samsung.com; pintu_agarwal@yahoo.com; pintu.ping@gmail.com;
+> vishnu.ps@samsung.com; rohit.kr@samsung.com; c.rajkumar@samsung.com;
+> sreenathd@samsung.com
+> Subject: Re: [RESEND PATCH 1/1] mm: vmstat: Add OOM victims count in vmstat
+> counter
 > 
-> That I surely won't argue with :)
+> On Mon, 12 Oct 2015, Pintu Kumar wrote:
 > 
->>> The UI us blocked after user switching for, worst-case:
->>> (1) 2.91
->>> (2) 1.12
->>> (3) 1.79
->>> (4) 1.34
->>
->>
->> The worst case is actually worse without individual defer, because you end
->> up compacting all zones in each single stall. With individual defer, there's
->> a low probability of that happening.
+> > This patch maintains the number of oom victims kill count in
+> > /proc/vmstat.
+> > Currently, we are dependent upon kernel logs when the kernel OOM occurs.
+> > But kernel OOM can went passed unnoticed by the developer as it can
+> > silently kill some background applications/services.
+> > In some small embedded system, it might be possible that OOM is
+> > captured in the logs but it was over-written due to ring-buffer.
+> > Thus this interface can quickly help the user in analyzing, whether
+> > there were any OOM kill happened in the past, or whether the system
+> > have ever entered the oom kill stage till date.
+> >
+> > Thus, it can be beneficial under following cases:
+> > 1. User can monitor kernel oom kill scenario without looking into the
+> >    kernel logs.
 > 
-> Okay, but in case of a single zone, isn't this more fine-grained logic
-> resulting in more defers and less async compactions?
+> I'm not sure how helpful that would be since we don't know anything about the
+> oom kill itself, only that at some point during the uptime there were oom
+kills.
+> 
+Not sure about others.
+For me it was very helpful during sluggish and long duration ageing tests.
+With this, I don't have to look into the logs manually.
+I just monitor this count in a script. 
+The moment I get nr_oom_victims > 1, I know that kernel OOM would have happened
+and I need to take the log dump.
+So, then I do: dmesg >> oom_logs.txt
+Or, even stop the tests for further tuning.
 
-In case of single zone, it has only the single zone to consider with or without
-the patch, so the result should be the same.
-
->>> - mm, compaction: embed migration mode in compact_control
->>
->>
->> This probably affects just THPs.
->>
->>> - mm, compaction: add per-zone migration pfn cache for async compaction
->>
->>
->> Hard to say what's the effect of this.
->>
->>> - i? 1/4 mm: compaction: encapsulate defer reset logic
->>
->>
->> This is just code consolidation.
->>
->>> ~vitaly
->>>
->>
+> > 2. It can help in tuning the watermark level in the system.
 > 
+> I disagree with this one, because we can encounter oom kills due to
+> fragmentation rather than low memory conditions for high-order allocations.
+> The amount of free memory may be substantially higher than all zone
+> watermarks.
+> 
+AFAIK, kernel oom happens only for lower-order (PAGE_ALLOC_COSTLY_ORDER).
+For higher-order we get page allocation failure.
+
+> > 3. It can help in tuning the low memory killer behavior in user space.
+> 
+> Same reason as above.
+> 
+> > 4. It can be helpful on a logless system or if klogd logging
+> >    (/var/log/messages) are disabled.
+> >
+> 
+> This would be similar to point (1) above, and I question how helpful it would
+be.
+> I notice that all oom kills (system, cpuset, mempolicy, and
+> memcg) are treated equally in this case and there's no way to differentiate
+them.
+> That would lead me to believe that you are targeting this change for systems
+> that don't use mempolicies or cgroups.  That's fine, but I doubt it will be
+helpful
+> for anybody else.
+> 
+No, we are not targeting any specific category.
+Our goal is simple, track and report kernel oom kill as soon as it occurs.
+
+> > A snapshot of the result of 3 days of over night test is shown below:
+> > System: ARM Cortex A7, 1GB RAM, 8GB EMMC
+> > Linux: 3.10.xx
+> > Category: reference smart phone device
+> > Loglevel: 7
+> > Conditions: Fully loaded, BT/WiFi/GPS ON
+> > Tests: auto launching of ~30+ apps using test scripts, in a loop for
+> > 3 days.
+> > At the end of tests, check:
+> > $ cat /proc/vmstat
+> > nr_oom_victims 6
+> >
+> > As we noticed, there were around 6 oom kill victims.
+> >
+> > The OOM is bad for any system. So, this counter can help in quickly
+> > tuning the OOM behavior of the system, without depending on the logs.
+> >
+> 
+> NACK to the patch since it isn't justified.
+> 
+> We've long had a desire to have a better oom reporting mechanism rather than
+> just the kernel log.  It seems like you're feeling the same pain.  I think it
+would be
+> better to have an eventfd notifier for system oom conditions so we can track
+> kernel oom kills (and conditions) in userspace.  I have a patch for that, and
+it
+> works quite well when userspace is mlocked with a buffer in memory.
+> 
+Ok, this would be interesting.
+Can you point me to the patches?
+I will quickly check if it is useful for us.
+
+> If you are only interested in a strict count of system oom kills, this could
+then
+> easily be implemented without adding vmstat counters.
+>
+We are interested only to know when kernel OOM occurs and not even the oom
+victim count. So that we can tune something is user space to avoid or delay it
+as far as possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
