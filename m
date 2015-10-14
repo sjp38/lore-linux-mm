@@ -1,114 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C61746B0038
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 16:24:02 -0400 (EDT)
-Received: by padcn9 with SMTP id cn9so32519623pad.2
-        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 13:24:02 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id gh4si15712859pbc.211.2015.10.14.13.24.01
+Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B55F36B0254
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 16:24:51 -0400 (EDT)
+Received: by ykoo7 with SMTP id o7so58886197yko.0
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 13:24:51 -0700 (PDT)
+Received: from mail-yk0-x22e.google.com (mail-yk0-x22e.google.com. [2607:f8b0:4002:c07::22e])
+        by mx.google.com with ESMTPS id l186si4486515ywg.13.2015.10.14.13.24.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Oct 2015 13:24:02 -0700 (PDT)
-From: Rohit Vaswani <rvaswani@codeaurora.org>
-Subject: [PATCH] mm: cma: Fix incorrect type conversion for size during dma allocation
-Date: Wed, 14 Oct 2015 13:23:51 -0700
-Message-Id: <1444854232-4085-1-git-send-email-rvaswani@codeaurora.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Oct 2015 13:24:51 -0700 (PDT)
+Received: by ykaz22 with SMTP id z22so33157947yka.2
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 13:24:50 -0700 (PDT)
+Date: Wed, 14 Oct 2015 16:24:48 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [GIT PULL] workqueue fixes for v4.3-rc5
+Message-ID: <20151014202448.GE12799@mtj.duckdns.org>
+References: <20151013214952.GB23106@mtj.duckdns.org>
+ <CA+55aFzV61qsWOObLUPpL-2iU1=8EopEgfse+kRGuUi9kevoOA@mail.gmail.com>
+ <20151014165729.GA12799@mtj.duckdns.org>
+ <CA+55aFzhHF0KMFvebegBnwHqXekfRRd-qczCtJXKpf3XvOCW=A@mail.gmail.com>
+ <20151014190259.GC12799@mtj.duckdns.org>
+ <CA+55aFz27G4gLS9AFs6hHJfULXAqA=tM5KA=YvBH8MaZ+sT-VA@mail.gmail.com>
+ <20151014193829.GD12799@mtj.duckdns.org>
+ <CA+55aFyzsMYcRX3V5CEWB4Zb-9BuRGCjib3DMXuX5y9nBWiZ1w@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFyzsMYcRX3V5CEWB4Zb-9BuRGCjib3DMXuX5y9nBWiZ1w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Rohit Vaswani <rvaswani@codeaurora.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Shaohua Li <shli@fb.com>, linux-mm <linux-mm@kvack.org>
 
-This was found during userspace fuzzing test when a large size
-dma cma allocation is made by driver(like ion) through userspace.
+Hello,
 
- show_stack+0x10/0x1c
- dump_stack+0x74/0xc8
- kasan_report_error+0x2b0/0x408
- kasan_report+0x34/0x40
- __asan_storeN+0x15c/0x168
- memset+0x20/0x44
- __dma_alloc_coherent+0x114/0x18c
+On Wed, Oct 14, 2015 at 01:10:33PM -0700, Linus Torvalds wrote:
+> At the same time, some of the same issues that are pushing people to
+> move timers around (put idle cores to deeper sleeps etc) would also
+> argue for moving delayed work around to other cpus if possible.
+> 
+> So I agree that there is a push to make timer cpu targets more dynamic
+> in a way we historically didn't really have. At the same time, I think
+> the same forces that want to move timers around would actually likely
+> want to move delayed work around too...
 
-Signed-off-by: Rohit Vaswani <rvaswani@codeaurora.org>
----
- drivers/base/dma-contiguous.c  | 2 +-
- include/linux/cma.h            | 2 +-
- include/linux/dma-contiguous.h | 4 ++--
- mm/cma.c                       | 4 ++--
- 4 files changed, 6 insertions(+), 6 deletions(-)
+I fully agree.  We gotta get this in order sooner or later.  I'll try
+to come up with a transition plan.
 
-diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
-index 950fff9..a12ff98 100644
---- a/drivers/base/dma-contiguous.c
-+++ b/drivers/base/dma-contiguous.c
-@@ -187,7 +187,7 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
-  * global one. Requires architecture specific dev_get_cma_area() helper
-  * function.
-  */
--struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-+struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
- 				       unsigned int align)
- {
- 	if (align > CONFIG_CMA_ALIGNMENT)
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index f7ef093..29f9e77 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -26,6 +26,6 @@ extern int __init cma_declare_contiguous(phys_addr_t base,
- extern int cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
- 					unsigned int order_per_bit,
- 					struct cma **res_cma);
--extern struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align);
-+extern struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align);
- extern bool cma_release(struct cma *cma, const struct page *pages, unsigned int count);
- #endif
-diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
-index 569bbd0..fec734d 100644
---- a/include/linux/dma-contiguous.h
-+++ b/include/linux/dma-contiguous.h
-@@ -111,7 +111,7 @@ static inline int dma_declare_contiguous(struct device *dev, phys_addr_t size,
- 	return ret;
- }
- 
--struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-+struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
- 				       unsigned int order);
- bool dma_release_from_contiguous(struct device *dev, struct page *pages,
- 				 int count);
-@@ -144,7 +144,7 @@ int dma_declare_contiguous(struct device *dev, phys_addr_t size,
- }
- 
- static inline
--struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-+struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
- 				       unsigned int order)
- {
- 	return NULL;
-diff --git a/mm/cma.c b/mm/cma.c
-index e7d1db5..4eb56bad 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -361,7 +361,7 @@ err:
-  * This function allocates part of contiguous memory on specific
-  * contiguous memory area.
-  */
--struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align)
-+struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
- {
- 	unsigned long mask, offset, pfn, start = 0;
- 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
-@@ -371,7 +371,7 @@ struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align)
- 	if (!cma || !cma->count)
- 		return NULL;
- 
--	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
-+	pr_debug("%s(cma %p, count %zu, align %d)\n", __func__, (void *)cma,
- 		 count, align);
- 
- 	if (!count)
+> > * This makes queue_delayed_work() behave differently from queue_work()
+> >   and when I checked years ago the local queueing guarantee was
+> >   definitely being depended upon by some users.
+> 
+> Yes. But the delayed work really is different. By definition, we know
+> that the current cpu is busy and active _right_now_, and so keeping
+> work on that cpu isn't obviously wrong.
+> 
+> But it's *not* obviously right to schedule something on that
+> particular cpu a few seconds from now, when it might be happily asleep
+> and there might be better cpus to bother..
+
+But in terms of API consistency, it sucks to have queue_work()
+guarantee local queueing but not queue_delayed_work().  The ideal
+situation would be updating both so that neither guarantees.  If that
+turns out to be too painful, maybe we can rename queue_delayed_work()
+so that it signifies its difference from queue_work().  Let's see.
+
+> > I do want to get rid of the local queueing guarnatee for all work
+> > items.  That said, I don't think this is the right way to do it.
+> 
+> Hmm. I guess that for being past rc5, taking your patch is the safe
+> thing. I really don't like it very much, though.
+
+Heh, yeah, I pondered about calling it a happy accident and just
+sticking with the new behavior.
+
+Thanks.
+
 -- 
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-hosted by The Linux Foundation
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
