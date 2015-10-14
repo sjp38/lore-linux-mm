@@ -1,133 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 72A0282F64
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 02:01:00 -0400 (EDT)
-Received: by iodv82 with SMTP id v82so44843371iod.0
-        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 23:01:00 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id y129si5831208iod.100.2015.10.13.23.00.59
-        for <linux-mm@kvack.org>;
-        Tue, 13 Oct 2015 23:00:59 -0700 (PDT)
-Message-ID: <561DEEED.7070609@intel.com>
-Date: Wed, 14 Oct 2015 13:58:05 +0800
-From: Pan Xinhui <xinhuix.pan@intel.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 419466B0254
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 02:34:05 -0400 (EDT)
+Received: by pabws5 with SMTP id ws5so14264706pab.1
+        for <linux-mm@kvack.org>; Tue, 13 Oct 2015 23:34:05 -0700 (PDT)
+Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id ow7si10795925pbb.237.2015.10.13.23.34.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Oct 2015 23:34:04 -0700 (PDT)
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Subject: Re: pmd_modify() semantics
+Date: Wed, 14 Oct 2015 06:33:59 +0000
+Message-ID: <C2D7FE5348E1B147BCA15975FBA23075D781CDBF@IN01WEMBXB.internal.synopsys.com>
+References: <C2D7FE5348E1B147BCA15975FBA23075D781CC4F@IN01WEMBXB.internal.synopsys.com>
+ <20151013160656.GA14071@node>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH] gfp: GFP_RECLAIM_MASK should include __GFP_NO_KSWAPD
-References: <561DE9F3.504@intel.com>
-In-Reply-To: <561DE9F3.504@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, vbabka@suse.cz, rientjes@google.com, hannes@cmpxchg.org, mhocko@suse.cz, nasa4836@gmail.com, mgorman@suse.de, alexander.h.duyck@redhat.com, aneesh.kumar@linux.vnet.ibm.com, "yanmin_zhang@linux.intel.com" <yanmin_zhang@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>
 
-Hi, all
-	I am working on some debug features' development.
-I use kmalloc in some places of *scheduler*. And the gfp_flag is GFP_ATOMIC, code looks like 
-p = kmalloc(sizeof(*p), GFP_ATOMIC);
-
-however I notice GFP_ATOMIC is still not enough. because when system is at low memory state, slub might try to wakeup kswapd. then some weird issues hit.
-
-for example, this is one bug log.
-
-[   83.713009, 0]BUG: spinlock recursion on CPU#0, rcu_preempt/7
-[   83.719463, 0] lock: 0xffff88007ac12140, .magic: dead4ead, .owner: rcu_preempt/7, .owner_cpu: 0
-[   83.729211, 0]CPU: 0 PID: 7 Comm: rcu_preempt Tainted: G        W    3.14.37-x86_64-gfa0f236-dirty #364
-[   83.739733, 0]Hardware name: Intel Corporation CHERRYVIEW C0 PLATFORM/Cherry Trail FFD, BIOS BYO-P2.X64.0023.R03.1509161045 09/16/2015
-[   83.753266, 0] ffff88007ac12140 ffff880074863880 ffffffff8198bca9 ffff8800749118b0
-[   83.761871, 0] ffff8800748638a0 ffffffff819886d2 ffff88007ac12140 ffffffff81d89797
-[   83.770451, 0] ffff8800748638c0 ffffffff819886fd ffff88007ac12140 ffff880070dc38a8
-[   83.779066, 0]Call Trace:
-[   83.782014, 0] [<ffffffff8198bca9>] dump_stack+0x4e/0x7a
-[   83.787975, 0] [<ffffffff819886d2>] spin_dump+0x91/0x96
-[   83.793839, 0] [<ffffffff819886fd>] spin_bug+0x26/0x2b
-[   83.799606, 0] [<ffffffff810d3366>] do_raw_spin_lock+0x116/0x140
-[   83.806344, 0] [<ffffffff81998d8f>] _raw_spin_lock+0x1f/0x30
-[   83.812693, 0] [<ffffffff810bb884>] try_to_wake_up+0x154/0x2c0
-[   83.819237, 0] [<ffffffff810bba62>] default_wake_function+0x12/0x20
-[   83.826265, 0] [<ffffffff810cb1e8>] autoremove_wake_function+0x18/0x40
-[   83.833585, 0] [<ffffffff810caaf8>] __wake_up_common+0x58/0x90
-[   83.840128, 0] [<ffffffff810cad29>] __wake_up+0x39/0x50
-[   83.845994, 0] [<ffffffff811659cd>] wakeup_kswapd+0xcd/0x140
-[   83.852343, 0] [<ffffffff8115cbdd>] __alloc_pages_nodemask+0x95d/0xa30
-[   83.859666, 0] [<ffffffff81195d2f>] new_slab+0x6f/0x2b0
-[   83.865529, 0] [<ffffffff81989e5d>] __slab_alloc.constprop.64+0x26c/0x49f
-[   83.873141, 0] [<ffffffff810af6c5>] ? insert_kill_task+0x25/0xa0
-[   83.879880, 0] [<ffffffff81387f54>] ? __list_del_entry+0x14/0xf0
-[   83.886618, 0] [<ffffffff811975f4>] kmem_cache_alloc_trace+0x174/0x1b0
-[   83.893938, 0] [<ffffffff810af6c5>] ? insert_kill_task+0x25/0xa0
-[   83.900677, 0] [<ffffffff810af6c5>] insert_kill_task+0x25/0xa0 //this function is simple, just treat it as kmalloc :)
-[   83.907220, 0] [<ffffffff81994846>] __schedule+0x6a6/0x870
-[   83.913375, 0] [<ffffffff81994a39>] schedule+0x29/0x70
-[   83.919141, 0] [<ffffffff81993b02>] schedule_timeout+0x172/0x310
-[   83.925879, 0] [<ffffffff81998e8e>] ? _raw_spin_unlock_irqrestore+0x1e/0x40
-[   83.933685, 0] [<ffffffff810937c0>] ? __internal_add_timer+0x130/0x130
-[   83.941005, 0] [<ffffffff810cb047>] ? prepare_to_wait_event+0x87/0xf0
-[   83.948230, 0] [<ffffffff810e371a>] rcu_gp_kthread+0x40a/0x6e0
-[   83.954774, 0] [<ffffffff810cb1d0>] ? abort_exclusive_wait+0xb0/0xb0
-[   83.961899, 0] [<ffffffff810e3310>] ? rcu_try_advance_all_cbs+0xf0/0xf0
-[   83.969315, 0] [<ffffffff810aa8a4>] kthread+0xe4/0x100
-[   83.975081, 0] [<ffffffff810aa7c0>] ? kthread_create_on_node+0x190/0x190
-[   83.982596, 0] [<ffffffff819a0f48>] ret_from_fork+0x58/0x90
-[   83.988847, 0] [<ffffffff810aa7c0>] ? kthread_create_on_node+0x190/0x190
-
-After some simple check, I change my codes. this time code looks like:
-p = kmalloc(sizeof(*p), GFP_ATOMIC | __GFP_NO_KSWAPD);
-I think this flag will forbid slub to call any scheduler codes. But issue still hit. :(
-
-my test result shows that __GFP_NO_KSWAPD is cleared when slub pass gfp_flag to page allocator!!!
-
-at last I found it is clear by codes below.
-1441 static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
-1442 {
-1443         if (unlikely(flags & GFP_SLAB_BUG_MASK)) {
-1444                 pr_emerg("gfp: %u\n", flags & GFP_SLAB_BUG_MASK);
-1445                 BUG();
-1446         }
-1447 
-1448         return allocate_slab(s,
-1449                 flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);//all other flags will be cleared. my god!!!
-1450 }
-
-I think GFP_RECLAIM_MASK should include as many available flags as possible. :)
-
-thanks
-xinhui
-
-On 2015a1'10ae??14ae?JPY 13:36, Pan Xinhui wrote:
-> From: Pan Xinhui <xinhuix.pan@intel.com>
-> 
-> GFP_RECLAIM_MASK was introduced in commit 6cb062296f73 ("Categorize GFP
-> flags"). In slub subsystem, this macro controls slub's allocation
-> behavior. In particular, some flags which are not in GFP_RECLAIM_MASK
-> will be cleared. So when slub pass this new gfp_flag into page
-> allocator, we might lost some very important flags.
-> 
-> There are some mistakes when we introduce __GFP_NO_KSWAPD. This flag is
-> used to avoid any scheduler-related codes recursive.  But it seems like
-> patch author forgot to add it into GFP_RECLAIM_MASK. So lets add it now.
-> 
-> Signed-off-by: Pan Xinhui <xinhuix.pan@intel.com>
-> ---
->  include/linux/gfp.h | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index f92cbd2..9ebad4d 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -130,7 +130,8 @@ struct vm_area_struct;
->  /* Control page allocator reclaim behavior */
->  #define GFP_RECLAIM_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS|\
->  			__GFP_NOWARN|__GFP_REPEAT|__GFP_NOFAIL|\
-> -			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC)
-> +			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC|\
-> +			__GFP_NO_KSWAPD)
->  
->  /* Control slab gfp mask during early boot */
->  #define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_WAIT|__GFP_IO|__GFP_FS))
-> 
+On Tuesday 13 October 2015 09:37 PM, Kirill A. Shutemov wrote:=0A=
+> On Tue, Oct 13, 2015 at 01:58:39PM +0000, Vineet Gupta wrote:=0A=
+>> Hi Kirill,=0A=
+>>=0A=
+>> I'm running LTP tests on the new ARC THP code and thp03 seems to be trig=
+gering mm=0A=
+>> spew.=0A=
+>>=0A=
+>> --------------->8---------------------=0A=
+>> [ARCLinux]# ./ltp-thp03-extract=0A=
+>> PID 60=0A=
+>> bad pmd bf1c4600 be600231=0A=
+>> ../mm/pgtable-generic.c:34: bad pgd be600231.=0A=
+>> bad pmd bf1c4604 bd800231=0A=
+>> ../mm/pgtable-generic.c:34: bad pgd bd800231.=0A=
+>> BUG: Bad rss-counter state mm:bf12e900 idx:1 val:512=0A=
+>> BUG: non-zero nr_ptes on freeing mm: 2=0A=
+>> --------------->8---------------------=0A=
+>>=0A=
+>> I know what exactly is happening and the likely fix, but would want to g=
+et some=0A=
+>> thoughts from you if possible.=0A=
+>>=0A=
+>> background: ARC is software page walked with PGD -> PTE -> page for norm=
+al and PMD=0A=
+>> -> page for THP case. A vanilla PGD doesn't have any flags - only pointe=
+r to PTE=0A=
+>>=0A=
+>> A reduced version of thp03 allocates a THP, dirties it, followed by=0A=
+>> mprotect(PROT_NONE).=0A=
+>> At the time of mprotect() -> change_huge_pmd() -> pmd_modify() needs to =
+change=0A=
+>> some of the bits.=0A=
+>>=0A=
+>> The issue is ARC implementation of pmd_modify() based on pte variant, wh=
+ich=0A=
+>> retains the soft pte bits (dirty and accessed).=0A=
+>>=0A=
+>> static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)=0A=
+>> {=0A=
+>>     return pte_pmd(pte_modify(pmd_pte(pmd), newprot));=0A=
+>> }=0A=
+>>=0A=
+>> Obvious fix is to rewrite pmd_modify() so that it clears out all pte typ=
+e flags=0A=
+>> but that assumes PMD is becoming PGD (a vanilla PGD on ARC doesn't have =
+any=0A=
+>> flags). Can we have pmd_modify() ever be called for NOT splitting pmd e.=
+g.=0A=
+>> mprotect Write to Read which won't split the THP like it does now and si=
+mply=0A=
+>> changes the prot flags. My proposed version of pmd_modify() will loose t=
+he dirty bit.=0A=
+> Hm? pmd_modify() is nothing to do with splitting. The mprotect() codepath=
+=0A=
+> you've mentioned above calls pmd_modify() only if the THP is fully in=0A=
+> mprotect range.=0A=
+=0A=
+Indeed my mental picture of this was messed up - specially because behind t=
+he=0A=
+back, pmd_modify() for ARC (based on pte_modify()) was buggered to clear th=
+e huge=0A=
+page bit itself :-) So we had a THP PMD which would start failing for=0A=
+pmd_trans_huge() and thus treated like a normal PGD. But it had the leftove=
+r PMD=0A=
+soft bits, which triggered the MM spew.=0A=
+=0A=
+The localized fix is below, while better fix is to make pte_modify() only c=
+lear=0A=
+R-W-X bits (currently it clears everything except soft accessed/dirty bits)=
+=0A=
+=0A=
+ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)=0A=
+ {=0A=
+-       return pte_pmd(pte_modify(pmd_pte(pmd), newprot));=0A=
++        /*=0A=
++         * open-coded pte_modify() additionally retaining HW_SZ bit=0A=
++         * otherwise, pmd_trans_huge() checks start failing=0A=
++         */=0A=
++        return __pmd((pmd_val(pmd) & (_PAGE_CHG_MASK | _PAGE_HW_SZ)) |=0A=
+pgprot_val(newprot));=0A=
+ }=0A=
+=0A=
+=0A=
+>=0A=
+>> In short, what are the semantics of pmd_modify() - essentially does it i=
+mply pmd=0A=
+>> is being split so are free to make it like PGD.=0A=
+> No, pmd_modify() cannot make such assumption. That's just not true -- we=
+=0A=
+> don't split PMD in such codepath. And even if we do, we construct new PMD=
+=0A=
+> entry from scratch instead of modifying existing one.=0A=
+>=0A=
+> So the semantics of pmd_modify(): you can assume that the entry is=0A=
+> pmd_large(), going to stay this way and you need to touch only=0A=
+> protection-related bit.=0A=
+=0A=
+Thx !=0A=
+=0A=
+-Vineet=0A=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
