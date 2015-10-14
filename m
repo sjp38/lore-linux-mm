@@ -1,42 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 85A246B0038
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 14:03:40 -0400 (EDT)
-Received: by ioii196 with SMTP id i196so63874290ioi.3
-        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 11:03:40 -0700 (PDT)
-Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
-        by mx.google.com with ESMTPS id 76si8324811ioi.23.2015.10.14.11.03.39
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id EB5B16B0038
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 14:37:53 -0400 (EDT)
+Received: by igbhv6 with SMTP id hv6so23921096igb.0
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 11:37:53 -0700 (PDT)
+Received: from mail-io0-x22d.google.com (mail-io0-x22d.google.com. [2607:f8b0:4001:c06::22d])
+        by mx.google.com with ESMTPS id t10si18182053igr.35.2015.10.14.11.37.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 14 Oct 2015 11:03:39 -0700 (PDT)
-Date: Wed, 14 Oct 2015 13:03:38 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Oct 2015 11:37:52 -0700 (PDT)
+Received: by iow1 with SMTP id 1so65545641iow.1
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 11:37:52 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.20.1510141253570.13238@east.gentwo.org>
+References: <20151013214952.GB23106@mtj.duckdns.org>
+	<CA+55aFzV61qsWOObLUPpL-2iU1=8EopEgfse+kRGuUi9kevoOA@mail.gmail.com>
+	<20151014165729.GA12799@mtj.duckdns.org>
+	<CA+55aFzhHF0KMFvebegBnwHqXekfRRd-qczCtJXKpf3XvOCW=A@mail.gmail.com>
+	<alpine.DEB.2.20.1510141253570.13238@east.gentwo.org>
+Date: Wed, 14 Oct 2015 11:37:52 -0700
+Message-ID: <CA+55aFz+_Zh7O544QL3YCjTr1rfb-Q82wAyHTK8QMr+9X81h2g@mail.gmail.com>
 Subject: Re: [GIT PULL] workqueue fixes for v4.3-rc5
-In-Reply-To: <CA+55aFzV61qsWOObLUPpL-2iU1=8EopEgfse+kRGuUi9kevoOA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1510141301340.13301@east.gentwo.org>
-References: <20151013214952.GB23106@mtj.duckdns.org> <CA+55aFzV61qsWOObLUPpL-2iU1=8EopEgfse+kRGuUi9kevoOA@mail.gmail.com>
-Content-Type: text/plain; charset=US-ASCII
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
 Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Shaohua Li <shli@fb.com>, linux-mm <linux-mm@kvack.org>
 
-On Wed, 14 Oct 2015, Linus Torvalds wrote:
-
-> On Tue, Oct 13, 2015 at 2:49 PM, Tejun Heo <tj@kernel.org> wrote:
-> >
-> > Single patch to fix delayed work being queued on the wrong CPU.  This
-> > has been broken forever (v2.6.31+) but obviously doesn't trigger in
-> > most configurations.
+On Wed, Oct 14, 2015 at 10:57 AM, Christoph Lameter <cl@linux.com> wrote:
 >
-> So why is this a bugfix? If cpu == WORK_CPU_UNBOUND, then things
-> _shouldn't_ care which cpu it gets run on.
+> Well yes the schedule_delayed_work_on() call is from another cpu and the
+> schedule_delayed_work() from the same. No confusion there.
 
-UNBOUND means not fixed to a processor. The system should have
-freedom to schedule unbound work requests anywhere it wants. This is
-something we also want for the NOHZ work in order to move things like
-these workqueue items to processors that are not supposed to be low
-latency.
+So "schedule_delayed_work()" does *not* guarantee that the work will
+run on the same CPU.
+
+Yes, yes, it so _happens_ that "add_timer()" preferentially uses the
+current CPU etc, so in practice it may have happened to work. But
+there's absolutely zero reason to think it should always work that
+way.
+
+If you want the scheduled work to happen on a particular CPU, then you
+should use "schedule_delayed_work_on()"  It shouldn't matter which CPU
+you call it from.
+
+At least that's how I think the rules should be. Very simple, very
+clear: if you require a specific CPU, say so. Don't silently depend on
+"in practice, lots of times we tend to use the local cpu".
+
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
