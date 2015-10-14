@@ -1,40 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EE34B6B0255
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 14:59:34 -0400 (EDT)
-Received: by ioii196 with SMTP id i196so65575941ioi.3
-        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 11:59:34 -0700 (PDT)
-Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
-        by mx.google.com with ESMTPS id sa1si8527264igb.17.2015.10.14.11.59.34
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C8076B0255
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 15:01:12 -0400 (EDT)
+Received: by igbhv6 with SMTP id hv6so24411989igb.0
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 12:01:12 -0700 (PDT)
+Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
+        by mx.google.com with ESMTPS id sd6si18259152igb.63.2015.10.14.12.01.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 14 Oct 2015 11:59:34 -0700 (PDT)
-Date: Wed, 14 Oct 2015 13:59:32 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Oct 2015 12:01:11 -0700 (PDT)
+Received: by igbkq10 with SMTP id kq10so119352194igb.0
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 12:01:11 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CA+55aFz+_Zh7O544QL3YCjTr1rfb-Q82wAyHTK8QMr+9X81h2g@mail.gmail.com>
+References: <20151013214952.GB23106@mtj.duckdns.org>
+	<CA+55aFzV61qsWOObLUPpL-2iU1=8EopEgfse+kRGuUi9kevoOA@mail.gmail.com>
+	<20151014165729.GA12799@mtj.duckdns.org>
+	<CA+55aFzhHF0KMFvebegBnwHqXekfRRd-qczCtJXKpf3XvOCW=A@mail.gmail.com>
+	<alpine.DEB.2.20.1510141253570.13238@east.gentwo.org>
+	<CA+55aFz+_Zh7O544QL3YCjTr1rfb-Q82wAyHTK8QMr+9X81h2g@mail.gmail.com>
+Date: Wed, 14 Oct 2015 12:01:11 -0700
+Message-ID: <CA+55aFwed4Q=T48QxNqhL3UL_f1XqQEBJ6mnA42iWiOAiZZO9A@mail.gmail.com>
 Subject: Re: [GIT PULL] workqueue fixes for v4.3-rc5
-In-Reply-To: <CA+55aFwSjroKXPjsO90DWULy-H8e9Fs=ZDRVkJvQgAZPk1YYRw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1510141358460.13663@east.gentwo.org>
-References: <20151013214952.GB23106@mtj.duckdns.org> <CA+55aFzV61qsWOObLUPpL-2iU1=8EopEgfse+kRGuUi9kevoOA@mail.gmail.com> <alpine.DEB.2.20.1510141301340.13301@east.gentwo.org> <CA+55aFwSjroKXPjsO90DWULy-H8e9Fs=ZDRVkJvQgAZPk1YYRw@mail.gmail.com>
-Content-Type: text/plain; charset=US-ASCII
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
 Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Shaohua Li <shli@fb.com>, linux-mm <linux-mm@kvack.org>
 
-On Wed, 14 Oct 2015, Linus Torvalds wrote:
-
-> And "schedule_delayed_work()" uses WORK_CPU_UNBOUND.
-
-Uhhh. Someone changed that?
-
-> In this email you seem to even agree that its' bogus, but then you
-> wrote another email saying that the code isn't confused, because it
-> uses "schedule_delayed_work()" on the CPU that it wants to run the
-> code on.
+On Wed, Oct 14, 2015 at 11:37 AM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
-> I'm saying that mm/vmstat.c should use "schedule_delayed_work_on()".
+> Yes, yes, it so _happens_ that "add_timer()" preferentially uses the
+> current CPU etc, so in practice it may have happened to work. But
+> there's absolutely zero reason to think it should always work that
+> way.
 
-Then that needs to be fixed. Could occur in more places.
+Side note: even in practice, I think things like off-lining CPU's etc
+(which some mobile environments seem to do as a power saving thing)
+can end up moving timers to other CPU's even if they originally got
+added on a particular cpu.
+
+So I really think that the whole "schedule_delayed_work() ends up
+running on the CPU" has actually never "really" been true. It has at
+most been a "most of the time" thing, making it hard to see the
+problem in practice.
+
+                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
