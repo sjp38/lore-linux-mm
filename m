@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id DC9576B0038
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 13:57:33 -0400 (EDT)
-Received: by igbif5 with SMTP id if5so26552523igb.1
-        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 10:57:33 -0700 (PDT)
-Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
-        by mx.google.com with ESMTPS id q1si8237038igh.93.2015.10.14.10.57.33
+Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 85A246B0038
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 14:03:40 -0400 (EDT)
+Received: by ioii196 with SMTP id i196so63874290ioi.3
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 11:03:40 -0700 (PDT)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id 76si8324811ioi.23.2015.10.14.11.03.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 14 Oct 2015 10:57:33 -0700 (PDT)
-Date: Wed, 14 Oct 2015 12:57:31 -0500 (CDT)
+        Wed, 14 Oct 2015 11:03:39 -0700 (PDT)
+Date: Wed, 14 Oct 2015 13:03:38 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: [GIT PULL] workqueue fixes for v4.3-rc5
-In-Reply-To: <CA+55aFzhHF0KMFvebegBnwHqXekfRRd-qczCtJXKpf3XvOCW=A@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1510141253570.13238@east.gentwo.org>
-References: <20151013214952.GB23106@mtj.duckdns.org> <CA+55aFzV61qsWOObLUPpL-2iU1=8EopEgfse+kRGuUi9kevoOA@mail.gmail.com> <20151014165729.GA12799@mtj.duckdns.org> <CA+55aFzhHF0KMFvebegBnwHqXekfRRd-qczCtJXKpf3XvOCW=A@mail.gmail.com>
+In-Reply-To: <CA+55aFzV61qsWOObLUPpL-2iU1=8EopEgfse+kRGuUi9kevoOA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1510141301340.13301@east.gentwo.org>
+References: <20151013214952.GB23106@mtj.duckdns.org> <CA+55aFzV61qsWOObLUPpL-2iU1=8EopEgfse+kRGuUi9kevoOA@mail.gmail.com>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -23,22 +23,20 @@ Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal
 
 On Wed, 14 Oct 2015, Linus Torvalds wrote:
 
-> I don't think it's normally a problem. But mm/vmstat.c clearly *is*
-> confused, and uses both "schedule_delayed_work_on()" and
-> "schedule_delayed_work()" for the same work.
+> On Tue, Oct 13, 2015 at 2:49 PM, Tejun Heo <tj@kernel.org> wrote:
+> >
+> > Single patch to fix delayed work being queued on the wrong CPU.  This
+> > has been broken forever (v2.6.31+) but obviously doesn't trigger in
+> > most configurations.
+>
+> So why is this a bugfix? If cpu == WORK_CPU_UNBOUND, then things
+> _shouldn't_ care which cpu it gets run on.
 
-Well yes the schedule_delayed_work_on() call is from another cpu and the
-schedule_delayed_work() from the same. No confusion there.
-
-vmstat_update() is run from the cpu where the diffs have to be updated and
-if it needs to reschedule itself it relies on schedule_delayed_work() to
-stay on the same cpu.
-
-The vmstat_shepherd needs to start work items on remote cpus and therefore
-uses xx_work_on().
-
-And yes this relies on work items being executed on the same cpu unless
-the queue is decleared to be UNBOUND which is not the case here.
+UNBOUND means not fixed to a processor. The system should have
+freedom to schedule unbound work requests anywhere it wants. This is
+something we also want for the NOHZ work in order to move things like
+these workqueue items to processors that are not supposed to be low
+latency.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
