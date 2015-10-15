@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FE686B0254
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id F35F582F66
 	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 12:04:29 -0400 (EDT)
-Received: by pabur7 with SMTP id ur7so9257437pab.2
+Received: by padcn9 with SMTP id cn9so10059400pad.3
         for <linux-mm@kvack.org>; Thu, 15 Oct 2015 09:04:29 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id by14si22526267pac.128.2015.10.15.09.04.28
+        by mx.google.com with ESMTPS id rt6si22557131pab.69.2015.10.15.09.04.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 15 Oct 2015 09:04:28 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 2/6] ksm: add cond_resched() to the rmap_walks
-Date: Thu, 15 Oct 2015 18:04:21 +0200
-Message-Id: <1444925065-4841-3-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 4/6] ksm: use the helper method to do the hlist_empty check
+Date: Thu, 15 Oct 2015 18:04:23 +0200
+Message-Id: <1444925065-4841-5-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1444925065-4841-1-git-send-email-aarcange@redhat.com>
 References: <1444925065-4841-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,52 +20,27 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Petr Holasek <pholasek@redhat.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-While at it add it to the file and anon walks too.
+This just uses the helper function to cleanup the assumption on the
+hlist_node internals.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/ksm.c  | 2 ++
- mm/rmap.c | 4 ++++
- 2 files changed, 6 insertions(+)
+ mm/ksm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/ksm.c b/mm/ksm.c
-index 8fc6793..39ef485 100644
+index 929b5c2..241588e 100644
 --- a/mm/ksm.c
 +++ b/mm/ksm.c
-@@ -1961,9 +1961,11 @@ again:
- 		struct anon_vma_chain *vmac;
- 		struct vm_area_struct *vma;
+@@ -661,7 +661,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
+ 		unlock_page(page);
+ 		put_page(page);
  
-+		cond_resched();
- 		anon_vma_lock_read(anon_vma);
- 		anon_vma_interval_tree_foreach(vmac, &anon_vma->rb_root,
- 					       0, ULONG_MAX) {
-+			cond_resched();
- 			vma = vmac->vma;
- 			if (rmap_item->address < vma->vm_start ||
- 			    rmap_item->address >= vma->vm_end)
-diff --git a/mm/rmap.c b/mm/rmap.c
-index f5b5c1f..b949778 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1607,6 +1607,8 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
- 		struct vm_area_struct *vma = avc->vma;
- 		unsigned long address = vma_address(page, vma);
- 
-+		cond_resched();
-+
- 		if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
- 			continue;
- 
-@@ -1656,6 +1658,8 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc)
- 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
- 		unsigned long address = vma_address(page, vma);
- 
-+		cond_resched();
-+
- 		if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
- 			continue;
- 
+-		if (stable_node->hlist.first)
++		if (!hlist_empty(&stable_node->hlist))
+ 			ksm_pages_sharing--;
+ 		else
+ 			ksm_pages_shared--;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
