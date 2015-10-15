@@ -1,57 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DE6E6B0038
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 05:53:44 -0400 (EDT)
-Received: by pabur7 with SMTP id ur7so884574pab.2
-        for <linux-mm@kvack.org>; Thu, 15 Oct 2015 02:53:43 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id yn3si20430934pbb.6.2015.10.15.02.53.42
+Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C95B6B0038
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 06:32:37 -0400 (EDT)
+Received: by ioii196 with SMTP id i196so84457589ioi.3
+        for <linux-mm@kvack.org>; Thu, 15 Oct 2015 03:32:37 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id nv7si10997428igb.3.2015.10.15.03.32.36
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Oct 2015 02:53:42 -0700 (PDT)
-Received: by pabur7 with SMTP id ur7so884088pab.2
-        for <linux-mm@kvack.org>; Thu, 15 Oct 2015 02:53:42 -0700 (PDT)
-Date: Thu, 15 Oct 2015 18:53:28 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Oct 2015 03:32:37 -0700 (PDT)
+Received: by pabur7 with SMTP id ur7so1856341pab.2
+        for <linux-mm@kvack.org>; Thu, 15 Oct 2015 03:32:36 -0700 (PDT)
+Date: Thu, 15 Oct 2015 19:35:27 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC v2 1/3] migrate: new struct migration and add it to struct
- page
-Message-ID: <20151015095328.GA7001@bgram>
-References: <1444900142-1996-1-git-send-email-zhuhui@xiaomi.com>
- <1444900142-1996-2-git-send-email-zhuhui@xiaomi.com>
- <561F7173.3000900@suse.cz>
+Subject: Re: [PATCH] zsmalloc: don't test shrinker_enabled in
+ zs_shrinker_count()
+Message-ID: <20151015103454.GA3527@bbox>
+References: <1444787879-5428-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <20151015022928.GB2840@bbox>
+ <20151015035317.GF1735@swordfish>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <561F7173.3000900@suse.cz>
+In-Reply-To: <20151015035317.GF1735@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Hui Zhu <zhuhui@xiaomi.com>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Dave Hansen <dave.hansen@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jennifer Herbert <jennifer.herbert@citrix.com>, Hugh Dickins <hughd@google.com>, Vladimir Davydov <vdavydov@parallels.com>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, "Steven Rostedt (Red Hat)" <rostedt@goodmis.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Wanpeng Li <wanpeng.li@hotmail.com>, Geert Uytterhoeven <geert+renesas@glider.be>, Greg Thelen <gthelen@google.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, teawater@gmail.com
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Thu, Oct 15, 2015 at 11:27:15AM +0200, Vlastimil Babka wrote:
-> On 10/15/2015 11:09 AM, Hui Zhu wrote:
-> >I got that add function interfaces is really not a good idea.
-> >So I add a new struct migration to put all migration interfaces and add
-> >this struct to struct page as union of "mapping".
+On Thu, Oct 15, 2015 at 12:53:17PM +0900, Sergey Senozhatsky wrote:
+> On (10/15/15 11:29), Minchan Kim wrote:
+> [..]
+> > I'm in favor of removing shrinker disable feature with this patch(
+> > although we didn't implement it yet) because if there is some problem
+> > of compaction, we should reveal and fix it without hiding with the
+> > feature.
+> > 
 > 
-> That's better, but not as flexible as the previously proposed
-> approaches that Sergey pointed you at:
+> sure.
 > 
->  http://lkml.iu.edu/hypermail/linux/kernel/1507.0/03233.html
->  http://lkml.iu.edu/hypermail/linux/kernel/1508.1/00696.html
+> > One thing I want is if we decide it, let's remove all things
+> > about shrinker_enabled(ie, variable).
+> > If we might need it later, we could introduce it easily.
 > 
-> There the operations are reachable via mapping, so we can support
-> the special operations migration also when mapping is otherwise
-> needed; your patch excludes mapping.
+> well, do we really want to make the shrinker a vital part of zsmalloc?
 > 
+> it's not that we will tighten the dependency between zsmalloc and
+> shrinker, we will introduce it instead. in a sense that, at the moment,
+> zsmalloc is, let's say, ignorant to shrinker registration errors
+> (shrinker registration implementation is internal to shrinker), because
+> there is no direct impact on zsmalloc functionality -- zsmalloc will not
+> be able to release some pages (there are if-s here: first, zsmalloc
+> shrinker callback may even not be called; second, zsmalloc may not be
+> albe to migrate objects and release objects).
+> 
+> no really strong opinion against, but at the same time zsmalloc will
+> have another point of failure (again, zsmalloc should not be aware of
+> shrinker registration implementation and why it may fail).
+> 
+> so... I can prepare a new patch later today.
 
-Hello Hui,
+I misunderstood your description. I thought you wanted to remove
+codes for disabling auto-compaction by user because I really don't
+want it like same reason of VM's compaction. My bad.
 
-FYI, I take over the work from Gioh and have a plan to improve the work.
-So, Could you wait a bit? Of course, if you have better idea, feel free
-to post it.
-
+You woke up my brain, I remember the reason.
 Thanks.
+
+Acked-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
