@@ -1,453 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A3476B0255
-	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 22:38:07 -0400 (EDT)
-Received: by pacao1 with SMTP id ao1so7286441pac.2
-        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 19:38:07 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id bl8si17876658pad.207.2015.10.14.19.38.05
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 53E246B0038
+	for <linux-mm@kvack.org>; Wed, 14 Oct 2015 23:52:27 -0400 (EDT)
+Received: by payp3 with SMTP id p3so26012188pay.1
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 20:52:27 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id tb8si18332281pab.225.2015.10.14.20.52.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 Oct 2015 19:38:06 -0700 (PDT)
-Date: Thu, 15 Oct 2015 11:38:53 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 7/9] mm/compaction: redesign compaction
-Message-ID: <20151015023853.GA7566@js1304-P5Q-DELUXE>
-References: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1440382773-16070-8-git-send-email-iamjoonsoo.kim@lge.com>
- <561E3E9F.9060106@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Oct 2015 20:52:26 -0700 (PDT)
+Received: by payp3 with SMTP id p3so26012016pay.1
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 20:52:26 -0700 (PDT)
+Date: Thu, 15 Oct 2015 12:53:17 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] zsmalloc: don't test shrinker_enabled in
+ zs_shrinker_count()
+Message-ID: <20151015035317.GF1735@swordfish>
+References: <1444787879-5428-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <20151015022928.GB2840@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <561E3E9F.9060106@suse.cz>
+In-Reply-To: <20151015022928.GB2840@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Wed, Oct 14, 2015 at 01:38:07PM +0200, Vlastimil Babka wrote:
-> On 08/24/2015 04:19 AM, Joonsoo Kim wrote:
+On (10/15/15 11:29), Minchan Kim wrote:
+[..]
+> I'm in favor of removing shrinker disable feature with this patch(
+> although we didn't implement it yet) because if there is some problem
+> of compaction, we should reveal and fix it without hiding with the
+> feature.
 > 
-> [...]
-> 
-> > This patch solves these problems mentioned in above.
-> > Freepage scanner is largely changed to scan zone from zone_start_pfn
-> > to zone_end_pfn. And, by this change, compaction finish condition is also
-> > changed that migration scanner reach zone_end_pfn. With these changes,
-> > migration scanner can traverse anywhere in the zone.
-> > 
-> > To prevent back and forth migration within one compaction iteration,
-> > freepage scanner marks skip-bit when scanning pageblock. migration scanner
-> > checks it and will skip this marked pageblock so back and forth migration
-> > cannot be possible in one compaction iteration.
-> > 
-> > If freepage scanner reachs the end of zone, it restarts at zone_start_pfn.
-> > In this time, freepage scanner would scan the pageblock where migration
-> > scanner has migrated some pages but fail to make high order page. This
-> > leaved freepages means that they can't become high order page due to
-> > the fragmentation so it is good source for freepage scanner.
-> 
-> Hmm, there might be danger that freepage scanner will proceed faster than
-> migration scanner, as evidenced by the current code where the scanners meet
-> earlier than in the middle. Thus, it would likely mark pageblocks as unsuitable
-> for migration scanner, before it can reach them?
 
-That's right.
+sure.
+
+> One thing I want is if we decide it, let's remove all things
+> about shrinker_enabled(ie, variable).
+> If we might need it later, we could introduce it easily.
+
+well, do we really want to make the shrinker a vital part of zsmalloc?
+
+it's not that we will tighten the dependency between zsmalloc and
+shrinker, we will introduce it instead. in a sense that, at the moment,
+zsmalloc is, let's say, ignorant to shrinker registration errors
+(shrinker registration implementation is internal to shrinker), because
+there is no direct impact on zsmalloc functionality -- zsmalloc will not
+be able to release some pages (there are if-s here: first, zsmalloc
+shrinker callback may even not be called; second, zsmalloc may not be
+albe to migrate objects and release objects).
+
+no really strong opinion against, but at the same time zsmalloc will
+have another point of failure (again, zsmalloc should not be aware of
+shrinker registration implementation and why it may fail).
+
+so... I can prepare a new patch later today.
+
+	-ss
 
 > 
-> > With this change, above test result is:
 > > 
-> > Kernel:	Base vs Redesign
-> > 
-> > Test: hogger-frag-movable
-> > 
-> > Success(N)                    70              94
-> > compact_stall                307            3642
-> > compact_success               64             144
-> > compact_fail                 243            3498
-> > pgmigrate_success          34592        15897219
-> > compact_isolated           73977        31899553
-> > compact_migrate_scanned  2280770        59146745
-> > compact_free_scanned     4710313        49566134
-> > 
-> > Test: hogger-frag-movable with free memory variation
-> > 
-> > 200MB-Success(N)	70	94
-> > 250MB-Success(N)	38	93
-> > 300MB-Success(N)	29	89
-> > 
-> > Compaction gives us almost all possible high order page. Overhead is
-> > highly increased, but, further patch will reduce it greatly
-> > by adjusting depletion check with this new algorithm.
-> > 
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 > > ---
-> >  mm/compaction.c | 145 ++++++++++++++++++++++++++++++--------------------------
-> >  1 file changed, 77 insertions(+), 68 deletions(-)
+> >  mm/zsmalloc.c | 3 ---
+> >  1 file changed, 3 deletions(-)
 > > 
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index a259608..ca4d6d1 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -53,17 +53,17 @@ static const char *const compaction_status_string[] = {
-> >  static unsigned long release_freepages(struct list_head *freelist)
-> >  {
-> >  	struct page *page, *next;
-> > -	unsigned long high_pfn = 0;
-> > +	unsigned long low_pfn = ULONG_MAX;
+> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> > index 7ad5e54..8ba247d 100644
+> > --- a/mm/zsmalloc.c
+> > +++ b/mm/zsmalloc.c
+> > @@ -1822,9 +1822,6 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
+> >  	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
+> >  			shrinker);
 > >  
-> >  	list_for_each_entry_safe(page, next, freelist, lru) {
-> >  		unsigned long pfn = page_to_pfn(page);
-> >  		list_del(&page->lru);
-> >  		__free_page(page);
-> > -		if (pfn > high_pfn)
-> > -			high_pfn = pfn;
-> > +		if (pfn < low_pfn)
-> > +			low_pfn = pfn;
-> >  	}
-> >  
-> > -	return high_pfn;
-> > +	return low_pfn;
-> 
-> This assumes that the freelist won't contain both pages from the end of the
-> zone, and from the beginning the zone after the free scanner has wrapped. Which
-> is true, but not immediately obvious, so it deserves some comment.
-
-Okay. Will add it.
-
-> >  }
-> >  
-> >  static void map_pages(struct list_head *list)
-> > @@ -243,7 +243,7 @@ static void __reset_isolation_suitable(struct zone *zone)
-> >  
-> >  	zone->compact_cached_migrate_pfn[0] = start_pfn;
-> >  	zone->compact_cached_migrate_pfn[1] = start_pfn;
-> > -	zone->compact_cached_free_pfn = end_pfn;
-> > +	zone->compact_cached_free_pfn = start_pfn;
-> >  	zone->compact_blockskip_flush = false;
-> >  
-> >  	clear_bit(ZONE_COMPACTION_SCANALLFREE, &zone->flags);
-> > @@ -335,7 +335,7 @@ static void update_pageblock_skip(struct compact_control *cc,
-> >  		if (!nr_isolated)
-> >  			set_pageblock_skip_freescan(page);
-> >  
-> > -		if (pfn < zone->compact_cached_free_pfn)
-> > +		if (pfn > zone->compact_cached_free_pfn)
-> >  			zone->compact_cached_free_pfn = pfn;
-> >  	}
-> >  }
-> > @@ -869,8 +869,11 @@ isolate_success:
-> >  						nr_scanned, nr_isolated);
-> >  
-> >  	count_compact_events(COMPACTMIGRATE_SCANNED, nr_scanned);
-> > -	if (nr_isolated)
-> > +	if (nr_isolated) {
-> >  		count_compact_events(COMPACTISOLATED, nr_isolated);
-> > +		if (valid_page)
-> > +			clear_pageblock_skip_freescan(valid_page);
-> 
-> This is explained in changelog, but a comment here would be useful too.
-
-Okay.
-
-> > +	}
-> >  
-> >  	return low_pfn;
-> >  }
-> > @@ -969,12 +972,14 @@ static void isolate_freepages(struct compact_control *cc)
-> >  {
-> >  	struct zone *zone = cc->zone;
-> >  	struct page *page;
-> > +	unsigned long pfn;
-> >  	unsigned long block_start_pfn;	/* start of current pageblock */
-> > -	unsigned long isolate_start_pfn; /* exact pfn we start at */
-> >  	unsigned long block_end_pfn;	/* end of current pageblock */
-> > -	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
-> >  	struct list_head *freelist = &cc->freepages;
-> > +	unsigned long nr_isolated;
-> > +	bool rotated = false;
-> >  
-> > +retry:
-> >  	/*
-> >  	 * Initialise the free scanner. The starting point is where we last
-> >  	 * successfully isolated from, zone-cached value, or the end of the
-> > @@ -986,22 +991,21 @@ static void isolate_freepages(struct compact_control *cc)
-> >  	 * The low boundary is the end of the pageblock the migration scanner
-> >  	 * is using.
-> >  	 */
-> > -	isolate_start_pfn = cc->free_pfn;
-> > -	block_start_pfn = cc->free_pfn & ~(pageblock_nr_pages-1);
-> > -	block_end_pfn = min(block_start_pfn + pageblock_nr_pages,
-> > -						zone_end_pfn(zone));
-> > -	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
-> > +	pfn = cc->free_pfn;
-> >  
-> > -	/*
-> > -	 * Isolate free pages until enough are available to migrate the
-> > -	 * pages on cc->migratepages. We stop searching if the migrate
-> > -	 * and free page scanners meet or enough free pages are isolated.
-> > -	 */
-> > -	for (; block_start_pfn >= low_pfn &&
-> > -			cc->nr_migratepages > cc->nr_freepages;
-> > -				block_end_pfn = block_start_pfn,
-> > -				block_start_pfn -= pageblock_nr_pages,
-> > -				isolate_start_pfn = block_start_pfn) {
-> > +	for (; pfn < zone_end_pfn(zone) &&
-> > +		cc->nr_migratepages > cc->nr_freepages;) {
-> > +
-> > +		block_start_pfn = pfn & ~(pageblock_nr_pages-1);
-> > +		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
-> > +		block_end_pfn = min(block_end_pfn, zone_end_pfn(zone));
-> > +
-> > +		/* Skip the pageblock where migration scan is */
-> > +		if (block_start_pfn ==
-> > +			(cc->migrate_pfn & ~(pageblock_nr_pages-1))) {
-> > +			pfn = block_end_pfn;
-> 
-> Can't this "pfn = block_end_pfn" be in the for-loop header? Can it ever happen
-
-You mean following thing?
-for (; pfn < zone_end_pfn(zone) && cc->nr_migratepages >
-        cc->nr_freepages; pfn = block_end_pfn)
-
-It is possible. Will do it.
-
-> that all of the following is true? I don't think it can?
-> - isolate_freepages_block() returns before reaching block_end_pfn
-> - it hasn't isolated enough, so cc->nr_migratepages > cc->nr_freepages is true
-> - cc->contended is not set
-
-Do you want to move out this check to out of the loop? It isn't
-possible because freepage scanner could skip some pageblock in the loop.
-If you mean other thing, please explain more.
-
-> > +			continue;
-> > +		}
-> >  
-> >  		/*
-> >  		 * This can iterate a massively long zone without finding any
-> > @@ -1012,35 +1016,31 @@ static void isolate_freepages(struct compact_control *cc)
-> >  						&& compact_should_abort(cc))
-> >  			break;
-> >  
-> > -		page = pageblock_pfn_to_page(block_start_pfn, block_end_pfn,
-> > -									zone);
-> > -		if (!page)
-> > +		page = pageblock_pfn_to_page(pfn, block_end_pfn, zone);
-> > +		if (!page) {
-> > +			pfn = block_end_pfn;
-> >  			continue;
-> > +		}
-> >  
-> >  		/* Check the block is suitable for migration */
-> > -		if (!suitable_migration_target(cc, page))
-> > +		if (!suitable_migration_target(cc, page)) {
-> > +			pfn = block_end_pfn;
-> >  			continue;
-> > +		}
-> >  
-> >  		/* If isolation recently failed, do not retry */
-> > -		if (!isolation_suitable(cc, page, false))
-> > +		if (!isolation_suitable(cc, page, false)) {
-> > +			pfn = block_end_pfn;
-> >  			continue;
-> > +		}
-> >  
-> >  		/* Found a block suitable for isolating free pages from. */
-> > -		isolate_freepages_block(cc, &isolate_start_pfn,
-> > +		nr_isolated = isolate_freepages_block(cc, &pfn,
-> >  					block_end_pfn, freelist, false);
-> >  
-> > -		/*
-> > -		 * Remember where the free scanner should restart next time,
-> > -		 * which is where isolate_freepages_block() left off.
-> > -		 * But if it scanned the whole pageblock, isolate_start_pfn
-> > -		 * now points at block_end_pfn, which is the start of the next
-> > -		 * pageblock.
-> > -		 * In that case we will however want to restart at the start
-> > -		 * of the previous pageblock.
-> > -		 */
-> > -		cc->free_pfn = (isolate_start_pfn < block_end_pfn) ?
-> > -				isolate_start_pfn :
-> > -				block_start_pfn - pageblock_nr_pages;
-> > +		/* To prevent back and forth migration */
-> > +		if (nr_isolated)
-> > +			set_pageblock_skip_migratescan(page);
-> >  
-> >  		/*
-> >  		 * isolate_freepages_block() might have aborted due to async
-> > @@ -1053,12 +1053,15 @@ static void isolate_freepages(struct compact_control *cc)
-> >  	/* split_free_page does not map the pages */
-> >  	map_pages(freelist);
-> >  
-> > -	/*
-> > -	 * If we crossed the migrate scanner, we want to keep it that way
-> > -	 * so that compact_finished() may detect this
-> > -	 */
-> > -	if (block_start_pfn < low_pfn)
-> > -		cc->free_pfn = cc->migrate_pfn;
-> > +	cc->free_pfn = pfn;
-> > +	if (cc->free_pfn >= zone_end_pfn(zone)) {
-> > +		cc->free_pfn = zone->zone_start_pfn;
-> > +		zone->compact_cached_free_pfn = cc->free_pfn;
-> > +		if (cc->nr_freepages == 0 && !rotated) {
-> > +			rotated = true;
-> > +			goto retry;
-> 
-> This too deserves explanation. If we isolated at least something, we can return
-> and not "rotate" (wrap) to the zone start immediately. But if we isolated
-> nothing, we need to continue immediately, otherwise migration fails on -ENOMEM
-> and so will the whole compaction. And the fact, that if we isolated something,
-> we return immediately, has implications for release_freepages() being correct,
-> as I noted above.
-
-Yes. you're right. I will add some comment.
-
-> > +		}
-> > +	}
-> >  }
-> >  
-> >  /*
-> > @@ -1144,8 +1147,9 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
-> >  	 * Iterate over whole pageblocks until we find the first suitable.
-> >  	 * Do not cross the free scanner.
-> >  	 */
-> > -	for (; end_pfn <= cc->free_pfn;
-> > -			low_pfn = end_pfn, end_pfn += pageblock_nr_pages) {
-> > +	for (; low_pfn < zone_end_pfn(zone); low_pfn = end_pfn) {
-> > +		end_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages);
-> > +		end_pfn = min(end_pfn, zone_end_pfn(zone));
-> >  
-> >  		/*
-> >  		 * This can potentially iterate a massively long zone with
-> > @@ -1191,12 +1195,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
-> >  	}
-> >  
-> >  	acct_isolated(zone, cc);
-> > -	/*
-> > -	 * Record where migration scanner will be restarted. If we end up in
-> > -	 * the same pageblock as the free scanner, make the scanners fully
-> > -	 * meet so that compact_finished() terminates compaction.
-> > -	 */
-> > -	cc->migrate_pfn = (end_pfn <= cc->free_pfn) ? low_pfn : cc->free_pfn;
-> > +	cc->migrate_pfn = low_pfn;
-> >  
-> >  	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
-> >  }
-> > @@ -1211,11 +1210,15 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
-> >  		return COMPACT_PARTIAL;
-> >  
-> >  	/* Compaction run completes if the migrate and free scanner meet */
-> 
-> This is no longer true :)
-
-Will remove.
-
-> > -	if (cc->free_pfn <= cc->migrate_pfn) {
-> > +	if (cc->migrate_pfn >= zone_end_pfn(zone)) {
-> > +		/* Stop the async compaction */
-> > +		zone->compact_cached_migrate_pfn[0] = zone_end_pfn(zone);
-> > +		if (cc->mode == MIGRATE_ASYNC)
-> > +			return COMPACT_PARTIAL;
-> 
-> This is not explained in changelog? And I don't immediately see why this is needed?
-
-Yeah. I should explain this change. It's my mistake.
-Purpose of this change is giving the opportunity that *sync* compaction
-scans whole zone range. If async compaction reach the end of the zone and
-compaction is complete and reset, compaction would not scan whole zone
-in some cases like as many non-movable pageblock exists.
-
-After async compaction reach the end of the zone, async compaction
-will be skipped and only sync compaction will work. It prevents needless
-overhead that async compaction scan the range where async compaction already
-fail to make high-order page.
-
-> > +
-> >  		/* Let the next compaction start anew. */
-> >  		zone->compact_cached_migrate_pfn[0] = zone->zone_start_pfn;
-> >  		zone->compact_cached_migrate_pfn[1] = zone->zone_start_pfn;
-> > -		zone->compact_cached_free_pfn = zone_end_pfn(zone);
-> >  
-> >  		/*
-> >  		 * Mark that the PG_migrate_skip information should be cleared
-> > @@ -1397,11 +1400,14 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> >  	 */
-> >  	cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
-> >  	cc->free_pfn = zone->compact_cached_free_pfn;
-> > -	if (cc->free_pfn < start_pfn || cc->free_pfn > end_pfn) {
-> > -		cc->free_pfn = end_pfn & ~(pageblock_nr_pages-1);
-> > +	if (cc->mode == MIGRATE_ASYNC && cc->migrate_pfn >= end_pfn)
-> > +		return COMPACT_SKIPPED;
-> 
-> Ditto. Is this needed for correctness, or another optimization that should be
-> separate patch?
-
-Explained above.
-
-> > +
-> > +	if (cc->free_pfn < start_pfn || cc->free_pfn >= end_pfn) {
-> > +		cc->free_pfn = start_pfn;
-> >  		zone->compact_cached_free_pfn = cc->free_pfn;
-> >  	}
-> > -	if (cc->migrate_pfn < start_pfn || cc->migrate_pfn > end_pfn) {
-> > +	if (cc->migrate_pfn < start_pfn || cc->migrate_pfn >= end_pfn) {
-> >  		cc->migrate_pfn = start_pfn;
-> >  		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
-> >  		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
-> > @@ -1450,11 +1456,16 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
-> >  		if (err) {
-> >  			putback_movable_pages(&cc->migratepages);
-> >  			/*
-> > -			 * migrate_pages() may return -ENOMEM when scanners meet
-> > -			 * and we want compact_finished() to detect it
-> > +			 * migrate_pages() may return -ENOMEM when free scanner
-> > +			 * doesn't find any freepage, and, in this case, more
-> > +			 * compaction attempt is useless because it cannot
-> > +			 * be successful due to no free memory. We'd like to
-> > +			 * consider this state as COMPACT_COMPLETE although
-> > +			 * migration scanner doesn't reach end_pfn of zone and
-> > +			 * fail to compaction.
-> 
-> Hmm is there a danger of frequent completes like these leading to premature
-> cached pfn resets, so migration scanner will again not reach the whole zone?
-
-ENOMEM would happen when most of pageblocks are non-movable and freepage are
-in non-movable pageblock. After some failure, freepage scanner will try to
-scan non-movable pageblock so can escape this situation.
-
-Thanks.
-
-> >  			 */
-> > -			if (err == -ENOMEM && cc->free_pfn > cc->migrate_pfn) {
-> > -				ret = COMPACT_PARTIAL;
-> > +			if (err == -ENOMEM) {
-> > +				ret = COMPACT_COMPLETE;
-> >  				goto out;
-> >  			}
-> >  		}
-> > @@ -1504,13 +1515,11 @@ out:
-> >  
-> >  		cc->nr_freepages = 0;
-> >  		VM_BUG_ON(free_pfn == 0);
-> > -		/* The cached pfn is always the first in a pageblock */
-> > -		free_pfn &= ~(pageblock_nr_pages-1);
-> >  		/*
-> >  		 * Only go back, not forward. The cached pfn might have been
-> >  		 * already reset to zone end in compact_finished()
-> >  		 */
-> > -		if (free_pfn > zone->compact_cached_free_pfn)
-> > +		if (free_pfn < zone->compact_cached_free_pfn)
-> >  			zone->compact_cached_free_pfn = free_pfn;
-> >  	}
-> >  
+> > -	if (!pool->shrinker_enabled)
+> > -		return 0;
+> > -
+> >  	for (i = zs_size_classes - 1; i >= 0; i--) {
+> >  		class = pool->size_class[i];
+> >  		if (!class)
+> > -- 
+> > 2.6.1.134.g4b1fd35
 > > 
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
