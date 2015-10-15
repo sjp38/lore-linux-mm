@@ -1,157 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A6BF6B0038
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 00:29:35 -0400 (EDT)
-Received: by pabws5 with SMTP id ws5so10948289pab.3
-        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 21:29:35 -0700 (PDT)
-Received: from mgwym02.jp.fujitsu.com (mgwym02.jp.fujitsu.com. [211.128.242.41])
-        by mx.google.com with ESMTPS id ql9si18614568pbb.60.2015.10.14.21.29.33
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id EDBD96B0038
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 02:02:29 -0400 (EDT)
+Received: by pabrc13 with SMTP id rc13so77210947pab.0
+        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 23:02:29 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id uh5si19076218pab.115.2015.10.14.23.02.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Oct 2015 21:29:34 -0700 (PDT)
-Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
-	by yt-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id DF174AC0220
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 13:29:30 +0900 (JST)
-From: Taku Izumi <izumi.taku@jp.fujitsu.com>
-Subject: [PATCH] mm: Introduce kernelcore=reliable option
-Date: Thu, 15 Oct 2015 22:32:22 +0900
-Message-Id: <1444915942-15281-1-git-send-email-izumi.taku@jp.fujitsu.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 14 Oct 2015 23:02:29 -0700 (PDT)
+Date: Thu, 15 Oct 2015 15:03:17 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 9/9] mm/compaction: new threshold for compaction
+ depleted zone
+Message-ID: <20151015060317.GC7566@js1304-P5Q-DELUXE>
+References: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1440382773-16070-10-git-send-email-iamjoonsoo.kim@lge.com>
+ <561E4A6F.5070801@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <561E4A6F.5070801@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: tony.luck@intel.com, qiuxishi@huawei.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, akpm@linux-foundation.org, dave.hansen@intel.com, matt@codeblueprint.co.uk, Taku Izumi <izumi.taku@jp.fujitsu.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
 
-Xeon E7 v3 based systems supports Address Range Mirroring
-and UEFI BIOS complied with UEFI spec 2.5 can notify which
-ranges are reliable (mirrored) via EFI memory map.
-Now Linux kernel utilize its information and allocates
-boot time memory from reliable region.
+On Wed, Oct 14, 2015 at 02:28:31PM +0200, Vlastimil Babka wrote:
+> On 08/24/2015 04:19 AM, Joonsoo Kim wrote:
+> > Now, compaction algorithm become powerful. Migration scanner traverses
+> > whole zone range. So, old threshold for depleted zone which is designed
+> > to imitate compaction deferring approach isn't appropriate for current
+> > compaction algorithm. If we adhere to current threshold, 1, we can't
+> > avoid excessive overhead caused by compaction, because one compaction
+> > for low order allocation would be easily successful in any situation.
+> > 
+> > This patch re-implements threshold calculation based on zone size and
+> > allocation requested order. We judge whther compaction possibility is
+> > depleted or not by number of successful compaction. Roughly, 1/100
+> > of future scanned area should be allocated for high order page during
+> > one comaction iteration in order to determine whether zone's compaction
+> > possiblity is depleted or not.
+> 
+> Finally finishing my review, sorry it took that long...
+> 
+> > Below is test result with following setup.
+> > 
+> > Memory is artificially fragmented to make order 3 allocation hard. And,
+> > most of pageblocks are changed to movable migratetype.
+> > 
+> >   System: 512 MB with 32 MB Zram
+> >   Memory: 25% memory is allocated to make fragmentation and 200 MB is
+> >   	occupied by memory hogger. Most pageblocks are movable
+> >   	migratetype.
+> >   Fragmentation: Successful order 3 allocation candidates may be around
+> >   	1500 roughly.
+> >   Allocation attempts: Roughly 3000 order 3 allocation attempts
+> >   	with GFP_NORETRY. This value is determined to saturate allocation
+> >   	success.
+> > 
+> > Test: hogger-frag-movable
+> > 
+> > Success(N)                    94              83
+> > compact_stall               3642            4048
+> > compact_success              144             212
+> > compact_fail                3498            3835
+> > pgmigrate_success       15897219          216387
+> > compact_isolated        31899553          487712
+> > compact_migrate_scanned 59146745         2513245
+> > compact_free_scanned    49566134         4124319
+> 
+> The decrease in scanned/isolated/migrated counts looks definitely nice, but why
+> did success regress when compact_success improved substantially?
 
-My requirement is:
-  - allocate kernel memory from reliable region
-  - allocate user memory from non-reliable region
+I don't know exact reason. I guess that more compaction success rate
+comes from the fact that async compaction is stopped when depleted.
+This compact_success metric doesn't fully reflect allocation success because
+allocation success comes from not only compaction but also reclaim and
+others. In the above test, compaction just succeed 200 times but
+allocation succeed more than 1300 times.
 
-In order to meet my requirement, ZONE_MOVABLE is useful.
-By arranging non-reliable range into ZONE_MOVABLE,
-reliable memory is only used for kernel allocations.
+> 
+> > This change results in greatly decreasing compaction overhead when
+> > zone's compaction possibility is nearly depleted. But, I should admit
+> > that it's not perfect because compaction success rate is decreased.
+> > More precise tuning threshold would restore this regression, but,
+> > it highly depends on workload so I'm not doing it here.
+> > 
+> > Other test doesn't show big regression.
+> > 
+> >   System: 512 MB with 32 MB Zram
+> >   Memory: 25% memory is allocated to make fragmentation and kernel
+> >   	build is running on background. Most pageblocks are movable
+> >   	migratetype.
+> >   Fragmentation: Successful order 3 allocation candidates may be around
+> >   	1500 roughly.
+> >   Allocation attempts: Roughly 3000 order 3 allocation attempts
+> >   	with GFP_NORETRY. This value is determined to saturate allocation
+> >   	success.
+> > 
+> > Test: build-frag-movable
+> > 
+> > Success(N)                    89              87
+> > compact_stall               4053            3642
+> > compact_success              264             202
+> > compact_fail                3788            3440
+> > pgmigrate_success        6497642          153413
+> > compact_isolated        13292640          353445
+> > compact_migrate_scanned 69714502         2307433
+> > compact_free_scanned    20243121         2325295
+> 
+> Here compact_success decreased relatively a lot, while success just barely.
+> Less counterintuitive than the first result, but still a bit.
 
-This patch extends existing "kernelcore" option and
-introduces kernelcore=reliable option. By specifying
-"reliable" instead of specifying the amount of memory,
-non-reliable region will be arranged into ZONE_MOVABLE.
+compact_stall on build test would be more unpredictable, because there
+are a lot of background working threads and they allocate and free
+memory. Anyway, I will investigate it and if I find something, I will
+note. :)
 
-Earlier discussion is at:
- https://lkml.org/lkml/2015/10/9/24
+To know precise reason, separating async/sync compaction stat will be
+helpful.
 
-For example, suppose 2-nodes system with the following
- memory range:
-  node 0 [mem 0x0000000000001000-0x000000109fffffff]
-  node 1 [mem 0x00000010a0000000-0x000000209fffffff]
+> > This looks like reasonable trade-off.
+> > 
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > ---
+> >  mm/compaction.c | 19 ++++++++++++-------
+> >  1 file changed, 12 insertions(+), 7 deletions(-)
+> > 
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index e61ee77..e1b44a5 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -129,19 +129,24 @@ static struct page *pageblock_pfn_to_page(unsigned long start_pfn,
+> >  
+> >  /* Do not skip compaction more than 64 times */
+> >  #define COMPACT_MAX_FAILED 4
+> > -#define COMPACT_MIN_DEPLETE_THRESHOLD 1UL
+> > +#define COMPACT_MIN_DEPLETE_THRESHOLD 4UL
+> >  #define COMPACT_MIN_SCAN_LIMIT (pageblock_nr_pages)
+> >  
+> >  static bool compaction_depleted(struct zone *zone)
+> >  {
+> > -	unsigned long threshold;
+> > +	unsigned long nr_possible;
+> >  	unsigned long success = zone->compact_success;
+> > +	unsigned long threshold;
+> >  
+> > -	/*
+> > -	 * Now, to imitate current compaction deferring approach,
+> > -	 * choose threshold to 1. It will be changed in the future.
+> > -	 */
+> > -	threshold = COMPACT_MIN_DEPLETE_THRESHOLD;
+> > +	nr_possible = zone->managed_pages >> zone->compact_order_failed;
+> > +
+> > +	/* Migration scanner normally scans less than 1/4 range of zone */
+> > +	nr_possible >>= 2;
+> > +
+> > +	/* We hope to succeed more than 1/100 roughly */
+> > +	threshold = nr_possible >> 7;
+> > +
+> > +	threshold = max(threshold, COMPACT_MIN_DEPLETE_THRESHOLD);
+> >  	if (success >= threshold)
+> >  		return false;
+> 
+> I wonder if compact_depletion_depth should play some "positive" role here. The
+> bigger the depth, the lower the migration_scan_limit, which means higher chance
+> of failing and so on. Ideally, the system should stabilize itself, so that
+> migration_scan_limit is set based how many pages on average have to be scanned
+> to succeed?
 
-and the following ranges are marked as reliable (*):
-  [0x0000000000000000-0x0000000100000000]
-  [0x0000000100000000-0x0000000180000000]
-  [0x00000010a0000000-0x0000001120000000]
+compact_depletion_depth is for throttling compaction when compaction
+success possibility is depleted. Not for more success when depleted.
+If compaction possibility is recovered, this little try will make
+high-order page and stop throttling. This is a way to reduce excessive
+compaction overhead like as deferring.
 
-If you specify kernelcore=reliable, Movable zones are
-arranged like the following:
-  Movable zone start for each node
-    Node 0: 0x0000000180000000
-    Node 1: 0x0000001120000000
-
-(*) I specified the following instead of using UEFI BIOS
-    complied with UEFI spec 2.5,
-    efi_fake_mem=4G@0:0x10000,2G@0x10a0000000:0x10000,2G@4G:0x10000
-    efi_fake_mem is found at:
-     git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
-     tags/efi-next
-
-Signed-off-by: Taku Izumi <izumi.taku@jp.fujitsu.com>
----
- Documentation/kernel-parameters.txt |  9 ++++++++-
- mm/page_alloc.c                     | 26 ++++++++++++++++++++++++++
- 2 files changed, 34 insertions(+), 1 deletion(-)
-
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index cd5312f..b2c8c13 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1663,7 +1663,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 
- 	keepinitrd	[HW,ARM]
- 
--	kernelcore=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
-+	kernelcore=	Format: nn[KMG] | "reliable"
-+			[KNL,X86,IA-64,PPC] This parameter
- 			specifies the amount of memory usable by the kernel
- 			for non-movable allocations.  The requested amount is
- 			spread evenly throughout all nodes in the system. The
-@@ -1679,6 +1680,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			use the HighMem zone if it exists, and the Normal
- 			zone if it does not.
- 
-+			Instead of specifying the amount of memory (nn[KMS]),
-+			you can specify "reliable" option. In case "reliable"
-+			option is specified, reliable memory is used for
-+			non-movable allocations and remaining memory is used
-+			for Movable pages.
-+
- 	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
- 			Format: <Controller#>[,poll interval]
- 			The controller # is the number of the ehci usb debug
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index beda417..d0b3ac9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -221,6 +221,7 @@ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
- static unsigned long __initdata required_kernelcore;
- static unsigned long __initdata required_movablecore;
- static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
-+static bool reliable_kernelcore __initdata;
- 
- /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
- int movable_zone;
-@@ -5618,6 +5619,25 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	}
- 
- 	/*
-+	 * If kernelcore=reliable is specified, ignore movablecore option
-+	 */
-+	if (reliable_kernelcore) {
-+		for_each_memblock(memory, r) {
-+			if (memblock_is_mirror(r))
-+				continue;
-+
-+			nid = r->nid;
-+
-+			usable_startpfn = PFN_DOWN(r->base);
-+			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
-+				min(usable_startpfn, zone_movable_pfn[nid]) :
-+				usable_startpfn;
-+		}
-+
-+		goto out2;
-+	}
-+
-+	/*
- 	 * If movablecore=nn[KMG] was specified, calculate what size of
- 	 * kernelcore that corresponds so that memory usable for
- 	 * any allocation type is evenly spread. If both kernelcore
-@@ -5873,6 +5893,12 @@ static int __init cmdline_parse_core(char *p, unsigned long *core)
-  */
- static int __init cmdline_parse_kernelcore(char *p)
- {
-+	/* parse kernelcore=reliable */
-+	if (parse_option_str(p, "reliable")) {
-+		reliable_kernelcore = true;
-+		return 0;
-+	}
-+
- 	return cmdline_parse_core(p, &required_kernelcore);
- }
- 
--- 
-1.8.3.1
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
