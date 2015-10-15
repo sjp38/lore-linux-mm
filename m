@@ -1,130 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id F193E6B0038
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 09:14:13 -0400 (EDT)
-Received: by wijq8 with SMTP id q8so129228487wij.0
-        for <linux-mm@kvack.org>; Thu, 15 Oct 2015 06:14:13 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
-        by mx.google.com with ESMTPS id ao6si17458693wjc.158.2015.10.15.06.14.12
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 13B2E6B0038
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 10:35:29 -0400 (EDT)
+Received: by pabur7 with SMTP id ur7so7264734pab.2
+        for <linux-mm@kvack.org>; Thu, 15 Oct 2015 07:35:28 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id kz10si22075834pab.59.2015.10.15.07.35.27
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Oct 2015 06:14:12 -0700 (PDT)
-Received: by wicgb1 with SMTP id gb1so271874362wic.1
-        for <linux-mm@kvack.org>; Thu, 15 Oct 2015 06:14:12 -0700 (PDT)
-Date: Thu, 15 Oct 2015 15:14:09 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Silent hang up caused by pages being not scanned?
-Message-ID: <20151015131409.GD2978@dhcp22.suse.cz>
-References: <201510031502.BJD59536.HFJMtQOOLFFVSO@I-love.SAKURA.ne.jp>
- <201510062351.JHJ57310.VFQLFHFOJtSMOO@I-love.SAKURA.ne.jp>
- <201510121543.EJF21858.LtJFHOOOSQVMFF@I-love.SAKURA.ne.jp>
- <201510130025.EJF21331.FFOQJtVOMLFHSO@I-love.SAKURA.ne.jp>
- <CA+55aFwapaED7JV6zm-NVkP-jKie+eQ1vDXWrKD=SkbshZSgmw@mail.gmail.com>
- <201510132121.GDE13044.FOSHLJOMFOtQVF@I-love.SAKURA.ne.jp>
- <CA+55aFxwg=vS2nrXsQhAUzPQDGb8aQpZi0M7UUh21ftBo-z46Q@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFxwg=vS2nrXsQhAUzPQDGb8aQpZi0M7UUh21ftBo-z46Q@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 15 Oct 2015 07:35:28 -0700 (PDT)
+Received: from epcpsbgr4.samsung.com
+ (u144.gpu120.samsung.co.kr [203.254.230.144])
+ by mailout3.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0NW901MI2N72ZY60@mailout3.samsung.com> for linux-mm@kvack.org;
+ Thu, 15 Oct 2015 23:35:26 +0900 (KST)
+From: PINTU KUMAR <pintu.k@samsung.com>
+References: <1444656800-29915-1-git-send-email-pintu.k@samsung.com>
+ <1444660139-30125-1-git-send-email-pintu.k@samsung.com>
+ <alpine.DEB.2.10.1510132000270.18525@chino.kir.corp.google.com>
+ <081301d10686$370d2e10$a5278a30$@samsung.com>
+ <alpine.DEB.2.10.1510141501470.32680@chino.kir.corp.google.com>
+In-reply-to: <alpine.DEB.2.10.1510141501470.32680@chino.kir.corp.google.com>
+Subject: RE: [RESEND PATCH 1/1] mm: vmstat: Add OOM victims count in vmstat
+ counter
+Date: Thu, 15 Oct 2015 20:05:17 +0530
+Message-id: <002101d10756$dcae7e20$960b7a60$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: en-us
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Kyle Walker <kwalker@redhat.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stanislav Kozina <skozina@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+To: 'David Rientjes' <rientjes@google.com>
+Cc: akpm@linux-foundation.org, minchan@kernel.org, dave@stgolabs.net, mhocko@suse.cz, koct9i@gmail.com, hannes@cmpxchg.org, penguin-kernel@i-love.sakura.ne.jp, bywxiaobai@163.com, mgorman@suse.de, vbabka@suse.cz, js1304@gmail.com, kirill.shutemov@linux.intel.com, alexander.h.duyck@redhat.com, sasha.levin@oracle.com, cl@linux.com, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cpgs@samsung.com, pintu_agarwal@yahoo.com, pintu.ping@gmail.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, c.rajkumar@samsung.com
 
-[CC Mel and Rik as well - this has diverged from the original thread
- considerably but the current topic started here:
- http://lkml.kernel.org/r/201510130025.EJF21331.FFOQJtVOMLFHSO%40I-love.SAKURA.ne.jp
-]
+Hi,
 
-On Tue 13-10-15 09:37:06, Linus Torvalds wrote:
-> So instead of that senseless thing, how about trying something
-> *sensible*. Make the code do something that we can actually explain as
-> making sense.
+> -----Original Message-----
+> From: David Rientjes [mailto:rientjes@google.com]
+> Sent: Thursday, October 15, 2015 3:35 AM
+> To: PINTU KUMAR
+> Cc: akpm@linux-foundation.org; minchan@kernel.org; dave@stgolabs.net;
+> mhocko@suse.cz; koct9i@gmail.com; hannes@cmpxchg.org; penguin-kernel@i-
+> love.sakura.ne.jp; bywxiaobai@163.com; mgorman@suse.de; vbabka@suse.cz;
+> js1304@gmail.com; kirill.shutemov@linux.intel.com;
+> alexander.h.duyck@redhat.com; sasha.levin@oracle.com; cl@linux.com;
+> fengguang.wu@intel.com; linux-kernel@vger.kernel.org; linux-mm@kvack.org;
+> cpgs@samsung.com; pintu_agarwal@yahoo.com; pintu.ping@gmail.com;
+> vishnu.ps@samsung.com; rohit.kr@samsung.com; c.rajkumar@samsung.com
+> Subject: RE: [RESEND PATCH 1/1] mm: vmstat: Add OOM victims count in vmstat
+> counter
+> 
+> On Wed, 14 Oct 2015, PINTU KUMAR wrote:
+> 
+> > For me it was very helpful during sluggish and long duration ageing tests.
+> > With this, I don't have to look into the logs manually.
+> > I just monitor this count in a script.
+> > The moment I get nr_oom_victims > 1, I know that kernel OOM would have
+> > happened and I need to take the log dump.
+> > So, then I do: dmesg >> oom_logs.txt
+> > Or, even stop the tests for further tuning.
+> >
+> 
+> I think eventfd(2) was created for that purpose, to avoid the constant polling
+> that you would have to do to check nr_oom_victims and then take a snapshot.
+> 
+> > > I disagree with this one, because we can encounter oom kills due to
+> > > fragmentation rather than low memory conditions for high-order
+allocations.
+> > > The amount of free memory may be substantially higher than all zone
+> > > watermarks.
+> > >
+> > AFAIK, kernel oom happens only for lower-order
+> (PAGE_ALLOC_COSTLY_ORDER).
+> > For higher-order we get page allocation failure.
+> >
+> 
+> Order-3 is included.  I've seen machines with _gigabytes_ of free memory in
+> ZONE_NORMAL on a node and have an order-3 page allocation failure that
+> called the oom killer.
+> 
+Yes, if PAGE_ALLOC_COSTLY_ORDER is defined as 3, then order-3 will be included
+for OOM. But that's fine. We are just interested to know if system entered oom
+state.
+That's the reason, earlier I added even _oom_stall_ to know if system ever
+entered oom but resulted into page allocation failure instead of oom killing.
 
-I do agree that zone_reclaimable is subtle and hackish way to wait for
-the writeback/kswapd to clean up pages which cannot be reclaimed from
-the direct reclaim.
+> > > We've long had a desire to have a better oom reporting mechanism
+> > > rather than just the kernel log.  It seems like you're feeling the
+> > > same pain.  I think it
+> > would be
+> > > better to have an eventfd notifier for system oom conditions so we
+> > > can track kernel oom kills (and conditions) in userspace.  I have a
+> > > patch for that, and
+> > it
+> > > works quite well when userspace is mlocked with a buffer in memory.
+> > >
+> > Ok, this would be interesting.
+> > Can you point me to the patches?
+> > I will quickly check if it is useful for us.
+> >
+> 
+> https://lwn.net/Articles/589404.  It's invasive and isn't upstream.  I would
+like to
+> restructure that patchset to avoid the memcg trickery and allow for a
+root-only
+> eventfd(2) notification through procfs on system oom.
 
-> I'd suggest something like:
-> 
->  - add a "retry count"
-> 
->  - if direct reclaim made no progress, or made less progress than the target:
-> 
->       if (order > PAGE_ALLOC_COSTLY_ORDER) goto noretry;
-> 
->  - regardless of whether we made progress or not:
-> 
->       if (retry count < X) goto retry;
-> 
->       if (retry count < 2*X) yield/sleep 10ms/wait-for-kswapd and then
-> goto retry
-
-This will certainly cap the reclaim retries but there are risks with
-this approach afaics.
-
-First of all other allocators might piggy back on the current reclaimer
-and push it to the OOM killer even when we are not really OOM. Maybe
-this is possible currently as well but it is less likely because
-NR_PAGES_SCANNED is reset on a freed page which allows the reclaimer
-another round.
-
-I am also not sure it would help with pathological cases like the
-one discussed here. If you have only a small amount of reclaimable
-memory on the LRU lists then you scan them quite quickly which will
-consume retries. Maybe a sufficient timeout can help but I am afraid we
-can still hit the OOM prematurely because a large part of the memory
-is still under writeback (which might be a slow device - e.g. an USB
-stick).
-
-We used have this kind of problems in memcg reclaim.  We do not
-have (resp. didn't have until recently with CONFIG_CGROUP_WRITEBACK)
-dirty memory throttling for memory cgroups so the LRU can become full
-of dirty data really quickly and that led to memcg OOM killer.
-We are not doing zone_reclaimable and other heuristics so we had to
-explicitly wait_on_page_writeback in the reclaim to prevent from
-premature OOM killer. Ugly hack but the only thing that worked
-reliably. Time based solutions were tried and failed with different
-workloads and quite randomly depending on the load/storage.
-
->    where 'X" is something sane that limits our CPU use, but also
-> guarantees that we don't end up waiting *too* long (if a single
-> allocation takes more than a big fraction of a second, we should
-> probably stop trying).
-> 
-> The whole time-based thing might even be explicit. There's nothing
-> wrong with doing something like
-> 
->     unsigned long timeout = jiffies + HZ/4;
-> 
-> at the top of the function, and making the whole retry logic actually
-> say something like
-> 
->     if (time_after(timeout, jiffies)) goto noretry;
-> 
-> (or make *that* trigger the oom logic, or whatever).
-> 
-> Now, I realize the above suggestions are big changes, and they'll
-> likely break things and we'll still need to tweak things, but dammit,
-> wouldn't that be better than just randomly tweaking the insane
-> zone_reclaimable logic?
-
-Yes zone_reclaimable is subtle and imho it is used even at the
-wrong level. We should decide whether we are really OOM at
-__alloc_pages_slowpath. We definitely need a big picture logic to tell
-us when it makes sense to drop the ball and trigger OOM killer or fail
-the allocation request.
-
-E.g. free + reclaimable + writeback < min_wmark on all usable zones for
-more than X rounds of direct reclaim without any progress is
-a sufficient signal to go OOM. Costly/noretry allocations can fail earlier
-of course. This is obviously a half baked idea which needs much more
-consideration all I am trying to say is that we need a high level metric
-to tell OOM condition.
-
--- 
-Michal Hocko
-SUSE Labs
+I am interested only in global oom case and not memcg. We have memcg enabled but
+I think even memcg_oom will finally invoke _oom_kill_process_.
+So, I am interested in a patchset that can trigger notifications from
+oom_kill_process, as soon as any victim is killed.
+Sorry, from your patchset, I could not actually local the system_oom
+notification patch.
+If you have similar patchset please point me to it.
+It will be really helpful.
+Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
