@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C53182F66
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 12:04:36 -0400 (EDT)
-Received: by obbda8 with SMTP id da8so69049884obb.1
-        for <linux-mm@kvack.org>; Thu, 15 Oct 2015 09:04:35 -0700 (PDT)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 0999A82F66
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 12:04:38 -0400 (EDT)
+Received: by padcn9 with SMTP id cn9so10062290pad.3
+        for <linux-mm@kvack.org>; Thu, 15 Oct 2015 09:04:37 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x186si2565696oix.20.2015.10.15.09.04.30
+        by mx.google.com with ESMTPS id lu5si22511404pab.178.2015.10.15.09.04.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 15 Oct 2015 09:04:30 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 3/6] ksm: don't fail stable tree lookups if walking over stale stable_nodes
-Date: Thu, 15 Oct 2015 18:04:22 +0200
-Message-Id: <1444925065-4841-4-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 5/6] ksm: use find_mergeable_vma in try_to_merge_with_ksm_page
+Date: Thu, 15 Oct 2015 18:04:24 +0200
+Message-Id: <1444925065-4841-6-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1444925065-4841-1-git-send-email-aarcange@redhat.com>
 References: <1444925065-4841-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,84 +20,42 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Petr Holasek <pholasek@redhat.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-The stable_nodes can become stale at any time if the underlying pages
-gets freed. The stable_node gets collected and removed from the stable
-rbtree if that is detected during the rbtree tree lookups.
-
-Don't fail the lookup if running into stale stable_nodes, just restart
-the lookup after collecting the stale entries. Otherwise the CPU spent
-in the preparation stage is wasted and the lookup must be repeated at
-the next loop potentially failing a second time in a second stale
-entry.
-
-This also will contribute to pruning the stable tree and releasing the
-stable_node memory more efficiently.
+Doing the VM_MERGEABLE check after the page == kpage check won't
+provide any meaningful benefit. The !vma->anon_vma check of
+find_mergeable_vma is the only superfluous bit in using
+find_mergeable_vma because the !PageAnon check of
+try_to_merge_one_page() implicitly checks for that, but it still looks
+cleaner to share the same find_mergeable_vma().
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/ksm.c | 30 +++++++++++++++++++++++++++---
- 1 file changed, 27 insertions(+), 3 deletions(-)
+ mm/ksm.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
 diff --git a/mm/ksm.c b/mm/ksm.c
-index 39ef485..929b5c2 100644
+index 241588e..10618a3 100644
 --- a/mm/ksm.c
 +++ b/mm/ksm.c
-@@ -1225,7 +1225,18 @@ again:
- 		stable_node = rb_entry(*new, struct stable_node, node);
- 		tree_page = get_ksm_page(stable_node, false);
- 		if (!tree_page)
--			return NULL;
-+			/*
-+			 * If we walked over a stale stable_node,
-+			 * get_ksm_page() will call rb_erase() and it
-+			 * may rebalance the tree from under us. So
-+			 * restart the search from scratch. Returning
-+			 * NULL would be safe too, but we'd generate
-+			 * false negative insertions just because some
-+			 * stable_node was stale which would waste CPU
-+			 * by doing the preparation work twice at the
-+			 * next KSM pass.
-+			 */
-+			goto again;
+@@ -1057,8 +1057,6 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
+ 	if (page == kpage)			/* ksm page forked */
+ 		return 0;
  
- 		ret = memcmp_pages(page, tree_page);
- 		put_page(tree_page);
-@@ -1301,12 +1312,14 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
- 	unsigned long kpfn;
- 	struct rb_root *root;
- 	struct rb_node **new;
--	struct rb_node *parent = NULL;
-+	struct rb_node *parent;
- 	struct stable_node *stable_node;
+-	if (!(vma->vm_flags & VM_MERGEABLE))
+-		goto out;
+ 	if (PageTransCompound(page) && page_trans_compound_anon_split(page))
+ 		goto out;
+ 	BUG_ON(PageTransCompound(page));
+@@ -1135,8 +1133,8 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
+ 		return err;
  
- 	kpfn = page_to_pfn(kpage);
- 	nid = get_kpfn_nid(kpfn);
- 	root = root_stable_tree + nid;
-+again:
-+	parent = NULL;
- 	new = &root->rb_node;
+ 	down_read(&mm->mmap_sem);
+-	vma = find_vma(mm, rmap_item->address);
+-	if (!vma || vma->vm_start > rmap_item->address)
++	vma = find_mergeable_vma(mm, rmap_item->address);
++	if (!vma)
+ 		goto out;
  
- 	while (*new) {
-@@ -1317,7 +1330,18 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
- 		stable_node = rb_entry(*new, struct stable_node, node);
- 		tree_page = get_ksm_page(stable_node, false);
- 		if (!tree_page)
--			return NULL;
-+			/*
-+			 * If we walked over a stale stable_node,
-+			 * get_ksm_page() will call rb_erase() and it
-+			 * may rebalance the tree from under us. So
-+			 * restart the search from scratch. Returning
-+			 * NULL would be safe too, but we'd generate
-+			 * false negative insertions just because some
-+			 * stable_node was stale which would waste CPU
-+			 * by doing the preparation work twice at the
-+			 * next KSM pass.
-+			 */
-+			goto again;
- 
- 		ret = memcmp_pages(kpage, tree_page);
- 		put_page(tree_page);
+ 	err = try_to_merge_one_page(vma, page, kpage);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
