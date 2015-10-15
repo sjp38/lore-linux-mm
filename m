@@ -1,55 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A08A6B0038
-	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 02:05:24 -0400 (EDT)
-Received: by pabws5 with SMTP id ws5so13443439pab.3
-        for <linux-mm@kvack.org>; Wed, 14 Oct 2015 23:05:24 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id qx6si19046841pab.180.2015.10.14.23.05.23
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B22F6B0038
+	for <linux-mm@kvack.org>; Thu, 15 Oct 2015 03:05:13 -0400 (EDT)
+Received: by oihr205 with SMTP id r205so41153147oih.3
+        for <linux-mm@kvack.org>; Thu, 15 Oct 2015 00:05:12 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id dh7si6701288oec.16.2015.10.15.00.04.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 Oct 2015 23:05:23 -0700 (PDT)
-Date: Thu, 15 Oct 2015 15:06:12 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 9/9] mm/compaction: new threshold for compaction
- depleted zone
-Message-ID: <20151015060612.GD7566@js1304-P5Q-DELUXE>
-References: <1440382773-16070-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1440382773-16070-10-git-send-email-iamjoonsoo.kim@lge.com>
- <561E4A6F.5070801@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 15 Oct 2015 00:05:12 -0700 (PDT)
+Message-ID: <561F4EEA.60203@huawei.com>
+Date: Thu, 15 Oct 2015 14:59:54 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <561E4A6F.5070801@suse.cz>
+Subject: some problems about kasan
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
+To: akpm@linux-foundation.org, adech.fo@gmail.com, ryabinin.a.a@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, qiuxishi@huawei.com, guohanjun@huawei.com, zhangdianfang@huawei.com
 
-On Wed, Oct 14, 2015 at 02:28:31PM +0200, Vlastimil Babka wrote:
-> On 08/24/2015 04:19 AM, Joonsoo Kim wrote:
-> > Now, compaction algorithm become powerful. Migration scanner traverses
-> > whole zone range. So, old threshold for depleted zone which is designed
-> > to imitate compaction deferring approach isn't appropriate for current
-> > compaction algorithm. If we adhere to current threshold, 1, we can't
-> > avoid excessive overhead caused by compaction, because one compaction
-> > for low order allocation would be easily successful in any situation.
-> > 
-> > This patch re-implements threshold calculation based on zone size and
-> > allocation requested order. We judge whther compaction possibility is
-> > depleted or not by number of successful compaction. Roughly, 1/100
-> > of future scanned area should be allocated for high order page during
-> > one comaction iteration in order to determine whether zone's compaction
-> > possiblity is depleted or not.
-> 
-> Finally finishing my review, sorry it took that long...
-> 
+1a?? I feel confused about one of the cases when  testing the cases  kasan can solve . the function come from the kernel in the /lib/test_kasan.c.
 
-Ah... I forgot to mention that I really appreciate your help.
-Thanks for review!!
+  static noinline void __init kmalloc_uaf2(void)
+{
+	char *ptr1, *ptr2;
+	size_t size = 43;
 
+	pr_info("use-after-free after another kmalloc\n");
+	ptr1 = kmalloc(size, GFP_KERNEL);
+	if (!ptr1) {
+		pr_err("Allocation failed\n");
+		return;
+	}
 
-Thanks!
+	kfree(ptr1);
+	ptr2 = kmalloc(size, GFP_KERNEL);
+	if (!ptr2) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	ptr1[40] = 'x';
+	kfree(ptr2);
+}
+
+In the above function, the point ptr1 are probably  the same as the ptr2 . so the error not certain to occur.
+
+2a??Is the stack local variable out of bound access set by the GCC  ? I don't see any operate in the kernel
+
+3a??I want to know that the global variable size include redzone is allocated by the module_alloc().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
