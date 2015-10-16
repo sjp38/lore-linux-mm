@@ -1,43 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 4952A82F64
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 18:46:12 -0400 (EDT)
-Received: by obbwb3 with SMTP id wb3so75557129obb.0
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:46:12 -0700 (PDT)
-Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
-        by mx.google.com with ESMTPS id yu9si3392336oeb.26.2015.10.16.15.46.11
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E773C82F64
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 18:51:37 -0400 (EDT)
+Received: by obbda8 with SMTP id da8so102032729obb.1
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:51:37 -0700 (PDT)
+Received: from mail-ob0-x230.google.com (mail-ob0-x230.google.com. [2607:f8b0:4003:c01::230])
+        by mx.google.com with ESMTPS id m130si11441248oif.92.2015.10.16.15.51.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Oct 2015 15:46:11 -0700 (PDT)
-Received: by oies66 with SMTP id s66so32503132oie.1
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:46:11 -0700 (PDT)
-Date: Fri, 16 Oct 2015 15:46:03 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Oct 2015 15:51:37 -0700 (PDT)
+Received: by obcqt19 with SMTP id qt19so23875671obc.3
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:51:37 -0700 (PDT)
+Date: Fri, 16 Oct 2015 15:51:34 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH mmotm] mm: dont split thp page when syscall is called fix 4
-Message-ID: <alpine.LSU.2.11.1510161540460.31102@eggly.anvils>
+Subject: [PATCH mmotm] mm: use unsigned int for page order fix 2
+Message-ID: <alpine.LSU.2.11.1510161546430.31102@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Compiler gives helpful warnings that madvise_free_pte_range()
-has the args to split_huge_pmd() the wrong way round.
+Some configs now end up with MAX_ORDER and pageblock_order having
+different types: silence compiler warning in __free_one_page().
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 
---- mmotm/mm/madvise.c	2015-10-15 15:26:59.839572171 -0700
-+++ linux/mm/madvise.c	2015-10-16 11:59:10.144527813 -0700
-@@ -283,7 +283,7 @@ static int madvise_free_pte_range(pmd_t
- 	next = pmd_addr_end(addr, end);
- 	if (pmd_trans_huge(*pmd)) {
- 		if (next - addr != HPAGE_PMD_SIZE)
--			split_huge_pmd(vma, addr, pmd);
-+			split_huge_pmd(vma, pmd, addr);
- 		else if (!madvise_free_huge_pmd(tlb, vma, pmd, addr))
- 			goto next;
- 		/* fall through */
+--- mmotm/mm/page_alloc.c	2015-10-15 15:26:59.855572338 -0700
++++ linux/mm/page_alloc.c	2015-10-16 11:54:20.847027790 -0700
+@@ -679,7 +679,7 @@ static inline void __free_one_page(struc
+ 		 * pageblock. Without this, pageblock isolation
+ 		 * could cause incorrect freepage accounting.
+ 		 */
+-		max_order = min(MAX_ORDER, pageblock_order + 1);
++		max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
+ 	} else {
+ 		__mod_zone_freepage_state(zone, 1 << order, migratetype);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
