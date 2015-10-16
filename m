@@ -1,64 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2767982F64
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:51:54 -0400 (EDT)
-Received: by obbwb3 with SMTP id wb3so72662428obb.0
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 12:51:53 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0080.outbound.protection.outlook.com. [157.56.112.80])
-        by mx.google.com with ESMTPS id t136si11183714oif.23.2015.10.16.12.51.52
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 642CC82F64
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:54:57 -0400 (EDT)
+Received: by igbhv6 with SMTP id hv6so21512900igb.0
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 12:54:57 -0700 (PDT)
+Received: from mail-io0-x230.google.com (mail-io0-x230.google.com. [2607:f8b0:4001:c06::230])
+        by mx.google.com with ESMTPS id h65si17841644ioi.167.2015.10.16.12.54.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 16 Oct 2015 12:51:53 -0700 (PDT)
-From: Chris Metcalf <cmetcalf@ezchip.com>
-Subject: [PATCH] vmstat_update: ensure work remains on the same core
-Date: Fri, 16 Oct 2015 15:51:33 -0400
-Message-ID: <1445025093-32639-1-git-send-email-cmetcalf@ezchip.com>
-In-Reply-To: <CA+55aFyzsMYcRX3V5CEWB4Zb-9BuRGCjib3DMXuX5y9nBWiZ1w@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Oct 2015 12:54:56 -0700 (PDT)
+Received: by ioii196 with SMTP id i196so134691485ioi.3
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 12:54:56 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1445025093-32639-1-git-send-email-cmetcalf@ezchip.com>
+References: <CA+55aFyzsMYcRX3V5CEWB4Zb-9BuRGCjib3DMXuX5y9nBWiZ1w@mail.gmail.com>
+	<1445025093-32639-1-git-send-email-cmetcalf@ezchip.com>
+Date: Fri, 16 Oct 2015 12:54:56 -0700
+Message-ID: <CA+55aFx_2HUHXQDrOYpB3qpqg=LqMw0zjTj9S7ctgg9c6Hy_Ew@mail.gmail.com>
+Subject: Re: [PATCH] vmstat_update: ensure work remains on the same core
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Shaohua Li <shli@fb.com>, linux-mm <linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Chris Metcalf <cmetcalf@ezchip.com>
+To: Chris Metcalf <cmetcalf@ezchip.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Shaohua Li <shli@fb.com>, linux-mm <linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>
 
-By using schedule_delayed_work(), we are preferring the local
-core for the work, but not requiring it.  In my task
-isolation experiments, I saw a nohz_full core's vmstat_update
-end up running on a housekeeping core, and when the two works
-ran back-to-back, we triggered the VM_BUG_ON() at the
-end of the function.
+On Fri, Oct 16, 2015 at 12:51 PM, Chris Metcalf <cmetcalf@ezchip.com> wrote:
+> By using schedule_delayed_work(), we are preferring the local
+> core for the work, but not requiring it.
 
-Switch to using schedule_delayed_work_on(smp_processor_id(), ...).
+Heh. See commit 176bed1de5bf.
 
-Signed-off-by: Chris Metcalf <cmetcalf@ezchip.com>
----
-This change that I made a few days ago in my local tree is
-particularly amusing given that the thread I am appending this
-email to ("workqueue fixes for v4.3-rc5") also fixes the symptoms
-of the bug I saw, but I wasn't aware of it until just now.  And it
-took a while for me to track it down!  I think this is probably a
-"belt and suspenders" kind of issue where it makes sense to fix it
-on both sides of the API, however.
+I added curly braces, because I hate the "half-bracing" that the code
+had (ie a "else" statement with curly braces on one side but not the
+other), but otherwise identical patches, I think.
 
- mm/vmstat.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index cf7d324f16e2..5c6bd7e5db07 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1369,7 +1369,8 @@ static void vmstat_update(struct work_struct *w)
- 		 * to occur in the future. Keep on running the
- 		 * update worker thread.
- 		 */
--		schedule_delayed_work(this_cpu_ptr(&vmstat_work),
-+		schedule_delayed_work_on(smp_processor_id(),
-+			this_cpu_ptr(&vmstat_work),
- 			round_jiffies_relative(sysctl_stat_interval));
- 	else {
- 		/*
--- 
-2.1.2
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
