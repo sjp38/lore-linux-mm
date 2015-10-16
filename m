@@ -1,47 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 3103982F64
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 18:35:46 -0400 (EDT)
-Received: by pabws5 with SMTP id ws5so1910791pab.1
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:35:45 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ct3si32297151pad.103.2015.10.16.15.35.45
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4952A82F64
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 18:46:12 -0400 (EDT)
+Received: by obbwb3 with SMTP id wb3so75557129obb.0
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:46:12 -0700 (PDT)
+Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
+        by mx.google.com with ESMTPS id yu9si3392336oeb.26.2015.10.16.15.46.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Oct 2015 15:35:45 -0700 (PDT)
-Date: Fri, 16 Oct 2015 15:35:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH 0/8] introduce slabinfo extended mode
-Message-Id: <20151016153544.2d70713d6a0f2afd5744fa00@linux-foundation.org>
-In-Reply-To: <1444907673-8863-1-git-send-email-sergey.senozhatsky@gmail.com>
-References: <1444907673-8863-1-git-send-email-sergey.senozhatsky@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Oct 2015 15:46:11 -0700 (PDT)
+Received: by oies66 with SMTP id s66so32503132oie.1
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:46:11 -0700 (PDT)
+Date: Fri, 16 Oct 2015 15:46:03 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH mmotm] mm: dont split thp page when syscall is called fix 4
+Message-ID: <alpine.LSU.2.11.1510161540460.31102@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 15 Oct 2015 20:14:25 +0900 Sergey Senozhatsky <sergey.senozhatsky@gmail.com> wrote:
+Compiler gives helpful warnings that madvise_free_pte_range()
+has the args to split_huge_pmd() the wrong way round.
 
-> Add 'extended' slabinfo mode that provides additional information:
->  -- totals summary
->  -- slabs sorted by size
->  -- slabs sorted by loss (waste)
-> 
-> The patches also introduces several new slabinfo options to limit the
-> number of slabs reported, sort slabs by loss (waste); and some fixes.
+Signed-off-by: Hugh Dickins <hughd@google.com>
 
-hm, why the "RFC"?  These patches look more mature than most of the
-stuff I get ;)
-
-You should have cc'ed linux-mm on these patches: nobody will have
-noticed them.
-
-slabinfo is documented a bit in Documentation/vm/slub.txt.  Please
-review that file for accuracy and completeness.  It should at least
-draw readers' attention to the new tools/vm/slabinfo-gnuplot.sh.
+--- mmotm/mm/madvise.c	2015-10-15 15:26:59.839572171 -0700
++++ linux/mm/madvise.c	2015-10-16 11:59:10.144527813 -0700
+@@ -283,7 +283,7 @@ static int madvise_free_pte_range(pmd_t
+ 	next = pmd_addr_end(addr, end);
+ 	if (pmd_trans_huge(*pmd)) {
+ 		if (next - addr != HPAGE_PMD_SIZE)
+-			split_huge_pmd(vma, addr, pmd);
++			split_huge_pmd(vma, pmd, addr);
+ 		else if (!madvise_free_huge_pmd(tlb, vma, pmd, addr))
+ 			goto next;
+ 		/* fall through */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
