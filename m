@@ -1,94 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id E84FC6B0038
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 10:36:33 -0400 (EDT)
-Received: by wijq8 with SMTP id q8so14043185wij.0
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 07:36:33 -0700 (PDT)
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com. [209.85.212.177])
-        by mx.google.com with ESMTPS id je1si5499876wic.24.2015.10.16.07.36.32
+Received: from mail-vk0-f42.google.com (mail-vk0-f42.google.com [209.85.213.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A376D82F64
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 11:00:23 -0400 (EDT)
+Received: by vkaw128 with SMTP id w128so69790933vka.0
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 08:00:23 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id t200si4902979vke.171.2015.10.16.08.00.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Oct 2015 07:36:32 -0700 (PDT)
-Received: by wicll6 with SMTP id ll6so14179069wic.1
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 07:36:31 -0700 (PDT)
-Date: Fri, 16 Oct 2015 16:36:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/3] memcg: simplify and inline __mem_cgroup_from_kmem
-Message-ID: <20151016143629.GE19597@dhcp22.suse.cz>
-References: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
- <517ab1701f4b53be8bfd6691a1499598efb358e7.1443996201.git.vdavydov@virtuozzo.com>
- <20151016131726.GA602@node.shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20151016131726.GA602@node.shutemov.name>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 16 Oct 2015 08:00:20 -0700 (PDT)
+Message-ID: <1445007605.24309.25.camel@kernel.crashing.org>
+Subject: Re: [PATCH 1/3] mm: clearing pte in clear_soft_dirty()
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Fri, 16 Oct 2015 20:30:05 +0530
+In-Reply-To: <8352032008c7d9f1eee8d39599888a4cbe570bf7.1444995096.git.ldufour@linux.vnet.ibm.com>
+References: <cover.1444995096.git.ldufour@linux.vnet.ibm.com>
+	 <8352032008c7d9f1eee8d39599888a4cbe570bf7.1444995096.git.ldufour@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, xemul@parallels.com, linuxppc-dev@lists.ozlabs.org, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, paulus@samba.org
+Cc: criu@openvz.org
 
-On Fri 16-10-15 16:17:26, Kirill A. Shutemov wrote:
-[...]
+On Fri, 2015-10-16 at 14:07 +0200, Laurent Dufour wrote:
+> As mentioned in the commit 56eecdb912b5 ("mm: Use
+> ptep/pmdp_set_numa()
+> for updating _PAGE_NUMA bit"), architecture like ppc64 doesn't do
+> tlb flush in set_pte/pmd functions.
+> 
+> So when dealing with existing pte in clear_soft_dirty, the pte must
+> be cleared before being modified.
 
-I've just encountered the same while updating mmotm git tree. Thanks for
-the fix. All other configs which I am testing are good as well.
+Note that this is true of more than powerpc afaik. There's is a general
+rule that we don't "restrict" a PTE access permissions without first
+clearing it, due to various races.
 
-> virt_to_head_page() is defined in <linux/mm.h> but you don't include it,
-> and the commit breaks build for me (on v4.3-rc5-mmotm-2015-10-15-15-20).
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> CC: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  fs/proc/task_mmu.c | 7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
 > 
->   CC      arch/x86/kernel/asm-offsets.s
-> In file included from /home/kas/linux/mm/include/linux/swap.h:8:0,
->                  from /home/kas/linux/mm/include/linux/suspend.h:4,
->                  from /home/kas/linux/mm/arch/x86/kernel/asm-offsets.c:12:
-> /home/kas/linux/mm/include/linux/memcontrol.h: In function a??mem_cgroup_from_kmema??:
-> /home/kas/linux/mm/include/linux/memcontrol.h:841:9: error: implicit declaration of function a??virt_to_head_pagea?? [-Werror=implicit-function-declaration]
->   page = virt_to_head_page(ptr);
->          ^
-> /home/kas/linux/mm/include/linux/memcontrol.h:841:7: warning: assignment makes pointer from integer without a cast [-Wint-conversion]
->   page = virt_to_head_page(ptr);
->        ^
-> In file included from /home/kas/linux/mm/include/linux/suspend.h:8:0,
->                  from /home/kas/linux/mm/arch/x86/kernel/asm-offsets.c:12:
-> /home/kas/linux/mm/include/linux/mm.h: At top level:
-> /home/kas/linux/mm/include/linux/mm.h:452:28: error: conflicting types for a??virt_to_head_pagea??
->  static inline struct page *virt_to_head_page(const void *x)
->                             ^
-> In file included from /home/kas/linux/mm/include/linux/swap.h:8:0,
->                  from /home/kas/linux/mm/include/linux/suspend.h:4,
->                  from /home/kas/linux/mm/arch/x86/kernel/asm-offsets.c:12:
-> /home/kas/linux/mm/include/linux/memcontrol.h:841:9: note: previous implicit declaration of a??virt_to_head_pagea?? was here
->   page = virt_to_head_page(ptr);
->          ^
-> cc1: some warnings being treated as errors
-> 
-> The patch below fixes it for me (and for allmodconfig on x86-64), but I'm not
-> sure if it have any side effects on other configurations.
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 47677acb4516..e8e52e502c20 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -26,6 +26,7 @@
->  #include <linux/page_counter.h>
->  #include <linux/vmpressure.h>
->  #include <linux/eventfd.h>
-> +#include <linux/mm.h>
->  #include <linux/mmzone.h>
->  #include <linux/writeback.h>
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index e2d46adb54b4..c9454ee39b28 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -753,19 +753,20 @@ static inline void clear_soft_dirty(struct
+> vm_area_struct *vma,
+>  	pte_t ptent = *pte;
 >  
-> -- 
->  Kirill A. Shutemov
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+>  	if (pte_present(ptent)) {
+> +		ptent = ptep_modify_prot_start(vma->vm_mm, addr,
+> pte);
+>  		ptent = pte_wrprotect(ptent);
+>  		ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
+> +		ptep_modify_prot_commit(vma->vm_mm, addr, pte,
+> ptent);
+>  	} else if (is_swap_pte(ptent)) {
+>  		ptent = pte_swp_clear_soft_dirty(ptent);
+> +		set_pte_at(vma->vm_mm, addr, pte, ptent);
+>  	}
+> -
+> -	set_pte_at(vma->vm_mm, addr, pte, ptent);
+>  }
+>  
+>  static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
+>  		unsigned long addr, pmd_t *pmdp)
+>  {
+> -	pmd_t pmd = *pmdp;
+> +	pmd_t pmd = pmdp_huge_get_and_clear(vma->vm_mm, addr, pmdp);
+>  
+>  	pmd = pmd_wrprotect(pmd);
+>  	pmd = pmd_clear_flags(pmd, _PAGE_SOFT_DIRTY);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
