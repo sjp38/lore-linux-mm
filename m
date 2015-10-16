@@ -1,79 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f42.google.com (mail-vk0-f42.google.com [209.85.213.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A376D82F64
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 11:00:23 -0400 (EDT)
-Received: by vkaw128 with SMTP id w128so69790933vka.0
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 08:00:23 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id t200si4902979vke.171.2015.10.16.08.00.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 16 Oct 2015 08:00:20 -0700 (PDT)
-Message-ID: <1445007605.24309.25.camel@kernel.crashing.org>
-Subject: Re: [PATCH 1/3] mm: clearing pte in clear_soft_dirty()
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Fri, 16 Oct 2015 20:30:05 +0530
-In-Reply-To: <8352032008c7d9f1eee8d39599888a4cbe570bf7.1444995096.git.ldufour@linux.vnet.ibm.com>
-References: <cover.1444995096.git.ldufour@linux.vnet.ibm.com>
-	 <8352032008c7d9f1eee8d39599888a4cbe570bf7.1444995096.git.ldufour@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 27E8582F64
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 11:12:57 -0400 (EDT)
+Received: by pacfv9 with SMTP id fv9so25411939pac.3
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 08:12:56 -0700 (PDT)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id lp10si30167608pab.101.2015.10.16.08.12.50
+        for <linux-mm@kvack.org>;
+        Fri, 16 Oct 2015 08:12:50 -0700 (PDT)
+Subject: Re: [PATCH 26/26] x86, pkeys: Documentation
+References: <20150916174913.AF5FEA6D@viggo.jf.intel.com>
+ <20150920085554.GA21906@gmail.com> <55FF88BA.6080006@sr71.net>
+ <20150924094956.GA30349@gmail.com> <56044A88.7030203@sr71.net>
+ <20151001111718.GA25333@gmail.com>
+ <CAGXu5j+j92EPEwv9O4cX92zJDTyBEz3WtQ2CDHT0KmqJ6bCmGQ@mail.gmail.com>
+ <CALCETrWaar55uTv5q3Ym1KEdQjfgjDfwMM=PPnjb9eV+ASS_ig@mail.gmail.com>
+ <20151002062340.GB30051@gmail.com> <560EC3EC.2080803@sr71.net>
+ <20151003072755.GA23524@gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <562113F0.6060307@sr71.net>
+Date: Fri, 16 Oct 2015 08:12:48 -0700
+MIME-Version: 1.0
+In-Reply-To: <20151003072755.GA23524@gmail.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, xemul@parallels.com, linuxppc-dev@lists.ozlabs.org, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, paulus@samba.org
-Cc: criu@openvz.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@google.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>
 
-On Fri, 2015-10-16 at 14:07 +0200, Laurent Dufour wrote:
-> As mentioned in the commit 56eecdb912b5 ("mm: Use
-> ptep/pmdp_set_numa()
-> for updating _PAGE_NUMA bit"), architecture like ppc64 doesn't do
-> tlb flush in set_pte/pmd functions.
+On 10/03/2015 12:27 AM, Ingo Molnar wrote:
+>  - Along similar considerations, also add a sys_pkey_query() system call to query 
+>    the mapping of a specific pkey. (returns -EBADF or so if the key is not mapped
+>    at the moment.) This too could be vDSO accelerated in the future.
 > 
-> So when dealing with existing pte in clear_soft_dirty, the pte must
-> be cleared before being modified.
-
-Note that this is true of more than powerpc afaik. There's is a general
-rule that we don't "restrict" a PTE access permissions without first
-clearing it, due to various races.
-
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> CC: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  fs/proc/task_mmu.c | 7 ++++---
->  1 file changed, 4 insertions(+), 3 deletions(-)
+> I.e. something like:
 > 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index e2d46adb54b4..c9454ee39b28 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -753,19 +753,20 @@ static inline void clear_soft_dirty(struct
-> vm_area_struct *vma,
->  	pte_t ptent = *pte;
->  
->  	if (pte_present(ptent)) {
-> +		ptent = ptep_modify_prot_start(vma->vm_mm, addr,
-> pte);
->  		ptent = pte_wrprotect(ptent);
->  		ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
-> +		ptep_modify_prot_commit(vma->vm_mm, addr, pte,
-> ptent);
->  	} else if (is_swap_pte(ptent)) {
->  		ptent = pte_swp_clear_soft_dirty(ptent);
-> +		set_pte_at(vma->vm_mm, addr, pte, ptent);
->  	}
-> -
-> -	set_pte_at(vma->vm_mm, addr, pte, ptent);
->  }
->  
->  static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
->  		unsigned long addr, pmd_t *pmdp)
->  {
-> -	pmd_t pmd = *pmdp;
-> +	pmd_t pmd = pmdp_huge_get_and_clear(vma->vm_mm, addr, pmdp);
->  
->  	pmd = pmd_wrprotect(pmd);
->  	pmd = pmd_clear_flags(pmd, _PAGE_SOFT_DIRTY);
+>      unsigned long sys_pkey_alloc (unsigned long flags, unsigned long init_val)
+>      unsigned long sys_pkey_set   (int pkey, unsigned long new_val)
+>      unsigned long sys_pkey_get   (int pkey)
+>      unsigned long sys_pkey_free  (int pkey)
+
+The pkey_set() operation is going to get a wee bit interesting with signals.
+
+pkey_set() will modify the _current_ context's PKRU which includes the
+register itself and the kernel XSAVE buffer (if active).  But, since the
+PKRU state is saved/restored with the XSAVE state, we will blow away any
+state set during the signal.
+
+I _think_ the right move here is to either keep a 'shadow' version of
+PKRU inside the kernel (for each thread) and always update the task's
+XSAVE PKRU state when returning from a signal handler.  Or, _copy_ the
+signal's PKRU state in to the main process's PKRU state when returning
+from a signal.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
