@@ -1,110 +1,109 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E3416B0254
-	for <linux-mm@kvack.org>; Sat, 31 Oct 2015 19:39:16 -0400 (EDT)
-Received: by wijp11 with SMTP id p11so31292837wij.0
-        for <linux-mm@kvack.org>; Sat, 31 Oct 2015 16:39:16 -0700 (PDT)
-Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
-        by mx.google.com with ESMTPS id j15si18223487wjn.71.2015.10.31.16.39.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 31 Oct 2015 16:39:15 -0700 (PDT)
-Message-ID: <1446334747.2595.19.camel@decadent.org.uk>
-Subject: [PATCH selftests 5/6] selftests: vm: Try harder to allocate huge
- pages
-From: Ben Hutchings <ben@decadent.org.uk>
-Date: Sat, 31 Oct 2015 23:39:07 +0000
-In-Reply-To: <1446334510.2595.13.camel@decadent.org.uk>
-References: <1446334510.2595.13.camel@decadent.org.uk>
-Content-Type: multipart/signed; micalg="pgp-sha512";
-	protocol="application/pgp-signature"; boundary="=-QFC3UrDrbq8T6yGt/Hc5"
-Mime-Version: 1.0
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Shuah Khan <shuahkh@osg.samsung.com>
-Cc: linux-api@vger.kernel.org, linux-mm@kvack.org
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: [PATCH] zsmalloc: reduce size_class memory usage
+Date: Fri, 16 Oct 2015 13:01:30 +0900
+Message-ID: <1444968090-7066-1-git-send-email-sergey.senozhatsky@gmail.com>
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+List-Id: linux-mm.kvack.org
 
+Each `struct size_class' contains `struct zs_size_stat':
+an array of NR_ZS_STAT_TYPE `unsigned long'. For zsmalloc
+built with no CONFIG_ZSMALLOC_STAT this results in a waste
+of `2 * sizeof(unsigned long)' per-class.
 
---=-QFC3UrDrbq8T6yGt/Hc5
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+The patch removes unneeded `struct zs_size_stat' members
+by redefining NR_ZS_STAT_TYPE (max stat idx in array).
 
-If we need to increase the number of huge pages, drop caches first
-to reduce fragmentation and then check that we actually allocated
-as many as we wanted.=C2=A0=C2=A0Retry once if that doesn't work.
+Since both NR_ZS_STAT_TYPE and zs_stat_type are compile time
+constants, GCC can eliminate zs_stat_inc()/zs_stat_dec() calls
+that use zs_stat_type larger than NR_ZS_STAT_TYPE:
+CLASS_ALMOST_EMPTY and CLASS_ALMOST_FULL at the moment.
 
-Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
+./scripts/bloat-o-meter mm/zsmalloc.o.old mm/zsmalloc.o.new
+add/remove: 0/0 grow/shrink: 0/3 up/down: 0/-39 (-39)
+function                                     old     new   delta
+fix_fullness_group                            97      94      -3
+insert_zspage                                100      86     -14
+remove_zspage                                141     119     -22
+
+To summarize:
+a) each class now uses less memory
+b) we avoid a number of dec/inc stats (a minor optimization,
+   but still).
+
+The gain will increase once we introduce additional stats.
+
+A simple IO test.
+
+iozone -t 4 -R -r 32K -s 60M -I +Z
+                        patched                 base
+"  Initial write "       4145599.06              4127509.75
+"        Rewrite "       4146225.94              4223618.50
+"           Read "      17157606.00             17211329.50
+"        Re-read "      17380428.00             17267650.50
+"   Reverse Read "      16742768.00             16162732.75
+"    Stride read "      16586245.75             16073934.25
+"    Random read "      16349587.50             15799401.75
+" Mixed workload "      10344230.62              9775551.50
+"   Random write "       4277700.62              4260019.69
+"         Pwrite "       4302049.12              4313703.88
+"          Pread "       6164463.16              6126536.72
+"         Fwrite "       7131195.00              6952586.00
+"          Fread "      12682602.25             12619207.50
+
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 ---
-The test always fails for me in a 1 GB VM without this.
+ mm/zsmalloc.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)
 
-Ben.
-
-=C2=A0tools/testing/selftests/vm/run_vmtests | 15 ++++++++++++++-
-=C2=A01 file changed, 14 insertions(+), 1 deletion(-)
-
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftes=
-ts/vm/run_vmtests
-index 9179ce8..97ed1b2 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -20,13 +20,26 @@ done < /proc/meminfo
-=C2=A0if [ -n "$freepgs" ] && [ -n "$pgsize" ]; then
-=C2=A0	nr_hugepgs=3D`cat /proc/sys/vm/nr_hugepages`
-=C2=A0	needpgs=3D`expr $needmem / $pgsize`
--	if [ $freepgs -lt $needpgs ]; then
-+	tries=3D2
-+	while [ $tries -gt 0 ] && [ $freepgs -lt $needpgs ]; do
-=C2=A0		lackpgs=3D$(( $needpgs - $freepgs ))
-+		echo 3 > /proc/sys/vm/drop_caches
-=C2=A0		echo $(( $lackpgs + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
-=C2=A0		if [ $? -ne 0 ]; then
-=C2=A0			echo "Please run this test as root"
-=C2=A0			exit 1
-=C2=A0		fi
-+		while read name size unit; do
-+			if [ "$name" =3D "HugePages_Free:" ]; then
-+				freepgs=3D$size
-+			fi
-+		done < /proc/meminfo
-+		tries=3D$((tries - 1))
-+	done
-+	if [ $freepgs -lt $needpgs ]; then
-+		printf "Not enough huge pages available (%d < %d)\n" \
-+		=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0$freepgs $needpgs
-+		exit 1
-=C2=A0	fi
-=C2=A0else
-=C2=A0	echo "no hugetlbfs support in kernel?"
-
---=20
-Ben Hutchings
-All extremists should be taken out and shot.
---=-QFC3UrDrbq8T6yGt/Hc5
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIVAwUAVjVRG+e/yOyVhhEJAQrF4xAAiYIr51i4rTr+4Bby9dSyu9VGidiGXz2F
-kGLJRDYbFNhCAshrhP3FYISAgVTUxfd5B/SrLd0B3V5VGwOoopLzRdNxMMOF/lRT
-L5yEeGHCvwIa857dFN9G5mhW/QCymfo+1bEO0uCC3WIgMWVHZePVpTfNmtT9ePQj
-XmCOBKsOML/OTGm3hIhl4riC2xkk30K3obljx7dk8BRldAWNcm1PVPJTINT0EZ7I
-J4qy6Zx8zxmuCke7KG6tY+8EGoN44DA+761phyYDJX+JEBVIVCp0Crqv5Bi+BGNX
-5UUcQg21ADEoI2SKB8oA2xdaHB2Q4LfRgppHZckO0BKXCnpEbGI7Jkjo7zTyvV+y
-fagp1BA4KI7KveLgVrw+6iAoVrUxKqRsri6F/edSMFmC28LWqwK7RPSbKJlt3wt7
-RXPbWiLsrdqwV/coZ6gB5hMF5l0cXHOb24sBCiqPqtMyvo4kstAm7Hq0VDDvdZRm
-hzne6J8v6Mp8nrnbYhXABRpt6umOWOtk616PSc1+bYudqVcoJTnDmMyHnCJn9hCB
-FREAYxbC87e2bKHmQRq1wwg0wuwLcavBRqcH6C0/VhH2YdBy7whTbqvFjNgCW8xM
-PpvpheQUOMgAkSWxs+3GNJ4QEDj+2gtKfY9vQxwG8hD/JSuN00L7FczdnXwWOvEJ
-wqGgCwmq9Ug=
-=cQ5x
------END PGP SIGNATURE-----
-
---=-QFC3UrDrbq8T6yGt/Hc5--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 2500ee8..0331c9a9 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -166,9 +166,14 @@ enum zs_stat_type {
+ 	OBJ_USED,
+ 	CLASS_ALMOST_FULL,
+ 	CLASS_ALMOST_EMPTY,
+-	NR_ZS_STAT_TYPE,
+ };
+ 
++#ifdef CONFIG_ZSMALLOC_STAT
++#define NR_ZS_STAT_TYPE	(CLASS_ALMOST_EMPTY + 1)
++#else
++#define NR_ZS_STAT_TYPE	(OBJ_USED + 1)
++#endif
++
+ struct zs_size_stat {
+ 	unsigned long objs[NR_ZS_STAT_TYPE];
+ };
+@@ -447,19 +452,23 @@ static int get_size_class_index(int size)
+ static inline void zs_stat_inc(struct size_class *class,
+ 				enum zs_stat_type type, unsigned long cnt)
+ {
+-	class->stats.objs[type] += cnt;
++	if (type < NR_ZS_STAT_TYPE)
++		class->stats.objs[type] += cnt;
+ }
+ 
+ static inline void zs_stat_dec(struct size_class *class,
+ 				enum zs_stat_type type, unsigned long cnt)
+ {
+-	class->stats.objs[type] -= cnt;
++	if (type < NR_ZS_STAT_TYPE)
++		class->stats.objs[type] -= cnt;
+ }
+ 
+ static inline unsigned long zs_stat_get(struct size_class *class,
+ 				enum zs_stat_type type)
+ {
+-	return class->stats.objs[type];
++	if (type < NR_ZS_STAT_TYPE)
++		return class->stats.objs[type];
++	return 0;
+ }
+ 
+ #ifdef CONFIG_ZSMALLOC_STAT
+-- 
+2.6.1.134.g4b1fd35
