@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D29882F68
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 18:15:43 -0400 (EDT)
-Received: by oiao187 with SMTP id o187so14763208oia.3
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:15:43 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id z8si11368933oes.74.2015.10.16.15.15.41
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D70AD82F64
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 18:19:32 -0400 (EDT)
+Received: by wicfv8 with SMTP id fv8so8699119wic.0
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 15:19:32 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id qr8si26385940wjc.131.2015.10.16.15.19.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Oct 2015 15:15:42 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH 1/3] mm/hugetlb: Define hugetlb_falloc structure for hole punch race
-Date: Fri, 16 Oct 2015 15:08:28 -0700
-Message-Id: <1445033310-13155-2-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1445033310-13155-1-git-send-email-mike.kravetz@oracle.com>
-References: <1445033310-13155-1-git-send-email-mike.kravetz@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Oct 2015 15:19:31 -0700 (PDT)
+Date: Fri, 16 Oct 2015 15:19:22 -0700
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/3] memcg: simplify and inline __mem_cgroup_from_kmem
+Message-ID: <20151016221922.GA4355@cmpxchg.org>
+References: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
+ <517ab1701f4b53be8bfd6691a1499598efb358e7.1443996201.git.vdavydov@virtuozzo.com>
+ <20151016131726.GA602@node.shutemov.name>
+ <20151016135106.GJ11309@esperanza>
+ <alpine.LSU.2.11.1510161458280.26747@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1510161458280.26747@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-A hugetlb_falloc structure is pointed to by i_private during fallocate
-hole punch operations.  Page faults check this structure and if they are
-in the hole, wait for the operation to finish.
+On Fri, Oct 16, 2015 at 03:12:23PM -0700, Hugh Dickins wrote:
+> --- 4035m/mm/list_lru.c	2015-10-15 15:26:59.835572128 -0700
+> +++ 4035M/mm/list_lru.c	2015-10-16 03:11:51.000000000 -0700
+> @@ -63,6 +63,16 @@ list_lru_from_memcg_idx(struct list_lru_
+>  	return &nlru->lru;
+>  }
+>  
+> +static __always_inline struct mem_cgroup *mem_cgroup_from_kmem(void *ptr)
+> +{
+> +	struct page *page;
+> +
+> +	if (!memcg_kmem_enabled())
+> +		return NULL;
+> +	page = virt_to_head_page(ptr);
+> +	return page->mem_cgroup;
+> +}
+> +
+>  static inline struct list_lru_one *
+>  list_lru_from_kmem(struct list_lru_node *nlru, void *ptr)
+>  {
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- include/linux/hugetlb.h | 10 ++++++++++
- 1 file changed, 10 insertions(+)
-
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 685c262..4be35b9 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -42,6 +42,16 @@ struct resv_map {
- extern struct resv_map *resv_map_alloc(void);
- void resv_map_release(struct kref *ref);
- 
-+/*
-+ * hugetlb_falloc is used to prevent page faults during falloc hole punch
-+ * operations.  During hole punch, inode->i_private points to this struct.
-+ */
-+struct hugetlb_falloc {
-+	wait_queue_head_t *waitq;	/* Page faults waiting on hole punch */
-+	pgoff_t start;			/* Start of fallocate hole */
-+	pgoff_t end;			/* End of fallocate hole */
-+};
-+
- extern spinlock_t hugetlb_lock;
- extern int hugetlb_max_hstate __read_mostly;
- #define for_each_hstate(h) \
--- 
-2.4.3
+I like this better than the mm.h include, too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
