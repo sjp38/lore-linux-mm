@@ -1,84 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 73A2082F64
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 19:07:13 -0400 (EDT)
-Received: by pabws5 with SMTP id ws5so2477141pab.1
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 16:07:13 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id si2si32413661pac.230.2015.10.16.16.07.12
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id ACCB882F64
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 20:19:43 -0400 (EDT)
+Received: by wicgb1 with SMTP id gb1so28042307wic.1
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 17:19:43 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id ua15si8108395wib.36.2015.10.16.17.19.42
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Oct 2015 16:07:12 -0700 (PDT)
-Received: by pabrc13 with SMTP id rc13so132561044pab.0
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 16:07:12 -0700 (PDT)
-Date: Fri, 16 Oct 2015 16:07:04 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH mmotm] mm: use unsigned int for page order fix 2
-In-Reply-To: <20151016160050.621082b8b1080c28487e764f@linux-foundation.org>
-Message-ID: <alpine.LSU.2.11.1510161603420.31270@eggly.anvils>
-References: <alpine.LSU.2.11.1510161546430.31102@eggly.anvils> <20151016160050.621082b8b1080c28487e764f@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Oct 2015 17:19:42 -0700 (PDT)
+Date: Fri, 16 Oct 2015 17:19:32 -0700
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/3] memcg: unify slab and other kmem pages charging
+Message-ID: <20151017001932.GA6403@cmpxchg.org>
+References: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
+ <41bbfbf1268f7cce22ac9e1656ddc196ae56a409.1443996201.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <41bbfbf1268f7cce22ac9e1656ddc196ae56a409.1443996201.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 16 Oct 2015, Andrew Morton wrote:
-> On Fri, 16 Oct 2015 15:51:34 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
-> 
-> > Some configs now end up with MAX_ORDER and pageblock_order having
-> > different types: silence compiler warning in __free_one_page().
-> > 
-> > ...
-> >
-> > @@ -679,7 +679,7 @@ static inline void __free_one_page(struc
-> >  		 * pageblock. Without this, pageblock isolation
-> >  		 * could cause incorrect freepage accounting.
-> >  		 */
-> > -		max_order = min(MAX_ORDER, pageblock_order + 1);
-> > +		max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
-> >  	} else {
-> >  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
-> >  	}
-> 
-> Well.  If we're ordaining that "page order has type uint" then can we
-> do that more consistently?  Something like
+Hi Vladimir,
 
-Yes, if we are going this way, then it is better to be thorough than
-patch around it as I did.  (But personally I think the exercise is a
-waste of time, so I just took the quickest way out, sorry.)
+I'm late, but fwiw these patches are great simplifications. Thanks!
 
-Hugh
+One nit below:
 
-> 
-> --- a/include/linux/mmzone.h~a
-> +++ a/include/linux/mmzone.h
-> @@ -21,9 +21,9 @@
+On Mon, Oct 05, 2015 at 01:21:42AM +0300, Vladimir Davydov wrote:
+> @@ -2404,36 +2376,59 @@ void __memcg_kmem_put_cache(struct kmem_cache *cachep)
+>  		css_put(&cachep->memcg_params.memcg->css);
+>  }
 >  
->  /* Free memory management - zoned buddy allocator.  */
->  #ifndef CONFIG_FORCE_MAX_ZONEORDER
-> -#define MAX_ORDER 11
-> +#define MAX_ORDER 11U
->  #else
-> -#define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
-> +#define MAX_ORDER ((unsigned int)CONFIG_FORCE_MAX_ZONEORDER)
->  #endif
->  #define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
+> -int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+> +/*
+> + * If @memcg != NULL, charge to @memcg, otherwise charge to the memcg the
+> + * current task belongs to.
+> + */
+> +int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order,
+> +			struct mem_cgroup *memcg)
+>  {
+> -	struct mem_cgroup *memcg;
+> -	int ret;
+> -
+> -	memcg = get_mem_cgroup_from_mm(current->mm);
+> +	struct page_counter *counter;
+> +	unsigned int nr_pages = 1 << order;
+> +	bool put = false;
+> +	int ret = 0;
 >  
-> diff -puN include/linux/pageblock-flags.h~a include/linux/pageblock-flags.h
-> --- a/include/linux/pageblock-flags.h~a
-> +++ a/include/linux/pageblock-flags.h
-> @@ -49,7 +49,7 @@ extern unsigned int pageblock_order;
->  #else /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
->  
->  /* Huge pages are a constant size */
-> -#define pageblock_order		HUGETLB_PAGE_ORDER
-> +#define pageblock_order		((unsigned int)HUGETLB_PAGE_ORDER)
->  
->  #endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
->  
-> _
+> -	if (!memcg_kmem_is_active(memcg)) {
+> -		css_put(&memcg->css);
+> -		return 0;
+> +	if (!memcg) {
+> +		memcg = get_mem_cgroup_from_mm(current->mm);
+> +		put = true;
+
+I think it'd be better to have an outer function than a magic
+parameter for the memcg lookup. Could we fold this in there?
+
+---
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/memcontrol.h |  7 ++++---
+ mm/memcontrol.c            | 36 ++++++++++++++++++------------------
+ mm/slab.h                  |  4 ++--
+ 3 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 47677ac..730a65d 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -756,8 +756,9 @@ static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+  * conditions, but because they are pretty simple, they are expected to be
+  * fast.
+  */
+-int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order,
+-			struct mem_cgroup *memcg);
++int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
++			      struct mem_cgroup *memcg);
++int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
+ void __memcg_kmem_uncharge(struct page *page, int order);
+ 
+ /*
+@@ -797,7 +798,7 @@ static __always_inline int memcg_kmem_charge(struct page *page,
+ {
+ 	if (__memcg_kmem_bypass(gfp))
+ 		return 0;
+-	return __memcg_kmem_charge(page, gfp, order, NULL);
++	return __memcg_kmem_charge(page, gfp, order);
+ }
+ 
+ /**
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 15db655..6fc9959 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2378,39 +2378,39 @@ void __memcg_kmem_put_cache(struct kmem_cache *cachep)
+ 		css_put(&cachep->memcg_params.memcg->css);
+ }
+ 
+-/*
+- * If @memcg != NULL, charge to @memcg, otherwise charge to the memcg the
+- * current task belongs to.
+- */
+-int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order,
+-			struct mem_cgroup *memcg)
++int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
++			      struct mem_cgroup *memcg)
+ {
+-	struct page_counter *counter;
+ 	unsigned int nr_pages = 1 << order;
+-	bool put = false;
++	struct page_counter *counter;
+ 	int ret = 0;
+ 
+-	if (!memcg) {
+-		memcg = get_mem_cgroup_from_mm(current->mm);
+-		put = true;
+-	}
+ 	if (!memcg_kmem_is_active(memcg))
+-		goto out;
++		return 0;
+ 
+ 	ret = page_counter_try_charge(&memcg->kmem, nr_pages, &counter);
+ 	if (ret)
+-		goto out;
++		return ret;
+ 
+ 	ret = try_charge(memcg, gfp, nr_pages);
+ 	if (ret) {
+ 		page_counter_uncharge(&memcg->kmem, nr_pages);
+-		goto out;
++		return ret;
+ 	}
+ 
+ 	page->mem_cgroup = memcg;
+-out:
+-	if (put)
+-		css_put(&memcg->css);
++
++	return 0;
++}
++
++int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
++{
++	struct mem_cgroup *memcg;
++	int ret;
++
++	memcg = get_mem_cgroup_from_mm(current->mm);
++	ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
++	css_put(&memcg->css);
+ 	return ret;
+ }
+ 
+diff --git a/mm/slab.h b/mm/slab.h
+index 3d667a4..27492eb 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -244,8 +244,8 @@ static __always_inline int memcg_charge_slab(struct page *page,
+ 		return 0;
+ 	if (is_root_cache(s))
+ 		return 0;
+-	return __memcg_kmem_charge(page, gfp, order,
+-				   s->memcg_params.memcg);
++	return __memcg_kmem_charge_memcg(page, gfp, order,
++					 s->memcg_params.memcg);
+ }
+ 
+ extern void slab_init_memcg_params(struct kmem_cache *);
+-- 
+2.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
