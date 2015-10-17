@@ -1,39 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f46.google.com (mail-vk0-f46.google.com [209.85.213.46])
-	by kanga.kvack.org (Postfix) with ESMTP id C9A0C82F64
-	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 22:15:18 -0400 (EDT)
-Received: by vkat63 with SMTP id t63so78562159vka.1
-        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 19:15:18 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id u184si13404919vke.58.2015.10.16.19.15.17
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 6845782F64
+	for <linux-mm@kvack.org>; Fri, 16 Oct 2015 22:23:26 -0400 (EDT)
+Received: by pabws5 with SMTP id ws5so5778424pab.1
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 19:23:26 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id bi5si33486261pbc.38.2015.10.16.19.23.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 16 Oct 2015 19:15:17 -0700 (PDT)
-Message-ID: <1445048104.24309.49.camel@kernel.crashing.org>
-Subject: Re: [PATCH 0/3] mm/powerpc: enabling memory soft dirty tracking
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Sat, 17 Oct 2015 07:45:04 +0530
-In-Reply-To: <20151016141129.8b014c6d882c475fafe577a9@linux-foundation.org>
-References: <cover.1444995096.git.ldufour@linux.vnet.ibm.com>
-	 <20151016141129.8b014c6d882c475fafe577a9@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Oct 2015 19:23:25 -0700 (PDT)
+Received: by pabws5 with SMTP id ws5so5778304pab.1
+        for <linux-mm@kvack.org>; Fri, 16 Oct 2015 19:23:25 -0700 (PDT)
+Date: Sat, 17 Oct 2015 11:22:08 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [RFC][PATCH 0/8] introduce slabinfo extended mode
+Message-ID: <20151017022208.GA1757@swordfish>
+References: <1444907673-8863-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <20151016153544.2d70713d6a0f2afd5744fa00@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151016153544.2d70713d6a0f2afd5744fa00@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xemul@parallels.com, linuxppc-dev@lists.ozlabs.org, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, paulus@samba.org, criu@openvz.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-On Fri, 2015-10-16 at 14:11 -0700, Andrew Morton wrote:
-> I grabbed these patches, but they're more a ppc thing than a core
-> kernel thing.  I can merge them into 4.3 with suitable acks or drop
-> them if they turn up in the powerpc tree.  Or something else?
+On (10/16/15 15:35), Andrew Morton wrote:
+> On Thu, 15 Oct 2015 20:14:25 +0900 Sergey Senozhatsky <sergey.senozhatsky@gmail.com> wrote:
+> 
+> > Add 'extended' slabinfo mode that provides additional information:
+> >  -- totals summary
+> >  -- slabs sorted by size
+> >  -- slabs sorted by loss (waste)
+> > 
+> > The patches also introduces several new slabinfo options to limit the
+> > number of slabs reported, sort slabs by loss (waste); and some fixes.
+> 
+> hm, why the "RFC"?  These patches look more mature than most of the
+> stuff I get ;)
+> 
 
-I'm happy for you to keep the generic ones but the powerpc one at the
-end should be reviewed by Aneesh at least.
+Thank you, sir.
 
-Cheers,
-Ben.
+I wasn't so sure about the gnuplot script, that's why I added RFC.
+
+
+> You should have cc'ed linux-mm on these patches: nobody will have
+> noticed them.
+
+I should have done that, my bad.
+`./scripts/get_maintainer.pl -f tools/vm/' confused me.
+
+
+> slabinfo is documented a bit in Documentation/vm/slub.txt.  Please
+> review that file for accuracy and completeness.  It should at least
+> draw readers' attention to the new tools/vm/slabinfo-gnuplot.sh.
+
+Will take a look.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
