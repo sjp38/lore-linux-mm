@@ -1,47 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f54.google.com (mail-vk0-f54.google.com [209.85.213.54])
-	by kanga.kvack.org (Postfix) with ESMTP id F1F0482F64
-	for <linux-mm@kvack.org>; Sat, 17 Oct 2015 09:25:04 -0400 (EDT)
-Received: by vkha6 with SMTP id a6so82758826vkh.2
-        for <linux-mm@kvack.org>; Sat, 17 Oct 2015 06:25:04 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id 80si8215772vkc.107.2015.10.17.06.25.03
+Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 30D3A82F64
+	for <linux-mm@kvack.org>; Sat, 17 Oct 2015 10:59:02 -0400 (EDT)
+Received: by iofz202 with SMTP id z202so8249890iof.2
+        for <linux-mm@kvack.org>; Sat, 17 Oct 2015 07:59:02 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id sa1si7544746igb.99.2015.10.17.07.59.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 17 Oct 2015 06:25:04 -0700 (PDT)
-Message-ID: <1445088290.24309.60.camel@kernel.crashing.org>
-Subject: Re: [PATCH 3/3] powerpc/mm: Add page soft dirty tracking
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Sat, 17 Oct 2015 18:54:50 +0530
-In-Reply-To: <87a8rhit61.fsf@linux.vnet.ibm.com>
-References: <cover.1444995096.git.ldufour@linux.vnet.ibm.com>
-	 <b1ae177b872e901b01a4071c92c4db23a3323be3.1444995096.git.ldufour@linux.vnet.ibm.com>
-	 <87a8rhit61.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 17 Oct 2015 07:59:01 -0700 (PDT)
+Date: Sat, 17 Oct 2015 17:58:44 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 3/3] memcg: simplify and inline __mem_cgroup_from_kmem
+Message-ID: <20151017145843.GL11309@esperanza>
+References: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
+ <517ab1701f4b53be8bfd6691a1499598efb358e7.1443996201.git.vdavydov@virtuozzo.com>
+ <20151016131726.GA602@node.shutemov.name>
+ <20151016135106.GJ11309@esperanza>
+ <alpine.LSU.2.11.1510161458280.26747@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1510161458280.26747@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, xemul@parallels.com, linuxppc-dev@lists.ozlabs.org, mpe@ellerman.id.au, paulus@samba.org
-Cc: criu@openvz.org
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 2015-10-17 at 17:49 +0530, Aneesh Kumar K.V wrote:
-> This will break after
-> https://lists.ozlabs.org/pipermail/linuxppc-dev/2015-October/135298.html
-> 
-> 
-> A good option is to drop this patch from the series and let Andrew take
-> the first two patches. You can send an updated version of patch 3 against
-> linux-powerpc tree once Michael pulls that series to his tree. 
+On Fri, Oct 16, 2015 at 03:12:23PM -0700, Hugh Dickins wrote:
+...
+> Are you expecting to use mem_cgroup_from_kmem() from other places
+> in future?  Seems possible; but at present it's called from only
 
-Or not ... I'm not comfortable with your series just yet for the reasons
-I mentioned earlier (basically doubling the memory footprint of the page
-tables).
+Not in the near future. At least, currently I can't think of any other
+use for it except list_lru_from_kmem.
 
-They are already too big.
+> one place, and (given how memcontrol.h has somehow managed to avoid
+> including mm.h all these years), I thought it would be nice to avoid
+> it for just this; and fixed my build with the patch below last night.
+> Whatever you all think best: just wanted to point out an alternative.
 
-Cheers,
-Ben.
+Makes sense, thanks!
+
+I would even inline mem_cgroup_from_kmem to list_lru_from_kmem:
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 47677acb4516..2077b9bb4883 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -831,16 +831,6 @@ static __always_inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
+ 	if (memcg_kmem_enabled())
+ 		__memcg_kmem_put_cache(cachep);
+ }
+-
+-static __always_inline struct mem_cgroup *mem_cgroup_from_kmem(void *ptr)
+-{
+-	struct page *page;
+-
+-	if (!memcg_kmem_enabled())
+-		return NULL;
+-	page = virt_to_head_page(ptr);
+-	return page->mem_cgroup;
+-}
+ #else
+ #define for_each_memcg_cache_index(_idx)	\
+ 	for (; NULL; )
+@@ -886,11 +876,6 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ static inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
+ {
+ }
+-
+-static inline struct mem_cgroup *mem_cgroup_from_kmem(void *ptr)
+-{
+-	return NULL;
+-}
+ #endif /* CONFIG_MEMCG_KMEM */
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
+diff --git a/mm/list_lru.c b/mm/list_lru.c
+index 28237476b055..00d0a70af70a 100644
+--- a/mm/list_lru.c
++++ b/mm/list_lru.c
+@@ -68,10 +68,10 @@ list_lru_from_kmem(struct list_lru_node *nlru, void *ptr)
+ {
+ 	struct mem_cgroup *memcg;
+ 
+-	if (!nlru->memcg_lrus)
++	if (!memcg_kmem_enabled() || !nlru->memcg_lrus)
+ 		return &nlru->lru;
+ 
+-	memcg = mem_cgroup_from_kmem(ptr);
++	memcg = virt_to_head_page(ptr)->mem_cgroup;
+ 	if (!memcg)
+ 		return &nlru->lru;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
