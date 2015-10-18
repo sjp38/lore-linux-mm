@@ -1,47 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E9F682F64
-	for <linux-mm@kvack.org>; Sat, 17 Oct 2015 16:33:48 -0400 (EDT)
-Received: by padfb7 with SMTP id fb7so8709184pad.2
-        for <linux-mm@kvack.org>; Sat, 17 Oct 2015 13:33:48 -0700 (PDT)
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com. [209.85.220.41])
-        by mx.google.com with ESMTPS id hq1si39386112pac.161.2015.10.17.13.33.47
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id ACE1F82F64
+	for <linux-mm@kvack.org>; Sun, 18 Oct 2015 01:10:57 -0400 (EDT)
+Received: by pabws5 with SMTP id ws5so6526901pab.2
+        for <linux-mm@kvack.org>; Sat, 17 Oct 2015 22:10:57 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id tb8si42149286pab.225.2015.10.17.22.10.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Oct 2015 13:33:47 -0700 (PDT)
-Received: by pasz6 with SMTP id z6so9330926pas.1
-        for <linux-mm@kvack.org>; Sat, 17 Oct 2015 13:33:47 -0700 (PDT)
-Subject: Re: [PATCH] mm/maccess.c: actually return -EFAULT from
- strncpy_from_unsafe
-References: <1445113206-27980-1-git-send-email-linux@rasmusvillemoes.dk>
-From: Alexei Starovoitov <ast@plumgrid.com>
-Message-ID: <5622B0AC.1050307@plumgrid.com>
-Date: Sat, 17 Oct 2015 13:33:48 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 17 Oct 2015 22:10:56 -0700 (PDT)
+Date: Sat, 17 Oct 2015 22:10:56 -0700
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] mm: cma: Fix incorrect type conversion for size during
+ dma allocation
+Message-ID: <20151018051056.GB20643@kroah.com>
+References: <1444854232-4085-1-git-send-email-rvaswani@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <1445113206-27980-1-git-send-email-linux@rasmusvillemoes.dk>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1444854232-4085-1-git-send-email-rvaswani@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>, Namhyung Kim <namhyung@kernel.org>
+To: Rohit Vaswani <rvaswani@codeaurora.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 10/17/15 1:20 PM, Rasmus Villemoes wrote:
-> As far as I can tell, strncpy_from_unsafe never returns -EFAULT. ret
-> is the result of a __copy_from_user_inatomic(), which is 0 for success
-> and positive (in this case necessarily 1) for access error - it is
-> never negative. So we were always returning the length of the,
-> possibly truncated, destination string.
->
-> Signed-off-by: Rasmus Villemoes<linux@rasmusvillemoes.dk>
-> ---
-> Probably not -stable-worthy. I can only find two callers, one of which
-> ignores the return value.
+On Wed, Oct 14, 2015 at 01:23:51PM -0700, Rohit Vaswani wrote:
+> This was found during userspace fuzzing test when a large size
+> dma cma allocation is made by driver(like ion) through userspace.
+> 
+>  show_stack+0x10/0x1c
+>  dump_stack+0x74/0xc8
+>  kasan_report_error+0x2b0/0x408
+>  kasan_report+0x34/0x40
+>  __asan_storeN+0x15c/0x168
+>  memset+0x20/0x44
+>  __dma_alloc_coherent+0x114/0x18c
+> 
+> Signed-off-by: Rohit Vaswani <rvaswani@codeaurora.org>
 
-good catch.
-Acked-by: Alexei Starovoitov <ast@kernel.org>
-
-cc-ing original authors where I copy pasted that part from.
+Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
