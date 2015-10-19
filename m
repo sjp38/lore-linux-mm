@@ -1,119 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0700A82F8A
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 17:26:01 -0400 (EDT)
-Received: by wicfx6 with SMTP id fx6so18272352wic.1
-        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 14:26:00 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id kk4si40603255wjb.48.2015.10.19.14.25.59
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E97DD82F8A
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 17:42:21 -0400 (EDT)
+Received: by qgeo38 with SMTP id o38so126967610qge.0
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 14:42:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g67si32089551qgf.96.2015.10.19.14.42.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 19 Oct 2015 14:25:59 -0700 (PDT)
-Subject: Re: [PATCH 2/12] mm: rmap use pte lock not mmap_sem to set
- PageMlocked
-References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
- <alpine.LSU.2.11.1510182148040.2481@eggly.anvils> <56248C5B.3040505@suse.cz>
- <alpine.LSU.2.11.1510190341490.3809@eggly.anvils>
- <20151019131308.GB15819@node.shutemov.name>
- <alpine.LSU.2.11.1510191218070.4652@eggly.anvils>
- <20151019201003.GA18106@node.shutemov.name>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56255FE4.5070609@suse.cz>
-Date: Mon, 19 Oct 2015 23:25:56 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Oct 2015 14:42:21 -0700 (PDT)
+Date: Mon, 19 Oct 2015 23:42:16 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/7] userfault21 update
+Message-ID: <20151019214216.GU19147@redhat.com>
+References: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
+ <CACh33FoFK4tbKFgcvN3mBuW7V=pMjM=X7eO68Pp9+56pH4B-EQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20151019201003.GA18106@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACh33FoFK4tbKFgcvN3mBuW7V=pMjM=X7eO68Pp9+56pH4B-EQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrey Konovalov <andreyknvl@google.com>, Dmitry Vyukov <dvyukov@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Patrick Donnelly <batrick@batbytes.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-On 10/19/2015 10:10 PM, Kirill A. Shutemov wrote:
-> On Mon, Oct 19, 2015 at 12:53:17PM -0700, Hugh Dickins wrote:
->> On Mon, 19 Oct 2015, Kirill A. Shutemov wrote:
->>> On Mon, Oct 19, 2015 at 04:20:05AM -0700, Hugh Dickins wrote:
->>>>> Note how munlock_vma_pages_range() via __munlock_pagevec() does
->>>>> TestClearPageMlocked() without (or "between") pte or page lock. But the pte
->>>>> lock is being taken after clearing VM_LOCKED, so perhaps it's safe against
->>>>> try_to_unmap_one...
->>>>
->>>> A mind-trick I found helpful for understanding the barriers here, is
->>>> to imagine that the munlocker repeats its "vma->vm_flags &= ~VM_LOCKED"
->>>> every time it takes the pte lock: it does not actually do that, it
->>>> doesn't need to of course; but that does help show that ~VM_LOCKED
->>>> must be visible to anyone getting that pte lock afterwards.
->>>
->>> How can you make sure that any other codepath that changes vm_flags would
->>> not make (vm_flags & VM_LOCKED) temporary true while dealing with other
->>> flags?
->>>
->>> Compiler can convert things like "vma->vm_flags &= ~VM_FOO;" to whatever
->>> it wants as long as end result is the same. It's very unlikely that it
->>> will generate code to set all bits to one and then clear all which should
->>> be cleared, but it's theoretically possible.
+Hello Patrick,
 
-I think Linus would be very vocal about such compiler implementation. 
-And I can imagine a lot of things in the kernel would break by those 
-spuriously set bits. There must be a lot of stuff that's "theoretically 
-possible within the standard" but no sane compiler does. I believe even 
-compiler guys are not that insane. IIRC we've seen bugs like this and 
-they were always treated as bugs and fixed.
-The example I've heard often used for theoretically possible but insane 
-stuff is that the compiler could make code randomly write over anything 
-that's not volatile, as long as it restored the original values upon 
-e.g. returning from the function. That just can't happen.
+On Mon, Oct 12, 2015 at 11:04:11AM -0400, Patrick Donnelly wrote:
+> Hello Andrea,
+> 
+> On Mon, Jun 15, 2015 at 1:22 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > This is an incremental update to the userfaultfd code in -mm.
+> 
+> Sorry I'm late to this party. I'm curious how a ptrace monitor might
+> use a userfaultfd to handle faults in all of its tracees. Is this
+> possible without having each (newly forked) tracee "cooperate" by
+> creating a userfaultfd and passing that to the tracer?
 
->> I think that's in the realm of the fanciful.  But yes, it quite often
->> turns out that what I think is fanciful, is something that Paul has
->> heard compiler writers say they want to do, even if he has managed
->> to discourage them from doing it so far.
->
-> Paul always has links to pdfs with this kind of horror. ;)
->
->> But more to the point, when you write of "end result", the compiler
->> would have no idea that releasing mmap_sem is the point at which
->> end result must be established:
+To make the non cooperative usage work, userfaulfd also needs more
+features to track fork() and mremap() syscalls and such, as the
+monitor needs to be aware about modifications to the address space of
+each "mm" is managing and of new forked "mm" as well. So fork() won't
+need to call userfaultfd once we add those features, but it still
+doesn't need to know about the "pid". The uffd_msg already has padding
+to add the features you need for that.
 
-Isn't releasing a lock one of those "release" barriers where previously
-issued writes must become visible before the unlock takes place?
+Pavel invented and developed those features for the non cooperative
+usage to implement postcopy live migration of containers. He posted
+some patchset on the lists too, but it probably needs to be rebased on
+upstream.
 
->> wouldn't it have to establish end
->> result before the next unlock operation, and before the end of the
->> compilation unit?
+The ptrace monitor thread can also fault into the userfault area if it
+wants to (but only if it's not the userfault manager thread as well).
+I didn't expect the ptrace monitor to want to be a userfault manager
+too though.
 
-Now I'm lost in what you mean.
+On a side note, the signals the ptrace monitor sends to the tracee
+(SIGCONT|STOP included) will only be executed by the tracee without
+waiting for userfault resolution from the userfault manager, if the
+tracees userfault wasn't triggered in kernel context (and in a non
+cooperative usage that's not an assumption you can make). If the
+tracee hits an userfault while running in kernel context, the
+userfault manager must resolve the userfault before any signal (except
+SIGKILL of course) can be executed by the tracee. Only SIGKILL is
+instantly executed by all tracees no matter if it was an userfault in
+kernel or user context. That may be another reason for not wanting the
+ptrace monitor and the userfault manager in the same thread (they can
+still be running in two different threads of the same external
+process).
 
->> pte unlock being the relevant unlock operation
->> in this case, at least with my patch if not without.
+> Have you considered using one userfaultfd for an entire tree of
+> processes (signaled through a flag)? Would not a process id included
+> in the include/uapi/linux/userfaultfd.h:struct uffd_msg be sufficient
+> to disambiguate faults?
 
-Hm so IIUC Kirill's point is that try_to_unmap_one() is checking 
-VM_LOCKED under pte lock, but somebody else might be modifying vm_flags 
-under mmap_sem, and thus we have no protection.
+I got a private email asking a corollary question about having the
+faulting IP address in the uffd_msg recently, which I answered and I
+take opportunity to quote it as well below, as it's somewhat connected
+with your "pid" question and this adds more context.
 
->>>
->>> I think we need to have at lease WRITE_ONCE() everywhere we update
->>> vm_flags and READ_ONCE() where we read it without mmap_sem taken.
+===
 
-It wouldn't hurt to check if seeing a stale value or using non-atomic 
-RMW can be a problem somewhere. In this case it's testing, not changing, 
-so RMW is not an issue. But the check shouldn't consider arbitrary 
-changes made by a potentially crazy compiler.
+At times it's the kernel accessing the page (copy-user get user pages)
+like if the buffer is a parameter to the write or read syscalls, just
+to make an example.
 
->> Not a series I'll embark upon myself,
->> and the patch at hand doesn't make things worse.
->
-> I think it does.
+The IP address triggering the fault isn't necessarily a userland
+address. Furthermore not even the pid is known, so you don't know
+which process accessed it.
 
-So what's the alternative? Hm could we keep the trylock on mmap_sem 
-under pte lock? The ordering is wrong, but it's a trylock, so no danger 
-of deadlock?
+userfaultfd only notifies userland that a certain page is requested
+and must be mapped ASAP. You don't know why or who touched it.
 
-> The patch changes locking rules for ->vm_flags without proper preparation
-> and documentation. It will strike back one day.
-> I know we have few other cases when we access ->vm_flags without mmap_sem,
-> but this doesn't justify introducing one more potentially weak codepath.
->
+===
+
+Now about adding the "pid": the association between "pid" and "mm"
+isn't so strict in the kernel. You can tell which "pid" shares the
+same "mm" but if you look from userland, you can't always tell which
+"mm"(/process) the pid belongs to. At times async io threads or
+vhost-net threads can impersonate the "mm" and in effect become part
+of the process and you'd get those random "pid" of kernel threads.
+
+It could also be a ptrace that triggers an userfault, with a "pid" that
+isn't part of the application and the manager must still work
+seamlessly no matter who or which "pid" triggered the userfault.
+
+So overall dealing the "pid"s sounds like not very clean as the same
+kernel thread "pid" can impersonate multiple "mm" and you wouldn't get
+the information of which "mm" the "address" belongs to.
+
+When userfaultfd() is called, it literally binds to the "mm" the
+process is running on and it's pid agnostic. Then when a kernel thread
+impersonating the "mm" faults into the "mm" with get_user_pages or
+copy_user or when a ptrace faults into the "mm", the userafult manager
+won't even see the difference.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
