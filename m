@@ -1,158 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 2298A82F67
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 04:09:43 -0400 (EDT)
-Received: by wicll6 with SMTP id ll6so84112819wic.0
-        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 01:09:42 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id u11si20852369wiv.13.2015.10.19.01.09.42
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B4B36B0261
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 05:16:42 -0400 (EDT)
+Received: by lbbes7 with SMTP id es7so47605251lbb.2
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 02:16:41 -0700 (PDT)
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com. [209.85.217.180])
+        by mx.google.com with ESMTPS id sg5si22085307lbb.162.2015.10.19.02.16.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Oct 2015 01:09:42 -0700 (PDT)
-Received: by wicfv8 with SMTP id fv8so65493950wic.0
-        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 01:09:42 -0700 (PDT)
-Date: Mon, 19 Oct 2015 10:09:40 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/3] memcg: unify slab and other kmem pages charging
-Message-ID: <20151019080940.GC11998@dhcp22.suse.cz>
-References: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
- <41bbfbf1268f7cce22ac9e1656ddc196ae56a409.1443996201.git.vdavydov@virtuozzo.com>
- <20151017001932.GA6403@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Oct 2015 02:16:39 -0700 (PDT)
+Received: by lbcao8 with SMTP id ao8so136811674lbc.3
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 02:16:39 -0700 (PDT)
+Date: Mon, 19 Oct 2015 12:16:36 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/12] mm Documentation: undoc non-linear vmas
+Message-ID: <20151019091636.GA15061@node.shutemov.name>
+References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
+ <alpine.LSU.2.11.1510182144210.2481@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151017001932.GA6403@cmpxchg.org>
+In-Reply-To: <alpine.LSU.2.11.1510182144210.2481@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org
 
-On Fri 16-10-15 17:19:32, Johannes Weiner wrote:
-[...]
-> I think it'd be better to have an outer function than a magic
-> parameter for the memcg lookup. Could we fold this in there?
+On Sun, Oct 18, 2015 at 09:45:47PM -0700, Hugh Dickins wrote:
+> While updating some mm Documentation, I came across a few straggling
+> references to the non-linear vmas which were happily removed in v4.0.
+> Delete them.
 > 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
 > ---
+>  Documentation/filesystems/proc.txt   |    1 
+>  Documentation/vm/page_migration      |   10 +--
+>  Documentation/vm/unevictable-lru.txt |   63 +------------------------
+>  3 files changed, 9 insertions(+), 65 deletions(-)
 > 
-
-Yes this makes sense.
-Thanks!
-
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  include/linux/memcontrol.h |  7 ++++---
->  mm/memcontrol.c            | 36 ++++++++++++++++++------------------
->  mm/slab.h                  |  4 ++--
->  3 files changed, 24 insertions(+), 23 deletions(-)
+> --- migrat.orig/Documentation/filesystems/proc.txt	2015-09-12 18:30:13.713047477 -0700
+> +++ migrat/Documentation/filesystems/proc.txt	2015-10-18 17:53:03.715313650 -0700
+> @@ -474,7 +474,6 @@ manner. The codes are the following:
+>      ac  - area is accountable
+>      nr  - swap space is not reserved for the area
+>      ht  - area uses huge tlb pages
+> -    nl  - non-linear mapping
+>      ar  - architecture specific flag
+>      dd  - do not include area into core dump
+>      sd  - soft-dirty flag
+> --- migrat.orig/Documentation/vm/page_migration	2009-06-09 20:05:27.000000000 -0700
+> +++ migrat/Documentation/vm/page_migration	2015-10-18 17:53:03.715313650 -0700
+> @@ -99,12 +99,10 @@ Steps:
+>  4. The new page is prepped with some settings from the old page so that
+>     accesses to the new page will discover a page with the correct settings.
+>  
+> -5. All the page table references to the page are converted
+> -   to migration entries or dropped (nonlinear vmas).
+> -   This decrease the mapcount of a page. If the resulting
+> -   mapcount is not zero then we do not migrate the page.
+> -   All user space processes that attempt to access the page
+> -   will now wait on the page lock.
+> +5. All the page table references to the page are converted to migration
+> +   entries. This decreases the mapcount of a page. If the resulting
+> +   mapcount is not zero then we do not migrate the page. All user space
+> +   processes that attempt to access the page will now wait on the page lock.
+>  
+>  6. The radix tree lock is taken. This will cause all processes trying
+>     to access the page via the mapping to block on the radix tree spinlock.
+> --- migrat.orig/Documentation/vm/unevictable-lru.txt	2015-08-30 11:34:09.000000000 -0700
+> +++ migrat/Documentation/vm/unevictable-lru.txt	2015-10-18 17:53:03.716313651 -0700
+> @@ -552,63 +552,17 @@ different reverse map mechanisms.
+>       is really unevictable or not.  In this case, try_to_unmap_anon() will
+>       return SWAP_AGAIN.
+>  
+> - (*) try_to_unmap_file() - linear mappings
+> + (*) try_to_unmap_file()
+>  
+>       Unmapping of a mapped file page works the same as for anonymous mappings,
+>       except that the scan visits all VMAs that map the page's index/page offset
+> -     in the page's mapping's reverse map priority search tree.  It also visits
+> -     each VMA in the page's mapping's non-linear list, if the list is
+> -     non-empty.
+> +     in the page's mapping's reverse map interval search tree.
+>  
+>       As for anonymous pages, on encountering a VM_LOCKED VMA for a mapped file
+>       page, try_to_unmap_file() will attempt to acquire the associated
+>       mm_struct's mmap semaphore to mlock the page, returning SWAP_MLOCK if this
+>       is successful, and SWAP_AGAIN, if not.
+>  
+> - (*) try_to_unmap_file() - non-linear mappings
+> -
+> -     If a page's mapping contains a non-empty non-linear mapping VMA list, then
+> -     try_to_un{map|lock}() must also visit each VMA in that list to determine
+> -     whether the page is mapped in a VM_LOCKED VMA.  Again, the scan must visit
+> -     all VMAs in the non-linear list to ensure that the pages is not/should not
+> -     be mlocked.
+> -
+> -     If a VM_LOCKED VMA is found in the list, the scan could terminate.
+> -     However, there is no easy way to determine whether the page is actually
+> -     mapped in a given VMA - either for unmapping or testing whether the
+> -     VM_LOCKED VMA actually pins the page.
+> -
+> -     try_to_unmap_file() handles non-linear mappings by scanning a certain
+> -     number of pages - a "cluster" - in each non-linear VMA associated with the
+> -     page's mapping, for each file mapped page that vmscan tries to unmap.  If
+> -     this happens to unmap the page we're trying to unmap, try_to_unmap() will
+> -     notice this on return (page_mapcount(page) will be 0) and return
+> -     SWAP_SUCCESS.  Otherwise, it will return SWAP_AGAIN, causing vmscan to
+> -     recirculate this page.  We take advantage of the cluster scan in
+> -     try_to_unmap_cluster() as follows:
+> -
+> -	For each non-linear VMA, try_to_unmap_cluster() attempts to acquire the
+> -	mmap semaphore of the associated mm_struct for read without blocking.
+> -
+> -	If this attempt is successful and the VMA is VM_LOCKED,
+> -	try_to_unmap_cluster() will retain the mmap semaphore for the scan;
+> -	otherwise it drops it here.
+> -
+> -	Then, for each page in the cluster, if we're holding the mmap semaphore
+> -	for a locked VMA, try_to_unmap_cluster() calls mlock_vma_page() to
+> -	mlock the page.  This call is a no-op if the page is already locked,
+> -	but will mlock any pages in the non-linear mapping that happen to be
+> -	unlocked.
+> -
+> -	If one of the pages so mlocked is the page passed in to try_to_unmap(),
+> -	try_to_unmap_cluster() will return SWAP_MLOCK, rather than the default
+> -	SWAP_AGAIN.  This will allow vmscan to cull the page, rather than
+> -	recirculating it on the inactive list.
+> -
+> -	Again, if try_to_unmap_cluster() cannot acquire the VMA's mmap sem, it
+> -	returns SWAP_AGAIN, indicating that the page is mapped by a VM_LOCKED
+> -	VMA, but couldn't be mlocked.
+> -
+>  
+>  try_to_munlock() REVERSE MAP SCAN
+>  ---------------------------------
+> @@ -625,10 +579,9 @@ introduced a variant of try_to_unmap() c
+>  try_to_munlock() calls the same functions as try_to_unmap() for anonymous and
+>  mapped file pages with an additional argument specifying unlock versus unmap
+>  processing.  Again, these functions walk the respective reverse maps looking
+> -for VM_LOCKED VMAs.  When such a VMA is found for anonymous pages and file
+> -pages mapped in linear VMAs, as in the try_to_unmap() case, the functions
+> -attempt to acquire the associated mmap semaphore, mlock the page via
+> -mlock_vma_page() and return SWAP_MLOCK.  This effectively undoes the
+> +for VM_LOCKED VMAs.  When such a VMA is found, as in the try_to_unmap() case,
+> +the functions attempt to acquire the associated mmap semaphore, mlock the page
+> +via mlock_vma_page() and return SWAP_MLOCK.  This effectively undoes the
+>  pre-clearing of the page's PG_mlocked done by munlock_vma_page.
+>  
+>  If try_to_unmap() is unable to acquire a VM_LOCKED VMA's associated mmap
+> @@ -636,12 +589,6 @@ semaphore, it will return SWAP_AGAIN.  T
+>  recycle the page on the inactive list and hope that it has better luck with the
+>  page next time.
+>  
+> -For file pages mapped into non-linear VMAs, the try_to_munlock() logic works
+> -slightly differently.  On encountering a VM_LOCKED non-linear VMA that might
+> -map the page, try_to_munlock() returns SWAP_AGAIN without actually mlocking the
+> -page.  munlock_vma_page() will just leave the page unlocked and let vmscan deal
+> -with it - the usual fallback position.
+> -
+>  Note that try_to_munlock()'s reverse map walk must visit every VMA in a page's
+>  reverse map to determine that a page is NOT mapped into any VM_LOCKED VMA.
+>  However, the scan can terminate when it encounters a VM_LOCKED VMA and can
 > 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 47677ac..730a65d 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -756,8 +756,9 @@ static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
->   * conditions, but because they are pretty simple, they are expected to be
->   * fast.
->   */
-> -int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order,
-> -			struct mem_cgroup *memcg);
-> +int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
-> +			      struct mem_cgroup *memcg);
-> +int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
->  void __memcg_kmem_uncharge(struct page *page, int order);
->  
->  /*
-> @@ -797,7 +798,7 @@ static __always_inline int memcg_kmem_charge(struct page *page,
->  {
->  	if (__memcg_kmem_bypass(gfp))
->  		return 0;
-> -	return __memcg_kmem_charge(page, gfp, order, NULL);
-> +	return __memcg_kmem_charge(page, gfp, order);
->  }
->  
->  /**
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 15db655..6fc9959 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2378,39 +2378,39 @@ void __memcg_kmem_put_cache(struct kmem_cache *cachep)
->  		css_put(&cachep->memcg_params.memcg->css);
->  }
->  
-> -/*
-> - * If @memcg != NULL, charge to @memcg, otherwise charge to the memcg the
-> - * current task belongs to.
-> - */
-> -int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order,
-> -			struct mem_cgroup *memcg)
-> +int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
-> +			      struct mem_cgroup *memcg)
->  {
-> -	struct page_counter *counter;
->  	unsigned int nr_pages = 1 << order;
-> -	bool put = false;
-> +	struct page_counter *counter;
->  	int ret = 0;
->  
-> -	if (!memcg) {
-> -		memcg = get_mem_cgroup_from_mm(current->mm);
-> -		put = true;
-> -	}
->  	if (!memcg_kmem_is_active(memcg))
-> -		goto out;
-> +		return 0;
->  
->  	ret = page_counter_try_charge(&memcg->kmem, nr_pages, &counter);
->  	if (ret)
-> -		goto out;
-> +		return ret;
->  
->  	ret = try_charge(memcg, gfp, nr_pages);
->  	if (ret) {
->  		page_counter_uncharge(&memcg->kmem, nr_pages);
-> -		goto out;
-> +		return ret;
->  	}
->  
->  	page->mem_cgroup = memcg;
-> -out:
-> -	if (put)
-> -		css_put(&memcg->css);
-> +
-> +	return 0;
-> +}
-> +
-> +int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
-> +{
-> +	struct mem_cgroup *memcg;
-> +	int ret;
-> +
-> +	memcg = get_mem_cgroup_from_mm(current->mm);
-> +	ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
-> +	css_put(&memcg->css);
->  	return ret;
->  }
->  
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 3d667a4..27492eb 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -244,8 +244,8 @@ static __always_inline int memcg_charge_slab(struct page *page,
->  		return 0;
->  	if (is_root_cache(s))
->  		return 0;
-> -	return __memcg_kmem_charge(page, gfp, order,
-> -				   s->memcg_params.memcg);
-> +	return __memcg_kmem_charge_memcg(page, gfp, order,
-> +					 s->memcg_params.memcg);
->  }
->  
->  extern void slab_init_memcg_params(struct kmem_cache *);
-> -- 
-> 2.6.1
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
