@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E076D82F67
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 02:30:54 -0400 (EDT)
-Received: by padhk11 with SMTP id hk11so20171882pad.1
-        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 23:30:54 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id hg4si50288137pac.145.2015.10.18.23.30.54
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 9941E82F67
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 04:08:26 -0400 (EDT)
+Received: by wicll6 with SMTP id ll6so84061792wic.0
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 01:08:26 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
+        by mx.google.com with ESMTPS id cz1si39597384wjc.191.2015.10.19.01.08.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Oct 2015 23:30:54 -0700 (PDT)
-Received: by pabrc13 with SMTP id rc13so181397144pab.0
-        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 23:30:54 -0700 (PDT)
-Date: Mon, 19 Oct 2015 15:33:57 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH mmotm] mm: dont split thp page when syscall is called fix
- 4
-Message-ID: <20151019063357.GA963@bbox>
-References: <alpine.LSU.2.11.1510161540460.31102@eggly.anvils>
+        Mon, 19 Oct 2015 01:08:25 -0700 (PDT)
+Received: by wicfx6 with SMTP id fx6so38168682wic.1
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 01:08:24 -0700 (PDT)
+Date: Mon, 19 Oct 2015 10:08:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/3] memcg: simplify and inline __mem_cgroup_from_kmem
+Message-ID: <20151019080822.GB11998@dhcp22.suse.cz>
+References: <9be67d8528d316ce90d78980bce9ed76b00ffd22.1443996201.git.vdavydov@virtuozzo.com>
+ <517ab1701f4b53be8bfd6691a1499598efb358e7.1443996201.git.vdavydov@virtuozzo.com>
+ <20151016131726.GA602@node.shutemov.name>
+ <20151016135106.GJ11309@esperanza>
+ <alpine.LSU.2.11.1510161458280.26747@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1510161540460.31102@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1510161458280.26747@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Hugh,
+On Fri 16-10-15 15:12:23, Hugh Dickins wrote:
+[...]
+> Are you expecting to use mem_cgroup_from_kmem() from other places
+> in future?  Seems possible; but at present it's called from only
+> one place, and (given how memcontrol.h has somehow managed to avoid
+> including mm.h all these years), I thought it would be nice to avoid
+> it for just this; and fixed my build with the patch below last night.
+> Whatever you all think best: just wanted to point out an alternative.
 
-On Fri, Oct 16, 2015 at 03:46:03PM -0700, Hugh Dickins wrote:
-> Compiler gives helpful warnings that madvise_free_pte_range()
-> has the args to split_huge_pmd() the wrong way round.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+Yes, this is better.
 
-Thanks for catching my mistake.
-
-Reviewed-by: Minchan Kim <minchan@kernel.org>
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
