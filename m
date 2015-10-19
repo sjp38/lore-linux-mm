@@ -1,118 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id C80FD82F67
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 00:57:23 -0400 (EDT)
-Received: by obbzf10 with SMTP id zf10so129768918obb.2
-        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 21:57:23 -0700 (PDT)
-Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
-        by mx.google.com with ESMTPS id u7si16178515oej.90.2015.10.18.21.57.23
+Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 9640882F67
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 00:59:18 -0400 (EDT)
+Received: by oiad129 with SMTP id d129so29726231oia.0
+        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 21:59:18 -0700 (PDT)
+Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
+        by mx.google.com with ESMTPS id pm5si16219031obb.105.2015.10.18.21.59.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Oct 2015 21:57:23 -0700 (PDT)
-Received: by oiev17 with SMTP id v17so44555140oie.2
-        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 21:57:23 -0700 (PDT)
-Date: Sun, 18 Oct 2015 21:57:17 -0700 (PDT)
+        Sun, 18 Oct 2015 21:59:18 -0700 (PDT)
+Received: by oiad129 with SMTP id d129so29726183oia.0
+        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 21:59:18 -0700 (PDT)
+Date: Sun, 18 Oct 2015 21:59:11 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 6/12] mm: page migration use the put_new_page whenever
- necessary
+Subject: [PATCH 7/12] mm: page migration trylock newpage at same level as
+ oldpage
 In-Reply-To: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1510182156010.2481@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1510182157230.2481@eggly.anvils>
 References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+Cc: Christoph Lameter <cl@linux.com>, Rafael Aquini <aquini@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
 
-I don't know of any problem from the way it's used in our current tree,
-but there is one defect in page migration's custom put_new_page feature.
+Clean up page migration a little by moving the trylock of newpage from
+move_to_new_page() into __unmap_and_move(), where the old page has been
+locked.  Adjust unmap_and_move_huge_page() and balloon_page_migrate()
+accordingly.
 
-An unused newpage is expected to be released with the put_new_page(),
-but there was one MIGRATEPAGE_SUCCESS (0) path which released it with
-putback_lru_page(): which can be very wrong for a custom pool.
+But make one kind-of-functional change on the way: whereas trylock of
+newpage used to BUG() if it failed, now simply return -EAGAIN if so.
+Cutting out BUG()s is good, right?  But, to be honest, this is really
+to extend the usefulness of the custom put_new_page feature, allowing
+a pool of new pages to be shared perhaps with racing uses.
 
-Fixed more easily by resetting put_new_page once it won't be needed,
-than by adding a further flag to modify the rc test.
+Use an "else" instead of that "skip_unmap" label.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- mm/migrate.c |   19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ mm/balloon_compaction.c |   10 +-------
+ mm/migrate.c            |   46 +++++++++++++++++++++-----------------
+ 2 files changed, 28 insertions(+), 28 deletions(-)
 
---- migrat.orig/mm/migrate.c	2015-10-18 17:53:17.579329434 -0700
-+++ migrat/mm/migrate.c	2015-10-18 17:53:20.159332371 -0700
-@@ -938,10 +938,11 @@ static ICE_noinline int unmap_and_move(n
- 				   int force, enum migrate_mode mode,
- 				   enum migrate_reason reason)
- {
--	int rc = 0;
-+	int rc = MIGRATEPAGE_SUCCESS;
- 	int *result = NULL;
--	struct page *newpage = get_new_page(page, private, &result);
-+	struct page *newpage;
+--- migrat.orig/mm/balloon_compaction.c	2014-12-07 14:21:05.000000000 -0800
++++ migrat/mm/balloon_compaction.c	2015-10-18 17:53:22.486335020 -0700
+@@ -199,23 +199,17 @@ int balloon_page_migrate(struct page *ne
+ 	struct balloon_dev_info *balloon = balloon_page_device(page);
+ 	int rc = -EAGAIN;
  
-+	newpage = get_new_page(page, private, &result);
- 	if (!newpage)
- 		return -ENOMEM;
+-	/*
+-	 * Block others from accessing the 'newpage' when we get around to
+-	 * establishing additional references. We should be the only one
+-	 * holding a reference to the 'newpage' at this point.
+-	 */
+-	BUG_ON(!trylock_page(newpage));
++	VM_BUG_ON_PAGE(!PageLocked(page), page);
++	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
  
-@@ -955,6 +956,8 @@ static ICE_noinline int unmap_and_move(n
- 			goto out;
+ 	if (WARN_ON(!__is_movable_balloon_page(page))) {
+ 		dump_page(page, "not movable balloon page");
+-		unlock_page(newpage);
+ 		return rc;
+ 	}
  
- 	rc = __unmap_and_move(page, newpage, force, mode);
-+	if (rc == MIGRATEPAGE_SUCCESS)
-+		put_new_page = NULL;
+ 	if (balloon && balloon->migratepage)
+ 		rc = balloon->migratepage(balloon, newpage, page, mode);
  
- out:
- 	if (rc != -EAGAIN) {
-@@ -981,7 +984,7 @@ out:
- 	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
- 	 * during isolation.
- 	 */
--	if (rc != MIGRATEPAGE_SUCCESS && put_new_page) {
-+	if (put_new_page) {
- 		ClearPageSwapBacked(newpage);
- 		put_new_page(newpage, private);
- 	} else if (unlikely(__is_movable_balloon_page(newpage))) {
-@@ -1022,7 +1025,7 @@ static int unmap_and_move_huge_page(new_
- 				struct page *hpage, int force,
- 				enum migrate_mode mode)
- {
--	int rc = 0;
-+	int rc = -EAGAIN;
- 	int *result = NULL;
- 	int page_was_mapped = 0;
- 	struct page *new_hpage;
-@@ -1044,8 +1047,6 @@ static int unmap_and_move_huge_page(new_
- 	if (!new_hpage)
- 		return -ENOMEM;
+-	unlock_page(newpage);
+ 	return rc;
+ }
+ #endif /* CONFIG_BALLOON_COMPACTION */
+--- migrat.orig/mm/migrate.c	2015-10-18 17:53:20.159332371 -0700
++++ migrat/mm/migrate.c	2015-10-18 17:53:22.487335021 -0700
+@@ -727,13 +727,8 @@ static int move_to_new_page(struct page
+ 	struct address_space *mapping;
+ 	int rc;
  
--	rc = -EAGAIN;
+-	/*
+-	 * Block others from accessing the page when we get around to
+-	 * establishing additional references. We are the only one
+-	 * holding a reference to the new page at this point.
+-	 */
+-	if (!trylock_page(newpage))
+-		BUG();
++	VM_BUG_ON_PAGE(!PageLocked(page), page);
++	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
+ 
+ 	/* Prepare mapping for the new page.*/
+ 	newpage->index = page->index;
+@@ -774,9 +769,6 @@ static int move_to_new_page(struct page
+ 			remove_migration_ptes(page, newpage);
+ 		page->mapping = NULL;
+ 	}
 -
- 	if (!trylock_page(hpage)) {
- 		if (!force || mode != MIGRATE_SYNC)
- 			goto out;
-@@ -1070,8 +1071,10 @@ static int unmap_and_move_huge_page(new_
+-	unlock_page(newpage);
+-
+ 	return rc;
+ }
+ 
+@@ -861,6 +853,17 @@ static int __unmap_and_move(struct page
+ 		}
+ 	}
+ 
++	/*
++	 * Block others from accessing the new page when we get around to
++	 * establishing additional references. We are usually the only one
++	 * holding a reference to newpage at this point. We used to have a BUG
++	 * here if trylock_page(newpage) fails, but would like to allow for
++	 * cases where there might be a race with the previous use of newpage.
++	 * This is much like races on refcount of oldpage: just don't BUG().
++	 */
++	if (unlikely(!trylock_page(newpage)))
++		goto out_unlock;
++
+ 	if (unlikely(isolated_balloon_page(page))) {
+ 		/*
+ 		 * A ballooned page does not need any special attention from
+@@ -870,7 +873,7 @@ static int __unmap_and_move(struct page
+ 		 * the page migration right away (proteced by page lock).
+ 		 */
+ 		rc = balloon_page_migrate(newpage, page, mode);
+-		goto out_unlock;
++		goto out_unlock_both;
+ 	}
+ 
+ 	/*
+@@ -889,30 +892,27 @@ static int __unmap_and_move(struct page
+ 		VM_BUG_ON_PAGE(PageAnon(page), page);
+ 		if (page_has_private(page)) {
+ 			try_to_free_buffers(page);
+-			goto out_unlock;
++			goto out_unlock_both;
+ 		}
+-		goto skip_unmap;
+-	}
+-
+-	/* Establish migration ptes or remove ptes */
+-	if (page_mapped(page)) {
++	} else if (page_mapped(page)) {
++		/* Establish migration ptes */
+ 		try_to_unmap(page,
+ 			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+ 		page_was_mapped = 1;
+ 	}
+ 
+-skip_unmap:
+ 	if (!page_mapped(page))
+ 		rc = move_to_new_page(newpage, page, page_was_mapped, mode);
+ 
+ 	if (rc && page_was_mapped)
+ 		remove_migration_ptes(page, page);
+ 
++out_unlock_both:
++	unlock_page(newpage);
++out_unlock:
+ 	/* Drop an anon_vma reference if we took one */
+ 	if (anon_vma)
+ 		put_anon_vma(anon_vma);
+-
+-out_unlock:
+ 	unlock_page(page);
+ out:
+ 	return rc;
+@@ -1056,6 +1056,9 @@ static int unmap_and_move_huge_page(new_
+ 	if (PageAnon(hpage))
+ 		anon_vma = page_get_anon_vma(hpage);
+ 
++	if (unlikely(!trylock_page(new_hpage)))
++		goto put_anon;
++
+ 	if (page_mapped(hpage)) {
+ 		try_to_unmap(hpage,
+ 			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+@@ -1068,6 +1071,9 @@ static int unmap_and_move_huge_page(new_
+ 	if (rc != MIGRATEPAGE_SUCCESS && page_was_mapped)
+ 		remove_migration_ptes(hpage, hpage);
+ 
++	unlock_page(new_hpage);
++
++put_anon:
  	if (anon_vma)
  		put_anon_vma(anon_vma);
  
--	if (rc == MIGRATEPAGE_SUCCESS)
-+	if (rc == MIGRATEPAGE_SUCCESS) {
- 		hugetlb_cgroup_migrate(hpage, new_hpage);
-+		put_new_page = NULL;
-+	}
- 
- 	unlock_page(hpage);
- out:
-@@ -1083,7 +1086,7 @@ out:
- 	 * it.  Otherwise, put_page() will drop the reference grabbed during
- 	 * isolation.
- 	 */
--	if (rc != MIGRATEPAGE_SUCCESS && put_new_page)
-+	if (put_new_page)
- 		put_new_page(new_hpage, private);
- 	else
- 		putback_active_hugepage(new_hpage);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
