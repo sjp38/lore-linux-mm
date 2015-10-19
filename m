@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1935A82F65
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 19:16:44 -0400 (EDT)
-Received: by pabrc13 with SMTP id rc13so540929pab.0
-        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 16:16:43 -0700 (PDT)
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 74E1A82F65
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 19:18:42 -0400 (EDT)
+Received: by ioll68 with SMTP id l68so3722902iol.3
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 16:18:42 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id fy5si208168pbb.14.2015.10.19.16.16.43
+        by mx.google.com with ESMTPS id ft2si15894726igb.25.2015.10.19.16.18.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Oct 2015 16:16:43 -0700 (PDT)
-Date: Mon, 19 Oct 2015 16:16:42 -0700
+        Mon, 19 Oct 2015 16:18:42 -0700 (PDT)
+Date: Mon, 19 Oct 2015 16:18:40 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/3] mm/hugetlb: Setup hugetlb_falloc during fallocate
- hole punch
-Message-Id: <20151019161642.68e787103cacb613d372b5c4@linux-foundation.org>
-In-Reply-To: <1445033310-13155-3-git-send-email-mike.kravetz@oracle.com>
+Subject: Re: [PATCH 0/3] hugetlbfs fallocate hole punch race with page
+ faults
+Message-Id: <20151019161840.63e6afaa73aceec23e351905@linux-foundation.org>
+In-Reply-To: <1445033310-13155-1-git-send-email-mike.kravetz@oracle.com>
 References: <1445033310-13155-1-git-send-email-mike.kravetz@oracle.com>
-	<1445033310-13155-3-git-send-email-mike.kravetz@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -25,93 +24,20 @@ List-ID: <linux-mm.kvack.org>
 To: Mike Kravetz <mike.kravetz@oracle.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>
 
-On Fri, 16 Oct 2015 15:08:29 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On Fri, 16 Oct 2015 15:08:27 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-> When performing a fallocate hole punch, set up a hugetlb_falloc struct
-> and make i_private point to it.  i_private will point to this struct for
-> the duration of the operation.  At the end of the operation, wake up
-> anyone who faulted on the hole and is on the waitq.
+> The hugetlbfs fallocate hole punch code can race with page faults.  The
+> result is that after a hole punch operation, pages may remain within the
+> hole.  No other side effects of this race were observed.
 > 
-> ...
->
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -507,7 +507,9 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
->  {
->  	struct hstate *h = hstate_inode(inode);
->  	loff_t hpage_size = huge_page_size(h);
-> +	unsigned long hpage_shift = huge_page_shift(h);
->  	loff_t hole_start, hole_end;
-> +	struct hugetlb_falloc hugetlb_falloc;
->  
->  	/*
->  	 * For hole punch round up the beginning offset of the hole and
-> @@ -518,8 +520,23 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
->  
->  	if (hole_end > hole_start) {
->  		struct address_space *mapping = inode->i_mapping;
-> +		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(hugetlb_falloc_waitq);
-> +
-> +		/*
-> +		 * Page faults on the area to be hole punched must be
-> +		 * stopped during the operation.  Initialize struct and
-> +		 * have inode->i_private point to it.
-> +		 */
-> +		hugetlb_falloc.waitq = &hugetlb_falloc_waitq;
-> +		hugetlb_falloc.start = hole_start >> hpage_shift;
-> +		hugetlb_falloc.end = hole_end >> hpage_shift;
+> In preparation for adding userfaultfd support to hugetlbfs, it is desirable
+> to plug or significantly shrink this hole.  This patch set uses the same
+> mechanism employed in shmem (see commit f00cdc6df7).
+> 
 
-This is a bit neater:
-
---- a/fs/hugetlbfs/inode.c~mm-hugetlb-setup-hugetlb_falloc-during-fallocate-hole-punch-fix
-+++ a/fs/hugetlbfs/inode.c
-@@ -509,7 +509,6 @@ static long hugetlbfs_punch_hole(struct
- 	loff_t hpage_size = huge_page_size(h);
- 	unsigned long hpage_shift = huge_page_shift(h);
- 	loff_t hole_start, hole_end;
--	struct hugetlb_falloc hugetlb_falloc;
- 
- 	/*
- 	 * For hole punch round up the beginning offset of the hole and
-@@ -521,15 +520,16 @@ static long hugetlbfs_punch_hole(struct
- 	if (hole_end > hole_start) {
- 		struct address_space *mapping = inode->i_mapping;
- 		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(hugetlb_falloc_waitq);
--
- 		/*
--		 * Page faults on the area to be hole punched must be
--		 * stopped during the operation.  Initialize struct and
--		 * have inode->i_private point to it.
-+		 * Page faults on the area to be hole punched must be stopped
-+		 * during the operation.  Initialize struct and have
-+		 * inode->i_private point to it.
- 		 */
--		hugetlb_falloc.waitq = &hugetlb_falloc_waitq;
--		hugetlb_falloc.start = hole_start >> hpage_shift;
--		hugetlb_falloc.end = hole_end >> hpage_shift;
-+		struct hugetlb_falloc hugetlb_falloc = {
-+			.waitq = &hugetlb_falloc_waitq,
-+			.start = hole_start >> hpage_shift,
-+			.end = hole_end >> hpage_shift
-+		};
- 
- 		mutex_lock(&inode->i_mutex);
- 
-
->  		mutex_lock(&inode->i_mutex);
-> +
-> +		spin_lock(&inode->i_lock);
-> +		inode->i_private = &hugetlb_falloc;
-> +		spin_unlock(&inode->i_lock);
-
-Locking around a single atomic assignment is a bit peculiar.  I can
-kinda see that it kinda protects the logic in hugetlb_fault(), but I
-would like to hear (in comment form) your description of how this logic
-works?
-
->  		i_mmap_lock_write(mapping);
->  		if (!RB_EMPTY_ROOT(&mapping->i_mmap))
->  			hugetlb_vmdelete_list(&mapping->i_mmap,
+"still buggy but not as bad as before" isn't what we strive for ;) What
+would it take to fix this for real?  An exhaustive description of the
+bug would be a good starting point, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
