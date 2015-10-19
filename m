@@ -1,64 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A0D8A6B0255
-	for <linux-mm@kvack.org>; Sun, 18 Oct 2015 23:51:53 -0400 (EDT)
-Received: by wicll6 with SMTP id ll6so77316528wic.0
-        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 20:51:53 -0700 (PDT)
-Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com. [2a00:1450:400c:c05::22b])
-        by mx.google.com with ESMTPS id qt4si8323619wic.99.2015.10.18.20.51.52
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id F2ACB82F67
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 00:44:18 -0400 (EDT)
+Received: by pacfv9 with SMTP id fv9so82436154pac.3
+        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 21:44:18 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id co2si49712685pbb.197.2015.10.18.21.44.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Oct 2015 20:51:52 -0700 (PDT)
-Received: by wicll6 with SMTP id ll6so79447094wic.1
-        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 20:51:52 -0700 (PDT)
-Message-ID: <1445226710.15861.28.camel@gmail.com>
-Subject: Re: [GIT PULL] workqueue fixes for v4.3-rc5
-From: Mike Galbraith <umgwanakikbuti@gmail.com>
-Date: Mon, 19 Oct 2015 05:51:50 +0200
-In-Reply-To: <20151014202448.GE12799@mtj.duckdns.org>
-References: <20151013214952.GB23106@mtj.duckdns.org>
-	 <CA+55aFzV61qsWOObLUPpL-2iU1=8EopEgfse+kRGuUi9kevoOA@mail.gmail.com>
-	 <20151014165729.GA12799@mtj.duckdns.org>
-	 <CA+55aFzhHF0KMFvebegBnwHqXekfRRd-qczCtJXKpf3XvOCW=A@mail.gmail.com>
-	 <20151014190259.GC12799@mtj.duckdns.org>
-	 <CA+55aFz27G4gLS9AFs6hHJfULXAqA=tM5KA=YvBH8MaZ+sT-VA@mail.gmail.com>
-	 <20151014193829.GD12799@mtj.duckdns.org>
-	 <CA+55aFyzsMYcRX3V5CEWB4Zb-9BuRGCjib3DMXuX5y9nBWiZ1w@mail.gmail.com>
-	 <20151014202448.GE12799@mtj.duckdns.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 18 Oct 2015 21:44:18 -0700 (PDT)
+Received: by padhk11 with SMTP id hk11so17421348pad.1
+        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 21:44:18 -0700 (PDT)
+Date: Sun, 18 Oct 2015 21:44:04 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH 0/12] mm: page migration cleanups, and a little mlock
+Message-ID: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Shaohua Li <shli@fb.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrey Konovalov <andreyknvl@google.com>, Dmitry Vyukov <dvyukov@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rafael Aquini <aquini@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Minchan Kim <minchan@kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Pavel Emelyanov <xemul@parallels.com>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org
 
-On Wed, 2015-10-14 at 16:24 -0400, Tejun Heo wrote:
+Here's a series of mostly trivial cleanups to page migration, following
+on from a preliminary cleanup to Documentation, and to the way rmap
+calls mlock_vma_page (which has to be duplicated in page migration).
 
-> But in terms of API consistency, it sucks to have queue_work()
-> guarantee local queueing but not queue_delayed_work().  The ideal
-> situation would be updating both so that neither guarantees.
+This started out as patch 04/24 "mm: make page migration's newpage
+handling more robust" in my huge tmpfs series against v3.19 in February.
+It was already a portmanteau then, and more has been thrown in since:
+not much of relevance to tmpfs, just cleanups that looked worth making.
 
-You don't have to change anything to have neither guarantee local
-queueing.  Called from a preemptible context, local means any CPU in
-->cpus_allowed... which makes WORK_CPU_UNBOUND mean what one would
-imagine WORK_CPU_UNBOUND to mean, not bound to any particular cpu.
+A few minor fixes on the way, nothing I think worth sending to stable.
+Mostly trivial, but 12/12 and a few of the others deserve some thought.
 
-      sh-16017   3.N.. 1510500545us : queue_work_on: golly, migrated cpu7 -> cpu3 -- target cpu8
-      sh-16017   3.N.. 1510500550us : <stack trace>
- => tty_flip_buffer_push
- => pty_write
- => n_tty_write
- => tty_write
- => __vfs_write
- => vfs_write
- => SyS_write
- => entry_SYSCALL_64_fastpath
+Diffed against v4.3-rc6: I couldn't decide whether to use that or
+the v4.3-rc5-mm1 as base, but there's very little conflict anyway:
+4/12 should have the second arg to page_remove_rmap() if it goes after
+Kirill's THP refcounting series, and 10/12 should have the TTU_FREE
+block inserted if it goes after Minchan's MADV_FREE series.
 
-That was with a udelay(100) prior to disabling interrupts, but that just
-makes it easier.
+ 1/12 mm Documentation: undoc non-linear vmas
+ 2/12 mm: rmap use pte lock not mmap_sem to set PageMlocked
+ 3/12 mm: page migration fix PageMlocked on migrated pages
+ 4/12 mm: rename mem_cgroup_migrate to mem_cgroup_replace_page
+ 5/12 mm: correct a couple of page migration comments
+ 6/12 mm: page migration use the put_new_page whenever necessary
+ 7/12 mm: page migration trylock newpage at same level as oldpage
+ 8/12 mm: page migration remove_migration_ptes at lock+unlock level
+ 9/12 mm: simplify page migration's anon_vma comment and flow
+10/12 mm: page migration use migration entry for swapcache too
+11/12 mm: page migration avoid touching newpage until no going back
+12/12 mm: migrate dirty page without clear_page_dirty_for_io etc
 
-	-Mike
+ Documentation/filesystems/proc.txt   |    1 
+ Documentation/vm/page_migration      |   27 +-
+ Documentation/vm/unevictable-lru.txt |  120 +-----------
+ include/linux/memcontrol.h           |    7 
+ mm/balloon_compaction.c              |   10 -
+ mm/filemap.c                         |    2 
+ mm/internal.h                        |    9 
+ mm/memcontrol.c                      |   29 --
+ mm/migrate.c                         |  244 ++++++++++++-------------
+ mm/rmap.c                            |   99 ++++------
+ mm/shmem.c                           |    2 
+ 11 files changed, 213 insertions(+), 337 deletions(-)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
