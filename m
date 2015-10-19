@@ -1,43 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 74E1A82F65
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 19:18:42 -0400 (EDT)
-Received: by ioll68 with SMTP id l68so3722902iol.3
-        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 16:18:42 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ft2si15894726igb.25.2015.10.19.16.18.41
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CB4D6B028C
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 19:30:37 -0400 (EDT)
+Received: by wicll6 with SMTP id ll6so4065765wic.1
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 16:30:37 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x1si861476wia.29.2015.10.19.16.30.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Oct 2015 16:18:42 -0700 (PDT)
-Date: Mon, 19 Oct 2015 16:18:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/3] hugetlbfs fallocate hole punch race with page
- faults
-Message-Id: <20151019161840.63e6afaa73aceec23e351905@linux-foundation.org>
-In-Reply-To: <1445033310-13155-1-git-send-email-mike.kravetz@oracle.com>
-References: <1445033310-13155-1-git-send-email-mike.kravetz@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 19 Oct 2015 16:30:36 -0700 (PDT)
+Date: Mon, 19 Oct 2015 16:30:22 -0700
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: [PATCH 2/12] mm: rmap use pte lock not mmap_sem to set
+ PageMlocked
+Message-ID: <20151019233022.GA27292@linux-uzut.site>
+References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
+ <alpine.LSU.2.11.1510182148040.2481@eggly.anvils>
+ <56248C5B.3040505@suse.cz>
+ <alpine.LSU.2.11.1510190341490.3809@eggly.anvils>
+ <20151019131308.GB15819@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20151019131308.GB15819@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrey Konovalov <andreyknvl@google.com>, Dmitry Vyukov <dvyukov@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Fri, 16 Oct 2015 15:08:27 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On Mon, 19 Oct 2015, Kirill A. Shutemov wrote:
 
-> The hugetlbfs fallocate hole punch code can race with page faults.  The
-> result is that after a hole punch operation, pages may remain within the
-> hole.  No other side effects of this race were observed.
-> 
-> In preparation for adding userfaultfd support to hugetlbfs, it is desirable
-> to plug or significantly shrink this hole.  This patch set uses the same
-> mechanism employed in shmem (see commit f00cdc6df7).
-> 
+>I think we need to have at lease WRITE_ONCE() everywhere we update
+>vm_flags and READ_ONCE() where we read it without mmap_sem taken.
 
-"still buggy but not as bad as before" isn't what we strive for ;) What
-would it take to fix this for real?  An exhaustive description of the
-bug would be a good starting point, thanks.
+Given the CPU-CPU interaction, lockless/racy vm_flag checks should
+actually be using barrier pairing, afaict. This is expensive obviously,
+but I cannot recall what other places we do lockless games with vm_flags.
+
+Perhaps its time to introduce formal helpers around vma->vm_flags such
+that we can encapsulate such things: __vma_[set/read]_vmflags() or whatever
+that would be used for those racy scenarios.
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
