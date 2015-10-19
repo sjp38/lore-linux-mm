@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id D7A1D82F67
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 02:28:48 -0400 (EDT)
-Received: by pabrc13 with SMTP id rc13so181339120pab.0
-        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 23:28:48 -0700 (PDT)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id CAF1082F67
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 02:28:50 -0400 (EDT)
+Received: by pasz6 with SMTP id z6so20612182pas.2
+        for <linux-mm@kvack.org>; Sun, 18 Oct 2015 23:28:50 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id pi7si50308192pbc.130.2015.10.18.23.28.40
+        by mx.google.com with ESMTPS id fl9si139029pab.122.2015.10.18.23.28.41
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Sun, 18 Oct 2015 23:28:41 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 4/5] mm: simplify reclaim path for MADV_FREE
-Date: Mon, 19 Oct 2015 15:31:46 +0900
-Message-Id: <1445236307-895-5-git-send-email-minchan@kernel.org>
+Subject: [PATCH 3/5] mm: clear PG_dirty to mark page freeable
+Date: Mon, 19 Oct 2015 15:31:45 +0900
+Message-Id: <1445236307-895-4-git-send-email-minchan@kernel.org>
 In-Reply-To: <1445236307-895-1-git-send-email-minchan@kernel.org>
 References: <1445236307-895-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,349 +20,85 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
 
-I made reclaim path mess to check and free MADV_FREEed page.
-This patch simplify it with tweaking add_to_swap.
+Basically, MADV_FREE relies on dirty bit in page table entry
+to decide whether VM allows to discard the page or not.
+IOW, if page table entry includes marked dirty bit, VM shouldn't
+discard the page.
 
-So far, we mark page as PG_dirty when we add the page into
-swap cache(ie, add_to_swap) to page out to swap device but
-this patch moves PG_dirty marking under try_to_unmap_one
-when we decide to change pte from anon to swapent so if
-any process's pte has swapent for the page, the page must
-be swapped out. IOW, there should be no funcional behavior
-change. It makes relcaim path really simple for MADV_FREE
-because we just need to check PG_dirty of page to decide
-discarding the page or not.
+However, as a example, if swap-in by read fault happens,
+page table entry doesn't have dirty bit so MADV_FREE could discard
+the page wrongly.
 
-Other thing this patch does is to pass TTU_BATCH_FLUSH to
-try_to_unmap when we handle freeable page because I don't
-see any reason to prevent it.
+For avoiding the problem, MADV_FREE did more checks with PageDirty
+and PageSwapCache. It worked out because swapped-in page lives on
+swap cache and since it is evicted from the swap cache, the page has
+PG_dirty flag. So both page flags check effectively prevent
+wrong discarding by MADV_FREE.
+
+However, a problem in above logic is that swapped-in page has
+PG_dirty still after they are removed from swap cache so VM cannot
+consider the page as freeable any more even if madvise_free is
+called in future.
+
+Look at below example for detail.
+
+    ptr = malloc();
+    memset(ptr);
+    ..
+    ..
+    .. heavy memory pressure so all of pages are swapped out
+    ..
+    ..
+    var = *ptr; -> a page swapped-in and could be removed from
+                   swapcache. Then, page table doesn't mark
+                   dirty bit and page descriptor includes PG_dirty
+    ..
+    ..
+    madvise_free(ptr); -> It doesn't clear PG_dirty of the page.
+    ..
+    ..
+    ..
+    .. heavy memory pressure again.
+    .. In this time, VM cannot discard the page because the page
+    .. has *PG_dirty*
+
+To solve the problem, this patch clears PG_dirty if only the page
+is owned exclusively by current process when madvise is called
+because PG_dirty represents ptes's dirtiness in several processes
+so we could clear it only if we own it exclusively.
 
 Cc: Hugh Dickins <hughd@google.com>
-Cc: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/rmap.h |  6 +----
- mm/huge_memory.c     |  5 ----
- mm/rmap.c            | 42 ++++++----------------------------
- mm/swap_state.c      |  5 ++--
- mm/vmscan.c          | 64 ++++++++++++++++------------------------------------
- 5 files changed, 30 insertions(+), 92 deletions(-)
+ mm/madvise.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 6b6233fafb53..978f65066fd5 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -193,8 +193,7 @@ static inline void page_dup_rmap(struct page *page, bool compound)
-  * Called from mm/vmscan.c to handle paging out
-  */
- int page_referenced(struct page *, int is_locked,
--			struct mem_cgroup *memcg, unsigned long *vm_flags,
--			int *is_pte_dirty);
-+			struct mem_cgroup *memcg, unsigned long *vm_flags);
+diff --git a/mm/madvise.c b/mm/madvise.c
+index fdfb14a78c60..5db546431285 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -312,11 +312,19 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 		if (!page)
+ 			continue;
  
- #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
+-		if (PageSwapCache(page)) {
++		if (PageSwapCache(page) || PageDirty(page)) {
+ 			if (!trylock_page(page))
+ 				continue;
++			/*
++			 * If page is shared with others, we couldn't clear
++			 * PG_dirty of the page.
++			 */
++			if (page_count(page) != 1 + !!PageSwapCache(page)) {
++				unlock_page(page);
++				continue;
++			}
  
-@@ -272,11 +271,8 @@ int rmap_walk(struct page *page, struct rmap_walk_control *rwc);
- static inline int page_referenced(struct page *page, int is_locked,
- 				  struct mem_cgroup *memcg,
- 				  unsigned long *vm_flags,
--				  int *is_pte_dirty)
- {
- 	*vm_flags = 0;
--	if (is_pte_dirty)
--		*is_pte_dirty = 0;
- 	return 0;
- }
- 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 269ed99493f0..adccfb48ce57 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1753,11 +1753,6 @@ pmd_t *page_check_address_pmd(struct page *page,
- 	return NULL;
- }
- 
--int pmd_freeable(pmd_t pmd)
--{
--	return !pmd_dirty(pmd);
--}
--
- #define VM_NO_THP (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
- 
- int hugepage_madvise(struct vm_area_struct *vma,
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 94ee372e238b..fd64f79c87c4 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -797,7 +797,6 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
- }
- 
- struct page_referenced_arg {
--	int dirtied;
- 	int mapcount;
- 	int referenced;
- 	unsigned long vm_flags;
-@@ -812,7 +811,6 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 	struct mm_struct *mm = vma->vm_mm;
- 	spinlock_t *ptl;
- 	int referenced = 0;
--	int dirty = 0;
- 	struct page_referenced_arg *pra = arg;
- 
- 	if (unlikely(PageTransHuge(page))) {
-@@ -835,14 +833,6 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 		if (pmdp_clear_flush_young_notify(vma, address, pmd))
- 			referenced++;
- 
--		/*
--		 * Use pmd_freeable instead of raw pmd_dirty because in some
--		 * of architecture, pmd_dirty is not defined unless
--		 * CONFIG_TRANSPARENT_HUGEPAGE is enabled
--		 */
--		if (!pmd_freeable(*pmd))
--			dirty++;
--
- 		spin_unlock(ptl);
- 	} else {
- 		pte_t *pte;
-@@ -873,9 +863,6 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 				referenced++;
- 		}
- 
--		if (pte_dirty(*pte))
--			dirty++;
--
- 		pte_unmap_unlock(pte, ptl);
- 	}
- 
-@@ -889,9 +876,6 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 		pra->vm_flags |= vma->vm_flags;
- 	}
- 
--	if (dirty)
--		pra->dirtied++;
--
- 	pra->mapcount--;
- 	if (!pra->mapcount)
- 		return SWAP_SUCCESS; /* To break the loop */
-@@ -916,7 +900,6 @@ static bool invalid_page_referenced_vma(struct vm_area_struct *vma, void *arg)
-  * @is_locked: caller holds lock on the page
-  * @memcg: target memory cgroup
-  * @vm_flags: collect encountered vma->vm_flags who actually referenced the page
-- * @is_pte_dirty: ptes which have marked dirty bit - used for lazyfree page
-  *
-  * Quick test_and_clear_referenced for all mappings to a page,
-  * returns the number of ptes which referenced the page.
-@@ -924,8 +907,7 @@ static bool invalid_page_referenced_vma(struct vm_area_struct *vma, void *arg)
- int page_referenced(struct page *page,
- 		    int is_locked,
- 		    struct mem_cgroup *memcg,
--		    unsigned long *vm_flags,
--		    int *is_pte_dirty)
-+		    unsigned long *vm_flags)
- {
- 	int ret;
- 	int we_locked = 0;
-@@ -940,8 +922,6 @@ int page_referenced(struct page *page,
- 	};
- 
- 	*vm_flags = 0;
--	if (is_pte_dirty)
--		*is_pte_dirty = 0;
- 
- 	if (!page_mapped(page))
- 		return 0;
-@@ -970,9 +950,6 @@ int page_referenced(struct page *page,
- 	if (we_locked)
- 		unlock_page(page);
- 
--	if (is_pte_dirty)
--		*is_pte_dirty = pra.dirtied;
--
- 	return pra.referenced;
- }
- 
-@@ -1453,17 +1430,10 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		swp_entry_t entry = { .val = page_private(page) };
- 		pte_t swp_pte;
- 
--		if (flags & TTU_FREE) {
--			VM_BUG_ON_PAGE(PageSwapCache(page), page);
--			if (!PageDirty(page)) {
--				/* It's a freeable page by MADV_FREE */
--				dec_mm_counter(mm, MM_ANONPAGES);
--				goto discard;
--			} else {
--				set_pte_at(mm, address, pte, pteval);
--				ret = SWAP_FAIL;
--				goto out_unmap;
--			}
-+		if (!PageDirty(page) && (flags & TTU_FREE)) {
-+			/* It's a freeable page by MADV_FREE */
-+			dec_mm_counter(mm, MM_ANONPAGES);
-+			goto discard;
- 		}
- 
- 		if (PageSwapCache(page)) {
-@@ -1476,6 +1446,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 				ret = SWAP_FAIL;
- 				goto out_unmap;
+-			if (!try_to_free_swap(page)) {
++			if (PageSwapCache(page) && !try_to_free_swap(page)) {
+ 				unlock_page(page);
+ 				continue;
  			}
-+			if (!PageDirty(page))
-+				SetPageDirty(page);
- 			if (list_empty(&mm->mmlist)) {
- 				spin_lock(&mmlist_lock);
- 				if (list_empty(&mm->mmlist))
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index d783872d746c..676ff2991380 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -185,13 +185,12 @@ int add_to_swap(struct page *page, struct list_head *list)
- 	 * deadlock in the swap out path.
- 	 */
- 	/*
--	 * Add it to the swap cache and mark it dirty
-+	 * Add it to the swap cache.
- 	 */
- 	err = add_to_swap_cache(page, entry,
- 			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
- 
--	if (!err) {	/* Success */
--		SetPageDirty(page);
-+	if (!err) {
- 		return 1;
- 	} else {	/* -ENOMEM radix-tree allocation failure */
- 		/*
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 27d580b5e853..9b52ecf91194 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -791,17 +791,15 @@ enum page_references {
- };
- 
- static enum page_references page_check_references(struct page *page,
--						  struct scan_control *sc,
--						  bool *freeable)
-+						  struct scan_control *sc)
- {
- 	int referenced_ptes, referenced_page;
- 	unsigned long vm_flags;
--	int pte_dirty;
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 
- 	referenced_ptes = page_referenced(page, 1, sc->target_mem_cgroup,
--					  &vm_flags, &pte_dirty);
-+					  &vm_flags);
- 	referenced_page = TestClearPageReferenced(page);
- 
- 	/*
-@@ -842,10 +840,6 @@ static enum page_references page_check_references(struct page *page,
- 		return PAGEREF_KEEP;
- 	}
- 
--	if (PageAnon(page) && !pte_dirty && !PageSwapCache(page) &&
--			!PageDirty(page))
--		*freeable = true;
--
- 	/* Reclaim if clean, defer dirty pages to writeback */
- 	if (referenced_page && !PageSwapBacked(page))
- 		return PAGEREF_RECLAIM_CLEAN;
-@@ -1037,8 +1031,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		}
- 
- 		if (!force_reclaim)
--			references = page_check_references(page, sc,
--							&freeable);
-+			references = page_check_references(page, sc);
- 
- 		switch (references) {
- 		case PAGEREF_ACTIVATE:
-@@ -1055,31 +1048,24 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * Try to allocate it some swap space here.
- 		 */
- 		if (PageAnon(page) && !PageSwapCache(page)) {
--			if (!freeable) {
--				if (!(sc->gfp_mask & __GFP_IO))
--					goto keep_locked;
--				if (!add_to_swap(page, page_list))
--					goto activate_locked;
--				may_enter_fs = 1;
--				/* Adding to swap updated mapping */
--				mapping = page_mapping(page);
--			} else {
--				if (likely(!PageTransHuge(page)))
--					goto unmap;
--				/* try_to_unmap isn't aware of THP page */
--				if (unlikely(split_huge_page_to_list(page,
--								page_list)))
--					goto keep_locked;
--			}
-+			if (!(sc->gfp_mask & __GFP_IO))
-+				goto keep_locked;
-+			if (!add_to_swap(page, page_list))
-+				goto activate_locked;
-+			freeable = true;
-+			may_enter_fs = 1;
-+			/* Adding to swap updated mapping */
-+			mapping = page_mapping(page);
- 		}
--unmap:
-+
- 		/*
- 		 * The page is mapped into the page tables of one or more
- 		 * processes. Try to unmap it here.
- 		 */
--		if (page_mapped(page) && (mapping || freeable)) {
-+		if (page_mapped(page) && mapping) {
- 			switch (try_to_unmap(page, freeable ?
--					TTU_FREE : ttu_flags|TTU_BATCH_FLUSH)) {
-+					ttu_flags | TTU_BATCH_FLUSH | TTU_FREE :
-+					ttu_flags | TTU_BATCH_FLUSH)) {
- 			case SWAP_FAIL:
- 				goto activate_locked;
- 			case SWAP_AGAIN:
-@@ -1087,20 +1073,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			case SWAP_MLOCK:
- 				goto cull_mlocked;
- 			case SWAP_SUCCESS:
--				/* try to free the page below */
--				if (!freeable)
--					break;
--				/*
--				 * Freeable anon page doesn't have mapping
--				 * due to skipping of swapcache so we free
--				 * page in here rather than __remove_mapping.
--				 */
--				VM_BUG_ON_PAGE(PageSwapCache(page), page);
--				if (!page_freeze_refs(page, 1))
--					goto keep_locked;
--				__ClearPageLocked(page);
--				count_vm_event(PGLAZYFREED);
--				goto free_it;
-+				; /* try to free the page below */
- 			}
- 		}
- 
-@@ -1217,6 +1190,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 */
- 		__ClearPageLocked(page);
- free_it:
-+		if (freeable && !PageDirty(page))
-+			count_vm_event(PGLAZYFREED);
-+
- 		nr_reclaimed++;
- 
- 		/*
-@@ -1847,7 +1823,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 		}
- 
- 		if (page_referenced(page, 0, sc->target_mem_cgroup,
--				    &vm_flags, NULL)) {
-+				    &vm_flags)) {
- 			nr_rotated += hpage_nr_pages(page);
- 			/*
- 			 * Identify referenced, file-backed active pages and
 -- 
 1.9.1
 
