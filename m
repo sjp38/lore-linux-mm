@@ -1,90 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
-	by kanga.kvack.org (Postfix) with ESMTP id BF1C36B0038
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 09:44:34 -0400 (EDT)
-Received: by ykaz22 with SMTP id z22so16660608yka.2
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 06:44:34 -0700 (PDT)
-Received: from mail-yk0-f193.google.com (mail-yk0-f193.google.com. [209.85.160.193])
-        by mx.google.com with ESMTPS id x131si1337783ywa.226.2015.10.20.06.44.33
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id ECCB982F64
+	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 09:51:04 -0400 (EDT)
+Received: by wicfx6 with SMTP id fx6so46757079wic.1
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 06:51:04 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id j4si29250490wib.40.2015.10.20.06.51.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Oct 2015 06:44:33 -0700 (PDT)
-Received: by ykdr3 with SMTP id r3so1350679ykd.0
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 06:44:33 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Oct 2015 06:51:03 -0700 (PDT)
+Date: Tue, 20 Oct 2015 09:50:56 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: vmpressure: fix scan window after SWAP_CLUSTER_MAX
+ increase
+Message-ID: <20151020135056.GA22383@cmpxchg.org>
+References: <1445278381-21033-1-git-send-email-hannes@cmpxchg.org>
+ <20151020074700.GB2629@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <20151019214216.GU19147@redhat.com>
-References: <1434388931-24487-1-git-send-email-aarcange@redhat.com>
-	<CACh33FoFK4tbKFgcvN3mBuW7V=pMjM=X7eO68Pp9+56pH4B-EQ@mail.gmail.com>
-	<20151019214216.GU19147@redhat.com>
-Date: Tue, 20 Oct 2015 09:44:33 -0400
-Message-ID: <CACh33FrecLbWiysXyN8gCEFy4J-2epVhgUw0qrr_b-9Hg0oksQ@mail.gmail.com>
-Subject: Re: [PATCH 0/7] userfault21 update
-From: Patrick Donnelly <batrick@batbytes.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151020074700.GB2629@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Oct 19, 2015 at 5:42 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> Hello Patrick,
->
-> On Mon, Oct 12, 2015 at 11:04:11AM -0400, Patrick Donnelly wrote:
->> Hello Andrea,
->>
->> On Mon, Jun 15, 2015 at 1:22 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
->> > This is an incremental update to the userfaultfd code in -mm.
->>
->> Sorry I'm late to this party. I'm curious how a ptrace monitor might
->> use a userfaultfd to handle faults in all of its tracees. Is this
->> possible without having each (newly forked) tracee "cooperate" by
->> creating a userfaultfd and passing that to the tracer?
->
-> To make the non cooperative usage work, userfaulfd also needs more
-> features to track fork() and mremap() syscalls and such, as the
-> monitor needs to be aware about modifications to the address space of
-> each "mm" is managing and of new forked "mm" as well. So fork() won't
-> need to call userfaultfd once we add those features, but it still
-> doesn't need to know about the "pid". The uffd_msg already has padding
-> to add the features you need for that.
->
-> Pavel invented and developed those features for the non cooperative
-> usage to implement postcopy live migration of containers. He posted
-> some patchset on the lists too, but it probably needs to be rebased on
-> upstream.
->
-> The ptrace monitor thread can also fault into the userfault area if it
-> wants to (but only if it's not the userfault manager thread as well).
-> I didn't expect the ptrace monitor to want to be a userfault manager
-> too though.
-> [...]
+On Tue, Oct 20, 2015 at 08:47:00AM +0100, Mel Gorman wrote:
+> On Mon, Oct 19, 2015 at 02:13:01PM -0400, Johannes Weiner wrote:
+> > mm-increase-swap_cluster_max-to-batch-tlb-flushes.patch changed
+> > SWAP_CLUSTER_MAX from 32 pages to 256 pages, inadvertantly switching
+> > the scan window for vmpressure detection from 2MB to 16MB. Revert.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> This was known at the time but it was not clear what the measurable
+> impact would be. VM Pressure is odd in that it gives strange results at
+> times anyway, particularly on NUMA machines.
 
-Okay, it's definitely tricky to make this work for a tree of
-non-cooperative processes. Brainstorming some ideas:
+Interesting. Strange how? In terms of reporting random flukes?
 
-o If we are using ptrace, then we can add a ptrace event for receiving
-the userfaultfd associated with the tracee, via waitpid (!). The
-ptrace monitor can deduplicate userfaultfds by looking at the inode.
-It can also associate a userfaultfd with a group of threads sharing a
-mm. [For my possible use-case with Parrot[1], we already track the
-shared address spaces of tracees in order to implement an mmap hook.]
+I'm interested in vmpressure because I think reclaim efficiency would
+be a useful metric to export to other parts of the kernel. We have
+slab shrinkers that export LRU scan rate for ageable caches--the
+keyword being "ageable" here--that are currently used for everything
+that wants to know about memory pressure. But unless you actually age
+and rotate your objects, it does not make sense to shrink your objects
+based on LRU scan rate. There is no reason to drop your costly objects
+if all the VM does is pick up streaming cache pages. In those cases,
+it would make more sense to hook yourself up to be notified when
+reclaim efficiency drops below a certain threshold.
 
-o The userfaultfd can have a flag for tracking a tree of processes
-(which can be sent via unix sockets to the userfault handler) and use
-an opaque tag (the mm pointer?) to disambiguate the faults, instead of
-a pid. There would need to be some kind of message to notify about
-newly cloned threads and the mm associated with them? Yes, you
-wouldn't be able to know which pid (or kernel/ptrace thread) generated
-a fault but at least you would know which pids the mm belongs to.
+> To be honest, it still isn't clear to me what the impact of the
+> patch is. With different base page sizes (e.g. on ppc64 with some
+> configs), the window is still large. At the time, it was left as-is
+> as I could not decide one way or the other but I'm ok with restoring
+> the behaviour so either way;
+> 
+> Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-I didn't see the patchset Pavel posted in a quick search of the
-archives. Only this [2].
+Thanks!
 
-[1] http://ccl.cse.nd.edu/software/parrot/
-[2] https://lkml.org/lkml/2015/1/15/103
+> Out of curiosity though, what *is* the user-visible impact of the patch
+> though? It's different but I'm having trouble deciding if it's better
+> or worse. I'm curious as to whether the patch is based on a bug report
+> or intuition.
 
--- 
-Patrick Donnelly
+No, I didn't observe a bug, it just struck me during code review.
+
+My sole line of reasoning was: the pressure scan window was chosen
+back then to be at a certain point between reliable sample size and
+on-time reporting of detected pressure. Increasing the LRU scan window
+for the purpose of improved TLB batching seems sufficiently unrelated
+that we wouldn't want to change the vmpressure window as a side effect.
+
+Arguably it should not even reference SWAP_CLUSTER_MAX, but on the
+other hand that value has been pretty static in the past, and it looks
+better than '256' :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
