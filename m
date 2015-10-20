@@ -1,103 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E20F66B0038
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 19:55:49 -0400 (EDT)
-Received: by pacfv9 with SMTP id fv9so36760965pac.3
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 16:55:49 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id a13si8741023pbu.165.2015.10.20.16.55.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Oct 2015 16:55:46 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v2 2/4] mm/hugetlb: Setup hugetlb_falloc during fallocate hole punch
-Date: Tue, 20 Oct 2015 16:52:20 -0700
-Message-Id: <1445385142-29936-3-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1445385142-29936-1-git-send-email-mike.kravetz@oracle.com>
-References: <1445385142-29936-1-git-send-email-mike.kravetz@oracle.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F38C82F66
+	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 19:56:28 -0400 (EDT)
+Received: by pabrc13 with SMTP id rc13so35384153pab.0
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 16:56:27 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id zd10si8780670pac.43.2015.10.20.16.56.27
+        for <linux-mm@kvack.org>;
+        Tue, 20 Oct 2015 16:56:27 -0700 (PDT)
+Subject: [PATCH] mm, hugetlbfs: optimize when NUMA=n
+From: Dave Hansen <dave@sr71.net>
+Date: Tue, 20 Oct 2015 16:56:12 -0700
+Message-Id: <20151020235611.A30DC32F@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: dave@sr71.net
+Cc: akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com
 
-When performing a fallocate hole punch, set up a hugetlb_falloc struct
-and make i_private point to it.  i_private will point to this struct for
-the duration of the operation.  At the end of the operation, wake up
-anyone who faulted on the hole and is on the waitq.
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+
+My recent patch "mm, hugetlb: use memory policy when available" added some
+bloat to hugetlb.o.  This patch aims to get some of the bloat back,
+especially when NUMA is not in play.
+
+It does this with an implicit #ifdef and marking some things static that
+should have been static in my first patch.  It also makes the warnings
+only VM_WARN_ON()s.  They were responsible for a pretty big chunk of the
+bloat.
+
+Doing this gets our NUMA=n text size back to a wee bit _below_ where we
+started before the original patch.
+
+It also shaves a bit of space off the NUMA=y case, but not much.  Enforcing
+the mempolicy definitely takes some text and it's hard to avoid.
+
+size(1) output:
+
+   text	   data	    bss	    dec	    hex	filename
+  30745	   3433	   2492	  36670	   8f3e	hugetlb.o.nonuma.baseline
+  31305	   3755	   2492	  37552	   92b0	hugetlb.o.nonuma.patch1
+  30713	   3433	   2492	  36638	   8f1e	hugetlb.o.nonuma.patch2 (this patch)
+  25235	    473	  41276	  66984	  105a8	hugetlb.o.numa.baseline
+  25715	    475	  41276	  67466	  1078a	hugetlb.o.numa.patch1
+  25491	    473	  41276	  67240	  106a8	hugetlb.o.numa.patch2 (this patch)
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
- fs/hugetlbfs/inode.c | 32 +++++++++++++++++++++++++++++---
- 1 file changed, 29 insertions(+), 3 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 316adb9..719bbe0 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -507,6 +507,7 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
- {
- 	struct hstate *h = hstate_inode(inode);
- 	loff_t hpage_size = huge_page_size(h);
-+	unsigned long hpage_shift = huge_page_shift(h);
- 	loff_t hole_start, hole_end;
+ b/mm/hugetlb.c |   18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+diff -puN mm/hugetlb.c~hugetlbfs-decrapify-with-no-numa mm/hugetlb.c
+--- a/mm/hugetlb.c~hugetlbfs-decrapify-with-no-numa	2015-10-20 16:47:24.501877643 -0700
++++ b/mm/hugetlb.c	2015-10-20 16:52:33.060946354 -0700
+@@ -1455,9 +1455,14 @@ static struct page *__hugetlb_alloc_budd
  
  	/*
-@@ -518,8 +519,30 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
+ 	 * We need a VMA to get a memory policy.  If we do not
+-	 * have one, we use the 'nid' argument
++	 * have one, we use the 'nid' argument.
++	 *
++	 * The mempolicy stuff below has some non-inlined bits
++	 * and calls ->vm_ops.  That makes it hard to optimize at
++	 * compile-time, even when NUMA is off and it does
++	 * nothing.  This helps the compiler optimize it out.
+ 	 */
+-	if (!vma) {
++	if (!IS_ENABLED(CONFIG_NUMA) || !vma) {
+ 		/*
+ 		 * If a specific node is requested, make sure to
+ 		 * get memory from there, but only when a node
+@@ -1474,7 +1479,8 @@ static struct page *__hugetlb_alloc_budd
  
- 	if (hole_end > hole_start) {
- 		struct address_space *mapping = inode->i_mapping;
-+		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(hugetlb_falloc_waitq);
-+		/*
-+		 * Page faults on the area to be hole punched must be stopped
-+		 * during the operation.  Initialize struct and have
-+		 * inode->i_private point to it.
-+		 */
-+		struct hugetlb_falloc hugetlb_falloc = {
-+			.waitq = &hugetlb_falloc_waitq,
-+			.start = hole_start >> hpage_shift,
-+			.end = hole_end >> hpage_shift
-+		};
+ 	/*
+ 	 * OK, so we have a VMA.  Fetch the mempolicy and try to
+-	 * allocate a huge page with it.
++	 * allocate a huge page with it.  We will only reach this
++	 * when CONFIG_NUMA=y.
+ 	 */
+ 	do {
+ 		struct page *page;
+@@ -1515,8 +1521,8 @@ static struct page *__alloc_buddy_huge_p
+ 		return NULL;
  
- 		mutex_lock(&inode->i_mutex);
-+
-+		/*
-+		 * inode->i_private will be checked in the page fault path.
-+		 * The locking assures that all writes to the structure are
-+		 * complete before assigning to i_private.  A fault on another
-+		 * CPU will see the fully initialized structure.
-+		 */
-+		spin_lock(&inode->i_lock);
-+		inode->i_private = &hugetlb_falloc;
-+		spin_unlock(&inode->i_lock);
-+
- 		i_mmap_lock_write(mapping);
- 		if (!RB_EMPTY_ROOT(&mapping->i_mmap))
- 			hugetlb_vmdelete_list(&mapping->i_mmap,
-@@ -527,6 +550,12 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
- 						hole_end  >> PAGE_SHIFT);
- 		i_mmap_unlock_write(mapping);
- 		remove_inode_hugepages(inode, hole_start, hole_end);
-+
-+		spin_lock(&inode->i_lock);
-+		inode->i_private = NULL;
-+		wake_up_all(&hugetlb_falloc_waitq);
-+		spin_unlock(&inode->i_lock);
-+
- 		mutex_unlock(&inode->i_mutex);
+ 	if (vma || addr) {
+-		WARN_ON_ONCE(!addr || addr == -1);
+-		WARN_ON_ONCE(nid != NUMA_NO_NODE);
++		VM_WARN_ON_ONCE(!addr || addr == -1);
++		VM_WARN_ON_ONCE(nid != NUMA_NO_NODE);
  	}
- 
-@@ -647,9 +676,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
- 		i_size_write(inode, offset + len);
- 	inode->i_ctime = CURRENT_TIME;
--	spin_lock(&inode->i_lock);
--	inode->i_private = NULL;
--	spin_unlock(&inode->i_lock);
- out:
- 	mutex_unlock(&inode->i_mutex);
- 	return error;
--- 
-2.4.3
+ 	/*
+ 	 * Assume we will successfully allocate the surplus page to
+@@ -1580,6 +1586,7 @@ static struct page *__alloc_buddy_huge_p
+  * NUMA_NO_NODE, which means that it may be allocated
+  * anywhere.
+  */
++static
+ struct page *__alloc_buddy_huge_page_no_mpol(struct hstate *h, int nid)
+ {
+ 	unsigned long addr = -1;
+@@ -1590,6 +1597,7 @@ struct page *__alloc_buddy_huge_page_no_
+ /*
+  * Use the VMA's mpolicy to allocate a huge page from the buddy.
+  */
++static
+ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
+ 		struct vm_area_struct *vma, unsigned long addr)
+ {
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
