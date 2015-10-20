@@ -1,61 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 20AE66B0038
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 22:00:50 -0400 (EDT)
-Received: by pabrc13 with SMTP id rc13so4448886pab.0
-        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 19:00:49 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id af1si1087198pad.198.2015.10.19.19.00.48
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 33E706B0038
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 22:22:30 -0400 (EDT)
+Received: by pacfv9 with SMTP id fv9so5089773pac.3
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 19:22:29 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id rc8si1205964pab.238.2015.10.19.19.22.29
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Oct 2015 19:00:49 -0700 (PDT)
-Subject: Re: [PATCH 0/3] hugetlbfs fallocate hole punch race with page faults
-References: <1445033310-13155-1-git-send-email-mike.kravetz@oracle.com>
- <20151019161840.63e6afaa73aceec23e351905@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <56259EC4.9010207@oracle.com>
-Date: Mon, 19 Oct 2015 18:54:12 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Oct 2015 19:22:29 -0700 (PDT)
+Received: by pasz6 with SMTP id z6so4934641pas.2
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 19:22:29 -0700 (PDT)
+Date: Mon, 19 Oct 2015 19:22:15 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 2/3] mm/hugetlb: Setup hugetlb_falloc during fallocate
+ hole punch
+In-Reply-To: <56259BD0.7060307@oracle.com>
+Message-ID: <alpine.LSU.2.11.1510191852460.5432@eggly.anvils>
+References: <1445033310-13155-1-git-send-email-mike.kravetz@oracle.com> <1445033310-13155-3-git-send-email-mike.kravetz@oracle.com> <20151019161642.68e787103cacb613d372b5c4@linux-foundation.org> <56259BD0.7060307@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20151019161840.63e6afaa73aceec23e351905@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>
 
-On 10/19/2015 04:18 PM, Andrew Morton wrote:
-> On Fri, 16 Oct 2015 15:08:27 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On Mon, 19 Oct 2015, Mike Kravetz wrote:
+> On 10/19/2015 04:16 PM, Andrew Morton wrote:
+> > On Fri, 16 Oct 2015 15:08:29 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 > 
->> The hugetlbfs fallocate hole punch code can race with page faults.  The
->> result is that after a hole punch operation, pages may remain within the
->> hole.  No other side effects of this race were observed.
->>
->> In preparation for adding userfaultfd support to hugetlbfs, it is desirable
->> to plug or significantly shrink this hole.  This patch set uses the same
->> mechanism employed in shmem (see commit f00cdc6df7).
->>
+> >>  		mutex_lock(&inode->i_mutex);
+> >> +
+> >> +		spin_lock(&inode->i_lock);
+> >> +		inode->i_private = &hugetlb_falloc;
+> >> +		spin_unlock(&inode->i_lock);
+> > 
+> > Locking around a single atomic assignment is a bit peculiar.  I can
+> > kinda see that it kinda protects the logic in hugetlb_fault(), but I
+> > would like to hear (in comment form) your description of how this logic
+> > works?
 > 
-> "still buggy but not as bad as before" isn't what we strive for ;) What
-> would it take to fix this for real?  An exhaustive description of the
-> bug would be a good starting point, thanks.
+> To be honest, this code/scheme was copied from shmem as it addresses
+> the same situation there.  I did not notice how strange this looks until
+> you pointed it out.  At first glance, the locking does appear to be
+> unnecessary.  The fault code initially checks this value outside the
+> lock.  However, the fault code (on another CPU) will take the lock
+> and access values within the structure.  Without the locking or some other
+> type of memory barrier here, there is no guarantee that the structure
+> will be initialized before setting i_private.  So, the faulting code
+> could see invalid values in the structure.
 > 
+> Hugh, is that accurate?  You provided the shmem code.
 
-Thanks for asking, it made me look closer at ways to resolve this.
+Yes, I think that's accurate; but confess I'm replying now for the
+sake of replying in a rare timely fashion, before having spent any
+time looking through your hugetlbfs reimplementation of the same.
 
-The current code in remove_inode_hugepages() does nothing with a page if
-it is still mapped.  The only way it can be mapped is if we race and take
-a page fault after unmapping, but before the page is removed.  This patch
-set makes that window much smaller, but it still exists.
+The peculiar thing in the shmem case, was that the structure being
+pointed to is on the kernel stack of the fallocating task (with
+i_mutex guaranteeing only one at a time per file could be doing this):
+so the faulting end has to be careful that it's not accessing the
+stale memory after the fallocator has retreated back up its stack.
 
-Instead of "giving up" on a mapped page, remove_inode_hugepages() can go
-back and unmap it.  I'll code this up tomorrow.  Fortunately, it is
-pretty easy to hit these races and verify proper behavior.
+And in the shmem case, this "temporary inode extension" also had to
+communicate to shmem_writepage(), the swapout end of things.  Which
+is not a complication you have with hugetlbfs: perhaps it could be
+simpler if just between fallocate and fault, or perhaps not.
 
-I'll create a new patch set with this combined code for a complete fix.
+Whilst it does all work for tmpfs, it looks as if tmpfs was ahead of
+the pack (or trinity was attacking tmpfs before other filesystems),
+and the issue of faulting versus holepunching (and DAX) has captured
+wider interest recently, with Dave Chinner formulating answers in XFS,
+and hoping to set an example for other filesystems.
 
--- 
-Mike Kravetz
+If that work were further along, and if I had had time to digest any
+of what he is doing about it, I would point you in his direction rather
+than this; but since this does work for tmpfs, I shouldn't discourage you.
+
+I'll try to take a look through yours in the coming days, but there's
+several other patchsets I need to look through too, plus a few more
+patches from me, if I can find time to send them in: juggling priorities.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
