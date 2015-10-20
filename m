@@ -1,34 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 58F4E6B0256
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 16:06:22 -0400 (EDT)
-Received: by igbhv6 with SMTP id hv6so23012648igb.0
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 13:06:22 -0700 (PDT)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id op7si3963756igb.80.2015.10.20.13.06.21
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 24D9B82F66
+	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 16:36:37 -0400 (EDT)
+Received: by wikq8 with SMTP id q8so64140359wik.1
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 13:36:36 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0069.outbound.protection.outlook.com. [157.56.112.69])
+        by mx.google.com with ESMTPS id lh9si6487017wjc.47.2015.10.20.13.36.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 20 Oct 2015 13:06:21 -0700 (PDT)
-Date: Tue, 20 Oct 2015 15:06:19 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm: initialize kmem_cache pointer to NULL
-In-Reply-To: <20151020220411.GA19775@gmail.com>
-Message-ID: <alpine.DEB.2.20.1510201506060.30214@east.gentwo.org>
-References: <20151020220411.GA19775@gmail.com>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 20 Oct 2015 13:36:36 -0700 (PDT)
+From: Chris Metcalf <cmetcalf@ezchip.com>
+Subject: [PATCH v8 03/14] lru_add_drain_all: factor out lru_add_drain_needed
+Date: Tue, 20 Oct 2015 16:36:01 -0400
+Message-ID: <1445373372-6567-4-git-send-email-cmetcalf@ezchip.com>
+In-Reply-To: <1445373372-6567-1-git-send-email-cmetcalf@ezchip.com>
+References: <1445373372-6567-1-git-send-email-cmetcalf@ezchip.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandru Moise <00moses.alexander00@gmail.com>
-Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Gilad Ben Yossef <giladb@ezchip.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van
+ Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Chris Metcalf <cmetcalf@ezchip.com>
 
-On Tue, 20 Oct 2015, Alexandru Moise wrote:
+This per-cpu check was being done in the loop in lru_add_drain_all(),
+but having it be callable for a particular cpu is helpful for the
+task-isolation patches.
 
-> The assignment to NULL within the error condition was written
-> in a 2014 patch to suppress a compiler warning.
-> However it would be cleaner to just initialize the kmem_cache
-> to NULL and just return it in case of an error condition.
+Signed-off-by: Chris Metcalf <cmetcalf@ezchip.com>
+---
+ include/linux/swap.h |  1 +
+ mm/swap.c            | 13 +++++++++----
+ 2 files changed, 10 insertions(+), 4 deletions(-)
 
-Acked-by: Christoph Lameter <cl@linux.com>
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 7ba7dccaf0e7..66719610c9f5 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -305,6 +305,7 @@ extern void activate_page(struct page *);
+ extern void mark_page_accessed(struct page *);
+ extern void lru_add_drain(void);
+ extern void lru_add_drain_cpu(int cpu);
++extern bool lru_add_drain_needed(int cpu);
+ extern void lru_add_drain_all(void);
+ extern void rotate_reclaimable_page(struct page *page);
+ extern void deactivate_file_page(struct page *page);
+diff --git a/mm/swap.c b/mm/swap.c
+index 983f692a47fd..e21f3357cedd 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -854,6 +854,14 @@ void deactivate_file_page(struct page *page)
+ 	}
+ }
+ 
++bool lru_add_drain_needed(int cpu)
++{
++	return (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
++		pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
++		pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
++		need_activate_page_drain(cpu));
++}
++
+ void lru_add_drain(void)
+ {
+ 	lru_add_drain_cpu(get_cpu());
+@@ -880,10 +888,7 @@ void lru_add_drain_all(void)
+ 	for_each_online_cpu(cpu) {
+ 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
+ 
+-		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
+-		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
+-		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
+-		    need_activate_page_drain(cpu)) {
++		if (lru_add_drain_needed(cpu)) {
+ 			INIT_WORK(work, lru_add_drain_per_cpu);
+ 			schedule_work_on(cpu, work);
+ 			cpumask_set_cpu(cpu, &has_work);
+-- 
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
