@@ -1,48 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CB4D6B028C
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 19:30:37 -0400 (EDT)
-Received: by wicll6 with SMTP id ll6so4065765wic.1
-        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 16:30:37 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x1si861476wia.29.2015.10.19.16.30.36
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B7D586B0253
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 20:35:00 -0400 (EDT)
+Received: by padhk11 with SMTP id hk11so2279833pad.1
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 17:35:00 -0700 (PDT)
+Received: from mgwkm04.jp.fujitsu.com (mgwkm04.jp.fujitsu.com. [202.219.69.171])
+        by mx.google.com with ESMTPS id w15si582024pbt.47.2015.10.19.17.34.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 Oct 2015 16:30:36 -0700 (PDT)
-Date: Mon, 19 Oct 2015 16:30:22 -0700
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: Re: [PATCH 2/12] mm: rmap use pte lock not mmap_sem to set
- PageMlocked
-Message-ID: <20151019233022.GA27292@linux-uzut.site>
-References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
- <alpine.LSU.2.11.1510182148040.2481@eggly.anvils>
- <56248C5B.3040505@suse.cz>
- <alpine.LSU.2.11.1510190341490.3809@eggly.anvils>
- <20151019131308.GB15819@node.shutemov.name>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Oct 2015 17:35:00 -0700 (PDT)
+Received: from g01jpfmpwyt03.exch.g01.fujitsu.local (g01jpfmpwyt03.exch.g01.fujitsu.local [10.128.193.57])
+	by kw-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 887D5AC0172
+	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 09:34:53 +0900 (JST)
+From: "Izumi, Taku" <izumi.taku@jp.fujitsu.com>
+Subject: RE: [PATCH] mm: Introduce kernelcore=reliable option
+Date: Tue, 20 Oct 2015 00:34:51 +0000
+Message-ID: <E86EADE93E2D054CBCD4E708C38D364A5427FECE@G01JPEXMBYT01>
+References: <1444915942-15281-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <5624548F.30500@huawei.com>
+In-Reply-To: <5624548F.30500@huawei.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20151019131308.GB15819@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrey Konovalov <andreyknvl@google.com>, Dmitry Vyukov <dvyukov@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tony.luck@intel.com" <tony.luck@intel.com>, "Kamezawa, Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
 
-On Mon, 19 Oct 2015, Kirill A. Shutemov wrote:
+ Hi Xishi,
 
->I think we need to have at lease WRITE_ONCE() everywhere we update
->vm_flags and READ_ONCE() where we read it without mmap_sem taken.
+> On 2015/10/15 21:32, Taku Izumi wrote:
+> 
+> > Xeon E7 v3 based systems supports Address Range Mirroring
+> > and UEFI BIOS complied with UEFI spec 2.5 can notify which
+> > ranges are reliable (mirrored) via EFI memory map.
+> > Now Linux kernel utilize its information and allocates
+> > boot time memory from reliable region.
+> >
+> > My requirement is:
+> >   - allocate kernel memory from reliable region
+> >   - allocate user memory from non-reliable region
+> >
+> > In order to meet my requirement, ZONE_MOVABLE is useful.
+> > By arranging non-reliable range into ZONE_MOVABLE,
+> > reliable memory is only used for kernel allocations.
+> >
+> > This patch extends existing "kernelcore" option and
+> > introduces kernelcore=reliable option. By specifying
+> > "reliable" instead of specifying the amount of memory,
+> > non-reliable region will be arranged into ZONE_MOVABLE.
+> >
+> > Earlier discussion is at:
+> >  https://lkml.org/lkml/2015/10/9/24
+> >
+> 
+> Hi Taku,
+> 
+> If user don't want to waste a lot of memory, and he only set
+> a few memory to mirrored memory, then the kernelcore is very
+> small, right? That means OS will have a very small normal zone
+> and a very large movable zone.
 
-Given the CPU-CPU interaction, lockless/racy vm_flag checks should
-actually be using barrier pairing, afaict. This is expensive obviously,
-but I cannot recall what other places we do lockless games with vm_flags.
+ Right.
 
-Perhaps its time to introduce formal helpers around vma->vm_flags such
-that we can encapsulate such things: __vma_[set/read]_vmflags() or whatever
-that would be used for those racy scenarios.
+> Kernel allocation could only use the unmovable zone. As the
+> normal zone is very small, the kernel allocation maybe OOM,
+> right?
 
-Thanks,
-Davidlohr
+ Right.
+
+> Do you mean that we will reuse the movable zone in short-term
+> solution and create a new zone(mirrored zone) in future?
+
+ If there is that kind of requirements, I don't oppose 
+ creating a new zone.
+
+ Sincerely,
+ Taku Izumi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
