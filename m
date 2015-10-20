@@ -1,88 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F9AC82F65
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 17:36:53 -0400 (EDT)
-Received: by padhk11 with SMTP id hk11so32519817pad.1
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 14:36:53 -0700 (PDT)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 58CDD6B0254
+	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 18:19:43 -0400 (EDT)
+Received: by pabrc13 with SMTP id rc13so33312695pab.0
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 15:19:43 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id xp4si7941735pbc.180.2015.10.20.14.36.52
+        by mx.google.com with ESMTPS id z5si8215589pbt.98.2015.10.20.15.19.42
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Oct 2015 14:36:52 -0700 (PDT)
-Date: Tue, 20 Oct 2015 14:36:51 -0700
+        Tue, 20 Oct 2015 15:19:42 -0700 (PDT)
+Date: Tue, 20 Oct 2015 15:19:41 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/5] MADV_FREE refactoring and fix KSM page
-Message-Id: <20151020143651.64ce2c459cda168c714caf93@linux-foundation.org>
-In-Reply-To: <20151020072109.GD2941@bbox>
-References: <1445236307-895-1-git-send-email-minchan@kernel.org>
-	<20151019100150.GA5194@bbox>
-	<20151020072109.GD2941@bbox>
+Subject: Re: [PATCH] mm, hugetlb: use memory policy when available
+Message-Id: <20151020151941.f603ab55d4d760bca8ce5dbb@linux-foundation.org>
+In-Reply-To: <20151020195317.ADA052D8@viggo.jf.intel.com>
+References: <20151020195317.ADA052D8@viggo.jf.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Dave Hansen <dave@sr71.net>
+Cc: n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com
 
-On Tue, 20 Oct 2015 16:21:09 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On Tue, 20 Oct 2015 12:53:17 -0700 Dave Hansen <dave@sr71.net> wrote:
 
 > 
-> I reviewed THP refcount redesign patch and It seems below patch fixes
-> MADV_FREE problem. It works well for hours.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> >From 104a0940b4c0f97e61de9fee0fd602926ff28312 Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Tue, 20 Oct 2015 16:00:52 +0900
-> Subject: [PATCH] mm: mark head page dirty in split_huge_page
+> I have a hugetlbfs user which is never explicitly allocating huge pages
+> with 'nr_hugepages'.  They only set 'nr_overcommit_hugepages' and then let
+> the pages be allocated from the buddy allocator at fault time.
 > 
-> In thp split in old THP refcount, we mappped all of pages
-> (ie, head + tails) to pte_mkdirty and mark PG_flags to every
-> tail pages.
+> This works, but they noticed that mbind() was not doing them any good and
+> the pages were being allocated without respect for the policy they
+> specified.
 > 
-> But with THP refcount redesign, we can lose dirty bit in page table
-> and PG_dirty for head page if we want to free the THP page using
-> migration_entry.
+> The code in question is this:
 > 
-> It ends up discarding head page by madvise_free suddenly.
-> This patch fixes it by mark the head page PG_dirty when VM splits
-> the THP page.
+> > struct page *alloc_huge_page(struct vm_area_struct *vma,
+> ...
+> >         page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, gbl_chg);
+> >         if (!page) {
+> >                 page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
 > 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/huge_memory.c | 1 +
->  1 file changed, 1 insertion(+)
+> dequeue_huge_page_vma() is smart and will respect the VMA's memory policy.
+> But, it only grabs _existing_ huge pages from the huge page pool.  If the
+> pool is empty, we fall back to alloc_buddy_huge_page() which obviously
+> can't do anything with the VMA's policy because it isn't even passed the
+> VMA.
 > 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index adccfb48ce57..7fbbd42554a1 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -3258,6 +3258,7 @@ static void __split_huge_page(struct page *page, struct list_head *list)
->  	atomic_sub(tail_mapcount, &head->_count);
->  
->  	ClearPageCompound(head);
-> +	SetPageDirty(head);
->  	spin_unlock_irq(&zone->lru_lock);
->  
->  	unfreeze_page(page_anon_vma(head), head);
+> Almost everybody preallocates huge pages.  That's probably why nobody has
+> ever noticed this.  Looking back at the git history, I don't think this
+> _ever_ worked from when alloc_buddy_huge_page() was introduced in 7893d1d5,
+> 8 years ago.
+> 
+> The fix is to pass vma/addr down in to the places where we actually call in
+> to the buddy allocator.  It's fairly straightforward plumbing.  This has
+> been lightly tested.
 
-This appears to be a bugfix against Kirill's "thp: reintroduce
-split_huge_page()"?
+huh.  Fair enough.
 
-Yes, __split_huge_page() is marking the tail pages dirty but forgot
-about the head page
+>  b/mm/hugetlb.c |  111 ++++++++++++++++++++++++++++++++++++++++++++++++++-------
 
-You say "we can lose dirty bit in page table" but I don't see how the
-above patch fixes that?
-
-
-Why does __split_huge_page() unconditionally mark the pages dirty, btw?
-Is it because the THP page was known to be dirty?  If so, the head
-page already had PG_dirty, so this patch doesn't do anything.
-
-freeze_page(), unfreeze_page() and their callees desperately need some
-description of what they're doing.  Kirill, could you cook somethnig up
-please?
+Is it worth deporking this for the CONFIG_NUMA=n case?
 
 
 --
