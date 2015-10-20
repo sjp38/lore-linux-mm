@@ -1,138 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 667526B0038
-	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 21:45:43 -0400 (EDT)
-Received: by obbda8 with SMTP id da8so2560578obb.1
-        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 18:45:43 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id n199si329043oig.12.2015.10.19.18.45.42
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 20AE66B0038
+	for <linux-mm@kvack.org>; Mon, 19 Oct 2015 22:00:50 -0400 (EDT)
+Received: by pabrc13 with SMTP id rc13so4448886pab.0
+        for <linux-mm@kvack.org>; Mon, 19 Oct 2015 19:00:49 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id af1si1087198pad.198.2015.10.19.19.00.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Oct 2015 18:45:42 -0700 (PDT)
-Subject: Re: [PATCH 2/3] mm/hugetlb: Setup hugetlb_falloc during fallocate
- hole punch
+        Mon, 19 Oct 2015 19:00:49 -0700 (PDT)
+Subject: Re: [PATCH 0/3] hugetlbfs fallocate hole punch race with page faults
 References: <1445033310-13155-1-git-send-email-mike.kravetz@oracle.com>
- <1445033310-13155-3-git-send-email-mike.kravetz@oracle.com>
- <20151019161642.68e787103cacb613d372b5c4@linux-foundation.org>
+ <20151019161840.63e6afaa73aceec23e351905@linux-foundation.org>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <56259BD0.7060307@oracle.com>
-Date: Mon, 19 Oct 2015 18:41:36 -0700
+Message-ID: <56259EC4.9010207@oracle.com>
+Date: Mon, 19 Oct 2015 18:54:12 -0700
 MIME-Version: 1.0
-In-Reply-To: <20151019161642.68e787103cacb613d372b5c4@linux-foundation.org>
+In-Reply-To: <20151019161840.63e6afaa73aceec23e351905@linux-foundation.org>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>
 
-On 10/19/2015 04:16 PM, Andrew Morton wrote:
-> On Fri, 16 Oct 2015 15:08:29 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On 10/19/2015 04:18 PM, Andrew Morton wrote:
+> On Fri, 16 Oct 2015 15:08:27 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 > 
->> When performing a fallocate hole punch, set up a hugetlb_falloc struct
->> and make i_private point to it.  i_private will point to this struct for
->> the duration of the operation.  At the end of the operation, wake up
->> anyone who faulted on the hole and is on the waitq.
+>> The hugetlbfs fallocate hole punch code can race with page faults.  The
+>> result is that after a hole punch operation, pages may remain within the
+>> hole.  No other side effects of this race were observed.
 >>
->> ...
+>> In preparation for adding userfaultfd support to hugetlbfs, it is desirable
+>> to plug or significantly shrink this hole.  This patch set uses the same
+>> mechanism employed in shmem (see commit f00cdc6df7).
 >>
->> --- a/fs/hugetlbfs/inode.c
->> +++ b/fs/hugetlbfs/inode.c
->> @@ -507,7 +507,9 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
->>  {
->>  	struct hstate *h = hstate_inode(inode);
->>  	loff_t hpage_size = huge_page_size(h);
->> +	unsigned long hpage_shift = huge_page_shift(h);
->>  	loff_t hole_start, hole_end;
->> +	struct hugetlb_falloc hugetlb_falloc;
->>  
->>  	/*
->>  	 * For hole punch round up the beginning offset of the hole and
->> @@ -518,8 +520,23 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
->>  
->>  	if (hole_end > hole_start) {
->>  		struct address_space *mapping = inode->i_mapping;
->> +		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(hugetlb_falloc_waitq);
->> +
->> +		/*
->> +		 * Page faults on the area to be hole punched must be
->> +		 * stopped during the operation.  Initialize struct and
->> +		 * have inode->i_private point to it.
->> +		 */
->> +		hugetlb_falloc.waitq = &hugetlb_falloc_waitq;
->> +		hugetlb_falloc.start = hole_start >> hpage_shift;
->> +		hugetlb_falloc.end = hole_end >> hpage_shift;
 > 
-> This is a bit neater:
-> 
-> --- a/fs/hugetlbfs/inode.c~mm-hugetlb-setup-hugetlb_falloc-during-fallocate-hole-punch-fix
-> +++ a/fs/hugetlbfs/inode.c
-> @@ -509,7 +509,6 @@ static long hugetlbfs_punch_hole(struct
->  	loff_t hpage_size = huge_page_size(h);
->  	unsigned long hpage_shift = huge_page_shift(h);
->  	loff_t hole_start, hole_end;
-> -	struct hugetlb_falloc hugetlb_falloc;
->  
->  	/*
->  	 * For hole punch round up the beginning offset of the hole and
-> @@ -521,15 +520,16 @@ static long hugetlbfs_punch_hole(struct
->  	if (hole_end > hole_start) {
->  		struct address_space *mapping = inode->i_mapping;
->  		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(hugetlb_falloc_waitq);
-> -
->  		/*
-> -		 * Page faults on the area to be hole punched must be
-> -		 * stopped during the operation.  Initialize struct and
-> -		 * have inode->i_private point to it.
-> +		 * Page faults on the area to be hole punched must be stopped
-> +		 * during the operation.  Initialize struct and have
-> +		 * inode->i_private point to it.
->  		 */
-> -		hugetlb_falloc.waitq = &hugetlb_falloc_waitq;
-> -		hugetlb_falloc.start = hole_start >> hpage_shift;
-> -		hugetlb_falloc.end = hole_end >> hpage_shift;
-> +		struct hugetlb_falloc hugetlb_falloc = {
-> +			.waitq = &hugetlb_falloc_waitq,
-> +			.start = hole_start >> hpage_shift,
-> +			.end = hole_end >> hpage_shift
-> +		};
->  
->  		mutex_lock(&inode->i_mutex);
->  
+> "still buggy but not as bad as before" isn't what we strive for ;) What
+> would it take to fix this for real?  An exhaustive description of the
+> bug would be a good starting point, thanks.
 > 
 
-Thanks!
+Thanks for asking, it made me look closer at ways to resolve this.
 
->>  		mutex_lock(&inode->i_mutex);
->> +
->> +		spin_lock(&inode->i_lock);
->> +		inode->i_private = &hugetlb_falloc;
->> +		spin_unlock(&inode->i_lock);
-> 
-> Locking around a single atomic assignment is a bit peculiar.  I can
-> kinda see that it kinda protects the logic in hugetlb_fault(), but I
-> would like to hear (in comment form) your description of how this logic
-> works?
+The current code in remove_inode_hugepages() does nothing with a page if
+it is still mapped.  The only way it can be mapped is if we race and take
+a page fault after unmapping, but before the page is removed.  This patch
+set makes that window much smaller, but it still exists.
 
-To be honest, this code/scheme was copied from shmem as it addresses
-the same situation there.  I did not notice how strange this looks until
-you pointed it out.  At first glance, the locking does appear to be
-unnecessary.  The fault code initially checks this value outside the
-lock.  However, the fault code (on another CPU) will take the lock
-and access values within the structure.  Without the locking or some other
-type of memory barrier here, there is no guarantee that the structure
-will be initialized before setting i_private.  So, the faulting code
-could see invalid values in the structure.
+Instead of "giving up" on a mapped page, remove_inode_hugepages() can go
+back and unmap it.  I'll code this up tomorrow.  Fortunately, it is
+pretty easy to hit these races and verify proper behavior.
 
-Hugh, is that accurate?  You provided the shmem code.
+I'll create a new patch set with this combined code for a complete fix.
 
 -- 
 Mike Kravetz
-
->>  		i_mmap_lock_write(mapping);
->>  		if (!RB_EMPTY_ROOT(&mapping->i_mmap))
->>  			hugetlb_vmdelete_list(&mapping->i_mmap,
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
