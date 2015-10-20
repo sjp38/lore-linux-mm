@@ -1,84 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 24D9B82F66
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 16:36:37 -0400 (EDT)
-Received: by wikq8 with SMTP id q8so64140359wik.1
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 13:36:36 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0069.outbound.protection.outlook.com. [157.56.112.69])
-        by mx.google.com with ESMTPS id lh9si6487017wjc.47.2015.10.20.13.36.35
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F9AC82F65
+	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 17:36:53 -0400 (EDT)
+Received: by padhk11 with SMTP id hk11so32519817pad.1
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 14:36:53 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id xp4si7941735pbc.180.2015.10.20.14.36.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 20 Oct 2015 13:36:36 -0700 (PDT)
-From: Chris Metcalf <cmetcalf@ezchip.com>
-Subject: [PATCH v8 03/14] lru_add_drain_all: factor out lru_add_drain_needed
-Date: Tue, 20 Oct 2015 16:36:01 -0400
-Message-ID: <1445373372-6567-4-git-send-email-cmetcalf@ezchip.com>
-In-Reply-To: <1445373372-6567-1-git-send-email-cmetcalf@ezchip.com>
-References: <1445373372-6567-1-git-send-email-cmetcalf@ezchip.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Oct 2015 14:36:52 -0700 (PDT)
+Date: Tue, 20 Oct 2015 14:36:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/5] MADV_FREE refactoring and fix KSM page
+Message-Id: <20151020143651.64ce2c459cda168c714caf93@linux-foundation.org>
+In-Reply-To: <20151020072109.GD2941@bbox>
+References: <1445236307-895-1-git-send-email-minchan@kernel.org>
+	<20151019100150.GA5194@bbox>
+	<20151020072109.GD2941@bbox>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben Yossef <giladb@ezchip.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van
- Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Chris Metcalf <cmetcalf@ezchip.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
 
-This per-cpu check was being done in the loop in lru_add_drain_all(),
-but having it be callable for a particular cpu is helpful for the
-task-isolation patches.
+On Tue, 20 Oct 2015 16:21:09 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-Signed-off-by: Chris Metcalf <cmetcalf@ezchip.com>
----
- include/linux/swap.h |  1 +
- mm/swap.c            | 13 +++++++++----
- 2 files changed, 10 insertions(+), 4 deletions(-)
+> 
+> I reviewed THP refcount redesign patch and It seems below patch fixes
+> MADV_FREE problem. It works well for hours.
+> 
+> >From 104a0940b4c0f97e61de9fee0fd602926ff28312 Mon Sep 17 00:00:00 2001
+> From: Minchan Kim <minchan@kernel.org>
+> Date: Tue, 20 Oct 2015 16:00:52 +0900
+> Subject: [PATCH] mm: mark head page dirty in split_huge_page
+> 
+> In thp split in old THP refcount, we mappped all of pages
+> (ie, head + tails) to pte_mkdirty and mark PG_flags to every
+> tail pages.
+> 
+> But with THP refcount redesign, we can lose dirty bit in page table
+> and PG_dirty for head page if we want to free the THP page using
+> migration_entry.
+> 
+> It ends up discarding head page by madvise_free suddenly.
+> This patch fixes it by mark the head page PG_dirty when VM splits
+> the THP page.
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/huge_memory.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index adccfb48ce57..7fbbd42554a1 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -3258,6 +3258,7 @@ static void __split_huge_page(struct page *page, struct list_head *list)
+>  	atomic_sub(tail_mapcount, &head->_count);
+>  
+>  	ClearPageCompound(head);
+> +	SetPageDirty(head);
+>  	spin_unlock_irq(&zone->lru_lock);
+>  
+>  	unfreeze_page(page_anon_vma(head), head);
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 7ba7dccaf0e7..66719610c9f5 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -305,6 +305,7 @@ extern void activate_page(struct page *);
- extern void mark_page_accessed(struct page *);
- extern void lru_add_drain(void);
- extern void lru_add_drain_cpu(int cpu);
-+extern bool lru_add_drain_needed(int cpu);
- extern void lru_add_drain_all(void);
- extern void rotate_reclaimable_page(struct page *page);
- extern void deactivate_file_page(struct page *page);
-diff --git a/mm/swap.c b/mm/swap.c
-index 983f692a47fd..e21f3357cedd 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -854,6 +854,14 @@ void deactivate_file_page(struct page *page)
- 	}
- }
- 
-+bool lru_add_drain_needed(int cpu)
-+{
-+	return (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
-+		pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
-+		pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
-+		need_activate_page_drain(cpu));
-+}
-+
- void lru_add_drain(void)
- {
- 	lru_add_drain_cpu(get_cpu());
-@@ -880,10 +888,7 @@ void lru_add_drain_all(void)
- 	for_each_online_cpu(cpu) {
- 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
- 
--		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
--		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
--		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
--		    need_activate_page_drain(cpu)) {
-+		if (lru_add_drain_needed(cpu)) {
- 			INIT_WORK(work, lru_add_drain_per_cpu);
- 			schedule_work_on(cpu, work);
- 			cpumask_set_cpu(cpu, &has_work);
--- 
-2.1.2
+This appears to be a bugfix against Kirill's "thp: reintroduce
+split_huge_page()"?
+
+Yes, __split_huge_page() is marking the tail pages dirty but forgot
+about the head page
+
+You say "we can lose dirty bit in page table" but I don't see how the
+above patch fixes that?
+
+
+Why does __split_huge_page() unconditionally mark the pages dirty, btw?
+Is it because the THP page was known to be dirty?  If so, the head
+page already had PG_dirty, so this patch doesn't do anything.
+
+freeze_page(), unfreeze_page() and their callees desperately need some
+description of what they're doing.  Kirill, could you cook somethnig up
+please?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
