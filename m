@@ -1,59 +1,627 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id C016282F65
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 03:47:03 -0400 (EDT)
-Received: by wicll6 with SMTP id ll6so32172838wic.0
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 00:47:03 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id n3si299463wiz.86.2015.10.20.00.47.02
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id BC8A26B0038
+	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 08:16:33 -0400 (EDT)
+Received: by wijp11 with SMTP id p11so44333224wij.0
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 05:16:33 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
+        by mx.google.com with ESMTPS id j18si832117wie.57.2015.10.20.05.16.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 20 Oct 2015 00:47:02 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 2C969992C7
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 07:47:02 +0000 (UTC)
-Date: Tue, 20 Oct 2015 08:47:00 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: vmpressure: fix scan window after SWAP_CLUSTER_MAX
- increase
-Message-ID: <20151020074700.GB2629@techsingularity.net>
-References: <1445278381-21033-1-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Oct 2015 05:16:32 -0700 (PDT)
+Received: by wicll6 with SMTP id ll6so25398673wic.1
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 05:16:31 -0700 (PDT)
+Date: Tue, 20 Oct 2015 13:16:24 +0100
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [PATCH v2] arm64: Add support for PTE contiguous bit.
+Message-ID: <20151020121622.GA24598@linaro.org>
+References: <1445285349-13242-1-git-send-email-dwoods@ezchip.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1445278381-21033-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1445285349-13242-1-git-send-email-dwoods@ezchip.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Woods <dwoods@ezchip.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, jeremy.linton@arm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cmetcalf@ezchip.com
 
-On Mon, Oct 19, 2015 at 02:13:01PM -0400, Johannes Weiner wrote:
-> mm-increase-swap_cluster_max-to-batch-tlb-flushes.patch changed
-> SWAP_CLUSTER_MAX from 32 pages to 256 pages, inadvertantly switching
-> the scan window for vmpressure detection from 2MB to 16MB. Revert.
+On Mon, Oct 19, 2015 at 04:09:09PM -0400, David Woods wrote:
+> The arm64 MMU supports a Contiguous bit which is a hint that the TTE
+> is one of a set of contiguous entries which can be cached in a single
+> TLB entry.  Supporting this bit adds new intermediate huge page sizes.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> The set of huge page sizes available depends on the base page size.
+> Without using contiguous pages the huge page sizes are as follows.
+> 
+>  4KB:   2MB  1GB
+> 64KB: 512MB
+> 
+> With a 4KB granule, the contiguous bit groups together sets of 16 pages
+> and with a 64KB granule it groups sets of 32 pages.  This enables two new
+> huge page sizes in each case, so that the full set of available sizes
+> is as follows.
+> 
+>  4KB:  64KB   2MB  32MB  1GB
+> 64KB:   2MB 512MB  16GB
+> 
+> If a 16KB granule is used then the contiguous bit groups 128 pages
+> at the PTE level and 32 pages at the PMD level.
+> 
+> If the base page size is set to 64KB then 2MB pages are enabled by
+> default.  It is possible in the future to make 2MB the default huge
+> page size for both 4KB and 64KB granules.
 
-This was known at the time but it was not clear what the measurable
-impact would be. VM Pressure is odd in that it gives strange results at
-times anyway, particularly on NUMA machines. To be honest, it still isn't
-clear to me what the impact of the patch is. With different base page sizes
-(e.g. on ppc64 with some configs), the window is still large. At the time,
-it was left as-is as I could not decide one way or the other but I'm ok
-with restoring the behaviour so either way;
+Thank you for the V2 David,
+I have some comments below.
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+I would recommend running the next version of this series through
+the libhugetlbfs test suite, as that may pick up a few things too.
 
-Out of curiosity though, what *is* the user-visible impact of the patch
-though? It's different but I'm having trouble deciding if it's better
-or worse. I'm curious as to whether the patch is based on a bug report
-or intuition.
-
-Thanks.
-
+Cheers,
 -- 
-Mel Gorman
-SUSE Labs
+Steve
+
+> 
+> Signed-off-by: David Woods <dwoods@ezchip.com>
+> Reviewed-by: Chris Metcalf <cmetcalf@ezchip.com>
+> ---
+>  arch/arm64/Kconfig                     |   3 -
+>  arch/arm64/include/asm/hugetlb.h       |  30 ++---
+>  arch/arm64/include/asm/pgtable-hwdef.h |  20 ++++
+>  arch/arm64/include/asm/pgtable.h       |  33 +++++-
+>  arch/arm64/mm/hugetlbpage.c            | 211 ++++++++++++++++++++++++++++++++-
+>  5 files changed, 272 insertions(+), 25 deletions(-)
+> 
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 07d1811..3aa151d 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -464,9 +464,6 @@ config HW_PERF_EVENTS
+>  config SYS_SUPPORTS_HUGETLBFS
+>  	def_bool y
+>  
+> -config ARCH_WANT_GENERAL_HUGETLB
+> -	def_bool y
+> -
+>  config ARCH_WANT_HUGE_PMD_SHARE
+>  	def_bool y if !ARM64_64K_PAGES
+>  
+> diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
+> index bb4052e..2b153a9 100644
+> --- a/arch/arm64/include/asm/hugetlb.h
+> +++ b/arch/arm64/include/asm/hugetlb.h
+> @@ -26,12 +26,6 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
+>  	return *ptep;
+>  }
+>  
+> -static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> -				   pte_t *ptep, pte_t pte)
+> -{
+> -	set_pte_at(mm, addr, ptep, pte);
+> -}
+> -
+>  static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+>  					 unsigned long addr, pte_t *ptep)
+>  {
+> @@ -44,19 +38,6 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+>  	ptep_set_wrprotect(mm, addr, ptep);
+>  }
+>  
+> -static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> -					    unsigned long addr, pte_t *ptep)
+> -{
+> -	return ptep_get_and_clear(mm, addr, ptep);
+> -}
+> -
+> -static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> -					     unsigned long addr, pte_t *ptep,
+> -					     pte_t pte, int dirty)
+> -{
+> -	return ptep_set_access_flags(vma, addr, ptep, pte, dirty);
+> -}
+> -
+>  static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
+>  					  unsigned long addr, unsigned long end,
+>  					  unsigned long floor,
+> @@ -97,4 +78,15 @@ static inline void arch_clear_hugepage_flags(struct page *page)
+>  	clear_bit(PG_dcache_clean, &page->flags);
+>  }
+>  
+> +extern pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+> +				struct page *page, int writable);
+> +#define arch_make_huge_pte arch_make_huge_pte
+> +extern void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> +			    pte_t *ptep, pte_t pte);
+> +extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> +				      unsigned long addr, pte_t *ptep,
+> +				      pte_t pte, int dirty);
+> +extern pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +				     unsigned long addr, pte_t *ptep);
+> +
+>  #endif /* __ASM_HUGETLB_H */
+> diff --git a/arch/arm64/include/asm/pgtable-hwdef.h b/arch/arm64/include/asm/pgtable-hwdef.h
+> index 24154b0..1b921a5 100644
+> --- a/arch/arm64/include/asm/pgtable-hwdef.h
+> +++ b/arch/arm64/include/asm/pgtable-hwdef.h
+> @@ -55,6 +55,24 @@
+>  #define SECTION_MASK		(~(SECTION_SIZE-1))
+>  
+>  /*
+> + * Contiguous page definitions.
+> + */
+> +#ifdef CONFIG_ARM64_64K_PAGES
+> +#define CONT_PTE_SHIFT		5
+> +#define CONT_PMD_SHIFT		5
+> +#else
+> +#define CONT_PTE_SHIFT		4
+> +#define CONT_PMD_SHIFT		4
+> +#endif
+> +
+> +#define CONT_PTES		(1 << CONT_PTE_SHIFT)
+> +#define CONT_PTE_SIZE		(CONT_PTES * PAGE_SIZE)
+> +#define CONT_PTE_MASK		(~(CONT_PTE_SIZE - 1))
+> +#define CONT_PMDS		(1 << CONT_PMD_SHIFT)
+> +#define CONT_PMD_SIZE		(CONT_PMDS * PMD_SIZE)
+> +#define CONT_PMD_MASK		(~(CONT_PMD_SIZE - 1))
+> +
+> +/*
+>   * Hardware page table definitions.
+>   *
+>   * Level 1 descriptor (PUD).
+> @@ -83,6 +101,7 @@
+>  #define PMD_SECT_S		(_AT(pmdval_t, 3) << 8)
+>  #define PMD_SECT_AF		(_AT(pmdval_t, 1) << 10)
+>  #define PMD_SECT_NG		(_AT(pmdval_t, 1) << 11)
+> +#define PMD_SECT_CONT		(_AT(pmdval_t, 1) << 52)
+>  #define PMD_SECT_PXN		(_AT(pmdval_t, 1) << 53)
+>  #define PMD_SECT_UXN		(_AT(pmdval_t, 1) << 54)
+>  
+> @@ -105,6 +124,7 @@
+>  #define PTE_AF			(_AT(pteval_t, 1) << 10)	/* Access Flag */
+>  #define PTE_NG			(_AT(pteval_t, 1) << 11)	/* nG */
+>  #define PTE_DBM			(_AT(pteval_t, 1) << 51)	/* Dirty Bit Management */
+> +#define PTE_CONT		(_AT(pteval_t, 1) << 52)	/* Contiguous */
+>  #define PTE_PXN			(_AT(pteval_t, 1) << 53)	/* Privileged XN */
+>  #define PTE_UXN			(_AT(pteval_t, 1) << 54)	/* User XN */
+>  
+> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+> index 26b0666..cf079a1 100644
+> --- a/arch/arm64/include/asm/pgtable.h
+> +++ b/arch/arm64/include/asm/pgtable.h
+> @@ -140,6 +140,7 @@ extern struct page *empty_zero_page;
+>  #define pte_special(pte)	(!!(pte_val(pte) & PTE_SPECIAL))
+>  #define pte_write(pte)		(!!(pte_val(pte) & PTE_WRITE))
+>  #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
+> +#define pte_cont(pte)		(!!(pte_val(pte) & PTE_CONT))
+>  
+>  #ifdef CONFIG_ARM64_HW_AFDBM
+>  #define pte_hw_dirty(pte)	(pte_write(pte) && !(pte_val(pte) & PTE_RDONLY))
+> @@ -202,6 +203,18 @@ static inline pte_t pte_mkspecial(pte_t pte)
+>  	return set_pte_bit(pte, __pgprot(PTE_SPECIAL));
+>  }
+>  
+> +static inline pte_t pte_mkcont(pte_t pte)
+> +{
+> +	pte = set_pte_bit(pte, __pgprot(PTE_CONT));
+> +	return set_pte_bit(pte, __pgprot(PTE_TYPE_PAGE));
+> +	return pte;
+
+The second return should be removed.
+
+> +}
+> +
+> +static inline pmd_t pmd_mkcont(pmd_t pmd)
+> +{
+> +	return __pmd(pmd_val(pmd) | PMD_SECT_CONT);
+> +}
+> +
+>  static inline void set_pte(pte_t *ptep, pte_t pte)
+>  {
+>  	*ptep = pte;
+> @@ -271,7 +284,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+>  /*
+>   * Hugetlb definitions.
+>   */
+> -#define HUGE_MAX_HSTATE		2
+> +#define HUGE_MAX_HSTATE		((2 * CONFIG_PGTABLE_LEVELS) - 1)
+
+Not sure about this definition. I would just go with the maximum possible
+which is for a 4KB granule:
+1 x 1GB pud
+1 x 2MB pmd
+16 x 2MB pmds
+16 x 4KB ptes
+
+So 4 for now?
+
+
+>  #define HPAGE_SHIFT		PMD_SHIFT
+>  #define HPAGE_SIZE		(_AC(1, UL) << HPAGE_SHIFT)
+>  #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
+> @@ -496,7 +509,7 @@ static inline pud_t *pud_offset(pgd_t *pgd, unsigned long addr)
+>  static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+>  {
+>  	const pteval_t mask = PTE_USER | PTE_PXN | PTE_UXN | PTE_RDONLY |
+> -			      PTE_PROT_NONE | PTE_VALID | PTE_WRITE;
+> +			      PTE_PROT_NONE | PTE_VALID | PTE_WRITE | PTE_CONT;
+
+Why has PTE_CONT been added to the pte_modify mask? This will allow
+functions such as mprotect to remove the PTE_CONT bit.
+
+>  	/* preserve the hardware dirty information */
+>  	if (pte_hw_dirty(pte))
+>  		pte = pte_mkdirty(pte);
+> @@ -509,6 +522,22 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+>  	return pte_pmd(pte_modify(pmd_pte(pmd), newprot));
+>  }
+>  
+> +static inline pte_t pte_modify_pfn(pte_t pte, unsigned long newpfn)
+> +{
+> +	const pteval_t mask = PHYS_MASK & PAGE_MASK;
+> +
+> +	pte_val(pte) = pfn_pte(newpfn, (pte_val(pte) & ~mask));
+> +	return pte;
+> +}
+> +
+> +static inline pmd_t pmd_modify_pfn(pmd_t pmd, unsigned long newpfn)
+> +{
+> +	const pmdval_t mask = PHYS_MASK & PAGE_MASK;
+> +
+> +	pmd = pfn_pmd(newpfn, (pmd_val(pmd) & ~mask));
+> +	return pmd;
+> +}
+
+pte_modify_pfn and pmd_modify_pfn aren't referenced anywhere in the
+patch so should be removed.
+
+> +
+>  #ifdef CONFIG_ARM64_HW_AFDBM
+>  /*
+>   * Atomic pte/pmd modifications.
+> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+> index 383b03f..20fd34c 100644
+> --- a/arch/arm64/mm/hugetlbpage.c
+> +++ b/arch/arm64/mm/hugetlbpage.c
+> @@ -41,6 +41,201 @@ int pud_huge(pud_t pud)
+>  #endif
+>  }
+>  
+> +static int find_num_contig(struct mm_struct *mm, unsigned long addr,
+> +			   pte_t *ptep, pte_t pte, size_t *pgsize)
+> +{
+> +	pgd_t *pgd = pgd_offset(mm, addr);
+> +	pud_t *pud;
+> +	pmd_t *pmd;
+> +
+> +	if (!pte_cont(pte))
+> +		return 1;
+> +
+> +	pud = pud_offset(pgd, addr);
+> +	pmd = pmd_offset(pud, addr);
+
+We need to check for pgd_present and pud_present as we walk.
+I would be tempted to VM_BUG_ON if they are in an unexpected state.
+
+> +	if ((pte_t *)pmd == ptep) {
+> +		*pgsize = PMD_SIZE;
+> +		return CONT_PMDS;
+> +	}
+
+I would check for pmd_present and VM_BUG_ON if it wasn't in an expected
+state.
+
+> +	*pgsize = PAGE_SIZE;
+> +	return CONT_PTES;
+> +}
+
+Another approach would be something like:
+
+struct vm_area_struct *vma = find_vma(mm, addr);
+struct hstate *h = hstate_vma(vma);
+size_t size = hpage_size(h);
+
+But I think looking at the page table entries like you've done (with
+some checking) may be a little better as it can supply some more robust
+debugging with DEBUG_VM selected (and it doesn't need to find_vma).
+
+
+> +
+> +extern void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> +			    pte_t *ptep, pte_t pte)
+
+We don't need this extern.
+
+> +{
+> +	size_t pgsize;
+> +	int ncontig = find_num_contig(mm, addr, ptep, pte, &pgsize);
+> +
+> +	if (ncontig == 1) {
+> +		set_pte_at(mm, addr, ptep, pte);
+
+We can return early here and avoid a level of indentation below.
+
+> +	} else {
+> +		int i;
+> +		unsigned long pfn = pte_pfn(pte);
+> +		pgprot_t hugeprot =
+> +			__pgprot(pte_val(pfn_pte(pfn, 0) ^ pte_val(pte)));
+> +		for (i = 0; i < ncontig; i++) {
+> +			pr_debug("%s: set pte %p to 0x%llx\n", __func__, ptep,
+> +				 pfn_pte(pfn, hugeprot));
+> +			set_pte_at(mm, addr, ptep, pfn_pte(pfn, hugeprot));
+> +			ptep++;
+> +			pfn += pgsize / PAGE_SIZE;
+
+nit: pgsize >> PAGE_SHIFT
+
+> +			addr += pgsize;
+> +		}
+> +	}
+> +}
+
+I see... so the contiguous pte and pmd cases are folded together.
+The pgsize variable name could be changed, perhaps something like blocksize?
+(I am terrible at picking names though :-)).
+
+> +
+> +pte_t *huge_pte_alloc(struct mm_struct *mm,
+> +		      unsigned long addr, unsigned long sz)
+> +{
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+> +	pte_t *pte = NULL;
+> +
+> +	pr_debug("%s: addr:0x%lx sz:0x%lx\n", __func__, addr, sz);
+> +	pgd = pgd_offset(mm, addr);
+> +	pud = pud_alloc(mm, pgd, addr);
+
+Probably better to simplify the levels of indentation with:
+	if (!pud)
+		return NULL;
+(or goto out before your pr_debug)
+
+> +	if (pud) {
+
+Perhaps better to do something with switch(sz) below?
+
+> +		if (sz == PUD_SIZE) {
+> +			pte = (pte_t *)pud;
+> +		} else if (sz == (PAGE_SIZE * CONT_PTES)) {
+> +			pmd_t *pmd = pmd_alloc(mm, pud, addr);
+> +
+> +			WARN_ON(addr & (sz - 1));
+> +			pte = pte_alloc_map(mm, NULL, pmd, addr);
+> +		} else if (sz == PMD_SIZE) {
+> +#ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
+> +			if (pud_none(*pud))
+> +				pte = huge_pmd_share(mm, addr, pud);
+> +			else
+> +#endif
+
+This can be simplified to something like:
+
+if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE)
+	&& pud_none(*pud))
+else
+
+So we can remove the preprocessor macros.
+
+> +				pte = (pte_t *)pmd_alloc(mm, pud, addr);
+> +		} else if (sz == (PMD_SIZE * CONT_PMDS)) {
+> +			pmd_t *pmd;
+> +
+> +			pmd = pmd_alloc(mm, pud, addr);
+> +			WARN_ON(addr & (sz - 1));
+> +			return (pte_t *)pmd;
+> +		}
+> +	}
+> +
+> +	pr_debug("%s: addr:0x%lx sz:0x%lx ret pte=%p/0x%llx\n", __func__, addr,
+> +	       sz, pte, pte_val(*pte));
+> +	return pte;
+> +}
+> +
+> +pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+> +{
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+> +	pmd_t *pmd = NULL;
+> +	pte_t *pte = NULL;
+> +
+> +	pgd = pgd_offset(mm, addr);
+> +	pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
+> +	if (pgd_present(*pgd)) {
+
+Again drop a level of indentation with:
+if (!pgd_present(*pgd))
+	return NULL;
+
+Similarly for pud_present and pmd_present.
+
+> +		pud = pud_offset(pgd, addr);
+> +		if (pud_present(*pud)) {
+> +			if (pud_huge(*pud))
+> +				return (pte_t *)pud;
+> +			pmd = pmd_offset(pud, addr);
+> +			if (pmd_present(*pmd)) {
+> +				if (pte_cont(pmd_pte(*pmd))) {
+> +					pmd = pmd_offset(
+> +						pud, (addr & CONT_PMD_MASK));
+> +					return (pte_t *)pmd;
+> +				}
+> +				if (pmd_huge(*pmd))
+> +					return (pte_t *)pmd;
+> +				pte = pte_offset_kernel(pmd, addr);
+> +				if (pte_present(*pte) && pte_cont(*pte)) {
+> +					pte = pte_offset_kernel(
+> +						pmd, (addr & CONT_PTE_MASK));
+> +				}
+> +				return pte;
+> +			}
+> +		}
+> +	}
+> +	return (pte_t *) NULL;
+> +}
+> +
+> +pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+> +			 struct page *page, int writable)
+> +{
+> +	size_t pagesize = huge_page_size(hstate_vma(vma));
+> +
+
+I would go for switch(pagesize) here.
+
+> +	if (pagesize == CONT_PTE_SIZE) {
+> +		entry = pte_mkcont(entry);
+> +	} else if (pagesize == CONT_PMD_SIZE) {
+> +		entry = pmd_pte(pmd_mkcont(pte_pmd(entry)));
+> +	} else if (pagesize != PUD_SIZE && pagesize != PMD_SIZE) {
+> +		pr_warn("%s: unrecognized huge page size 0x%lx\n",
+> +		       __func__, pagesize);
+> +	}
+> +	return entry;
+> +}
+> +
+> +extern pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +				     unsigned long addr, pte_t *ptep)
+> +{
+> +	pte_t pte = {0};
+
+nit: Do we need an initial value for pte?
+
+> +
+> +	if (pte_cont(*ptep)) {
+> +		int ncontig, i;
+> +		size_t pgsize;
+> +		pte_t *cpte;
+> +		bool is_dirty = false;
+> +
+> +		cpte = huge_pte_offset(mm, addr);
+> +		ncontig = find_num_contig(mm, addr, cpte,
+> +					  pte_val(*cpte), &pgsize);
+> +		/* save the 1st pte to return */
+> +		pte = ptep_get_and_clear(mm, addr, cpte);
+> +		for (i = 1; i < ncontig; ++i) {
+> +			if (pte_dirty(ptep_get_and_clear(mm, addr, ++cpte)))
+> +				is_dirty = true;
+> +		}
+
+Nice, we are keeping track of the dirty state. This looks to me like
+it *should* work well with the dirty bit management patch that Catalin
+introduced:
+2f4b829 arm64: Add support for hardware updates of the access and dirty pte bits
+
+Because ptep_get_and_clear will atomically get and clear the pte with
+respect to the hardware dirty bit management thus we don't lose any
+dirty information. huge_pte_dirty is then called on the extracted pte
+by core code.
+
+For a contiguous set of ptes/pmds the individual entry will be dirtied
+by DBM rather than the complete set so it's good to check them all for
+dirty when going through a get and clear.
+
+Technically we don't need to track dirty if CONFIG_ARM64_HW_AFDBM is
+not defined as the core code will fault and modify the entire set of
+ptes otherwise.
+
+I would be tempted to keep this code as is, but add a comment that
+tracking the dirty variable here helps for when we switch on
+CONFIG_ARM64_HW_AFDBM.
+
+> +		if (is_dirty)
+> +			return pte_mkdirty(pte);
+> +		else
+> +			return pte;
+> +	} else {
+> +		return ptep_get_and_clear(mm, addr, ptep);
+> +	}
+> +}
+> +
+> +int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> +			       unsigned long addr, pte_t *ptep,
+> +			       pte_t pte, int dirty)
+> +{
+> +	pte_t *cpte;
+> +
+> +	if (pte_cont(pte)) {
+> +		int ncontig, i, changed = 0;
+> +		size_t pgsize = 0;
+> +		unsigned long pfn = pte_pfn(pte);
+> +		/* Select all bits except the pfn */
+> +		pgprot_t hugeprot =
+> +			__pgprot(pte_val(pfn_pte(pfn, 0) ^ pte_val(pte)));
+> +
+> +		cpte = huge_pte_offset(vma->vm_mm, addr);
+> +		pfn = pte_pfn(*cpte);
+> +		ncontig = find_num_contig(vma->vm_mm, addr, cpte,
+> +					  pte_val(*cpte), &pgsize);
+> +		for (i = 0; i < ncontig; ++i, ++cpte) {
+> +			changed = ptep_set_access_flags(vma, addr, cpte,
+> +							pfn_pte(pfn,
+> +								hugeprot),
+> +							dirty);
+> +			pfn += pgsize / PAGE_SIZE;
+
+nit: pgsize >> PAGE_SHIFT
+
+> +		}
+
+Similar thing here, we are folding the cont pte and pmd logic together,
+probably best go for something like blocksize instead of pgsize.
+
+> +		return changed;
+> +	} else {
+> +		return ptep_set_access_flags(vma, addr, ptep, pte, dirty);
+> +	}
+> +}
+> +
+> +
+>  static __init int setup_hugepagesz(char *opt)
+>  {
+>  	unsigned long ps = memparse(opt, &opt);
+> @@ -48,10 +243,24 @@ static __init int setup_hugepagesz(char *opt)
+>  		hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
+
+Again switch statement here I think would be clearer.
+
+>  	} else if (ps == PUD_SIZE) {
+>  		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+> +	} else if (ps == (PAGE_SIZE * CONT_PTES)) {
+> +		hugetlb_add_hstate(CONT_PTE_SHIFT);
+> +	} else if (ps == (PMD_SIZE * CONT_PMDS)) {
+> +		hugetlb_add_hstate((PMD_SHIFT + CONT_PMD_SHIFT) - PAGE_SHIFT);
+>  	} else {
+> -		pr_err("hugepagesz: Unsupported page size %lu M\n", ps >> 20);
+> +		pr_err("hugepagesz: Unsupported page size %lu K\n", ps >> 10);
+>  		return 0;
+>  	}
+>  	return 1;
+>  }
+>  __setup("hugepagesz=", setup_hugepagesz);
+> +
+> +#ifdef CONFIG_ARM64_64K_PAGES
+> +static __init int add_default_hugepagesz(void)
+> +{
+> +	if (size_to_hstate(CONT_PTES * PAGE_SIZE) == NULL)
+> +		hugetlb_add_hstate(CONT_PMD_SHIFT);
+> +	return 0;
+> +}
+> +arch_initcall(add_default_hugepagesz);
+> +#endif
+Why is this initcall defined? Was it for testing?
+
+I think we are missing a few functions:
+huge_ptep_set_access_flags
+huge_ptep_set_wrprotect
+huge_ptep_clear_flush
+
+These functions need to loop through the contiguous set of ptes
+or pmds. They should call into the ptep_ equivalents as they will
+then work with the DBM patch.
+
+> -- 
+> 2.1.2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
