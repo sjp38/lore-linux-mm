@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 19CDB82F6D
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 16:05:13 -0400 (EDT)
-Received: by qgbb65 with SMTP id b65so37865854qgb.2
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 13:05:13 -0700 (PDT)
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 6702082F6D
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 16:05:16 -0400 (EDT)
+Received: by qkbl190 with SMTP id l190so44324978qkb.2
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 13:05:16 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 136si9680069qhw.88.2015.10.21.13.05.12
+        by mx.google.com with ESMTPS id 69si9739842qgt.1.2015.10.21.13.05.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Oct 2015 13:05:12 -0700 (PDT)
+        Wed, 21 Oct 2015 13:05:15 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH v11 13/15] HMM: DMA map memory on behalf of device driver v2.
-Date: Wed, 21 Oct 2015 17:00:08 -0400
-Message-Id: <1445461210-2605-14-git-send-email-jglisse@redhat.com>
+Subject: [PATCH v11 14/15] HMM: Add support for hugetlb.
+Date: Wed, 21 Oct 2015 17:00:09 -0400
+Message-Id: <1445461210-2605-15-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1445461210-2605-1-git-send-email-jglisse@redhat.com>
 References: <1445461210-2605-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -23,314 +23,101 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-Do the DMA mapping on behalf of the device as HMM is a good place
-to perform this common task. Moreover in the future we hope to
-add new infrastructure that would make DMA mapping more efficient
-(lower overhead per page) by leveraging HMM data structure.
-
-Changed since v1:
-  - Adapt to HMM page table changes.
+Support hugetlb vma allmost like other vma. Exception being that we
+will not support migration of hugetlb memory.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- include/linux/hmm_pt.h |  11 +++
- mm/hmm.c               | 202 +++++++++++++++++++++++++++++++++++++++----------
- 2 files changed, 174 insertions(+), 39 deletions(-)
+ mm/hmm.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 61 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/hmm_pt.h b/include/linux/hmm_pt.h
-index 4a8beb1..8a59a75 100644
---- a/include/linux/hmm_pt.h
-+++ b/include/linux/hmm_pt.h
-@@ -176,6 +176,17 @@ static inline dma_addr_t hmm_pte_from_pfn(dma_addr_t pfn)
- 	return (pfn << PAGE_SHIFT) | (1 << HMM_PTE_VALID_PFN_BIT);
- }
- 
-+static inline dma_addr_t hmm_pte_from_dma_addr(dma_addr_t dma_addr)
-+{
-+	return (dma_addr & HMM_PTE_DMA_MASK) | (1 << HMM_PTE_VALID_DMA_BIT);
-+}
-+
-+static inline dma_addr_t hmm_pte_dma_addr(dma_addr_t pte)
-+{
-+	/* FIXME Use max dma addr instead of 0 ? */
-+	return hmm_pte_test_valid_dma(&pte) ? (pte & HMM_PTE_DMA_MASK) : 0;
-+}
-+
- static inline unsigned long hmm_pte_pfn(dma_addr_t pte)
- {
- 	return hmm_pte_test_valid_pfn(&pte) ? pte >> PAGE_SHIFT : 0;
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 36cc506..6ed1081 100644
+index 6ed1081..9e5017a 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -41,6 +41,7 @@
- #include <linux/mman.h>
- #include <linux/delay.h>
- #include <linux/workqueue.h>
-+#include <linux/dma-mapping.h>
- 
- #include "internal.h"
- 
-@@ -568,6 +569,46 @@ static inline int hmm_mirror_update(struct hmm_mirror *mirror,
+@@ -809,6 +809,65 @@ static int hmm_mirror_fault_pmd(pmd_t *pmdp,
  	return ret;
  }
  
-+static void hmm_mirror_update_pte(struct hmm_mirror *mirror,
-+				  struct hmm_event *event,
-+				  struct hmm_pt_iter *iter,
-+				  struct mm_pt_iter *mm_iter,
-+				  struct page *page,
-+				  dma_addr_t *hmm_pte,
-+				  unsigned long addr)
++static int hmm_mirror_fault_hugetlb_entry(pte_t *ptep,
++					  unsigned long hmask,
++					  unsigned long addr,
++					  unsigned long end,
++					  struct mm_walk *walk)
 +{
-+	bool dirty = hmm_pte_test_and_clear_dirty(hmm_pte);
++#ifdef CONFIG_HUGETLB_PAGE
++	struct hmm_mirror_fault *mirror_fault = walk->private;
++	struct hmm_event *event = mirror_fault->event;
++	struct hmm_pt_iter *iter = mirror_fault->iter;
++	bool write = (event->etype == HMM_DEVICE_WFAULT);
++	unsigned long pfn, next;
++	dma_addr_t *hmm_pte;
++	pte_t pte;
 +
-+	if (hmm_pte_test_valid_pfn(hmm_pte)) {
-+		*hmm_pte &= event->pte_mask;
-+		if (!hmm_pte_test_valid_pfn(hmm_pte))
-+			hmm_pt_iter_directory_unref(iter);
-+		goto out;
-+	}
++	/*
++	 * Hugepages under user process are always in RAM and never
++	 * swapped out, but theoretically it needs to be checked.
++	 */
++	if (!ptep)
++		return -ENOENT;
 +
-+	if (!hmm_pte_test_valid_dma(hmm_pte))
-+		return;
++	pte = huge_ptep_get(ptep);
++	pfn = pte_pfn(pte);
++	if (!huge_pte_none(pte) || (write && !huge_pte_write(pte)))
++		return -ENOENT;
 +
-+	if (!hmm_pte_test_valid_dma(&event->pte_mask)) {
-+		struct device *dev = mirror->device->dev;
-+		dma_addr_t dma_addr;
-+
-+		dma_addr = hmm_pte_dma_addr(*hmm_pte);
-+		dma_unmap_page(dev, dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
-+	}
-+
-+	*hmm_pte &= event->pte_mask;
-+	if (!hmm_pte_test_valid_dma(hmm_pte))
-+		hmm_pt_iter_directory_unref(iter);
-+
-+out:
-+	if (dirty) {
-+		page = page ? : mm_pt_iter_page(mm_iter, addr);
-+		if (page)
-+			set_page_dirty(page);
-+	}
-+}
-+
- static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
- 				 struct hmm_event *event,
- 				 struct page *page)
-@@ -594,19 +635,9 @@ static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
- 		 */
- 		hmm_pt_iter_directory_lock(&iter);
- 		do {
--			if (!hmm_pte_test_valid_pfn(hmm_pte))
--				continue;
--			if (hmm_pte_test_and_clear_dirty(hmm_pte) &&
--			    hmm_pte_test_write(hmm_pte)) {
--				page = page ? : mm_pt_iter_page(&mm_iter, addr);
--				if (page)
--					set_page_dirty(page);
--				page = NULL;
--			}
--			*hmm_pte &= event->pte_mask;
--			if (hmm_pte_test_valid_pfn(hmm_pte))
--				continue;
--			hmm_pt_iter_directory_unref(&iter);
-+			hmm_mirror_update_pte(mirror, event, &iter, &mm_iter,
-+					      page, hmm_pte, addr);
-+			page = NULL;
- 		} while (addr += PAGE_SIZE, hmm_pte++, addr != next);
- 		hmm_pt_iter_directory_unlock(&iter);
- 	}
-@@ -683,6 +714,9 @@ static int hmm_mirror_fault_hpmd(struct hmm_mirror *mirror,
- 		 */
- 		hmm_pt_iter_directory_lock(iter);
- 		do {
-+			if (hmm_pte_test_valid_dma(&hmm_pte[i]))
-+				continue;
-+
- 			if (!hmm_pte_test_valid_pfn(&hmm_pte[i])) {
- 				hmm_pte[i] = hmm_pte_from_pfn(pfn);
- 				hmm_pt_iter_directory_ref(iter);
-@@ -756,6 +790,9 @@ static int hmm_mirror_fault_pmd(pmd_t *pmdp,
- 				break;
- 			}
- 
-+			if (hmm_pte_test_valid_dma(&hmm_pte[i]))
-+				continue;
-+
- 			if (!hmm_pte_test_valid_pfn(&hmm_pte[i])) {
- 				hmm_pte[i] = hmm_pte_from_pfn(pte_pfn(*ptep));
- 				hmm_pt_iter_directory_ref(iter);
-@@ -772,6 +809,80 @@ static int hmm_mirror_fault_pmd(pmd_t *pmdp,
- 	return ret;
- }
- 
-+static int hmm_mirror_dma_map(struct hmm_mirror *mirror,
-+			      struct hmm_pt_iter *iter,
-+			      unsigned long start,
-+			      unsigned long end)
-+{
-+	struct device *dev = mirror->device->dev;
-+	unsigned long addr;
-+	int ret;
-+
-+	for (ret = 0, addr = start; !ret && addr < end;) {
-+		unsigned long i = 0, next = end;
-+		dma_addr_t *hmm_pte;
-+
-+		hmm_pte = hmm_pt_iter_populate(iter, addr, &next);
-+		if (!hmm_pte)
-+			return -ENOENT;
-+
-+		do {
-+			dma_addr_t dma_addr, pte;
-+			struct page *page;
-+
-+again:
-+			pte = ACCESS_ONCE(hmm_pte[i]);
-+			if (!hmm_pte_test_valid_pfn(&pte)) {
-+				if (!hmm_pte_test_valid_dma(&pte)) {
-+					ret = -ENOENT;
-+					break;
-+				}
-+				continue;
-+			}
-+
-+			page = pfn_to_page(hmm_pte_pfn(pte));
-+			VM_BUG_ON(!page);
-+			dma_addr = dma_map_page(dev, page, 0, PAGE_SIZE,
-+						DMA_BIDIRECTIONAL);
-+			if (dma_mapping_error(dev, dma_addr)) {
-+				ret = -ENOMEM;
-+				break;
-+			}
-+
++	hmm_pte = hmm_pt_iter_populate(iter, addr, &next);
++	if (!hmm_pte)
++		return -ENOMEM;
++	hmm_pt_iter_directory_lock(iter);
++	for (; addr != end; addr += PAGE_SIZE, ++pfn, ++hmm_pte) {
++		/* Switch to another HMM page table directory ? */
++		if (addr == next) {
++			hmm_pt_iter_directory_unlock(iter);
++			hmm_pte = hmm_pt_iter_populate(iter, addr, &next);
++			if (!hmm_pte)
++				return -ENOMEM;
 +			hmm_pt_iter_directory_lock(iter);
-+			/*
-+			 * Make sure we transfer the dirty bit. Note that there
-+			 * might still be a window for another thread to set
-+			 * the dirty bit before we check for pte equality. This
-+			 * will just lead to a useless retry so it is not the
-+			 * end of the world here.
-+			 */
-+			if (hmm_pte_test_dirty(&hmm_pte[i]))
-+				hmm_pte_set_dirty(&pte);
-+			if (ACCESS_ONCE(hmm_pte[i]) != pte) {
-+				hmm_pt_iter_directory_unlock(iter);
-+				dma_unmap_page(dev, dma_addr, PAGE_SIZE,
-+					       DMA_BIDIRECTIONAL);
-+				if (hmm_pte_test_valid_pfn(&pte))
-+					goto again;
-+				if (!hmm_pte_test_valid_dma(&pte)) {
-+					ret = -ENOENT;
-+					break;
-+				}
-+			} else {
-+				hmm_pte[i] = hmm_pte_from_dma_addr(dma_addr);
-+				if (hmm_pte_test_write(&pte))
-+					hmm_pte_set_write(&hmm_pte[i]);
-+				if (hmm_pte_test_dirty(&pte))
-+					hmm_pte_set_dirty(&hmm_pte[i]);
-+				hmm_pt_iter_directory_unlock(iter);
-+			}
-+		} while (addr += PAGE_SIZE, i++, addr != next && !ret);
-+	}
++		}
 +
-+	return ret;
++		if (hmm_pte_test_valid_dma(hmm_pte))
++			continue;
++
++		if (!hmm_pte_test_valid_pfn(hmm_pte)) {
++			*hmm_pte = hmm_pte_from_pfn(pfn);
++			hmm_pt_iter_directory_ref(iter);
++		}
++		BUG_ON(hmm_pte_pfn(*hmm_pte) != pfn);
++		if (write)
++			hmm_pte_set_write(hmm_pte);
++	}
++	hmm_pt_iter_directory_unlock(iter);
++#else
++	BUG();
++#endif
++	return 0;
 +}
 +
- static int hmm_mirror_handle_fault(struct hmm_mirror *mirror,
- 				   struct hmm_event *event,
- 				   struct vm_area_struct *vma,
-@@ -780,7 +891,7 @@ static int hmm_mirror_handle_fault(struct hmm_mirror *mirror,
- 	struct hmm_mirror_fault mirror_fault;
- 	unsigned long addr = event->start;
- 	struct mm_walk walk = {0};
--	int ret = 0;
-+	int ret;
- 
- 	if ((event->etype == HMM_DEVICE_WFAULT) && !(vma->vm_flags & VM_WRITE))
- 		return -EACCES;
-@@ -789,33 +900,45 @@ static int hmm_mirror_handle_fault(struct hmm_mirror *mirror,
- 	if (ret)
- 		return ret;
- 
--again:
--	if (event->backoff) {
--		ret = -EAGAIN;
--		goto out;
--	}
--	if (addr >= event->end)
--		goto out;
-+	do {
-+		if (event->backoff) {
-+			ret = -EAGAIN;
-+			break;
-+		}
-+		if (addr >= event->end)
-+			break;
-+
-+		mirror_fault.event = event;
-+		mirror_fault.mirror = mirror;
-+		mirror_fault.vma = vma;
-+		mirror_fault.addr = addr;
-+		mirror_fault.iter = iter;
-+		walk.mm = mirror->hmm->mm;
-+		walk.private = &mirror_fault;
-+		walk.pmd_entry = hmm_mirror_fault_pmd;
-+		walk.pte_hole = hmm_pte_hole;
-+		ret = walk_page_range(addr, event->end, &walk);
-+		if (ret)
-+			break;
-+
-+		if (event->backoff) {
-+			ret = -EAGAIN;
-+			break;
-+		}
- 
--	mirror_fault.event = event;
--	mirror_fault.mirror = mirror;
--	mirror_fault.vma = vma;
--	mirror_fault.addr = addr;
--	mirror_fault.iter = iter;
--	walk.mm = mirror->hmm->mm;
--	walk.private = &mirror_fault;
--	walk.pmd_entry = hmm_mirror_fault_pmd;
--	walk.pte_hole = hmm_pte_hole;
--	ret = walk_page_range(addr, event->end, &walk);
--	if (!ret) {
--		ret = mirror->device->ops->update(mirror, event);
--		if (!ret) {
--			addr = mirror_fault.addr;
--			goto again;
-+		if (mirror->device->dev) {
-+			ret = hmm_mirror_dma_map(mirror, iter,
-+						 addr, event->end);
-+			if (ret)
-+				break;
- 		}
--	}
- 
--out:
-+		ret = mirror->device->ops->update(mirror, event);
-+		if (ret)
-+			break;
-+		addr = mirror_fault.addr;
-+	} while (1);
-+
- 	hmm_device_fault_end(mirror->hmm, event);
- 	if (ret == -ENOENT) {
- 		ret = hmm_mm_fault(mirror->hmm, event, vma, addr);
-@@ -969,7 +1092,8 @@ void hmm_mirror_range_dirty(struct hmm_mirror *mirror,
- 
- 		hmm_pte = hmm_pt_iter_walk(&iter, &addr, &next);
- 		for (; hmm_pte && addr != next; hmm_pte++, addr += PAGE_SIZE) {
--			if (!hmm_pte_test_valid_pfn(hmm_pte) ||
-+			if ((!hmm_pte_test_valid_pfn(hmm_pte) &&
-+			     !hmm_pte_test_valid_dma(hmm_pte)) ||
- 			    !hmm_pte_test_write(hmm_pte))
- 				continue;
- 			hmm_pte_set_dirty(hmm_pte);
+ static int hmm_mirror_dma_map(struct hmm_mirror *mirror,
+ 			      struct hmm_pt_iter *iter,
+ 			      unsigned long start,
+@@ -916,6 +975,7 @@ static int hmm_mirror_handle_fault(struct hmm_mirror *mirror,
+ 		walk.mm = mirror->hmm->mm;
+ 		walk.private = &mirror_fault;
+ 		walk.pmd_entry = hmm_mirror_fault_pmd;
++		walk.hugetlb_entry = hmm_mirror_fault_hugetlb_entry;
+ 		walk.pte_hole = hmm_pte_hole;
+ 		ret = walk_page_range(addr, event->end, &walk);
+ 		if (ret)
+@@ -1002,7 +1062,7 @@ retry:
+ 		goto out;
+ 	}
+ 	event->end = min(event->end, vma->vm_end) & PAGE_MASK;
+-	if ((vma->vm_flags & (VM_IO | VM_PFNMAP | VM_MIXEDMAP | VM_HUGETLB))) {
++	if ((vma->vm_flags & (VM_IO | VM_PFNMAP | VM_MIXEDMAP))) {
+ 		ret = -EFAULT;
+ 		goto out;
+ 	}
 -- 
 2.4.3
 
