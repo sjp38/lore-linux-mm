@@ -1,111 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E7A46B0038
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 05:37:14 -0400 (EDT)
-Received: by wicfv8 with SMTP id fv8so66042644wic.0
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 02:37:13 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com. [209.85.212.175])
-        by mx.google.com with ESMTPS id ly8si10938587wic.103.2015.10.21.02.37.12
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BA486B0257
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 05:51:30 -0400 (EDT)
+Received: by pasz6 with SMTP id z6so50522266pas.2
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 02:51:30 -0700 (PDT)
+Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
+        by mx.google.com with ESMTPS id uv8si12188485pbc.80.2015.10.21.02.51.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Oct 2015 02:37:13 -0700 (PDT)
-Received: by wikq8 with SMTP id q8so84517073wik.1
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 02:37:12 -0700 (PDT)
-Date: Wed, 21 Oct 2015 11:37:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4.3-rc6] proc: fix oom_adj value read from
- /proc/<pid>/oom_adj
-Message-ID: <20151021093710.GA8799@dhcp22.suse.cz>
-References: <65a10261038346b1a778443fd15f0980@SHMBX01.spreadtrum.com>
- <87zizdfo0x.fsf@x220.int.ebiederm.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <87zizdfo0x.fsf@x220.int.ebiederm.org>
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Oct 2015 02:51:29 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
+	Wed, 21 Oct 2015 15:21:26 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 36F203940057
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 15:21:24 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t9L9pN2Z7602604
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 15:21:23 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t9L9pCUE010132
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 15:21:13 +0530
+From: Wei Yang <weiyang@linux.vnet.ibm.com>
+Subject: [PATCH 0/3] Slub code refine
+Date: Wed, 21 Oct 2015 17:51:03 +0800
+Message-Id: <1445421066-10641-1-git-send-email-weiyang@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hongjie Fang =?utf-8?B?KOaWuea0quadsCk=?= <Hongjie.Fang@spreadtrum.com>, "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Wei Yang <weiyang@linux.vnet.ibm.com>
 
-[CC David as well]
+Here are three patches for slub code refine.
 
-The original patch has been posted here:
-http://lkml.kernel.org/r/65a10261038346b1a778443fd15f0980%40SHMBX01.spreadtrum.com
+Some of them are acked/reviewed, resend by including Andrew for comments. No
+code change.
 
-On Tue 20-10-15 12:27:58, Eric W. Biederman wrote:
-> "Hongjie Fang (ae?1ae'aae??)" <Hongjie.Fang@spreadtrum.com> writes:
-> 
-> > The oom_adj's value reading through /proc/<pid>/oom_adj is different 
-> > with the value written into /proc/<pid>/oom_adj.
-> > Fix this by adding a adjustment factor.
-> 
-> *Scratches my head*
-> 
-> Won't changing the interpretation of what is written break existing
-> userspace applications that write this value?
+Wei Yang (3):
+  mm/slub: correct the comment in calculate_order()
+  mm/slub: use get_order() instead of fls()
+  mm/slub: calculate start order with reserved in consideration
 
-No, because they will see the same value they wrote. The current state
-is broken because you get a different value than you wrote.
-
-I am just wondering, how have you found this problem? Code review or
-have you encountered a real failure because of this?
-
-> Added a few more likely memory management suspects that might understand
-> what is going on here.
-> 
-> Eric
-> 
-> >
-> > Signed-off-by: Hongjie Fang <hongjie.fang@spreadtrum.com>
-> > ---
-> > diff --git a/fs/proc/base.c b/fs/proc/base.c
-> > index b25eee4..1ea0589 100644
-> > --- a/fs/proc/base.c
-> > +++ b/fs/proc/base.c
-> > @@ -1043,6 +1043,7 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
-> >  	int oom_adj;
-> >  	unsigned long flags;
-> >  	int err;
-> > +	int adjust;
-
-This doesn't need the function visibility.
-
-> >  
-> >  	memset(buffer, 0, sizeof(buffer));
-> >  	if (count > sizeof(buffer) - 1)
-> > @@ -1084,8 +1085,10 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
-> >  	 */
-> >  	if (oom_adj == OOM_ADJUST_MAX)
-> >  		oom_adj = OOM_SCORE_ADJ_MAX;
-> > -	else
-> > -		oom_adj = (oom_adj * OOM_SCORE_ADJ_MAX) / -OOM_DISABLE;
-> > +	else{
-
-space after else and checkpatch will probably complain about missing { }
-for if...
-
-Other than that the patch looks good to me. The changelog coul be
-slightly improved as well.
-
-> > +		adjust = oom_adj > 0 ? (-OOM_DISABLE-1) : -(-OOM_DISABLE-1);
-> > +		oom_adj = (oom_adj * OOM_SCORE_ADJ_MAX + adjust) / -OOM_DISABLE;
-> > +	}
-> >  
-> >  	if (oom_adj < task->signal->oom_score_adj &&
-> >  	    !capable(CAP_SYS_RESOURCE)) {
-> >
-> > --
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ mm/slub.c | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
