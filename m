@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 8222B82F66
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 16:14:58 -0400 (EDT)
-Received: by qkbl190 with SMTP id l190so44457554qkb.2
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 13:14:58 -0700 (PDT)
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C357482F66
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 16:15:01 -0400 (EDT)
+Received: by qgeo38 with SMTP id o38so38412092qge.0
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 13:15:01 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b16si9748472qkj.55.2015.10.21.13.14.57
+        by mx.google.com with ESMTPS id q3si9777956qkl.11.2015.10.21.13.15.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Oct 2015 13:14:57 -0700 (PDT)
+        Wed, 21 Oct 2015 13:15:01 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH v11 09/14] HMM: allow to get pointer to spinlock protecting a directory.
-Date: Wed, 21 Oct 2015 17:10:14 -0400
-Message-Id: <1445461819-2675-10-git-send-email-jglisse@redhat.com>
+Subject: [PATCH v11 10/14] HMM: split DMA mapping function in two.
+Date: Wed, 21 Oct 2015 17:10:15 -0400
+Message-Id: <1445461819-2675-11-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1445461819-2675-1-git-send-email-jglisse@redhat.com>
 References: <1445461819-2675-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -23,63 +23,159 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-Several use case for getting pointer to spinlock protecting a directory.
+To be able to reuse the DMA mapping logic, split it in two functions.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- include/linux/hmm_pt.h | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
+ mm/hmm.c | 120 ++++++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 65 insertions(+), 55 deletions(-)
 
-diff --git a/include/linux/hmm_pt.h b/include/linux/hmm_pt.h
-index f745d6c..22100a6 100644
---- a/include/linux/hmm_pt.h
-+++ b/include/linux/hmm_pt.h
-@@ -255,6 +255,16 @@ static inline void hmm_pt_directory_lock(struct hmm_pt *pt,
- 		spin_lock(&pt->lock);
+diff --git a/mm/hmm.c b/mm/hmm.c
+index ebde5a8..01eda36 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -906,76 +906,86 @@ static int hmm_mirror_fault_hugetlb_entry(pte_t *ptep,
+ 	return 0;
  }
  
-+static inline spinlock_t *hmm_pt_directory_lock_ptr(struct hmm_pt *pt,
-+						    struct page *ptd,
-+						    unsigned level)
++static int hmm_mirror_dma_map_range(struct hmm_mirror *mirror,
++				    dma_addr_t *hmm_pte,
++				    spinlock_t *lock,
++				    unsigned long npages)
 +{
-+	if (level)
-+		return &ptd->ptl;
-+	else
-+		return &pt->lock;
++	struct device *dev = mirror->device->dev;
++	unsigned long i;
++	int ret = 0;
++
++	for (i = 0; i < npages; i++) {
++		dma_addr_t dma_addr, pte;
++		struct page *page;
++
++again:
++		pte = ACCESS_ONCE(hmm_pte[i]);
++		if (!hmm_pte_test_valid_pfn(&pte) || !hmm_pte_test_select(&pte))
++			continue;
++
++		page = pfn_to_page(hmm_pte_pfn(pte));
++		VM_BUG_ON(!page);
++		dma_addr = dma_map_page(dev, page, 0, PAGE_SIZE,
++					DMA_BIDIRECTIONAL);
++		if (dma_mapping_error(dev, dma_addr)) {
++			ret = -ENOMEM;
++			break;
++		}
++
++		/*
++		 * Make sure we transfer the dirty bit. Note that there
++		 * might still be a window for another thread to set
++		 * the dirty bit before we check for pte equality. This
++		 * will just lead to a useless retry so it is not the
++		 * end of the world here.
++		 */
++		if (lock)
++			spin_lock(lock);
++		if (hmm_pte_test_dirty(&hmm_pte[i]))
++			hmm_pte_set_dirty(&pte);
++		if (ACCESS_ONCE(hmm_pte[i]) != pte) {
++				if (lock)
++					spin_unlock(lock);
++				dma_unmap_page(dev, dma_addr, PAGE_SIZE,
++					       DMA_BIDIRECTIONAL);
++				if (hmm_pte_test_valid_pfn(&hmm_pte[i]))
++					goto again;
++				continue;
++		}
++		hmm_pte[i] = hmm_pte_from_dma_addr(dma_addr);
++		if (hmm_pte_test_write(&pte))
++			hmm_pte_set_write(&hmm_pte[i]);
++		if (hmm_pte_test_dirty(&pte))
++			hmm_pte_set_dirty(&hmm_pte[i]);
++		if (lock)
++			spin_unlock(lock);
++	}
++
++	return ret;
 +}
 +
- static inline void hmm_pt_directory_unlock(struct hmm_pt *pt,
- 					   struct page *ptd,
- 					   unsigned level)
-@@ -272,6 +282,13 @@ static inline void hmm_pt_directory_lock(struct hmm_pt *pt,
- 	spin_lock(&pt->lock);
- }
- 
-+static inline spinlock_t *hmm_pt_directory_lock_ptr(struct hmm_pt *pt,
-+						    struct page *ptd,
-+						    unsigned level)
-+{
-+	return &pt->lock;
-+}
-+
- static inline void hmm_pt_directory_unlock(struct hmm_pt *pt,
- 					   struct page *ptd,
- 					   unsigned level)
-@@ -358,6 +375,14 @@ static inline void hmm_pt_iter_directory_lock(struct hmm_pt_iter *iter)
- 	hmm_pt_directory_lock(pt, iter->ptd[pt->llevel - 1], pt->llevel);
- }
- 
-+static inline spinlock_t *hmm_pt_iter_directory_lock_ptr(struct hmm_pt_iter *i)
-+{
-+	struct hmm_pt *pt = i->pt;
-+
-+	return hmm_pt_directory_lock_ptr(pt, i->ptd[pt->llevel - 1],
-+					 pt->llevel);
-+}
-+
- static inline void hmm_pt_iter_directory_unlock(struct hmm_pt_iter *iter)
+ static int hmm_mirror_dma_map(struct hmm_mirror *mirror,
+ 			      struct hmm_pt_iter *iter,
+ 			      unsigned long start,
+ 			      unsigned long end)
  {
- 	struct hmm_pt *pt = iter->pt;
+-	struct device *dev = mirror->device->dev;
+ 	unsigned long addr;
+ 	int ret;
+ 
+ 	for (ret = 0, addr = start; !ret && addr < end;) {
+-		unsigned long i = 0, next = end;
++		unsigned long next = end, npages;
+ 		dma_addr_t *hmm_pte;
++		spinlock_t *lock;
+ 
+ 		hmm_pte = hmm_pt_iter_populate(iter, addr, &next);
+ 		if (!hmm_pte)
+ 			return -ENOENT;
+ 
+-		do {
+-			dma_addr_t dma_addr, pte;
+-			struct page *page;
+-
+-again:
+-			pte = ACCESS_ONCE(hmm_pte[i]);
+-			if (!hmm_pte_test_valid_pfn(&pte) ||
+-			    !hmm_pte_test_select(&pte)) {
+-				if (!hmm_pte_test_valid_dma(&pte)) {
+-					ret = -ENOENT;
+-					break;
+-				}
+-				continue;
+-			}
+-
+-			page = pfn_to_page(hmm_pte_pfn(pte));
+-			VM_BUG_ON(!page);
+-			dma_addr = dma_map_page(dev, page, 0, PAGE_SIZE,
+-						DMA_BIDIRECTIONAL);
+-			if (dma_mapping_error(dev, dma_addr)) {
+-				ret = -ENOMEM;
+-				break;
+-			}
+-
+-			hmm_pt_iter_directory_lock(iter);
+-			/*
+-			 * Make sure we transfer the dirty bit. Note that there
+-			 * might still be a window for another thread to set
+-			 * the dirty bit before we check for pte equality. This
+-			 * will just lead to a useless retry so it is not the
+-			 * end of the world here.
+-			 */
+-			if (hmm_pte_test_dirty(&hmm_pte[i]))
+-				hmm_pte_set_dirty(&pte);
+-			if (ACCESS_ONCE(hmm_pte[i]) != pte) {
+-				hmm_pt_iter_directory_unlock(iter);
+-				dma_unmap_page(dev, dma_addr, PAGE_SIZE,
+-					       DMA_BIDIRECTIONAL);
+-				if (hmm_pte_test_valid_pfn(&pte))
+-					goto again;
+-				if (!hmm_pte_test_valid_dma(&pte)) {
+-					ret = -ENOENT;
+-					break;
+-				}
+-			} else {
+-				hmm_pte[i] = hmm_pte_from_dma_addr(dma_addr);
+-				if (hmm_pte_test_write(&pte))
+-					hmm_pte_set_write(&hmm_pte[i]);
+-				if (hmm_pte_test_dirty(&pte))
+-					hmm_pte_set_dirty(&hmm_pte[i]);
+-				hmm_pt_iter_directory_unlock(iter);
+-			}
+-		} while (addr += PAGE_SIZE, i++, addr != next && !ret);
++		npages = (next - addr) >> PAGE_SHIFT;
++		lock = hmm_pt_iter_directory_lock_ptr(iter);
++		ret = hmm_mirror_dma_map_range(mirror, hmm_pte, lock, npages);
++		addr = next;
+ 	}
+ 
+ 	return ret;
 -- 
 2.4.3
 
