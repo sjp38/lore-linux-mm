@@ -1,95 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 198A76B0038
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 02:49:30 -0400 (EDT)
-Received: by oiao187 with SMTP id o187so23526398oia.3
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 23:49:29 -0700 (PDT)
-Received: from SHSQR01.spreadtrum.com ([222.66.158.135])
-        by mx.google.com with ESMTPS id k9si4307817oif.109.2015.10.20.23.49.24
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 3583D6B0038
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 03:42:33 -0400 (EDT)
+Received: by pacfv9 with SMTP id fv9so49115070pac.3
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 00:42:32 -0700 (PDT)
+Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com. [122.248.162.6])
+        by mx.google.com with ESMTPS id pq10si11422492pbb.97.2015.10.21.00.42.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 20 Oct 2015 23:49:28 -0700 (PDT)
-Received: from SHSQR01.spreadtrum.com (localhost [127.0.0.2] (may be forged))
-	by SHSQR01.spreadtrum.com with ESMTP id t9L6K730047005
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 14:20:07 +0800 (CST)
-	(envelope-from Hongjie.Fang@spreadtrum.com)
-From: =?gb2312?B?SG9uZ2ppZSBGYW5nICi3vbrpvdwp?= <Hongjie.Fang@spreadtrum.com>
-Subject: =?gb2312?B?tPC4tDogW1BBVENIIDQuMy1yYzZdIHByb2M6IGZpeCBvb21fYWRqIHZhbHVl?=
- =?gb2312?Q?_read_from_/proc/<pid>/oom=5Fadj?=
-Date: Wed, 21 Oct 2015 06:10:59 +0000
-Message-ID: <7f331087b3ec4280abd9e038d7309c9d@SHMBX01.spreadtrum.com>
-References: <65a10261038346b1a778443fd15f0980@SHMBX01.spreadtrum.com>,<87zizdfo0x.fsf@x220.int.ebiederm.org>
-In-Reply-To: <87zizdfo0x.fsf@x220.int.ebiederm.org>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Oct 2015 00:42:32 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
+	Wed, 21 Oct 2015 13:12:28 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 2EA8B125805D
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 13:12:12 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t9L7gL0T10748324
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 13:12:21 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t9L7gKnX022711
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 13:12:20 +0530
+Date: Wed, 21 Oct 2015 15:42:19 +0800
+From: Wei Yang <weiyang@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/2] mm/slub: use get_order() instead of fls()
+Message-ID: <20151021074219.GA6931@Richards-MacBook-Pro.local>
+Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
+References: <1443488787-2232-1-git-send-email-weiyang@linux.vnet.ibm.com>
+ <1443488787-2232-2-git-send-email-weiyang@linux.vnet.ibm.com>
+ <560A46FC.8050205@iki.fi>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <560A46FC.8050205@iki.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@iki.fi>
+Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, linux-mm@kvack.org
 
-VGhlIG9vbV9hZGogaGFzIGJlZW4gcmVwbGFjZWQgYnkgb29tX3Njb3JlX2FkaiBpbiBrZXJuZWws
-IApidXQgdGhlIC9wcm9jLzxwaWQ+L29vbV9hZGogaXMgcHJvdmlkZWQgZm9yIGxlZ2FjeSBwdXJw
-b3Nlcy4KCldoZW4gd3JpdGUvcmVhZCB2YWx1ZSBpbnRvL2Zyb20gL3Byb2MvPHBpZD4vb29tX2Fk
-aiwgCnRoZXJlIGlzIGEgdHJhbnNmb3JtYXRpb24gYmV0d2VlbiBvb21fYWRqIAphbmQgb29tX3Nj
-b3JlX2FkaiBpbiBvb21fYWRqX3dyaXRlKCkvb29tX2Fkal9yZWFkKCkuCgpBZnRlciB3cml0aW5n
-IGEgbmV3IHZhbHVlIGludG8gL3Byb2MvPHBpZD4vb29tX2FkaiwgdGhlbiByZWFkIGl0LgpUaGUg
-cmV0dXJuIHZhbHVlIGlzIGRpZmZlcmVudCB3aXRoIHdoYXQgaGFzIGJlZW4gd3JpdHRlbi4KCkFz
-IHRoZSBmbG93aW5nOgoxLiAjY2F0IC9wcm9jLzEzODYvb29tX2FkagogICAtMTUKMi4gIyBlY2hv
-IC0xNCA+IC9wcm9jLzEzODYvb29tX2FkagozLiAjIGNhdCAvcHJvYy8xMzg2L29vbV9hZGoKICAg
-LTEzCgpUaGlzIHBhdGNoIGlzIHRvIGZpeCBpdC4KVGhlIHBhdGNoIGVmZmVjdCBvbiBvb21fc2Nv
-cmVfYWRqIHZhbHVlIGlzIHNtYWxsIGFuZCBzbW9vdGgsIAphbHNvIGxpdHRsZSBpbXBhY3Qgb24g
-b29tX2tpbGxlci4KCnVucGF0Y2ggb29tX2Fkai0+b29tX3Njb3JlX2Fkai0+b29tX2FkajoKLTE3
-LT4tMTAwMC0+LTE3IAotMTYtPi05NDEtPi0xNSAgCi0xNS0+LTg4Mi0+LTE0ICAKLTE0LT4tODIz
-LT4tMTMgIAotMTMtPi03NjQtPi0xMiAgCi0xMi0+LTcwNS0+LTExICAKLTExLT4tNjQ3LT4tMTAg
-IAotMTAtPi01ODgtPi05ICAKLTktPi01MjktPi04ICAKLTgtPi00NzAtPi03ICAKLTctPi00MTEt
-Pi02ICAKLTYtPi0zNTItPi01ICAKLTUtPi0yOTQtPi00ICAKLTQtPi0yMzUtPi0zICAKLTMtPi0x
-NzYtPi0yICAKLTItPi0xMTctPi0xICAKLTEtPi01OC0+MCAgCjAtPjAtPjAgIAoxLT41OC0+MCAg
-CjItPjExNy0+MSAgCjMtPjE3Ni0+MiAgCjQtPjIzNS0+MyAgCjUtPjI5NC0+NCAgCjYtPjM1Mi0+
-NSAgCjctPjQxMS0+NiAKOC0+NDcwLT43ICAKOS0+NTI5LT44ICAKMTAtPjU4OC0+OSAgCjExLT42
-NDctPjEwICAKMTItPjcwNS0+MTEgIAoxMy0+NzY0LT4xMiAgCjE0LT44MjMtPjEzICAKMTUtPjEw
-MDAtPjE3ICAKCnBhdGNoZWQgb29tX2Fkai0+b29tX3Njb3JlX2Fkai0+b29tX2FkajoKLTE3LT4t
-MTAwMC0+LTE3ICAKLTE2LT4tOTQyLT4tMTYKLTE1LT4tODgzLT4tMTUKLTE0LT4tODI0LT4tMTQK
-LTEzLT4tNzY1LT4tMTMKLTEyLT4tNzA2LT4tMTIKLTExLT4tNjQ4LT4tMTEKLTEwLT4tNTg5LT4t
-MTAKLTktPi01MzAtPi05Ci04LT4tNDcxLT4tOAotNy0+LTQxMi0+LTcKLTYtPi0zNTMtPi02Ci01
-LT4tMjk1LT4tNQotNC0+LTIzNi0+LTQKLTMtPi0xNzctPi0zCi0yLT4tMTE4LT4tMgotMS0+LTU5
-LT4tMQowLT4wLT4wCjEtPjU5LT4xCjItPjExOC0+MgozLT4xNzctPjMKNC0+MjM2LT40CjUtPjI5
-NS0+NQo2LT4zNTMtPjYKNy0+NDEyLT43CjgtPjQ3MS0+OAo5LT41MzAtPjkKMTAtPjU4OS0+MTAK
-MTEtPjY0OC0+MTEKMTItPjcwNi0+MTIKMTMtPjc2NS0+MTMKMTQtPjgyNC0+MTQKMTUtPjEwMDAt
-PjE3IAoKCkhvbmdqaWUKCl9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX18K
-t6K8/sjLOiBFcmljIFcuIEJpZWRlcm1hbiA8ZWJpZWRlcm1AeG1pc3Npb24uY29tPgq3osvNyrG8
-5DogMjAxNcTqMTDUwjIxyNUgMToyNwrK1bz+yMs6IEhvbmdqaWUgRmFuZyAot7266b3cKQqzrcvN
-OiBncmVna2hAbGludXhmb3VuZGF0aW9uLm9yZzsgbGludXgta2VybmVsQHZnZXIua2VybmVsLm9y
-ZzsgQW5kcmV3IE1vcnRvbjsgbGludXgtbW1Aa3ZhY2sub3JnCtb3zOI6IFJlOiBbUEFUQ0ggNC4z
-LXJjNl0gcHJvYzogZml4IG9vbV9hZGogdmFsdWUgcmVhZCBmcm9tIC9wcm9jLzxwaWQ+L29vbV9h
-ZGoKCiJIb25namllIEZhbmcgKLe9uum93CkiIDxIb25namllLkZhbmdAc3ByZWFkdHJ1bS5jb20+
-IHdyaXRlczoKCj4gVGhlIG9vbV9hZGoncyB2YWx1ZSByZWFkaW5nIHRocm91Z2ggL3Byb2MvPHBp
-ZD4vb29tX2FkaiBpcyBkaWZmZXJlbnQKPiB3aXRoIHRoZSB2YWx1ZSB3cml0dGVuIGludG8gL3By
-b2MvPHBpZD4vb29tX2Fkai4KPiBGaXggdGhpcyBieSBhZGRpbmcgYSBhZGp1c3RtZW50IGZhY3Rv
-ci4KCipTY3JhdGNoZXMgbXkgaGVhZCoKCldvbid0IGNoYW5naW5nIHRoZSBpbnRlcnByZXRhdGlv
-biBvZiB3aGF0IGlzIHdyaXR0ZW4gYnJlYWsgZXhpc3RpbmcKdXNlcnNwYWNlIGFwcGxpY2F0aW9u
-cyB0aGF0IHdyaXRlIHRoaXMgdmFsdWU/CgpBZGRlZCBhIGZldyBtb3JlIGxpa2VseSBtZW1vcnkg
-bWFuYWdlbWVudCBzdXNwZWN0cyB0aGF0IG1pZ2h0IHVuZGVyc3RhbmQKd2hhdCBpcyBnb2luZyBv
-biBoZXJlLgoKRXJpYwoKPgo+IFNpZ25lZC1vZmYtYnk6IEhvbmdqaWUgRmFuZyA8aG9uZ2ppZS5m
-YW5nQHNwcmVhZHRydW0uY29tPgo+IC0tLQo+IGRpZmYgLS1naXQgYS9mcy9wcm9jL2Jhc2UuYyBi
-L2ZzL3Byb2MvYmFzZS5jCj4gaW5kZXggYjI1ZWVlNC4uMWVhMDU4OSAxMDA2NDQKPiAtLS0gYS9m
-cy9wcm9jL2Jhc2UuYwo+ICsrKyBiL2ZzL3Byb2MvYmFzZS5jCj4gQEAgLTEwNDMsNiArMTA0Myw3
-IEBAIHN0YXRpYyBzc2l6ZV90IG9vbV9hZGpfd3JpdGUoc3RydWN0IGZpbGUgKmZpbGUsIGNvbnN0
-IGNoYXIgX191c2VyICpidWYsCj4gICAgICAgaW50IG9vbV9hZGo7Cj4gICAgICAgdW5zaWduZWQg
-bG9uZyBmbGFnczsKPiAgICAgICBpbnQgZXJyOwo+ICsgICAgIGludCBhZGp1c3Q7Cj4KPiAgICAg
-ICBtZW1zZXQoYnVmZmVyLCAwLCBzaXplb2YoYnVmZmVyKSk7Cj4gICAgICAgaWYgKGNvdW50ID4g
-c2l6ZW9mKGJ1ZmZlcikgLSAxKQo+IEBAIC0xMDg0LDggKzEwODUsMTAgQEAgc3RhdGljIHNzaXpl
-X3Qgb29tX2Fkal93cml0ZShzdHJ1Y3QgZmlsZSAqZmlsZSwgY29uc3QgY2hhciBfX3VzZXIgKmJ1
-ZiwKPiAgICAgICAgKi8KPiAgICAgICBpZiAob29tX2FkaiA9PSBPT01fQURKVVNUX01BWCkKPiAg
-ICAgICAgICAgICAgIG9vbV9hZGogPSBPT01fU0NPUkVfQURKX01BWDsKPiAtICAgICBlbHNlCj4g
-LSAgICAgICAgICAgICBvb21fYWRqID0gKG9vbV9hZGogKiBPT01fU0NPUkVfQURKX01BWCkgLyAt
-T09NX0RJU0FCTEU7Cj4gKyAgICAgZWxzZXsKPiArICAgICAgICAgICAgIGFkanVzdCA9IG9vbV9h
-ZGogPiAwID8gKC1PT01fRElTQUJMRS0xKSA6IC0oLU9PTV9ESVNBQkxFLTEpOwo+ICsgICAgICAg
-ICAgICAgb29tX2FkaiA9IChvb21fYWRqICogT09NX1NDT1JFX0FESl9NQVggKyBhZGp1c3QpIC8g
-LU9PTV9ESVNBQkxFOwo+ICsgICAgIH0KPgo+ICAgICAgIGlmIChvb21fYWRqIDwgdGFzay0+c2ln
-bmFsLT5vb21fc2NvcmVfYWRqICYmCj4gICAgICAgICAgICFjYXBhYmxlKENBUF9TWVNfUkVTT1VS
-Q0UpKSB7Cj4KPiAtLQ==
+On Tue, Sep 29, 2015 at 11:08:28AM +0300, Pekka Enberg wrote:
+>On 09/29/2015 04:06 AM, Wei Yang wrote:
+>>get_order() is more easy to understand.
+>>
+>>This patch just replaces it.
+>>
+>>Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
+>
+>Reviewed-by: Pekka Enberg <penberg@kernel.org>
+
+Is this patch accepted or not?
+
+I don't receive an "Apply" or "Accepted", neither see it in a git tree. Not
+sure if I missed something or the process is different as I know?
+
+-- 
+Richard Yang
+Help you, Help me
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
