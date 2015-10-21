@@ -1,73 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 855256B0254
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 04:10:07 -0400 (EDT)
-Received: by pacfv9 with SMTP id fv9so49855409pac.3
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 01:10:07 -0700 (PDT)
-Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
-        by mx.google.com with ESMTPS id ae3si11553748pad.156.2015.10.21.01.10.05
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B46B82F65
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 04:53:20 -0400 (EDT)
+Received: by wikq8 with SMTP id q8so82790524wik.1
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 01:53:19 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
+        by mx.google.com with ESMTPS id md5si10103434wjb.79.2015.10.21.01.53.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Oct 2015 01:10:06 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Wed, 21 Oct 2015 13:40:03 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id EC4361258062
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 13:39:49 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t9L89fsv27525172
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 13:39:42 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t9L89cW5017713
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 13:39:41 +0530
-Date: Wed, 21 Oct 2015 16:09:38 +0800
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2] mm/slub: use get_order() instead of fls()
-Message-ID: <20151021080938.GA8207@richards-mbp.cn.ibm.com>
-Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
-References: <1443488787-2232-1-git-send-email-weiyang@linux.vnet.ibm.com>
- <1443488787-2232-2-git-send-email-weiyang@linux.vnet.ibm.com>
- <560A46FC.8050205@iki.fi>
- <20151021074219.GA6931@Richards-MacBook-Pro.local>
- <562747A8.8050307@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Oct 2015 01:53:19 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] fixup! mm: simplify reclaim path for MADV_FREE
+Date: Wed, 21 Oct 2015 10:47:16 +0200
+Message-ID: <5799761.gmbM76C6JW@wuerfel>
+In-Reply-To: <56273fe6.c8afc20a.628d8.ffff9ed8@mx.google.com>
+References: <56273fe6.c8afc20a.628d8.ffff9ed8@mx.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <562747A8.8050307@suse.cz>
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, Pekka Enberg <penberg@iki.fi>, cl@linux.com, penberg@kernel.org, rientjes@google.com, linux-mm@kvack.org
+To: kernel-build-reports@lists.linaro.org
+Cc: "kernelci. org bot" <bot@kernelci.org>, linux-arm-kernel@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 21, 2015 at 10:07:04AM +0200, Vlastimil Babka wrote:
->On 10/21/2015 09:42 AM, Wei Yang wrote:
->>On Tue, Sep 29, 2015 at 11:08:28AM +0300, Pekka Enberg wrote:
->>>On 09/29/2015 04:06 AM, Wei Yang wrote:
->>>>get_order() is more easy to understand.
->>>>
->>>>This patch just replaces it.
->>>>
->>>>Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
->>>
->>>Reviewed-by: Pekka Enberg <penberg@kernel.org>
->>
->>Is this patch accepted or not?
->>
->>I don't receive an "Apply" or "Accepted", neither see it in a git tree. Not
->>sure if I missed something or the process is different as I know?
->
->You should probably resend and include Andrew Morton in To/CC, instead of
->just linux-mm.
+On Wednesday 21 October 2015 00:33:58 kernelci. org bot wrote:
+> lpc18xx_defconfig (arm) =E2=80=94 FAIL, 55 errors, 18 warnings, 0 sec=
+tion mismatches
+>=20
+> Errors:
+>     include/linux/rmap.h:274:1: error: expected declaration specifier=
+s or '...' before '{' token
+>     include/linux/uaccess.h:88:13: error: storage class specified for=
+ parameter '__probe_kernel_read'
+>     include/linux/uaccess.h:99:53: error: storage class specified for=
+ parameter 'probe_kernel_write'
 
-Oh, got it.
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Fixes: e4f28388eb72 ("mm: simplify reclaim path for MADV_FREE")
+---
+Please fold into the original patch if you don't already have this.
 
-Thanks
-
--- 
-Richard Yang
-Help you, Help me
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 978f65066fd5..853f4f3c6742 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -270,7 +270,7 @@ int rmap_walk(struct page *page, struct rmap_walk_c=
+ontrol *rwc);
+=20
+ static inline int page_referenced(struct page *page, int is_locked,
+ =09=09=09=09  struct mem_cgroup *memcg,
+-=09=09=09=09  unsigned long *vm_flags,
++=09=09=09=09  unsigned long *vm_flags)
+ {
+ =09*vm_flags =3D 0;
+ =09return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
