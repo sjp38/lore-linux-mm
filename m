@@ -1,75 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E12526B0257
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 17:57:01 -0400 (EDT)
-Received: by igbni9 with SMTP id ni9so2362047igb.1
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 14:57:01 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id ru5si9023097igb.2.2015.10.21.14.56.58
-        for <linux-mm@kvack.org>;
-        Wed, 21 Oct 2015 14:56:58 -0700 (PDT)
-Subject: [PATCH] mm, hugetlbfs: Fix new warning in fault-time huge page allocation
-From: Dave Hansen <dave@sr71.net>
-Date: Wed, 21 Oct 2015 14:56:58 -0700
-Message-Id: <20151021215658.ABDE5545@viggo.jf.intel.com>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id EB8566B0038
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 18:39:07 -0400 (EDT)
+Received: by pacfv9 with SMTP id fv9so69770754pac.3
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 15:39:07 -0700 (PDT)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id lu5si16326854pab.178.2015.10.21.15.39.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Oct 2015 15:39:07 -0700 (PDT)
+Received: by padhk11 with SMTP id hk11so66959390pad.1
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 15:39:06 -0700 (PDT)
+Date: Wed, 21 Oct 2015 15:38:49 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v4 2/4] mm, proc: account for shmem swap in
+ /proc/pid/smaps
+In-Reply-To: <5627A397.6090305@suse.cz>
+Message-ID: <alpine.LSU.2.11.1510211424010.3905@eggly.anvils>
+References: <1443792951-13944-1-git-send-email-vbabka@suse.cz> <1443792951-13944-3-git-send-email-vbabka@suse.cz> <alpine.LSU.2.11.1510041806040.15067@eggly.anvils> <5627A397.6090305@suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave@sr71.net
-Cc: kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
+On Wed, 21 Oct 2015, Vlastimil Babka wrote:
+> On 10/05/2015 05:01 AM, Hugh Dickins wrote:
+> > On Fri, 2 Oct 2015, Vlastimil Babka wrote:
+> > 
+> > > Currently, /proc/pid/smaps will always show "Swap: 0 kB" for shmem-backed
+> > > mappings, even if the mapped portion does contain pages that were swapped
+> > > out.
+> > > This is because unlike private anonymous mappings, shmem does not change
+> > > pte
+> > > to swap entry, but pte_none when swapping the page out. In the smaps page
+> > > walk, such page thus looks like it was never faulted in.
+> > > 
+> > > This patch changes smaps_pte_entry() to determine the swap status for
+> > > such
+> > > pte_none entries for shmem mappings, similarly to how mincore_page() does
+> > > it.
+> > > Swapped out pages are thus accounted for.
+> > > 
+> > > The accounting is arguably still not as precise as for private anonymous
+> > > mappings, since now we will count also pages that the process in question
+> > > never
+> > > accessed, but only another process populated them and then let them
+> > > become
+> > > swapped out. I believe it is still less confusing and subtle than not
+> > > showing
+> > > any swap usage by shmem mappings at all. Also, swapped out pages only
+> > > becomee a
+> > > performance issue for future accesses, and we cannot predict those for
+> > > neither
+> > > kind of mapping.
+> > > 
+> > > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> > > Acked-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> > 
+> > Neither Ack nor Nack from me.
+> > 
+> > I don't want to stand in the way of this patch, if you and others
+> > believe that it will help to diagnose problems in the field better
+> > than what's shown at present; but to me it looks dangerously like
+> > replacing no information by wrong information.
+> > 
+> > As you acknowledge in the commit message, if a file of 100 pages
+> > were copied to tmpfs, and 100 tasks map its full extent, but they
+> > all mess around with the first 50 pages and take no interest in
+> > the last 50, then it's quite likely that that last 50 will get
+> > swapped out; then with your patch, 100 tasks are each shown as
+> > using 50 pages of swap, when none of them are actually using any.
+> 
+> Yeah, but isn't it the same with private memory which was swapped out at some
+> point and we don't know if it will be touched or not? The
+> difference is in private case we know the process touched it at least
+> once, but that can also mean nothing for the future (or maybe it just
+> mmapped with MAP_POPULATE and didn't care about half of it).
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+I see that as quite different myself; but agree that neither way
+predicts the future.  Now, if you can make a patch to predict the future...
 
-Kirill reported that he hit:
->> +	if (vma || addr) {
->> +		WARN_ON_ONCE(!addr || addr == -1);
->
-> Trinity triggered the WARN for me:
+FWIW, I do seem to be looking at it more from a point of view of how
+much swap the process is using, whereas you're looking at it more
+from a point of view of what delays would be incurred in accessing.
 
-This was just a dumb mistake. I put the WARN_ON() in and planned to
-have addr=0 mean "use nid". But, I realized pretty quickly that addr=0
-_is_ a valid place to fault. So I made it addr=-1 in
-__alloc_buddy_huge_page_no_mpol(), but I did not fix up the WARN_ON().
+> 
+> That's basically what I was trying to say in the changelog. I interpret
+> the Swap: value as the amount of swap-in potential, if the process was
+> going to access it, which is what the particular customer also expects (see
+> below). In that case showing zero is IMHO wrong and inconsistent with the
+> anonymous private mappings.
 
-So hitting the warning in this case was harmless.  But, fix up the
-warning condition.
+Yes, your changelog is honest about the difference, I don't dispute that.
+As I said, neither Ack nor Nack from me: I just don't feel in a position
+to judge whether changing the output of smaps to please this customer is
+likely to displease another customer or not.
 
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> > It is rather as if we didn't bother to record Rss, and just put
+> > Size in there instead: you are (for understandable reasons) treating
+> > the virtual address space as if every page of it had been touched.
+> > 
+> > But I accept that there may well be a class of processes and problems
+> > which would be better served by this fiction than the present: I expect
+> > you have much more experience of helping out in such situations than I.
+> 
+> Well, the customers driving this change would in the best case want to
+> see the shmem swap accounted continuously and e.g. see it immediately in the
+> top output. Fixing (IMHO) the smaps output is the next best thing. The use
+> case here is a application that really doesn't like page faults, and has
+> background thread that checks and prefaults such areas when they are expected
+> to be used soon. So they would like to identify these areas.
 
----
+And I guess I won't be able to sell mlock(2) to you :)
 
- b/mm/hugetlb.c |   10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+Still neither Ack nor Nack from me: while your number is more information
+(or misinformation) than always 0, it's still not clear to me that it will
+give them what they need.
 
-diff -puN mm/hugetlb.c~hugetlbfs-fix-warn mm/hugetlb.c
---- a/mm/hugetlb.c~hugetlbfs-fix-warn	2015-10-21 14:40:15.809961389 -0700
-+++ b/mm/hugetlb.c	2015-10-21 14:40:15.814961616 -0700
-@@ -1520,8 +1520,14 @@ static struct page *__alloc_buddy_huge_p
- 	if (hstate_is_gigantic(h))
- 		return NULL;
- 
--	if (vma || addr) {
--		VM_WARN_ON_ONCE(!addr || addr == -1);
-+	/*
-+	 * Make sure that anyone specifying 'nid' is not also
-+	 * specifying a VMA.  This makes sure the caller is
-+	 * picking _one_ of the modes with which we can call this
-+	 * function, not both.
-+	 */
-+	if (vma || (addr != -1)) {
-+		VM_WARN_ON_ONCE(addr == -1);
- 		VM_WARN_ON_ONCE(nid != NUMA_NO_NODE);
- 	}
- 	/*
-_
+...
+> > 
+> > And for private mappings of tmpfs files?  I expected it to show an
+> > inderminate mixture of the two, but it looks like you treat the private
+> > mapping just like a shared one, and take no notice of the COWed pages
+> > out on swap which would have been reported before.  Oh, no, I think
+> > I misread, and you add the two together?  I agree that's the easiest
+> > thing to do, and therefore perhaps the best; but it doesn't fill me
+> > with conviction that it's the right thing to do.
+> 
+> Thanks for pointing this out, I totally missed this possibility! Well
+> the current patch is certainly not the right thing to do, as it can
+> over-account. The most correct solution would have to be implemented into the
+> page walk and only check into shmem radix tree for individual pages that were
+> not COWed. Michal Hocko suggested I try that, and although it does add some
+> overhead (the complexity is n*log(n) AFAICT), it's not that bad from
+> preliminary checks. Another advantage is that no new shmem code is needed, as
+> we can use the generic find_get_entry(). Unless we want to really limit the
+> extra complexity only to the special private mapping case with non-zero swap
+> usage of the shmem object etc... I'll repost the series with that approach.
+> 
+> Other non-perfect solutions that come to mind:
+> 
+> 1) For private mappings, count only the swapents. "Swap:" is no longer
+> showing full swap-in potential though.
+> 2) For private mappings, do not count swapents. Ditto.
+> 3) Provide two separate counters. The user won't know how much they
+> overlap, though.
+> 
+> From these I would be inclined towards 3) as being more universal, although
+> then it's no longer a simple "we're fixing a Swap: 0 value which is wrong",
+> but closer to original Jerome's versions, which IIRC introduced several
+> shmem-specific counters.
+> 
+> Well at least now I do understand why you don't particularly like this
+> approach...
+
+Have you considered extending mincore(2) for them?
+
+It was always intended that more info could be added into its byte array
+later - the man page I'm looking at says "The settings of the other bits
+[than the least significant] in each byte are undefined; these bits are
+reserved for possible later use."
+
+That way your customers could get a precise picture of the status of
+each page: without ambiguity as to whether it's anon, shmem, file, anon
+swap, shmem swap, whatever; without ambiguity as to where 40kB of 80kB
+lies in the region, the unused half or the vital half etc.
+
+Or forget passing back the info: just offer an madvise(,, MADV_POPULATE)?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
