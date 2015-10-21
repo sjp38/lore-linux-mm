@@ -1,48 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A88D82F64
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 14:17:13 -0400 (EDT)
-Received: by pacfv9 with SMTP id fv9so64014150pac.3
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 11:17:13 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id pn6si14993667pbb.43.2015.10.21.11.17.12
-        for <linux-mm@kvack.org>;
-        Wed, 21 Oct 2015 11:17:12 -0700 (PDT)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH] mm: Introduce kernelcore=reliable option
-Date: Wed, 21 Oct 2015 18:17:06 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F32B5A060@ORSMSX114.amr.corp.intel.com>
-References: <1444915942-15281-1-git-send-email-izumi.taku@jp.fujitsu.com>
-In-Reply-To: <1444915942-15281-1-git-send-email-izumi.taku@jp.fujitsu.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id DEFBD6B0038
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 14:50:07 -0400 (EDT)
+Received: by wicll6 with SMTP id ll6so87983954wic.1
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 11:50:07 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id jt2si13395175wjc.99.2015.10.21.11.50.06
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Oct 2015 11:50:06 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH] mm: memcontrol: eliminate root memory.current
+Date: Wed, 21 Oct 2015 14:49:54 -0400
+Message-Id: <1445453394-15156-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Taku Izumi <izumi.taku@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "qiuxishi@huawei.com" <qiuxishi@huawei.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>
 
-+	if (reliable_kernelcore) {
-+		for_each_memblock(memory, r) {
-+			if (memblock_is_mirror(r))
-+				continue;
+memory.current on the root level doesn't add anything that wouldn't be
+more accurate and detailed using system statistics. It already doesn't
+include slabs, and it'll be a pain to keep in sync when further memory
+types are accounted in the memory controller. Remove it.
 
-Should we have a safety check here that there is some mirrored memory?  If =
-you give
-the kernelcore=3Dreliable option on a machine which doesn't have any mirror=
- configured,
-then we'll mark all memory as removable.  What happens then?  Do kernel all=
-ocations
-fail?  Or do they fall back to using removable memory?
+Note that this applies to the new unified hierarchy interface only.
 
-Is there a /proc or /sys file that shows the current counts for the removab=
-le zone?  I just
-tried this patch with a high percentage of memory marked as mirror ... but =
-I'd like to see
-how much is actually being used to tune things a bit.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/memcontrol.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
--Tony
+Tejun, we should probably do this with the other controllers too.
+I don't think it makes sense anywhere to shoddily duplicate the
+system statistics on the controller root levels.
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4f04510..c71fe40 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5022,7 +5022,7 @@ static void mem_cgroup_bind(struct cgroup_subsys_state *root_css)
+ static u64 memory_current_read(struct cgroup_subsys_state *css,
+ 			       struct cftype *cft)
+ {
+-	return mem_cgroup_usage(mem_cgroup_from_css(css), false);
++	return page_counter_read(&mem_cgroup_from_css(css)->memory);
+ }
+ 
+ static int memory_low_show(struct seq_file *m, void *v)
+@@ -5134,6 +5134,7 @@ static int memory_events_show(struct seq_file *m, void *v)
+ static struct cftype memory_files[] = {
+ 	{
+ 		.name = "current",
++		.flags = CFTYPE_NOT_ON_ROOT,
+ 		.read_u64 = memory_current_read,
+ 	},
+ 	{
+-- 
+2.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
