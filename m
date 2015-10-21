@@ -1,165 +1,252 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C49382F65
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 19:26:22 -0400 (EDT)
-Received: by pacfv9 with SMTP id fv9so70839504pac.3
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 16:26:22 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id j6si16624628pbq.56.2015.10.21.16.26.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Oct 2015 16:26:21 -0700 (PDT)
-Received: by pabrc13 with SMTP id rc13so67881727pab.0
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 16:26:21 -0700 (PDT)
-Date: Wed, 21 Oct 2015 16:26:09 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/12] mm: rmap use pte lock not mmap_sem to set
- PageMlocked
-In-Reply-To: <56255FE4.5070609@suse.cz>
-Message-ID: <alpine.LSU.2.11.1510211544540.3905@eggly.anvils>
-References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils> <alpine.LSU.2.11.1510182148040.2481@eggly.anvils> <56248C5B.3040505@suse.cz> <alpine.LSU.2.11.1510190341490.3809@eggly.anvils> <20151019131308.GB15819@node.shutemov.name>
- <alpine.LSU.2.11.1510191218070.4652@eggly.anvils> <20151019201003.GA18106@node.shutemov.name> <56255FE4.5070609@suse.cz>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EFF882F65
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 19:37:09 -0400 (EDT)
+Received: by padhk11 with SMTP id hk11so68207775pad.1
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 16:37:09 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ko6si16640469pab.144.2015.10.21.16.37.08
+        for <linux-mm@kvack.org>;
+        Wed, 21 Oct 2015 16:37:08 -0700 (PDT)
+Date: Thu, 22 Oct 2015 07:40:48 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [linux-review:Tycho-Andersen/seccomp-ptrace-add-support-for-dumping-seccomp-filters/20151022-043958
+ 9489/9695] arch/m68k/include/asm/cacheflush_no.h:33:20: error: storage class
+ specified for parameter '__clear_cache_all'
+Message-ID: <201510220743.Fkkq0XXb%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/mixed; boundary="uAKRQypu60I7Lcqm"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrey Konovalov <andreyknvl@google.com>, Dmitry Vyukov <dvyukov@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon, 19 Oct 2015, Vlastimil Babka wrote:
-> On 10/19/2015 10:10 PM, Kirill A. Shutemov wrote:
-> > On Mon, Oct 19, 2015 at 12:53:17PM -0700, Hugh Dickins wrote:
-> > > On Mon, 19 Oct 2015, Kirill A. Shutemov wrote:
-> > > > On Mon, Oct 19, 2015 at 04:20:05AM -0700, Hugh Dickins wrote:
-> > > > > > Note how munlock_vma_pages_range() via __munlock_pagevec() does
-> > > > > > TestClearPageMlocked() without (or "between") pte or page lock. But
-> > > > > > the pte
-> > > > > > lock is being taken after clearing VM_LOCKED, so perhaps it's safe
-> > > > > > against
-> > > > > > try_to_unmap_one...
-> > > > > 
-> > > > > A mind-trick I found helpful for understanding the barriers here, is
-> > > > > to imagine that the munlocker repeats its "vma->vm_flags &=
-> > > > > ~VM_LOCKED"
-> > > > > every time it takes the pte lock: it does not actually do that, it
-> > > > > doesn't need to of course; but that does help show that ~VM_LOCKED
-> > > > > must be visible to anyone getting that pte lock afterwards.
-> > > > 
-> > > > How can you make sure that any other codepath that changes vm_flags
-> > > > would
-> > > > not make (vm_flags & VM_LOCKED) temporary true while dealing with other
-> > > > flags?
-> > > > 
-> > > > Compiler can convert things like "vma->vm_flags &= ~VM_FOO;" to
-> > > > whatever
-> > > > it wants as long as end result is the same. It's very unlikely that it
-> > > > will generate code to set all bits to one and then clear all which
-> > > > should
-> > > > be cleared, but it's theoretically possible.
-> 
-> I think Linus would be very vocal about such compiler implementation. And I
-> can imagine a lot of things in the kernel would break by those spuriously set
-> bits. There must be a lot of stuff that's "theoretically possible within the
-> standard" but no sane compiler does. I believe even compiler guys are not
-> that insane. IIRC we've seen bugs like this and they were always treated as
-> bugs and fixed.
-> The example I've heard often used for theoretically possible but insane stuff
-> is that the compiler could make code randomly write over anything that's not
-> volatile, as long as it restored the original values upon e.g. returning from
-> the function. That just can't happen.
-> 
-> > > I think that's in the realm of the fanciful.  But yes, it quite often
-> > > turns out that what I think is fanciful, is something that Paul has
-> > > heard compiler writers say they want to do, even if he has managed
-> > > to discourage them from doing it so far.
-> > 
-> > Paul always has links to pdfs with this kind of horror. ;)
-> > 
-> > > But more to the point, when you write of "end result", the compiler
-> > > would have no idea that releasing mmap_sem is the point at which
-> > > end result must be established:
-> 
-> Isn't releasing a lock one of those "release" barriers where previously
-> issued writes must become visible before the unlock takes place?
 
-Yes, as I understand it.
+--uAKRQypu60I7Lcqm
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> 
-> > > wouldn't it have to establish end
-> > > result before the next unlock operation, and before the end of the
-> > > compilation unit?
-> 
-> Now I'm lost in what you mean.
+Hi Minchan,
 
-I just meant what you suggest above; plus, if the compiler cannot see
-any unlock within its scope, it must complete the write before returning.
+[auto build test ERROR on v4.3-rc6-108-gce1fad2 -- if it's inappropriate base, please suggest rules for selecting the more suitable base]
 
-> 
-> > > pte unlock being the relevant unlock operation
-> > > in this case, at least with my patch if not without.
-> 
-> Hm so IIUC Kirill's point is that try_to_unmap_one() is checking VM_LOCKED
-> under pte lock, but somebody else might be modifying vm_flags under mmap_sem,
-> and thus we have no protection.
+url:    https://github.com/0day-ci/linux/commits/Tycho-Andersen/seccomp-ptrace-add-support-for-dumping-seccomp-filters/20151022-043958
+config: m68k-m5407c3_defconfig (attached as .config)
+reproduce:
+        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=m68k 
 
-Yes, in trying to understand what it was that lost you above, I finally
-grasped Kirill's (perfectly well stated) point: whereas I was focussed on
-the valid interplay between try_to_unmap_one() and mlock(2) and munlock(2),
-he was concerned about a non-mlocker-munlocker doing something else to
-vm_flags (under exclusive mmap_sem) while we're in try_to_unmap_one().
+All error/warnings (new ones prefixed by >>):
 
-Which indeed would be a problem (a problem of the "left page unevictable
-when it's not in any locked vma" kind) if the kernel is to be built with
-one of these hypothetical compilers which implements
-vm_flags &= VM_WHATEVER or vm_flags |= VM_WHATEVER with an intermediate
-vm_flags = -1 stage.
+   In file included from init/main.c:50:0:
+   include/linux/rmap.h:274:1: error: expected declaration specifiers or '...' before '{' token
+    {
+    ^
+   In file included from include/linux/highmem.h:8:0,
+                    from include/linux/pagemap.h:10,
+                    from include/linux/mempolicy.h:14,
+                    from init/main.c:51:
+   include/linux/uaccess.h:88:13: error: storage class specified for parameter '__probe_kernel_read'
+    extern long __probe_kernel_read(void *dst, const void *src, size_t size);
+                ^
+   include/linux/uaccess.h:99:21: error: storage class specified for parameter 'probe_kernel_write'
+    extern long notrace probe_kernel_write(void *dst, const void *src, size_t size);
+                        ^
+   include/linux/uaccess.h:99:21: error: 'no_instrument_function' attribute applies only to functions
+   include/linux/uaccess.h:100:21: error: storage class specified for parameter '__probe_kernel_write'
+    extern long notrace __probe_kernel_write(void *dst, const void *src, size_t size);
+                        ^
+   include/linux/uaccess.h:100:21: error: 'no_instrument_function' attribute applies only to functions
+   include/linux/uaccess.h:102:13: error: storage class specified for parameter 'strncpy_from_unsafe'
+    extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
+                ^
+   In file included from arch/m68k/include/asm/cacheflush.h:2:0,
+                    from include/linux/highmem.h:11,
+                    from include/linux/pagemap.h:10,
+                    from include/linux/mempolicy.h:14,
+                    from init/main.c:51:
+>> arch/m68k/include/asm/cacheflush_no.h:33:20: error: storage class specified for parameter '__clear_cache_all'
+    static inline void __clear_cache_all(void)
+                       ^
+>> arch/m68k/include/asm/cacheflush_no.h:33:20: warning: parameter '__clear_cache_all' declared 'inline'
+>> arch/m68k/include/asm/cacheflush_no.h:34:1: warning: 'always_inline' attribute ignored [-Wattributes]
+    {
+    ^
+>> arch/m68k/include/asm/cacheflush_no.h:33:20: error: 'no_instrument_function' attribute applies only to functions
+    static inline void __clear_cache_all(void)
+                       ^
+>> arch/m68k/include/asm/cacheflush_no.h:34:1: error: expected ';', ',' or ')' before '{' token
+    {
+    ^
 
-And we'd feel better about it if I could point to somewhere which
-already absolutely depends upon this not happening; but I'll admit that
-the first places I looked to for support, turned out already to have the
-WRITE_ONCE when modifying.  And I don't feel quite as confident of Linus's
-outrage in the "&=" or "|=" case, as in the straight "=" assignment case.
+vim +/__clear_cache_all +33 arch/m68k/include/asm/cacheflush_no.h
 
-I'm pretty sure I could find examples if I spent the time on it (er, how
-convincing an argument is that??), but there do seem to be a lot of more
-urgent things to attend to, than looking for those examples, or rushing
-to add some kind of notation in lots of places.
+^1da177e include/asm-m68knommu/cacheflush.h    Linus Torvalds     2005-04-16  27  	memcpy(dst, src, len)
+^1da177e include/asm-m68knommu/cacheflush.h    Linus Torvalds     2005-04-16  28  #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
+^1da177e include/asm-m68knommu/cacheflush.h    Linus Torvalds     2005-04-16  29  	memcpy(dst, src, len)
+^1da177e include/asm-m68knommu/cacheflush.h    Linus Torvalds     2005-04-16  30  
+d475e3e4 arch/m68k/include/asm/cacheflush_no.h Greg Ungerer       2010-11-09  31  void mcf_cache_push(void);
+d475e3e4 arch/m68k/include/asm/cacheflush_no.h Greg Ungerer       2010-11-09  32  
+1744bd92 arch/m68k/include/asm/cacheflush_no.h Greg Ungerer       2012-05-02 @33  static inline void __clear_cache_all(void)
+^1da177e include/asm-m68knommu/cacheflush.h    Linus Torvalds     2005-04-16 @34  {
+8ce877a8 arch/m68k/include/asm/cacheflush_no.h Greg Ungerer       2010-11-09  35  #ifdef CACHE_INVALIDATE
+a1a9bcb5 arch/m68k/include/asm/cacheflush_no.h Greg Ungerer       2009-01-13  36  	__asm__ __volatile__ (
+300b9ff6 arch/m68k/include/asm/cacheflush_no.h Philippe De Muyter 2012-09-09  37  		"movec	%0, %%CACR\n\t"
 
-Clearly I should add a couple of comments, to the commit description if
-not to the code: one to add the case you've convinced me I was also fixing,
-one to acknowledge Kirill's point about creative compilers.  That I will
-do, before the patch hits Linus's tree, but not written yet.
+:::::: The code at line 33 was first introduced by commit
+:::::: 1744bd921cd1037f0415574e0f8a3611984ecc7c m68knommu: reorganize the no-MMU cache flushing to match m68k
 
-And we could argue over whether I should restore the trylock of mmap_sem
-(but this time under pte lock).  Personally I'm against restoring it:
-it limits the effectiveness of the re-mlock technique, to handle a
-hypothetical case, which we all(?) agree is not an imminent problem,
-and should eventually be handled in a better way.
+:::::: TO: Greg Ungerer <gerg@uclinux.org>
+:::::: CC: Greg Ungerer <gerg@uclinux.org>
 
-Hugh
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-> 
-> > > > 
-> > > > I think we need to have at lease WRITE_ONCE() everywhere we update
-> > > > vm_flags and READ_ONCE() where we read it without mmap_sem taken.
-> 
-> It wouldn't hurt to check if seeing a stale value or using non-atomic RMW can
-> be a problem somewhere. In this case it's testing, not changing, so RMW is
-> not an issue. But the check shouldn't consider arbitrary changes made by a
-> potentially crazy compiler.
-> 
-> > > Not a series I'll embark upon myself,
-> > > and the patch at hand doesn't make things worse.
-> > 
-> > I think it does.
-> 
-> So what's the alternative? Hm could we keep the trylock on mmap_sem under pte
-> lock? The ordering is wrong, but it's a trylock, so no danger of deadlock?
-> 
-> > The patch changes locking rules for ->vm_flags without proper preparation
-> > and documentation. It will strike back one day.
-> > I know we have few other cases when we access ->vm_flags without mmap_sem,
-> > but this doesn't justify introducing one more potentially weak codepath.
+--uAKRQypu60I7Lcqm
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+
+--uAKRQypu60I7Lcqm--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
