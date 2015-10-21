@@ -1,90 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DFFF6B0038
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 21:02:48 -0400 (EDT)
-Received: by igbhv6 with SMTP id hv6so27459684igb.0
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 18:02:48 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 190si2577281ioe.85.2015.10.20.18.02.47
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3901D6B0038
+	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 22:21:01 -0400 (EDT)
+Received: by obbda8 with SMTP id da8so29827713obb.1
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 19:21:00 -0700 (PDT)
+Received: from unicom145.biz-email.net (unicom145.biz-email.net. [210.51.26.145])
+        by mx.google.com with ESMTPS id ny8si3697683oeb.25.2015.10.20.19.20.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Oct 2015 18:02:47 -0700 (PDT)
-Subject: Re: [PATCH v2 2/4] mm/hugetlb: Setup hugetlb_falloc during fallocate
- hole punch
-References: <1445385142-29936-1-git-send-email-mike.kravetz@oracle.com>
- <1445385142-29936-3-git-send-email-mike.kravetz@oracle.com>
- <5626D84C.6060204@intel.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <5626E42E.7000402@oracle.com>
-Date: Tue, 20 Oct 2015 18:02:38 -0700
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 20 Oct 2015 19:21:00 -0700 (PDT)
+Subject: Re: [PATCH V7] mm: memory hot-add: memory can not be added to movable
+ zone defaultly
+References: <1444633113-27607-1-git-send-email-liuchangsheng@inspur.com>
+ <561E8056.7050609@suse.cz>
+From: Changsheng Liu <liuchangsheng@inspur.com>
+Message-ID: <5626F667.9000003@inspur.com>
+Date: Wed, 21 Oct 2015 10:20:23 +0800
 MIME-Version: 1.0
-In-Reply-To: <5626D84C.6060204@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <561E8056.7050609@suse.cz>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, yasu.isimatu@gmail.com, tangchen@cn.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, wangnan0@huawei.com, dave.hansen@intel.com, yinghai@kernel.org, toshi.kani@hp.com, qiuxishi@huawei.com, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
 
-On 10/20/2015 05:11 PM, Dave Hansen wrote:
-> On 10/20/2015 04:52 PM, Mike Kravetz wrote:
->>  	if (hole_end > hole_start) {
->>  		struct address_space *mapping = inode->i_mapping;
->> +		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(hugetlb_falloc_waitq);
->> +		/*
->> +		 * Page faults on the area to be hole punched must be stopped
->> +		 * during the operation.  Initialize struct and have
->> +		 * inode->i_private point to it.
->> +		 */
->> +		struct hugetlb_falloc hugetlb_falloc = {
->> +			.waitq = &hugetlb_falloc_waitq,
->> +			.start = hole_start >> hpage_shift,
->> +			.end = hole_end >> hpage_shift
->> +		};
-> ...
->> @@ -527,6 +550,12 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
->>  						hole_end  >> PAGE_SHIFT);
->>  		i_mmap_unlock_write(mapping);
->>  		remove_inode_hugepages(inode, hole_start, hole_end);
+
+
+a?? 2015/10/15 0:18, Vlastimil Babka a??e??:
+> On 10/12/2015 08:58 AM, Changsheng Liu wrote:
+>> From: Changsheng Liu <liuchangcheng@inspur.com>
+>>
+>> After the user config CONFIG_MOVABLE_NODE,
+>> When the memory is hot added, should_add_memory_movable() return 0
+>> because all zones including ZONE_MOVABLE are empty,
+>> so the memory that was hot added will be assigned to ZONE_NORMAL
+>> and ZONE_NORMAL will be created firstly.
+>> But we want the whole node to be added to ZONE_MOVABLE by default.
+>>
+>> So we change should_add_memory_movable(): if the user config
+>> CONFIG_MOVABLE_NODE and sysctl parameter hotadd_memory_as_movable is 1
+>> and the ZONE_NORMAL is empty or the pfn of the hot-added memory
+>> is after the end of the ZONE_NORMAL it will always return 1
+>> and then the whole node will be added to ZONE_MOVABLE by default.
+>> If we want the node to be assigned to ZONE_NORMAL,
+>> we can do it as follows:
+>> "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
+>>
+>> By the patch, the behavious of kernel is changed by sysctl,
+>> user can automatically create movable memory
+>> by only the following udev rule:
+>> SUBSYSTEM=="memory", ACTION=="add",
+>> ATTR{state}=="offline", ATTR{state}="online"
+     I'm sorry for replying you so late due to the busy business trip.
+> So just to be clear, we are adding a new sysctl, because the existing
+> movable_node kernel option, which is checked by movable_node_is_enabled(), and
+> does the same thing for non-hot-added-memory (?) cannot be reused for hot-added
+> memory, as that would be a potentially surprising behavior change? Correct? Then
+> this should be mentioned in the changelog too, and wherever "movable_node" is
+> documented should also mention the new sysctl. Personally, I would expect
+> movable_node to affect hot-added memory as well, and would be surprised that it
+> doesn't...
+     I think it can let the user decides when to use this feature.
+     The user can enable the feature when making the hot_added memory  
+of a node movable and
+     make the feature disable to assign the hot_added memory of the next 
+node to ZONE_NORMAL .
+>
+>> Signed-off-by: Changsheng Liu <liuchangsheng@inspur.com>
+>> Signed-off-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
+>> Tested-by: Dongdong Fan <fandd@inspur.com>
+>> Cc: Wang Nan <wangnan0@huawei.com>
+>> Cc: Dave Hansen <dave.hansen@intel.com>
+>> Cc: Yinghai Lu <yinghai@kernel.org>
+>> Cc: Tang Chen <tangchen@cn.fujitsu.com>
+>> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>> Cc: Toshi Kani <toshi.kani@hp.com>
+>> Cc: Xishi Qiu <qiuxishi@huawei.com>
+>> ---
+>>   Documentation/memory-hotplug.txt |    5 ++++-
+>>   kernel/sysctl.c                  |   15 +++++++++++++++
+>>   mm/memory_hotplug.c              |   24 ++++++++++++++++++++++++
+>>   3 files changed, 43 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+>> index ce2cfcf..7ac7485 100644
+>> --- a/Documentation/memory-hotplug.txt
+>> +++ b/Documentation/memory-hotplug.txt
+>> @@ -277,7 +277,7 @@ And if the memory block is in ZONE_MOVABLE, you can change it to ZONE_NORMAL:
+>>   After this, memory block XXX's state will be 'online' and the amount of
+>>   available memory will be increased.
+>>   
+>> -Currently, newly added memory is added as ZONE_NORMAL (for powerpc, ZONE_DMA).
+>> +Currently, newly added memory is added as ZONE_NORMAL or ZONE_MOVABLE (for powerpc, ZONE_DMA).
+>>   This may be changed in future.
+>>   
+>>   
+>> @@ -319,6 +319,9 @@ creates ZONE_MOVABLE as following.
+>>     Size of memory not for movable pages (not for offline) is TOTAL - ZZZZ.
+>>     Size of memory for movable pages (for offline) is ZZZZ.
+>>   
+>> +And a sysctl parameter for assigning the hot added memory to ZONE_MOVABLE is
+>> +supported. If the value of "kernel/hotadd_memory_as_movable" is 1,the hot added
+>> +memory will be assigned to ZONE_MOVABLE by default.
+>>   
+>>   Note: Unfortunately, there is no information to show which memory block belongs
+>>   to ZONE_MOVABLE. This is TBD.
+>> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+>> index 19b62b5..16b1501 100644
+>> --- a/kernel/sysctl.c
+>> +++ b/kernel/sysctl.c
+>> @@ -166,6 +166,10 @@ extern int unaligned_dump_stack;
+>>   extern int no_unaligned_warning;
+>>   #endif
+>>   
+>> +#ifdef CONFIG_MOVABLE_NODE
+>> +extern int hotadd_memory_as_movable;
+>> +#endif
 >> +
->> +		spin_lock(&inode->i_lock);
->> +		inode->i_private = NULL;
->> +		wake_up_all(&hugetlb_falloc_waitq);
->> +		spin_unlock(&inode->i_lock);
-> 
-> I see the shmem code doing something similar.  But, in the end, we're
-> passing the stack-allocated 'hugetlb_falloc_waitq' over to the page
-> faulting thread.  Is there something subtle that keeps
-> 'hugetlb_falloc_waitq' from becoming invalid while the other task is
-> sleeping?
-> 
-> That wake_up_all() obviously can't sleep, but it seems like the faulting
-> thread's finish_wait() *HAS* to run before wake_up_all() can return.
-> 
-
-The 'trick' is noted in the comment in the shmem_fault code:
-
-                        /*
-                         * shmem_falloc_waitq points into the
-shmem_fallocate()
-                         * stack of the hole-punching task:
-shmem_falloc_waitq
-                         * is usually invalid by the time we reach here, but
-                         * finish_wait() does not dereference it in that
-case;
-                         * though i_lock needed lest racing with
-wake_up_all().
-                         */
-
-The faulting thread is removed from the waitq when awakened with
-wake_up_all().  See the DEFINE_WAIT() and supporting code in the
-faulting thread.  Because of this, when the faulting thread calls
-finish_wait() it does not access the waitq that was/is on the stack.
-
-At least I've convinced myself it works this way. :)
-
--- 
-Mike Kravetz
+>>   #ifdef CONFIG_PROC_SYSCTL
+>>   
+>>   #define SYSCTL_WRITES_LEGACY	-1
+>> @@ -1139,6 +1143,17 @@ static struct ctl_table kern_table[] = {
+>>   		.proc_handler	= timer_migration_handler,
+>>   	},
+>>   #endif
+>> +/*If the value of "kernel/hotadd_memory_as_movable" is 1,the hot added
+>> + * memory will be assigned to ZONE_MOVABLE by default.*/
+>> +#ifdef CONFIG_MOVABLE_NODE
+>> +	{
+>> +		.procname	= "hotadd_memory_as_movable",
+>> +		.data		= &hotadd_memory_as_movable,
+>> +		.maxlen		= sizeof(int),
+>> +		.mode		= 0644,
+>> +		.proc_handler	= proc_dointvec,
+>> +	},
+>> +#endif
+>>   	{ }
+>>   };
+>>   
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 26fbba7..eca5512 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -37,6 +37,11 @@
+>>   
+>>   #include "internal.h"
+>>   
+>> +/*If the global variable value is 1,
+>> + * the hot added memory will be assigned to ZONE_MOVABLE by default
+>> + */
+>> +int hotadd_memory_as_movable;
+>> +
+>>   /*
+>>    * online_page_callback contains pointer to current page onlining function.
+>>    * Initially it is generic_online_page(). If it is required it could be
+>> @@ -1190,6 +1195,9 @@ static int check_hotplug_memory_range(u64 start, u64 size)
+>>   /*
+>>    * If movable zone has already been setup, newly added memory should be check.
+>>    * If its address is higher than movable zone, it should be added as movable.
+>> + * And if system config CONFIG_MOVABLE_NODE and set the sysctl parameter
+>> + * "hotadd_memory_as_movable" and added memory does not overlap the zone
+>> + * before MOVABLE_ZONE,the memory will be added as movable.
+>>    * Without this check, movable zone may overlap with other zone.
+>>    */
+>>   static int should_add_memory_movable(int nid, u64 start, u64 size)
+>> @@ -1197,6 +1205,22 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
+>>   	unsigned long start_pfn = start >> PAGE_SHIFT;
+>>   	pg_data_t *pgdat = NODE_DATA(nid);
+>>   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+>> +	struct zone *pre_zone = pgdat->node_zones + (ZONE_MOVABLE - 1);
+>> +	/*
+>> +	 * The system configs CONFIG_MOVABLE_NODE to assign a node
+>> +	 * which has only movable memory,so the hot-added memory should
+>> +	 * be assigned to ZONE_MOVABLE by default,
+>> +	 * but the function zone_for_memory() assign the hot-added memory
+>> +	 * to ZONE_NORMAL(x86_64) by default.Kernel does not allow to
+>> +	 * create ZONE_MOVABLE before ZONE_NORMAL,So if the value of
+>> +	 * sysctl parameter "hotadd_memory_as_movable" is 1
+>> +	 * and the ZONE_NORMAL is empty or the pfn of the hot-added memory
+>> +	 * is after the end of ZONE_NORMAL
+>> +	 * the hot-added memory will be assigned to ZONE_MOVABLE.
+>> +	 */
+>> +	if (hotadd_memory_as_movable
+>> +	&& (zone_is_empty(pre_zone) || zone_end_pfn(pre_zone) <= start_pfn))
+>> +		return 1;
+>>   
+>>   	if (zone_is_empty(movable_zone))
+>>   		return 0;
+>>
+> .
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
