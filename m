@@ -1,71 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E89582F64
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 11:12:06 -0400 (EDT)
-Received: by wikq8 with SMTP id q8so98386767wik.1
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 08:12:05 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com. [209.85.212.174])
-        by mx.google.com with ESMTPS id v3si12152097wje.147.2015.10.21.08.12.04
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 084B06B0038
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 11:39:15 -0400 (EDT)
+Received: by oies66 with SMTP id s66so31064847oie.1
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 08:39:14 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id n189si5786872oia.128.2015.10.21.08.39.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Oct 2015 08:12:05 -0700 (PDT)
-Received: by wikq8 with SMTP id q8so98385725wik.1
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 08:12:04 -0700 (PDT)
-Date: Wed, 21 Oct 2015 18:12:02 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm, hugetlb: use memory policy when available
-Message-ID: <20151021151202.GD10597@node.shutemov.name>
-References: <20151020195317.ADA052D8@viggo.jf.intel.com>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 21 Oct 2015 08:39:13 -0700 (PDT)
+Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable() checks
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201510212126.JIF90648.HOOFJVFQLMStOF@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.20.1510210920200.5611@east.gentwo.org>
+	<20151021143337.GD8805@dhcp22.suse.cz>
+	<alpine.DEB.2.20.1510210948460.6898@east.gentwo.org>
+	<20151021145505.GE8805@dhcp22.suse.cz>
+In-Reply-To: <20151021145505.GE8805@dhcp22.suse.cz>
+Message-Id: <201510220039.BIF64554.OMOVFLJFFOSQHt@I-love.SAKURA.ne.jp>
+Date: Thu, 22 Oct 2015 00:39:02 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151020195317.ADA052D8@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com
+To: mhocko@kernel.org, cl@linux.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
 
-On Tue, Oct 20, 2015 at 12:53:17PM -0700, Dave Hansen wrote:
-> @@ -1445,6 +1514,10 @@ static struct page *alloc_buddy_huge_pag
->  	if (hstate_is_gigantic(h))
->  		return NULL;
->  
-> +	if (vma || addr) {
-> +		WARN_ON_ONCE(!addr || addr == -1);
+Michal Hocko wrote:
+> On Wed 21-10-15 09:49:07, Christoph Lameter wrote:
+> > On Wed, 21 Oct 2015, Michal Hocko wrote:
+> > 
+> > > Because all the WQ workers are stuck somewhere, maybe in the memory
+> > > allocation which cannot make any progress and the vmstat update work is
+> > > queued behind them.
 
-Trinity triggered the WARN for me:
+After invoking the OOM killer, we can easily observe that vmstat_update
+cannot be processed due to memory allocation by disk_events_workfn stalls.
+http://lkml.kernel.org/r/201509120019.BJI48986.OOSVMJtOLFQHFF@I-love.SAKURA.ne.jp
 
-[  118.647212] WARNING: CPU: 10 PID: 9621 at /home/kas/linux/mm/mm/hugetlb.c:1514 __alloc_buddy_huge_page+0x2c8/0x300()
-[  118.648698] Modules linked in:
-[  118.649105] CPU: 10 PID: 9621 Comm: trinity-c147 Not tainted 4.2.0-dirty #651
-[  118.649909] Hardware name: QEMU Standard PC (Q35 + ICH9, 2009), BIOS Debian-1.8.2-1 04/01/2014
-[  118.650929]  ffffffff81ca6ad8 ffff88081f7f3c68 ffffffff818a9977 0000000080000001
-[  118.651889]  0000000000000000 ffff88081f7f3ca8 ffffffff810574d6 ffff88081f7f3c98
-[  118.652965]  0000000000000000 ffffffff830a87e0 00000000ffffffff ffffffffffffffff
-[  118.653988] Call Trace:
-[  118.654315]  [<ffffffff818a9977>] dump_stack+0x4f/0x7b
-[  118.654936]  [<ffffffff810574d6>] warn_slowpath_common+0x86/0xc0
-[  118.655630]  [<ffffffff810575ca>] warn_slowpath_null+0x1a/0x20
-[  118.656427]  [<ffffffff811ac5e8>] __alloc_buddy_huge_page+0x2c8/0x300
-[  118.657185]  [<ffffffff811ad081>] hugetlb_acct_memory+0xa1/0x3d0
-[  118.657897]  [<ffffffff811ab241>] ? region_chg+0x1f1/0x200
-[  118.658559]  [<ffffffff811ae932>] hugetlb_reserve_pages+0x92/0x250
-[  118.659289]  [<ffffffff812d517c>] hugetlb_file_setup+0x14c/0x320
-[  118.659994]  [<ffffffff813d2fd5>] newseg+0x135/0x370
-[  118.660713]  [<ffffffff813cc134>] ? ipcget+0x44/0x2d0
-[  118.661306]  [<ffffffff813cc360>] ipcget+0x270/0x2d0
-[  118.661911]  [<ffffffff813d3525>] SyS_shmget+0x45/0x50
-[  118.663409]  [<ffffffff818b2c7c>] tracesys_phase2+0x84/0x89
-[  118.664199] ---[ end trace d2829191292b44ef ]---
+I worried that blocking forever from workqueue is an exclusive occupation of
+workqueue. In fact, changing to GFP_ATOMIC avoids this problem.
+http://lkml.kernel.org/r/201503012017.EAD00571.HOOJVOStMFLFQF@I-love.SAKURA.ne.jp
 
+Now we realized that we are hitting this problem before invoking the OOM
+killer. The situation is similar to the case after the OOM killer is
+invoked; there are no reclaimable pages but vmstat_update cannot be
+processed. We are caught by a small difference of vmstat counter values.
 
-> +		WARN_ON_ONCE(nid != NUMA_NO_NODE);
-> +	}
->  	/*
->  	 * Assume we will successfully allocate the surplus page to
->  	 * prevent racing processes from causing the surplus to exceed
--- 
- Kirill A. Shutemov
+> > >
+> > > At least this is my current understanding.
+> > 
+> > Eww. Maybe need a queue that does not do such evil things as memory
+> > allocation?
+> 
+> I am not sure how to achieve that. Requiring non-sleeping worker would
+> work out but do we have enough users to add such an API?
+
+If a queue does not need to sleep, can't that queue be processed from
+timer context (e.g. mod_timer()) ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
