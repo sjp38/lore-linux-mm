@@ -1,196 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3901D6B0038
-	for <linux-mm@kvack.org>; Tue, 20 Oct 2015 22:21:01 -0400 (EDT)
-Received: by obbda8 with SMTP id da8so29827713obb.1
-        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 19:21:00 -0700 (PDT)
-Received: from unicom145.biz-email.net (unicom145.biz-email.net. [210.51.26.145])
-        by mx.google.com with ESMTPS id ny8si3697683oeb.25.2015.10.20.19.20.59
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 186156B0038
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 01:11:48 -0400 (EDT)
+Received: by pasz6 with SMTP id z6so43303181pas.2
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 22:11:47 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id kb6si10576646pbc.7.2015.10.20.22.11.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 20 Oct 2015 19:21:00 -0700 (PDT)
-Subject: Re: [PATCH V7] mm: memory hot-add: memory can not be added to movable
- zone defaultly
-References: <1444633113-27607-1-git-send-email-liuchangsheng@inspur.com>
- <561E8056.7050609@suse.cz>
-From: Changsheng Liu <liuchangsheng@inspur.com>
-Message-ID: <5626F667.9000003@inspur.com>
-Date: Wed, 21 Oct 2015 10:20:23 +0800
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Oct 2015 22:11:47 -0700 (PDT)
+Received: by pasz6 with SMTP id z6so43302876pas.2
+        for <linux-mm@kvack.org>; Tue, 20 Oct 2015 22:11:47 -0700 (PDT)
+Date: Wed, 21 Oct 2015 14:11:39 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 0/5] MADV_FREE refactoring and fix KSM page
+Message-ID: <20151021051131.GA6024@bbox>
+References: <1445236307-895-1-git-send-email-minchan@kernel.org>
+ <20151019100150.GA5194@bbox>
+ <20151020072109.GD2941@bbox>
+ <20151020143651.64ce2c459cda168c714caf93@linux-foundation.org>
+ <20151020224353.GA10597@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <561E8056.7050609@suse.cz>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151020224353.GA10597@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, yasu.isimatu@gmail.com, tangchen@cn.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, wangnan0@huawei.com, dave.hansen@intel.com, yinghai@kernel.org, toshi.kani@hp.com, qiuxishi@huawei.com, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Changsheng Liu <liuchangcheng@inspur.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
+
+On Wed, Oct 21, 2015 at 01:43:53AM +0300, Kirill A. Shutemov wrote:
+> On Tue, Oct 20, 2015 at 02:36:51PM -0700, Andrew Morton wrote:
+> > On Tue, 20 Oct 2015 16:21:09 +0900 Minchan Kim <minchan@kernel.org> wrote:
+> > 
+> > > 
+> > > I reviewed THP refcount redesign patch and It seems below patch fixes
+> > > MADV_FREE problem. It works well for hours.
+> > > 
+> > > >From 104a0940b4c0f97e61de9fee0fd602926ff28312 Mon Sep 17 00:00:00 2001
+> > > From: Minchan Kim <minchan@kernel.org>
+> > > Date: Tue, 20 Oct 2015 16:00:52 +0900
+> > > Subject: [PATCH] mm: mark head page dirty in split_huge_page
+> > > 
+> > > In thp split in old THP refcount, we mappped all of pages
+> > > (ie, head + tails) to pte_mkdirty and mark PG_flags to every
+> > > tail pages.
+> > > 
+> > > But with THP refcount redesign, we can lose dirty bit in page table
+> > > and PG_dirty for head page if we want to free the THP page using
+> > > migration_entry.
+> > > 
+> > > It ends up discarding head page by madvise_free suddenly.
+> > > This patch fixes it by mark the head page PG_dirty when VM splits
+> > > the THP page.
+> > > 
+> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > > ---
+> > >  mm/huge_memory.c | 1 +
+> > >  1 file changed, 1 insertion(+)
+> > > 
+> > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > > index adccfb48ce57..7fbbd42554a1 100644
+> > > --- a/mm/huge_memory.c
+> > > +++ b/mm/huge_memory.c
+> > > @@ -3258,6 +3258,7 @@ static void __split_huge_page(struct page *page, struct list_head *list)
+> > >  	atomic_sub(tail_mapcount, &head->_count);
+> > >  
+> > >  	ClearPageCompound(head);
+> > > +	SetPageDirty(head);
+> > >  	spin_unlock_irq(&zone->lru_lock);
+> > >  
+> > >  	unfreeze_page(page_anon_vma(head), head);
+>  
+> Sorry, I've missed the email at first.
+> 
+> > This appears to be a bugfix against Kirill's "thp: reintroduce
+> > split_huge_page()"?
+> > 
+> > Yes, __split_huge_page() is marking the tail pages dirty but forgot
+> > about the head page
+> > 
+> > You say "we can lose dirty bit in page table" but I don't see how the
+> > above patch fixes that?
+> 
+> I think the problem is in unfreeze_page_vma(), where I missed dirtying
+> pte.
+> 
+> > Why does __split_huge_page() unconditionally mark the pages dirty, btw?
+> > Is it because the THP page was known to be dirty?
+> 
+> THP doesn't have backing storage and cannot be swapped out without
+> splitting, therefore always dirty. (huge zero page is exception, I guess).
+
+It's right until now but I think we need more(e.g. is_dirty_migration_entry,
+make_migration_entry(struct page *page, int write, int dirty) in terms of
+MADV_FREE to keep dirty bit of pte rather than making pages dirty
+unconditionally.
+
+For example, we could call madvise_free to THP page so madvise_free clears
+dirty bit of pmd without split THP pages(ie, lazy split, maybe you suggest
+it, thanks!) instantly. Then, when VM tries to reclaim the THP page and
+splits it, every page will be marked PG_dirty or pte_mkdirty even if
+there is no write ever since then so madvise_free can never discard it
+although we could.
+
+Anyway it shouldn't be party-pooper. It could be enhanced and I will check
+it.
 
 
+> 
+> > If so, the head page already had PG_dirty, so this patch doesn't do
+> > anything.
+> 
+> PG_dirty appears on struct page as result of transferring from dirty bit
+> in page tables. There's no guarantee that it's happened.
+> 
+> > freeze_page(), unfreeze_page() and their callees desperately need some
+> > description of what they're doing.  Kirill, could you cook somethnig up
+> > please?
+> 
+> Minchan, could you test patch below instead?
 
-a?? 2015/10/15 0:18, Vlastimil Babka a??e??:
-> On 10/12/2015 08:58 AM, Changsheng Liu wrote:
->> From: Changsheng Liu <liuchangcheng@inspur.com>
->>
->> After the user config CONFIG_MOVABLE_NODE,
->> When the memory is hot added, should_add_memory_movable() return 0
->> because all zones including ZONE_MOVABLE are empty,
->> so the memory that was hot added will be assigned to ZONE_NORMAL
->> and ZONE_NORMAL will be created firstly.
->> But we want the whole node to be added to ZONE_MOVABLE by default.
->>
->> So we change should_add_memory_movable(): if the user config
->> CONFIG_MOVABLE_NODE and sysctl parameter hotadd_memory_as_movable is 1
->> and the ZONE_NORMAL is empty or the pfn of the hot-added memory
->> is after the end of the ZONE_NORMAL it will always return 1
->> and then the whole node will be added to ZONE_MOVABLE by default.
->> If we want the node to be assigned to ZONE_NORMAL,
->> we can do it as follows:
->> "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
->>
->> By the patch, the behavious of kernel is changed by sysctl,
->> user can automatically create movable memory
->> by only the following udev rule:
->> SUBSYSTEM=="memory", ACTION=="add",
->> ATTR{state}=="offline", ATTR{state}="online"
-     I'm sorry for replying you so late due to the busy business trip.
-> So just to be clear, we are adding a new sysctl, because the existing
-> movable_node kernel option, which is checked by movable_node_is_enabled(), and
-> does the same thing for non-hot-added-memory (?) cannot be reused for hot-added
-> memory, as that would be a potentially surprising behavior change? Correct? Then
-> this should be mentioned in the changelog too, and wherever "movable_node" is
-> documented should also mention the new sysctl. Personally, I would expect
-> movable_node to affect hot-added memory as well, and would be surprised that it
-> doesn't...
-     I think it can let the user decides when to use this feature.
-     The user can enable the feature when making the hot_added memory  
-of a node movable and
-     make the feature disable to assign the hot_added memory of the next 
-node to ZONE_NORMAL .
->
->> Signed-off-by: Changsheng Liu <liuchangsheng@inspur.com>
->> Signed-off-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
->> Tested-by: Dongdong Fan <fandd@inspur.com>
->> Cc: Wang Nan <wangnan0@huawei.com>
->> Cc: Dave Hansen <dave.hansen@intel.com>
->> Cc: Yinghai Lu <yinghai@kernel.org>
->> Cc: Tang Chen <tangchen@cn.fujitsu.com>
->> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->> Cc: Toshi Kani <toshi.kani@hp.com>
->> Cc: Xishi Qiu <qiuxishi@huawei.com>
->> ---
->>   Documentation/memory-hotplug.txt |    5 ++++-
->>   kernel/sysctl.c                  |   15 +++++++++++++++
->>   mm/memory_hotplug.c              |   24 ++++++++++++++++++++++++
->>   3 files changed, 43 insertions(+), 1 deletions(-)
->>
->> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
->> index ce2cfcf..7ac7485 100644
->> --- a/Documentation/memory-hotplug.txt
->> +++ b/Documentation/memory-hotplug.txt
->> @@ -277,7 +277,7 @@ And if the memory block is in ZONE_MOVABLE, you can change it to ZONE_NORMAL:
->>   After this, memory block XXX's state will be 'online' and the amount of
->>   available memory will be increased.
->>   
->> -Currently, newly added memory is added as ZONE_NORMAL (for powerpc, ZONE_DMA).
->> +Currently, newly added memory is added as ZONE_NORMAL or ZONE_MOVABLE (for powerpc, ZONE_DMA).
->>   This may be changed in future.
->>   
->>   
->> @@ -319,6 +319,9 @@ creates ZONE_MOVABLE as following.
->>     Size of memory not for movable pages (not for offline) is TOTAL - ZZZZ.
->>     Size of memory for movable pages (for offline) is ZZZZ.
->>   
->> +And a sysctl parameter for assigning the hot added memory to ZONE_MOVABLE is
->> +supported. If the value of "kernel/hotadd_memory_as_movable" is 1,the hot added
->> +memory will be assigned to ZONE_MOVABLE by default.
->>   
->>   Note: Unfortunately, there is no information to show which memory block belongs
->>   to ZONE_MOVABLE. This is TBD.
->> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
->> index 19b62b5..16b1501 100644
->> --- a/kernel/sysctl.c
->> +++ b/kernel/sysctl.c
->> @@ -166,6 +166,10 @@ extern int unaligned_dump_stack;
->>   extern int no_unaligned_warning;
->>   #endif
->>   
->> +#ifdef CONFIG_MOVABLE_NODE
->> +extern int hotadd_memory_as_movable;
->> +#endif
->> +
->>   #ifdef CONFIG_PROC_SYSCTL
->>   
->>   #define SYSCTL_WRITES_LEGACY	-1
->> @@ -1139,6 +1143,17 @@ static struct ctl_table kern_table[] = {
->>   		.proc_handler	= timer_migration_handler,
->>   	},
->>   #endif
->> +/*If the value of "kernel/hotadd_memory_as_movable" is 1,the hot added
->> + * memory will be assigned to ZONE_MOVABLE by default.*/
->> +#ifdef CONFIG_MOVABLE_NODE
->> +	{
->> +		.procname	= "hotadd_memory_as_movable",
->> +		.data		= &hotadd_memory_as_movable,
->> +		.maxlen		= sizeof(int),
->> +		.mode		= 0644,
->> +		.proc_handler	= proc_dointvec,
->> +	},
->> +#endif
->>   	{ }
->>   };
->>   
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index 26fbba7..eca5512 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -37,6 +37,11 @@
->>   
->>   #include "internal.h"
->>   
->> +/*If the global variable value is 1,
->> + * the hot added memory will be assigned to ZONE_MOVABLE by default
->> + */
->> +int hotadd_memory_as_movable;
->> +
->>   /*
->>    * online_page_callback contains pointer to current page onlining function.
->>    * Initially it is generic_online_page(). If it is required it could be
->> @@ -1190,6 +1195,9 @@ static int check_hotplug_memory_range(u64 start, u64 size)
->>   /*
->>    * If movable zone has already been setup, newly added memory should be check.
->>    * If its address is higher than movable zone, it should be added as movable.
->> + * And if system config CONFIG_MOVABLE_NODE and set the sysctl parameter
->> + * "hotadd_memory_as_movable" and added memory does not overlap the zone
->> + * before MOVABLE_ZONE,the memory will be added as movable.
->>    * Without this check, movable zone may overlap with other zone.
->>    */
->>   static int should_add_memory_movable(int nid, u64 start, u64 size)
->> @@ -1197,6 +1205,22 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
->>   	unsigned long start_pfn = start >> PAGE_SHIFT;
->>   	pg_data_t *pgdat = NODE_DATA(nid);
->>   	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
->> +	struct zone *pre_zone = pgdat->node_zones + (ZONE_MOVABLE - 1);
->> +	/*
->> +	 * The system configs CONFIG_MOVABLE_NODE to assign a node
->> +	 * which has only movable memory,so the hot-added memory should
->> +	 * be assigned to ZONE_MOVABLE by default,
->> +	 * but the function zone_for_memory() assign the hot-added memory
->> +	 * to ZONE_NORMAL(x86_64) by default.Kernel does not allow to
->> +	 * create ZONE_MOVABLE before ZONE_NORMAL,So if the value of
->> +	 * sysctl parameter "hotadd_memory_as_movable" is 1
->> +	 * and the ZONE_NORMAL is empty or the pfn of the hot-added memory
->> +	 * is after the end of ZONE_NORMAL
->> +	 * the hot-added memory will be assigned to ZONE_MOVABLE.
->> +	 */
->> +	if (hotadd_memory_as_movable
->> +	&& (zone_is_empty(pre_zone) || zone_end_pfn(pre_zone) <= start_pfn))
->> +		return 1;
->>   
->>   	if (zone_is_empty(movable_zone))
->>   		return 0;
->>
-> .
->
+I think it will definitely work and more right fix than mine because
+it covers split_huge_page_to_list's error path(ie,
+
+                unfreeze_page(anon_vma, head);
+                ret = -EBUSY;
+        }
+
+
+I will queue it to test machine.
+
+..
+Zzzz
+..
+
+After 2 hours, I don't see any problemso far but I have a question below.
+
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 86924cc34bac..ea1f3805afa3 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -3115,7 +3115,7 @@ static void unfreeze_page_vma(struct vm_area_struct *vma, struct page *page,
+>  
+>                 entry = pte_mkold(mk_pte(page, vma->vm_page_prot));
+>                 if (is_write_migration_entry(swp_entry))
+> -                       entry = maybe_mkwrite(entry, vma);
+> +                       entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+
+Why should we do pte_mkdiry only if is_write_migration_entry is true?
+Doesn't it lose a dirty bit again if someone changes protection
+from RW to R?
+
+>  
+>                 flush_dcache_page(page);
+>                 set_pte_at(vma->vm_mm, address, pte + i, entry);
+> -- 
+>  Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
