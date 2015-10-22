@@ -1,51 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D4EA6B0038
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 21:45:47 -0400 (EDT)
-Received: by pasz6 with SMTP id z6so71095221pas.2
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 18:45:47 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id yw2si406274pbb.44.2015.10.21.18.45.45
+Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CC586B0038
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 22:15:51 -0400 (EDT)
+Received: by iodv82 with SMTP id v82so77534370iod.0
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 19:15:51 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id n135si9570471ion.187.2015.10.21.19.15.50
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Oct 2015 18:45:47 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH] mm/hugetlb: i_mmap_lock_write before unmapping in remove_inode_hugepages
-Date: Wed, 21 Oct 2015 18:42:27 -0700
-Message-Id: <1445478147-29782-1-git-send-email-mike.kravetz@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Oct 2015 19:15:50 -0700 (PDT)
+Received: by pasz6 with SMTP id z6so71861198pas.2
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 19:15:50 -0700 (PDT)
+Date: Wed, 21 Oct 2015 19:15:32 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: kernel oops on mmotm-2015-10-15-15-20
+In-Reply-To: <20151021052836.GB6024@bbox>
+Message-ID: <alpine.LSU.2.11.1510211908300.2949@eggly.anvils>
+References: <20151021052836.GB6024@bbox>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
 
-Code was added to remove_inode_hugepages that will unmap a page if
-it is mapped.  i_mmap_lock_write() must be taken during the call
-to hugetlb_vmdelete_list().  This is to prevent mappings(vmas) from
-being added or deleted while the list of vmas is being examined.
+On Thu, 22 Oct 2015, Minchan Kim wrote:
+> Hello Hugh,
+> 
+> On Wed, Oct 21, 2015 at 05:59:59PM -0700, Hugh Dickins wrote:
+> > On Thu, 22 Oct 2015, Minchan Kim wrote:
+> > > 
+> > > I added the code to check it and queued it again but I had another oops
+> > > in this time but symptom is related to anon_vma, too.
+> > > (kernel is based on recent mmotm + unconditional mkdirty for bug fix)
+> > > It seems page_get_anon_vma returns NULL since the page was not page_mapped
+> > > at that time but second check of page_mapped right before try_to_unmap seems
+> > > to be true.
+> > > 
+> > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > page:ffffea0001cfbfc0 count:3 mapcount:1 mapping:ffff88007f1b5f51 index:0x600000aff
+> > > flags: 0x4000000000048019(locked|uptodate|dirty|swapcache|swapbacked)
+> > > page dumped because: VM_BUG_ON_PAGE(PageAnon(page) && !PageKsm(page) && !anon_vma)
+> > 
+> > That's interesting, that's one I added in my page migration series.
+> > Let me think on it, but it could well relate to the one you got before.
+> 
+> I will roll back to mm/madv_free-v4.3-rc5-mmotm-2015-10-15-15-20
+> instead of next-20151021 to remove noise from your migration cleanup
+> series and will test it again.
+> If it is fixed, I will test again with your migration patchset, then.
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- fs/hugetlbfs/inode.c | 2 ++
- 1 file changed, 2 insertions(+)
+Not a good use of your time, I think.  It's sure to be fixed in the
+rc5-mmotm because that VM_BUG_ON_PAGE(blah) just does not exist in
+that tree: I added it to verify my reasoning in changing the comments
+about page_get_anon_vma() and PageSwapCache in mm/migrate.c.
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index f25b72f..0f3999d 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -428,9 +428,11 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- 			 * until we finish removing the page.
- 			 */
- 			if (page_mapped(page)) {
-+				i_mmap_lock_write(mapping);
- 				hugetlb_vmdelete_list(&mapping->i_mmap,
- 					next * pages_per_huge_page(h),
- 					(next + 1) * pages_per_huge_page(h));
-+				i_mmap_unlock_write(mapping);
- 			}
- 
- 			lock_page(page);
--- 
-2.4.3
+> 
+> > 
+> > > page->mem_cgroup:ffff88007f3dcc00
+> > > ------------[ cut here ]------------
+> > > kernel BUG at mm/migrate.c:889!
+> > > invalid opcode: 0000 [#1] SMP 
+> > > Dumping ftrace buffer:
+> > >    (ftrace buffer empty)
+> > > Modules linked in:
+> > > CPU: 11 PID: 59 Comm: khugepaged Not tainted 4.3.0-rc6-next-20151021-THP-ref-madv_free+ #1557
+> > 
+> > Hmm, it might be me to blame, or it might be Kirill, don't know yet.
+> 
+> It might be me, either.
+> 
+> > 
+> > Oh, hold on, I think Andrew has just posted a new mmotm, and it includes
+> > an update to Kirill's migrate_pages-try-to-split-pages-on-queueing.patch:
+> > I haven't digested yet, but it might turn out to be relevant.
+
+Sorry, I think that was an irrelevant suggestion: today's new rc6-mmotm
+is identical to yesterday's there, and the patch that was removed appears
+to be identical to the one added.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
