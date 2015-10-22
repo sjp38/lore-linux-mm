@@ -1,149 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A77F6B0038
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 21:36:47 -0400 (EDT)
-Received: by pasz6 with SMTP id z6so70873584pas.2
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 18:36:47 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id fl7si17231297pab.220.2015.10.21.18.36.45
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D4EA6B0038
+	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 21:45:47 -0400 (EDT)
+Received: by pasz6 with SMTP id z6so71095221pas.2
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 18:45:47 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id yw2si406274pbb.44.2015.10.21.18.45.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Oct 2015 18:36:46 -0700 (PDT)
-Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailout.nyi.internal (Postfix) with ESMTP id 46D63207C8
-	for <linux-mm@kvack.org>; Wed, 21 Oct 2015 21:36:43 -0400 (EDT)
-Message-ID: <1445477797.3063.28.camel@themaw.net>
-Subject: Re: [RFC] A couple of questions about the paged I/O sub system
-From: Ian Kent <raven@themaw.net>
-Date: Thu, 22 Oct 2015 09:36:37 +0800
-In-Reply-To: <alpine.LSU.2.11.1510211212440.2711@eggly.anvils>
-References: <1445409598.5025.17.camel@themaw.net>
-	 <alpine.LSU.2.11.1510211212440.2711@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 21 Oct 2015 18:45:47 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH] mm/hugetlb: i_mmap_lock_write before unmapping in remove_inode_hugepages
+Date: Wed, 21 Oct 2015 18:42:27 -0700
+Message-Id: <1445478147-29782-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Wed, 2015-10-21 at 12:56 -0700, Hugh Dickins wrote:
-> On Wed, 21 Oct 2015, Ian Kent wrote:
+Code was added to remove_inode_hugepages that will unmap a page if
+it is mapped.  i_mmap_lock_write() must be taken during the call
+to hugetlb_vmdelete_list().  This is to prevent mappings(vmas) from
+being added or deleted while the list of vmas is being examined.
 
-Thanks for taking the time to reply Hugh.
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ fs/hugetlbfs/inode.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-> 
-> > Hi all,
-> > 
-> > I've been looking through some of the page reclaim code and at
-> > truncate_inode_pages().
-> > 
-> > I'm not familiar with the code and I'm struggling to understand it.
-> > 
-> > One thing that is puzzling me right now is, if a file has pages
-> that
-> > have been modified and are swapped out when
-> pagevec_lookup_entries() is
-> > called will they be found?
-> 
-> truncate_inode_pages() is a library function which a filesystem calls
-> at some stage in its inode truncation processing, to take all the
-> incore
-> pages out of pagecache (out of its radix_tree), and free them up
-> (usually: some might be otherwise pinned in memory at the time).
-> 
-> A filesystem will have other work to do, very particular to that
-> filesystem, to free up the actual disk blocks: that's definitely
-> not part of truncate_inode_pages()'s job.
-> 
-> It's also called when evicting an inode no longer needed in memory,
-> to free the associated pagecache, when not deleting the blocks on
-> disk.
-> 
-> I think I don't understand your "swapped out": modifications occur to
-> a page while it is in pagecache, and those modifications need to be
-> written back to disk before that page can be reclaimed for other use.
-
-Indeed, now I think about it, "swapped out" is a bad choice of words
-when talking about a paged IO system.
-
-What I'm trying to say is if pages allocated to a mapping are modified,
-then under memory pressure, are they ever reclaimed by writing them to
-swap storage or are they always reclaimed by writing them back to disk?
-
-Now I think about what you've said here and looking at the code I
-suspect the answer is they are always reclaimed by writing them to
-disk.
-
-> 
-> > 
-> > If not then how does truncate_inode_pages(_range)() handle waiting
-> for
-> > these pages to be swapped back in to perform the writeback and
-> > truncation?
-> 
-> Pages are never "swapped back in to perform the writeback":
-> if writeback is needed, it's done before the page can be freed from
-> pagecache; and if that data is needed again after the page was freed,
-> it's read back in from disk to fresh page.
-
-That makes sense, using swap would be unnecessary double handling.
-
-> 
-> You may be worrying about what happens when a page is modified or
-> under writeback when it is truncated: I think that's something each
-> filesystem has to be careful of, and may deal with in different ways.
-
-I'm wondering how a mapping nrpages can be non-zero (read greater than
-one) after calling truncate_inode_pages().
-
-But I'm looking at a much older kernel so it's quite different to
-current upstream and this seemed like a question relevant to both
-kernels to get some idea of how page reclaim works.
-
-I guess what I'm really looking to work out is if it's possible, with
-the current upstream kernel, for a mapping to have nrpages greater than
-1 after calling truncate_inode_pages() and hopefully get some
-explanation of why if that's not so.
-
-It's certainly possible with the older kernel I'm looking at but I need
-some info. before I consider looking for possible changes to back port.
-
-> 
-> I'm not sure how much to read in to your use of the word "swap".
-> It's true that shmem/tmpfs uses swap (of the swapon/swapoff variety)
-> as backing for its pages when under pressure (and uses its own
-> variant
-> shmem_undo_range() to manage that, instead of
-> truncate_inode_pages()),
-> but most filesystems don't use "swap" at all.
-> 
-> I just noticed your subject "paged I/O sub system": I hope you
-> realize
-> that mm/page_io.c is solely concerned with swap (of the
-> swapon/swapoff
-> variety), and has next to nothing to do with filesystems.  (Just as,
-> conversely, mm/swap.c has next to nothing to do with swap.)
-
-LOL, right, I'm looking at the page reclaim code which, so far, hasn't
-lead me to either of those source files.
-
-> 
-> > 
-> > Anyone, please?
-> 
-> I hope something I've said there has helped, but warn you that
-> I'm a terrible person to engage in an extended conversation with!
-> Expect long silences, pray for someone else to jump in.
-
-As well as pointing out that swap storage shouldn't be used in this
-case you've reminded me of the difference between swapping and demand
-paging, so that's a good start.
-
-Perhaps folks at linux-mm will have more to say.
-
-
-> > Ian
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index f25b72f..0f3999d 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -428,9 +428,11 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+ 			 * until we finish removing the page.
+ 			 */
+ 			if (page_mapped(page)) {
++				i_mmap_lock_write(mapping);
+ 				hugetlb_vmdelete_list(&mapping->i_mmap,
+ 					next * pages_per_huge_page(h),
+ 					(next + 1) * pages_per_huge_page(h));
++				i_mmap_unlock_write(mapping);
+ 			}
+ 
+ 			lock_page(page);
+-- 
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
