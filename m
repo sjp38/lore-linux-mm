@@ -1,111 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
-	by kanga.kvack.org (Postfix) with ESMTP id CC2346B0253
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 10:11:21 -0400 (EDT)
-Received: by oiao187 with SMTP id o187so48041475oia.3
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 07:11:21 -0700 (PDT)
+Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B93E6B0038
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 10:18:37 -0400 (EDT)
+Received: by ioll68 with SMTP id l68so93131290iol.3
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 07:18:37 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c9si8879843oek.6.2015.10.22.07.11.20
+        by mx.google.com with ESMTPS id p17si25387863igi.92.2015.10.22.07.18.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Oct 2015 07:11:21 -0700 (PDT)
-Date: Thu, 22 Oct 2015 10:11:11 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH v11 15/15] HMM: add documentation explaining HMM
- internals and how to use it.
-Message-ID: <20151022141111.GA2914@redhat.com>
-References: <1445461210-2605-1-git-send-email-jglisse@redhat.com>
- <1445461210-2605-16-git-send-email-jglisse@redhat.com>
- <562856BD.3020806@infradead.org>
+        Thu, 22 Oct 2015 07:18:37 -0700 (PDT)
+Date: Thu, 22 Oct 2015 16:18:31 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 14/23] userfaultfd: wake pending userfaults
+Message-ID: <20151022141831.GA1331@redhat.com>
+References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
+ <1431624680-20153-15-git-send-email-aarcange@redhat.com>
+ <20151022121056.GB7520@twins.programming.kicks-ass.net>
+ <20151022132015.GF19147@redhat.com>
+ <20151022133824.GR17308@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <562856BD.3020806@infradead.org>
+In-Reply-To: <20151022133824.GR17308@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
 
-On Wed, Oct 21, 2015 at 08:23:41PM -0700, Randy Dunlap wrote:
-> Hi,
+On Thu, Oct 22, 2015 at 03:38:24PM +0200, Peter Zijlstra wrote:
+> On Thu, Oct 22, 2015 at 03:20:15PM +0200, Andrea Arcangeli wrote:
 > 
-> Some corrections and a few questions...
-
-Thanks for the corrections. Answer below.
-
-> On 10/21/15 14:00, JA(C)rA'me Glisse wrote:
-> > This add documentation on how HMM works and a more in depth view of how it
-> > should be use by device driver writers.
-> > 
-> > Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-
-[...]
-
-> > +synchronizing device page table for range that the device driver explicitly ask
+> > If schedule spontaneously wakes up a task in TASK_KILLABLE state that
+> > would be a bug in the scheduler in my view. Luckily there doesn't seem
+> > to be such a bug, or at least we never experienced it.
 > 
->                                        ranges                                  asks
+> Well, there will be a wakeup, just not the one you were hoping for.
 > 
-> or is only one range supported?
-
-Several ranges are supported.
-
-
-[...]
-
-> > +  /* Mirror memory (in read mode) between addressA and addressB */
-> > +  your_hmm_event->hmm_event.start = addressA;
-> > +  your_hmm_event->hmm_event.end = addressB;
+> We have code that does:
 > 
-> Multiple events (ranges) can be specified?
-
-Device driver have to make one call per range but multiple threads can make
-concurrent call for different ranges.
-
-> Is hmm_event.end (addressB) included or excluded from the range?
-
-Forgot to copy comment from header file, start is inclusive, end is exclusive.
-
-
-[...]
-
-> > +  struct hmm_pt_iter iter;
-> > +  hmm_pt_iter_init(&iter, &mirror->pt)
-> > +
-> > +  /* Get pointer to HMM page table entry for a given address. */
-> > +  dma_addr_t *hmm_pte;
-> > +  hmm_pte = hmm_pt_iter_walk(&iter, &addr, &next);
+> 	@cond = true;
+> 	get_task_struct(p);
+> 	queue(p)
 > 
-> what are 'addr' and 'next'? (types)
-
-unsigned long will add then to the doc, good point.
-
-[...]
-
-
-> > +  /* Migrate system memory between addressA and addressB to device memory. */
-> > +  your_hmm_event->hmm_event.start = addressA;
-> > +  your_hmm_event->hmm_event.end = addressB;
+> 				/* random wait somewhere */
+> 				for (;;) {
+> 					prepare_to_wait();
+> 					if (@cond)
+> 					  break;
 > 
-> is hmm_event.end (addressB) inclusive and exclusive?
-> i.e., is it end_of_copy + 1?
-> i.e., is the size of the copy addressB - addressA or
->       addressB - addressA + 1?
-> i.e., is addressB = addressA + size
-> or is    addressB = addressA + size - 1
+> 				...
+> 
+> 				handle_userfault()
+> 				  ...
+> 				  schedule();
+> 	...
+> 
+> 	dequeue(p)
+> 	wake_up_process(p) ---> wakeup without userfault wakeup
+> 
+> 
+> These races are (extremely) rare, but they do exist. Therefore one must
+> never assume schedule() will not spuriously wake because of these
+> things.
+> 
+> Also, see:
+> 
+> lkml.kernel.org/r/CA+55aFwHkOo+YGWKYROmce1-H_uG3KfEUmCkJUerTj=ojY2H6Q@mail.gmail.com
 
-Exclusive last one.
+With one more spinlock taken in the fast path we could recheck if the
+waitqueue is still queued and this is a false positive extremely rare
+spurious wakeup, and in such case set the state back to TASK_KILLABLE
+and schedule.
 
+However in the long term such a spinlock should be removed because
+it's faster to stick with the current lockless list_empty_careful and
+not to recheck the auto-remove waitqueue, but then we must be able to
+re-enter handle_userfault() even if FAULT_FLAG_TRIED was set
+(currently we can't return VM_FAULT_RETRY if FAULT_FLAG_TRIED is set
+and that's the problem). This change is planned for a long time as we
+need it to arm the vma-less write protection while the app is running,
+so I'm not sure if it's worth going for the short term fix if this is
+extremely rare.
 
-> In my experience it is usually better to have a start_address and size
-> instead of start_address and end_address.
+The risk of memory corruption is still zero no matter what happens
+here, in the extremely rare case the app will get a SIGBUS or a
+syscall will return -EFAULT. The kernel also cannot crash. So it's not
+very severe concern if it happens extremely rarely (we never
+reproduced it and stress testing run for months). Of course in the
+longer term this would have been fixed regardless as said in previous
+email.
 
-I switched several time btw the 2 offer differents version of the patchset,
-it is something that can be change down the road unless you have strong
-feeling about it.
+I think going for the longer term fix that was already planned, is
+better than doing a short term fix and the real question is how I
+should proceed to change the arch code and gup to cope with
+handle_userfault() being re-entered.
 
-Cheers,
-Jerome
+The simplest thing is to drop FAULT_FLAG_TRIED as a whole. Or I could
+add a new VM_FAULT_USERFAULT flag specific to handle_userfault that
+would be returned even if FAULT_FLAG_TRIED is set, so that only
+userfaults will be allowed to be repeated indefinitely (and then
+VM_FAULT_USERFAULT shouldn't trigger a transition to FAULT_FLAG_TRIED,
+unlike VM_FAULT_RETRY does).
+
+This is all about being allowed to drop the mmap_sem.
+
+If we'd check the waitqueue with the spinlock (to be sure the wakeup
+isn't happening from under us while we check if we got an userfault
+wakeup or if this is a spurious schedule), we could also limit the
+VM_FAULT_RETRY to 2 max events if I add a FAULT_FLAG_TRIED2 and I
+still use VM_FAULT_RETRY (instead of VM_FAULT_USERFAULT).
+
+Being able to return VM_FAULT_RETRY indefinitely is only needed if we
+don't handle the extremely wakeup race condition in handle_userfault
+by taking the spinlock once more time in the fast path (i.e. after the
+schedule).
+
+I'm not exactly sure why we allow VM_FAULT_RETRY only once currently
+so I'm tempted to drop FAULT_FLAG_TRIED entirely.
+
+I've no real preference on how to tweak the page fault code to be able
+to return VM_FAULT_RETRY indefinitely and I would aim for the smallest
+change possible, so if you've suggestions now it's good time.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
