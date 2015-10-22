@@ -1,129 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B93E6B0038
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 10:18:37 -0400 (EDT)
-Received: by ioll68 with SMTP id l68so93131290iol.3
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 07:18:37 -0700 (PDT)
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EB9B6B0254
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 10:21:48 -0400 (EDT)
+Received: by igdg1 with SMTP id g1so110003846igd.1
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 07:21:48 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p17si25387863igi.92.2015.10.22.07.18.36
+        by mx.google.com with ESMTPS id s17si26916570igr.57.2015.10.22.07.21.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Oct 2015 07:18:37 -0700 (PDT)
-Date: Thu, 22 Oct 2015 16:18:31 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 14/23] userfaultfd: wake pending userfaults
-Message-ID: <20151022141831.GA1331@redhat.com>
-References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
- <1431624680-20153-15-git-send-email-aarcange@redhat.com>
- <20151022121056.GB7520@twins.programming.kicks-ass.net>
- <20151022132015.GF19147@redhat.com>
- <20151022133824.GR17308@twins.programming.kicks-ass.net>
+        Thu, 22 Oct 2015 07:21:47 -0700 (PDT)
+Date: Thu, 22 Oct 2015 10:21:44 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH v11 02/14] HMM: add special swap filetype for memory
+ migrated to device v2.
+Message-ID: <20151022142144.GB2914@redhat.com>
+References: <05ec01d10c9b$4df7ba80$e9e72f80$@alibaba-inc.com>
+ <05f501d10c9e$a8562900$f9027b00$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20151022133824.GR17308@twins.programming.kicks-ass.net>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <05f501d10c9e$a8562900$f9027b00$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, Oct 22, 2015 at 03:38:24PM +0200, Peter Zijlstra wrote:
-> On Thu, Oct 22, 2015 at 03:20:15PM +0200, Andrea Arcangeli wrote:
+On Thu, Oct 22, 2015 at 03:52:53PM +0800, Hillf Danton wrote:
+> > 
+> > When migrating anonymous memory from system memory to device memory
+> > CPU pte are replaced with special HMM swap entry so that page fault,
+> > get user page (gup), fork, ... are properly redirected to HMM helpers.
+> > 
+> > This patch only add the new swap type entry and hooks HMM helpers
+> > functions inside the page fault and fork code path.
+> > 
+> > Changed since v1:
 > 
-> > If schedule spontaneously wakes up a task in TASK_KILLABLE state that
-> > would be a bug in the scheduler in my view. Luckily there doesn't seem
-> > to be such a bug, or at least we never experienced it.
-> 
-> Well, there will be a wakeup, just not the one you were hoping for.
-> 
-> We have code that does:
-> 
-> 	@cond = true;
-> 	get_task_struct(p);
-> 	queue(p)
-> 
-> 				/* random wait somewhere */
-> 				for (;;) {
-> 					prepare_to_wait();
-> 					if (@cond)
-> 					  break;
-> 
-> 				...
-> 
-> 				handle_userfault()
-> 				  ...
-> 				  schedule();
-> 	...
-> 
-> 	dequeue(p)
-> 	wake_up_process(p) ---> wakeup without userfault wakeup
-> 
-> 
-> These races are (extremely) rare, but they do exist. Therefore one must
-> never assume schedule() will not spuriously wake because of these
-> things.
-> 
-> Also, see:
-> 
-> lkml.kernel.org/r/CA+55aFwHkOo+YGWKYROmce1-H_uG3KfEUmCkJUerTj=ojY2H6Q@mail.gmail.com
+> But the subject line says this work is v11
 
-With one more spinlock taken in the fast path we could recheck if the
-waitqueue is still queued and this is a false positive extremely rare
-spurious wakeup, and in such case set the state back to TASK_KILLABLE
-and schedule.
+This is the v11 of the whole patchset. But this particular patch only
+add 2 different version (v2 at the end of subject line). I do not bump
+version of patches each time i rebase this seems pointless.
 
-However in the long term such a spinlock should be removed because
-it's faster to stick with the current lockless list_empty_careful and
-not to recheck the auto-remove waitqueue, but then we must be able to
-re-enter handle_userfault() even if FAULT_FLAG_TRIED was set
-(currently we can't return VM_FAULT_RETRY if FAULT_FLAG_TRIED is set
-and that's the problem). This change is planned for a long time as we
-need it to arm the vma-less write protection while the app is running,
-so I'm not sure if it's worth going for the short term fix if this is
-extremely rare.
+> > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> > index 4bc132a..7c66513 100644
+> > --- a/include/linux/hmm.h
+> > +++ b/include/linux/hmm.h
+> 
+> I find no hmm.h in 4.3-rc6
 
-The risk of memory corruption is still zero no matter what happens
-here, in the extremely rare case the app will get a SIGBUS or a
-syscall will return -EFAULT. The kernel also cannot crash. So it's not
-very severe concern if it happens extremely rarely (we never
-reproduced it and stress testing run for months). Of course in the
-longer term this would have been fixed regardless as said in previous
-email.
+This patchset depends on patchset i posted before this one and that the
+introduction mail reference namely :
 
-I think going for the longer term fix that was already planned, is
-better than doing a short term fix and the real question is how I
-should proceed to change the arch code and gup to cope with
-handle_userfault() being re-entered.
+https://lkml.org/lkml/2015/10/21/739
 
-The simplest thing is to drop FAULT_FLAG_TRIED as a whole. Or I could
-add a new VM_FAULT_USERFAULT flag specific to handle_userfault that
-would be returned even if FAULT_FLAG_TRIED is set, so that only
-userfaults will be allowed to be repeated indefinitely (and then
-VM_FAULT_USERFAULT shouldn't trigger a transition to FAULT_FLAG_TRIED,
-unlike VM_FAULT_RETRY does).
+[...]
 
-This is all about being allowed to drop the mmap_sem.
+> > +static inline int hmm_mm_fork(struct mm_struct *src_mm,
+> > +			      struct mm_struct *dst_mm,
+> > +			      struct vm_area_struct *dst_vma,
+> > +			      pmd_t *dst_pmd,
+> > +			      unsigned long start,
+> > +			      unsigned long end)
+> > +{
+> > +	BUG();
+> 
+> s/BUG/BUILD_BUG/ ?
 
-If we'd check the waitqueue with the spinlock (to be sure the wakeup
-isn't happening from under us while we check if we got an userfault
-wakeup or if this is a spurious schedule), we could also limit the
-VM_FAULT_RETRY to 2 max events if I add a FAULT_FLAG_TRIED2 and I
-still use VM_FAULT_RETRY (instead of VM_FAULT_USERFAULT).
+I use BUG(); to keep bisectability working. The core of this function
+is implemented in a latter patch but this function is reference in
+this one.
 
-Being able to return VM_FAULT_RETRY indefinitely is only needed if we
-don't handle the extremely wakeup race condition in handle_userfault
-by taking the spinlock once more time in the fast path (i.e. after the
-schedule).
+[...]
 
-I'm not exactly sure why we allow VM_FAULT_RETRY only once currently
-so I'm tempted to drop FAULT_FLAG_TRIED entirely.
+> > +#ifdef CONFIG_HMM
+> > +static inline swp_entry_t make_hmm_entry(void)
+> > +{
+> > +	/* We do not store anything inside the CPU page table entry (pte). */
+> 
+> pte is clear enough, no?
 
-I've no real preference on how to tweak the page fault code to be able
-to return VM_FAULT_RETRY indefinitely and I would aim for the smallest
-change possible, so if you've suggestions now it's good time.
+Yes i will remove this redundancy.
 
-Thanks,
-Andrea
+[...]
+
+> > +static inline int is_hmm_entry_poisonous(swp_entry_t entry)
+> > +{
+> > +	return (swp_type(entry) == SWP_HMM) && (swp_offset(entry) == 2);
+> > +}
+> 
+> So SWP_HMM_LOCKED and SWP_HMM_POISON should be defined.
+
+Good point.
+
+[...]
+
+> > @@ -894,9 +895,11 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+> >  	pte_t *orig_src_pte, *orig_dst_pte;
+> >  	pte_t *src_pte, *dst_pte;
+> >  	spinlock_t *src_ptl, *dst_ptl;
+> > +	unsigned cnt_hmm_entry = 0;
+> 
+> s/cnt_hmm_entry/hmm_ptes/ ?
+> 
+
+Maybe hmm_swap_ptes is even better name in this context.
+
+[...]
+
+> > +	if (cnt_hmm_entry) {
+> > +		int ret;
+> > +
+> > +		ret = hmm_mm_fork(src_mm, dst_mm, dst_vma,
+> > +				  dst_pmd, start, end);
+> 
+> Given start, s/end/addr/, no?
+
+No, end is the right upper limit here.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
