@@ -1,59 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B46786B0038
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 18:47:10 -0400 (EDT)
-Received: by pasz6 with SMTP id z6so98437249pas.2
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 15:47:10 -0700 (PDT)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id my1si24346292pbc.186.2015.10.22.15.47.09
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 235986B0038
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 19:24:35 -0400 (EDT)
+Received: by oiad129 with SMTP id d129so56858668oia.0
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 16:24:34 -0700 (PDT)
+Received: from g2t4622.austin.hp.com (g2t4622.austin.hp.com. [15.73.212.79])
+        by mx.google.com with ESMTPS id dx4si10342362obb.90.2015.10.22.16.24.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Oct 2015 15:47:09 -0700 (PDT)
-Received: by pacfv9 with SMTP id fv9so103117525pac.3
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 15:47:09 -0700 (PDT)
-Date: Fri, 23 Oct 2015 07:47:01 +0900
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [PATCH] mm,vmscan: Use accurate values for
- zone_reclaimable()checks
-Message-ID: <20151022224701.GA5442@mtj.duckdns.org>
-References: <20151022151528.GG30579@mtj.duckdns.org>
- <20151022153559.GF26854@dhcp22.suse.cz>
- <20151022153703.GA3899@mtj.duckdns.org>
- <20151022154922.GG26854@dhcp22.suse.cz>
- <20151022184226.GA19289@mtj.duckdns.org>
- <201510230642.HDF57807.QJtSOVFFOMLHOF@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201510230642.HDF57807.QJtSOVFFOMLHOF@I-love.SAKURA.ne.jp>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Oct 2015 16:24:34 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hpe.com>
+Subject: [PATCH 0/3] Allow EINJ to inject memory error to NVDIMM
+Date: Thu, 22 Oct 2015 17:20:41 -0600
+Message-Id: <1445556044-30322-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
+To: akpm@linux-foundation.org, dan.j.williams@intel.com, rjw@rjwysocki.net
+Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello,
+This patch-set extends the EINJ driver to allow injecting a memory
+error to NVDIMM.  It first extends iomem resource interface to support
+checking a NVDIMM region.
 
-On Fri, Oct 23, 2015 at 06:42:43AM +0900, Tetsuo Handa wrote:
-> Then, isn't below change easier to backport which will also alleviate
-> needlessly burning CPU cycles?
-> 
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3385,6 +3385,7 @@ retry:
->  	((gfp_mask & __GFP_REPEAT) && pages_reclaimed < (1 << order))) {
->  		/* Wait for some write requests to complete then retry */
->  		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
-> +		schedule_timeout_uninterruptible(1);
->  		goto retry;
->  	}
+Patch 1/3 changes region_intersects() to accept non-RAM regions, and
+adds region_intersects_ram().
 
-Yeah, that works too.  It should still be put on a dedicated wq with
-MEM_RECLAIM tho.
+Patch 2/3 adds region_intersects_pmem() to check a NVDIMM region.
 
-Thanks.
+Patch 3/3 changes the EINJ driver to allow injecting a memory error
+to NVDIMM.
 
--- 
-tejun
+---
+Toshi Kani (3):
+ 1/3 resource: Add @flags to region_intersects()
+ 2/3 resource: Add region_intersects_pmem()
+ 3/3 ACPI/APEI/EINJ: Allow memory error injection to NVDIMM
+
+---
+ drivers/acpi/apei/einj.c | 12 ++++++++----
+ include/linux/mm.h       |  5 ++++-
+ kernel/memremap.c        |  5 ++---
+ kernel/resource.c        | 34 +++++++++++++++++++++++++++-------
+ 4 files changed, 41 insertions(+), 15 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
