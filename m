@@ -1,58 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E81F66B0038
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 10:09:52 -0400 (EDT)
-Received: by obcqt19 with SMTP id qt19so68162493obc.3
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 07:09:52 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id h77si8893214oib.19.2015.10.22.07.09.52
+Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
+	by kanga.kvack.org (Postfix) with ESMTP id CC2346B0253
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 10:11:21 -0400 (EDT)
+Received: by oiao187 with SMTP id o187so48041475oia.3
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 07:11:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c9si8879843oek.6.2015.10.22.07.11.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Oct 2015 07:09:52 -0700 (PDT)
-Received: by pacfv9 with SMTP id fv9so91953797pac.3
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 07:09:51 -0700 (PDT)
-Date: Thu, 22 Oct 2015 23:09:44 +0900
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable()
- checks
-Message-ID: <20151022140944.GA30579@mtj.duckdns.org>
-References: <alpine.DEB.2.20.1510210920200.5611@east.gentwo.org>
- <20151021143337.GD8805@dhcp22.suse.cz>
- <alpine.DEB.2.20.1510210948460.6898@east.gentwo.org>
- <20151021145505.GE8805@dhcp22.suse.cz>
- <alpine.DEB.2.20.1510211214480.10364@east.gentwo.org>
- <201510222037.ACH86458.OFOLFtQFOHJSVM@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.20.1510220836430.18486@east.gentwo.org>
+        Thu, 22 Oct 2015 07:11:21 -0700 (PDT)
+Date: Thu, 22 Oct 2015 10:11:11 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH v11 15/15] HMM: add documentation explaining HMM
+ internals and how to use it.
+Message-ID: <20151022141111.GA2914@redhat.com>
+References: <1445461210-2605-1-git-send-email-jglisse@redhat.com>
+ <1445461210-2605-16-git-send-email-jglisse@redhat.com>
+ <562856BD.3020806@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1510220836430.18486@east.gentwo.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <562856BD.3020806@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>
 
-On Thu, Oct 22, 2015 at 08:39:11AM -0500, Christoph Lameter wrote:
-> On Thu, 22 Oct 2015, Tetsuo Handa wrote:
+On Wed, Oct 21, 2015 at 08:23:41PM -0700, Randy Dunlap wrote:
+> Hi,
 > 
-> > The problem would be that the "struct task_struct" to execute vmstat_update
-> > job does not exist, and will not be able to create one on demand because we
-> > are stuck at __GFP_WAIT allocation. Therefore adding a dedicated kernel
-> > thread for vmstat_update job would work. But ...
+> Some corrections and a few questions...
+
+Thanks for the corrections. Answer below.
+
+> On 10/21/15 14:00, JA(C)rA'me Glisse wrote:
+> > This add documentation on how HMM works and a more in depth view of how it
+> > should be use by device driver writers.
+> > 
+> > Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+
+[...]
+
+> > +synchronizing device page table for range that the device driver explicitly ask
 > 
-> Yuck. Can someone please get this major screwup out of the work queue
-> subsystem? Tejun?
+>                                        ranges                                  asks
+> 
+> or is only one range supported?
 
-Hmmm?  Just use a dedicated workqueue with WQ_MEM_RECLAIM.  If
-concurrency management is a problem and there's something live-locking
-for that work item (really?), WQ_CPU_INTENSIVE escapes it.  If this is
-a common occurrence that it makes sense to give vmstat higher
-priority, set WQ_HIGHPRI.
+Several ranges are supported.
 
-Thanks.
 
--- 
-tejun
+[...]
+
+> > +  /* Mirror memory (in read mode) between addressA and addressB */
+> > +  your_hmm_event->hmm_event.start = addressA;
+> > +  your_hmm_event->hmm_event.end = addressB;
+> 
+> Multiple events (ranges) can be specified?
+
+Device driver have to make one call per range but multiple threads can make
+concurrent call for different ranges.
+
+> Is hmm_event.end (addressB) included or excluded from the range?
+
+Forgot to copy comment from header file, start is inclusive, end is exclusive.
+
+
+[...]
+
+> > +  struct hmm_pt_iter iter;
+> > +  hmm_pt_iter_init(&iter, &mirror->pt)
+> > +
+> > +  /* Get pointer to HMM page table entry for a given address. */
+> > +  dma_addr_t *hmm_pte;
+> > +  hmm_pte = hmm_pt_iter_walk(&iter, &addr, &next);
+> 
+> what are 'addr' and 'next'? (types)
+
+unsigned long will add then to the doc, good point.
+
+[...]
+
+
+> > +  /* Migrate system memory between addressA and addressB to device memory. */
+> > +  your_hmm_event->hmm_event.start = addressA;
+> > +  your_hmm_event->hmm_event.end = addressB;
+> 
+> is hmm_event.end (addressB) inclusive and exclusive?
+> i.e., is it end_of_copy + 1?
+> i.e., is the size of the copy addressB - addressA or
+>       addressB - addressA + 1?
+> i.e., is addressB = addressA + size
+> or is    addressB = addressA + size - 1
+
+Exclusive last one.
+
+
+> In my experience it is usually better to have a start_address and size
+> instead of start_address and end_address.
+
+I switched several time btw the 2 offer differents version of the patchset,
+it is something that can be change down the road unless you have strong
+feeling about it.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
