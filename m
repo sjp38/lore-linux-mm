@@ -1,111 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id B1D096B0038
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 18:27:17 -0400 (EDT)
-Received: by pasz6 with SMTP id z6so98036501pas.2
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 15:27:17 -0700 (PDT)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id qa6si24229473pbb.169.2015.10.22.15.27.16
+Received: from mail-lf0-f45.google.com (mail-lf0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id AA1C86B0038
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 18:36:03 -0400 (EDT)
+Received: by lfbn126 with SMTP id n126so30303217lfb.2
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 15:36:02 -0700 (PDT)
+Received: from mail-lf0-x232.google.com (mail-lf0-x232.google.com. [2a00:1450:4010:c07::232])
+        by mx.google.com with ESMTPS id sz4si10915080lbb.42.2015.10.22.15.36.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Oct 2015 15:27:17 -0700 (PDT)
-Received: by padhk11 with SMTP id hk11so98236881pad.1
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 15:27:16 -0700 (PDT)
-Date: Thu, 22 Oct 2015 15:26:58 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: kernel oops on mmotm-2015-10-15-15-20
-In-Reply-To: <alpine.LSU.2.11.1510212052330.1094@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1510221510420.1795@eggly.anvils>
-References: <20151021052836.GB6024@bbox> <alpine.LSU.2.11.1510211908300.2949@eggly.anvils> <alpine.LSU.2.11.1510212052330.1094@eggly.anvils>
+        Thu, 22 Oct 2015 15:36:02 -0700 (PDT)
+Received: by lfbn126 with SMTP id n126so30302877lfb.2
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 15:36:01 -0700 (PDT)
+Date: Fri, 23 Oct 2015 01:35:59 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 10/12] mm: page migration use migration entry for
+ swapcache too
+Message-ID: <20151022223558.GT2080@uranus>
+References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
+ <alpine.LSU.2.11.1510182203200.2481@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1510182203200.2481@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org
 
-On Wed, 21 Oct 2015, Hugh Dickins wrote:
-> On Wed, 21 Oct 2015, Hugh Dickins wrote:
-> > On Thu, 22 Oct 2015, Minchan Kim wrote:
-> > > Hello Hugh,
-> > > 
-> > > On Wed, Oct 21, 2015 at 05:59:59PM -0700, Hugh Dickins wrote:
-> > > > On Thu, 22 Oct 2015, Minchan Kim wrote:
-> > > > > 
-> > > > > I added the code to check it and queued it again but I had another oops
-> > > > > in this time but symptom is related to anon_vma, too.
-> > > > > (kernel is based on recent mmotm + unconditional mkdirty for bug fix)
-> > > > > It seems page_get_anon_vma returns NULL since the page was not page_mapped
-> > > > > at that time but second check of page_mapped right before try_to_unmap seems
-> > > > > to be true.
-> > > > > 
-> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
-> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
-> > > > > page:ffffea0001cfbfc0 count:3 mapcount:1 mapping:ffff88007f1b5f51 index:0x600000aff
-> > > > > flags: 0x4000000000048019(locked|uptodate|dirty|swapcache|swapbacked)
-> > > > > page dumped because: VM_BUG_ON_PAGE(PageAnon(page) && !PageKsm(page) && !anon_vma)
-> > > > 
-> > > > That's interesting, that's one I added in my page migration series.
-> > > > Let me think on it, but it could well relate to the one you got before.
+On Sun, Oct 18, 2015 at 10:05:28PM -0700, Hugh Dickins wrote:
+> Hitherto page migration has avoided using a migration entry for a
+> swapcache page mapped into userspace, apparently for historical reasons.
+> So any page blessed with swapcache would entail a minor fault when it's
+> next touched, which page migration otherwise tries to avoid.  Swapcache
+> in an mlocked area is rare, so won't often matter, but still better fixed.
 > 
-> I think I have introduced a bug there; or rather, made more evident
-> a pre-existing bug.  But I'm not sure yet: the stacktrace was from
-> compaction (called by khugepaged, but that may not be relevant at all),
-> and thinking through the races with isolate_migratepages_block() is
-> never easy.
+> Just rearrange the block in try_to_unmap_one(), to handle TTU_MIGRATION
+> before checking PageAnon, that's all (apart from some reindenting).
 > 
-> What's certain is that I was not giving any thought to
-> isolate_migratepages_block() when I added that VM_BUG_ON_PAGE():
-> I was thinking about "stable" anonymous pages, and how they get
-> faulted back in from swapcache while holding page lock.
+> Well, no, that's not quite all: doesn't this by the way fix a soft_dirty
+> bug, that page migration of a file page was forgetting to transfer the
+> soft_dirty bit?  Probably not a serious bug: if I understand correctly,
+> soft_dirty afficionados usually have to handle file pages separately
+> anyway; but we publish the bit in /proc/<pid>/pagemap on file mappings
+> as well as anonymous, so page migration ought not to perturb it.
 > 
-> It looks to me now as if a page might not yet be PageAnon when it's
-> first tested in __unmap_and_move(), when going to page_get_anon_vma();
-> but is page_mapped() and PageAnon() by time of calling try_to_unmap(),
-> where I inserted the VM_BUG_ON_PAGE().
-> 
-> If so, the code would always have been wrong (trying to unmap the
-> anonymous page, and later remap its replacement, without a hold on
-> the anon_vma needed to guide both lookups); but I'll have made it
-> more glaringly wrong with the VM_BUG_ON_PAGE() - let me pretend
-> that's a good step forward :)
-> 
-> There's a reference count check in isolated_migratepages_block()
-> before this, which would make it unlikely, but I doubt rules it out.
-> 
-> However... you did hit an anon_vma reference counting problem before
-> my migration changes went in, and Kirill had a vague suspicion that
-> he might be screwing up anon_vma refcounting in split_huge_page():
-> if he confirms that, I'd say it's more likely to be the cause of
-> your crash on this occasion.
-> 
-> Not hard to fix mine (though we'll probably have to lose the
-> VM_BUG_ON_PAGE on the way, so the real fix will be hidden by that
-> trivial fix), I just want to give the races more thought.
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-And after giving it more thought, I realize that I was wrong yesterday,
-and the new VM_BUG_ON_PAGE() should be good as is: my guess is that it
-is simply alerting you to the same anon_vma reference counting issue
-as you had already hit without that patch.
-
-What I was forgetting yesterday, is that isolate_migratepages_block()
-can only take the page for migration when it's PageLRU(): and
-do_anonymous_page() only adds a page to the LRU after it has been
-marked as mapped and PageAnon.
-
-So the window that worried me yesterday, that __unmap_and_move()
-might see !PageAnon, then reach try_to_unmap() with it page_mapped
-and PageAnon: that window does not exist, with or without my changes.
-
-Hugh
-
-> 
-> However it turns out, I think you have a very useful test there.
-> 
-> (And I've observed no PageDirty problems with your recent patchsets,
-> though I don't use MADV_FREE at all myself.)
-> 
-> Hugh
+Sorry for delay in response. Indeed this should fix the nit, thanks!
+Reviewed-by: Cyrill Gorcunov <gorcunov@openvz.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
