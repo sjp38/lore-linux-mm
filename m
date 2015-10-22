@@ -1,119 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C93F6B0038
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 18:25:26 -0400 (EDT)
-Received: by qgbb65 with SMTP id b65so70034925qgb.2
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 15:25:26 -0700 (PDT)
-Received: from mail-qk0-x234.google.com (mail-qk0-x234.google.com. [2607:f8b0:400d:c09::234])
-        by mx.google.com with ESMTPS id r64si15621147qki.12.2015.10.22.15.25.25
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B1D096B0038
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 18:27:17 -0400 (EDT)
+Received: by pasz6 with SMTP id z6so98036501pas.2
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 15:27:17 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id qa6si24229473pbb.169.2015.10.22.15.27.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Oct 2015 15:25:25 -0700 (PDT)
-Received: by qkcy65 with SMTP id y65so60538311qkc.0
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 15:25:25 -0700 (PDT)
-Date: Thu, 22 Oct 2015 18:25:16 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 15/25] x86, pkeys: check VMAs and PTEs for protection keys
-Message-ID: <20151022222515.GA3511@gmail.com>
-References: <20150928191817.035A64E2@viggo.jf.intel.com>
- <20150928191823.CAE64CF3@viggo.jf.intel.com>
- <20151022205746.GA3045@gmail.com>
- <562953BC.9070003@sr71.net>
+        Thu, 22 Oct 2015 15:27:17 -0700 (PDT)
+Received: by padhk11 with SMTP id hk11so98236881pad.1
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 15:27:16 -0700 (PDT)
+Date: Thu, 22 Oct 2015 15:26:58 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: kernel oops on mmotm-2015-10-15-15-20
+In-Reply-To: <alpine.LSU.2.11.1510212052330.1094@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1510221510420.1795@eggly.anvils>
+References: <20151021052836.GB6024@bbox> <alpine.LSU.2.11.1510211908300.2949@eggly.anvils> <alpine.LSU.2.11.1510212052330.1094@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <562953BC.9070003@sr71.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: borntraeger@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, Oct 22, 2015 at 02:23:08PM -0700, Dave Hansen wrote:
-> On 10/22/2015 01:57 PM, Jerome Glisse wrote:
-> > I have not read all the patches, but here i assume that for GUP you do
-> > not first call arch_vma_access_permitted(). So issue i see is that GUP
-> > for a process might happen inside another process and that process might
-> > have different pkru protection keys, effectively randomly allowing or
-> > forbidding a device driver to perform a GUP from say some workqueue that
-> > just happen to be schedule against a different processor/thread than the
-> > one against which it is doing the GUP for.
+On Wed, 21 Oct 2015, Hugh Dickins wrote:
+> On Wed, 21 Oct 2015, Hugh Dickins wrote:
+> > On Thu, 22 Oct 2015, Minchan Kim wrote:
+> > > Hello Hugh,
+> > > 
+> > > On Wed, Oct 21, 2015 at 05:59:59PM -0700, Hugh Dickins wrote:
+> > > > On Thu, 22 Oct 2015, Minchan Kim wrote:
+> > > > > 
+> > > > > I added the code to check it and queued it again but I had another oops
+> > > > > in this time but symptom is related to anon_vma, too.
+> > > > > (kernel is based on recent mmotm + unconditional mkdirty for bug fix)
+> > > > > It seems page_get_anon_vma returns NULL since the page was not page_mapped
+> > > > > at that time but second check of page_mapped right before try_to_unmap seems
+> > > > > to be true.
+> > > > > 
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > page:ffffea0001cfbfc0 count:3 mapcount:1 mapping:ffff88007f1b5f51 index:0x600000aff
+> > > > > flags: 0x4000000000048019(locked|uptodate|dirty|swapcache|swapbacked)
+> > > > > page dumped because: VM_BUG_ON_PAGE(PageAnon(page) && !PageKsm(page) && !anon_vma)
+> > > > 
+> > > > That's interesting, that's one I added in my page migration series.
+> > > > Let me think on it, but it could well relate to the one you got before.
 > 
-> There are some places where there is no real context from which we can
-> determine access rights.  ptrace is a good example.  We don't enforce
-> PKEYs when walking _another_ process's page tables.
+> I think I have introduced a bug there; or rather, made more evident
+> a pre-existing bug.  But I'm not sure yet: the stacktrace was from
+> compaction (called by khugepaged, but that may not be relevant at all),
+> and thinking through the races with isolate_migratepages_block() is
+> never easy.
 > 
-> Can you give an example of where a process might be doing a gup and it
-> is completely separate from the CPU context that it's being executed under?
+> What's certain is that I was not giving any thought to
+> isolate_migratepages_block() when I added that VM_BUG_ON_PAGE():
+> I was thinking about "stable" anonymous pages, and how they get
+> faulted back in from swapcache while holding page lock.
+> 
+> It looks to me now as if a page might not yet be PageAnon when it's
+> first tested in __unmap_and_move(), when going to page_get_anon_vma();
+> but is page_mapped() and PageAnon() by time of calling try_to_unmap(),
+> where I inserted the VM_BUG_ON_PAGE().
+> 
+> If so, the code would always have been wrong (trying to unmap the
+> anonymous page, and later remap its replacement, without a hold on
+> the anon_vma needed to guide both lookups); but I'll have made it
+> more glaringly wrong with the VM_BUG_ON_PAGE() - let me pretend
+> that's a good step forward :)
+> 
+> There's a reference count check in isolated_migratepages_block()
+> before this, which would make it unlikely, but I doubt rules it out.
+> 
+> However... you did hit an anon_vma reference counting problem before
+> my migration changes went in, and Kirill had a vague suspicion that
+> he might be screwing up anon_vma refcounting in split_huge_page():
+> if he confirms that, I'd say it's more likely to be the cause of
+> your crash on this occasion.
+> 
+> Not hard to fix mine (though we'll probably have to lose the
+> VM_BUG_ON_PAGE on the way, so the real fix will be hidden by that
+> trivial fix), I just want to give the races more thought.
 
-In drivers/iommu/amd_iommu_v2.c thought this is on AMD platform. I also
-believe that in infiniband one can have GUP call from workqueue that can
-run at any time. In GPU driver we also use GUP thought at this point we
-do not allow another process from accessing a buffer that is populated
-by GUP from another process.
+And after giving it more thought, I realize that I was wrong yesterday,
+and the new VM_BUG_ON_PAGE() should be good as is: my guess is that it
+is simply alerting you to the same anon_vma reference counting issue
+as you had already hit without that patch.
 
-I am also here mainly talking about what future GPU will do where you will
-have the CPU service page fault from GPU inside a workqueue that can run
-at any point in time.
+What I was forgetting yesterday, is that isolate_migratepages_block()
+can only take the page for migration when it's PageLRU(): and
+do_anonymous_page() only adds a page to the LRU after it has been
+marked as mapped and PageAnon.
+
+So the window that worried me yesterday, that __unmap_and_move()
+might see !PageAnon, then reach try_to_unmap() with it page_mapped
+and PageAnon: that window does not exist, with or without my changes.
+
+Hugh
 
 > 
-> > Second and more fundamental thing i have issue with is that this whole
-> > pkru keys are centric to CPU POV ie this is a CPU feature. So i do not
-> > believe that device driver should be forbidden to do GUP base on pkru
-> > keys.
+> However it turns out, I think you have a very useful test there.
 > 
-> I don't think of it as something necessarily central to the CPU, but
-> something central to things that walk page tables.  We mark page tables
-> with PKEYs and things that walk them will have certain rights.
-
-My point is that we are seing devices that want to walk the page table and
-they do it from a work queue inside the kernel which can run against another
-process than the one they are doing the walk from.
-
-I am sure there is already upstream device driver that does so, i have not
-check all of them to confirm thought.
-
-
-> > Tying this to the pkru reg value of whatever processor happens to be
-> > running some device driver kernel function that try to do a GUP seems
-> > broken to me.
+> (And I've observed no PageDirty problems with your recent patchsets,
+> though I don't use MADV_FREE at all myself.)
 > 
-> That's one way to look at it.  Another way is that PKRU is specifying
-> some real _intent_ about whether we want access to be allowed to some
-> memory.
-
-I think i misexpress myself here, yes PKRU is about specifying intent but
-specifying it for CPU thread not for device thread. GPU for instance have
-threads that run on behalf of a given process and i would rather see some
-kind of coherent way to specify that for each devices like you allow it
-to specify it on per CPU thread basis.
-
-
-> > So as first i would just allow GUP to always work and then come up with
-> > syscall to allow to set pkey on device file. This obviously is a lot more
-> > work as you need to go over all device driver using GUP.
-> 
-> I wouldn't be opposed to adding some context to the thread (like
-> pagefault_disable()) that indicates whether we should enforce protection
-> keys.  If we are in some asynchronous context, disassociated from the
-> running CPU's protection keys, we could set a flag.
-
-I was simply thinking of having a global set of pkeys against the process
-mm struct which would be the default global setting for all device GUP
-access. This global set could be override by userspace on a per device
-basis allowing some device to have more access than others.
-
-
-> I'd really appreciate if you could point to some concrete examples here
-> which could actually cause a problem, like workqueues doing gups.
-
-Well i could grep for all current user of GUP, but i can tell you that this
-is gonna be the model for GPU thread ie a kernel workqueue gonna handle
-page fault on behalf of GPU and will perform equivalent of GUP. Also apply
-for infiniband ODP thing which is upstream.
-
-Cheers,
-Jerome
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
