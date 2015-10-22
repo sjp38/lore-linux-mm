@@ -1,183 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EB7F82F65
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 00:22:20 -0400 (EDT)
-Received: by wicfv8 with SMTP id fv8so102285759wic.0
-        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 21:22:20 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id j6si15986147wjb.63.2015.10.21.21.22.19
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 505C682F64
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 00:25:46 -0400 (EDT)
+Received: by pasz6 with SMTP id z6so75082635pas.2
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 21:25:46 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id yq4si18132274pbb.236.2015.10.21.21.25.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Oct 2015 21:22:19 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 8/8] mm: memcontrol: hook up vmpressure to socket pressure
-Date: Thu, 22 Oct 2015 00:21:36 -0400
-Message-Id: <1445487696-21545-9-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1445487696-21545-1-git-send-email-hannes@cmpxchg.org>
-References: <1445487696-21545-1-git-send-email-hannes@cmpxchg.org>
+        Wed, 21 Oct 2015 21:25:45 -0700 (PDT)
+Received: by padhk11 with SMTP id hk11so75214160pad.1
+        for <linux-mm@kvack.org>; Wed, 21 Oct 2015 21:25:45 -0700 (PDT)
+Date: Wed, 21 Oct 2015 21:25:26 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: kernel oops on mmotm-2015-10-15-15-20
+In-Reply-To: <alpine.LSU.2.11.1510211908300.2949@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1510212052330.1094@eggly.anvils>
+References: <20151021052836.GB6024@bbox> <alpine.LSU.2.11.1510211908300.2949@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
 
-Let the networking stack know when a memcg is under reclaim pressure,
-so it can shrink its transmit windows accordingly.
+On Wed, 21 Oct 2015, Hugh Dickins wrote:
+> On Thu, 22 Oct 2015, Minchan Kim wrote:
+> > Hello Hugh,
+> > 
+> > On Wed, Oct 21, 2015 at 05:59:59PM -0700, Hugh Dickins wrote:
+> > > On Thu, 22 Oct 2015, Minchan Kim wrote:
+> > > > 
+> > > > I added the code to check it and queued it again but I had another oops
+> > > > in this time but symptom is related to anon_vma, too.
+> > > > (kernel is based on recent mmotm + unconditional mkdirty for bug fix)
+> > > > It seems page_get_anon_vma returns NULL since the page was not page_mapped
+> > > > at that time but second check of page_mapped right before try_to_unmap seems
+> > > > to be true.
+> > > > 
+> > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > page:ffffea0001cfbfc0 count:3 mapcount:1 mapping:ffff88007f1b5f51 index:0x600000aff
+> > > > flags: 0x4000000000048019(locked|uptodate|dirty|swapcache|swapbacked)
+> > > > page dumped because: VM_BUG_ON_PAGE(PageAnon(page) && !PageKsm(page) && !anon_vma)
+> > > 
+> > > That's interesting, that's one I added in my page migration series.
+> > > Let me think on it, but it could well relate to the one you got before.
 
-Whenever the reclaim efficiency of a memcg's LRU lists drops low
-enough for a MEDIUM or HIGH vmpressure event to occur, assert a
-pressure state in the socket and tcp memory code that tells it to
-reduce memory usage in sockets associated with said memory cgroup.
+I think I have introduced a bug there; or rather, made more evident
+a pre-existing bug.  But I'm not sure yet: the stacktrace was from
+compaction (called by khugepaged, but that may not be relevant at all),
+and thinking through the races with isolate_migratepages_block() is
+never easy.
 
-vmpressure events are edge triggered, so for hysteresis assert socket
-pressure for a second to allow for subsequent vmpressure events to
-occur before letting the socket code return to normal.
+What's certain is that I was not giving any thought to
+isolate_migratepages_block() when I added that VM_BUG_ON_PAGE():
+I was thinking about "stable" anonymous pages, and how they get
+faulted back in from swapcache while holding page lock.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h |  9 +++++++++
- include/net/sock.h         |  4 ++++
- include/net/tcp.h          |  4 ++++
- mm/memcontrol.c            |  1 +
- mm/vmpressure.c            | 29 ++++++++++++++++++++++++-----
- 5 files changed, 42 insertions(+), 5 deletions(-)
+It looks to me now as if a page might not yet be PageAnon when it's
+first tested in __unmap_and_move(), when going to page_get_anon_vma();
+but is page_mapped() and PageAnon() by time of calling try_to_unmap(),
+where I inserted the VM_BUG_ON_PAGE().
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index d66ae18..b9990f7 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -246,6 +246,7 @@ struct mem_cgroup {
- 
- #ifdef CONFIG_INET
- 	struct work_struct socket_work;
-+	unsigned long socket_pressure;
- #endif
- 
- 	/* List of events which userspace want to receive */
-@@ -696,6 +697,10 @@ void sock_update_memcg(struct sock *sk);
- void sock_release_memcg(struct sock *sk);
- bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
- void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
-+static inline bool mem_cgroup_socket_pressure(struct mem_cgroup *memcg)
-+{
-+	return time_before(jiffies, memcg->socket_pressure);
-+}
- #else
- static inline bool mem_cgroup_do_sockets(void)
- {
-@@ -716,6 +721,10 @@ static inline void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg,
- 					     unsigned int nr_pages)
- {
- }
-+static inline bool mem_cgroup_socket_pressure(struct mem_cgroup *memcg)
-+{
-+	return false;
-+}
- #endif /* CONFIG_INET */
- 
- #ifdef CONFIG_MEMCG_KMEM
-diff --git a/include/net/sock.h b/include/net/sock.h
-index 67795fc..22bfb9c 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -1087,6 +1087,10 @@ static inline bool sk_has_memory_pressure(const struct sock *sk)
- 
- static inline bool sk_under_memory_pressure(const struct sock *sk)
- {
-+	if (mem_cgroup_do_sockets() && sk->sk_memcg &&
-+	    mem_cgroup_socket_pressure(sk->sk_memcg))
-+		return true;
-+
- 	if (!sk->sk_prot->memory_pressure)
- 		return false;
- 
-diff --git a/include/net/tcp.h b/include/net/tcp.h
-index 77b6c7e..c7d342c 100644
---- a/include/net/tcp.h
-+++ b/include/net/tcp.h
-@@ -291,6 +291,10 @@ extern int tcp_memory_pressure;
- /* optimized version of sk_under_memory_pressure() for TCP sockets */
- static inline bool tcp_under_memory_pressure(const struct sock *sk)
- {
-+	if (mem_cgroup_do_sockets() && sk->sk_memcg &&
-+	    mem_cgroup_socket_pressure(sk->sk_memcg))
-+		return true;
-+
- 	return tcp_memory_pressure;
- }
- /*
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cb1d6aa..2e09def 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4178,6 +4178,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
- #endif
- #ifdef CONFIG_INET
- 	INIT_WORK(&memcg->socket_work, socket_work_func);
-+	memcg->socket_pressure = jiffies;
- #endif
- 	return &memcg->css;
- 
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 4c25e62..f64c0e1 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -137,14 +137,11 @@ struct vmpressure_event {
- };
- 
- static bool vmpressure_event(struct vmpressure *vmpr,
--			     unsigned long scanned, unsigned long reclaimed)
-+			     enum vmpressure_levels level)
- {
- 	struct vmpressure_event *ev;
--	enum vmpressure_levels level;
- 	bool signalled = false;
- 
--	level = vmpressure_calc_level(scanned, reclaimed);
--
- 	mutex_lock(&vmpr->events_lock);
- 
- 	list_for_each_entry(ev, &vmpr->events, node) {
-@@ -162,6 +159,7 @@ static bool vmpressure_event(struct vmpressure *vmpr,
- static void vmpressure_work_fn(struct work_struct *work)
- {
- 	struct vmpressure *vmpr = work_to_vmpressure(work);
-+	enum vmpressure_levels level;
- 	unsigned long scanned;
- 	unsigned long reclaimed;
- 
-@@ -185,8 +183,29 @@ static void vmpressure_work_fn(struct work_struct *work)
- 	vmpr->reclaimed = 0;
- 	spin_unlock(&vmpr->sr_lock);
- 
-+	level = vmpressure_calc_level(scanned, reclaimed);
-+
-+	if (level > VMPRESSURE_LOW) {
-+		struct mem_cgroup *memcg;
-+		/*
-+		 * Let the socket buffer allocator know that we are
-+		 * having trouble reclaiming LRU pages.
-+		 *
-+		 * For hysteresis, keep the pressure state asserted
-+		 * for a second in which subsequent pressure events
-+		 * can occur.
-+		 *
-+		 * XXX: is vmpressure a global feature or part of
-+		 * memcg? There shouldn't be anything memcg-specific
-+		 * about exporting reclaim success ratios from the VM.
-+		 */
-+		memcg = container_of(vmpr, struct mem_cgroup, vmpressure);
-+		if (memcg != root_mem_cgroup)
-+			memcg->socket_pressure = jiffies + HZ;
-+	}
-+
- 	do {
--		if (vmpressure_event(vmpr, scanned, reclaimed))
-+		if (vmpressure_event(vmpr, level))
- 			break;
- 		/*
- 		 * If not handled, propagate the event upward into the
--- 
-2.6.1
+If so, the code would always have been wrong (trying to unmap the
+anonymous page, and later remap its replacement, without a hold on
+the anon_vma needed to guide both lookups); but I'll have made it
+more glaringly wrong with the VM_BUG_ON_PAGE() - let me pretend
+that's a good step forward :)
+
+There's a reference count check in isolated_migratepages_block()
+before this, which would make it unlikely, but I doubt rules it out.
+
+However... you did hit an anon_vma reference counting problem before
+my migration changes went in, and Kirill had a vague suspicion that
+he might be screwing up anon_vma refcounting in split_huge_page():
+if he confirms that, I'd say it's more likely to be the cause of
+your crash on this occasion.
+
+Not hard to fix mine (though we'll probably have to lose the
+VM_BUG_ON_PAGE on the way, so the real fix will be hidden by that
+trivial fix), I just want to give the races more thought.
+
+However it turns out, I think you have a very useful test there.
+
+(And I've observed no PageDirty problems with your recent patchsets,
+though I don't use MADV_FREE at all myself.)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
