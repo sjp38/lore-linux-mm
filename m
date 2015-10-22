@@ -1,51 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 46F6F6B0257
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 11:31:00 -0400 (EDT)
-Received: by obbwb3 with SMTP id wb3so70870033obb.0
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 08:31:00 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id dp7si9153892oeb.44.2015.10.22.08.30.59
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 6359682F66
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 11:33:22 -0400 (EDT)
+Received: by igbni9 with SMTP id ni9so16399197igb.1
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 08:33:22 -0700 (PDT)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id t5si1635009igd.80.2015.10.22.08.33.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Oct 2015 08:30:59 -0700 (PDT)
-Date: Thu, 22 Oct 2015 17:30:55 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 14/23] userfaultfd: wake pending userfaults
-Message-ID: <20151022153055.GC1331@redhat.com>
-References: <1431624680-20153-1-git-send-email-aarcange@redhat.com>
- <1431624680-20153-15-git-send-email-aarcange@redhat.com>
- <20151022121056.GB7520@twins.programming.kicks-ass.net>
- <20151022132015.GF19147@redhat.com>
- <20151022133824.GR17308@twins.programming.kicks-ass.net>
- <20151022141831.GA1331@redhat.com>
- <20151022151509.GO3604@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151022151509.GO3604@twins.programming.kicks-ass.net>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 22 Oct 2015 08:33:21 -0700 (PDT)
+Date: Thu, 22 Oct 2015 10:33:20 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable()
+ checks
+In-Reply-To: <20151022151528.GG30579@mtj.duckdns.org>
+Message-ID: <alpine.DEB.2.20.1510221031090.24250@east.gentwo.org>
+References: <alpine.DEB.2.20.1510210920200.5611@east.gentwo.org> <20151021143337.GD8805@dhcp22.suse.cz> <alpine.DEB.2.20.1510210948460.6898@east.gentwo.org> <20151021145505.GE8805@dhcp22.suse.cz> <alpine.DEB.2.20.1510211214480.10364@east.gentwo.org>
+ <201510222037.ACH86458.OFOLFtQFOHJSVM@I-love.SAKURA.ne.jp> <alpine.DEB.2.20.1510220836430.18486@east.gentwo.org> <20151022140944.GA30579@mtj.duckdns.org> <20151022150623.GE26854@dhcp22.suse.cz> <20151022151528.GG30579@mtj.duckdns.org>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-api@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>
+To: Tejun Heo <htejun@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
 
-On Thu, Oct 22, 2015 at 05:15:09PM +0200, Peter Zijlstra wrote:
-> Indefinitely is such a long time, we should try and finish
-> computation before the computer dies etc. :-)
+Ok that also makes me rethink commit
+ba4877b9ca51f80b5d30f304a46762f0509e1635 which seems to be a similar fix
+this time related to idle mode not updating the counters.
 
-Indefinitely as read_seqcount_retry, eventually it makes progress.
+Could we fix that by folding the counters before going to idle mode?
 
-Even returning 0 from the page fault can trigger it again
-indefinitely, so VM_FAULT_RETRY isn't fundamentally different from
-returning 0 and retrying the page fault again later. So it's not clear
-why VM_FAULT_RETRY can only try once more.
-
-FAULT_FLAG_TRIED as a message to the VM so it starts to do heavy
-locking and block more aggressively is actually useful as such, but it
-shouldn't be a replacement of FAULT_FLAG_ALLOW_RETRY. What I meant
-with removing FAULT_FLAG_TRIED is really about converting it to an
-hint, but not controlling if the page fault can keep retrying
-in-kernel.
+That fix seems to now create 2 separate application interuptions because
+the vmstat update is not deferred anymore to occur with other events.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
