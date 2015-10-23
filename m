@@ -1,47 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 879A26B0253
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 09:43:33 -0400 (EDT)
-Received: by ioll68 with SMTP id l68so125107626iol.3
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 06:43:33 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id p6si3419354igj.14.2015.10.23.06.43.33
-        for <linux-mm@kvack.org>;
-        Fri, 23 Oct 2015 06:43:33 -0700 (PDT)
-Date: Fri, 23 Oct 2015 06:59:57 -0700 (PDT)
-Message-Id: <20151023.065957.1690815054807881760.davem@davemloft.net>
-Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
- hierarchy
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20151023131956.GA15375@dhcp22.suse.cz>
-References: <1445487696-21545-1-git-send-email-hannes@cmpxchg.org>
-	<1445487696-21545-6-git-send-email-hannes@cmpxchg.org>
-	<20151023131956.GA15375@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
+	by kanga.kvack.org (Postfix) with ESMTP id C38316B0254
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 09:45:41 -0400 (EDT)
+Received: by yknn9 with SMTP id n9so119859801ykn.0
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 06:45:41 -0700 (PDT)
+Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
+        by mx.google.com with ESMTPS id s5si8831803ywd.151.2015.10.23.06.45.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 23 Oct 2015 06:45:41 -0700 (PDT)
+Message-ID: <562A3A00.60509@citrix.com>
+Date: Fri, 23 Oct 2015 14:45:36 +0100
+From: David Vrabel <david.vrabel@citrix.com>
+MIME-Version: 1.0
+Subject: Re: [Xen-devel] [PATCH] mm: hotplug: Don't release twice the resource
+ on error
+References: <1445605053-23274-1-git-send-email-julien.grall@citrix.com>
+In-Reply-To: <1445605053-23274-1-git-send-email-julien.grall@citrix.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Julien Grall <julien.grall@citrix.com>, xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, David Vrabel <david.vrabel@citrix.com>
 
-From: Michal Hocko <mhocko@kernel.org>
-Date: Fri, 23 Oct 2015 15:19:56 +0200
+On 23/10/15 13:57, Julien Grall wrote:
+> The function add_memory_resource take in parameter a resource allocated
+> by the caller. On error, both add_memory_resource and the caller will
+> release the resource via release_memory_source.
+[...]
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1298,7 +1298,6 @@ error:
+>  	/* rollback pgdat allocation and others */
+>  	if (new_pgdat)
+>  		rollback_node_hotadd(nid, pgdat);
+> -	release_memory_resource(res);
+>  	memblock_remove(start, size);
 
-> On Thu 22-10-15 00:21:33, Johannes Weiner wrote:
->> Socket memory can be a significant share of overall memory consumed by
->> common workloads. In order to provide reasonable resource isolation
->> out-of-the-box in the unified hierarchy, this type of memory needs to
->> be accounted and tracked per default in the memory controller.
-> 
-> What about users who do not want to pay an additional overhead for the
-> accounting? How can they disable it?
+I've folded this in, thanks.
 
-Yeah, this really cannot pass.
-
-This extra overhead will be seen by %99.9999 of users, since entities
-(especially distributions) just flip on all of these config options by
-default.
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
