@@ -1,59 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 68A7A6B0038
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 13:19:18 -0400 (EDT)
-Received: by iofz202 with SMTP id z202so130688896iof.2
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 10:19:18 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id u83si16671761ioi.16.2015.10.23.10.19.17
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id BD6F36B0038
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 14:21:23 -0400 (EDT)
+Received: by pasz6 with SMTP id z6so124549177pas.2
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 11:21:23 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id sk1si31266398pbc.113.2015.10.23.11.21.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Oct 2015 10:19:17 -0700 (PDT)
-Received: by pacfv9 with SMTP id fv9so129075781pac.3
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 10:19:17 -0700 (PDT)
-Received: from [192.168.123.149] ([116.121.77.221])
-        by smtp.gmail.com with ESMTPSA id ug4sm20024615pac.11.2015.10.23.10.19.16
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 23 Oct 2015 10:19:16 -0700 (PDT)
-From: Jungseok Lee <jungseoklee85@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Oct 2015 11:21:22 -0700 (PDT)
+Received: by padhk11 with SMTP id hk11so124776617pad.1
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 11:21:22 -0700 (PDT)
+Date: Sat, 24 Oct 2015 03:21:09 +0900
+From: Tejun Heo <htejun@gmail.com>
+Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable()
+ checks
+Message-ID: <20151023182109.GA14610@mtj.duckdns.org>
+References: <20151022140944.GA30579@mtj.duckdns.org>
+ <20151022150623.GE26854@dhcp22.suse.cz>
+ <20151022151528.GG30579@mtj.duckdns.org>
+ <20151022153559.GF26854@dhcp22.suse.cz>
+ <20151022153703.GA3899@mtj.duckdns.org>
+ <20151022154922.GG26854@dhcp22.suse.cz>
+ <20151022184226.GA19289@mtj.duckdns.org>
+ <20151023083316.GB2410@dhcp22.suse.cz>
+ <20151023103630.GA4170@mtj.duckdns.org>
+ <20151023111145.GH2410@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: 'atom_size' configuration when a generic setup_per_cpu_ares() is used
-Date: Sat, 24 Oct 2015 02:19:13 +0900
-Message-Id: <7E527DCB-C2D1-47D7-A57A-88D37DFEDAD6@gmail.com>
-Mime-Version: 1.0 (Apple Message framework v1283)
+Content-Disposition: inline
+In-Reply-To: <20151023111145.GH2410@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
 
-Greetings,
+Hello,
 
-Nowadays I'm working on 'IRQ Stack' on ARM64 [1]. Like x86, I'd like to
-utilize percpu infrastructure for stack allocation, but I've got a challenge.
+On Fri, Oct 23, 2015 at 01:11:45PM +0200, Michal Hocko wrote:
+> > The problem here is not lack
+> > of execution resource but concurrency management misunderstanding the
+> > situation. 
+> 
+> And this sounds like a bug to me.
 
-ARM64 uses a generic setup_per_cpu_areas() described in mm/percpu.c. IOW,
-__per_cpu_offset[] is PAGE_SIZE aligned, and it is not possible to allocate
-stack with an alignment which is bigger than PAGE_SIZE. At first glance,
-the alignment of __per_cpu_offset[] looks controlled by 'atom_size' argument
-of pcpu_embed_first_chunk(), but I soon realize that the 'atom_size' is not
-configurable in this case.
+I don't know.  I can be argued either way, the other direction being a
+kernel thread going RUNNING non-stop is buggy.  Given how this has
+been a complete non-issue for all the years, I'm not sure how useful
+plugging this is.
 
-It would be redundant to introduce ARM64-specific setup_per_cpu_areas() for
-a single parameter, atom_size, change. At the same time, it is doubtable to
-define an interface, like PERCPU_ENOUGH_ROOM [2], for a single arch support.
-I'm not sure which approach is better than the other.
+> Don't we have some IO related paths which would suffer from the same
+> problem. I haven't checked all the WQ_MEM_RECLAIM users but from the
+> name I would expect they _do_ participate in the reclaim and so they
+> should be able to make a progress. Now if your new IMMEDIATE flag will
 
-Any comments are greatly welcome.
+Seriously, nobody goes full-on RUNNING.
 
-Thanks in advance!
+> guarantee that then I would argue that it should be implicit for
+> WQ_MEM_RECLAIM otherwise we always risk a similar situation. What would
+> be a counter argument for doing that?
 
-[1] https://lkml.org/lkml/2015/10/17/75
-[2] Since no code uses PERCPU_ENOUGH_ROOM, it could be dropped as clean-up.
+Not serving any actual purpose and degrading execution behavior.
 
---
-Best Regards
-Jungseok Lee
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
