@@ -1,46 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C38316B0254
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 09:45:41 -0400 (EDT)
-Received: by yknn9 with SMTP id n9so119859801ykn.0
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 06:45:41 -0700 (PDT)
-Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id s5si8831803ywd.151.2015.10.23.06.45.41
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EE836B0253
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 09:46:04 -0400 (EDT)
+Received: by wijp11 with SMTP id p11so78300577wij.0
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 06:46:04 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dh8si24959261wjc.205.2015.10.23.06.46.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 23 Oct 2015 06:45:41 -0700 (PDT)
-Message-ID: <562A3A00.60509@citrix.com>
-Date: Fri, 23 Oct 2015 14:45:36 +0100
-From: David Vrabel <david.vrabel@citrix.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 23 Oct 2015 06:46:03 -0700 (PDT)
+Date: Fri, 23 Oct 2015 06:45:53 -0700
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: [PATCH] mm/hugetlb: i_mmap_lock_write before unmapping in
+ remove_inode_hugepages
+Message-ID: <20151023134553.GE27292@linux-uzut.site>
+References: <1445478147-29782-1-git-send-email-mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [Xen-devel] [PATCH] mm: hotplug: Don't release twice the resource
- on error
-References: <1445605053-23274-1-git-send-email-julien.grall@citrix.com>
-In-Reply-To: <1445605053-23274-1-git-send-email-julien.grall@citrix.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <1445478147-29782-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julien Grall <julien.grall@citrix.com>, xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, David Vrabel <david.vrabel@citrix.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 23/10/15 13:57, Julien Grall wrote:
-> The function add_memory_resource take in parameter a resource allocated
-> by the caller. On error, both add_memory_resource and the caller will
-> release the resource via release_memory_source.
-[...]
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1298,7 +1298,6 @@ error:
->  	/* rollback pgdat allocation and others */
->  	if (new_pgdat)
->  		rollback_node_hotadd(nid, pgdat);
-> -	release_memory_resource(res);
->  	memblock_remove(start, size);
+On Wed, 21 Oct 2015, Mike Kravetz wrote:
 
-I've folded this in, thanks.
+>Code was added to remove_inode_hugepages that will unmap a page if
+>it is mapped.  i_mmap_lock_write() must be taken during the call
+>to hugetlb_vmdelete_list().  This is to prevent mappings(vmas) from
+>being added or deleted while the list of vmas is being examined.
+                                   ^^^^ interval-tree.
+>
+>Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-David
+Reviewed-by: Davidlohr Bueso <dbueso@suse.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
