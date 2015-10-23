@@ -1,88 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D7606B0038
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 08:08:49 -0400 (EDT)
-Received: by obctp1 with SMTP id tp1so64677633obc.2
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 05:08:49 -0700 (PDT)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id ds10si11994089oeb.77.2015.10.23.05.08.48
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id EB80082F64
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 08:25:25 -0400 (EDT)
+Received: by ioll68 with SMTP id l68so122885834iol.3
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 05:25:25 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id h31si15443719ioi.167.2015.10.23.05.25.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Oct 2015 05:08:48 -0700 (PDT)
-Received: by pasz6 with SMTP id z6so117129546pas.2
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 05:08:47 -0700 (PDT)
-Date: Fri, 23 Oct 2015 21:07:28 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: Make vmstat deferrable again (was Re: [PATCH] mm,vmscan: Use
- accurate values for zone_reclaimable() checks)
-Message-ID: <20151023120728.GA462@swordfish>
-References: <20151021145505.GE8805@dhcp22.suse.cz>
- <alpine.DEB.2.20.1510211214480.10364@east.gentwo.org>
- <201510222037.ACH86458.OFOLFtQFOHJSVM@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.20.1510220836430.18486@east.gentwo.org>
- <20151022140944.GA30579@mtj.duckdns.org>
- <20151022150623.GE26854@dhcp22.suse.cz>
- <20151022151528.GG30579@mtj.duckdns.org>
- <alpine.DEB.2.20.1510221031090.24250@east.gentwo.org>
- <20151023083719.GD2410@dhcp22.suse.cz>
- <alpine.DEB.2.20.1510230642210.5612@east.gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.20.1510230642210.5612@east.gentwo.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Oct 2015 05:25:25 -0700 (PDT)
+Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable() checks
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20151022154922.GG26854@dhcp22.suse.cz>
+	<20151022184226.GA19289@mtj.duckdns.org>
+	<20151023083316.GB2410@dhcp22.suse.cz>
+	<20151023103630.GA4170@mtj.duckdns.org>
+	<20151023111145.GH2410@dhcp22.suse.cz>
+In-Reply-To: <20151023111145.GH2410@dhcp22.suse.cz>
+Message-Id: <201510232125.DAG82381.LMJtOQFOHVOSFF@I-love.SAKURA.ne.jp>
+Date: Fri, 23 Oct 2015 21:25:11 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Tejun Heo <htejun@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: mhocko@kernel.org, htejun@gmail.com
+Cc: cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
 
-On (10/23/15 06:43), Christoph Lameter wrote:
-> Is this ok?
+Michal Hocko wrote:
+> On Fri 23-10-15 19:36:30, Tejun Heo wrote:
+> > Hello, Michal.
+> > 
+> > On Fri, Oct 23, 2015 at 10:33:16AM +0200, Michal Hocko wrote:
+> > > Ohh, OK I can see wq_worker_sleeping now. I've missed your point in
+> > > other email, sorry about that. But now I am wondering whether this
+> > > is an intended behavior. The documentation says:
+> > 
+> > This is.
+> > 
+> > >   WQ_MEM_RECLAIM
+> > > 
+> > >         All wq which might be used in the memory reclaim paths _MUST_
+> > >         have this flag set.  The wq is guaranteed to have at least one
+> > >         execution context regardless of memory pressure.
+> > > 
+> > > Which doesn't seem to be true currently, right? Now I can see your patch
+> > 
+> > It is true.
+> > 
+> > > to introduce WQ_IMMEDIATE but I am wondering which WQ_MEM_RECLAIM users
+> > > could do without WQ_IMMEDIATE? I mean all current workers might be
+> > > looping in the page allocator and it seems possible that WQ_MEM_RECLAIM
+> > > work items might be waiting behind them so they cannot help to relieve
+> > > the memory pressure. This doesn't sound right to me. Or I am completely
+> > > confused and still fail to understand what is WQ_MEM_RECLAIM supposed to
+> > > be used for.
+> > 
+> > It guarantees that there always is enough execution resource to
+> > execute a work item from that workqueue. 
+> 
+> OK, strictly speaking the rescuer is there but it is kind of pointless
+> if it doesn't fire up and do a work.
+> 
+> > The problem here is not lack
+> > of execution resource but concurrency management misunderstanding the
+> > situation. 
+> 
+> And this sounds like a bug to me.
+> 
+> > This also can be fixed by teaching concurrency management
+> > to be a bit smarter - e.g. if a work item is burning a lot of CPU
+> > cycles continuously or pool hasn't finished a work item over a certain
+> > amount of time, automatically ignore the in-flight work item for the
+> > purpose of concurrency management; however, this sort of inter-work
+> > item busy waits are so extremely rare and undesirable that I'm not
+> > sure the added complexity would be worthwhile.
+> 
+> Don't we have some IO related paths which would suffer from the same
+> problem. I haven't checked all the WQ_MEM_RECLAIM users but from the
+> name I would expect they _do_ participate in the reclaim and so they
+> should be able to make a progress. Now if your new IMMEDIATE flag will
+> guarantee that then I would argue that it should be implicit for
+> WQ_MEM_RECLAIM otherwise we always risk a similar situation. What would
+> be a counter argument for doing that?
 
-kernel/sched/loadavg.c: In function a??calc_load_enter_idlea??:
-kernel/sched/loadavg.c:195:2: error: implicit declaration of function a??quiet_vmstata?? [-Werror=implicit-function-declaration]
-  quiet_vmstat();
-    ^
+WQ_MEM_RECLAIM only guarantees that a "struct task_struct" is preallocated
+in order to avoid failing to allocate it on demand due to a GFP_KERNEL
+allocation? Is this correct?
 
-> Subject: Fix vmstat: make vmstat_updater deferrable again and shut down on idle
-> 
-> Currently the vmstat updater is not deferrable as a result of commit
-> ba4877b9ca51f80b5d30f304a46762f0509e1635. This in turn can cause multiple
-> interruptions of the applications because the vmstat updater may run at
-> different times than tick processing. No good.
-> 
-> Make vmstate_update deferrable again and provide a function that
-> shuts down the vmstat updater when we go idle by folding the differentials.
-> Shut it down from the load average calculation logic introduced by nohz.
-> 
-> Note that the shepherd thread will continue scanning the differentials
-> from another processor and will reenable the vmstat workers if it
-> detects any changes.
-> 
-> Fixes: ba4877b9ca51f80b5d30f304a46762f0509e1635 (do not use deferrable delay)
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> Index: linux/mm/vmstat.c
-> ===================================================================
-> --- linux.orig/mm/vmstat.c
-> +++ linux/mm/vmstat.c
-> @@ -1395,6 +1395,20 @@ static void vmstat_update(struct work_st
->  }
-> 
->  /*
-> + * Switch off vmstat processing and then fold all the remaining differentials
-> + * until the diffs stay at zero. The function is used by NOHZ and can only be
-> + * invoked when tick processing is not active.
-> + */
-> +void quiet_vmstat(void)
-> +{
-> +	do {
-> +		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
-> +			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
+WQ_CPU_INTENSIVE only guarantees that work items don't participate in
+concurrency management in order to avoid failing to wake up a "struct
+task_struct" which will process the work items? Is this correct?
 
-shouldn't preemption be disable for smp_processor_id() here?
-
-	-ss
+Is Michal's question "does it make sense to use WQ_MEM_RECLAIM without
+WQ_CPU_INTENSIVE"? In other words, any "struct task_struct" which calls
+rescuer_thread() must imply WQ_CPU_INTENSIVE in order to avoid failing to
+wake up due to being participated in concurrency management?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
