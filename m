@@ -1,83 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B6F1A6B0256
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 10:07:48 -0400 (EDT)
-Received: by pabrc13 with SMTP id rc13so119304013pab.0
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 07:07:48 -0700 (PDT)
-Received: from g2t4621.austin.hp.com (g2t4621.austin.hp.com. [15.73.212.80])
-        by mx.google.com with ESMTPS id rf5si29806311pbc.205.2015.10.23.07.07.47
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 603706B0257
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 10:12:51 -0400 (EDT)
+Received: by obbwb3 with SMTP id wb3so94748315obb.0
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 07:12:51 -0700 (PDT)
+Received: from resqmta-po-06v.sys.comcast.net (resqmta-po-06v.sys.comcast.net. [2001:558:fe16:19:96:114:154:165])
+        by mx.google.com with ESMTPS id kz3si12348696oeb.64.2015.10.23.07.12.50
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Oct 2015 07:07:47 -0700 (PDT)
-Message-ID: <1445609037.20657.68.camel@hpe.com>
-Subject: Re: [PATCH 3/3] ACPI/APEI/EINJ: Allow memory error injection to
- NVDIMM
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Fri, 23 Oct 2015 08:03:57 -0600
-In-Reply-To: <CAPcyv4j9iDrUrS1Xt4sTV8KOg6wsb=stp=XzoOLFBtuqWf+0AQ@mail.gmail.com>
-References: <1445556044-30322-1-git-send-email-toshi.kani@hpe.com>
-	 <1445556044-30322-4-git-send-email-toshi.kani@hpe.com>
-	 <CAPcyv4j9iDrUrS1Xt4sTV8KOg6wsb=stp=XzoOLFBtuqWf+0AQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 23 Oct 2015 07:12:50 -0700 (PDT)
+Date: Fri, 23 Oct 2015 09:12:47 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Make vmstat deferrable again (was Re: [PATCH] mm,vmscan: Use
+ accurate values for zone_reclaimable() checks)
+In-Reply-To: <20151023120728.GA462@swordfish>
+Message-ID: <alpine.DEB.2.20.1510230910370.12801@east.gentwo.org>
+References: <20151021145505.GE8805@dhcp22.suse.cz> <alpine.DEB.2.20.1510211214480.10364@east.gentwo.org> <201510222037.ACH86458.OFOLFtQFOHJSVM@I-love.SAKURA.ne.jp> <alpine.DEB.2.20.1510220836430.18486@east.gentwo.org> <20151022140944.GA30579@mtj.duckdns.org>
+ <20151022150623.GE26854@dhcp22.suse.cz> <20151022151528.GG30579@mtj.duckdns.org> <alpine.DEB.2.20.1510221031090.24250@east.gentwo.org> <20151023083719.GD2410@dhcp22.suse.cz> <alpine.DEB.2.20.1510230642210.5612@east.gentwo.org>
+ <20151023120728.GA462@swordfish>
+Content-Type: multipart/mixed; BOUNDARY="8323329-1975020026-1445609567=:12801"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux ACPI <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Tejun Heo <htejun@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
 
-On Thu, 2015-10-22 at 17:14 -0700, Dan Williams wrote:
-> On Thu, Oct 22, 2015 at 4:20 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
-> > In the case of memory error injection, einj_error_inject() checks
-> > if a target address is regular RAM.  Change this check to allow
-> > injecting a memory error to both RAM and NVDIMM so that memory
-> > errors can be tested on NVDIMM as well.
-> > 
-> > Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> > ---
-> >  drivers/acpi/apei/einj.c |   12 ++++++++----
-> >  1 file changed, 8 insertions(+), 4 deletions(-)
-> > 
-> > diff --git a/drivers/acpi/apei/einj.c b/drivers/acpi/apei/einj.c
-> > index 0431883..696f45a 100644
-> > --- a/drivers/acpi/apei/einj.c
-> > +++ b/drivers/acpi/apei/einj.c
-> > @@ -519,7 +519,7 @@ static int
-> (u32 type, u32 flags, u64 param1, u64 param2,
-> >                              u64 param3, u64 param4)
-> >  {
-> >         int rc;
-> > -       unsigned long pfn;
-> > +       u64 base_addr, size;
-> > 
-> >         /* If user manually set "flags", make sure it is legal */
-> >         if (flags && (flags &
-> > @@ -545,10 +545,14 @@ static int einj_error_inject(u32 type, u32 flags, u64
-> > param1, u64 param2,
-> >         /*
-> >          * Disallow crazy address masks that give BIOS leeway to pick
-> >          * injection address almost anywhere. Insist on page or
-> > -        * better granularity and that target address is normal RAM.
-> > +        * better granularity and that target address is normal RAM or
-> > +        * NVDIMM.
-> >          */
-> > -       pfn = PFN_DOWN(param1 & param2);
-> > -       if (!page_is_ram(pfn) || ((param2 & PAGE_MASK) != PAGE_MASK))
-> > +       base_addr = param1 & param2;
-> > +       size = (~param2) + 1;
-> > +       if (((!page_is_ram(PFN_DOWN(base_addr))) &&
-> > +            (region_intersects_pmem(base_addr, size) != REGION_INTERSECTS))
-> > ||
-> > +           ((param2 & PAGE_MASK) != PAGE_MASK))
-> 
-> Hmm, should we also convert the page_is_ram() call to
-> region_intersects_ram() so that we check the entire range from
-> base_addr to base_addr + size?
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Agreed.  I will update to use region_intersects_ram().
+--8323329-1975020026-1445609567=:12801
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8BIT
 
-Thanks,
--Toshi
+On Fri, 23 Oct 2015, Sergey Senozhatsky wrote:
+
+> On (10/23/15 06:43), Christoph Lameter wrote:
+> > Is this ok?
+>
+> kernel/sched/loadavg.c: In function a??calc_load_enter_idlea??:
+> kernel/sched/loadavg.c:195:2: error: implicit declaration of function a??quiet_vmstata?? [-Werror=implicit-function-declaration]
+>   quiet_vmstat();
+>     ^
+
+Oww... Not good to do that in the scheduler. Ok new patch follows that
+does the call from tick_nohz_stop_sched_tick. Hopefully that is the right
+location to call quiet_vmstat().
+
+> > +		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
+> > +			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
+>
+> shouldn't preemption be disable for smp_processor_id() here?
+
+Preemption is disabled when quiet_vmstat() is called.
+
+
+
+Subject: Fix vmstat: make vmstat_updater deferrable again and shut down on idle V2
+
+V1->V2
+ - Call vmstat_quiet from tick_nohz_stop_sched_tick() instead.
+
+Currently the vmstat updater is not deferrable as a result of commit
+ba4877b9ca51f80b5d30f304a46762f0509e1635. This in turn can cause multiple
+interruptions of the applications because the vmstat updater may run at
+different times than tick processing. No good.
+
+Make vmstate_update deferrable again and provide a function that
+shuts down the vmstat updater when we go idle by folding the differentials.
+Shut it down from the load average calculation logic introduced by nohz.
+
+Note that the shepherd thread will continue scanning the differentials
+from another processor and will reenable the vmstat workers if it
+detects any changes.
+
+Fixes: ba4877b9ca51f80b5d30f304a46762f0509e1635 (do not use deferrable delay)
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c
++++ linux/mm/vmstat.c
+@@ -1395,6 +1395,20 @@ static void vmstat_update(struct work_st
+ }
+
+ /*
++ * Switch off vmstat processing and then fold all the remaining differentials
++ * until the diffs stay at zero. The function is used by NOHZ and can only be
++ * invoked when tick processing is not active.
++ */
++void quiet_vmstat(void)
++{
++	do {
++		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
++			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
++
++	} while (refresh_cpu_vm_stats());
++}
++
++/*
+  * Check if the diffs for a certain cpu indicate that
+  * an update is needed.
+  */
+@@ -1426,7 +1440,7 @@ static bool need_update(int cpu)
+  */
+ static void vmstat_shepherd(struct work_struct *w);
+
+-static DECLARE_DELAYED_WORK(shepherd, vmstat_shepherd);
++static DECLARE_DEFERRABLE_WORK(shepherd, vmstat_shepherd);
+
+ static void vmstat_shepherd(struct work_struct *w)
+ {
+Index: linux/include/linux/vmstat.h
+===================================================================
+--- linux.orig/include/linux/vmstat.h
++++ linux/include/linux/vmstat.h
+@@ -211,6 +211,7 @@ extern void __inc_zone_state(struct zone
+ extern void dec_zone_state(struct zone *, enum zone_stat_item);
+ extern void __dec_zone_state(struct zone *, enum zone_stat_item);
+
++void quiet_vmstat(void);
+ void cpu_vm_stats_fold(int cpu);
+ void refresh_zone_stat_thresholds(void);
+
+@@ -272,6 +273,7 @@ static inline void __dec_zone_page_state
+ static inline void refresh_cpu_vm_stats(int cpu) { }
+ static inline void refresh_zone_stat_thresholds(void) { }
+ static inline void cpu_vm_stats_fold(int cpu) { }
++static inline void quiet_vmstat(void) { }
+
+ static inline void drain_zonestat(struct zone *zone,
+ 			struct per_cpu_pageset *pset) { }
+Index: linux/kernel/time/tick-sched.c
+===================================================================
+--- linux.orig/kernel/time/tick-sched.c
++++ linux/kernel/time/tick-sched.c
+@@ -667,6 +667,7 @@ static ktime_t tick_nohz_stop_sched_tick
+ 	 */
+ 	if (!ts->tick_stopped) {
+ 		nohz_balance_enter_idle(cpu);
++		quiet_vmstat();
+ 		calc_load_enter_idle();
+
+ 		ts->last_tick = hrtimer_get_expires(&ts->sched_timer);
+--8323329-1975020026-1445609567=:12801--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
