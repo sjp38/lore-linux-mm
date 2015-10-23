@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 22A8F6B0038
-	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 23:23:42 -0400 (EDT)
-Received: by pasz6 with SMTP id z6so104805050pas.2
-        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 20:23:41 -0700 (PDT)
-Received: from out21.biz.mail.alibaba.com (out21.biz.mail.alibaba.com. [205.204.114.132])
-        by mx.google.com with ESMTP id co2si26005081pbc.217.2015.10.22.20.23.39
+	by kanga.kvack.org (Postfix) with ESMTP id 19B3E6B0038
+	for <linux-mm@kvack.org>; Thu, 22 Oct 2015 23:26:10 -0400 (EDT)
+Received: by pabrc13 with SMTP id rc13so104749268pab.0
+        for <linux-mm@kvack.org>; Thu, 22 Oct 2015 20:26:09 -0700 (PDT)
+Received: from us-alimail-mta1.hst.scl.en.alidc.net (mail113-251.mail.alibaba.com. [205.204.113.251])
+        by mx.google.com with ESMTP id pv8si26040468pbc.74.2015.10.22.20.26.08
         for <linux-mm@kvack.org>;
-        Thu, 22 Oct 2015 20:23:41 -0700 (PDT)
+        Thu, 22 Oct 2015 20:26:09 -0700 (PDT)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <05ec01d10c9b$4df7ba80$e9e72f80$@alibaba-inc.com> <05f501d10c9e$a8562900$f9027b00$@alibaba-inc.com> <20151022142144.GB2914@redhat.com>
-In-Reply-To: <20151022142144.GB2914@redhat.com>
-Subject: Re: [PATCH v11 02/14] HMM: add special swap filetype for memory migrated to device v2.
-Date: Fri, 23 Oct 2015 11:23:26 +0800
-Message-ID: <070501d10d42$2ec35190$8c49f4b0$@alibaba-inc.com>
+References: <062101d10cae$91d986d0$b58c9470$@alibaba-inc.com> <20151022142618.GC2914@redhat.com>
+In-Reply-To: <20151022142618.GC2914@redhat.com>
+Subject: Re: [PATCH v11 07/14] HMM: mm add helper to update page table when migrating memory v2.
+Date: Fri, 23 Oct 2015 11:25:54 +0800
+Message-ID: <071501d10d42$86fd39c0$94f7ad40$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="US-ASCII"
@@ -23,26 +23,30 @@ Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: 'Jerome Glisse' <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, 'linux-kernel' <linux-kernel@vger.kernel.org>
+Cc: 'linux-kernel' <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-> > > +	if (cnt_hmm_entry) {
-> > > +		int ret;
-> > > +
-> > > +		ret = hmm_mm_fork(src_mm, dst_mm, dst_vma,
-> > > +				  dst_pmd, start, end);
-> >
-> > Given start, s/end/addr/, no?
+> > > This is a multi-stage process, first we save and replace page table
+> > > entry with special HMM entry, also flushing tlb in the process. If
+> > > we run into non allocated entry we either use the zero page or we
+> > > allocate new page. For swaped entry we try to swap them in.
+> > >
+> > Please elaborate why swap entry is handled this way.
 > 
-> No, end is the right upper limit here.
+> So first, this is only when you have a device then use HMM and a device
+> that use memory migration. So far it only make sense for discrete GPUs.
+> So regular workload that do not use a GPUs with HMM are not impacted and
+> will not go throught this code path.
 > 
-Then in the first loop, hmm_mm_fork is invoked for
-the _entire_ range, from input addr to end.
-In subsequent loops(if necessary), start is updated to
-addr, and hmm_mm_fork is also invoked for remaining
-range, from start to end.
+> Now, here we are migrating memory because the device driver is asking for
+> it, so presumably we are expecting that the device will use that memory
+> hence we want to swap in anything that have been swap to disk. Once it is
+> swap in memory we copy it to device memory and free the pages. So in the
+> end we only need to allocate a page temporarily until we move things to
+> the device.
+> 
+I prefer it is in log message.
 
-Is the above overlap in range making sense?
-
+thanks
 Hillf
 
 --
