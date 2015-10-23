@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id A8DCB6B0253
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 08:46:19 -0400 (EDT)
-Received: by iow1 with SMTP id 1so122637613iow.1
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 05:46:19 -0700 (PDT)
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A73306B0253
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 08:46:24 -0400 (EDT)
+Received: by igdg1 with SMTP id g1so15384482igd.1
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 05:46:24 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g7si3114814igq.93.2015.10.23.05.46.18
+        by mx.google.com with ESMTPS id n18si3134658igx.75.2015.10.23.05.46.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Oct 2015 05:46:19 -0700 (PDT)
-Subject: [PATCH 3/4] ixgbe: bulk free SKBs during TX completion cleanup cycle
+        Fri, 23 Oct 2015 05:46:24 -0700 (PDT)
+Subject: [PATCH 4/4] net: bulk alloc and reuse of SKBs in NAPI context
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Fri, 23 Oct 2015 14:46:16 +0200
-Message-ID: <20151023124616.17364.61007.stgit@firesoul>
+Date: Fri, 23 Oct 2015 14:46:22 +0200
+Message-ID: <20151023124621.17364.15109.stgit@firesoul>
 In-Reply-To: <20151023124451.17364.14594.stgit@firesoul>
 References: <20151023124451.17364.14594.stgit@firesoul>
 MIME-Version: 1.0
@@ -23,58 +23,105 @@ List-ID: <linux-mm.kvack.org>
 To: netdev@vger.kernel.org
 Cc: Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-There is an opportunity to bulk free SKBs during reclaiming of
-resources after DMA transmit completes in ixgbe_clean_tx_irq.  Thus,
-bulk freeing at this point does not introduce any added latency.
+Think twice before applying
+ - This patch can potentially introduce added latency in some workloads
 
-Simply use napi_consume_skb() which were recently introduced.  The
-napi_budget parameter is needed by napi_consume_skb() to detect if it
-is called from netpoll.
+This patch introduce bulk alloc of SKBs and allow reuse of SKBs
+free'ed in same softirq cycle.  SKBs are normally free'ed during TX
+completion, but most high speed drivers also cleanup TX ring during
+NAPI RX poll cycle.  Thus, if using napi_consume_skb/__kfree_skb_defer,
+SKBs will be avail in the napi_alloc_cache->skb_cache.
+
+If no SKBs are avail for reuse, then only bulk alloc 8 SKBs, to limit
+the potential overshooting unused SKBs needed to free'ed when NAPI
+cycle ends (flushed in net_rx_action via __kfree_skb_flush()).
 
 Benchmarking IPv4-forwarding, on CPU i7-4790K @4.2GHz (no turbo boost)
- Single CPU/flow numbers: before: 1982144 pps ->  after : 2064446 pps
- Improvement: +82302 pps, -20 nanosec, +4.1%
- (SLUB and GCC version 5.1.1 20150618 (Red Hat 5.1.1-4))
+(GCC version 5.1.1 20150618 (Red Hat 5.1.1-4))
+ Allocator SLUB:
+  Single CPU/flow numbers: before: 2064446 pps -> after: 2083031 pps
+  Improvement: +18585 pps, -4.3 nanosec, +0.9%
+ Allocator SLAB:
+  Single CPU/flow numbers: before: 2035949 pps -> after: 2033567 pps
+  Regression: -2382 pps, +0.57 nanosec, -0.1 %
+
+Even-though benchmarking does show an improvement for SLUB(+0.9%), I'm
+not convinced bulk alloc will be a win in all situations:
+ * I see stalls on walking the SLUB freelist (normal hidden by prefetch)
+ * In case RX queue is not full, alloc and free more SKBs than needed
+
+More testing is needed with more real life benchmarks.
 
 Joint work with Alexander Duyck.
 
-Signed-off-by: Alexander Duyck <alexander.h.duyck@redhat.com>
 Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+Signed-off-by: Alexander Duyck <alexander.h.duyck@redhat.com>
 ---
- drivers/net/ethernet/intel/ixgbe/ixgbe_main.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ net/core/skbuff.c |   35 +++++++++++++++++++++++++++++++----
+ 1 file changed, 31 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-index 9f8a7fd7a195..4614dfb3febd 100644
---- a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-+++ b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-@@ -1090,7 +1090,7 @@ static void ixgbe_tx_timeout_reset(struct ixgbe_adapter *adapter)
-  * @tx_ring: tx ring to clean
-  **/
- static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
--			       struct ixgbe_ring *tx_ring)
-+			       struct ixgbe_ring *tx_ring, int napi_budget)
+diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+index 2ffcb014e00b..d0e0ccccfb11 100644
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -483,13 +483,14 @@ struct sk_buff *__napi_alloc_skb(struct napi_struct *napi, unsigned int len,
+ 				 gfp_t gfp_mask)
  {
- 	struct ixgbe_adapter *adapter = q_vector->adapter;
- 	struct ixgbe_tx_buffer *tx_buffer;
-@@ -1128,7 +1128,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
- 		total_packets += tx_buffer->gso_segs;
+ 	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
++	struct skb_shared_info *shinfo;
+ 	struct sk_buff *skb;
+ 	void *data;
  
- 		/* free the skb */
--		dev_consume_skb_any(tx_buffer->skb);
-+		napi_consume_skb(tx_buffer->skb, napi_budget);
+ 	len += NET_SKB_PAD + NET_IP_ALIGN;
  
- 		/* unmap skb header data */
- 		dma_unmap_single(tx_ring->dev,
-@@ -2784,7 +2784,7 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
- #endif
+-	if ((len > SKB_WITH_OVERHEAD(PAGE_SIZE)) ||
+-	    (gfp_mask & (__GFP_WAIT | GFP_DMA))) {
++	if (unlikely((len > SKB_WITH_OVERHEAD(PAGE_SIZE)) ||
++		     (gfp_mask & (__GFP_WAIT | GFP_DMA)))) {
+ 		skb = __alloc_skb(len, gfp_mask, SKB_ALLOC_RX, NUMA_NO_NODE);
+ 		if (!skb)
+ 			goto skb_fail;
+@@ -506,12 +507,38 @@ struct sk_buff *__napi_alloc_skb(struct napi_struct *napi, unsigned int len,
+ 	if (unlikely(!data))
+ 		return NULL;
  
- 	ixgbe_for_each_ring(ring, q_vector->tx)
--		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring);
-+		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring, budget);
+-	skb = __build_skb(data, len);
+-	if (unlikely(!skb)) {
++#define BULK_ALLOC_SIZE 8
++	if (!nc->skb_count &&
++	    kmem_cache_alloc_bulk(skbuff_head_cache, gfp_mask,
++				  BULK_ALLOC_SIZE, nc->skb_cache)) {
++		nc->skb_count = BULK_ALLOC_SIZE;
++	}
++	if (likely(nc->skb_count)) {
++		skb = (struct sk_buff *)nc->skb_cache[--nc->skb_count];
++	} else {
++		/* alloc bulk failed */
+ 		skb_free_frag(data);
+ 		return NULL;
+ 	}
  
- 	if (!ixgbe_qv_lock_napi(q_vector))
- 		return budget;
++	len -= SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
++
++	memset(skb, 0, offsetof(struct sk_buff, tail));
++	skb->truesize = SKB_TRUESIZE(len);
++	atomic_set(&skb->users, 1);
++	skb->head = data;
++	skb->data = data;
++	skb_reset_tail_pointer(skb);
++	skb->end = skb->tail + len;
++	skb->mac_header = (typeof(skb->mac_header))~0U;
++	skb->transport_header = (typeof(skb->transport_header))~0U;
++
++	/* make sure we initialize shinfo sequentially */
++	shinfo = skb_shinfo(skb);
++	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
++	atomic_set(&shinfo->dataref, 1);
++	kmemcheck_annotate_variable(shinfo->destructor_arg);
++
+ 	/* use OR instead of assignment to avoid clearing of bits in mask */
+ 	if (nc->page.pfmemalloc)
+ 		skb->pfmemalloc = 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
