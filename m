@@ -1,255 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D5CE6B0038
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 07:37:11 -0400 (EDT)
-Received: by pacfv9 with SMTP id fv9so121966063pac.3
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 04:37:11 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id kq5si28963940pbc.41.2015.10.23.04.37.10
+Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A6AD6B0038
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 07:43:27 -0400 (EDT)
+Received: by iodv82 with SMTP id v82so120805907iod.0
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 04:43:26 -0700 (PDT)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id 88si1173027ios.166.2015.10.23.04.43.26
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Oct 2015 04:37:10 -0700 (PDT)
-Message-ID: <1445600226.4113.196.camel@infradead.org>
-Subject: Re: [RFC PATCH] iommu/vt-d: Add IOTLB flush support for kernel
- addresses
-From: David Woodhouse <dwmw2@infradead.org>
-Date: Fri, 23 Oct 2015 12:37:06 +0100
-In-Reply-To: <20151023110359.GA27420@8bytes.org>
-References: <1445356379.4486.56.camel@infradead.org>
-	 <20151020160328.GV27420@8bytes.org>
-	 <1445357824.4486.65.camel@infradead.org>
-	 <20151023102043.GZ27420@8bytes.org>
-	 <1445596413.4113.175.camel@infradead.org>
-	 <20151023110359.GA27420@8bytes.org>
-Content-Type: multipart/signed; micalg="sha-1"; protocol="application/x-pkcs7-signature";
-	boundary="=-+j3ugdn8pyIIgPLRAsGQ"
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 23 Oct 2015 04:43:26 -0700 (PDT)
+Date: Fri, 23 Oct 2015 06:43:24 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Make vmstat deferrable again (was Re: [PATCH] mm,vmscan: Use accurate
+ values for zone_reclaimable() checks)
+In-Reply-To: <20151023083719.GD2410@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1510230642210.5612@east.gentwo.org>
+References: <20151021143337.GD8805@dhcp22.suse.cz> <alpine.DEB.2.20.1510210948460.6898@east.gentwo.org> <20151021145505.GE8805@dhcp22.suse.cz> <alpine.DEB.2.20.1510211214480.10364@east.gentwo.org> <201510222037.ACH86458.OFOLFtQFOHJSVM@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.20.1510220836430.18486@east.gentwo.org> <20151022140944.GA30579@mtj.duckdns.org> <20151022150623.GE26854@dhcp22.suse.cz> <20151022151528.GG30579@mtj.duckdns.org> <alpine.DEB.2.20.1510221031090.24250@east.gentwo.org>
+ <20151023083719.GD2410@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, iommu@lists.linux-foundation.org, Sudeep Dutt <sudeep.dutt@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tejun Heo <htejun@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
+
+On Fri, 23 Oct 2015, Michal Hocko wrote:
+
+> On Thu 22-10-15 10:33:20, Christoph Lameter wrote:
+> > Ok that also makes me rethink commit
+> > ba4877b9ca51f80b5d30f304a46762f0509e1635 which seems to be a similar fix
+> > this time related to idle mode not updating the counters.
+> >
+> > Could we fix that by folding the counters before going to idle mode?
+>
+> This would work as well.
+
+Is this ok?
 
 
---=-+j3ugdn8pyIIgPLRAsGQ
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Subject: Fix vmstat: make vmstat_updater deferrable again and shut down on idle
 
-On Fri, 2015-10-23 at 13:03 +0200, Joerg Roedel wrote:
-> On Fri, Oct 23, 2015 at 11:33:33AM +0100, David Woodhouse wrote:
-> > Which means I'm pondering *renaming* tlb_flush_kernel_range() to
-> > something like arch_tlb_flush_kernel_range() everywhere, then
-> > having a
-> > tlb_flush_kernel_range() inline function which optionally calls
-> > iommu_flush_kernel_range() first.
->=20
-> That sounds like some work, but would be the super clean solution :)
-> Given that only a handful of architecture besides x86 will need it
-> (thinking of ARM64 and PPC), I prefer the solution below:
->=20
-> > Or I could reduce the churn by adding explicit calls to
-> > iommu_flush_kernel_range() at every location that calls
-> > tlb_flush_kernel_range(), but that's going to lead to some callers
-> > missing the IOMMU flush.
->=20
-> Exactly like this, but when do we miss a flush here?
+Currently the vmstat updater is not deferrable as a result of commit
+ba4877b9ca51f80b5d30f304a46762f0509e1635. This in turn can cause multiple
+interruptions of the applications because the vmstat updater may run at
+different times than tick processing. No good.
 
-When we miss a call to flush_tlb_kernel_range() and forget to add the
-corresponding call to iommu_flush_kernel_range() next to it. We'd need
-to go trawling through arch code and make sure we get them all.
+Make vmstate_update deferrable again and provide a function that
+shuts down the vmstat updater when we go idle by folding the differentials.
+Shut it down from the load average calculation logic introduced by nohz.
 
-Or more likely, when someone adds a *new* call to
-flush_tlb_kernel_range() and doesn't realise that they also need to
-call iommu_flush_kernel_range().
+Note that the shepherd thread will continue scanning the differentials
+from another processor and will reenable the vmstat workers if it
+detects any changes.
 
-It's more work up front to do the "super clean solution", but I think
-it's worth it.
+Fixes: ba4877b9ca51f80b5d30f304a46762f0509e1635 (do not use deferrable delay)
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-> > Not entirely. The device still gets to specify whether it's doing
-> > supervisor or user mode access, for each request it makes. It doesn't
-> > open the door to users just using kernel addresses and getting away
-> > with it!
-> >=20
-> > Sure, we need to trust the *device* =E2=80=94 but we need to trust it t=
-o
-> > provide the correct PASID too. Which basically means in the VFIO case
-> > where the user gets *full* control of the device, we have to ensure
-> > that it gets its own PASID table with only the *one* PASID in it, and
-> > *that* PASID can't have supervisor mode.
->=20
-> Exactly, we need to trust the device and the device driver. But thats
-> not different to a situation without an iommu. We just run into problems
-> when a device-driver allows sending requests to access kernel-memory
-> from user-space, so it needs more care from the driver writers/reviewers
-> too.
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c
++++ linux/mm/vmstat.c
+@@ -1395,6 +1395,20 @@ static void vmstat_update(struct work_st
+ }
 
-It's more than that =E2=80=94 it's equivalent to the situation *with* the
-IOMMU.
+ /*
++ * Switch off vmstat processing and then fold all the remaining differentials
++ * until the diffs stay at zero. The function is used by NOHZ and can only be
++ * invoked when tick processing is not active.
++ */
++void quiet_vmstat(void)
++{
++	do {
++		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
++			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
++
++	} while (refresh_cpu_vm_stats());
++}
++
++/*
+  * Check if the diffs for a certain cpu indicate that
+  * an update is needed.
+  */
+@@ -1426,7 +1440,7 @@ static bool need_update(int cpu)
+  */
+ static void vmstat_shepherd(struct work_struct *w);
 
-Having a *separate* PASID which is the only PASID we can use for kernel
-mode is *not* a security improvement. In the general case, if a user
-can trick the device into setting the 'supervisor mode' bit on a given
-access, it could probably just as easily trick the device into using
-the separate kernel PASID for that access. In neither case is it as
-simple as just asking the device to use a kernel address.
+-static DECLARE_DELAYED_WORK(shepherd, vmstat_shepherd);
++static DECLARE_DEFERRABLE_WORK(shepherd, vmstat_shepherd);
 
-I'm not proposing it for that reason, which is why I'm objecting to
-your 'we have to...' response. Although maybe I should shut up, because
-I'm pleased you aren't objecting to my plan and saying that we *do*
-need to permit supervisor-mode access in normal PASIDs.
+ static void vmstat_shepherd(struct work_struct *w)
+ {
+Index: linux/include/linux/vmstat.h
+===================================================================
+--- linux.orig/include/linux/vmstat.h
++++ linux/include/linux/vmstat.h
+@@ -211,6 +211,7 @@ extern void __inc_zone_state(struct zone
+ extern void dec_zone_state(struct zone *, enum zone_stat_item);
+ extern void __dec_zone_state(struct zone *, enum zone_stat_item);
 
-> > +static inline void do_iommu_flush_ktlb(unsigned long start,
-> > unsigned long end)
-> > +{
-> > +	iommu_flush_ktlb_fn *fn;
-> > +	rcu_read_lock();
-> > +	fn =3D rcu_dereference(iommu_flush_ktlb);
-> > +	if (fn)
-> > +		(*fn)(start, end);
-> > +	rcu_read_unlock();
-> > +}
->=20
-> Yes, that'll work too. When you read/update the iommu_flush_ktlb pointer
-> atomically, you can even get away without rcu. The function it points to
-> will not go away, so you can still call it even when the pointer turned
-> NULL.
++void quiet_vmstat(void);
+ void cpu_vm_stats_fold(int cpu);
+ void refresh_zone_stat_thresholds(void);
 
-That's true. I do need to think hard about architectures with function
-descriptors though, where it might not be possible to atomically update
-a function pointer. Need to dust off my rusty PPC64 knowledge... :)
+@@ -272,6 +273,7 @@ static inline void __dec_zone_page_state
+ static inline void refresh_cpu_vm_stats(int cpu) { }
+ static inline void refresh_zone_stat_thresholds(void) { }
+ static inline void cpu_vm_stats_fold(int cpu) { }
++static inline void quiet_vmstat(void) { }
 
-(Note that this could screw the RCU approach too.)
+ static inline void drain_zonestat(struct zone *zone,
+ 			struct per_cpu_pageset *pset) { }
+Index: linux/kernel/sched/loadavg.c
+===================================================================
+--- linux.orig/kernel/sched/loadavg.c
++++ linux/kernel/sched/loadavg.c
+@@ -191,6 +191,8 @@ void calc_load_enter_idle(void)
 
-> > Maybe we could keep it simple and just declare that once the function
-> > pointer is set, it may never be cleared? But I think we really do want
-> > to avoid the out-of-line function call altogether in the case where
-> > kernel PASIDs are not being used. Or at *least* the case where SVM
-> > isn't being used at all.
->=20
-> Yes, thats why I think an inline function which does the checks would be
-> a better solution. The mmu_notifiers implement it in the same way, so we
-> would stay consistent with them.
+ 		atomic_long_add(delta, &calc_load_idle[idx]);
+ 	}
++	/* Fold the current vmstat counters and disable vmstat updater */
++	quiet_vmstat();
+ }
 
-You mean an inline function which checks for iommu->kernel_svm =E2=88=80 io=
-mmu?
-And does the equivalent for other IOMMUs? I wouldn't want IOMMU
--specific code in there; just a decision about whether to call the out
--of-line function.
-
-Or maybe if we are making PASID handling generic and system-wide, it
-really does become a case of 'if (init_mm.pasid !=3D -1)' ...?
-
---=20
-dwmw2
-
-
---=-+j3ugdn8pyIIgPLRAsGQ
-Content-Type: application/x-pkcs7-signature; name="smime.p7s"
-Content-Disposition: attachment; filename="smime.p7s"
-Content-Transfer-Encoding: base64
-
-MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAQAAoIISjjCCBicw
-ggUPoAMCAQICAw3vNzANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
-YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
-ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
-MB4XDTE1MDUwNTA5NDM0MVoXDTE2MDUwNTA5NTMzNlowQjEcMBoGA1UEAwwTZHdtdzJAaW5mcmFk
-ZWFkLm9yZzEiMCAGCSqGSIb3DQEJARYTZHdtdzJAaW5mcmFkZWFkLm9yZzCCASIwDQYJKoZIhvcN
-AQEBBQADggEPADCCAQoCggEBAMkbm9kPbx1j/X4RVyf/pPKSYwelcco69TvnQQbKM8m8xkWjXJI1
-jpJ1jMaGUZGFToINMSZi7lZawUozudWbXSKy1SikENSTJHffsdRAIlsp+hR8vWvjsKUry6sEdqPG
-doa5RY7+N4WRusWZDYW/RRWE6i9EL9qV86CVPYqw22UBOUw4/j/HVGCV6TSB8yE5iEwhk/hUuzRr
-FZm1MJMR7mCS7BCR8Lr5jFY61lWpBiXNXIxLZCvDc26KR5L5tYX43iUVO3fzES1GRVoYnxxk2tmz
-fcsZG5vK+Trc9L8OZJfkYrEHH3+Iw41MQ0w/djVtYr1+HYldx0QmYXAtnhIj+UMCAwEAAaOCAtkw
-ggLVMAkGA1UdEwQCMAAwCwYDVR0PBAQDAgSwMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcD
-BDAdBgNVHQ4EFgQUszC96C3w5/2+d+atSr0IpT26YI4wHwYDVR0jBBgwFoAUU3Ltkpzg2ssBXHx+
-ljVO8tS4UYIwHgYDVR0RBBcwFYETZHdtdzJAaW5mcmFkZWFkLm9yZzCCAUwGA1UdIASCAUMwggE/
-MIIBOwYLKwYBBAGBtTcBAgMwggEqMC4GCCsGAQUFBwIBFiJodHRwOi8vd3d3LnN0YXJ0c3NsLmNv
-bS9wb2xpY3kucGRmMIH3BggrBgEFBQcCAjCB6jAnFiBTdGFydENvbSBDZXJ0aWZpY2F0aW9uIEF1
-dGhvcml0eTADAgEBGoG+VGhpcyBjZXJ0aWZpY2F0ZSB3YXMgaXNzdWVkIGFjY29yZGluZyB0byB0
-aGUgQ2xhc3MgMSBWYWxpZGF0aW9uIHJlcXVpcmVtZW50cyBvZiB0aGUgU3RhcnRDb20gQ0EgcG9s
-aWN5LCByZWxpYW5jZSBvbmx5IGZvciB0aGUgaW50ZW5kZWQgcHVycG9zZSBpbiBjb21wbGlhbmNl
-IG9mIHRoZSByZWx5aW5nIHBhcnR5IG9ibGlnYXRpb25zLjA2BgNVHR8ELzAtMCugKaAnhiVodHRw
-Oi8vY3JsLnN0YXJ0c3NsLmNvbS9jcnR1MS1jcmwuY3JsMIGOBggrBgEFBQcBAQSBgTB/MDkGCCsG
-AQUFBzABhi1odHRwOi8vb2NzcC5zdGFydHNzbC5jb20vc3ViL2NsYXNzMS9jbGllbnQvY2EwQgYI
-KwYBBQUHMAKGNmh0dHA6Ly9haWEuc3RhcnRzc2wuY29tL2NlcnRzL3N1Yi5jbGFzczEuY2xpZW50
-LmNhLmNydDAjBgNVHRIEHDAahhhodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS8wDQYJKoZIhvcNAQEF
-BQADggEBAHMQmxHHodpS85X8HRyxhvfkys7r+taCNOaNU9cxQu/cZ/6k5nS2qGNMzZ6jb7ueY/V7
-7p+4DW/9ZWODDTf4Fz00mh5SSVc20Bz7t+hhxwHd62PZgENh5i76Qq2tw48U8AsYo5damHby1epf
-neZafLpUkLLO7AGBJIiRVTevdvyXQ0qnixOmKMWyvrhSNGuVIKVdeqLP+102Dwf+dpFyw+j1hz28
-jEEKpHa+NR1b2kXuSPi/rMGhexwlJOh4tK8KQ6Ryr0rIN//NSbOgbyYZrzc/ZUWX9V5OA84ChFb2
-vkFl0OcYrttp/rhDBLITwffPxSZeoBh9H7zYzkbCXKL3BUIwggYnMIIFD6ADAgECAgMN7zcwDQYJ
-KoZIhvcNAQEFBQAwgYwxCzAJBgNVBAYTAklMMRYwFAYDVQQKEw1TdGFydENvbSBMdGQuMSswKQYD
-VQQLEyJTZWN1cmUgRGlnaXRhbCBDZXJ0aWZpY2F0ZSBTaWduaW5nMTgwNgYDVQQDEy9TdGFydENv
-bSBDbGFzcyAxIFByaW1hcnkgSW50ZXJtZWRpYXRlIENsaWVudCBDQTAeFw0xNTA1MDUwOTQzNDFa
-Fw0xNjA1MDUwOTUzMzZaMEIxHDAaBgNVBAMME2R3bXcyQGluZnJhZGVhZC5vcmcxIjAgBgkqhkiG
-9w0BCQEWE2R3bXcyQGluZnJhZGVhZC5vcmcwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIB
-AQDJG5vZD28dY/1+EVcn/6TykmMHpXHKOvU750EGyjPJvMZFo1ySNY6SdYzGhlGRhU6CDTEmYu5W
-WsFKM7nVm10istUopBDUkyR337HUQCJbKfoUfL1r47ClK8urBHajxnaGuUWO/jeFkbrFmQ2Fv0UV
-hOovRC/alfOglT2KsNtlATlMOP4/x1Rglek0gfMhOYhMIZP4VLs0axWZtTCTEe5gkuwQkfC6+YxW
-OtZVqQYlzVyMS2Qrw3NuikeS+bWF+N4lFTt38xEtRkVaGJ8cZNrZs33LGRubyvk63PS/DmSX5GKx
-Bx9/iMONTENMP3Y1bWK9fh2JXcdEJmFwLZ4SI/lDAgMBAAGjggLZMIIC1TAJBgNVHRMEAjAAMAsG
-A1UdDwQEAwIEsDAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwQwHQYDVR0OBBYEFLMwvegt
-8Of9vnfmrUq9CKU9umCOMB8GA1UdIwQYMBaAFFNy7ZKc4NrLAVx8fpY1TvLUuFGCMB4GA1UdEQQX
-MBWBE2R3bXcyQGluZnJhZGVhZC5vcmcwggFMBgNVHSAEggFDMIIBPzCCATsGCysGAQQBgbU3AQID
-MIIBKjAuBggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjCB9wYI
-KwYBBQUHAgIwgeowJxYgU3RhcnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwAwIBARqBvlRo
-aXMgY2VydGlmaWNhdGUgd2FzIGlzc3VlZCBhY2NvcmRpbmcgdG8gdGhlIENsYXNzIDEgVmFsaWRh
-dGlvbiByZXF1aXJlbWVudHMgb2YgdGhlIFN0YXJ0Q29tIENBIHBvbGljeSwgcmVsaWFuY2Ugb25s
-eSBmb3IgdGhlIGludGVuZGVkIHB1cnBvc2UgaW4gY29tcGxpYW5jZSBvZiB0aGUgcmVseWluZyBw
-YXJ0eSBvYmxpZ2F0aW9ucy4wNgYDVR0fBC8wLTAroCmgJ4YlaHR0cDovL2NybC5zdGFydHNzbC5j
-b20vY3J0dTEtY3JsLmNybDCBjgYIKwYBBQUHAQEEgYEwfzA5BggrBgEFBQcwAYYtaHR0cDovL29j
-c3Auc3RhcnRzc2wuY29tL3N1Yi9jbGFzczEvY2xpZW50L2NhMEIGCCsGAQUFBzAChjZodHRwOi8v
-YWlhLnN0YXJ0c3NsLmNvbS9jZXJ0cy9zdWIuY2xhc3MxLmNsaWVudC5jYS5jcnQwIwYDVR0SBBww
-GoYYaHR0cDovL3d3dy5zdGFydHNzbC5jb20vMA0GCSqGSIb3DQEBBQUAA4IBAQBzEJsRx6HaUvOV
-/B0csYb35MrO6/rWgjTmjVPXMULv3Gf+pOZ0tqhjTM2eo2+7nmP1e+6fuA1v/WVjgw03+Bc9NJoe
-UklXNtAc+7foYccB3etj2YBDYeYu+kKtrcOPFPALGKOXWph28tXqX53mWny6VJCyzuwBgSSIkVU3
-r3b8l0NKp4sTpijFsr64UjRrlSClXXqiz/tdNg8H/naRcsPo9Yc9vIxBCqR2vjUdW9pF7kj4v6zB
-oXscJSToeLSvCkOkcq9KyDf/zUmzoG8mGa83P2VFl/VeTgPOAoRW9r5BZdDnGK7baf64QwSyE8H3
-z8UmXqAYfR+82M5Gwlyi9wVCMIIGNDCCBBygAwIBAgIBHjANBgkqhkiG9w0BAQUFADB9MQswCQYD
-VQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
-Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNhdGlvbiBBdXRo
-b3JpdHkwHhcNMDcxMDI0MjEwMTU1WhcNMTcxMDI0MjEwMTU1WjCBjDELMAkGA1UEBhMCSUwxFjAU
-BgNVBAoTDVN0YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRl
-IFNpZ25pbmcxODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUg
-Q2xpZW50IENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxwmDzM4t2BqxKaQuE6uW
-vooyg4ymiEGWVUet1G8SD+rqvyNH4QrvnEIaFHxOhESip7vMz39ScLpNLbL1QpOlPW/tFIzNHS3q
-d2XRNYG5Sv9RcGE+T4qbLtsjjJbi6sL7Ls/f/X9ftTyhxvxWkf8KW37iKrueKsxw2HqolH7GM6FX
-5UfNAwAu4ZifkpmZzU1slBhyWwaQPEPPZRsWoTb7q8hmgv6Nv3Hg9rmA1/VPBIOQ6SKRkHXG0Hhm
-q1dOFoAFI411+a/9nWm5rcVjGcIWZ2v/43Yksq60jExipA4l5uv9/+Hm33mbgmCszdj/Dthf13tg
-Av2O83hLJ0exTqfrlwIDAQABo4IBrTCCAakwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
-AQYwHQYDVR0OBBYEFFNy7ZKc4NrLAVx8fpY1TvLUuFGCMB8GA1UdIwQYMBaAFE4L7xqkQFulF2mH
-MMo0aEPQQa7yMGYGCCsGAQUFBwEBBFowWDAnBggrBgEFBQcwAYYbaHR0cDovL29jc3Auc3RhcnRz
-c2wuY29tL2NhMC0GCCsGAQUFBzAChiFodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9zZnNjYS5jcnQw
-WwYDVR0fBFQwUjAnoCWgI4YhaHR0cDovL3d3dy5zdGFydHNzbC5jb20vc2ZzY2EuY3JsMCegJaAj
-hiFodHRwOi8vY3JsLnN0YXJ0c3NsLmNvbS9zZnNjYS5jcmwwgYAGA1UdIAR5MHcwdQYLKwYBBAGB
-tTcBAgEwZjAuBggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjA0
-BggrBgEFBQcCARYoaHR0cDovL3d3dy5zdGFydHNzbC5jb20vaW50ZXJtZWRpYXRlLnBkZjANBgkq
-hkiG9w0BAQUFAAOCAgEACoMIfXirLAZcuGOMXq4cuSN3TaFx2H2GvD5VSy/6rV55BYHbWNaPeQn3
-oBSU8KgQZn/Kck1JxbLpAxVCNtsxeW1R87ifhsYZ0qjdrA9anrW2MAWCtosmAOT4OxK9QPoSjCMx
-M3HbkZCDJgnlE8jMopH21BbyAYr7b5EfGRQJNtgWcvqSXwKHnTutR08+Kkn0KAkXCzeQNLeA5LlY
-UzFyM7kPAp8pIRMQ+seHunmyG642S2+y/qHEdMuGIwpfz3eDF1PdctL04qYK/zu+Qg1Bw0RwgigV
-Zs/0c5HP2/e9DBHh7eSwtzYlk4AUr6yxLlcwSjOfOmKEQ/Q8tzh0IFiNu9IPuTGAPBn4CPxD0+Ru
-8T2wg8/s43R/PT3kd1OEqOJUl7q+h+r6fpvU0Fzxd2tC8Ga6fDEPme+1Nbi+03pVjuZQKbGwKJ66
-gEn06WqaxVZC+J8hh/jR0k9mST1iAZPNYulcNJ8tKmVtjYsv0L1TSm2+NwON58tO+pIVzu3DWwSE
-XSf+qkDavQam+QtEOZxLBXI++aMUEapSn+k3Lxm48ZCYfAWLb/Xj7F5JQMbZvCexglAbYR0kIHqW
-5DnsYSdMD/IplJMojx0NBrxJ3fN9dvX2Y6BIXRsF1du4qESm4/3CKuyUV7p9DW3mPlHTGLvYxnyK
-Qy7VFBkoLINszBrOUeIxggNvMIIDawIBATCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
-YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
-ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
-AgMN7zcwCQYFKw4DAhoFAKCCAa8wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0B
-CQUxDxcNMTUxMDIzMTEzNzA2WjAjBgkqhkiG9w0BCQQxFgQUW2L+TSdLCqQx4Bw/ZW2NZIu3fucw
-gaUGCSsGAQQBgjcQBDGBlzCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0
-ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcxODA2BgNVBAMT
-L1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENBAgMN7zcwgacG
-CyqGSIb3DQEJEAILMYGXoIGUMIGMMQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRk
-LjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzE4MDYGA1UEAxMv
-U3RhcnRDb20gQ2xhc3MgMSBQcmltYXJ5IEludGVybWVkaWF0ZSBDbGllbnQgQ0ECAw3vNzANBgkq
-hkiG9w0BAQEFAASCAQC0o9HB7Kx25jECudWKGjJmPDpfGjTNvY4S478fdUvuU+tQPXrJZGGUxOov
-HgF/ywmdeRPK5I321dprC7E5/Wo757L/ZAWsNqvy2DPZ7kggoJyV2Yrq1y/H4en/hy+cLbwdkJew
-q0jN4zmFKOVytm42EA0P/WjNLw4si/W1sJoTxBB07/0cO5Ms0rtGRsmmeb9vGQUw1rLY0QW0gr59
-UJo3uKQGPyZzAI75SbEDH0fxyfVF+Eo+CgXseO07f9Zm+KaqvJ7gXZ1DDogxrzSxvX7RRDzQ6Izx
-J1idp5OHBK+aSpy5fDmu4jVpZ8ewWdG6Km/FeEYKuJVqHQ3bVSftZuEiAAAAAAAA
-
-
---=-+j3ugdn8pyIIgPLRAsGQ--
+ void calc_load_exit_idle(void)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
