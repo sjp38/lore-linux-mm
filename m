@@ -1,52 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AE3F82F64
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 04:37:22 -0400 (EDT)
-Received: by wijp11 with SMTP id p11so66741057wij.0
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 01:37:21 -0700 (PDT)
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
-        by mx.google.com with ESMTPS id dj1si23569730wjc.160.2015.10.23.01.37.21
+Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C0266B0038
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 05:39:04 -0400 (EDT)
+Received: by iodv82 with SMTP id v82so118212002iod.0
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 02:39:04 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id l128si14816249ioe.145.2015.10.23.02.39.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Oct 2015 01:37:21 -0700 (PDT)
-Received: by wicll6 with SMTP id ll6so21276331wic.1
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 01:37:20 -0700 (PDT)
-Date: Fri, 23 Oct 2015 10:37:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable()
- checks
-Message-ID: <20151023083719.GD2410@dhcp22.suse.cz>
-References: <20151021143337.GD8805@dhcp22.suse.cz>
- <alpine.DEB.2.20.1510210948460.6898@east.gentwo.org>
- <20151021145505.GE8805@dhcp22.suse.cz>
- <alpine.DEB.2.20.1510211214480.10364@east.gentwo.org>
- <201510222037.ACH86458.OFOLFtQFOHJSVM@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.20.1510220836430.18486@east.gentwo.org>
- <20151022140944.GA30579@mtj.duckdns.org>
- <20151022150623.GE26854@dhcp22.suse.cz>
- <20151022151528.GG30579@mtj.duckdns.org>
- <alpine.DEB.2.20.1510221031090.24250@east.gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1510221031090.24250@east.gentwo.org>
+        Fri, 23 Oct 2015 02:39:03 -0700 (PDT)
+Received: by pagq8 with SMTP id q8so10986516pag.2
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 02:39:03 -0700 (PDT)
+From: yalin wang <yalin.wang2010@gmail.com>
+Subject: [PATCH] mm: fix kernel crash in khugepaged thread
+Date: Fri, 23 Oct 2015 17:38:49 +0800
+Message-Id: <1445593129-14728-1-git-send-email-yalin.wang2010@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Tejun Heo <htejun@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
+To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, vbabka@suse.cz, jmarchan@redhat.com, mgorman@techsingularity.net, ebru.akagunduz@gmail.com, willy@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: yalin wang <yalin.wang2010@gmail.com>
 
-On Thu 22-10-15 10:33:20, Christoph Lameter wrote:
-> Ok that also makes me rethink commit
-> ba4877b9ca51f80b5d30f304a46762f0509e1635 which seems to be a similar fix
-> this time related to idle mode not updating the counters.
-> 
-> Could we fix that by folding the counters before going to idle mode?
+This crash is caused by NULL pointer deference:
+[  182.639154 ] Unable to handle kernel NULL pointer dereference at virtual address 00000000
+[  182.639491 ] pgd = ffffffc00077a000
+[  182.639761 ] [00000000] *pgd=00000000b9422003, *pud=00000000b9422003, *pmd=00000000b9423003, *pte=0060000008000707
+[  182.640749 ] Internal error: Oops: 94000006 [#1] SMP
+[  182.641197 ] Modules linked in:
+[  182.641580 ] CPU: 1 PID: 26 Comm: khugepaged Tainted: G        W       4.3.0-rc6-next-20151022ajb-00001-g32f3386-dirty #3
+[  182.642077 ] Hardware name: linux,dummy-virt (DT)
+[  182.642227 ] task: ffffffc07957c080 ti: ffffffc079638000 task.ti: ffffffc079638000
+[  182.642598 ] PC is at khugepaged+0x378/0x1af8
+[  182.642826 ] LR is at khugepaged+0x418/0x1af8
+[  182.643047 ] pc : [<ffffffc0001980ac>] lr : [<ffffffc00019814c>] pstate: 60000145
+[  182.643490 ] sp : ffffffc07963bca0
+[  182.643650 ] x29: ffffffc07963bca0 x28: ffffffc00075c000
+[  182.644024 ] x27: ffffffc00f275040 x26: ffffffc0006c7000
+[  182.644334 ] x25: 00e8000048800f51 x24: 0000000006400000
+[  182.644687 ] x23: 0000000000000002 x22: 0000000000000000
+[  182.644972 ] x21: 0000000000000000 x20: 0000000000000000
+[  182.645446 ] x19: 0000000000000000 x18: 0000007ff86d0990
+[  182.645931 ] x17: 00000000007ef9c8 x16: ffffffc000098390
+[  182.646236 ] x15: ffffffffffffffff x14: 00000000ffffffff
+[  182.646649 ] x13: 000000000000016a x12: 0000000000000000
+[  182.647046 ] x11: ffffffc07f025020 x10: 0000000000000000
+[  182.647395 ] x9 : 0000000000000048 x8 : ffffffc000721e28
+[  182.647872 ] x7 : 0000000000000000 x6 : ffffffc07f02d000
+[  182.648261 ] x5 : fffffffffffffe00 x4 : ffffffc00f275040
+[  182.648611 ] x3 : 0000000000000000 x2 : ffffffc00f2ad000
+[  182.648908 ] x1 : 0000000000000000 x0 : ffffffc000727000
+[  182.649147 ]
+[  182.649252 ] Process khugepaged (pid: 26, stack limit = 0xffffffc079638020)
+[  182.649724 ] Stack: (0xffffffc07963bca0 to 0xffffffc07963c000)
+[  182.650141 ] bca0: ffffffc07963be30 ffffffc0000b5044 ffffffc07961fb80 ffffffc00072e630
+[  182.650587 ] bcc0: ffffffc0005d5090 0000000000000000 ffffffc000197d34 0000000000000000
+[  182.651009 ] bce0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.651446 ] bd00: ffffffc07963bd90 ffffffc07f1cbf80 000000004f3be003 ffffffc00f2750a4
+[  182.651956 ] bd20: ffffffc00f3bf000 ffffffc000000001 0000000000000001 ffffffc07f085740
+[  182.652520 ] bd40: ffffffc00f2ad188 ffffffc000000000 0000000006200000 ffffffc00f275040
+[  182.652972 ] bd60: ffffffc0006b1a90 ffffffc079638000 ffffffc07963be20 ffffffc00f0144d0
+[  182.653357 ] bd80: ffffffc000000000 0000000006400000 ffffffc00f0144d0 00000a0800000001
+[  182.653793 ] bda0: 0000100000000001 ffffffc000000001 ffffffc07f025000 ffffffc00f2750a8
+[  182.654226 ] bdc0: 00000001000005f8 ffffffc00075a000 0000000006a00000 ffffffc000727000
+[  182.654522 ] bde0: ffffffc0006e8478 ffffffc000000000 0000000100000000 ffffffc078fb9000
+[  182.654869 ] be00: ffffffc07963be30 ffffffc000000000 ffffffc07957c080 ffffffc0000cfc4c
+[  182.655225 ] be20: ffffffc07963be20 ffffffc07963be20 0000000000000000 ffffffc000085c50
+[  182.655588 ] be40: ffffffc0000b4f64 ffffffc07961fb80 0000000000000000 0000000000000000
+[  182.656138 ] be60: 0000000000000000 ffffffc0000bee2c ffffffc0000b4f64 0000000000000000
+[  182.656609 ] be80: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.657145 ] bea0: ffffffc07963bea0 ffffffc07963bea0 0000000000000000 ffffffc000000000
+[  182.657475 ] bec0: ffffffc07963bec0 ffffffc07963bec0 0000000000000000 0000000000000000
+[  182.657922 ] bee0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.658558 ] bf00: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.658972 ] bf20: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.659291 ] bf40: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.659722 ] bf60: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.660122 ] bf80: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.660654 ] bfa0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.661064 ] bfc0: 0000000000000000 0000000000000000 0000000000000000 0000000000000005
+[  182.661466 ] bfe0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.661848 ] Call trace:
+[  182.662050 ] [<ffffffc0001980ac>] khugepaged+0x378/0x1af8
+[  182.662294 ] [<ffffffc0000b5040>] kthread+0xdc/0xf4
+[  182.662605 ] [<ffffffc000085c4c>] ret_from_fork+0xc/0x40
+[  182.663046 ] Code: 35001700 f0002c60 aa0703e3 f9009fa0 (f94000e0)
+[  182.663901 ] ---[ end trace 637503d8e28ae69e  ]---
+[  182.664160 ] Kernel panic - not syncing: Fatal exception
+[  182.664571 ] CPU2: stopping
+[  182.664794 ] CPU: 2 PID: 0 Comm: swapper/2 Tainted: G      D W       4.3.0-rc6-next-20151022ajb-00001-g32f3386-dirty #3
+[  182.665248 ] Hardware name: linux,dummy-virt (DT)
 
-This would work as well.
+Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+---
+ mm/huge_memory.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 4b3420a..a5f4d9c 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2606,8 +2606,9 @@ out_unmap:
+ 		collapse_huge_page(mm, address, hpage, vma, node);
+ 	}
+ out:
+-	trace_mm_khugepaged_scan_pmd(mm, page_to_pfn(page), writable, referenced,
+-				     none_or_zero, result, unmapped);
++	if (page)
++		trace_mm_khugepaged_scan_pmd(mm, page_to_pfn(page), writable,
++				referenced, none_or_zero, result, unmapped);
+ 	return ret;
+ }
+ 
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
