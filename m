@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id BD6F36B0038
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 14:21:23 -0400 (EDT)
-Received: by pasz6 with SMTP id z6so124549177pas.2
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 11:21:23 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id sk1si31266398pbc.113.2015.10.23.11.21.22
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0996B6B0038
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 14:23:56 -0400 (EDT)
+Received: by pacfv9 with SMTP id fv9so130382449pac.3
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 11:23:55 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id q9si31256135pap.101.2015.10.23.11.23.55
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Oct 2015 11:21:22 -0700 (PDT)
-Received: by padhk11 with SMTP id hk11so124776617pad.1
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 11:21:22 -0700 (PDT)
-Date: Sat, 24 Oct 2015 03:21:09 +0900
+        Fri, 23 Oct 2015 11:23:55 -0700 (PDT)
+Received: by pabrc13 with SMTP id rc13so124432276pab.0
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 11:23:55 -0700 (PDT)
+Date: Sat, 24 Oct 2015 03:23:43 +0900
 From: Tejun Heo <htejun@gmail.com>
 Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable()
  checks
-Message-ID: <20151023182109.GA14610@mtj.duckdns.org>
-References: <20151022140944.GA30579@mtj.duckdns.org>
- <20151022150623.GE26854@dhcp22.suse.cz>
- <20151022151528.GG30579@mtj.duckdns.org>
- <20151022153559.GF26854@dhcp22.suse.cz>
- <20151022153703.GA3899@mtj.duckdns.org>
- <20151022154922.GG26854@dhcp22.suse.cz>
+Message-ID: <20151023182343.GB14610@mtj.duckdns.org>
+References: <20151022154922.GG26854@dhcp22.suse.cz>
  <20151022184226.GA19289@mtj.duckdns.org>
  <20151023083316.GB2410@dhcp22.suse.cz>
  <20151023103630.GA4170@mtj.duckdns.org>
  <20151023111145.GH2410@dhcp22.suse.cz>
+ <201510232125.DAG82381.LMJtOQFOHVOSFF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151023111145.GH2410@dhcp22.suse.cz>
+In-Reply-To: <201510232125.DAG82381.LMJtOQFOHVOSFF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@kernel.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
 
-Hello,
+Hello, Tetsuo.
 
-On Fri, Oct 23, 2015 at 01:11:45PM +0200, Michal Hocko wrote:
-> > The problem here is not lack
-> > of execution resource but concurrency management misunderstanding the
-> > situation. 
+On Fri, Oct 23, 2015 at 09:25:11PM +0900, Tetsuo Handa wrote:
+> WQ_MEM_RECLAIM only guarantees that a "struct task_struct" is preallocated
+> in order to avoid failing to allocate it on demand due to a GFP_KERNEL
+> allocation? Is this correct?
 > 
-> And this sounds like a bug to me.
+> WQ_CPU_INTENSIVE only guarantees that work items don't participate in
+> concurrency management in order to avoid failing to wake up a "struct
+> task_struct" which will process the work items? Is this correct?
 
-I don't know.  I can be argued either way, the other direction being a
-kernel thread going RUNNING non-stop is buggy.  Given how this has
-been a complete non-issue for all the years, I'm not sure how useful
-plugging this is.
+CPU_INTENSIVE avoids the tail end of concurrency management.  The
+previous HIGHPRI or the posted IMMEDIATE avoids the head end.
 
-> Don't we have some IO related paths which would suffer from the same
-> problem. I haven't checked all the WQ_MEM_RECLAIM users but from the
-> name I would expect they _do_ participate in the reclaim and so they
-> should be able to make a progress. Now if your new IMMEDIATE flag will
+> Is Michal's question "does it make sense to use WQ_MEM_RECLAIM without
+> WQ_CPU_INTENSIVE"? In other words, any "struct task_struct" which calls
+> rescuer_thread() must imply WQ_CPU_INTENSIVE in order to avoid failing to
+> wake up due to being participated in concurrency management?
 
-Seriously, nobody goes full-on RUNNING.
-
-> guarantee that then I would argue that it should be implicit for
-> WQ_MEM_RECLAIM otherwise we always risk a similar situation. What would
-> be a counter argument for doing that?
-
-Not serving any actual purpose and degrading execution behavior.
+If this is an actual problem, a better approach would be something
+which detects the stall condition and kicks off the next work item but
+if we do that I think I'd still trigger a warning there.  I don't
+know.  Don't go busy waiting in kernel.
 
 Thanks.
 
