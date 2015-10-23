@@ -1,40 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EE836B0253
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 09:46:04 -0400 (EDT)
-Received: by wijp11 with SMTP id p11so78300577wij.0
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 06:46:04 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dh8si24959261wjc.205.2015.10.23.06.46.02
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D2476B0256
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 09:50:00 -0400 (EDT)
+Received: by wicfx6 with SMTP id fx6so32253838wic.1
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 06:49:59 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
+        by mx.google.com with ESMTPS id v1si25059853wja.21.2015.10.23.06.49.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 23 Oct 2015 06:46:03 -0700 (PDT)
-Date: Fri, 23 Oct 2015 06:45:53 -0700
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: Re: [PATCH] mm/hugetlb: i_mmap_lock_write before unmapping in
- remove_inode_hugepages
-Message-ID: <20151023134553.GE27292@linux-uzut.site>
-References: <1445478147-29782-1-git-send-email-mike.kravetz@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Oct 2015 06:49:59 -0700 (PDT)
+Received: by wicfx6 with SMTP id fx6so32253311wic.1
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 06:49:59 -0700 (PDT)
+Date: Fri, 23 Oct 2015 15:49:57 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 7/8] mm: vmscan: report vmpressure at the level of
+ reclaim activity
+Message-ID: <20151023134957.GC15375@dhcp22.suse.cz>
+References: <1445487696-21545-1-git-send-email-hannes@cmpxchg.org>
+ <1445487696-21545-8-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1445478147-29782-1-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1445487696-21545-8-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 21 Oct 2015, Mike Kravetz wrote:
+On Thu 22-10-15 00:21:35, Johannes Weiner wrote:
+> The vmpressure metric is based on reclaim efficiency, which in turn is
+> an attribute of the LRU. However, vmpressure events are currently
+> reported at the source of pressure rather than at the reclaim level.
+> 
+> Switch the reporting to the reclaim level to allow finer-grained
+> analysis of which memcg is having trouble reclaiming its pages.
 
->Code was added to remove_inode_hugepages that will unmap a page if
->it is mapped.  i_mmap_lock_write() must be taken during the call
->to hugetlb_vmdelete_list().  This is to prevent mappings(vmas) from
->being added or deleted while the list of vmas is being examined.
-                                   ^^^^ interval-tree.
->
->Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+I can see how this can be useful.
+ 
+> As far as memory.pressure_level interface semantics go, events are
+> escalated up the hierarchy until a listener is found, so this won't
+> affect existing users that listen at higher levels.
 
-Reviewed-by: Davidlohr Bueso <dbueso@suse.de>
+This is true but the parent will not see cumulative events anymore.
+One memcg might be fighting and barely reclaim anything so it would
+report high pressure while other would be doing just fine. The parent
+will just see conflicting events in a short time period and cannot match
+them the source memcg. This sounds really confusing. Even more confusing
+than the current semantic which allows the same behavior under certain
+configurations.
+
+I dunno, have to think about it some more. Maybe we need to rethink the
+way how the pressure is signaled. If we want the breakdown of the
+particular memcgs then we should be able to identify them for this to be
+useful.
+
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
