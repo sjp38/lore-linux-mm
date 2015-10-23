@@ -1,125 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 384CF6B0038
-	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 09:26:25 -0400 (EDT)
-Received: by wicfv8 with SMTP id fv8so31998361wic.0
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 06:26:24 -0700 (PDT)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id cp7si4971097wib.76.2015.10.23.06.26.24
+Received: from mail-lf0-f48.google.com (mail-lf0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E69A6B0038
+	for <linux-mm@kvack.org>; Fri, 23 Oct 2015 09:43:14 -0400 (EDT)
+Received: by lffv3 with SMTP id v3so83949899lff.0
+        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 06:43:13 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id s71si12682772lfd.169.2015.10.23.06.43.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Oct 2015 06:26:24 -0700 (PDT)
-Received: by wijp11 with SMTP id p11so77485187wij.0
-        for <linux-mm@kvack.org>; Fri, 23 Oct 2015 06:26:24 -0700 (PDT)
-Date: Fri, 23 Oct 2015 15:26:22 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/8] mm: vmscan: simplify memcg vs. global shrinker
- invocation
-Message-ID: <20151023132622.GB15375@dhcp22.suse.cz>
+        Fri, 23 Oct 2015 06:43:12 -0700 (PDT)
+Date: Fri, 23 Oct 2015 16:42:56 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 3/8] net: consolidate memcg socket buffer tracking and
+ accounting
+Message-ID: <20151023134256.GS18351@esperanza>
 References: <1445487696-21545-1-git-send-email-hannes@cmpxchg.org>
- <1445487696-21545-7-git-send-email-hannes@cmpxchg.org>
+ <1445487696-21545-4-git-send-email-hannes@cmpxchg.org>
+ <20151022184612.GN18351@esperanza>
+ <20151022190943.GA20871@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1445487696-21545-7-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20151022190943.GA20871@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 22-10-15 00:21:34, Johannes Weiner wrote:
-> Letting shrink_slab() handle the root_mem_cgroup, and implicitely the
-> !CONFIG_MEMCG case, allows shrink_zone() to invoke the shrinkers
-> unconditionally from within the memcg iteration loop.
+On Thu, Oct 22, 2015 at 03:09:43PM -0400, Johannes Weiner wrote:
+> On Thu, Oct 22, 2015 at 09:46:12PM +0300, Vladimir Davydov wrote:
+> > On Thu, Oct 22, 2015 at 12:21:31AM -0400, Johannes Weiner wrote:
+> > > The tcp memory controller has extensive provisions for future memory
+> > > accounting interfaces that won't materialize after all. Cut the code
+> > > base down to what's actually used, now and in the likely future.
+> > > 
+> > > - There won't be any different protocol counters in the future, so a
+> > >   direct sock->sk_memcg linkage is enough. This eliminates a lot of
+> > >   callback maze and boilerplate code, and restores most of the socket
+> > >   allocation code to pre-tcp_memcontrol state.
+> > > 
+> > > - There won't be a tcp control soft limit, so integrating the memcg
+> > 
+> > In fact, the code is ready for the "soft" limit (I mean min, pressure,
+> > max tuple), it just lacks a knob.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Yeah, but that's not going to materialize if the entire interface for
+> dedicated tcp throttling is considered obsolete.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+May be, it shouldn't be. My current understanding is that per memcg tcp
+window control is necessary, because:
 
-> ---
->  include/linux/memcontrol.h |  2 ++
->  mm/vmscan.c                | 31 ++++++++++++++++---------------
->  2 files changed, 18 insertions(+), 15 deletions(-)
+ - We need to be able to protect a containerized workload from its
+   growing network buffers. Using vmpressure notifications for that does
+   not look reassuring to me.
+
+ - We need a way to limit network buffers of a particular container,
+   otherwise it can fill the system-wide window throttling other
+   containers, which is unfair.
+
 > 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 6f1e0f8..d66ae18 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -482,6 +482,8 @@ void mem_cgroup_split_huge_fixup(struct page *head);
->  #else /* CONFIG_MEMCG */
->  struct mem_cgroup;
->  
-> +#define root_mem_cgroup NULL
-> +
->  static inline void mem_cgroup_events(struct mem_cgroup *memcg,
->  				     enum mem_cgroup_events_index idx,
->  				     unsigned int nr)
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 9b52ecf..ecc2125 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -411,6 +411,10 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  	struct shrinker *shrinker;
->  	unsigned long freed = 0;
->  
-> +	/* Global shrinker mode */
-> +	if (memcg == root_mem_cgroup)
-> +		memcg = NULL;
-> +
->  	if (memcg && !memcg_kmem_is_active(memcg))
->  		return 0;
->  
-> @@ -2417,11 +2421,22 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
->  			shrink_lruvec(lruvec, swappiness, sc, &lru_pages);
->  			zone_lru_pages += lru_pages;
->  
-> -			if (memcg && is_classzone)
-> +			/*
-> +			 * Shrink the slab caches in the same proportion that
-> +			 * the eligible LRU pages were scanned.
-> +			 */
-> +			if (is_classzone) {
->  				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
->  					    memcg, sc->nr_scanned - scanned,
->  					    lru_pages);
->  
-> +				if (reclaim_state) {
-> +					sc->nr_reclaimed +=
-> +						reclaim_state->reclaimed_slab;
-> +					reclaim_state->reclaimed_slab = 0;
-> +				}
-> +			}
-> +
->  			/*
->  			 * Direct reclaim and kswapd have to scan all memory
->  			 * cgroups to fulfill the overall scan target for the
-> @@ -2439,20 +2454,6 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
->  			}
->  		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
->  
-> -		/*
-> -		 * Shrink the slab caches in the same proportion that
-> -		 * the eligible LRU pages were scanned.
-> -		 */
-> -		if (global_reclaim(sc) && is_classzone)
-> -			shrink_slab(sc->gfp_mask, zone_to_nid(zone), NULL,
-> -				    sc->nr_scanned - nr_scanned,
-> -				    zone_lru_pages);
-> -
-> -		if (reclaim_state) {
-> -			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-> -			reclaim_state->reclaimed_slab = 0;
-> -		}
-> -
->  		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
->  			   sc->nr_scanned - nr_scanned,
->  			   sc->nr_reclaimed - nr_reclaimed);
-> -- 
-> 2.6.1
+> > > @@ -1136,9 +1090,6 @@ static inline bool sk_under_memory_pressure(const struct sock *sk)
+> > >  	if (!sk->sk_prot->memory_pressure)
+> > >  		return false;
+> > >  
+> > > -	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
+> > > -		return !!sk->sk_cgrp->memory_pressure;
+> > > -
+> > 
+> > AFAIU, now we won't shrink the window on hitting the limit, i.e. this
+> > patch subtly changes the behavior of the existing knobs, potentially
+> > breaking them.
+> 
+> Hm, but there is no grace period in which something meaningful could
+> happen with the window shrinking, is there? Any buffer allocation is
+> still going to fail hard.
 
--- 
-Michal Hocko
-SUSE Labs
+AFAIU when we hit the limit, we not only throttle the socket which
+allocates, but also try to release space reserved by other sockets.
+After your patch we won't. This looks unfair to me.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
