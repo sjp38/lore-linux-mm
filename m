@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 74E8B6B0038
-	for <linux-mm@kvack.org>; Sat, 24 Oct 2015 17:39:43 -0400 (EDT)
-Received: by pasz6 with SMTP id z6so148973835pas.2
-        for <linux-mm@kvack.org>; Sat, 24 Oct 2015 14:39:43 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id ya6si40291860pab.83.2015.10.24.14.39.40
-        for <linux-mm@kvack.org>;
-        Sat, 24 Oct 2015 14:39:42 -0700 (PDT)
-Date: Sun, 25 Oct 2015 08:39:12 +1100
-From: Dave Chinner <david@fromorbit.com>
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8057C6B0038
+	for <linux-mm@kvack.org>; Sun, 25 Oct 2015 00:14:48 -0400 (EDT)
+Received: by wijp11 with SMTP id p11so123553485wij.0
+        for <linux-mm@kvack.org>; Sat, 24 Oct 2015 21:14:47 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bn7si2813401wjc.186.2015.10.24.21.14.46
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 24 Oct 2015 21:14:47 -0700 (PDT)
+Date: Sat, 24 Oct 2015 21:09:56 +0200
+From: Jan Kara <jack@suse.cz>
 Subject: Re: Triggering non-integrity writeback from userspace
-Message-ID: <20151024213912.GE8773@dastard>
+Message-ID: <20151024190956.GA17642@quack.suse.cz>
 References: <20151022131555.GC4378@alap3.anarazel.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -22,9 +23,9 @@ List-ID: <linux-mm.kvack.org>
 To: Andres Freund <andres@anarazel.de>
 Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 22, 2015 at 03:15:55PM +0200, Andres Freund wrote:
-> Hi,
-> 
+  Hi,
+
+On Thu 22-10-15 15:15:55, Andres Freund wrote:
 > postgres regularly has to checkpoint data to disk to be able to free
 > data from its journal. We currently use buffered IO and that's not
 > going to change short term.
@@ -56,33 +57,11 @@ On Thu, Oct 22, 2015 at 03:15:55PM +0200, Andres Freund wrote:
 >  * SYNC_FILE_RANGE_WRITE: start writeout of all dirty pages in the range which
 >  * are not presently under writeout.  This is an asynchronous flush-to-disk
 >  * operation.  Not suitable for data integrity operations.
-
-WB_SYNC_ALL is simply a method of saying "writeback all dirty pages
-and don't skip any". That's part of a data integrity operation, but
-it's not what results in data integrity being provided. It may cause
-some latencies caused by blocking on locks or in the request queues,
-so that's what I'd be looking for.
-
-i.e. if the request queues are full, SYNC_FILE_RANGE_WRITE will
-block until all the IO it has been requested to write has been
-submitted to the request queues. Put simply: the IO is asynchronous
-in that we don't wait for completion, but the IO submission is still
-synchronous.
-
-Data integrity operations require related file metadata (e.g. block
-allocation trnascations) to be forced to the journal/disk, and a
-device cache flush issued to ensure the data is on stable storage.
-SYNC_FILE_RANGE_WRITE does neither of these things, and hence while
-the IO might be the same pattern as a data integrity operation, it
-does not provide such guarantees.
-
+> 
 > If I followed the code correctly - not a sure thing at all - that means
 > bios are submitted with WRITE_SYNC specified. Not really what's needed
 > in this case.
-
-That just allows the IO scheduler to classify them differently to
-bulk background writeback. 
-
+> 
 > Now I think the docs are somewhat clear that SYNC_FILE_RANGE_WRITE isn't
 > there for data integrity, but it might be that people rely on in
 > nonetheless. so I'm loathe to suggest changing that. But I do wonder if
@@ -91,16 +70,20 @@ bulk background writeback.
 > POSIX_FADV_DONTNEED actually does non-integrity writeback, but also does
 > other things, so it's not suitable for us.
 
-You don't want to do writeback from the syscall, right? i.e. you'd
-like to expire the inode behind the fd, and schedule background
-writeback to run on it immediately?
+You are absolutely correct that sync_file_range() should issue writeback as
+WB_SYNC_NONE and not wait for current writeback in progress. That was an
+oversight introduced by commit ee53a891f474 (mm: do_sync_mapping_range
+integrity fix) which changed do_sync_mapping_range() to use WB_SYNC_ALL
+because it had other users which relied WB_SYNC_ALL semantics. Later that
+got copied over to the current sync_file_range() implementation.
 
-Cheers,
+I think we should just revert to the very explicitely documented behavior
+of sync_file_range(). I'll send a patch for that. Thanks for report.
 
-Dave.
+								Honza
 -- 
-Dave Chinner
-david@fromorbit.com
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
