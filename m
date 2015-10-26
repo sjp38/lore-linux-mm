@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 810F26B0038
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 12:01:23 -0400 (EDT)
-Received: by wicfx6 with SMTP id fx6so120935010wic.1
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 09:01:22 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id hp3si23890377wib.42.2015.10.26.09.01.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Oct 2015 09:01:21 -0700 (PDT)
-Date: Mon, 26 Oct 2015 12:01:11 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] oom_kill: add option to disable dump_stack()
-Message-ID: <20151026160111.GA2214@cmpxchg.org>
-References: <1445634150-27992-1-git-send-email-arozansk@redhat.com>
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D6936B0038
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 12:27:02 -0400 (EDT)
+Received: by igbdj2 with SMTP id dj2so59861166igb.1
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 09:27:02 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id l194si25576856iol.93.2015.10.26.09.27.01
+        for <linux-mm@kvack.org>;
+        Mon, 26 Oct 2015 09:27:01 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH v2 UPDATE 3/3] ACPI/APEI/EINJ: Allow memory error
+ injection to NVDIMM
+Date: Mon, 26 Oct 2015 16:26:59 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F32B5F5AF@ORSMSX114.amr.corp.intel.com>
+References: <1445871783-18365-1-git-send-email-toshi.kani@hpe.com>
+In-Reply-To: <1445871783-18365-1-git-send-email-toshi.kani@hpe.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1445634150-27992-1-git-send-email-arozansk@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aristeu Rozanski <arozansk@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Toshi Kani <toshi.kani@hpe.com>, "bp@alien8.de" <bp@alien8.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "rjw@rjwysocki.net" <rjw@rjwysocki.net>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Fri, Oct 23, 2015 at 05:02:30PM -0400, Aristeu Rozanski wrote:
-> One of the largest chunks of log messages in a OOM is from dump_stack() and in
-> some cases it isn't even necessary to figure out what's going on. In
-> systems with multiple tenants/containers with limited resources each
-> OOMs can be way more frequent and being able to reduce the amount of log
-> output for each situation is useful.
-> 
-> This patch adds a sysctl to allow disabling dump_stack() during an OOM while
-> keeping the default to behave the same way it behaves today.
-> 
-> Cc: Greg Thelen <gthelen@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: linux-mm@kvack.org
-> Cc: cgroups@vger.kernel.org
-> Signed-off-by: Aristeu Rozanski <arozansk@redhat.com>
+-	pfn =3D PFN_DOWN(param1 & param2);
+-	if (!page_is_ram(pfn) || ((param2 & PAGE_MASK) !=3D PAGE_MASK))
++	base_addr =3D param1 & param2;
++	size =3D (~param2) + 1;
 
-I think this makes sense.
+We expect the user will supply us with param2 in the form 0xffffffff[fec8]0=
+0000
+with various numbers of leading 'f' and trailing '0' ... but I don't think =
+we actually
+check that anywhere.  But we have a bunch of places that assume it is OK, i=
+ncluding
+this new one.
 
-The high volume log output is not just annoying, we have also had
-reports from people whose machines locked up as they tried to log
-hundreds of containers through a low-bandwidth serial console.
+It's time to fix that.  Maybe even provide a default 0xfffffffffffff000 so =
+I can save myself
+some typing?
 
-Could you include sample output of before and after in the changelog
-to provide an immediate comparison on what we are saving?
-
-Should we make the knob specific to the stack dump or should it be
-more generic, so that we could potentially save even more output?
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
