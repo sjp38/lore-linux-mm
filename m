@@ -1,131 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 674466B0038
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 13:20:16 -0400 (EDT)
-Received: by wicfx6 with SMTP id fx6so124360983wic.1
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 10:20:15 -0700 (PDT)
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
-        by mx.google.com with ESMTPS id cm4si44314234wjb.78.2015.10.26.10.20.14
+	by kanga.kvack.org (Postfix) with ESMTP id B69F282F64
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 13:22:28 -0400 (EDT)
+Received: by wikq8 with SMTP id q8so174957321wik.1
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 10:22:28 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id o8si44338608wjx.66.2015.10.26.10.22.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Oct 2015 10:20:15 -0700 (PDT)
-Received: by wicll6 with SMTP id ll6so124476309wic.0
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 10:20:14 -0700 (PDT)
-Date: Mon, 26 Oct 2015 18:20:12 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] oom_kill: add option to disable dump_stack()
-Message-ID: <20151026172012.GC9779@dhcp22.suse.cz>
-References: <1445634150-27992-1-git-send-email-arozansk@redhat.com>
+        Mon, 26 Oct 2015 10:22:27 -0700 (PDT)
+Date: Mon, 26 Oct 2015 13:22:16 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/8] mm: memcontrol: account socket memory in unified
+ hierarchy
+Message-ID: <20151026172216.GC2214@cmpxchg.org>
+References: <1445487696-21545-1-git-send-email-hannes@cmpxchg.org>
+ <20151022184509.GM18351@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1445634150-27992-1-git-send-email-arozansk@redhat.com>
+In-Reply-To: <20151022184509.GM18351@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aristeu Rozanski <arozansk@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri 23-10-15 17:02:30, Aristeu Rozanski wrote:
-> One of the largest chunks of log messages in a OOM is from dump_stack() and in
-> some cases it isn't even necessary to figure out what's going on. In
-> systems with multiple tenants/containers with limited resources each
-> OOMs can be way more frequent and being able to reduce the amount of log
-> output for each situation is useful.
-
-I can see why you want to reduce the amount of information, I guess you
-have tried to reduce the loglevel but this hasn't helped because
-dump_stack uses default log level which is too low to be usable, right?
-Or are there any other reasons?
- 
-> This patch adds a sysctl to allow disabling dump_stack() during an OOM while
-> keeping the default to behave the same way it behaves today.
-
-I am not sure sysctl is a good way to tell this particular restriction
-on the output. What if somebody else doesn't want to see the list of
-eligible tasks? Should we add another knob?
-
-Would it make more sense to distinguish different parts of the OOM
-report by loglevel properly?
-pr_err - killed task report
-pr_warning - oom invocation + memory info
-pr_notice - task list
-pr_info - stack trace
-
-> Cc: Greg Thelen <gthelen@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: linux-mm@kvack.org
-> Cc: cgroups@vger.kernel.org
-> Signed-off-by: Aristeu Rozanski <arozansk@redhat.com>
-> ---
->  include/linux/oom.h | 1 +
->  kernel/sysctl.c     | 7 +++++++
->  mm/oom_kill.c       | 4 +++-
->  3 files changed, 11 insertions(+), 1 deletion(-)
+On Thu, Oct 22, 2015 at 09:45:10PM +0300, Vladimir Davydov wrote:
+> Hi Johannes,
 > 
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> index 03e6257..bdd03e5 100644
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -115,6 +115,7 @@ static inline bool task_will_free_mem(struct task_struct *task)
->  
->  /* sysctls */
->  extern int sysctl_oom_dump_tasks;
-> +extern int sysctl_oom_dump_stack;
->  extern int sysctl_oom_kill_allocating_task;
->  extern int sysctl_panic_on_oom;
->  #endif /* _INCLUDE_LINUX_OOM_H */
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index e69201d..c812523 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -1176,6 +1176,13 @@ static struct ctl_table vm_table[] = {
->  		.proc_handler	= proc_dointvec,
->  	},
->  	{
-> +		.procname	= "oom_dump_stack",
-> +		.data		= &sysctl_oom_dump_stack,
-> +		.maxlen		= sizeof(sysctl_oom_dump_stack),
-> +		.mode		= 0644,
-> +		.proc_handler	= proc_dointvec,
-> +	},
-> +	{
->  		.procname	= "overcommit_ratio",
->  		.data		= &sysctl_overcommit_ratio,
->  		.maxlen		= sizeof(sysctl_overcommit_ratio),
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 1ecc0bc..bdbf83b 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -42,6 +42,7 @@
->  int sysctl_panic_on_oom;
->  int sysctl_oom_kill_allocating_task;
->  int sysctl_oom_dump_tasks = 1;
-> +int sysctl_oom_dump_stack = 1;
->  
->  DEFINE_MUTEX(oom_lock);
->  
-> @@ -384,7 +385,8 @@ static void dump_header(struct oom_control *oc, struct task_struct *p,
->  		current->signal->oom_score_adj);
->  	cpuset_print_task_mems_allowed(current);
->  	task_unlock(current);
-> -	dump_stack();
-> +	if (sysctl_oom_dump_stack)
-> +		dump_stack();
->  	if (memcg)
->  		mem_cgroup_print_oom_info(memcg, p);
->  	else
-> -- 
-> 1.8.3.1
+> On Thu, Oct 22, 2015 at 12:21:28AM -0400, Johannes Weiner wrote:
+> ...
+> > Patch #5 adds accounting and tracking of socket memory to the unified
+> > hierarchy memory controller, as described above. It uses the existing
+> > per-cpu charge caches and triggers high limit reclaim asynchroneously.
+> > 
+> > Patch #8 uses the vmpressure extension to equalize pressure between
+> > the pages tracked natively by the VM and socket buffer pages. As the
+> > pool is shared, it makes sense that while natively tracked pages are
+> > under duress the network transmit windows are also not increased.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> First of all, I've no experience in networking, so I'm likely to be
+> mistaken. Nevertheless I beg to disagree that this patch set is a step
+> in the right direction. Here goes why.
+> 
+> I admit that your idea to get rid of explicit tcp window control knobs
+> and size it dynamically basing on memory pressure instead does sound
+> tempting, but I don't think it'd always work. The problem is that in
+> contrast to, say, dcache, we can't shrink tcp buffers AFAIU, we can only
+> stop growing them. Now suppose a system hasn't experienced memory
+> pressure for a while. If we don't have explicit tcp window limit, tcp
+> buffers on such a system might have eaten almost all available memory
+> (because of network load/problems). If a user workload that needs a
+> significant amount of memory is started suddenly then, the network code
+> will receive a notification and surely stop growing buffers, but all
+> those buffers accumulated won't disappear instantly. As a result, the
+> workload might be unable to find enough free memory and have no choice
+> but invoke OOM killer. This looks unexpected from the user POV.
 
--- 
-Michal Hocko
-SUSE Labs
+I'm not getting rid of those knobs, I'm just reusing the old socket
+accounting infrastructure in an attempt to make the memory accounting
+feature useful to more people in cgroups v2 (unified hierarchy).
+
+We can always come back to think about per-cgroup tcp window limits in
+the unified hierarchy, my patches don't get in the way of this. I'm
+not removing the knobs in cgroups v1 and I'm not preventing them in v2.
+
+But regardless of tcp window control, we need to account socket memory
+in the main memory accounting pool where pressure is shared (to the
+best of our abilities) between all accounted memory consumers.
+
+>From an interface standpoint alone, I don't think it's reasonable to
+ask users per default to limit different consumers on a case by case
+basis. I certainly have no problem with finetuning for scenarios you
+describe above, but with memory.current, memory.high, memory.max we
+are providing a generic interface to account and contain memory
+consumption of workloads. This has to include all major memory
+consumers to make semantical sense.
+
+But also, there are people right now for whom the socket buffers cause
+system OOM, but the existing memcg's hard tcp window limitq that
+exists absolutely wrecks network performance for them. It's not usable
+the way it is. It'd be much better to have the socket buffers exert
+pressure on the shared pool, and then propagate the overall pressure
+back to individual consumers with reclaim, shrinkers, vmpressure etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
