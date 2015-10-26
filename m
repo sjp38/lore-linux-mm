@@ -1,102 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EC306B0253
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 04:57:04 -0400 (EDT)
-Received: by pacfv9 with SMTP id fv9so190811560pac.3
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 01:57:04 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id vt7si51750169pbc.242.2015.10.26.01.57.00
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 24FCB6B0038
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 06:39:32 -0400 (EDT)
+Received: by igbhv6 with SMTP id hv6so53267302igb.0
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 03:39:32 -0700 (PDT)
+Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
+        by mx.google.com with ESMTPS id k92si24177474iod.64.2015.10.26.03.39.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Oct 2015 01:57:03 -0700 (PDT)
-Message-ID: <562DE9E3.8090807@huawei.com>
-Date: Mon, 26 Oct 2015 16:52:51 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [Question] A panic when reboot --force the system
-References: <562A01D5.20207@huawei.com>
-In-Reply-To: <562A01D5.20207@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Oct 2015 03:39:31 -0700 (PDT)
+Received: by padda3 with SMTP id da3so21103988pad.1
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 03:39:31 -0700 (PDT)
+From: yalin wang <yalin.wang2010@gmail.com>
+Subject: [PATCH V2] mm: fix kernel crash in khugepaged thread
+Date: Mon, 26 Oct 2015 18:39:20 +0800
+Message-Id: <1445855960-28677-1-git-send-email-yalin.wang2010@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rui Xiang <rui.xiang@huawei.com>
-Cc: sysvinit-devel@nongnu.org, systemd-devel@lists.freedesktop.org, Miao
- Xie <miaoxie@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, vbabka@suse.cz, jmarchan@redhat.com, mgorman@techsingularity.net, ebru.akagunduz@gmail.com, willy@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: yalin wang <yalin.wang2010@gmail.com>
 
-On 2015/10/23 17:45, Rui Xiang wrote:
+This crash is caused by NULL pointer deference, in page_to_pfn() marco,
+when page == NULL :
 
-> Hii 1/4 ?list
-> 
-> I encounter a panic about init process.
-> 
-> Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000007
-> 
-> Pid: 1, comm: init Tainted: G  R        O 3.4.24.19-0.11-default #1
-> Call Trace:
->  [<ffffffff8144dd24>] panic+0xc1/0x1e2
->  [<ffffffff8104483b>] do_exit+0x7db/0x8d0
->  [<ffffffff81044c7a>] do_group_exit+0x3a/0xa0
->  [<ffffffff8105394b>] get_signal_to_deliver+0x1ab/0x5e0
->  [<ffffffff81002270>] do_signal+0x60/0x5f0
->  [<ffffffff8145bf97>] ? do_page_fault+0x4a7/0x4d0
->  [<ffffffff81170d2c>] ? poll_select_copy_remaining+0xec/0x140
->  [<ffffffff81002885>] do_notify_resume+0x65/0x80
->  [<ffffffff8124ca7e>] ? trace_hardirqs_on_thunk+0x3a/0x3c
->  [<ffffffff814587ab>] retint_signal+0x4d/0x92
-> 
-> The system has a little memory left, then reboot it, and get the panic.
-> 
-> In our host, kswapd would be wake up while using a lot of memory, and then reclaim
-> some pages from init process. If we execute *"reboot"* or *"reboot -f"* to reboot
-> host through sysvinit, reboot process will call sys_reboot and shut down the sas
-> driver(disk), then will trigger the panic of init process.
-> 
-> As follow,
-> 
-> 		HOST					reboot process			init process
-> use a lot of memory
->  wake up kswapd
->    reclaim some pages
->    (these pages are code segment
-> 	or data segment of init process)
->    from init thread (pid=1)
-> 								reboot
-> 								  sys_reboot
-> 									shutdown disk driver
-> 	
+[  182.639154 ] Unable to handle kernel NULL pointer dereference at virtual address 00000000
+[  182.639491 ] pgd = ffffffc00077a000
+[  182.639761 ] [00000000] *pgd=00000000b9422003, *pud=00000000b9422003, *pmd=00000000b9423003, *pte=0060000008000707
+[  182.640749 ] Internal error: Oops: 94000006 [#1] SMP
+[  182.641197 ] Modules linked in:
+[  182.641580 ] CPU: 1 PID: 26 Comm: khugepaged Tainted: G        W       4.3.0-rc6-next-20151022ajb-00001-g32f3386-dirty #3
+[  182.642077 ] Hardware name: linux,dummy-virt (DT)
+[  182.642227 ] task: ffffffc07957c080 ti: ffffffc079638000 task.ti: ffffffc079638000
+[  182.642598 ] PC is at khugepaged+0x378/0x1af8
+[  182.642826 ] LR is at khugepaged+0x418/0x1af8
+[  182.643047 ] pc : [<ffffffc0001980ac>] lr : [<ffffffc00019814c>] pstate: 60000145
+[  182.643490 ] sp : ffffffc07963bca0
+[  182.643650 ] x29: ffffffc07963bca0 x28: ffffffc00075c000
+[  182.644024 ] x27: ffffffc00f275040 x26: ffffffc0006c7000
+[  182.644334 ] x25: 00e8000048800f51 x24: 0000000006400000
+[  182.644687 ] x23: 0000000000000002 x22: 0000000000000000
+[  182.644972 ] x21: 0000000000000000 x20: 0000000000000000
+[  182.645446 ] x19: 0000000000000000 x18: 0000007ff86d0990
+[  182.645931 ] x17: 00000000007ef9c8 x16: ffffffc000098390
+[  182.646236 ] x15: ffffffffffffffff x14: 00000000ffffffff
+[  182.646649 ] x13: 000000000000016a x12: 0000000000000000
+[  182.647046 ] x11: ffffffc07f025020 x10: 0000000000000000
+[  182.647395 ] x9 : 0000000000000048 x8 : ffffffc000721e28
+[  182.647872 ] x7 : 0000000000000000 x6 : ffffffc07f02d000
+[  182.648261 ] x5 : fffffffffffffe00 x4 : ffffffc00f275040
+[  182.648611 ] x3 : 0000000000000000 x2 : ffffffc00f2ad000
+[  182.648908 ] x1 : 0000000000000000 x0 : ffffffc000727000
+[  182.649147 ]
+[  182.649252 ] Process khugepaged (pid: 26, stack limit = 0xffffffc079638020)
+[  182.649724 ] Stack: (0xffffffc07963bca0 to 0xffffffc07963c000)
+[  182.650141 ] bca0: ffffffc07963be30 ffffffc0000b5044 ffffffc07961fb80 ffffffc00072e630
+[  182.650587 ] bcc0: ffffffc0005d5090 0000000000000000 ffffffc000197d34 0000000000000000
+[  182.651009 ] bce0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.651446 ] bd00: ffffffc07963bd90 ffffffc07f1cbf80 000000004f3be003 ffffffc00f2750a4
+[  182.651956 ] bd20: ffffffc00f3bf000 ffffffc000000001 0000000000000001 ffffffc07f085740
+[  182.652520 ] bd40: ffffffc00f2ad188 ffffffc000000000 0000000006200000 ffffffc00f275040
+[  182.652972 ] bd60: ffffffc0006b1a90 ffffffc079638000 ffffffc07963be20 ffffffc00f0144d0
+[  182.653357 ] bd80: ffffffc000000000 0000000006400000 ffffffc00f0144d0 00000a0800000001
+[  182.653793 ] bda0: 0000100000000001 ffffffc000000001 ffffffc07f025000 ffffffc00f2750a8
+[  182.654226 ] bdc0: 00000001000005f8 ffffffc00075a000 0000000006a00000 ffffffc000727000
+[  182.654522 ] bde0: ffffffc0006e8478 ffffffc000000000 0000000100000000 ffffffc078fb9000
+[  182.654869 ] be00: ffffffc07963be30 ffffffc000000000 ffffffc07957c080 ffffffc0000cfc4c
+[  182.655225 ] be20: ffffffc07963be20 ffffffc07963be20 0000000000000000 ffffffc000085c50
+[  182.655588 ] be40: ffffffc0000b4f64 ffffffc07961fb80 0000000000000000 0000000000000000
+[  182.656138 ] be60: 0000000000000000 ffffffc0000bee2c ffffffc0000b4f64 0000000000000000
+[  182.656609 ] be80: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.657145 ] bea0: ffffffc07963bea0 ffffffc07963bea0 0000000000000000 ffffffc000000000
+[  182.657475 ] bec0: ffffffc07963bec0 ffffffc07963bec0 0000000000000000 0000000000000000
+[  182.657922 ] bee0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.658558 ] bf00: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.658972 ] bf20: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.659291 ] bf40: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.659722 ] bf60: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.660122 ] bf80: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.660654 ] bfa0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.661064 ] bfc0: 0000000000000000 0000000000000000 0000000000000000 0000000000000005
+[  182.661466 ] bfe0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  182.661848 ] Call trace:
+[  182.662050 ] [<ffffffc0001980ac>] khugepaged+0x378/0x1af8
+[  182.662294 ] [<ffffffc0000b5040>] kthread+0xdc/0xf4
+[  182.662605 ] [<ffffffc000085c4c>] ret_from_fork+0xc/0x40
+[  182.663046 ] Code: 35001700 f0002c60 aa0703e3 f9009fa0 (f94000e0)
+[  182.663901 ] ---[ end trace 637503d8e28ae69e  ]---
+[  182.664160 ] Kernel panic - not syncing: Fatal exception
+[  182.664571 ] CPU2: stopping
+[  182.664794 ] CPU: 2 PID: 0 Comm: swapper/2 Tainted: G      D W       4.3.0-rc6-next-20151022ajb-00001-g32f3386-dirty #3
+[  182.665248 ] Hardware name: linux,dummy-virt (DT)
 
+Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+---
+ mm/huge_memory.c | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)
 
-												init thread read data from disk
-
-Hi,
-
-Does anyone know will init thread read data from disk after shutdown
-the disk driver?
-
-Thanks,
-Xishi Qiu
-
-> 														  page_fault
-> 															filemap_fault
-> 															  readpage failed because the disk is closed
-> 															return VM_FAULT_SIGBUS
-> 															send signal SIGBUS
-> 														  do_signal
-> 															do_exit
-> 															trigger the panic
-> 
-> 
-> It seems that reboot or force reboot through *sysvinit* have the problem.
-> Furthermore, using reboot -f in *systemd* should also have this problem, right?
-> 
-> And is that a bug for current reboot process in sysvinit or systemd?
-> 
-> All comments are welcome, thanks.
-> 
-> .
-> 
-
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 4b3420a..8a3482f 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2492,7 +2492,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 			       struct page **hpage)
+ {
+ 	pmd_t *pmd;
+-	pte_t *pte, *_pte;
++	pte_t *pte, *_pte, uninitialized_var(pteval);
+ 	int ret = 0, none_or_zero = 0, result = 0;
+ 	struct page *page = NULL;
+ 	unsigned long _address;
+@@ -2503,16 +2503,14 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 
+ 	pmd = mm_find_pmd(mm, address);
+-	if (!pmd) {
+-		result = SCAN_PMD_NULL;
+-		goto out;
+-	}
++	if (!pmd)
++		return ret;
+ 
+ 	memset(khugepaged_node_load, 0, sizeof(khugepaged_node_load));
+ 	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 	for (_address = address, _pte = pte; _pte < pte+HPAGE_PMD_NR;
+ 	     _pte++, _address += PAGE_SIZE) {
+-		pte_t pteval = *_pte;
++		pteval = *_pte;
+ 		if (is_swap_pte(pteval)) {
+ 			if (++unmapped <= khugepaged_max_ptes_swap) {
+ 				continue;
+@@ -2605,9 +2603,9 @@ out_unmap:
+ 		/* collapse_huge_page will return with the mmap_sem released */
+ 		collapse_huge_page(mm, address, hpage, vma, node);
+ 	}
+-out:
+-	trace_mm_khugepaged_scan_pmd(mm, page_to_pfn(page), writable, referenced,
+-				     none_or_zero, result, unmapped);
++	trace_mm_khugepaged_scan_pmd(mm, pte_present(pteval) ?
++			pte_pfn(pteval) : -1, writable, referenced,
++			none_or_zero, result, unmapped);
+ 	return ret;
+ }
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
