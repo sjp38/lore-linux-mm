@@ -1,73 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C79082F64
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 11:06:57 -0400 (EDT)
-Received: by oies66 with SMTP id s66so101831732oie.1
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 08:06:57 -0700 (PDT)
-Received: from g1t6219.austin.hp.com (g1t6219.austin.hp.com. [15.73.96.127])
-        by mx.google.com with ESMTPS id n9si21167927oek.24.2015.10.26.08.06.56
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 810F26B0038
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 12:01:23 -0400 (EDT)
+Received: by wicfx6 with SMTP id fx6so120935010wic.1
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 09:01:22 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id hp3si23890377wib.42.2015.10.26.09.01.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Oct 2015 08:06:56 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v2 UPDATE 3/3] ACPI/APEI/EINJ: Allow memory error injection to NVDIMM
-Date: Mon, 26 Oct 2015 09:03:03 -0600
-Message-Id: <1445871783-18365-1-git-send-email-toshi.kani@hpe.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Oct 2015 09:01:21 -0700 (PDT)
+Date: Mon, 26 Oct 2015 12:01:11 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] oom_kill: add option to disable dump_stack()
+Message-ID: <20151026160111.GA2214@cmpxchg.org>
+References: <1445634150-27992-1-git-send-email-arozansk@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1445634150-27992-1-git-send-email-arozansk@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bp@alien8.de, tony.luck@intel.com, akpm@linux-foundation.org, dan.j.williams@intel.com, rjw@rjwysocki.net
-Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
+To: Aristeu Rozanski <arozansk@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-In the case of memory error injection, einj_error_inject() checks
-if a target address is regular RAM.  Update this check to add a call
-to region_intersects_pmem() to verify if a target address range is
-NVDIMM.  This allows injecting a memory error to both RAM and NVDIMM
-for testing.
+On Fri, Oct 23, 2015 at 05:02:30PM -0400, Aristeu Rozanski wrote:
+> One of the largest chunks of log messages in a OOM is from dump_stack() and in
+> some cases it isn't even necessary to figure out what's going on. In
+> systems with multiple tenants/containers with limited resources each
+> OOMs can be way more frequent and being able to reduce the amount of log
+> output for each situation is useful.
+> 
+> This patch adds a sysctl to allow disabling dump_stack() during an OOM while
+> keeping the default to behave the same way it behaves today.
+> 
+> Cc: Greg Thelen <gthelen@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: linux-mm@kvack.org
+> Cc: cgroups@vger.kernel.org
+> Signed-off-by: Aristeu Rozanski <arozansk@redhat.com>
 
-Also, the current RAM check, page_is_ram(), is replaced with
-region_intersects_ram() so that it can verify a target address
-range with the requested size.
+I think this makes sense.
 
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Reviewed-by: Dan Williams <dan.j.williams@intel.com>
----
-Add a blank line before if-statement. (Borislav Petkov)
----
- drivers/acpi/apei/einj.c |   13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+The high volume log output is not just annoying, we have also had
+reports from people whose machines locked up as they tried to log
+hundreds of containers through a low-bandwidth serial console.
 
-diff --git a/drivers/acpi/apei/einj.c b/drivers/acpi/apei/einj.c
-index 0431883..db21efe 100644
---- a/drivers/acpi/apei/einj.c
-+++ b/drivers/acpi/apei/einj.c
-@@ -519,7 +519,7 @@ static int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
- 			     u64 param3, u64 param4)
- {
- 	int rc;
--	unsigned long pfn;
-+	u64 base_addr, size;
- 
- 	/* If user manually set "flags", make sure it is legal */
- 	if (flags && (flags &
-@@ -545,10 +545,15 @@ static int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
- 	/*
- 	 * Disallow crazy address masks that give BIOS leeway to pick
- 	 * injection address almost anywhere. Insist on page or
--	 * better granularity and that target address is normal RAM.
-+	 * better granularity and that target address is normal RAM or
-+	 * NVDIMM.
- 	 */
--	pfn = PFN_DOWN(param1 & param2);
--	if (!page_is_ram(pfn) || ((param2 & PAGE_MASK) != PAGE_MASK))
-+	base_addr = param1 & param2;
-+	size = (~param2) + 1;
-+
-+	if (((region_intersects_ram(base_addr, size) != REGION_INTERSECTS) &&
-+	     (region_intersects_pmem(base_addr, size) != REGION_INTERSECTS)) ||
-+	    ((param2 & PAGE_MASK) != PAGE_MASK))
- 		return -EINVAL;
- 
- inject:
+Could you include sample output of before and after in the changelog
+to provide an immediate comparison on what we are saving?
+
+Should we make the knob specific to the stack dump or should it be
+more generic, so that we could potentially save even more output?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
