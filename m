@@ -1,89 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B28A82F65
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 12:56:34 -0400 (EDT)
-Received: by wicll6 with SMTP id ll6so123461656wic.0
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 09:56:34 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id ek5si24231134wid.33.2015.10.26.09.56.33
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 674466B0038
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 13:20:16 -0400 (EDT)
+Received: by wicfx6 with SMTP id fx6so124360983wic.1
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 10:20:15 -0700 (PDT)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id cm4si44314234wjb.78.2015.10.26.10.20.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Oct 2015 09:56:33 -0700 (PDT)
-Date: Mon, 26 Oct 2015 12:56:19 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
- hierarchy
-Message-ID: <20151026165619.GB2214@cmpxchg.org>
-References: <1445487696-21545-1-git-send-email-hannes@cmpxchg.org>
- <1445487696-21545-6-git-send-email-hannes@cmpxchg.org>
- <20151023131956.GA15375@dhcp22.suse.cz>
- <20151023.065957.1690815054807881760.davem@davemloft.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Oct 2015 10:20:15 -0700 (PDT)
+Received: by wicll6 with SMTP id ll6so124476309wic.0
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 10:20:14 -0700 (PDT)
+Date: Mon, 26 Oct 2015 18:20:12 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] oom_kill: add option to disable dump_stack()
+Message-ID: <20151026172012.GC9779@dhcp22.suse.cz>
+References: <1445634150-27992-1-git-send-email-arozansk@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151023.065957.1690815054807881760.davem@davemloft.net>
+In-Reply-To: <1445634150-27992-1-git-send-email-arozansk@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Aristeu Rozanski <arozansk@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Fri, Oct 23, 2015 at 06:59:57AM -0700, David Miller wrote:
-> From: Michal Hocko <mhocko@kernel.org>
-> Date: Fri, 23 Oct 2015 15:19:56 +0200
+On Fri 23-10-15 17:02:30, Aristeu Rozanski wrote:
+> One of the largest chunks of log messages in a OOM is from dump_stack() and in
+> some cases it isn't even necessary to figure out what's going on. In
+> systems with multiple tenants/containers with limited resources each
+> OOMs can be way more frequent and being able to reduce the amount of log
+> output for each situation is useful.
+
+I can see why you want to reduce the amount of information, I guess you
+have tried to reduce the loglevel but this hasn't helped because
+dump_stack uses default log level which is too low to be usable, right?
+Or are there any other reasons?
+ 
+> This patch adds a sysctl to allow disabling dump_stack() during an OOM while
+> keeping the default to behave the same way it behaves today.
+
+I am not sure sysctl is a good way to tell this particular restriction
+on the output. What if somebody else doesn't want to see the list of
+eligible tasks? Should we add another knob?
+
+Would it make more sense to distinguish different parts of the OOM
+report by loglevel properly?
+pr_err - killed task report
+pr_warning - oom invocation + memory info
+pr_notice - task list
+pr_info - stack trace
+
+> Cc: Greg Thelen <gthelen@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: linux-mm@kvack.org
+> Cc: cgroups@vger.kernel.org
+> Signed-off-by: Aristeu Rozanski <arozansk@redhat.com>
+> ---
+>  include/linux/oom.h | 1 +
+>  kernel/sysctl.c     | 7 +++++++
+>  mm/oom_kill.c       | 4 +++-
+>  3 files changed, 11 insertions(+), 1 deletion(-)
 > 
-> > On Thu 22-10-15 00:21:33, Johannes Weiner wrote:
-> >> Socket memory can be a significant share of overall memory consumed by
-> >> common workloads. In order to provide reasonable resource isolation
-> >> out-of-the-box in the unified hierarchy, this type of memory needs to
-> >> be accounted and tracked per default in the memory controller.
-> > 
-> > What about users who do not want to pay an additional overhead for the
-> > accounting? How can they disable it?
+> diff --git a/include/linux/oom.h b/include/linux/oom.h
+> index 03e6257..bdd03e5 100644
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -115,6 +115,7 @@ static inline bool task_will_free_mem(struct task_struct *task)
+>  
+>  /* sysctls */
+>  extern int sysctl_oom_dump_tasks;
+> +extern int sysctl_oom_dump_stack;
+>  extern int sysctl_oom_kill_allocating_task;
+>  extern int sysctl_panic_on_oom;
+>  #endif /* _INCLUDE_LINUX_OOM_H */
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index e69201d..c812523 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -1176,6 +1176,13 @@ static struct ctl_table vm_table[] = {
+>  		.proc_handler	= proc_dointvec,
+>  	},
+>  	{
+> +		.procname	= "oom_dump_stack",
+> +		.data		= &sysctl_oom_dump_stack,
+> +		.maxlen		= sizeof(sysctl_oom_dump_stack),
+> +		.mode		= 0644,
+> +		.proc_handler	= proc_dointvec,
+> +	},
+> +	{
+>  		.procname	= "overcommit_ratio",
+>  		.data		= &sysctl_overcommit_ratio,
+>  		.maxlen		= sizeof(sysctl_overcommit_ratio),
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 1ecc0bc..bdbf83b 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -42,6 +42,7 @@
+>  int sysctl_panic_on_oom;
+>  int sysctl_oom_kill_allocating_task;
+>  int sysctl_oom_dump_tasks = 1;
+> +int sysctl_oom_dump_stack = 1;
+>  
+>  DEFINE_MUTEX(oom_lock);
+>  
+> @@ -384,7 +385,8 @@ static void dump_header(struct oom_control *oc, struct task_struct *p,
+>  		current->signal->oom_score_adj);
+>  	cpuset_print_task_mems_allowed(current);
+>  	task_unlock(current);
+> -	dump_stack();
+> +	if (sysctl_oom_dump_stack)
+> +		dump_stack();
+>  	if (memcg)
+>  		mem_cgroup_print_oom_info(memcg, p);
+>  	else
+> -- 
+> 1.8.3.1
 > 
-> Yeah, this really cannot pass.
-> 
-> This extra overhead will be seen by %99.9999 of users, since entities
-> (especially distributions) just flip on all of these config options by
-> default.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Okay, there are several layers to this issue.
-
-If you boot a machine with a CONFIG_MEMCG distribution kernel and
-don't create any cgroups, I agree there shouldn't be any overhead.
-
-I already sent a patch to generally remove memory accounting on the
-system or root level. I can easily update this patch here to not have
-any socket buffer accounting overhead for systems that don't actively
-use cgroups. Would you be okay with a branch on sk->sk_memcg in the
-network accounting path? I'd leave that NULL on the system level then.
-
-Then there is of course the case when you create cgroups for process
-organization but don't care about memory accounting. Systemd comes to
-mind. Or even if you create cgroups to track other resources like CPU
-but don't care about memory. The unified hierarchy no longer enables
-controllers on new cgroups per default, so unless you create a cgroup
-and specifically tell it to account and track memory, you won't have
-the socket memory accounting overhead, either.
-
-Then there is the third case, where you create a control group to
-specifically manage and limit the memory consumption of a workload. In
-that scenario, a major memory consumer like socket buffers, which can
-easily grow until OOM, should definitely be included in the tracking
-in order to properly contain both untrusted (possibly malicious) and
-trusted (possibly buggy) workloads. This is not a hole we can
-reasonbly leave unpatched for general purpose resource management.
-
-Now you could argue that there might exist specialized workloads that
-need to account anonymous pages and page cache, but not socket memory
-buffers. Or any other combination of pick-and-choose consumers. But
-honestly, nowadays all our paths are lockless, and the counting is an
-atomic-add-return with a per-cpu batch cache. I don't think there is a
-compelling case for an elaborate interface to make individual memory
-consumers configurable inside the memory controller.
-
-So in summary, would you be okay with this patch if networking only
-called into the memory controller when you explicitely create a cgroup
-AND tell it to track the memory footprint of the workload in it?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
