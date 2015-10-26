@@ -1,52 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id DFEC66B0038
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 07:44:23 -0400 (EDT)
-Received: by iody8 with SMTP id y8so27260817iod.1
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 04:44:23 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id o18si12027608igs.37.2015.10.26.04.44.22
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B7E982F66
+	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 10:56:11 -0400 (EDT)
+Received: by obcqt19 with SMTP id qt19so144140709obc.3
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 07:56:11 -0700 (PDT)
+Received: from g1t6223.austin.hp.com (g1t6223.austin.hp.com. [15.73.96.124])
+        by mx.google.com with ESMTPS id a6si9060432obl.83.2015.10.26.07.56.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 26 Oct 2015 04:44:22 -0700 (PDT)
-Subject: Newbie's question: memory allocation when reclaiming memory
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
-	<20151002123639.GA13914@dhcp22.suse.cz>
-	<201510031502.BJD59536.HFJMtQOOLFFVSO@I-love.SAKURA.ne.jp>
-	<201510062351.JHJ57310.VFQLFHFOJtSMOO@I-love.SAKURA.ne.jp>
-	<201510121543.EJF21858.LtJFHOOOSQVMFF@I-love.SAKURA.ne.jp>
-In-Reply-To: <201510121543.EJF21858.LtJFHOOOSQVMFF@I-love.SAKURA.ne.jp>
-Message-Id: <201510262044.BAI43236.FOMSFFOtOVLJQH@I-love.SAKURA.ne.jp>
-Date: Mon, 26 Oct 2015 20:44:09 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Oct 2015 07:56:10 -0700 (PDT)
+Message-ID: <1445871136.20657.81.camel@hpe.com>
+Subject: Re: [PATCH v2 3/3] ACPI/APEI/EINJ: Allow memory error injection to
+ NVDIMM
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Mon, 26 Oct 2015 08:52:16 -0600
+In-Reply-To: <20151025104512.GC6084@nazgul.tnic>
+References: <1445626439-8424-1-git-send-email-toshi.kani@hpe.com>
+	 <1445626439-8424-4-git-send-email-toshi.kani@hpe.com>
+	 <20151025104512.GC6084@nazgul.tnic>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: rientjes@google.com, oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: Borislav Petkov <bp@alien8.de>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, rjw@rjwysocki.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org
 
-May I ask a newbie question? Say, there is some amount of memory pages
-which can be reclaimed if they are flushed to storage. And lower layer
-might issue memory allocation request in a way which won't cause reclaim
-deadlock (e.g. using GFP_NOFS or GFP_NOIO) when flushing to storage,
-isn't it?
+On Sun, 2015-10-25 at 11:45 +0100, Borislav Petkov wrote:
+> On Fri, Oct 23, 2015 at 12:53:59PM -0600, Toshi Kani wrote:
+> > In the case of memory error injection, einj_error_inject() checks
+> > if a target address is regular RAM.  Update this check to add a call
+> > to region_intersects_pmem() to verify if a target address range is
+> > NVDIMM.  This allows injecting a memory error to both RAM and NVDIMM
+> > for testing.
+> > 
+> > Also, the current RAM check, page_is_ram(), is replaced with
+> > region_intersects_ram() so that it can verify a target address
+> > range with the requested size.
+> > 
+> > Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> > ---
+> >  drivers/acpi/apei/einj.c |   12 ++++++++----
+> >  1 file changed, 8 insertions(+), 4 deletions(-)
+> 
+> ...
+> 
+> > @@ -545,10 +545,14 @@ static int einj_error_inject(u32 type, u32 flags, u64 param1,
+> > u64 param2,
+> >  	/*
+> >  	 * Disallow crazy address masks that give BIOS leeway to pick
+> >  	 * injection address almost anywhere. Insist on page or
+> > -	 * better granularity and that target address is normal RAM.
+> > +	 * better granularity and that target address is normal RAM or
+> > +	 * NVDIMM.
+> >  	 */
+> > -	pfn = PFN_DOWN(param1 & param2);
+> > -	if (!page_is_ram(pfn) || ((param2 & PAGE_MASK) != PAGE_MASK))
+> > +	base_addr = param1 & param2;
+> > +	size = (~param2) + 1;
+> 
+> Just a minor nitpick: please separate assignments from the if-statement
+> here with a \n.
 
-What I'm worrying is a dependency that __GFP_FS allocation requests think
-that there are reclaimable pages and therefore there is no need to call
-out_of_memory(); and GFP_NOFS allocation requests which the __GFP_FS
-allocation requests depend on (in order to flush to storage) is waiting
-for GFP_NOIO allocation requests; and the GFP_NOIO allocation requests
-which the GFP_NOFS allocation requests depend on (in order to flush to
-storage) are waiting for memory pages to be reclaimed without calling
-out_of_memory(); because gfp_to_alloc_flags() does not favor GFP_NOIO over
-GFP_NOFS nor GFP_NOFS over __GFP_FS which will throttle all allocations
-at the same watermark level.
+Sure.  I will send an updated patch for 3/3, "[PATCH v2 UPDATE 3/3]".
 
-How do we guarantee that GFP_NOFS/GFP_NOIO allocations make forward
-progress? What mechanism guarantees that memory pages which __GFP_FS
-allocation requests are waiting for are reclaimed? I assume that there
-is some mechanism; otherwise we can hit silent livelock, can't we?
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
