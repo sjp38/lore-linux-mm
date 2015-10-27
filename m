@@ -1,89 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 119AD6B0038
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 03:39:26 -0400 (EDT)
-Received: by iodd200 with SMTP id d200so49232473iod.0
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 00:39:25 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id c88si8673315iod.69.2015.10.27.00.39.25
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 27F276B0038
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 04:09:24 -0400 (EDT)
+Received: by wicll6 with SMTP id ll6so147913064wic.1
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 01:09:23 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
+        by mx.google.com with ESMTPS id qp9si48514931wjc.189.2015.10.27.01.09.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Oct 2015 00:39:25 -0700 (PDT)
-Received: by padhk11 with SMTP id hk11so214700071pad.1
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 00:39:25 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 9.0 \(3094\))
-Subject: Re: [PATCH 4/5] mm: simplify reclaim path for MADV_FREE
-From: yalin wang <yalin.wang2010@gmail.com>
-In-Reply-To: <20151027070903.GD26803@bbox>
-Date: Tue, 27 Oct 2015 15:39:16 +0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <32537EDE-3EE6-4C44-B820-5BCAF7A5D535@gmail.com>
-References: <1445236307-895-1-git-send-email-minchan@kernel.org> <1445236307-895-5-git-send-email-minchan@kernel.org> <alpine.LSU.2.11.1510261828350.10825@eggly.anvils> <EDCE64A3-D874-4FE3-91B5-DE5E26A452F5@gmail.com> <20151027070903.GD26803@bbox>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Oct 2015 01:09:22 -0700 (PDT)
+Received: by wikq8 with SMTP id q8so198996281wik.1
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 01:09:22 -0700 (PDT)
+Date: Tue, 27 Oct 2015 09:09:21 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] oom_kill: add option to disable dump_stack()
+Message-ID: <20151027080920.GA9891@dhcp22.suse.cz>
+References: <1445634150-27992-1-git-send-email-arozansk@redhat.com>
+ <20151026172012.GC9779@dhcp22.suse.cz>
+ <20151026174048.GP15046@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151026174048.GP15046@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>
+To: Aristeu Rozanski <arozansk@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
+On Mon 26-10-15 13:40:49, Aristeu Rozanski wrote:
+> Hi Michal,
+> On Mon, Oct 26, 2015 at 06:20:12PM +0100, Michal Hocko wrote:
+[...]
+> > Would it make more sense to distinguish different parts of the OOM
+> > report by loglevel properly?
+> > pr_err - killed task report
+> > pr_warning - oom invocation + memory info
+> > pr_notice - task list
+> > pr_info - stack trace
+> 
+> That'd work, yes, but I'd think the stack trace would be pr_debug. At a
+> point that you suspect the OOM killer isn't doing the right thing picking
+> up tasks and you need more information.
 
-> On Oct 27, 2015, at 15:09, Minchan Kim <minchan@kernel.org> wrote:
->=20
-> Hello Yalin,
->=20
-> Sorry for missing you in Cc list.
-> IIRC, mails to send your previous mail =
-address(Yalin.Wang@sonymobile.com)
-> were returned.
->=20
-> You added comment bottom line so I'm not sure what PageDirty you =
-meant.
->=20
->> it is wrong here if you only check PageDirty() to decide if the page =
-is freezable or not .
->> The Anon page are shared by multiple process, _mapcount > 1 ,
->> so you must check all pt_dirty bit during page_referenced() function,
->> see this mail thread:
->> http://ns1.ske-art.com/lists/kernel/msg1934021.html
->=20
-> If one of pte among process sharing the page was dirty, the dirtiness =
-should
-> be propagated from pte to PG_dirty by try_to_unmap_one.
-> IOW, if the page doesn't have PG_dirty flag, it means all of process =
-did
-> MADV_FREE.
->=20
-> Am I missing something from you question?
-> If so, could you show exact scenario I am missing?
->=20
-> Thanks for the interest.
-oh, yeah , that is right , i miss that , pte_dirty will propagate to =
-PG_dirty ,
-so that is correct .
-Generic to say this patch move set_page_dirty() from add_to_swap() to=20
-try_to_unmap(), i think can change a little about this patch:
-
-@@ -1476,6 +1446,8 @@ static int try_to_unmap_one(struct page *page, =
-struct vm_area_struct *vma,
-				ret =3D SWAP_FAIL;
-				goto out_unmap;
-			}
-+			if (!PageDirty(page))
-+				SetPageDirty(page);
-			if (list_empty(&mm->mmlist)) {
-				spin_lock(&mmlist_lock);
-				if (list_empty(&mm->mmlist))
-
-i think this 2 lines can be removed ,
-since  pte_dirty have propagated to set_page_dirty() , we don=E2=80=99t =
-need this line here ,
-otherwise you will always dirty a AnonPage, even it is clean,
-then we will page out this clean page to swap partition one more , this =
-is not needed.
-am i understanding correctly ?
-
-By the way, please change my mail address to yalin.wang2010@gmail.com in =
-CC list .
-Thanks a lot. :)=20
+Stack trace should be independent on the oom victim selection because
+the selection should be as much deterministic as possible - so it should
+only depend on the memory consumption. I do agree that the exact trace
+is not very useful for the (maybe) majority of OOM reports. I am trying
+to remember when it was really useful the last time and have trouble to
+find an example. So I would tend to agree that pr_debug would me more
+suitable.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
