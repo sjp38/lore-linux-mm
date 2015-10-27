@@ -1,44 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 183A382F64
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 09:32:40 -0400 (EDT)
-Received: by oifu63 with SMTP id u63so77312030oif.2
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 06:32:39 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id o3si24360976obv.60.2015.10.27.06.32.39
-        for <linux-mm@kvack.org>;
-        Tue, 27 Oct 2015 06:32:39 -0700 (PDT)
-Date: Tue, 27 Oct 2015 06:49:16 -0700 (PDT)
-Message-Id: <20151027.064916.312540587298733586.davem@davemloft.net>
-Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
- hierarchy
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20151027122647.GG9891@dhcp22.suse.cz>
-References: <20151023.065957.1690815054807881760.davem@davemloft.net>
-	<20151026165619.GB2214@cmpxchg.org>
-	<20151027122647.GG9891@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-lf0-f45.google.com (mail-lf0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 8847A6B0038
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 11:22:23 -0400 (EDT)
+Received: by lffz202 with SMTP id z202so174479994lff.3
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 08:22:22 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id g63si16612905lfb.137.2015.10.27.08.22.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Oct 2015 08:22:21 -0700 (PDT)
+Date: Tue, 27 Oct 2015 18:22:03 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] memcg: Fix thresholds for 32b architectures.
+Message-ID: <20151027152203.GG13221@esperanza>
+References: <1445942234-11175-1-git-send-email-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1445942234-11175-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mhocko@kernel.org
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@fb.com>, Ben Hutchings <ben@decadent.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, stable@vger.kernel.org
 
-From: Michal Hocko <mhocko@kernel.org>
-Date: Tue, 27 Oct 2015 13:26:47 +0100
-
-> On Mon 26-10-15 12:56:19, Johannes Weiner wrote:
-> [...]
->> Or any other combination of pick-and-choose consumers. But
->> honestly, nowadays all our paths are lockless, and the counting is an
->> atomic-add-return with a per-cpu batch cache.
+On Tue, Oct 27, 2015 at 11:37:14AM +0100, mhocko@kernel.org wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> You are still hooking into hot paths and there are users who want to
-> squeeze every single cycle from the HW.
+> 424cdc141380 ("memcg: convert threshold to bytes") has fixed a
+> regression introduced by 3e32cb2e0a12 ("mm: memcontrol: lockless page
+> counters") where thresholds were silently converted to use page units
+> rather than bytes when interpreting the user input.
+> 
+> The fix is not complete, though, as properly pointed out by Ben
+> Hutchings during stable backport review. The page count is converted
+> to bytes but unsigned long is used to hold the value which would
+> be obviously not sufficient for 32b systems with more than 4G
+> thresholds. The same applies to usage as taken from mem_cgroup_usage
+> which might overflow.
+> 
+> Let's remove this bytes vs. pages internal tracking differences and
+> handle thresholds in page units internally. Chage mem_cgroup_usage()
+> to return the value in page units and revert 424cdc141380 because this
+> should be sufficient for the consistent handling.
+> mem_cgroup_read_u64 as the only users of mem_cgroup_usage outside of
+> the threshold handling code is converted to give the proper in bytes
+> result. It is doing that already for page_counter output so this is
+> more consistent as well.
+> 
+> The value presented to the userspace is still in bytes units.
+> 
+> Fixes: 424cdc141380 ("memcg: convert threshold to bytes")
+> Fixes: 3e32cb2e0a12 ("mm: memcontrol: lockless page counters")
+> CC: stable@vger.kernel.org
+> Reported-by: Ben Hutchings <ben@decadent.org.uk>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Yeah, you're basically probably undoing a half year of work by another
-developer who was able to remove an atomic from these paths.
+Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
