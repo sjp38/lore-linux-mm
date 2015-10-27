@@ -1,74 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FEBF82F64
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 12:20:49 -0400 (EDT)
-Received: by wicll6 with SMTP id ll6so168091679wic.1
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 09:20:49 -0700 (PDT)
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
-        by mx.google.com with ESMTPS id oe6si31110372wic.41.2015.10.27.09.20.48
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id DD09582F64
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 12:23:54 -0400 (EDT)
+Received: by wicll6 with SMTP id ll6so167399355wic.0
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 09:23:54 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id z19si31010840wij.114.2015.10.27.09.23.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Oct 2015 09:20:48 -0700 (PDT)
-Received: by wicfv8 with SMTP id fv8so170196722wic.0
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 09:20:48 -0700 (PDT)
-Date: Tue, 27 Oct 2015 17:20:47 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] oom_kill: add option to disable dump_stack()
-Message-ID: <20151027162047.GK9891@dhcp22.suse.cz>
-References: <1445634150-27992-1-git-send-email-arozansk@redhat.com>
- <20151026172012.GC9779@dhcp22.suse.cz>
- <20151026174048.GP15046@redhat.com>
- <20151027080920.GA9891@dhcp22.suse.cz>
- <20151027154341.GA14722@redhat.com>
+        Tue, 27 Oct 2015 09:23:53 -0700 (PDT)
+Date: Tue, 27 Oct 2015 09:23:31 -0700
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg: Fix thresholds for 32b architectures.
+Message-ID: <20151027162331.GA7749@cmpxchg.org>
+References: <1445942234-11175-1-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151027154341.GA14722@redhat.com>
+In-Reply-To: <1445942234-11175-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aristeu Rozanski <arozansk@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: mhocko@kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fb.com>, Ben Hutchings <ben@decadent.org.uk>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, stable@vger.kernel.org
 
-On Tue 27-10-15 11:43:42, Aristeu Rozanski wrote:
-> Hi Michal,
-> On Tue, Oct 27, 2015 at 09:09:21AM +0100, Michal Hocko wrote:
-> > On Mon 26-10-15 13:40:49, Aristeu Rozanski wrote:
-> > > Hi Michal,
-> > > On Mon, Oct 26, 2015 at 06:20:12PM +0100, Michal Hocko wrote:
-> > [...]
-> > > > Would it make more sense to distinguish different parts of the OOM
-> > > > report by loglevel properly?
-> > > > pr_err - killed task report
-> > > > pr_warning - oom invocation + memory info
-> > > > pr_notice - task list
-> > > > pr_info - stack trace
-> > > 
-> > > That'd work, yes, but I'd think the stack trace would be pr_debug. At a
-> > > point that you suspect the OOM killer isn't doing the right thing picking
-> > > up tasks and you need more information.
-> > 
-> > Stack trace should be independent on the oom victim selection because
-> > the selection should be as much deterministic as possible - so it should
-> > only depend on the memory consumption. I do agree that the exact trace
-> > is not very useful for the (maybe) majority of OOM reports. I am trying
-> > to remember when it was really useful the last time and have trouble to
-> > find an example. So I would tend to agree that pr_debug would me more
-> > suitable.
+On Tue, Oct 27, 2015 at 11:37:14AM +0100, mhocko@kernel.org wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Only problem I see so far with this approach is that it'll require
-> reworing show_stack() on all architectures in order to be able to pass
-> and use log level and I'm wondering if it's something people will find
-> useful for other uses.
+> 424cdc141380 ("memcg: convert threshold to bytes") has fixed a
+> regression introduced by 3e32cb2e0a12 ("mm: memcontrol: lockless page
+> counters") where thresholds were silently converted to use page units
+> rather than bytes when interpreting the user input.
+> 
+> The fix is not complete, though, as properly pointed out by Ben
+> Hutchings during stable backport review. The page count is converted
+> to bytes but unsigned long is used to hold the value which would
+> be obviously not sufficient for 32b systems with more than 4G
+> thresholds. The same applies to usage as taken from mem_cgroup_usage
+> which might overflow.
+> 
+> Let's remove this bytes vs. pages internal tracking differences and
+> handle thresholds in page units internally. Chage mem_cgroup_usage()
+> to return the value in page units and revert 424cdc141380 because this
+> should be sufficient for the consistent handling.
+> mem_cgroup_read_u64 as the only users of mem_cgroup_usage outside of
+> the threshold handling code is converted to give the proper in bytes
+> result. It is doing that already for page_counter output so this is
+> more consistent as well.
+> 
+> The value presented to the userspace is still in bytes units.
+> 
+> Fixes: 424cdc141380 ("memcg: convert threshold to bytes")
+> Fixes: 3e32cb2e0a12 ("mm: memcontrol: lockless page counters")
+> CC: stable@vger.kernel.org
+> Reported-by: Ben Hutchings <ben@decadent.org.uk>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Yes this is a mess. But I think it is worth cleaning up.
-dump_stack_print_info (arch independent) has a log level parameter.
-show_stack_log_lvl (x86) has a loglevel parameter which is unused.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-I haven't checked other architectures but the transition doesn't have to
-be all at once I guess.
--- 
-Michal Hocko
-SUSE Labs
+> +++ b/mm/memcontrol.c
+> @@ -2802,7 +2802,7 @@ static unsigned long tree_stat(struct mem_cgroup *memcg,
+>  	return val;
+>  }
+>  
+> -static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+> +static inline unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+>  {
+>  	u64 val;
+
+Minor nit, but this should probably be unsigned long now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
