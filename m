@@ -1,46 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B40236B0038
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 07:30:48 -0400 (EDT)
-Received: by pasz6 with SMTP id z6so220244736pas.2
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 04:30:48 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id j6si61230479pbq.56.2015.10.27.04.30.47
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F1C26B0038
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 08:07:07 -0400 (EDT)
+Received: by wicll6 with SMTP id ll6so156345159wic.0
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 05:07:07 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com. [209.85.212.181])
+        by mx.google.com with ESMTPS id m19si13596443wjr.103.2015.10.27.05.07.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Oct 2015 04:30:47 -0700 (PDT)
-Received: by padhk11 with SMTP id hk11so220656735pad.1
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 04:30:47 -0700 (PDT)
-Date: Tue, 27 Oct 2015 20:30:40 +0900
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [PATCH] mm,vmscan: Use accurate values for
- zone_reclaimable()checks
-Message-ID: <20151027113040.GA22729@mtj.duckdns.org>
+        Tue, 27 Oct 2015 05:07:06 -0700 (PDT)
+Received: by wicll6 with SMTP id ll6so156982443wic.1
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 05:07:05 -0700 (PDT)
+Date: Tue, 27 Oct 2015 13:07:04 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable()
+ checks
+Message-ID: <20151027120704.GF9891@dhcp22.suse.cz>
 References: <20151023083316.GB2410@dhcp22.suse.cz>
  <20151023103630.GA4170@mtj.duckdns.org>
  <20151023111145.GH2410@dhcp22.suse.cz>
- <20151023182109.GA14610@mtj.duckdns.org>
- <20151027091603.GB9891@dhcp22.suse.cz>
- <201510272007.HHI18717.MOOtJQHSVFOLFF@I-love.SAKURA.ne.jp>
+ <201510232125.DAG82381.LMJtOQFOHVOSFF@I-love.SAKURA.ne.jp>
+ <20151023182343.GB14610@mtj.duckdns.org>
+ <201510251952.CEF04109.OSOtLFHFVFJMQO@I-love.SAKURA.ne.jp>
+ <20151027092231.GC9891@dhcp22.suse.cz>
+ <20151027105506.GB18741@mtj.duckdns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201510272007.HHI18717.MOOtJQHSVFOLFF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20151027105506.GB18741@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
+To: Tejun Heo <htejun@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
 
-On Tue, Oct 27, 2015 at 08:07:38PM +0900, Tetsuo Handa wrote:
-> Can't we have a waitqueue like
-> http://lkml.kernel.org/r/201510142121.IDE86954.SOVOFFQOFMJHtL@I-love.SAKURA.ne.jp ?
+On Tue 27-10-15 19:55:06, Tejun Heo wrote:
+> On Tue, Oct 27, 2015 at 10:22:31AM +0100, Michal Hocko wrote:
+> ...
+> > stable kernels without causing any other regressions. 2) is the way
+> > to move forward for next kernels and we should really think whether
+> > WQ_MEM_RECLAIM should imply also WQ_HIGHPRI by default. If there is a
+> > general consensus that there are legitimate WQ_MEM_RECLAIM users which
+> > can do without the other flag then I am perfectly OK to use it for
+> > vmstat and oom sysrq dedicated workqueues.
+> 
+> I don't think flagging these things is a good approach.  These are too
+> easy to miss.  If this is a problem which needs to be solved, which
+> I'm not convined it is at this point, the right thing to do would be
+> doing stall detection and kicking the next work item automatically.
 
-There's no reason to complicate it.  It wouldn't buy anything
-meaningful.  Can we please stop trying to solve a non-existent
-problem?
-
+To be honest, I do not really care whether this gets "fixed" in the
+stall detection code or by making WQ_MEM_RECLAIM to flag a special
+behavior implicitly. All I would like to see is to have a guarantee
+that such workqueues are not staying behind just because all current
+workers are in the allocator. Adding artificial schedule_timeouts in the
+allocator is a fragile way to work around the issue.
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
