@@ -1,139 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 81D3F6B0038
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 04:52:14 -0400 (EDT)
-Received: by pabla5 with SMTP id la5so23371763pab.0
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 01:52:14 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id ku5si60282041pbc.25.2015.10.27.01.52.13
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E44F6B0038
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 05:16:07 -0400 (EDT)
+Received: by wicll6 with SMTP id ll6so150377190wic.1
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 02:16:06 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com. [209.85.212.169])
+        by mx.google.com with ESMTPS id pk5si26950251wjb.102.2015.10.27.02.16.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Oct 2015 01:52:13 -0700 (PDT)
-Received: by pasz6 with SMTP id z6so216223943pas.2
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 01:52:13 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 9.0 \(3094\))
-Subject: Re: [PATCH 4/5] mm: simplify reclaim path for MADV_FREE
-From: yalin wang <yalin.wang2010@gmail.com>
-In-Reply-To: <20151027081059.GE26803@bbox>
-Date: Tue, 27 Oct 2015 16:52:07 +0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <AE81166C-A1DD-4994-9FEA-B5E6BFAB1336@gmail.com>
-References: <1445236307-895-1-git-send-email-minchan@kernel.org> <1445236307-895-5-git-send-email-minchan@kernel.org> <alpine.LSU.2.11.1510261828350.10825@eggly.anvils> <EDCE64A3-D874-4FE3-91B5-DE5E26A452F5@gmail.com> <20151027070903.GD26803@bbox> <32537EDE-3EE6-4C44-B820-5BCAF7A5D535@gmail.com> <20151027081059.GE26803@bbox>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Oct 2015 02:16:05 -0700 (PDT)
+Received: by wicfx6 with SMTP id fx6so149645726wic.1
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 02:16:05 -0700 (PDT)
+Date: Tue, 27 Oct 2015 10:16:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable()
+ checks
+Message-ID: <20151027091603.GB9891@dhcp22.suse.cz>
+References: <20151022150623.GE26854@dhcp22.suse.cz>
+ <20151022151528.GG30579@mtj.duckdns.org>
+ <20151022153559.GF26854@dhcp22.suse.cz>
+ <20151022153703.GA3899@mtj.duckdns.org>
+ <20151022154922.GG26854@dhcp22.suse.cz>
+ <20151022184226.GA19289@mtj.duckdns.org>
+ <20151023083316.GB2410@dhcp22.suse.cz>
+ <20151023103630.GA4170@mtj.duckdns.org>
+ <20151023111145.GH2410@dhcp22.suse.cz>
+ <20151023182109.GA14610@mtj.duckdns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151023182109.GA14610@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>
+To: Tejun Heo <htejun@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
 
+On Sat 24-10-15 03:21:09, Tejun Heo wrote:
+> Hello,
+> 
+> On Fri, Oct 23, 2015 at 01:11:45PM +0200, Michal Hocko wrote:
+> > > The problem here is not lack
+> > > of execution resource but concurrency management misunderstanding the
+> > > situation. 
+> > 
+> > And this sounds like a bug to me.
+> 
+> I don't know.  I can be argued either way, the other direction being a
+> kernel thread going RUNNING non-stop is buggy.  Given how this has
+> been a complete non-issue for all the years, I'm not sure how useful
+> plugging this is.
 
-> On Oct 27, 2015, at 16:10, Minchan Kim <minchan@kernel.org> wrote:
->=20
-> On Tue, Oct 27, 2015 at 03:39:16PM +0800, yalin wang wrote:
->>=20
->>> On Oct 27, 2015, at 15:09, Minchan Kim <minchan@kernel.org> wrote:
->>>=20
->>> Hello Yalin,
->>>=20
->>> Sorry for missing you in Cc list.
->>> IIRC, mails to send your previous mail =
-address(Yalin.Wang@sonymobile.com)
->>> were returned.
->>>=20
->>> You added comment bottom line so I'm not sure what PageDirty you =
-meant.
->>>=20
->>>> it is wrong here if you only check PageDirty() to decide if the =
-page is freezable or not .
->>>> The Anon page are shared by multiple process, _mapcount > 1 ,
->>>> so you must check all pt_dirty bit during page_referenced() =
-function,
->>>> see this mail thread:
->>>> http://ns1.ske-art.com/lists/kernel/msg1934021.html
->>>=20
->>> If one of pte among process sharing the page was dirty, the =
-dirtiness should
->>> be propagated from pte to PG_dirty by try_to_unmap_one.
->>> IOW, if the page doesn't have PG_dirty flag, it means all of process =
-did
->>> MADV_FREE.
->>>=20
->>> Am I missing something from you question?
->>> If so, could you show exact scenario I am missing?
->>>=20
->>> Thanks for the interest.
->> oh, yeah , that is right , i miss that , pte_dirty will propagate to =
-PG_dirty ,
->> so that is correct .
->> Generic to say this patch move set_page_dirty() from add_to_swap() to=20=
+Well, I guess we haven't noticed because this is a pathological case. It
+also triggers OOM livelocks which were not reported in the past either.
+You do not reach this state normally unless you rely _want_ to kill your
+machine
 
->> try_to_unmap(), i think can change a little about this patch:
->>=20
->> @@ -1476,6 +1446,8 @@ static int try_to_unmap_one(struct page *page, =
-struct vm_area_struct *vma,
->> 				ret =3D SWAP_FAIL;
->> 				goto out_unmap;
->> 			}
->> +			if (!PageDirty(page))
->> +				SetPageDirty(page);
->> 			if (list_empty(&mm->mmlist)) {
->> 				spin_lock(&mmlist_lock);
->> 				if (list_empty(&mm->mmlist))
->>=20
->> i think this 2 lines can be removed ,
->> since  pte_dirty have propagated to set_page_dirty() , we don=E2=80=99t=
- need this line here ,
->> otherwise you will always dirty a AnonPage, even it is clean,
->> then we will page out this clean page to swap partition one more , =
-this is not needed.
->> am i understanding correctly ?
->=20
-> Your understanding is correct.
-> I will fix it in next spin.
->=20
->>=20
->> By the way, please change my mail address to yalin.wang2010@gmail.com =
-in CC list .
->> Thanks a lot. :)=20
->=20
-> Thanks for the review!
+And vmstat is not the only instance. E.g. sysrq oom trigger is known
+to stay behind in similar cases. It should be changed to a dedicated
+WQ_MEM_RECLAIM wq and it would require runnable item guarantee as well.
 
-i have a look at the old mail list , i recall the scenario that multiple =
-processes share a AnonPage=20
-special case :
+> > Don't we have some IO related paths which would suffer from the same
+> > problem. I haven't checked all the WQ_MEM_RECLAIM users but from the
+> > name I would expect they _do_ participate in the reclaim and so they
+> > should be able to make a progress. Now if your new IMMEDIATE flag will
+> 
+> Seriously, nobody goes full-on RUNNING.
 
-for example Process A have a AnonPage map like this:
-	! pte_dirty() && PageDirty()=3D=3D1   (this is possible after =
-read fault happened on swap entry, and try_to_free_swap() succeed.)
-Process A  do a fork() , New process is called B .
-Then A  syscall(MADV_FREE) on the page .
-At this time, page table like this:
+Looping with cond_resched seems like general pattern in the kernel when
+there is no clear source to wait for. We have io_schedule when we know
+we should wait for IO (in case of congestion) but this is not necessarily
+the case - as you can see here. What should we wait for? A short nap
+without actually waiting on anything sounds like a dirty workaround to
+me.
 
-A  ! pte_dirty() && PageDirty() =3D=3D 0  && PageSwapCache() =3D=3D 0
+> > guarantee that then I would argue that it should be implicit for
+> > WQ_MEM_RECLAIM otherwise we always risk a similar situation. What would
+> > be a counter argument for doing that?
+> 
+> Not serving any actual purpose and degrading execution behavior.
 
-B ! pte_dirty() && PageDirty() =3D=3D 0  && PageSwapCache() =3D=3D 0
-
-This means this page is freeable , and can be freed during page reclaim.
-This is not fair for Process B . Since B don=E2=80=99t call =
-syscall(MADV_FREE) ,
-its page should not be discard .  Will cause some strange behaviour if =
-happened .
-
-This is discussed by=20
-http://www.serverphorums.com/read.php?12,1220840
-but i don=E2=80=99t know why the patch is not merged .
-
-Thanks=20
-
-
-
-
-
-
-
-
-
-
-
+I dunno, I am not familiar with WQ internals to see the risks but to me
+it sounds like WQ_MEM_RECLAIM gives an incorrect impression of safety
+wrt. memory pressure and as demonstrated it doesn't do that. Even if you
+consider cond_resched behavior of the page allocator as bug we should be
+able to handle this gracefully.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
