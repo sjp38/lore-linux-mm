@@ -1,481 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A4B36B0038
-	for <linux-mm@kvack.org>; Mon, 26 Oct 2015 23:44:20 -0400 (EDT)
-Received: by padhk11 with SMTP id hk11so208381505pad.1
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 20:44:20 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id of6si58312721pbc.54.2015.10.26.20.44.19
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 423CF6B0038
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 02:21:08 -0400 (EDT)
+Received: by padhk11 with SMTP id hk11so212543190pad.1
+        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 23:21:08 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id wp3si59223391pab.160.2015.10.26.23.21.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Oct 2015 20:44:19 -0700 (PDT)
-Received: by pasz6 with SMTP id z6so207990899pas.2
-        for <linux-mm@kvack.org>; Mon, 26 Oct 2015 20:44:19 -0700 (PDT)
-Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 9.0 \(3094\))
-Subject: Re: [PATCH 4/5] mm: simplify reclaim path for MADV_FREE
-From: yalin wang <yalin.wang2010@gmail.com>
-In-Reply-To: <alpine.LSU.2.11.1510261828350.10825@eggly.anvils>
-Date: Tue, 27 Oct 2015 11:44:09 +0800
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 26 Oct 2015 23:21:07 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCHv12 26/37] mm: rework mapcount accounting to enable 4k
+ mapping of THPs
+Date: Tue, 27 Oct 2015 06:18:01 +0000
+Message-ID: <20151027061800.GA336@hori1.linux.bs1.fc.nec.co.jp>
+References: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1444145044-72349-27-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1444145044-72349-27-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <F4110747753DEC47A27C4B903188BA0D@gisp.nec.co.jp>
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <EDCE64A3-D874-4FE3-91B5-DE5E26A452F5@gmail.com>
-References: <1445236307-895-1-git-send-email-minchan@kernel.org> <1445236307-895-5-git-send-email-minchan@kernel.org> <alpine.LSU.2.11.1510261828350.10825@eggly.anvils>
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+On Tue, Oct 06, 2015 at 06:23:53PM +0300, Kirill A. Shutemov wrote:
+> We're going to allow mapping of individual 4k pages of THP compound.
+> It means we need to track mapcount on per small page basis.
+>
+> Straight-forward approach is to use ->_mapcount in all subpages to track
+> how many time this subpage is mapped with PMDs or PTEs combined. But
+> this is rather expensive: mapping or unmapping of a THP page with PMD
+> would require HPAGE_PMD_NR atomic operations instead of single we have
+> now.
+>
+> The idea is to store separately how many times the page was mapped as
+> whole -- compound_mapcount. This frees up ->_mapcount in subpages to
+> track PTE mapcount.
+>
+> We use the same approach as with compound page destructor and compound
+> order to store compound_mapcount: use space in first tail page,
+> ->mapping this time.
+>
+> Any time we map/unmap whole compound page (THP or hugetlb) -- we
+> increment/decrement compound_mapcount. When we map part of compound page
+> with PTE we operate on ->_mapcount of the subpage.
+>
+> page_mapcount() counts both: PTE and PMD mappings of the page.
+>
+> Basically, we have mapcount for a subpage spread over two counters.
+> It makes tricky to detect when last mapcount for a page goes away.
+>
+> We introduced PageDoubleMap() for this. When we split THP PMD for the
+> first time and there's other PMD mapping left we offset up ->_mapcount
+> in all subpages by one and set PG_double_map on the compound page.
+> These additional references go away with last compound_mapcount.
+>
+> This approach provides a way to detect when last mapcount goes away on
+> per small page basis without introducing new overhead for most common
+> cases.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Acked-by: Jerome Marchand <jmarchan@redhat.com>
 
-> On Oct 27, 2015, at 10:09, Hugh Dickins <hughd@google.com> wrote:
->=20
-> On Mon, 19 Oct 2015, Minchan Kim wrote:
->=20
->> I made reclaim path mess to check and free MADV_FREEed page.
->> This patch simplify it with tweaking add_to_swap.
->>=20
->> So far, we mark page as PG_dirty when we add the page into
->> swap cache(ie, add_to_swap) to page out to swap device but
->> this patch moves PG_dirty marking under try_to_unmap_one
->> when we decide to change pte from anon to swapent so if
->> any process's pte has swapent for the page, the page must
->> be swapped out. IOW, there should be no funcional behavior
->> change. It makes relcaim path really simple for MADV_FREE
->> because we just need to check PG_dirty of page to decide
->> discarding the page or not.
->>=20
->> Other thing this patch does is to pass TTU_BATCH_FLUSH to
->> try_to_unmap when we handle freeable page because I don't
->> see any reason to prevent it.
->>=20
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Mel Gorman <mgorman@suse.de>
->> Signed-off-by: Minchan Kim <minchan@kernel.org>
->=20
-> Acked-by: Hugh Dickins <hughd@google.com>
->=20
-> This is sooooooo much nicer than the code it replaces!  Really good.
-> Kudos also to Hannes for suggesting this approach originally, I think.
->=20
-> I hope this implementation satisfies a good proportion of the people
-> who have been wanting MADV_FREE: I'm not among them, and have long
-> lost touch with those discussions, so won't judge how usable it is.
->=20
-> I assume you'll refactor the series again before it goes to Linus,
-> so the previous messier implementations vanish?  I notice Andrew
-> has this "mm: simplify reclaim path for MADV_FREE" in mmotm as
-> mm-dont-split-thp-page-when-syscall-is-called-fix-6.patch:
-> I guess it all got much too messy to divide up in a hurry.
->=20
-> I've noticed no problems in testing (unlike the first time you moved
-> to working with pte_dirty); though of course I've not been using
-> MADV_FREE itself at all.
->=20
-> One aspect has worried me for a while, but I think I've reached the
-> conclusion that it doesn't matter at all.  The swap that's allocated
-> in add_to_swap() would normally get freed again (after try_to_unmap
-> found it was a MADV_FREE !pte_dirty !PageDirty case) at the bottom
-> of shrink_page_list(), in __remove_mapping(), yes?
->=20
-> The bit that worried me is that on rare occasions, something unknown
-> might take a speculative reference to the page, and __remove_mapping()
-> fail to freeze refs for that reason.  Much too rare to worry over not
-> freeing that page immediately, but it leaves us with a PageUptodate
-> PageSwapCache !PageDirty page, yet its contents are not the contents
-> of that location on swap.
->=20
-> But since this can only happen when you have *not* inserted the
-> corresponding swapent anywhere, I cannot think of anything that would
-> have a legitimate interest in its contents matching that location on =
-swap.
-> So I don't think it's worth looking for somewhere to add a =
-SetPageDirty
-> (or a delete_from_swap_cache) just to regularize that case.
->=20
->> ---
->> include/linux/rmap.h |  6 +----
->> mm/huge_memory.c     |  5 ----
->> mm/rmap.c            | 42 ++++++----------------------------
->> mm/swap_state.c      |  5 ++--
->> mm/vmscan.c          | 64 =
-++++++++++++++++------------------------------------
->> 5 files changed, 30 insertions(+), 92 deletions(-)
->>=20
->> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
->> index 6b6233fafb53..978f65066fd5 100644
->> --- a/include/linux/rmap.h
->> +++ b/include/linux/rmap.h
->> @@ -193,8 +193,7 @@ static inline void page_dup_rmap(struct page =
-*page, bool compound)
->>  * Called from mm/vmscan.c to handle paging out
->>  */
->> int page_referenced(struct page *, int is_locked,
->> -			struct mem_cgroup *memcg, unsigned long =
-*vm_flags,
->> -			int *is_pte_dirty);
->> +			struct mem_cgroup *memcg, unsigned long =
-*vm_flags);
->>=20
->> #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
->>=20
->> @@ -272,11 +271,8 @@ int rmap_walk(struct page *page, struct =
-rmap_walk_control *rwc);
->> static inline int page_referenced(struct page *page, int is_locked,
->> 				  struct mem_cgroup *memcg,
->> 				  unsigned long *vm_flags,
->> -				  int *is_pte_dirty)
->> {
->> 	*vm_flags =3D 0;
->> -	if (is_pte_dirty)
->> -		*is_pte_dirty =3D 0;
->> 	return 0;
->> }
->>=20
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index 269ed99493f0..adccfb48ce57 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -1753,11 +1753,6 @@ pmd_t *page_check_address_pmd(struct page =
-*page,
->> 	return NULL;
->> }
->>=20
->> -int pmd_freeable(pmd_t pmd)
->> -{
->> -	return !pmd_dirty(pmd);
->> -}
->> -
->> #define VM_NO_THP (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
->>=20
->> int hugepage_madvise(struct vm_area_struct *vma,
->> diff --git a/mm/rmap.c b/mm/rmap.c
->> index 94ee372e238b..fd64f79c87c4 100644
->> --- a/mm/rmap.c
->> +++ b/mm/rmap.c
->> @@ -797,7 +797,6 @@ int page_mapped_in_vma(struct page *page, struct =
-vm_area_struct *vma)
->> }
->>=20
->> struct page_referenced_arg {
->> -	int dirtied;
->> 	int mapcount;
->> 	int referenced;
->> 	unsigned long vm_flags;
->> @@ -812,7 +811,6 @@ static int page_referenced_one(struct page *page, =
-struct vm_area_struct *vma,
->> 	struct mm_struct *mm =3D vma->vm_mm;
->> 	spinlock_t *ptl;
->> 	int referenced =3D 0;
->> -	int dirty =3D 0;
->> 	struct page_referenced_arg *pra =3D arg;
->>=20
->> 	if (unlikely(PageTransHuge(page))) {
->> @@ -835,14 +833,6 @@ static int page_referenced_one(struct page =
-*page, struct vm_area_struct *vma,
->> 		if (pmdp_clear_flush_young_notify(vma, address, pmd))
->> 			referenced++;
->>=20
->> -		/*
->> -		 * Use pmd_freeable instead of raw pmd_dirty because in =
-some
->> -		 * of architecture, pmd_dirty is not defined unless
->> -		 * CONFIG_TRANSPARENT_HUGEPAGE is enabled
->> -		 */
->> -		if (!pmd_freeable(*pmd))
->> -			dirty++;
->> -
->> 		spin_unlock(ptl);
->> 	} else {
->> 		pte_t *pte;
->> @@ -873,9 +863,6 @@ static int page_referenced_one(struct page *page, =
-struct vm_area_struct *vma,
->> 				referenced++;
->> 		}
->>=20
->> -		if (pte_dirty(*pte))
->> -			dirty++;
->> -
->> 		pte_unmap_unlock(pte, ptl);
->> 	}
->>=20
->> @@ -889,9 +876,6 @@ static int page_referenced_one(struct page *page, =
-struct vm_area_struct *vma,
->> 		pra->vm_flags |=3D vma->vm_flags;
->> 	}
->>=20
->> -	if (dirty)
->> -		pra->dirtied++;
->> -
->> 	pra->mapcount--;
->> 	if (!pra->mapcount)
->> 		return SWAP_SUCCESS; /* To break the loop */
->> @@ -916,7 +900,6 @@ static bool invalid_page_referenced_vma(struct =
-vm_area_struct *vma, void *arg)
->>  * @is_locked: caller holds lock on the page
->>  * @memcg: target memory cgroup
->>  * @vm_flags: collect encountered vma->vm_flags who actually =
-referenced the page
->> - * @is_pte_dirty: ptes which have marked dirty bit - used for =
-lazyfree page
->>  *
->>  * Quick test_and_clear_referenced for all mappings to a page,
->>  * returns the number of ptes which referenced the page.
->> @@ -924,8 +907,7 @@ static bool invalid_page_referenced_vma(struct =
-vm_area_struct *vma, void *arg)
->> int page_referenced(struct page *page,
->> 		    int is_locked,
->> 		    struct mem_cgroup *memcg,
->> -		    unsigned long *vm_flags,
->> -		    int *is_pte_dirty)
->> +		    unsigned long *vm_flags)
->> {
->> 	int ret;
->> 	int we_locked =3D 0;
->> @@ -940,8 +922,6 @@ int page_referenced(struct page *page,
->> 	};
->>=20
->> 	*vm_flags =3D 0;
->> -	if (is_pte_dirty)
->> -		*is_pte_dirty =3D 0;
->>=20
->> 	if (!page_mapped(page))
->> 		return 0;
->> @@ -970,9 +950,6 @@ int page_referenced(struct page *page,
->> 	if (we_locked)
->> 		unlock_page(page);
->>=20
->> -	if (is_pte_dirty)
->> -		*is_pte_dirty =3D pra.dirtied;
->> -
->> 	return pra.referenced;
->> }
->>=20
->> @@ -1453,17 +1430,10 @@ static int try_to_unmap_one(struct page =
-*page, struct vm_area_struct *vma,
->> 		swp_entry_t entry =3D { .val =3D page_private(page) };
->> 		pte_t swp_pte;
->>=20
->> -		if (flags & TTU_FREE) {
->> -			VM_BUG_ON_PAGE(PageSwapCache(page), page);
->> -			if (!PageDirty(page)) {
->> -				/* It's a freeable page by MADV_FREE */
->> -				dec_mm_counter(mm, MM_ANONPAGES);
->> -				goto discard;
->> -			} else {
->> -				set_pte_at(mm, address, pte, pteval);
->> -				ret =3D SWAP_FAIL;
->> -				goto out_unmap;
->> -			}
->> +		if (!PageDirty(page) && (flags & TTU_FREE)) {
->> +			/* It's a freeable page by MADV_FREE */
->> +			dec_mm_counter(mm, MM_ANONPAGES);
->> +			goto discard;
->> 		}
->>=20
->> 		if (PageSwapCache(page)) {
->> @@ -1476,6 +1446,8 @@ static int try_to_unmap_one(struct page *page, =
-struct vm_area_struct *vma,
->> 				ret =3D SWAP_FAIL;
->> 				goto out_unmap;
->> 			}
->> +			if (!PageDirty(page))
->> +				SetPageDirty(page);
->> 			if (list_empty(&mm->mmlist)) {
->> 				spin_lock(&mmlist_lock);
->> 				if (list_empty(&mm->mmlist))
->> diff --git a/mm/swap_state.c b/mm/swap_state.c
->> index d783872d746c..676ff2991380 100644
->> --- a/mm/swap_state.c
->> +++ b/mm/swap_state.c
->> @@ -185,13 +185,12 @@ int add_to_swap(struct page *page, struct =
-list_head *list)
->> 	 * deadlock in the swap out path.
->> 	 */
->> 	/*
->> -	 * Add it to the swap cache and mark it dirty
->> +	 * Add it to the swap cache.
->> 	 */
->> 	err =3D add_to_swap_cache(page, entry,
->> 			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
->>=20
->> -	if (!err) {	/* Success */
->> -		SetPageDirty(page);
->> +	if (!err) {
->> 		return 1;
->> 	} else {	/* -ENOMEM radix-tree allocation failure */
->> 		/*
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 27d580b5e853..9b52ecf91194 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -791,17 +791,15 @@ enum page_references {
->> };
->>=20
->> static enum page_references page_check_references(struct page *page,
->> -						  struct scan_control =
-*sc,
->> -						  bool *freeable)
->> +						  struct scan_control =
-*sc)
->> {
->> 	int referenced_ptes, referenced_page;
->> 	unsigned long vm_flags;
->> -	int pte_dirty;
->>=20
->> 	VM_BUG_ON_PAGE(!PageLocked(page), page);
->>=20
->> 	referenced_ptes =3D page_referenced(page, 1, =
-sc->target_mem_cgroup,
->> -					  &vm_flags, &pte_dirty);
->> +					  &vm_flags);
->> 	referenced_page =3D TestClearPageReferenced(page);
->>=20
->> 	/*
->> @@ -842,10 +840,6 @@ static enum page_references =
-page_check_references(struct page *page,
->> 		return PAGEREF_KEEP;
->> 	}
->>=20
->> -	if (PageAnon(page) && !pte_dirty && !PageSwapCache(page) &&
->> -			!PageDirty(page))
->> -		*freeable =3D true;
->> -
->> 	/* Reclaim if clean, defer dirty pages to writeback */
->> 	if (referenced_page && !PageSwapBacked(page))
->> 		return PAGEREF_RECLAIM_CLEAN;
->> @@ -1037,8 +1031,7 @@ static unsigned long shrink_page_list(struct =
-list_head *page_list,
->> 		}
->>=20
->> 		if (!force_reclaim)
->> -			references =3D page_check_references(page, sc,
->> -							&freeable);
->> +			references =3D page_check_references(page, sc);
->>=20
->> 		switch (references) {
->> 		case PAGEREF_ACTIVATE:
->> @@ -1055,31 +1048,24 @@ static unsigned long shrink_page_list(struct =
-list_head *page_list,
->> 		 * Try to allocate it some swap space here.
->> 		 */
->> 		if (PageAnon(page) && !PageSwapCache(page)) {
->> -			if (!freeable) {
->> -				if (!(sc->gfp_mask & __GFP_IO))
->> -					goto keep_locked;
->> -				if (!add_to_swap(page, page_list))
->> -					goto activate_locked;
->> -				may_enter_fs =3D 1;
->> -				/* Adding to swap updated mapping */
->> -				mapping =3D page_mapping(page);
->> -			} else {
->> -				if (likely(!PageTransHuge(page)))
->> -					goto unmap;
->> -				/* try_to_unmap isn't aware of THP page =
-*/
->> -				if =
-(unlikely(split_huge_page_to_list(page,
->> -								=
-page_list)))
->> -					goto keep_locked;
->> -			}
->> +			if (!(sc->gfp_mask & __GFP_IO))
->> +				goto keep_locked;
->> +			if (!add_to_swap(page, page_list))
->> +				goto activate_locked;
->> +			freeable =3D true;
->> +			may_enter_fs =3D 1;
->> +			/* Adding to swap updated mapping */
->> +			mapping =3D page_mapping(page);
->> 		}
->> -unmap:
->> +
->> 		/*
->> 		 * The page is mapped into the page tables of one or =
-more
->> 		 * processes. Try to unmap it here.
->> 		 */
->> -		if (page_mapped(page) && (mapping || freeable)) {
->> +		if (page_mapped(page) && mapping) {
->> 			switch (try_to_unmap(page, freeable ?
->> -					TTU_FREE : =
-ttu_flags|TTU_BATCH_FLUSH)) {
->> +					ttu_flags | TTU_BATCH_FLUSH | =
-TTU_FREE :
->> +					ttu_flags | TTU_BATCH_FLUSH)) {
->> 			case SWAP_FAIL:
->> 				goto activate_locked;
->> 			case SWAP_AGAIN:
->> @@ -1087,20 +1073,7 @@ static unsigned long shrink_page_list(struct =
-list_head *page_list,
->> 			case SWAP_MLOCK:
->> 				goto cull_mlocked;
->> 			case SWAP_SUCCESS:
->> -				/* try to free the page below */
->> -				if (!freeable)
->> -					break;
->> -				/*
->> -				 * Freeable anon page doesn't have =
-mapping
->> -				 * due to skipping of swapcache so we =
-free
->> -				 * page in here rather than =
-__remove_mapping.
->> -				 */
->> -				VM_BUG_ON_PAGE(PageSwapCache(page), =
-page);
->> -				if (!page_freeze_refs(page, 1))
->> -					goto keep_locked;
->> -				__ClearPageLocked(page);
->> -				count_vm_event(PGLAZYFREED);
->> -				goto free_it;
->> +				; /* try to free the page below */
->> 			}
->> 		}
->>=20
->> @@ -1217,6 +1190,9 @@ static unsigned long shrink_page_list(struct =
-list_head *page_list,
->> 		 */
->> 		__ClearPageLocked(page);
->> free_it:
->> +		if (freeable && !PageDirty(page))
->> +			count_vm_event(PGLAZYFREED);
->> +
->> 		nr_reclaimed++;
->>=20
->> 		/*
->> @@ -1847,7 +1823,7 @@ static void shrink_active_list(unsigned long =
-nr_to_scan,
->> 		}
->>=20
->> 		if (page_referenced(page, 0, sc->target_mem_cgroup,
->> -				    &vm_flags, NULL)) {
->> +				    &vm_flags)) {
->> 			nr_rotated +=3D hpage_nr_pages(page);
->> 			/*
->> 			 * Identify referenced, file-backed active pages =
-and
->> --=20
->> 1.9.1
-> --
-> To unsubscribe from this list: send the line "unsubscribe =
-linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-it is wrong here if you only check PageDirty() to decide if the page is =
-freezable or not .
-The Anon page are shared by multiple process, _mapcount > 1 ,
-so you must check all pt_dirty bit during page_referenced() function,
-see this mail thread:
-http://ns1.ske-art.com/lists/kernel/msg1934021.html
-Thanks
+I found that recent mmotm hit the following BUG_ON() by reading
+/proc/kpageflags over pfn backed by a thp.
 
+  [  268.024519] page:ffffea00033e0000 count:0 mapcount:0 mapping:         =
+ (null) index:0x700000200
+  [  268.026076] flags: 0x4000000000000000()
+  [  268.026778] page dumped because: VM_BUG_ON_PAGE(!PageHead(page))
+  [  268.027816] page->mem_cgroup:ffff88021588cc00
+  [  268.028638] ------------[ cut here ]------------
+  [  268.029932] kernel BUG at /src/linux-dev/include/linux/page-flags.h:55=
+2!
+  [  268.031092] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC
+  [  268.032125] Modules linked in: cfg80211 rfkill crc32c_intel virtio_bal=
+loon serio_raw i2c_piix4 virtio_blk virtio_net ata_generic pata_acpi
+  [  268.032598] CPU: 0 PID: 1183 Comm: page-types Not tainted 4.2.0-mmotm-=
+2015-10-21-14-41-151027-1418-00014-41+ #179
+  [  268.032598] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+  [  268.032598] task: ffff880214a08bc0 ti: ffff880213e2c000 task.ti: ffff8=
+80213e2c000
+  [  268.032598] RIP: 0010:[<ffffffff812434b6>]  [<ffffffff812434b6>] stabl=
+e_page_flags+0x336/0x340
+  [  268.032598] RSP: 0018:ffff880213e2fda8  EFLAGS: 00010292
+  [  268.032598] RAX: 0000000000000021 RBX: ffff8802150a39c0 RCX: 000000000=
+0000000
+  [  268.032598] RDX: ffff88021ec0ff38 RSI: ffff88021ec0d658 RDI: ffff88021=
+ec0d658
+  [  268.032598] RBP: ffff880213e2fdc8 R08: 000000000000000a R09: 000000000=
+000132f
+  [  268.032598] R10: 0000000000000000 R11: 000000000000132f R12: 400000000=
+0000000
+  [  268.032598] R13: ffffea00033e6340 R14: 00007fff8449e430 R15: ffffea000=
+33e6340
+  [  268.032598] FS:  00007ff7f9525700(0000) GS:ffff88021ec00000(0000) knlG=
+S:0000000000000000
+  [  268.032598] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+  [  268.032598] CR2: 000000000063b800 CR3: 00000000d9e71000 CR4: 000000000=
+00006f0
+  [  268.032598] Stack:
+  [  268.032598]  ffff8800db82df80 ffff8802150a39c0 0000000000000008 000000=
+00000cf98d
+  [  268.032598]  ffff880213e2fe18 ffffffff81243588 00007fff8449e430 ffff88=
+0213e2ff20
+  [  268.032598]  000000000063b800 ffff8802150a39c0 fffffffffffffffb ffff88=
+0213e2ff20
+  [  268.032598] Call Trace:
+  [  268.032598]  [<ffffffff81243588>] kpageflags_read+0xc8/0x130
+  [  268.032598]  [<ffffffff81235848>] proc_reg_read+0x48/0x70
+  [  268.032598]  [<ffffffff811d6b08>] __vfs_read+0x28/0xd0
+  [  268.032598]  [<ffffffff812ee43e>] ? security_file_permission+0xae/0xc0
+  [  268.032598]  [<ffffffff811d6f53>] ? rw_verify_area+0x53/0xf0
+  [  268.032598]  [<ffffffff811d707a>] vfs_read+0x8a/0x130
+  [  268.032598]  [<ffffffff811d7bf7>] SyS_pread64+0x77/0x90
+  [  268.032598]  [<ffffffff81648117>] entry_SYSCALL_64_fastpath+0x12/0x6a
+  [  268.032598] Code: ca 00 00 40 01 48 39 c1 48 0f 44 da e9 a2 fd ff ff 4=
+8 c7 c6 50 a6 a1 8 1 e8 58 ab f4 ff 0f 0b 48 c7 c6 90 a2 a1 81 e8 4a ab f4 =
+ff <0f> 0b 0f 1f 84 00 00 00 00 00 66 66 66 66 90 55 48 89 e5 41 57
+  [  268.032598] RIP  [<ffffffff812434b6>] stable_page_flags+0x336/0x340
+  [  268.032598]  RSP <ffff880213e2fda8>
+  [  268.070504] ---[ end trace e5d18553088c026a ]---
 
+page_mapcount() could be called for a tail page, so VM_BUG_ON_PAGE(!PageHea=
+d())
+in PageDoubleMap() introduced by this patch seems too strong restriction.
+Could you handle this?
 
-
-
-
-
-
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
