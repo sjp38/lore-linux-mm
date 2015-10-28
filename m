@@ -1,142 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D1FBB82F64
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 00:04:05 -0400 (EDT)
-Received: by padhk11 with SMTP id hk11so243409265pad.1
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 21:04:05 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id fg5si67110081pbc.5.2015.10.27.21.04.05
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D63782F64
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 04:20:22 -0400 (EDT)
+Received: by lbbwb3 with SMTP id wb3so56286lbb.1
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 01:20:21 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id xy7si27809058lbb.53.2015.10.28.01.20.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Oct 2015 21:04:05 -0700 (PDT)
-Received: by pabla5 with SMTP id la5so50128230pab.0
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 21:04:04 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 9.0 \(3094\))
-Subject: Re: [PATCH 4/5] mm: simplify reclaim path for MADV_FREE
-From: yalin wang <yalin.wang2010@gmail.com>
-In-Reply-To: <AE81166C-A1DD-4994-9FEA-B5E6BFAB1336@gmail.com>
-Date: Wed, 28 Oct 2015 12:03:57 +0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <9482C2F5-0215-44C0-9247-EDDFC7403BD9@gmail.com>
-References: <1445236307-895-1-git-send-email-minchan@kernel.org> <1445236307-895-5-git-send-email-minchan@kernel.org> <alpine.LSU.2.11.1510261828350.10825@eggly.anvils> <EDCE64A3-D874-4FE3-91B5-DE5E26A452F5@gmail.com> <20151027070903.GD26803@bbox> <32537EDE-3EE6-4C44-B820-5BCAF7A5D535@gmail.com> <20151027081059.GE26803@bbox> <AE81166C-A1DD-4994-9FEA-B5E6BFAB1336@gmail.com>
+        Wed, 28 Oct 2015 01:20:20 -0700 (PDT)
+Date: Wed, 28 Oct 2015 11:20:03 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 0/8] mm: memcontrol: account socket memory in unified
+ hierarchy
+Message-ID: <20151028082003.GK13221@esperanza>
+References: <1445487696-21545-1-git-send-email-hannes@cmpxchg.org>
+ <20151022184509.GM18351@esperanza>
+ <20151026172216.GC2214@cmpxchg.org>
+ <20151027084320.GF13221@esperanza>
+ <20151027155833.GB4665@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20151027155833.GB4665@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
+On Tue, Oct 27, 2015 at 09:01:08AM -0700, Johannes Weiner wrote:
+...
+> > > But regardless of tcp window control, we need to account socket memory
+> > > in the main memory accounting pool where pressure is shared (to the
+> > > best of our abilities) between all accounted memory consumers.
+> > > 
+> > 
+> > No objections to this point. However, I really don't like the idea to
+> > charge tcp window size to memory.current instead of charging individual
+> > pages consumed by the workload for storing socket buffers, because it is
+> > inconsistent with what we have now. Can't we charge individual skb pages
+> > as we do in case of other kmem allocations?
+> 
+> Absolutely, both work for me. I chose that route because it's where
+> the networking code already tracks and accounts memory consumed, so it
+> seemed like a better site to hook into.
+> 
+> But I understand your concerns. We want to track this stuff as close
+> to the memory allocators as possible.
 
-> On Oct 27, 2015, at 16:52, yalin wang <yalin.wang2010@gmail.com> =
-wrote:
->=20
->=20
->> On Oct 27, 2015, at 16:10, Minchan Kim <minchan@kernel.org> wrote:
->>=20
->> On Tue, Oct 27, 2015 at 03:39:16PM +0800, yalin wang wrote:
->>>=20
->>>> On Oct 27, 2015, at 15:09, Minchan Kim <minchan@kernel.org> wrote:
->>>>=20
->>>> Hello Yalin,
->>>>=20
->>>> Sorry for missing you in Cc list.
->>>> IIRC, mails to send your previous mail =
-address(Yalin.Wang@sonymobile.com)
->>>> were returned.
->>>>=20
->>>> You added comment bottom line so I'm not sure what PageDirty you =
-meant.
->>>>=20
->>>>> it is wrong here if you only check PageDirty() to decide if the =
-page is freezable or not .
->>>>> The Anon page are shared by multiple process, _mapcount > 1 ,
->>>>> so you must check all pt_dirty bit during page_referenced() =
-function,
->>>>> see this mail thread:
->>>>> http://ns1.ske-art.com/lists/kernel/msg1934021.html
->>>>=20
->>>> If one of pte among process sharing the page was dirty, the =
-dirtiness should
->>>> be propagated from pte to PG_dirty by try_to_unmap_one.
->>>> IOW, if the page doesn't have PG_dirty flag, it means all of =
-process did
->>>> MADV_FREE.
->>>>=20
->>>> Am I missing something from you question?
->>>> If so, could you show exact scenario I am missing?
->>>>=20
->>>> Thanks for the interest.
->>> oh, yeah , that is right , i miss that , pte_dirty will propagate to =
-PG_dirty ,
->>> so that is correct .
->>> Generic to say this patch move set_page_dirty() from add_to_swap() =
-to=20
->>> try_to_unmap(), i think can change a little about this patch:
->>>=20
->>> @@ -1476,6 +1446,8 @@ static int try_to_unmap_one(struct page *page, =
-struct vm_area_struct *vma,
->>> 				ret =3D SWAP_FAIL;
->>> 				goto out_unmap;
->>> 			}
->>> +			if (!PageDirty(page))
->>> +				SetPageDirty(page);
->>> 			if (list_empty(&mm->mmlist)) {
->>> 				spin_lock(&mmlist_lock);
->>> 				if (list_empty(&mm->mmlist))
->>>=20
->>> i think this 2 lines can be removed ,
->>> since  pte_dirty have propagated to set_page_dirty() , we don=E2=80=99=
-t need this line here ,
->>> otherwise you will always dirty a AnonPage, even it is clean,
->>> then we will page out this clean page to swap partition one more , =
-this is not needed.
->>> am i understanding correctly ?
->>=20
->> Your understanding is correct.
->> I will fix it in next spin.
->>=20
->>>=20
->>> By the way, please change my mail address to =
-yalin.wang2010@gmail.com in CC list .
->>> Thanks a lot. :)=20
->>=20
->> Thanks for the review!
->=20
-> i have a look at the old mail list , i recall the scenario that =
-multiple processes share a AnonPage=20
-> special case :
->=20
-> for example Process A have a AnonPage map like this:
-> 	! pte_dirty() && PageDirty()=3D=3D1   (this is possible after =
-read fault happened on swap entry, and try_to_free_swap() succeed.)
-> Process A  do a fork() , New process is called B .
-> Then A  syscall(MADV_FREE) on the page .
-> At this time, page table like this:
->=20
-> A  ! pte_dirty() && PageDirty() =3D=3D 0  && PageSwapCache() =3D=3D 0
->=20
-> B ! pte_dirty() && PageDirty() =3D=3D 0  && PageSwapCache() =3D=3D 0
->=20
-> This means this page is freeable , and can be freed during page =
-reclaim.
-> This is not fair for Process B . Since B don=E2=80=99t call =
-syscall(MADV_FREE) ,
-> its page should not be discard .  Will cause some strange behaviour if =
-happened .
->=20
-> This is discussed by=20
-> http://www.serverphorums.com/read.php?12,1220840
-> but i don=E2=80=99t know why the patch is not merged .
->=20
-> Thanks=20
-oh, i have see 0b502297d1cc26e09b98955b4efa728be1c48921
-this commit merged , then this problem should be fixed by this method.
-ignore this mail. :)
+Exactly.
 
-Thanks a lot .
+> 
+> > > But also, there are people right now for whom the socket buffers cause
+> > > system OOM, but the existing memcg's hard tcp window limitq that
+> > > exists absolutely wrecks network performance for them. It's not usable
+> > > the way it is. It'd be much better to have the socket buffers exert
+> > > pressure on the shared pool, and then propagate the overall pressure
+> > > back to individual consumers with reclaim, shrinkers, vmpressure etc.
+> > 
+> > This might or might not work. I'm not an expert to judge. But if you do
+> > this only for memcg leaving the global case as it is, networking people
+> > won't budge IMO. So could you please start such a major rework from the
+> > global case? Could you please try to deprecate the tcp window limits not
+> > only in the legacy memcg hierarchy, but also system-wide in order to
+> > attract attention of networking experts?
+> 
+> I'm definitely interested in addressing this globally as well.
+> 
+> The idea behind this was to use the memcg part as a testbed. cgroup2
+> is going to be new and people are prepared for hiccups when migrating
+> their applications to it; and they can roll back to cgroup1 and tcp
+> window limits at any time should they run into problems in production.
 
+Then you'd better not touch existing tcp limits at all, because they
+just work, and the logic behind them is very close to that of global tcp
+limits. I don't think one can simplify it somehow. Moreover, frankly I
+still have my reservations about this vmpressure propagation to skb
+you're proposing. It might work, but I doubt it will allow us to throw
+away explicit tcp limit, as I explained previously. So, even with your
+approach I think we can still need per memcg tcp limit *unless* you get
+rid of global tcp limit somehow.
 
+> 
+> So this seemed like a good way to prove a new mechanism before rolling
+> it out to every single Linux setup, rather than switch everybody over
+> after the limited scope testing I can do as a developer on my own.
+> 
+> Keep in mind that my patches are not committing anything in terms of
+> interface, so we retain all the freedom to fix and tune the way this
+> is implemented, including the freedom to re-add tcp window limits in
+> case the pressure balancing is not a comprehensive solution.
+> 
 
+I really dislike this kind of proof. It looks like you're trying to push
+something you think is right covertly, w/o having a proper discussion
+with networking people and then say that it just works and hence should
+be done globally, but what if it won't? Revert it? We already have a lot
+of dubious stuff in memcg that should be reverted, so let's please try
+to avoid this kind of mistakes in future. Note, I say "w/o having a
+proper discussion with networking people", because I don't think they
+will really care *unless* you change the global logic, simply because
+most of them aren't very interested in memcg AFAICS.
 
+That effectively means you loose a chance to listen to networking
+experts, who could point you at design flaws and propose an improvement
+right away. Let's please not miss such an opportunity. You said that
+you'd seen this problem happen w/o cgroups, so you have a use case that
+might need fixing at the global level. IMO it shouldn't be difficult to
+prepare an RFC patch for the global case first and see what people think
+about it.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
