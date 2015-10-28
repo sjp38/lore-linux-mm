@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 33ED782F64
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 17:26:09 -0400 (EDT)
-Received: by padhy1 with SMTP id hy1so11903917pad.0
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 14:26:09 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id rp16si72969751pab.8.2015.10.28.14.26.08
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C09E82F64
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 17:26:35 -0400 (EDT)
+Received: by pacfv9 with SMTP id fv9so18576090pac.3
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 14:26:34 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id tc1si42329463pac.120.2015.10.28.14.26.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Oct 2015 14:26:08 -0700 (PDT)
-Received: by padhy1 with SMTP id hy1so11903694pad.0
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 14:26:08 -0700 (PDT)
+        Wed, 28 Oct 2015 14:26:34 -0700 (PDT)
+Received: by padhy1 with SMTP id hy1so11912666pad.0
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 14:26:34 -0700 (PDT)
 From: Daniel Cashman <dcashman@android.com>
-Subject: [PATCH 1/2] mm: mmap: Add new /proc tunable for mmap_base ASLR.
-Date: Wed, 28 Oct 2015 14:25:19 -0700
-Message-Id: <1446067520-31806-1-git-send-email-dcashman@android.com>
+Subject: [PATCH 2/2] arm: mm: support ARCH_MMAP_RND_BITS.
+Date: Wed, 28 Oct 2015 14:25:20 -0700
+Message-Id: <1446067520-31806-2-git-send-email-dcashman@android.com>
+In-Reply-To: <1446067520-31806-1-git-send-email-dcashman@android.com>
+References: <1446067520-31806-1-git-send-email-dcashman@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,92 +24,79 @@ Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mi
 
 From: dcashman <dcashman@google.com>
 
-ASLR currently only uses 8 bits to generate the random offset for the
-mmap base address on 32 bit architectures. This value was chosen to
-prevent a poorly chosen value from dividing the address space in such
-a way as to prevent large allocations. This may not be an issue on all
-platforms. Allow the specification of a minimum number of bits so that
-platforms desiring greater ASLR protection may determine where to place
-the trade-off.
+arm: arch_mmap_rnd() uses a hard-code value of 8 to generate the
+random offset for the mmap base address.  This value represents a
+compromise between increased ASLR effectiveness and avoiding
+address-space fragmentation. Replace it with a Kconfig option, which
+is sensibly bounded, so that platform developers may choose where to
+place this compromise. Keep 8 as the minimum acceptable value.
 
 Signed-off-by: Daniel Cashman <dcashman@google.com>
 ---
- Documentation/sysctl/kernel.txt | 14 ++++++++++++++
- include/linux/mm.h              |  6 ++++++
- kernel/sysctl.c                 | 11 +++++++++++
- 3 files changed, 31 insertions(+)
+ arch/arm/Kconfig   | 24 ++++++++++++++++++++++++
+ arch/arm/mm/mmap.c |  7 +++++--
+ 2 files changed, 29 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt
-index 6fccb69..0d4ca53 100644
---- a/Documentation/sysctl/kernel.txt
-+++ b/Documentation/sysctl/kernel.txt
-@@ -41,6 +41,7 @@ show up in /proc/sys/kernel:
- - kptr_restrict
- - kstack_depth_to_print       [ X86 only ]
- - l2cr                        [ PPC only ]
-+- mmap_rnd_bits
- - modprobe                    ==> Documentation/debugging-modules.txt
- - modules_disabled
- - msg_next_id		      [ sysv ipc ]
-@@ -391,6 +392,19 @@ This flag controls the L2 cache of G3 processor boards. If
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 639411f..d61e7e2 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -306,6 +306,30 @@ config MMU
+ 	  Select if you want MMU-based virtualised addressing space
+ 	  support by paged memory management. If unsure, say 'Y'.
  
- ==============================================================
++config ARCH_MMAP_RND_BITS_MIN
++	int
++	default 8
++
++config ARCH_MMAP_RND_BITS_MAX
++	int
++	default 14 if MMU && PAGE_OFFSET=0x40000000
++	default 15 if MMU && PAGE_OFFSET=0x80000000
++	default 16 if MMU
++	default 8
++
++config ARCH_MMAP_RND_BITS
++	int "Number of bits to use for ASLR of mmap base address" if EXPERT
++	range ARCH_MMAP_RND_BITS_MIN ARCH_MMAP_RND_BITS_MAX
++	default ARCH_MMAP_RND_BITS_MIN
++	help
++	  This value can be used to select the number of bits to use to
++	  determine the random offset to the base address of vma regions
++	  resulting from mmap allocations. This value will be bounded
++	  by the architecture's minimum and maximum supported values.
++
++	  This value can be changed after boot using the
++	  /proc/sys/kernel/mmap_rnd_bits tunable
++
+ #
+ # The "ARM system type" choice list is ordered alphabetically by option
+ # text.  Please add new entries in the option alphabetic order.
+diff --git a/arch/arm/mm/mmap.c b/arch/arm/mm/mmap.c
+index 407dc78..73ca3a7 100644
+--- a/arch/arm/mm/mmap.c
++++ b/arch/arm/mm/mmap.c
+@@ -11,6 +11,10 @@
+ #include <linux/random.h>
+ #include <asm/cachetype.h>
  
-+mmap_rnd_bits:
++int mmap_rnd_bits_min = CONFIG_ARCH_MMAP_RND_BITS_MIN;
++int mmap_rnd_bits_max = CONFIG_ARCH_MMAP_RND_BITS_MAX;
++int mmap_rnd_bits = CONFIG_ARCH_MMAP_RND_BITS;
 +
-+This value can be used to select the number of bits to use to
-+determine the random offset to the base address of vma regions
-+resulting from mmap allocations on architectures which support
-+tuning address space randomization.  This value will be bounded
-+by the architecture's minimum and maximum supported values.
-+
-+This value can be changed after boot using the
-+/proc/sys/kernel/mmap_rnd_bits tunable
-+
-+==============================================================
-+
- modules_disabled:
+ #define COLOUR_ALIGN(addr,pgoff)		\
+ 	((((addr)+SHMLBA-1)&~(SHMLBA-1)) +	\
+ 	 (((pgoff)<<PAGE_SHIFT) & (SHMLBA-1)))
+@@ -173,8 +177,7 @@ unsigned long arch_mmap_rnd(void)
+ {
+ 	unsigned long rnd;
  
- A toggle value indicating if modules are allowed to be loaded
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80001de..15b083a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -51,6 +51,12 @@ extern int sysctl_legacy_va_layout;
- #define sysctl_legacy_va_layout 0
- #endif
+-	/* 8 bits of randomness in 20 address space bits */
+-	rnd = (unsigned long)get_random_int() % (1 << 8);
++	rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
  
-+#ifdef CONFIG_ARCH_MMAP_RND_BITS
-+extern int mmap_rnd_bits_min;
-+extern int mmap_rnd_bits_max;
-+extern int mmap_rnd_bits;
-+#endif
-+
- #include <asm/page.h>
- #include <asm/pgtable.h>
- #include <asm/processor.h>
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index e69201d..37e657a 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1139,6 +1139,17 @@ static struct ctl_table kern_table[] = {
- 		.proc_handler	= timer_migration_handler,
- 	},
- #endif
-+#ifdef CONFIG_ARCH_MMAP_RND_BITS
-+	{
-+		.procname	= "mmap_rnd_bits",
-+		.data		= &mmap_rnd_bits,
-+		.maxlen		= sizeof(mmap_rnd_bits),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec_minmax,
-+		.extra1		= &mmap_rnd_bits_min,
-+		.extra2		= &mmap_rnd_bits_max,
-+	},
-+#endif
- 	{ }
- };
- 
+ 	return rnd << PAGE_SHIFT;
+ }
 -- 
 2.6.0.rc2.230.g3dd15c0
 
