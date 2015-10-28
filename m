@@ -1,108 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 149A982F64
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 22:41:36 -0400 (EDT)
-Received: by iofz202 with SMTP id z202so242006810iof.2
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 19:41:35 -0700 (PDT)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id a19si19330847igr.11.2015.10.27.19.41.35
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 050CA82F64
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 22:41:38 -0400 (EDT)
+Received: by ioll68 with SMTP id l68so244035155iol.3
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 19:41:37 -0700 (PDT)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id z42si31725819ioi.36.2015.10.27.19.41.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 27 Oct 2015 19:41:35 -0700 (PDT)
-Message-Id: <20151028024131.613062995@linux.com>
-Date: Tue, 27 Oct 2015 21:41:16 -0500
+        Tue, 27 Oct 2015 19:41:36 -0700 (PDT)
+Message-Id: <20151028024131.719968999@linux.com>
+Date: Tue, 27 Oct 2015 21:41:17 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [patch 2/3] vmstat: make vmstat_updater deferrable again and shut down on idle
+Subject: [patch 3/3] vmstat: Create our own workqueue
 References: <20151028024114.370693277@linux.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=vmstat_quiet_on_idle
+Content-Disposition: inline; filename=vmstat_add_workqueue
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: Michal Hocko <mhocko@kernel.org>, Tejun Heo <htejun@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de
 
-Currently the vmstat updater is not deferrable as a result of commit
-ba4877b9ca51f80b5d30f304a46762f0509e1635. This in turn can cause multiple
-interruptions of the applications because the vmstat updater may run at
-different times than tick processing. No good.
+Seems that vmstat needs its own workqueue now since the general
+workqueue mechanism has been *enhanced* which means that the
+vmstat_updates cannot run reliably but are being blocked by
+work requests doing memory allocation. Which causes vmstat
+to be unable to keep the counters up to date.
 
-Make vmstate_update deferrable again and provide a function that
-shuts down the vmstat updater when we go idle by folding the differentials.
-Shut it down from the load average calculation logic introduced by nohz.
+Bad. Fix this by creating our own workqueue.
 
-Note that the shepherd thread will continue scanning the differentials
-from another processor and will reenable the vmstat workers if it
-detects any changes.
-
-Fixes: ba4877b9ca51f80b5d30f304a46762f0509e1635 (do not use deferrable delay)
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 Index: linux/mm/vmstat.c
 ===================================================================
 --- linux.orig/mm/vmstat.c
 +++ linux/mm/vmstat.c
-@@ -1397,6 +1397,20 @@ static void vmstat_update(struct work_st
- }
+@@ -1359,6 +1359,8 @@ static const struct file_operations proc
+ #endif /* CONFIG_PROC_FS */
  
- /*
-+ * Switch off vmstat processing and then fold all the remaining differentials
-+ * until the diffs stay at zero. The function is used by NOHZ and can only be
-+ * invoked when tick processing is not active.
-+ */
-+void quiet_vmstat(void)
-+{
-+	do {
-+		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
-+			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
+ #ifdef CONFIG_SMP
++static struct workqueue_struct *vmstat_wq;
 +
-+	} while (refresh_cpu_vm_stats(false));
-+}
-+
-+/*
-  * Check if the diffs for a certain cpu indicate that
-  * an update is needed.
-  */
-@@ -1428,7 +1442,7 @@ static bool need_update(int cpu)
-  */
- static void vmstat_shepherd(struct work_struct *w);
+ static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+ int sysctl_stat_interval __read_mostly = HZ;
+ static cpumask_var_t cpu_stat_off;
+@@ -1371,7 +1373,7 @@ static void vmstat_update(struct work_st
+ 		 * to occur in the future. Keep on running the
+ 		 * update worker thread.
+ 		 */
+-		schedule_delayed_work_on(smp_processor_id(),
++		queue_delayed_work_on(smp_processor_id(), vmstat_wq,
+ 			this_cpu_ptr(&vmstat_work),
+ 			round_jiffies_relative(sysctl_stat_interval));
+ 	} else {
+@@ -1454,7 +1456,7 @@ static void vmstat_shepherd(struct work_
+ 		if (need_update(cpu) &&
+ 			cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
  
--static DECLARE_DELAYED_WORK(shepherd, vmstat_shepherd);
-+static DECLARE_DEFERRABLE_WORK(shepherd, vmstat_shepherd);
+-			schedule_delayed_work_on(cpu,
++			queue_delayed_work_on(cpu, vmstat_wq,
+ 				&per_cpu(vmstat_work, cpu), 0);
  
- static void vmstat_shepherd(struct work_struct *w)
- {
-Index: linux/include/linux/vmstat.h
-===================================================================
---- linux.orig/include/linux/vmstat.h
-+++ linux/include/linux/vmstat.h
-@@ -211,6 +211,7 @@ extern void __inc_zone_state(struct zone
- extern void dec_zone_state(struct zone *, enum zone_stat_item);
- extern void __dec_zone_state(struct zone *, enum zone_stat_item);
+ 	put_online_cpus();
+@@ -1543,6 +1545,10 @@ static int __init setup_vmstat(void)
  
-+void quiet_vmstat(void);
- void cpu_vm_stats_fold(int cpu);
- void refresh_zone_stat_thresholds(void);
- 
-@@ -272,6 +273,7 @@ static inline void __dec_zone_page_state
- static inline void refresh_cpu_vm_stats(int cpu) { }
- static inline void refresh_zone_stat_thresholds(void) { }
- static inline void cpu_vm_stats_fold(int cpu) { }
-+static inline void quiet_vmstat(void) { }
- 
- static inline void drain_zonestat(struct zone *zone,
- 			struct per_cpu_pageset *pset) { }
-Index: linux/kernel/time/tick-sched.c
-===================================================================
---- linux.orig/kernel/time/tick-sched.c
-+++ linux/kernel/time/tick-sched.c
-@@ -667,6 +667,7 @@ static ktime_t tick_nohz_stop_sched_tick
- 	 */
- 	if (!ts->tick_stopped) {
- 		nohz_balance_enter_idle(cpu);
-+		quiet_vmstat();
- 		calc_load_enter_idle();
- 
- 		ts->last_tick = hrtimer_get_expires(&ts->sched_timer);
+ 	start_shepherd_timer();
+ 	cpu_notifier_register_done();
++	vmstat_wq = alloc_workqueue("vmstat",
++		WQ_FREEZABLE|
++		WQ_SYSFS|
++		WQ_MEM_RECLAIM, 0);
+ #endif
+ #ifdef CONFIG_PROC_FS
+ 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
