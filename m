@@ -1,113 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id EFE9482F64
-	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 22:41:34 -0400 (EDT)
-Received: by iofz202 with SMTP id z202so242006492iof.2
-        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 19:41:34 -0700 (PDT)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id gb7si3364092igd.41.2015.10.27.19.41.34
+Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 149A982F64
+	for <linux-mm@kvack.org>; Tue, 27 Oct 2015 22:41:36 -0400 (EDT)
+Received: by iofz202 with SMTP id z202so242006810iof.2
+        for <linux-mm@kvack.org>; Tue, 27 Oct 2015 19:41:35 -0700 (PDT)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id a19si19330847igr.11.2015.10.27.19.41.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 27 Oct 2015 19:41:34 -0700 (PDT)
-Message-Id: <20151028024131.512101613@linux.com>
-Date: Tue, 27 Oct 2015 21:41:15 -0500
+        Tue, 27 Oct 2015 19:41:35 -0700 (PDT)
+Message-Id: <20151028024131.613062995@linux.com>
+Date: Tue, 27 Oct 2015 21:41:16 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [patch 1/3] vmstat: Make pageset processing optional in refresh_cpu_vm_stats
+Subject: [patch 2/3] vmstat: make vmstat_updater deferrable again and shut down on idle
 References: <20151028024114.370693277@linux.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=vmstat_do_pageset_parameter
+Content-Disposition: inline; filename=vmstat_quiet_on_idle
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: Michal Hocko <mhocko@kernel.org>, Tejun Heo <htejun@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de
 
-Add a parameter to refresh_cpu_vm_stats() to make pageset expiration
-optional. Flushing the pagesets is performed by the page allocator
-and thus processing of pagesets may not be wanted when just intending
-to fold the differentials.
+Currently the vmstat updater is not deferrable as a result of commit
+ba4877b9ca51f80b5d30f304a46762f0509e1635. This in turn can cause multiple
+interruptions of the applications because the vmstat updater may run at
+different times than tick processing. No good.
 
-Signed-of-by: Christoph Lameter <cl@linux.com>
+Make vmstate_update deferrable again and provide a function that
+shuts down the vmstat updater when we go idle by folding the differentials.
+Shut it down from the load average calculation logic introduced by nohz.
+
+Note that the shepherd thread will continue scanning the differentials
+from another processor and will reenable the vmstat workers if it
+detects any changes.
+
+Fixes: ba4877b9ca51f80b5d30f304a46762f0509e1635 (do not use deferrable delay)
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
 Index: linux/mm/vmstat.c
 ===================================================================
 --- linux.orig/mm/vmstat.c
 +++ linux/mm/vmstat.c
-@@ -460,7 +460,7 @@ static int fold_diff(int *diff)
-  *
-  * The function returns the number of global counters updated.
+@@ -1397,6 +1397,20 @@ static void vmstat_update(struct work_st
+ }
+ 
+ /*
++ * Switch off vmstat processing and then fold all the remaining differentials
++ * until the diffs stay at zero. The function is used by NOHZ and can only be
++ * invoked when tick processing is not active.
++ */
++void quiet_vmstat(void)
++{
++	do {
++		if (!cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
++			cancel_delayed_work(this_cpu_ptr(&vmstat_work));
++
++	} while (refresh_cpu_vm_stats(false));
++}
++
++/*
+  * Check if the diffs for a certain cpu indicate that
+  * an update is needed.
   */
--static int refresh_cpu_vm_stats(void)
-+static int refresh_cpu_vm_stats(bool do_pagesets)
+@@ -1428,7 +1442,7 @@ static bool need_update(int cpu)
+  */
+ static void vmstat_shepherd(struct work_struct *w);
+ 
+-static DECLARE_DELAYED_WORK(shepherd, vmstat_shepherd);
++static DECLARE_DEFERRABLE_WORK(shepherd, vmstat_shepherd);
+ 
+ static void vmstat_shepherd(struct work_struct *w)
  {
- 	struct zone *zone;
- 	int i;
-@@ -484,33 +484,35 @@ static int refresh_cpu_vm_stats(void)
- #endif
- 			}
- 		}
--		cond_resched();
- #ifdef CONFIG_NUMA
--		/*
--		 * Deal with draining the remote pageset of this
--		 * processor
--		 *
--		 * Check if there are pages remaining in this pageset
--		 * if not then there is nothing to expire.
--		 */
--		if (!__this_cpu_read(p->expire) ||
-+		if (do_pagesets) {
-+			cond_resched();
-+			/*
-+			 * Deal with draining the remote pageset of this
-+			 * processor
-+			 *
-+			 * Check if there are pages remaining in this pageset
-+			 * if not then there is nothing to expire.
-+			 */
-+			if (!__this_cpu_read(p->expire) ||
- 			       !__this_cpu_read(p->pcp.count))
--			continue;
-+				continue;
+Index: linux/include/linux/vmstat.h
+===================================================================
+--- linux.orig/include/linux/vmstat.h
++++ linux/include/linux/vmstat.h
+@@ -211,6 +211,7 @@ extern void __inc_zone_state(struct zone
+ extern void dec_zone_state(struct zone *, enum zone_stat_item);
+ extern void __dec_zone_state(struct zone *, enum zone_stat_item);
  
--		/*
--		 * We never drain zones local to this processor.
--		 */
--		if (zone_to_nid(zone) == numa_node_id()) {
--			__this_cpu_write(p->expire, 0);
--			continue;
--		}
-+			/*
-+			 * We never drain zones local to this processor.
-+			 */
-+			if (zone_to_nid(zone) == numa_node_id()) {
-+				__this_cpu_write(p->expire, 0);
-+				continue;
-+			}
++void quiet_vmstat(void);
+ void cpu_vm_stats_fold(int cpu);
+ void refresh_zone_stat_thresholds(void);
  
--		if (__this_cpu_dec_return(p->expire))
--			continue;
-+			if (__this_cpu_dec_return(p->expire))
-+				continue;
+@@ -272,6 +273,7 @@ static inline void __dec_zone_page_state
+ static inline void refresh_cpu_vm_stats(int cpu) { }
+ static inline void refresh_zone_stat_thresholds(void) { }
+ static inline void cpu_vm_stats_fold(int cpu) { }
++static inline void quiet_vmstat(void) { }
  
--		if (__this_cpu_read(p->pcp.count)) {
--			drain_zone_pages(zone, this_cpu_ptr(&p->pcp));
--			changes++;
-+			if (__this_cpu_read(p->pcp.count)) {
-+				drain_zone_pages(zone, this_cpu_ptr(&p->pcp));
-+				changes++;
-+			}
- 		}
- #endif
- 	}
-@@ -1363,7 +1365,7 @@ static cpumask_var_t cpu_stat_off;
+ static inline void drain_zonestat(struct zone *zone,
+ 			struct per_cpu_pageset *pset) { }
+Index: linux/kernel/time/tick-sched.c
+===================================================================
+--- linux.orig/kernel/time/tick-sched.c
++++ linux/kernel/time/tick-sched.c
+@@ -667,6 +667,7 @@ static ktime_t tick_nohz_stop_sched_tick
+ 	 */
+ 	if (!ts->tick_stopped) {
+ 		nohz_balance_enter_idle(cpu);
++		quiet_vmstat();
+ 		calc_load_enter_idle();
  
- static void vmstat_update(struct work_struct *w)
- {
--	if (refresh_cpu_vm_stats()) {
-+	if (refresh_cpu_vm_stats(true)) {
- 		/*
- 		 * Counters were updated so we expect more updates
- 		 * to occur in the future. Keep on running the
+ 		ts->last_tick = hrtimer_get_expires(&ts->sched_timer);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
