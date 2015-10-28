@@ -1,208 +1,303 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C2D0782F64
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 12:10:47 -0400 (EDT)
-Received: by oiao187 with SMTP id o187so7281890oia.3
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 09:10:47 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id c4si28071976oif.115.2015.10.28.09.10.46
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C298382F64
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 12:39:27 -0400 (EDT)
+Received: by wicfx6 with SMTP id fx6so205045495wic.1
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 09:39:27 -0700 (PDT)
+Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
+        by mx.google.com with ESMTPS id cj2si34424672wib.40.2015.10.28.09.39.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Oct 2015 09:10:46 -0700 (PDT)
-Subject: Re: [PATCH v2 0/4] hugetlbfs fallocate hole punch race with page
- faults
-References: <1445385142-29936-1-git-send-email-mike.kravetz@oracle.com>
- <alpine.LSU.2.11.1510271919200.2872@eggly.anvils>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <5630F274.5010908@oracle.com>
-Date: Wed, 28 Oct 2015 09:06:12 -0700
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1510271919200.2872@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Wed, 28 Oct 2015 09:39:26 -0700 (PDT)
+Received: by wicll6 with SMTP id ll6so19515330wic.1
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 09:39:26 -0700 (PDT)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH 1/2] mm, kasan: Added GFP flags to KASAN API
+Date: Wed, 28 Oct 2015 17:39:17 +0100
+Message-Id: <1446050357-40105-1-git-send-email-glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 10/27/2015 08:34 PM, Hugh Dickins wrote:
-> On Tue, 20 Oct 2015, Mike Kravetz wrote:
-> 
->> The hugetlbfs fallocate hole punch code can race with page faults.  The
->> result is that after a hole punch operation, pages may remain within the
->> hole.  No other side effects of this race were observed.
->>
->> In preparation for adding userfaultfd support to hugetlbfs, it is desirable
->> to close the window of this race.  This patch set starts by using the same
->> mechanism employed in shmem (see commit f00cdc6df7).  This greatly reduces
->> the race window.  However, it is still possible for the race to occur.
->>
->> The current hugetlbfs code to remove pages did not deal with pages that
->> were mapped (because of such a race).  This patch set also adds code to
->> unmap pages in this rare case.  This unmapping of a single page happens
->> under the hugetlb_fault_mutex, so it can not be faulted again until the
->> end of the operation.
->>
->> v2:
->>   Incorporated Andrew Morton's cleanups and added suggested comments
->>   Added patch 4/4 to unmap single pages in remove_inode_hugepages
->>
->> Mike Kravetz (4):
->>   mm/hugetlb: Define hugetlb_falloc structure for hole punch race
->>   mm/hugetlb: Setup hugetlb_falloc during fallocate hole punch
->>   mm/hugetlb: page faults check for fallocate hole punch in progress and
->>     wait
->>   mm/hugetlb: Unmap pages to remove if page fault raced with hole punch
->>
->>  fs/hugetlbfs/inode.c    | 155 ++++++++++++++++++++++++++++--------------------
->>  include/linux/hugetlb.h |  10 ++++
->>  mm/hugetlb.c            |  39 ++++++++++++
->>  3 files changed, 141 insertions(+), 63 deletions(-)
-> 
-> With the addition of i_mmap_lock_write() around hugetlb_vmdelete_list()
-> in 4/4 (that you already sent a patch for), and two very minor and
-> inessential mods to the test in 3/4 that I'll suggest in reply to that,
-> this all looks correct to me.
+Add GFP flags to KASAN hooks for future patches to use.
+This is the first part of the "mm: kasan: unified support for SLUB and
+SLAB allocators" patch originally prepared by Dmitry Chernenkov.
 
-Thanks for the detailed response Hugh.  I will try to address your questions
-and provide more reasoning behind the use case and need for this code.
+Signed-off-by: Dmitry Chernenkov <dmitryc@google.com>
+Signed-off-by: Alexander Potapenko <glider@google.com>
+---
+ include/linux/kasan.h | 19 +++++++++++--------
+ mm/kasan/kasan.c      | 15 ++++++++-------
+ mm/mempool.c          | 16 ++++++++--------
+ mm/slab_common.c      |  4 ++--
+ mm/slub.c             | 17 +++++++++--------
+ 5 files changed, 38 insertions(+), 33 deletions(-)
 
-> 
-> And yet, and yet...
-> 
-> ... I have to say that it looks like a bunch of unnecessary complexity:
-> for which the only justification you give is above, not in any of the
-> patches: "In preparation for adding userfaultfd support to hugetlbfs,
-> it is desirable to close the window of this race" (pages faulted into
-> the hole during holepunch may be left there afterwards).
-> 
-> Of course, the code you've sampled from shmem.c is superb ;)
-
-That goes without saying. :)
-
->                                                              and it
-> all should work as you have it (and I wouldn't want to tinker with it,
-> to try and make it simpler here, it's just to easy to get it wrong);
-> but it went into shmem.c for very different reasons.
-> 
-> I don't know whether you studied the sequence of 1aac1400319d before,
-> then f00cdc6df7d7 which you cite, then 8e205f779d14 which corrected it,
-> then b1a366500bd5 which plugged the remaining holes: I had to refresh
-> my memory of how it came to be like this.
-
-To be honest, no I did not study the evolution of this code.  I only
-looked at the final result.
-
-> 
-> The driving reasons for it in shmem.c were my aversion to making the
-> shmem inode any bigger for such an offbeat case (but hugetlbfs wouldn't
-> expect a large number of tiny files, to justify such space saving); my
-
-I did not seriously consider the option of expanding the size of
-hugetlbfs inodes, simply based on your comments in shmem.  It would
-certainly be easier to use something like a rw_semaphore to handle this
-situation.  There is already a table of mutexes that are used (and taken)
-during hugetlb faults.  Another mutex might not be too much additional
-overhead in the fault path.
-
-I would not claim to have enough experience to say whether or not the
-additional space in hugetlbfs inodes would be worth the simplicity of
-of code.  If you and others think this is the case, I would certainly
-be open to take this path.
-
-> aversion to adding further locking into the fast path of shmem_fault();
-> the fact that we already had this fallocate range checking mechanism
-> from the earliest of those commits; and the CVE number that meant that
-> the starvation issue had to be taken more seriously than it deserved.
-> 
-> One of the causes of that starvation issue was the fallback unmapping
-> of single pages within the holepunch loop: your 4/4 actually introduces
-> that into hugetlbfs for the first time.  Another cause of the starvation
-> issue was the "for ( ; ; )" pincer loop that I reverted in the last of
-> those commits above: whereas hugetlbfs just has a straightforward start
-> to end loop there.
-> 
-> It's inherent in the nature of holepunching, that immediately after
-> the holepunch someone may fault into the hole: I wouldn't have bothered
-> to make those changes in shmem.c, if there hadn't been the CVE starvation
-> issue - which I doubt hugetlbfs has before your changes.
-> 
-
-Yes.  In the current hugetlbfs hole punch code, it knows that such
-situations
-exist.  It even 'cheats' and takes advantage of this for simpler code.  If
-it notices a page fault during a hole punch, it simply leaves the page as
-is and continues on with other pages in the hole.
-
-> But I've found some linux-mm mail from you to Andrea on Sep 30, in a
-> 00/12 userfaultfd thread, where you say "I would like a mechanism to
-> catch all new huge page allocations as a result of page faults" and
-> "They would like to 'catch' any tasks that (incorrectly) fault in a
-> page after hole punch".
-> 
-> I confess I've not done my userfaultfd homework: perhaps it does give
-> you very good reason for this hugetlbfs holepunch-fault race series, but
-> I'd really like you to explain that in more detail, before I can Ack it.
-
-Ok, here is a bit more explanation of the proposed use case.  It all
-revolves around a DB's use of hugetlbfs and the desire for more control
-over the underlying memory.  This additional control is achieved by
-adding existing fallocate and userfaultfd semantics to hugetlbfs.
-
-In this use case there is a single process that manages hugetlbfs files
-and the underlying memory resources.  It pre-allocates/initializes these
-files.
-
-In addition, there are many other processes which access (rw mode) these
-files.  They will simply mmap the files.  It is expected that they will
-not fault in any new pages.  Rather, all pages would have been pre-allocated
-by the management process.
-
-At some time, the management process determines that specific ranges of
-pages within the hugetlbfs files are no longer needed.  It will then punch
-holes in the files.  These 'free' pages within the holes may then be used
-for other purposes.  For applications like this (sophisticated DBs), huge
-pages are reserved at system init time and closely managed by the
-application.
-Hence, the desire for this additional control.
-
-So, when a hole containing N huge pages is punched, the management process
-wants to know that it really has N huge pages for other purposes.  Ideally,
-none of the other processes mapping this file/area would access the hole.
-This is an application error, and it can be 'caught' with  userfaultfd.
-
-Since these other (non-management) processes will never fault in pages,
-they would simply set up userfaultfd to catch any page faults immediately
-after mmaping the hugetlbfs file.
-
-> 
-> But it sounds to me more as if the holes you want punched are not
-> quite like on other filesystems, and you want to be able to police
-> them afterwards with userfaultfd, to prevent them from being refilled.
-
-I am not sure if they are any different.
-
-One could argue that a hole punch operation must always result in all
-pages within the hole being deallocated.  As you point out, this could
-race with a fault.  Previously, there would be no way to determine if
-all pages had been deallocated because user space could not detect this
-race.  Now, userfaultfd allows user space to catch page faults.  So,
-it is now possible to catch/depend on hole punch deallocating all pages
-within the hole.
-
-> 
-> Can't userfaultfd be used just slightly earlier, to prevent them from
-> being filled while doing the holepunch?  Then no need for this patchset?
-
-I do not think so, at least with current userfaultfd semantics.  The hole
-needs to be punched before being caught with UFFDIO_REGISTER_MODE_MISSING.
-
-> 
-> Hugh
-> 
-
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index 4b9f85c..e1ce960 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -50,13 +50,14 @@ void kasan_poison_slab(struct page *page);
+ void kasan_unpoison_object_data(struct kmem_cache *cache, void *object);
+ void kasan_poison_object_data(struct kmem_cache *cache, void *object);
+ 
+-void kasan_kmalloc_large(const void *ptr, size_t size);
++void kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags);
+ void kasan_kfree_large(const void *ptr);
+ void kasan_kfree(void *ptr);
+-void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size);
+-void kasan_krealloc(const void *object, size_t new_size);
++void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size,
++		  gfp_t flags);
++void kasan_krealloc(const void *object, size_t new_size, gfp_t flags);
+ 
+-void kasan_slab_alloc(struct kmem_cache *s, void *object);
++void kasan_slab_alloc(struct kmem_cache *s, void *object, gfp_t flags);
+ void kasan_slab_free(struct kmem_cache *s, void *object);
+ 
+ int kasan_module_alloc(void *addr, size_t size);
+@@ -78,14 +79,16 @@ static inline void kasan_unpoison_object_data(struct kmem_cache *cache,
+ static inline void kasan_poison_object_data(struct kmem_cache *cache,
+ 					void *object) {}
+ 
+-static inline void kasan_kmalloc_large(void *ptr, size_t size) {}
++static inline void kasan_kmalloc_large(void *ptr, size_t size, gfp_t flags) {}
+ static inline void kasan_kfree_large(const void *ptr) {}
+ static inline void kasan_kfree(void *ptr) {}
+ static inline void kasan_kmalloc(struct kmem_cache *s, const void *object,
+-				size_t size) {}
+-static inline void kasan_krealloc(const void *object, size_t new_size) {}
++				size_t size, gfp_t flags) {}
++static inline void kasan_krealloc(const void *object, size_t new_size,
++				 gfp_t flags) {}
+ 
+-static inline void kasan_slab_alloc(struct kmem_cache *s, void *object) {}
++static inline void kasan_slab_alloc(struct kmem_cache *s, void *object,
++				   gfp_t flags) {}
+ static inline void kasan_slab_free(struct kmem_cache *s, void *object) {}
+ 
+ static inline int kasan_module_alloc(void *addr, size_t size) { return 0; }
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 8da2114..ba0734b 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -318,9 +318,9 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
+ 			KASAN_KMALLOC_REDZONE);
+ }
+ 
+-void kasan_slab_alloc(struct kmem_cache *cache, void *object)
++void kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
+ {
+-	kasan_kmalloc(cache, object, cache->object_size);
++	kasan_kmalloc(cache, object, cache->object_size, flags);
+ }
+ 
+ void kasan_slab_free(struct kmem_cache *cache, void *object)
+@@ -335,7 +335,8 @@ void kasan_slab_free(struct kmem_cache *cache, void *object)
+ 	kasan_poison_shadow(object, rounded_up_size, KASAN_KMALLOC_FREE);
+ }
+ 
+-void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size)
++void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
++		   gfp_t flags)
+ {
+ 	unsigned long redzone_start;
+ 	unsigned long redzone_end;
+@@ -354,7 +355,7 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size)
+ }
+ EXPORT_SYMBOL(kasan_kmalloc);
+ 
+-void kasan_kmalloc_large(const void *ptr, size_t size)
++void kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
+ {
+ 	struct page *page;
+ 	unsigned long redzone_start;
+@@ -373,7 +374,7 @@ void kasan_kmalloc_large(const void *ptr, size_t size)
+ 		KASAN_PAGE_REDZONE);
+ }
+ 
+-void kasan_krealloc(const void *object, size_t size)
++void kasan_krealloc(const void *object, size_t size, gfp_t flags)
+ {
+ 	struct page *page;
+ 
+@@ -383,9 +384,9 @@ void kasan_krealloc(const void *object, size_t size)
+ 	page = virt_to_head_page(object);
+ 
+ 	if (unlikely(!PageSlab(page)))
+-		kasan_kmalloc_large(object, size);
++		kasan_kmalloc_large(object, size, flags);
+ 	else
+-		kasan_kmalloc(page->slab_cache, object, size);
++		kasan_kmalloc(page->slab_cache, object, size, flags);
+ }
+ 
+ void kasan_kfree(void *ptr)
+diff --git a/mm/mempool.c b/mm/mempool.c
+index 4c533bc..31848f4 100644
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -112,12 +112,12 @@ static void kasan_poison_element(mempool_t *pool, void *element)
+ 		kasan_free_pages(element, (unsigned long)pool->pool_data);
+ }
+ 
+-static void kasan_unpoison_element(mempool_t *pool, void *element)
++static void kasan_unpoison_element(mempool_t *pool, void *element, gfp_t flags)
+ {
+ 	if (pool->alloc == mempool_alloc_slab)
+-		kasan_slab_alloc(pool->pool_data, element);
++		kasan_slab_alloc(pool->pool_data, element, flags);
+ 	if (pool->alloc == mempool_kmalloc)
+-		kasan_krealloc(element, (size_t)pool->pool_data);
++		kasan_krealloc(element, (size_t)pool->pool_data, flags);
+ 	if (pool->alloc == mempool_alloc_pages)
+ 		kasan_alloc_pages(element, (unsigned long)pool->pool_data);
+ }
+@@ -130,13 +130,13 @@ static void add_element(mempool_t *pool, void *element)
+ 	pool->elements[pool->curr_nr++] = element;
+ }
+ 
+-static void *remove_element(mempool_t *pool)
++static void *remove_element(mempool_t *pool, gfp_t flags)
+ {
+ 	void *element = pool->elements[--pool->curr_nr];
+ 
+ 	BUG_ON(pool->curr_nr < 0);
+ 	check_element(pool, element);
+-	kasan_unpoison_element(pool, element);
++	kasan_unpoison_element(pool, element, flags);
+ 	return element;
+ }
+ 
+@@ -154,7 +154,7 @@ void mempool_destroy(mempool_t *pool)
+ 		return;
+ 
+ 	while (pool->curr_nr) {
+-		void *element = remove_element(pool);
++		void *element = remove_element(pool, GFP_KERNEL);
+ 		pool->free(element, pool->pool_data);
+ 	}
+ 	kfree(pool->elements);
+@@ -250,7 +250,7 @@ int mempool_resize(mempool_t *pool, int new_min_nr)
+ 	spin_lock_irqsave(&pool->lock, flags);
+ 	if (new_min_nr <= pool->min_nr) {
+ 		while (new_min_nr < pool->curr_nr) {
+-			element = remove_element(pool);
++			element = remove_element(pool, GFP_KERNEL);
+ 			spin_unlock_irqrestore(&pool->lock, flags);
+ 			pool->free(element, pool->pool_data);
+ 			spin_lock_irqsave(&pool->lock, flags);
+@@ -336,7 +336,7 @@ repeat_alloc:
+ 
+ 	spin_lock_irqsave(&pool->lock, flags);
+ 	if (likely(pool->curr_nr)) {
+-		element = remove_element(pool);
++		element = remove_element(pool, gfp_temp);
+ 		spin_unlock_irqrestore(&pool->lock, flags);
+ 		/* paired with rmb in mempool_free(), read comment there */
+ 		smp_wmb();
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 5ce4fae..a07bfe0 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -945,7 +945,7 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
+ 	page = alloc_kmem_pages(flags, order);
+ 	ret = page ? page_address(page) : NULL;
+ 	kmemleak_alloc(ret, size, 1, flags);
+-	kasan_kmalloc_large(ret, size);
++	kasan_kmalloc_large(ret, size, flags);
+ 	return ret;
+ }
+ EXPORT_SYMBOL(kmalloc_order);
+@@ -1126,7 +1126,7 @@ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
+ 		ks = ksize(p);
+ 
+ 	if (ks >= new_size) {
+-		kasan_krealloc((void *)p, new_size);
++		kasan_krealloc((void *)p, new_size, flags);
+ 		return (void *)p;
+ 	}
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index f614b5d..4e20d66 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1249,7 +1249,7 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
+ static inline void kmalloc_large_node_hook(void *ptr, size_t size, gfp_t flags)
+ {
+ 	kmemleak_alloc(ptr, size, 1, flags);
+-	kasan_kmalloc_large(ptr, size);
++	kasan_kmalloc_large(ptr, size, flags);
+ }
+ 
+ static inline void kfree_hook(const void *x)
+@@ -1278,7 +1278,7 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s,
+ 	kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
+ 	kmemleak_alloc_recursive(object, s->object_size, 1, s->flags, flags);
+ 	memcg_kmem_put_cache(s);
+-	kasan_slab_alloc(s, object);
++	kasan_slab_alloc(s, object, flags);
+ }
+ 
+ static inline void slab_free_hook(struct kmem_cache *s, void *x)
+@@ -2528,7 +2528,7 @@ void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
+ {
+ 	void *ret = slab_alloc(s, gfpflags, _RET_IP_);
+ 	trace_kmalloc(_RET_IP_, ret, size, s->size, gfpflags);
+-	kasan_kmalloc(s, ret, size);
++	kasan_kmalloc(s, ret, size, gfpflags);
+ 	return ret;
+ }
+ EXPORT_SYMBOL(kmem_cache_alloc_trace);
+@@ -2556,7 +2556,7 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
+ 	trace_kmalloc_node(_RET_IP_, ret,
+ 			   size, s->size, gfpflags, node);
+ 
+-	kasan_kmalloc(s, ret, size);
++	kasan_kmalloc(s, ret, size, gfpflags);
+ 	return ret;
+ }
+ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
+@@ -3050,7 +3050,8 @@ static void early_kmem_cache_node_alloc(int node)
+ 	init_object(kmem_cache_node, n, SLUB_RED_ACTIVE);
+ 	init_tracking(kmem_cache_node, n);
+ #endif
+-	kasan_kmalloc(kmem_cache_node, n, sizeof(struct kmem_cache_node));
++	kasan_kmalloc(kmem_cache_node, n, sizeof(struct kmem_cache_node),
++		      GFP_KERNEL);
+ 	init_kmem_cache_node(n);
+ 	inc_slabs_node(kmem_cache_node, node, page->objects);
+ 
+@@ -3423,7 +3424,7 @@ void *__kmalloc(size_t size, gfp_t flags)
+ 
+ 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
+ 
+-	kasan_kmalloc(s, ret, size);
++	kasan_kmalloc(s, ret, size, flags);
+ 
+ 	return ret;
+ }
+@@ -3468,7 +3469,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
+ 
+ 	trace_kmalloc_node(_RET_IP_, ret, size, s->size, flags, node);
+ 
+-	kasan_kmalloc(s, ret, size);
++	kasan_kmalloc(s, ret, size, flags);
+ 
+ 	return ret;
+ }
+@@ -3497,7 +3498,7 @@ size_t ksize(const void *object)
+ 	size_t size = __ksize(object);
+ 	/* We assume that ksize callers could use whole allocated area,
+ 	   so we need unpoison this area. */
+-	kasan_krealloc(object, size);
++	kasan_krealloc(object, size, GFP_NOWAIT);
+ 	return size;
+ }
+ EXPORT_SYMBOL(ksize);
 -- 
-Mike Kravetz
+2.6.0.rc2.230.g3dd15c0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
