@@ -1,331 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 097ED82F64
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 19:27:39 -0400 (EDT)
-Received: by padhy1 with SMTP id hy1so14457580pad.0
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 16:27:38 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id uo9si25810237pac.37.2015.10.28.16.27.36
-        for <linux-mm@kvack.org>;
-        Wed, 28 Oct 2015 16:27:37 -0700 (PDT)
-Date: Thu, 29 Oct 2015 10:26:41 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Triggering non-integrity writeback from userspace
-Message-ID: <20151028232641.GS8773@dastard>
-References: <20151022131555.GC4378@alap3.anarazel.de>
- <20151024213912.GE8773@dastard>
- <20151028092752.GF29811@alap3.anarazel.de>
- <20151028204834.GP8773@dastard>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B04A82F64
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 19:43:13 -0400 (EDT)
+Received: by padhk11 with SMTP id hk11so20757284pad.1
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 16:43:13 -0700 (PDT)
+Received: from out03.mta.xmission.com (out03.mta.xmission.com. [166.70.13.233])
+        by mx.google.com with ESMTPS id kd3si44933680pbc.173.2015.10.28.16.43.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 28 Oct 2015 16:43:12 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <1446067520-31806-1-git-send-email-dcashman@android.com>
+Date: Wed, 28 Oct 2015 18:34:15 -0500
+In-Reply-To: <1446067520-31806-1-git-send-email-dcashman@android.com> (Daniel
+	Cashman's message of "Wed, 28 Oct 2015 14:25:19 -0700")
+Message-ID: <871tcewoso.fsf@x220.int.ebiederm.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151028204834.GP8773@dastard>
+Content-Type: text/plain
+Subject: Re: [PATCH 1/2] mm: mmap: Add new /proc tunable for mmap_base ASLR.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andres Freund <andres@anarazel.de>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Daniel Cashman <dcashman@android.com>
+Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, dcashman <dcashman@google.com>
 
-On Thu, Oct 29, 2015 at 07:48:34AM +1100, Dave Chinner wrote:
-> Hi Andres,
-> 
-> On Wed, Oct 28, 2015 at 10:27:52AM +0100, Andres Freund wrote:
-> > On 2015-10-25 08:39:12 +1100, Dave Chinner wrote:
-> ....
-> > > Data integrity operations require related file metadata (e.g. block
-> > > allocation trnascations) to be forced to the journal/disk, and a
-> > > device cache flush issued to ensure the data is on stable storage.
-> > > SYNC_FILE_RANGE_WRITE does neither of these things, and hence while
-> > > the IO might be the same pattern as a data integrity operation, it
-> > > does not provide such guarantees.
-> > 
-> > Which is desired here - the actual integrity is still going to be done
-> > via fsync().
-> 
-> OK, so you require data integrity, but....
-> 
-> > The idea of using SYNC_FILE_RANGE_WRITE beforehand is that
-> > the fsync() will only have to do very little work. The language in
-> > sync_file_range(2) doesn't inspire enough confidence for using it as an
-> > actual integrity operation :/
-> 
-> So really you're trying to minimise the blocking/latency of fsync()?
-> 
-> > > You don't want to do writeback from the syscall, right? i.e. you'd
-> > > like to expire the inode behind the fd, and schedule background
-> > > writeback to run on it immediately?
-> > 
-> > Yes, that's exactly what we want. Blocking if a process has done too
-> > much writes is fine tho.
-> 
-> OK, so it's really the latency of the fsync() operation that is what
-> you are trying to avoid? I've been meaning to get back to a generic
-> implementation of an aio fsync operation:
-> 
-> http://oss.sgi.com/archives/xfs/2014-06/msg00214.html
-> 
-> Would that be a better approach to solving your need for a
-> non-blocking data integrity flush of a file?
+Daniel Cashman <dcashman@android.com> writes:
 
-Which was relatively trivial to do. Numbers below come from XFS, I
-smoke tested ext4 and it kinda worked but behaviour was very
-unpredictable and maxxed out at about 25000 IOPS with max
-performance being at 4 threads @ an average of 20000 files/s...
+> From: dcashman <dcashman@google.com>
+>
+> ASLR currently only uses 8 bits to generate the random offset for the
+> mmap base address on 32 bit architectures. This value was chosen to
+> prevent a poorly chosen value from dividing the address space in such
+> a way as to prevent large allocations. This may not be an issue on all
+> platforms. Allow the specification of a minimum number of bits so that
+> platforms desiring greater ASLR protection may determine where to place
+> the trade-off.
 
-Cheers,
+This all would be much cleaner if the arm architecture code were just to
+register the sysctl itself.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+As it sits this looks like a patchset that does not meaninfully bisect,
+and would result in code that is hard to trace and understand.
 
-[RFC] aio: wire up generic aio_fsync method
+Eric
 
-From: Dave Chinner <dchinner@redhat.com>
-
-We've had plenty of requests for an asynchronous fsync over the past
-few years, and we've got the infrastructure there to do it. But
-nobody has wired it up to test it. The common request we get from
-userspace storage applications is to do a post-write pass over a set
-of files that were just written (i.e. bulk background fsync) for
-point-in-time checkpointing or flushing purposes.
-
-So, just to see if I could brute force an effective implementation,
-wire up aio_fsync, add a workqueue and push all the fsync calls off
-to the workqueue. The workqueue will allow parallel dispatch, switch
-execution if a fsync blocks for any reason, etc. Brute force and
-very effective....
-
-So, I hacked up fs_mark to enable fsync via the libaio io_fsync()
-interface to run some tests. The quick test is:
-
-	- write 10000 4k files into the cache
-	- run a post write open-fsync-close pass (sync mode 5)
-	- run 5 iterations
-	- run a single thread, then 4 threads.
-
-First I ran it on a 500TB sparse filesystem on a SSD.
-
-FSUse%        Count         Size    Files/sec     App Overhead
-     0        10000         4096        507.5           184435
-     0        20000         4096        527.2           184815
-     0        30000         4096        530.4           183798
-     0        40000         4096        531.0           189431
-     0        50000         4096        554.2           181557
-
-real    1m34.548s
-user    0m0.819s
-sys     0m10.596s
-
-Runs at around 500 log forces/s resulting in 500 log writes/s
-giving a sustained IO load of about 1200 IOPS.
-
-Using io_fsync():
-
-FSUse%        Count         Size    Files/sec     App Overhead
-     0        10000         4096       4124.1           151359
-     0        20000         4096       5506.4           112704
-     0        30000         4096       7347.1            97967
-     0        40000         4096       7110.1            97089
-     0        50000         4096       7075.3            94942
-
-real    0m8.554s
-user    0m0.350s
-sys     0m3.684s
-
-Runs at around 7,000 log forces/s, which are mostly aggregated down
-to around 700 log writes/s, for a total sustained load of ~8000 IOPS.
-The parallel dispatch of fsync operations allows the log to
-aggregate them effectively, reducing journal IO by a factor of 10
-
-Run the same workload, 4 threads at a time. Normal fsync:
-
-FSUse%        Count         Size    Files/sec     App Overhead
-     0        40000         4096       2156.0           690185
-     0        80000         4096       1859.6           693849
-     0       120000         4096       1858.8           723889
-     0       160000         4096       1848.5           708657
-     0       200000         4096       1842.7           736587
-
-Runs at ~2000 log forces/s, resulting in ~1000 log writes/s and
-3,000 IOPS. We see the journal writes being aggregated, but nowhere
-near the rate of the previous async fsync run.
-
-Using io_fsync():
-
-SUse%        Count         Size    Files/sec     App Overhead
-     0        40000         4096      18956.0           633011
-     0        80000         4096      18972.1           635786
-     0       120000         4096      23719.6           433334
-     0       160000         4096      25780.6           403199
-     0       200000         4096      24848.7           480086
-
-real    0m9.512s
-user    0m1.307s
-sys     0m14.844s
-
-Almost perfect scaling! ~24,000 log forces/s resulting in ~700 log
-writes/s, so we've not got a 35:1 journal write aggregation
-occurring, and so the total sustained IOPS is only ~25000 IOPS.
-
-Just checking to see how far I can push it.
-
-threads		files/s		IOPS		log aggregation
-  1		 7000		 8000		 10:1
-  4		24000		25000		 35:1
-  8		32000		34000		100:1
- 16		33000		35000		100:1
- 32		30000		35000		 90:1
-
-At 32 threads it's becoming context switch bound and burning
-13-14 CPUs. It's pushing 6-800,000 context switches/s, and the
-overhead in the blk_mq tag code is killing everything:
-
--   23.73%    23.73%  [kernel]            [k] _raw_spin_unlock_irqrestore
-   - _raw_spin_unlock_irqrestore
-      - 64.15% prepare_to_wait
-         - 99.35% bt_get
-              blk_mq_get_tag
-....
-      - 14.23% virtio_queue_rq
-         - __blk_mq_run_hw_queue
-            - blk_mq_run_hw_queue
-               - 93.89% blk_mq_insert_requests
-                    blk_mq_flush_plug_list
-.....
-   13.30%    13.30%  [kernel]            [k] _raw_spin_unlock_irq
-   - _raw_spin_unlock_irq
-      - 69.27% finish_task_switch
-         - __schedule
-            - 94.53% schedule
-               - 68.36% schedule_timeout
-                  - 85.22% io_schedule_timeout
-                     + 93.52% bt_get
-                     + 6.48% bit_wait_io
-                  + 14.39% wait_for_completion
-      - 15.36% blk_insert_flush
-           blk_sq_make_request
-           generic_make_request
-         - submit_bio
-            - 99.24% submit_bio_wait
-                 blkdev_issue_flush
-                 xfs_blkdev_issue_flush
-                 xfs_file_fsync
-                 vfs_fsync_range
-                 vfs_fsync
-                 generic_aio_fsync_work
-
-
-So, essentiall, close on 30% of the CPU being used (2.5 of 8 CPUs
-being spent on this workload) is being spent on lock contention on
-the blk mq request and tag wait queues due to the amount of task
-switching going on...
-
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
----
- fs/aio.c | 60 +++++++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 51 insertions(+), 9 deletions(-)
-
-diff --git a/fs/aio.c b/fs/aio.c
-index 155f842..19df3ec 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -188,6 +188,19 @@ struct aio_kiocb {
- 	struct eventfd_ctx	*ki_eventfd;
- };
- 
-+/*
-+ * Generic async fsync work structure.  If the file does not supply
-+ * an ->aio_fsync method but has a ->fsync method, then the f(d)sync request is
-+ * passed to the aio_fsync_wq workqueue and is executed there.
-+ */
-+struct aio_fsync_args {
-+	struct work_struct	work;
-+	struct kiocb		*iocb;
-+	int			datasync;
-+};
-+
-+static struct workqueue_struct *aio_fsync_wq;
-+
- /*------ sysctl variables----*/
- static DEFINE_SPINLOCK(aio_nr_lock);
- unsigned long aio_nr;		/* current system wide number of aio requests */
-@@ -257,6 +270,10 @@ static int __init aio_setup(void)
- 	if (IS_ERR(aio_mnt))
- 		panic("Failed to create aio fs mount.");
- 
-+	aio_fsync_wq = alloc_workqueue("aio-fsync", 0, 0);
-+	if (!aio_fsync_wq)
-+		panic("Failed to create aio fsync workqueue.");
-+
- 	kiocb_cachep = KMEM_CACHE(aio_kiocb, SLAB_HWCACHE_ALIGN|SLAB_PANIC);
- 	kioctx_cachep = KMEM_CACHE(kioctx,SLAB_HWCACHE_ALIGN|SLAB_PANIC);
- 
-@@ -1396,6 +1413,32 @@ static int aio_setup_vectored_rw(int rw, char __user *buf, size_t len,
- 				len, UIO_FASTIOV, iovec, iter);
- }
- 
-+static void generic_aio_fsync_work(struct work_struct *work)
-+{
-+	struct aio_fsync_args *args = container_of(work,
-+						   struct aio_fsync_args, work);
-+	int error;
-+
-+	error = vfs_fsync(args->iocb->ki_filp, args->datasync);
-+	aio_complete(args->iocb, error, 0);
-+	kfree(args);
-+}
-+
-+static int generic_aio_fsync(struct kiocb *iocb, int datasync)
-+{
-+	struct aio_fsync_args	*args;
-+
-+	args = kzalloc(sizeof(struct aio_fsync_args), GFP_KERNEL);
-+	if (!args)
-+		return -ENOMEM;
-+
-+	INIT_WORK(&args->work, generic_aio_fsync_work);
-+	args->iocb = iocb;
-+	args->datasync = datasync;
-+	queue_work(aio_fsync_wq, &args->work);
-+	return -EIOCBQUEUED;
-+}
-+
- /*
-  * aio_run_iocb:
-  *	Performs the initial checks and io submission.
-@@ -1410,6 +1453,7 @@ static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
- 	rw_iter_op *iter_op;
- 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
- 	struct iov_iter iter;
-+	int datasync = 0;
- 
- 	switch (opcode) {
- 	case IOCB_CMD_PREAD:
-@@ -1460,17 +1504,15 @@ rw_common:
- 		break;
- 
- 	case IOCB_CMD_FDSYNC:
--		if (!file->f_op->aio_fsync)
--			return -EINVAL;
--
--		ret = file->f_op->aio_fsync(req, 1);
--		break;
--
-+		datasync = 1;
-+		/* fall through */
- 	case IOCB_CMD_FSYNC:
--		if (!file->f_op->aio_fsync)
-+		if (file->f_op->aio_fsync)
-+			ret = file->f_op->aio_fsync(req, datasync);
-+		else if (file->f_op->fsync)
-+			ret = generic_aio_fsync(req, datasync);
-+		else
- 			return -EINVAL;
--
--		ret = file->f_op->aio_fsync(req, 0);
- 		break;
- 
- 	default:
+> Signed-off-by: Daniel Cashman <dcashman@google.com>
+> ---
+>  Documentation/sysctl/kernel.txt | 14 ++++++++++++++
+>  include/linux/mm.h              |  6 ++++++
+>  kernel/sysctl.c                 | 11 +++++++++++
+>  3 files changed, 31 insertions(+)
+>
+> diff --git a/Documentation/sysctl/kernel.txt b/Documentation/sysctl/kernel.txt
+> index 6fccb69..0d4ca53 100644
+> --- a/Documentation/sysctl/kernel.txt
+> +++ b/Documentation/sysctl/kernel.txt
+> @@ -41,6 +41,7 @@ show up in /proc/sys/kernel:
+>  - kptr_restrict
+>  - kstack_depth_to_print       [ X86 only ]
+>  - l2cr                        [ PPC only ]
+> +- mmap_rnd_bits
+>  - modprobe                    ==> Documentation/debugging-modules.txt
+>  - modules_disabled
+>  - msg_next_id		      [ sysv ipc ]
+> @@ -391,6 +392,19 @@ This flag controls the L2 cache of G3 processor boards. If
+>  
+>  ==============================================================
+>  
+> +mmap_rnd_bits:
+> +
+> +This value can be used to select the number of bits to use to
+> +determine the random offset to the base address of vma regions
+> +resulting from mmap allocations on architectures which support
+> +tuning address space randomization.  This value will be bounded
+> +by the architecture's minimum and maximum supported values.
+> +
+> +This value can be changed after boot using the
+> +/proc/sys/kernel/mmap_rnd_bits tunable
+> +
+> +==============================================================
+> +
+>  modules_disabled:
+>  
+>  A toggle value indicating if modules are allowed to be loaded
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 80001de..15b083a 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -51,6 +51,12 @@ extern int sysctl_legacy_va_layout;
+>  #define sysctl_legacy_va_layout 0
+>  #endif
+>  
+> +#ifdef CONFIG_ARCH_MMAP_RND_BITS
+> +extern int mmap_rnd_bits_min;
+> +extern int mmap_rnd_bits_max;
+> +extern int mmap_rnd_bits;
+> +#endif
+> +
+>  #include <asm/page.h>
+>  #include <asm/pgtable.h>
+>  #include <asm/processor.h>
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index e69201d..37e657a 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -1139,6 +1139,17 @@ static struct ctl_table kern_table[] = {
+>  		.proc_handler	= timer_migration_handler,
+>  	},
+>  #endif
+> +#ifdef CONFIG_ARCH_MMAP_RND_BITS
+> +	{
+> +		.procname	= "mmap_rnd_bits",
+> +		.data		= &mmap_rnd_bits,
+> +		.maxlen		= sizeof(mmap_rnd_bits),
+> +		.mode		= 0644,
+> +		.proc_handler	= proc_dointvec_minmax,
+> +		.extra1		= &mmap_rnd_bits_min,
+> +		.extra2		= &mmap_rnd_bits_max,
+> +	},
+> +#endif
+>  	{ }
+>  };
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
