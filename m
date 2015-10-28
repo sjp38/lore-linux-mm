@@ -1,75 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E1CB782F64
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 16:48:38 -0400 (EDT)
-Received: by pasz6 with SMTP id z6so17086553pas.2
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 13:48:38 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id y12si72801968pbt.182.2015.10.28.13.48.36
-        for <linux-mm@kvack.org>;
-        Wed, 28 Oct 2015 13:48:37 -0700 (PDT)
-Date: Thu, 29 Oct 2015 07:48:34 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Triggering non-integrity writeback from userspace
-Message-ID: <20151028204834.GP8773@dastard>
-References: <20151022131555.GC4378@alap3.anarazel.de>
- <20151024213912.GE8773@dastard>
- <20151028092752.GF29811@alap3.anarazel.de>
+Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E068082F64
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 17:00:24 -0400 (EDT)
+Received: by iodd200 with SMTP id d200so24757869iod.0
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 14:00:24 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id e19si24998ioi.48.2015.10.28.14.00.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Oct 2015 14:00:24 -0700 (PDT)
+Received: by pacfv9 with SMTP id fv9so18005906pac.3
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 14:00:24 -0700 (PDT)
+Date: Wed, 28 Oct 2015 14:00:16 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v2 0/4] hugetlbfs fallocate hole punch race with page
+ faults
+In-Reply-To: <5630F274.5010908@oracle.com>
+Message-ID: <alpine.LSU.2.11.1510281332050.4687@eggly.anvils>
+References: <1445385142-29936-1-git-send-email-mike.kravetz@oracle.com> <alpine.LSU.2.11.1510271919200.2872@eggly.anvils> <5630F274.5010908@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151028092752.GF29811@alap3.anarazel.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andres Freund <andres@anarazel.de>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-Hi Andres,
-
-On Wed, Oct 28, 2015 at 10:27:52AM +0100, Andres Freund wrote:
-> On 2015-10-25 08:39:12 +1100, Dave Chinner wrote:
-....
-> > Data integrity operations require related file metadata (e.g. block
-> > allocation trnascations) to be forced to the journal/disk, and a
-> > device cache flush issued to ensure the data is on stable storage.
-> > SYNC_FILE_RANGE_WRITE does neither of these things, and hence while
-> > the IO might be the same pattern as a data integrity operation, it
-> > does not provide such guarantees.
+On Wed, 28 Oct 2015, Mike Kravetz wrote:
+> On 10/27/2015 08:34 PM, Hugh Dickins wrote:
 > 
-> Which is desired here - the actual integrity is still going to be done
-> via fsync().
+> Thanks for the detailed response Hugh.  I will try to address your questions
+> and provide more reasoning behind the use case and need for this code.
 
-OK, so you require data integrity, but....
+And thank you for your detailed response, Mike: that helped a lot.
 
-> The idea of using SYNC_FILE_RANGE_WRITE beforehand is that
-> the fsync() will only have to do very little work. The language in
-> sync_file_range(2) doesn't inspire enough confidence for using it as an
-> actual integrity operation :/
-
-So really you're trying to minimise the blocking/latency of fsync()?
-
-> > You don't want to do writeback from the syscall, right? i.e. you'd
-> > like to expire the inode behind the fd, and schedule background
-> > writeback to run on it immediately?
+> Ok, here is a bit more explanation of the proposed use case.  It all
+> revolves around a DB's use of hugetlbfs and the desire for more control
+> over the underlying memory.  This additional control is achieved by
+> adding existing fallocate and userfaultfd semantics to hugetlbfs.
 > 
-> Yes, that's exactly what we want. Blocking if a process has done too
-> much writes is fine tho.
+> In this use case there is a single process that manages hugetlbfs files
+> and the underlying memory resources.  It pre-allocates/initializes these
+> files.
+> 
+> In addition, there are many other processes which access (rw mode) these
+> files.  They will simply mmap the files.  It is expected that they will
+> not fault in any new pages.  Rather, all pages would have been pre-allocated
+> by the management process.
+> 
+> At some time, the management process determines that specific ranges of
+> pages within the hugetlbfs files are no longer needed.  It will then punch
+> holes in the files.  These 'free' pages within the holes may then be used
+> for other purposes.  For applications like this (sophisticated DBs), huge
+> pages are reserved at system init time and closely managed by the
+> application.
+> Hence, the desire for this additional control.
+> 
+> So, when a hole containing N huge pages is punched, the management process
+> wants to know that it really has N huge pages for other purposes.  Ideally,
+> none of the other processes mapping this file/area would access the hole.
+> This is an application error, and it can be 'caught' with  userfaultfd.
+> 
+> Since these other (non-management) processes will never fault in pages,
+> they would simply set up userfaultfd to catch any page faults immediately
+> after mmaping the hugetlbfs file.
+> 
+> > 
+> > But it sounds to me more as if the holes you want punched are not
+> > quite like on other filesystems, and you want to be able to police
+> > them afterwards with userfaultfd, to prevent them from being refilled.
+> 
+> I am not sure if they are any different.
+> 
+> One could argue that a hole punch operation must always result in all
+> pages within the hole being deallocated.  As you point out, this could
+> race with a fault.  Previously, there would be no way to determine if
+> all pages had been deallocated because user space could not detect this
+> race.  Now, userfaultfd allows user space to catch page faults.  So,
+> it is now possible to catch/depend on hole punch deallocating all pages
+> within the hole.
+> 
+> > 
+> > Can't userfaultfd be used just slightly earlier, to prevent them from
+> > being filled while doing the holepunch?  Then no need for this patchset?
+> 
+> I do not think so, at least with current userfaultfd semantics.  The hole
+> needs to be punched before being caught with UFFDIO_REGISTER_MODE_MISSING.
 
-OK, so it's really the latency of the fsync() operation that is what
-you are trying to avoid? I've been meaning to get back to a generic
-implementation of an aio fsync operation:
+Great, that makes sense.
 
-http://oss.sgi.com/archives/xfs/2014-06/msg00214.html
+I was worried that you needed some kind of atomic treatment of the whole
+extent punched, but all you need is to close the hole/fault race one
+hugepage at a time.
 
-Would that be a better approach to solving your need for a
-non-blocking data integrity flush of a file?
+Throw away all of 1/4, 2/4, 3/4: I think all you need is your 4/4
+(plus i_mmap_lock_write around the hugetlb_vmdelete_list of course).
 
-Cheers,
+There you already do the single hugepage hugetlb_vmdelete_list()
+under mutex_lock(&hugetlb_fault_mutex_table[hash]).
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+And it should come as no surprise that hugetlb_fault() does most
+of its work under that same mutex.
+
+So once remove_inode_hugepages() unlocks the mutex, that page is gone
+from the file, and userfaultfd UFFDIO_REGISTER_MODE_MISSING will do
+what you want, won't it?
+
+I don't think "my" code buys you anything at all: you're not in danger of
+shmem's starvation livelock issue, partly because remove_inode_hugepages()
+uses the simple loop from start to end, and partly because hugetlb_fault()
+already takes the serializing mutex (no equivalent in shmem_fault()).
+
+Or am I dreaming?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
