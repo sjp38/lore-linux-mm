@@ -1,62 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C5D982F64
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 23:08:29 -0400 (EDT)
-Received: by padhy1 with SMTP id hy1so19829716pad.0
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 20:08:29 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id yf8si74989710pbc.129.2015.10.28.20.08.28
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C4A882F64
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 23:51:31 -0400 (EDT)
+Received: by padhk11 with SMTP id hk11so26888126pad.1
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 20:51:30 -0700 (PDT)
+Received: from out02.mta.xmission.com (out02.mta.xmission.com. [166.70.13.232])
+        by mx.google.com with ESMTPS id em5si75150478pbd.203.2015.10.28.20.51.30
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Oct 2015 20:08:28 -0700 (PDT)
-Received: by pasz6 with SMTP id z6so25797847pas.2
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 20:08:28 -0700 (PDT)
-Date: Thu, 29 Oct 2015 12:08:22 +0900
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [patch 3/3] vmstat: Create our own workqueue
-Message-ID: <20151029030822.GD27115@mtj.duckdns.org>
-References: <20151028024114.370693277@linux.com>
- <20151028024131.719968999@linux.com>
- <20151028024350.GA10448@mtj.duckdns.org>
- <alpine.DEB.2.20.1510272202120.4647@east.gentwo.org>
- <201510282057.JHI87536.OMOFFFLJOHQtVS@I-love.SAKURA.ne.jp>
- <20151029022447.GB27115@mtj.duckdns.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 28 Oct 2015 20:51:30 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <1446067520-31806-1-git-send-email-dcashman@android.com>
+	<871tcewoso.fsf@x220.int.ebiederm.org>
+	<CABXk95DOSKv70p+=DQvHck5LCvRDc0WDORpoobSStWhrcrCiyg@mail.gmail.com>
+	<CAEP4de2GsEwn0eeO126GEtFb-FSJoU3fgOWTAr1yPFAmyXTi0Q@mail.gmail.com>
+Date: Wed, 28 Oct 2015 22:41:35 -0500
+In-Reply-To: <CAEP4de2GsEwn0eeO126GEtFb-FSJoU3fgOWTAr1yPFAmyXTi0Q@mail.gmail.com>
+	(Dan Cashman's message of "Wed, 28 Oct 2015 17:39:49 -0700")
+Message-ID: <87oafiuys0.fsf@x220.int.ebiederm.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151029022447.GB27115@mtj.duckdns.org>
+Content-Type: text/plain
+Subject: Re: [PATCH 1/2] mm: mmap: Add new /proc tunable for mmap_base ASLR.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: cl@linux.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de
+To: Dan Cashman <dcashman@android.com>
+Cc: Jeffrey Vander Stoep <jeffv@google.com>, linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, Jonathan Corbet <corbet@lwn.net>, dzickus@redhat.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, Mark Salyzyn <salyzyn@android.com>, Nick Kralevich <nnk@google.com>, dcashman <dcashman@google.com>
 
-On Thu, Oct 29, 2015 at 11:24:47AM +0900, Tejun Heo wrote:
-> Hello,
-> 
-> That's weird.
-> 
-> On Wed, Oct 28, 2015 at 08:57:28PM +0900, Tetsuo Handa wrote:
-> > [  272.851035] Showing busy workqueues and worker pools:
-> > [  272.852583] workqueue events: flags=0x0
-> > [  272.853942]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=1/256
-> > [  272.855781]     pending: vmw_fb_dirty_flush [vmwgfx]
-> > [  272.857500]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/256
-> > [  272.859359]     pending: vmpressure_work_fn
-> > [  272.860840] workqueue events_freezable_power_: flags=0x84
-> > [  272.862461]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=2/256
-> > [  272.864479]     in-flight: 11286:disk_events_workfn
-> 
-> What's this guy doing?  Can you get stack dump on 11286 (or whatever
-> is in flight in the next lockup)?
+Dan Cashman <dcashman@android.com> writes:
 
-Wait, this series doesn't include Tetsuo's change.  Of course it won't
-fix the deadlock problem.  What's necessary is Tetsuo's patch +
-WQ_MEM_RECLAIM.
+>> > This all would be much cleaner if the arm architecture code were just to
+>> > register the sysctl itself.
+>> >
+>> > As it sits this looks like a patchset that does not meaninfully bisect,
+>> > and would result in code that is hard to trace and understand.
+>>
+>> I believe the intent is to follow up with more architecture specific
+>> patches to allow each architecture to define the number of bits to use
+>
+> Yes.  I included these patches together because they provide mutual
+> context, but each has a different outcome and they could be taken
+> separately.
 
-Thanks.
+They can not.  The first patch is incomplete by itself.
 
--- 
-tejun
+> The arm architecture-specific portion allows the changing
+> of the number of bits used for mmap ASLR, useful even without the
+> sysctl.  The sysctl patch (patch 1) provides another way of setting
+> this value, and the hope is that this will be adopted across multiple
+> architectures, with the arm changes (patch 2) providing an example.  I
+> hope to follow this with changes to arm64 and x86, for example.
+
+If you want to make the code generic.  Please maximize the sharing.
+That is please define the variables in a generic location, as well
+as the Kconfig variables (if possible).
+
+As it is you have an architecture specific piece of code that can not be
+reused without duplicating code, and that is just begging for problems.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
