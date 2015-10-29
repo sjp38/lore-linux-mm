@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 40AA782F64
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 16:12:44 -0400 (EDT)
-Received: by igbhv6 with SMTP id hv6so39109754igb.0
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 13:12:44 -0700 (PDT)
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 3775682F64
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 16:12:46 -0400 (EDT)
+Received: by igpw7 with SMTP id w7so57137542igp.1
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 13:12:46 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id x8si4630009igg.87.2015.10.29.13.12.35
+        by mx.google.com with ESMTP id x8si4630009igg.87.2015.10.29.13.12.36
         for <linux-mm@kvack.org>;
-        Thu, 29 Oct 2015 13:12:35 -0700 (PDT)
+        Thu, 29 Oct 2015 13:12:36 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [RFC 07/11] mm: add find_get_entries_tag()
-Date: Thu, 29 Oct 2015 14:12:11 -0600
-Message-Id: <1446149535-16200-8-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [RFC 08/11] fs: add get_block() to struct inode_operations
+Date: Thu, 29 Oct 2015 14:12:12 -0600
+Message-Id: <1446149535-16200-9-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,104 +19,77 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-Add find_get_entries_tag() to the family of functions that include
-find_get_entries(), find_get_pages() and find_get_pages_tag().  This is
-needed for DAX dirty page handling because we need a list of both page
-offsets and radix tree entries ('indices' and 'entries' in this function)
-that are marked with the PAGECACHE_TAG_TOWRITE tag.
+To be able to flush dirty pages to media as part of the fsync/msync path
+DAX needs to be able to map file offsets to kernel addresses via a
+combination of the filesystem's get_block() routine and
+bdev_direct_access().  This currently happens in the DAX fault handlers
+which receive a get_block() callback directly from the filesystem via a
+function parameter.
+
+For the fsync/msync path this doesn't work, though, because DAX is called
+not by the filesystem but by the writeback infrastructure which doesn't
+know about the filesystem specific get_block() routine.
+
+To handle this we make get_block() an entry in the struct inode_operations
+table so that we can access the correct get_block() routine in the
+context of the writeback infrastructure.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- include/linux/pagemap.h |  3 +++
- mm/filemap.c            | 61 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 64 insertions(+)
+ fs/ext2/file.c     | 1 +
+ fs/ext4/file.c     | 1 +
+ fs/xfs/xfs_iops.c  | 1 +
+ include/linux/fs.h | 4 ++--
+ 4 files changed, 5 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index a6c78e0..6fea3be 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -354,6 +354,9 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
- 			       unsigned int nr_pages, struct page **pages);
- unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
- 			int tag, unsigned int nr_pages, struct page **pages);
-+unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-+			int tag, unsigned int nr_entries,
-+			struct page **entries, pgoff_t *indices);
+diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+index 11a42c5..fc1418c 100644
+--- a/fs/ext2/file.c
++++ b/fs/ext2/file.c
+@@ -202,4 +202,5 @@ const struct inode_operations ext2_file_inode_operations = {
+ 	.get_acl	= ext2_get_acl,
+ 	.set_acl	= ext2_set_acl,
+ 	.fiemap		= ext2_fiemap,
++	.get_block	= ext2_get_block,
+ };
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index 113837e..54d7729 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -720,5 +720,6 @@ const struct inode_operations ext4_file_inode_operations = {
+ 	.get_acl	= ext4_get_acl,
+ 	.set_acl	= ext4_set_acl,
+ 	.fiemap		= ext4_fiemap,
++	.get_block	= ext4_get_block_dax,
+ };
  
- struct page *grab_cache_page_write_begin(struct address_space *mapping,
- 			pgoff_t index, unsigned flags);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index c3a9e4f..992cf84 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1454,6 +1454,67 @@ repeat:
- }
- EXPORT_SYMBOL(find_get_pages_tag);
+diff --git a/fs/xfs/xfs_iops.c b/fs/xfs/xfs_iops.c
+index 8294132..c58c270 100644
+--- a/fs/xfs/xfs_iops.c
++++ b/fs/xfs/xfs_iops.c
+@@ -1112,6 +1112,7 @@ static const struct inode_operations xfs_inode_operations = {
+ 	.listxattr		= xfs_vn_listxattr,
+ 	.fiemap			= xfs_vn_fiemap,
+ 	.update_time		= xfs_vn_update_time,
++	.get_block		= xfs_get_blocks_direct,
+ };
  
-+/**
-+ * find_get_entries_tag - find and return entries that match @tag
-+ * @mapping:	the address_space to search
-+ * @start:	the starting page cache index
-+ * @tag:	the tag index
-+ * @nr_entries:	the maximum number of entries
-+ * @entries:	where the resulting entries are placed
-+ * @indices:	the cache indices corresponding to the entries in @entries
-+ *
-+ * Like find_get_entries, except we only return entries which are tagged with
-+ * @tag.
-+ */
-+unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-+			int tag, unsigned int nr_entries,
-+			struct page **entries, pgoff_t *indices)
-+{
-+	void **slot;
-+	unsigned int ret = 0;
-+	struct radix_tree_iter iter;
-+
-+	if (!nr_entries)
-+		return 0;
-+
-+	rcu_read_lock();
-+restart:
-+	radix_tree_for_each_tagged(slot, &mapping->page_tree,
-+				   &iter, start, tag) {
-+		struct page *page;
-+repeat:
-+		page = radix_tree_deref_slot(slot);
-+		if (unlikely(!page))
-+			continue;
-+		if (radix_tree_exception(page)) {
-+			if (radix_tree_deref_retry(page))
-+				goto restart;
-+			/*
-+			 * A shadow entry of a recently evicted page, a swap
-+			 * entry from shmem/tmpfs or a DAX entry.  Return it
-+			 * without attempting to raise page count.
-+			 */
-+			goto export;
-+		}
-+		if (!page_cache_get_speculative(page))
-+			goto repeat;
-+
-+		/* Has the page moved? */
-+		if (unlikely(page != *slot)) {
-+			page_cache_release(page);
-+			goto repeat;
-+		}
-+export:
-+		indices[ret] = iter.index;
-+		entries[ret] = page;
-+		if (++ret == nr_entries)
-+			break;
-+	}
-+	rcu_read_unlock();
-+	return ret;
-+}
-+EXPORT_SYMBOL(find_get_entries_tag);
-+
- /*
-  * CD/DVDs are error prone. When a medium error occurs, the driver may fail
-  * a _large_ part of the i/o request. Imagine the worst scenario:
+ static const struct inode_operations xfs_dir_inode_operations = {
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index f791698..1dca85b 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1679,8 +1679,8 @@ struct inode_operations {
+ 			   umode_t create_mode, int *opened);
+ 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+ 	int (*set_acl)(struct inode *, struct posix_acl *, int);
+-
+-	/* WARNING: probably going away soon, do not use! */
++	int (*get_block)(struct inode *inode, sector_t iblock,
++			struct buffer_head *bh_result, int create);
+ } ____cacheline_aligned;
+ 
+ ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
 -- 
 2.1.0
 
