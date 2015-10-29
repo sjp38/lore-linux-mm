@@ -1,140 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2350382F64
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 20:25:45 -0400 (EDT)
-Received: by oifu63 with SMTP id u63so15082345oif.2
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 17:25:45 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id z184si18963683oie.41.2015.10.28.17.25.44
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B2AED82F64
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 20:35:54 -0400 (EDT)
+Received: by wicll6 with SMTP id ll6so215077565wic.0
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 17:35:54 -0700 (PDT)
+Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
+        by mx.google.com with ESMTPS id p5si59260286wje.126.2015.10.28.17.35.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Oct 2015 17:25:44 -0700 (PDT)
-Subject: Re: [PATCH v2 0/4] hugetlbfs fallocate hole punch race with page
- faults
-References: <1445385142-29936-1-git-send-email-mike.kravetz@oracle.com>
- <alpine.LSU.2.11.1510271919200.2872@eggly.anvils>
- <5630F274.5010908@oracle.com>
- <alpine.LSU.2.11.1510281332050.4687@eggly.anvils>
- <56313A7D.4000102@oracle.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <563166A7.4030103@oracle.com>
-Date: Wed, 28 Oct 2015 17:21:59 -0700
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Oct 2015 17:35:53 -0700 (PDT)
+Received: by wicll6 with SMTP id ll6so29626996wic.1
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 17:35:53 -0700 (PDT)
+Date: Thu, 29 Oct 2015 02:35:51 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH V2] mm: fix kernel crash in khugepaged thread
+Message-ID: <20151029003551.GB12018@node.shutemov.name>
+References: <1445855960-28677-1-git-send-email-yalin.wang2010@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <56313A7D.4000102@oracle.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1445855960-28677-1-git-send-email-yalin.wang2010@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrea Arcangeli <aarcange@redhat.com>
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, vbabka@suse.cz, jmarchan@redhat.com, mgorman@techsingularity.net, ebru.akagunduz@gmail.com, willy@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/28/2015 02:13 PM, Mike Kravetz wrote:
-> On 10/28/2015 02:00 PM, Hugh Dickins wrote:
->> On Wed, 28 Oct 2015, Mike Kravetz wrote:
->>> On 10/27/2015 08:34 PM, Hugh Dickins wrote:
->>>
->>> Thanks for the detailed response Hugh.  I will try to address your questions
->>> and provide more reasoning behind the use case and need for this code.
->>
->> And thank you for your detailed response, Mike: that helped a lot.
->>
->>> Ok, here is a bit more explanation of the proposed use case.  It all
->>> revolves around a DB's use of hugetlbfs and the desire for more control
->>> over the underlying memory.  This additional control is achieved by
->>> adding existing fallocate and userfaultfd semantics to hugetlbfs.
->>>
->>> In this use case there is a single process that manages hugetlbfs files
->>> and the underlying memory resources.  It pre-allocates/initializes these
->>> files.
->>>
->>> In addition, there are many other processes which access (rw mode) these
->>> files.  They will simply mmap the files.  It is expected that they will
->>> not fault in any new pages.  Rather, all pages would have been pre-allocated
->>> by the management process.
->>>
->>> At some time, the management process determines that specific ranges of
->>> pages within the hugetlbfs files are no longer needed.  It will then punch
->>> holes in the files.  These 'free' pages within the holes may then be used
->>> for other purposes.  For applications like this (sophisticated DBs), huge
->>> pages are reserved at system init time and closely managed by the
->>> application.
->>> Hence, the desire for this additional control.
->>>
->>> So, when a hole containing N huge pages is punched, the management process
->>> wants to know that it really has N huge pages for other purposes.  Ideally,
->>> none of the other processes mapping this file/area would access the hole.
->>> This is an application error, and it can be 'caught' with  userfaultfd.
->>>
->>> Since these other (non-management) processes will never fault in pages,
->>> they would simply set up userfaultfd to catch any page faults immediately
->>> after mmaping the hugetlbfs file.
->>>
->>>>
->>>> But it sounds to me more as if the holes you want punched are not
->>>> quite like on other filesystems, and you want to be able to police
->>>> them afterwards with userfaultfd, to prevent them from being refilled.
->>>
->>> I am not sure if they are any different.
->>>
->>> One could argue that a hole punch operation must always result in all
->>> pages within the hole being deallocated.  As you point out, this could
->>> race with a fault.  Previously, there would be no way to determine if
->>> all pages had been deallocated because user space could not detect this
->>> race.  Now, userfaultfd allows user space to catch page faults.  So,
->>> it is now possible to catch/depend on hole punch deallocating all pages
->>> within the hole.
->>>
->>>>
->>>> Can't userfaultfd be used just slightly earlier, to prevent them from
->>>> being filled while doing the holepunch?  Then no need for this patchset?
->>>
->>> I do not think so, at least with current userfaultfd semantics.  The hole
->>> needs to be punched before being caught with UFFDIO_REGISTER_MODE_MISSING.
->>
->> Great, that makes sense.
->>
->> I was worried that you needed some kind of atomic treatment of the whole
->> extent punched, but all you need is to close the hole/fault race one
->> hugepage at a time.
->>
->> Throw away all of 1/4, 2/4, 3/4: I think all you need is your 4/4
->> (plus i_mmap_lock_write around the hugetlb_vmdelete_list of course).
->>
->> There you already do the single hugepage hugetlb_vmdelete_list()
->> under mutex_lock(&hugetlb_fault_mutex_table[hash]).
->>
->> And it should come as no surprise that hugetlb_fault() does most
->> of its work under that same mutex.
->>
->> So once remove_inode_hugepages() unlocks the mutex, that page is gone
->> from the file, and userfaultfd UFFDIO_REGISTER_MODE_MISSING will do
->> what you want, won't it?
->>
->> I don't think "my" code buys you anything at all: you're not in danger of
->> shmem's starvation livelock issue, partly because remove_inode_hugepages()
->> uses the simple loop from start to end, and partly because hugetlb_fault()
->> already takes the serializing mutex (no equivalent in shmem_fault()).
->>
->> Or am I dreaming?
+On Mon, Oct 26, 2015 at 06:39:20PM +0800, yalin wang wrote:
+> This crash is caused by NULL pointer deference, in page_to_pfn() marco,
+> when page == NULL :
 > 
-> I don't think you are dreaming.
+> [  182.639154 ] Unable to handle kernel NULL pointer dereference at virtual address 00000000
+> [  182.639491 ] pgd = ffffffc00077a000
+> [  182.639761 ] [00000000] *pgd=00000000b9422003, *pud=00000000b9422003, *pmd=00000000b9423003, *pte=0060000008000707
+> [  182.640749 ] Internal error: Oops: 94000006 [#1] SMP
+> [  182.641197 ] Modules linked in:
+> [  182.641580 ] CPU: 1 PID: 26 Comm: khugepaged Tainted: G        W       4.3.0-rc6-next-20151022ajb-00001-g32f3386-dirty #3
+> [  182.642077 ] Hardware name: linux,dummy-virt (DT)
+> [  182.642227 ] task: ffffffc07957c080 ti: ffffffc079638000 task.ti: ffffffc079638000
+> [  182.642598 ] PC is at khugepaged+0x378/0x1af8
+> [  182.642826 ] LR is at khugepaged+0x418/0x1af8
+> [  182.643047 ] pc : [<ffffffc0001980ac>] lr : [<ffffffc00019814c>] pstate: 60000145
+> [  182.643490 ] sp : ffffffc07963bca0
+> [  182.643650 ] x29: ffffffc07963bca0 x28: ffffffc00075c000
+> [  182.644024 ] x27: ffffffc00f275040 x26: ffffffc0006c7000
+> [  182.644334 ] x25: 00e8000048800f51 x24: 0000000006400000
+> [  182.644687 ] x23: 0000000000000002 x22: 0000000000000000
+> [  182.644972 ] x21: 0000000000000000 x20: 0000000000000000
+> [  182.645446 ] x19: 0000000000000000 x18: 0000007ff86d0990
+> [  182.645931 ] x17: 00000000007ef9c8 x16: ffffffc000098390
+> [  182.646236 ] x15: ffffffffffffffff x14: 00000000ffffffff
+> [  182.646649 ] x13: 000000000000016a x12: 0000000000000000
+> [  182.647046 ] x11: ffffffc07f025020 x10: 0000000000000000
+> [  182.647395 ] x9 : 0000000000000048 x8 : ffffffc000721e28
+> [  182.647872 ] x7 : 0000000000000000 x6 : ffffffc07f02d000
+> [  182.648261 ] x5 : fffffffffffffe00 x4 : ffffffc00f275040
+> [  182.648611 ] x3 : 0000000000000000 x2 : ffffffc00f2ad000
+> [  182.648908 ] x1 : 0000000000000000 x0 : ffffffc000727000
+> [  182.649147 ]
+> [  182.649252 ] Process khugepaged (pid: 26, stack limit = 0xffffffc079638020)
+> [  182.649724 ] Stack: (0xffffffc07963bca0 to 0xffffffc07963c000)
+> [  182.650141 ] bca0: ffffffc07963be30 ffffffc0000b5044 ffffffc07961fb80 ffffffc00072e630
+> [  182.650587 ] bcc0: ffffffc0005d5090 0000000000000000 ffffffc000197d34 0000000000000000
+> [  182.651009 ] bce0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [  182.651446 ] bd00: ffffffc07963bd90 ffffffc07f1cbf80 000000004f3be003 ffffffc00f2750a4
+> [  182.651956 ] bd20: ffffffc00f3bf000 ffffffc000000001 0000000000000001 ffffffc07f085740
+> [  182.652520 ] bd40: ffffffc00f2ad188 ffffffc000000000 0000000006200000 ffffffc00f275040
+> [  182.652972 ] bd60: ffffffc0006b1a90 ffffffc079638000 ffffffc07963be20 ffffffc00f0144d0
+> [  182.653357 ] bd80: ffffffc000000000 0000000006400000 ffffffc00f0144d0 00000a0800000001
+> [  182.653793 ] bda0: 0000100000000001 ffffffc000000001 ffffffc07f025000 ffffffc00f2750a8
+> [  182.654226 ] bdc0: 00000001000005f8 ffffffc00075a000 0000000006a00000 ffffffc000727000
+> [  182.654522 ] bde0: ffffffc0006e8478 ffffffc000000000 0000000100000000 ffffffc078fb9000
+> [  182.654869 ] be00: ffffffc07963be30 ffffffc000000000 ffffffc07957c080 ffffffc0000cfc4c
+> [  182.655225 ] be20: ffffffc07963be20 ffffffc07963be20 0000000000000000 ffffffc000085c50
+> [  182.655588 ] be40: ffffffc0000b4f64 ffffffc07961fb80 0000000000000000 0000000000000000
+> [  182.656138 ] be60: 0000000000000000 ffffffc0000bee2c ffffffc0000b4f64 0000000000000000
+> [  182.656609 ] be80: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [  182.657145 ] bea0: ffffffc07963bea0 ffffffc07963bea0 0000000000000000 ffffffc000000000
+> [  182.657475 ] bec0: ffffffc07963bec0 ffffffc07963bec0 0000000000000000 0000000000000000
+> [  182.657922 ] bee0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [  182.658558 ] bf00: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [  182.658972 ] bf20: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [  182.659291 ] bf40: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [  182.659722 ] bf60: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [  182.660122 ] bf80: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [  182.660654 ] bfa0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [  182.661064 ] bfc0: 0000000000000000 0000000000000000 0000000000000000 0000000000000005
+> [  182.661466 ] bfe0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [  182.661848 ] Call trace:
+> [  182.662050 ] [<ffffffc0001980ac>] khugepaged+0x378/0x1af8
+> [  182.662294 ] [<ffffffc0000b5040>] kthread+0xdc/0xf4
+> [  182.662605 ] [<ffffffc000085c4c>] ret_from_fork+0xc/0x40
+> [  182.663046 ] Code: 35001700 f0002c60 aa0703e3 f9009fa0 (f94000e0)
+> [  182.663901 ] ---[ end trace 637503d8e28ae69e  ]---
+> [  182.664160 ] Kernel panic - not syncing: Fatal exception
+> [  182.664571 ] CPU2: stopping
+> [  182.664794 ] CPU: 2 PID: 0 Comm: swapper/2 Tainted: G      D W       4.3.0-rc6-next-20151022ajb-00001-g32f3386-dirty #3
+> [  182.665248 ] Hardware name: linux,dummy-virt (DT)
 > 
-> I should have stepped back and thought about this more before before pulling
-> in the shmem code.  It really is only a 'page at a time' operation, and we
-> can use the fault mutex table for that.
+> Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+> ---
+>  mm/huge_memory.c | 16 +++++++---------
+>  1 file changed, 7 insertions(+), 9 deletions(-)
 > 
-> I'll code it up with just the changes needed for 4/4 and put it through some
-> stress testing.
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 4b3420a..8a3482f 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2492,7 +2492,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>  			       struct page **hpage)
+>  {
+>  	pmd_t *pmd;
+> -	pte_t *pte, *_pte;
+> +	pte_t *pte, *_pte, uninitialized_var(pteval);
 
-Thanks again Hugh.  Testing was successful:  current hugetlbfs fallocate
-stress testing and testing with "in development" hugetlbfs userfaultfd code.
+Oh.. That's ugly.
 
-Andrew, would you like a single patch that includes 4/4 of the series
-and i_mmap_lock_write?  You could then throw away the previous patches
-and the log would look nicer.
+Can't we restructure the code to get rid of this?
+
+https://lwn.net/Articles/529954/
+
+>  	int ret = 0, none_or_zero = 0, result = 0;
+>  	struct page *page = NULL;
+>  	unsigned long _address;
+> @@ -2503,16 +2503,14 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+>  
+>  	pmd = mm_find_pmd(mm, address);
+> -	if (!pmd) {
+> -		result = SCAN_PMD_NULL;
+> -		goto out;
+> -	}
+> +	if (!pmd)
+> +		return ret;
+>  
+>  	memset(khugepaged_node_load, 0, sizeof(khugepaged_node_load));
+>  	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+>  	for (_address = address, _pte = pte; _pte < pte+HPAGE_PMD_NR;
+>  	     _pte++, _address += PAGE_SIZE) {
+> -		pte_t pteval = *_pte;
+> +		pteval = *_pte;
+>  		if (is_swap_pte(pteval)) {
+>  			if (++unmapped <= khugepaged_max_ptes_swap) {
+>  				continue;
+> @@ -2605,9 +2603,9 @@ out_unmap:
+>  		/* collapse_huge_page will return with the mmap_sem released */
+>  		collapse_huge_page(mm, address, hpage, vma, node);
+>  	}
+> -out:
+> -	trace_mm_khugepaged_scan_pmd(mm, page_to_pfn(page), writable, referenced,
+> -				     none_or_zero, result, unmapped);
+> +	trace_mm_khugepaged_scan_pmd(mm, pte_present(pteval) ?
+> +			pte_pfn(pteval) : -1, writable, referenced,
+> +			none_or_zero, result, unmapped);
+
+maybe passing down pte instead of pfn?
+
+>  	return ret;
+>  }
+>  
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Mike Kravetz
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
