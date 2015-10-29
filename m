@@ -1,98 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CF0F82F64
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 11:17:37 -0400 (EDT)
-Received: by wicll6 with SMTP id ll6so45684260wic.1
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 08:17:36 -0700 (PDT)
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com. [209.85.212.178])
-        by mx.google.com with ESMTPS id ef7si2652265wjd.49.2015.10.29.08.17.34
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 246C082F64
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 11:25:49 -0400 (EDT)
+Received: by wmll128 with SMTP id l128so26887105wml.0
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 08:25:48 -0700 (PDT)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id r140si12016423wmd.52.2015.10.29.08.25.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Oct 2015 08:17:34 -0700 (PDT)
-Received: by wijp11 with SMTP id p11so290315237wij.0
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 08:17:34 -0700 (PDT)
-From: mhocko@kernel.org
-Subject: [RFC 3/3] mm: use watermak checks for __GFP_REPEAT high order allocations
-Date: Thu, 29 Oct 2015 16:17:15 +0100
-Message-Id: <1446131835-3263-4-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1446131835-3263-1-git-send-email-mhocko@kernel.org>
-References: <1446131835-3263-1-git-send-email-mhocko@kernel.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Oct 2015 08:25:47 -0700 (PDT)
+Received: by wmeg8 with SMTP id g8so26338342wme.0
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 08:25:47 -0700 (PDT)
+Date: Thu, 29 Oct 2015 16:25:46 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
+ hierarchy
+Message-ID: <20151029152546.GG23598@dhcp22.suse.cz>
+References: <1445487696-21545-1-git-send-email-hannes@cmpxchg.org>
+ <1445487696-21545-6-git-send-email-hannes@cmpxchg.org>
+ <20151023131956.GA15375@dhcp22.suse.cz>
+ <20151023.065957.1690815054807881760.davem@davemloft.net>
+ <20151026165619.GB2214@cmpxchg.org>
+ <20151027122647.GG9891@dhcp22.suse.cz>
+ <20151027154138.GA4665@cmpxchg.org>
+ <20151027161554.GJ9891@dhcp22.suse.cz>
+ <20151027164227.GB7749@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151027164227.GB7749@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue 27-10-15 09:42:27, Johannes Weiner wrote:
+> On Tue, Oct 27, 2015 at 05:15:54PM +0100, Michal Hocko wrote:
+> > On Tue 27-10-15 11:41:38, Johannes Weiner wrote:
+[...]
+> Or it could be exactly the other way around when you have a workload
+> that is heavy on filesystem metadata. I don't see why any scenario
+> would be more important than the other.
 
-__alloc_pages_slowpath retries costly allocations until at least
-order worth of pages were reclaimed or the watermark check for at least
-one zone would succeed after all reclaiming all pages if the reclaim
-hasn't made any progress.
+Yes I definitely agree. No scenario is more important. We can only
+come up with a default that makes more sense for the majority and
+allow the minority to override. That was what I wanted to say basically.
 
-The first condition was added by a41f24ea9fd6 ("page allocator: smarter
-retry of costly-order allocations) and it assumed that lumpy reclaim
-could have created a page of the sufficient order. Lumpy reclaim,
-has been removed quite some time ago so the assumption doesn't hold
-anymore. It would be more appropriate to check the compaction progress
-instead but this patch simply removes the check and relies solely
-on the watermark check.
+> I'm not saying that distinguishing between consumers is wrong, just
+> that "user memory vs kernel memory" is a false classification. Why do
+> you call page cache user memory but dentry cache kernel memory? It
+> doesn't make any sense.
 
-To prevent from too many retries the stall_backoff is not reseted after
-a reclaim which made progress because we cannot assume it helped high
-order situation.
+We are not talking about dcache vs. page cache alone here, though. We
+are talking about _all_ slab allocations vs. only user accessed memory.
+The slab consumption is directly under kernel control. A great pile of
+this logic is completly hidden from userspace. While user can estimate
+the user memory it is hard (if possible) to do that for the kernel
+memory footprint - not even mentioning this is variable and dependent on
+the particular kernel version.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/page_alloc.c | 21 +++++++--------------
- 1 file changed, 7 insertions(+), 14 deletions(-)
+> > Also kmem accounting will make the load more non-deterministic because
+> > many of the resources are shared between tasks in separate cgroups
+> > unless they are explicitly configured. E.g. [id]cache will be shared
+> > and first to touch gets charged so you would end up with more false
+> > sharing.
+> 
+> Exactly like page cache. This differentiation isn't based on reality.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0518ca6a9776..0dc1ca9b1219 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2986,7 +2986,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	bool can_direct_reclaim = gfp_mask & __GFP_DIRECT_RECLAIM;
- 	struct page *page = NULL;
- 	int alloc_flags;
--	unsigned long pages_reclaimed = 0;
- 	unsigned long did_some_progress;
- 	enum migrate_mode migration_mode = MIGRATE_ASYNC;
- 	bool deferred_compaction = false;
-@@ -3145,25 +3144,19 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (gfp_mask & __GFP_NORETRY)
- 		goto noretry;
+Yes false sharing is an existing and long term problem already. I just
+wanted to point out that the false sharing would be even a bigger
+problem because some kernel tracked resources are shared more naturally
+than file sharing.
+
+> > > IMO that's an implementation detail and a historical artifact that
+> > > should not be exposed to the user. And that's the thing I hate about
+> > > the current opt-out knob.
+> 
+> You carefully skipped over this part. We can ignore it for socket
+> memory but it's something we need to figure out when it comes to slab
+> accounting and tracking.
+
+I am sorry, I didn't mean to skip this part, I though it would be clear
+from the previous text. I think kmem accounting falls into the same
+category. Have a sane default and a global boottime knob to override it
+for those that think differently - for whatever reason they might have.
+
+[...]
  
--	/*
--	 * Do not retry high order allocations unless they are __GFP_REPEAT
--	 * and even then do not retry endlessly.
--	 */
--	pages_reclaimed += did_some_progress;
--	if (order > PAGE_ALLOC_COSTLY_ORDER) {
--		if (!(gfp_mask & __GFP_REPEAT) || pages_reclaimed >= (1<<order))
--			goto noretry;
--
--		if (did_some_progress)
--			goto retry;
--	}
-+	/* Do not retry high order allocations unless they are __GFP_REPEAT */
-+	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
-+		goto noretry;
- 
- 	/*
- 	 * Be optimistic and consider all pages on reclaimable LRUs as usable
- 	 * but make sure we converge to OOM if we cannot make any progress after
- 	 * multiple consecutive failed attempts.
-+	 * Costly __GFP_REPEAT allocations might have made a progress but this
-+	 * doesn't mean their order will become available due to high fragmentation
-+	 * so do not reset the backoff for them
- 	 */
--	if (did_some_progress)
-+	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
- 		stall_backoff = 0;
- 	else
- 		stall_backoff = min(stall_backoff+1, MAX_STALL_BACKOFF);
+> Having page cache accounting built in while presenting dentry+inode
+> cache as a configurable extension is completely random and doesn't
+> make sense. They are both first class memory consumers. They're not
+> separate categories. One isn't more "core" than the other.
+
+Again we are talking about all slab allocations not just the dcache. 
+
+> > > For now, something like this as a boot commandline?
+> > > 
+> > > cgroup.memory=nosocket
+> > 
+> > That would work for me.
+> 
+> Okay, then I'll go that route for the socket stuff.
+
+Thanks!
+
 -- 
-2.6.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
