@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EC2F82F64
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 16:12:42 -0400 (EDT)
-Received: by iodd200 with SMTP id d200so58500782iod.0
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 13:12:42 -0700 (PDT)
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 40AA782F64
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 16:12:44 -0400 (EDT)
+Received: by igbhv6 with SMTP id hv6so39109754igb.0
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 13:12:44 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id x8si4630009igg.87.2015.10.29.13.12.34
+        by mx.google.com with ESMTP id x8si4630009igg.87.2015.10.29.13.12.35
         for <linux-mm@kvack.org>;
-        Thu, 29 Oct 2015 13:12:34 -0700 (PDT)
+        Thu, 29 Oct 2015 13:12:35 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [RFC 06/11] mm: add pgoff_mkclean()
-Date: Thu, 29 Oct 2015 14:12:10 -0600
-Message-Id: <1446149535-16200-7-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [RFC 07/11] mm: add find_get_entries_tag()
+Date: Thu, 29 Oct 2015 14:12:11 -0600
+Message-Id: <1446149535-16200-8-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,103 +19,104 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-Introduce pgoff_mkclean() which conceptually is similar to page_mkclean()
-except it works in the absence of struct page and it can also be used to
-clean PMDs.  This is needed for DAX's dirty page handling.
+Add find_get_entries_tag() to the family of functions that include
+find_get_entries(), find_get_pages() and find_get_pages_tag().  This is
+needed for DAX dirty page handling because we need a list of both page
+offsets and radix tree entries ('indices' and 'entries' in this function)
+that are marked with the PAGECACHE_TAG_TOWRITE tag.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- include/linux/rmap.h |  5 +++++
- mm/rmap.c            | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 58 insertions(+)
+ include/linux/pagemap.h |  3 +++
+ mm/filemap.c            | 61 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+)
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 29446ae..627875f9 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -223,6 +223,11 @@ unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
- int page_mkclean(struct page *);
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index a6c78e0..6fea3be 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -354,6 +354,9 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
+ 			       unsigned int nr_pages, struct page **pages);
+ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
+ 			int tag, unsigned int nr_pages, struct page **pages);
++unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
++			int tag, unsigned int nr_entries,
++			struct page **entries, pgoff_t *indices);
  
- /*
-+ * Cleans and write protects the PTEs of shared mappings.
+ struct page *grab_cache_page_write_begin(struct address_space *mapping,
+ 			pgoff_t index, unsigned flags);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index c3a9e4f..992cf84 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1454,6 +1454,67 @@ repeat:
+ }
+ EXPORT_SYMBOL(find_get_pages_tag);
+ 
++/**
++ * find_get_entries_tag - find and return entries that match @tag
++ * @mapping:	the address_space to search
++ * @start:	the starting page cache index
++ * @tag:	the tag index
++ * @nr_entries:	the maximum number of entries
++ * @entries:	where the resulting entries are placed
++ * @indices:	the cache indices corresponding to the entries in @entries
++ *
++ * Like find_get_entries, except we only return entries which are tagged with
++ * @tag.
 + */
-+int pgoff_mkclean(pgoff_t, struct address_space *);
-+
-+/*
-  * called in munlock()/munmap() path to check for other vmas holding
-  * the page mlocked.
-  */
-diff --git a/mm/rmap.c b/mm/rmap.c
-index f5b5c1f..0ce16ab 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -586,6 +586,16 @@ vma_address(struct page *page, struct vm_area_struct *vma)
- 	return address;
- }
- 
-+static inline unsigned long
-+pgoff_address(pgoff_t pgoff, struct vm_area_struct *vma)
++unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
++			int tag, unsigned int nr_entries,
++			struct page **entries, pgoff_t *indices)
 +{
-+	unsigned long address;
++	void **slot;
++	unsigned int ret = 0;
++	struct radix_tree_iter iter;
 +
-+	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-+	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
-+	return address;
-+}
++	if (!nr_entries)
++		return 0;
 +
- #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
- static void percpu_flush_tlb_batch_pages(void *data)
- {
-@@ -1040,6 +1050,49 @@ int page_mkclean(struct page *page)
- }
- EXPORT_SYMBOL_GPL(page_mkclean);
- 
-+int pgoff_mkclean(pgoff_t pgoff, struct address_space *mapping)
-+{
-+	struct vm_area_struct *vma;
-+	int ret = 0;
-+
-+	i_mmap_lock_read(mapping);
-+	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
-+		struct mm_struct *mm = vma->vm_mm;
-+		pmd_t pmd, *pmdp = NULL;
-+		pte_t pte, *ptep = NULL;
-+		unsigned long address;
-+		spinlock_t *ptl;
-+
-+		address = pgoff_address(pgoff, vma);
-+
-+		ret = follow_pte_pmd(mm, address, &ptep, &pmdp, &ptl);
-+		if (ret)
-+			goto out;
-+
-+		if (pmdp) {
-+			flush_cache_page(vma, address, pmd_pfn(*pmdp));
-+			pmd = pmdp_huge_clear_flush(vma, address, pmdp);
-+			pmd = pmd_wrprotect(pmd);
-+			pmd = pmd_mkclean(pmd);
-+			set_pmd_at(mm, address, pmdp, pmd);
-+			spin_unlock(ptl);
-+		} else {
-+			BUG_ON(!ptep);
-+			flush_cache_page(vma, address, pte_pfn(*ptep));
-+			pte = ptep_clear_flush(vma, address, ptep);
-+			pte = pte_wrprotect(pte);
-+			pte = pte_mkclean(pte);
-+			set_pte_at(mm, address, ptep, pte);
-+			pte_unmap_unlock(ptep, ptl);
++	rcu_read_lock();
++restart:
++	radix_tree_for_each_tagged(slot, &mapping->page_tree,
++				   &iter, start, tag) {
++		struct page *page;
++repeat:
++		page = radix_tree_deref_slot(slot);
++		if (unlikely(!page))
++			continue;
++		if (radix_tree_exception(page)) {
++			if (radix_tree_deref_retry(page))
++				goto restart;
++			/*
++			 * A shadow entry of a recently evicted page, a swap
++			 * entry from shmem/tmpfs or a DAX entry.  Return it
++			 * without attempting to raise page count.
++			 */
++			goto export;
 +		}
-+	}
++		if (!page_cache_get_speculative(page))
++			goto repeat;
 +
-+ out:
-+	i_mmap_unlock_read(mapping);
++		/* Has the page moved? */
++		if (unlikely(page != *slot)) {
++			page_cache_release(page);
++			goto repeat;
++		}
++export:
++		indices[ret] = iter.index;
++		entries[ret] = page;
++		if (++ret == nr_entries)
++			break;
++	}
++	rcu_read_unlock();
 +	return ret;
 +}
-+EXPORT_SYMBOL_GPL(pgoff_mkclean);
++EXPORT_SYMBOL(find_get_entries_tag);
 +
- /**
-  * page_move_anon_rmap - move a page to our anon_vma
-  * @page:	the page to move to our anon_vma
+ /*
+  * CD/DVDs are error prone. When a medium error occurs, the driver may fail
+  * a _large_ part of the i/o request. Imagine the worst scenario:
 -- 
 2.1.0
 
