@@ -1,72 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 51B2982F64
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 16:12:52 -0400 (EDT)
-Received: by ioll68 with SMTP id l68so59042014iol.3
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 13:12:52 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id x8si4630009igg.87.2015.10.29.13.12.38
-        for <linux-mm@kvack.org>;
-        Thu, 29 Oct 2015 13:12:39 -0700 (PDT)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [RFC 11/11] ext4: add ext4_dax_pfn_mkwrite()
-Date: Thu, 29 Oct 2015 14:12:15 -0600
-Message-Id: <1446149535-16200-12-git-send-email-ross.zwisler@linux.intel.com>
-In-Reply-To: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
-References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C475882F64
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 17:20:07 -0400 (EDT)
+Received: by wmll128 with SMTP id l128so33175982wml.0
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 14:20:07 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id bh5si4544860wjb.193.2015.10.29.14.20.06
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Oct 2015 14:20:06 -0700 (PDT)
+Received: by wicll6 with SMTP id ll6so238563434wic.0
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 14:20:06 -0700 (PDT)
+Date: Thu, 29 Oct 2015 23:20:04 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv12 26/37] mm: rework mapcount accounting to enable 4k
+ mapping of THPs
+Message-ID: <20151029212004.GA13368@node.shutemov.name>
+References: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1444145044-72349-27-git-send-email-kirill.shutemov@linux.intel.com>
+ <20151029081924.GA12189@hori1.linux.bs1.fc.nec.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151029081924.GA12189@hori1.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Add ext4_dax_pfn_mkwrite() that properly protects against freeze, sets
-the file update time and calls into dax_pfn_mkwrite() to add the newly
-dirtied page to the radix tree which tracks dirty DAX pages.
+On Thu, Oct 29, 2015 at 08:19:25AM +0000, Naoya Horiguchi wrote:
+> On Tue, Oct 06, 2015 at 06:23:53PM +0300, Kirill A. Shutemov wrote:
+> ...
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index 0268013cce63..45fadab47c53 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -165,7 +165,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+> >  		if (PageAnon(new))
+> >  			hugepage_add_anon_rmap(new, vma, addr);
+> >  		else
+> > -			page_dup_rmap(new);
+> > +			page_dup_rmap(new, false);
+> 
+> This is for hugetlb page, so the second argument should be true, right?
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
----
- fs/ext4/file.c | 22 +++++++++++++++++++++-
- 1 file changed, 21 insertions(+), 1 deletion(-)
+You are right. Fixup:
 
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 54d7729..7f62cad 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -272,11 +272,31 @@ static int ext4_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 				ext4_end_io_unwritten);
- }
- 
-+static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-+{
-+	struct inode *inode = file_inode(vma->vm_file);
-+	loff_t size;
-+	int ret;
-+
-+	sb_start_pagefault(inode->i_sb);
-+	file_update_time(vma->vm_file);
-+
-+	/* check that the faulting page hasn't raced with truncate */
-+	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-+	if (vmf->pgoff >= size)
-+		ret = VM_FAULT_SIGBUS;
-+	else
-+		ret = dax_pfn_mkwrite(vma, vmf);
-+
-+	sb_end_pagefault(inode->i_sb);
-+	return ret;
-+}
-+
- static const struct vm_operations_struct ext4_dax_vm_ops = {
- 	.fault		= ext4_dax_fault,
- 	.pmd_fault	= ext4_dax_pmd_fault,
- 	.page_mkwrite	= ext4_dax_mkwrite,
--	.pfn_mkwrite	= dax_pfn_mkwrite,
-+	.pfn_mkwrite	= ext4_dax_pfn_mkwrite,
- };
- #else
- #define ext4_dax_vm_ops	ext4_file_vm_ops
+index 1ae0113559c9..b1034f9c77e7 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -165,7 +165,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ 		if (PageAnon(new))
+ 			hugepage_add_anon_rmap(new, vma, addr);
+ 		else
+-			page_dup_rmap(new, false);
++			page_dup_rmap(new, true);
+ 	} else if (PageAnon(new))
+ 		page_add_anon_rmap(new, vma, addr, false);
+ 	else
 -- 
-2.1.0
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
