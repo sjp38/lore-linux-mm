@@ -1,91 +1,379 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B8D0E82F64
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 18:06:59 -0400 (EDT)
-Received: by pacfv9 with SMTP id fv9so54563277pac.3
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 15:06:59 -0700 (PDT)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id uz5si5409835pac.230.2015.10.29.15.06.58
+Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 046F382F64
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 18:10:34 -0400 (EDT)
+Received: by iody8 with SMTP id y8so61389105iod.1
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 15:10:33 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id pk9si22237151igb.66.2015.10.29.15.10.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Oct 2015 15:06:59 -0700 (PDT)
-Received: by padhy1 with SMTP id hy1so46441626pad.0
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 15:06:58 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm: mmap: Add new /proc tunable for mmap_base ASLR.
-References: <1446067520-31806-1-git-send-email-dcashman@android.com>
- <871tcewoso.fsf@x220.int.ebiederm.org>
- <CABXk95DOSKv70p+=DQvHck5LCvRDc0WDORpoobSStWhrcrCiyg@mail.gmail.com>
- <CAEP4de2GsEwn0eeO126GEtFb-FSJoU3fgOWTAr1yPFAmyXTi0Q@mail.gmail.com>
- <87oafiuys0.fsf@x220.int.ebiederm.org>
-From: Daniel Cashman <dcashman@android.com>
-Message-ID: <56329880.4080103@android.com>
-Date: Thu, 29 Oct 2015 15:06:56 -0700
+        Thu, 29 Oct 2015 15:10:33 -0700 (PDT)
+Date: Thu, 29 Oct 2015 14:55:16 -0700
+From: Shaohua Li <shli@fb.com>
+Subject: [RFC] mm: add a new vector based madvise syscall
+Message-ID: <20151029215516.GA3864685@devbig084.prn1.facebook.com>
 MIME-Version: 1.0
-In-Reply-To: <87oafiuys0.fsf@x220.int.ebiederm.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="mYCpIKhGyMATD0i+"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Jeffrey Vander Stoep <jeffv@google.com>, linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, Jonathan Corbet <corbet@lwn.net>, dzickus@redhat.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, Mark Salyzyn <salyzyn@android.com>, Nick Kralevich <nnk@google.com>, dcashman <dcashman@google.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, hughd@google.com, hannes@cmpxchg.org, aarcange@redhat.com, je@fb.com, Kernel-team@fb.com
 
-On 10/28/2015 08:41 PM, Eric W. Biederman wrote:
-> Dan Cashman <dcashman@android.com> writes:
-> 
->>>> This all would be much cleaner if the arm architecture code were just to
->>>> register the sysctl itself.
->>>>
->>>> As it sits this looks like a patchset that does not meaninfully bisect,
->>>> and would result in code that is hard to trace and understand.
->>>
->>> I believe the intent is to follow up with more architecture specific
->>> patches to allow each architecture to define the number of bits to use
->>
->> Yes.  I included these patches together because they provide mutual
->> context, but each has a different outcome and they could be taken
->> separately.
-> 
-> They can not.  The first patch is incomplete by itself.
+--mYCpIKhGyMATD0i+
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 
-Could you be more specific in what makes the first patch incomplete?  Is
-it because it is essentially a no-op without additional architecture
-changes (e.g. the second patch) or is it specifically because it
-introduces and uses the three "mmap_rnd_bits*" variables without
-defining them?  If the former, I'd like to avoid combining the general
-procfs change with any architecture-specific one(s).  If the latter, I
-hope the proposal below addresses that.
+In jemalloc, a free(3) doesn't immediately free the memory to OS even
+the memory is page aligned/size, and hope the memory can be reused soon.
+Later the virtual address becomes fragmented, and more and more free
+memory are aggregated. If the free memory size is large, jemalloc uses
+madvise(DONT_NEED) to actually free the memory back to OS.
 
->> The arm architecture-specific portion allows the changing
->> of the number of bits used for mmap ASLR, useful even without the
->> sysctl.  The sysctl patch (patch 1) provides another way of setting
->> this value, and the hope is that this will be adopted across multiple
->> architectures, with the arm changes (patch 2) providing an example.  I
->> hope to follow this with changes to arm64 and x86, for example.
-> 
-> If you want to make the code generic.  Please maximize the sharing.
-> That is please define the variables in a generic location, as well
-> as the Kconfig variables (if possible).
-> 
-> As it is you have an architecture specific piece of code that can not be
-> reused without duplicating code, and that is just begging for problems.
+The madvise has significantly overhead paritcularly because of TLB
+flush. jemalloc does madvise for several virtual address space ranges
+one time. Instead of calling madvise for each of the ranges, we
+introduce a new syscall to purge memory for several ranges one time. In
+this way, we can merge several TLB flush for the ranges to one big TLB
+flush. This also reduce mmap_sem locking.
 
-I think it would make sense to move the variable definitions into
-mm/mmap.c, included conditionally based on the presence of
-CONFIG_ARCH_MMAP_RND_BITS.
+I'm running a simple memory allocation benchmark. 32 threads do random
+malloc/free/realloc. Corresponding jemalloc patch to utilize this API is
+attached.
+Without patch:
+real    0m18.923s
+user    1m11.819s
+sys     7m44.626s
+each cpu gets around 3000K/s TLB flush interrupt. Perf shows TLB flush
+is hotest functions. mmap_sem read locking (because of page fault) is
+also heavy.
 
-As for the Kconfigs, I am open to suggestions.  I considered declaring
-and documenting ARCH_MMAP_RND_BITS in arch/Kconfig, but I would like it
-to be bounded in range by the _MIN and _MAX values, which necessarily
-must be defined in the arch-specific Kconfigs.  Thus, we'd have
-ARCH_MMAP_RND_BITS declared in arch/Kconfig as it currently is in
-arch/arm/Kconfig defaulting to _MIN, and would declare both the _MIN and
-_MAX in arch/Kconfig, while specifying default values in
-arch/${ARCH}/Kconfig.
+with patch:
+real    0m15.026s
+user    0m48.548s
+sys     6m41.153s
+each cpu gets around 140k/s TLB flush interrupt. TLB flush isn't hot at
+all. mmap_sem read locking (still because of page fault) becomes the
+sole hot spot.
 
-Would these changes be more acceptable?
+Another test malloc a bunch of memory in 48 threads, then all threads
+free the memory. I measure the time of the memory free.
+Without patch: 34.332s
+With patch:    17.429s
 
-Thank You,
-Dan
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Shaohua Li <shli@fb.com>
+---
+ arch/x86/entry/syscalls/syscall_32.tbl |   1 +
+ arch/x86/entry/syscalls/syscall_64.tbl |   1 +
+ mm/madvise.c                           | 144 ++++++++++++++++++++++++++++++---
+ 3 files changed, 134 insertions(+), 12 deletions(-)
+
+diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
+index 7663c45..4c99ef5 100644
+--- a/arch/x86/entry/syscalls/syscall_32.tbl
++++ b/arch/x86/entry/syscalls/syscall_32.tbl
+@@ -382,3 +382,4 @@
+ 373	i386	shutdown		sys_shutdown
+ 374	i386	userfaultfd		sys_userfaultfd
+ 375	i386	membarrier		sys_membarrier
++376	i386	madvisev		sys_madvisev
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index 278842f..1025406 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -331,6 +331,7 @@
+ 322	64	execveat		stub_execveat
+ 323	common	userfaultfd		sys_userfaultfd
+ 324	common	membarrier		sys_membarrier
++325	common	madvisev		sys_madvisev
+ 
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
+diff --git a/mm/madvise.c b/mm/madvise.c
+index c889fcb..6251103 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -20,6 +20,9 @@
+ #include <linux/backing-dev.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
++#include <linux/uio.h>
++#include <linux/sort.h>
++#include <asm/tlb.h>
+ 
+ /*
+  * Any behaviour which results in changes to the vma->vm_flags needs to
+@@ -415,6 +418,29 @@ madvise_behavior_valid(int behavior)
+ 	}
+ }
+ 
++static bool madvise_range_valid(unsigned long start, size_t len_in, bool *skip)
++{
++	size_t len;
++	unsigned long end;
++
++	if (start & ~PAGE_MASK)
++		return false;
++	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
++
++	/* Check to see whether len was rounded up from small -ve to zero */
++	if (len_in && !len)
++		return false;
++
++	end = start + len;
++	if (end < start)
++		return false;
++	if (end == start)
++		*skip = true;
++	else
++		*skip = false;
++	return true;
++}
++
+ /*
+  * The madvise(2) system call.
+  *
+@@ -464,8 +490,8 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 	int unmapped_error = 0;
+ 	int error = -EINVAL;
+ 	int write;
+-	size_t len;
+ 	struct blk_plug plug;
++	bool skip;
+ 
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
+@@ -474,20 +500,12 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 	if (!madvise_behavior_valid(behavior))
+ 		return error;
+ 
+-	if (start & ~PAGE_MASK)
+-		return error;
+-	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
+-
+-	/* Check to see whether len was rounded up from small -ve to zero */
+-	if (len_in && !len)
+-		return error;
+-
+-	end = start + len;
+-	if (end < start)
++	if (!madvise_range_valid(start, len_in, &skip))
+ 		return error;
++	end = start + ((len_in + ~PAGE_MASK) & PAGE_MASK);
+ 
+ 	error = 0;
+-	if (end == start)
++	if (skip)
+ 		return error;
+ 
+ 	write = madvise_need_mmap_write(behavior);
+@@ -549,3 +567,105 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 
+ 	return error;
+ }
++
++static int iov_cmp_func(const void *a, const void *b)
++{
++	const struct iovec *iova = a;
++	const struct iovec *iovb = b;
++	unsigned long addr_a = (unsigned long)iova->iov_base;
++	unsigned long addr_b = (unsigned long)iovb->iov_base;
++
++	if (addr_a > addr_b)
++		return 1;
++	if (addr_a < addr_b)
++		return -1;
++	return 0;
++}
++
++SYSCALL_DEFINE3(madvisev, const struct iovec __user *, uvector, unsigned long, nr_segs,
++	int, behavior)
++{
++	struct iovec iovstack[UIO_FASTIOV];
++	struct iovec *iov = NULL;
++	struct vm_area_struct **vmas = NULL;
++	unsigned long start, last_start = 0;
++	size_t len;
++	struct mmu_gather tlb;
++	int error;
++	int i;
++	bool skip;
++
++	if (behavior != MADV_DONTNEED)
++		return -EINVAL;
++
++	error = rw_copy_check_uvector(CHECK_IOVEC_ONLY, uvector, nr_segs,
++			UIO_FASTIOV, iovstack, &iov);
++	if (error <= 0)
++		return error;
++	/* Make sure address in ascend order */
++	sort(iov, nr_segs, sizeof(struct iovec), iov_cmp_func, NULL);
++
++	vmas = kmalloc(nr_segs * sizeof(struct vm_area_struct *), GFP_KERNEL);
++	if (!vmas) {
++		error = -EFAULT;
++		goto out;
++	}
++	for (i = 0; i < nr_segs; i++) {
++		start = (unsigned long)iov[i].iov_base;
++		len = ((iov[i].iov_len + ~PAGE_MASK) & PAGE_MASK);
++		iov[i].iov_len = len;
++		if (start < last_start) {
++			error = -EINVAL;
++			goto out;
++		}
++		if (!madvise_range_valid(start, len, &skip)) {
++			error = -EINVAL;
++			goto out;
++		}
++		if (skip) {
++			error = 0;
++			goto out;
++		}
++		last_start = start + len;
++	}
++
++	down_read(&current->mm->mmap_sem);
++	for (i = 0; i < nr_segs; i++) {
++		start = (unsigned long)iov[i].iov_base;
++		len = iov[i].iov_len;
++		vmas[i] = find_vma(current->mm, start);
++		/*
++		 * don't allow range cross vma, it doesn't make sense for
++		 * DONTNEED
++		 */
++		if (!vmas[i] || start < vmas[i]->vm_start ||
++		    start + len > vmas[i]->vm_end) {
++			error = -ENOMEM;
++			goto up_out;
++		}
++		if (vmas[i]->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP)) {
++			error = -EINVAL;
++			goto up_out;
++		}
++	}
++
++	lru_add_drain();
++	tlb_gather_mmu(&tlb, current->mm, (unsigned long)iov[0].iov_base,
++		last_start);
++	update_hiwater_rss(current->mm);
++	for (i = 0; i < nr_segs; i++) {
++		start = (unsigned long)iov[i].iov_base;
++		len = iov[i].iov_len;
++		unmap_vmas(&tlb, vmas[i], start, start + len);
++	}
++	tlb_finish_mmu(&tlb, (unsigned long)iov[0].iov_base, last_start);
++	error = 0;
++
++up_out:
++	up_read(&current->mm->mmap_sem);
++out:
++	kfree(vmas);
++	if (iov != iovstack)
++		kfree(iov);
++	return error;
++}
+-- 
+2.4.6
+
+
+--mYCpIKhGyMATD0i+
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: attachment; filename="je.patch"
+
+diff --git a/src/arena.c b/src/arena.c
+index 43733cc..ae2de35 100644
+--- a/src/arena.c
++++ b/src/arena.c
+@@ -1266,6 +1266,7 @@ arena_dirty_count(arena_t *arena)
+ 	return (ndirty);
+ }
+ 
++#define PURGE_VEC 1
+ static size_t
+ arena_compute_npurge(arena_t *arena, bool all)
+ {
+@@ -1280,6 +1281,10 @@ arena_compute_npurge(arena_t *arena, bool all)
+ 		threshold = threshold < chunk_npages ? chunk_npages : threshold;
+ 
+ 		npurge = arena->ndirty - threshold;
++#if PURGE_VEC
++		if (npurge < arena->ndirty / 2)
++			npurge = arena->ndirty / 2;
++#endif
+ 	} else
+ 		npurge = arena->ndirty;
+ 
+@@ -1366,6 +1371,16 @@ arena_stash_dirty(arena_t *arena, chunk_hooks_t *chunk_hooks, bool all,
+ 	return (nstashed);
+ }
+ 
++#if PURGE_VEC
++#define MAX_IOVEC 32
++bool pages_purge_vec(struct iovec *iov, unsigned long nr_segs)
++{
++	int ret = syscall(325, iov, nr_segs, MADV_DONTNEED);
++
++	return !!ret;
++}
++#endif
++
+ static size_t
+ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
+     arena_runs_dirty_link_t *purge_runs_sentinel,
+@@ -1374,6 +1389,10 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
+ 	size_t npurged, nmadvise;
+ 	arena_runs_dirty_link_t *rdelm;
+ 	extent_node_t *chunkselm;
++#if PURGE_VEC
++	struct iovec iovec[MAX_IOVEC];
++	int vec_index = 0;
++#endif
+ 
+ 	if (config_stats)
+ 		nmadvise = 0;
+@@ -1418,9 +1437,21 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
+ 				flag_unzeroed = 0;
+ 				flags = CHUNK_MAP_DECOMMITTED;
+ 			} else {
++#if !PURGE_VEC
+ 				flag_unzeroed = chunk_purge_wrapper(arena,
+ 				    chunk_hooks, chunk, chunksize, pageind <<
+ 				    LG_PAGE, run_size) ? CHUNK_MAP_UNZEROED : 0;
++#else
++				flag_unzeroed = 0;
++				iovec[vec_index].iov_base = (void *)((uintptr_t)chunk +
++					(pageind << LG_PAGE));
++				iovec[vec_index].iov_len = run_size;
++				vec_index++;
++				if (vec_index >= MAX_IOVEC) {
++					pages_purge_vec(iovec, vec_index);
++					vec_index = 0;
++				}
++#endif
+ 				flags = flag_unzeroed;
+ 			}
+ 			arena_mapbits_large_set(chunk, pageind+npages-1, 0,
+@@ -1449,6 +1480,10 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
+ 		if (config_stats)
+ 			nmadvise++;
+ 	}
++#if PURGE_VEC
++	if (vec_index > 0)
++		pages_purge_vec(iovec, vec_index);
++#endif
+ 	malloc_mutex_lock(&arena->lock);
+ 
+ 	if (config_stats) {
+
+--mYCpIKhGyMATD0i+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
