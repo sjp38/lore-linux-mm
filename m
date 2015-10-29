@@ -1,143 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id C7FDE82F64
-	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 20:25:27 -0400 (EDT)
-Received: by wmeg8 with SMTP id g8so15084649wme.1
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 17:25:27 -0700 (PDT)
-Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
-        by mx.google.com with ESMTPS id at5si55214414wjc.111.2015.10.28.17.25.26
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2350382F64
+	for <linux-mm@kvack.org>; Wed, 28 Oct 2015 20:25:45 -0400 (EDT)
+Received: by oifu63 with SMTP id u63so15082345oif.2
+        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 17:25:45 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id z184si18963683oie.41.2015.10.28.17.25.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Oct 2015 17:25:26 -0700 (PDT)
-Received: by wmeg8 with SMTP id g8so15084474wme.1
-        for <linux-mm@kvack.org>; Wed, 28 Oct 2015 17:25:26 -0700 (PDT)
-Date: Thu, 29 Oct 2015 02:25:24 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: kernel oops on mmotm-2015-10-15-15-20
-Message-ID: <20151029002524.GA12018@node.shutemov.name>
-References: <20151021052836.GB6024@bbox>
- <20151021110723.GC10597@node.shutemov.name>
- <20151022000648.GD23631@bbox>
- <alpine.LSU.2.11.1510211744380.5219@eggly.anvils>
- <20151022012136.GG23631@bbox>
- <20151022090051.GH23631@bbox>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Oct 2015 17:25:44 -0700 (PDT)
+Subject: Re: [PATCH v2 0/4] hugetlbfs fallocate hole punch race with page
+ faults
+References: <1445385142-29936-1-git-send-email-mike.kravetz@oracle.com>
+ <alpine.LSU.2.11.1510271919200.2872@eggly.anvils>
+ <5630F274.5010908@oracle.com>
+ <alpine.LSU.2.11.1510281332050.4687@eggly.anvils>
+ <56313A7D.4000102@oracle.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <563166A7.4030103@oracle.com>
+Date: Wed, 28 Oct 2015 17:21:59 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151022090051.GH23631@bbox>
+In-Reply-To: <56313A7D.4000102@oracle.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu, Oct 22, 2015 at 06:00:51PM +0900, Minchan Kim wrote:
-> On Thu, Oct 22, 2015 at 10:21:36AM +0900, Minchan Kim wrote:
-> > Hello Hugh,
-> > 
-> > On Wed, Oct 21, 2015 at 05:59:59PM -0700, Hugh Dickins wrote:
-> > > On Thu, 22 Oct 2015, Minchan Kim wrote:
-> > > > 
-> > > > I added the code to check it and queued it again but I had another oops
-> > > > in this time but symptom is related to anon_vma, too.
-> > > > (kernel is based on recent mmotm + unconditional mkdirty for bug fix)
-> > > > It seems page_get_anon_vma returns NULL since the page was not page_mapped
-> > > > at that time but second check of page_mapped right before try_to_unmap seems
-> > > > to be true.
-> > > > 
-> > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
-> > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
-> > > > page:ffffea0001cfbfc0 count:3 mapcount:1 mapping:ffff88007f1b5f51 index:0x600000aff
-> > > > flags: 0x4000000000048019(locked|uptodate|dirty|swapcache|swapbacked)
-> > > > page dumped because: VM_BUG_ON_PAGE(PageAnon(page) && !PageKsm(page) && !anon_vma)
-> > > 
-> > > That's interesting, that's one I added in my page migration series.
-> > > Let me think on it, but it could well relate to the one you got before.
-> > 
-> > I will roll back to mm/madv_free-v4.3-rc5-mmotm-2015-10-15-15-20
-> > instead of next-20151021 to remove noise from your migration cleanup
-> > series and will test it again.
-> > If it is fixed, I will test again with your migration patchset, then.
+On 10/28/2015 02:13 PM, Mike Kravetz wrote:
+> On 10/28/2015 02:00 PM, Hugh Dickins wrote:
+>> On Wed, 28 Oct 2015, Mike Kravetz wrote:
+>>> On 10/27/2015 08:34 PM, Hugh Dickins wrote:
+>>>
+>>> Thanks for the detailed response Hugh.  I will try to address your questions
+>>> and provide more reasoning behind the use case and need for this code.
+>>
+>> And thank you for your detailed response, Mike: that helped a lot.
+>>
+>>> Ok, here is a bit more explanation of the proposed use case.  It all
+>>> revolves around a DB's use of hugetlbfs and the desire for more control
+>>> over the underlying memory.  This additional control is achieved by
+>>> adding existing fallocate and userfaultfd semantics to hugetlbfs.
+>>>
+>>> In this use case there is a single process that manages hugetlbfs files
+>>> and the underlying memory resources.  It pre-allocates/initializes these
+>>> files.
+>>>
+>>> In addition, there are many other processes which access (rw mode) these
+>>> files.  They will simply mmap the files.  It is expected that they will
+>>> not fault in any new pages.  Rather, all pages would have been pre-allocated
+>>> by the management process.
+>>>
+>>> At some time, the management process determines that specific ranges of
+>>> pages within the hugetlbfs files are no longer needed.  It will then punch
+>>> holes in the files.  These 'free' pages within the holes may then be used
+>>> for other purposes.  For applications like this (sophisticated DBs), huge
+>>> pages are reserved at system init time and closely managed by the
+>>> application.
+>>> Hence, the desire for this additional control.
+>>>
+>>> So, when a hole containing N huge pages is punched, the management process
+>>> wants to know that it really has N huge pages for other purposes.  Ideally,
+>>> none of the other processes mapping this file/area would access the hole.
+>>> This is an application error, and it can be 'caught' with  userfaultfd.
+>>>
+>>> Since these other (non-management) processes will never fault in pages,
+>>> they would simply set up userfaultfd to catch any page faults immediately
+>>> after mmaping the hugetlbfs file.
+>>>
+>>>>
+>>>> But it sounds to me more as if the holes you want punched are not
+>>>> quite like on other filesystems, and you want to be able to police
+>>>> them afterwards with userfaultfd, to prevent them from being refilled.
+>>>
+>>> I am not sure if they are any different.
+>>>
+>>> One could argue that a hole punch operation must always result in all
+>>> pages within the hole being deallocated.  As you point out, this could
+>>> race with a fault.  Previously, there would be no way to determine if
+>>> all pages had been deallocated because user space could not detect this
+>>> race.  Now, userfaultfd allows user space to catch page faults.  So,
+>>> it is now possible to catch/depend on hole punch deallocating all pages
+>>> within the hole.
+>>>
+>>>>
+>>>> Can't userfaultfd be used just slightly earlier, to prevent them from
+>>>> being filled while doing the holepunch?  Then no need for this patchset?
+>>>
+>>> I do not think so, at least with current userfaultfd semantics.  The hole
+>>> needs to be punched before being caught with UFFDIO_REGISTER_MODE_MISSING.
+>>
+>> Great, that makes sense.
+>>
+>> I was worried that you needed some kind of atomic treatment of the whole
+>> extent punched, but all you need is to close the hole/fault race one
+>> hugepage at a time.
+>>
+>> Throw away all of 1/4, 2/4, 3/4: I think all you need is your 4/4
+>> (plus i_mmap_lock_write around the hugetlb_vmdelete_list of course).
+>>
+>> There you already do the single hugepage hugetlb_vmdelete_list()
+>> under mutex_lock(&hugetlb_fault_mutex_table[hash]).
+>>
+>> And it should come as no surprise that hugetlb_fault() does most
+>> of its work under that same mutex.
+>>
+>> So once remove_inode_hugepages() unlocks the mutex, that page is gone
+>> from the file, and userfaultfd UFFDIO_REGISTER_MODE_MISSING will do
+>> what you want, won't it?
+>>
+>> I don't think "my" code buys you anything at all: you're not in danger of
+>> shmem's starvation livelock issue, partly because remove_inode_hugepages()
+>> uses the simple loop from start to end, and partly because hugetlb_fault()
+>> already takes the serializing mutex (no equivalent in shmem_fault()).
+>>
+>> Or am I dreaming?
 > 
-> I tested mmotm-2015-10-15-15-20 with test program I attach for a long time.
-> Therefore, there is no patchset from Hugh's migration patch in there.
-> And I added below debug code with request from Kirill to all test kernels.
+> I don't think you are dreaming.
+> 
+> I should have stepped back and thought about this more before before pulling
+> in the shmem code.  It really is only a 'page at a time' operation, and we
+> can use the fault mutex table for that.
+> 
+> I'll code it up with just the changes needed for 4/4 and put it through some
+> stress testing.
 
-It took too long time (and a lot of printk()), but I think I track it down
-finally.
- 
-The patch below seems fixes issue for me. It's not yet properly tested, but
-looks like it works.
+Thanks again Hugh.  Testing was successful:  current hugetlbfs fallocate
+stress testing and testing with "in development" hugetlbfs userfaultfd code.
 
-The problem was my wrong assumption on how migration works: I thought that
-kernel would wait migration to finish on before deconstruction mapping.
+Andrew, would you like a single patch that includes 4/4 of the series
+and i_mmap_lock_write?  You could then throw away the previous patches
+and the log would look nicer.
 
-But turn out that's not true.
-
-As result if zap_pte_range() races with split_huge_page(), we can end up
-with page which is not mapped anymore but has _count and _mapcount
-elevated. The page is on LRU too. So it's still reachable by vmscan and by
-pfn scanners (Sasha showed few similar traces from compaction too).
-It's likely that page->mapping in this case would point to freed anon_vma.
-
-BOOM!
-
-The patch modify freeze/unfreeze_page() code to match normal migration
-entries logic: on setup we remove page from rmap and drop pin, on removing
-we get pin back and put page on rmap. This way even if migration entry
-will be removed under us we don't corrupt page's state.
-
-Please, test.
-
-Not-Yet-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 5e0fe82a0fae..192b50c7526c 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2934,6 +2934,13 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 	smp_wmb(); /* make pte visible before pmd */
- 	pmd_populate(mm, pmd, pgtable);
-+
-+	if (freeze) {
-+		for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-+			page_remove_rmap(page + i, false);
-+			put_page(page + i);
-+		}
-+	}
- }
- 
- void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-@@ -3079,6 +3086,8 @@ static void freeze_page_vma(struct vm_area_struct *vma, struct page *page,
- 		if (pte_soft_dirty(entry))
- 			swp_pte = pte_swp_mksoft_dirty(swp_pte);
- 		set_pte_at(vma->vm_mm, address, pte + i, swp_pte);
-+		page_remove_rmap(page, false);
-+		put_page(page);
- 	}
- 	pte_unmap_unlock(pte, ptl);
- }
-@@ -3117,8 +3126,6 @@ static void unfreeze_page_vma(struct vm_area_struct *vma, struct page *page,
- 		return;
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, address, &ptl);
- 	for (i = 0; i < HPAGE_PMD_NR; i++, address += PAGE_SIZE, page++) {
--		if (!page_mapped(page))
--			continue;
- 		if (!is_swap_pte(pte[i]))
- 			continue;
- 
-@@ -3128,6 +3135,9 @@ static void unfreeze_page_vma(struct vm_area_struct *vma, struct page *page,
- 		if (migration_entry_to_page(swp_entry) != page)
- 			continue;
- 
-+		get_page(page);
-+		page_add_anon_rmap(page, vma, address, false);
-+
- 		entry = pte_mkold(mk_pte(page, vma->vm_page_prot));
- 		entry = pte_mkdirty(entry);
- 		if (is_write_migration_entry(swp_entry))
 -- 
- Kirill A. Shutemov
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
