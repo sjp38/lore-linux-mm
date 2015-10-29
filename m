@@ -1,379 +1,367 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 046F382F64
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 18:10:34 -0400 (EDT)
-Received: by iody8 with SMTP id y8so61389105iod.1
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 15:10:33 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id pk9si22237151igb.66.2015.10.29.15.10.33
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Oct 2015 15:10:33 -0700 (PDT)
-Date: Thu, 29 Oct 2015 14:55:16 -0700
-From: Shaohua Li <shli@fb.com>
-Subject: [RFC] mm: add a new vector based madvise syscall
-Message-ID: <20151029215516.GA3864685@devbig084.prn1.facebook.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 2190182F64
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 18:10:41 -0400 (EDT)
+Received: by padhk11 with SMTP id hk11so52521235pad.1
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 15:10:40 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id bc4si5483186pad.141.2015.10.29.15.10.38
+        for <linux-mm@kvack.org>;
+        Thu, 29 Oct 2015 15:10:39 -0700 (PDT)
+Date: Fri, 30 Oct 2015 09:10:22 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Triggering non-integrity writeback from userspace
+Message-ID: <20151029221022.GB10656@dastard>
+References: <20151022131555.GC4378@alap3.anarazel.de>
+ <20151024213912.GE8773@dastard>
+ <20151028092752.GF29811@alap3.anarazel.de>
+ <20151028204834.GP8773@dastard>
+ <20151028232312.GL29811@alap3.anarazel.de>
+ <20151029015422.GT8773@dastard>
+ <20151029162356.GQ29811@alap3.anarazel.de>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="mYCpIKhGyMATD0i+"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20151029162356.GQ29811@alap3.anarazel.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, hughd@google.com, hannes@cmpxchg.org, aarcange@redhat.com, je@fb.com, Kernel-team@fb.com
+To: Andres Freund <andres@anarazel.de>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
---mYCpIKhGyMATD0i+
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+On Thu, Oct 29, 2015 at 05:23:56PM +0100, Andres Freund wrote:
+> On 2015-10-29 12:54:22 +1100, Dave Chinner wrote:
+> > On Thu, Oct 29, 2015 at 12:23:12AM +0100, Andres Freund wrote:
+> > > By calling sync_file_range() over small ranges of pages shortly after
+> > > they've been written we make it unlikely (but still possible) that much
+> > > data has to be flushed at fsync() time.
+> > 
+> > Right, but you still need the fsync call, whereas with a async fsync
+> > call you don't - when you gather the completion, no further action
+> > needs to be taken on that dirty range.
+> 
+> I assume that the actual IOs issued by the async fsync and a plain fsync
+> would be pretty similar. So the problem that an fsync of large amounts
+> of dirty data causes latency increases for other issuers of IO wouldn't
+> be gone, no?
 
-In jemalloc, a free(3) doesn't immediately free the memory to OS even
-the memory is page aligned/size, and hope the memory can be reused soon.
-Later the virtual address becomes fragmented, and more and more free
-memory are aggregated. If the free memory size is large, jemalloc uses
-madvise(DONT_NEED) to actually free the memory back to OS.
+Yes, they'd be the same if the async operation is not range limited.
 
-The madvise has significantly overhead paritcularly because of TLB
-flush. jemalloc does madvise for several virtual address space ranges
-one time. Instead of calling madvise for each of the ranges, we
-introduce a new syscall to purge memory for several ranges one time. In
-this way, we can merge several TLB flush for the ranges to one big TLB
-flush. This also reduce mmap_sem locking.
+> > > At the moment using fdatasync() instead of fsync() is a considerable
+> > > performance advantage... If I understand the above proposal correctly,
+> > > it'd allow specifying ranges, is that right?
+> > 
+> > Well, the patch I sent doesn't do ranges, but it could easily be
+> > passed in as the iocb has offset/len parameters that are used by
+> > IOCB_CMD_PREAD/PWRITE.
+> 
+> That'd be cool. Then we could issue those for asynchronous transaction
+> commits, and to have more wal writes concurrently in progress by the
+> background wal writer.
 
-I'm running a simple memory allocation benchmark. 32 threads do random
-malloc/free/realloc. Corresponding jemalloc patch to utilize this API is
-attached.
-Without patch:
-real    0m18.923s
-user    1m11.819s
-sys     7m44.626s
-each cpu gets around 3000K/s TLB flush interrupt. Perf shows TLB flush
-is hotest functions. mmap_sem read locking (because of page fault) is
-also heavy.
+Updated patch that allows ranged aio fsync below. In the
+application, do this for a ranged fsync:
 
-with patch:
-real    0m15.026s
-user    0m48.548s
-sys     6m41.153s
-each cpu gets around 140k/s TLB flush interrupt. TLB flush isn't hot at
-all. mmap_sem read locking (still because of page fault) becomes the
-sole hot spot.
+	io_prep_fsync(iocb, fd);
+	iocb->u.c.offset = offset;	/* start of range */
+	iocb->u.c.nbytes = len;		/* size (in bytes) to sync */
+	error = io_submit(ctx, 1, &iocb);
 
-Another test malloc a bunch of memory in 48 threads, then all threads
-free the memory. I measure the time of the memory free.
-Without patch: 34.332s
-With patch:    17.429s
+> I'll try the patch from 20151028232641.GS8773@dastard and see wether I
+> can make it be advantageous for throughput (for WAL flushing, not the
+> checkpointer process).  Wish I had a better storage system, my guess
+> it'll be more advantageous there. We'll see.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Shaohua Li <shli@fb.com>
----
- arch/x86/entry/syscalls/syscall_32.tbl |   1 +
- arch/x86/entry/syscalls/syscall_64.tbl |   1 +
- mm/madvise.c                           | 144 ++++++++++++++++++++++++++++++---
- 3 files changed, 134 insertions(+), 12 deletions(-)
+A $100 SATA ssd is all you need to get the IOPS rates in the
+thousands for these sorts of tests...
 
-diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
-index 7663c45..4c99ef5 100644
---- a/arch/x86/entry/syscalls/syscall_32.tbl
-+++ b/arch/x86/entry/syscalls/syscall_32.tbl
-@@ -382,3 +382,4 @@
- 373	i386	shutdown		sys_shutdown
- 374	i386	userfaultfd		sys_userfaultfd
- 375	i386	membarrier		sys_membarrier
-+376	i386	madvisev		sys_madvisev
-diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index 278842f..1025406 100644
---- a/arch/x86/entry/syscalls/syscall_64.tbl
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -331,6 +331,7 @@
- 322	64	execveat		stub_execveat
- 323	common	userfaultfd		sys_userfaultfd
- 324	common	membarrier		sys_membarrier
-+325	common	madvisev		sys_madvisev
- 
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-diff --git a/mm/madvise.c b/mm/madvise.c
-index c889fcb..6251103 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -20,6 +20,9 @@
- #include <linux/backing-dev.h>
- #include <linux/swap.h>
- #include <linux/swapops.h>
-+#include <linux/uio.h>
-+#include <linux/sort.h>
-+#include <asm/tlb.h>
- 
- /*
-  * Any behaviour which results in changes to the vma->vm_flags needs to
-@@ -415,6 +418,29 @@ madvise_behavior_valid(int behavior)
- 	}
- }
- 
-+static bool madvise_range_valid(unsigned long start, size_t len_in, bool *skip)
-+{
-+	size_t len;
-+	unsigned long end;
-+
-+	if (start & ~PAGE_MASK)
-+		return false;
-+	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
-+
-+	/* Check to see whether len was rounded up from small -ve to zero */
-+	if (len_in && !len)
-+		return false;
-+
-+	end = start + len;
-+	if (end < start)
-+		return false;
-+	if (end == start)
-+		*skip = true;
-+	else
-+		*skip = false;
-+	return true;
-+}
-+
- /*
-  * The madvise(2) system call.
-  *
-@@ -464,8 +490,8 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- 	int unmapped_error = 0;
- 	int error = -EINVAL;
- 	int write;
--	size_t len;
- 	struct blk_plug plug;
-+	bool skip;
- 
- #ifdef CONFIG_MEMORY_FAILURE
- 	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
-@@ -474,20 +500,12 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- 	if (!madvise_behavior_valid(behavior))
- 		return error;
- 
--	if (start & ~PAGE_MASK)
--		return error;
--	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
--
--	/* Check to see whether len was rounded up from small -ve to zero */
--	if (len_in && !len)
--		return error;
--
--	end = start + len;
--	if (end < start)
-+	if (!madvise_range_valid(start, len_in, &skip))
- 		return error;
-+	end = start + ((len_in + ~PAGE_MASK) & PAGE_MASK);
- 
- 	error = 0;
--	if (end == start)
-+	if (skip)
- 		return error;
- 
- 	write = madvise_need_mmap_write(behavior);
-@@ -549,3 +567,105 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- 
- 	return error;
- }
-+
-+static int iov_cmp_func(const void *a, const void *b)
-+{
-+	const struct iovec *iova = a;
-+	const struct iovec *iovb = b;
-+	unsigned long addr_a = (unsigned long)iova->iov_base;
-+	unsigned long addr_b = (unsigned long)iovb->iov_base;
-+
-+	if (addr_a > addr_b)
-+		return 1;
-+	if (addr_a < addr_b)
-+		return -1;
-+	return 0;
-+}
-+
-+SYSCALL_DEFINE3(madvisev, const struct iovec __user *, uvector, unsigned long, nr_segs,
-+	int, behavior)
-+{
-+	struct iovec iovstack[UIO_FASTIOV];
-+	struct iovec *iov = NULL;
-+	struct vm_area_struct **vmas = NULL;
-+	unsigned long start, last_start = 0;
-+	size_t len;
-+	struct mmu_gather tlb;
-+	int error;
-+	int i;
-+	bool skip;
-+
-+	if (behavior != MADV_DONTNEED)
-+		return -EINVAL;
-+
-+	error = rw_copy_check_uvector(CHECK_IOVEC_ONLY, uvector, nr_segs,
-+			UIO_FASTIOV, iovstack, &iov);
-+	if (error <= 0)
-+		return error;
-+	/* Make sure address in ascend order */
-+	sort(iov, nr_segs, sizeof(struct iovec), iov_cmp_func, NULL);
-+
-+	vmas = kmalloc(nr_segs * sizeof(struct vm_area_struct *), GFP_KERNEL);
-+	if (!vmas) {
-+		error = -EFAULT;
-+		goto out;
-+	}
-+	for (i = 0; i < nr_segs; i++) {
-+		start = (unsigned long)iov[i].iov_base;
-+		len = ((iov[i].iov_len + ~PAGE_MASK) & PAGE_MASK);
-+		iov[i].iov_len = len;
-+		if (start < last_start) {
-+			error = -EINVAL;
-+			goto out;
-+		}
-+		if (!madvise_range_valid(start, len, &skip)) {
-+			error = -EINVAL;
-+			goto out;
-+		}
-+		if (skip) {
-+			error = 0;
-+			goto out;
-+		}
-+		last_start = start + len;
-+	}
-+
-+	down_read(&current->mm->mmap_sem);
-+	for (i = 0; i < nr_segs; i++) {
-+		start = (unsigned long)iov[i].iov_base;
-+		len = iov[i].iov_len;
-+		vmas[i] = find_vma(current->mm, start);
-+		/*
-+		 * don't allow range cross vma, it doesn't make sense for
-+		 * DONTNEED
-+		 */
-+		if (!vmas[i] || start < vmas[i]->vm_start ||
-+		    start + len > vmas[i]->vm_end) {
-+			error = -ENOMEM;
-+			goto up_out;
-+		}
-+		if (vmas[i]->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP)) {
-+			error = -EINVAL;
-+			goto up_out;
-+		}
-+	}
-+
-+	lru_add_drain();
-+	tlb_gather_mmu(&tlb, current->mm, (unsigned long)iov[0].iov_base,
-+		last_start);
-+	update_hiwater_rss(current->mm);
-+	for (i = 0; i < nr_segs; i++) {
-+		start = (unsigned long)iov[i].iov_base;
-+		len = iov[i].iov_len;
-+		unmap_vmas(&tlb, vmas[i], start, start + len);
-+	}
-+	tlb_finish_mmu(&tlb, (unsigned long)iov[0].iov_base, last_start);
-+	error = 0;
-+
-+up_out:
-+	up_read(&current->mm->mmap_sem);
-+out:
-+	kfree(vmas);
-+	if (iov != iovstack)
-+		kfree(iov);
-+	return error;
-+}
+Cheers,
+
+Dave.
 -- 
-2.4.6
+Dave Chinner
+david@fromorbit.com
+
+aio: wire up generic aio_fsync method
+
+From: Dave Chinner <dchinner@redhat.com>
+
+We've had plenty of requests for an asynchronous fsync over the past
+few years, and we've got the infrastructure there to do it. But
+nobody has wired it up to test it. The common request we get from
+userspace storage applications is to do a post-write pass over a set
+of files that were just written (i.e. bulk background fsync) for
+point-in-time checkpointing or flushing purposes.
+
+So, just to see if I could brute force an effective implementation,
+wire up aio_fsync, add a workqueue and push all the fsync calls off
+to the workqueue. The workqueue will allow parallel dispatch, switch
+execution if a fsync blocks for any reason, etc. Brute force and
+very effective....
+
+This also allows us to do ranged f(data)sync calls. the libaio
+io_prep_fsync() function zeros the unused sections of the iocb
+passed to the kernel, so the offset/byte count in the iocb should
+always be zero. Hence if we get a non-zero byte count, we can treat
+it as a ranges operation. This allows applications to commit ranges
+of files to stable storage, rather than just he entire file. TO do
+this, we need to be able to pass the length to ->aio_fsync(), but
+this is trivial to change because no subsystem currently implements
+this method.
+
+So, I hacked up fs_mark to enable fsync via the libaio io_fsync()
+interface to run some tests. The quick test is:
+
+	- write 10000 4k files into the cache
+	- run a post write open-fsync-close pass (sync mode 5)
+	- run 5 iterations
+	- run a single thread, then 4 threads.
+
+First I ran it on a 500TB sparse filesystem on a SSD.
+
+FSUse%        Count         Size    Files/sec     App Overhead
+     0        10000         4096        507.5           184435
+     0        20000         4096        527.2           184815
+     0        30000         4096        530.4           183798
+     0        40000         4096        531.0           189431
+     0        50000         4096        554.2           181557
+
+real    1m34.548s
+user    0m0.819s
+sys     0m10.596s
+
+Runs at around 500 log forces/s resulting in 500 log writes/s
+giving a sustained IO load of about 1200 IOPS.
+
+Using io_fsync():
+
+FSUse%        Count         Size    Files/sec     App Overhead
+     0        10000         4096       4124.1           151359
+     0        20000         4096       5506.4           112704
+     0        30000         4096       7347.1            97967
+     0        40000         4096       7110.1            97089
+     0        50000         4096       7075.3            94942
+
+real    0m8.554s
+user    0m0.350s
+sys     0m3.684s
+
+Runs at around 7,000 log forces/s, which are mostly aggregated down
+to around 700 log writes/s, for a total sustained load of ~8000 IOPS.
+The parallel dispatch of fsync operations allows the log to
+aggregate them effectively, reducing journal IO by a factor of 10
+
+Run the same workload, 4 threads at a time. Normal fsync:
+
+FSUse%        Count         Size    Files/sec     App Overhead
+     0        40000         4096       2156.0           690185
+     0        80000         4096       1859.6           693849
+     0       120000         4096       1858.8           723889
+     0       160000         4096       1848.5           708657
+     0       200000         4096       1842.7           736587
+
+Runs at ~2000 log forces/s, resulting in ~1000 log writes/s and
+3,000 IOPS. We see the journal writes being aggregated, but nowhere
+near the rate of the previous async fsync run.
+
+Using io_fsync():
+
+SUse%        Count         Size    Files/sec     App Overhead
+     0        40000         4096      18956.0           633011
+     0        80000         4096      18972.1           635786
+     0       120000         4096      23719.6           433334
+     0       160000         4096      25780.6           403199
+     0       200000         4096      24848.7           480086
+
+real    0m9.512s
+user    0m1.307s
+sys     0m14.844s
+
+Almost perfect scaling! ~24,000 log forces/s resulting in ~700 log
+writes/s, so we've not got a 35:1 journal write aggregation
+occurring, and so the total sustained IOPS is only ~25000 IOPS.
+
+Just checking to see how far I can push it.
+
+threads		files/s		IOPS		log aggregation
+  1		 7000		 8000		 10:1
+  4		24000		25000		 35:1
+  8		32000		34000		100:1
+ 16		33000		35000		100:1
+ 32		30000		35000		 90:1
+
+At 32 threads it's becoming context switch bound and burning
+13-14 CPUs. It's pushing 6-800,000 context switches/s, and the
+overhead in the blk_mq tag code is killing everything:
+
+-   23.73%    23.73%  [kernel]            [k] _raw_spin_unlock_irqrestore
+   - _raw_spin_unlock_irqrestore
+      - 64.15% prepare_to_wait
+         - 99.35% bt_get
+              blk_mq_get_tag
+....
+      - 14.23% virtio_queue_rq
+         - __blk_mq_run_hw_queue
+            - blk_mq_run_hw_queue
+               - 93.89% blk_mq_insert_requests
+                    blk_mq_flush_plug_list
+.....
+   13.30%    13.30%  [kernel]            [k] _raw_spin_unlock_irq
+   - _raw_spin_unlock_irq
+      - 69.27% finish_task_switch
+         - __schedule
+            - 94.53% schedule
+               - 68.36% schedule_timeout
+                  - 85.22% io_schedule_timeout
+                     + 93.52% bt_get
+                     + 6.48% bit_wait_io
+                  + 14.39% wait_for_completion
+      - 15.36% blk_insert_flush
+           blk_sq_make_request
+           generic_make_request
+         - submit_bio
+            - 99.24% submit_bio_wait
+                 blkdev_issue_flush
+                 xfs_blkdev_issue_flush
+                 xfs_file_fsync
+                 vfs_fsync_range
+                 vfs_fsync
+                 generic_aio_fsync_work
 
 
---mYCpIKhGyMATD0i+
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: attachment; filename="je.patch"
+So, essentiall, close on 30% of the CPU being used (2.5 of 8 CPUs
+being spent on this workload) is being spent on lock contention on
+the blk mq request and tag wait queues due to the amount of task
+switching going on...
 
-diff --git a/src/arena.c b/src/arena.c
-index 43733cc..ae2de35 100644
---- a/src/arena.c
-+++ b/src/arena.c
-@@ -1266,6 +1266,7 @@ arena_dirty_count(arena_t *arena)
- 	return (ndirty);
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+---
+ fs/aio.c           | 69 +++++++++++++++++++++++++++++++++++++++++++++++-------
+ include/linux/fs.h |  2 +-
+ 2 files changed, 61 insertions(+), 10 deletions(-)
+
+diff --git a/fs/aio.c b/fs/aio.c
+index 155f842..109433b 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -188,6 +188,20 @@ struct aio_kiocb {
+ 	struct eventfd_ctx	*ki_eventfd;
+ };
+ 
++/*
++ * Generic async fsync work structure.  If the file does not supply
++ * an ->aio_fsync method but has a ->fsync method, then the f(d)sync request is
++ * passed to the aio_fsync_wq workqueue and is executed there.
++ */
++struct aio_fsync_args {
++	struct work_struct	work;
++	struct kiocb		*req;
++	size_t			len;		/* zero for full file fsync */
++	int			datasync;
++};
++
++static struct workqueue_struct *aio_fsync_wq;
++
+ /*------ sysctl variables----*/
+ static DEFINE_SPINLOCK(aio_nr_lock);
+ unsigned long aio_nr;		/* current system wide number of aio requests */
+@@ -257,6 +271,10 @@ static int __init aio_setup(void)
+ 	if (IS_ERR(aio_mnt))
+ 		panic("Failed to create aio fs mount.");
+ 
++	aio_fsync_wq = alloc_workqueue("aio-fsync", 0, 0);
++	if (!aio_fsync_wq)
++		panic("Failed to create aio fsync workqueue.");
++
+ 	kiocb_cachep = KMEM_CACHE(aio_kiocb, SLAB_HWCACHE_ALIGN|SLAB_PANIC);
+ 	kioctx_cachep = KMEM_CACHE(kioctx,SLAB_HWCACHE_ALIGN|SLAB_PANIC);
+ 
+@@ -1396,6 +1414,40 @@ static int aio_setup_vectored_rw(int rw, char __user *buf, size_t len,
+ 				len, UIO_FASTIOV, iovec, iter);
  }
  
-+#define PURGE_VEC 1
- static size_t
- arena_compute_npurge(arena_t *arena, bool all)
- {
-@@ -1280,6 +1281,10 @@ arena_compute_npurge(arena_t *arena, bool all)
- 		threshold = threshold < chunk_npages ? chunk_npages : threshold;
- 
- 		npurge = arena->ndirty - threshold;
-+#if PURGE_VEC
-+		if (npurge < arena->ndirty / 2)
-+			npurge = arena->ndirty / 2;
-+#endif
- 	} else
- 		npurge = arena->ndirty;
- 
-@@ -1366,6 +1371,16 @@ arena_stash_dirty(arena_t *arena, chunk_hooks_t *chunk_hooks, bool all,
- 	return (nstashed);
- }
- 
-+#if PURGE_VEC
-+#define MAX_IOVEC 32
-+bool pages_purge_vec(struct iovec *iov, unsigned long nr_segs)
++static void generic_aio_fsync_work(struct work_struct *work)
 +{
-+	int ret = syscall(325, iov, nr_segs, MADV_DONTNEED);
++	struct aio_fsync_args *args = container_of(work,
++						   struct aio_fsync_args, work);
++	struct kiocb *req = args->req;
++	int error;
 +
-+	return !!ret;
++	if (!args->len)
++		error = vfs_fsync(req->ki_filp, args->datasync);
++	else
++		error = vfs_fsync_range(req->ki_filp, req->ki_pos,
++					req->ki_pos + args->len,
++					args->datasync);
++
++	aio_complete(req, error, 0);
++	kfree(args);
 +}
-+#endif
 +
- static size_t
- arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
-     arena_runs_dirty_link_t *purge_runs_sentinel,
-@@ -1374,6 +1389,10 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
- 	size_t npurged, nmadvise;
- 	arena_runs_dirty_link_t *rdelm;
- 	extent_node_t *chunkselm;
-+#if PURGE_VEC
-+	struct iovec iovec[MAX_IOVEC];
-+	int vec_index = 0;
-+#endif
++static int generic_aio_fsync(struct kiocb *req, size_t len, int datasync)
++{
++	struct aio_fsync_args	*args;
++
++	args = kzalloc(sizeof(struct aio_fsync_args), GFP_KERNEL);
++	if (!args)
++		return -ENOMEM;
++
++	INIT_WORK(&args->work, generic_aio_fsync_work);
++	args->req = req;
++	args->len = len;
++	args->datasync = datasync;
++	queue_work(aio_fsync_wq, &args->work);
++	return -EIOCBQUEUED;
++}
++
+ /*
+  * aio_run_iocb:
+  *	Performs the initial checks and io submission.
+@@ -1410,6 +1462,7 @@ static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
+ 	rw_iter_op *iter_op;
+ 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
+ 	struct iov_iter iter;
++	int datasync = 0;
  
- 	if (config_stats)
- 		nmadvise = 0;
-@@ -1418,9 +1437,21 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
- 				flag_unzeroed = 0;
- 				flags = CHUNK_MAP_DECOMMITTED;
- 			} else {
-+#if !PURGE_VEC
- 				flag_unzeroed = chunk_purge_wrapper(arena,
- 				    chunk_hooks, chunk, chunksize, pageind <<
- 				    LG_PAGE, run_size) ? CHUNK_MAP_UNZEROED : 0;
-+#else
-+				flag_unzeroed = 0;
-+				iovec[vec_index].iov_base = (void *)((uintptr_t)chunk +
-+					(pageind << LG_PAGE));
-+				iovec[vec_index].iov_len = run_size;
-+				vec_index++;
-+				if (vec_index >= MAX_IOVEC) {
-+					pages_purge_vec(iovec, vec_index);
-+					vec_index = 0;
-+				}
-+#endif
- 				flags = flag_unzeroed;
- 			}
- 			arena_mapbits_large_set(chunk, pageind+npages-1, 0,
-@@ -1449,6 +1480,10 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
- 		if (config_stats)
- 			nmadvise++;
- 	}
-+#if PURGE_VEC
-+	if (vec_index > 0)
-+		pages_purge_vec(iovec, vec_index);
-+#endif
- 	malloc_mutex_lock(&arena->lock);
+ 	switch (opcode) {
+ 	case IOCB_CMD_PREAD:
+@@ -1460,17 +1513,15 @@ rw_common:
+ 		break;
  
- 	if (config_stats) {
-
---mYCpIKhGyMATD0i+--
+ 	case IOCB_CMD_FDSYNC:
+-		if (!file->f_op->aio_fsync)
+-			return -EINVAL;
+-
+-		ret = file->f_op->aio_fsync(req, 1);
+-		break;
+-
++		datasync = 1;
++		/* fall through */
+ 	case IOCB_CMD_FSYNC:
+-		if (!file->f_op->aio_fsync)
++		if (file->f_op->aio_fsync)
++			ret = file->f_op->aio_fsync(req, len, datasync);
++		else if (file->f_op->fsync)
++			ret = generic_aio_fsync(req, len, datasync);
++		else
+ 			return -EINVAL;
+-
+-		ret = file->f_op->aio_fsync(req, 0);
+ 		break;
+ 
+ 	default:
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 72d8a84..8a74dfb 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1626,7 +1626,7 @@ struct file_operations {
+ 	int (*flush) (struct file *, fl_owner_t id);
+ 	int (*release) (struct inode *, struct file *);
+ 	int (*fsync) (struct file *, loff_t, loff_t, int datasync);
+-	int (*aio_fsync) (struct kiocb *, int datasync);
++	int (*aio_fsync) (struct kiocb *, size_t len, int datasync);
+ 	int (*fasync) (int, struct file *, int);
+ 	int (*lock) (struct file *, int, struct file_lock *);
+ 	ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
