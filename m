@@ -1,65 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D5B682F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 06:18:23 -0400 (EDT)
-Received: by wicll6 with SMTP id ll6so7335304wic.0
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 03:18:22 -0700 (PDT)
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
-        by mx.google.com with ESMTPS id p3si8026185wjb.37.2015.10.30.03.18.22
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A465F82F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 08:28:17 -0400 (EDT)
+Received: by wicfx6 with SMTP id fx6so9503261wic.1
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 05:28:17 -0700 (PDT)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
+        by mx.google.com with ESMTPS id dj2si4341215wjc.134.2015.10.30.05.28.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Oct 2015 03:18:22 -0700 (PDT)
-Received: by wmeg8 with SMTP id g8so8093263wme.0
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 03:18:21 -0700 (PDT)
-Date: Fri, 30 Oct 2015 11:18:20 +0100
+        Fri, 30 Oct 2015 05:28:16 -0700 (PDT)
+Received: by wmec75 with SMTP id c75so10907117wme.1
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 05:28:16 -0700 (PDT)
+Date: Fri, 30 Oct 2015 13:28:14 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 1/3] mm, oom: refactor oom detection
-Message-ID: <20151030101819.GI18429@dhcp22.suse.cz>
-References: <1446131835-3263-1-git-send-email-mhocko@kernel.org>
- <1446131835-3263-2-git-send-email-mhocko@kernel.org>
- <5632FEEF.2050709@jp.fujitsu.com>
- <20151030082323.GB18429@dhcp22.suse.cz>
- <56333B4A.4030602@jp.fujitsu.com>
+Subject: Re: [PATCH 4/8] mm: free swp_entry in madvise_free
+Message-ID: <20151030122814.GA23627@dhcp22.suse.cz>
+References: <1446188504-28023-1-git-send-email-minchan@kernel.org>
+ <1446188504-28023-5-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56333B4A.4030602@jp.fujitsu.com>
+In-Reply-To: <1446188504-28023-5-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, zhangyanfei@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, yalin.wang2010@gmail.com, Shaohua Li <shli@kernel.org>
 
-On Fri 30-10-15 18:41:30, KAMEZAWA Hiroyuki wrote:
-[...]
-> >>So, now, 0-order page allocation may fail in a OOM situation ?
-> >
-> >No they don't normally and this patch doesn't change the logic here.
-> >
+On Fri 30-10-15 16:01:40, Minchan Kim wrote:
+> When I test below piece of code with 12 processes(ie, 512M * 12 = 6G
+> consume) on my (3G ram + 12 cpu + 8G swap, the madvise_free is siginficat
+> slower (ie, 2x times) than madvise_dontneed.
 > 
-> I understand your patch doesn't change the behavior.
-> Looking into __alloc_pages_may_oom(), *did_some_progress is finally set by
+> loop = 5;
+> mmap(512M);
+> while (loop--) {
+>         memset(512M);
+>         madvise(MADV_FREE or MADV_DONTNEED);
+> }
 > 
->      if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
->                 *did_some_progress = 1;
+> The reason is lots of swapin.
 > 
-> ...depends on out_of_memory() return value.
-> Now, allocation may fail if oom-killer is disabled.... Isn't it complicated ?
+> 1) dontneed: 1,612 swapin
+> 2) madvfree: 879,585 swapin
+> 
+> If we find hinted pages were already swapped out when syscall is called,
+> it's pointless to keep the swapped-out pages in pte.
+> Instead, let's free the cold page because swapin is more expensive
+> than (alloc page + zeroing).
+> 
+> With this patch, it reduced swapin from 879,585 to 1,878 so elapsed time
+> 
+> 1) dontneed: 6.10user 233.50system 0:50.44elapsed
+> 2) madvfree: 6.03user 401.17system 1:30.67elapsed
+> 2) madvfree + below patch: 6.70user 339.14system 1:04.45elapsed
+> 
+> Acked-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Yes and there shouldn't be any allocations after OOM killer has been
-disabled. The userspace is already frozen and there shouldn't be any
-other memory activity.
- 
-> Shouldn't we have
-> 
->  if (order < PAGE_ALLOC_COSTLY_ORDER)
->     goto retry;
-> 
-> here ?
+Yes this makes a lot of sense.
 
-How could we move on during the suspend if the reclaim doesn't proceed
-and we cannot really kill anything to free up memory resources. We are
-simply past the moment any userspace can be woken up. Anyway this is
-tangent to this particular patch series.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+One nit below.
+
+> ---
+>  mm/madvise.c | 26 +++++++++++++++++++++++++-
+>  1 file changed, 25 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 640311704e31..663bd9fa0ae0 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -270,6 +270,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  	spinlock_t *ptl;
+>  	pte_t *pte, ptent;
+>  	struct page *page;
+> +	swp_entry_t entry;
+
+This could go into !pte_present if block
+
+> +	int nr_swap = 0;
+>  
+>  	split_huge_page_pmd(vma, addr, pmd);
+>  	if (pmd_trans_unstable(pmd))
+> @@ -280,8 +282,22 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  	for (; addr != end; pte++, addr += PAGE_SIZE) {
+>  		ptent = *pte;
+>  
+> -		if (!pte_present(ptent))
+> +		if (pte_none(ptent))
+>  			continue;
+> +		/*
+> +		 * If the pte has swp_entry, just clear page table to
+> +		 * prevent swap-in which is more expensive rather than
+> +		 * (page allocation + zeroing).
+> +		 */
+> +		if (!pte_present(ptent)) {
+> +			entry = pte_to_swp_entry(ptent);
+> +			if (non_swap_entry(entry))
+> +				continue;
+> +			nr_swap--;
+> +			free_swap_and_cache(entry);
+> +			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+> +			continue;
+> +		}
+>  
+>  		page = vm_normal_page(vma, addr, ptent);
+>  		if (!page)
+> @@ -313,6 +329,14 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  		set_pte_at(mm, addr, pte, ptent);
+>  		tlb_remove_tlb_entry(tlb, pte, addr);
+>  	}
+> +
+> +	if (nr_swap) {
+> +		if (current->mm == mm)
+> +			sync_mm_rss(mm);
+> +
+> +		add_mm_counter(mm, MM_SWAPENTS, nr_swap);
+> +	}
+> +
+>  	arch_leave_lazy_mmu_mode();
+>  	pte_unmap_unlock(pte - 1, ptl);
+>  	cond_resched();
+> -- 
+> 1.9.1
 
 -- 
 Michal Hocko
