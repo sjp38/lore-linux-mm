@@ -1,65 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8870882F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 08:47:14 -0400 (EDT)
-Received: by wmeg8 with SMTP id g8so11038889wme.0
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 05:47:14 -0700 (PDT)
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
-        by mx.google.com with ESMTPS id l13si3539440wmg.29.2015.10.30.05.47.13
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C52D582F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 08:48:37 -0400 (EDT)
+Received: by qgeo38 with SMTP id o38so60477759qge.0
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 05:48:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 198si5694886qhh.41.2015.10.30.05.48.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Oct 2015 05:47:13 -0700 (PDT)
-Received: by wmff134 with SMTP id f134so11000339wmf.1
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 05:47:13 -0700 (PDT)
-Date: Fri, 30 Oct 2015 13:47:11 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/8] mm: lru_deactivate_fn should clear PG_referenced
-Message-ID: <20151030124711.GB23627@dhcp22.suse.cz>
-References: <1446188504-28023-1-git-send-email-minchan@kernel.org>
- <1446188504-28023-7-git-send-email-minchan@kernel.org>
+        Fri, 30 Oct 2015 05:48:37 -0700 (PDT)
+Message-ID: <56336721.2040908@redhat.com>
+Date: Fri, 30 Oct 2015 08:48:33 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1446188504-28023-7-git-send-email-minchan@kernel.org>
+Subject: Re: [RFC] mm: add a new vector based madvise syscall
+References: <20151029215516.GA3864685@devbig084.prn1.facebook.com>
+In-Reply-To: <20151029215516.GA3864685@devbig084.prn1.facebook.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, zhangyanfei@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, yalin.wang2010@gmail.com, Shaohua Li <shli@kernel.org>
+To: Shaohua Li <shli@fb.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mgorman@suse.de, hughd@google.com, hannes@cmpxchg.org, aarcange@redhat.com, je@fb.com, Kernel-team@fb.com
 
-On Fri 30-10-15 16:01:42, Minchan Kim wrote:
-> deactivate_page aims for accelerate for reclaiming through
-> moving pages from active list to inactive list so we should
-> clear PG_referenced for the goal.
-
-I might be missing something but aren't we using PG_referenced only for
-pagecache (and shmem) pages?
-
+On 10/29/2015 05:55 PM, Shaohua Li wrote:
+> In jemalloc, a free(3) doesn't immediately free the memory to OS even
+> the memory is page aligned/size, and hope the memory can be reused soon.
+> Later the virtual address becomes fragmented, and more and more free
+> memory are aggregated. If the free memory size is large, jemalloc uses
+> madvise(DONT_NEED) to actually free the memory back to OS.
 > 
-> Acked-by: Hugh Dickins <hughd@google.com>
-> Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/swap.c | 1 +
->  1 file changed, 1 insertion(+)
+> The madvise has significantly overhead paritcularly because of TLB
+> flush. jemalloc does madvise for several virtual address space ranges
+> one time. Instead of calling madvise for each of the ranges, we
+> introduce a new syscall to purge memory for several ranges one time. In
+> this way, we can merge several TLB flush for the ranges to one big TLB
+> flush. This also reduce mmap_sem locking.
 > 
-> diff --git a/mm/swap.c b/mm/swap.c
-> index d0eacc5f62a3..4a6aec976ab1 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -810,6 +810,7 @@ static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
->  
->  		del_page_from_lru_list(page, lruvec, lru + LRU_ACTIVE);
->  		ClearPageActive(page);
-> +		ClearPageReferenced(page);
->  		add_page_to_lru_list(page, lruvec, lru);
->  
->  		__count_vm_event(PGDEACTIVATE);
-> -- 
-> 1.9.1
+> I'm running a simple memory allocation benchmark. 32 threads do random
+> malloc/free/realloc. Corresponding jemalloc patch to utilize this API is
+> attached.
+> Without patch:
+> real    0m18.923s
+> user    1m11.819s
+> sys     7m44.626s
+> each cpu gets around 3000K/s TLB flush interrupt. Perf shows TLB flush
+> is hotest functions. mmap_sem read locking (because of page fault) is
+> also heavy.
+> 
+> with patch:
+> real    0m15.026s
+> user    0m48.548s
+> sys     6m41.153s
+> each cpu gets around 140k/s TLB flush interrupt. TLB flush isn't hot at
+> all. mmap_sem read locking (still because of page fault) becomes the
+> sole hot spot.
+> 
+> Another test malloc a bunch of memory in 48 threads, then all threads
+> free the memory. I measure the time of the memory free.
+> Without patch: 34.332s
+> With patch:    17.429s
+
+Nice. This approach makes a lot of sense to me.
+
+Is it too early to ack the patch? :)
 
 -- 
-Michal Hocko
-SUSE Labs
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
