@@ -1,67 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id A8F0982F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 13:22:14 -0400 (EDT)
-Received: by iody8 with SMTP id y8so86499783iod.1
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 10:22:14 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id t100si8495316ioe.171.2015.10.30.10.22.13
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 23A4182F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 14:34:09 -0400 (EDT)
+Received: by wmll128 with SMTP id l128so18909476wml.0
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 11:34:08 -0700 (PDT)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id 187si5379847wmy.53.2015.10.30.11.34.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Oct 2015 10:22:14 -0700 (PDT)
-Received: by pacfv9 with SMTP id fv9so83174633pac.3
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 10:22:13 -0700 (PDT)
-Date: Fri, 30 Oct 2015 10:22:12 -0700
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [PATCH 5/8] mm: move lazily freed pages to inactive list
-Message-ID: <20151030172212.GB44946@kernel.org>
-References: <1446188504-28023-1-git-send-email-minchan@kernel.org>
- <1446188504-28023-6-git-send-email-minchan@kernel.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Oct 2015 11:34:07 -0700 (PDT)
+Received: by wicfv8 with SMTP id fv8so16460719wic.0
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 11:34:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1446188504-28023-6-git-send-email-minchan@kernel.org>
+In-Reply-To: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
+References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
+Date: Fri, 30 Oct 2015 11:34:07 -0700
+Message-ID: <CAPcyv4haGNytokPfgL3m-qOEw=BO4QF5dO3woLSYZDCRmL-YWg@mail.gmail.com>
+Subject: Re: [RFC 00/11] DAX fsynx/msync support
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, zhangyanfei@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-On Fri, Oct 30, 2015 at 04:01:41PM +0900, Minchan Kim wrote:
-> MADV_FREE is a hint that it's okay to discard pages if there is memory
-> pressure and we use reclaimers(ie, kswapd and direct reclaim) to free them
-> so there is no value keeping them in the active anonymous LRU so this
-> patch moves them to inactive LRU list's head.
-> 
-> This means that MADV_FREE-ed pages which were living on the inactive list
-> are reclaimed first because they are more likely to be cold rather than
-> recently active pages.
-> 
-> An arguable issue for the approach would be whether we should put the page
-> to the head or tail of the inactive list.  I chose head because the kernel
-> cannot make sure it's really cold or warm for every MADV_FREE usecase but
-> at least we know it's not *hot*, so landing of inactive head would be a
-> comprimise for various usecases.
-> 
-> This fixes suboptimal behavior of MADV_FREE when pages living on the
-> active list will sit there for a long time even under memory pressure
-> while the inactive list is reclaimed heavily.  This basically breaks the
-> whole purpose of using MADV_FREE to help the system to free memory which
-> is might not be used.
+On Thu, Oct 29, 2015 at 1:12 PM, Ross Zwisler
+<ross.zwisler@linux.intel.com> wrote:
+> This patch series adds support for fsync/msync to DAX.
+>
+> Patches 1 through 8 add various utilities that the DAX code will eventually
+> need, and the DAX code itself is added by patch 9.  Patches 10 and 11 are
+> filesystem changes that are needed after the DAX code is added, but these
+> patches may change slightly as the filesystem fault handling for DAX is
+> being modified ([1] and [2]).
+>
+> I've marked this series as RFC because I'm still testing, but I wanted to
+> get this out there so people would see the direction I was going and
+> hopefully comment on any big red flags sooner rather than later.
+>
+> I realize that we are getting pretty dang close to the v4.4 merge window,
+> but I think that if we can get this reviewed and working it's a much better
+> solution than the "big hammer" approach that blindly flushes entire PMEM
+> namespaces [3].
+>
+> [1] http://oss.sgi.com/archives/xfs/2015-10/msg00523.html
+> [2] http://marc.info/?l=linux-ext4&m=144550211312472&w=2
+> [3] https://lists.01.org/pipermail/linux-nvdimm/2015-October/002614.html
+>
+> Ross Zwisler (11):
+>   pmem: add wb_cache_pmem() to the PMEM API
+>   mm: add pmd_mkclean()
+>   pmem: enable REQ_FLUSH handling
+>   dax: support dirty DAX entries in radix tree
+>   mm: add follow_pte_pmd()
+>   mm: add pgoff_mkclean()
+>   mm: add find_get_entries_tag()
+>   fs: add get_block() to struct inode_operations
+>   dax: add support for fsync/sync
+>   xfs, ext2: call dax_pfn_mkwrite() on write fault
+>   ext4: add ext4_dax_pfn_mkwrite()
 
-My main concern is the policy how we should treat the FREE pages. Moving it to
-inactive lru is definitionly a good start, I'm wondering if it's enough. The
-MADV_FREE increases memory pressure and cause unnecessary reclaim because of
-the lazy memory free. While MADV_FREE is intended to be a better replacement of
-MADV_DONTNEED, MADV_DONTNEED doesn't have the memory pressure issue as it free
-memory immediately. So I hope the MADV_FREE doesn't have impact on memory
-pressure too. I'm thinking of adding an extra lru list and wartermark for this
-to make sure FREE pages can be freed before system wide page reclaim. As you
-said, this is arguable, but I hope we can discuss about this issue more.
+This is great to have when the flush-the-world solution ends up
+killing performance.  However, there are a couple mitigating options
+for workloads that dirty small amounts and flush often that we need to
+collect data on:
 
-Or do you want to push this first and address the policy issue later?
+1/ Using cache management and pcommit from userspace to skip calls to
+msync / fsync.  Although, this does not eliminate all calls to
+blkdev_issue_flush as the fs may invoke it for other reasons.  I
+suspect turning on REQ_FUA support eliminates a number of those
+invocations, and pmem already satisfies REQ_FUA semantics by default.
 
-Thanks,
-Shaohua
+2/ Turn off DAX and use the page cache.  As Dave mentions [1] we
+should enable this control on a per-inode basis.  I'm folding in this
+capability as a blkdev_ioctl for the next version of the raw block DAX
+support patch.
+
+It's entirely possible these mitigations won't eliminate the need for
+a mechanism like this, but I think we have a bit more work to do to
+find out how bad this is in practice as well as the crossover point
+where walking the radix becomes prohibitive.
+
+We also have the option of tracking open DAX extents in the driver.
+Even at coarse granularities I'd be surprised if we can't mitigate
+most of the overhead.
+
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2015-October/002598.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
