@@ -1,72 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C52D582F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 08:48:37 -0400 (EDT)
-Received: by qgeo38 with SMTP id o38so60477759qge.0
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 05:48:37 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 198si5694886qhh.41.2015.10.30.05.48.37
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id E339582F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 08:55:06 -0400 (EDT)
+Received: by wicfx6 with SMTP id fx6so9965818wic.1
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 05:55:06 -0700 (PDT)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
+        by mx.google.com with ESMTPS id q141si3599664wmg.5.2015.10.30.05.55.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Oct 2015 05:48:37 -0700 (PDT)
-Message-ID: <56336721.2040908@redhat.com>
-Date: Fri, 30 Oct 2015 08:48:33 -0400
-From: Rik van Riel <riel@redhat.com>
+        Fri, 30 Oct 2015 05:55:05 -0700 (PDT)
+Received: by wmll128 with SMTP id l128so11553441wml.0
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 05:55:05 -0700 (PDT)
+Date: Fri, 30 Oct 2015 13:55:04 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 7/8] mm: clear PG_dirty to mark page freeable
+Message-ID: <20151030125504.GC23627@dhcp22.suse.cz>
+References: <1446188504-28023-1-git-send-email-minchan@kernel.org>
+ <1446188504-28023-8-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [RFC] mm: add a new vector based madvise syscall
-References: <20151029215516.GA3864685@devbig084.prn1.facebook.com>
-In-Reply-To: <20151029215516.GA3864685@devbig084.prn1.facebook.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1446188504-28023-8-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, mgorman@suse.de, hughd@google.com, hannes@cmpxchg.org, aarcange@redhat.com, je@fb.com, Kernel-team@fb.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, zhangyanfei@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, yalin.wang2010@gmail.com, Shaohua Li <shli@kernel.org>
 
-On 10/29/2015 05:55 PM, Shaohua Li wrote:
-> In jemalloc, a free(3) doesn't immediately free the memory to OS even
-> the memory is page aligned/size, and hope the memory can be reused soon.
-> Later the virtual address becomes fragmented, and more and more free
-> memory are aggregated. If the free memory size is large, jemalloc uses
-> madvise(DONT_NEED) to actually free the memory back to OS.
+On Fri 30-10-15 16:01:43, Minchan Kim wrote:
+> Basically, MADV_FREE relies on dirty bit in page table entry to decide
+> whether VM allows to discard the page or not.  IOW, if page table entry
+> includes marked dirty bit, VM shouldn't discard the page.
 > 
-> The madvise has significantly overhead paritcularly because of TLB
-> flush. jemalloc does madvise for several virtual address space ranges
-> one time. Instead of calling madvise for each of the ranges, we
-> introduce a new syscall to purge memory for several ranges one time. In
-> this way, we can merge several TLB flush for the ranges to one big TLB
-> flush. This also reduce mmap_sem locking.
+> However, as a example, if swap-in by read fault happens, page table entry
+> doesn't have dirty bit so MADV_FREE could discard the page wrongly.
 > 
-> I'm running a simple memory allocation benchmark. 32 threads do random
-> malloc/free/realloc. Corresponding jemalloc patch to utilize this API is
-> attached.
-> Without patch:
-> real    0m18.923s
-> user    1m11.819s
-> sys     7m44.626s
-> each cpu gets around 3000K/s TLB flush interrupt. Perf shows TLB flush
-> is hotest functions. mmap_sem read locking (because of page fault) is
-> also heavy.
+> For avoiding the problem, MADV_FREE did more checks with PageDirty
+> and PageSwapCache. It worked out because swapped-in page lives on
+> swap cache and since it is evicted from the swap cache, the page has
+> PG_dirty flag. So both page flags check effectively prevent
+> wrong discarding by MADV_FREE.
 > 
-> with patch:
-> real    0m15.026s
-> user    0m48.548s
-> sys     6m41.153s
-> each cpu gets around 140k/s TLB flush interrupt. TLB flush isn't hot at
-> all. mmap_sem read locking (still because of page fault) becomes the
-> sole hot spot.
+> However, a problem in above logic is that swapped-in page has
+> PG_dirty still after they are removed from swap cache so VM cannot
+> consider the page as freeable any more even if madvise_free is
+> called in future.
 > 
-> Another test malloc a bunch of memory in 48 threads, then all threads
-> free the memory. I measure the time of the memory free.
-> Without patch: 34.332s
-> With patch:    17.429s
+> Look at below example for detail.
+> 
+>     ptr = malloc();
+>     memset(ptr);
+>     ..
+>     ..
+>     .. heavy memory pressure so all of pages are swapped out
+>     ..
+>     ..
+>     var = *ptr; -> a page swapped-in and could be removed from
+>                    swapcache. Then, page table doesn't mark
+>                    dirty bit and page descriptor includes PG_dirty
+>     ..
+>     ..
+>     madvise_free(ptr); -> It doesn't clear PG_dirty of the page.
+>     ..
+>     ..
+>     ..
+>     .. heavy memory pressure again.
+>     .. In this time, VM cannot discard the page because the page
+>     .. has *PG_dirty*
+> 
+> To solve the problem, this patch clears PG_dirty if only the page is owned
+> exclusively by current process when madvise is called because PG_dirty
+> represents ptes's dirtiness in several processes so we could clear it only
+> if we own it exclusively.
+> 
+> Acked-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Nice. This approach makes a lot of sense to me.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Is it too early to ack the patch? :)
+> ---
+>  mm/madvise.c | 12 ++++++++++--
+>  1 file changed, 10 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 9ee9df8c768d..fc24104d6b3a 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -303,11 +303,19 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  		if (!page)
+>  			continue;
+>  
+> -		if (PageSwapCache(page)) {
+> +		if (PageSwapCache(page) || PageDirty(page)) {
+>  			if (!trylock_page(page))
+>  				continue;
+> +			/*
+> +			 * If page is shared with others, we couldn't clear
+> +			 * PG_dirty of the page.
+> +			 */
+> +			if (page_count(page) != 1 + !!PageSwapCache(page)) {
+> +				unlock_page(page);
+> +				continue;
+> +			}
+>  
+> -			if (!try_to_free_swap(page)) {
+> +			if (PageSwapCache(page) && !try_to_free_swap(page)) {
+>  				unlock_page(page);
+>  				continue;
+>  			}
+> -- 
+> 1.9.1
 
 -- 
-All rights reversed
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
