@@ -1,66 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 877D182F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 09:32:48 -0400 (EDT)
-Received: by obcqt19 with SMTP id qt19so43818748obc.3
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 06:32:48 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id x14si4367932oia.57.2015.10.30.06.32.46
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 0526882F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 09:52:49 -0400 (EDT)
+Received: by obctp1 with SMTP id tp1so44130618obc.2
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 06:52:48 -0700 (PDT)
+Received: from g1t6216.austin.hp.com (g1t6216.austin.hp.com. [15.73.96.123])
+        by mx.google.com with ESMTPS id ru10si4435861obb.2.2015.10.30.06.52.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 30 Oct 2015 06:32:47 -0700 (PDT)
-Subject: Re: [RFC 1/3] mm, oom: refactor oom detection
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1446131835-3263-1-git-send-email-mhocko@kernel.org>
-	<1446131835-3263-2-git-send-email-mhocko@kernel.org>
-	<00f201d112c8$e2377720$a6a66560$@alibaba-inc.com>
-	<20151030083626.GC18429@dhcp22.suse.cz>
-	<20151030101436.GH18429@dhcp22.suse.cz>
-In-Reply-To: <20151030101436.GH18429@dhcp22.suse.cz>
-Message-Id: <201510302232.FCH52626.OQJOFHSVFFOtLM@I-love.SAKURA.ne.jp>
-Date: Fri, 30 Oct 2015 22:32:27 +0900
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Oct 2015 06:52:48 -0700 (PDT)
+Message-ID: <1446212931.20657.161.camel@hpe.com>
+Subject: Re: [PATCH v2 UPDATE-2 3/3] ACPI/APEI/EINJ: Allow memory error
+ injection to NVDIMM
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Fri, 30 Oct 2015 07:48:51 -0600
+In-Reply-To: <20151030094029.GC20952@pd.tnic>
+References: <1445894544-21382-1-git-send-email-toshi.kani@hpe.com>
+	 <20151030094029.GC20952@pd.tnic>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: hillf.zj@alibaba-inc.com, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com, rientjes@google.com, linux-kernel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: tony.luck@intel.com, akpm@linux-foundation.org, dan.j.williams@intel.com, rjw@rjwysocki.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> +		target -= (stall_backoff * target + MAX_STALL_BACKOFF - 1) / MAX_STALL_BACKOFF;
-target -= DIV_ROUND_UP(stall_backoff * target, MAX_STALL_BACKOFF);
+On Fri, 2015-10-30 at 10:40 +0100, Borislav Petkov wrote:
+> On Mon, Oct 26, 2015 at 03:22:24PM -0600, Toshi Kani wrote:
+> > @@ -545,10 +545,15 @@ static int einj_error_inject(u32 type, u32 flags, u64
+> > param1, u64 param2,
+> >  	/*
+> >  	 * Disallow crazy address masks that give BIOS leeway to pick
+> >  	 * injection address almost anywhere. Insist on page or
+> > -	 * better granularity and that target address is normal RAM.
+> > +	 * better granularity and that target address is normal RAM or
+> > +	 * NVDIMM.
+> >  	 */
+> > -	pfn = PFN_DOWN(param1 & param2);
+> > -	if (!page_is_ram(pfn) || ((param2 & PAGE_MASK) != PAGE_MASK))
+> > +	base_addr = param1 & param2;
+> > +	size = (~param2) + 1;
+> 
+> Hmm, I missed this last time: why are the brackets there?
+> 
+> AFAIK, bitwise NOT has a higher precedence than addition.
 
+Yes, the brackets are not necessary.  I put them as self-explanatory of the
+precedence.  Shall I remove them, and send you an updated patch?
 
-
-Michal Hocko wrote:
-> This alone wouldn't be sufficient, though, because the writeback might
-> get stuck and reclaimable pages might be pinned for a really long time
-> or even depend on the current allocation context.
-
-Is this a dependency which I worried at
-http://lkml.kernel.org/r/201510262044.BAI43236.FOMSFFOtOVLJQH@I-love.SAKURA.ne.jp ?
-
->                                                   Therefore there is a
-> feedback mechanism implemented which reduces the reclaim target after
-> each reclaim round without any progress.
-
-If yes, this feedback mechanism will help avoiding infinite wait loop.
-
->                                          This means that we should
-> eventually converge to only NR_FREE_PAGES as the target and fail on the
-> wmark check and proceed to OOM.
-
-What if all in-flight allocation requests are !__GFP_NOFAIL && !__GFP_FS ?
-(In other words, either "no __GFP_FS allocations are in-flight" or "all
-__GFP_FS allocations are in-flight but are either waiting for completion
-of operations which depend on !__GFP_FS allocations with a lock held or
-waiting for that lock to be released".)
-
-Don't we need to call out_of_memory() even though !__GFP_FS allocations?
-
->                                 The backoff is simple and linear with
-> 1/16 of the reclaimable pages for each round without any progress. We
-> are optimistic and reset counter for successful reclaim rounds.
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
