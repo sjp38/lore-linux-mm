@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id BD29D82F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 00:10:24 -0400 (EDT)
-Received: by padhy1 with SMTP id hy1so55010486pad.0
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 21:10:24 -0700 (PDT)
-Received: from out4133-146.mail.aliyun.com (out4133-146.mail.aliyun.com. [42.120.133.146])
-        by mx.google.com with ESMTP id vs7si7656278pab.78.2015.10.29.21.10.23
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C6F382F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 00:19:02 -0400 (EDT)
+Received: by padhy1 with SMTP id hy1so55230830pad.0
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 21:19:01 -0700 (PDT)
+Received: from out4133-34.mail.aliyun.com (out4133-34.mail.aliyun.com. [42.120.133.34])
+        by mx.google.com with ESMTP id ax2si7671215pbc.170.2015.10.29.21.19.00
         for <linux-mm@kvack.org>;
-        Thu, 29 Oct 2015 21:10:23 -0700 (PDT)
+        Thu, 29 Oct 2015 21:19:01 -0700 (PDT)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1446131835-3263-1-git-send-email-mhocko@kernel.org> <1446131835-3263-2-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1446131835-3263-2-git-send-email-mhocko@kernel.org>
-Subject: Re: [RFC 1/3] mm, oom: refactor oom detection
-Date: Fri, 30 Oct 2015 12:10:15 +0800
-Message-ID: <00f201d112c8$e2377720$a6a66560$@alibaba-inc.com>
+References: <1446131835-3263-1-git-send-email-mhocko@kernel.org> <1446131835-3263-3-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1446131835-3263-3-git-send-email-mhocko@kernel.org>
+Subject: Re: [RFC 2/3] mm: throttle on IO only when there are too many dirty and writeback pages
+Date: Fri, 30 Oct 2015 12:18:50 +0800
+Message-ID: <00f301d112ca$14db86c0$3e929440$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="US-ASCII"
@@ -23,114 +23,39 @@ Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mhocko@kernel.org, linux-mm@kvack.org
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Mel Gorman' <mgorman@suse.de>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Rik van Riel' <riel@redhat.com>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'LKML' <linux-kernel@vger.kernel.org>, 'Michal Hocko' <mhocko@suse.com>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Mel Gorman' <mgorman@suse.de>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Rik van Riel' <riel@redhat.com>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'LKML' <linux-kernel@vger.kernel.org>, 'Michal Hocko' <mhocko@suse.com>, Christoph Lameter <cl@linux.com>
 
-> +/*
-> + * Number of backoff steps for potentially reclaimable pages if the direct reclaim
-> + * cannot make any progress. Each step will reduce 1/MAX_STALL_BACKOFF of the
-> + * reclaimable memory.
-> + */
-> +#define MAX_STALL_BACKOFF 16
-> +
->  static inline struct page *
->  __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  						struct alloc_context *ac)
-> @@ -2984,6 +2991,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	enum migrate_mode migration_mode = MIGRATE_ASYNC;
->  	bool deferred_compaction = false;
->  	int contended_compaction = COMPACT_CONTENDED_NONE;
-> +	struct zone *zone;
-> +	struct zoneref *z;
-> +	int stall_backoff = 0;
-> 
->  	/*
->  	 * In the slowpath, we sanity check order to avoid ever trying to
-> @@ -3135,13 +3145,56 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	if (gfp_mask & __GFP_NORETRY)
->  		goto noretry;
-> 
-> -	/* Keep reclaiming pages as long as there is reasonable progress */
-> +	/*
-> +	 * Do not retry high order allocations unless they are __GFP_REPEAT
-> +	 * and even then do not retry endlessly.
-> +	 */
->  	pages_reclaimed += did_some_progress;
-> -	if ((did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER) ||
-> -	    ((gfp_mask & __GFP_REPEAT) && pages_reclaimed < (1 << order))) {
-> -		/* Wait for some write requests to complete then retry */
-> -		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
-> -		goto retry;
-> +	if (order > PAGE_ALLOC_COSTLY_ORDER) {
-> +		if (!(gfp_mask & __GFP_REPEAT) || pages_reclaimed >= (1<<order))
-> +			goto noretry;
-> +
-> +		if (did_some_progress)
-> +			goto retry;
-> +	}
-> +
-> +	/*
-> +	 * Be optimistic and consider all pages on reclaimable LRUs as usable
-> +	 * but make sure we converge to OOM if we cannot make any progress after
-> +	 * multiple consecutive failed attempts.
-> +	 */
-> +	if (did_some_progress)
-> +		stall_backoff = 0;
-> +	else
-> +		stall_backoff = min(stall_backoff+1, MAX_STALL_BACKOFF);
-> +
-> +	/*
-> +	 * Keep reclaiming pages while there is a chance this will lead somewhere.
-> +	 * If none of the target zones can satisfy our allocation request even
-> +	 * if all reclaimable pages are considered then we are screwed and have
-> +	 * to go OOM.
-> +	 */
-> +	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx, ac->nodemask) {
-> +		unsigned long free = zone_page_state(zone, NR_FREE_PAGES);
-> +		unsigned long reclaimable;
-> +		unsigned long target;
-> +
-> +		reclaimable = zone_reclaimable_pages(zone) +
-> +			      zone_page_state(zone, NR_ISOLATED_FILE) +
-> +			      zone_page_state(zone, NR_ISOLATED_ANON);
-> +		target = reclaimable;
-> +		target -= stall_backoff * (1 + target/MAX_STALL_BACKOFF);
 
-		target = reclaimable - stall_backoff * (1 + target/MAX_STALL_BACKOFF);
-		             = reclaimable - stall_backoff - stall_backoff  * (target/MAX_STALL_BACKOFF);
-
-then the first stall_backoff looks unreasonable.
-I guess you mean
-		target	= reclaimable - target * (stall_backoff/MAX_STALL_BACKOFF);
-			= reclaimable - stall_back * (target/MAX_STALL_BACKOFF);
-
-> +		target += free;
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3191,8 +3191,23 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		 */
+>  		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
+>  				ac->high_zoneidx, alloc_flags, target)) {
+> -			/* Wait for some write requests to complete then retry */
+> -			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/50);
+> +			unsigned long writeback = zone_page_state(zone, NR_WRITEBACK),
+> +				      dirty = zone_page_state(zone, NR_FILE_DIRTY);
 > +
-> +		/*
-> +		 * Would the allocation succeed if we reclaimed the whole target?
-> +		 */
-> +		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
-> +				ac->high_zoneidx, alloc_flags, target)) {
-> +			/* Wait for some write requests to complete then retry */
-> +			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/50);
-> +			goto retry;
-> +		}
+> +			if (did_some_progress)
+> +				goto retry;
+> +
+> +			/*
+> +			 * If we didn't make any progress and have a lot of
+> +			 * dirty + writeback pages then we should wait for
+> +			 * an IO to complete to slow down the reclaim and
+> +			 * prevent from pre mature OOM
+> +			 */
+> +			if (2*(writeback + dirty) > reclaimable)
+> +				congestion_wait(BLK_RW_ASYNC, HZ/10);
+> +			else
+> +				cond_resched();
+> +
+
+Looks the vmstat updater issue is not addressed.
+>  			goto retry;
+>  		}
 >  	}
-> 
-[...]
-/*
-> @@ -2734,10 +2730,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  		goto retry;
->  	}
-> 
-> -	/* Any of the zones still reclaimable?  Don't OOM. */
-> -	if (zones_reclaimable)
-> -		return 1;
-> -
-
-Looks cleanup of zones_reclaimable left.
->  	return 0;
->  }
-> 
 > --
 > 2.6.1
 
