@@ -1,95 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C1AA982F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 01:49:12 -0400 (EDT)
-Received: by padhk11 with SMTP id hk11so63637359pad.1
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 22:49:12 -0700 (PDT)
-Received: from mgwym02.jp.fujitsu.com (mgwym02.jp.fujitsu.com. [211.128.242.41])
-        by mx.google.com with ESMTPS id yj10si8162290pab.237.2015.10.29.22.49.05
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C8182F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 02:20:20 -0400 (EDT)
+Received: by pacfv9 with SMTP id fv9so67045394pac.3
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 23:20:20 -0700 (PDT)
+Received: from mgwkm03.jp.fujitsu.com (mgwkm03.jp.fujitsu.com. [202.219.69.170])
+        by mx.google.com with ESMTPS id fe1si4370160pab.82.2015.10.29.23.20.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Oct 2015 22:49:06 -0700 (PDT)
-Received: from m3050.s.css.fujitsu.com (msm.b.css.fujitsu.com [10.134.21.208])
-	by yt-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id 446CBAC0271
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 14:48:58 +0900 (JST)
-Subject: Re: [RFC 2/3] mm: throttle on IO only when there are too many dirty
- and writeback pages
-References: <1446131835-3263-1-git-send-email-mhocko@kernel.org>
- <1446131835-3263-3-git-send-email-mhocko@kernel.org>
+        Thu, 29 Oct 2015 23:20:19 -0700 (PDT)
+Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
+	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id D3092AC0317
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 15:20:10 +0900 (JST)
+Subject: Re: [PATCH] mm: Introduce kernelcore=reliable option
+References: <1444915942-15281-1-git-send-email-izumi.taku@jp.fujitsu.com>
+ <3908561D78D1C84285E8C5FCA982C28F32B5A060@ORSMSX114.amr.corp.intel.com>
+ <5628B427.3050403@jp.fujitsu.com>
+ <3908561D78D1C84285E8C5FCA982C28F32B5C7AE@ORSMSX114.amr.corp.intel.com>
+ <E86EADE93E2D054CBCD4E708C38D364A54280C26@G01JPEXMBYT01>
+ <322B7BFA-08FE-4A8F-B54C-86901BDB7CBD@intel.com>
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <563304B8.6040703@jp.fujitsu.com>
-Date: Fri, 30 Oct 2015 14:48:40 +0900
+Message-ID: <56330C0A.3060901@jp.fujitsu.com>
+Date: Fri, 30 Oct 2015 15:19:54 +0900
 MIME-Version: 1.0
-In-Reply-To: <1446131835-3263-3-git-send-email-mhocko@kernel.org>
+In-Reply-To: <322B7BFA-08FE-4A8F-B54C-86901BDB7CBD@intel.com>
 Content-Type: text/plain; charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: "Luck, Tony" <tony.luck@intel.com>, "Izumi, Taku" <izumi.taku@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
 
-On 2015/10/30 0:17, mhocko@kernel.org wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On 2015/10/23 10:44, Luck, Tony wrote:
+> First part of each memory controller. I have two memory controllers on each node
 > 
-> wait_iff_congested has been used to throttle allocator before it retried
-> another round of direct reclaim to allow the writeback to make some
-> progress and prevent reclaim from looping over dirty/writeback pages
-> without making any progress. We used to do congestion_wait before
-> 0e093d99763e ("writeback: do not sleep on the congestion queue if
-> there are no congested BDIs or if significant congestion is not being
-> encountered in the current zone") but that led to undesirable stalls
-> and sleeping for the full timeout even when the BDI wasn't congested.
-> Hence wait_iff_congested was used instead. But it seems that even
-> wait_iff_congested doesn't work as expected. We might have a small file
-> LRU list with all pages dirty/writeback and yet the bdi is not congested
-> so this is just a cond_resched in the end and can end up triggering pre
-> mature OOM.
-> 
-> This patch replaces the unconditional wait_iff_congested by
-> congestion_wait which is executed only if we _know_ that the last round
-> of direct reclaim didn't make any progress and dirty+writeback pages are
-> more than a half of the reclaimable pages on the zone which might be
-> usable for our target allocation. This shouldn't reintroduce stalls
-> fixed by 0e093d99763e because congestion_wait is called only when we
-> are getting hopeless when sleeping is a better choice than OOM with many
-> pages under IO.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->   mm/page_alloc.c | 19 +++++++++++++++++--
->   1 file changed, 17 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9c0abb75ad53..0518ca6a9776 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3191,8 +3191,23 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->   		 */
->   		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
->   				ac->high_zoneidx, alloc_flags, target)) {
-> -			/* Wait for some write requests to complete then retry */
-> -			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/50);
-> +			unsigned long writeback = zone_page_state(zone, NR_WRITEBACK),
-> +				      dirty = zone_page_state(zone, NR_FILE_DIRTY);
-> +
-> +			if (did_some_progress)
-> +				goto retry;
-> +
-> +			/*
-> +			 * If we didn't make any progress and have a lot of
-> +			 * dirty + writeback pages then we should wait for
-> +			 * an IO to complete to slow down the reclaim and
-> +			 * prevent from pre mature OOM
-> +			 */
-> +			if (2*(writeback + dirty) > reclaimable)
 
-Doesn't this add unnecessary latency if other zones have enough clean memory ?
+If each memory controller has the same distance/latency, you (your firmware) don't need
+to allocate reliable memory per each memory controller.
+If distance is problem, another node should be allocated.
 
+...is the behavior(splitting zone) really required ?
 
 Thanks,
 -Kame
- 
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
