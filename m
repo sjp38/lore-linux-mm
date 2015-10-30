@@ -1,129 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A290182F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 03:01:21 -0400 (EDT)
-Received: by padhy1 with SMTP id hy1so59551520pad.0
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 00:01:21 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id kf3si8685903pbc.160.2015.10.30.00.01.18
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9532182F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 03:01:23 -0400 (EDT)
+Received: by pacfv9 with SMTP id fv9so68231421pac.3
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 00:01:23 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTPS id if5si8663715pbb.200.2015.10.30.00.01.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 30 Oct 2015 00:01:19 -0700 (PDT)
+        Fri, 30 Oct 2015 00:01:20 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 3/8] arch: uapi: asm: mman.h: Let MADV_FREE have same value for all architectures
-Date: Fri, 30 Oct 2015 16:01:39 +0900
-Message-Id: <1446188504-28023-4-git-send-email-minchan@kernel.org>
+Subject: [PATCH 4/8] mm: free swp_entry in madvise_free
+Date: Fri, 30 Oct 2015 16:01:40 +0900
+Message-Id: <1446188504-28023-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1446188504-28023-1-git-send-email-minchan@kernel.org>
 References: <1446188504-28023-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, zhangyanfei@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Shaohua Li <shli@kernel.org>, Chen Gang <gang.chen.5i5j@gmail.com>, "rth@twiddle.net" <rth@twiddle.net>, "ink@jurassic.park.msu.ru" <ink@jurassic.park.msu.ru>, "mattst88@gmail.com" <mattst88@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, "jejb@parisc-linux.org" <jejb@parisc-linux.org>, "deller@gmx.de" <deller@gmx.de>, "chris@zankel.net" <chris@zankel.net>, "jcmvbkbc@gmail.com" <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, zhangyanfei@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>
 
-From: Chen Gang <gang.chen.5i5j@gmail.com>
+When I test below piece of code with 12 processes(ie, 512M * 12 = 6G
+consume) on my (3G ram + 12 cpu + 8G swap, the madvise_free is siginficat
+slower (ie, 2x times) than madvise_dontneed.
 
-For uapi, need try to let all macros have same value, and MADV_FREE is
-added into main branch recently, so need redefine MADV_FREE for it.
+loop = 5;
+mmap(512M);
+while (loop--) {
+        memset(512M);
+        madvise(MADV_FREE or MADV_DONTNEED);
+}
 
-At present, '8' can be shared with all architectures, so redefine it to
-'8'.
+The reason is lots of swapin.
 
-Cc: rth@twiddle.net <rth@twiddle.net>,
-Cc: ink@jurassic.park.msu.ru <ink@jurassic.park.msu.ru>
-Cc: mattst88@gmail.com <mattst88@gmail.com>
-Cc: Ralf Baechle <ralf@linux-mips.org>
-Cc: jejb@parisc-linux.org <jejb@parisc-linux.org>
-Cc: deller@gmx.de <deller@gmx.de>
-Cc: chris@zankel.net <chris@zankel.net>
-Cc: jcmvbkbc@gmail.com <jcmvbkbc@gmail.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-arch@vger.kernel.org
-Cc: linux-api@vger.kernel.org
-Acked-by: Minchan Kim <minchan@kernel.org>
-Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
+1) dontneed: 1,612 swapin
+2) madvfree: 879,585 swapin
+
+If we find hinted pages were already swapped out when syscall is called,
+it's pointless to keep the swapped-out pages in pte.
+Instead, let's free the cold page because swapin is more expensive
+than (alloc page + zeroing).
+
+With this patch, it reduced swapin from 879,585 to 1,878 so elapsed time
+
+1) dontneed: 6.10user 233.50system 0:50.44elapsed
+2) madvfree: 6.03user 401.17system 1:30.67elapsed
+2) madvfree + below patch: 6.70user 339.14system 1:04.45elapsed
+
+Acked-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- arch/alpha/include/uapi/asm/mman.h     | 2 +-
- arch/mips/include/uapi/asm/mman.h      | 2 +-
- arch/parisc/include/uapi/asm/mman.h    | 2 +-
- arch/xtensa/include/uapi/asm/mman.h    | 2 +-
- include/uapi/asm-generic/mman-common.h | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ mm/madvise.c | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)
 
-diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-index 836fbd44f65b..0b8a5de7aee3 100644
---- a/arch/alpha/include/uapi/asm/mman.h
-+++ b/arch/alpha/include/uapi/asm/mman.h
-@@ -44,9 +44,9 @@
- #define MADV_WILLNEED	3		/* will need these pages */
- #define	MADV_SPACEAVAIL	5		/* ensure resources are available */
- #define MADV_DONTNEED	6		/* don't need these pages */
--#define MADV_FREE	7		/* free pages only if memory pressure */
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 640311704e31..663bd9fa0ae0 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -270,6 +270,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	spinlock_t *ptl;
+ 	pte_t *pte, ptent;
+ 	struct page *page;
++	swp_entry_t entry;
++	int nr_swap = 0;
  
- /* common/generic parameters */
-+#define MADV_FREE	8		/* free pages only if memory pressure */
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
-diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-index 106e741aa7ee..d247f5457944 100644
---- a/arch/mips/include/uapi/asm/mman.h
-+++ b/arch/mips/include/uapi/asm/mman.h
-@@ -67,9 +67,9 @@
- #define MADV_SEQUENTIAL 2		/* expect sequential page references */
- #define MADV_WILLNEED	3		/* will need these pages */
- #define MADV_DONTNEED	4		/* don't need these pages */
--#define MADV_FREE	5		/* free pages only if memory pressure */
+ 	split_huge_page_pmd(vma, addr, pmd);
+ 	if (pmd_trans_unstable(pmd))
+@@ -280,8 +282,22 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+ 		ptent = *pte;
  
- /* common parameters: try to keep these consistent across architectures */
-+#define MADV_FREE	8		/* free pages only if memory pressure */
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
-diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-index 6cb8db76fd4e..700d83fd9352 100644
---- a/arch/parisc/include/uapi/asm/mman.h
-+++ b/arch/parisc/include/uapi/asm/mman.h
-@@ -40,9 +40,9 @@
- #define MADV_SPACEAVAIL 5               /* insure that resources are reserved */
- #define MADV_VPS_PURGE  6               /* Purge pages from VM page cache */
- #define MADV_VPS_INHERIT 7              /* Inherit parents page size */
--#define MADV_FREE	8		/* free pages only if memory pressure */
+-		if (!pte_present(ptent))
++		if (pte_none(ptent))
+ 			continue;
++		/*
++		 * If the pte has swp_entry, just clear page table to
++		 * prevent swap-in which is more expensive rather than
++		 * (page allocation + zeroing).
++		 */
++		if (!pte_present(ptent)) {
++			entry = pte_to_swp_entry(ptent);
++			if (non_swap_entry(entry))
++				continue;
++			nr_swap--;
++			free_swap_and_cache(entry);
++			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
++			continue;
++		}
  
- /* common/generic parameters */
-+#define MADV_FREE	8		/* free pages only if memory pressure */
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
-diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index 1b19f25bc567..77eaca434071 100644
---- a/arch/xtensa/include/uapi/asm/mman.h
-+++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -80,9 +80,9 @@
- #define MADV_SEQUENTIAL	2		/* expect sequential page references */
- #define MADV_WILLNEED	3		/* will need these pages */
- #define MADV_DONTNEED	4		/* don't need these pages */
--#define MADV_FREE	5		/* free pages only if memory pressure */
- 
- /* common parameters: try to keep these consistent across architectures */
-+#define MADV_FREE	8		/* free pages only if memory pressure */
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index 7a94102b7a02..869595947873 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -34,9 +34,9 @@
- #define MADV_SEQUENTIAL	2		/* expect sequential page references */
- #define MADV_WILLNEED	3		/* will need these pages */
- #define MADV_DONTNEED	4		/* don't need these pages */
--#define MADV_FREE	5		/* free pages only if memory pressure */
- 
- /* common parameters: try to keep these consistent across architectures */
-+#define MADV_FREE	8		/* free pages only if memory pressure */
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
+ 		page = vm_normal_page(vma, addr, ptent);
+ 		if (!page)
+@@ -313,6 +329,14 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 		set_pte_at(mm, addr, pte, ptent);
+ 		tlb_remove_tlb_entry(tlb, pte, addr);
+ 	}
++
++	if (nr_swap) {
++		if (current->mm == mm)
++			sync_mm_rss(mm);
++
++		add_mm_counter(mm, MM_SWAPENTS, nr_swap);
++	}
++
+ 	arch_leave_lazy_mmu_mode();
+ 	pte_unmap_unlock(pte - 1, ptl);
+ 	cond_resched();
 -- 
 1.9.1
 
