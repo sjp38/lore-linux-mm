@@ -1,103 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 480A982F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 06:14:39 -0400 (EDT)
-Received: by wmff134 with SMTP id f134so8053000wmf.0
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 03:14:38 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D5B682F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 06:18:23 -0400 (EDT)
+Received: by wicll6 with SMTP id ll6so7335304wic.0
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 03:18:22 -0700 (PDT)
 Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
-        by mx.google.com with ESMTPS id 193si2709204wmx.83.2015.10.30.03.14.37
+        by mx.google.com with ESMTPS id p3si8026185wjb.37.2015.10.30.03.18.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Oct 2015 03:14:38 -0700 (PDT)
-Received: by wmll128 with SMTP id l128so8206511wml.0
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 03:14:37 -0700 (PDT)
-Date: Fri, 30 Oct 2015 11:14:36 +0100
+        Fri, 30 Oct 2015 03:18:22 -0700 (PDT)
+Received: by wmeg8 with SMTP id g8so8093263wme.0
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 03:18:21 -0700 (PDT)
+Date: Fri, 30 Oct 2015 11:18:20 +0100
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [RFC 1/3] mm, oom: refactor oom detection
-Message-ID: <20151030101436.GH18429@dhcp22.suse.cz>
+Message-ID: <20151030101819.GI18429@dhcp22.suse.cz>
 References: <1446131835-3263-1-git-send-email-mhocko@kernel.org>
  <1446131835-3263-2-git-send-email-mhocko@kernel.org>
- <00f201d112c8$e2377720$a6a66560$@alibaba-inc.com>
- <20151030083626.GC18429@dhcp22.suse.cz>
+ <5632FEEF.2050709@jp.fujitsu.com>
+ <20151030082323.GB18429@dhcp22.suse.cz>
+ <56333B4A.4030602@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151030083626.GC18429@dhcp22.suse.cz>
+In-Reply-To: <56333B4A.4030602@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: linux-mm@kvack.org, 'Andrew Morton' <akpm@linux-foundation.org>, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Mel Gorman' <mgorman@suse.de>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Rik van Riel' <riel@redhat.com>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'LKML' <linux-kernel@vger.kernel.org>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 30-10-15 09:36:26, Michal Hocko wrote:
-> On Fri 30-10-15 12:10:15, Hillf Danton wrote:
-> [...]
-> > > +	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx, ac->nodemask) {
-> > > +		unsigned long free = zone_page_state(zone, NR_FREE_PAGES);
-> > > +		unsigned long reclaimable;
-> > > +		unsigned long target;
-> > > +
-> > > +		reclaimable = zone_reclaimable_pages(zone) +
-> > > +			      zone_page_state(zone, NR_ISOLATED_FILE) +
-> > > +			      zone_page_state(zone, NR_ISOLATED_ANON);
-> > > +		target = reclaimable;
-> > > +		target -= stall_backoff * (1 + target/MAX_STALL_BACKOFF);
-> > 
-> > 		target = reclaimable - stall_backoff * (1 + target/MAX_STALL_BACKOFF);
-> > 		             = reclaimable - stall_backoff - stall_backoff  * (target/MAX_STALL_BACKOFF);
-> > 
-> > then the first stall_backoff looks unreasonable.
+On Fri 30-10-15 18:41:30, KAMEZAWA Hiroyuki wrote:
+[...]
+> >>So, now, 0-order page allocation may fail in a OOM situation ?
+> >
+> >No they don't normally and this patch doesn't change the logic here.
+> >
 > 
-> First stall_backoff is off by 1 but that shouldn't make any difference.
+> I understand your patch doesn't change the behavior.
+> Looking into __alloc_pages_may_oom(), *did_some_progress is finally set by
 > 
-> > I guess you mean
-> > 		target	= reclaimable - target * (stall_backoff/MAX_STALL_BACKOFF);
-> > 			= reclaimable - stall_back * (target/MAX_STALL_BACKOFF);
+>      if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
+>                 *did_some_progress = 1;
 > 
-> No the reason I used the bias is to converge for MAX_STALL_BACKOFF. If
-> you have target which is not divisible by MAX_STALL_BACKOFF then the
-> rounding would get target > 0 and so we wouldn't converge. With the +1
-> you underflow which is MAX_STALL_BACKOFF in maximum which should be
-> fixed up by the free memory. Maybe a check for free < MAX_STALL_BACKOFF
-> would be good but I didn't get that far with this.
+> ...depends on out_of_memory() return value.
+> Now, allocation may fail if oom-killer is disabled.... Isn't it complicated ?
 
-I've ended up with the following after all. It uses ceiling for the
-division this should be underflow safe albeit less readable (at least
-for me).
----
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0dc1ca9b1219..c9a4e62f234e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3176,7 +3176,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 			      zone_page_state(zone, NR_ISOLATED_FILE) +
- 			      zone_page_state(zone, NR_ISOLATED_ANON);
- 		target = reclaimable;
--		target -= stall_backoff * (1 + target/MAX_STALL_BACKOFF);
-+		target -= (stall_backoff * target + MAX_STALL_BACKOFF - 1) / MAX_STALL_BACKOFF;
- 		target += free;
+Yes and there shouldn't be any allocations after OOM killer has been
+disabled. The userspace is already frozen and there shouldn't be any
+other memory activity.
  
- 		/*
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bc14217acd47..0b3ec972ec7a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2672,7 +2672,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 	int initial_priority = sc->priority;
- 	unsigned long total_scanned = 0;
- 	unsigned long writeback_threshold;
--	bool zones_reclaimable;
- retry:
- 	delayacct_freepages_start();
- 
-@@ -2683,7 +2682,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
- 				sc->priority);
- 		sc->nr_scanned = 0;
--		zones_reclaimable = shrink_zones(zonelist, sc);
-+		shrink_zones(zonelist, sc);
- 
- 		total_scanned += sc->nr_scanned;
- 		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+> Shouldn't we have
+> 
+>  if (order < PAGE_ALLOC_COSTLY_ORDER)
+>     goto retry;
+> 
+> here ?
+
+How could we move on during the suspend if the reclaim doesn't proceed
+and we cannot really kill anything to free up memory resources. We are
+simply past the moment any userspace can be woken up. Anyway this is
+tangent to this particular patch series.
+
 -- 
 Michal Hocko
 SUSE Labs
