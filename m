@@ -1,123 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C2D082F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 16:59:56 -0400 (EDT)
-Received: by padhk11 with SMTP id hk11so84426439pad.1
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 13:59:56 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id en5si13491187pbd.215.2015.10.30.13.59.54
+Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CF3E82F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 19:40:48 -0400 (EDT)
+Received: by oiao187 with SMTP id o187so68273499oia.3
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 16:40:48 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id o82si5644697oif.96.2015.10.30.16.40.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Oct 2015 13:59:55 -0700 (PDT)
-Subject: Re: [PATCH] mm/hugetlb: Unmap pages if page fault raced with hole
- punch
-References: <1446158038-25815-1-git-send-email-mike.kravetz@oracle.com>
- <alpine.LSU.2.11.1510291937340.5781@eggly.anvils>
- <56339EBA.4070508@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Oct 2015 16:40:47 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <5633D984.7080307@oracle.com>
-Date: Fri, 30 Oct 2015 13:56:36 -0700
-MIME-Version: 1.0
-In-Reply-To: <56339EBA.4070508@oracle.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas with holes
+Date: Fri, 30 Oct 2015 16:32:12 -0700
+Message-Id: <1446247932-11348-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On 10/30/2015 09:45 AM, Mike Kravetz wrote:
-> On 10/29/2015 08:32 PM, Hugh Dickins wrote:
->> On Thu, 29 Oct 2015, Mike Kravetz wrote:
->>
->>> This patch is a combination of:
->>> [PATCH v2 4/4] mm/hugetlb: Unmap pages to remove if page fault raced
->>> 	with hole punch  and,
->>> [PATCH] mm/hugetlb: i_mmap_lock_write before unmapping in
->>> 	remove_inode_hugepages
->>> This patch can replace the entire series:
->>> [PATCH v2 0/4] hugetlbfs fallocate hole punch race with page faults
->>> 	and
->>> [PATCH] mm/hugetlb: i_mmap_lock_write before unmapping in
->>> 	remove_inode_hugepages
->>> It is being provided in an effort to possibly make tree management easier.
->>>
->>> Page faults can race with fallocate hole punch.  If a page fault happens
->>> between the unmap and remove operations, the page is not removed and
->>> remains within the hole.  This is not the desired behavior.
->>>
->>> If this race is detected and a page is mapped, the remove operation
->>> (remove_inode_hugepages) will unmap the page before removing.  The unmap
->>> within remove_inode_hugepages occurs with the hugetlb_fault_mutex held
->>> so that no other faults can occur until the page is removed.
->>>
->>> The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
->>> remove_inode_hugepages to satisfy the new reference.
->>>
->>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->>
->> Sorry, I came here to give this a quick Ack, but find I cannot:
->> you're adding to the remove_inode_hugepages() loop (heading towards
->> 4.3 final), but its use of "next" looks wrong to me already.
-> 
-> You are correct, the (current) code is wrong.
-> 
-> The hugetlbfs fallocate code started with shmem as an example.  Some
-> of the complexities of that code are not needed in hugetlbfs.  However,
-> some remnants were left.
-> 
-> I'll create a patch to fix the existing code, then when that is acceptable
-> refactor this patch.
-> 
->>
->> Doesn't "next" need to be assigned from page->index much earlier?
->> If there's a hole in the file (which there very well might be, since
->> you've just implemented holepunch!), doesn't it do the wrong thing?
-> 
-> Yes, I think it will.
-> 
->>
->> And the loop itself is a bit weird, though that probably doesn't
->> matter very much: I said before, seeing the "while (next < end)",
->> that it's a straightforward scan from start to end, and sometimes
->> it would work that way; but buried inside is "next = start; continue;"
-> 
-> Correct, that next = start should not be there.
+Hugh Dickins pointed out problems with the new hugetlbfs fallocate
+hole punch code.  These problems are in the routine remove_inode_hugepages
+and mostly occur in the case where there are holes in the range of
+pages to be removed.  These holes could be the result of a previous hole
+punch or simply sparse allocation.
 
-The 'next = start' code is actually from the original truncate_hugepages
-routine.  This functionality was combined with that needed for hole punch
-to create remove_inode_hugepages().
+remove_inode_hugepages handles both hole punch and truncate operations.
+Page index handling was fixed/cleaned up so that holes are properly
+handled.  In addition, code was changed to ensure multiple passes of the
+address range only happens in the truncate case.  More comments were added
+to explain the different actions in each case.  A cond_resched() was added
+after removing up to PAGEVEC_SIZE pages.
 
-The following code was in truncate_hugepages:
+Some totally unnecessary code in hugetlbfs_fallocate() that remained from
+early development was also removed.
 
-	next = start;
-	while (1) {
-		if (!pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
-			if (next == start)
-				break;
-			next = start;
-			continue;
-		}
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ fs/hugetlbfs/inode.c | 44 +++++++++++++++++++++++++++++---------------
+ 1 file changed, 29 insertions(+), 15 deletions(-)
 
-
-So, in the truncate case pages starting at 'start' are deleted until
-pagevec_lookup fails.  Then, we call pagevec_lookup() again.  If no
-pages are found we are done.  Else, we repeat the whole process.
-
-Does anyone recall the reason for going back and looking for pages at
-index'es already deleted?  Git doesn't help as that was part of initial
-commit.  My thought is that truncate can race with page faults.  The
-truncate code sets inode offset before unmapping and deleting pages.
-So, faults after the new offset is set should fail.  But, I suppose a
-fault could race with setting offset and deleting of pages.  Does this
-sound right?  Or, is there some other reason I am missing?
-
-I would like to continue having remove_inode_hugepages handle both the
-truncate and hole punch case.  So, what to make sure the code correctly
-handles both cases.
-
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 316adb9..30cf534 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -368,10 +368,25 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+ 			lookup_nr = end - next;
+ 
+ 		/*
+-		 * This pagevec_lookup() may return pages past 'end',
+-		 * so we must check for page->index > end.
++		 * When no more pages are found, take different action for
++		 * hole punch and truncate.
++		 *
++		 * For hole punch, this indicates we have removed each page
++		 * within the range and are done.  Note that pages may have
++		 * been faulted in after being removed in the hole punch case.
++		 * This is OK as long as each page in the range was removed
++		 * once.
++		 *
++		 * For truncate, we need to make sure all pages within the
++		 * range are removed when exiting this routine.  We could
++		 * have raced with a fault that brought in a page after it
++		 * was first removed.  Check the range again until no pages
++		 * are found.
+ 		 */
+ 		if (!pagevec_lookup(&pvec, mapping, next, lookup_nr)) {
++			if (!truncate_op)
++				break;
++
+ 			if (next == start)
+ 				break;
+ 			next = start;
+@@ -382,19 +397,23 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+ 			struct page *page = pvec.pages[i];
+ 			u32 hash;
+ 
++			/*
++			 * The page (index) could be beyond end.  This is
++			 * only possible in the punch hole case as end is
++			 * LLONG_MAX for truncate.
++			 */
++			if (page->index >= end) {
++				next = end;	/* we are done */
++				break;
++			}
++			next = page->index;
++
+ 			hash = hugetlb_fault_mutex_hash(h, current->mm,
+ 							&pseudo_vma,
+ 							mapping, next, 0);
+ 			mutex_lock(&hugetlb_fault_mutex_table[hash]);
+ 
+ 			lock_page(page);
+-			if (page->index >= end) {
+-				unlock_page(page);
+-				mutex_unlock(&hugetlb_fault_mutex_table[hash]);
+-				next = end;	/* we are done */
+-				break;
+-			}
+-
+ 			/*
+ 			 * If page is mapped, it was faulted in after being
+ 			 * unmapped.  Do nothing in this race case.  In the
+@@ -423,15 +442,13 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+ 				}
+ 			}
+ 
+-			if (page->index > next)
+-				next = page->index;
+-
+ 			++next;
+ 			unlock_page(page);
+ 
+ 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
+ 		}
+ 		huge_pagevec_release(&pvec);
++		cond_resched();
+ 	}
+ 
+ 	if (truncate_op)
+@@ -647,9 +664,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+ 	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
+ 		i_size_write(inode, offset + len);
+ 	inode->i_ctime = CURRENT_TIME;
+-	spin_lock(&inode->i_lock);
+-	inode->i_private = NULL;
+-	spin_unlock(&inode->i_lock);
+ out:
+ 	mutex_unlock(&inode->i_mutex);
+ 	return error;
 -- 
-Mike Kravetz
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
