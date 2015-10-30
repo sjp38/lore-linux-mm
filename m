@@ -1,55 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 0526882F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 09:52:49 -0400 (EDT)
-Received: by obctp1 with SMTP id tp1so44130618obc.2
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 06:52:48 -0700 (PDT)
-Received: from g1t6216.austin.hp.com (g1t6216.austin.hp.com. [15.73.96.123])
-        by mx.google.com with ESMTPS id ru10si4435861obb.2.2015.10.30.06.52.48
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Oct 2015 06:52:48 -0700 (PDT)
-Message-ID: <1446212931.20657.161.camel@hpe.com>
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CCA6682F64
+	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 10:47:43 -0400 (EDT)
+Received: by wmll128 with SMTP id l128so14080149wml.0
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 07:47:43 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id eq8si9408695wjc.105.2015.10.30.07.47.42
+        for <linux-mm@kvack.org>;
+        Fri, 30 Oct 2015 07:47:42 -0700 (PDT)
+Date: Fri, 30 Oct 2015 15:47:30 +0100
+From: Borislav Petkov <bp@alien8.de>
 Subject: Re: [PATCH v2 UPDATE-2 3/3] ACPI/APEI/EINJ: Allow memory error
  injection to NVDIMM
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Fri, 30 Oct 2015 07:48:51 -0600
-In-Reply-To: <20151030094029.GC20952@pd.tnic>
+Message-ID: <20151030144730.GG20952@pd.tnic>
 References: <1445894544-21382-1-git-send-email-toshi.kani@hpe.com>
-	 <20151030094029.GC20952@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20151030094029.GC20952@pd.tnic>
+ <1446212931.20657.161.camel@hpe.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1446212931.20657.161.camel@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: tony.luck@intel.com, akpm@linux-foundation.org, dan.j.williams@intel.com, rjw@rjwysocki.net, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Toshi Kani <toshi.kani@hpe.com>, rjw@rjwysocki.net
+Cc: tony.luck@intel.com, akpm@linux-foundation.org, dan.j.williams@intel.com, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, 2015-10-30 at 10:40 +0100, Borislav Petkov wrote:
-> On Mon, Oct 26, 2015 at 03:22:24PM -0600, Toshi Kani wrote:
-> > @@ -545,10 +545,15 @@ static int einj_error_inject(u32 type, u32 flags, u64
-> > param1, u64 param2,
-> >  	/*
-> >  	 * Disallow crazy address masks that give BIOS leeway to pick
-> >  	 * injection address almost anywhere. Insist on page or
-> > -	 * better granularity and that target address is normal RAM.
-> > +	 * better granularity and that target address is normal RAM or
-> > +	 * NVDIMM.
-> >  	 */
-> > -	pfn = PFN_DOWN(param1 & param2);
-> > -	if (!page_is_ram(pfn) || ((param2 & PAGE_MASK) != PAGE_MASK))
-> > +	base_addr = param1 & param2;
-> > +	size = (~param2) + 1;
-> 
-> Hmm, I missed this last time: why are the brackets there?
-> 
-> AFAIK, bitwise NOT has a higher precedence than addition.
+On Fri, Oct 30, 2015 at 07:48:51AM -0600, Toshi Kani wrote:
+> Yes, the brackets are not necessary. I put them as self-explanatory of
+> the precedence. Shall I remove them, and send you an updated patch?
 
-Yes, the brackets are not necessary.  I put them as self-explanatory of the
-precedence.  Shall I remove them, and send you an updated patch?
+Not necessary, I have my high hopes that Rafael can remove them when
+applying :-)
 
-Thanks,
--Toshi
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
