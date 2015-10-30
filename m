@@ -1,255 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 36AAA82F64
-	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 23:32:58 -0400 (EDT)
-Received: by igpw7 with SMTP id w7so3114911igp.0
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 20:32:58 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id 7si5834387ioe.78.2015.10.29.20.32.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Oct 2015 20:32:57 -0700 (PDT)
-Received: by pacfv9 with SMTP id fv9so62510120pac.3
-        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 20:32:57 -0700 (PDT)
-Date: Thu, 29 Oct 2015 20:32:48 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm/hugetlb: Unmap pages if page fault raced with hole
- punch
-In-Reply-To: <1446158038-25815-1-git-send-email-mike.kravetz@oracle.com>
-Message-ID: <alpine.LSU.2.11.1510291937340.5781@eggly.anvils>
-References: <1446158038-25815-1-git-send-email-mike.kravetz@oracle.com>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C82282F64
+	for <linux-mm@kvack.org>; Thu, 29 Oct 2015 23:55:38 -0400 (EDT)
+Received: by padhk11 with SMTP id hk11so60662886pad.1
+        for <linux-mm@kvack.org>; Thu, 29 Oct 2015 20:55:38 -0700 (PDT)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id yn6si7544559pab.112.2015.10.29.20.55.36
+        for <linux-mm@kvack.org>;
+        Thu, 29 Oct 2015 20:55:37 -0700 (PDT)
+Date: Fri, 30 Oct 2015 14:55:33 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC 00/11] DAX fsynx/msync support
+Message-ID: <20151030035533.GU19199@dastard>
+References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-On Thu, 29 Oct 2015, Mike Kravetz wrote:
-
-> This patch is a combination of:
-> [PATCH v2 4/4] mm/hugetlb: Unmap pages to remove if page fault raced
-> 	with hole punch  and,
-> [PATCH] mm/hugetlb: i_mmap_lock_write before unmapping in
-> 	remove_inode_hugepages
-> This patch can replace the entire series:
-> [PATCH v2 0/4] hugetlbfs fallocate hole punch race with page faults
-> 	and
-> [PATCH] mm/hugetlb: i_mmap_lock_write before unmapping in
-> 	remove_inode_hugepages
-> It is being provided in an effort to possibly make tree management easier.
+On Thu, Oct 29, 2015 at 02:12:04PM -0600, Ross Zwisler wrote:
+> This patch series adds support for fsync/msync to DAX.
 > 
-> Page faults can race with fallocate hole punch.  If a page fault happens
-> between the unmap and remove operations, the page is not removed and
-> remains within the hole.  This is not the desired behavior.
+> Patches 1 through 8 add various utilities that the DAX code will eventually
+> need, and the DAX code itself is added by patch 9.  Patches 10 and 11 are
+> filesystem changes that are needed after the DAX code is added, but these
+> patches may change slightly as the filesystem fault handling for DAX is
+> being modified ([1] and [2]).
 > 
-> If this race is detected and a page is mapped, the remove operation
-> (remove_inode_hugepages) will unmap the page before removing.  The unmap
-> within remove_inode_hugepages occurs with the hugetlb_fault_mutex held
-> so that no other faults can occur until the page is removed.
+> I've marked this series as RFC because I'm still testing, but I wanted to
+> get this out there so people would see the direction I was going and
+> hopefully comment on any big red flags sooner rather than later.
 > 
-> The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
-> remove_inode_hugepages to satisfy the new reference.
+> I realize that we are getting pretty dang close to the v4.4 merge window,
+> but I think that if we can get this reviewed and working it's a much better
+> solution than the "big hammer" approach that blindly flushes entire PMEM
+> namespaces [3].
+
+We need the "big hammer" regardless of fsync. If REQ_FLUSH and
+REQ_FUA don't do the right thing when it comes to ordering journal
+writes against other IO operations, then the filesystems are not
+crash safe. i.e. we need REQ_FLUSH/REQ_FUA to commit all outstanding
+changes back to stable storage, just like they do for existing
+storage....
+
+> [1] http://oss.sgi.com/archives/xfs/2015-10/msg00523.html
+> [2] http://marc.info/?l=linux-ext4&m=144550211312472&w=2
+> [3] https://lists.01.org/pipermail/linux-nvdimm/2015-October/002614.html
 > 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Ross Zwisler (11):
+>   pmem: add wb_cache_pmem() to the PMEM API
+>   mm: add pmd_mkclean()
+>   pmem: enable REQ_FLUSH handling
+>   dax: support dirty DAX entries in radix tree
+>   mm: add follow_pte_pmd()
+>   mm: add pgoff_mkclean()
+>   mm: add find_get_entries_tag()
+>   fs: add get_block() to struct inode_operations
 
-Sorry, I came here to give this a quick Ack, but find I cannot:
-you're adding to the remove_inode_hugepages() loop (heading towards
-4.3 final), but its use of "next" looks wrong to me already.
+I don't think this is the right thing to do - it propagates the use
+of bufferheads as a mapping structure into places where we do not
+want bufferheads. We've recently added a similar block mapping
+interface to the export operations structure for PNFS and that uses
+a "struct iomap" which is far more suited to being an inode
+operation this.
 
-Doesn't "next" need to be assigned from page->index much earlier?
-If there's a hole in the file (which there very well might be, since
-you've just implemented holepunch!), doesn't it do the wrong thing?
+We have plans to move this to the inode operations for various
+reasons. e.g: multipage write, adding interfaces that support proper
+mapping of holes, etc:
 
-And the loop itself is a bit weird, though that probably doesn't
-matter very much: I said before, seeing the "while (next < end)",
-that it's a straightforward scan from start to end, and sometimes
-it would work that way; but buried inside is "next = start; continue;"
-from a contrasting "pincer" loop (which goes back to squeeze every
-page out of the range, lest faults raced truncation or holepunch).
-I know the originals in truncate.c or shmem.c are quite tricky,
-but this being different again would take time to validate.
+https://www.redhat.com/archives/cluster-devel/2014-October/msg00167.html
 
-No cond_resched() either.
+So after many years of saying no to moving getblocks to the inode
+operations it seems like the wrong thing to do now considering I
+want to convert all the DAX code to use iomaps while only 2/3
+filesystems are supported...
 
-Hugh
+>   dax: add support for fsync/sync
 
-> ---
->  fs/hugetlbfs/inode.c | 125 ++++++++++++++++++++++++++-------------------------
->  1 file changed, 65 insertions(+), 60 deletions(-)
-> 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 316adb9..8b8e5e8 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -324,11 +324,44 @@ static void remove_huge_page(struct page *page)
->  	delete_from_page_cache(page);
->  }
->  
-> +static inline void
-> +hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
-> +{
-> +	struct vm_area_struct *vma;
-> +
-> +	/*
-> +	 * end == 0 indicates that the entire range after
-> +	 * start should be unmapped.
-> +	 */
-> +	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
-> +		unsigned long v_offset;
-> +
-> +		/*
-> +		 * Can the expression below overflow on 32-bit arches?
-> +		 * No, because the interval tree returns us only those vmas
-> +		 * which overlap the truncated area starting at pgoff,
-> +		 * and no vma on a 32-bit arch can span beyond the 4GB.
-> +		 */
-> +		if (vma->vm_pgoff < start)
-> +			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
-> +		else
-> +			v_offset = 0;
-> +
-> +		if (end) {
-> +			end = ((end - start) << PAGE_SHIFT) +
-> +			       vma->vm_start + v_offset;
-> +			if (end > vma->vm_end)
-> +				end = vma->vm_end;
-> +		} else
-> +			end = vma->vm_end;
-> +
-> +		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
-> +	}
-> +}
->  
->  /*
->   * remove_inode_hugepages handles two distinct cases: truncation and hole
->   * punch.  There are subtle differences in operation for each case.
-> -
->   * truncation is indicated by end of range being LLONG_MAX
->   *	In this case, we first scan the range and release found pages.
->   *	After releasing pages, hugetlb_unreserve_pages cleans up region/reserv
-> @@ -381,12 +414,27 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->  		for (i = 0; i < pagevec_count(&pvec); ++i) {
->  			struct page *page = pvec.pages[i];
->  			u32 hash;
-> +			bool rsv_on_error;
->  
->  			hash = hugetlb_fault_mutex_hash(h, current->mm,
->  							&pseudo_vma,
->  							mapping, next, 0);
->  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
->  
-> +			/*
-> +			 * If page is mapped, it was faulted in after being
-> +			 * unmapped in caller.  Unmap (again) now after taking
-> +			 * the fault mutex.  The mutex will prevent faults
-> +			 * until we finish removing the page.
-> +			 */
-> +			if (page_mapped(page)) {
-> +				i_mmap_lock_write(mapping);
-> +				hugetlb_vmdelete_list(&mapping->i_mmap,
-> +					next * pages_per_huge_page(h),
-> +					(next + 1) * pages_per_huge_page(h));
-> +				i_mmap_unlock_write(mapping);
-> +			}
-> +
->  			lock_page(page);
->  			if (page->index >= end) {
->  				unlock_page(page);
-> @@ -396,31 +444,23 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->  			}
->  
->  			/*
-> -			 * If page is mapped, it was faulted in after being
-> -			 * unmapped.  Do nothing in this race case.  In the
-> -			 * normal case page is not mapped.
-> +			 * We must free the huge page and remove from page
-> +			 * cache (remove_huge_page) BEFORE removing the
-> +			 * region/reserve map (hugetlb_unreserve_pages).
-> +			 * In rare out of memory conditions, removal of the
-> +			 * region/reserve map could fail.  Before free'ing
-> +			 * the page, note PagePrivate which is used in case
-> +			 * of error.
->  			 */
-> -			if (!page_mapped(page)) {
-> -				bool rsv_on_error = !PagePrivate(page);
-> -				/*
-> -				 * We must free the huge page and remove
-> -				 * from page cache (remove_huge_page) BEFORE
-> -				 * removing the region/reserve map
-> -				 * (hugetlb_unreserve_pages).  In rare out
-> -				 * of memory conditions, removal of the
-> -				 * region/reserve map could fail.  Before
-> -				 * free'ing the page, note PagePrivate which
-> -				 * is used in case of error.
-> -				 */
-> -				remove_huge_page(page);
-> -				freed++;
-> -				if (!truncate_op) {
-> -					if (unlikely(hugetlb_unreserve_pages(
-> -							inode, next,
-> -							next + 1, 1)))
-> -						hugetlb_fix_reserve_counts(
-> -							inode, rsv_on_error);
-> -				}
-> +			rsv_on_error = !PagePrivate(page);
-> +			remove_huge_page(page);
-> +			freed++;
-> +			if (!truncate_op) {
-> +				if (unlikely(hugetlb_unreserve_pages(inode,
-> +								next, next + 1,
-> +								1)))
-> +					hugetlb_fix_reserve_counts(inode,
-> +								rsv_on_error);
->  			}
->  
->  			if (page->index > next)
-> @@ -450,41 +490,6 @@ static void hugetlbfs_evict_inode(struct inode *inode)
->  	clear_inode(inode);
->  }
->  
-> -static inline void
-> -hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
-> -{
-> -	struct vm_area_struct *vma;
-> -
-> -	/*
-> -	 * end == 0 indicates that the entire range after
-> -	 * start should be unmapped.
-> -	 */
-> -	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
-> -		unsigned long v_offset;
-> -
-> -		/*
-> -		 * Can the expression below overflow on 32-bit arches?
-> -		 * No, because the interval tree returns us only those vmas
-> -		 * which overlap the truncated area starting at pgoff,
-> -		 * and no vma on a 32-bit arch can span beyond the 4GB.
-> -		 */
-> -		if (vma->vm_pgoff < start)
-> -			v_offset = (start - vma->vm_pgoff) << PAGE_SHIFT;
-> -		else
-> -			v_offset = 0;
-> -
-> -		if (end) {
-> -			end = ((end - start) << PAGE_SHIFT) +
-> -			       vma->vm_start + v_offset;
-> -			if (end > vma->vm_end)
-> -				end = vma->vm_end;
-> -		} else
-> -			end = vma->vm_end;
-> -
-> -		unmap_hugepage_range(vma, vma->vm_start + v_offset, end, NULL);
-> -	}
-> -}
-> -
->  static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
->  {
->  	pgoff_t pgoff;
-> -- 
-> 2.4.3
-> 
-> 
+Why put the dax_flush_mapping() in do_writepages()? Why not call it
+directly from the filesystem ->fsync() implementations where a
+getblocks callback could also be provided?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
