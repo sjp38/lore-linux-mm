@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2449682F64
-	for <linux-mm@kvack.org>; Fri, 30 Oct 2015 23:57:20 -0400 (EDT)
-Received: by pasz6 with SMTP id z6so91515117pas.2
-        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 20:57:19 -0700 (PDT)
-Received: from us-alimail-mta1.hst.scl.en.alidc.net (mail113-250.mail.alibaba.com. [205.204.113.250])
-        by mx.google.com with ESMTP id qy7si15731819pab.169.2015.10.30.20.57.17
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E6A882F64
+	for <linux-mm@kvack.org>; Sat, 31 Oct 2015 01:07:37 -0400 (EDT)
+Received: by padhk11 with SMTP id hk11so92909881pad.1
+        for <linux-mm@kvack.org>; Fri, 30 Oct 2015 22:07:36 -0700 (PDT)
+Received: from us-alimail-mta1.hst.scl.en.alidc.net (mail113-248.mail.alibaba.com. [205.204.113.248])
+        by mx.google.com with ESMTP id nx14si16179318pab.69.2015.10.30.22.07.34
         for <linux-mm@kvack.org>;
-        Fri, 30 Oct 2015 20:57:19 -0700 (PDT)
+        Fri, 30 Oct 2015 22:07:36 -0700 (PDT)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1446131835-3263-1-git-send-email-mhocko@kernel.org> <1446131835-3263-2-git-send-email-mhocko@kernel.org> <00f201d112c8$e2377720$a6a66560$@alibaba-inc.com> <20151030083626.GC18429@dhcp22.suse.cz> <20151030101436.GH18429@dhcp22.suse.cz>
-In-Reply-To: <20151030101436.GH18429@dhcp22.suse.cz>
-Subject: Re: [RFC 1/3] mm, oom: refactor oom detection
-Date: Sat, 31 Oct 2015 11:57:00 +0800
-Message-ID: <007101d11390$32703d90$9750b8b0$@alibaba-inc.com>
+Subject: Re: [PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas with holes
+Date: Sat, 31 Oct 2015 13:07:15 +0800
+Message-ID: <007901d1139a$030b0440$09210cc0$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
@@ -22,87 +20,141 @@ Content-Transfer-Encoding: 7bit
 Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, 'Andrew Morton' <akpm@linux-foundation.org>, 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Mel Gorman' <mgorman@suse.de>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Rik van Riel' <riel@redhat.com>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'LKML' <linux-kernel@vger.kernel.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>
 
-> On Fri 30-10-15 09:36:26, Michal Hocko wrote:
-> > On Fri 30-10-15 12:10:15, Hillf Danton wrote:
-> > [...]
-> > > > +	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx, ac->nodemask) {
-> > > > +		unsigned long free = zone_page_state(zone, NR_FREE_PAGES);
-> > > > +		unsigned long reclaimable;
-> > > > +		unsigned long target;
-> > > > +
-> > > > +		reclaimable = zone_reclaimable_pages(zone) +
-> > > > +			      zone_page_state(zone, NR_ISOLATED_FILE) +
-> > > > +			      zone_page_state(zone, NR_ISOLATED_ANON);
-> > > > +		target = reclaimable;
-> > > > +		target -= stall_backoff * (1 + target/MAX_STALL_BACKOFF);
-> > >
-> > > 		target = reclaimable - stall_backoff * (1 + target/MAX_STALL_BACKOFF);
-> > > 		             = reclaimable - stall_backoff - stall_backoff  * (target/MAX_STALL_BACKOFF);
-> > >
-> > > then the first stall_backoff looks unreasonable.
-> >
-> > First stall_backoff is off by 1 but that shouldn't make any difference.
-> >
-> > > I guess you mean
-> > > 		target	= reclaimable - target * (stall_backoff/MAX_STALL_BACKOFF);
-> > > 			= reclaimable - stall_back * (target/MAX_STALL_BACKOFF);
-> >
-> > No the reason I used the bias is to converge for MAX_STALL_BACKOFF. If
-> > you have target which is not divisible by MAX_STALL_BACKOFF then the
-> > rounding would get target > 0 and so we wouldn't converge. With the +1
-> > you underflow which is MAX_STALL_BACKOFF in maximum which should be
-> > fixed up by the free memory. Maybe a check for free < MAX_STALL_BACKOFF
-> > would be good but I didn't get that far with this.
 > 
-> I've ended up with the following after all. It uses ceiling for the
-> division this should be underflow safe albeit less readable (at least
-> for me).
-
-Looks good, thanks.
-
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-
+> Hugh Dickins pointed out problems with the new hugetlbfs fallocate
+> hole punch code.  These problems are in the routine remove_inode_hugepages
+> and mostly occur in the case where there are holes in the range of
+> pages to be removed.  These holes could be the result of a previous hole
+> punch or simply sparse allocation.
+> 
+> remove_inode_hugepages handles both hole punch and truncate operations.
+> Page index handling was fixed/cleaned up so that holes are properly
+> handled.  In addition, code was changed to ensure multiple passes of the
+> address range only happens in the truncate case.  More comments were added
+> to explain the different actions in each case.  A cond_resched() was added
+> after removing up to PAGEVEC_SIZE pages.
+> 
+> Some totally unnecessary code in hugetlbfs_fallocate() that remained from
+> early development was also removed.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 > ---
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 0dc1ca9b1219..c9a4e62f234e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3176,7 +3176,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  			      zone_page_state(zone, NR_ISOLATED_FILE) +
->  			      zone_page_state(zone, NR_ISOLATED_ANON);
->  		target = reclaimable;
-> -		target -= stall_backoff * (1 + target/MAX_STALL_BACKOFF);
-> +		target -= (stall_backoff * target + MAX_STALL_BACKOFF - 1) / MAX_STALL_BACKOFF;
->  		target += free;
+>  fs/hugetlbfs/inode.c | 44 +++++++++++++++++++++++++++++---------------
+>  1 file changed, 29 insertions(+), 15 deletions(-)
+> 
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 316adb9..30cf534 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -368,10 +368,25 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+>  			lookup_nr = end - next;
 > 
 >  		/*
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index bc14217acd47..0b3ec972ec7a 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2672,7 +2672,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  	int initial_priority = sc->priority;
->  	unsigned long total_scanned = 0;
->  	unsigned long writeback_threshold;
-> -	bool zones_reclaimable;
->  retry:
->  	delayacct_freepages_start();
+> -		 * This pagevec_lookup() may return pages past 'end',
+> -		 * so we must check for page->index > end.
+> +		 * When no more pages are found, take different action for
+> +		 * hole punch and truncate.
+> +		 *
+> +		 * For hole punch, this indicates we have removed each page
+> +		 * within the range and are done.  Note that pages may have
+> +		 * been faulted in after being removed in the hole punch case.
+> +		 * This is OK as long as each page in the range was removed
+> +		 * once.
+> +		 *
+> +		 * For truncate, we need to make sure all pages within the
+> +		 * range are removed when exiting this routine.  We could
+> +		 * have raced with a fault that brought in a page after it
+> +		 * was first removed.  Check the range again until no pages
+> +		 * are found.
+>  		 */
+>  		if (!pagevec_lookup(&pvec, mapping, next, lookup_nr)) {
+> +			if (!truncate_op)
+> +				break;
+> +
+>  			if (next == start)
+>  				break;
+>  			next = start;
+> @@ -382,19 +397,23 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+>  			struct page *page = pvec.pages[i];
+>  			u32 hash;
 > 
-> @@ -2683,7 +2682,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
->  				sc->priority);
->  		sc->nr_scanned = 0;
-> -		zones_reclaimable = shrink_zones(zonelist, sc);
-> +		shrink_zones(zonelist, sc);
+> +			/*
+> +			 * The page (index) could be beyond end.  This is
+> +			 * only possible in the punch hole case as end is
+> +			 * LLONG_MAX for truncate.
+> +			 */
+> +			if (page->index >= end) {
+> +				next = end;	/* we are done */
+> +				break;
+> +			}
+> +			next = page->index;
+> +
+>  			hash = hugetlb_fault_mutex_hash(h, current->mm,
+>  							&pseudo_vma,
+>  							mapping, next, 0);
+>  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
 > 
->  		total_scanned += sc->nr_scanned;
->  		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+>  			lock_page(page);
+> -			if (page->index >= end) {
+> -				unlock_page(page);
+> -				mutex_unlock(&hugetlb_fault_mutex_table[hash]);
+> -				next = end;	/* we are done */
+> -				break;
+> -			}
+> -
+>  			/*
+>  			 * If page is mapped, it was faulted in after being
+>  			 * unmapped.  Do nothing in this race case.  In the
+> @@ -423,15 +442,13 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+>  				}
+>  			}
+> 
+> -			if (page->index > next)
+> -				next = page->index;
+> -
+>  			++next;
+>  			unlock_page(page);
+> 
+>  			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
+>  		}
+>  		huge_pagevec_release(&pvec);
+> +		cond_resched();
+>  	}
+> 
+>  	if (truncate_op)
+> @@ -647,9 +664,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+
+This hunk is already in the next tree, see below please.
+
+>  	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
+>  		i_size_write(inode, offset + len);
+>  	inode->i_ctime = CURRENT_TIME;
+> -	spin_lock(&inode->i_lock);
+> -	inode->i_private = NULL;
+> -	spin_unlock(&inode->i_lock);
+>  out:
+>  	mutex_unlock(&inode->i_mutex);
+>  	return error;
 > --
-> Michal Hocko
-> SUSE Labs
+> 2.4.3
+> 
+In the next tree,
+	4e0a78fea078af972276c2d3aeaceb2bac80e033
+	mm/hugetlb: setup hugetlb_falloc during fallocate hole punch
+
+@@ -647,9 +676,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+ 	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
+ 		i_size_write(inode, offset + len);
+ 	inode->i_ctime = CURRENT_TIME;
+-	spin_lock(&inode->i_lock);
+-	inode->i_private = NULL;
+-	spin_unlock(&inode->i_lock);
+ out:
+ 	mutex_unlock(&inode->i_mutex);
+ 	return error;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
