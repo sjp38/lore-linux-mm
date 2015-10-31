@@ -1,185 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A366B82F64
-	for <linux-mm@kvack.org>; Sat, 31 Oct 2015 13:59:56 -0400 (EDT)
-Received: by pacfv9 with SMTP id fv9so108916504pac.3
-        for <linux-mm@kvack.org>; Sat, 31 Oct 2015 10:59:56 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id sy8si20428804pac.67.2015.10.31.10.59.54
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E3416B0254
+	for <linux-mm@kvack.org>; Sat, 31 Oct 2015 19:39:16 -0400 (EDT)
+Received: by wijp11 with SMTP id p11so31292837wij.0
+        for <linux-mm@kvack.org>; Sat, 31 Oct 2015 16:39:16 -0700 (PDT)
+Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
+        by mx.google.com with ESMTPS id j15si18223487wjn.71.2015.10.31.16.39.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 31 Oct 2015 10:59:55 -0700 (PDT)
-Subject: Re: [PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas
- with holes
-References: <007901d1139a$030b0440$09210cc0$@alibaba-inc.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <56350014.2040800@oracle.com>
-Date: Sat, 31 Oct 2015 10:53:24 -0700
-MIME-Version: 1.0
-In-Reply-To: <007901d1139a$030b0440$09210cc0$@alibaba-inc.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Sat, 31 Oct 2015 16:39:15 -0700 (PDT)
+Message-ID: <1446334747.2595.19.camel@decadent.org.uk>
+Subject: [PATCH selftests 5/6] selftests: vm: Try harder to allocate huge
+ pages
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Sat, 31 Oct 2015 23:39:07 +0000
+In-Reply-To: <1446334510.2595.13.camel@decadent.org.uk>
+References: <1446334510.2595.13.camel@decadent.org.uk>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-QFC3UrDrbq8T6yGt/Hc5"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>
+To: Shuah Khan <shuahkh@osg.samsung.com>
+Cc: linux-api@vger.kernel.org, linux-mm@kvack.org
 
-On 10/30/2015 10:07 PM, Hillf Danton wrote:
->>
->> Hugh Dickins pointed out problems with the new hugetlbfs fallocate
->> hole punch code.  These problems are in the routine remove_inode_hugepages
->> and mostly occur in the case where there are holes in the range of
->> pages to be removed.  These holes could be the result of a previous hole
->> punch or simply sparse allocation.
->>
->> remove_inode_hugepages handles both hole punch and truncate operations.
->> Page index handling was fixed/cleaned up so that holes are properly
->> handled.  In addition, code was changed to ensure multiple passes of the
->> address range only happens in the truncate case.  More comments were added
->> to explain the different actions in each case.  A cond_resched() was added
->> after removing up to PAGEVEC_SIZE pages.
->>
->> Some totally unnecessary code in hugetlbfs_fallocate() that remained from
->> early development was also removed.
->>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>  fs/hugetlbfs/inode.c | 44 +++++++++++++++++++++++++++++---------------
->>  1 file changed, 29 insertions(+), 15 deletions(-)
->>
->> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
->> index 316adb9..30cf534 100644
->> --- a/fs/hugetlbfs/inode.c
->> +++ b/fs/hugetlbfs/inode.c
->> @@ -368,10 +368,25 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->>  			lookup_nr = end - next;
->>
->>  		/*
->> -		 * This pagevec_lookup() may return pages past 'end',
->> -		 * so we must check for page->index > end.
->> +		 * When no more pages are found, take different action for
->> +		 * hole punch and truncate.
->> +		 *
->> +		 * For hole punch, this indicates we have removed each page
->> +		 * within the range and are done.  Note that pages may have
->> +		 * been faulted in after being removed in the hole punch case.
->> +		 * This is OK as long as each page in the range was removed
->> +		 * once.
->> +		 *
->> +		 * For truncate, we need to make sure all pages within the
->> +		 * range are removed when exiting this routine.  We could
->> +		 * have raced with a fault that brought in a page after it
->> +		 * was first removed.  Check the range again until no pages
->> +		 * are found.
->>  		 */
->>  		if (!pagevec_lookup(&pvec, mapping, next, lookup_nr)) {
->> +			if (!truncate_op)
->> +				break;
->> +
->>  			if (next == start)
->>  				break;
->>  			next = start;
->> @@ -382,19 +397,23 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->>  			struct page *page = pvec.pages[i];
->>  			u32 hash;
->>
->> +			/*
->> +			 * The page (index) could be beyond end.  This is
->> +			 * only possible in the punch hole case as end is
->> +			 * LLONG_MAX for truncate.
->> +			 */
->> +			if (page->index >= end) {
->> +				next = end;	/* we are done */
->> +				break;
->> +			}
->> +			next = page->index;
->> +
->>  			hash = hugetlb_fault_mutex_hash(h, current->mm,
->>  							&pseudo_vma,
->>  							mapping, next, 0);
->>  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
->>
->>  			lock_page(page);
->> -			if (page->index >= end) {
->> -				unlock_page(page);
->> -				mutex_unlock(&hugetlb_fault_mutex_table[hash]);
->> -				next = end;	/* we are done */
->> -				break;
->> -			}
->> -
->>  			/*
->>  			 * If page is mapped, it was faulted in after being
->>  			 * unmapped.  Do nothing in this race case.  In the
->> @@ -423,15 +442,13 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->>  				}
->>  			}
->>
->> -			if (page->index > next)
->> -				next = page->index;
->> -
->>  			++next;
->>  			unlock_page(page);
->>
->>  			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
->>  		}
->>  		huge_pagevec_release(&pvec);
->> +		cond_resched();
->>  	}
->>
->>  	if (truncate_op)
->> @@ -647,9 +664,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
-> 
-> This hunk is already in the next tree, see below please.
-> 
 
-Ah, the whole series to add shmem like code to handle hole punch/fault
-races is in the next tree.  It has been determined that most of this
-series is not necessary.  For the next tree, ideally the following
-should happen:
-- revert the series
-	0830d5afd4ab69d01cf5ceba9b9f2796564c4eb6
-	4e0a78fea078af972276c2d3aeaceb2bac80e033
-	251c8a023a0c639725e014a612e8c05a631ce839
-	03bcef375766af4db12ec783241ac39f8bf5e2b1
-- Add this patch (if Ack'ed/reviewed) to fix remove_inode_hugepages
-- Add a new patch for the handle hole punch/fault race.  It modifies
-  same code as this patch, so I have not sent out until this is Ack'ed.
+--=-QFC3UrDrbq8T6yGt/Hc5
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-I will admit that I do not fully understand how maintainers manage their
-trees and share patches.  If someone can make suggestions on how to handle
-this situation (create patches against what tree? send patches to who?),
-I will be happy to make it happen.
+If we need to increase the number of huge pages, drop caches first
+to reduce fragmentation and then check that we actually allocated
+as many as we wanted.=C2=A0=C2=A0Retry once if that doesn't work.
 
--- 
-Mike Kravetz
+Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
+---
+The test always fails for me in a 1 GB VM without this.
 
->>  	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
->>  		i_size_write(inode, offset + len);
->>  	inode->i_ctime = CURRENT_TIME;
->> -	spin_lock(&inode->i_lock);
->> -	inode->i_private = NULL;
->> -	spin_unlock(&inode->i_lock);
->>  out:
->>  	mutex_unlock(&inode->i_mutex);
->>  	return error;
->> --
->> 2.4.3
->>
-> In the next tree,
-> 	4e0a78fea078af972276c2d3aeaceb2bac80e033
-> 	mm/hugetlb: setup hugetlb_falloc during fallocate hole punch
-> 
-> @@ -647,9 +676,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
->  	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
->  		i_size_write(inode, offset + len);
->  	inode->i_ctime = CURRENT_TIME;
-> -	spin_lock(&inode->i_lock);
-> -	inode->i_private = NULL;
-> -	spin_unlock(&inode->i_lock);
->  out:
->  	mutex_unlock(&inode->i_mutex);
->  	return error;
-> 
+Ben.
+
+=C2=A0tools/testing/selftests/vm/run_vmtests | 15 ++++++++++++++-
+=C2=A01 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftes=
+ts/vm/run_vmtests
+index 9179ce8..97ed1b2 100755
+--- a/tools/testing/selftests/vm/run_vmtests
++++ b/tools/testing/selftests/vm/run_vmtests
+@@ -20,13 +20,26 @@ done < /proc/meminfo
+=C2=A0if [ -n "$freepgs" ] && [ -n "$pgsize" ]; then
+=C2=A0	nr_hugepgs=3D`cat /proc/sys/vm/nr_hugepages`
+=C2=A0	needpgs=3D`expr $needmem / $pgsize`
+-	if [ $freepgs -lt $needpgs ]; then
++	tries=3D2
++	while [ $tries -gt 0 ] && [ $freepgs -lt $needpgs ]; do
+=C2=A0		lackpgs=3D$(( $needpgs - $freepgs ))
++		echo 3 > /proc/sys/vm/drop_caches
+=C2=A0		echo $(( $lackpgs + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
+=C2=A0		if [ $? -ne 0 ]; then
+=C2=A0			echo "Please run this test as root"
+=C2=A0			exit 1
+=C2=A0		fi
++		while read name size unit; do
++			if [ "$name" =3D "HugePages_Free:" ]; then
++				freepgs=3D$size
++			fi
++		done < /proc/meminfo
++		tries=3D$((tries - 1))
++	done
++	if [ $freepgs -lt $needpgs ]; then
++		printf "Not enough huge pages available (%d < %d)\n" \
++		=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0$freepgs $needpgs
++		exit 1
+=C2=A0	fi
+=C2=A0else
+=C2=A0	echo "no hugetlbfs support in kernel?"
+
+--=20
+Ben Hutchings
+All extremists should be taken out and shot.
+--=-QFC3UrDrbq8T6yGt/Hc5
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIVAwUAVjVRG+e/yOyVhhEJAQrF4xAAiYIr51i4rTr+4Bby9dSyu9VGidiGXz2F
+kGLJRDYbFNhCAshrhP3FYISAgVTUxfd5B/SrLd0B3V5VGwOoopLzRdNxMMOF/lRT
+L5yEeGHCvwIa857dFN9G5mhW/QCymfo+1bEO0uCC3WIgMWVHZePVpTfNmtT9ePQj
+XmCOBKsOML/OTGm3hIhl4riC2xkk30K3obljx7dk8BRldAWNcm1PVPJTINT0EZ7I
+J4qy6Zx8zxmuCke7KG6tY+8EGoN44DA+761phyYDJX+JEBVIVCp0Crqv5Bi+BGNX
+5UUcQg21ADEoI2SKB8oA2xdaHB2Q4LfRgppHZckO0BKXCnpEbGI7Jkjo7zTyvV+y
+fagp1BA4KI7KveLgVrw+6iAoVrUxKqRsri6F/edSMFmC28LWqwK7RPSbKJlt3wt7
+RXPbWiLsrdqwV/coZ6gB5hMF5l0cXHOb24sBCiqPqtMyvo4kstAm7Hq0VDDvdZRm
+hzne6J8v6Mp8nrnbYhXABRpt6umOWOtk616PSc1+bYudqVcoJTnDmMyHnCJn9hCB
+FREAYxbC87e2bKHmQRq1wwg0wuwLcavBRqcH6C0/VhH2YdBy7whTbqvFjNgCW8xM
+PpvpheQUOMgAkSWxs+3GNJ4QEDj+2gtKfY9vQxwG8hD/JSuN00L7FczdnXwWOvEJ
+wqGgCwmq9Ug=
+=cQ5x
+-----END PGP SIGNATURE-----
+
+--=-QFC3UrDrbq8T6yGt/Hc5--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
