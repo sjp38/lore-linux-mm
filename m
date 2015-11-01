@@ -1,110 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E12A82F76
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2015 05:00:25 -0500 (EST)
-Received: by wijp11 with SMTP id p11so34870560wij.0
-        for <linux-mm@kvack.org>; Sun, 01 Nov 2015 02:00:24 -0800 (PST)
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
-        by mx.google.com with ESMTPS id f62si15321620wmd.43.2015.11.01.02.00.23
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id CD2546B026B
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2015 16:58:48 -0500 (EST)
+Received: by pasz6 with SMTP id z6so126755011pas.2
+        for <linux-mm@kvack.org>; Sun, 01 Nov 2015 13:58:48 -0800 (PST)
+Received: from out02.mta.xmission.com (out02.mta.xmission.com. [166.70.13.232])
+        by mx.google.com with ESMTPS id yv10si29591536pac.91.2015.11.01.13.58.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 01 Nov 2015 02:00:23 -0800 (PST)
-Received: by wmec75 with SMTP id c75so39624679wme.1
-        for <linux-mm@kvack.org>; Sun, 01 Nov 2015 02:00:23 -0800 (PST)
-Message-ID: <5635E2B4.5070308@electrozaur.com>
-Date: Sun, 01 Nov 2015 12:00:20 +0200
-From: Boaz Harrosh <ooo@electrozaur.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Sun, 01 Nov 2015 13:58:47 -0800 (PST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <1446067520-31806-1-git-send-email-dcashman@android.com>
+	<871tcewoso.fsf@x220.int.ebiederm.org>
+	<CABXk95DOSKv70p+=DQvHck5LCvRDc0WDORpoobSStWhrcrCiyg@mail.gmail.com>
+	<CAEP4de2GsEwn0eeO126GEtFb-FSJoU3fgOWTAr1yPFAmyXTi0Q@mail.gmail.com>
+	<87oafiuys0.fsf@x220.int.ebiederm.org> <56329880.4080103@android.com>
+Date: Sun, 01 Nov 2015 15:50:17 -0600
+In-Reply-To: <56329880.4080103@android.com> (Daniel Cashman's message of "Thu,
+	29 Oct 2015 15:06:56 -0700")
+Message-ID: <87k2q1tmna.fsf@x220.int.ebiederm.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] osd fs: __r4w_get_page rely on PageUptodate for uptodate
-References: <alpine.LSU.2.11.1510291137430.3369@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1510291137430.3369@eggly.anvils>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Subject: Re: [PATCH 1/2] mm: mmap: Add new /proc tunable for mmap_base ASLR.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Benny Halevy <bhalevy@primarydata.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Lameter <cl@linux.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, osd-dev@open-osd.org
+To: Daniel Cashman <dcashman@android.com>
+Cc: Jeffrey Vander Stoep <jeffv@google.com>, linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, Jonathan Corbet <corbet@lwn.net>, dzickus@redhat.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, Mel Gorman <mgorman@suse.de>, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, Mark Salyzyn <salyzyn@android.com>, Nick Kralevich <nnk@google.com>, dcashman <dcashman@google.com>
 
-On 10/29/2015 08:43 PM, Hugh Dickins wrote:
-> Patch "mm: migrate dirty page without clear_page_dirty_for_io etc",
-> presently staged in mmotm and linux-next, simplifies the migration of
-> a PageDirty pagecache page: one stat needs moving from zone to zone
-> and that's about all.
-> 
-> It's convenient and safest for it to shift the PageDirty bit from old
-> page to new, just before updating the zone stats: before copying data
-> and marking the new PageUptodate.  This is all done while both pages
-> are isolated and locked, just as before; and just as before, there's
-> a moment when the new page is visible in the radix_tree, but not yet
-> PageUptodate.  What's new is that it may now be briefly visible as
-> PageDirty before it is PageUptodate.
-> 
-> When I scoured the tree to see if this could cause a problem anywhere,
-> the only places I found were in two similar functions __r4w_get_page():
-> which look up a page with find_get_page() (not using page lock), then
-> claim it's uptodate if it's PageDirty or PageWriteback or PageUptodate.
-> 
-> I'm not sure whether that was right before, but now it might be wrong
-> (on rare occasions): only claim the page is uptodate if PageUptodate.
-> Or perhaps the page in question could never be migratable anyway?
-> 
+Daniel Cashman <dcashman@android.com> writes:
 
-Hi Sir Hugh
+> On 10/28/2015 08:41 PM, Eric W. Biederman wrote:
+>> Dan Cashman <dcashman@android.com> writes:
+>> 
+>>>>> This all would be much cleaner if the arm architecture code were just to
+>>>>> register the sysctl itself.
+>>>>>
+>>>>> As it sits this looks like a patchset that does not meaninfully bisect,
+>>>>> and would result in code that is hard to trace and understand.
+>>>>
+>>>> I believe the intent is to follow up with more architecture specific
+>>>> patches to allow each architecture to define the number of bits to use
+>>>
+>>> Yes.  I included these patches together because they provide mutual
+>>> context, but each has a different outcome and they could be taken
+>>> separately.
+>> 
+>> They can not.  The first patch is incomplete by itself.
+>
+> Could you be more specific in what makes the first patch incomplete?  Is
+> it because it is essentially a no-op without additional architecture
+> changes (e.g. the second patch) or is it specifically because it
+> introduces and uses the three "mmap_rnd_bits*" variables without
+> defining them?  If the former, I'd like to avoid combining the general
+> procfs change with any architecture-specific one(s).  If the latter, I
+> hope the proposal below addresses that.
 
-I'm sorry, I admit the code is clear as mud, but your patch below is wrong.
+A bit of both.  The fact that the code can not compile in the first
+patch because of missing variables is distressing.  Having the arch
+specific code as a separate patch is fine, but they need to remain in
+the same patchset.
 
-The *uptodate return from __r4w_get_page is not really "up-to-date" at all
-actually it means: "do we need to read the page from storage" writable/dirty pages
-we do not read from storage but use the newest data in memory.
+>>> The arm architecture-specific portion allows the changing
+>>> of the number of bits used for mmap ASLR, useful even without the
+>>> sysctl.  The sysctl patch (patch 1) provides another way of setting
+>>> this value, and the hope is that this will be adopted across multiple
+>>> architectures, with the arm changes (patch 2) providing an example.  I
+>>> hope to follow this with changes to arm64 and x86, for example.
+>> 
+>> If you want to make the code generic.  Please maximize the sharing.
+>> That is please define the variables in a generic location, as well
+>> as the Kconfig variables (if possible).
+>> 
+>> As it is you have an architecture specific piece of code that can not be
+>> reused without duplicating code, and that is just begging for problems.
+>
+> I think it would make sense to move the variable definitions into
+> mm/mmap.c, included conditionally based on the presence of
+> CONFIG_ARCH_MMAP_RND_BITS.
+>
+> As for the Kconfigs, I am open to suggestions.  I considered declaring
+> and documenting ARCH_MMAP_RND_BITS in arch/Kconfig, but I would like it
+> to be bounded in range by the _MIN and _MAX values, which necessarily
+> must be defined in the arch-specific Kconfigs.  Thus, we'd have
+> ARCH_MMAP_RND_BITS declared in arch/Kconfig as it currently is in
+> arch/arm/Kconfig defaulting to _MIN, and would declare both the _MIN and
+> _MAX in arch/Kconfig, while specifying default values in
+> arch/${ARCH}/Kconfig.
+>
+> Would these changes be more acceptable?
 
-r4w means read-for-write which is when we need to bring in the full stripe to
-re-calculate raid5/6 . (when only the partial stripe is written)
+Yes.  I don't think you can do much about the Kconfigs so I would not
+worry about that too much.
 
-The scenario below of: "briefly visible as PageDirty before it is PageUptodate"
-is fine in this case because in both cases we do not need to read the page.
-
-Thanks for looking
-Boaz
-
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-
-This patch is not correct!
-
-> ---
-> 
->  fs/exofs/inode.c             |    5 +----
->  fs/nfs/objlayout/objio_osd.c |    5 +----
->  2 files changed, 2 insertions(+), 8 deletions(-)
-> 
-> --- 4.3-next/fs/exofs/inode.c	2015-08-30 11:34:09.000000000 -0700
-> +++ linux/fs/exofs/inode.c	2015-10-28 16:55:18.795554294 -0700
-> @@ -592,10 +592,7 @@ static struct page *__r4w_get_page(void
->  			}
->  			unlock_page(page);
->  		}
-> -		if (PageDirty(page) || PageWriteback(page))
-> -			*uptodate = true;
-> -		else
-> -			*uptodate = PageUptodate(page);
-> +		*uptodate = PageUptodate(page);
->  		EXOFS_DBGMSG2("index=0x%lx uptodate=%d\n", index, *uptodate);
->  		return page;
->  	} else {
-> --- 4.3-next/fs/nfs/objlayout/objio_osd.c	2015-10-21 18:35:07.620645439 -0700
-> +++ linux/fs/nfs/objlayout/objio_osd.c	2015-10-28 16:53:55.083686639 -0700
-> @@ -476,10 +476,7 @@ static struct page *__r4w_get_page(void
->  		}
->  		unlock_page(page);
->  	}
-> -	if (PageDirty(page) || PageWriteback(page))
-> -		*uptodate = true;
-> -	else
-> -		*uptodate = PageUptodate(page);
-> +	*uptodate = PageUptodate(page);
->  	dprintk("%s: index=0x%lx uptodate=%d\n", __func__, index, *uptodate);
->  	return page;
->  }
-> 
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
