@@ -1,174 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FEC482F76
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2015 01:30:22 -0500 (EST)
-Received: by iofz202 with SMTP id z202so116482391iof.2
-        for <linux-mm@kvack.org>; Sat, 31 Oct 2015 23:30:22 -0700 (PDT)
-Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com. [2607:f8b0:4001:c05::22d])
-        by mx.google.com with ESMTPS id 17si13280249ioz.121.2015.10.31.23.30.21
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ECD682F76
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2015 02:46:39 -0500 (EST)
+Received: by padhy1 with SMTP id hy1so109577311pad.0
+        for <linux-mm@kvack.org>; Sun, 01 Nov 2015 00:46:38 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id fe1si20871785pab.82.2015.11.01.00.46.38
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 31 Oct 2015 23:30:21 -0700 (PDT)
-Received: by igbhv6 with SMTP id hv6so35896299igb.0
-        for <linux-mm@kvack.org>; Sat, 31 Oct 2015 23:30:21 -0700 (PDT)
-Subject: Re: [PATCH 0/8] MADV_FREE support
-References: <1446188504-28023-1-git-send-email-minchan@kernel.org>
- <alpine.DEB.2.10.1510312142560.10406@chino.kir.corp.google.com>
-From: Daniel Micay <danielmicay@gmail.com>
-Message-ID: <5635B159.8030307@gmail.com>
-Date: Sun, 1 Nov 2015 01:29:45 -0500
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1510312142560.10406@chino.kir.corp.google.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="EuRHwMLBw5CVJE0huIu9LbpjktbvTsiIP"
+        Sun, 01 Nov 2015 00:46:38 -0700 (PDT)
+Received: by padhy1 with SMTP id hy1so109577135pad.0
+        for <linux-mm@kvack.org>; Sun, 01 Nov 2015 00:46:38 -0700 (PDT)
+From: Jungseok Lee <jungseoklee85@gmail.com>
+Subject: [PATCH v6 0/3] Introduce IRQ stack on arm64 with percpu changes
+Date: Sun,  1 Nov 2015 07:46:14 +0000
+Message-Id: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, zhangyanfei@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Shaohua Li <shli@kernel.org>
+To: catalin.marinas@arm.com, will.deacon@arm.com, cl@linux.com, tj@kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+Cc: james.morse@arm.com, takahiro.akashi@linaro.org, mark.rutland@arm.com, barami97@gmail.com, linux-kernel@vger.kernel.org
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---EuRHwMLBw5CVJE0huIu9LbpjktbvTsiIP
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+This is version 6 of IRQ stack on arm64.
 
-On 01/11/15 12:51 AM, David Rientjes wrote:
-> On Fri, 30 Oct 2015, Minchan Kim wrote:
->=20
->> MADV_FREE is on linux-next so long time. The reason was two, I think.
->>
->> 1. MADV_FREE code on reclaim path was really mess.
->>
->> 2. Andrew really want to see voice of userland people who want to use
->>    the syscall.
->>
->> A few month ago, Daniel Micay(jemalloc active contributor) requested m=
-e
->> to make progress upstreaming but I was busy at that time so it took
->> so long time for me to revist the code and finally, I clean it up the
->> mess recently so it solves the #2 issue.
->>
->> As well, Daniel and Jason(jemalloc maintainer) requested it to Andrew
->> again recently and they said it would be great to have even though
->> it has swap dependency now so Andrew decided he will do that for v4.4.=
+A major change between v5 and v6 is how IRQ stack is allocated. The space
+is allocated via generic VM APIs, such as __get_free_pages() or kmalloc()
+up to v5. In contrast, PERCPU is responsible for the work in this version
+since it helps to 1) handle stack pointer with a minimum number of memory
+access and 2) unify memory allocation regardless of page size. (Now ARM64
+supports three kinds of page size: 4KB, 16KB, and 64KB.)
 
->>
->=20
-> First, thanks very much for refreshing the patchset and reposting after=
- a=20
-> series of changes have been periodically added to -mm, it makes it much=
-=20
-> easier.
->=20
-> For tcmalloc, we can do some things in the allocator itself to increase=
-=20
-> the amount of memory backed by thp.  Specifically, we can prefer to=20
-> release Spans to pageblocks that are already not backed by thp so there=
- is=20
-> no additional split on each scavenge.  This is somewhat easy if all mem=
-ory=20
-> is organized into hugepage-aligned pageblocks in the allocator itself. =
-=20
-> Second, we can prefer to release Spans of longer length on each scaveng=
-e=20
-> so we can delay scavenging for as long as possible in a hope we can fin=
-d=20
-> more pages to coalesce.  Third, we can discount refaulted released memo=
-ry=20
-> from the scavenging period.
->=20
-> That significantly improves the amount of memory backed by thp for=20
-> tcmalloc.  The problem, however, is that tcmalloc uses MADV_DONTNEED to=
-=20
-> release memory to the system and MADV_FREE wouldn't help at all in a=20
-> swapless environment.
->=20
-> To combat that, I've proposed a new MADV bit that simply caches the=20
-> ranges freed by the allocator per vma and places them on both a per-vma=
-=20
-> and per-memcg list.  During reclaim, this list is iterated and ptes are=
-=20
-> freed after thp split period to the normal directed reclaim.  Without=20
-> memory pressure, this backs 100% of the heap with thp with a relatively=
-=20
-> lightweight kernel change (the majority is vma manipulation on split) a=
-nd=20
-> a couple line change to tcmalloc.  When pulling memory from the returne=
-d=20
-> freelists, the memory that we have MADV_DONTNEED'd, we need to use anot=
-her=20
-> MADV bit to remove it from this cache, so there is a second madvise(2) =
+Unfortunately, generic percpu codes should be touched a little bit to
+support PERCPU stack allocation. That is, 'atom_size' should be adjusted
+in case of 4KB page system because stack pointer logic works on the
+assumption that IRQ stack is aligned with its own size. Although it is not
+mandated by ARMv8 architecture, the restriction faciliates IRQ re-entrance
+check and call trace linkage between procee stack and IRQ one.
 
-> syscall involved but the freeing call is much less expensive since ther=
-e=20
-> is no pagetable walk without memory pressure or synchronous thp split.
->=20
-> I've been looking at MADV_FREE to see if there is common ground that co=
-uld=20
-> be shared, but perhaps it's just easier to ask what your proposed strat=
-egy=20
-> is so that tcmalloc users, especially those in swapless environments,=20
-> would benefit from any of your work?
+It would be redundant to introduce ARM64-specific setup_per_cpu_areas()
+for a single parameter, 'atom_size' change. This is why this series tries
+to update the generic percpu layer. At the same time, but, it is doubtable
+to define a new definition for a single arch support. Thus, it is arguable
+which approach is better than the other. (I tried to get feedbacks via
+linux-mm, but no comments were left.)
 
-The current implementation requires swap because the kernel already has
-robust infrastructure for swapping out anonymous memory when there's
-memory pressure. The MADV_FREE implementation just has to hook in there
-and cause pages to be dropped instead of swapped out. There's no reason
-it couldn't be extended to work in swapless environments, but it will
-take additional design and implementation work. As a stop-gap, I think
-zram and friends will work fine as a form of swap for this.
+In case of Patch1 and Patch2, v6 tag, not v1 one, is appended to align
+with a history of this IRQ work. Please let me know if it violates patch
+submission rules.
 
-It can definitely be improved to cooperate well with THP too. I've been
-following the progress, and most of the problems seem to have been with
-the THP and that's a very active area of development. Seems best to deal
-with that after a simple, working implementation lands.
+Any comments are greatly welcome.
 
-The best aspect of MADV_FREE is that it completely avoids page faults
-when there's no memory pressure. Making use of the freed memory only
-triggers page faults if the pages had to be dropped because the system
-ran out of memory. It also avoids needing to zero the pages. The memory
-can also still be freed at any time if there's memory pressure again
-even if it's handed out as an allocation until it's actually touched.
+Thanks in advance!
 
-The call to madvise still has significant overhead, but it's much
-cheaper than MADV_DONTNEED. Allocators will be able to lean on the
-kernel to make good decisions rather than implementing lazy freeing
-entirely on their own. It should improve performance *and* behavior
-under memory pressure since allocators can be more aggressive with it
-than MADV_DONTNEED.
+Best Regards
+Jungseok Lee
 
-A nice future improvement would be landing MADV_FREE_UNDO feature to
-allow an attempt to pin the pages in memory again. It would make this
-work very well for implementing caches that are dropped under memory
-pressure. Windows has this via MEM_RESET (essentially MADV_FREE) and
-MEM_RESET_UNDO. Android has it for ashmem too (pinning/unpinning). I
-think browser vendors would be very interested in it.
+Changes since v5:
+- Introduced a new definition for 'atom_size' configuration
+- Used PERCPU for stack allocation, per Catalin
 
+Changes since v4: 
+- Supported 64KB page system
+- Introduced IRQ_STACK_* macro, per Catalin 
+- Rebased on top of for-next/core
 
---EuRHwMLBw5CVJE0huIu9LbpjktbvTsiIP
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+Changes since v3: 
+- Expanded stack trace to support IRQ stack
+- Added more comments
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+Changes since v2: 
+- Optmised current_thread_info function as removing masking operation
+  and volatile keyword, per James and Catalin
+- Reworked irq re-enterance check logic using top-bit comparison of
+  stacks, per James
+- Added sp_el0 update in cpu_resume, per James
+- Selected HAVE_IRQ_EXIT_ON_IRQ_STACK to expose this feature explicitly
+- Added a Tested-by tag from James
+- Added comments on sp_el0 as a helper messeage
 
-iQIcBAEBCAAGBQJWNbFdAAoJEPnnEuWa9fIqHEEP/0bBbBm8k0VQdktVYKeRRPZD
-iZzk92/p0lvhPbaN9tpXQK4TBeZGYIhxblsm3qqoiwaWdtzzePbujouyea9x5gar
-PGf0wB55zio3lfYgwjNLf/SRgMOsDmJEOhXDoB5a0f0EvpvZdXSbvI9r03z6HaSP
-Z2YRbybhHl1Xda6xb5CJUqzpG4E9k5oxMvRBoBxFT8+YUujf5weK8Ats8JFLO239
-GTU6jAySYpkGfG5kTyG7QRag2/zfOLvwb+3mToFsdlKDHl1tAiqix7PW2fMHq6Ua
-FVLg3Efl7uzAqdQnsc8XMG5Jax56KOj1dqfdb0FfJyPbwKMDX6uF6DaLl/QJtsag
-wLvn7uQMgtWc/GCVPi/ZdwwjpHga/1NB+xaZqLEkFi6KOqYoXNvhh4QiPidaAnZ4
-InnUiUC/Fz8cvxaHlB1Gz8aTK1IIGfYEdPx+LeOBkeXZVWWx7CQ3FAowTBpM+kIq
-EzeTLesaig60WV7AjtxsQ/NmTnY4v8Y9lIbQY2COD1p+25XhZckZ+Y9XdQaTEq8/
-CRcEc3uiyz64cwL8OhUfLCnHlFEg53uOjypt2BBTsT+UwbRBGeISPnni9Ltt5Zuq
-ZJSmzeFIEsej6Hy4JkB24bLzvEPdIFxYCn+xGYF0nL5AUPqGuBkMd+8IpuHInn1v
-PNtOKzoIvZaJ4CODt8oE
-=0//q
------END PGP SIGNATURE-----
+Changes since v1: 
+- Rebased on top of v4.3-rc1
+- Removed Kconfig about IRQ stack, per James
+- Used PERCPU for IRQ stack, per James
+- Tried to allocate IRQ stack when CPU is about to start up, per James
+- Moved sp_el0 update into kernel_entry macro, per James
+- Dropped S_SP removal patch, per Mark and James
 
---EuRHwMLBw5CVJE0huIu9LbpjktbvTsiIP--
+Jungseok Lee (3):
+  percpu: remove PERCPU_ENOUGH_ROOM which is stale definition
+  percpu: add PERCPU_ATOM_SIZE for a generic percpu area setup
+  arm64: Introduce IRQ stack
+
+ arch/arm64/Kconfig                   |  1 +
+ arch/arm64/include/asm/irq.h         |  6 +++
+ arch/arm64/include/asm/percpu.h      |  6 +++
+ arch/arm64/include/asm/thread_info.h | 10 +++-
+ arch/arm64/kernel/entry.S            | 42 ++++++++++++++--
+ arch/arm64/kernel/head.S             |  5 ++
+ arch/arm64/kernel/irq.c              |  2 +
+ arch/arm64/kernel/sleep.S            |  3 ++
+ arch/arm64/kernel/smp.c              |  4 +-
+ include/linux/percpu.h               |  6 +--
+ mm/percpu.c                          |  6 +--
+ 11 files changed, 75 insertions(+), 16 deletions(-)
+
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
