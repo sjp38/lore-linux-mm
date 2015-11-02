@@ -1,61 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 11C2C82F65
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 12:01:44 -0500 (EST)
-Received: by pasz6 with SMTP id z6so153779659pas.2
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 09:01:43 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id yo3si36139676pab.227.2015.11.02.09.01.35
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AABA6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 12:03:52 -0500 (EST)
+Received: by wikq8 with SMTP id q8so55792264wik.1
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 09:03:52 -0800 (PST)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id pe3si28379919wjb.62.2015.11.02.09.03.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Nov 2015 09:01:35 -0800 (PST)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 5/5] ksm: unstable_tree_search_insert error checking cleanup
-Date: Mon,  2 Nov 2015 18:01:31 +0100
-Message-Id: <1446483691-8494-6-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1446483691-8494-1-git-send-email-aarcange@redhat.com>
-References: <1446483691-8494-1-git-send-email-aarcange@redhat.com>
+        Mon, 02 Nov 2015 09:03:51 -0800 (PST)
+Received: by wmec75 with SMTP id c75so66044086wme.1
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 09:03:51 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <56332924.20107@gmail.com>
+References: <1446050357-40105-1-git-send-email-glider@google.com>
+	<56332924.20107@gmail.com>
+Date: Mon, 2 Nov 2015 09:03:51 -0800
+Message-ID: <CAG_fn=XErzKCg-PyggqAhjr4xePJ8k9UbUwy-yu7qFaR+WGd0A@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm, kasan: Added GFP flags to KASAN API
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>
-Cc: linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-get_mergeable_page() can only return NULL (also in case of errors) or
-the pinned mergeable page. It can't return an error different than
-NULL. This optimizes away the unnecessary error check.
+Fair enough. These are only used in
+https://github.com/steelannelida/kasan/commit/7c9b30f499dfd5f48b39fbbd0006c=
+788bd72f72a
+I think I'd better send them for review as part of that change.
 
-Add a return after the "out:" label in the callee to make it more
-readable.
+On Fri, Oct 30, 2015 at 1:24 AM, Andrey Ryabinin <ryabinin.a.a@gmail.com> w=
+rote:
+> On 10/28/2015 07:39 PM, Alexander Potapenko wrote:
+>> Add GFP flags to KASAN hooks for future patches to use.
+>
+> Really? These flags are still not used in the next patch (unless I missed=
+ something).
+>
+>> This is the first part of the "mm: kasan: unified support for SLUB and
+>> SLAB allocators" patch originally prepared by Dmitry Chernenkov.
+>>
+>> Signed-off-by: Dmitry Chernenkov <dmitryc@google.com>
+>> Signed-off-by: Alexander Potapenko <glider@google.com>
 
-Acked-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/ksm.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 0183083..b5cd647 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -475,7 +475,8 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
- 		flush_dcache_page(page);
- 	} else {
- 		put_page(page);
--out:		page = NULL;
-+out:
-+		page = NULL;
- 	}
- 	up_read(&mm->mmap_sem);
- 	return page;
-@@ -1358,7 +1359,7 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
- 		cond_resched();
- 		tree_rmap_item = rb_entry(*new, struct rmap_item, node);
- 		tree_page = get_mergeable_page(tree_rmap_item);
--		if (IS_ERR_OR_NULL(tree_page))
-+		if (!tree_page)
- 			return NULL;
- 
- 		/*
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Dienerstra=C3=9Fe 12
+80331 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
+Diese E-Mail ist vertraulich. Wenn Sie nicht der richtige Adressat sind,
+leiten Sie diese bitte nicht weiter, informieren Sie den
+Absender und l=C3=B6schen Sie die E-Mail und alle Anh=C3=A4nge. Vielen Dank=
+.
+This e-mail is confidential. If you are not the right addressee please
+do not forward it, please inform the sender, and please erase this
+e-mail including any attachments. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
