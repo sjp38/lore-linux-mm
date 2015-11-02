@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C80886B0038
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 12:01:34 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so29715918pab.0
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 09:01:34 -0800 (PST)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 620FA6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 12:01:35 -0500 (EST)
+Received: by pacfv9 with SMTP id fv9so160248164pac.3
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 09:01:35 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id uh5si36198533pab.115.2015.11.02.09.01.34
+        by mx.google.com with ESMTPS id zo6si36230982pbc.29.2015.11.02.09.01.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 02 Nov 2015 09:01:34 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 4/5] ksm: use find_mergeable_vma in try_to_merge_with_ksm_page
-Date: Mon,  2 Nov 2015 18:01:30 +0100
-Message-Id: <1446483691-8494-5-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 2/5] ksm: don't fail stable tree lookups if walking over stale stable_nodes
+Date: Mon,  2 Nov 2015 18:01:28 +0100
+Message-Id: <1446483691-8494-3-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1446483691-8494-1-git-send-email-aarcange@redhat.com>
 References: <1446483691-8494-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,45 +20,89 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>
 Cc: linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Doing the VM_MERGEABLE check after the page == kpage check won't
-provide any meaningful benefit. The !vma->anon_vma check of
-find_mergeable_vma is the only superfluous bit in using
-find_mergeable_vma because the !PageAnon check of
-try_to_merge_one_page() implicitly checks for that, but it still looks
-cleaner to share the same find_mergeable_vma().
+The stable_nodes can become stale at any time if the underlying pages
+gets freed. The stable_node gets collected and removed from the stable
+rbtree if that is detected during the rbtree lookups.
 
-Acked-by: Hugh Dickins <hughd@google.com>
+Don't fail the lookup if running into stale stable_nodes, just restart
+the lookup after collecting the stale stable_nodes. Otherwise the CPU
+spent in the preparation stage is wasted and the lookup must be
+repeated at the next loop potentially failing a second time in a
+second stale stable_node.
+
+If we don't prune aggressively we delay the merging of the unstable
+node candidates and at the same time we delay the freeing of the stale
+stable_nodes. Keeping stale stable_nodes around wastes memory and it
+can't provide any benefit.
+
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Hugh Dickins <hughd@google.com>
 ---
- mm/ksm.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+ mm/ksm.c | 32 +++++++++++++++++++++++++++-----
+ 1 file changed, 27 insertions(+), 5 deletions(-)
 
 diff --git a/mm/ksm.c b/mm/ksm.c
-index d4ee159..0183083 100644
+index e87dec7..9f182f9 100644
 --- a/mm/ksm.c
 +++ b/mm/ksm.c
-@@ -1021,8 +1021,6 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
- 	if (page == kpage)			/* ksm page forked */
- 		return 0;
+@@ -1177,8 +1177,18 @@ again:
+ 		cond_resched();
+ 		stable_node = rb_entry(*new, struct stable_node, node);
+ 		tree_page = get_ksm_page(stable_node, false);
+-		if (!tree_page)
+-			return NULL;
++		if (!tree_page) {
++			/*
++			 * If we walked over a stale stable_node,
++			 * get_ksm_page() will call rb_erase() and it
++			 * may rebalance the tree from under us. So
++			 * restart the search from scratch. Returning
++			 * NULL would be safe too, but we'd generate
++			 * false negative insertions just because some
++			 * stable_node was stale.
++			 */
++			goto again;
++		}
  
--	if (!(vma->vm_flags & VM_MERGEABLE))
--		goto out;
- 	if (PageTransCompound(page) && page_trans_compound_anon_split(page))
- 		goto out;
- 	BUG_ON(PageTransCompound(page));
-@@ -1087,10 +1085,8 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
- 	int err = -EFAULT;
+ 		ret = memcmp_pages(page, tree_page);
+ 		put_page(tree_page);
+@@ -1254,12 +1264,14 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
+ 	unsigned long kpfn;
+ 	struct rb_root *root;
+ 	struct rb_node **new;
+-	struct rb_node *parent = NULL;
++	struct rb_node *parent;
+ 	struct stable_node *stable_node;
  
- 	down_read(&mm->mmap_sem);
--	if (ksm_test_exit(mm))
--		goto out;
--	vma = find_vma(mm, rmap_item->address);
--	if (!vma || vma->vm_start > rmap_item->address)
-+	vma = find_mergeable_vma(mm, rmap_item->address);
-+	if (!vma)
- 		goto out;
+ 	kpfn = page_to_pfn(kpage);
+ 	nid = get_kpfn_nid(kpfn);
+ 	root = root_stable_tree + nid;
++again:
++	parent = NULL;
+ 	new = &root->rb_node;
  
- 	err = try_to_merge_one_page(vma, page, kpage);
+ 	while (*new) {
+@@ -1269,8 +1281,18 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
+ 		cond_resched();
+ 		stable_node = rb_entry(*new, struct stable_node, node);
+ 		tree_page = get_ksm_page(stable_node, false);
+-		if (!tree_page)
+-			return NULL;
++		if (!tree_page) {
++			/*
++			 * If we walked over a stale stable_node,
++			 * get_ksm_page() will call rb_erase() and it
++			 * may rebalance the tree from under us. So
++			 * restart the search from scratch. Returning
++			 * NULL would be safe too, but we'd generate
++			 * false negative insertions just because some
++			 * stable_node was stale.
++			 */
++			goto again;
++		}
+ 
+ 		ret = memcmp_pages(kpage, tree_page);
+ 		put_page(tree_page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
