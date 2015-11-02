@@ -1,98 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 77D046B0038
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 16:02:53 -0500 (EST)
-Received: by pacfv9 with SMTP id fv9so165756307pac.3
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 13:02:53 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id zo6si37618971pbc.29.2015.11.02.13.02.52
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id CF7CD6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 16:40:39 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so35786089pab.0
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 13:40:39 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id uz5si37727829pac.230.2015.11.02.13.40.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Nov 2015 13:02:52 -0800 (PST)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [RFC 00/11] DAX fsynx/msync support
-References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
-	<20151030035533.GU19199@dastard>
-	<20151030183938.GC24643@linux.intel.com>
-	<20151101232948.GF10656@dastard>
-	<x49vb9kqy5k.fsf@segfault.boston.devel.redhat.com>
-	<20151102201029.GI10656@dastard>
-Date: Mon, 02 Nov 2015 16:02:48 -0500
-In-Reply-To: <20151102201029.GI10656@dastard> (Dave Chinner's message of "Tue,
-	3 Nov 2015 07:10:29 +1100")
-Message-ID: <x49twp4p11j.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Mon, 02 Nov 2015 13:40:39 -0800 (PST)
+Date: Mon, 2 Nov 2015 13:40:38 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas
+ with holes
+Message-Id: <20151102134038.7a326c583375364ece570173@linux-foundation.org>
+In-Reply-To: <56379FC2.8000803@oracle.com>
+References: <007901d1139a$030b0440$09210cc0$@alibaba-inc.com>
+	<56350014.2040800@oracle.com>
+	<013501d11519$2e5e6940$8b1b3bc0$@alibaba-inc.com>
+	<56379FC2.8000803@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, axboe@kernel.dk
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Hugh Dickins' <hughd@google.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Davidlohr Bueso' <dave@stgolabs.net>
 
-Dave Chinner <david@fromorbit.com> writes:
+On Mon, 2 Nov 2015 09:39:14 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-> On Mon, Nov 02, 2015 at 09:22:15AM -0500, Jeff Moyer wrote:
->> Dave Chinner <david@fromorbit.com> writes:
->> 
->> > Further, REQ_FLUSH/REQ_FUA are more than just "put the data on stable
->> > storage" commands. They are also IO barriers that affect scheduling
->> > of IOs in progress and in the request queues.  A REQ_FLUSH/REQ_FUA
->> > IO cannot be dispatched before all prior IO has been dispatched and
->> > drained from the request queue, and IO submitted after a queued
->> > REQ_FLUSH/REQ_FUA cannot be scheduled ahead of the queued
->> > REQ_FLUSH/REQ_FUA operation.
->> >
->> > IOWs, REQ_FUA/REQ_FLUSH not only guarantee data is on stable
->> > storage, they also guarantee the order of IO dispatch and
->> > completion when concurrent IO is in progress.
->> 
->> This hasn't been the case for several years, now.  It used to work that
->> way, and that was deemed a big performance problem.  Since file systems
->> already issued and waited for all I/O before sending down a barrier, we
->> decided to get rid of the I/O ordering pieces of barriers (and stop
->> calling them barriers).
->> 
->> See commit 28e7d184521 (block: drop barrier ordering by queue draining).
->
-> Yes, I realise that, even if I wasn't very clear about how I wrote
-> it. ;)
->
-> Correct me if I'm wrong: AFAIA, dispatch ordering (i.e. the "IO
-> barrier") is still enforced by the scheduler via REQ_FUA|REQ_FLUSH
-> -> ELEVATOR_INSERT_FLUSH -> REQ_SOFTBARRIER and subsequent IO
-> scheduler calls to elv_dispatch_sort() that don't pass
-> REQ_SOFTBARRIER in the queue.
+> On 11/01/2015 06:50 PM, Hillf Danton wrote:
+> > Andrew, please correct me if I miss/mess anything.
+> >  
+> >>> This hunk is already in the next tree, see below please.
+> >>>
+> >>
+> >> Ah, the whole series to add shmem like code to handle hole punch/fault
+> >> races is in the next tree.  It has been determined that most of this
+> >> series is not necessary.  For the next tree, ideally the following
+> >> should happen:
+> >> - revert the series
+> >> 	0830d5afd4ab69d01cf5ceba9b9f2796564c4eb6
+> >> 	4e0a78fea078af972276c2d3aeaceb2bac80e033
+> >> 	251c8a023a0c639725e014a612e8c05a631ce839
+> >> 	03bcef375766af4db12ec783241ac39f8bf5e2b1
+> >> - Add this patch (if Ack'ed/reviewed) to fix remove_inode_hugepages
+> >> - Add a new patch for the handle hole punch/fault race.  It modifies
+> >>   same code as this patch, so I have not sent out until this is Ack'ed.
+> >>
+> >> I will admit that I do not fully understand how maintainers manage their
+> >> trees and share patches.  If someone can make suggestions on how to handle
+> >> this situation (create patches against what tree? send patches to who?),
+> >> I will be happy to make it happen.
+> >>
+> > The rule is to prepare patches against the next tree and deliver patches to
+> > linux-mm with AKPM, linux-kernel cced. The authors and maintainers of the
+> > current code your patches change should also be cced.
+> > And those guys you want to get ack and comments.
+> > 
+> > In this case, you should first ask Andrew to withdraw the 4 commits.
+> > Then send your new patches, one after another, one problem a patch.
+> > 
+> > Best Wishes
+> > Hillf
+> 
+> Andrew,
+> 
+> As mentioned above, it has been determined that most of the series titled
+> "[PATCH v2 0/4] hugetlbfs fallocate hole punch race with page faults" is
+> unnecessary.  Ideally, we want to remove this entire series from mmotm and
+> linux-next.  It  will be replaced with a simpler patch.
 
-This part is right.
+I dropped them all.
 
-> IOWs, if we queue a bunch of REQ_WRITE IOs followed by a
-> REQ_WRITE|REQ_FLUSH IO, all of the prior REQ_WRITE IOs will be
-> dispatched before the REQ_WRITE|REQ_FLUSH IO and hence be captured
-> by the cache flush.
+> However, before that happens I would like to address bugs in the current
+> code as pointed out by Hugh Dickins.  These are addresses in the patch
+> which started this thread:
+> "[PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas with holes"
 
-But this part is not.  It is up to the I/O scheduler to decide when to
-dispatch requests.  It can hold on to them for a variety of reasons.
-Flush requests, however, do not go through the I/O scheduler.  At the
-very moment that the flush request is inserted, it goes directly to the
-dispatch queue (assuming no other flush is in progress).  The prior
-requests may still be waiting in the I/O scheduler's internal lists.
+And merged that.  With a note reminding myself to get a Hugh ack ;)
 
-So, any newly dispatched I/Os will certainly not get past the REQ_FLUSH.
-However, the REQ_FLUSH is very likely to jump ahead of prior I/Os in the
-queue.
-
-> Hence once the filesystem has waited on the REQ_WRITE|REQ_FLUSH IO
-> to complete, we know that all the earlier REQ_WRITE IOs are on
-> stable storage, too. Hence there's no need for the elevator to drain
-> the queue to guarantee completion ordering - the dispatch ordering
-> and flush/fua write semantics guarantee that when the flush/fua
-> completes, all the IOs dispatch prior to that flush/fua write are
-> also on stable storage...
-
-Des xfs rely on this model for correctness?  If so, I'd say we've got a
-problem.
-
-Cheers,
-Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
