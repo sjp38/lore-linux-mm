@@ -1,48 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D87706B0038
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 15:31:35 -0500 (EST)
-Received: by wijp11 with SMTP id p11so59311976wij.0
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 12:31:35 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n140si24165743wmd.57.2015.11.02.12.31.34
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 77D046B0038
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 16:02:53 -0500 (EST)
+Received: by pacfv9 with SMTP id fv9so165756307pac.3
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 13:02:53 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id zo6si37618971pbc.29.2015.11.02.13.02.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Nov 2015 12:31:34 -0800 (PST)
-Date: Mon, 2 Nov 2015 12:31:28 -0800
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: Re: [PATCH 1/5] mm: add cond_resched() to the rmap walks
-Message-ID: <20151102203128.GC1707@linux-uzut.site>
-References: <1446483691-8494-1-git-send-email-aarcange@redhat.com>
- <1446483691-8494-2-git-send-email-aarcange@redhat.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Nov 2015 13:02:52 -0800 (PST)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [RFC 00/11] DAX fsynx/msync support
+References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
+	<20151030035533.GU19199@dastard>
+	<20151030183938.GC24643@linux.intel.com>
+	<20151101232948.GF10656@dastard>
+	<x49vb9kqy5k.fsf@segfault.boston.devel.redhat.com>
+	<20151102201029.GI10656@dastard>
+Date: Mon, 02 Nov 2015 16:02:48 -0500
+In-Reply-To: <20151102201029.GI10656@dastard> (Dave Chinner's message of "Tue,
+	3 Nov 2015 07:10:29 +1100")
+Message-ID: <x49twp4p11j.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <1446483691-8494-2-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, axboe@kernel.dk
 
-On Mon, 02 Nov 2015, Andrea Arcangeli wrote:
+Dave Chinner <david@fromorbit.com> writes:
 
->The rmap walk must reach every possible mapping of the page, so if a
->page is heavily shared (no matter if it's KSM, anon, pagecache) there
->will be tons of entries to walk through. All optimizations with
->prio_tree, anon_vma chains, interval tree, helps to find the right
->virtual mapping faster, but if there are lots of virtual mappings, all
->mapping must still be walked through.
+> On Mon, Nov 02, 2015 at 09:22:15AM -0500, Jeff Moyer wrote:
+>> Dave Chinner <david@fromorbit.com> writes:
+>> 
+>> > Further, REQ_FLUSH/REQ_FUA are more than just "put the data on stable
+>> > storage" commands. They are also IO barriers that affect scheduling
+>> > of IOs in progress and in the request queues.  A REQ_FLUSH/REQ_FUA
+>> > IO cannot be dispatched before all prior IO has been dispatched and
+>> > drained from the request queue, and IO submitted after a queued
+>> > REQ_FLUSH/REQ_FUA cannot be scheduled ahead of the queued
+>> > REQ_FLUSH/REQ_FUA operation.
+>> >
+>> > IOWs, REQ_FUA/REQ_FLUSH not only guarantee data is on stable
+>> > storage, they also guarantee the order of IO dispatch and
+>> > completion when concurrent IO is in progress.
+>> 
+>> This hasn't been the case for several years, now.  It used to work that
+>> way, and that was deemed a big performance problem.  Since file systems
+>> already issued and waited for all I/O before sending down a barrier, we
+>> decided to get rid of the I/O ordering pieces of barriers (and stop
+>> calling them barriers).
+>> 
+>> See commit 28e7d184521 (block: drop barrier ordering by queue draining).
 >
->The biggest cost is for the IPIs, but regardless of the IPIs, it's
->generally safer to keep these cond_resched() in all cases, as even if
->we massively reduce the number of IPIs, the number of entries to walk
->IPI-less may still be large and no entry can be possibly skipped in
->the page migration case.
+> Yes, I realise that, even if I wasn't very clear about how I wrote
+> it. ;)
 >
->Acked-by: Hugh Dickins <hughd@google.com>
->Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Correct me if I'm wrong: AFAIA, dispatch ordering (i.e. the "IO
+> barrier") is still enforced by the scheduler via REQ_FUA|REQ_FLUSH
+> -> ELEVATOR_INSERT_FLUSH -> REQ_SOFTBARRIER and subsequent IO
+> scheduler calls to elv_dispatch_sort() that don't pass
+> REQ_SOFTBARRIER in the queue.
 
-Acked-by: Davidlohr Bueso <dbueso@suse.de>
+This part is right.
+
+> IOWs, if we queue a bunch of REQ_WRITE IOs followed by a
+> REQ_WRITE|REQ_FLUSH IO, all of the prior REQ_WRITE IOs will be
+> dispatched before the REQ_WRITE|REQ_FLUSH IO and hence be captured
+> by the cache flush.
+
+But this part is not.  It is up to the I/O scheduler to decide when to
+dispatch requests.  It can hold on to them for a variety of reasons.
+Flush requests, however, do not go through the I/O scheduler.  At the
+very moment that the flush request is inserted, it goes directly to the
+dispatch queue (assuming no other flush is in progress).  The prior
+requests may still be waiting in the I/O scheduler's internal lists.
+
+So, any newly dispatched I/Os will certainly not get past the REQ_FLUSH.
+However, the REQ_FLUSH is very likely to jump ahead of prior I/Os in the
+queue.
+
+> Hence once the filesystem has waited on the REQ_WRITE|REQ_FLUSH IO
+> to complete, we know that all the earlier REQ_WRITE IOs are on
+> stable storage, too. Hence there's no need for the elevator to drain
+> the queue to guarantee completion ordering - the dispatch ordering
+> and flush/fua write semantics guarantee that when the flush/fua
+> completes, all the IOs dispatch prior to that flush/fua write are
+> also on stable storage...
+
+Des xfs rely on this model for correctness?  If so, I'd say we've got a
+problem.
+
+Cheers,
+Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
