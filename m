@@ -1,63 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 370B282F85
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2015 21:50:26 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so8787393pab.0
-        for <linux-mm@kvack.org>; Sun, 01 Nov 2015 18:50:26 -0800 (PST)
-Received: from out11.biz.mail.alibaba.com (out114-135.biz.mail.alibaba.com. [205.204.114.135])
-        by mx.google.com with ESMTP id a13si31209265pbu.165.2015.11.01.18.50.24
-        for <linux-mm@kvack.org>;
-        Sun, 01 Nov 2015 18:50:25 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <007901d1139a$030b0440$09210cc0$@alibaba-inc.com> <56350014.2040800@oracle.com>
-In-Reply-To: <56350014.2040800@oracle.com>
-Subject: Re: [PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas with holes
-Date: Mon, 02 Nov 2015 10:50:05 +0800
-Message-ID: <013501d11519$2e5e6940$8b1b3bc0$@alibaba-inc.com>
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E17426B0038
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 06:05:37 -0500 (EST)
+Received: by wmeg8 with SMTP id g8so57230715wme.1
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 03:05:37 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
+        by mx.google.com with ESMTPS id v125si21128230wme.91.2015.11.02.03.05.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Nov 2015 03:05:36 -0800 (PST)
+Received: by wmeg8 with SMTP id g8so55793779wme.0
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 03:05:35 -0800 (PST)
+Message-ID: <5637437C.4070306@electrozaur.com>
+Date: Mon, 02 Nov 2015 13:05:32 +0200
+From: Boaz Harrosh <ooo@electrozaur.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: [PATCH] osd fs: __r4w_get_page rely on PageUptodate for uptodate
+References: <alpine.LSU.2.11.1510291137430.3369@eggly.anvils> <5635E2B4.5070308@electrozaur.com> <alpine.LSU.2.11.1511011513240.11427@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1511011513240.11427@eggly.anvils>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Hugh Dickins' <hughd@google.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Davidlohr Bueso' <dave@stgolabs.net>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Lameter <cl@linux.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, osd-dev@open-osd.org
 
-Andrew, please correct me if I miss/mess anything.
- 
-> > This hunk is already in the next tree, see below please.
-> >
+On 11/02/2015 01:39 AM, Hugh Dickins wrote:
+<>
+>> This patch is not correct!
 > 
-> Ah, the whole series to add shmem like code to handle hole punch/fault
-> races is in the next tree.  It has been determined that most of this
-> series is not necessary.  For the next tree, ideally the following
-> should happen:
-> - revert the series
-> 	0830d5afd4ab69d01cf5ceba9b9f2796564c4eb6
-> 	4e0a78fea078af972276c2d3aeaceb2bac80e033
-> 	251c8a023a0c639725e014a612e8c05a631ce839
-> 	03bcef375766af4db12ec783241ac39f8bf5e2b1
-> - Add this patch (if Ack'ed/reviewed) to fix remove_inode_hugepages
-> - Add a new patch for the handle hole punch/fault race.  It modifies
->   same code as this patch, so I have not sent out until this is Ack'ed.
+> I think you have actually confirmed that the patch is correct:
+> why bother to test PageDirty or PageWriteback when PageUptodate
+> already tells you what you need?
 > 
-> I will admit that I do not fully understand how maintainers manage their
-> trees and share patches.  If someone can make suggestions on how to handle
-> this situation (create patches against what tree? send patches to who?),
-> I will be happy to make it happen.
+> Or do these filesystems do something unusual with PageUptodate
+> when PageDirty is set?  I didn't find it.
 > 
-The rule is to prepare patches against the next tree and deliver patches to
-linux-mm with AKPM, linux-kernel cced. The authors and maintainers of the
-current code your patches change should also be cced.
-And those guys you want to get ack and comments.
 
-In this case, you should first ask Andrew to withdraw the 4 commits.
-Then send your new patches, one after another, one problem a patch.
+This is kind of delicate stuff. It took me a while to get it right
+when I did it. I don't remember all the details.
 
-Best Wishes
-Hillf
+But consider this option:
+
+exofs_write_begin on a full PAGE_CACHE_SIZE, the page is instantiated
+new in page-cache is that PageUptodate(page) then? I thought not.
+(exofs does not set that)
+
+Now that page I do not want to read in. The latest data is in memory.
+(Same when this page is in writeback, dirty-bit is cleared)
+
+So for sure if page is dirty or writeback then we surly do not need a read.
+only if not then we need to consider the  PageUptodate(page) state.
+
+Do you think the code is actually wrong as is?
+
+BTW: Very similar code is in fs/nfs/objlayout/objio_osd.c::__r4w_get_page
+
+> Thanks,
+> Hugh
+> 
+<>
+
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
