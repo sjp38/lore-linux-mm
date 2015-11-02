@@ -1,38 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C39196B0253
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 11:10:24 -0500 (EST)
-Received: by iody8 with SMTP id y8so148035670iod.1
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 08:10:24 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id q6si12597621igr.92.2015.11.02.08.10.24
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id ACB4D82F64
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 11:12:58 -0500 (EST)
+Received: by igbdj2 with SMTP id dj2so56920105igb.1
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 08:12:58 -0800 (PST)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id l12si12585109igf.97.2015.11.02.08.12.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Nov 2015 08:10:24 -0800 (PST)
-Date: Mon, 2 Nov 2015 10:10:23 -0600 (CST)
+        Mon, 02 Nov 2015 08:12:58 -0800 (PST)
+Date: Mon, 2 Nov 2015 10:12:56 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v6 2/3] percpu: add PERCPU_ATOM_SIZE for a generic percpu
- area setup
-In-Reply-To: <1446363977-23656-3-git-send-email-jungseoklee85@gmail.com>
-Message-ID: <alpine.DEB.2.20.1511021008580.27740@east.gentwo.org>
-References: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com> <1446363977-23656-3-git-send-email-jungseoklee85@gmail.com>
+Subject: Re: [patch 3/3] vmstat: Create our own workqueue
+In-Reply-To: <201510311143.BIH87000.tOSVFHOFJMLFOQ@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.20.1511021011460.27740@east.gentwo.org>
+References: <alpine.DEB.2.20.1510272202120.4647@east.gentwo.org> <201510282057.JHI87536.OMOFFFLJOHQtVS@I-love.SAKURA.ne.jp> <20151029022447.GB27115@mtj.duckdns.org> <20151029030822.GD27115@mtj.duckdns.org> <alpine.DEB.2.20.1510292000340.30861@east.gentwo.org>
+ <201510311143.BIH87000.tOSVFHOFJMLFOQ@I-love.SAKURA.ne.jp>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jungseok Lee <jungseoklee85@gmail.com>
-Cc: catalin.marinas@arm.com, will.deacon@arm.com, tj@kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, james.morse@arm.com, takahiro.akashi@linaro.org, mark.rutland@arm.com, barami97@gmail.com, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: htejun@gmail.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de
 
-On Sun, 1 Nov 2015, Jungseok Lee wrote:
+On Sat, 31 Oct 2015, Tetsuo Handa wrote:
 
-> There is no room to adjust 'atom_size' now when a generic percpu area
-> is used. It would be redundant to write down an architecture-specific
-> setup_per_cpu_areas() in order to only change the 'atom_size'. Thus,
-> this patch adds a new definition, PERCPU_ATOM_SIZE, which is PAGE_SIZE
-> by default. The value could be updated if needed by architecture.
+> Then, you need to update below description (or drop it) because
+> patch 3/3 alone will not guarantee that the counters are up to date.
 
-What is atom_size? Why would you want a difference allocation size here?
-The percpu area is virtually mapped regardless. So you will have
-contiguous addresses even without atom_size.
+The vmstat system does not guarantee that the counters are up to date
+always. The whole point is the deferral of updates for performance
+reasons. They are updated *at some point* within stat_interval. That needs
+to happen and that is what this patchset is fixing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
