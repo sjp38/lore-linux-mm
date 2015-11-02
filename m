@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 754256B0038
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 11:08:48 -0500 (EST)
-Received: by igpw7 with SMTP id w7so51399163igp.1
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 08:08:48 -0800 (PST)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id l133si17765030iol.93.2015.11.02.08.08.47
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C39196B0253
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 11:10:24 -0500 (EST)
+Received: by iody8 with SMTP id y8so148035670iod.1
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 08:10:24 -0800 (PST)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id q6si12597621igr.92.2015.11.02.08.10.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Nov 2015 08:08:47 -0800 (PST)
-Date: Mon, 2 Nov 2015 10:08:46 -0600 (CST)
+        Mon, 02 Nov 2015 08:10:24 -0800 (PST)
+Date: Mon, 2 Nov 2015 10:10:23 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v6 1/3] percpu: remove PERCPU_ENOUGH_ROOM which is stale
- definition
-In-Reply-To: <1446363977-23656-2-git-send-email-jungseoklee85@gmail.com>
-Message-ID: <alpine.DEB.2.20.1511021007400.27740@east.gentwo.org>
-References: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com> <1446363977-23656-2-git-send-email-jungseoklee85@gmail.com>
+Subject: Re: [PATCH v6 2/3] percpu: add PERCPU_ATOM_SIZE for a generic percpu
+ area setup
+In-Reply-To: <1446363977-23656-3-git-send-email-jungseoklee85@gmail.com>
+Message-ID: <alpine.DEB.2.20.1511021008580.27740@east.gentwo.org>
+References: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com> <1446363977-23656-3-git-send-email-jungseoklee85@gmail.com>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,10 +24,15 @@ Cc: catalin.marinas@arm.com, will.deacon@arm.com, tj@kernel.org, linux-arm-kerne
 
 On Sun, 1 Nov 2015, Jungseok Lee wrote:
 
-> As pure cleanup, this patch removes PERCPU_ENOUGH_ROOM which is not
-> used any more. That is, no code refers to the definition.
+> There is no room to adjust 'atom_size' now when a generic percpu area
+> is used. It would be redundant to write down an architecture-specific
+> setup_per_cpu_areas() in order to only change the 'atom_size'. Thus,
+> this patch adds a new definition, PERCPU_ATOM_SIZE, which is PAGE_SIZE
+> by default. The value could be updated if needed by architecture.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+What is atom_size? Why would you want a difference allocation size here?
+The percpu area is virtually mapped regardless. So you will have
+contiguous addresses even without atom_size.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
