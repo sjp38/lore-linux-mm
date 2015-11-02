@@ -1,43 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CCB56B0038
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 13:10:08 -0500 (EST)
-Received: by obctp1 with SMTP id tp1so100627555obc.2
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 10:10:07 -0800 (PST)
-Received: from resqmta-po-09v.sys.comcast.net (resqmta-po-09v.sys.comcast.net. [2001:558:fe16:19:96:114:154:168])
-        by mx.google.com with ESMTPS id no3si12459667oeb.29.2015.11.02.10.10.07
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D6F726B0253
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 13:11:34 -0500 (EST)
+Received: by igbdj2 with SMTP id dj2so59387260igb.1
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 10:11:34 -0800 (PST)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id 143si12871236ioe.192.2015.11.02.10.11.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Nov 2015 10:10:07 -0800 (PST)
-Date: Mon, 2 Nov 2015 12:10:04 -0600 (CST)
+        Mon, 02 Nov 2015 10:11:34 -0800 (PST)
+Date: Mon, 2 Nov 2015 12:11:33 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch 3/3] vmstat: Create our own workqueue
-In-Reply-To: <201511030152.JGF95845.SHVLOMtOJFFOFQ@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.20.1511021209150.28799@east.gentwo.org>
-References: <20151029022447.GB27115@mtj.duckdns.org> <20151029030822.GD27115@mtj.duckdns.org> <alpine.DEB.2.20.1510292000340.30861@east.gentwo.org> <201510311143.BIH87000.tOSVFHOFJMLFOQ@I-love.SAKURA.ne.jp> <alpine.DEB.2.20.1511021011460.27740@east.gentwo.org>
- <201511030152.JGF95845.SHVLOMtOJFFOFQ@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH v6 2/3] percpu: add PERCPU_ATOM_SIZE for a generic percpu
+ area setup
+In-Reply-To: <20151102173520.GC7637@e104818-lin.cambridge.arm.com>
+Message-ID: <alpine.DEB.2.20.1511021210250.28799@east.gentwo.org>
+References: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com> <1446363977-23656-3-git-send-email-jungseoklee85@gmail.com> <alpine.DEB.2.20.1511021008580.27740@east.gentwo.org> <20151102162236.GB7637@e104818-lin.cambridge.arm.com>
+ <alpine.DEB.2.20.1511021047420.28255@east.gentwo.org> <20151102173520.GC7637@e104818-lin.cambridge.arm.com>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: htejun@gmail.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: mark.rutland@arm.com, Jungseok Lee <jungseoklee85@gmail.com>, linux-mm@kvack.org, barami97@gmail.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, takahiro.akashi@linaro.org, james.morse@arm.com, tj@kernel.org, linux-arm-kernel@lists.infradead.org
 
-On Tue, 3 Nov 2015, Tetsuo Handa wrote:
+On Mon, 2 Nov 2015, Catalin Marinas wrote:
 
-> I'm still unclear. I think that the result of this patchset is
+> On Mon, Nov 02, 2015 at 10:48:17AM -0600, Christoph Lameter wrote:
+> > On Mon, 2 Nov 2015, Catalin Marinas wrote:
+> > > I haven't looked at the patch 3/3 in detail but I'm pretty sure I'll NAK
+> > > the approach (and the definition of PERCPU_ATOM_SIZE), therefore
+> > > rendering this patch unnecessary. IIUC, this is used to enforce some
+> > > alignment of the per-CPU IRQ stack to be able to check whether the
+> > > current stack is process or IRQ on exception entry. But there are other,
+> > > less intrusive ways to achieve the same (e.g. x86).
+> >
+> > The percpu allocator allows the specification of alignment requirements.
 >
->   The counters are never updated even after stat_interval
->   if some workqueue item is doing a __GFP_WAIT memory allocation.
+> Patch 3/3 does something like this:
 >
-> but the patch description sounds as if
+> DEFINE_PER_CPU(char [IRQ_STACK_SIZE], irq_stacks) __aligned(IRQ_STACK_SIZE)
 >
->   The counters will be updated even if some workqueue item is
->   doing a __GFP_WAIT memory allocation.
->
-> which denies the actual result I tested with this patchset applied.
+> where IRQ_STACK_SIZE > PAGE_SIZE. AFAICT, setup_per_cpu_areas() doesn't
+> guarantee alignment greater than PAGE_SIZE.
 
-Well true that is dependend on the correct workqueue operation. I though
-that was fixed by Tejun?
+And we cannot use percpu_alloc() instead? Aligning the whole of the percpu
+area because one allocation requires it?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
