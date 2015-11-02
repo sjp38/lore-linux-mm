@@ -1,348 +1,280 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id EC2716B0253
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 07:42:47 -0500 (EST)
-Received: by wikq8 with SMTP id q8so50610828wik.1
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 04:42:47 -0800 (PST)
-Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
-        by mx.google.com with ESMTPS id u4si26951060wjq.30.2015.11.02.04.42.46
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 2548B82F66
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 07:57:53 -0500 (EST)
+Received: by wmeg8 with SMTP id g8so59831607wme.1
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 04:57:52 -0800 (PST)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id g9si21729677wmd.74.2015.11.02.04.57.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Nov 2015 04:42:46 -0800 (PST)
-Received: by wikq8 with SMTP id q8so50610438wik.1
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 04:42:46 -0800 (PST)
-Date: Mon, 2 Nov 2015 14:42:44 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Nov 2015 04:57:52 -0800 (PST)
+Received: by wmff134 with SMTP id f134so58185121wmf.1
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 04:57:51 -0800 (PST)
+Date: Mon, 2 Nov 2015 14:57:49 +0200
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: linux-next: Bug in rmap_walk?
-Message-ID: <20151102124244.GA7473@node.shutemov.name>
-References: <201511022131.IED52614.MJVOtOSFQFLOHF@I-love.SAKURA.ne.jp>
+Subject: Re: kernel oops on mmotm-2015-10-15-15-20
+Message-ID: <20151102125749.GB7473@node.shutemov.name>
+References: <20151021052836.GB6024@bbox>
+ <20151021110723.GC10597@node.shutemov.name>
+ <20151022000648.GD23631@bbox>
+ <alpine.LSU.2.11.1510211744380.5219@eggly.anvils>
+ <20151022012136.GG23631@bbox>
+ <20151022090051.GH23631@bbox>
+ <20151029002524.GA12018@node.shutemov.name>
+ <20151029075829.GA16099@bbox>
+ <20151029095206.GB29870@node.shutemov.name>
+ <20151030070350.GB16099@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201511022131.IED52614.MJVOtOSFQFLOHF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20151030070350.GB16099@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon, Nov 02, 2015 at 09:31:59PM +0900, Tetsuo Handa wrote:
-> As of linux-next-20151102, I can hit below bug using OOM stress test.
-> I don't hit this bug as of linux-4.3, thus I think this is a new bug.
+On Fri, Oct 30, 2015 at 04:03:50PM +0900, Minchan Kim wrote:
+> On Thu, Oct 29, 2015 at 11:52:06AM +0200, Kirill A. Shutemov wrote:
+> > On Thu, Oct 29, 2015 at 04:58:29PM +0900, Minchan Kim wrote:
+> > > On Thu, Oct 29, 2015 at 02:25:24AM +0200, Kirill A. Shutemov wrote:
+> > > > On Thu, Oct 22, 2015 at 06:00:51PM +0900, Minchan Kim wrote:
+> > > > > On Thu, Oct 22, 2015 at 10:21:36AM +0900, Minchan Kim wrote:
+> > > > > > Hello Hugh,
+> > > > > > 
+> > > > > > On Wed, Oct 21, 2015 at 05:59:59PM -0700, Hugh Dickins wrote:
+> > > > > > > On Thu, 22 Oct 2015, Minchan Kim wrote:
+> > > > > > > > 
+> > > > > > > > I added the code to check it and queued it again but I had another oops
+> > > > > > > > in this time but symptom is related to anon_vma, too.
+> > > > > > > > (kernel is based on recent mmotm + unconditional mkdirty for bug fix)
+> > > > > > > > It seems page_get_anon_vma returns NULL since the page was not page_mapped
+> > > > > > > > at that time but second check of page_mapped right before try_to_unmap seems
+> > > > > > > > to be true.
+> > > > > > > > 
+> > > > > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > > > > page:ffffea0001cfbfc0 count:3 mapcount:1 mapping:ffff88007f1b5f51 index:0x600000aff
+> > > > > > > > flags: 0x4000000000048019(locked|uptodate|dirty|swapcache|swapbacked)
+> > > > > > > > page dumped because: VM_BUG_ON_PAGE(PageAnon(page) && !PageKsm(page) && !anon_vma)
+> > > > > > > 
+> > > > > > > That's interesting, that's one I added in my page migration series.
+> > > > > > > Let me think on it, but it could well relate to the one you got before.
+> > > > > > 
+> > > > > > I will roll back to mm/madv_free-v4.3-rc5-mmotm-2015-10-15-15-20
+> > > > > > instead of next-20151021 to remove noise from your migration cleanup
+> > > > > > series and will test it again.
+> > > > > > If it is fixed, I will test again with your migration patchset, then.
+> > > > > 
+> > > > > I tested mmotm-2015-10-15-15-20 with test program I attach for a long time.
+> > > > > Therefore, there is no patchset from Hugh's migration patch in there.
+> > > > > And I added below debug code with request from Kirill to all test kernels.
+> > > > 
+> > > > It took too long time (and a lot of printk()), but I think I track it down
+> > > > finally.
+> > > >  
+> > > > The patch below seems fixes issue for me. It's not yet properly tested, but
+> > > > looks like it works.
+> > > > 
+> > > > The problem was my wrong assumption on how migration works: I thought that
+> > > > kernel would wait migration to finish on before deconstruction mapping.
+> > > > 
+> > > > But turn out that's not true.
+> > > > 
+> > > > As result if zap_pte_range() races with split_huge_page(), we can end up
+> > > > with page which is not mapped anymore but has _count and _mapcount
+> > > > elevated. The page is on LRU too. So it's still reachable by vmscan and by
+> > > > pfn scanners (Sasha showed few similar traces from compaction too).
+> > > > It's likely that page->mapping in this case would point to freed anon_vma.
+> > > > 
+> > > > BOOM!
+> > > > 
+> > > > The patch modify freeze/unfreeze_page() code to match normal migration
+> > > > entries logic: on setup we remove page from rmap and drop pin, on removing
+> > > > we get pin back and put page on rmap. This way even if migration entry
+> > > > will be removed under us we don't corrupt page's state.
+> > > > 
+> > > > Please, test.
+> > > > 
+> > > 
+> > > kernel: On mmotm-2015-10-15-15-20 + pte_mkdirty patch + your new patch, I tested
+> > > one I sent to you(ie, oops.c + memcg_test.sh)
+> > > 
+> > > page:ffffea00016a0000 count:3 mapcount:0 mapping:ffff88007f49d001 index:0x600001800 compound_mapcount: 0
+> > > flags: 0x4000000000044009(locked|uptodate|head|swapbacked)
+> > > page dumped because: VM_BUG_ON_PAGE(!page_mapcount(page))
+> > > page->mem_cgroup:ffff88007f613c00
+> > 
+> > Ignore my previous answer. Still sleeping.
+> > 
+> > The right way to fix I think is something like:
+> > 
+> > diff --git a/mm/rmap.c b/mm/rmap.c
+> > index 35643176bc15..f2d46792a554 100644
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -1173,20 +1173,12 @@ void do_page_add_anon_rmap(struct page *page,
+> >  	bool compound = flags & RMAP_COMPOUND;
+> >  	bool first;
+> >  
+> > -	if (PageTransCompound(page)) {
+> > +	if (PageTransCompound(page) && compound) {
+> > +		atomic_t *mapcount;
+> >  		VM_BUG_ON_PAGE(!PageLocked(page), page);
+> > -		if (compound) {
+> > -			atomic_t *mapcount;
+> > -
+> > -			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+> > -			mapcount = compound_mapcount_ptr(page);
+> > -			first = atomic_inc_and_test(mapcount);
+> > -		} else {
+> > -			/* Anon THP always mapped first with PMD */
+> > -			first = 0;
+> > -			VM_BUG_ON_PAGE(!page_mapcount(page), page);
+> > -			atomic_inc(&page->_mapcount);
+> > -		}
+> > +		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+> > +		mapcount = compound_mapcount_ptr(page);
+> > +		first = atomic_inc_and_test(mapcount);
+> >  	} else {
+> >  		VM_BUG_ON_PAGE(compound, page);
+> >  		first = atomic_inc_and_test(&page->_mapcount);
+> > -- 
+> 
+> kernel: On mmotm-2015-10-15-15-20 + pte_mkdirty patch + freeze/unfreeze patch + above patch,
+> 
+> Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> BUG: Bad rss-counter state mm:ffff880058d2e580 idx:1 val:512
+> Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> 
+> <SNIP>
+> 
+> Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> BUG: Bad rss-counter state mm:ffff880046980700 idx:1 val:511
+> BUG: Bad rss-counter state mm:ffff880046980700 idx:2 val:1
 
-This is my fault: bug in compound refcounting rework patchset. I'm working
-on the patch.
+Hm. I was not able to trigger this and don't see anything obviuous what can
+lead to this kind of missmatch :-/
 
-> 
-> ----------
-> struct anon_vma *page_lock_anon_vma_read(struct page *page)
-> {
->         struct anon_vma *anon_vma = NULL;
->         struct anon_vma *root_anon_vma;
->         unsigned long anon_mapping;
-> 
->         rcu_read_lock();
->         anon_mapping = (unsigned long)READ_ONCE(page->mapping);
->         if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
->                 goto out;
->         if (!page_mapped(page))
->                 goto out;
-> 
->         anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
->         root_anon_vma = READ_ONCE(anon_vma->root);
->         if (down_read_trylock(&root_anon_vma->rwsem)) { /* BUG: root_anon_vma == NULL here. */
-> ----------
-> 
-> ----------
-> ffffffff810b8d30
-> __down_read_trylock at ./arch/x86/include/asm/rwsem.h:83
->  (inlined by) down_read_trylock at kernel/locking/rwsem.c:34
-> ffffffff81176896
-> page_lock_anon_vma_read at mm/rmap.c:516
-> ffffffff81176780
-> page_lock_anon_vma_read at mm/rmap.c:502
-> ffffffff81176d34
-> rmap_walk_anon at mm/rmap.c:1651
->  (inlined by) rmap_walk at mm/rmap.c:1732
-> ffffffff811773f3
-> try_to_unmap at mm/rmap.c:1561
-> ffffffff8119ce34
-> constant_test_bit at ./arch/x86/include/asm/bitops.h:311
->  (inlined by) PageCompound at include/linux/page-flags.h:154
->  (inlined by) page_mapped at include/linux/mm.h:951
->  (inlined by) __unmap_and_move at mm/migrate.c:895
->  (inlined by) unmap_and_move at mm/migrate.c:954
->  (inlined by) migrate_pages at mm/migrate.c:1153
-> ffffffff811619ad
-> compact_zone at mm/compaction.c:1420
-> ffffffff81161b76
-> compact_zone_order at mm/compaction.c:1509
-> ffffffff811627fc
-> try_to_compact_pages at mm/compaction.c:1566
-> ffffffff811b6404
-> __alloc_pages_direct_compact at mm/page_alloc.c:2793
-> ffffffff8114520c
-> __alloc_pages_slowpath at mm/page_alloc.c:3106
->  (inlined by) __alloc_pages_nodemask at mm/page_alloc.c:3261
-> ffffffff8118db15
-> alloc_pages_vma at mm/mempolicy.c:2035
-> ffffffff811a2681
-> do_huge_pmd_anonymous_page at mm/huge_memory.c:953
-> ffffffff8116c49b
-> create_huge_pmd at mm/memory.c:3240
->  (inlined by) __handle_mm_fault at mm/memory.c:3359
->  (inlined by) handle_mm_fault at mm/memory.c:3435
-> ----------
-> 
-> ----------
-> [  511.059057] Out of memory: Kill process 15456 (exe) score 55 or sacrifice child
-> [  511.061173] Killed process 15456 (exe) total-vm:1118284kB, anon-rss:98948kB, file-rss:4kB
-> [  511.477148] BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
-> [  511.479817] IP: [<ffffffff810b8d30>] down_read_trylock+0x0/0x60
-> [  511.481729] PGD 35eb8067 PUD 793b4067 PMD 0 
-> [  511.483549] Oops: 0000 [#1] SMP 
-> [  511.484981] Modules linked in: ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 nf_conntrack_ipv6 nf_defrag_ipv6 ipt_REJECT nf_reject_ipv4 nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_nat ebtable_broute bridge stp llc ebtable_filter ebtables ip6table_mangle ip6table_security ip6table_raw ip6table_filter ip6_tables iptable_mangle iptable_security iptable_raw iptable_filter ip_tables coretemp crct10dif_pclmul crc32_pclmul crc32c_intel aesni_intel glue_helper lrw gf128mul ablk_helper cryptd ppdev vmw_balloon serio_raw parport_pc pcspkr vmw_vmci parport shpchp i2c_piix4 sd_mod ata_generic pata_acpi vmwgfx drm_kms_helper syscopyarea sysfillrect sysimgblt fb_sys_fops ttm drm ahci ata_piix mptspi libahci scsi_transport_spi libata mptscsih e1000 mptbase i2c_core
-> [  511.503846] CPU: 2 PID: 15407 Comm: exe Not tainted 4.3.0-rc7-next-20151102 #196
-> [  511.506268] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-> [  511.509211] task: ffff880035e15700 ti: ffff88007c274000 task.ti: ffff88007c274000
-> [  511.511560] RIP: 0010:[<ffffffff810b8d30>]  [<ffffffff810b8d30>] down_read_trylock+0x0/0x60
-> [  511.514116] RSP: 0000:ffff88007c277690  EFLAGS: 00010202
-> [  511.516084] RAX: 0000000000000000 RBX: ffffea0000103fc0 RCX: 0000000000000001
-> [  511.518379] RDX: 0000000000000001 RSI: 00000000002dc000 RDI: 0000000000000008
-> [  511.520688] RBP: ffff88007c2776c0 R08: 0000000000000000 R09: 0000000000000000
-> [  511.523210] R10: ffff880035e15700 R11: ffff880035e15e50 R12: ffff8800148b8739
-> [  511.525506] R13: ffff8800148b8738 R14: 0000000000000008 R15: 0000000000000000
-> [  511.527872] FS:  00007f6c6a7a5740(0000) GS:ffff88007fc80000(0000) knlGS:0000000000000000
-> [  511.530340] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  511.533038] CR2: 0000000000000008 CR3: 000000001c14c000 CR4: 00000000001406e0
-> [  511.535424] Stack:
-> [  511.536865]  ffffffff81176896 ffffffff81176780 ffffea0000103fc0 ffffea0001817500
-> [  511.539295]  ffff88007c277728 ffffea0000103fc0 ffff88007c277718 ffffffff81176d34
-> [  511.541768]  0000000000000246 ffffea0000103f80 ffffea0000103fc0 0000000100000000
-> [  511.544161] Call Trace:
-> [  511.545528]  [<ffffffff81176896>] ? page_lock_anon_vma_read+0x116/0x420
-> [  511.547623]  [<ffffffff81176780>] ? page_get_anon_vma+0x2e0/0x2e0
-> [  511.549663]  [<ffffffff81176d34>] rmap_walk+0x194/0x470
-> [  511.551488]  [<ffffffff811773f3>] try_to_unmap+0x83/0x130
-> [  511.553300]  [<ffffffff811757d0>] ? page_remove_rmap+0x1e0/0x1e0
-> [  511.555228]  [<ffffffff811748a0>] ? invalid_migration_vma+0x30/0x30
-> [  511.557193]  [<ffffffff81176780>] ? page_get_anon_vma+0x2e0/0x2e0
-> [  511.559054]  [<ffffffff81174870>] ? invalid_mkclean_vma+0x20/0x20
-> [  511.560912]  [<ffffffff8119ce34>] migrate_pages+0x5d4/0x9d0
-> [  511.562677]  [<ffffffff81160a50>] ? pageblock_pfn_to_page+0xe0/0xe0
-> [  511.564599]  [<ffffffff81162150>] ? isolate_freepages_block+0x3d0/0x3d0
-> [  511.566529]  [<ffffffff811619ad>] compact_zone+0x48d/0x5e0
-> [  511.568251]  [<ffffffff81161b76>] compact_zone_order+0x76/0xa0
-> [  511.570046]  [<ffffffff811627fc>] try_to_compact_pages+0x12c/0x240
-> [  511.571875]  [<ffffffff811b6404>] __alloc_pages_direct_compact+0x36/0xf4
-> [  511.573844]  [<ffffffff8114520c>] __alloc_pages_nodemask+0x56c/0xb30
-> [  511.575721]  [<ffffffff8118db15>] alloc_pages_vma+0x255/0x290
-> [  511.577516]  [<ffffffff811a2681>] do_huge_pmd_anonymous_page+0x151/0x680
-> [  511.579489]  [<ffffffff8116c49b>] handle_mm_fault+0xbab/0x15e0
-> [  511.581291]  [<ffffffff8116b944>] ? handle_mm_fault+0x54/0x15e0
-> [  511.583140]  [<ffffffff810b9ed9>] ? __lock_is_held+0x49/0x70
-> [  511.584885]  [<ffffffff81059641>] __do_page_fault+0x1a1/0x440
-> [  511.586637]  [<ffffffff81059910>] do_page_fault+0x30/0x80
-> [  511.588390]  [<ffffffff816cc747>] ? native_iret+0x7/0x7
-> [  511.590050]  [<ffffffff816cd818>] page_fault+0x28/0x30
-> [  511.591663]  [<ffffffff81379a8d>] ? __clear_user+0x3d/0x70
-> [  511.593373]  [<ffffffff8137e488>] iov_iter_zero+0x68/0x250
-> [  511.594999]  [<ffffffff814587e8>] read_iter_zero+0x38/0xb0
-> [  511.596595]  [<ffffffff811ba494>] __vfs_read+0xc4/0xf0
-> [  511.598174]  [<ffffffff811bac4a>] vfs_read+0x7a/0x120
-> [  511.599655]  [<ffffffff811bb973>] SyS_read+0x53/0xd0
-> [  511.601118]  [<ffffffff816cbbb2>] entry_SYSCALL_64_fastpath+0x12/0x76
-> [  511.602876] Code: e8 76 66 00 00 48 c7 43 58 00 00 00 00 ba ff ff ff ff 48 89 d8 f0 48 0f c1 10 79 05 e8 2a 0c 2c 00 5b 5d c3 0f 1f 80 00 00 00 00 <48> 8b 07 48 89 c2 48 83 c2 01 7e 07 f0 48 0f b1 17 75 f0 48 f7 
-> [  511.609514] RIP  [<ffffffff810b8d30>] down_read_trylock+0x0/0x60
-> [  511.611198]  RSP <ffff88007c277690>
-> [  511.612398] CR2: 0000000000000008
-> [  511.613556] ---[ end trace 0968d378b7781b82 ]---
-> [  511.613559] BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
-> [  511.613563] IP: [<ffffffff810b8d30>] down_read_trylock+0x0/0x60
-> [  511.613564] PGD ae52067 PUD af02067 PMD 0 
-> [  511.613566] Oops: 0000 [#2] SMP 
-> [  511.613594] Modules linked in: ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 nf_conntrack_ipv6 nf_defrag_ipv6 ipt_REJECT nf_reject_ipv4 nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_nat ebtable_broute bridge stp llc ebtable_filter ebtables ip6table_mangle ip6table_security ip6table_raw ip6table_filter ip6_tables iptable_mangle iptable_security iptable_raw iptable_filter ip_tables coretemp crct10dif_pclmul crc32_pclmul crc32c_intel aesni_intel glue_helper lrw gf128mul ablk_helper cryptd ppdev vmw_balloon serio_raw parport_pc pcspkr vmw_vmci parport shpchp i2c_piix4 sd_mod ata_generic pata_acpi vmwgfx drm_kms_helper syscopyarea sysfillrect sysimgblt fb_sys_fops ttm drm ahci ata_piix mptspi libahci scsi_transport_spi libata mptscsih e1000 mptbase i2c_core
-> [  511.613596] CPU: 0 PID: 15387 Comm: exe Tainted: G      D         4.3.0-rc7-next-20151102 #196
-> [  511.613597] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-> [  511.613597] task: ffff880077ea8000 ti: ffff88007bd48000 task.ti: ffff88007bd48000
-> [  511.613599] RIP: 0010:[<ffffffff810b8d30>]  [<ffffffff810b8d30>] down_read_trylock+0x0/0x60
-> [  511.613600] RSP: 0000:ffff88007bd4b690  EFLAGS: 00010202
-> [  511.613601] RAX: 0000000000000000 RBX: ffffea0000107fc0 RCX: 0000000000000001
-> [  511.613601] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000008
-> [  511.613602] RBP: ffff88007bd4b6c0 R08: 0000000000000000 R09: 0000000000000000
-> [  511.613602] R10: ffff880077ea8000 R11: ffffffffffffffe2 R12: ffff8800148b8739
-> [  511.613602] R13: ffff8800148b8738 R14: 0000000000000008 R15: 0000000000000000
-> [  511.613603] FS:  00007f384992f740(0000) GS:ffff88007fc00000(0000) knlGS:0000000000000000
-> [  511.613604] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  511.613604] CR2: 0000000000000008 CR3: 000000007b8c0000 CR4: 00000000001406f0
-> [  511.613633] Stack:
-> [  511.613635]  ffffffff81176896 ffffffff81176780 ffffea0000107fc0 ffffea0001808840
-> [  511.613636]  ffff88007bd4b728 ffffea0000107fc0 ffff88007bd4b718 ffffffff81176d34
-> [  511.613637]  0000000000000246 ffffea0000107f80 ffffea0000107fc0 0000000000000000
-> [  511.613637] Call Trace:
-> [  511.613640]  [<ffffffff81176896>] ? page_lock_anon_vma_read+0x116/0x420
-> [  511.613641]  [<ffffffff81176780>] ? page_get_anon_vma+0x2e0/0x2e0
-> [  511.613643]  [<ffffffff81176d34>] rmap_walk+0x194/0x470
-> [  511.613644]  [<ffffffff811773f3>] try_to_unmap+0x83/0x130
-> [  511.613645]  [<ffffffff811757d0>] ? page_remove_rmap+0x1e0/0x1e0
-> [  511.613646]  [<ffffffff811748a0>] ? invalid_migration_vma+0x30/0x30
-> [  511.613647]  [<ffffffff81176780>] ? page_get_anon_vma+0x2e0/0x2e0
-> [  511.613648]  [<ffffffff81174870>] ? invalid_mkclean_vma+0x20/0x20
-> [  511.613650]  [<ffffffff8119ce34>] migrate_pages+0x5d4/0x9d0
-> [  511.613652]  [<ffffffff81160a50>] ? pageblock_pfn_to_page+0xe0/0xe0
-> [  511.613653]  [<ffffffff81162150>] ? isolate_freepages_block+0x3d0/0x3d0
-> [  511.613654]  [<ffffffff811619ad>] compact_zone+0x48d/0x5e0
-> [  511.613655]  [<ffffffff81161b76>] compact_zone_order+0x76/0xa0
-> [  511.613657]  [<ffffffff811627fc>] try_to_compact_pages+0x12c/0x240
-> [  511.613658]  [<ffffffff8115ae27>] ? zone_statistics+0x77/0x90
-> [  511.613659]  [<ffffffff811b6404>] __alloc_pages_direct_compact+0x36/0xf4
-> [  511.613662]  [<ffffffff8114520c>] __alloc_pages_nodemask+0x56c/0xb30
-> [  511.613663]  [<ffffffff810bc600>] ? mark_held_locks+0x10/0x90
-> [  511.613666]  [<ffffffff816cc6df>] ? retint_kernel+0x10/0x10
-> [  511.613668]  [<ffffffff8118db15>] alloc_pages_vma+0x255/0x290
-> [  511.613670]  [<ffffffff811a2681>] do_huge_pmd_anonymous_page+0x151/0x680
-> [  511.613672]  [<ffffffff8116c49b>] handle_mm_fault+0xbab/0x15e0
-> [  511.613674]  [<ffffffff8116b944>] ? handle_mm_fault+0x54/0x15e0
-> [  511.613675]  [<ffffffff810b859f>] ? cpuacct_charge+0xaf/0x1a0
-> [  511.613677]  [<ffffffff81059641>] __do_page_fault+0x1a1/0x440
-> [  511.613678]  [<ffffffff810b9ed9>] ? __lock_is_held+0x49/0x70
-> [  511.613679]  [<ffffffff81059910>] do_page_fault+0x30/0x80
-> [  511.613680]  [<ffffffff816cc747>] ? native_iret+0x7/0x7
-> [  511.613682]  [<ffffffff816cd818>] page_fault+0x28/0x30
-> [  511.613684]  [<ffffffff81379a8d>] ? __clear_user+0x3d/0x70
-> [  511.613685]  [<ffffffff8137e488>] iov_iter_zero+0x68/0x250
-> [  511.613688]  [<ffffffff814587e8>] read_iter_zero+0x38/0xb0
-> [  511.613690]  [<ffffffff811ba494>] __vfs_read+0xc4/0xf0
-> [  511.613691]  [<ffffffff811bac4a>] vfs_read+0x7a/0x120
-> [  511.613692]  [<ffffffff811bb973>] SyS_read+0x53/0xd0
-> [  511.613693]  [<ffffffff816cbbb2>] entry_SYSCALL_64_fastpath+0x12/0x76
-> [  511.613705] Code: e8 76 66 00 00 48 c7 43 58 00 00 00 00 ba ff ff ff ff 48 89 d8 f0 48 0f c1 10 79 05 e8 2a 0c 2c 00 5b 5d c3 0f 1f 80 00 00 00 00 <48> 8b 07 48 89 c2 48 83 c2 01 7e 07 f0 48 0f b1 17 75 f0 48 f7 
-> [  511.613706] RIP  [<ffffffff810b8d30>] down_read_trylock+0x0/0x60
-> [  511.613707]  RSP <ffff88007bd4b690>
-> [  511.613707] CR2: 0000000000000008
-> [  511.613709] ---[ end trace 0968d378b7781b83 ]---
-> [  511.613711] BUG: sleeping function called from invalid context at include/linux/sched.h:2774
-> [  511.613711] in_atomic(): 1, irqs_disabled(): 1, pid: 15387, name: exe
-> [  511.613712] INFO: lockdep is turned off.
-> [  511.613712] irq event stamp: 1198952
-> [  511.613717] hardirqs last  enabled at (1198951): [<ffffffff816cc6df>] restore_regs_and_iret+0x0/0x1d
-> [  511.613718] hardirqs last disabled at (1198952): [<ffffffff816cb1d8>] _raw_spin_lock_irq+0x18/0x50
-> [  511.613721] softirqs last  enabled at (1198948): [<ffffffff8107334d>] __do_softirq+0x1bd/0x290
-> [  511.613722] softirqs last disabled at (1198943): [<ffffffff8107374b>] irq_exit+0xeb/0x100
-> [  511.613724] CPU: 0 PID: 15387 Comm: exe Tainted: G      D         4.3.0-rc7-next-20151102 #196
-> [  511.613724] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-> [  511.613726]  0000000000000000 00000000e557b5dd ffff88007bd4b380 ffffffff8136b873
-> [  511.613727]  ffff880077ea8000 ffff88007bd4b3a8 ffffffff81094adb ffffffff819f2f2f
-> [  511.613728]  0000000000000ad6 0000000000000000 ffff88007bd4b3d0 ffffffff81094c14
-> [  511.613728] Call Trace:
-> [  511.613730]  [<ffffffff8136b873>] dump_stack+0x4b/0x68
-> [  511.613732]  [<ffffffff81094adb>] ___might_sleep+0x14b/0x240
-> [  511.613733]  [<ffffffff81094c14>] __might_sleep+0x44/0x80
-> [  511.613735]  [<ffffffff8107e52e>] exit_signals+0x2e/0x150
-> [  511.613736]  [<ffffffff810908f1>] ? blocking_notifier_call_chain+0x11/0x20
-> [  511.613737]  [<ffffffff81071c0f>] do_exit+0xbf/0xb20
-> [  511.613740]  [<ffffffff8101297c>] oops_end+0x9c/0xd0
-> [  511.613741]  [<ffffffff81058ff9>] no_context+0x159/0x3c0
-> [  511.613743]  [<ffffffff81060200>] ? leave_mm+0x70/0x70
-> [  511.613744]  [<ffffffff81059367>] __bad_area_nosemaphore+0x107/0x230
-> [  511.613745]  [<ffffffff81060200>] ? leave_mm+0x70/0x70
-> [  511.613746]  [<ffffffff8105949e>] bad_area_nosemaphore+0xe/0x10
-> [  511.613746]  [<ffffffff81059785>] __do_page_fault+0x2e5/0x440
-> [  511.613749]  [<ffffffff810f5059>] ? smp_call_function_many+0x219/0x240
-> [  511.613750]  [<ffffffff81059910>] do_page_fault+0x30/0x80
-> [  511.613751]  [<ffffffff816cc747>] ? native_iret+0x7/0x7
-> [  511.613752]  [<ffffffff816cd818>] page_fault+0x28/0x30
-> [  511.613754]  [<ffffffff810b8d30>] ? up_write+0x40/0x40
-> [  511.613755]  [<ffffffff81176896>] ? page_lock_anon_vma_read+0x116/0x420
-> [  511.613756]  [<ffffffff81176780>] ? page_get_anon_vma+0x2e0/0x2e0
-> [  511.613757]  [<ffffffff81176d34>] rmap_walk+0x194/0x470
-> [  511.613758]  [<ffffffff811773f3>] try_to_unmap+0x83/0x130
-> [  511.613759]  [<ffffffff811757d0>] ? page_remove_rmap+0x1e0/0x1e0
-> [  511.613760]  [<ffffffff811748a0>] ? invalid_migration_vma+0x30/0x30
-> [  511.613761]  [<ffffffff81176780>] ? page_get_anon_vma+0x2e0/0x2e0
-> [  511.613762]  [<ffffffff81174870>] ? invalid_mkclean_vma+0x20/0x20
-> [  511.613764]  [<ffffffff8119ce34>] migrate_pages+0x5d4/0x9d0
-> [  511.613765]  [<ffffffff81160a50>] ? pageblock_pfn_to_page+0xe0/0xe0
-> [  511.613766]  [<ffffffff81162150>] ? isolate_freepages_block+0x3d0/0x3d0
-> [  511.613767]  [<ffffffff811619ad>] compact_zone+0x48d/0x5e0
-> [  511.613768]  [<ffffffff81161b76>] compact_zone_order+0x76/0xa0
-> [  511.613770]  [<ffffffff811627fc>] try_to_compact_pages+0x12c/0x240
-> [  511.613771]  [<ffffffff8115ae27>] ? zone_statistics+0x77/0x90
-> [  511.613772]  [<ffffffff811b6404>] __alloc_pages_direct_compact+0x36/0xf4
-> [  511.613773]  [<ffffffff8114520c>] __alloc_pages_nodemask+0x56c/0xb30
-> [  511.613774]  [<ffffffff810bc600>] ? mark_held_locks+0x10/0x90
-> [  511.613775]  [<ffffffff816cc6df>] ? retint_kernel+0x10/0x10
-> [  511.613777]  [<ffffffff8118db15>] alloc_pages_vma+0x255/0x290
-> [  511.613778]  [<ffffffff811a2681>] do_huge_pmd_anonymous_page+0x151/0x680
-> [  511.613780]  [<ffffffff8116c49b>] handle_mm_fault+0xbab/0x15e0
-> [  511.613781]  [<ffffffff8116b944>] ? handle_mm_fault+0x54/0x15e0
-> [  511.613783]  [<ffffffff810b859f>] ? cpuacct_charge+0xaf/0x1a0
-> [  511.613784]  [<ffffffff81059641>] __do_page_fault+0x1a1/0x440
-> [  511.613785]  [<ffffffff810b9ed9>] ? __lock_is_held+0x49/0x70
-> [  511.613786]  [<ffffffff81059910>] do_page_fault+0x30/0x80
-> [  511.613787]  [<ffffffff816cc747>] ? native_iret+0x7/0x7
-> [  511.613788]  [<ffffffff816cd818>] page_fault+0x28/0x30
-> [  511.613789]  [<ffffffff81379a8d>] ? __clear_user+0x3d/0x70
-> [  511.613790]  [<ffffffff8137e488>] iov_iter_zero+0x68/0x250
-> [  511.613792]  [<ffffffff814587e8>] read_iter_zero+0x38/0xb0
-> [  511.613793]  [<ffffffff811ba494>] __vfs_read+0xc4/0xf0
-> [  511.613795]  [<ffffffff811bac4a>] vfs_read+0x7a/0x120
-> [  511.613796]  [<ffffffff811bb973>] SyS_read+0x53/0xd0
-> [  511.613797]  [<ffffffff816cbbb2>] entry_SYSCALL_64_fastpath+0x12/0x76
-> [  511.613799] note: exe[15387] exited with preempt_count 1
-> [  511.857138] note: exe[15407] exited with preempt_count 1
-> ----------
-> 
-> ---------- OOM stress tester ----------
-> #include <stdio.h>
-> #include <stdlib.h>
-> #include <unistd.h>
-> #include <sys/types.h>
-> #include <sys/stat.h>
-> #include <signal.h>
-> #include <fcntl.h>
-> 
-> static void child(void)
-> {
-> 	char *buf = NULL;
-> 	unsigned long size = 0;
-> 	const int fd = open("/dev/zero", O_RDONLY);
-> 	for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
-> 		char *cp = realloc(buf, size);
-> 		if (!cp) {
-> 			size >>= 1;
-> 			break;
-> 		}
-> 		buf = cp;
-> 	}
-> 	read(fd, buf, size); /* Will cause OOM due to overcommit */
-> }
-> 
-> int main(int argc, char *argv[])
-> {
-> 	if (argc > 1) {
-> 		child();
-> 		return 0;
-> 	}
-> 	signal(SIGCLD, SIG_IGN);
-> 	while (1) {
-> 		switch (fork()) {
-> 		case 0:
-> 			execl("/proc/self/exe", "/proc/self/exe", "1", NULL);
-> 			_exit(0);
-> 		case -1:
-> 			sleep(1);
-> 		}
-> 	}
-> 	return 0;
-> }
-> ---------- OOM stress tester ----------
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I found one more bug: clearing of PageTail can be visible to other CPUs
+before updated page->flags on the page.
 
+I don't think this bug is connected to what you've reported, but worth
+testing.
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 5e0fe82a0fae..12bd8c5a4409 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2934,6 +2934,13 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ 	smp_wmb(); /* make pte visible before pmd */
+ 	pmd_populate(mm, pmd, pgtable);
++
++	if (freeze) {
++		for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
++			page_remove_rmap(page + i, false);
++			put_page(page + i);
++		}
++	}
+ }
+ 
+ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+@@ -3079,6 +3086,8 @@ static void freeze_page_vma(struct vm_area_struct *vma, struct page *page,
+ 		if (pte_soft_dirty(entry))
+ 			swp_pte = pte_swp_mksoft_dirty(swp_pte);
+ 		set_pte_at(vma->vm_mm, address, pte + i, swp_pte);
++		page_remove_rmap(page, false);
++		put_page(page);
+ 	}
+ 	pte_unmap_unlock(pte, ptl);
+ }
+@@ -3117,8 +3126,6 @@ static void unfreeze_page_vma(struct vm_area_struct *vma, struct page *page,
+ 		return;
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, address, &ptl);
+ 	for (i = 0; i < HPAGE_PMD_NR; i++, address += PAGE_SIZE, page++) {
+-		if (!page_mapped(page))
+-			continue;
+ 		if (!is_swap_pte(pte[i]))
+ 			continue;
+ 
+@@ -3128,6 +3135,9 @@ static void unfreeze_page_vma(struct vm_area_struct *vma, struct page *page,
+ 		if (migration_entry_to_page(swp_entry) != page)
+ 			continue;
+ 
++		get_page(page);
++		page_add_anon_rmap(page, vma, address, false);
++
+ 		entry = pte_mkold(mk_pte(page, vma->vm_page_prot));
+ 		entry = pte_mkdirty(entry);
+ 		if (is_write_migration_entry(swp_entry))
+@@ -3181,8 +3191,6 @@ static int __split_huge_page_tail(struct page *head, int tail,
+ 	 */
+ 	atomic_add(mapcount + 1, &page_tail->_count);
+ 
+-	/* after clearing PageTail the gup refcount can be released */
+-	smp_mb__after_atomic();
+ 
+ 	page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+ 	page_tail->flags |= (head->flags &
+@@ -3195,6 +3203,12 @@ static int __split_huge_page_tail(struct page *head, int tail,
+ 			 (1L << PG_unevictable)));
+ 	page_tail->flags |= (1L << PG_dirty);
+ 
++	/*
++	 * After clearing PageTail the gup refcount can be released.
++	 * Page flags also must be visible before we make the page non-compound.
++	 */
++	smp_wmb();
++
+ 	clear_compound_head(page_tail);
+ 
+ 	if (page_is_young(head))
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 35643176bc15..e4f8d9fb1c3d 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1173,20 +1173,12 @@ void do_page_add_anon_rmap(struct page *page,
+ 	bool compound = flags & RMAP_COMPOUND;
+ 	bool first;
+ 
+-	if (PageTransCompound(page)) {
++	if (compound) {
++		atomic_t *mapcount;
+ 		VM_BUG_ON_PAGE(!PageLocked(page), page);
+-		if (compound) {
+-			atomic_t *mapcount;
+-
+-			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+-			mapcount = compound_mapcount_ptr(page);
+-			first = atomic_inc_and_test(mapcount);
+-		} else {
+-			/* Anon THP always mapped first with PMD */
+-			first = 0;
+-			VM_BUG_ON_PAGE(!page_mapcount(page), page);
+-			atomic_inc(&page->_mapcount);
+-		}
++		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
++		mapcount = compound_mapcount_ptr(page);
++		first = atomic_inc_and_test(mapcount);
+ 	} else {
+ 		VM_BUG_ON_PAGE(compound, page);
+ 		first = atomic_inc_and_test(&page->_mapcount);
+@@ -1201,7 +1193,6 @@ void do_page_add_anon_rmap(struct page *page,
+ 		 * disabled.
+ 		 */
+ 		if (compound) {
+-			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+ 			__inc_zone_page_state(page,
+ 					      NR_ANON_TRANSPARENT_HUGEPAGES);
+ 		}
 -- 
  Kirill A. Shutemov
 
