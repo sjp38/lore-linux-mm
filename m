@@ -1,60 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 08A826B0038
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 13:44:51 -0500 (EST)
-Received: by wmff134 with SMTP id f134so66625302wmf.1
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 10:44:50 -0800 (PST)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 13si23608426wml.77.2015.11.02.10.44.49
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 44EEA6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 14:10:48 -0500 (EST)
+Received: by ykek133 with SMTP id k133so150254295yke.2
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 11:10:48 -0800 (PST)
+Received: from mail-yk0-x22b.google.com (mail-yk0-x22b.google.com. [2607:f8b0:4002:c07::22b])
+        by mx.google.com with ESMTPS id a129si10140373ywf.426.2015.11.02.11.10.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Nov 2015 10:44:49 -0800 (PST)
-Date: Mon, 2 Nov 2015 10:16:24 -0800
-From: Shaohua Li <shli@fb.com>
-Subject: Re: [RFC] mm: add a new vector based madvise syscall
-Message-ID: <20151102181623.GA3751821@devbig084.prn1.facebook.com>
-References: <20151029215516.GA3864685@devbig084.prn1.facebook.com>
- <871tccaz65.fsf@tassilo.jf.intel.com>
+        Mon, 02 Nov 2015 11:10:47 -0800 (PST)
+Received: by ykba4 with SMTP id a4so149160682ykb.3
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 11:10:47 -0800 (PST)
+Date: Mon, 2 Nov 2015 14:10:44 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v6 1/3] percpu: remove PERCPU_ENOUGH_ROOM which is stale
+ definition
+Message-ID: <20151102191044.GA9553@mtj.duckdns.org>
+References: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com>
+ <1446363977-23656-2-git-send-email-jungseoklee85@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <871tccaz65.fsf@tassilo.jf.intel.com>
+In-Reply-To: <1446363977-23656-2-git-send-email-jungseoklee85@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, hughd@google.com, hannes@cmpxchg.org, aarcange@redhat.com, je@fb.com, Kernel-team@fb.com
+To: Jungseok Lee <jungseoklee85@gmail.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, cl@linux.com, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, james.morse@arm.com, takahiro.akashi@linaro.org, mark.rutland@arm.com, barami97@gmail.com, linux-kernel@vger.kernel.org
 
-On Fri, Oct 30, 2015 at 01:17:54PM -0700, Andi Kleen wrote:
-> Shaohua Li <shli@fb.com> writes:
-> > +		vmas[i] = find_vma(current->mm, start);
-> > +		/*
-> > +		 * don't allow range cross vma, it doesn't make sense for
-> > +		 * DONTNEED
-> > +		 */
-> > +		if (!vmas[i] || start < vmas[i]->vm_start ||
-> > +		    start + len > vmas[i]->vm_end) {
-> > +			error = -ENOMEM;
-> > +			goto up_out;
-> > +		}
-> > +		if (vmas[i]->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP)) {
-> > +			error = -EINVAL;
-> > +			goto up_out;
-> > +		}
-> > +	}
+On Sun, Nov 01, 2015 at 07:46:15AM +0000, Jungseok Lee wrote:
+> As pure cleanup, this patch removes PERCPU_ENOUGH_ROOM which is not
+> used any more. That is, no code refers to the definition.
 > 
-> Needs a cond_resched() somewhere in case the list is very long?
+> Signed-off-by: Jungseok Lee <jungseoklee85@gmail.com>
 
-Yep, the zap_pmd_range() has cond_resched(). 
-> BTW one trick that may be interesting here is to add a new mode
-> that skips the TLB flush completely, but instead waits with
-> the freeing until enough context switches to non kernel tasks occurred
-> (and flushed the TLB this way). This could be done as part of RCU.
+Applied to percpu/for-4.4.
 
-that would not work if the app madvise(DONTNEED) first and then access the
-virtual address again.
+Thanks.
 
-Thanks,
-Shaohua
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
