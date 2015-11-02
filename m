@@ -1,52 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FD8B6B0038
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 12:35:26 -0500 (EST)
-Received: by pacfv9 with SMTP id fv9so161030330pac.3
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 09:35:26 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c8si36352385pat.181.2015.11.02.09.35.25
-        for <linux-mm@kvack.org>;
-        Mon, 02 Nov 2015 09:35:25 -0800 (PST)
-Date: Mon, 2 Nov 2015 17:35:20 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v6 2/3] percpu: add PERCPU_ATOM_SIZE for a generic percpu
- area setup
-Message-ID: <20151102173520.GC7637@e104818-lin.cambridge.arm.com>
-References: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com>
- <1446363977-23656-3-git-send-email-jungseoklee85@gmail.com>
- <alpine.DEB.2.20.1511021008580.27740@east.gentwo.org>
- <20151102162236.GB7637@e104818-lin.cambridge.arm.com>
- <alpine.DEB.2.20.1511021047420.28255@east.gentwo.org>
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 75EC46B0038
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 12:40:48 -0500 (EST)
+Received: by obbwb3 with SMTP id wb3so100923445obb.0
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 09:40:48 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id j3si12433121oif.73.2015.11.02.09.40.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Nov 2015 09:40:47 -0800 (PST)
+Subject: Re: [PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas
+ with holes
+References: <007901d1139a$030b0440$09210cc0$@alibaba-inc.com>
+ <56350014.2040800@oracle.com>
+ <013501d11519$2e5e6940$8b1b3bc0$@alibaba-inc.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <56379FC2.8000803@oracle.com>
+Date: Mon, 2 Nov 2015 09:39:14 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1511021047420.28255@east.gentwo.org>
+In-Reply-To: <013501d11519$2e5e6940$8b1b3bc0$@alibaba-inc.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: mark.rutland@arm.com, Jungseok Lee <jungseoklee85@gmail.com>, linux-mm@kvack.org, barami97@gmail.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, takahiro.akashi@linaro.org, james.morse@arm.com, tj@kernel.org, linux-arm-kernel@lists.infradead.org
+To: 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Hugh Dickins' <hughd@google.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Davidlohr Bueso' <dave@stgolabs.net>
 
-On Mon, Nov 02, 2015 at 10:48:17AM -0600, Christoph Lameter wrote:
-> On Mon, 2 Nov 2015, Catalin Marinas wrote:
-> > I haven't looked at the patch 3/3 in detail but I'm pretty sure I'll NAK
-> > the approach (and the definition of PERCPU_ATOM_SIZE), therefore
-> > rendering this patch unnecessary. IIUC, this is used to enforce some
-> > alignment of the per-CPU IRQ stack to be able to check whether the
-> > current stack is process or IRQ on exception entry. But there are other,
-> > less intrusive ways to achieve the same (e.g. x86).
+On 11/01/2015 06:50 PM, Hillf Danton wrote:
+> Andrew, please correct me if I miss/mess anything.
+>  
+>>> This hunk is already in the next tree, see below please.
+>>>
+>>
+>> Ah, the whole series to add shmem like code to handle hole punch/fault
+>> races is in the next tree.  It has been determined that most of this
+>> series is not necessary.  For the next tree, ideally the following
+>> should happen:
+>> - revert the series
+>> 	0830d5afd4ab69d01cf5ceba9b9f2796564c4eb6
+>> 	4e0a78fea078af972276c2d3aeaceb2bac80e033
+>> 	251c8a023a0c639725e014a612e8c05a631ce839
+>> 	03bcef375766af4db12ec783241ac39f8bf5e2b1
+>> - Add this patch (if Ack'ed/reviewed) to fix remove_inode_hugepages
+>> - Add a new patch for the handle hole punch/fault race.  It modifies
+>>   same code as this patch, so I have not sent out until this is Ack'ed.
+>>
+>> I will admit that I do not fully understand how maintainers manage their
+>> trees and share patches.  If someone can make suggestions on how to handle
+>> this situation (create patches against what tree? send patches to who?),
+>> I will be happy to make it happen.
+>>
+> The rule is to prepare patches against the next tree and deliver patches to
+> linux-mm with AKPM, linux-kernel cced. The authors and maintainers of the
+> current code your patches change should also be cced.
+> And those guys you want to get ack and comments.
 > 
-> The percpu allocator allows the specification of alignment requirements.
+> In this case, you should first ask Andrew to withdraw the 4 commits.
+> Then send your new patches, one after another, one problem a patch.
+> 
+> Best Wishes
+> Hillf
 
-Patch 3/3 does something like this:
+Andrew,
 
-DEFINE_PER_CPU(char [IRQ_STACK_SIZE], irq_stacks) __aligned(IRQ_STACK_SIZE)
+As mentioned above, it has been determined that most of the series titled
+"[PATCH v2 0/4] hugetlbfs fallocate hole punch race with page faults" is
+unnecessary.  Ideally, we want to remove this entire series from mmotm and
+linux-next.  It  will be replaced with a simpler patch.
 
-where IRQ_STACK_SIZE > PAGE_SIZE. AFAICT, setup_per_cpu_areas() doesn't
-guarantee alignment greater than PAGE_SIZE.
+However, before that happens I would like to address bugs in the current
+code as pointed out by Hugh Dickins.  These are addresses in the patch
+which started this thread:
+"[PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas with holes"
+
+If there is a way to do this that makes your work easier let me know.
+
+It would be good if someone could take a look at this patch as these bugs
+also exist in 4.3.
+
 
 -- 
-Catalin
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
