@@ -1,41 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B751482F64
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 14:11:51 -0500 (EST)
-Received: by ykdr3 with SMTP id r3so149420603ykd.1
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 11:11:51 -0800 (PST)
-Received: from mail-yk0-x22e.google.com (mail-yk0-x22e.google.com. [2607:f8b0:4002:c07::22e])
-        by mx.google.com with ESMTPS id p186si6235446ywp.284.2015.11.02.11.11.50
+Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CB0082F64
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 14:20:57 -0500 (EST)
+Received: by ykft191 with SMTP id t191so149471426ykf.0
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 11:20:57 -0800 (PST)
+Received: from mail-yk0-x232.google.com (mail-yk0-x232.google.com. [2607:f8b0:4002:c07::232])
+        by mx.google.com with ESMTPS id w23si10191894ywa.92.2015.11.02.11.20.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Nov 2015 11:11:51 -0800 (PST)
-Received: by ykdr3 with SMTP id r3so149420368ykd.1
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 11:11:50 -0800 (PST)
-Date: Mon, 2 Nov 2015 14:11:48 -0500
+        Mon, 02 Nov 2015 11:20:56 -0800 (PST)
+Received: by ykft191 with SMTP id t191so149471061ykf.0
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 11:20:56 -0800 (PST)
+Date: Mon, 2 Nov 2015 14:20:53 -0500
 From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [patch 3/3] vmstat: Create our own workqueue
-Message-ID: <20151102191148.GB9553@mtj.duckdns.org>
-References: <20151029022447.GB27115@mtj.duckdns.org>
- <20151029030822.GD27115@mtj.duckdns.org>
- <alpine.DEB.2.20.1510292000340.30861@east.gentwo.org>
- <201510311143.BIH87000.tOSVFHOFJMLFOQ@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.20.1511021011460.27740@east.gentwo.org>
- <201511030152.JGF95845.SHVLOMtOJFFOFQ@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.20.1511021209150.28799@east.gentwo.org>
+Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable()
+ checks
+Message-ID: <20151102192053.GC9553@mtj.duckdns.org>
+References: <20151022140944.GA30579@mtj.duckdns.org>
+ <20151022142155.GB30579@mtj.duckdns.org>
+ <alpine.DEB.2.20.1510220923130.23591@east.gentwo.org>
+ <20151022142429.GC30579@mtj.duckdns.org>
+ <alpine.DEB.2.20.1510220925160.23638@east.gentwo.org>
+ <20151022143349.GD30579@mtj.duckdns.org>
+ <alpine.DEB.2.20.1510220939310.23718@east.gentwo.org>
+ <20151022151414.GF30579@mtj.duckdns.org>
+ <20151023042649.GB18907@mtj.duckdns.org>
+ <20151102150137.GB3442@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1511021209150.28799@east.gentwo.org>
+In-Reply-To: <20151102150137.GB3442@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, David Rientjes <rientjes@google.com>, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
 
-On Mon, Nov 02, 2015 at 12:10:04PM -0600, Christoph Lameter wrote:
-> Well true that is dependend on the correct workqueue operation. I though
-> that was fixed by Tejun?
+On Mon, Nov 02, 2015 at 04:01:37PM +0100, Michal Hocko wrote:
+...
+> which is perfectly suited for the stable backport, OOM sysrq resp. any
+> sysrq which runs from the WQ context should be as robust as possible and
+> shouldn't rely on all the code running from WQ context to issue a sleep
+> to get unstuck. So I definitely support something like this patch.
 
-At least for now, we're going with Tetsuo's short sleep patch.
+Well, sysrq wouldn't run successfully either on a cpu which is busy
+looping with preemption off.  I don't think this calls for a new flag
+to modify workqueue behavior especially given that missing such flag
+would lead to the same kind of lockup.  It's a shitty solution.  If
+the possibility of sysrq getting stuck behind concurrency management
+is an issue, queueing them on an unbound or highpri workqueue should
+be good enough.
 
 Thanks.
 
