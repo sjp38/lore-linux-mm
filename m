@@ -1,80 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AC2C82F76
-	for <linux-mm@kvack.org>; Sun,  1 Nov 2015 19:23:20 -0500 (EST)
-Received: by pacfv9 with SMTP id fv9so134657298pac.3
-        for <linux-mm@kvack.org>; Sun, 01 Nov 2015 16:23:19 -0800 (PST)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id rr7si22232627pab.62.2015.11.01.16.23.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 01 Nov 2015 16:23:19 -0800 (PST)
-Received: by padec8 with SMTP id ec8so20040013pad.1
-        for <linux-mm@kvack.org>; Sun, 01 Nov 2015 16:23:19 -0800 (PST)
-Date: Sun, 1 Nov 2015 16:23:11 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 6/6] ksm: unstable_tree_search_insert error checking
- cleanup
-In-Reply-To: <20151101234558.GT5390@redhat.com>
-Message-ID: <alpine.LSU.2.11.1511011617150.11840@eggly.anvils>
-References: <1444925065-4841-1-git-send-email-aarcange@redhat.com> <1444925065-4841-7-git-send-email-aarcange@redhat.com> <alpine.LSU.2.11.1510251601230.1923@eggly.anvils> <20151101234558.GT5390@redhat.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 370B282F85
+	for <linux-mm@kvack.org>; Sun,  1 Nov 2015 21:50:26 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so8787393pab.0
+        for <linux-mm@kvack.org>; Sun, 01 Nov 2015 18:50:26 -0800 (PST)
+Received: from out11.biz.mail.alibaba.com (out114-135.biz.mail.alibaba.com. [205.204.114.135])
+        by mx.google.com with ESMTP id a13si31209265pbu.165.2015.11.01.18.50.24
+        for <linux-mm@kvack.org>;
+        Sun, 01 Nov 2015 18:50:25 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <007901d1139a$030b0440$09210cc0$@alibaba-inc.com> <56350014.2040800@oracle.com>
+In-Reply-To: <56350014.2040800@oracle.com>
+Subject: Re: [PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas with holes
+Date: Mon, 02 Nov 2015 10:50:05 +0800
+Message-ID: <013501d11519$2e5e6940$8b1b3bc0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Petr Holasek <pholasek@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Hugh Dickins' <hughd@google.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Davidlohr Bueso' <dave@stgolabs.net>
 
-On Mon, 2 Nov 2015, Andrea Arcangeli wrote:
-> On Sun, Oct 25, 2015 at 04:18:05PM -0700, Hugh Dickins wrote:
-> > On Thu, 15 Oct 2015, Andrea Arcangeli wrote:
-> > 
-> > > get_mergeable_page() can only return NULL (in case of errors) or the
-> > > pinned mergeable page. It can't return an error different than
-> > > NULL. This makes it more readable and less confusion in addition to
-> > > optimizing the check.
-> > > 
-> > > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > 
-> > I share your sentiment, prefer to avoid an unnecessary IS_ERR_OR_NULL.
-> > And you may be right that it's unnecessary; but that's far from clear
-> > to me, and you haven't changed the IS_ERR_OR_NULL after follow_page()
-> > in get_mergeable_page() where it originates, so I wonder if you just
-> > got confused on this.
-> > 
-> > Even if you have established that there's currently no way that
-> > follow_page(vma, addr, FOLL_GET) could return an -errno on a vma
-> > validated by find_mergeable_vma(), I think we'd still be better off
-> > to allow for some future -errno there; but I'd be happy for you to
-> > keep the change below, but also adjust get_mergeable_page() to
-> > convert an -errno immediately to NULL after follow_page().
-> > 
-> > So, I think this is gently Nacked in its present form,
-> > but a replacement eagerly Acked.
+Andrew, please correct me if I miss/mess anything.
+ 
+> > This hunk is already in the next tree, see below please.
+> >
 > 
-> The "out:" label is followed by page = NULL, so if follow_page returns
-> an error, get_mergeable_page still cannot return an error.
-
-Ah, yes, I missed that, thanks.
-
-Acked-by: Hugh Dickins <hughd@google.com>
-
+> Ah, the whole series to add shmem like code to handle hole punch/fault
+> races is in the next tree.  It has been determined that most of this
+> series is not necessary.  For the next tree, ideally the following
+> should happen:
+> - revert the series
+> 	0830d5afd4ab69d01cf5ceba9b9f2796564c4eb6
+> 	4e0a78fea078af972276c2d3aeaceb2bac80e033
+> 	251c8a023a0c639725e014a612e8c05a631ce839
+> 	03bcef375766af4db12ec783241ac39f8bf5e2b1
+> - Add this patch (if Ack'ed/reviewed) to fix remove_inode_hugepages
+> - Add a new patch for the handle hole punch/fault race.  It modifies
+>   same code as this patch, so I have not sent out until this is Ack'ed.
 > 
-> If this wasn't the case, get_mergeable_page would return an
-> uninitialized pointer if find_mergeable_vma would return NULL.
+> I will admit that I do not fully understand how maintainers manage their
+> trees and share patches.  If someone can make suggestions on how to handle
+> this situation (create patches against what tree? send patches to who?),
+> I will be happy to make it happen.
 > 
-> I guess the IS_ERR_OR_NULL that I removed, was the direct result of
-> overlooking the location of the "out:".
-> 
-> If there was a return after the "out:" the readability would have been
-> improved, but I haven't touched the code around the "out:". That's the
-> way it was before. Now I'll add a return in this same patch after the
-> "out:" before resubmitting without 1/6.
+The rule is to prepare patches against the next tree and deliver patches to
+linux-mm with AKPM, linux-kernel cced. The authors and maintainers of the
+current code your patches change should also be cced.
+And those guys you want to get ack and comments.
 
-I can't very well claim now that it was readable before, can I?-)
-We'll see; I wouldn't mind if you leave this patch as is.
+In this case, you should first ask Andrew to withdraw the 4 commits.
+Then send your new patches, one after another, one problem a patch.
 
-Hugh
+Best Wishes
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
