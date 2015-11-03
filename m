@@ -1,155 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F2986B0038
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 09:13:06 -0500 (EST)
-Received: by qkct129 with SMTP id t129so6728581qkc.2
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 06:13:06 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f200si22367415qhc.127.2015.11.03.06.13.05
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 01DFB6B0038
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 10:20:22 -0500 (EST)
+Received: by pasz6 with SMTP id z6so21197451pas.2
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 07:20:21 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id rx4si42927542pac.133.2015.11.03.07.20.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Nov 2015 06:13:05 -0800 (PST)
-From: Andreas Gruenbacher <agruenba@redhat.com>
-Subject: [PATCH] tmpfs: listxattr should include POSIX ACL xattrs
-Date: Tue,  3 Nov 2015 15:13:01 +0100
-Message-Id: <1446559981-26025-1-git-send-email-agruenba@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Nov 2015 07:20:21 -0800 (PST)
+Date: Wed, 4 Nov 2015 00:20:19 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: kernel oops on mmotm-2015-10-15-15-20
+Message-ID: <20151103152019.GM17906@bbox>
+References: <20151022012136.GG23631@bbox>
+ <20151022090051.GH23631@bbox>
+ <20151029002524.GA12018@node.shutemov.name>
+ <20151029075829.GA16099@bbox>
+ <20151029095206.GB29870@node.shutemov.name>
+ <20151030070350.GB16099@bbox>
+ <20151102125749.GB7473@node.shutemov.name>
+ <20151103030258.GJ17906@bbox>
+ <20151103071650.GA21553@node.shutemov.name>
+ <20151103073329.GL17906@bbox>
+MIME-Version: 1.0
+In-Reply-To: <20151103073329.GL17906@bbox>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
-Cc: Andreas Gruenbacher <agruenba@redhat.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
 
-When a file on tmpfs has an ACL or a Default ACL, listxattr should include the
-corresponding xattr names.
+On Tue, Nov 03, 2015 at 04:33:29PM +0900, Minchan Kim wrote:
+> On Tue, Nov 03, 2015 at 09:16:50AM +0200, Kirill A. Shutemov wrote:
+> > On Tue, Nov 03, 2015 at 12:02:58PM +0900, Minchan Kim wrote:
+> > > Hello Kirill,
+> > > 
+> > > On Mon, Nov 02, 2015 at 02:57:49PM +0200, Kirill A. Shutemov wrote:
+> > > > On Fri, Oct 30, 2015 at 04:03:50PM +0900, Minchan Kim wrote:
+> > > > > On Thu, Oct 29, 2015 at 11:52:06AM +0200, Kirill A. Shutemov wrote:
+> > > > > > On Thu, Oct 29, 2015 at 04:58:29PM +0900, Minchan Kim wrote:
+> > > > > > > On Thu, Oct 29, 2015 at 02:25:24AM +0200, Kirill A. Shutemov wrote:
+> > > > > > > > On Thu, Oct 22, 2015 at 06:00:51PM +0900, Minchan Kim wrote:
+> > > > > > > > > On Thu, Oct 22, 2015 at 10:21:36AM +0900, Minchan Kim wrote:
+> > > > > > > > > > Hello Hugh,
+> > > > > > > > > > 
+> > > > > > > > > > On Wed, Oct 21, 2015 at 05:59:59PM -0700, Hugh Dickins wrote:
+> > > > > > > > > > > On Thu, 22 Oct 2015, Minchan Kim wrote:
+> > > > > > > > > > > > 
+> > > > > > > > > > > > I added the code to check it and queued it again but I had another oops
+> > > > > > > > > > > > in this time but symptom is related to anon_vma, too.
+> > > > > > > > > > > > (kernel is based on recent mmotm + unconditional mkdirty for bug fix)
+> > > > > > > > > > > > It seems page_get_anon_vma returns NULL since the page was not page_mapped
+> > > > > > > > > > > > at that time but second check of page_mapped right before try_to_unmap seems
+> > > > > > > > > > > > to be true.
+> > > > > > > > > > > > 
+> > > > > > > > > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > > > > > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > > > > > > > > page:ffffea0001cfbfc0 count:3 mapcount:1 mapping:ffff88007f1b5f51 index:0x600000aff
+> > > > > > > > > > > > flags: 0x4000000000048019(locked|uptodate|dirty|swapcache|swapbacked)
+> > > > > > > > > > > > page dumped because: VM_BUG_ON_PAGE(PageAnon(page) && !PageKsm(page) && !anon_vma)
+> > > > > > > > > > > 
+> > > > > > > > > > > That's interesting, that's one I added in my page migration series.
+> > > > > > > > > > > Let me think on it, but it could well relate to the one you got before.
+> > > > > > > > > > 
+> > > > > > > > > > I will roll back to mm/madv_free-v4.3-rc5-mmotm-2015-10-15-15-20
+> > > > > > > > > > instead of next-20151021 to remove noise from your migration cleanup
+> > > > > > > > > > series and will test it again.
+> > > > > > > > > > If it is fixed, I will test again with your migration patchset, then.
+> > > > > > > > > 
+> > > > > > > > > I tested mmotm-2015-10-15-15-20 with test program I attach for a long time.
+> > > > > > > > > Therefore, there is no patchset from Hugh's migration patch in there.
+> > > > > > > > > And I added below debug code with request from Kirill to all test kernels.
+> > > > > > > > 
+> > > > > > > > It took too long time (and a lot of printk()), but I think I track it down
+> > > > > > > > finally.
+> > > > > > > >  
+> > > > > > > > The patch below seems fixes issue for me. It's not yet properly tested, but
+> > > > > > > > looks like it works.
+> > > > > > > > 
+> > > > > > > > The problem was my wrong assumption on how migration works: I thought that
+> > > > > > > > kernel would wait migration to finish on before deconstruction mapping.
+> > > > > > > > 
+> > > > > > > > But turn out that's not true.
+> > > > > > > > 
+> > > > > > > > As result if zap_pte_range() races with split_huge_page(), we can end up
+> > > > > > > > with page which is not mapped anymore but has _count and _mapcount
+> > > > > > > > elevated. The page is on LRU too. So it's still reachable by vmscan and by
+> > > > > > > > pfn scanners (Sasha showed few similar traces from compaction too).
+> > > > > > > > It's likely that page->mapping in this case would point to freed anon_vma.
+> > > > > > > > 
+> > > > > > > > BOOM!
+> > > > > > > > 
+> > > > > > > > The patch modify freeze/unfreeze_page() code to match normal migration
+> > > > > > > > entries logic: on setup we remove page from rmap and drop pin, on removing
+> > > > > > > > we get pin back and put page on rmap. This way even if migration entry
+> > > > > > > > will be removed under us we don't corrupt page's state.
+> > > > > > > > 
+> > > > > > > > Please, test.
+> > > > > > > > 
+> > > > > > > 
+> > > > > > > kernel: On mmotm-2015-10-15-15-20 + pte_mkdirty patch + your new patch, I tested
+> > > > > > > one I sent to you(ie, oops.c + memcg_test.sh)
+> > > > > > > 
+> > > > > > > page:ffffea00016a0000 count:3 mapcount:0 mapping:ffff88007f49d001 index:0x600001800 compound_mapcount: 0
+> > > > > > > flags: 0x4000000000044009(locked|uptodate|head|swapbacked)
+> > > > > > > page dumped because: VM_BUG_ON_PAGE(!page_mapcount(page))
+> > > > > > > page->mem_cgroup:ffff88007f613c00
+> > > > > > 
+> > > > > > Ignore my previous answer. Still sleeping.
+> > > > > > 
+> > > > > > The right way to fix I think is something like:
+> > > > > > 
+> > > > > > diff --git a/mm/rmap.c b/mm/rmap.c
+> > > > > > index 35643176bc15..f2d46792a554 100644
+> > > > > > --- a/mm/rmap.c
+> > > > > > +++ b/mm/rmap.c
+> > > > > > @@ -1173,20 +1173,12 @@ void do_page_add_anon_rmap(struct page *page,
+> > > > > >  	bool compound = flags & RMAP_COMPOUND;
+> > > > > >  	bool first;
+> > > > > >  
+> > > > > > -	if (PageTransCompound(page)) {
+> > > > > > +	if (PageTransCompound(page) && compound) {
+> > > > > > +		atomic_t *mapcount;
+> > > > > >  		VM_BUG_ON_PAGE(!PageLocked(page), page);
+> > > > > > -		if (compound) {
+> > > > > > -			atomic_t *mapcount;
+> > > > > > -
+> > > > > > -			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+> > > > > > -			mapcount = compound_mapcount_ptr(page);
+> > > > > > -			first = atomic_inc_and_test(mapcount);
+> > > > > > -		} else {
+> > > > > > -			/* Anon THP always mapped first with PMD */
+> > > > > > -			first = 0;
+> > > > > > -			VM_BUG_ON_PAGE(!page_mapcount(page), page);
+> > > > > > -			atomic_inc(&page->_mapcount);
+> > > > > > -		}
+> > > > > > +		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+> > > > > > +		mapcount = compound_mapcount_ptr(page);
+> > > > > > +		first = atomic_inc_and_test(mapcount);
+> > > > > >  	} else {
+> > > > > >  		VM_BUG_ON_PAGE(compound, page);
+> > > > > >  		first = atomic_inc_and_test(&page->_mapcount);
+> > > > > > -- 
+> > > > > 
+> > > > > kernel: On mmotm-2015-10-15-15-20 + pte_mkdirty patch + freeze/unfreeze patch + above patch,
+> > > > > 
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > BUG: Bad rss-counter state mm:ffff880058d2e580 idx:1 val:512
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > 
+> > > > > <SNIP>
+> > > > > 
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+> > > > > BUG: Bad rss-counter state mm:ffff880046980700 idx:1 val:511
+> > > > > BUG: Bad rss-counter state mm:ffff880046980700 idx:2 val:1
+> > > > 
+> > > > Hm. I was not able to trigger this and don't see anything obviuous what can
+> > > > lead to this kind of missmatch :-/
+> > 
+> > I managed to trigger this when switched back from MADV_DONTNEED to
+> > MADV_FREE. Hm..
+> 
+> Hmm,,
+> What version of MADV_FREE do you test on?
+> Old MADV_FREE(ie, before posting MADV_FREE refactoring and fix KSM page)
+> had a bug.
+> 
+> I tried your patches on top of recent my MADV_FREE patches.
+> But when I try it with old THP refcount redesign, I couldn't find
+> any problem so far. However, I'm not saying it's your fault.
+> 
+> I will give it a shot with MADV_DONTNEED to reproduce the problem.
+> But one thing I could say is MADV_DONTNEED is more hard to hit
+> compared to MADV_FREE because memory pressure of MADV_DONTNEED test
+> wouldn't be heavy.
 
-Signed-off-by: Andreas Gruenbacher <agruenba@redhat.com>
----
- fs/kernfs/inode.c     |  2 +-
- fs/xattr.c            | 53 +++++++++++++++++++++++++++++++++++----------------
- include/linux/xattr.h |  2 +-
- mm/shmem.c            |  2 +-
- 4 files changed, 40 insertions(+), 19 deletions(-)
+I reproduced this on the kernel which has no code related to MADV_FREE:
 
-diff --git a/fs/kernfs/inode.c b/fs/kernfs/inode.c
-index 756dd56..3c415bf 100644
---- a/fs/kernfs/inode.c
-+++ b/fs/kernfs/inode.c
-@@ -230,7 +230,7 @@ ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
- 	if (!attrs)
- 		return -ENOMEM;
- 
--	return simple_xattr_list(&attrs->xattrs, buf, size);
-+	return simple_xattr_list(d_inode(dentry), &attrs->xattrs, buf, size);
- }
- 
- static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
-diff --git a/fs/xattr.c b/fs/xattr.c
-index 072fee1..7035d7d 100644
---- a/fs/xattr.c
-+++ b/fs/xattr.c
-@@ -926,38 +926,59 @@ static bool xattr_is_trusted(const char *name)
- 	return !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
- }
- 
-+static int xattr_list_one(char **buffer, ssize_t *remaining_size,
-+			  const char *name)
-+{
-+	size_t len = strlen(name) + 1;
-+	if (*buffer) {
-+		if (*remaining_size < len)
-+			return -ERANGE;
-+		memcpy(*buffer, name, len);
-+		*buffer += len;
-+	}
-+	*remaining_size -= len;
-+	return 0;
-+}
-+
- /*
-  * xattr LIST operation for in-memory/pseudo filesystems
-  */
--ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer,
--			  size_t size)
-+ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
-+			  char *buffer, size_t size)
- {
- 	bool trusted = capable(CAP_SYS_ADMIN);
- 	struct simple_xattr *xattr;
--	size_t used = 0;
-+	ssize_t remaining_size = size;
-+	int err;
-+
-+#ifdef CONFIG_FS_POSIX_ACL
-+	if (inode->i_acl) {
-+		err = xattr_list_one(&buffer, &remaining_size,
-+				     XATTR_NAME_POSIX_ACL_ACCESS);
-+		if (err)
-+			return err;
-+	}
-+	if (inode->i_default_acl) {
-+		err = xattr_list_one(&buffer, &remaining_size,
-+				     XATTR_NAME_POSIX_ACL_DEFAULT);
-+		if (err)
-+			return err;
-+	}
-+#endif
- 
- 	spin_lock(&xattrs->lock);
- 	list_for_each_entry(xattr, &xattrs->head, list) {
--		size_t len;
--
- 		/* skip "trusted." attributes for unprivileged callers */
- 		if (!trusted && xattr_is_trusted(xattr->name))
- 			continue;
- 
--		len = strlen(xattr->name) + 1;
--		used += len;
--		if (buffer) {
--			if (size < used) {
--				used = -ERANGE;
--				break;
--			}
--			memcpy(buffer, xattr->name, len);
--			buffer += len;
--		}
-+		err = xattr_list_one(&buffer, &remaining_size, xattr->name);
-+		if (err)
-+			return err;
- 	}
- 	spin_unlock(&xattrs->lock);
- 
--	return used;
-+	return size - remaining_size;
- }
- 
- /*
-diff --git a/include/linux/xattr.h b/include/linux/xattr.h
-index 91b0a68..b57aed5 100644
---- a/include/linux/xattr.h
-+++ b/include/linux/xattr.h
-@@ -92,7 +92,7 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
- int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
- 		     const void *value, size_t size, int flags);
- int simple_xattr_remove(struct simple_xattrs *xattrs, const char *name);
--ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer,
-+ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs, char *buffer,
- 			  size_t size);
- void simple_xattr_list_add(struct simple_xattrs *xattrs,
- 			   struct simple_xattr *new_xattr);
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 48ce829..3d95547 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2645,7 +2645,7 @@ static int shmem_removexattr(struct dentry *dentry, const char *name)
- static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
- {
- 	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
--	return simple_xattr_list(&info->xattrs, buffer, size);
-+	return simple_xattr_list(d_inode(dentry), &info->xattrs, buffer, size);
- }
- #endif /* CONFIG_TMPFS_XATTR */
- 
--- 
-2.5.0
+mmotm-2015-10-15-15-20-no-madvise_free, IOW it means git head for
+54bad5da4834 arm64: add pmd_[dirty|mkclean] for THP so there is no
+MADV_FREE code in there
++ pte_mkdirty patch
++ freeze/unfreeze patch
++ do_page_add_anon_rmap patch
+
+Adding 4191228k swap on /dev/vda5.  Priority:-1 extents:1 across:4191228k FS
+BUG: Bad rss-counter state mm:ffff88007fdd5b00 idx:1 val:511
+BUG: Bad rss-counter state mm:ffff88007fdd5b00 idx:2 val:1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
