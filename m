@@ -1,82 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A32A682F64
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 21:36:53 -0500 (EST)
-Received: by pacfv9 with SMTP id fv9so4281019pac.3
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 18:36:53 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id cl4si39488413pad.26.2015.11.02.18.36.51
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D6C182F64
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 21:49:37 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so4460827pab.0
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 18:49:36 -0800 (PST)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id w9si39575175pbt.10.2015.11.02.18.49.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Nov 2015 18:36:52 -0800 (PST)
-Date: Tue, 3 Nov 2015 11:36:51 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 3/8] arch: uapi: asm: mman.h: Let MADV_FREE have same
- value for all architectures
-Message-ID: <20151103023651.GI17906@bbox>
-References: <1446188504-28023-1-git-send-email-minchan@kernel.org>
- <1446188504-28023-4-git-send-email-minchan@kernel.org>
- <alpine.LSU.2.11.1511011542030.11427@eggly.anvils>
- <20151103023250.GH17906@bbox>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Nov 2015 18:49:36 -0800 (PST)
+Received: by pacfv9 with SMTP id fv9so4590468pac.3
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 18:49:36 -0800 (PST)
+Date: Mon, 2 Nov 2015 18:49:27 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] osd fs: __r4w_get_page rely on PageUptodate for
+ uptodate
+In-Reply-To: <5637437C.4070306@electrozaur.com>
+Message-ID: <alpine.LSU.2.11.1511021813010.1013@eggly.anvils>
+References: <alpine.LSU.2.11.1510291137430.3369@eggly.anvils> <5635E2B4.5070308@electrozaur.com> <alpine.LSU.2.11.1511011513240.11427@eggly.anvils> <5637437C.4070306@electrozaur.com>
 MIME-Version: 1.0
-In-Reply-To: <20151103023250.GH17906@bbox>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, zhangyanfei@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Miller <davem@davemloft.net>, "Darrick J. Wong" <darrick.wong@oracle.com>, Roland Dreier <roland@kernel.org>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Shaohua Li <shli@kernel.org>, Chen Gang <gang.chen.5i5j@gmail.com>, "rth@twiddle.net" <rth@twiddle.net>, "ink@jurassic.park.msu.ru" <ink@jurassic.park.msu.ru>, "mattst88@gmail.com" <mattst88@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, "jejb@parisc-linux.org" <jejb@parisc-linux.org>, "deller@gmx.de" <deller@gmx.de>, "chris@zankel.net" <chris@zankel.net>, "jcmvbkbc@gmail.com" <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org
+To: Boaz Harrosh <ooo@electrozaur.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Lameter <cl@linux.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, osd-dev@open-osd.org
 
-On Tue, Nov 03, 2015 at 11:32:51AM +0900, Minchan Kim wrote:
-> On Sun, Nov 01, 2015 at 04:08:27PM -0800, Hugh Dickins wrote:
-> > On Fri, 30 Oct 2015, Minchan Kim wrote:
-> > > From: Chen Gang <gang.chen.5i5j@gmail.com>
-> > > 
-> > > For uapi, need try to let all macros have same value, and MADV_FREE is
-> > > added into main branch recently, so need redefine MADV_FREE for it.
-> > > 
-> > > At present, '8' can be shared with all architectures, so redefine it to
-> > > '8'.
-> > > 
-> > > Cc: rth@twiddle.net <rth@twiddle.net>,
-> > > Cc: ink@jurassic.park.msu.ru <ink@jurassic.park.msu.ru>
-> > > Cc: mattst88@gmail.com <mattst88@gmail.com>
-> > > Cc: Ralf Baechle <ralf@linux-mips.org>
-> > > Cc: jejb@parisc-linux.org <jejb@parisc-linux.org>
-> > > Cc: deller@gmx.de <deller@gmx.de>
-> > > Cc: chris@zankel.net <chris@zankel.net>
-> > > Cc: jcmvbkbc@gmail.com <jcmvbkbc@gmail.com>
-> > > Cc: Arnd Bergmann <arnd@arndb.de>
-> > > Cc: linux-arch@vger.kernel.org
-> > > Cc: linux-api@vger.kernel.org
-> > > Acked-by: Minchan Kim <minchan@kernel.org>
-> > > Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
+On Mon, 2 Nov 2015, Boaz Harrosh wrote:
+> On 11/02/2015 01:39 AM, Hugh Dickins wrote:
+> <>
+> >> This patch is not correct!
 > > 
-> > Let me add
-> > Acked-by: Hugh Dickins <hughd@google.com>
-> > to this one too.
+> > I think you have actually confirmed that the patch is correct:
+> > why bother to test PageDirty or PageWriteback when PageUptodate
+> > already tells you what you need?
 > > 
-> > But I have extended your mail's Cc list: Darrick pointed out earlier
-> > that dietlibc has a Solaris #define MADV_FREE 0x5 in its mman.h,
-> > and that was in the kernel's sparc mman.h up until 2.6.25.  I doubt
-> > that presents any obstacle nowadays, but Dave Miller should be Cc'ed.
+> > Or do these filesystems do something unusual with PageUptodate
+> > when PageDirty is set?  I didn't find it.
+> > 
+> 
+> This is kind of delicate stuff. It took me a while to get it right
+> when I did it. I don't remember all the details.
+> 
+> But consider this option:
 
-For the convenience for Dave, I found this.
+Thanks, yes, it helps to have a concrete example in front of us.
 
-commit ec98c6b9b47df6df1c1fa6cf3d427414f8c2cf16
-Author: David S. Miller <davem@davemloft.net>
-Date:   Sun Apr 20 02:14:23 2008 -0700
+> 
+> exofs_write_begin on a full PAGE_CACHE_SIZE, the page is instantiated
+> new in page-cache is that PageUptodate(page) then? I thought not.
 
-    [SPARC]: Remove SunOS and Solaris binary support.
-    
-    As per Documentation/feature-removal-schedule.txt
-    
-    Signed-off-by: David S. Miller <davem@davemloft.net>
+Right, PageUptodate must not be set until the page has been filled with
+the correct data.  Nor is PageDirty or PageWriteback set at this point,
+actually.
 
-Hello Dave,
-Could you confirm it?
+Once page is filled with the correct data, either exofs_write_end()
+(which uses simple_write_end()) or (internally) exofs_commit_chunk()
+is called.
 
-Thanks.
+> (exofs does not set that)
+
+It's simple_write_end() or exofs_commit_chunk() which SetPageUptodate
+in this case.  And after that each calls set_page_dirty(), which does
+the SetPageDirty, before unlocking the page which was supplied locked
+by exofs_write_begin().
+
+So I don't see where the page is PageDirty without being PageUptodate.
+
+> 
+> Now that page I do not want to read in. The latest data is in memory.
+> (Same when this page is in writeback, dirty-bit is cleared)
+
+Understood, but that's what PageUptodate is for.
+
+(Quite what happens if there's a write error is not so clear: I think
+that typically PageError gets set and PageUptodate cleared, to read
+back in from disk what's actually there - but lose the data we wanted
+to write; but I can understand different filesystems making different
+choices there, and didn't study exofs's choice.)
+
+> 
+> So for sure if page is dirty or writeback then we surly do not need a read.
+> only if not then we need to consider the  PageUptodate(page) state.
+
+PageUptodate is the proper flag to check, to ask if the page contains
+the correct data: there is no need to consider Dirty or Writeback.
+
+> 
+> Do you think the code is actually wrong as is?
+
+Not that I know of: just a little too complicated and confusing.
+
+But becomes slightly wrong if my simplification to page migration
+goes through, since that introduces an instant when PageDirty is set
+before the new page contains the correct data and is marked Uptodate.
+Hence my patch.
+
+> 
+> BTW: Very similar code is in fs/nfs/objlayout/objio_osd.c::__r4w_get_page
+
+Indeed, the patch makes the same adjustment to that code too.
+
+> 
+> > Thanks,
+> > Hugh
+> > 
+> <>
+> 
+> Thanks
+> Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
