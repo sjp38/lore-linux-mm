@@ -1,85 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id CF7CD6B0038
-	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 16:40:39 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so35786089pab.0
-        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 13:40:39 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id uz5si37727829pac.230.2015.11.02.13.40.39
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 278476B0038
+	for <linux-mm@kvack.org>; Mon,  2 Nov 2015 19:10:52 -0500 (EST)
+Received: by pasz6 with SMTP id z6so681655pas.2
+        for <linux-mm@kvack.org>; Mon, 02 Nov 2015 16:10:51 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTPS id sb1si15233292pbb.154.2015.11.02.16.10.50
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Nov 2015 13:40:39 -0800 (PST)
-Date: Mon, 2 Nov 2015 13:40:38 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas
- with holes
-Message-Id: <20151102134038.7a326c583375364ece570173@linux-foundation.org>
-In-Reply-To: <56379FC2.8000803@oracle.com>
-References: <007901d1139a$030b0440$09210cc0$@alibaba-inc.com>
-	<56350014.2040800@oracle.com>
-	<013501d11519$2e5e6940$8b1b3bc0$@alibaba-inc.com>
-	<56379FC2.8000803@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Nov 2015 16:10:51 -0800 (PST)
+Date: Tue, 3 Nov 2015 09:10:49 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/8] mm: support madvise(MADV_FREE)
+Message-ID: <20151103001049.GC17906@bbox>
+References: <1446188504-28023-1-git-send-email-minchan@kernel.org>
+ <1446188504-28023-2-git-send-email-minchan@kernel.org>
+ <20151030164937.GA44946@kernel.org>
+MIME-Version: 1.0
+In-Reply-To: <20151030164937.GA44946@kernel.org>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Hugh Dickins' <hughd@google.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Davidlohr Bueso' <dave@stgolabs.net>
+To: Shaohua Li <shli@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, zhangyanfei@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com
 
-On Mon, 2 Nov 2015 09:39:14 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
-
-> On 11/01/2015 06:50 PM, Hillf Danton wrote:
-> > Andrew, please correct me if I miss/mess anything.
-> >  
-> >>> This hunk is already in the next tree, see below please.
-> >>>
-> >>
-> >> Ah, the whole series to add shmem like code to handle hole punch/fault
-> >> races is in the next tree.  It has been determined that most of this
-> >> series is not necessary.  For the next tree, ideally the following
-> >> should happen:
-> >> - revert the series
-> >> 	0830d5afd4ab69d01cf5ceba9b9f2796564c4eb6
-> >> 	4e0a78fea078af972276c2d3aeaceb2bac80e033
-> >> 	251c8a023a0c639725e014a612e8c05a631ce839
-> >> 	03bcef375766af4db12ec783241ac39f8bf5e2b1
-> >> - Add this patch (if Ack'ed/reviewed) to fix remove_inode_hugepages
-> >> - Add a new patch for the handle hole punch/fault race.  It modifies
-> >>   same code as this patch, so I have not sent out until this is Ack'ed.
-> >>
-> >> I will admit that I do not fully understand how maintainers manage their
-> >> trees and share patches.  If someone can make suggestions on how to handle
-> >> this situation (create patches against what tree? send patches to who?),
-> >> I will be happy to make it happen.
-> >>
-> > The rule is to prepare patches against the next tree and deliver patches to
-> > linux-mm with AKPM, linux-kernel cced. The authors and maintainers of the
-> > current code your patches change should also be cced.
-> > And those guys you want to get ack and comments.
-> > 
-> > In this case, you should first ask Andrew to withdraw the 4 commits.
-> > Then send your new patches, one after another, one problem a patch.
-> > 
-> > Best Wishes
-> > Hillf
+On Fri, Oct 30, 2015 at 09:49:37AM -0700, Shaohua Li wrote:
+> On Fri, Oct 30, 2015 at 04:01:37PM +0900, Minchan Kim wrote:
+> > +static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+> > +				unsigned long end, struct mm_walk *walk)
+> > +
+> > +{
+> > +	struct mmu_gather *tlb = walk->private;
+> > +	struct mm_struct *mm = tlb->mm;
+> > +	struct vm_area_struct *vma = walk->vma;
+> > +	spinlock_t *ptl;
+> > +	pte_t *pte, ptent;
+> > +	struct page *page;
+> > +
+> > +	split_huge_page_pmd(vma, addr, pmd);
+> > +	if (pmd_trans_unstable(pmd))
+> > +		return 0;
+> > +
+> > +	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+> > +	arch_enter_lazy_mmu_mode();
+> > +	for (; addr != end; pte++, addr += PAGE_SIZE) {
+> > +		ptent = *pte;
+> > +
+> > +		if (!pte_present(ptent))
+> > +			continue;
+> > +
+> > +		page = vm_normal_page(vma, addr, ptent);
+> > +		if (!page)
+> > +			continue;
+> > +
+> > +		if (PageSwapCache(page)) {
+> > +			if (!trylock_page(page))
+> > +				continue;
+> > +
+> > +			if (!try_to_free_swap(page)) {
+> > +				unlock_page(page);
+> > +				continue;
+> > +			}
+> > +
+> > +			ClearPageDirty(page);
+> > +			unlock_page(page);
+> > +		}
+> > +
+> > +		/*
+> > +		 * Some of architecture(ex, PPC) don't update TLB
+> > +		 * with set_pte_at and tlb_remove_tlb_entry so for
+> > +		 * the portability, remap the pte with old|clean
+> > +		 * after pte clearing.
+> > +		 */
+> > +		ptent = ptep_get_and_clear_full(mm, addr, pte,
+> > +						tlb->fullmm);
+> > +		ptent = pte_mkold(ptent);
+> > +		ptent = pte_mkclean(ptent);
+> > +		set_pte_at(mm, addr, pte, ptent);
+> > +		tlb_remove_tlb_entry(tlb, pte, addr);
 > 
-> Andrew,
+> The orginal ptent might not be dirty. In that case, the tlb_remove_tlb_entry
+> is unnecessary, so please add a check. In practice, I saw more TLB flush with
+> FREE compared to DONTNEED because of this issue.
+
+Actually, it was my TODO but I forgot it. :(
+I fixed for new version.
+Thanks for the pointing out.
+
 > 
-> As mentioned above, it has been determined that most of the series titled
-> "[PATCH v2 0/4] hugetlbfs fallocate hole punch race with page faults" is
-> unnecessary.  Ideally, we want to remove this entire series from mmotm and
-> linux-next.  It  will be replaced with a simpler patch.
-
-I dropped them all.
-
-> However, before that happens I would like to address bugs in the current
-> code as pointed out by Hugh Dickins.  These are addresses in the patch
-> which started this thread:
-> "[PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas with holes"
-
-And merged that.  With a note reminding myself to get a Hugh ack ;)
-
+> Thanks,
+> Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
