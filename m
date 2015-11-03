@@ -1,399 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id DAEDA6B0254
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 10:26:40 -0500 (EST)
-Received: by iodd200 with SMTP id d200so22084072iod.0
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 07:26:40 -0800 (PST)
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B07082F64
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 10:27:25 -0500 (EST)
+Received: by igbhv6 with SMTP id hv6so14700845igb.0
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 07:27:25 -0800 (PST)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id w41si21060095ioi.169.2015.11.03.07.26.39
+        by mx.google.com with ESMTP id t100si21063684ioe.171.2015.11.03.07.27.24
         for <linux-mm@kvack.org>;
-        Tue, 03 Nov 2015 07:26:40 -0800 (PST)
+        Tue, 03 Nov 2015 07:27:24 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 4/4] mm: prepare page_referenced() and page_idle to new THP refcounting
-Date: Tue,  3 Nov 2015 17:26:15 +0200
-Message-Id: <1446564375-72143-5-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 1/4] mm: do not crash on PageDoubleMap() for non-head pages
+Date: Tue,  3 Nov 2015 17:26:12 +0200
+Message-Id: <1446564375-72143-2-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1446564375-72143-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1446564375-72143-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-I've missed two simlar codepath which need some preparation to work well
-with reworked THP refcounting.
+We usually don't call PageDoubleMap() on small or tail pages, but during
+read from /proc/kpageflags we don't protect the page from being freed under
+us and it can lead to VM_BUG_ON_PAGE() in PageDoubleMap():
 
-Both page_referenced() and page_idle_clear_pte_refs_one() assume that
-THP can only be mapped with PMD, so there's no reason to look on PTEs
-for PageTransHuge() pages. That's no true anymore: THP can be mapped
-with PTEs too.
+ page:ffffea00033e0000 count:0 mapcount:0 mapping:          (null) index:0x700000200
+ flags: 0x4000000000000000()
+ page dumped because: VM_BUG_ON_PAGE(!PageHead(page))
+ page->mem_cgroup:ffff88021588cc00
+ ------------[ cut here ]------------
+ kernel BUG at /src/linux-dev/include/linux/page-flags.h:552!
+ invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC
+ Modules linked in: cfg80211 rfkill crc32c_intel virtio_balloon serio_raw i2c_piix4 virtio_blk virtio_net ata_generic pata_acpi
+ CPU: 0 PID: 1183 Comm: page-types Not tainted 4.2.0-mmotm-2015-10-21-14-41-151027-1418-00014-41+ #179
+ Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+ task: ffff880214a08bc0 ti: ffff880213e2c000 task.ti: ffff880213e2c000
+ RIP: 0010:[<ffffffff812434b6>]  [<ffffffff812434b6>] stable_page_flags+0x336/0x340
+ RSP: 0018:ffff880213e2fda8  EFLAGS: 00010292
+ RAX: 0000000000000021 RBX: ffff8802150a39c0 RCX: 0000000000000000
+ RDX: ffff88021ec0ff38 RSI: ffff88021ec0d658 RDI: ffff88021ec0d658
+ RBP: ffff880213e2fdc8 R08: 000000000000000a R09: 000000000000132f
+ R10: 0000000000000000 R11: 000000000000132f R12: 4000000000000000
+ R13: ffffea00033e6340 R14: 00007fff8449e430 R15: ffffea00033e6340
+ FS:  00007ff7f9525700(0000) GS:ffff88021ec00000(0000) knlGS:0000000000000000
+ CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+ CR2: 000000000063b800 CR3: 00000000d9e71000 CR4: 00000000000006f0
+ Stack:
+  ffff8800db82df80 ffff8802150a39c0 0000000000000008 00000000000cf98d
+  ffff880213e2fe18 ffffffff81243588 00007fff8449e430 ffff880213e2ff20
+  000000000063b800 ffff8802150a39c0 fffffffffffffffb ffff880213e2ff20
+ Call Trace:
+  [<ffffffff81243588>] kpageflags_read+0xc8/0x130
+  [<ffffffff81235848>] proc_reg_read+0x48/0x70
+  [<ffffffff811d6b08>] __vfs_read+0x28/0xd0
+  [<ffffffff812ee43e>] ? security_file_permission+0xae/0xc0
+  [<ffffffff811d6f53>] ? rw_verify_area+0x53/0xf0
+  [<ffffffff811d707a>] vfs_read+0x8a/0x130
+  [<ffffffff811d7bf7>] SyS_pread64+0x77/0x90
+  [<ffffffff81648117>] entry_SYSCALL_64_fastpath+0x12/0x6a
+ Code: ca 00 00 40 01 48 39 c1 48 0f 44 da e9 a2 fd ff ff 48 c7 c6 50 a6 a1 8 1 e8 58 ab f4 ff 0f 0b 48 c7 c6 90 a2 a1 81 e8 4a ab f4 ff <0f> 0b 0f 1f 84 00 00 00 00 00 66 66 66 66 90 55 48 89 e5 41 57
+ RIP  [<ffffffff812434b6>] stable_page_flags+0x336/0x340
+  RSP <ffff880213e2fda8>
+ ---[ end trace e5d18553088c026a ]---
 
-The patch removes PageTransHuge() test from the functions and opencode
-page table check.
+Let's drop the VM_BUG_ON_PAGE() from PageDoubleMap() and return false for
+non-head pages.
+
+The patch can be folded into
+	"mm: rework mapcount accounting to enable 4k mapping of THPs"
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Vladimir Davydov <vdavydov@parallels.com>
+Reported-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- include/linux/huge_mm.h |   4 --
- include/linux/mm.h      |  19 ++++++++
- mm/huge_memory.c        |  54 ----------------------
- mm/page_idle.c          |  64 ++++++++++++++++++++++----
- mm/rmap.c               | 118 +++++++++++++++++++++++++++++++++---------------
- 5 files changed, 155 insertions(+), 104 deletions(-)
+ include/linux/page-flags.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index f7c3f13f3a9c..5c7b00e88236 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -51,10 +51,6 @@ enum transparent_hugepage_flag {
- #endif
- };
- 
--extern pmd_t *page_check_address_pmd(struct page *page,
--				     struct mm_struct *mm,
--				     unsigned long address,
--				     spinlock_t **ptl);
- extern int pmd_freeable(pmd_t pmd);
- 
- #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index b4cd988a794a..a36f9fa4e4cd 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -432,6 +432,25 @@ static inline int page_mapcount(struct page *page)
- 	return ret;
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 72356fbc3f2d..26cc7a068126 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -549,8 +549,7 @@ static inline int PageTransTail(struct page *page)
+  */
+ static inline int PageDoubleMap(struct page *page)
+ {
+-	VM_BUG_ON_PAGE(!PageHead(page), page);
+-	return test_bit(PG_double_map, &page[1].flags);
++	return PageHead(page) && test_bit(PG_double_map, &page[1].flags);
  }
  
-+static inline int total_mapcount(struct page *page)
-+{
-+	int i, ret;
-+
-+	VM_BUG_ON_PAGE(PageTail(page), page);
-+
-+	if (likely(!PageCompound(page)))
-+		return atomic_read(&page->_mapcount) + 1;
-+
-+	ret = compound_mapcount(page);
-+	if (PageHuge(page))
-+		return ret;
-+	for (i = 0; i < HPAGE_PMD_NR; i++)
-+		ret += atomic_read(&page[i]._mapcount) + 1;
-+	if (PageDoubleMap(page))
-+		ret -= HPAGE_PMD_NR;
-+	return ret;
-+}
-+
- static inline int page_count(struct page *page)
- {
- 	return atomic_read(&compound_head(page)->_count);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 3700981f8035..14cbbad54a3e 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1713,46 +1713,6 @@ bool __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
- 	return false;
- }
- 
--/*
-- * This function returns whether a given @page is mapped onto the @address
-- * in the virtual space of @mm.
-- *
-- * When it's true, this function returns *pmd with holding the page table lock
-- * and passing it back to the caller via @ptl.
-- * If it's false, returns NULL without holding the page table lock.
-- */
--pmd_t *page_check_address_pmd(struct page *page,
--			      struct mm_struct *mm,
--			      unsigned long address,
--			      spinlock_t **ptl)
--{
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
--
--	if (address & ~HPAGE_PMD_MASK)
--		return NULL;
--
--	pgd = pgd_offset(mm, address);
--	if (!pgd_present(*pgd))
--		return NULL;
--	pud = pud_offset(pgd, address);
--	if (!pud_present(*pud))
--		return NULL;
--	pmd = pmd_offset(pud, address);
--
--	*ptl = pmd_lock(mm, pmd);
--	if (!pmd_present(*pmd))
--		goto unlock;
--	if (pmd_page(*pmd) != page)
--		goto unlock;
--	if (pmd_trans_huge(*pmd))
--		return pmd;
--unlock:
--	spin_unlock(*ptl);
--	return NULL;
--}
--
- #define VM_NO_THP (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
- 
- int hugepage_madvise(struct vm_area_struct *vma,
-@@ -3169,20 +3129,6 @@ static void unfreeze_page(struct anon_vma *anon_vma, struct page *page)
- 	}
- }
- 
--static int total_mapcount(struct page *page)
--{
--	int i, ret;
--
--	ret = compound_mapcount(page);
--	for (i = 0; i < HPAGE_PMD_NR; i++)
--		ret += atomic_read(&page[i]._mapcount) + 1;
--
--	if (PageDoubleMap(page))
--		ret -= HPAGE_PMD_NR;
--
--	return ret;
--}
--
- static int __split_huge_page_tail(struct page *head, int tail,
- 		struct lruvec *lruvec, struct list_head *list)
- {
-diff --git a/mm/page_idle.c b/mm/page_idle.c
-index 1c245d9027e3..2c9ebe12b40d 100644
---- a/mm/page_idle.c
-+++ b/mm/page_idle.c
-@@ -56,23 +56,69 @@ static int page_idle_clear_pte_refs_one(struct page *page,
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	spinlock_t *ptl;
-+	pgd_t *pgd;
-+	pud_t *pud;
- 	pmd_t *pmd;
- 	pte_t *pte;
- 	bool referenced = false;
- 
--	if (unlikely(PageTransHuge(page))) {
--		pmd = page_check_address_pmd(page, mm, addr, &ptl);
--		if (pmd) {
--			referenced = pmdp_clear_young_notify(vma, addr, pmd);
-+	pgd = pgd_offset(mm, addr);
-+	if (!pgd_present(*pgd))
-+		return SWAP_AGAIN;
-+	pud = pud_offset(pgd, addr);
-+	if (!pud_present(*pud))
-+		return SWAP_AGAIN;
-+	pmd = pmd_offset(pud, addr);
-+
-+	if (pmd_trans_huge(*pmd)) {
-+		ptl = pmd_lock(mm, pmd);
-+                if (!pmd_present(*pmd))
-+			goto unlock_pmd;
-+		if (unlikely(!pmd_trans_huge(*pmd))) {
- 			spin_unlock(ptl);
-+			goto map_pte;
- 		}
-+
-+		if (pmd_page(*pmd) != page)
-+			goto unlock_pmd;
-+
-+		referenced = pmdp_clear_young_notify(vma, addr, pmd);
-+		spin_unlock(ptl);
-+		goto found;
-+unlock_pmd:
-+		spin_unlock(ptl);
-+		return SWAP_AGAIN;
- 	} else {
--		pte = page_check_address(page, mm, addr, &ptl, 0);
--		if (pte) {
--			referenced = ptep_clear_young_notify(vma, addr, pte);
--			pte_unmap_unlock(pte, ptl);
--		}
-+		pmd_t pmde = *pmd;
-+		barrier();
-+		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
-+			return SWAP_AGAIN;
-+
-+	}
-+map_pte:
-+	pte = pte_offset_map(pmd, addr);
-+	if (!pte_present(*pte)) {
-+		pte_unmap(pte);
-+		return SWAP_AGAIN;
- 	}
-+
-+	ptl = pte_lockptr(mm, pmd);
-+	spin_lock(ptl);
-+
-+	if (!pte_present(*pte)) {
-+		pte_unmap_unlock(pte, ptl);
-+		return SWAP_AGAIN;
-+	}
-+
-+	/* THP can be referenced by any subpage */
-+	if (pte_pfn(*pte) - page_to_pfn(page) >= hpage_nr_pages(page)) {
-+		pte_unmap_unlock(pte, ptl);
-+		return SWAP_AGAIN;
-+	}
-+
-+	referenced = ptep_clear_young_notify(vma, addr, pte);
-+	pte_unmap_unlock(pte, ptl);
-+found:
- 	if (referenced) {
- 		clear_page_idle(page);
- 		/*
-diff --git a/mm/rmap.c b/mm/rmap.c
-index ad9af8b3a381..0837487d3737 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -812,60 +812,104 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 	spinlock_t *ptl;
- 	int referenced = 0;
- 	struct page_referenced_arg *pra = arg;
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *pte;
- 
--	if (unlikely(PageTransHuge(page))) {
--		pmd_t *pmd;
--
--		/*
--		 * rmap might return false positives; we must filter
--		 * these out using page_check_address_pmd().
--		 */
--		pmd = page_check_address_pmd(page, mm, address, &ptl);
--		if (!pmd)
-+	if (unlikely(PageHuge(page))) {
-+		/* when pud is not present, pte will be NULL */
-+		pte = huge_pte_offset(mm, address);
-+		if (!pte)
- 			return SWAP_AGAIN;
- 
--		if (vma->vm_flags & VM_LOCKED) {
-+		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
-+		goto check_pte;
-+	}
-+
-+	pgd = pgd_offset(mm, address);
-+	if (!pgd_present(*pgd))
-+		return SWAP_AGAIN;
-+	pud = pud_offset(pgd, address);
-+	if (!pud_present(*pud))
-+		return SWAP_AGAIN;
-+	pmd = pmd_offset(pud, address);
-+
-+	if (pmd_trans_huge(*pmd)) {
-+		int ret = SWAP_AGAIN;
-+
-+		ptl = pmd_lock(mm, pmd);
-+		if (!pmd_present(*pmd))
-+			goto unlock_pmd;
-+		if (unlikely(!pmd_trans_huge(*pmd))) {
- 			spin_unlock(ptl);
-+			goto map_pte;
-+		}
-+
-+		if (pmd_page(*pmd) != page)
-+			goto unlock_pmd;
-+
-+		if (vma->vm_flags & VM_LOCKED) {
- 			pra->vm_flags |= VM_LOCKED;
--			return SWAP_FAIL; /* To break the loop */
-+			ret = SWAP_FAIL; /* To break the loop */
-+			goto unlock_pmd;
- 		}
- 
- 		if (pmdp_clear_flush_young_notify(vma, address, pmd))
- 			referenced++;
--
- 		spin_unlock(ptl);
-+		goto found;
-+unlock_pmd:
-+		spin_unlock(ptl);
-+		return ret;
- 	} else {
--		pte_t *pte;
--
--		/*
--		 * rmap might return false positives; we must filter
--		 * these out using page_check_address().
--		 */
--		pte = page_check_address(page, mm, address, &ptl, 0);
--		if (!pte)
-+		pmd_t pmde = *pmd;
-+		barrier();
-+		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
- 			return SWAP_AGAIN;
-+	}
-+map_pte:
-+	pte = pte_offset_map(pmd, address);
-+	if (!pte_present(*pte)) {
-+		pte_unmap(pte);
-+		return SWAP_AGAIN;
-+	}
- 
--		if (vma->vm_flags & VM_LOCKED) {
--			pte_unmap_unlock(pte, ptl);
--			pra->vm_flags |= VM_LOCKED;
--			return SWAP_FAIL; /* To break the loop */
--		}
-+	ptl = pte_lockptr(mm, pmd);
-+check_pte:
-+	spin_lock(ptl);
- 
--		if (ptep_clear_flush_young_notify(vma, address, pte)) {
--			/*
--			 * Don't treat a reference through a sequentially read
--			 * mapping as such.  If the page has been used in
--			 * another mapping, we will catch it; if this other
--			 * mapping is already gone, the unmap path will have
--			 * set PG_referenced or activated the page.
--			 */
--			if (likely(!(vma->vm_flags & VM_SEQ_READ)))
--				referenced++;
--		}
-+	if (!pte_present(*pte)) {
-+		pte_unmap_unlock(pte, ptl);
-+		return SWAP_AGAIN;
-+	}
-+
-+	/* THP can be referenced by any subpage */
-+	if (pte_pfn(*pte) - page_to_pfn(page) >= hpage_nr_pages(page)) {
-+		pte_unmap_unlock(pte, ptl);
-+		return SWAP_AGAIN;
-+	}
- 
-+	if (vma->vm_flags & VM_LOCKED) {
- 		pte_unmap_unlock(pte, ptl);
-+		pra->vm_flags |= VM_LOCKED;
-+		return SWAP_FAIL; /* To break the loop */
- 	}
- 
-+	if (ptep_clear_flush_young_notify(vma, address, pte)) {
-+		/*
-+		 * Don't treat a reference through a sequentially read
-+		 * mapping as such.  If the page has been used in
-+		 * another mapping, we will catch it; if this other
-+		 * mapping is already gone, the unmap path will have
-+		 * set PG_referenced or activated the page.
-+		 */
-+		if (likely(!(vma->vm_flags & VM_SEQ_READ)))
-+			referenced++;
-+	}
-+	pte_unmap_unlock(pte, ptl);
-+
-+found:
- 	if (referenced)
- 		clear_page_idle(page);
- 	if (test_and_clear_page_young(page))
-@@ -912,7 +956,7 @@ int page_referenced(struct page *page,
- 	int ret;
- 	int we_locked = 0;
- 	struct page_referenced_arg pra = {
--		.mapcount = page_mapcount(page),
-+		.mapcount = total_mapcount(page),
- 		.memcg = memcg,
- 	};
- 	struct rmap_walk_control rwc = {
+ static inline int TestSetPageDoubleMap(struct page *page)
 -- 
 2.6.1
 
