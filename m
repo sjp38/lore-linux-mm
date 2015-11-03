@@ -1,46 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D6E582F64
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 10:27:27 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so21269949pab.0
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 07:27:27 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id iu6si42992693pac.81.2015.11.03.07.27.26
-        for <linux-mm@kvack.org>;
-        Tue, 03 Nov 2015 07:27:26 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 0/4] Bugfixes for THP refcounting
-Date: Tue,  3 Nov 2015 17:26:11 +0200
-Message-Id: <1446564375-72143-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CB2382F64
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 10:40:07 -0500 (EST)
+Received: by igbdj2 with SMTP id dj2so14835762igb.1
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 07:40:07 -0800 (PST)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id e19si21132328ioi.48.2015.11.03.07.40.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Nov 2015 07:40:06 -0800 (PST)
+Received: by padhx2 with SMTP id hx2so13745920pad.1
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 07:40:06 -0800 (PST)
+Date: Tue, 3 Nov 2015 07:39:53 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] osd fs: __r4w_get_page rely on PageUptodate for
+ uptodate
+In-Reply-To: <56387D3C.5020003@plexistor.com>
+Message-ID: <alpine.LSU.2.11.1511030734300.1856@eggly.anvils>
+References: <alpine.LSU.2.11.1510291137430.3369@eggly.anvils> <5635E2B4.5070308@electrozaur.com> <alpine.LSU.2.11.1511011513240.11427@eggly.anvils> <5637437C.4070306@electrozaur.com> <alpine.LSU.2.11.1511021813010.1013@eggly.anvils>
+ <56387D3C.5020003@plexistor.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Lameter <cl@linux.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, osd-dev@open-osd.org
 
-Hi,
+On Tue, 3 Nov 2015, Boaz Harrosh wrote:
+> On 11/03/2015 04:49 AM, Hugh Dickins wrote:
+> > On Mon, 2 Nov 2015, Boaz Harrosh wrote:
+> >>
+> >> Do you think the code is actually wrong as is?
+> > 
+> > Not that I know of: just a little too complicated and confusing.
+> > 
+> > But becomes slightly wrong if my simplification to page migration
+> > goes through, since that introduces an instant when PageDirty is set
+> > before the new page contains the correct data and is marked Uptodate.
+> > Hence my patch.
+> > 
+> >>
+> >> BTW: Very similar code is in fs/nfs/objlayout/objio_osd.c::__r4w_get_page
+> > 
+> > Indeed, the patch makes the same adjustment to that code too.
+> > 
+> 
+> OK thanks. Let me setup and test your patch. On top of 4.3 is good?
+> I'll send you a tested-by once I'm done.
 
-There's few bugfixes for THP refcounting patchset. It should address most
-reported bugs.
+Great, thanks Boaz, that will help a lot.  On top of 4.3 very good.
 
-I need to track down one more bug: rss-counter mismatch on exit.
+(Of course, that will not test the rare page migration race I shall
+introduce later; but it will test that you're doing the right thing
+with this change at your end, when you will be safe against the race.)
 
-Kirill A. Shutemov (4):
-  mm: do not crash on PageDoubleMap() for non-head pages
-  mm: duplicate rmap reference for hugetlb pages as compound
-  thp: fix split vs. unmap race
-  mm: prepare page_referenced() and page_idle to new THP refcounting
-
- include/linux/huge_mm.h    |   4 --
- include/linux/mm.h         |  19 +++++++
- include/linux/page-flags.h |   3 +-
- mm/huge_memory.c           |  76 ++++++-------------------
- mm/migrate.c               |   2 +-
- mm/page_idle.c             |  64 ++++++++++++++++++---
- mm/rmap.c                  | 137 ++++++++++++++++++++++++++++-----------------
- 7 files changed, 180 insertions(+), 125 deletions(-)
-
--- 
-2.6.1
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
