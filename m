@@ -1,57 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A44BB82F64
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 14:43:30 -0500 (EST)
-Received: by ykft191 with SMTP id t191so34363296ykf.0
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 11:43:30 -0800 (PST)
-Received: from mail-yk0-x235.google.com (mail-yk0-x235.google.com. [2607:f8b0:4002:c07::235])
-        by mx.google.com with ESMTPS id v5si12251940ywb.119.2015.11.03.11.43.29
+Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA5782F64
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 17:07:06 -0500 (EST)
+Received: by ykba4 with SMTP id a4so40762032ykb.3
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 14:07:06 -0800 (PST)
+Received: from mail-yk0-x22d.google.com (mail-yk0-x22d.google.com. [2607:f8b0:4002:c07::22d])
+        by mx.google.com with ESMTPS id b187si12500968ywd.424.2015.11.03.14.07.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Nov 2015 11:43:29 -0800 (PST)
-Received: by ykft191 with SMTP id t191so34362540ykf.0
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 11:43:29 -0800 (PST)
-Date: Tue, 3 Nov 2015 14:43:25 -0500
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable()
- checks
-Message-ID: <20151103194325.GB5749@mtj.duckdns.org>
-References: <alpine.DEB.2.20.1510220939310.23718@east.gentwo.org>
- <20151022151414.GF30579@mtj.duckdns.org>
- <20151023042649.GB18907@mtj.duckdns.org>
- <20151102150137.GB3442@dhcp22.suse.cz>
- <20151102192053.GC9553@mtj.duckdns.org>
- <201511031132.GBB09374.JQFOVSFLOtHFMO@I-love.SAKURA.ne.jp>
+        Tue, 03 Nov 2015 14:07:05 -0800 (PST)
+Received: by ykft191 with SMTP id t191so40915362ykf.0
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 14:07:05 -0800 (PST)
+Date: Tue, 3 Nov 2015 17:07:01 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v6 1/3] percpu: remove PERCPU_ENOUGH_ROOM which is stale
+ definition
+Message-ID: <20151103220701.GC5749@mtj.duckdns.org>
+References: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com>
+ <1446363977-23656-2-git-send-email-jungseoklee85@gmail.com>
+ <20151102191044.GA9553@mtj.duckdns.org>
+ <36E66A14-F5AE-45DA-A759-82F1BA5DFE98@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201511031132.GBB09374.JQFOVSFLOtHFMO@I-love.SAKURA.ne.jp>
+In-Reply-To: <36E66A14-F5AE-45DA-A759-82F1BA5DFE98@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
+To: Jungseok Lee <jungseoklee85@gmail.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, cl@linux.com, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, james.morse@arm.com, takahiro.akashi@linaro.org, mark.rutland@arm.com, barami97@gmail.com, linux-kernel@vger.kernel.org
 
-Hello, Tetsuo.
+Hello,
 
-On Tue, Nov 03, 2015 at 11:32:06AM +0900, Tetsuo Handa wrote:
-> Tejun Heo wrote:
-> >                                                                  If
-> > the possibility of sysrq getting stuck behind concurrency management
-> > is an issue, queueing them on an unbound or highpri workqueue should
-> > be good enough.
+On Tue, Nov 03, 2015 at 11:12:51PM +0900, Jungseok Lee wrote:
+> On Nov 3, 2015, at 4:10 AM, Tejun Heo wrote:
 > 
-> Regarding SysRq-f, we could do like below. Though I think that converting
-> the OOM killer into a dedicated kernel thread would allow more things to do
-> (e.g. Oleg's memory zapping code, my timeout based next victim selection).
+> Dear Tejun,
+> 
+> > On Sun, Nov 01, 2015 at 07:46:15AM +0000, Jungseok Lee wrote:
+> >> As pure cleanup, this patch removes PERCPU_ENOUGH_ROOM which is not
+> >> used any more. That is, no code refers to the definition.
+> >> 
+> >> Signed-off-by: Jungseok Lee <jungseoklee85@gmail.com>
+> > 
+> > Applied to percpu/for-4.4.
+> 
+> Thanks for taking care of this!
 
-I'm not sure doing anything to sysrq-f is warranted.  If workqueue
-can't make forward progress due to memory exhaustion, OOM will be
-triggered anyway.  Getting stuck behind concurrency management isn't
-that different a failure mode from getting stuck behind busy loop with
-preemption off.  We should just plug them at the source.  If
-necessary, what we can do is adding stall watchdog (can prolly
-combined with the usual watchdog) so that it can better point out the
-culprit.
+Can you please refresh the patch so that it also drops
+PERCPU_ENOUGH_ROOM definition from ia64?
 
 Thanks.
 
