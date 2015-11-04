@@ -1,73 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C94EF82F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 08:26:21 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so29179854pac.3
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 05:26:21 -0800 (PST)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id sk2si2214293pac.33.2015.11.04.05.26.21
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id F107882F64
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 08:35:43 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so53649777pab.0
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 05:35:43 -0800 (PST)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id xw4si2269394pac.34.2015.11.04.05.35.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 05:26:21 -0800 (PST)
-Received: by pasz6 with SMTP id z6so54904042pas.2
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 05:26:20 -0800 (PST)
+        Wed, 04 Nov 2015 05:35:43 -0800 (PST)
+Received: by padhx2 with SMTP id hx2so45631091pad.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 05:35:43 -0800 (PST)
+Subject: Re: [PATCH v6 2/3] percpu: add PERCPU_ATOM_SIZE for a generic percpu area setup
+Mime-Version: 1.0 (Apple Message framework v1283)
+Content-Type: text/plain; charset=windows-1252
 From: Jungseok Lee <jungseoklee85@gmail.com>
-Subject: [PATCH v2] percpu: remove PERCPU_ENOUGH_ROOM which is stale definition
-Date: Wed,  4 Nov 2015 13:26:07 +0000
-Message-Id: <1446643567-2250-1-git-send-email-jungseoklee85@gmail.com>
+In-Reply-To: <5638F5B9.3040404@arm.com>
+Date: Wed, 4 Nov 2015 22:35:36 +0900
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <CC50E962-D166-44EB-A610-6F70A5234802@gmail.com>
+References: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com> <1446363977-23656-3-git-send-email-jungseoklee85@gmail.com> <alpine.DEB.2.20.1511021008580.27740@east.gentwo.org> <20151102162236.GB7637@e104818-lin.cambridge.arm.com> <F4C06691-60EF-45FA-9AD7-9FBF8F1960AB@gmail.com> <5638F5B9.3040404@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tj@kernel.org, cl@linux.com, tony.luck@intel.com, fenghua.yu@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
+To: James Morse <james.morse@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, mark.rutland@arm.com, takahiro.akashi@linaro.org, barami97@gmail.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, linux-arm-kernel@lists.infradead.org
 
-As pure cleanup, this patch removes PERCPU_ENOUGH_ROOM which is not
-used any more. That is, no code refers to the definition.
+On Nov 4, 2015, at 2:58 AM, James Morse wrote:
+> Hi Jungseok,
 
-Acked-by: Christoph Lameter <cl@linux.com>
-Signed-off-by: Jungseok Lee <jungseoklee85@gmail.com>
----
-I've kept Acked-by from Christoph since there is no change in generic
-percpu code between v1 and v2.
+Hi James,
 
-Changes since v1:
-- Removed PERCPU_ENOUGH_ROOM from ia64
+> On 03/11/15 13:49, Jungseok Lee wrote:
+>> Additionally, I've been thinking of do_softirq_own_stack() which is =
+your
+>> another comment [3]. Recently, I've realized there is possibility =
+that
+>> I misunderstood your intention. Did you mean that irq_handler hook is =
+not
+>> enough? Should do_softirq_own_stack() be implemented together?
+>=20
+> I've been putting together a version to illustrate this, I aim to post =
+it
+> before the end of this week=85
 
- arch/ia64/include/asm/percpu.h | 2 --
- include/linux/percpu.h         | 6 ------
- 2 files changed, 8 deletions(-)
+It sounds great! I will wait for your version.
 
-diff --git a/arch/ia64/include/asm/percpu.h b/arch/ia64/include/asm/percpu.h
-index 0ec484d..b929579 100644
---- a/arch/ia64/include/asm/percpu.h
-+++ b/arch/ia64/include/asm/percpu.h
-@@ -6,8 +6,6 @@
-  *	David Mosberger-Tang <davidm@hpl.hp.com>
-  */
- 
--#define PERCPU_ENOUGH_ROOM PERCPU_PAGE_SIZE
--
- #ifdef __ASSEMBLY__
- # define THIS_CPU(var)	(var)  /* use this to mark accesses to per-CPU variables... */
- #else /* !__ASSEMBLY__ */
-diff --git a/include/linux/percpu.h b/include/linux/percpu.h
-index caebf2a..4bc6daf 100644
---- a/include/linux/percpu.h
-+++ b/include/linux/percpu.h
-@@ -18,12 +18,6 @@
- #define PERCPU_MODULE_RESERVE		0
- #endif
- 
--#ifndef PERCPU_ENOUGH_ROOM
--#define PERCPU_ENOUGH_ROOM						\
--	(ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES) +	\
--	 PERCPU_MODULE_RESERVE)
--#endif
--
- /* minimum unit size, also is the maximum supported allocation size */
- #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
- 
--- 
-2.5.0
+Best Regards
+Jungseok Lee=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
