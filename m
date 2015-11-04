@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 54BEC82F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 17:22:37 -0500 (EST)
-Received: by wmnn186 with SMTP id n186so3679681wmn.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:22:36 -0800 (PST)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 059FF82F64
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 17:22:38 -0500 (EST)
+Received: by wmnn186 with SMTP id n186so3679920wmn.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:22:37 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id q141si6203273wmg.85.2015.11.04.14.22.35
+        by mx.google.com with ESMTPS id m134si5993075wmd.37.2015.11.04.14.22.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 04 Nov 2015 14:22:36 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 2/8] mm: vmscan: simplify memcg vs. global shrinker invocation
-Date: Wed,  4 Nov 2015 17:22:08 -0500
-Message-Id: <1446675734-25671-3-git-send-email-hannes@cmpxchg.org>
+Subject: [PATCH 3/8] mm: page_counter: let page_counter_try_charge() return bool
+Date: Wed,  4 Nov 2015 17:22:09 -0500
+Message-Id: <1446675734-25671-4-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
 References: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,90 +20,123 @@ List-ID: <linux-mm.kvack.org>
 To: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Letting shrink_slab() handle the root_mem_cgroup, and implicitely the
-!CONFIG_MEMCG case, allows shrink_zone() to invoke the shrinkers
-unconditionally from within the memcg iteration loop.
+page_counter_try_charge() currently returns 0 on success and -ENOMEM
+on failure, which is surprising behavior given the function name.
+
+Make it follow the expected pattern of try_stuff() functions that
+return a boolean true to indicate success, or false for failure.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/memcontrol.h |  2 ++
- mm/vmscan.c                | 31 ++++++++++++++++---------------
- 2 files changed, 18 insertions(+), 15 deletions(-)
+ include/linux/page_counter.h |  6 +++---
+ mm/hugetlb_cgroup.c          |  3 ++-
+ mm/memcontrol.c              | 11 +++++------
+ mm/page_counter.c            | 14 +++++++-------
+ 4 files changed, 17 insertions(+), 17 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 19ff87b..8929685 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -502,6 +502,8 @@ void mem_cgroup_split_huge_fixup(struct page *head);
- #else /* CONFIG_MEMCG */
- struct mem_cgroup;
+diff --git a/include/linux/page_counter.h b/include/linux/page_counter.h
+index 17fa4f8..7e62920 100644
+--- a/include/linux/page_counter.h
++++ b/include/linux/page_counter.h
+@@ -36,9 +36,9 @@ static inline unsigned long page_counter_read(struct page_counter *counter)
  
-+#define root_mem_cgroup NULL
-+
- static inline void mem_cgroup_events(struct mem_cgroup *memcg,
- 				     enum mem_cgroup_events_index idx,
- 				     unsigned int nr)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9b52ecf..ecc2125 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -411,6 +411,10 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
+ void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages);
+ void page_counter_charge(struct page_counter *counter, unsigned long nr_pages);
+-int page_counter_try_charge(struct page_counter *counter,
+-			    unsigned long nr_pages,
+-			    struct page_counter **fail);
++bool page_counter_try_charge(struct page_counter *counter,
++			     unsigned long nr_pages,
++			     struct page_counter **fail);
+ void page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages);
+ int page_counter_limit(struct page_counter *counter, unsigned long limit);
+ int page_counter_memparse(const char *buf, const char *max,
+diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+index 6a44263..d8fb10d 100644
+--- a/mm/hugetlb_cgroup.c
++++ b/mm/hugetlb_cgroup.c
+@@ -186,7 +186,8 @@ again:
+ 	}
+ 	rcu_read_unlock();
  
-+	/* Global shrinker mode */
-+	if (memcg == root_mem_cgroup)
-+		memcg = NULL;
-+
- 	if (memcg && !memcg_kmem_is_active(memcg))
+-	ret = page_counter_try_charge(&h_cg->hugepage[idx], nr_pages, &counter);
++	if (!page_counter_try_charge(&h_cg->hugepage[idx], nr_pages, &counter))
++		ret = -ENOMEM;
+ 	css_put(&h_cg->css);
+ done:
+ 	*ptr = h_cg;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 7049e55..e54f434 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2018,8 +2018,8 @@ retry:
  		return 0;
  
-@@ -2417,11 +2421,22 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 			shrink_lruvec(lruvec, swappiness, sc, &lru_pages);
- 			zone_lru_pages += lru_pages;
+ 	if (!do_swap_account ||
+-	    !page_counter_try_charge(&memcg->memsw, batch, &counter)) {
+-		if (!page_counter_try_charge(&memcg->memory, batch, &counter))
++	    page_counter_try_charge(&memcg->memsw, batch, &counter)) {
++		if (page_counter_try_charge(&memcg->memory, batch, &counter))
+ 			goto done_restock;
+ 		if (do_swap_account)
+ 			page_counter_uncharge(&memcg->memsw, batch);
+@@ -2383,14 +2383,13 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+ {
+ 	unsigned int nr_pages = 1 << order;
+ 	struct page_counter *counter;
+-	int ret = 0;
++	int ret;
  
--			if (memcg && is_classzone)
-+			/*
-+			 * Shrink the slab caches in the same proportion that
-+			 * the eligible LRU pages were scanned.
-+			 */
-+			if (is_classzone) {
- 				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
- 					    memcg, sc->nr_scanned - scanned,
- 					    lru_pages);
+ 	if (!memcg_kmem_is_active(memcg))
+ 		return 0;
  
-+				if (reclaim_state) {
-+					sc->nr_reclaimed +=
-+						reclaim_state->reclaimed_slab;
-+					reclaim_state->reclaimed_slab = 0;
-+				}
-+			}
-+
- 			/*
- 			 * Direct reclaim and kswapd have to scan all memory
- 			 * cgroups to fulfill the overall scan target for the
-@@ -2439,20 +2454,6 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 			}
- 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
+-	ret = page_counter_try_charge(&memcg->kmem, nr_pages, &counter);
+-	if (ret)
+-		return ret;
++	if (!page_counter_try_charge(&memcg->kmem, nr_pages, &counter))
++		return -ENOMEM;
  
--		/*
--		 * Shrink the slab caches in the same proportion that
--		 * the eligible LRU pages were scanned.
--		 */
--		if (global_reclaim(sc) && is_classzone)
--			shrink_slab(sc->gfp_mask, zone_to_nid(zone), NULL,
--				    sc->nr_scanned - nr_scanned,
--				    zone_lru_pages);
--
--		if (reclaim_state) {
--			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
--			reclaim_state->reclaimed_slab = 0;
--		}
--
- 		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
- 			   sc->nr_scanned - nr_scanned,
- 			   sc->nr_reclaimed - nr_reclaimed);
+ 	ret = try_charge(memcg, gfp, nr_pages);
+ 	if (ret) {
+diff --git a/mm/page_counter.c b/mm/page_counter.c
+index 11b4bed..7c6a63d 100644
+--- a/mm/page_counter.c
++++ b/mm/page_counter.c
+@@ -56,12 +56,12 @@ void page_counter_charge(struct page_counter *counter, unsigned long nr_pages)
+  * @nr_pages: number of pages to charge
+  * @fail: points first counter to hit its limit, if any
+  *
+- * Returns 0 on success, or -ENOMEM and @fail if the counter or one of
+- * its ancestors has hit its configured limit.
++ * Returns %true on success, or %false and @fail if the counter or one
++ * of its ancestors has hit its configured limit.
+  */
+-int page_counter_try_charge(struct page_counter *counter,
+-			    unsigned long nr_pages,
+-			    struct page_counter **fail)
++bool page_counter_try_charge(struct page_counter *counter,
++			     unsigned long nr_pages,
++			     struct page_counter **fail)
+ {
+ 	struct page_counter *c;
+ 
+@@ -99,13 +99,13 @@ int page_counter_try_charge(struct page_counter *counter,
+ 		if (new > c->watermark)
+ 			c->watermark = new;
+ 	}
+-	return 0;
++	return true;
+ 
+ failed:
+ 	for (c = counter; c != *fail; c = c->parent)
+ 		page_counter_cancel(c, nr_pages);
+ 
+-	return -ENOMEM;
++	return false;
+ }
+ 
+ /**
 -- 
 2.6.2
 
