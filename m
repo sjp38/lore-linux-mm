@@ -1,75 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6530E82F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 10:39:16 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so31901116pac.3
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 07:39:16 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id sg1si1211334pac.95.2015.11.04.07.39.15
-        for <linux-mm@kvack.org>;
-        Wed, 04 Nov 2015 07:39:15 -0800 (PST)
-Date: Wed, 4 Nov 2015 15:39:10 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] arm64: Increase the max granular size
-Message-ID: <20151104153910.GN7637@e104818-lin.cambridge.arm.com>
-References: <CAMuHMdWQygbxMXoOsbwek6DzZcr7J-C23VCK4ubbgUr+zj=giw@mail.gmail.com>
- <20151103120504.GF7637@e104818-lin.cambridge.arm.com>
- <20151103143858.GI7637@e104818-lin.cambridge.arm.com>
- <CAMuHMdWk0fPzTSKhoCuS4wsOU1iddhKJb2SOpjo=a_9vCm_KXQ@mail.gmail.com>
- <20151103185050.GJ7637@e104818-lin.cambridge.arm.com>
- <alpine.DEB.2.20.1511031724010.8178@east.gentwo.org>
- <20151104123640.GK7637@e104818-lin.cambridge.arm.com>
- <alpine.DEB.2.20.1511040748590.17248@east.gentwo.org>
- <20151104145445.GL7637@e104818-lin.cambridge.arm.com>
- <alpine.DEB.2.20.1511040927510.18745@east.gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1511040927510.18745@east.gentwo.org>
+Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com [209.85.220.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AE886B0253
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 11:13:00 -0500 (EST)
+Received: by qkcl124 with SMTP id l124so21716128qkc.3
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 08:13:00 -0800 (PST)
+Received: from mail-qg0-x231.google.com (mail-qg0-x231.google.com. [2607:f8b0:400d:c04::231])
+        by mx.google.com with ESMTPS id p102si1155067qkp.116.2015.11.04.08.12.59
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Nov 2015 08:12:59 -0800 (PST)
+Received: by qgem9 with SMTP id m9so44027096qge.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 08:12:59 -0800 (PST)
+Message-ID: <563a2e8b.128e8c0a.5ba8e.336b@mx.google.com>
+Date: Wed, 04 Nov 2015 08:12:59 -0800 (PST)
+From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Subject: Re: [PATCH V8] mm: memory hot-add: hot-added memory can not be
+ added to movable zone by default
+In-Reply-To: <5639DBDE.6000306@huawei.com>
+References: <1446625415-11941-1-git-send-email-liuchangsheng@inspur.com>
+	<5639DBDE.6000306@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Robert Richter <rric@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Linux-sh list <linux-sh@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Robert Richter <rrichter@cavium.com>, linux-mm@kvack.org, Tirumalesh Chalamarla <tchalamarla@cavium.com>, Geert Uytterhoeven <geert@linux-m68k.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: liuchangsheng <liuchangsheng@inspur.com>, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Wang Nan <wangnan0@huawei.com>, Dave Hansen <dave.hansen@intel.com>, Yinghai Lu <yinghai@kernel.org>, Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>
 
-On Wed, Nov 04, 2015 at 09:28:34AM -0600, Christoph Lameter wrote:
-> On Wed, 4 Nov 2015, Catalin Marinas wrote:
+
+On Wed, 4 Nov 2015 18:20:14 +0800
+Xishi Qiu <qiuxishi@huawei.com> wrote:
+
+> On 2015/11/4 16:23, liuchangsheng wrote:
 > 
-> > BTW, assuming L1_CACHE_BYTES is 512 (I don't ever see this happening but
-> > just in theory), we potentially have the same issue. What would save us
-> > is that INDEX_NODE would match the first "kmalloc-512" cache, so we have
-> > it pre-populated.
+> > After the user config CONFIG_MOVABLE_NODE,
+> > When the memory is hot added, should_add_memory_movable() return 0
+> > because all zones including ZONE_MOVABLE are empty,
+> > so the memory that was hot added will be assigned to ZONE_NORMAL,
+> > and we need using the udev rules to online the memory automatically:
+> > SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline",
+> > ATTR{state}="online_movable"
+> > The memory block onlined by udev must be adjacent to ZONE_MOVABLE.
+> > The events of memory section are notified to udev asynchronously,
 > 
-> Ok maybe add some BUILD_BUG_ONs to ensure that builds fail until we have
-> addressed that.
+> Hi Yasuaki,
+> 
 
-A BUILD_BUG_ON should be fine.
+> If udev onlines memory in descending order, like 3->2->1->0, it will
+> success, but we notifiy to udev in ascending order, like 0->1->2->3,
+> so the udev rules cannot online memory as movable, right?
 
-Thinking some more, I think if KMALLOC_MIN_SIZE is 128, there is no gain
-with off-slab management since the freelist allocation would still be
-128 bytes. An alternative to reverting while still having a little
-benefit of off-slab for 256 bytes objects (rather than 512 as we would
-get with the revert):
+right.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 4fcc5dd8d5a6..ac32b4a0f2ec 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2212,8 +2212,8 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
- 	 * it too early on. Always use on-slab management when
- 	 * SLAB_NOLEAKTRACE to avoid recursive calls into kmemleak)
- 	 */
--	if ((size >= (PAGE_SIZE >> 5)) && !slab_early_init &&
--	    !(flags & SLAB_NOLEAKTRACE))
-+	if ((size >= (PAGE_SIZE >> 5)) && (size > KMALLOC_MIN_SIZE) &&
-+		!slab_early_init && !(flags & SLAB_NOLEAKTRACE))
- 		/*
- 		 * Size is large, assume best to place the slab management obj
- 		 * off-slab (should allow better packing of objs).
+> 
+> > so it can not ensure that the memory block onlined by udev is
+> > adjacent to ZONE_MOVABLE.So it can't ensure memory online always success.
+> > But we want the whole node to be added to ZONE_MOVABLE by default.
+> > 
+> > So we change should_add_memory_movable(): if the user config
+> > CONFIG_MOVABLE_NODE and movable_node kernel option
+> > and the ZONE_NORMAL is empty or the pfn of the hot-added memory
+> > is after the end of the ZONE_NORMAL it will always return 1
+> > and then the whole node will be added to ZONE_MOVABLE by default.
+> > If we want the node to be assigned to ZONE_NORMAL,
+> > we can do it as follows:
+> > "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
+> > 
+> 
 
-Whichever you prefer.
+> The order should like 0->1->2->3, right? 3->2->1->0 will be failed.
 
--- 
-Catalin
+right.
+
+Thanks,
+Yasuaki Ishimatsu
+
+> 
+> > Signed-off-by: liuchangsheng <liuchangsheng@inspur.com>
+> > Signed-off-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
+> > Tested-by: Dongdong Fan <fandd@inspur.com>
+> > Reviewed-by: <yasu.isimatu@gmail.com>
+> > Cc: Wang Nan <wangnan0@huawei.com>
+> > Cc: Dave Hansen <dave.hansen@intel.com>
+> > Cc: Yinghai Lu <yinghai@kernel.org>
+> > Cc: Tang Chen <tangchen@cn.fujitsu.com>
+> > Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> > Cc: Toshi Kani <toshi.kani@hp.com>
+> > Cc: Xishi Qiu <qiuxishi@huawei.com>
+> > ---
+> >  mm/memory_hotplug.c | 7 +++++++
+> >  1 file changed, 7 insertions(+)
+> > 
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index aa992e2..8617b9f 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -1201,6 +1201,9 @@ static int check_hotplug_memory_range(u64 start, u64 size)
+> >  /*
+> >   * If movable zone has already been setup, newly added memory should be check.
+> >   * If its address is higher than movable zone, it should be added as movable.
+> > + * And if system boots up with movable_node and config CONFIG_MOVABLE_NOD and
+> > + * added memory does not overlap the zone before MOVABLE_ZONE,
+> > + * the memory is added as movable.
+> >   * Without this check, movable zone may overlap with other zone.
+> >   */
+> >  static int should_add_memory_movable(int nid, u64 start, u64 size)
+> > @@ -1208,6 +1211,10 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
+> >  	unsigned long start_pfn = start >> PAGE_SHIFT;
+> >  	pg_data_t *pgdat = NODE_DATA(nid);
+> >  	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+> > +	struct zone *pre_zone = pgdat->node_zones + (ZONE_MOVABLE - 1);
+> > +
+> > +	if (movable_node_is_enabled() && (zone_end_pfn(pre_zone) <= start_pfn))
+> > +		return 1;
+> >  
+> 
+> Looks good to me.
+> 
+> How about add some comment in mm/Kconfig?
+> 
+> Thanks,
+> Xishi Qiu
+> 
+> >  	if (zone_is_empty(movable_zone))
+> >  		return 0;
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
