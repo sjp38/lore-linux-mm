@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 7332D6B0254
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 10:01:29 -0500 (EST)
-Received: by wicfv8 with SMTP id fv8so34012113wic.0
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 07:01:29 -0800 (PST)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id ECE476B0255
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 10:01:31 -0500 (EST)
+Received: by wicll6 with SMTP id ll6so91537338wic.0
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 07:01:31 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id pd8si2028464wjb.183.2015.11.04.07.01.25
+        by mx.google.com with ESMTPS id 3si2090298wju.26.2015.11.04.07.01.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Wed, 04 Nov 2015 07:01:25 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 4/5] mm, page_owner: track last migrate reason
-Date: Wed,  4 Nov 2015 16:01:00 +0100
-Message-Id: <1446649261-27122-5-git-send-email-vbabka@suse.cz>
+Subject: [PATCH 2/5] mm, page_owner: convert page_owner_inited to static key
+Date: Wed,  4 Nov 2015 16:00:58 +0100
+Message-Id: <1446649261-27122-3-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1446649261-27122-1-git-send-email-vbabka@suse.cz>
 References: <1446649261-27122-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,148 +20,147 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
 
-During migration, page_owner info is now copied with the rest of the page, so
-the stacktrace leading to free page allocation during migration is overwritten.
-For debugging purposes, it might be however useful to know that the page has
-been migrated since its initial allocation. This might happen many times during
-the lifetime for different reasons, and fully tracking this, especially with
-stacktraces would incur extra memory costs. As a compromise, store the
-migrate_reason of the last migration that occurred to the page. This is enough
-to distinguish compaction, numa balancing etc.
+CONFIG_PAGE_OWNER attempts to impose negligible runtime overhead when enabled
+during compilation, but not actually enabled during runtime by boot param
+page_owner=on. This overhead can be further reduced using the static key
+mechanism, which this patch does.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/page_ext.h   |  1 +
- include/linux/page_owner.h |  9 +++++++++
- mm/migrate.c               |  9 ++++++---
- mm/page_owner.c            | 16 ++++++++++++++++
- 4 files changed, 32 insertions(+), 3 deletions(-)
+ Documentation/vm/page_owner.txt |  9 +++++----
+ include/linux/page_owner.h      | 22 ++++++++++------------
+ mm/page_owner.c                 |  9 +++++----
+ mm/vmstat.c                     |  2 +-
+ 4 files changed, 21 insertions(+), 21 deletions(-)
 
-diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-index 17f118a..e1fe7cf 100644
---- a/include/linux/page_ext.h
-+++ b/include/linux/page_ext.h
-@@ -45,6 +45,7 @@ struct page_ext {
- 	unsigned int order;
- 	gfp_t gfp_mask;
- 	unsigned int nr_entries;
-+	int last_migrate_reason;
- 	unsigned long trace_entries[8];
- #endif
- };
+diff --git a/Documentation/vm/page_owner.txt b/Documentation/vm/page_owner.txt
+index 8f3ce9b..ffff143 100644
+--- a/Documentation/vm/page_owner.txt
++++ b/Documentation/vm/page_owner.txt
+@@ -28,10 +28,11 @@ with page owner and page owner is disabled in runtime due to no enabling
+ boot option, runtime overhead is marginal. If disabled in runtime, it
+ doesn't require memory to store owner information, so there is no runtime
+ memory overhead. And, page owner inserts just two unlikely branches into
+-the page allocator hotpath and if it returns false then allocation is
+-done like as the kernel without page owner. These two unlikely branches
+-would not affect to allocation performance. Following is the kernel's
+-code size change due to this facility.
++the page allocator hotpath and if not enabled, then allocation is done
++like as the kernel without page owner. These two unlikely branches should
++not affect to allocation performance, especially if the static keys jump
++label patching functionality is available. Following is the kernel's code
++size change due to this facility.
+ 
+ - Without page owner
+    text    data     bss     dec     hex filename
 diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
-index 6440daa..555893b 100644
+index cacaabe..8e2eb15 100644
 --- a/include/linux/page_owner.h
 +++ b/include/linux/page_owner.h
-@@ -12,6 +12,7 @@ extern void __set_page_owner(struct page *page,
- 			unsigned int order, gfp_t gfp_mask);
- extern gfp_t __get_page_owner_gfp(struct page *page);
- extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
-+extern void __set_page_owner_migrate_reason(struct page *page, int reason);
+@@ -1,8 +1,10 @@
+ #ifndef __LINUX_PAGE_OWNER_H
+ #define __LINUX_PAGE_OWNER_H
+ 
++#include <linux/jump_label.h>
++
+ #ifdef CONFIG_PAGE_OWNER
+-extern bool page_owner_inited;
++extern struct static_key_false page_owner_inited;
+ extern struct page_ext_operations page_owner_ops;
+ 
+ extern void __reset_page_owner(struct page *page, unsigned int order);
+@@ -12,27 +14,23 @@ extern gfp_t __get_page_owner_gfp(struct page *page);
  
  static inline void reset_page_owner(struct page *page, unsigned int order)
  {
-@@ -38,6 +39,11 @@ static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
- 	if (static_branch_unlikely(&page_owner_inited))
- 		__copy_page_owner(oldpage, newpage);
- }
-+static inline void set_page_owner_migrate_reason(struct page *page, int reason)
-+{
+-	if (likely(!page_owner_inited))
+-		return;
+-
+-	__reset_page_owner(page, order);
 +	if (static_branch_unlikely(&page_owner_inited))
-+		__set_page_owner_migrate_reason(page, reason);
-+}
++		__reset_page_owner(page, order);
+ }
+ 
+ static inline void set_page_owner(struct page *page,
+ 			unsigned int order, gfp_t gfp_mask)
+ {
+-	if (likely(!page_owner_inited))
+-		return;
+-
+-	__set_page_owner(page, order, gfp_mask);
++	if (static_branch_unlikely(&page_owner_inited))
++		__set_page_owner(page, order, gfp_mask);
+ }
+ 
+ static inline gfp_t get_page_owner_gfp(struct page *page)
+ {
+-	if (likely(!page_owner_inited))
++	if (static_branch_unlikely(&page_owner_inited))
++		return __get_page_owner_gfp(page);
++	else
+ 		return 0;
+-
+-	return __get_page_owner_gfp(page);
+ }
  #else
  static inline void reset_page_owner(struct page *page, unsigned int order)
- {
-@@ -53,5 +59,8 @@ static inline gfp_t get_page_owner_gfp(struct page *page)
- static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
- {
- }
-+static inline void set_page_owner_migrate_reason(struct page *page, int reason)
-+{
-+}
- #endif /* CONFIG_PAGE_OWNER */
- #endif /* __LINUX_PAGE_OWNER_H */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 9f82e03..5a4fb1f 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -954,8 +954,10 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 	}
- 
- 	rc = __unmap_and_move(page, newpage, force, mode);
--	if (rc == MIGRATEPAGE_SUCCESS)
-+	if (rc == MIGRATEPAGE_SUCCESS) {
- 		put_new_page = NULL;
-+		set_page_owner_migrate_reason(newpage, reason);
-+	}
- 
- out:
- 	if (rc != -EAGAIN) {
-@@ -1020,7 +1022,7 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- static int unmap_and_move_huge_page(new_page_t get_new_page,
- 				free_page_t put_new_page, unsigned long private,
- 				struct page *hpage, int force,
--				enum migrate_mode mode)
-+				enum migrate_mode mode, int reason)
- {
- 	int rc = -EAGAIN;
- 	int *result = NULL;
-@@ -1078,6 +1080,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- 	if (rc == MIGRATEPAGE_SUCCESS) {
- 		hugetlb_cgroup_migrate(hpage, new_hpage);
- 		put_new_page = NULL;
-+		set_page_owner_migrate_reason(new_hpage, reason);
- 	}
- 
- 	unlock_page(hpage);
-@@ -1150,7 +1153,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
- 			if (PageHuge(page))
- 				rc = unmap_and_move_huge_page(get_new_page,
- 						put_new_page, private, page,
--						pass > 2, mode);
-+						pass > 2, mode, reason);
- 			else
- 				rc = unmap_and_move(get_new_page, put_new_page,
- 						private, page, pass > 2, mode,
 diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 7ebd3d0..388898f 100644
+index a9f16b8..7664b85 100644
 --- a/mm/page_owner.c
 +++ b/mm/page_owner.c
-@@ -73,10 +73,18 @@ void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
- 	page_ext->order = order;
- 	page_ext->gfp_mask = gfp_mask;
- 	page_ext->nr_entries = trace.nr_entries;
-+	page_ext->last_migrate_reason = -1;
+@@ -5,10 +5,11 @@
+ #include <linux/bootmem.h>
+ #include <linux/stacktrace.h>
+ #include <linux/page_owner.h>
++#include <linux/jump_label.h>
+ #include "internal.h"
  
- 	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
+ static bool page_owner_disabled = true;
+-bool page_owner_inited __read_mostly;
++DEFINE_STATIC_KEY_FALSE(page_owner_inited);
+ 
+ static void init_early_allocated_pages(void);
+ 
+@@ -37,7 +38,7 @@ static void init_page_owner(void)
+ 	if (page_owner_disabled)
+ 		return;
+ 
+-	page_owner_inited = true;
++	static_branch_enable(&page_owner_inited);
+ 	init_early_allocated_pages();
  }
  
-+void __set_page_owner_migrate_reason(struct page *page, int reason)
-+{
-+	struct page_ext *page_ext = lookup_page_ext(page);
-+
-+	page_ext->last_migrate_reason = reason;
-+}
-+
- gfp_t __get_page_owner_gfp(struct page *page)
- {
- 	struct page_ext *page_ext = lookup_page_ext(page);
-@@ -152,6 +160,14 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 	if (ret >= count)
- 		goto err;
+@@ -157,7 +158,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+ 	struct page *page;
+ 	struct page_ext *page_ext;
  
-+	if (page_ext->last_migrate_reason != -1) {
-+		ret += snprintf(kbuf + ret, count - ret,
-+			"Page has been migrated, last migrate reason: %d\n",
-+			page_ext->last_migrate_reason);
-+		if (ret >= count)
-+			goto err;
-+	}
-+
- 	ret += snprintf(kbuf + ret, count - ret, "\n");
- 	if (ret >= count)
- 		goto err;
+-	if (!page_owner_inited)
++	if (!static_branch_unlikely(&page_owner_inited))
+ 		return -EINVAL;
+ 
+ 	page = NULL;
+@@ -305,7 +306,7 @@ static int __init pageowner_init(void)
+ {
+ 	struct dentry *dentry;
+ 
+-	if (!page_owner_inited) {
++	if (!static_branch_unlikely(&page_owner_inited)) {
+ 		pr_info("page_owner is disabled\n");
+ 		return 0;
+ 	}
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 34f480b..d9be9ab 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1131,7 +1131,7 @@ static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
+ #ifdef CONFIG_PAGE_OWNER
+ 	int mtype;
+ 
+-	if (!page_owner_inited)
++	if (!static_branch_unlikely(&page_owner_inited))
+ 		return;
+ 
+ 	drain_all_pages(NULL);
 -- 
 2.6.2
 
