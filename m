@@ -1,84 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A499D82F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 10:22:06 -0500 (EST)
-Received: by wmec75 with SMTP id c75so116001174wme.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 07:22:06 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q142si7495024wmg.87.2015.11.04.07.22.05
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D2B8F82F64
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 10:28:37 -0500 (EST)
+Received: by iofz202 with SMTP id z202so57013405iof.2
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 07:28:37 -0800 (PST)
+Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
+        by mx.google.com with ESMTPS id uh6si5678448igb.44.2015.11.04.07.28.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 04 Nov 2015 07:22:05 -0800 (PST)
-Subject: Re: [RESEND PATCH v2] thp: Remove unused vma parameter from
- khugepaged_alloc_page
-References: <1446641335-5603-1-git-send-email-atomlin@redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <563A229A.4030000@suse.cz>
-Date: Wed, 4 Nov 2015 16:22:02 +0100
-MIME-Version: 1.0
-In-Reply-To: <1446641335-5603-1-git-send-email-atomlin@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 04 Nov 2015 07:28:36 -0800 (PST)
+Date: Wed, 4 Nov 2015 09:28:34 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] arm64: Increase the max granular size
+In-Reply-To: <20151104145445.GL7637@e104818-lin.cambridge.arm.com>
+Message-ID: <alpine.DEB.2.20.1511040927510.18745@east.gentwo.org>
+References: <1442944788-17254-1-git-send-email-rric@kernel.org> <20151028190948.GJ8899@e104818-lin.cambridge.arm.com> <CAMuHMdWQygbxMXoOsbwek6DzZcr7J-C23VCK4ubbgUr+zj=giw@mail.gmail.com> <20151103120504.GF7637@e104818-lin.cambridge.arm.com>
+ <20151103143858.GI7637@e104818-lin.cambridge.arm.com> <CAMuHMdWk0fPzTSKhoCuS4wsOU1iddhKJb2SOpjo=a_9vCm_KXQ@mail.gmail.com> <20151103185050.GJ7637@e104818-lin.cambridge.arm.com> <alpine.DEB.2.20.1511031724010.8178@east.gentwo.org>
+ <20151104123640.GK7637@e104818-lin.cambridge.arm.com> <alpine.DEB.2.20.1511040748590.17248@east.gentwo.org> <20151104145445.GL7637@e104818-lin.cambridge.arm.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Tomlin <atomlin@redhat.com>, akpm@linux-foundation.org
-Cc: riel@redhat.com, lwoodman@redhat.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, willy@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Robert Richter <rric@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Linux-sh list <linux-sh@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Robert Richter <rrichter@cavium.com>, linux-mm@kvack.org, Tirumalesh Chalamarla <tchalamarla@cavium.com>, Geert Uytterhoeven <geert@linux-m68k.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On 11/04/2015 01:48 PM, Aaron Tomlin wrote:
-> Resending due to incomplete subject.
->
-> Changes since v2:
->
->   - Fixed incorrect commit message
->
-> The "vma" parameter to khugepaged_alloc_page() is unused.
-> It has to remain unused or the drop read lock 'map_sem' optimisation
-> introduce by commit 8b1645685acf ("mm, THP: don't hold mmap_sem in
-> khugepaged when allocating THP") wouldn't be safe. So let's remove it.
->
-> Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
+On Wed, 4 Nov 2015, Catalin Marinas wrote:
 
-Pretty sure the compiler inlines it away anyway, but sure, why not.
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> BTW, assuming L1_CACHE_BYTES is 512 (I don't ever see this happening but
+> just in theory), we potentially have the same issue. What would save us
+> is that INDEX_NODE would match the first "kmalloc-512" cache, so we have
+> it pre-populated.
 
-> ---
->   mm/huge_memory.c | 8 +++-----
->   1 file changed, 3 insertions(+), 5 deletions(-)
->
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index bbac913..490fa81 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2413,8 +2413,7 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
->
->   static struct page *
->   khugepaged_alloc_page(struct page **hpage, gfp_t gfp, struct mm_struct *mm,
-> -		       struct vm_area_struct *vma, unsigned long address,
-> -		       int node)
-> +		       unsigned long address, int node)
->   {
->   	VM_BUG_ON_PAGE(*hpage, *hpage);
->
-> @@ -2481,8 +2480,7 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
->
->   static struct page *
->   khugepaged_alloc_page(struct page **hpage, gfp_t gfp, struct mm_struct *mm,
-> -		       struct vm_area_struct *vma, unsigned long address,
-> -		       int node)
-> +		       unsigned long address, int node)
->   {
->   	up_read(&mm->mmap_sem);
->   	VM_BUG_ON(!*hpage);
-> @@ -2530,7 +2528,7 @@ static void collapse_huge_page(struct mm_struct *mm,
->   		__GFP_THISNODE;
->
->   	/* release the mmap_sem read lock. */
-> -	new_page = khugepaged_alloc_page(hpage, gfp, mm, vma, address, node);
-> +	new_page = khugepaged_alloc_page(hpage, gfp, mm, address, node);
->   	if (!new_page)
->   		return;
->
->
+Ok maybe add some BUILD_BUG_ONs to ensure that builds fail until we have
+addressed that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
