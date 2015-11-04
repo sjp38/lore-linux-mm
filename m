@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A31F82F68
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 20:26:23 -0500 (EST)
-Received: by pasz6 with SMTP id z6so35624020pas.2
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 17:26:23 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id kz9si4024664pbc.150.2015.11.03.17.26.14
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C56382F68
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 20:26:25 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so27173087pad.1
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 17:26:25 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id vb1si46314768pac.165.2015.11.03.17.26.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Nov 2015 17:26:15 -0800 (PST)
+        Tue, 03 Nov 2015 17:26:17 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 08/13] x86: add pmd_[dirty|mkclean] for THP
-Date: Wed,  4 Nov 2015 10:26:02 +0900
-Message-Id: <1446600367-7976-9-git-send-email-minchan@kernel.org>
+Subject: [PATCH v2 11/13] arm: add pmd_mkclean for THP
+Date: Wed,  4 Nov 2015 10:26:05 +0900
+Message-Id: <1446600367-7976-12-git-send-email-minchan@kernel.org>
 In-Reply-To: <1446600367-7976-1-git-send-email-minchan@kernel.org>
 References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -23,31 +23,25 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpa
 MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent overwrite
 of the contents since MADV_FREE syscall is called for THP page.
 
-This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
-support.
+This patch adds pmd_mkclean for THP page MADV_FREE support.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- arch/x86/include/asm/pgtable.h | 5 +++++
- 1 file changed, 5 insertions(+)
+ arch/arm/include/asm/pgtable-3level.h | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 867da5bbb4a3..b964d54300e1 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -267,6 +267,11 @@ static inline pmd_t pmd_mkold(pmd_t pmd)
- 	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
- }
+diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
+index a745a2a53853..6d6012a320b2 100644
+--- a/arch/arm/include/asm/pgtable-3level.h
++++ b/arch/arm/include/asm/pgtable-3level.h
+@@ -249,6 +249,7 @@ PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
+ PMD_BIT_FUNC(mksplitting, |= L_PMD_SECT_SPLITTING);
+ PMD_BIT_FUNC(mkwrite,   &= ~L_PMD_SECT_RDONLY);
+ PMD_BIT_FUNC(mkdirty,   |= L_PMD_SECT_DIRTY);
++PMD_BIT_FUNC(mkclean,   &= ~L_PMD_SECT_DIRTY);
+ PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
  
-+static inline pmd_t pmd_mkclean(pmd_t pmd)
-+{
-+	return pmd_clear_flags(pmd, _PAGE_DIRTY);
-+}
-+
- static inline pmd_t pmd_wrprotect(pmd_t pmd)
- {
- 	return pmd_clear_flags(pmd, _PAGE_RW);
+ #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
 -- 
 1.9.1
 
