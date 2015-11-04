@@ -1,115 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D21382F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 17:19:59 -0500 (EST)
-Received: by igvi2 with SMTP id i2so99895615igv.0
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:19:59 -0800 (PST)
-Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
-        by mx.google.com with ESMTPS id yt6si3944783igb.75.2015.11.04.14.19.58
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A43B82F64
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 17:22:33 -0500 (EST)
+Received: by wicfv8 with SMTP id fv8so41340646wic.0
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:22:32 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id e17si4122882wjr.24.2015.11.04.14.22.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 04 Nov 2015 14:19:58 -0800 (PST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <1446574204-15567-1-git-send-email-dcashman@android.com>
-	<20151103160410.34bbebc805c17d2f41150a19@linux-foundation.org>
-	<87k2pyppfk.fsf@x220.int.ebiederm.org>
-	<20151103173156.9ca17f52.akpm@linux-foundation.org>
-	<563A5D0D.9030109@android.com>
-Date: Wed, 04 Nov 2015 16:10:43 -0600
-In-Reply-To: <563A5D0D.9030109@android.com> (Daniel Cashman's message of "Wed,
-	4 Nov 2015 11:31:25 -0800")
-Message-ID: <87r3k5mn4s.fsf@x220.int.ebiederm.org>
-MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [PATCH v2 1/2] mm: mmap: Add new /proc tunable for mmap_base ASLR.
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Nov 2015 14:22:32 -0800 (PST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH 1/8] mm: memcontrol: export root_mem_cgroup
+Date: Wed,  4 Nov 2015 17:22:07 -0500
+Message-Id: <1446675734-25671-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
+References: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Cashman <dcashman@android.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, dcashman <dcashman@google.com>
+To: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Daniel Cashman <dcashman@android.com> writes:
+A later patch will need this symbol in files other than memcontrol.c,
+so export it now and replace mem_cgroup_root_css at the same time.
 
-> On 11/3/15 5:31 PM, Andrew Morton wrote:
->> On Tue, 03 Nov 2015 18:40:31 -0600 ebiederm@xmission.com (Eric W. Biederman) wrote:
->> 
->>> Andrew Morton <akpm@linux-foundation.org> writes:
->>>
->>>> On Tue,  3 Nov 2015 10:10:03 -0800 Daniel Cashman <dcashman@android.com> wrote:
->>>>
->>>>> ASLR currently only uses 8 bits to generate the random offset for the
->>>>> mmap base address on 32 bit architectures. This value was chosen to
->>>>> prevent a poorly chosen value from dividing the address space in such
->>>>> a way as to prevent large allocations. This may not be an issue on all
->>>>> platforms. Allow the specification of a minimum number of bits so that
->>>>> platforms desiring greater ASLR protection may determine where to place
->>>>> the trade-off.
->>>>
->>>> Can we please include a very good description of the motivation for this
->>>> change?  What is inadequate about the current code, what value does the
->>>> enhancement have to our users, what real-world problems are being solved,
->>>> etc.
->>>>
->>>> Because all we have at present is "greater ASLR protection", which doesn't
->>>> really tell anyone anything.
->>>
->>> The description seemed clear to me.
->>>
->>> More random bits, more entropy, more work needed to brute force.
->>>
->>> 8 bits only requires 256 tries (or a 1 in 256) chance to brute force
->>> something.
->> 
->> Of course, but that's not really very useful.
->> 
->>> We have seen in the last couple of months on Android how only having 8 bits
->>> doesn't help much.
->> 
->> Now THAT is important.  What happened here and how well does the
->> proposed fix improve things?  How much longer will a brute-force attack
->> take to succeed, with a particular set of kernel parameters?  Is the
->> new duration considered to be sufficiently long and if not, are there
->> alternative fixes we should be looking at?
->> 
->> Stuff like this.
->> 
->>> Each additional bit doubles the protection (and unfortunately also
->>> increases fragmentation of the userspace address space).
->> 
->> OK, so the benefit comes with a cost and people who are configuring
->> systems (and the people who are reviewing this patchset!) need to
->> understand the tradeoffs.  Please.
->
-> The direct motivation here was in response to the libstagefright
-> vulnerabilities that affected Android, specifically to information
-> provided by Google's project zero at:
->
-> http://googleprojectzero.blogspot.com/2015/09/stagefrightened.html
->
-> The attack there specifically used the limited randomness used in
-> generating the mmap base address as part of a brute-force-based exploit.
->  In this particular case, the attack was against the mediaserver process
-> on Android, which was limited to respawning every 5 seconds, giving the
-> attacker an average expected success rate of defeating the mmap ASLR
-> after over 10 minutes (128 tries at 5 seconds each).  With change to the
-> maximum proposed value of 16 bits, this would change to over 45 hours
-> (32768 tries), which would make the user of such a system much more
-> likely to notice such an attack.
->
-> I understand the desire for this clarification, and will happily try to
-> improve the explanation for this change, especially so that those
-> considering use of this option understand the tradeoffs, but I also view
-> this as one particular hardening change which is a component of making
-> attacks such as these harder, rather than the only solution.  As for the
-> clarification itself, where would you like it?  I could include a cover
-> letter for this patch-set, elaborate more in the commit message itself,
-> add more to the Kconfig help description, or some combination of the above.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ include/linux/memcontrol.h | 3 ++-
+ mm/backing-dev.c           | 2 +-
+ mm/memcontrol.c            | 5 ++---
+ 3 files changed, 5 insertions(+), 5 deletions(-)
 
-Unless I am mistaken this there is no cross over between different
-processes of this randomization.  Would it make sense to have this as
-an rlimit so that if you have processes on the system that are affected
-by the tradeoff differently this setting can be changed per process?
-
-Eric
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 805da1f..19ff87b 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -275,7 +275,8 @@ struct mem_cgroup {
+ 	struct mem_cgroup_per_node *nodeinfo[0];
+ 	/* WARNING: nodeinfo must be the last member here */
+ };
+-extern struct cgroup_subsys_state *mem_cgroup_root_css;
++
++extern struct mem_cgroup *root_mem_cgroup;
+ 
+ /**
+  * mem_cgroup_events - count memory events against a cgroup
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 095b23b..73ab967 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -702,7 +702,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
+ 
+ 	ret = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
+ 	if (!ret) {
+-		bdi->wb.memcg_css = mem_cgroup_root_css;
++		bdi->wb.memcg_css = &root_mem_cgroup->css;
+ 		bdi->wb.blkcg_css = blkcg_root_css;
+ 	}
+ 	return ret;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c71fe40..7049e55 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -76,9 +76,9 @@
+ struct cgroup_subsys memory_cgrp_subsys __read_mostly;
+ EXPORT_SYMBOL(memory_cgrp_subsys);
+ 
++struct mem_cgroup *root_mem_cgroup __read_mostly;
++
+ #define MEM_CGROUP_RECLAIM_RETRIES	5
+-static struct mem_cgroup *root_mem_cgroup __read_mostly;
+-struct cgroup_subsys_state *mem_cgroup_root_css __read_mostly;
+ 
+ /* Whether the swap controller is active */
+ #ifdef CONFIG_MEMCG_SWAP
+@@ -4214,7 +4214,6 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ 	/* root ? */
+ 	if (parent_css == NULL) {
+ 		root_mem_cgroup = memcg;
+-		mem_cgroup_root_css = &memcg->css;
+ 		page_counter_init(&memcg->memory, NULL);
+ 		memcg->high = PAGE_COUNTER_MAX;
+ 		memcg->soft_limit = PAGE_COUNTER_MAX;
+-- 
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
