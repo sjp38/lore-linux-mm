@@ -1,133 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 6865682F6A
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 14:50:53 -0500 (EST)
-Received: by wicll6 with SMTP id ll6so38964972wic.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 11:50:52 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id l13si5405429wmg.29.2015.11.04.11.50.51
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C9FF982F66
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 15:00:11 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so37770935pac.3
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 12:00:11 -0800 (PST)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id u12si4202514pbs.191.2015.11.04.12.00.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 11:50:52 -0800 (PST)
-Date: Wed, 4 Nov 2015 14:50:37 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
- hierarchy
-Message-ID: <20151104195037.GA6872@cmpxchg.org>
-References: <20151023131956.GA15375@dhcp22.suse.cz>
- <20151023.065957.1690815054807881760.davem@davemloft.net>
- <20151026165619.GB2214@cmpxchg.org>
- <20151027122647.GG9891@dhcp22.suse.cz>
- <20151027154138.GA4665@cmpxchg.org>
- <20151027161554.GJ9891@dhcp22.suse.cz>
- <20151027164227.GB7749@cmpxchg.org>
- <20151029152546.GG23598@dhcp22.suse.cz>
- <20151029161009.GA9160@cmpxchg.org>
- <20151104104239.GG29607@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Nov 2015 12:00:08 -0800 (PST)
+Received: by pasz6 with SMTP id z6so63925919pas.2
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 12:00:08 -0800 (PST)
+Date: Wed, 4 Nov 2015 12:00:06 -0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [PATCH v2 01/13] mm: support madvise(MADV_FREE)
+Message-ID: <20151104200006.GA46783@kernel.org>
+References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
+ <1446600367-7976-2-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151104104239.GG29607@dhcp22.suse.cz>
+In-Reply-To: <1446600367-7976-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, bmaurer@fb.com
 
-On Wed, Nov 04, 2015 at 11:42:40AM +0100, Michal Hocko wrote:
-> On Thu 29-10-15 09:10:09, Johannes Weiner wrote:
-> > On Thu, Oct 29, 2015 at 04:25:46PM +0100, Michal Hocko wrote:
-> > > On Tue 27-10-15 09:42:27, Johannes Weiner wrote:
-> [...]
-> > > > You carefully skipped over this part. We can ignore it for socket
-> > > > memory but it's something we need to figure out when it comes to slab
-> > > > accounting and tracking.
-> > > 
-> > > I am sorry, I didn't mean to skip this part, I though it would be clear
-> > > from the previous text. I think kmem accounting falls into the same
-> > > category. Have a sane default and a global boottime knob to override it
-> > > for those that think differently - for whatever reason they might have.
-> > 
-> > Yes, that makes sense to me.
-> > 
-> > Like cgroup.memory=nosocket, would you think it makes sense to include
-> > slab in the default for functional/semantical completeness and provide
-> > a cgroup.memory=noslab for powerusers?
+On Wed, Nov 04, 2015 at 10:25:55AM +0900, Minchan Kim wrote:
+> Linux doesn't have an ability to free pages lazy while other OS already
+> have been supported that named by madvise(MADV_FREE).
 > 
-> I am still not sure whether the kmem accounting is stable enough to be
-> enabled by default. If for nothing else the allocation failures, which
-> are not allowed for the global case and easily triggered by the hard
-> limit, might be a big problem. My last attempts to allow GFP_NOFS to
-> fail made me quite skeptical. I still believe this is something which
-> will be solved in the long term but the current state might be still too
-> fragile. So I would rather be conservative and have the kmem accounting
-> disabled by default with a config option and boot parameter to override.
-> If somebody is confident that the desired load is stable then the config
-> can be enabled easily.
+> The gain is clear that kernel can discard freed pages rather than swapping
+> out or OOM if memory pressure happens.
+> 
+> Without memory pressure, freed pages would be reused by userspace without
+> another additional overhead(ex, page fault + allocation + zeroing).
+> 
+> Jason Evans said:
+> 
+> : Facebook has been using MAP_UNINITIALIZED
+> : (https://lkml.org/lkml/2012/1/18/308) in some of its applications for
+> : several years, but there are operational costs to maintaining this
+> : out-of-tree in our kernel and in jemalloc, and we are anxious to retire it
+> : in favor of MADV_FREE.  When we first enabled MAP_UNINITIALIZED it
+> : increased throughput for much of our workload by ~5%, and although the
+> : benefit has decreased using newer hardware and kernels, there is still
+> : enough benefit that we cannot reasonably retire it without a replacement.
+> :
+> : Aside from Facebook operations, there are numerous broadly used
+> : applications that would benefit from MADV_FREE.  The ones that immediately
+> : come to mind are redis, varnish, and MariaDB.  I don't have much insight
+> : into Android internals and development process, but I would hope to see
+> : MADV_FREE support eventually end up there as well to benefit applications
+> : linked with the integrated jemalloc.
+> :
+> : jemalloc will use MADV_FREE once it becomes available in the Linux kernel.
+> : In fact, jemalloc already uses MADV_FREE or equivalent everywhere it's
+> : available: *BSD, OS X, Windows, and Solaris -- every platform except Linux
+> : (and AIX, but I'm not sure it even compiles on AIX).  The lack of
+> : MADV_FREE on Linux forced me down a long series of increasingly
+> : sophisticated heuristics for madvise() volume reduction, and even so this
+> : remains a common performance issue for people using jemalloc on Linux.
+> : Please integrate MADV_FREE; many people will benefit substantially.
+> 
+> How it works:
+> 
+> When madvise syscall is called, VM clears dirty bit of ptes of the range.
+> If memory pressure happens, VM checks dirty bit of page table and if it
+> found still "clean", it means it's a "lazyfree pages" so VM could discard
+> the page instead of swapping out.  Once there was store operation for the
+> page before VM peek a page to reclaim, dirty bit is set so VM can swap out
+> the page instead of discarding.
+> 
+> Firstly, heavy users would be general allocators(ex, jemalloc, tcmalloc
+> and hope glibc supports it) and jemalloc/tcmalloc already have supported
+> the feature for other OS(ex, FreeBSD)
+> 
+> barrios@blaptop:~/benchmark/ebizzy$ lscpu
+> Architecture:          x86_64
+> CPU op-mode(s):        32-bit, 64-bit
+> Byte Order:            Little Endian
+> CPU(s):                12
+> On-line CPU(s) list:   0-11
+> Thread(s) per core:    1
+> Core(s) per socket:    1
+> Socket(s):             12
+> NUMA node(s):          1
+> Vendor ID:             GenuineIntel
+> CPU family:            6
+> Model:                 2
+> Stepping:              3
+> CPU MHz:               3200.185
+> BogoMIPS:              6400.53
+> Virtualization:        VT-x
+> Hypervisor vendor:     KVM
+> Virtualization type:   full
+> L1d cache:             32K
+> L1i cache:             32K
+> L2 cache:              4096K
+> NUMA node0 CPU(s):     0-11
+> ebizzy benchmark(./ebizzy -S 10 -n 512)
+> 
+> Higher avg is better.
+> 
+>  vanilla-jemalloc		MADV_free-jemalloc
+> 
+> 1 thread
+> records: 10			    records: 10
+> avg:	2961.90			    avg:   12069.70
+> std:	  71.96(2.43%)		    std:     186.68(1.55%)
+> max:	3070.00			    max:   12385.00
+> min:	2796.00			    min:   11746.00
+> 
+> 2 thread
+> records: 10			    records: 10
+> avg:	5020.00			    avg:   17827.00
+> std:	 264.87(5.28%)		    std:     358.52(2.01%)
+> max:	5244.00			    max:   18760.00
+> min:	4251.00			    min:   17382.00
+> 
+> 4 thread
+> records: 10			    records: 10
+> avg:	8988.80			    avg:   27930.80
+> std:	1175.33(13.08%)		    std:    3317.33(11.88%)
+> max:	9508.00			    max:   30879.00
+> min:	5477.00			    min:   21024.00
+> 
+> 8 thread
+> records: 10			    records: 10
+> avg:   13036.50			    avg:   33739.40
+> std:	 170.67(1.31%)		    std:    5146.22(15.25%)
+> max:   13371.00			    max:   40572.00
+> min:   12785.00			    min:   24088.00
+> 
+> 16 thread
+> records: 10			    records: 10
+> avg:   11092.40			    avg:   31424.20
+> std:	 710.60(6.41%)		    std:    3763.89(11.98%)
+> max:   12446.00			    max:   36635.00
+> min:	9949.00			    min:   25669.00
+> 
+> 32 thread
+> records: 10			    records: 10
+> avg:   11067.00			    avg:   34495.80
+> std:	 971.06(8.77%)		    std:    2721.36(7.89%)
+> max:   12010.00			    max:   38598.00
+> min:	9002.00			    min:   30636.00
+> 
+> In summary, MADV_FREE is about much faster than MADV_DONTNEED.
 
-I agree with your assessment of the current kmem code state, but I
-think your conclusion is completely backwards here.
+The MADV_FREE is discussed for a while, it probably is too late to propose
+something new, but we had the new idea (from Ben Maurer, CCed) recently and
+think it's better. Our target is still jemalloc.
 
-The interface will be set in stone forever, whereas any stability
-issues will be transient and will have to be addressed in a finite
-amount of time anyway. It doesn't make sense to design an interface
-based on temporary quality of implementation. Only one of those two
-can ever be changed.
+Compared to MADV_DONTNEED, MADV_FREE's lazy memory free is a huge win to reduce
+page fault. But there is one issue remaining, the TLB flush. Both MADV_DONTNEED
+and MADV_FREE do TLB flush. TLB flush overhead is quite big in contemporary
+multi-thread applications. In our production workload, we observed 80% CPU
+spending on TLB flush triggered by jemalloc madvise(MADV_DONTNEED) sometimes.
+We haven't tested MADV_FREE yet, but the result should be similar. It's hard to
+avoid the TLB flush issue with MADV_FREE, because it helps avoid data
+corruption.
 
-Because it goes without saying that once the cgroupv2 interface is
-released, and people use it in production, there is no way we can then
-*add* dentry cache, inode cache, and others to memory.current. That
-would be an unacceptable change in interface behavior. On the other
-hand, people will be prepared for hiccups in the early stages of
-cgroupv2 release, and we're providing cgroup.memory=noslab to let them
-workaround severe problems in production until we fix it without
-forcing them to fully revert to cgroupv1.
+The new proposal tries to fix the TLB issue. We introduce two madvise verbs:
 
-So if we agree that there are no fundamental architectural concerns
-with slab accounting, i.e. nothing that can't be addressed in the
-implementation, we have to make the call now.
+MARK_FREE. Userspace notifies kernel the memory range can be discarded. Kernel
+just records the range in current stage. Should memory pressure happen, page
+reclaim can free the memory directly regardless the pte state.
 
-And I maintain that not accounting dentry cache and inode cache is a
-gaping hole in memory isolation, so it should be included by default.
-(The rest of the slabs is arguable, but IMO the risk of missing
-something important is higher than the cost of including them.)
+MARK_NOFREE. Userspace notifies kernel the memory range will be reused soon.
+Kernel deletes the record and prevents page reclaim discards the memory. If the
+memory isn't reclaimed, userspace will access the old memory, otherwise do
+normal page fault handling.
 
+The point is to let userspace notify kernel if memory can be discarded, instead
+of depending on pte dirty bit used by MADV_FREE. With these, no TLB flush is
+required till page reclaim actually frees the memory (page reclaim need do the
+TLB flush for MADV_FREE too). It still preserves the lazy memory free merit of
+MADV_FREE.
 
-As far as your allocation failure concerns go, I think the kmem code
-is currently not behaving as Glauber originally intended, which is to
-force charge if reclaim and OOM killing weren't able to make enough
-space. See this recently rewritten section of the kmem charge path:
+Compared to MADV_FREE, reusing memory with the new proposal isn't transparent,
+eg must call MARK_NOFREE. But it's easy to utilize the new API in jemalloc.
 
--               /*
--                * try_charge() chose to bypass to root due to OOM kill or
--                * fatal signal.  Since our only options are to either fail
--                * the allocation or charge it to this cgroup, do it as a
--                * temporary condition. But we can't fail. From a kmem/slab
--                * perspective, the cache has already been selected, by
--                * mem_cgroup_kmem_get_cache(), so it is too late to change
--                * our minds.
--                *
--                * This condition will only trigger if the task entered
--                * memcg_charge_kmem in a sane state, but was OOM-killed
--                * during try_charge() above. Tasks that were already dying
--                * when the allocation triggers should have been already
--                * directed to the root cgroup in memcontrol.h
--                */
--               page_counter_charge(&memcg->memory, nr_pages);
--               if (do_swap_account)
--                       page_counter_charge(&memcg->memsw, nr_pages);
+We don't have code to backup this yet, sorry. We'd like to discuss it if it
+makes sense.
 
-It could be that this never properly worked as it was tied to the
--EINTR bypass trick, but the idea was these charges never fail.
-
-And this makes sense. If the allocator semantics are such that we
-never fail these page allocations for slab, and the callsites rely on
-that, surely we should not fail them in the memory controller, either.
-
-And it makes a lot more sense to account them in excess of the limit
-than pretend they don't exist. We might not be able to completely
-fullfill the containment part of the memory controller (although these
-slab charges will still create significant pressure before that), but
-at least we don't fail the accounting part on top of it.
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
