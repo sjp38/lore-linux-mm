@@ -1,41 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id BC3CC6B0255
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 04:40:00 -0500 (EST)
-Received: by wikq8 with SMTP id q8so88354124wik.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 01:40:00 -0800 (PST)
-Received: from mail-wi0-f194.google.com (mail-wi0-f194.google.com. [209.85.212.194])
-        by mx.google.com with ESMTPS id pe3si647643wjb.62.2015.11.04.01.39.59
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 67E5E6B0253
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 05:10:35 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so49178549pab.0
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 02:10:35 -0800 (PST)
+Received: from olympic.calvaedi.com (olympic.calvaedi.com. [89.202.194.163])
+        by mx.google.com with ESMTPS id ez3si1062745pab.130.2015.11.04.02.10.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 01:39:59 -0800 (PST)
-Received: by wimw14 with SMTP id w14so444575wim.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 01:39:59 -0800 (PST)
-Date: Wed, 4 Nov 2015 10:39:58 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/2] mm: mmap: Add new /proc tunable for mmap_base
- ASLR.
-Message-ID: <20151104093957.GA31378@dhcp22.suse.cz>
-References: <1446574204-15567-1-git-send-email-dcashman@android.com>
+        Wed, 04 Nov 2015 02:10:33 -0800 (PST)
+Message-ID: <5639D98A.80308@calva.com>
+Date: Wed, 04 Nov 2015 11:10:18 +0100
+From: John Hughes <john@calva.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1446574204-15567-1-git-send-email-dcashman@android.com>
+Subject: Re: [Bug 107111] New: page allocation failure but there seem to be
+ free pages
+References: <bug-107111-27@https.bugzilla.kernel.org/> <20151103141603.261893b44e0cd6e704921fb6@linux-foundation.org>
+In-Reply-To: <20151103141603.261893b44e0cd6e704921fb6@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Cashman <dcashman@android.com>
-Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, dcashman <dcashman@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, Mel Gorman <mgorman@techsingularity.net>
 
-On Tue 03-11-15 10:10:03, Daniel Cashman wrote:
-[...]
-> +This value can be changed after boot using the
-> +/proc/sys/kernel/mmap_rnd_bits tunable
+On 03/11/15 23:16, Andrew Morton wrote:
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
 
-Why is this not sitting in /proc/sys/vm/ where we already have
-mmap_min_addr. These two sound like they should sit together, no?
+OK.
+>
+> On Tue, 03 Nov 2015 16:21:06 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+>
+>> https://bugzilla.kernel.org/show_bug.cgi?id=107111
+>>
+>>              Bug ID: 107111
+>>             Summary: page allocation failure but there seem to be free
+>>                      pages
+>>             Product: Memory Management
+>>             Version: 2.5
+>>      Kernel Version: 4.2.3
+>>            Hardware: IA-64
+>> 18
+> Note: IA64.  It isn't tested much and perhaps this triggered an oddity.
+
+Sorry, user error, it's x86-64, not IA64, a KVM guest running on a 
+"Intel(R) Xeon(R) CPU            3050".
+
+> The kernel could and should have satisfied this order-1 GFP_ATOMIC
+> IRQ-context allocation from the DMA zone.  But it did not do so.  Bug.
+
+Looking back in my kern.logs I confirm that I've only seen this on 
+kernel 4.2.3, never on the 3.18.19 I was running up to 16/10/2015. It 
+happens up to 15 times a day, and, so far, hasn't happened since I upped 
+/proc/sys/vm/min_free_kbytes to 8192.
+
 -- 
-Michal Hocko
-SUSE Labs
+John Hughes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
