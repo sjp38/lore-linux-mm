@@ -1,207 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ED8A82F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 17:22:52 -0500 (EST)
-Received: by wmnn186 with SMTP id n186so3683822wmn.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:22:52 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id dh6si1072903wjc.77.2015.11.04.14.22.51
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 59E5882F64
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 17:37:20 -0500 (EST)
+Received: by igpw7 with SMTP id w7so116678137igp.0
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:37:20 -0800 (PST)
+Received: from mail-ig0-x22c.google.com (mail-ig0-x22c.google.com. [2607:f8b0:4001:c05::22c])
+        by mx.google.com with ESMTPS id n18si21226188igx.75.2015.11.04.14.37.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 14:22:51 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 8/8] mm: memcontrol: hook up vmpressure to socket pressure
-Date: Wed,  4 Nov 2015 17:22:14 -0500
-Message-Id: <1446675734-25671-9-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
-References: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Nov 2015 14:37:19 -0800 (PST)
+Received: by igbhv6 with SMTP id hv6so46702369igb.0
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:37:19 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <87r3k5mn4s.fsf@x220.int.ebiederm.org>
+References: <1446574204-15567-1-git-send-email-dcashman@android.com>
+	<20151103160410.34bbebc805c17d2f41150a19@linux-foundation.org>
+	<87k2pyppfk.fsf@x220.int.ebiederm.org>
+	<20151103173156.9ca17f52.akpm@linux-foundation.org>
+	<563A5D0D.9030109@android.com>
+	<87r3k5mn4s.fsf@x220.int.ebiederm.org>
+Date: Wed, 4 Nov 2015 14:37:19 -0800
+Message-ID: <CAGXu5jLqRUEL5a3-YXnpMvHOLq+aZjbTYiCEctpRBy=2rDWm1A@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm: mmap: Add new /proc tunable for mmap_base ASLR.
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Daniel Cashman <dcashman@android.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, dcashman <dcashman@google.com>
 
-Let the networking stack know when a memcg is under reclaim pressure
-so that it can clamp its transmit windows accordingly.
+On Wed, Nov 4, 2015 at 2:10 PM, Eric W. Biederman <ebiederm@xmission.com> wrote:
+> Daniel Cashman <dcashman@android.com> writes:
+>
+>> On 11/3/15 5:31 PM, Andrew Morton wrote:
+>>> On Tue, 03 Nov 2015 18:40:31 -0600 ebiederm@xmission.com (Eric W. Biederman) wrote:
+>>>
+>>>> Andrew Morton <akpm@linux-foundation.org> writes:
+>>>>
+>>>>> On Tue,  3 Nov 2015 10:10:03 -0800 Daniel Cashman <dcashman@android.com> wrote:
+>>>>>
+>>>>>> ASLR currently only uses 8 bits to generate the random offset for the
+>>>>>> mmap base address on 32 bit architectures. This value was chosen to
+>>>>>> prevent a poorly chosen value from dividing the address space in such
+>>>>>> a way as to prevent large allocations. This may not be an issue on all
+>>>>>> platforms. Allow the specification of a minimum number of bits so that
+>>>>>> platforms desiring greater ASLR protection may determine where to place
+>>>>>> the trade-off.
+>>>>>
+>>>>> Can we please include a very good description of the motivation for this
+>>>>> change?  What is inadequate about the current code, what value does the
+>>>>> enhancement have to our users, what real-world problems are being solved,
+>>>>> etc.
+>>>>>
+>>>>> Because all we have at present is "greater ASLR protection", which doesn't
+>>>>> really tell anyone anything.
+>>>>
+>>>> The description seemed clear to me.
+>>>>
+>>>> More random bits, more entropy, more work needed to brute force.
+>>>>
+>>>> 8 bits only requires 256 tries (or a 1 in 256) chance to brute force
+>>>> something.
+>>>
+>>> Of course, but that's not really very useful.
+>>>
+>>>> We have seen in the last couple of months on Android how only having 8 bits
+>>>> doesn't help much.
+>>>
+>>> Now THAT is important.  What happened here and how well does the
+>>> proposed fix improve things?  How much longer will a brute-force attack
+>>> take to succeed, with a particular set of kernel parameters?  Is the
+>>> new duration considered to be sufficiently long and if not, are there
+>>> alternative fixes we should be looking at?
+>>>
+>>> Stuff like this.
+>>>
+>>>> Each additional bit doubles the protection (and unfortunately also
+>>>> increases fragmentation of the userspace address space).
+>>>
+>>> OK, so the benefit comes with a cost and people who are configuring
+>>> systems (and the people who are reviewing this patchset!) need to
+>>> understand the tradeoffs.  Please.
+>>
+>> The direct motivation here was in response to the libstagefright
+>> vulnerabilities that affected Android, specifically to information
+>> provided by Google's project zero at:
+>>
+>> http://googleprojectzero.blogspot.com/2015/09/stagefrightened.html
+>>
+>> The attack there specifically used the limited randomness used in
+>> generating the mmap base address as part of a brute-force-based exploit.
+>>  In this particular case, the attack was against the mediaserver process
+>> on Android, which was limited to respawning every 5 seconds, giving the
+>> attacker an average expected success rate of defeating the mmap ASLR
+>> after over 10 minutes (128 tries at 5 seconds each).  With change to the
+>> maximum proposed value of 16 bits, this would change to over 45 hours
+>> (32768 tries), which would make the user of such a system much more
+>> likely to notice such an attack.
+>>
+>> I understand the desire for this clarification, and will happily try to
+>> improve the explanation for this change, especially so that those
+>> considering use of this option understand the tradeoffs, but I also view
+>> this as one particular hardening change which is a component of making
+>> attacks such as these harder, rather than the only solution.  As for the
+>> clarification itself, where would you like it?  I could include a cover
+>> letter for this patch-set, elaborate more in the commit message itself,
+>> add more to the Kconfig help description, or some combination of the above.
+>
+> Unless I am mistaken this there is no cross over between different
+> processes of this randomization.  Would it make sense to have this as
+> an rlimit so that if you have processes on the system that are affected
+> by the tradeoff differently this setting can be changed per process?
 
-Whenever the reclaim efficiency of a cgroup's LRU lists drops low
-enough for a MEDIUM or HIGH vmpressure event to occur, assert a
-pressure state in the socket and tcp memory code that tells it to curb
-consumption growth from sockets associated with said control group.
+I think that could be a good future bit of work, but I'd want to get
+this in for all architectures first, so we have a more common base to
+work from before introducing a new rlimit.
 
-vmpressure events are naturally edge triggered, so for hysteresis
-assert socket pressure for a second to allow for subsequent vmpressure
-events to occur before letting the socket code return to normal.
+-Kees
 
-This will likely need finetuning for a wider variety of workloads, but
-for now stick to the vmpressure presets and keep hysteresis simple.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h | 27 +++++++++++++++++++++++++--
- mm/memcontrol.c            | 15 +--------------
- mm/vmpressure.c            | 25 ++++++++++++++++++++-----
- 3 files changed, 46 insertions(+), 21 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 7adabb7..d45379a 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -247,6 +247,7 @@ struct mem_cgroup {
- 
- #ifdef CONFIG_INET
- 	struct work_struct socket_work;
-+	unsigned long socket_pressure;
- #endif
- 
- 	/* List of events which userspace want to receive */
-@@ -292,18 +293,34 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
- 
- bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
- struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
--struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
- 
- static inline
- struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
- 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
- }
- 
-+#define mem_cgroup_from_counter(counter, member)	\
-+	container_of(counter, struct mem_cgroup, member)
-+
- struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
- 				   struct mem_cgroup *,
- 				   struct mem_cgroup_reclaim_cookie *);
- void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
- 
-+/**
-+ * parent_mem_cgroup - find the accounting parent of a memcg
-+ * @memcg: memcg whose parent to find
-+ *
-+ * Returns the parent memcg, or NULL if this is the root or the memory
-+ * controller is in legacy no-hierarchy mode.
-+ */
-+static inline struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg)
-+{
-+	if (!memcg->memory.parent)
-+		return NULL;
-+	return mem_cgroup_from_counter(memcg->memory.parent, memory);
-+}
-+
- static inline bool mem_cgroup_is_descendant(struct mem_cgroup *memcg,
- 			      struct mem_cgroup *root)
- {
-@@ -695,7 +712,13 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
- void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
- static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
- {
--	return memcg->skmem_breached;
-+	if (memcg->skmem_breached)
-+		return true;
-+	do {
-+		if (time_before(jiffies, memcg->socket_pressure))
-+			return true;
-+	} while ((memcg = parent_mem_cgroup(memcg)));
-+	return false;
- }
- #else
- static inline bool mem_cgroup_do_sockets(void)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2994c9d..e10637f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1084,9 +1084,6 @@ bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg)
- 	return ret;
- }
- 
--#define mem_cgroup_from_counter(counter, member)	\
--	container_of(counter, struct mem_cgroup, member)
--
- /**
-  * mem_cgroup_margin - calculate chargeable space of a memory cgroup
-  * @memcg: the memory cgroup
-@@ -4126,17 +4123,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- 	kfree(memcg);
- }
- 
--/*
-- * Returns the parent mem_cgroup in memcgroup hierarchy with hierarchy enabled.
-- */
--struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg)
--{
--	if (!memcg->memory.parent)
--		return NULL;
--	return mem_cgroup_from_counter(memcg->memory.parent, memory);
--}
--EXPORT_SYMBOL(parent_mem_cgroup);
--
- static void socket_work_func(struct work_struct *work);
- 
- static struct cgroup_subsys_state * __ref
-@@ -4181,6 +4167,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
- #endif
- #ifdef CONFIG_INET
- 	INIT_WORK(&memcg->socket_work, socket_work_func);
-+	memcg->socket_pressure = jiffies;
- #endif
- 	return &memcg->css;
- 
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 4c25e62..07e8440 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -137,14 +137,11 @@ struct vmpressure_event {
- };
- 
- static bool vmpressure_event(struct vmpressure *vmpr,
--			     unsigned long scanned, unsigned long reclaimed)
-+			     enum vmpressure_levels level)
- {
- 	struct vmpressure_event *ev;
--	enum vmpressure_levels level;
- 	bool signalled = false;
- 
--	level = vmpressure_calc_level(scanned, reclaimed);
--
- 	mutex_lock(&vmpr->events_lock);
- 
- 	list_for_each_entry(ev, &vmpr->events, node) {
-@@ -162,6 +159,7 @@ static bool vmpressure_event(struct vmpressure *vmpr,
- static void vmpressure_work_fn(struct work_struct *work)
- {
- 	struct vmpressure *vmpr = work_to_vmpressure(work);
-+	enum vmpressure_levels level;
- 	unsigned long scanned;
- 	unsigned long reclaimed;
- 
-@@ -185,8 +183,25 @@ static void vmpressure_work_fn(struct work_struct *work)
- 	vmpr->reclaimed = 0;
- 	spin_unlock(&vmpr->sr_lock);
- 
-+	level = vmpressure_calc_level(scanned, reclaimed);
-+
-+	if (level > VMPRESSURE_LOW) {
-+		struct mem_cgroup *memcg;
-+		/*
-+		 * Let the socket buffer allocator know that we are
-+		 * having trouble reclaiming LRU pages.
-+		 *
-+		 * For hysteresis, keep the pressure state asserted
-+		 * for a second in which subsequent pressure events
-+		 * can occur.
-+		 */
-+		memcg = container_of(vmpr, struct mem_cgroup, vmpressure);
-+		if (memcg != root_mem_cgroup)
-+			memcg->socket_pressure = jiffies + HZ;
-+	}
-+
- 	do {
--		if (vmpressure_event(vmpr, scanned, reclaimed))
-+		if (vmpressure_event(vmpr, level))
- 			break;
- 		/*
- 		 * If not handled, propagate the event upward into the
 -- 
-2.6.2
+Kees Cook
+Chrome OS Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
