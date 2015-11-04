@@ -1,247 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id A344E6B0256
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 20:26:17 -0500 (EST)
-Received: by pasz6 with SMTP id z6so35621448pas.2
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 17:26:17 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id uj9si46351051pab.128.2015.11.03.17.26.11
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id BA4606B0256
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 20:26:19 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so10742240pac.3
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 17:26:19 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTPS id go6si39053052pbc.166.2015.11.03.17.26.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Nov 2015 17:26:12 -0800 (PST)
+        Tue, 03 Nov 2015 17:26:13 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 05/13] mm: move lazily freed pages to inactive list
-Date: Wed,  4 Nov 2015 10:25:59 +0900
-Message-Id: <1446600367-7976-6-git-send-email-minchan@kernel.org>
+Subject: [PATCH v2 06/13] mm: clear PG_dirty to mark page freeable
+Date: Wed,  4 Nov 2015 10:26:00 +0900
+Message-Id: <1446600367-7976-7-git-send-email-minchan@kernel.org>
 In-Reply-To: <1446600367-7976-1-git-send-email-minchan@kernel.org>
 References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>
 
-MADV_FREE is a hint that it's okay to discard pages if there is memory
-pressure and we use reclaimers(ie, kswapd and direct reclaim) to free them
-so there is no value keeping them in the active anonymous LRU so this
-patch moves them to inactive LRU list's head.
+Basically, MADV_FREE relies on dirty bit in page table entry to decide
+whether VM allows to discard the page or not.  IOW, if page table entry
+includes marked dirty bit, VM shouldn't discard the page.
 
-This means that MADV_FREE-ed pages which were living on the inactive list
-are reclaimed first because they are more likely to be cold rather than
-recently active pages.
+However, as a example, if swap-in by read fault happens, page table entry
+doesn't have dirty bit so MADV_FREE could discard the page wrongly.
 
-An arguable issue for the approach would be whether we should put the page
-to the head or tail of the inactive list.  I chose head because the kernel
-cannot make sure it's really cold or warm for every MADV_FREE usecase but
-at least we know it's not *hot*, so landing of inactive head would be a
-comprimise for various usecases.
+For avoiding the problem, MADV_FREE did more checks with PageDirty
+and PageSwapCache. It worked out because swapped-in page lives on
+swap cache and since it is evicted from the swap cache, the page has
+PG_dirty flag. So both page flags check effectively prevent
+wrong discarding by MADV_FREE.
 
-This fixes suboptimal behavior of MADV_FREE when pages living on the
-active list will sit there for a long time even under memory pressure
-while the inactive list is reclaimed heavily.  This basically breaks the
-whole purpose of using MADV_FREE to help the system to free memory which
-is might not be used.
+However, a problem in above logic is that swapped-in page has
+PG_dirty still after they are removed from swap cache so VM cannot
+consider the page as freeable any more even if madvise_free is
+called in future.
 
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Shaohua Li <shli@kernel.org>
+Look at below example for detail.
+
+    ptr = malloc();
+    memset(ptr);
+    ..
+    ..
+    .. heavy memory pressure so all of pages are swapped out
+    ..
+    ..
+    var = *ptr; -> a page swapped-in and could be removed from
+                   swapcache. Then, page table doesn't mark
+                   dirty bit and page descriptor includes PG_dirty
+    ..
+    ..
+    madvise_free(ptr); -> It doesn't clear PG_dirty of the page.
+    ..
+    ..
+    ..
+    .. heavy memory pressure again.
+    .. In this time, VM cannot discard the page because the page
+    .. has *PG_dirty*
+
+To solve the problem, this patch clears PG_dirty if only the page is owned
+exclusively by current process when madvise is called because PG_dirty
+represents ptes's dirtiness in several processes so we could clear it only
+if we own it exclusively.
+
+Acked-by: Michal Hocko <mhocko@suse.com>
 Acked-by: Hugh Dickins <hughd@google.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/swap.h |  2 +-
- mm/madvise.c         |  3 +++
- mm/swap.c            | 62 +++++++++++++++++++++++++++++-----------------------
- mm/truncate.c        |  2 +-
- 4 files changed, 40 insertions(+), 29 deletions(-)
+ mm/madvise.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 7ba7dccaf0e7..8e944c0cedea 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -307,7 +307,7 @@ extern void lru_add_drain(void);
- extern void lru_add_drain_cpu(int cpu);
- extern void lru_add_drain_all(void);
- extern void rotate_reclaimable_page(struct page *page);
--extern void deactivate_file_page(struct page *page);
-+extern void deactivate_page(struct page *page);
- extern void swap_setup(void);
- 
- extern void add_page_to_unevictable_list(struct page *page);
 diff --git a/mm/madvise.c b/mm/madvise.c
-index 6240a5de4a3a..3462a3ca9690 100644
+index 3462a3ca9690..4e67ba0b1104 100644
 --- a/mm/madvise.c
 +++ b/mm/madvise.c
-@@ -317,6 +317,9 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 			unlock_page(page);
- 		}
+@@ -304,11 +304,19 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 		if (!page)
+ 			continue;
  
-+		if (PageActive(page))
-+			deactivate_page(page);
-+
- 		if (pte_young(ptent) || pte_dirty(ptent)) {
- 			/*
- 			 * Some of architecture(ex, PPC) don't update TLB
-diff --git a/mm/swap.c b/mm/swap.c
-index 983f692a47fd..c76dd4175858 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -44,7 +44,7 @@ int page_cluster;
+-		if (PageSwapCache(page)) {
++		if (PageSwapCache(page) || PageDirty(page)) {
+ 			if (!trylock_page(page))
+ 				continue;
++			/*
++			 * If page is shared with others, we couldn't clear
++			 * PG_dirty of the page.
++			 */
++			if (page_count(page) != 1 + !!PageSwapCache(page)) {
++				unlock_page(page);
++				continue;
++			}
  
- static DEFINE_PER_CPU(struct pagevec, lru_add_pvec);
- static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
--static DEFINE_PER_CPU(struct pagevec, lru_deactivate_file_pvecs);
-+static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
- 
- /*
-  * This path almost never happens for VM activity - pages are normally
-@@ -733,13 +733,13 @@ void lru_cache_add_active_or_unevictable(struct page *page,
- }
- 
- /*
-- * If the page can not be invalidated, it is moved to the
-+ * If the file page can not be invalidated, it is moved to the
-  * inactive list to speed up its reclaim.  It is moved to the
-  * head of the list, rather than the tail, to give the flusher
-  * threads some time to write it out, as this is much more
-  * effective than the single-page writeout from reclaim.
-  *
-- * If the page isn't page_mapped and dirty/writeback, the page
-+ * If the file page isn't page_mapped and dirty/writeback, the page
-  * could reclaim asap using PG_reclaim.
-  *
-  * 1. active, mapped page -> none
-@@ -752,32 +752,36 @@ void lru_cache_add_active_or_unevictable(struct page *page,
-  * In 4, why it moves inactive's head, the VM expects the page would
-  * be write it out by flusher threads as this is much more effective
-  * than the single-page writeout from reclaim.
-+ *
-+ * If @page is anonymous page, it is moved to the inactive list.
-  */
--static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec,
-+static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
- 			      void *arg)
- {
--	int lru, file;
--	bool active;
-+	int lru;
-+	bool file, active;
- 
--	if (!PageLRU(page))
-+	if (!PageLRU(page) || PageUnevictable(page))
- 		return;
- 
--	if (PageUnevictable(page))
--		return;
-+	file = page_is_file_cache(page);
-+	active = PageActive(page);
-+	lru = page_lru_base_type(page);
- 
--	/* Some processes are using the page */
--	if (page_mapped(page))
-+	if (!file && active)
- 		return;
- 
--	active = PageActive(page);
--	file = page_is_file_cache(page);
--	lru = page_lru_base_type(page);
-+	if (file && page_mapped(page))
-+		return;
- 
- 	del_page_from_lru_list(page, lruvec, lru + active);
- 	ClearPageActive(page);
--	ClearPageReferenced(page);
- 	add_page_to_lru_list(page, lruvec, lru);
- 
-+	if (!file)
-+		goto out;
-+
-+	ClearPageReferenced(page);
- 	if (PageWriteback(page) || PageDirty(page)) {
- 		/*
- 		 * PG_reclaim could be raced with end_page_writeback
-@@ -793,9 +797,10 @@ static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec,
- 		list_move_tail(&page->lru, &lruvec->lists[lru]);
- 		__count_vm_event(PGROTATED);
- 	}
--
-+out:
- 	if (active)
- 		__count_vm_event(PGDEACTIVATE);
-+
- 	update_page_reclaim_stat(lruvec, file, 0);
- }
- 
-@@ -821,22 +826,25 @@ void lru_add_drain_cpu(int cpu)
- 		local_irq_restore(flags);
- 	}
- 
--	pvec = &per_cpu(lru_deactivate_file_pvecs, cpu);
-+	pvec = &per_cpu(lru_deactivate_pvecs, cpu);
- 	if (pagevec_count(pvec))
--		pagevec_lru_move_fn(pvec, lru_deactivate_file_fn, NULL);
-+		pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
- 
- 	activate_page_drain(cpu);
- }
- 
- /**
-- * deactivate_file_page - forcefully deactivate a file page
-+ * deactivate_page - forcefully deactivate a page
-  * @page: page to deactivate
-  *
-- * This function hints the VM that @page is a good reclaim candidate,
-- * for example if its invalidation fails due to the page being dirty
-- * or under writeback.
-+ * This function hints the VM that @page is a good reclaim candidate to
-+ * accelerate the reclaim of @page.
-+ * For example,
-+ * 1. Invalidation of file-page fails due to the page being dirty or under
-+ * writeback.
-+ * 2. MADV_FREE hinted anonymous page.
-  */
--void deactivate_file_page(struct page *page)
-+void deactivate_page(struct page *page)
- {
- 	/*
- 	 * In a workload with many unevictable page such as mprotect,
-@@ -846,11 +854,11 @@ void deactivate_file_page(struct page *page)
- 		return;
- 
- 	if (likely(get_page_unless_zero(page))) {
--		struct pagevec *pvec = &get_cpu_var(lru_deactivate_file_pvecs);
-+		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
- 
- 		if (!pagevec_add(pvec, page))
--			pagevec_lru_move_fn(pvec, lru_deactivate_file_fn, NULL);
--		put_cpu_var(lru_deactivate_file_pvecs);
-+			pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
-+		put_cpu_var(lru_deactivate_pvecs);
- 	}
- }
- 
-@@ -882,7 +890,7 @@ void lru_add_drain_all(void)
- 
- 		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
- 		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
--		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
- 		    need_activate_page_drain(cpu)) {
- 			INIT_WORK(work, lru_add_drain_per_cpu);
- 			schedule_work_on(cpu, work);
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 76e35ad97102..cf8d44679364 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -488,7 +488,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 			 * of interest and try to speed up its reclaim.
- 			 */
- 			if (!ret)
--				deactivate_file_page(page);
-+				deactivate_page(page);
- 			count += ret;
- 		}
- 		pagevec_remove_exceptionals(&pvec);
+-			if (!try_to_free_swap(page)) {
++			if (PageSwapCache(page) && !try_to_free_swap(page)) {
+ 				unlock_page(page);
+ 				continue;
+ 			}
 -- 
 1.9.1
 
