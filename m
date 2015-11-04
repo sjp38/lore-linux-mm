@@ -1,79 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D0CB82F64
-	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 20:28:37 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so27230005pad.1
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 17:28:37 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k5si46344982pbq.227.2015.11.03.17.28.36
+Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C17C782F64
+	for <linux-mm@kvack.org>; Tue,  3 Nov 2015 21:15:30 -0500 (EST)
+Received: by iodd200 with SMTP id d200so39636075iod.0
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 18:15:30 -0800 (PST)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id gb2si380790igd.38.2015.11.03.18.15.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Nov 2015 17:28:36 -0800 (PST)
-Date: Tue, 3 Nov 2015 17:31:56 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/2] mm: mmap: Add new /proc tunable for mmap_base
- ASLR.
-Message-Id: <20151103173156.9ca17f52.akpm@linux-foundation.org>
-In-Reply-To: <87k2pyppfk.fsf@x220.int.ebiederm.org>
-References: <1446574204-15567-1-git-send-email-dcashman@android.com>
-	<20151103160410.34bbebc805c17d2f41150a19@linux-foundation.org>
-	<87k2pyppfk.fsf@x220.int.ebiederm.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 03 Nov 2015 18:15:30 -0800 (PST)
+Received: by padda3 with SMTP id da3so4437681pad.1
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 18:15:29 -0800 (PST)
+Date: Wed, 4 Nov 2015 11:16:24 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v2 01/13] mm: support madvise(MADV_FREE)
+Message-ID: <20151104021624.GA2476@swordfish>
+References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
+ <1446600367-7976-2-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1446600367-7976-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Daniel Cashman <dcashman@android.com>, linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, dcashman <dcashman@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Tue, 03 Nov 2015 18:40:31 -0600 ebiederm@xmission.com (Eric W. Biederman) wrote:
+Hi Minchan,
 
-> Andrew Morton <akpm@linux-foundation.org> writes:
-> 
-> > On Tue,  3 Nov 2015 10:10:03 -0800 Daniel Cashman <dcashman@android.com> wrote:
-> >
-> >> ASLR currently only uses 8 bits to generate the random offset for the
-> >> mmap base address on 32 bit architectures. This value was chosen to
-> >> prevent a poorly chosen value from dividing the address space in such
-> >> a way as to prevent large allocations. This may not be an issue on all
-> >> platforms. Allow the specification of a minimum number of bits so that
-> >> platforms desiring greater ASLR protection may determine where to place
-> >> the trade-off.
-> >
-> > Can we please include a very good description of the motivation for this
-> > change?  What is inadequate about the current code, what value does the
-> > enhancement have to our users, what real-world problems are being solved,
-> > etc.
-> >
-> > Because all we have at present is "greater ASLR protection", which doesn't
-> > really tell anyone anything.
-> 
-> The description seemed clear to me.
-> 
-> More random bits, more entropy, more work needed to brute force.
-> 
-> 8 bits only requires 256 tries (or a 1 in 256) chance to brute force
-> something.
+On (11/04/15 10:25), Minchan Kim wrote:
+[..]
+>+static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>+                               unsigned long end, struct mm_walk *walk)
+>+
+...
+> +	if (pmd_trans_unstable(pmd))
+> +		return 0;
 
-Of course, but that's not really very useful.
+I think it makes sense to update pmd_trans_unstable() and
+pmd_none_or_trans_huge_or_clear_bad() comments in asm-generic/pgtable.h
+Because they explicitly mention MADV_DONTNEED only. Just a thought.
 
-> We have seen in the last couple of months on Android how only having 8 bits
-> doesn't help much.
 
-Now THAT is important.  What happened here and how well does the
-proposed fix improve things?  How much longer will a brute-force attack
-take to succeed, with a particular set of kernel parameters?  Is the
-new duration considered to be sufficiently long and if not, are there
-alternative fixes we should be looking at?
+> @@ -379,6 +502,14 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+>  		return madvise_remove(vma, prev, start, end);
+>  	case MADV_WILLNEED:
+>  		return madvise_willneed(vma, prev, start, end);
+> +	case MADV_FREE:
+> +		/*
+> +		 * XXX: In this implementation, MADV_FREE works like
+		  ^^^^
+		XXX
 
-Stuff like this.
+> +		 * MADV_DONTNEED on swapless system or full swap.
+> +		 */
+> +		if (get_nr_swap_pages() > 0)
+> +			return madvise_free(vma, prev, start, end);
+> +		/* passthrough */
 
-> Each additional bit doubles the protection (and unfortunately also
-> increases fragmentation of the userspace address space).
-
-OK, so the benefit comes with a cost and people who are configuring
-systems (and the people who are reviewing this patchset!) need to
-understand the tradeoffs.  Please.
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
