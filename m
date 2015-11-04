@@ -1,103 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 20F8082F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 16:16:33 -0500 (EST)
-Received: by igdg1 with SMTP id g1so115494770igd.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 13:16:32 -0800 (PST)
-Received: from mailgw02.mediatek.com ([66.228.70.112])
-        by mx.google.com with ESMTP id l103si3775069iod.154.2015.11.04.13.16.30
-        for <linux-mm@kvack.org>;
-        Wed, 04 Nov 2015 13:16:32 -0800 (PST)
-From: Bing Yu <Bing.Yu@mediatek.com>
-Subject: [PATCH v11 00/15] HMM (Heterogeneous Memory Management)
-Date: Wed, 4 Nov 2015 21:16:25 +0000
-Message-ID: <D591C98DE89DC242B3E55E2FF72B9361E14904E6@MTKMBS61N1.mediatek.inc>
-Content-Language: en-US
-Content-Type: multipart/alternative;
-	boundary="_000_D591C98DE89DC242B3E55E2FF72B9361E14904E6MTKMBS61N1media_"
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 1221E82F64
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 16:16:42 -0500 (EST)
+Received: by igbhv6 with SMTP id hv6so45291458igb.0
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 13:16:41 -0800 (PST)
+Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
+        by mx.google.com with ESMTPS id o85si3774726ioi.173.2015.11.04.13.16.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Nov 2015 13:16:41 -0800 (PST)
+Received: by igbdj2 with SMTP id dj2so44944438igb.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 13:16:41 -0800 (PST)
+Subject: Re: [PATCH v2 01/13] mm: support madvise(MADV_FREE)
+References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
+ <1446600367-7976-2-git-send-email-minchan@kernel.org>
+ <20151104200006.GA46783@kernel.org>
+From: Daniel Micay <danielmicay@gmail.com>
+Message-ID: <563A7591.7080607@gmail.com>
+Date: Wed, 4 Nov 2015 16:16:01 -0500
 MIME-Version: 1.0
+In-Reply-To: <20151104200006.GA46783@kernel.org>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="CuneNnFdlk8k24ClMQJxchbWeXnOJPeC3"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "j.glisse@gmail.com" <j.glisse@gmail.com>
+To: Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, bmaurer@fb.com
 
---_000_D591C98DE89DC242B3E55E2FF72B9361E14904E6MTKMBS61N1media_
-Content-Type: text/plain; charset="us-ascii"
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--CuneNnFdlk8k24ClMQJxchbWeXnOJPeC3
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
 
-Mediatek would like to see HMM upstream as we are interested in using it =
-for future hardware=2E
-Does anyone know when will this happen?
+> Compared to MADV_DONTNEED, MADV_FREE's lazy memory free is a huge win t=
+o reduce
+> page fault. But there is one issue remaining, the TLB flush. Both MADV_=
+DONTNEED
+> and MADV_FREE do TLB flush. TLB flush overhead is quite big in contempo=
+rary
+> multi-thread applications. In our production workload, we observed 80% =
+CPU
+> spending on TLB flush triggered by jemalloc madvise(MADV_DONTNEED) some=
+times.
+> We haven't tested MADV_FREE yet, but the result should be similar. It's=
+ hard to
+> avoid the TLB flush issue with MADV_FREE, because it helps avoid data
+> corruption.
+>=20
+> The new proposal tries to fix the TLB issue. We introduce two madvise v=
+erbs:
+>=20
+> MARK_FREE. Userspace notifies kernel the memory range can be discarded.=
+ Kernel
+> just records the range in current stage. Should memory pressure happen,=
+ page
+> reclaim can free the memory directly regardless the pte state.
+>=20
+> MARK_NOFREE. Userspace notifies kernel the memory range will be reused =
+soon.
+> Kernel deletes the record and prevents page reclaim discards the memory=
+=2E If the
+> memory isn't reclaimed, userspace will access the old memory, otherwise=
+ do
+> normal page fault handling.
+>=20
+> The point is to let userspace notify kernel if memory can be discarded,=
+ instead
+> of depending on pte dirty bit used by MADV_FREE. With these, no TLB flu=
+sh is
+> required till page reclaim actually frees the memory (page reclaim need=
+ do the
+> TLB flush for MADV_FREE too). It still preserves the lazy memory free m=
+erit of
+> MADV_FREE.
+>=20
+> Compared to MADV_FREE, reusing memory with the new proposal isn't trans=
+parent,
+> eg must call MARK_NOFREE. But it's easy to utilize the new API in jemal=
+loc.
+>=20
+> We don't have code to backup this yet, sorry. We'd like to discuss it i=
+f it
+> makes sense.
 
-Regards,
-Bing
-=0D
---_000_D591C98DE89DC242B3E55E2FF72B9361E14904E6MTKMBS61N1media_
-Content-Type: text/html; charset="us-ascii"
-Content-Transfer-Encoding: base64
+That's comparable to Android's pinning / unpinning API for ashmem and I
+think it makes sense if it's faster. It's different than the MADV_FREE
+API though, because the new allocations that are handed out won't have
+the usual lazy commit which MADV_FREE provides. Pages in an allocation
+that's handed out can still be dropped until they are actually written
+to. It's considered active by jemalloc either way, but only a subset of
+the active pages are actually committed. There's probably a use case for
+both of these systems.
 
-PGh0bWwgeG1sbnM6dj0idXJuOnNjaGVtYXMtbWljcm9zb2Z0LWNvbTp2bWwiIHhtbG5zOm89InVy
-bjpzY2hlbWFzLW1pY3Jvc29mdC1jb206b2ZmaWNlOm9mZmljZSIgeG1sbnM6dz0idXJuOnNjaGVt
-YXMtbWljcm9zb2Z0LWNvbTpvZmZpY2U6d29yZCIgeG1sbnM6bT0iaHR0cDovL3NjaGVtYXMubWlj
-cm9zb2Z0LmNvbS9vZmZpY2UvMjAwNC8xMi9vbW1sIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcv
-VFIvUkVDLWh0bWw0MCI+DQo8aGVhZD4NCjxtZXRhIGh0dHAtZXF1aXY9IkNvbnRlbnQtVHlwZSIg
-Y29udGVudD0idGV4dC9odG1sOyBjaGFyc2V0PXVzLWFzY2lpIj4NCjxtZXRhIG5hbWU9IkdlbmVy
-YXRvciIgY29udGVudD0iTWljcm9zb2Z0IFdvcmQgMTIgKGZpbHRlcmVkIG1lZGl1bSkiPg0KPHN0
-eWxlPjwhLS0NCi8qIEZvbnQgRGVmaW5pdGlvbnMgKi8NCkBmb250LWZhY2UNCgl7Zm9udC1mYW1p
-bHk6U2ltU3VuOw0KCXBhbm9zZS0xOjIgMSA2IDAgMyAxIDEgMSAxIDE7fQ0KQGZvbnQtZmFjZQ0K
-CXtmb250LWZhbWlseToiQ2FtYnJpYSBNYXRoIjsNCglwYW5vc2UtMToyIDQgNSAzIDUgNCA2IDMg
-MiA0O30NCkBmb250LWZhY2UNCgl7Zm9udC1mYW1pbHk6Q2FsaWJyaTsNCglwYW5vc2UtMToyIDE1
-IDUgMiAyIDIgNCAzIDIgNDt9DQpAZm9udC1mYWNlDQoJe2ZvbnQtZmFtaWx5OkNvbnNvbGFzOw0K
-CXBhbm9zZS0xOjIgMTEgNiA5IDIgMiA0IDMgMiA0O30NCkBmb250LWZhY2UNCgl7Zm9udC1mYW1p
-bHk6IlxAU2ltU3VuIjsNCglwYW5vc2UtMToyIDEgNiAwIDMgMSAxIDEgMSAxO30NCi8qIFN0eWxl
-IERlZmluaXRpb25zICovDQpwLk1zb05vcm1hbCwgbGkuTXNvTm9ybWFsLCBkaXYuTXNvTm9ybWFs
-DQoJe21hcmdpbjowaW47DQoJbWFyZ2luLWJvdHRvbTouMDAwMXB0Ow0KCWZvbnQtc2l6ZToxMS4w
-cHQ7DQoJZm9udC1mYW1pbHk6IkNhbGlicmkiLCJzYW5zLXNlcmlmIjt9DQphOmxpbmssIHNwYW4u
-TXNvSHlwZXJsaW5rDQoJe21zby1zdHlsZS1wcmlvcml0eTo5OTsNCgljb2xvcjpibHVlOw0KCXRl
-eHQtZGVjb3JhdGlvbjp1bmRlcmxpbmU7fQ0KYTp2aXNpdGVkLCBzcGFuLk1zb0h5cGVybGlua0Zv
-bGxvd2VkDQoJe21zby1zdHlsZS1wcmlvcml0eTo5OTsNCgljb2xvcjpwdXJwbGU7DQoJdGV4dC1k
-ZWNvcmF0aW9uOnVuZGVybGluZTt9DQpwLk1zb1BsYWluVGV4dCwgbGkuTXNvUGxhaW5UZXh0LCBk
-aXYuTXNvUGxhaW5UZXh0DQoJe21zby1zdHlsZS1wcmlvcml0eTo5OTsNCgltc28tc3R5bGUtbGlu
-azoiUGxhaW4gVGV4dCBDaGFyIjsNCgltYXJnaW46MGluOw0KCW1hcmdpbi1ib3R0b206LjAwMDFw
-dDsNCglmb250LXNpemU6MTAuNXB0Ow0KCWZvbnQtZmFtaWx5OkNvbnNvbGFzO30NCnNwYW4uRW1h
-aWxTdHlsZTE3DQoJe21zby1zdHlsZS10eXBlOnBlcnNvbmFsLWNvbXBvc2U7DQoJZm9udC1mYW1p
-bHk6IkNhbGlicmkiLCJzYW5zLXNlcmlmIjsNCgljb2xvcjp3aW5kb3d0ZXh0O30NCnNwYW4uUGxh
-aW5UZXh0Q2hhcg0KCXttc28tc3R5bGUtbmFtZToiUGxhaW4gVGV4dCBDaGFyIjsNCgltc28tc3R5
-bGUtcHJpb3JpdHk6OTk7DQoJbXNvLXN0eWxlLWxpbms6IlBsYWluIFRleHQiOw0KCWZvbnQtZmFt
-aWx5OkNvbnNvbGFzO30NCi5Nc29DaHBEZWZhdWx0DQoJe21zby1zdHlsZS10eXBlOmV4cG9ydC1v
-bmx5O30NCkBwYWdlIFdvcmRTZWN0aW9uMQ0KCXtzaXplOjguNWluIDExLjBpbjsNCgltYXJnaW46
-MS4waW4gMS4waW4gMS4waW4gMS4waW47fQ0KZGl2LldvcmRTZWN0aW9uMQ0KCXtwYWdlOldvcmRT
-ZWN0aW9uMTt9DQotLT48L3N0eWxlPjwhLS1baWYgZ3RlIG1zbyA5XT48eG1sPg0KPG86c2hhcGVk
-ZWZhdWx0cyB2OmV4dD0iZWRpdCIgc3BpZG1heD0iMTAyNiIgLz4NCjwveG1sPjwhW2VuZGlmXS0t
-PjwhLS1baWYgZ3RlIG1zbyA5XT48eG1sPg0KPG86c2hhcGVsYXlvdXQgdjpleHQ9ImVkaXQiPg0K
-PG86aWRtYXAgdjpleHQ9ImVkaXQiIGRhdGE9IjEiIC8+DQo8L286c2hhcGVsYXlvdXQ+PC94bWw+
-PCFbZW5kaWZdLS0+DQo8L2hlYWQ+DQo8Ym9keSBsYW5nPSJFTi1VUyIgbGluaz0iYmx1ZSIgdmxp
-bms9InB1cnBsZSI+DQo8ZGl2IGNsYXNzPSJXb3JkU2VjdGlvbjEiPg0KPHAgY2xhc3M9Ik1zb1Bs
-YWluVGV4dCI+TWVkaWF0ZWsgd291bGQgbGlrZSB0byBzZWUgSE1NIHVwc3RyZWFtIGFzIHdlIGFy
-ZSBpbnRlcmVzdGVkIGluIHVzaW5nIGl0IGZvciBmdXR1cmUgaGFyZHdhcmUuPG86cD48L286cD48
-L3A+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj5Eb2VzIGFueW9uZSBrbm93IHdoZW4gd2lsbCB0aGlz
-IGhhcHBlbj88bzpwPjwvbzpwPjwvcD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxvOnA+Jm5ic3A7
-PC9vOnA+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+UmVnYXJkcyw8bzpwPjwvbzpwPjwvcD4N
-CjxwIGNsYXNzPSJNc29Ob3JtYWwiPkJpbmc8bzpwPjwvbzpwPjwvcD4NCjwvZGl2Pg0KPC9ib2R5
-Pg0KPC9odG1sPg0KDTx0YWJsZT48dHI+PHRkPjwhLS10eXBlOnRleHQtLT48IS0tey0tPjxwcmU+
-KioqKioqKioqKioqKiBFbWFpbCBDb25maWRlbnRpYWxpdHkgTm90aWNlICoqKioqKioqKioqKioq
-KioqKioqDQpUaGUgaW5mb3JtYXRpb24gY29udGFpbmVkIGluIHRoaXMgZS1tYWlsIG1lc3NhZ2Ug
-KGluY2x1ZGluZyBhbnkgDQphdHRhY2htZW50cykgbWF5IGJlIGNvbmZpZGVudGlhbCwgcHJvcHJp
-ZXRhcnksIHByaXZpbGVnZWQsIG9yIG90aGVyd2lzZQ0KZXhlbXB0IGZyb20gZGlzY2xvc3VyZSB1
-bmRlciBhcHBsaWNhYmxlIGxhd3MuIEl0IGlzIGludGVuZGVkIHRvIGJlIA0KY29udmV5ZWQgb25s
-eSB0byB0aGUgZGVzaWduYXRlZCByZWNpcGllbnQocykuIEFueSB1c2UsIGRpc3NlbWluYXRpb24s
-IA0KZGlzdHJpYnV0aW9uLCBwcmludGluZywgcmV0YWluaW5nIG9yIGNvcHlpbmcgb2YgdGhpcyBl
-LW1haWwgKGluY2x1ZGluZyBpdHMgDQphdHRhY2htZW50cykgYnkgdW5pbnRlbmRlZCByZWNpcGll
-bnQocykgaXMgc3RyaWN0bHkgcHJvaGliaXRlZCBhbmQgbWF5IA0KYmUgdW5sYXdmdWwuIElmIHlv
-dSBhcmUgbm90IGFuIGludGVuZGVkIHJlY2lwaWVudCBvZiB0aGlzIGUtbWFpbCwgb3IgYmVsaWV2
-ZSANCnRoYXQgeW91IGhhdmUgcmVjZWl2ZWQgdGhpcyBlLW1haWwgaW4gZXJyb3IsIHBsZWFzZSBu
-b3RpZnkgdGhlIHNlbmRlciANCmltbWVkaWF0ZWx5IChieSByZXBseWluZyB0byB0aGlzIGUtbWFp
-bCksIGRlbGV0ZSBhbnkgYW5kIGFsbCBjb3BpZXMgb2YgDQp0aGlzIGUtbWFpbCAoaW5jbHVkaW5n
-IGFueSBhdHRhY2htZW50cykgZnJvbSB5b3VyIHN5c3RlbSwgYW5kIGRvIG5vdA0KZGlzY2xvc2Ug
-dGhlIGNvbnRlbnQgb2YgdGhpcyBlLW1haWwgdG8gYW55IG90aGVyIHBlcnNvbi4gVGhhbmsgeW91
-IQ0KPC9wcmU+PCEtLX0tLT48L3RkPjwvdHI+PC90YWJsZT4=
 
---_000_D591C98DE89DC242B3E55E2FF72B9361E14904E6MTKMBS61N1media_--
+--CuneNnFdlk8k24ClMQJxchbWeXnOJPeC3
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJWOnWRAAoJEPnnEuWa9fIqdeEP/iVWpgU10VwM9SIZZenn5154
+aolJpC1qXALGsnrIcMkJXpmlq1Fky4Ew/lhua+Ca1NidemR76TnEZEfZuAghQ3hf
+37p7aQDhm9j7WmAcMfxm0iJCcCepKMtp504eRAgUSBoXXdK3Y5VgbPVMZSzNsNBI
+Ct9/2RjevChz8ILIz5JFw3C9a4WKOxOBDQELCdU+/ObZ7Ll/xocbBkUEaLu4NlGX
+7dAe3EigCMzx2rqoAXuKgbBpVEu4PmBoUu2ORvfQKUZRmsHZ1i9t/Mm8aTU2ynQW
+SEw1FjArwGE35RozI3WvKgyGJ9L0GVYw9w8L2ol2ZOzASLBffVaLJd9ODqnhF0Vj
+/0gHIJQVWg4Jkn4uJLBjIW7x6Xugr99SlD8/RCwbiU5DLPCWi+IEKCaj0iELad1v
+7Ljh+lUpm62kixw0VgucfXWXf0QR9TieI2xXJUnbLLwdYzEsPCmwNhw6EMpKY7ui
+LW2+XuZrk9dczLYL2opzc7ln473lV5VJWFuYWHl4bqhjcfJOyNUVWPZtgnqxvvsl
+B6ppmCAgFJqD5gUlZuLnNGNDX7Ne7eRFxjJEYbn9bKPXGtHumi/aNQ/ZAkyf93KV
+O0LpTD84RabknhROgjKE9IU6BSwtKOGWNH9p4eSJDijX5KaQqqSE18ET6/e/xIVE
+bxjp/MAvfZvEN30aJSjA
+=PR5d
+-----END PGP SIGNATURE-----
+
+--CuneNnFdlk8k24ClMQJxchbWeXnOJPeC3--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
