@@ -1,113 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A0B6D6B0254
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 05:20:59 -0500 (EST)
-Received: by qgem9 with SMTP id m9so36219348qge.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 02:20:59 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id g92si309873qgg.45.2015.11.04.02.20.57
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B1646B0253
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 05:42:43 -0500 (EST)
+Received: by wmeg8 with SMTP id g8so37780528wme.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 02:42:42 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
+        by mx.google.com with ESMTPS id 5si2869845wmw.58.2015.11.04.02.42.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 04 Nov 2015 02:20:58 -0800 (PST)
-Message-ID: <5639DBDE.6000306@huawei.com>
-Date: Wed, 4 Nov 2015 18:20:14 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Nov 2015 02:42:41 -0800 (PST)
+Received: by wmeg8 with SMTP id g8so37780016wme.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 02:42:41 -0800 (PST)
+Date: Wed, 4 Nov 2015 11:42:40 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
+ hierarchy
+Message-ID: <20151104104239.GG29607@dhcp22.suse.cz>
+References: <1445487696-21545-6-git-send-email-hannes@cmpxchg.org>
+ <20151023131956.GA15375@dhcp22.suse.cz>
+ <20151023.065957.1690815054807881760.davem@davemloft.net>
+ <20151026165619.GB2214@cmpxchg.org>
+ <20151027122647.GG9891@dhcp22.suse.cz>
+ <20151027154138.GA4665@cmpxchg.org>
+ <20151027161554.GJ9891@dhcp22.suse.cz>
+ <20151027164227.GB7749@cmpxchg.org>
+ <20151029152546.GG23598@dhcp22.suse.cz>
+ <20151029161009.GA9160@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH V8] mm: memory hot-add: hot-added memory can not be added
- to movable zone by default
-References: <1446625415-11941-1-git-send-email-liuchangsheng@inspur.com>
-In-Reply-To: <1446625415-11941-1-git-send-email-liuchangsheng@inspur.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151029161009.GA9160@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: liuchangsheng <liuchangsheng@inspur.com>
-Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, yasu.isimatu@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wunan@inspur.com, yanxiaofeng@inspur.com, fandd@inspur.com, Wang Nan <wangnan0@huawei.com>, Dave Hansen <dave.hansen@intel.com>, Yinghai Lu <yinghai@kernel.org>, Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 2015/11/4 16:23, liuchangsheng wrote:
-
-> After the user config CONFIG_MOVABLE_NODE,
-> When the memory is hot added, should_add_memory_movable() return 0
-> because all zones including ZONE_MOVABLE are empty,
-> so the memory that was hot added will be assigned to ZONE_NORMAL,
-> and we need using the udev rules to online the memory automatically:
-> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline",
-> ATTR{state}="online_movable"
-> The memory block onlined by udev must be adjacent to ZONE_MOVABLE.
-> The events of memory section are notified to udev asynchronously,
-
-Hi Yasuaki,
-
-If udev onlines memory in descending order, like 3->2->1->0, it will
-success, but we notifiy to udev in ascending order, like 0->1->2->3,
-so the udev rules cannot online memory as movable, right?
-
-> so it can not ensure that the memory block onlined by udev is
-> adjacent to ZONE_MOVABLE.So it can't ensure memory online always success.
-> But we want the whole node to be added to ZONE_MOVABLE by default.
+On Thu 29-10-15 09:10:09, Johannes Weiner wrote:
+> On Thu, Oct 29, 2015 at 04:25:46PM +0100, Michal Hocko wrote:
+> > On Tue 27-10-15 09:42:27, Johannes Weiner wrote:
+[...]
+> > > You carefully skipped over this part. We can ignore it for socket
+> > > memory but it's something we need to figure out when it comes to slab
+> > > accounting and tracking.
+> > 
+> > I am sorry, I didn't mean to skip this part, I though it would be clear
+> > from the previous text. I think kmem accounting falls into the same
+> > category. Have a sane default and a global boottime knob to override it
+> > for those that think differently - for whatever reason they might have.
 > 
-> So we change should_add_memory_movable(): if the user config
-> CONFIG_MOVABLE_NODE and movable_node kernel option
-> and the ZONE_NORMAL is empty or the pfn of the hot-added memory
-> is after the end of the ZONE_NORMAL it will always return 1
-> and then the whole node will be added to ZONE_MOVABLE by default.
-> If we want the node to be assigned to ZONE_NORMAL,
-> we can do it as follows:
-> "echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
+> Yes, that makes sense to me.
 > 
+> Like cgroup.memory=nosocket, would you think it makes sense to include
+> slab in the default for functional/semantical completeness and provide
+> a cgroup.memory=noslab for powerusers?
 
-The order should like 0->1->2->3, right? 3->2->1->0 will be failed.
-
-> Signed-off-by: liuchangsheng <liuchangsheng@inspur.com>
-> Signed-off-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
-> Tested-by: Dongdong Fan <fandd@inspur.com>
-> Reviewed-by: <yasu.isimatu@gmail.com>
-> Cc: Wang Nan <wangnan0@huawei.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Yinghai Lu <yinghai@kernel.org>
-> Cc: Tang Chen <tangchen@cn.fujitsu.com>
-> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Cc: Toshi Kani <toshi.kani@hp.com>
-> Cc: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  mm/memory_hotplug.c | 7 +++++++
->  1 file changed, 7 insertions(+)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index aa992e2..8617b9f 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1201,6 +1201,9 @@ static int check_hotplug_memory_range(u64 start, u64 size)
->  /*
->   * If movable zone has already been setup, newly added memory should be check.
->   * If its address is higher than movable zone, it should be added as movable.
-> + * And if system boots up with movable_node and config CONFIG_MOVABLE_NOD and
-> + * added memory does not overlap the zone before MOVABLE_ZONE,
-> + * the memory is added as movable.
->   * Without this check, movable zone may overlap with other zone.
->   */
->  static int should_add_memory_movable(int nid, u64 start, u64 size)
-> @@ -1208,6 +1211,10 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
->  	unsigned long start_pfn = start >> PAGE_SHIFT;
->  	pg_data_t *pgdat = NODE_DATA(nid);
->  	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
-> +	struct zone *pre_zone = pgdat->node_zones + (ZONE_MOVABLE - 1);
-> +
-> +	if (movable_node_is_enabled() && (zone_end_pfn(pre_zone) <= start_pfn))
-> +		return 1;
->  
-
-Looks good to me.
-
-How about add some comment in mm/Kconfig?
-
-Thanks,
-Xishi Qiu
-
->  	if (zone_is_empty(movable_zone))
->  		return 0;
-
-
+I am still not sure whether the kmem accounting is stable enough to be
+enabled by default. If for nothing else the allocation failures, which
+are not allowed for the global case and easily triggered by the hard
+limit, might be a big problem. My last attempts to allow GFP_NOFS to
+fail made me quite skeptical. I still believe this is something which
+will be solved in the long term but the current state might be still too
+fragile. So I would rather be conservative and have the kmem accounting
+disabled by default with a config option and boot parameter to override.
+If somebody is confident that the desired load is stable then the config
+can be enabled easily.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
