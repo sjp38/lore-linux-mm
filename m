@@ -1,55 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A27B6B0253
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 01:57:12 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so44057420pab.0
-        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 22:57:12 -0800 (PST)
-Received: from mgwkm01.jp.fujitsu.com (mgwkm01.jp.fujitsu.com. [202.219.69.168])
-        by mx.google.com with ESMTPS id nz1si5859244pbb.112.2015.11.03.22.57.10
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 902996B0253
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 02:35:46 -0500 (EST)
+Received: by pasz6 with SMTP id z6so46083827pas.2
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 23:35:46 -0800 (PST)
+Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
+        by mx.google.com with ESMTPS id sz8si63813pab.238.2015.11.03.23.35.45
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Nov 2015 22:57:11 -0800 (PST)
-Received: from m3051.s.css.fujitsu.com (m3051.s.css.fujitsu.com [10.134.21.209])
-	by kw-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 69B0EAC0134
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 15:57:06 +0900 (JST)
-Subject: Re: [PATCH] mm: Introduce kernelcore=reliable option
-References: <1444915942-15281-1-git-send-email-izumi.taku@jp.fujitsu.com>
- <3908561D78D1C84285E8C5FCA982C28F32B5A060@ORSMSX114.amr.corp.intel.com>
- <5628B427.3050403@jp.fujitsu.com>
- <3908561D78D1C84285E8C5FCA982C28F32B5C7AE@ORSMSX114.amr.corp.intel.com>
- <E86EADE93E2D054CBCD4E708C38D364A54280C26@G01JPEXMBYT01>
- <322B7BFA-08FE-4A8F-B54C-86901BDB7CBD@intel.com>
- <56330C0A.3060901@jp.fujitsu.com>
- <3908561D78D1C84285E8C5FCA982C28F32B64312@ORSMSX114.amr.corp.intel.com>
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <5639AC34.9030603@jp.fujitsu.com>
-Date: Wed, 4 Nov 2015 15:56:52 +0900
-MIME-Version: 1.0
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F32B64312@ORSMSX114.amr.corp.intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Nov 2015 23:35:45 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so5409641pab.3
+        for <linux-mm@kvack.org>; Tue, 03 Nov 2015 23:35:45 -0800 (PST)
+From: yalin wang <yalin.wang2010@gmail.com>
+Subject: [PATCH] mm: change tlb_finish_mmu() to be more simple
+Date: Wed,  4 Nov 2015 15:35:31 +0800
+Message-Id: <1446622531-316-1-git-send-email-yalin.wang2010@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>, "Izumi, Taku" <izumi.taku@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>
+To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com, raindel@mellanox.com, willy@linux.intel.com, boaz@plexistor.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: yalin wang <yalin.wang2010@gmail.com>
 
-On 2015/10/31 4:42, Luck, Tony wrote:
->> If each memory controller has the same distance/latency, you (your firmware) don't need
->> to allocate reliable memory per each memory controller.
->> If distance is problem, another node should be allocated.
->>
->> ...is the behavior(splitting zone) really required ?
->
-> It's useful from a memory bandwidth perspective to have allocations
-> spread across both memory controllers. Keeping a whole bunch of
-> Xeon cores fed needs all the bandwidth you can get.
->
+This patch remove unneeded *next temp variable,
+make this function more simple to read.
 
-Hmm. But physical address layout is not related to dual memory controller.
-I think reliable range can be contiguous by firmware...
+Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+---
+ mm/memory.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
--Kame
-
+diff --git a/mm/memory.c b/mm/memory.c
+index 7f3b9f2..f0040ed 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -270,17 +270,16 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
+  */
+ void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+ {
+-	struct mmu_gather_batch *batch, *next;
++	struct mmu_gather_batch *batch;
+ 
+ 	tlb_flush_mmu(tlb);
+ 
+ 	/* keep the page table cache within bounds */
+ 	check_pgt_cache();
+ 
+-	for (batch = tlb->local.next; batch; batch = next) {
+-		next = batch->next;
++	for (batch = tlb->local.next; batch; batch = batch->next)
+ 		free_pages((unsigned long)batch, 0);
+-	}
++
+ 	tlb->local.next = NULL;
+ }
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
