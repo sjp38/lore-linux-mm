@@ -1,57 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C08782F66
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 13:30:57 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so52037362pad.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 10:30:56 -0800 (PST)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id b10si3735106pas.235.2015.11.04.10.30.56
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4D682F66
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 13:35:04 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so35880765pac.3
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 10:35:04 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id cz1si1902688pbc.92.2015.11.04.10.35.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 10:30:56 -0800 (PST)
-Received: by pasz6 with SMTP id z6so61835990pas.2
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 10:30:56 -0800 (PST)
-Subject: Re: [PATCH v2 2/2] arm: mm: support ARCH_MMAP_RND_BITS.
-References: <1446574204-15567-1-git-send-email-dcashman@android.com>
- <1446574204-15567-2-git-send-email-dcashman@android.com>
- <CAGXu5jKGzDD9WVQnMTT2EfupZtjpdcASUpx-3npLAB-FctLodA@mail.gmail.com>
- <56393FD0.6080001@android.com>
- <CAGXu5jLe=OgZ2DG_MRXA8x6BwpEd77fNZBj3wjbDiSdiBurz7w@mail.gmail.com>
-From: Daniel Cashman <dcashman@android.com>
-Message-ID: <563A4EDC.6090403@android.com>
-Date: Wed, 4 Nov 2015 10:30:52 -0800
+        Wed, 04 Nov 2015 10:35:03 -0800 (PST)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [RFC 00/11] DAX fsynx/msync support
+References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
+	<20151030035533.GU19199@dastard>
+	<20151030183938.GC24643@linux.intel.com>
+	<20151101232948.GF10656@dastard>
+	<x49vb9kqy5k.fsf@segfault.boston.devel.redhat.com>
+	<20151102201029.GI10656@dastard>
+	<x49twp4p11j.fsf@segfault.boston.devel.redhat.com>
+Date: Wed, 04 Nov 2015 13:34:58 -0500
+In-Reply-To: <x49twp4p11j.fsf@segfault.boston.devel.redhat.com> (Jeff Moyer's
+	message of "Mon, 02 Nov 2015 16:02:48 -0500")
+Message-ID: <x49a8qtpq99.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jLe=OgZ2DG_MRXA8x6BwpEd77fNZBj3wjbDiSdiBurz7w@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, dcashman <dcashman@google.com>, Michael Ellerman <michael@ellerman.id.au>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-nvdimm@ml01.01.org, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Andreas Dilger <adilger.kernel@dilger.ca>, "H. Peter Anvin" <hpa@zytor.com>, Jeff Layton <jlayton@poochiereds.net>, x86@kernel.org, Ingo Molnar <mingo@redhat.com>, linux-ext4@vger.kernel.org, xfs@oss.sgi.com, Alexander Viro <viro@zeniv.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, axboe@kernel.dk, Theodore Ts'o <tytso@mit.edu>, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-On 11/3/15 3:21 PM, Kees Cook wrote:
-> On Tue, Nov 3, 2015 at 3:14 PM, Daniel Cashman <dcashman@android.com> wrote:
->> On 11/03/2015 11:19 AM, Kees Cook wrote:
->>> Do you have patches for x86 and arm64?
->>
->> I was holding off on those until I could gauge upstream reception.  If
->> desired, I could put those together and add them as [PATCH 3/4] and
->> [PATCH 4/4].
-> 
-> If they're as trivial as I'm hoping, yeah, let's toss them in now. If
-> not, skip 'em. PowerPC, MIPS, and s390 should be relatively simple
-> too, but one or two of those have somewhat stranger calculations when
-> I looked, so their Kconfigs may not be as clean.
+Jeff Moyer <jmoyer@redhat.com> writes:
 
-Creating the patches should be simple, it's the choice of minimum and
-maximum values for each architecture that I'd be most concerned about.
-I'll put them together, though, and the ranges can be changed following
-discussion with those more knowledgeable, if needed.  I also don't have
-devices on which to test the PowerPC, MIPS and s390 changes, so I'll
-need someone's help for that.
+>> Hence once the filesystem has waited on the REQ_WRITE|REQ_FLUSH IO
+>> to complete, we know that all the earlier REQ_WRITE IOs are on
+>> stable storage, too. Hence there's no need for the elevator to drain
+>> the queue to guarantee completion ordering - the dispatch ordering
+>> and flush/fua write semantics guarantee that when the flush/fua
+>> completes, all the IOs dispatch prior to that flush/fua write are
+>> also on stable storage...
+>
+> Des xfs rely on this model for correctness?  If so, I'd say we've got a
+> problem.
 
-Thank You,
-Dan
+Dave?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
