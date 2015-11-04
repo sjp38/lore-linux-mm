@@ -1,59 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 777176B0254
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 04:20:48 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so23578870pac.3
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 01:20:48 -0800 (PST)
-Received: from out21.biz.mail.alibaba.com (out114-136.biz.mail.alibaba.com. [205.204.114.136])
-        by mx.google.com with ESMTP id gn6si814968pbc.40.2015.11.04.01.20.44
-        for <linux-mm@kvack.org>;
-        Wed, 04 Nov 2015 01:20:47 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <052401d116e0$c3ac0110$4b040330$@alibaba-inc.com>
-In-Reply-To: <052401d116e0$c3ac0110$4b040330$@alibaba-inc.com>
-Subject: Re: [PATCH 3/4] thp: fix split vs. unmap race
-Date: Wed, 04 Nov 2015 17:20:15 +0800
-Message-ID: <052701d116e2$0437a2b0$0ca6e810$@alibaba-inc.com>
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id BC3CC6B0255
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 04:40:00 -0500 (EST)
+Received: by wikq8 with SMTP id q8so88354124wik.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 01:40:00 -0800 (PST)
+Received: from mail-wi0-f194.google.com (mail-wi0-f194.google.com. [209.85.212.194])
+        by mx.google.com with ESMTPS id pe3si647643wjb.62.2015.11.04.01.39.59
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Nov 2015 01:39:59 -0800 (PST)
+Received: by wimw14 with SMTP id w14so444575wim.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 01:39:59 -0800 (PST)
+Date: Wed, 4 Nov 2015 10:39:58 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/2] mm: mmap: Add new /proc tunable for mmap_base
+ ASLR.
+Message-ID: <20151104093957.GA31378@dhcp22.suse.cz>
+References: <1446574204-15567-1-git-send-email-dcashman@android.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1446574204-15567-1-git-send-email-dcashman@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 'Minchan Kim' <minchan@kernel.org>
+To: Daniel Cashman <dcashman@android.com>
+Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, dcashman <dcashman@google.com>
 
-> @@ -1135,20 +1135,12 @@ void do_page_add_anon_rmap(struct page *page,
->  	bool compound = flags & RMAP_COMPOUND;
->  	bool first;
-> 
-> -	if (PageTransCompound(page)) {
-> +	if (compound) {
-> +		atomic_t *mapcount;
->  		VM_BUG_ON_PAGE(!PageLocked(page), page);
-> -		if (compound) {
-> -			atomic_t *mapcount;
-> -
-> -			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-> -			mapcount = compound_mapcount_ptr(page);
-> -			first = atomic_inc_and_test(mapcount);
-> -		} else {
-> -			/* Anon THP always mapped first with PMD */
-> -			first = 0;
-> -			VM_BUG_ON_PAGE(!page_mapcount(page), page);
-> -			atomic_inc(&page->_mapcount);
-> -		}
-> +		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-> +		mapcount = compound_mapcount_ptr(page);
-> +		first = atomic_inc_and_test(mapcount);
->  	} else {
->  		VM_BUG_ON_PAGE(compound, page);
+On Tue 03-11-15 10:10:03, Daniel Cashman wrote:
+[...]
+> +This value can be changed after boot using the
+> +/proc/sys/kernel/mmap_rnd_bits tunable
 
-Then this debug info is no longer needed.
->  		first = atomic_inc_and_test(&page->_mapcount);
-
+Why is this not sitting in /proc/sys/vm/ where we already have
+mmap_min_addr. These two sound like they should sit together, no?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
