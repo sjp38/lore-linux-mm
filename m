@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 059FF82F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 17:22:38 -0500 (EST)
-Received: by wmnn186 with SMTP id n186so3679920wmn.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:22:37 -0800 (PST)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id D308382F64
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 17:22:40 -0500 (EST)
+Received: by wijp11 with SMTP id p11so101356918wij.0
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:22:40 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id m134si5993075wmd.37.2015.11.04.14.22.36
+        by mx.google.com with ESMTPS id ef7si4114524wjd.49.2015.11.04.14.22.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 14:22:36 -0800 (PST)
+        Wed, 04 Nov 2015 14:22:39 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 3/8] mm: page_counter: let page_counter_try_charge() return bool
-Date: Wed,  4 Nov 2015 17:22:09 -0500
-Message-Id: <1446675734-25671-4-git-send-email-hannes@cmpxchg.org>
+Subject: [PATCH 4/8] net: tcp_memcontrol: remove bogus hierarchy pressure propagation
+Date: Wed,  4 Nov 2015 17:22:10 -0500
+Message-Id: <1446675734-25671-5-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
 References: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,123 +20,60 @@ List-ID: <linux-mm.kvack.org>
 To: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-page_counter_try_charge() currently returns 0 on success and -ENOMEM
-on failure, which is surprising behavior given the function name.
+When a cgroup currently breaches its socket memory limit, it enters
+memory pressure mode for itself and its *parents*. This throttles
+transmission in unrelated groups that have nothing to do with the
+breached limit.
 
-Make it follow the expected pattern of try_stuff() functions that
-return a boolean true to indicate success, or false for failure.
+On the contrary, breaching a limit should make that group and its
+*children* enter memory pressure mode. But this happens already,
+albeit lazily: if a parent limit is breached, siblings will enter
+memory pressure on their own once the next packet arrives for them.
+
+So no additional hierarchy code is needed. Remove the bogus stuff.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/page_counter.h |  6 +++---
- mm/hugetlb_cgroup.c          |  3 ++-
- mm/memcontrol.c              | 11 +++++------
- mm/page_counter.c            | 14 +++++++-------
- 4 files changed, 17 insertions(+), 17 deletions(-)
+ include/net/sock.h | 19 ++++---------------
+ 1 file changed, 4 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/page_counter.h b/include/linux/page_counter.h
-index 17fa4f8..7e62920 100644
---- a/include/linux/page_counter.h
-+++ b/include/linux/page_counter.h
-@@ -36,9 +36,9 @@ static inline unsigned long page_counter_read(struct page_counter *counter)
+diff --git a/include/net/sock.h b/include/net/sock.h
+index 59a7196..d541bed 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -1152,14 +1152,8 @@ static inline void sk_leave_memory_pressure(struct sock *sk)
+ 	if (*memory_pressure)
+ 		*memory_pressure = 0;
  
- void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages);
- void page_counter_charge(struct page_counter *counter, unsigned long nr_pages);
--int page_counter_try_charge(struct page_counter *counter,
--			    unsigned long nr_pages,
--			    struct page_counter **fail);
-+bool page_counter_try_charge(struct page_counter *counter,
-+			     unsigned long nr_pages,
-+			     struct page_counter **fail);
- void page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages);
- int page_counter_limit(struct page_counter *counter, unsigned long limit);
- int page_counter_memparse(const char *buf, const char *max,
-diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-index 6a44263..d8fb10d 100644
---- a/mm/hugetlb_cgroup.c
-+++ b/mm/hugetlb_cgroup.c
-@@ -186,7 +186,8 @@ again:
- 	}
- 	rcu_read_unlock();
- 
--	ret = page_counter_try_charge(&h_cg->hugepage[idx], nr_pages, &counter);
-+	if (!page_counter_try_charge(&h_cg->hugepage[idx], nr_pages, &counter))
-+		ret = -ENOMEM;
- 	css_put(&h_cg->css);
- done:
- 	*ptr = h_cg;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7049e55..e54f434 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2018,8 +2018,8 @@ retry:
- 		return 0;
- 
- 	if (!do_swap_account ||
--	    !page_counter_try_charge(&memcg->memsw, batch, &counter)) {
--		if (!page_counter_try_charge(&memcg->memory, batch, &counter))
-+	    page_counter_try_charge(&memcg->memsw, batch, &counter)) {
-+		if (page_counter_try_charge(&memcg->memory, batch, &counter))
- 			goto done_restock;
- 		if (do_swap_account)
- 			page_counter_uncharge(&memcg->memsw, batch);
-@@ -2383,14 +2383,13 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
- {
- 	unsigned int nr_pages = 1 << order;
- 	struct page_counter *counter;
--	int ret = 0;
-+	int ret;
- 
- 	if (!memcg_kmem_is_active(memcg))
- 		return 0;
- 
--	ret = page_counter_try_charge(&memcg->kmem, nr_pages, &counter);
--	if (ret)
--		return ret;
-+	if (!page_counter_try_charge(&memcg->kmem, nr_pages, &counter))
-+		return -ENOMEM;
- 
- 	ret = try_charge(memcg, gfp, nr_pages);
- 	if (ret) {
-diff --git a/mm/page_counter.c b/mm/page_counter.c
-index 11b4bed..7c6a63d 100644
---- a/mm/page_counter.c
-+++ b/mm/page_counter.c
-@@ -56,12 +56,12 @@ void page_counter_charge(struct page_counter *counter, unsigned long nr_pages)
-  * @nr_pages: number of pages to charge
-  * @fail: points first counter to hit its limit, if any
-  *
-- * Returns 0 on success, or -ENOMEM and @fail if the counter or one of
-- * its ancestors has hit its configured limit.
-+ * Returns %true on success, or %false and @fail if the counter or one
-+ * of its ancestors has hit its configured limit.
-  */
--int page_counter_try_charge(struct page_counter *counter,
--			    unsigned long nr_pages,
--			    struct page_counter **fail)
-+bool page_counter_try_charge(struct page_counter *counter,
-+			     unsigned long nr_pages,
-+			     struct page_counter **fail)
- {
- 	struct page_counter *c;
- 
-@@ -99,13 +99,13 @@ int page_counter_try_charge(struct page_counter *counter,
- 		if (new > c->watermark)
- 			c->watermark = new;
- 	}
--	return 0;
-+	return true;
- 
- failed:
- 	for (c = counter; c != *fail; c = c->parent)
- 		page_counter_cancel(c, nr_pages);
- 
--	return -ENOMEM;
-+	return false;
+-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp) {
+-		struct cg_proto *cg_proto = sk->sk_cgrp;
+-		struct proto *prot = sk->sk_prot;
+-
+-		for (; cg_proto; cg_proto = parent_cg_proto(prot, cg_proto))
+-			cg_proto->memory_pressure = 0;
+-	}
+-
++	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
++		sk->sk_cgrp->memory_pressure = 0;
  }
  
- /**
+ static inline void sk_enter_memory_pressure(struct sock *sk)
+@@ -1167,13 +1161,8 @@ static inline void sk_enter_memory_pressure(struct sock *sk)
+ 	if (!sk->sk_prot->enter_memory_pressure)
+ 		return;
+ 
+-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp) {
+-		struct cg_proto *cg_proto = sk->sk_cgrp;
+-		struct proto *prot = sk->sk_prot;
+-
+-		for (; cg_proto; cg_proto = parent_cg_proto(prot, cg_proto))
+-			cg_proto->memory_pressure = 1;
+-	}
++	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
++		sk->sk_cgrp->memory_pressure = 1;
+ 
+ 	sk->sk_prot->enter_memory_pressure(sk);
+ }
 -- 
 2.6.2
 
