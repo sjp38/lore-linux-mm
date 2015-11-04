@@ -1,75 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B1646B0253
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 05:42:43 -0500 (EST)
-Received: by wmeg8 with SMTP id g8so37780528wme.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 02:42:42 -0800 (PST)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id 5si2869845wmw.58.2015.11.04.02.42.41
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 02:42:41 -0800 (PST)
-Received: by wmeg8 with SMTP id g8so37780016wme.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 02:42:41 -0800 (PST)
-Date: Wed, 4 Nov 2015 11:42:40 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
- hierarchy
-Message-ID: <20151104104239.GG29607@dhcp22.suse.cz>
-References: <1445487696-21545-6-git-send-email-hannes@cmpxchg.org>
- <20151023131956.GA15375@dhcp22.suse.cz>
- <20151023.065957.1690815054807881760.davem@davemloft.net>
- <20151026165619.GB2214@cmpxchg.org>
- <20151027122647.GG9891@dhcp22.suse.cz>
- <20151027154138.GA4665@cmpxchg.org>
- <20151027161554.GJ9891@dhcp22.suse.cz>
- <20151027164227.GB7749@cmpxchg.org>
- <20151029152546.GG23598@dhcp22.suse.cz>
- <20151029161009.GA9160@cmpxchg.org>
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 206FE6B0253
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 07:36:47 -0500 (EST)
+Received: by igbdj2 with SMTP id dj2so33988946igb.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 04:36:46 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id c19si2063899iod.106.2015.11.04.04.36.46
+        for <linux-mm@kvack.org>;
+        Wed, 04 Nov 2015 04:36:46 -0800 (PST)
+Date: Wed, 4 Nov 2015 12:36:41 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] arm64: Increase the max granular size
+Message-ID: <20151104123640.GK7637@e104818-lin.cambridge.arm.com>
+References: <1442944788-17254-1-git-send-email-rric@kernel.org>
+ <20151028190948.GJ8899@e104818-lin.cambridge.arm.com>
+ <CAMuHMdWQygbxMXoOsbwek6DzZcr7J-C23VCK4ubbgUr+zj=giw@mail.gmail.com>
+ <20151103120504.GF7637@e104818-lin.cambridge.arm.com>
+ <20151103143858.GI7637@e104818-lin.cambridge.arm.com>
+ <CAMuHMdWk0fPzTSKhoCuS4wsOU1iddhKJb2SOpjo=a_9vCm_KXQ@mail.gmail.com>
+ <20151103185050.GJ7637@e104818-lin.cambridge.arm.com>
+ <alpine.DEB.2.20.1511031724010.8178@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151029161009.GA9160@cmpxchg.org>
+In-Reply-To: <alpine.DEB.2.20.1511031724010.8178@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Robert Richter <rric@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Linux-sh list <linux-sh@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Robert Richter <rrichter@cavium.com>, Tirumalesh Chalamarla <tchalamarla@cavium.com>, Geert Uytterhoeven <geert@linux-m68k.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-mm@kvack.org
 
-On Thu 29-10-15 09:10:09, Johannes Weiner wrote:
-> On Thu, Oct 29, 2015 at 04:25:46PM +0100, Michal Hocko wrote:
-> > On Tue 27-10-15 09:42:27, Johannes Weiner wrote:
-[...]
-> > > You carefully skipped over this part. We can ignore it for socket
-> > > memory but it's something we need to figure out when it comes to slab
-> > > accounting and tracking.
-> > 
-> > I am sorry, I didn't mean to skip this part, I though it would be clear
-> > from the previous text. I think kmem accounting falls into the same
-> > category. Have a sane default and a global boottime knob to override it
-> > for those that think differently - for whatever reason they might have.
+(+ linux-mm)
+
+On Tue, Nov 03, 2015 at 05:33:25PM -0600, Christoph Lameter wrote:
+> On Tue, 3 Nov 2015, Catalin Marinas wrote:
+> > (cc'ing Jonsoo and Christoph; summary: slab failure with L1_CACHE_BYTES
+> > of 128 and sizeof(kmem_cache_node) of 152)
 > 
-> Yes, that makes sense to me.
+> Hmmm... Yes that would mean use the 196 sized kmalloc array which is not a
+> power of two slab. But the code looks fine to me.
+
+I'm not entirely sure that gets used (or even created).
+kmalloc_index(152) returns 8 (INDEX_NODE==8) since KMALLOC_MIN_SIZE==128
+and the "kmalloc-node" cache size is 256.
+
+> > If I revert commit 8fc9cf420b36 ("slab: make more slab management
+> > structure off the slab") it works but I still need to figure out how
+> > slab indices are calculated. The size_index[] array is overridden so
+> > that 0..15 are 7 and 16..23 are 8. But the kmalloc_caches[7] has never
+> > been populated, hence the BUG_ON. Another option may be to change
+> > kmalloc_size and kmalloc_index to cope with KMALLOC_MIN_SIZE of 128.
+> >
+> > I'll do some more investigation tomorrow.
 > 
-> Like cgroup.memory=nosocket, would you think it makes sense to include
-> slab in the default for functional/semantical completeness and provide
-> a cgroup.memory=noslab for powerusers?
+> The commit allows off slab management for PAGE_SIZE >> 5 that is 128.
 
-I am still not sure whether the kmem accounting is stable enough to be
-enabled by default. If for nothing else the allocation failures, which
-are not allowed for the global case and easily triggered by the hard
-limit, might be a big problem. My last attempts to allow GFP_NOFS to
-fail made me quite skeptical. I still believe this is something which
-will be solved in the long term but the current state might be still too
-fragile. So I would rather be conservative and have the kmem accounting
-disabled by default with a config option and boot parameter to override.
-If somebody is confident that the desired load is stable then the config
-can be enabled easily.
--- 
-Michal Hocko
-SUSE Labs
+This means that the first kmalloc cache to be created, "kmalloc-128", is
+off slab.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> After that commit kmem_cache_create would try to allocate an off slab
+> management structure which is not available during early boot.
+> But the slab_early_init is set which should prevent the use of an off slab
+> management infrastructure in kmem_cache_create().
+> 
+> However, the failure in line 2283 shows that the OFF SLAB flag was
+> mistakenly set anyways!!!! Something must havee cleared slab_early_init?
+
+slab_early_init is cleared after "kmem_cache" and "kmalloc-node" caches
+are successfully created. Following this, the minimum kmalloc allocation
+goes off-slab when KMALLOC_MIN_SIZE == 128.
+
+When trying to create "kmalloc-128" (via create_kmalloc_caches(),
+slab_early_init is already 0), __kmem_cache_create() requires an
+allocation of 32 bytes (freelist_size) which has index 7, hence exactly
+the kmalloc_caches[7] we are trying to create.
+
+The simplest option would be to make sure that off slab isn't allowed
+for caches of KMALLOC_MIN_SIZE or smaller, with the drawback that not
+only "kmalloc-128" but any other such caches will be on slab.
+
+I think a better option would be to first check that there is a
+kmalloc_caches[] entry for freelist_size before deciding to go off-slab.
+See below:
+
+-----8<------------------------------
