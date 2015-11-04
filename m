@@ -1,90 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 00F886B0254
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 03:24:32 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so38395436pad.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 00:24:31 -0800 (PST)
-Received: from unicom146.biz-email.net (unicom146.biz-email.net. [210.51.26.146])
-        by mx.google.com with ESMTPS id e1si430710pas.116.2015.11.04.00.24.29
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D34F96B0253
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 03:33:38 -0500 (EST)
+Received: by wmff134 with SMTP id f134so35102816wmf.0
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 00:33:38 -0800 (PST)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id la5si372915wjc.27.2015.11.04.00.33.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 04 Nov 2015 00:24:31 -0800 (PST)
-From: liuchangsheng <liuchangsheng@inspur.com>
-Subject: [PATCH V8] mm: memory hot-add: hot-added memory can not be added to movable zone by default
-Date: Wed, 4 Nov 2015 03:23:35 -0500
-Message-ID: <1446625415-11941-1-git-send-email-liuchangsheng@inspur.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Nov 2015 00:33:37 -0800 (PST)
+Received: by wicfx6 with SMTP id fx6so84588564wic.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 00:33:37 -0800 (PST)
+Date: Wed, 4 Nov 2015 10:33:35 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: change tlb_finish_mmu() to be more simple
+Message-ID: <20151104083335.GA7795@node.shutemov.name>
+References: <1446622531-316-1-git-send-email-yalin.wang2010@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1446622531-316-1-git-send-email-yalin.wang2010@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, vbabka@suse.cz, yasu.isimatu@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, wunan@inspur.com, yanxiaofeng@inspur.com, liuchangsheng@inspur.com, fandd@inspur.com, Wang Nan <wangnan0@huawei.com>, Dave Hansen <dave.hansen@intel.com>, Yinghai Lu <yinghai@kernel.org>, Tang Chen <tangchen@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, Xishi Qiu <qiuxishi@huawei.com>
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com, raindel@mellanox.com, willy@linux.intel.com, boaz@plexistor.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-After the user config CONFIG_MOVABLE_NODE,
-When the memory is hot added, should_add_memory_movable() return 0
-because all zones including ZONE_MOVABLE are empty,
-so the memory that was hot added will be assigned to ZONE_NORMAL,
-and we need using the udev rules to online the memory automatically:
-SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline",
-ATTR{state}="online_movable"
-The memory block onlined by udev must be adjacent to ZONE_MOVABLE.
-The events of memory section are notified to udev asynchronously,
-so it can not ensure that the memory block onlined by udev is
-adjacent to ZONE_MOVABLE.So it can't ensure memory online always success.
-But we want the whole node to be added to ZONE_MOVABLE by default.
+On Wed, Nov 04, 2015 at 03:35:31PM +0800, yalin wang wrote:
+> This patch remove unneeded *next temp variable,
+> make this function more simple to read.
+> 
+> Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+> ---
+>  mm/memory.c | 7 +++----
+>  1 file changed, 3 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 7f3b9f2..f0040ed 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -270,17 +270,16 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
+>   */
+>  void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+>  {
+> -	struct mmu_gather_batch *batch, *next;
+> +	struct mmu_gather_batch *batch;
+>  
+>  	tlb_flush_mmu(tlb);
+>  
+>  	/* keep the page table cache within bounds */
+>  	check_pgt_cache();
+>  
+> -	for (batch = tlb->local.next; batch; batch = next) {
+> -		next = batch->next;
+> +	for (batch = tlb->local.next; batch; batch = batch->next)
 
-So we change should_add_memory_movable(): if the user config
-CONFIG_MOVABLE_NODE and movable_node kernel option
-and the ZONE_NORMAL is empty or the pfn of the hot-added memory
-is after the end of the ZONE_NORMAL it will always return 1
-and then the whole node will be added to ZONE_MOVABLE by default.
-If we want the node to be assigned to ZONE_NORMAL,
-we can do it as follows:
-"echo online_kernel > /sys/devices/system/memory/memoryXXX/state"
+Use after free? No, thanks.
 
-Signed-off-by: liuchangsheng <liuchangsheng@inspur.com>
-Signed-off-by: Xiaofeng Yan <yanxiaofeng@inspur.com>
-Tested-by: Dongdong Fan <fandd@inspur.com>
-Reviewed-by: <yasu.isimatu@gmail.com>
-Cc: Wang Nan <wangnan0@huawei.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: Toshi Kani <toshi.kani@hp.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>
----
- mm/memory_hotplug.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+>  		free_pages((unsigned long)batch, 0);
+> -	}
+> +
+>  	tlb->local.next = NULL;
+>  }
+>  
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index aa992e2..8617b9f 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1201,6 +1201,9 @@ static int check_hotplug_memory_range(u64 start, u64 size)
- /*
-  * If movable zone has already been setup, newly added memory should be check.
-  * If its address is higher than movable zone, it should be added as movable.
-+ * And if system boots up with movable_node and config CONFIG_MOVABLE_NOD and
-+ * added memory does not overlap the zone before MOVABLE_ZONE,
-+ * the memory is added as movable.
-  * Without this check, movable zone may overlap with other zone.
-  */
- static int should_add_memory_movable(int nid, u64 start, u64 size)
-@@ -1208,6 +1211,10 @@ static int should_add_memory_movable(int nid, u64 start, u64 size)
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	pg_data_t *pgdat = NODE_DATA(nid);
- 	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
-+	struct zone *pre_zone = pgdat->node_zones + (ZONE_MOVABLE - 1);
-+
-+	if (movable_node_is_enabled() && (zone_end_pfn(pre_zone) <= start_pfn))
-+		return 1;
- 
- 	if (zone_is_empty(movable_zone))
- 		return 0;
 -- 
-1.8.3.1
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
