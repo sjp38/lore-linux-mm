@@ -1,103 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 45A6382F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 17:22:34 -0500 (EST)
-Received: by wmll128 with SMTP id l128so3665467wml.0
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:22:33 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 54BEC82F64
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 17:22:37 -0500 (EST)
+Received: by wmnn186 with SMTP id n186so3679681wmn.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 14:22:36 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 75si9535978wmm.5.2015.11.04.14.22.33
+        by mx.google.com with ESMTPS id q141si6203273wmg.85.2015.11.04.14.22.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 14:22:33 -0800 (PST)
+        Wed, 04 Nov 2015 14:22:36 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 0/8] mm: memcontrol: account socket memory in unified hierarchy v2
-Date: Wed,  4 Nov 2015 17:22:06 -0500
-Message-Id: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
+Subject: [PATCH 2/8] mm: vmscan: simplify memcg vs. global shrinker invocation
+Date: Wed,  4 Nov 2015 17:22:08 -0500
+Message-Id: <1446675734-25671-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
+References: <1446675734-25671-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hi,
+Letting shrink_slab() handle the root_mem_cgroup, and implicitely the
+!CONFIG_MEMCG case, allows shrink_zone() to invoke the shrinkers
+unconditionally from within the memcg iteration loop.
 
-this is version 2 of the patches to add socket memory accounting to
-the unified hierarchy memory controller. Changes from v1 include:
-
-- No accounting overhead unless a dedicated cgroup is created and the
-  memory controller instructed to track that group's memory footprint.
-  Distribution kernels enable CONFIG_MEMCG, and users (incl. systemd)
-  might create cgroups only for process control or resources other
-  than memory. As noted by David and Michal, these setups shouldn't
-  pay any overhead for this.
-
-- Continue to enter the socket pressure state when hitting the memory
-  controller's hard limit. Vladimir noted that there is at least some
-  value in telling other sockets in the cgroup to not increase their
-  transmit windows when one of them is already dropping packets.
-
-- Drop the controversial vmpressure rework. Instead of changing the
-  level where pressure is noted, keep noting pressure in its origin
-  and then make the pressure check hierarchical. As noted by Michal
-  and Vladimir, we shouldn't risk changing user-visible behavior.
-
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
 ---
+ include/linux/memcontrol.h |  2 ++
+ mm/vmscan.c                | 31 ++++++++++++++++---------------
+ 2 files changed, 18 insertions(+), 15 deletions(-)
 
-Socket buffer memory can make up a significant share of a workload's
-memory footprint that can be directly linked to userspace activity,
-and so it needs to be part of the memory controller to provide proper
-resource isolation/containment.
-
-Historically, socket buffers were accounted in a separate counter,
-without any pressure equalization between anonymous memory, page
-cache, and the socket buffers. When the socket buffer pool was
-exhausted, buffer allocations would fail hard and cause network
-performance to tank, regardless of whether there was still memory
-available to the group or not. Likewise, struggling anonymous or cache
-workingsets could not dip into an idle socket memory pool. Because of
-this, the feature was not usable for many real life applications.
-
-To not repeat this mistake, the new memory controller will account all
-types of memory pages it is tracking on behalf of a cgroup in a single
-pool. Upon pressure, the VM reclaims and shrinks and puts pressure on
-whatever memory consumer in that pool is within its reach.
-
-For socket memory, pressure feedback is provided through vmpressure
-events. When the VM has trouble freeing memory, the network code is
-instructed to stop growing the cgroup's transmit windows.
-
----
-
-This series begins with a rework of the existing tcp memory controller
-that simplifies and cleans up the code while allowing us to have only
-one set of networking hooks for both memory controller versions. The
-original behavior of the existing tcp controller should be preserved.
-
-It then adds socket accounting to the v2 memory controller, including
-the use of the per-cpu charge cache and async memory.high enforcement
-from socket memory charges.
-
-Lastly, vmpressure is hooked up to the socket code so that it stops
-growing transmit windows when the VM has trouble reclaiming memory.
-
- include/linux/memcontrol.h   |  98 ++++++++-------
- include/linux/page_counter.h |   6 +-
- include/net/sock.h           | 137 ++-------------------
- include/net/tcp.h            |   5 +-
- include/net/tcp_memcontrol.h |   7 --
- mm/backing-dev.c             |   2 +-
- mm/hugetlb_cgroup.c          |   3 +-
- mm/memcontrol.c              | 262 +++++++++++++++++++++++++----------------
- mm/page_counter.c            |  14 +--
- mm/vmpressure.c              |  25 +++-
- mm/vmscan.c                  |  31 ++---
- net/core/sock.c              |  78 +++---------
- net/ipv4/sysctl_net_ipv4.c   |   1 -
- net/ipv4/tcp.c               |   3 +-
- net/ipv4/tcp_ipv4.c          |   9 +-
- net/ipv4/tcp_memcontrol.c    | 147 ++++-------------------
- net/ipv4/tcp_output.c        |   6 +-
- net/ipv6/tcp_ipv6.c          |   3 -
- 18 files changed, 328 insertions(+), 509 deletions(-)
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 19ff87b..8929685 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -502,6 +502,8 @@ void mem_cgroup_split_huge_fixup(struct page *head);
+ #else /* CONFIG_MEMCG */
+ struct mem_cgroup;
+ 
++#define root_mem_cgroup NULL
++
+ static inline void mem_cgroup_events(struct mem_cgroup *memcg,
+ 				     enum mem_cgroup_events_index idx,
+ 				     unsigned int nr)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9b52ecf..ecc2125 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -411,6 +411,10 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 	struct shrinker *shrinker;
+ 	unsigned long freed = 0;
+ 
++	/* Global shrinker mode */
++	if (memcg == root_mem_cgroup)
++		memcg = NULL;
++
+ 	if (memcg && !memcg_kmem_is_active(memcg))
+ 		return 0;
+ 
+@@ -2417,11 +2421,22 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+ 			shrink_lruvec(lruvec, swappiness, sc, &lru_pages);
+ 			zone_lru_pages += lru_pages;
+ 
+-			if (memcg && is_classzone)
++			/*
++			 * Shrink the slab caches in the same proportion that
++			 * the eligible LRU pages were scanned.
++			 */
++			if (is_classzone) {
+ 				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
+ 					    memcg, sc->nr_scanned - scanned,
+ 					    lru_pages);
+ 
++				if (reclaim_state) {
++					sc->nr_reclaimed +=
++						reclaim_state->reclaimed_slab;
++					reclaim_state->reclaimed_slab = 0;
++				}
++			}
++
+ 			/*
+ 			 * Direct reclaim and kswapd have to scan all memory
+ 			 * cgroups to fulfill the overall scan target for the
+@@ -2439,20 +2454,6 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+ 			}
+ 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
+ 
+-		/*
+-		 * Shrink the slab caches in the same proportion that
+-		 * the eligible LRU pages were scanned.
+-		 */
+-		if (global_reclaim(sc) && is_classzone)
+-			shrink_slab(sc->gfp_mask, zone_to_nid(zone), NULL,
+-				    sc->nr_scanned - nr_scanned,
+-				    zone_lru_pages);
+-
+-		if (reclaim_state) {
+-			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+-			reclaim_state->reclaimed_slab = 0;
+-		}
+-
+ 		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
+ 			   sc->nr_scanned - nr_scanned,
+ 			   sc->nr_reclaimed - nr_reclaimed);
+-- 
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
