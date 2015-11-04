@@ -1,52 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id F107882F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 08:35:43 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so53649777pab.0
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 05:35:43 -0800 (PST)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id xw4si2269394pac.34.2015.11.04.05.35.43
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 067E26B0255
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 08:53:53 -0500 (EST)
+Received: by igbdj2 with SMTP id dj2so35374701igb.1
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 05:53:52 -0800 (PST)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
+        by mx.google.com with ESMTPS id r18si19522187igs.82.2015.11.04.05.53.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 05:35:43 -0800 (PST)
-Received: by padhx2 with SMTP id hx2so45631091pad.1
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 05:35:43 -0800 (PST)
-Subject: Re: [PATCH v6 2/3] percpu: add PERCPU_ATOM_SIZE for a generic percpu area setup
-Mime-Version: 1.0 (Apple Message framework v1283)
-Content-Type: text/plain; charset=windows-1252
-From: Jungseok Lee <jungseoklee85@gmail.com>
-In-Reply-To: <5638F5B9.3040404@arm.com>
-Date: Wed, 4 Nov 2015 22:35:36 +0900
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <CC50E962-D166-44EB-A610-6F70A5234802@gmail.com>
-References: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com> <1446363977-23656-3-git-send-email-jungseoklee85@gmail.com> <alpine.DEB.2.20.1511021008580.27740@east.gentwo.org> <20151102162236.GB7637@e104818-lin.cambridge.arm.com> <F4C06691-60EF-45FA-9AD7-9FBF8F1960AB@gmail.com> <5638F5B9.3040404@arm.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 04 Nov 2015 05:53:52 -0800 (PST)
+Date: Wed, 4 Nov 2015 07:53:50 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] arm64: Increase the max granular size
+In-Reply-To: <20151104123640.GK7637@e104818-lin.cambridge.arm.com>
+Message-ID: <alpine.DEB.2.20.1511040748590.17248@east.gentwo.org>
+References: <1442944788-17254-1-git-send-email-rric@kernel.org> <20151028190948.GJ8899@e104818-lin.cambridge.arm.com> <CAMuHMdWQygbxMXoOsbwek6DzZcr7J-C23VCK4ubbgUr+zj=giw@mail.gmail.com> <20151103120504.GF7637@e104818-lin.cambridge.arm.com>
+ <20151103143858.GI7637@e104818-lin.cambridge.arm.com> <CAMuHMdWk0fPzTSKhoCuS4wsOU1iddhKJb2SOpjo=a_9vCm_KXQ@mail.gmail.com> <20151103185050.GJ7637@e104818-lin.cambridge.arm.com> <alpine.DEB.2.20.1511031724010.8178@east.gentwo.org>
+ <20151104123640.GK7637@e104818-lin.cambridge.arm.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, mark.rutland@arm.com, takahiro.akashi@linaro.org, barami97@gmail.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, linux-arm-kernel@lists.infradead.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Robert Richter <rric@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Linux-sh list <linux-sh@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Robert Richter <rrichter@cavium.com>, Tirumalesh Chalamarla <tchalamarla@cavium.com>, Geert Uytterhoeven <geert@linux-m68k.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-mm@kvack.org
 
-On Nov 4, 2015, at 2:58 AM, James Morse wrote:
-> Hi Jungseok,
+On Wed, 4 Nov 2015, Catalin Marinas wrote:
 
-Hi James,
+> The simplest option would be to make sure that off slab isn't allowed
+> for caches of KMALLOC_MIN_SIZE or smaller, with the drawback that not
+> only "kmalloc-128" but any other such caches will be on slab.
 
-> On 03/11/15 13:49, Jungseok Lee wrote:
->> Additionally, I've been thinking of do_softirq_own_stack() which is =
-your
->> another comment [3]. Recently, I've realized there is possibility =
-that
->> I misunderstood your intention. Did you mean that irq_handler hook is =
-not
->> enough? Should do_softirq_own_stack() be implemented together?
->=20
-> I've been putting together a version to illustrate this, I aim to post =
-it
-> before the end of this week=85
+The reason for an off slab configuration is denser object packing.
 
-It sounds great! I will wait for your version.
+> I think a better option would be to first check that there is a
+> kmalloc_caches[] entry for freelist_size before deciding to go off-slab.
 
-Best Regards
-Jungseok Lee=
+Hmmm.. Yes seems to be an option.
+
+Maybe we simply revert commit 8fc9cf420b36 instead? That does not seem to
+make too much sense to me and the goal of the commit cannot be
+accomplished on ARM. Your patch essentially reverts the effect anyways.
+
+Smaller slabs really do not need off slab management anyways since they
+will only loose a few objects per slab page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
