@@ -1,74 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
-	by kanga.kvack.org (Postfix) with ESMTP id E01196B0253
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 07:48:58 -0500 (EST)
-Received: by ykek133 with SMTP id k133so69547529yke.2
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 04:48:58 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 71si744813vkc.117.2015.11.04.04.48.58
+Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CB716B0253
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 08:19:32 -0500 (EST)
+Received: by iodd200 with SMTP id d200so52902129iod.0
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 05:19:32 -0800 (PST)
+Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
+        by mx.google.com with ESMTPS id rt3si19450160igb.71.2015.11.04.05.19.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 04:48:58 -0800 (PST)
-From: Aaron Tomlin <atomlin@redhat.com>
-Subject: [RESEND PATCH v2] thp: Remove unused vma parameter from khugepaged_alloc_page
-Date: Wed,  4 Nov 2015 12:48:55 +0000
-Message-Id: <1446641335-5603-1-git-send-email-atomlin@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Nov 2015 05:19:31 -0800 (PST)
+Received: by pacrf6 with SMTP id rf6so6499044pac.2
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 05:19:31 -0800 (PST)
+Subject: Re: [PATCH v6 1/3] percpu: remove PERCPU_ENOUGH_ROOM which is stale definition
+Mime-Version: 1.0 (Apple Message framework v1283)
+Content-Type: text/plain; charset=us-ascii
+From: Jungseok Lee <jungseoklee85@gmail.com>
+In-Reply-To: <20151103220701.GC5749@mtj.duckdns.org>
+Date: Wed, 4 Nov 2015 22:19:24 +0900
+Content-Transfer-Encoding: 7bit
+Message-Id: <D6207CF9-DFA6-4485-8E09-AEDEC9491EB9@gmail.com>
+References: <1446363977-23656-1-git-send-email-jungseoklee85@gmail.com> <1446363977-23656-2-git-send-email-jungseoklee85@gmail.com> <20151102191044.GA9553@mtj.duckdns.org> <36E66A14-F5AE-45DA-A759-82F1BA5DFE98@gmail.com> <20151103220701.GC5749@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: riel@redhat.com, lwoodman@redhat.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, vbabka@suse.cz, willy@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, atomlin@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, cl@linux.com, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, james.morse@arm.com, takahiro.akashi@linaro.org, mark.rutland@arm.com, barami97@gmail.com, linux-kernel@vger.kernel.org
 
-Resending due to incomplete subject.
+On Nov 4, 2015, at 7:07 AM, Tejun Heo wrote:
+> Hello,
 
-Changes since v2:
+Hello,
 
- - Fixed incorrect commit message
+> On Tue, Nov 03, 2015 at 11:12:51PM +0900, Jungseok Lee wrote:
+>> On Nov 3, 2015, at 4:10 AM, Tejun Heo wrote:
+>> 
+>> Dear Tejun,
+>> 
+>>> On Sun, Nov 01, 2015 at 07:46:15AM +0000, Jungseok Lee wrote:
+>>>> As pure cleanup, this patch removes PERCPU_ENOUGH_ROOM which is not
+>>>> used any more. That is, no code refers to the definition.
+>>>> 
+>>>> Signed-off-by: Jungseok Lee <jungseoklee85@gmail.com>
+>>> 
+>>> Applied to percpu/for-4.4.
+>> 
+>> Thanks for taking care of this!
+> 
+> Can you please refresh the patch so that it also drops
+> PERCPU_ENOUGH_ROOM definition from ia64?
 
-The "vma" parameter to khugepaged_alloc_page() is unused.
-It has to remain unused or the drop read lock 'map_sem' optimisation
-introduce by commit 8b1645685acf ("mm, THP: don't hold mmap_sem in
-khugepaged when allocating THP") wouldn't be safe. So let's remove it.
+Sure! I will do re-spin soon. 
 
-Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
----
- mm/huge_memory.c | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index bbac913..490fa81 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2413,8 +2413,7 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
- 
- static struct page *
- khugepaged_alloc_page(struct page **hpage, gfp_t gfp, struct mm_struct *mm,
--		       struct vm_area_struct *vma, unsigned long address,
--		       int node)
-+		       unsigned long address, int node)
- {
- 	VM_BUG_ON_PAGE(*hpage, *hpage);
- 
-@@ -2481,8 +2480,7 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
- 
- static struct page *
- khugepaged_alloc_page(struct page **hpage, gfp_t gfp, struct mm_struct *mm,
--		       struct vm_area_struct *vma, unsigned long address,
--		       int node)
-+		       unsigned long address, int node)
- {
- 	up_read(&mm->mmap_sem);
- 	VM_BUG_ON(!*hpage);
-@@ -2530,7 +2528,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 		__GFP_THISNODE;
- 
- 	/* release the mmap_sem read lock. */
--	new_page = khugepaged_alloc_page(hpage, gfp, mm, vma, address, node);
-+	new_page = khugepaged_alloc_page(hpage, gfp, mm, address, node);
- 	if (!new_page)
- 		return;
- 
--- 
-2.4.3
+Best Regards
+Jungseok Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
