@@ -1,71 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BA4682F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 15:14:09 -0500 (EST)
-Received: by qgeb1 with SMTP id b1so22893420qge.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 12:14:08 -0800 (PST)
-Received: from mail-qg0-x234.google.com (mail-qg0-x234.google.com. [2607:f8b0:400d:c04::234])
-        by mx.google.com with ESMTPS id 20si5908664qhw.6.2015.11.05.12.14.08
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B5A3982F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 15:54:22 -0500 (EST)
+Received: by ioc74 with SMTP id 74so37941348ioc.2
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 12:54:22 -0800 (PST)
+Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
+        by mx.google.com with ESMTPS id w1si25540607igl.100.2015.11.05.12.54.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 12:14:08 -0800 (PST)
-Received: by qgeb1 with SMTP id b1so22893192qge.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 12:14:08 -0800 (PST)
-Subject: Re: [PATCH v2 01/13] mm: support madvise(MADV_FREE)
-References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
- <1446600367-7976-2-git-send-email-minchan@kernel.org>
- <CALCETrUuNs=26UQtkU88cKPomx_Bik9mbgUUF9q7Nmh1pQJ4qg@mail.gmail.com>
- <56399CA5.8090101@gmail.com>
- <CALCETrU5P-mmjf+8QuS3-pm__R02j2nnRc5B1gQkeC013XWNvA@mail.gmail.com>
- <563A813B.9080903@gmail.com> <20151105181726.GA63566@kernel.org>
- <563BB855.6020304@gmail.com>
-From: Daniel Micay <danielmicay@gmail.com>
-Message-ID: <563BB88D.7060606@gmail.com>
-Date: Thu, 5 Nov 2015 15:14:05 -0500
+        Thu, 05 Nov 2015 12:54:21 -0800 (PST)
+Received: by iody8 with SMTP id y8so103331923iod.1
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 12:54:21 -0800 (PST)
+Subject: Re: [RFC 00/11] DAX fsynx/msync support
+References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20151030035533.GU19199@dastard> <20151030183938.GC24643@linux.intel.com>
+ <20151101232948.GF10656@dastard>
+ <x49vb9kqy5k.fsf@segfault.boston.devel.redhat.com>
+ <20151102201029.GI10656@dastard>
+ <x49twp4p11j.fsf@segfault.boston.devel.redhat.com>
+ <20151105083309.GJ19199@dastard>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <563BC1FB.60004@kernel.dk>
+Date: Thu, 5 Nov 2015 13:54:19 -0700
 MIME-Version: 1.0
-In-Reply-To: <563BB855.6020304@gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="vp9n9XES77FArX27xHt834GedEwaqaWxq"
+In-Reply-To: <20151105083309.GJ19199@dastard>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux API <linux-api@vger.kernel.org>, Jason Evans <je@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, yalin wang <yalin.wang2010@gmail.com>, Mel Gorman <mgorman@suse.de>
+To: Dave Chinner <david@fromorbit.com>, Jeff Moyer <jmoyer@redhat.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---vp9n9XES77FArX27xHt834GedEwaqaWxq
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+On 11/05/2015 01:33 AM, Dave Chinner wrote:
+>> Des xfs rely on this model for correctness?  If so, I'd say we've got a
+>> problem
+>
+> No, it doesn't. The XFS integrity model doesn't trust the IO layers
+> to tell the truth about IO ordering and completion or for it's
+> developers to fully understand how IO layer ordering works. :P
 
-> active:clean
+That's good, because the storage developers simplified the model so that 
+fs developers would be able to get and use it.
 
-active:dirty*, sigh.
+> i.e. we wait for full completions of all dependent IO before issuing
+> flushes or log writes that use REQ_FLUSH|REQ_FUA semantics to ensure
+> the dependent IOs are fully caught by the cache flushes...
 
+... which is what you are supposed to do, that's how it works.
 
---vp9n9XES77FArX27xHt834GedEwaqaWxq
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJWO7iOAAoJEPnnEuWa9fIqMv8QAIzD2J9PzxJpfXpm5AhyoC+v
-alYaKROuo4IZ7m3bjAznsWWX5/A1NmfGzto6XA7iNPdRXr+7qX/uFE9ljPgqw+0e
-Na5ngKHOtxmV1SEt2ZnibVM88TflroEQLOSEKRngTB9aFN0XbDRIb88CYfD4d+CG
-hLnOP1QSc/7EqjfFwy4VD8FL23f4F2ki+sYhtDsb2KN7apiOGNmrsVKNf4kpuoyi
-CAokM0JeRoJZb2WdGrBp4A7QOGdSbmWNqJlchvwrtB9Lyl01xulIeUTpPxjXUs+5
-/KPHKRxQvBzwq4rKuSdjfHKslaayf2cg/Ecp8baZyzpwmjpgibxEBNhoL1Fw/7K+
-eZxgG+OL4n0NL3z90i14JDtf4pgmdD3uRtcpaz3j5IU+SSHswBCQems0YwARQCHc
-tdE5QzgEvdNuFQgJq209ZaAWkZZoiNw4Gug1jNhBG+haGxxOzFki+KQB/OIreTPT
-vWphmc5KaL+0/Gj26lcJyiBShsqBDfpjGWUc/Gng63JQMkNnqP0ziDDGMBBO8Fdr
-xBm07i0ZChi1TRQIlQfUHVhyzFHxjBFmgNpqSyTGGHs90IMgtrr1+8hEvDkQI26E
-kmdMu2DB76+33mIDpLLu4C3gMulTVwcp1QVZBilTgU0z2yHHq9x9DF8SBqxtLlM6
-AYDag0KsZsSR7hBF/3bK
-=5Y66
------END PGP SIGNATURE-----
-
---vp9n9XES77FArX27xHt834GedEwaqaWxq--
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
