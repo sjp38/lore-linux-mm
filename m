@@ -1,55 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id EEBDD82F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 03:50:36 -0500 (EST)
-Received: by wicfv8 with SMTP id fv8so4981334wic.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 00:50:36 -0800 (PST)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id m123si9851309wmb.69.2015.11.05.00.50.35
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id EB6A582F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 04:10:33 -0500 (EST)
+Received: by lbbwb3 with SMTP id wb3so30703537lbb.1
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 01:10:33 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id p139si3584570lfe.132.2015.11.05.01.10.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 00:50:35 -0800 (PST)
-Received: by wikq8 with SMTP id q8so5794726wik.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 00:50:35 -0800 (PST)
-Date: Thu, 5 Nov 2015 10:50:33 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH V2] mm: fix kernel crash in khugepaged thread
-Message-ID: <20151105085033.GB7614@node.shutemov.name>
-References: <1445855960-28677-1-git-send-email-yalin.wang2010@gmail.com>
- <20151029003551.GB12018@node.shutemov.name>
- <563B0F72.5030908@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Nov 2015 01:10:32 -0800 (PST)
+Date: Thu, 5 Nov 2015 12:10:13 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 4/4] mm: prepare page_referenced() and page_idle to new
+ THP refcounting
+Message-ID: <20151105091013.GC29259@esperanza>
+References: <1446564375-72143-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1446564375-72143-5-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <563B0F72.5030908@suse.cz>
+In-Reply-To: <1446564375-72143-5-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: yalin wang <yalin.wang2010@gmail.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, jmarchan@redhat.com, mgorman@techsingularity.net, ebru.akagunduz@gmail.com, willy@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Nov 05, 2015 at 09:12:34AM +0100, Vlastimil Babka wrote:
-> On 10/29/2015 01:35 AM, Kirill A. Shutemov wrote:
-> >> @@ -2605,9 +2603,9 @@ out_unmap:
-> >>  		/* collapse_huge_page will return with the mmap_sem released */
-> >>  		collapse_huge_page(mm, address, hpage, vma, node);
-> >>  	}
-> >> -out:
-> >> -	trace_mm_khugepaged_scan_pmd(mm, page_to_pfn(page), writable, referenced,
-> >> -				     none_or_zero, result, unmapped);
-> >> +	trace_mm_khugepaged_scan_pmd(mm, pte_present(pteval) ?
-> >> +			pte_pfn(pteval) : -1, writable, referenced,
-> >> +			none_or_zero, result, unmapped);
-> > 
-> > maybe passing down pte instead of pfn?
-> 
-> Maybe just pass the page, and have tracepoint's fast assign check for !NULL and
-> do page_to_pfn itself? That way the complexity and overhead is only in the
-> tracepoint and when enabled.
+On Tue, Nov 03, 2015 at 05:26:15PM +0200, Kirill A. Shutemov wrote:
+...
+> @@ -56,23 +56,69 @@ static int page_idle_clear_pte_refs_one(struct page *page,
+>  {
+>  	struct mm_struct *mm = vma->vm_mm;
+>  	spinlock_t *ptl;
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+>  	pmd_t *pmd;
+>  	pte_t *pte;
+>  	bool referenced = false;
+>  
+> -	if (unlikely(PageTransHuge(page))) {
+> -		pmd = page_check_address_pmd(page, mm, addr, &ptl);
+> -		if (pmd) {
+> -			referenced = pmdp_clear_young_notify(vma, addr, pmd);
+> +	pgd = pgd_offset(mm, addr);
+> +	if (!pgd_present(*pgd))
+> +		return SWAP_AGAIN;
+> +	pud = pud_offset(pgd, addr);
+> +	if (!pud_present(*pud))
+> +		return SWAP_AGAIN;
+> +	pmd = pmd_offset(pud, addr);
+> +
+> +	if (pmd_trans_huge(*pmd)) {
+> +		ptl = pmd_lock(mm, pmd);
+> +                if (!pmd_present(*pmd))
+> +			goto unlock_pmd;
+> +		if (unlikely(!pmd_trans_huge(*pmd))) {
+>  			spin_unlock(ptl);
+> +			goto map_pte;
+>  		}
+> +
+> +		if (pmd_page(*pmd) != page)
+> +			goto unlock_pmd;
+> +
+> +		referenced = pmdp_clear_young_notify(vma, addr, pmd);
+> +		spin_unlock(ptl);
+> +		goto found;
+> +unlock_pmd:
+> +		spin_unlock(ptl);
+> +		return SWAP_AGAIN;
+>  	} else {
+> -		pte = page_check_address(page, mm, addr, &ptl, 0);
+> -		if (pte) {
+> -			referenced = ptep_clear_young_notify(vma, addr, pte);
+> -			pte_unmap_unlock(pte, ptl);
+> -		}
+> +		pmd_t pmde = *pmd;
+> +		barrier();
+> +		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
+> +			return SWAP_AGAIN;
+> +
+> +	}
+> +map_pte:
+> +	pte = pte_offset_map(pmd, addr);
+> +	if (!pte_present(*pte)) {
+> +		pte_unmap(pte);
+> +		return SWAP_AGAIN;
+>  	}
+> +
+> +	ptl = pte_lockptr(mm, pmd);
+> +	spin_lock(ptl);
+> +
+> +	if (!pte_present(*pte)) {
+> +		pte_unmap_unlock(pte, ptl);
+> +		return SWAP_AGAIN;
+> +	}
+> +
+> +	/* THP can be referenced by any subpage */
+> +	if (pte_pfn(*pte) - page_to_pfn(page) >= hpage_nr_pages(page)) {
+> +		pte_unmap_unlock(pte, ptl);
+> +		return SWAP_AGAIN;
+> +	}
+> +
+> +	referenced = ptep_clear_young_notify(vma, addr, pte);
+> +	pte_unmap_unlock(pte, ptl);
+> +found:
 
-Agreed.
+Can't we hide this stuff in a helper function, which would be used by
+both page_referenced_one and page_idle_clear_pte_refs_one, instead of
+duplicating page_referenced_one code here?
 
--- 
- Kirill A. Shutemov
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
