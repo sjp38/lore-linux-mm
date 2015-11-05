@@ -1,78 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A745E82F6A
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 11:16:23 -0500 (EST)
-Received: by wmll128 with SMTP id l128so18103371wml.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:16:23 -0800 (PST)
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
-        by mx.google.com with ESMTPS id q6si9425218wmg.4.2015.11.05.08.16.22
+Received: from mail-lf0-f45.google.com (mail-lf0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id EC7A482F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 11:18:23 -0500 (EST)
+Received: by lfgh9 with SMTP id h9so59840216lfg.1
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:18:23 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id j185si4860499lfg.59.2015.11.05.08.18.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 08:16:22 -0800 (PST)
-Received: by wicll6 with SMTP id ll6so12815116wic.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:16:22 -0800 (PST)
-From: mhocko@kernel.org
-Subject: [PATCH 3/3] jbd2: get rid of superfluous __GFP_REPEAT
-Date: Thu,  5 Nov 2015 17:16:00 +0100
-Message-Id: <1446740160-29094-4-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1446740160-29094-1-git-send-email-mhocko@kernel.org>
-References: <1446740160-29094-1-git-send-email-mhocko@kernel.org>
+        Thu, 05 Nov 2015 08:18:22 -0800 (PST)
+Date: Thu, 5 Nov 2015 19:18:05 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH V2 1/2] slub: fix kmem cgroup bug in kmem_cache_alloc_bulk
+Message-ID: <20151105161805.GH29259@esperanza>
+References: <20151105153704.1115.10475.stgit@firesoul>
+ <20151105153744.1115.38620.stgit@firesoul>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20151105153744.1115.38620.stgit@firesoul>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Theodore Ts'o <tytso@mit.edu>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Thu, Nov 05, 2015 at 04:37:51PM +0100, Jesper Dangaard Brouer wrote:
+...
+> @@ -1298,7 +1298,6 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s,
+>  	flags &= gfp_allowed_mask;
+>  	kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
+>  	kmemleak_alloc_recursive(object, s->object_size, 1, s->flags, flags);
+> -	memcg_kmem_put_cache(s);
+>  	kasan_slab_alloc(s, object);
+>  }
+>  
+> @@ -2557,6 +2556,7 @@ redo:
+>  		memset(object, 0, s->object_size);
+>  
+>  	slab_post_alloc_hook(s, gfpflags, object);
+> +	memcg_kmem_put_cache(s);
 
-jbd2_alloc is explicit about its allocation preferences wrt. the
-allocation size. Sub page allocations go to the slab allocator
-and larger are using either the page allocator or vmalloc. This
-is all good but the logic is unnecessarily complex. Requests larger
-than order-3 are doing the vmalloc directly while smaller go to the
-page allocator with __GFP_REPEAT. The flag doesn't do anything useful
-for those because they are smaller than PAGE_ALLOC_COSTLY_ORDER.
+Asymmetric - not good IMO. What about passing array of allocated objects
+to slab_post_alloc_hook? Then we could leave memcg_kmem_put_cache where
+it is now. I.e here we'd have
 
-Let's simplify the code flow and use kmalloc for sub-page requests
-and the page allocator for others with fallback to vmalloc if the
-allocation fails.
+	slab_post_alloc_hook(s, gfpflags, &object, 1);
 
-Cc: "Theodore Ts'o" <tytso@mit.edu>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- fs/jbd2/journal.c | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+while in kmem_cache_alloc_bulk it'd look like
 
-diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
-index 81e622681c82..630abbfa4b61 100644
---- a/fs/jbd2/journal.c
-+++ b/fs/jbd2/journal.c
-@@ -2299,18 +2299,15 @@ void *jbd2_alloc(size_t size, gfp_t flags)
- 
- 	BUG_ON(size & (size-1)); /* Must be a power of 2 */
- 
--	flags |= __GFP_REPEAT;
--	if (size == PAGE_SIZE)
--		ptr = (void *)__get_free_pages(flags, 0);
--	else if (size > PAGE_SIZE) {
-+	if (size < PAGE_SIZE)
-+		ptr = kmem_cache_alloc(get_slab(size), flags);
-+	else {
- 		int order = get_order(size);
- 
--		if (order < 3)
--			ptr = (void *)__get_free_pages(flags, order);
--		else
-+		ptr = (void *)__get_free_pages(flags, order);
-+		if (!ptr)
- 			ptr = vmalloc(size);
--	} else
--		ptr = kmem_cache_alloc(get_slab(size), flags);
-+	}
- 
- 	/* Check alignment; SLUB has gotten this wrong in the past,
- 	 * and this can lead to user data corruption! */
--- 
-2.6.1
+	slab_post_alloc_hook(s, flags, p, size);
+
+right before return.
+
+>  
+>  	return object;
+>  }
+> @@ -2906,6 +2906,11 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+>  	struct kmem_cache_cpu *c;
+>  	int i;
+>  
+> +	/* memcg and kmem_cache debug support */
+> +	s = slab_pre_alloc_hook(s, flags);
+> +	if (unlikely(!s))
+> +		return false;
+> +
+>  	/*
+>  	 * Drain objects in the per cpu slab, while disabling local
+>  	 * IRQs, which protects against PREEMPT and interrupts
+> @@ -2931,11 +2936,6 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+>  			continue; /* goto for-loop */
+>  		}
+>  
+> -		/* kmem_cache debug support */
+> -		s = slab_pre_alloc_hook(s, flags);
+> -		if (unlikely(!s))
+> -			goto error;
+> -
+>  		c->freelist = get_freepointer(s, object);
+>  		p[i] = object;
+>  
+> @@ -2953,9 +2953,11 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+>  			memset(p[j], 0, s->object_size);
+>  	}
+>  
+> +	memcg_kmem_put_cache(s);
+>  	return true;
+>  
+>  error:
+> +	memcg_kmem_put_cache(s);
+
+It drops a reference to the cache so better to call it after you are
+done with the cache, i.e. right before 'return false'.
+
+Thanks,
+Vladimir
+
+>  	__kmem_cache_free_bulk(s, i, p);
+>  	local_irq_enable();
+>  	return false;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
