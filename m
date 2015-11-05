@@ -1,49 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f46.google.com (mail-lf0-f46.google.com [209.85.215.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8075782F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 11:11:06 -0500 (EST)
-Received: by lfs39 with SMTP id 39so29897748lfs.3
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:11:05 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id jm1si4764647lbc.135.2015.11.05.08.11.04
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 08:11:05 -0800 (PST)
-Date: Thu, 5 Nov 2015 19:10:48 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH V2 0/2] SLUB bulk API interactions with kmem cgroup
-Message-ID: <20151105161048.GG29259@esperanza>
-References: <20151105153704.1115.10475.stgit@firesoul>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20151105153704.1115.10475.stgit@firesoul>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 15C2082F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 11:16:14 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so91511163pab.0
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:16:13 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id jw6si11064267pbc.214.2015.11.05.08.16.12
+        for <linux-mm@kvack.org>;
+        Thu, 05 Nov 2015 08:16:13 -0800 (PST)
+Date: Thu, 05 Nov 2015 11:16:09 -0500 (EST)
+Message-Id: <20151105.111609.1695015438589063316.davem@davemloft.net>
+Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
+ hierarchy
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20151105144002.GB15111@dhcp22.suse.cz>
+References: <20151104104239.GG29607@dhcp22.suse.cz>
+	<20151104195037.GA6872@cmpxchg.org>
+	<20151105144002.GB15111@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
+To: mhocko@kernel.org
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Nov 05, 2015 at 04:37:39PM +0100, Jesper Dangaard Brouer wrote:
-> I fixed some bugs for kmem cgroup interaction with SLUB bulk API,
-> compiled kernel with CONFIG_MEMCG_KMEM=y, but I don't known how to
-> setup kmem cgroups for slab, thus this is mostly untested.
+From: Michal Hocko <mhocko@kernel.org>
+Date: Thu, 5 Nov 2015 15:40:02 +0100
+
+> On Wed 04-11-15 14:50:37, Johannes Weiner wrote:
+> [...]
+>> Because it goes without saying that once the cgroupv2 interface is
+>> released, and people use it in production, there is no way we can then
+>> *add* dentry cache, inode cache, and others to memory.current. That
+>> would be an unacceptable change in interface behavior.
 > 
-> I will appriciate anyone who can give me a simple setup script...
+> They would still have to _enable_ the config option _explicitly_. make
+> oldconfig wouldn't change it silently for them. I do not think
+> it is an unacceptable change of behavior if the config is changed
+> explicitly.
 
-# create a memcg
-mkdir /sys/fs/cgroup/memory/test
+Every user is going to get this config option when they update their
+distibution kernel or whatever.
 
-# enable kmem acct *before* putting any tasks in it
-echo -1 > /sys/fs/cgroup/memory/test/memory.kmem.limit_in_bytes
+Then they will all wonder why their networking performance went down.
 
-# put a task in the cgroup
-echo $$ > /sys/fs/cgroup/memory/test/cgroup.procs
-
-# do what you want to do here
-
-# you can check if kmem actt really works by looking at
-cat /sys/fs/cgroup/memory/test/memory.kmem.slabinfo
-# it should not be empty
+This is why I do not want the networking accounting bits on by default
+even if the kconfig option is enabled.  They must be off by default
+and guarded by a static branch so the cost is exactly zero.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
