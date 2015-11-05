@@ -1,53 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 15C2082F64
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B7AF082F64
 	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 11:16:14 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so91511163pab.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:16:13 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id jw6si11064267pbc.214.2015.11.05.08.16.12
-        for <linux-mm@kvack.org>;
+Received: by wmww144 with SMTP id w144so11025991wmw.1
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:16:14 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id g72si9466279wmd.70.2015.11.05.08.16.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 05 Nov 2015 08:16:13 -0800 (PST)
-Date: Thu, 05 Nov 2015 11:16:09 -0500 (EST)
-Message-Id: <20151105.111609.1695015438589063316.davem@davemloft.net>
-Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
- hierarchy
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20151105144002.GB15111@dhcp22.suse.cz>
-References: <20151104104239.GG29607@dhcp22.suse.cz>
-	<20151104195037.GA6872@cmpxchg.org>
-	<20151105144002.GB15111@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: by wmnn186 with SMTP id n186so18740646wmn.1
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:16:12 -0800 (PST)
+From: mhocko@kernel.org
+Subject: [PATCH 0/3] __GFP_REPEAT cleanup
+Date: Thu,  5 Nov 2015 17:15:57 +0100
+Message-Id: <1446740160-29094-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Michal Hocko <mhocko@kernel.org>
-Date: Thu, 5 Nov 2015 15:40:02 +0100
+Hi,
+while working on something unrelated I've checked the current usage
+of __GFP_REPEAT in the tree. It seems that a good half of it is
+and always has been bogus because __GFP_REPEAT has always been about
+high order allocations while we are using it for order-0 or very small
+orders very often. It seems that a big pile of them is just a copy&paste
+when a code has been adopted from one arch to another.
 
-> On Wed 04-11-15 14:50:37, Johannes Weiner wrote:
-> [...]
->> Because it goes without saying that once the cgroupv2 interface is
->> released, and people use it in production, there is no way we can then
->> *add* dentry cache, inode cache, and others to memory.current. That
->> would be an unacceptable change in interface behavior.
-> 
-> They would still have to _enable_ the config option _explicitly_. make
-> oldconfig wouldn't change it silently for them. I do not think
-> it is an unacceptable change of behavior if the config is changed
-> explicitly.
+I think it makes some sense to get rid of them because they are just
+making the semantic more unclear.
 
-Every user is going to get this config option when they update their
-distibution kernel or whatever.
+The series is based on linux-next tree and
+$ git grep __GFP_REPEAT next/master | wc -l
+106
 
-Then they will all wonder why their networking performance went down.
+and with the patch
+$ git grep __GFP_REPEAT  | wc -l
+44
 
-This is why I do not want the networking accounting bits on by default
-even if the kconfig option is enabled.  They must be off by default
-and guarded by a static branch so the cost is exactly zero.
+There are probably more users which do not need the flag but I have focused
+on the trivially superfluous ones here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
