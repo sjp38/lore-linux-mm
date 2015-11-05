@@ -1,70 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 3238E82F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 03:46:53 -0500 (EST)
-Received: by wmnn186 with SMTP id n186so7640307wmn.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 00:46:52 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 14si5098481wmg.115.2015.11.05.00.46.51
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id EEBDD82F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 03:50:36 -0500 (EST)
+Received: by wicfv8 with SMTP id fv8so4981334wic.0
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 00:50:36 -0800 (PST)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id m123si9851309wmb.69.2015.11.05.00.50.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Nov 2015 00:46:52 -0800 (PST)
-Subject: Re: Newbie's question: memory allocation when reclaiming memory
-References: <201509290118.BCJ43256.tSFFFMOLHVOJOQ@I-love.SAKURA.ne.jp>
- <20151002123639.GA13914@dhcp22.suse.cz>
- <201510031502.BJD59536.HFJMtQOOLFFVSO@I-love.SAKURA.ne.jp>
- <201510062351.JHJ57310.VFQLFHFOJtSMOO@I-love.SAKURA.ne.jp>
- <201510121543.EJF21858.LtJFHOOOSQVMFF@I-love.SAKURA.ne.jp>
- <201510262044.BAI43236.FOMSFFOtOVLJQH@I-love.SAKURA.ne.jp>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <563B1777.5090008@suse.cz>
-Date: Thu, 5 Nov 2015 09:46:47 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Nov 2015 00:50:35 -0800 (PST)
+Received: by wikq8 with SMTP id q8so5794726wik.1
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 00:50:35 -0800 (PST)
+Date: Thu, 5 Nov 2015 10:50:33 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH V2] mm: fix kernel crash in khugepaged thread
+Message-ID: <20151105085033.GB7614@node.shutemov.name>
+References: <1445855960-28677-1-git-send-email-yalin.wang2010@gmail.com>
+ <20151029003551.GB12018@node.shutemov.name>
+ <563B0F72.5030908@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <201510262044.BAI43236.FOMSFFOtOVLJQH@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <563B0F72.5030908@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@kernel.org
-Cc: rientjes@google.com, oleg@redhat.com, torvalds@linux-foundation.org, kwalker@redhat.com, cl@linux.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, skozina@redhat.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: yalin wang <yalin.wang2010@gmail.com>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, jmarchan@redhat.com, mgorman@techsingularity.net, ebru.akagunduz@gmail.com, willy@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/26/2015 12:44 PM, Tetsuo Handa wrote:
-> May I ask a newbie question? Say, there is some amount of memory pages
-> which can be reclaimed if they are flushed to storage. And lower layer
-> might issue memory allocation request in a way which won't cause reclaim
-> deadlock (e.g. using GFP_NOFS or GFP_NOIO) when flushing to storage,
-> isn't it?
+On Thu, Nov 05, 2015 at 09:12:34AM +0100, Vlastimil Babka wrote:
+> On 10/29/2015 01:35 AM, Kirill A. Shutemov wrote:
+> >> @@ -2605,9 +2603,9 @@ out_unmap:
+> >>  		/* collapse_huge_page will return with the mmap_sem released */
+> >>  		collapse_huge_page(mm, address, hpage, vma, node);
+> >>  	}
+> >> -out:
+> >> -	trace_mm_khugepaged_scan_pmd(mm, page_to_pfn(page), writable, referenced,
+> >> -				     none_or_zero, result, unmapped);
+> >> +	trace_mm_khugepaged_scan_pmd(mm, pte_present(pteval) ?
+> >> +			pte_pfn(pteval) : -1, writable, referenced,
+> >> +			none_or_zero, result, unmapped);
+> > 
+> > maybe passing down pte instead of pfn?
 > 
-> What I'm worrying is a dependency that __GFP_FS allocation requests think
-> that there are reclaimable pages and therefore there is no need to call
-> out_of_memory(); and GFP_NOFS allocation requests which the __GFP_FS
-> allocation requests depend on (in order to flush to storage) is waiting
-> for GFP_NOIO allocation requests; and the GFP_NOIO allocation requests
-> which the GFP_NOFS allocation requests depend on (in order to flush to
-> storage) are waiting for memory pages to be reclaimed without calling
-> out_of_memory(); because gfp_to_alloc_flags() does not favor GFP_NOIO over
-> GFP_NOFS nor GFP_NOFS over __GFP_FS which will throttle all allocations
-> at the same watermark level.
-> 
-> How do we guarantee that GFP_NOFS/GFP_NOIO allocations make forward
-> progress? What mechanism guarantees that memory pages which __GFP_FS
-> allocation requests are waiting for are reclaimed? I assume that there
-> is some mechanism; otherwise we can hit silent livelock, can't we?
+> Maybe just pass the page, and have tracepoint's fast assign check for !NULL and
+> do page_to_pfn itself? That way the complexity and overhead is only in the
+> tracepoint and when enabled.
 
-I've never studied the code myself, but IIRC in all the debates LSF/MM I've
-heard it said that GFP_NOIO allocations have mempools that guarantee forward
-progress, so when they allocate from this mempool, there should be nothing else
-to block the request other than waiting for the actual hardware to finish the
-I/O request, and then the memory is returned to mempool and another request can
-use it. So there shouldn't be waiting for reclaim at that level, breaking the
-livelock you described?
+Agreed.
 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
