@@ -1,118 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 20EF082F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 12:50:33 -0500 (EST)
-Received: by wmnn186 with SMTP id n186so21177287wmn.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 09:50:32 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l66si9973225wmg.9.2015.11.05.09.50.31
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BE27982F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 13:17:28 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so70035312pac.3
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 10:17:28 -0800 (PST)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id bc7si11704690pbd.145.2015.11.05.10.17.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 05 Nov 2015 09:50:31 -0800 (PST)
-Subject: Re: [PATCH v2 2/12] mm: rmap use pte lock not mmap_sem to set
- PageMlocked
-References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
- <alpine.LSU.2.11.1510182148040.2481@eggly.anvils> <56248C5B.3040505@suse.cz>
- <alpine.LSU.2.11.1510190341490.3809@eggly.anvils>
- <20151019131308.GB15819@node.shutemov.name>
- <alpine.LSU.2.11.1510191218070.4652@eggly.anvils>
- <20151019201003.GA18106@node.shutemov.name> <56255FE4.5070609@suse.cz>
- <alpine.LSU.2.11.1510211544540.3905@eggly.anvils>
- <alpine.LSU.2.11.1510291147150.3450@eggly.anvils>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <563B96E5.4070600@suse.cz>
-Date: Thu, 5 Nov 2015 18:50:29 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Nov 2015 10:17:27 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so94276179pab.0
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 10:17:27 -0800 (PST)
+Date: Thu, 5 Nov 2015 10:17:26 -0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [PATCH v2 01/13] mm: support madvise(MADV_FREE)
+Message-ID: <20151105181726.GA63566@kernel.org>
+References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
+ <1446600367-7976-2-git-send-email-minchan@kernel.org>
+ <CALCETrUuNs=26UQtkU88cKPomx_Bik9mbgUUF9q7Nmh1pQJ4qg@mail.gmail.com>
+ <56399CA5.8090101@gmail.com>
+ <CALCETrU5P-mmjf+8QuS3-pm__R02j2nnRc5B1gQkeC013XWNvA@mail.gmail.com>
+ <563A813B.9080903@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1510291147150.3450@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <563A813B.9080903@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrey Konovalov <andreyknvl@google.com>, Dmitry Vyukov <dvyukov@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Daniel Micay <danielmicay@gmail.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux API <linux-api@vger.kernel.org>, Jason Evans <je@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, yalin wang <yalin.wang2010@gmail.com>, Mel Gorman <mgorman@suse.de>
 
-On 10/29/2015 07:49 PM, Hugh Dickins wrote:
-> KernelThreadSanitizer (ktsan) has shown that the down_read_trylock() of
-> mmap_sem in try_to_unmap_one() (when going to set PageMlocked on a page
-> found mapped in a VM_LOCKED vma) is ineffective against races with
-> exit_mmap()'s munlock_vma_pages_all(), because mmap_sem is not held when
-> tearing down an mm.
+On Wed, Nov 04, 2015 at 05:05:47PM -0500, Daniel Micay wrote:
+> > With enough pages at once, though, munmap would be fine, too.
 > 
-> But that's okay, those races are benign; and although we've believed for
-> years in that ugly down_read_trylock(), it's unsuitable for the job, and
-> frustrates the good intention of setting PageMlocked when it fails.
+> That implies lots of page faults and zeroing though. The zeroing alone
+> is a major performance issue.
 > 
-> It just doesn't matter if here we read vm_flags an instant before or after
-> a racing mlock() or munlock() or exit_mmap() sets or clears VM_LOCKED: the
-> syscalls (or exit) work their way up the address space (taking pt locks
-> after updating vm_flags) to establish the final state.
+> There are separate issues with munmap since it ends up resulting in a
+> lot more virtual memory fragmentation. It would help if the kernel used
+> first-best-fit for mmap instead of the current naive algorithm (bonus:
+> O(log n) worst-case, not O(n)). Since allocators like jemalloc and
+> PartitionAlloc want 2M aligned spans, mixing them with other allocators
+> can also accelerate the VM fragmentation caused by the dumb mmap
+> algorithm (i.e. they make a 2M aligned mapping, some other mmap user
+> does 4k, now there's a nearly 2M gap when the next 2M region is made and
+> the kernel keeps going rather than reusing it). Anyway, that's a totally
+> separate issue from this. Just felt like complaining :).
 > 
-> We do still need to be careful never to mark a page Mlocked (hence
-> unevictable) by any race that will not be corrected shortly after.  The
-> page lock protects from many of the races, but not all (a page is not
-> necessarily locked when it's unmapped).  But the pte lock we just dropped
-> is good to cover the rest (and serializes even with
-> munlock_vma_pages_all(), so no special barriers required): now hold on to
-> the pte lock while calling mlock_vma_page().  Is that lock ordering safe? 
-> Yes, that's how follow_page_pte() calls it, and how page_remove_rmap()
-> calls the complementary clear_page_mlock().
+> > Maybe what's really needed is a MADV_FREE variant that takes an iovec.
+> > On an all-cores multithreaded mm, the TLB shootdown broadcast takes
+> > thousands of cycles on each core more or less regardless of how much
+> > of the TLB gets zapped.
 > 
-> This fixes the following case (though not a case which anyone has
-> complained of), which mmap_sem did not: truncation's preliminary
-> unmap_mapping_range() is supposed to remove even the anonymous COWs of
-> filecache pages, and that might race with try_to_unmap_one() on a
-> VM_LOCKED vma, so that mlock_vma_page() sets PageMlocked just after
-> zap_pte_range() unmaps the page, causing "Bad page state (mlocked)" when
-> freed.  The pte lock protects against this.
-> 
-> You could say that it also protects against the more ordinary case, racing
-> with the preliminary unmapping of a filecache page itself: but in our
-> current tree, that's independently protected by i_mmap_rwsem; and that
-> race would be why "Bad page state (mlocked)" was seen before commit
-> 48ec833b7851 ("Revert mm/memory.c: share the i_mmap_rwsem").
-> 
-> Vlastimil Babka points out another race which this patch protects against.
-> try_to_unmap_one() might reach its mlock_vma_page() TestSetPageMlocked a
-> moment after munlock_vma_pages_all() did its Phase 1 TestClearPageMlocked:
-> leaving PageMlocked and unevictable when it should be evictable.  mmap_sem
-> is ineffective because exit_mmap() does not hold it; page lock ineffective
-> because __munlock_pagevec() only takes it afterwards, in Phase 2; pte lock
-> is effective because __munlock_pagevec_fill() takes it to get the page,
-> after VM_LOCKED was cleared from vm_flags, so visible to try_to_unmap_one.
-> 
-> Kirill Shutemov points out that if the compiler chooses to implement a
-> "vma->vm_flags &= VM_WHATEVER" or "vma->vm_flags |= VM_WHATEVER" operation
-> with an intermediate store of unrelated bits set, since I'm here foregoing
-> its usual protection by mmap_sem, try_to_unmap_one() might catch sight of
-> a spurious VM_LOCKED in vm_flags, and make the wrong decision.  This does
-> not appear to be an immediate problem, but we may want to define vm_flags
-> accessors in future, to guard against such a possibility.
-> 
-> While we're here, make a related optimization in try_to_munmap_one(): if
-> it's doing TTU_MUNLOCK, then there's no point at all in descending the
-> page tables and getting the pt lock, unless the vma is VM_LOCKED.  Yes,
-> that can change racily, but it can change racily even without the
-> optimization: it's not critical.  Far better not to waste time here.
-> 
-> Stopped short of separating try_to_munlock_one() from try_to_munmap_one()
-> on this occasion, but that's probably the sensible next step - with a
-> rename, given that try_to_munlock()'s business is to try to set Mlocked.
-> 
-> Updated the unevictable-lru Documentation, to remove its reference to mmap
-> semaphore, but found a few more updates needed in just that area.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Davidlohr Bueso <dave@stgolabs.net>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: Sasha Levin <sasha.levin@oracle.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> That would work very well. The allocator ends up having a sequence of
+> dirty spans that it needs to purge in one go. As long as purging is
+> fairly spread out, the cost of a single TLB shootdown isn't that bad. It
+> is extremely bad if it needs to do it over and over to purge a bunch of
+> ranges, which can happen if the memory has ended up being very, very
+> fragmentated despite the efforts to compact it (depends on what the
+> application ends up doing).
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I posted a patch doing exactly iovec madvise. Doesn't support MADV_FREE yet
+though, but should be easy to do it.
+
+http://marc.info/?l=linux-mm&m=144615663522661&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
