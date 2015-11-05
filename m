@@ -1,39 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id D21AA82F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 11:30:17 -0500 (EST)
-Received: by pasz6 with SMTP id z6so95379077pas.2
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:30:17 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id ax2si11169997pbd.123.2015.11.05.08.30.16
-        for <linux-mm@kvack.org>;
-        Thu, 05 Nov 2015 08:30:17 -0800 (PST)
-Date: Thu, 05 Nov 2015 11:30:12 -0500 (EST)
-Message-Id: <20151105.113012.433525933573324396.davem@davemloft.net>
-Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
- hierarchy
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20151105162803.GD15111@dhcp22.suse.cz>
-References: <20151105144002.GB15111@dhcp22.suse.cz>
-	<20151105.111609.1695015438589063316.davem@davemloft.net>
-	<20151105162803.GD15111@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id B471582F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 11:31:40 -0500 (EST)
+Received: by lbbkw15 with SMTP id kw15so33467108lbb.0
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:31:40 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id qb2si4848176lbb.85.2015.11.05.08.31.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Nov 2015 08:31:39 -0800 (PST)
+Date: Thu, 5 Nov 2015 19:31:18 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 4/4] mm: prepare page_referenced() and page_idle to new
+ THP refcounting
+Message-ID: <20151105163118.GJ29259@esperanza>
+References: <1446564375-72143-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1446564375-72143-5-git-send-email-kirill.shutemov@linux.intel.com>
+ <20151105091013.GC29259@esperanza>
+ <20151105092459.GC7614@node.shutemov.name>
+ <20151105120726.GD29259@esperanza>
+ <20151105123606.GE7614@node.shutemov.name>
+ <20151105125354.GE29259@esperanza>
+ <20151105125838.GF7614@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20151105125838.GF7614@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@kernel.org>
-Date: Thu, 5 Nov 2015 17:28:03 +0100
+On Thu, Nov 05, 2015 at 02:58:38PM +0200, Kirill A. Shutemov wrote:
 
-> Yes, that part is clear and Johannes made it clear that the kmem tcp
-> part is disabled by default. Or are you considering also all the slab
-> usage by the networking code as well?
+> Okay. Could you prepare the patch?
 
-I'm still thinking about the implications of that aspect, and will
-comment when I have something coherent to say about it.
+OK, give me some time.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
