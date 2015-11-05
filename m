@@ -1,121 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8764082F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 03:33:14 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so73054628pad.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 00:33:14 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id fu6si6227795pac.175.2015.11.05.00.33.12
-        for <linux-mm@kvack.org>;
-        Thu, 05 Nov 2015 00:33:13 -0800 (PST)
-Date: Thu, 5 Nov 2015 19:33:09 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC 00/11] DAX fsynx/msync support
-Message-ID: <20151105083309.GJ19199@dastard>
-References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
- <20151030035533.GU19199@dastard>
- <20151030183938.GC24643@linux.intel.com>
- <20151101232948.GF10656@dastard>
- <x49vb9kqy5k.fsf@segfault.boston.devel.redhat.com>
- <20151102201029.GI10656@dastard>
- <x49twp4p11j.fsf@segfault.boston.devel.redhat.com>
+Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 68D4282F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 03:39:03 -0500 (EST)
+Received: by lbblt2 with SMTP id lt2so11206566lbb.3
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 00:39:02 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id aw10si3546242lbc.112.2015.11.05.00.39.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Nov 2015 00:39:02 -0800 (PST)
+Date: Thu, 5 Nov 2015 11:38:43 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] slub: add missing kmem cgroup support to
+ kmem_cache_free_bulk
+Message-ID: <20151105083842.GA29259@esperanza>
+References: <20151029130531.15158.58018.stgit@firesoul>
+ <20151105050621.GC20374@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <x49twp4p11j.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <20151105050621.GC20374@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, axboe@kernel.dk
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-[ sorry for slow response, been without an internet connection for
-~36 hours ]
-
-On Mon, Nov 02, 2015 at 04:02:48PM -0500, Jeff Moyer wrote:
-> Dave Chinner <david@fromorbit.com> writes:
+On Thu, Nov 05, 2015 at 02:06:21PM +0900, Joonsoo Kim wrote:
+> On Thu, Oct 29, 2015 at 02:05:31PM +0100, Jesper Dangaard Brouer wrote:
+> > Initial implementation missed support for kmem cgroup support
+> > in kmem_cache_free_bulk() call, add this.
+> > 
+> > If CONFIG_MEMCG_KMEM is not enabled, the compiler should
+> > be smart enough to not add any asm code.
+> > 
+> > Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> > ---
+> >  mm/slub.c |    3 +++
+> >  1 file changed, 3 insertions(+)
+> > 
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index 9be12ffae9fc..9875864ad7b8 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -2845,6 +2845,9 @@ static int build_detached_freelist(struct kmem_cache *s, size_t size,
+> >  	if (!object)
+> >  		return 0;
+> >  
+> > +	/* Support for kmemcg */
+> > +	s = cache_from_obj(s, object);
+> > +
+> >  	/* Start new detached freelist */
+> >  	set_freepointer(s, object, NULL);
+> >  	df->page = virt_to_head_page(object);
 > 
-> > On Mon, Nov 02, 2015 at 09:22:15AM -0500, Jeff Moyer wrote:
-> >> Dave Chinner <david@fromorbit.com> writes:
-> >> 
-> >> > Further, REQ_FLUSH/REQ_FUA are more than just "put the data on stable
-> >> > storage" commands. They are also IO barriers that affect scheduling
-> >> > of IOs in progress and in the request queues.  A REQ_FLUSH/REQ_FUA
-> >> > IO cannot be dispatched before all prior IO has been dispatched and
-> >> > drained from the request queue, and IO submitted after a queued
-> >> > REQ_FLUSH/REQ_FUA cannot be scheduled ahead of the queued
-> >> > REQ_FLUSH/REQ_FUA operation.
-> >> >
-> >> > IOWs, REQ_FUA/REQ_FLUSH not only guarantee data is on stable
-> >> > storage, they also guarantee the order of IO dispatch and
-> >> > completion when concurrent IO is in progress.
-> >> 
-> >> This hasn't been the case for several years, now.  It used to work that
-> >> way, and that was deemed a big performance problem.  Since file systems
-> >> already issued and waited for all I/O before sending down a barrier, we
-> >> decided to get rid of the I/O ordering pieces of barriers (and stop
-> >> calling them barriers).
-> >> 
-> >> See commit 28e7d184521 (block: drop barrier ordering by queue draining).
-> >
-> > Yes, I realise that, even if I wasn't very clear about how I wrote
-> > it. ;)
-> >
-> > Correct me if I'm wrong: AFAIA, dispatch ordering (i.e. the "IO
-> > barrier") is still enforced by the scheduler via REQ_FUA|REQ_FLUSH
-> > -> ELEVATOR_INSERT_FLUSH -> REQ_SOFTBARRIER and subsequent IO
-> > scheduler calls to elv_dispatch_sort() that don't pass
-> > REQ_SOFTBARRIER in the queue.
+> Hello,
 > 
-> This part is right.
+> It'd better to add this 's = cache_from_obj()' on kmem_cache_free_bulk().
+> Not only build_detached_freelist() but also slab_free() need proper
+> cache.
+
+Yeah, Joonsoo is right. Besides, there's a bug in kmem_cache_alloc_bulk:
+
+> /* Note that interrupts must be enabled when calling this function. */
+> bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+> 			   void **p)
+> {
+> 	struct kmem_cache_cpu *c;
+> 	int i;
 > 
-> > IOWs, if we queue a bunch of REQ_WRITE IOs followed by a
-> > REQ_WRITE|REQ_FLUSH IO, all of the prior REQ_WRITE IOs will be
-> > dispatched before the REQ_WRITE|REQ_FLUSH IO and hence be captured
-> > by the cache flush.
+> 	/*
+> 	 * Drain objects in the per cpu slab, while disabling local
+> 	 * IRQs, which protects against PREEMPT and interrupts
+> 	 * handlers invoking normal fastpath.
+> 	 */
+> 	local_irq_disable();
+> 	c = this_cpu_ptr(s->cpu_slab);
 > 
-> But this part is not.  It is up to the I/O scheduler to decide when to
-> dispatch requests.  It can hold on to them for a variety of reasons.
-> Flush requests, however, do not go through the I/O scheduler.  At the
-
-That's pure REQ_FLUSH bios, right? Aren't data IOs with
-REQ_FLUSH|REQ_FUA sorted like any other IO?
-
-> very moment that the flush request is inserted, it goes directly to the
-> dispatch queue (assuming no other flush is in progress).  The prior
-> requests may still be waiting in the I/O scheduler's internal lists.
+> 	for (i = 0; i < size; i++) {
+> 		void *object = c->freelist;
 > 
-> So, any newly dispatched I/Os will certainly not get past the REQ_FLUSH.
-> However, the REQ_FLUSH is very likely to jump ahead of prior I/Os in the
-> queue.
-
-Uh, ok, that's different, and most definitely not the "IO barrier" I
-was under the impression REQ_FLUSH|REQ_FUA gave us.
-
-> > Hence once the filesystem has waited on the REQ_WRITE|REQ_FLUSH IO
-> > to complete, we know that all the earlier REQ_WRITE IOs are on
-> > stable storage, too. Hence there's no need for the elevator to drain
-> > the queue to guarantee completion ordering - the dispatch ordering
-> > and flush/fua write semantics guarantee that when the flush/fua
-> > completes, all the IOs dispatch prior to that flush/fua write are
-> > also on stable storage...
+> 		if (unlikely(!object)) {
+> 			/*
+> 			 * Invoking slow path likely have side-effect
+> 			 * of re-populating per CPU c->freelist
+> 			 */
+> 			p[i] = ___slab_alloc(s, flags, NUMA_NO_NODE,
+> 					    _RET_IP_, c);
+> 			if (unlikely(!p[i]))
+> 				goto error;
 > 
-> Des xfs rely on this model for correctness?  If so, I'd say we've got a
-> problem
+> 			c = this_cpu_ptr(s->cpu_slab);
+> 			continue; /* goto for-loop */
+> 		}
+> 
+> 		/* kmem_cache debug support */
+> 		s = slab_pre_alloc_hook(s, flags);
 
-No, it doesn't. The XFS integrity model doesn't trust the IO layers
-to tell the truth about IO ordering and completion or for it's
-developers to fully understand how IO layer ordering works. :P
+slab_pre_alloc_hook expects a global cache and returns per memcg one, so
+calling this function from inside a kmemcg will result in hitting the
+VM_BUG_ON in __memcg_kmem_get_cache, not saying about mis-accounting of
+__slab_alloc.
 
-i.e. we wait for full completions of all dependent IO before issuing
-flushes or log writes that use REQ_FLUSH|REQ_FUA semantics to ensure
-the dependent IOs are fully caught by the cache flushes...
+memcg_kmem_get_cache should be called once, in the very beginning of
+kmem_cache_alloc_bulk, and it should be matched by memcg_kmem_put_cache
+when we are done.
 
-Cheers,
+Thanks,
+Vladimir
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> 		if (unlikely(!s))
+> 			goto error;
+> 
+> 		c->freelist = get_freepointer(s, object);
+> 		p[i] = object;
+> 
+> 		/* kmem_cache debug support */
+> 		slab_post_alloc_hook(s, flags, object);
+> 	}
+> 	c->tid = next_tid(c->tid);
+> 	local_irq_enable();
+> 
+> 	/* Clear memory outside IRQ disabled fastpath loop */
+> 	if (unlikely(flags & __GFP_ZERO)) {
+> 		int j;
+> 
+> 		for (j = 0; j < i; j++)
+> 			memset(p[j], 0, s->object_size);
+> 	}
+> 
+> 	return true;
+> 
+> error:
+> 	__kmem_cache_free_bulk(s, i, p);
+> 	local_irq_enable();
+> 	return false;
+> }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
