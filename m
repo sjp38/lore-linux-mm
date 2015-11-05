@@ -1,91 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F8FE82F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 13:44:39 -0500 (EST)
-Received: by pasz6 with SMTP id z6so98616401pas.2
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 10:44:38 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id qh1si9184635pbb.192.2015.11.05.10.44.37
+Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A8EBA82F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 14:49:29 -0500 (EST)
+Received: by ykdr3 with SMTP id r3so150555496ykd.1
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 11:49:29 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b137si5937638vka.212.2015.11.05.11.49.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 10:44:37 -0800 (PST)
-Received: by pacdm15 with SMTP id dm15so70647932pac.3
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 10:44:37 -0800 (PST)
-Subject: Re: [PATCH v2 2/2] arm: mm: support ARCH_MMAP_RND_BITS.
-References: <1446574204-15567-1-git-send-email-dcashman@android.com>
- <1446574204-15567-2-git-send-email-dcashman@android.com>
- <CAGXu5jKGzDD9WVQnMTT2EfupZtjpdcASUpx-3npLAB-FctLodA@mail.gmail.com>
- <56393FD0.6080001@android.com>
- <CAGXu5jLe=OgZ2DG_MRXA8x6BwpEd77fNZBj3wjbDiSdiBurz7w@mail.gmail.com>
- <563A4EDC.6090403@android.com>
-From: Daniel Cashman <dcashman@android.com>
-Message-ID: <563BA393.9020504@android.com>
-Date: Thu, 5 Nov 2015 10:44:35 -0800
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Nov 2015 11:49:28 -0800 (PST)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [RFC 00/11] DAX fsynx/msync support
+References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
+	<20151030035533.GU19199@dastard>
+	<20151030183938.GC24643@linux.intel.com>
+	<20151101232948.GF10656@dastard>
+	<x49vb9kqy5k.fsf@segfault.boston.devel.redhat.com>
+	<20151102201029.GI10656@dastard>
+	<x49twp4p11j.fsf@segfault.boston.devel.redhat.com>
+	<20151105083309.GJ19199@dastard>
+Date: Thu, 05 Nov 2015 14:49:21 -0500
+In-Reply-To: <20151105083309.GJ19199@dastard> (Dave Chinner's message of "Thu,
+	5 Nov 2015 19:33:09 +1100")
+Message-ID: <x498u6crzum.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <563A4EDC.6090403@android.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, dcashman <dcashman@google.com>, Michael Ellerman <michael@ellerman.id.au>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, axboe@kernel.dk
 
-On 11/04/2015 10:30 AM, Daniel Cashman wrote:
-> On 11/3/15 3:21 PM, Kees Cook wrote:
->> On Tue, Nov 3, 2015 at 3:14 PM, Daniel Cashman <dcashman@android.com> wrote:
->>> On 11/03/2015 11:19 AM, Kees Cook wrote:
->>>> Do you have patches for x86 and arm64?
->>>
->>> I was holding off on those until I could gauge upstream reception.  If
->>> desired, I could put those together and add them as [PATCH 3/4] and
->>> [PATCH 4/4].
->>
->> If they're as trivial as I'm hoping, yeah, let's toss them in now. If
->> not, skip 'em. PowerPC, MIPS, and s390 should be relatively simple
->> too, but one or two of those have somewhat stranger calculations when
->> I looked, so their Kconfigs may not be as clean.
-> 
-> Creating the patches should be simple, it's the choice of minimum and
-> maximum values for each architecture that I'd be most concerned about.
-> I'll put them together, though, and the ranges can be changed following
-> discussion with those more knowledgeable, if needed.  I also don't have
-> devices on which to test the PowerPC, MIPS and s390 changes, so I'll
-> need someone's help for that.
+Dave Chinner <david@fromorbit.com> writes:
 
-Actually, in preparing the x86 and arm64 patches, it became apparent
-that the current patch-set does not address 32-bit executables running
-on 64-bit systems (compatibility mode), since only one procfs
-mmap_rnd_bits variable is created and exported. Some possible solutions:
+>> But this part is not.  It is up to the I/O scheduler to decide when to
+>> dispatch requests.  It can hold on to them for a variety of reasons.
+>> Flush requests, however, do not go through the I/O scheduler.  At the
+>
+> That's pure REQ_FLUSH bios, right? Aren't data IOs with
+> REQ_FLUSH|REQ_FUA sorted like any other IO?
 
-1) Create a second set for compatibility, e.g. mmap_rnd_compat_bits,
-mmap_rnd_compat_bits_min, mmap_rnd_compat_bits_max and export it as with
-mmap_rnd_bits.  This provides the most control and is truest to the
-spirit of this patch, but pollutes the Kconfigs and procfs a bit more,
-especially if we ever need a mmap_rnd_64compat_bits...
+No, they also go through the flush machinery, and so short-circuit the
+I/O scheduler.
 
-2) Get rid of the arch-independent nature of this patch and instead let
-each arch define its own Kconfig values and procfs entries. Essentially
-the same outcome as the above, but with less disruption in the common
-kernel code, although also with a potentially variable ABI.
+>> Des xfs rely on this model for correctness?  If so, I'd say we've got a
+>> problem
+>
+> No, it doesn't. The XFS integrity model doesn't trust the IO layers
+> to tell the truth about IO ordering and completion or for it's
+> developers to fully understand how IO layer ordering works. :P
+>
+> i.e. we wait for full completions of all dependent IO before issuing
+> flushes or log writes that use REQ_FLUSH|REQ_FUA semantics to ensure
+> the dependent IOs are fully caught by the cache flushes...
 
-3) Default to the lowest-supported, e.g. arm64 running with
-CONFIG_COMPAT would be limited to the same range as arm.  This solution
-I think is highly undesirable, as it actually makes things worse for
-existing 64-bit platforms.
+OK, phew!  ;-)
 
-4) Support setting the COMPAT values by Kconfig, but don't expose them
-via procfs.  This keeps the procfs change simple and gets most of its
-benefits.
-
-5) Leave the COMPAT values specified in code, and only adjust introduce
-config and tunable options for the 64-bit processes.  Basically keep
-this patch-set as-is and not give any benefit to compatible applications.
-
-My preference would be for either solutions 1 or 4, but would love
-feedback and/or other solutions. Thoughts?
-
-Thank You,
-Dan
+-Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
