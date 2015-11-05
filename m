@@ -1,54 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 932E482F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 17:30:26 -0500 (EST)
-Received: by ykek133 with SMTP id k133so158595288yke.2
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 14:30:26 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j192si6550757vkf.28.2015.11.05.14.30.16
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C9C382F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 17:33:05 -0500 (EST)
+Received: by wmll128 with SMTP id l128so26362529wml.0
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 14:33:04 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 71si394401wmm.27.2015.11.05.14.33.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 14:30:17 -0800 (PST)
-Message-Id: <20151105223014.964111331@redhat.com>
-Date: Thu, 05 Nov 2015 17:30:19 -0500
-From: aris@redhat.com
-Subject: [PATCH 5/5] mm: use KERN_DEBUG for dump_stack() during an OOM
-References: <20151105223014.701269769@redhat.com>
+        Thu, 05 Nov 2015 14:33:03 -0800 (PST)
+Date: Thu, 5 Nov 2015 17:32:51 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
+ hierarchy
+Message-ID: <20151105223251.GA4427@cmpxchg.org>
+References: <20151104104239.GG29607@dhcp22.suse.cz>
+ <20151104195037.GA6872@cmpxchg.org>
+ <20151105144002.GB15111@dhcp22.suse.cz>
+ <20151105.111609.1695015438589063316.davem@davemloft.net>
+ <20151105162803.GD15111@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline; filename=mm-reduce_priority_in_oom_dump_stack.patch
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151105162803.GD15111@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kerne@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-dump_stack() isn't always useful and in some scenarios OOMs can be quite
-common and there's no need to flood the console with dump_stack()'s output.
+On Thu, Nov 05, 2015 at 05:28:03PM +0100, Michal Hocko wrote:
+> On Thu 05-11-15 11:16:09, David S. Miller wrote:
+> > From: Michal Hocko <mhocko@kernel.org>
+> > Date: Thu, 5 Nov 2015 15:40:02 +0100
+> > 
+> > > On Wed 04-11-15 14:50:37, Johannes Weiner wrote:
+> > > [...]
+> > >> Because it goes without saying that once the cgroupv2 interface is
+> > >> released, and people use it in production, there is no way we can then
+> > >> *add* dentry cache, inode cache, and others to memory.current. That
+> > >> would be an unacceptable change in interface behavior.
+> > > 
+> > > They would still have to _enable_ the config option _explicitly_. make
+> > > oldconfig wouldn't change it silently for them. I do not think
+> > > it is an unacceptable change of behavior if the config is changed
+> > > explicitly.
+> > 
+> > Every user is going to get this config option when they update their
+> > distibution kernel or whatever.
+> > 
+> > Then they will all wonder why their networking performance went down.
+> > 
+> > This is why I do not want the networking accounting bits on by default
+> > even if the kconfig option is enabled.  They must be off by default
+> > and guarded by a static branch so the cost is exactly zero.
+> 
+> Yes, that part is clear and Johannes made it clear that the kmem tcp
+> part is disabled by default. Or are you considering also all the slab
+> usage by the networking code as well?
 
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Greg Thelen <gthelen@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>
-Signed-off-by: Aristeu Rozanski <aris@redhat.com>
+Michal, there shouldn't be any tracking or accounting going on per
+default when you boot into a fresh system.
 
----
- mm/oom_kill.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I removed all accounting and statistics on the system level in
+cgroupv2, so distribution kernels can compile-time enable a single,
+feature-complete CONFIG_MEMCG that provides a full memory controller
+while at the same time puts no overhead on users that don't benefit
+from mem control at all and just want to use the machine bare-metal.
 
---- linux-2.6.orig/mm/oom_kill.c	2015-10-27 09:24:01.014413690 -0400
-+++ linux-2.6/mm/oom_kill.c	2015-11-05 14:51:31.091521337 -0500
-@@ -384,7 +384,7 @@ pr_warning("%s invoked oom-killer: gfp_m
- 		current->signal->oom_score_adj);
- 	cpuset_print_task_mems_allowed(current);
- 	task_unlock(current);
--	dump_stack();
-+	dump_stack_lvl(KERN_DEBUG);
- 	if (memcg)
- 		mem_cgroup_print_oom_info(memcg, p);
- 	else
+This is completely doable. My new series does it for skmem, but I also
+want to retrofit the code to eliminate that current overhead for page
+cache, anonymous memory, slab memory and so forth.
+
+This is the only sane way to make the memory controller powerful and
+generally useful without having to make unreasonable compromises with
+memory consumers. We shouldn't even be *having* the discussion about
+whether we should sacrifice the quality of our interface in order to
+compromise with a class of users that doesn't care about any of this
+in the first place.
+
+So let's eliminate the cost for non-users, but make the memory
+controller feature-complete and useful--with reasonable cost,
+implementation, and interface--for our actual userbase.
+
+Paying the necessary cost for a functionality you actually want is not
+the problem. Paying for something that doesn't benefit you is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
