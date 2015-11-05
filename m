@@ -1,138 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2626382F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 12:27:56 -0500 (EST)
-Received: by wmll128 with SMTP id l128so17460571wml.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 09:27:55 -0800 (PST)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id 76si13351675wmh.26.2015.11.05.09.27.54
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id F081282F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 12:29:53 -0500 (EST)
+Received: by wicfv8 with SMTP id fv8so14276373wic.0
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 09:29:53 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 193si13865865wmx.83.2015.11.05.09.29.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 09:27:54 -0800 (PST)
-Received: by wikq8 with SMTP id q8so15185902wik.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 09:27:54 -0800 (PST)
-Date: Thu, 5 Nov 2015 19:27:51 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 4/4] mm: prepare page_referenced() and page_idle to new
- THP refcounting
-Message-ID: <20151105172750.GA20014@node.shutemov.name>
-References: <1446564375-72143-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1446564375-72143-5-git-send-email-kirill.shutemov@linux.intel.com>
- <20151105160324.GF29259@esperanza>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 05 Nov 2015 09:29:52 -0800 (PST)
+Subject: Re: [PATCH 1/12] mm Documentation: undoc non-linear vmas
+References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
+ <alpine.LSU.2.11.1510182144210.2481@eggly.anvils>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <563B920E.2000201@suse.cz>
+Date: Thu, 5 Nov 2015 18:29:50 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151105160324.GF29259@esperanza>
+In-Reply-To: <alpine.LSU.2.11.1510182144210.2481@eggly.anvils>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org
 
-On Thu, Nov 05, 2015 at 07:03:24PM +0300, Vladimir Davydov wrote:
-> On Tue, Nov 03, 2015 at 05:26:15PM +0200, Kirill A. Shutemov wrote:
-> ...
-> > @@ -812,60 +812,104 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
-> >  	spinlock_t *ptl;
-> >  	int referenced = 0;
-> >  	struct page_referenced_arg *pra = arg;
-> > +	pgd_t *pgd;
-> > +	pud_t *pud;
-> > +	pmd_t *pmd;
-> > +	pte_t *pte;
-> >  
-> > -	if (unlikely(PageTransHuge(page))) {
-> > -		pmd_t *pmd;
-> > -
-> > -		/*
-> > -		 * rmap might return false positives; we must filter
-> > -		 * these out using page_check_address_pmd().
-> > -		 */
-> > -		pmd = page_check_address_pmd(page, mm, address, &ptl);
-> > -		if (!pmd)
-> > +	if (unlikely(PageHuge(page))) {
-> > +		/* when pud is not present, pte will be NULL */
-> > +		pte = huge_pte_offset(mm, address);
-> > +		if (!pte)
-> >  			return SWAP_AGAIN;
-> >  
-> > -		if (vma->vm_flags & VM_LOCKED) {
-> > +		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
-> > +		goto check_pte;
-> > +	}
-> > +
-> > +	pgd = pgd_offset(mm, address);
-> > +	if (!pgd_present(*pgd))
-> > +		return SWAP_AGAIN;
-> > +	pud = pud_offset(pgd, address);
-> > +	if (!pud_present(*pud))
-> > +		return SWAP_AGAIN;
-> > +	pmd = pmd_offset(pud, address);
-> > +
-> > +	if (pmd_trans_huge(*pmd)) {
-> > +		int ret = SWAP_AGAIN;
-> > +
-> > +		ptl = pmd_lock(mm, pmd);
-> > +		if (!pmd_present(*pmd))
-> > +			goto unlock_pmd;
-> > +		if (unlikely(!pmd_trans_huge(*pmd))) {
-> >  			spin_unlock(ptl);
-> > +			goto map_pte;
-> > +		}
-> > +
-> > +		if (pmd_page(*pmd) != page)
-> > +			goto unlock_pmd;
-> > +
-> > +		if (vma->vm_flags & VM_LOCKED) {
-> >  			pra->vm_flags |= VM_LOCKED;
-> > -			return SWAP_FAIL; /* To break the loop */
-> > +			ret = SWAP_FAIL; /* To break the loop */
-> > +			goto unlock_pmd;
-> >  		}
-> >  
-> >  		if (pmdp_clear_flush_young_notify(vma, address, pmd))
-> >  			referenced++;
-> > -
-> >  		spin_unlock(ptl);
-> > +		goto found;
-> > +unlock_pmd:
-> > +		spin_unlock(ptl);
-> > +		return ret;
-> >  	} else {
-> > -		pte_t *pte;
-> > -
-> > -		/*
-> > -		 * rmap might return false positives; we must filter
-> > -		 * these out using page_check_address().
-> > -		 */
-> > -		pte = page_check_address(page, mm, address, &ptl, 0);
-> > -		if (!pte)
-> > +		pmd_t pmde = *pmd;
-> > +		barrier();
+On 10/19/2015 06:45 AM, Hugh Dickins wrote:
+> While updating some mm Documentation, I came across a few straggling
+> references to the non-linear vmas which were happily removed in v4.0.
+> Delete them.
 > 
-> This is supposed to be
-> 
-> 		pmd_t pmde = READ_ONCE(*pmd);
-> 
-> Right?
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-See e37c69827063. If I read this correctly, barrier() is less overhead for
-some archs.
-
-> 
-> I don't understand why we need a barrier here. Why can't we just do
-> 
-> 	} else if (!pmd_present(*pmd))
-> 		reutnr SWAP_AGAIN;
-> 
-> ?
-
-See f72e7dcdd252 too.
-
-> > +		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
-> >  			return SWAP_AGAIN;
-> > +	}
--- 
- Kirill A. Shutemov
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
