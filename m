@@ -1,388 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 406BE82F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 08:01:49 -0500 (EST)
-Received: by wicll6 with SMTP id ll6so9093162wic.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 05:01:48 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z20si5276496wjr.182.2015.11.05.05.01.47
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E021182F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 08:19:10 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so63577672pac.3
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 05:19:10 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id cy13si7643978pac.173.2015.11.05.05.19.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Nov 2015 05:01:47 -0800 (PST)
-Subject: Re: [RFC] mm: add a new vector based madvise syscall
-References: <20151029215516.GA3864685@devbig084.prn1.facebook.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <563B5338.3020404@suse.cz>
-Date: Thu, 5 Nov 2015 14:01:44 +0100
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Nov 2015 05:19:10 -0800 (PST)
+Date: Thu, 5 Nov 2015 14:19:05 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH] slub: add missing kmem cgroup support to
+ kmem_cache_free_bulk
+Message-ID: <20151105141905.472b845e@redhat.com>
+In-Reply-To: <20151105083842.GA29259@esperanza>
+References: <20151029130531.15158.58018.stgit@firesoul>
+	<20151105050621.GC20374@js1304-P5Q-DELUXE>
+	<20151105083842.GA29259@esperanza>
 MIME-Version: 1.0
-In-Reply-To: <20151029215516.GA3864685@devbig084.prn1.facebook.com>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, hughd@google.com, hannes@cmpxchg.org, aarcange@redhat.com, je@fb.com, Kernel-team@fb.com, Linux API <linux-api@vger.kernel.org>, Minchan Kim <minchan@kernel.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, brouer@redhat.com
 
-On 10/29/2015 10:55 PM, Shaohua Li wrote:
-> In jemalloc, a free(3) doesn't immediately free the memory to OS even
-> the memory is page aligned/size, and hope the memory can be reused soon.
-> Later the virtual address becomes fragmented, and more and more free
-> memory are aggregated. If the free memory size is large, jemalloc uses
-> madvise(DONT_NEED) to actually free the memory back to OS.
-> 
-> The madvise has significantly overhead paritcularly because of TLB
-> flush. jemalloc does madvise for several virtual address space ranges
-> one time. Instead of calling madvise for each of the ranges, we
-> introduce a new syscall to purge memory for several ranges one time. In
-> this way, we can merge several TLB flush for the ranges to one big TLB
-> flush. This also reduce mmap_sem locking.
-> 
-> I'm running a simple memory allocation benchmark. 32 threads do random
-> malloc/free/realloc. Corresponding jemalloc patch to utilize this API is
-> attached.
-> Without patch:
-> real    0m18.923s
-> user    1m11.819s
-> sys     7m44.626s
-> each cpu gets around 3000K/s TLB flush interrupt. Perf shows TLB flush
-> is hotest functions. mmap_sem read locking (because of page fault) is
-> also heavy.
-> 
-> with patch:
-> real    0m15.026s
-> user    0m48.548s
-> sys     6m41.153s
-> each cpu gets around 140k/s TLB flush interrupt. TLB flush isn't hot at
-> all. mmap_sem read locking (still because of page fault) becomes the
-> sole hot spot.
-> 
-> Another test malloc a bunch of memory in 48 threads, then all threads
-> free the memory. I measure the time of the memory free.
-> Without patch: 34.332s
-> With patch:    17.429s
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Shaohua Li <shli@fb.com>
+On Thu, 5 Nov 2015 11:38:43 +0300
+Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
 
-First the obligatory (please remember on next submissions):
+> On Thu, Nov 05, 2015 at 02:06:21PM +0900, Joonsoo Kim wrote:
+> > On Thu, Oct 29, 2015 at 02:05:31PM +0100, Jesper Dangaard Brouer wrote:
+> > > Initial implementation missed support for kmem cgroup support
+> > > in kmem_cache_free_bulk() call, add this.
+> > > 
+> > > If CONFIG_MEMCG_KMEM is not enabled, the compiler should
+> > > be smart enough to not add any asm code.
+> > > 
+> > > Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> > > ---
+> > >  mm/slub.c |    3 +++
+> > >  1 file changed, 3 insertions(+)
+> > > 
+> > > diff --git a/mm/slub.c b/mm/slub.c
+> > > index 9be12ffae9fc..9875864ad7b8 100644
+> > > --- a/mm/slub.c
+> > > +++ b/mm/slub.c
+> > > @@ -2845,6 +2845,9 @@ static int build_detached_freelist(struct kmem_cache *s, size_t size,
+> > >  	if (!object)
+> > >  		return 0;
+> > >  
+> > > +	/* Support for kmemcg */
+> > > +	s = cache_from_obj(s, object);
+> > > +
+> > >  	/* Start new detached freelist */
+> > >  	set_freepointer(s, object, NULL);
+> > >  	df->page = virt_to_head_page(object);
+> > 
+> > Hello,
+> > 
+> > It'd better to add this 's = cache_from_obj()' on kmem_cache_free_bulk().
+> > Not only build_detached_freelist() but also slab_free() need proper
+> > cache.
+> 
+> Yeah, Joonsoo is right.
 
-[CC += linux-api@vger.kernel.org]
+But cache_from_obj() takes an object as input and in kmem_cache_free_bulk()
+that object is not directly available...  Could send "s" as a reference
+(to build_detached_freelist) to allow re-assignment of "s" so
+slab_free() gets the correct "s".  But it will not look pretty... 
 
-    Since this is a kernel-user-space API change, please CC linux-api@. The
-kernel source file Documentation/SubmitChecklist notes that all Linux kernel
-patches that change userspace interfaces should be CCed to
-linux-api@vger.kernel.org, so that the various parties who are interested in API
-changes are informed. For further information, see
-https://www.kernel.org/doc/man-pages/linux-api-ml.html
+Else we can get the object via: p[size -1] which also look a little
+funny... but it might not be correct in-case NULL pointers in the input
+p-array.
 
-Also CCing Minchan. What about MADV_FREE support?
 
-> ---
->  arch/x86/entry/syscalls/syscall_32.tbl |   1 +
->  arch/x86/entry/syscalls/syscall_64.tbl |   1 +
->  mm/madvise.c                           | 144 ++++++++++++++++++++++++++++++---
->  3 files changed, 134 insertions(+), 12 deletions(-)
+> Besides, there's a bug in kmem_cache_alloc_bulk:
+
+Thanks for spotting this!!!
+
+> > /* Note that interrupts must be enabled when calling this function. */
+> > bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+> > 			   void **p)
+> > {
+> > 	struct kmem_cache_cpu *c;
+> > 	int i;
+> > 
+> > 	/*
+> > 	 * Drain objects in the per cpu slab, while disabling local
+> > 	 * IRQs, which protects against PREEMPT and interrupts
+> > 	 * handlers invoking normal fastpath.
+> > 	 */
+> > 	local_irq_disable();
+> > 	c = this_cpu_ptr(s->cpu_slab);
+> > 
+> > 	for (i = 0; i < size; i++) {
+> > 		void *object = c->freelist;
+> > 
+> > 		if (unlikely(!object)) {
+> > 			/*
+> > 			 * Invoking slow path likely have side-effect
+> > 			 * of re-populating per CPU c->freelist
+> > 			 */
+> > 			p[i] = ___slab_alloc(s, flags, NUMA_NO_NODE,
+> > 					    _RET_IP_, c);
+> > 			if (unlikely(!p[i]))
+> > 				goto error;
+> > 
+> > 			c = this_cpu_ptr(s->cpu_slab);
+> > 			continue; /* goto for-loop */
+> > 		}
+> > 
+> > 		/* kmem_cache debug support */
+> > 		s = slab_pre_alloc_hook(s, flags);
 > 
-> diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
-> index 7663c45..4c99ef5 100644
-> --- a/arch/x86/entry/syscalls/syscall_32.tbl
-> +++ b/arch/x86/entry/syscalls/syscall_32.tbl
-> @@ -382,3 +382,4 @@
->  373	i386	shutdown		sys_shutdown
->  374	i386	userfaultfd		sys_userfaultfd
->  375	i386	membarrier		sys_membarrier
-> +376	i386	madvisev		sys_madvisev
-> diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-> index 278842f..1025406 100644
-> --- a/arch/x86/entry/syscalls/syscall_64.tbl
-> +++ b/arch/x86/entry/syscalls/syscall_64.tbl
-> @@ -331,6 +331,7 @@
->  322	64	execveat		stub_execveat
->  323	common	userfaultfd		sys_userfaultfd
->  324	common	membarrier		sys_membarrier
-> +325	common	madvisev		sys_madvisev
->  
->  #
->  # x32-specific system call numbers start at 512 to avoid cache impact
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index c889fcb..6251103 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -20,6 +20,9 @@
->  #include <linux/backing-dev.h>
->  #include <linux/swap.h>
->  #include <linux/swapops.h>
-> +#include <linux/uio.h>
-> +#include <linux/sort.h>
-> +#include <asm/tlb.h>
->  
->  /*
->   * Any behaviour which results in changes to the vma->vm_flags needs to
-> @@ -415,6 +418,29 @@ madvise_behavior_valid(int behavior)
->  	}
->  }
->  
-> +static bool madvise_range_valid(unsigned long start, size_t len_in, bool *skip)
-> +{
-> +	size_t len;
-> +	unsigned long end;
-> +
-> +	if (start & ~PAGE_MASK)
-> +		return false;
-> +	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
-> +
-> +	/* Check to see whether len was rounded up from small -ve to zero */
-> +	if (len_in && !len)
-> +		return false;
-> +
-> +	end = start + len;
-> +	if (end < start)
-> +		return false;
-> +	if (end == start)
-> +		*skip = true;
-> +	else
-> +		*skip = false;
-> +	return true;
-> +}
-> +
->  /*
->   * The madvise(2) system call.
->   *
-> @@ -464,8 +490,8 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
->  	int unmapped_error = 0;
->  	int error = -EINVAL;
->  	int write;
-> -	size_t len;
->  	struct blk_plug plug;
-> +	bool skip;
->  
->  #ifdef CONFIG_MEMORY_FAILURE
->  	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
-> @@ -474,20 +500,12 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
->  	if (!madvise_behavior_valid(behavior))
->  		return error;
->  
-> -	if (start & ~PAGE_MASK)
-> -		return error;
-> -	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
-> -
-> -	/* Check to see whether len was rounded up from small -ve to zero */
-> -	if (len_in && !len)
-> -		return error;
-> -
-> -	end = start + len;
-> -	if (end < start)
-> +	if (!madvise_range_valid(start, len_in, &skip))
->  		return error;
-> +	end = start + ((len_in + ~PAGE_MASK) & PAGE_MASK);
->  
->  	error = 0;
-> -	if (end == start)
-> +	if (skip)
->  		return error;
->  
->  	write = madvise_need_mmap_write(behavior);
-> @@ -549,3 +567,105 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
->  
->  	return error;
->  }
-> +
-> +static int iov_cmp_func(const void *a, const void *b)
-> +{
-> +	const struct iovec *iova = a;
-> +	const struct iovec *iovb = b;
-> +	unsigned long addr_a = (unsigned long)iova->iov_base;
-> +	unsigned long addr_b = (unsigned long)iovb->iov_base;
-> +
-> +	if (addr_a > addr_b)
-> +		return 1;
-> +	if (addr_a < addr_b)
-> +		return -1;
-> +	return 0;
-> +}
-> +
-> +SYSCALL_DEFINE3(madvisev, const struct iovec __user *, uvector, unsigned long, nr_segs,
-> +	int, behavior)
-> +{
-> +	struct iovec iovstack[UIO_FASTIOV];
-> +	struct iovec *iov = NULL;
-> +	struct vm_area_struct **vmas = NULL;
-> +	unsigned long start, last_start = 0;
-> +	size_t len;
-> +	struct mmu_gather tlb;
-> +	int error;
-> +	int i;
-> +	bool skip;
-> +
-> +	if (behavior != MADV_DONTNEED)
-> +		return -EINVAL;
-> +
-> +	error = rw_copy_check_uvector(CHECK_IOVEC_ONLY, uvector, nr_segs,
-> +			UIO_FASTIOV, iovstack, &iov);
-> +	if (error <= 0)
-> +		return error;
-> +	/* Make sure address in ascend order */
-> +	sort(iov, nr_segs, sizeof(struct iovec), iov_cmp_func, NULL);
-> +
-> +	vmas = kmalloc(nr_segs * sizeof(struct vm_area_struct *), GFP_KERNEL);
-> +	if (!vmas) {
-> +		error = -EFAULT;
-> +		goto out;
-> +	}
-> +	for (i = 0; i < nr_segs; i++) {
-> +		start = (unsigned long)iov[i].iov_base;
-> +		len = ((iov[i].iov_len + ~PAGE_MASK) & PAGE_MASK);
-> +		iov[i].iov_len = len;
-> +		if (start < last_start) {
-> +			error = -EINVAL;
-> +			goto out;
-> +		}
-> +		if (!madvise_range_valid(start, len, &skip)) {
-> +			error = -EINVAL;
-> +			goto out;
-> +		}
-> +		if (skip) {
-> +			error = 0;
-> +			goto out;
-> +		}
-> +		last_start = start + len;
-> +	}
-> +
-> +	down_read(&current->mm->mmap_sem);
-> +	for (i = 0; i < nr_segs; i++) {
-> +		start = (unsigned long)iov[i].iov_base;
-> +		len = iov[i].iov_len;
-> +		vmas[i] = find_vma(current->mm, start);
-> +		/*
-> +		 * don't allow range cross vma, it doesn't make sense for
-> +		 * DONTNEED
-> +		 */
-> +		if (!vmas[i] || start < vmas[i]->vm_start ||
-> +		    start + len > vmas[i]->vm_end) {
-> +			error = -ENOMEM;
-> +			goto up_out;
-> +		}
-> +		if (vmas[i]->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP)) {
-> +			error = -EINVAL;
-> +			goto up_out;
-> +		}
-> +	}
-> +
-> +	lru_add_drain();
-> +	tlb_gather_mmu(&tlb, current->mm, (unsigned long)iov[0].iov_base,
-> +		last_start);
-> +	update_hiwater_rss(current->mm);
-> +	for (i = 0; i < nr_segs; i++) {
-> +		start = (unsigned long)iov[i].iov_base;
-> +		len = iov[i].iov_len;
-> +		unmap_vmas(&tlb, vmas[i], start, start + len);
-> +	}
-> +	tlb_finish_mmu(&tlb, (unsigned long)iov[0].iov_base, last_start);
-> +	error = 0;
-> +
-> +up_out:
-> +	up_read(&current->mm->mmap_sem);
-> +out:
-> +	kfree(vmas);
-> +	if (iov != iovstack)
-> +		kfree(iov);
-> +	return error;
-> +}
+> slab_pre_alloc_hook expects a global cache and returns per memcg one, so
+> calling this function from inside a kmemcg will result in hitting the
+> VM_BUG_ON in __memcg_kmem_get_cache, not saying about mis-accounting of
+> __slab_alloc.
 > 
+> memcg_kmem_get_cache should be called once, in the very beginning of
+> kmem_cache_alloc_bulk, and it should be matched by memcg_kmem_put_cache
+> when we are done.
+
+To solve this correctly it looks like I need to pull out
+memcg_kmem_put_cache(s) call in the slab_post_alloc_hook() call.
+
 > 
-> je.patch
-> 
-> 
-> diff --git a/src/arena.c b/src/arena.c
-> index 43733cc..ae2de35 100644
-> --- a/src/arena.c
-> +++ b/src/arena.c
-> @@ -1266,6 +1266,7 @@ arena_dirty_count(arena_t *arena)
->  	return (ndirty);
->  }
->  
-> +#define PURGE_VEC 1
->  static size_t
->  arena_compute_npurge(arena_t *arena, bool all)
->  {
-> @@ -1280,6 +1281,10 @@ arena_compute_npurge(arena_t *arena, bool all)
->  		threshold = threshold < chunk_npages ? chunk_npages : threshold;
->  
->  		npurge = arena->ndirty - threshold;
-> +#if PURGE_VEC
-> +		if (npurge < arena->ndirty / 2)
-> +			npurge = arena->ndirty / 2;
-> +#endif
->  	} else
->  		npurge = arena->ndirty;
->  
-> @@ -1366,6 +1371,16 @@ arena_stash_dirty(arena_t *arena, chunk_hooks_t *chunk_hooks, bool all,
->  	return (nstashed);
->  }
->  
-> +#if PURGE_VEC
-> +#define MAX_IOVEC 32
-> +bool pages_purge_vec(struct iovec *iov, unsigned long nr_segs)
-> +{
-> +	int ret = syscall(325, iov, nr_segs, MADV_DONTNEED);
-> +
-> +	return !!ret;
-> +}
-> +#endif
-> +
->  static size_t
->  arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
->      arena_runs_dirty_link_t *purge_runs_sentinel,
-> @@ -1374,6 +1389,10 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
->  	size_t npurged, nmadvise;
->  	arena_runs_dirty_link_t *rdelm;
->  	extent_node_t *chunkselm;
-> +#if PURGE_VEC
-> +	struct iovec iovec[MAX_IOVEC];
-> +	int vec_index = 0;
-> +#endif
->  
->  	if (config_stats)
->  		nmadvise = 0;
-> @@ -1418,9 +1437,21 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
->  				flag_unzeroed = 0;
->  				flags = CHUNK_MAP_DECOMMITTED;
->  			} else {
-> +#if !PURGE_VEC
->  				flag_unzeroed = chunk_purge_wrapper(arena,
->  				    chunk_hooks, chunk, chunksize, pageind <<
->  				    LG_PAGE, run_size) ? CHUNK_MAP_UNZEROED : 0;
-> +#else
-> +				flag_unzeroed = 0;
-> +				iovec[vec_index].iov_base = (void *)((uintptr_t)chunk +
-> +					(pageind << LG_PAGE));
-> +				iovec[vec_index].iov_len = run_size;
-> +				vec_index++;
-> +				if (vec_index >= MAX_IOVEC) {
-> +					pages_purge_vec(iovec, vec_index);
-> +					vec_index = 0;
-> +				}
-> +#endif
->  				flags = flag_unzeroed;
->  			}
->  			arena_mapbits_large_set(chunk, pageind+npages-1, 0,
-> @@ -1449,6 +1480,10 @@ arena_purge_stashed(arena_t *arena, chunk_hooks_t *chunk_hooks,
->  		if (config_stats)
->  			nmadvise++;
->  	}
-> +#if PURGE_VEC
-> +	if (vec_index > 0)
-> +		pages_purge_vec(iovec, vec_index);
-> +#endif
->  	malloc_mutex_lock(&arena->lock);
->  
->  	if (config_stats) {
-> 
+> > 		if (unlikely(!s))
+> > 			goto error;
+> > 
+> > 		c->freelist = get_freepointer(s, object);
+> > 		p[i] = object;
+> > 
+> > 		/* kmem_cache debug support */
+> > 		slab_post_alloc_hook(s, flags, object);
+> > 	}
+> > 	c->tid = next_tid(c->tid);
+> > 	local_irq_enable();
+> > 
+> > 	/* Clear memory outside IRQ disabled fastpath loop */
+> > 	if (unlikely(flags & __GFP_ZERO)) {
+> > 		int j;
+> > 
+> > 		for (j = 0; j < i; j++)
+> > 			memset(p[j], 0, s->object_size);
+> > 	}
+> > 
+> > 	return true;
+> > 
+> > error:
+> > 	__kmem_cache_free_bulk(s, i, p);
+> > 	local_irq_enable();
+> > 	return false;
+> > }
+
+
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
