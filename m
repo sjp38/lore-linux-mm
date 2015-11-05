@@ -1,44 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B471582F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 11:31:40 -0500 (EST)
-Received: by lbbkw15 with SMTP id kw15so33467108lbb.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 08:31:40 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id qb2si4848176lbb.85.2015.11.05.08.31.39
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id C671582F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 12:24:03 -0500 (EST)
+Received: by wimw2 with SMTP id w2so14857022wim.1
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 09:24:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id pe3si9263699wjb.62.2015.11.05.09.24.02
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 08:31:39 -0800 (PST)
-Date: Thu, 5 Nov 2015 19:31:18 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 4/4] mm: prepare page_referenced() and page_idle to new
- THP refcounting
-Message-ID: <20151105163118.GJ29259@esperanza>
-References: <1446564375-72143-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1446564375-72143-5-git-send-email-kirill.shutemov@linux.intel.com>
- <20151105091013.GC29259@esperanza>
- <20151105092459.GC7614@node.shutemov.name>
- <20151105120726.GD29259@esperanza>
- <20151105123606.GE7614@node.shutemov.name>
- <20151105125354.GE29259@esperanza>
- <20151105125838.GF7614@node.shutemov.name>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 05 Nov 2015 09:24:02 -0800 (PST)
+Subject: Re: mm Documentation: a little tidying in proc.txt
+References: <alpine.LSU.2.11.1510291205481.3475@eggly.anvils>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <563B90B0.9020202@suse.cz>
+Date: Thu, 5 Nov 2015 18:24:00 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20151105125838.GF7614@node.shutemov.name>
+In-Reply-To: <alpine.LSU.2.11.1510291205481.3475@eggly.anvils>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-On Thu, Nov 05, 2015 at 02:58:38PM +0200, Kirill A. Shutemov wrote:
+On 10/29/2015 08:07 PM, Hugh Dickins wrote:
+> There's an odd line about "Locked" at the head of the description of
+> /proc/meminfo: it seems to have strayed from /proc/PID/smaps, so lead
+> it back there.  Move "Swap" and "SwapPss" descriptions down above it,
+> to match the order in the file (though "PageSize"s still undescribed).
+> 
+> The example of "Locked: 374 kB" (the same as Pss, neither Rss nor Size)
+> is so unlikely as to be misleading: just make it 0, this is /bin/bash
+> text; which would be "dw" (disabled write) not "de" (do not expand).
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-> Okay. Could you prepare the patch?
-
-OK, give me some time.
-
-Thanks,
-Vladimir
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
