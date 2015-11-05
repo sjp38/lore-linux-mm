@@ -1,137 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CA8082F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 13:31:38 -0500 (EST)
-Received: by wmnn186 with SMTP id n186so22140233wmn.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 10:31:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j6si9594023wjf.167.2015.11.05.10.31.37
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F8FE82F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 13:44:39 -0500 (EST)
+Received: by pasz6 with SMTP id z6so98616401pas.2
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 10:44:38 -0800 (PST)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id qh1si9184635pbb.192.2015.11.05.10.44.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Nov 2015 10:31:37 -0800 (PST)
-Subject: Re: [PATCH 6/12] mm: page migration use the put_new_page whenever
- necessary
-References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
- <alpine.LSU.2.11.1510182156010.2481@eggly.anvils>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <563BA087.1090402@suse.cz>
-Date: Thu, 5 Nov 2015 19:31:35 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Nov 2015 10:44:37 -0800 (PST)
+Received: by pacdm15 with SMTP id dm15so70647932pac.3
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 10:44:37 -0800 (PST)
+Subject: Re: [PATCH v2 2/2] arm: mm: support ARCH_MMAP_RND_BITS.
+References: <1446574204-15567-1-git-send-email-dcashman@android.com>
+ <1446574204-15567-2-git-send-email-dcashman@android.com>
+ <CAGXu5jKGzDD9WVQnMTT2EfupZtjpdcASUpx-3npLAB-FctLodA@mail.gmail.com>
+ <56393FD0.6080001@android.com>
+ <CAGXu5jLe=OgZ2DG_MRXA8x6BwpEd77fNZBj3wjbDiSdiBurz7w@mail.gmail.com>
+ <563A4EDC.6090403@android.com>
+From: Daniel Cashman <dcashman@android.com>
+Message-ID: <563BA393.9020504@android.com>
+Date: Thu, 5 Nov 2015 10:44:35 -0800
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1510182156010.2481@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <563A4EDC.6090403@android.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: Kees Cook <keescook@chromium.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, dcashman <dcashman@google.com>, Michael Ellerman <michael@ellerman.id.au>
 
-On 10/19/2015 06:57 AM, Hugh Dickins wrote:
-> I don't know of any problem from the way it's used in our current tree,
-> but there is one defect in page migration's custom put_new_page feature.
+On 11/04/2015 10:30 AM, Daniel Cashman wrote:
+> On 11/3/15 3:21 PM, Kees Cook wrote:
+>> On Tue, Nov 3, 2015 at 3:14 PM, Daniel Cashman <dcashman@android.com> wrote:
+>>> On 11/03/2015 11:19 AM, Kees Cook wrote:
+>>>> Do you have patches for x86 and arm64?
+>>>
+>>> I was holding off on those until I could gauge upstream reception.  If
+>>> desired, I could put those together and add them as [PATCH 3/4] and
+>>> [PATCH 4/4].
+>>
+>> If they're as trivial as I'm hoping, yeah, let's toss them in now. If
+>> not, skip 'em. PowerPC, MIPS, and s390 should be relatively simple
+>> too, but one or two of those have somewhat stranger calculations when
+>> I looked, so their Kconfigs may not be as clean.
 > 
-> An unused newpage is expected to be released with the put_new_page(),
-> but there was one MIGRATEPAGE_SUCCESS (0) path which released it with
-> putback_lru_page(): which can be very wrong for a custom pool.
+> Creating the patches should be simple, it's the choice of minimum and
+> maximum values for each architecture that I'd be most concerned about.
+> I'll put them together, though, and the ranges can be changed following
+> discussion with those more knowledgeable, if needed.  I also don't have
+> devices on which to test the PowerPC, MIPS and s390 changes, so I'll
+> need someone's help for that.
 
-I'm a bit confused. So there's no immediate bug to be fixed but there was one in
-the mainline in the past? Or elsewhere?
+Actually, in preparing the x86 and arm64 patches, it became apparent
+that the current patch-set does not address 32-bit executables running
+on 64-bit systems (compatibility mode), since only one procfs
+mmap_rnd_bits variable is created and exported. Some possible solutions:
 
-> Fixed more easily by resetting put_new_page once it won't be needed,
-> than by adding a further flag to modify the rc test.
+1) Create a second set for compatibility, e.g. mmap_rnd_compat_bits,
+mmap_rnd_compat_bits_min, mmap_rnd_compat_bits_max and export it as with
+mmap_rnd_bits.  This provides the most control and is truest to the
+spirit of this patch, but pollutes the Kconfigs and procfs a bit more,
+especially if we ever need a mmap_rnd_64compat_bits...
 
-What is "fixed" if there is no bug? :) Maybe "Further bugs would be
-prevented..." or something?
+2) Get rid of the arch-independent nature of this patch and instead let
+each arch define its own Kconfig values and procfs entries. Essentially
+the same outcome as the above, but with less disruption in the common
+kernel code, although also with a potentially variable ABI.
 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+3) Default to the lowest-supported, e.g. arm64 running with
+CONFIG_COMPAT would be limited to the same range as arm.  This solution
+I think is highly undesirable, as it actually makes things worse for
+existing 64-bit platforms.
 
-I agree it's less error-prone after you patch, so:
+4) Support setting the COMPAT values by Kconfig, but don't expose them
+via procfs.  This keeps the procfs change simple and gets most of its
+benefits.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+5) Leave the COMPAT values specified in code, and only adjust introduce
+config and tunable options for the 64-bit processes.  Basically keep
+this patch-set as-is and not give any benefit to compatible applications.
 
-> ---
->  mm/migrate.c |   19 +++++++++++--------
->  1 file changed, 11 insertions(+), 8 deletions(-)
-> 
-> --- migrat.orig/mm/migrate.c	2015-10-18 17:53:17.579329434 -0700
-> +++ migrat/mm/migrate.c	2015-10-18 17:53:20.159332371 -0700
-> @@ -938,10 +938,11 @@ static ICE_noinline int unmap_and_move(n
->  				   int force, enum migrate_mode mode,
->  				   enum migrate_reason reason)
->  {
-> -	int rc = 0;
-> +	int rc = MIGRATEPAGE_SUCCESS;
->  	int *result = NULL;
-> -	struct page *newpage = get_new_page(page, private, &result);
-> +	struct page *newpage;
->  
-> +	newpage = get_new_page(page, private, &result);
->  	if (!newpage)
->  		return -ENOMEM;
->  
-> @@ -955,6 +956,8 @@ static ICE_noinline int unmap_and_move(n
->  			goto out;
->  
->  	rc = __unmap_and_move(page, newpage, force, mode);
-> +	if (rc == MIGRATEPAGE_SUCCESS)
-> +		put_new_page = NULL;
->  
->  out:
->  	if (rc != -EAGAIN) {
-> @@ -981,7 +984,7 @@ out:
->  	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
->  	 * during isolation.
->  	 */
-> -	if (rc != MIGRATEPAGE_SUCCESS && put_new_page) {
-> +	if (put_new_page) {
->  		ClearPageSwapBacked(newpage);
->  		put_new_page(newpage, private);
->  	} else if (unlikely(__is_movable_balloon_page(newpage))) {
-> @@ -1022,7 +1025,7 @@ static int unmap_and_move_huge_page(new_
->  				struct page *hpage, int force,
->  				enum migrate_mode mode)
->  {
-> -	int rc = 0;
-> +	int rc = -EAGAIN;
->  	int *result = NULL;
->  	int page_was_mapped = 0;
->  	struct page *new_hpage;
-> @@ -1044,8 +1047,6 @@ static int unmap_and_move_huge_page(new_
->  	if (!new_hpage)
->  		return -ENOMEM;
->  
-> -	rc = -EAGAIN;
-> -
->  	if (!trylock_page(hpage)) {
->  		if (!force || mode != MIGRATE_SYNC)
->  			goto out;
-> @@ -1070,8 +1071,10 @@ static int unmap_and_move_huge_page(new_
->  	if (anon_vma)
->  		put_anon_vma(anon_vma);
->  
-> -	if (rc == MIGRATEPAGE_SUCCESS)
-> +	if (rc == MIGRATEPAGE_SUCCESS) {
->  		hugetlb_cgroup_migrate(hpage, new_hpage);
-> +		put_new_page = NULL;
-> +	}
->  
->  	unlock_page(hpage);
->  out:
-> @@ -1083,7 +1086,7 @@ out:
->  	 * it.  Otherwise, put_page() will drop the reference grabbed during
->  	 * isolation.
->  	 */
-> -	if (rc != MIGRATEPAGE_SUCCESS && put_new_page)
-> +	if (put_new_page)
->  		put_new_page(new_hpage, private);
->  	else
->  		putback_active_hugepage(new_hpage);
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+My preference would be for either solutions 1 or 4, but would love
+feedback and/or other solutions. Thoughts?
+
+Thank You,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
