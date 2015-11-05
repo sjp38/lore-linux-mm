@@ -1,79 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id E561A82F64
-	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 18:50:33 -0500 (EST)
-Received: by iodd200 with SMTP id d200so72273314iod.0
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 15:50:33 -0800 (PST)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id gb2si4143743igd.38.2015.11.04.15.50.33
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id BA0B682F64
+	for <linux-mm@kvack.org>; Wed,  4 Nov 2015 19:13:42 -0500 (EST)
+Received: by pasz6 with SMTP id z6so69895085pas.2
+        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 16:13:42 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id pp8si3468336pbc.2.2015.11.04.16.13.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Nov 2015 15:50:33 -0800 (PST)
-Received: by igbhv6 with SMTP id hv6so47789323igb.0
-        for <linux-mm@kvack.org>; Wed, 04 Nov 2015 15:50:33 -0800 (PST)
-Subject: Re: [PATCH 5/8] mm: move lazily freed pages to inactive list
-References: <1446188504-28023-1-git-send-email-minchan@kernel.org>
- <1446188504-28023-6-git-send-email-minchan@kernel.org>
- <20151104205504.GA9927@cmpxchg.org> <563A7D21.6040505@gmail.com>
- <20151104225527.GA25941@cmpxchg.org> <563A9681.3070102@gmail.com>
-From: Daniel Micay <danielmicay@gmail.com>
-Message-ID: <563A99A2.6010708@gmail.com>
-Date: Wed, 4 Nov 2015 18:49:54 -0500
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 04 Nov 2015 16:13:41 -0800 (PST)
+Date: Thu, 5 Nov 2015 09:13:48 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2 01/13] mm: support madvise(MADV_FREE)
+Message-ID: <20151105001348.GC7357@bbox>
+References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
+ <1446600367-7976-2-git-send-email-minchan@kernel.org>
+ <CALCETrUuNs=26UQtkU88cKPomx_Bik9mbgUUF9q7Nmh1pQJ4qg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <563A9681.3070102@gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="k0kDwtgODIEgNHu0OeacGeSBTwiQV7a4u"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrUuNs=26UQtkU88cKPomx_Bik9mbgUUF9q7Nmh1pQJ4qg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, zhangyanfei@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Shaohua Li <shli@kernel.org>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux API <linux-api@vger.kernel.org>, Jason Evans <je@fb.com>, Shaohua Li <shli@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, yalin.wang2010@gmail.com, Daniel Micay <danielmicay@gmail.com>, Mel Gorman <mgorman@suse.de>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---k0kDwtgODIEgNHu0OeacGeSBTwiQV7a4u
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+On Tue, Nov 03, 2015 at 07:41:35PM -0800, Andy Lutomirski wrote:
+> On Nov 3, 2015 5:30 PM, "Minchan Kim" <minchan@kernel.org> wrote:
+> >
+> > Linux doesn't have an ability to free pages lazy while other OS already
+> > have been supported that named by madvise(MADV_FREE).
+> >
+> > The gain is clear that kernel can discard freed pages rather than swapping
+> > out or OOM if memory pressure happens.
+> >
+> > Without memory pressure, freed pages would be reused by userspace without
+> > another additional overhead(ex, page fault + allocation + zeroing).
+> >
+> 
+> [...]
+> 
+> >
+> > How it works:
+> >
+> > When madvise syscall is called, VM clears dirty bit of ptes of the range.
+> > If memory pressure happens, VM checks dirty bit of page table and if it
+> > found still "clean", it means it's a "lazyfree pages" so VM could discard
+> > the page instead of swapping out.  Once there was store operation for the
+> > page before VM peek a page to reclaim, dirty bit is set so VM can swap out
+> > the page instead of discarding.
+> 
+> What happens if you MADV_FREE something that's MAP_SHARED or isn't
+> ordinary anonymous memory?  There's a long history of MADV_DONTNEED on
+> such mappings causing exploitable problems, and I think it would be
+> nice if MADV_FREE were obviously safe.
 
-> From a user perspective, it doesn't depend on swap. It's just slower
-> without swap because it does what MADV_DONTNEED does. The current
-> implementation can be dropped in where MADV_DONTNEED was previously use=
-d.
+It filter out VM_LOCKED|VM_HUGETLB|VM_PFNMAP and file-backed vma and MAP_SHARED
+with vma_is_anonymous.
 
-It just wouldn't replace existing layers of purging logic until that
-edge case is fixed and it gains better THP integration.
+> 
+> Does this set the write protect bit?
 
-It's already a very useful API with significant performance wins over
-MADV_DONTNEED, so it will be useful. The only risk involved in landing
-it is that a better feature might come along. Worst case scenario being
-that the kernel ends up with a synonym for MADV_DONTNEED (but I think
-there will still be a use case for this even if a pinning/unpinning API
-existed, as this is more precise).
+No.
 
+> 
+> What happens on architectures without hardware dirty tracking?  For
+> that matter, even on architecture with hardware dirty tracking, what
+> happens in multithreaded processes that have the dirty TLB state
+> cached in a different CPU's TLB?
+> 
+> Using the dirty bit for these semantics scares me.  This API creates a
+> page that can have visible nonzero contents and then can
+> asynchronously and magically zero itself thereafter.  That makes me
+> nervous.  Could we use the accessed bit instead?  Then the observable
 
---k0kDwtgODIEgNHu0OeacGeSBTwiQV7a4u
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+Access bit is used by aging algorithm for reclaim. In addition,
+we have supported clear_refs feacture.
+IOW, it could be reset anytime so it's hard to use marker for
+lazy freeing at the moment.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+> semantics would be equivalent to having MADV_FREE either zero the page
+> or do nothing, except that it doesn't make up its mind until the next
+> read.
+> 
+> > +                       ptent = pte_mkold(ptent);
+> > +                       ptent = pte_mkclean(ptent);
+> > +                       set_pte_at(mm, addr, pte, ptent);
+> > +                       tlb_remove_tlb_entry(tlb, pte, addr);
+> 
+> It looks like you are flushing the TLB.  In a multithreaded program,
+> that's rather expensive.  Potentially silly question: would it be
+> better to just zero the page immediately in a multithreaded program
+> and then, when swapping out, check the page is zeroed and, if so, skip
+> swapping it out?  That could be done without forcing an IPI.
 
-iQIcBAEBCAAGBQJWOpmiAAoJEPnnEuWa9fIqDPQP/R9XV3XxkHqRG4OYJrAtg1WB
-FOHhev+ws5lP+6P/4Da6BS9OFPC8Ok7P2tCf/9b3p2nEMmN8vVmuKdTToZpUfTzK
-n5//uXoUey5+S1OlDD7Vs9StkqdBG3mhz7eISzRn0TTv8MMeXkvk4n90fzjrIQF1
-iEnUvOTrB1SU8U+DvTGuHwkfHN5WWFBJjnIFRqzADHBVQoXS9MRC0QZM5SaKF5Ms
-j72DJVwpUQUWVeMhtuTtyehyCOp1mYTLoMlII8z1E/sFxZ9Bry/WG4iCIWNPfDxb
-sQVqBWk2v80LF7Fo3bA+YuM6D+ZqSFULec+WUpq6s0ZESiFAcb3kJlriwocGuHdF
-A16h+ZKQIXIdsUD5KbnxfsK0OiSH7/PE+GCpe8OhCOw5yH5VVePLcxBJ0MCXAJIW
-mOIuYNlgadl2Pgh2YiXT1l9A8moICZzAWwUnjjvWdPow2JtHEDsAV2UdT1jOuYCb
-EQsiiMxy2FNagHqAu5cWnSrgDatQPW5CY4lqngD9RY8hX+/RxYZ2Yxmg7R1/Tg6P
-rsVFjrWMkw4KqdSIBberOEKYfiRcpU/OZ6/mPmRf2gokDQA7DjCr1tQOq85d1K7O
-nrFN0nhI95EnK1rX8sYpYy39D/6ZfIU9UjLiLKNo4qq2z4V4juMNYH92hjra92Qn
-WBbxJnB1JR6DjLNm0eiW
-=mmlT
------END PGP SIGNATURE-----
+So, we should monitor all of pages in reclaim patch whether they are
+zero or not? It is fatster for allocation side but much slower in
+reclaim side. For avoiding that, we should mark something for lazy
+freeing page out of page table.
 
---k0kDwtgODIEgNHu0OeacGeSBTwiQV7a4u--
+Anyway, it depends on the TLB flush overehead vs memset overhead.
+If the hinted range is pretty big and small system(ie, not many core),
+memset overhead would't not trivial compared to TLB flush.
+Even, some of ARM arches doesn't do IPI to TLB flush so the overhead
+would be cheaper.
+
+I don't want to push more optimization in new syscall from the beginning.
+It's an optimization and might come better idea once we hear from the
+voice of userland folks. Then, it's not too late.
+Let's do step by step.
+
+> 
+> > +static int madvise_free_single_vma(struct vm_area_struct *vma,
+> > +                       unsigned long start_addr, unsigned long end_addr)
+> > +{
+> > +       unsigned long start, end;
+> > +       struct mm_struct *mm = vma->vm_mm;
+> > +       struct mmu_gather tlb;
+> > +
+> > +       if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+> > +               return -EINVAL;
+> > +
+> > +       /* MADV_FREE works for only anon vma at the moment */
+> > +       if (!vma_is_anonymous(vma))
+> > +               return -EINVAL;
+> 
+> Does anything weird happen if it's shared?
+
+Hmm, you mean MAP_SHARED|MAP_ANONYMOUS?
+In that case, vma->vm_ops = &shmem_vm_ops so vma_is anonymous should filter it out.
+
+> 
+> > +               if (!PageDirty(page) && (flags & TTU_FREE)) {
+> > +                       /* It's a freeable page by MADV_FREE */
+> > +                       dec_mm_counter(mm, MM_ANONPAGES);
+> > +                       goto discard;
+> > +               }
+> 
+> Does something clear TTU_FREE the next time the page gets marked clean?
+
+Sorry, I don't understand. Could you elaborate it more?
+
+> 
+> --Andy
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
