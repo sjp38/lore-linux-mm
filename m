@@ -1,73 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D7A582F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 12:30:30 -0500 (EST)
-Received: by wicll6 with SMTP id ll6so14209467wic.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 09:30:29 -0800 (PST)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id om6si7252724wjc.34.2015.11.05.09.30.28
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CBC282F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 12:39:49 -0500 (EST)
+Received: by ioll68 with SMTP id l68so98812709iol.3
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 09:39:49 -0800 (PST)
+Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
+        by mx.google.com with ESMTPS id 41si7451709iop.200.2015.11.05.09.39.48
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 09:30:29 -0800 (PST)
-Received: by wmeg8 with SMTP id g8so20760272wme.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 09:30:28 -0800 (PST)
-Date: Thu, 5 Nov 2015 18:30:27 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/4] memcg: always enable kmemcg on the default hierarchy
-Message-ID: <20151105173027.GE15111@dhcp22.suse.cz>
-References: <1440775530-18630-1-git-send-email-tj@kernel.org>
- <1440775530-18630-5-git-send-email-tj@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1440775530-18630-5-git-send-email-tj@kernel.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 05 Nov 2015 09:39:49 -0800 (PST)
+Date: Thu, 5 Nov 2015 11:39:46 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm: slab: Only move management objects off-slab for
+ sizes larger than KMALLOC_MIN_SIZE
+In-Reply-To: <1446724235-31400-1-git-send-email-catalin.marinas@arm.com>
+Message-ID: <alpine.DEB.2.20.1511051139220.28479@east.gentwo.org>
+References: <20151105043155.GA20374@js1304-P5Q-DELUXE> <1446724235-31400-1-git-send-email-catalin.marinas@arm.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, vdavydov@parallels.com, kernel-team@fb.com
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Geert Uytterhoeven <geert@linux-m68k.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Just for the reference. This has been discussed as a part of other email
-thread discussed here:
-http://lkml.kernel.org/r/20151027122647.GG9891%40dhcp22.suse.cz
+On Thu, 5 Nov 2015, Catalin Marinas wrote:
 
-I am _really_ sorry for hijacking that one - I didn't intend to do
-so but my remark ended up in a full discussion. If I knew it would go
-that way I wouldn't even mention it.
+> This patch introduces an OFF_SLAB_MIN_SIZE macro which takes
+> KMALLOC_MIN_SIZE into account. It also solves a slab bug on arm64 where
+> the first kmalloc_cache to be initialised after slab_early_init = 0,
+> "kmalloc-128", fails to allocate off-slab management objects from the
+> same "kmalloc-128" cache.
 
-On Fri 28-08-15 11:25:30, Tejun Heo wrote:
-> On the default hierarchy, all memory consumption will be accounted
-> together and controlled by the same set of limits.  Always enable
-> kmemcg on the default hierarchy.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> ---
->  mm/memcontrol.c | 7 +++++++
->  1 file changed, 7 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c94b686..8a5dd01 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4362,6 +4362,13 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
->  	if (ret)
->  		return ret;
->  
-> +	/* kmem is always accounted together on the default hierarchy */
-> +	if (cgroup_on_dfl(css->cgroup)) {
-> +		ret = memcg_activate_kmem(memcg, PAGE_COUNTER_MAX);
-> +		if (ret)
-> +			return ret;
-> +	}
-> +
->  	/*
->  	 * Make sure the memcg is initialized: mem_cgroup_iter()
->  	 * orders reading memcg->initialized against its callers
-> -- 
-> 2.4.3
-
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
