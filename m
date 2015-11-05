@@ -1,61 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A8EBA82F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 14:49:29 -0500 (EST)
-Received: by ykdr3 with SMTP id r3so150555496ykd.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 11:49:29 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b137si5937638vka.212.2015.11.05.11.49.28
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 6771E82F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 15:13:16 -0500 (EST)
+Received: by qkcn129 with SMTP id n129so37698452qkc.1
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 12:13:16 -0800 (PST)
+Received: from mail-qg0-x232.google.com (mail-qg0-x232.google.com. [2607:f8b0:400d:c04::232])
+        by mx.google.com with ESMTPS id g143si5885672qhc.114.2015.11.05.12.13.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 11:49:28 -0800 (PST)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [RFC 00/11] DAX fsynx/msync support
-References: <1446149535-16200-1-git-send-email-ross.zwisler@linux.intel.com>
-	<20151030035533.GU19199@dastard>
-	<20151030183938.GC24643@linux.intel.com>
-	<20151101232948.GF10656@dastard>
-	<x49vb9kqy5k.fsf@segfault.boston.devel.redhat.com>
-	<20151102201029.GI10656@dastard>
-	<x49twp4p11j.fsf@segfault.boston.devel.redhat.com>
-	<20151105083309.GJ19199@dastard>
-Date: Thu, 05 Nov 2015 14:49:21 -0500
-In-Reply-To: <20151105083309.GJ19199@dastard> (Dave Chinner's message of "Thu,
-	5 Nov 2015 19:33:09 +1100")
-Message-ID: <x498u6crzum.fsf@segfault.boston.devel.redhat.com>
+        Thu, 05 Nov 2015 12:13:15 -0800 (PST)
+Received: by qgeo38 with SMTP id o38so76627105qge.0
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 12:13:15 -0800 (PST)
+Subject: Re: [PATCH v2 01/13] mm: support madvise(MADV_FREE)
+References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
+ <1446600367-7976-2-git-send-email-minchan@kernel.org>
+ <CALCETrUuNs=26UQtkU88cKPomx_Bik9mbgUUF9q7Nmh1pQJ4qg@mail.gmail.com>
+ <56399CA5.8090101@gmail.com>
+ <CALCETrU5P-mmjf+8QuS3-pm__R02j2nnRc5B1gQkeC013XWNvA@mail.gmail.com>
+ <563A813B.9080903@gmail.com> <20151105181726.GA63566@kernel.org>
+From: Daniel Micay <danielmicay@gmail.com>
+Message-ID: <563BB855.6020304@gmail.com>
+Date: Thu, 5 Nov 2015 15:13:09 -0500
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20151105181726.GA63566@kernel.org>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="ClqICLLTDgILX9WnJ236tnF4v7NNE29Gh"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, axboe@kernel.dk
+To: Shaohua Li <shli@kernel.org>
+Cc: Andy Lutomirski <luto@amacapital.net>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux API <linux-api@vger.kernel.org>, Jason Evans <je@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, yalin wang <yalin.wang2010@gmail.com>, Mel Gorman <mgorman@suse.de>
 
-Dave Chinner <david@fromorbit.com> writes:
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--ClqICLLTDgILX9WnJ236tnF4v7NNE29Gh
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
->> But this part is not.  It is up to the I/O scheduler to decide when to
->> dispatch requests.  It can hold on to them for a variety of reasons.
->> Flush requests, however, do not go through the I/O scheduler.  At the
->
-> That's pure REQ_FLUSH bios, right? Aren't data IOs with
-> REQ_FLUSH|REQ_FUA sorted like any other IO?
+> I posted a patch doing exactly iovec madvise. Doesn't support MADV_FREE=
+ yet
+> though, but should be easy to do it.
+>=20
+> http://marc.info/?l=3Dlinux-mm&m=3D144615663522661&w=3D2
 
-No, they also go through the flush machinery, and so short-circuit the
-I/O scheduler.
+I think that would be a great way to deal with this. It keeps the nice
+property of still being able to drop pages in allocations that have been
+handed out but not yet touched. The allocator just needs to be designed
+to do lots of purging in one go (i.e. something like an 8:1 active:clean
+ratio triggers purging and it goes all the way to 16:1).
 
->> Des xfs rely on this model for correctness?  If so, I'd say we've got a
->> problem
->
-> No, it doesn't. The XFS integrity model doesn't trust the IO layers
-> to tell the truth about IO ordering and completion or for it's
-> developers to fully understand how IO layer ordering works. :P
->
-> i.e. we wait for full completions of all dependent IO before issuing
-> flushes or log writes that use REQ_FLUSH|REQ_FUA semantics to ensure
-> the dependent IOs are fully caught by the cache flushes...
 
-OK, phew!  ;-)
+--ClqICLLTDgILX9WnJ236tnF4v7NNE29Gh
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
 
--Jeff
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJWO7hZAAoJEPnnEuWa9fIq5usQAI/qFzkBpBjxnmiLTb8sPPzm
+OUZp6yZi5bjcreflXXxsvufHbOZ1zqkVFe8JnxGn+Pg1chYSEm4xRUyK/9LCchqR
+1Be3avsVfUPJGuiRrHnrY6Qq46Vmk2Iu6HaY8vgkmN/c/qMifY8PgADPQ+RPJ7Du
+yNkm1kpBoxoYnKu5X2QCfQU6G8TJGCUA+nuqalvNPSqySHAfl5slAXvLJUFc42gg
+CENG0PWWsPQXbPQGYP3CAuKxMW+hNw7YnG5J2SYyncjnviVfjdoo1aIgINkRokY9
+z5CtxU3EEI7B5H8qPWiRe6i/2/JLUMlnixEVsTyh4Nr1yLNYP43jCeH+/+CKIiQK
+ABOcnjPBfqEiHbzF5V1DOOUbzOBDiM0TonVgfUPhX3+IY7Dbm73d+ErX98fJmPI2
+EufQaD6ZN+KcUj8lWR1pBACzC7wUUn86HJYLuHFv3hbmMqVKDlOiV5C7KIpJ0+nD
+foQeyiwxoIJNiSAkIv/Y764IVrWo6S3z7U8sTHUeF+E3YMnl6uOngySG/Arwiynl
+PeswqHKYi/LDF2sEYlFGYeQRF+yCQ2cTqiVZcl1mhkDJjhZt2goiY0pzxb36/XZo
+HKwGEAruCW+aDAt5aXzjylzU6kPkWiuwZh8BBZ/Ya7bMrPcgxV0AqZGWvnTb3m4/
++dwvdZaiiHv8o6jEcXy+
+=X40y
+-----END PGP SIGNATURE-----
+
+--ClqICLLTDgILX9WnJ236tnF4v7NNE29Gh--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
