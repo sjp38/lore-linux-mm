@@ -1,165 +1,250 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D04E082F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 09:40:05 -0500 (EST)
-Received: by wmeg8 with SMTP id g8so15272560wme.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 06:40:05 -0800 (PST)
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
-        by mx.google.com with ESMTPS id wt9si8340359wjb.141.2015.11.05.06.40.04
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E55582F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 10:00:10 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so65620070pac.3
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 07:00:10 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id fd1si10745228pad.44.2015.11.05.07.00.08
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 06:40:04 -0800 (PST)
-Received: by wmeg8 with SMTP id g8so16126094wme.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 06:40:04 -0800 (PST)
-Date: Thu, 5 Nov 2015 15:40:02 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
- hierarchy
-Message-ID: <20151105144002.GB15111@dhcp22.suse.cz>
-References: <20151023.065957.1690815054807881760.davem@davemloft.net>
- <20151026165619.GB2214@cmpxchg.org>
- <20151027122647.GG9891@dhcp22.suse.cz>
- <20151027154138.GA4665@cmpxchg.org>
- <20151027161554.GJ9891@dhcp22.suse.cz>
- <20151027164227.GB7749@cmpxchg.org>
- <20151029152546.GG23598@dhcp22.suse.cz>
- <20151029161009.GA9160@cmpxchg.org>
- <20151104104239.GG29607@dhcp22.suse.cz>
- <20151104195037.GA6872@cmpxchg.org>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 05 Nov 2015 07:00:08 -0800 (PST)
+Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable() checks
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20151022143349.GD30579@mtj.duckdns.org>
+	<alpine.DEB.2.20.1510220939310.23718@east.gentwo.org>
+	<20151022151414.GF30579@mtj.duckdns.org>
+	<20151023042649.GB18907@mtj.duckdns.org>
+	<20151102150137.GB3442@dhcp22.suse.cz>
+In-Reply-To: <20151102150137.GB3442@dhcp22.suse.cz>
+Message-Id: <201511052359.JBB24816.FHtFOJOSLOVMQF@I-love.SAKURA.ne.jp>
+Date: Thu, 5 Nov 2015 23:59:50 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151104195037.GA6872@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org, htejun@gmail.com
+Cc: cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
 
-On Wed 04-11-15 14:50:37, Johannes Weiner wrote:
-[...]
-> Because it goes without saying that once the cgroupv2 interface is
-> released, and people use it in production, there is no way we can then
-> *add* dentry cache, inode cache, and others to memory.current. That
-> would be an unacceptable change in interface behavior.
+Michal Hocko wrote:
+> As already pointed out I really detest a short sleep and would prefer
+> a way to tell WQ what we really need. vmstat is not the only user. OOM
+> sysrq will need this special treatment as well. While the
+> zone_reclaimable can be fixed in an easy patch
+> (http://lkml.kernel.org/r/201510212126.JIF90648.HOOFJVFQLMStOF%40I-love.SAKURA.ne.jp)
+> which is perfectly suited for the stable backport, OOM sysrq resp. any
+> sysrq which runs from the WQ context should be as robust as possible and
+> shouldn't rely on all the code running from WQ context to issue a sleep
+> to get unstuck. So I definitely support something like this patch.
 
-They would still have to _enable_ the config option _explicitly_. make
-oldconfig wouldn't change it silently for them. I do not think
-it is an unacceptable change of behavior if the config is changed
-explicitly.
+I still prefer a short sleep from a different perspective.
 
-> On the other
-> hand, people will be prepared for hiccups in the early stages of
-> cgroupv2 release, and we're providing cgroup.memory=noslab to let them
-> workaround severe problems in production until we fix it without
-> forcing them to fully revert to cgroupv1.
+I tested above patch with below patch applied
 
-This would be true if they moved on to the new cgroup API intentionally.
-The reality is more complicated though. AFAIK sysmted is waiting for
-cgroup2 already and privileged services enable all available resource
-controllers by default as I've learned just recently. If we know that
-the interface is not stable enough then we are basically forcing _most_
-users to use the kernel boot parameter if we stay with the current
-kmem semantic. More on that below.
-
-> So if we agree that there are no fundamental architectural concerns
-> with slab accounting, i.e. nothing that can't be addressed in the
-> implementation, we have to make the call now.
-
-We are on the same page here.
-
-> And I maintain that not accounting dentry cache and inode cache is a
-> gaping hole in memory isolation, so it should be included by default.
-> (The rest of the slabs is arguable, but IMO the risk of missing
-> something important is higher than the cost of including them.)
-
-More on that below.
+----------------------------------------
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d0499ff..54bedd8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2992,6 +2992,53 @@ static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
+ 	return (gfp_mask & (GFP_TRANSHUGE | __GFP_KSWAPD_RECLAIM)) == GFP_TRANSHUGE;
+ }
  
-> As far as your allocation failure concerns go, I think the kmem code
-> is currently not behaving as Glauber originally intended, which is to
-> force charge if reclaim and OOM killing weren't able to make enough
-> space. See this recently rewritten section of the kmem charge path:
-> 
-> -               /*
-> -                * try_charge() chose to bypass to root due to OOM kill or
-> -                * fatal signal.  Since our only options are to either fail
-> -                * the allocation or charge it to this cgroup, do it as a
-> -                * temporary condition. But we can't fail. From a kmem/slab
-> -                * perspective, the cache has already been selected, by
-> -                * mem_cgroup_kmem_get_cache(), so it is too late to change
-> -                * our minds.
-> -                *
-> -                * This condition will only trigger if the task entered
-> -                * memcg_charge_kmem in a sane state, but was OOM-killed
-> -                * during try_charge() above. Tasks that were already dying
-> -                * when the allocation triggers should have been already
-> -                * directed to the root cgroup in memcontrol.h
-> -                */
-> -               page_counter_charge(&memcg->memory, nr_pages);
-> -               if (do_swap_account)
-> -                       page_counter_charge(&memcg->memsw, nr_pages);
-> 
-> It could be that this never properly worked as it was tied to the
-> -EINTR bypass trick, but the idea was these charges never fail.
-
-I have always understood this path as a corner case when the task is an
-oom victim or exiting. So this would be only a temporal condition which
-cannot cause a complete runaway.
-
-> And this makes sense. If the allocator semantics are such that we
-> never fail these page allocations for slab, and the callsites rely on
-> that, surely we should not fail them in the memory controller, either.
-
-Then we can only bypass them or loop inside the charge code for ever
-like we do in the page allocator. The later one is really fragile and
-it would be much more in the restricted environment as we have learned
-with the memcg OOM killer in the past. 
++static atomic_t stall_tasks;
++
++static int kmallocwd(void *unused)
++{
++	struct task_struct *g, *p;
++	unsigned int sigkill_pending;
++	unsigned int memdie_pending;
++	unsigned int stalling_tasks;
++
++ not_stalling: /* Healty case. */
++	schedule_timeout_interruptible(HZ);
++	if (likely(!atomic_read(&stall_tasks)))
++		goto not_stalling;
++ maybe_stalling: /* Maybe something is wrong. Let's check. */
++	/* Count stalling tasks, dying and victim tasks. */
++	sigkill_pending = 0;
++	memdie_pending = 0;
++	stalling_tasks = atomic_read(&stall_tasks);
++	preempt_disable();
++	rcu_read_lock();
++	for_each_process_thread(g, p) {
++		if (test_tsk_thread_flag(p, TIF_MEMDIE))
++			memdie_pending++;
++		if (fatal_signal_pending(p))
++			sigkill_pending++;
++	}
++	rcu_read_unlock();
++	preempt_enable();
++	pr_warn("MemAlloc-Info: %u stalling task, %u dying task, %u victim task.\n",
++		stalling_tasks, sigkill_pending, memdie_pending);
++	show_workqueue_state();
++	schedule_timeout_interruptible(10 * HZ);
++	if (atomic_read(&stall_tasks))
++		goto maybe_stalling;
++	goto not_stalling;
++	return 0; /* To suppress "no return statement" compiler warning. */
++}
++
++static int __init start_kmallocwd(void)
++{
++	struct task_struct *task = kthread_run(kmallocwd, NULL,
++					       "kmallocwd");
++	BUG_ON(IS_ERR(task));
++	return 0;
++}
++late_initcall(start_kmallocwd);
++
+ static inline struct page *
+ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 						struct alloc_context *ac)
+@@ -3004,6 +3051,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	enum migrate_mode migration_mode = MIGRATE_ASYNC;
+ 	bool deferred_compaction = false;
+ 	int contended_compaction = COMPACT_CONTENDED_NONE;
++	unsigned long start = jiffies;
++	bool stall_counted = false;
  
-> And it makes a lot more sense to account them in excess of the limit
-> than pretend they don't exist. We might not be able to completely
-> fullfill the containment part of the memory controller (although these
-> slab charges will still create significant pressure before that), but
-> at least we don't fail the accounting part on top of it.
+ 	/*
+ 	 * In the slowpath, we sanity check order to avoid ever trying to
+@@ -3095,6 +3144,11 @@ retry:
+ 	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+ 		goto nopage;
+ 
++	if (!stall_counted && time_after(jiffies, start + 10 * HZ)) {
++		atomic_inc(&stall_tasks);
++		stall_counted = true;
++	}
++
+ 	/*
+ 	 * Try direct compaction. The first pass is asynchronous. Subsequent
+ 	 * attempts after direct reclaim are synchronous
+@@ -3188,6 +3242,8 @@ noretry:
+ nopage:
+ 	warn_alloc_failed(gfp_mask, order, NULL);
+ got_pg:
++	if (stall_counted)
++		atomic_dec(&stall_tasks);
+ 	return page;
+ }
+ 
+----------------------------------------
 
-Hmm, wouldn't that kill the whole purpose of the kmem accounting? Any
-load could simply runaway via kernel allocations. What is even worse we
-might even not trigger memcg OOM killer before we hit the global OOM. So
-the whole containment goes straight to hell.
+using a crazy stressing program. (Not a TIF_MEMDIE stall.)
 
-I can see four options here:
-1) enable kmem by default with the current semantic which we know can
-   BUG_ON (at least btrfs is known to hit this) or lead to other issues.
-2) enable kmem by default and change the semantic for cgroup2 to allow
-   runaway charges above the hard limit which would defeat the whole
-   purpose of the containment for cgroup2. This can be a temporary
-   workaround until we can afford kmem failures. This has a big risk
-   that we will end up with this permanently because there is a strong
-   pressure that GFP_KERNEL allocations should never fail. Yet this is
-   the most common type of request. Or do we change the consistency with
-   the global case at some point?
-3) keep only some (safe) cache types enabled by default with the current
-   failing semantic and require an explicit enabling for the complete
-   kmem accounting. [di]cache code paths should be quite robust to
-   handle allocation failures.
-4) disable kmem by default and change the config default later to signal
-   the accounting is safe as far as we are aware and let people enable
-   the functionality on those basis. We would keep the current failing
-   semantic.
+----------------------------------------
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <signal.h>
+#include <fcntl.h>
 
-To me 4) sounds like the safest option because it still keeps the
-functionality available to those who can benefit from it in v1 already
-while we are not exposing a potentially buggy behavior to the majority
-(many of them even unintentionally).  Moreover we still allow to change
-the default later on an explicit basis. 3) sounds like the second best
-option but I am not really sure whether we can do that very easily
-without bringing up a lot of unmaintainable mess. 2) sounds like the
-third best approach but I am afraid it would render the basic use cases
-unusable for a very long time and kill any interest in cgroup2 for even
-longer (cargo cults are really hard to get rid of). 1) sounds like a
-land mine approach which would force many/most users to simply keep
-using the boot option and force us to re-evaluate the default hard way.
--- 
-Michal Hocko
-SUSE Labs
+static void child(void)
+{
+	char *buf = NULL;
+	unsigned long size = 0;
+	const int fd = open("/dev/zero", O_RDONLY);
+	for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
+		char *cp = realloc(buf, size);
+		if (!cp) {
+			size >>= 1;
+			break;
+		}
+		buf = cp;
+	}
+	read(fd, buf, size); /* Will cause OOM due to overcommit */
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc > 1) {
+		int i;
+		char buffer[4096];
+		for (i = 0; i < 1000; i++) {
+			if (fork() == 0) {
+				sleep(20);
+				memset(buffer, 0, sizeof(buffer));
+				_exit(0);
+			}
+		}
+		child();
+		return 0;
+	}
+	signal(SIGCLD, SIG_IGN);
+	while (1) {
+		switch (fork()) {
+		case 0:
+			execl("/proc/self/exe", argv[0], "1", NULL);;
+			_exit(0);
+		case -1:
+			sleep(1);
+		}
+	}
+	return 0;
+}
+----------------------------------------
+
+Note the interval between invoking the OOM killer.
+(Complete log is at http://I-love.SAKURA.ne.jp/tmp/serial-20151105.txt.xz .)
+----------------------------------------
+[   74.260621] exe invoked oom-killer: gfp_mask=0x24280ca, order=0, oom_score_adj=0
+[   75.069510] exe invoked oom-killer: gfp_mask=0x24200ca, order=0, oom_score_adj=0
+[   79.062507] exe invoked oom-killer: gfp_mask=0x24280ca, order=0, oom_score_adj=0
+[   80.464618] MemAlloc-Info: 459 stalling task, 0 dying task, 0 victim task.
+[   90.482731] MemAlloc-Info: 699 stalling task, 0 dying task, 0 victim task.
+[  100.503633] MemAlloc-Info: 3972 stalling task, 0 dying task, 0 victim task.
+[  110.534937] MemAlloc-Info: 4097 stalling task, 0 dying task, 0 victim task.
+[  120.535740] MemAlloc-Info: 4098 stalling task, 0 dying task, 0 victim task.
+[  130.563961] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  140.593108] MemAlloc-Info: 4096 stalling task, 0 dying task, 0 victim task.
+[  150.617960] MemAlloc-Info: 4096 stalling task, 0 dying task, 0 victim task.
+[  160.639131] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  170.659915] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  172.597736] exe invoked oom-killer: gfp_mask=0x24280ca, order=0, oom_score_adj=0
+[  180.680650] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  190.705534] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  200.724567] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  210.745397] MemAlloc-Info: 4065 stalling task, 0 dying task, 0 victim task.
+[  220.769501] MemAlloc-Info: 4092 stalling task, 0 dying task, 0 victim task.
+[  230.791530] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  240.816711] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  250.836724] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  260.860257] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  270.883573] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  280.910072] MemAlloc-Info: 4088 stalling task, 0 dying task, 0 victim task.
+[  290.931988] MemAlloc-Info: 4092 stalling task, 0 dying task, 0 victim task.
+[  300.955543] MemAlloc-Info: 4099 stalling task, 0 dying task, 0 victim task.
+[  308.212307] exe invoked oom-killer: gfp_mask=0x24200ca, order=0, oom_score_adj=0
+[  310.977057] MemAlloc-Info: 3988 stalling task, 0 dying task, 0 victim task.
+[  320.999353] MemAlloc-Info: 4096 stalling task, 0 dying task, 0 victim task.
+----------------------------------------
+
+See? The memory allocation requests cannot constantly invoke the OOM-killer
+because the sum of CPU cycles wasted for sleep-less retry loop is close to
+mutually blocking other tasks when number of tasks doing memory allocation
+requests exceeded number of available CPUs. We should be careful not to defer
+invocation of the OOM-killer too much.
+
+If a short sleep patch
+( http://lkml.kernel.org/r/201510251952.CEF04109.OSOtLFHFVFJMQO@I-love.SAKURA.ne.jp )
+is applied in addition to the above patches, the memory allocation requests
+can constantly invoke the OOM-killer.
+
+By using short sleep, some task might be able to do some useful computation
+job which does not involve a __GFP_WAIT memory allocation.
+
+We don't need to defer workqueue items which do not involve a __GFP_WAIT
+memory allocation. By allowing workqueue items to be processed (by using
+short sleep), some task might release memory when workqueue item is
+processed.
+
+Therefore, not only to keep vmstat counters up to date, but also for
+avoid wasting CPU cycles, I prefer a short sleep.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
