@@ -1,77 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F27B82F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 08:47:28 -0500 (EST)
-Received: by wicfv8 with SMTP id fv8so9954919wic.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 05:47:27 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o70si8444324wmd.21.2015.11.05.05.47.26
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 05 Nov 2015 05:47:26 -0800 (PST)
-Subject: Re: [PATCH] mm, hugetlb: use memory policy when available
-References: <20151020195317.ADA052D8@viggo.jf.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <563B5DE9.70803@suse.cz>
-Date: Thu, 5 Nov 2015 14:47:21 +0100
-MIME-Version: 1.0
-In-Reply-To: <20151020195317.ADA052D8@viggo.jf.intel.com>
-Content-Type: text/plain; charset=iso-8859-2
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id F3D9F82F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 09:23:43 -0500 (EST)
+Received: by igpw7 with SMTP id w7so12511062igp.0
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 06:23:43 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id f5si6591110ioj.40.2015.11.05.06.23.42
+        for <linux-mm@kvack.org>;
+        Thu, 05 Nov 2015 06:23:43 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <CACT4Y+ZBdLqPdW+fJm=-=zJfbVFgQsgiy+eqiDTWp9rW43u+tw@mail.gmail.com>
+References: <CACT4Y+aqaR8QYk2nyN1n1iaSZWofBEkWuffvsfcqpvmGGQyMAw@mail.gmail.com>
+ <20151012122702.GC2544@node>
+ <20151012174945.GC3170@linux-uzut.site>
+ <20151012181040.GC6447@node>
+ <20151012185533.GD3170@linux-uzut.site>
+ <20151013031821.GA3052@linux-uzut.site>
+ <20151013123028.GA12934@node>
+ <CACT4Y+ZBdLqPdW+fJm=-=zJfbVFgQsgiy+eqiDTWp9rW43u+tw@mail.gmail.com>
+Subject: Re: GPF in shm_lock ipc
 Content-Transfer-Encoding: 7bit
+Message-Id: <20151105142336.46D907FD@black.fi.intel.com>
+Date: Thu,  5 Nov 2015 16:23:36 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, dave.hansen@linux.intel.com, Hugh Dickins <hughd@google.com>, Joe Perches <joe@perches.com>, sds@tycho.nsa.gov, Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, mhocko@suse.cz, gang.chen.5i5j@gmail.com, Peter Feiner <pfeiner@google.com>, aarcange@redhat.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzkaller@googlegroups.com, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Andrey Konovalov <andreyknvl@google.com>, Sasha Levin <sasha.levin@oracle.com>, Manfred Spraul <manfred@colorfullife.com>
 
-On 10/20/2015 09:53 PM, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+Dmitry Vyukov wrote:
+> On Tue, Oct 13, 2015 at 8:30 PM, Kirill A. Shutemov
+> <kirill@shutemov.name> wrote:
+> > On Mon, Oct 12, 2015 at 08:18:21PM -0700, Davidlohr Bueso wrote:
+> >> On Mon, 12 Oct 2015, Bueso wrote:
+> >>
+> >> >On Mon, 12 Oct 2015, Kirill A. Shutemov wrote:
+> >> >
+> >> >>On Mon, Oct 12, 2015 at 10:49:45AM -0700, Davidlohr Bueso wrote:
+> >> >>>diff --git a/ipc/shm.c b/ipc/shm.c
+> >> >>>index 4178727..9615f19 100644
+> >> >>>--- a/ipc/shm.c
+> >> >>>+++ b/ipc/shm.c
+> >> >>>@@ -385,9 +385,25 @@ static struct mempolicy *shm_get_policy(struct vm_area_struct *vma,
+> >> >>>static int shm_mmap(struct file *file, struct vm_area_struct *vma)
+> >> >>>{
+> >> >>>-  struct shm_file_data *sfd = shm_file_data(file);
+> >> >>>+  struct file *vma_file = vma->vm_file;
+> >> >>>+  struct shm_file_data *sfd = shm_file_data(vma_file);
+> >> >>>+  struct ipc_ids *ids = &shm_ids(sfd->ns);
+> >> >>>+  struct kern_ipc_perm *shp;
+> >> >>>   int ret;
+> >> >>>+  rcu_read_lock();
+> >> >>>+  shp = ipc_obtain_object_check(ids, sfd->id);
+> >> >>>+  if (IS_ERR(shp)) {
+> >> >>>+          ret = -EINVAL;
+> >> >>>+          goto err;
+> >> >>>+  }
+> >> >>>+
+> >> >>>+  if (!ipc_valid_object(shp)) {
+> >> >>>+          ret = -EIDRM;
+> >> >>>+          goto err;
+> >> >>>+  }
+> >> >>>+  rcu_read_unlock();
+> >> >>>+
+> >> >>
+> >> >>Hm. Isn't it racy? What prevents IPC_RMID from happening after this point?
+> >> >
+> >> >Nothing, but that is later caught by shm_open() doing similar checks. We
+> >> >basically end up doing a check between ->mmap() calls, which is fair imho.
+> >> >Note that this can occur anywhere in ipc as IPC_RMID is a user request/cmd,
+> >> >and we try to respect it -- thus you can argue this race anywhere, which is
+> >> >why we have EIDRM/EINVL. Ultimately the user should not be doing such hacks
+> >> >_anyway_. So I'm not really concerned about it.
+> >> >
+> >> >Another similar alternative would be perhaps to make shm_lock() return an
+> >> >error, and thus propagate that error to mmap return. That way we would have
+> >> >a silent way out of the warning scenario (afterward we cannot race as we
+> >> >hold the ipc object lock). However, the users would now have to take this
+> >> >into account...
+> >> >
+> >> >    [validity check lockless]
+> >> >    ->mmap()
+> >> >    [validity check lock]
+> >>
+> >> Something like this, maybe. Although I could easily be missing things...
+> >> I've tested it enough to see Dimitry's testcase handled ok, and put it
+> >> through ltp. Also adding Manfred to the Cc, who always catches my idiotic
+> >> mistakes.
+> >>
+> >> 8<---------------------------------------------------------------------
+> >> From: Davidlohr Bueso <dave@stgolabs.net>
+> >> Date: Mon, 12 Oct 2015 19:38:34 -0700
+> >> Subject: [PATCH] ipc/shm: fix handling of (re)attaching to a deleted segment
+> >>
+> >> There are currently two issues when dealing with segments that are
+> >> marked for deletion:
+> >>
+> >> (i) With d0edd8528362 (ipc: convert invalid scenarios to use WARN_ON)
+> >> we relaxed the system-wide impact of using a deleted segment. However,
+> >> we can now perfectly well trigger the warning and then deference a nil
+> >> pointer -- where shp does not exist.
+> >>
+> >> (ii) As of a399b29dfbaa (ipc,shm: fix shm_file deletion races) we
+> >> forbid attaching/mapping a previously deleted segment; a feature once
+> >> unique to Linux, but removed[1] as a side effect of lockless ipc object
+> >> lookups and security checks. Similarly, Dmitry Vyukov reported[2] a
+> >> simple test case that creates a new vma for a previously deleted
+> >> segment, triggering the WARN_ON mentioned in (i).
+> >>
+> >> This patch tries to address (i) by moving the shp error check out
+> >> of shm_lock() and handled by the caller instead. The benefit of this
+> >> is that it allows better handling out of situations where we end up
+> >> returning ERMID or EINVAL. Specifically, there are three callers
+> >> of shm_lock which we must look into:
+> >>
+> >>  - open/close -- which we ensure to never do any operations on
+> >>                  the pairs, thus becoming no-ops if found a prev
+> >>                IPC_RMID.
+> >>
+> >>  - loosing the reference of nattch upon shmat(2) -- not feasible.
+> >>
+> >> In addition, the common WARN_ON call is technically removed, but
+> >> we add a new one for the bogus shmat(2) case, which is definitely
+> >> unacceptable to race with RMID if nattch is bumped up.
+> >>
+> >> To address (ii), a new shm_check_vma_validity() helper is added
+> >> (for lack of a better name), which attempts to detect early on
+> >> any races with RMID, before doing the full ->mmap. There is still
+> >> a window between the callback and the shm_open call where we can
+> >> race with IPC_RMID. If this is the case, it is handled by the next
+> >> shm_lock().
+> >>
+> >> shm_mmap:
+> >>     [shm validity checks lockless]
+> >>     ->mmap()
+> >>     [shm validity checks lock] <-- at this point there after there
+> >>                                    is no race as we hold the ipc
+> >>                                    object lock.
+> >>
+> >> [1] https://lkml.org/lkml/2015/10/12/483
+> >> [2] https://lkml.org/lkml/2015/10/12/284
+> >>
+> >> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+> >> ---
+> >>  ipc/shm.c | 78 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+> >>  1 file changed, 73 insertions(+), 5 deletions(-)
+> >>
+> >> diff --git a/ipc/shm.c b/ipc/shm.c
+> >> index 4178727..47a7a67 100644
+> >> --- a/ipc/shm.c
+> >> +++ b/ipc/shm.c
+> >> @@ -156,11 +156,10 @@ static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
+> >>       struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
+> >>       /*
+> >> -      * We raced in the idr lookup or with shm_destroy().  Either way, the
+> >> -      * ID is busted.
+> >> +      * Callers of shm_lock() must validate the status of the returned
+> >> +      * ipc object pointer (as returned by ipc_lock()), and error out as
+> >> +      * appropriate.
+> >>        */
+> >> -     WARN_ON(IS_ERR(ipcp));
+> >> -
+> >>       return container_of(ipcp, struct shmid_kernel, shm_perm);
+> >>  }
+> >> @@ -194,6 +193,15 @@ static void shm_open(struct vm_area_struct *vma)
+> >>       struct shmid_kernel *shp;
+> >>       shp = shm_lock(sfd->ns, sfd->id);
+> >> +     /*
+> >> +      * We raced in the idr lookup or with shm_destroy().
+> >> +      * Either way, the ID is busted. In the same scenario,
+> >> +      * but for the close counter-part, the nattch counter
+> >> +      * is never decreased, thus we can safely return.
+> >> +      */
+> >> +     if (IS_ERR(shp))
+> >> +             return; /* no-op */
+> >> +
+> >>       shp->shm_atim = get_seconds();
+> >>       shp->shm_lprid = task_tgid_vnr(current);
+> >>       shp->shm_nattch++;
+> >
+> > ...
+> >
+> >>  static int shm_mmap(struct file *file, struct vm_area_struct *vma)
+> >>  {
+> >>       struct shm_file_data *sfd = shm_file_data(file);
+> >>       int ret;
+> >> +     /*
+> >> +      * Ensure that we have not raced with IPC_RMID, such that
+> >> +      * we avoid doing the ->mmap altogether. This is a preventive
+> >> +      * lockless check, and thus exposed to races during the mmap.
+> >> +      * However, this is later caught in shm_open(), and handled
+> >> +      * accordingly.
+> >> +      */
+> >> +     ret = shm_check_vma_validity(vma);
+> >> +     if (ret)
+> >> +             return ret;
+> >> +
+> >>       ret = sfd->file->f_op->mmap(sfd->file, vma);
+> >>       if (ret != 0)
+> >>               return ret;
+> >> +
+> >>       sfd->vm_ops = vma->vm_ops;
+> >>  #ifdef CONFIG_MMU
+> >>       WARN_ON(!sfd->vm_ops->fault);
+> >
+> > If I read it correctly, with the patch we would ignore locking failure
+> > inside shm_open() and mmap will succeed in this case. So the idea is to
+> > have shm_close() no-op and therefore symmetrical. That's look fragile to
+> > me. We would silently miss some other broken open/close pattern.
+> >
+> > I would rather propagate error to shm_mmap() caller and therefore to
+> > userspace. I guess it's better to opencode shm_open() in shm_mmap() and
+> > return error this way. shm_open() itself can have WARN_ON_ONCE() for
+> > failure or something.
 > 
-> I have a hugetlbfs user which is never explicitly allocating huge pages
-> with 'nr_hugepages'.  They only set 'nr_overcommit_hugepages' and then let
-> the pages be allocated from the buddy allocator at fault time.
 > 
-> This works, but they noticed that mbind() was not doing them any good and
-> the pages were being allocated without respect for the policy they
-> specified.
-> 
-> The code in question is this:
-> 
->> struct page *alloc_huge_page(struct vm_area_struct *vma,
-> ...
->>         page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, gbl_chg);
->>         if (!page) {
->>                 page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
-> 
-> dequeue_huge_page_vma() is smart and will respect the VMA's memory policy.
-> But, it only grabs _existing_ huge pages from the huge page pool.  If the
-> pool is empty, we fall back to alloc_buddy_huge_page() which obviously
-> can't do anything with the VMA's policy because it isn't even passed the
-> VMA.
-> 
-> Almost everybody preallocates huge pages.  That's probably why nobody has
-> ever noticed this.  Looking back at the git history, I don't think this
-> _ever_ worked from when alloc_buddy_huge_page() was introduced in 7893d1d5,
-> 8 years ago.
-> 
-> The fix is to pass vma/addr down in to the places where we actually call in
-> to the buddy allocator.  It's fairly straightforward plumbing.  This has
-> been lightly tested.
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Davidlohr, any updates on this? Is it committed? I don't see it in Linus tree.
+> What do you think about Kirill's comments?
 
-Together with the fix and NUMA=n cleanup
-
-Acked=by: Vlastimil Babka <vbabka@suse.cz>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+What about this:
