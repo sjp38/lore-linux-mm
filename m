@@ -1,69 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id BE27982F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 13:17:28 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so70035312pac.3
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 10:17:28 -0800 (PST)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id bc7si11704690pbd.145.2015.11.05.10.17.27
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 9937182F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 13:18:49 -0500 (EST)
+Received: by wijp11 with SMTP id p11so16001139wij.0
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 10:18:49 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v136si13093596wmd.15.2015.11.05.10.18.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 10:17:27 -0800 (PST)
-Received: by pabfh17 with SMTP id fh17so94276179pab.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 10:17:27 -0800 (PST)
-Date: Thu, 5 Nov 2015 10:17:26 -0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [PATCH v2 01/13] mm: support madvise(MADV_FREE)
-Message-ID: <20151105181726.GA63566@kernel.org>
-References: <1446600367-7976-1-git-send-email-minchan@kernel.org>
- <1446600367-7976-2-git-send-email-minchan@kernel.org>
- <CALCETrUuNs=26UQtkU88cKPomx_Bik9mbgUUF9q7Nmh1pQJ4qg@mail.gmail.com>
- <56399CA5.8090101@gmail.com>
- <CALCETrU5P-mmjf+8QuS3-pm__R02j2nnRc5B1gQkeC013XWNvA@mail.gmail.com>
- <563A813B.9080903@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 05 Nov 2015 10:18:48 -0800 (PST)
+Subject: Re: [PATCH 3/12] mm: page migration fix PageMlocked on migrated pages
+References: <alpine.LSU.2.11.1510182132470.2481@eggly.anvils>
+ <alpine.LSU.2.11.1510182150590.2481@eggly.anvils>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <563B9D86.30608@suse.cz>
+Date: Thu, 5 Nov 2015 19:18:46 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <563A813B.9080903@gmail.com>
+In-Reply-To: <alpine.LSU.2.11.1510182150590.2481@eggly.anvils>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Micay <danielmicay@gmail.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux API <linux-api@vger.kernel.org>, Jason Evans <je@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, yalin wang <yalin.wang2010@gmail.com>, Mel Gorman <mgorman@suse.de>
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 
-On Wed, Nov 04, 2015 at 05:05:47PM -0500, Daniel Micay wrote:
-> > With enough pages at once, though, munmap would be fine, too.
+On 10/19/2015 06:52 AM, Hugh Dickins wrote:
+> Commit e6c509f85455 ("mm: use clear_page_mlock() in page_remove_rmap()")
+> in v3.7 inadvertently made mlock_migrate_page() impotent: page migration
+> unmaps the page from userspace before migrating, and that commit clears
+> PageMlocked on the final unmap, leaving mlock_migrate_page() with nothing
+> to do.  Not a serious bug, the next attempt at reclaiming the page would
+> fix it up; but a betrayal of page migration's intent - the new page ought
+> to emerge as PageMlocked.
 > 
-> That implies lots of page faults and zeroing though. The zeroing alone
-> is a major performance issue.
+> I don't see how to fix it for mlock_migrate_page() itself; but easily
+> fixed in remove_migration_pte(), by calling mlock_vma_page() when the
+> vma is VM_LOCKED - under pte lock as in try_to_unmap_one().
 > 
-> There are separate issues with munmap since it ends up resulting in a
-> lot more virtual memory fragmentation. It would help if the kernel used
-> first-best-fit for mmap instead of the current naive algorithm (bonus:
-> O(log n) worst-case, not O(n)). Since allocators like jemalloc and
-> PartitionAlloc want 2M aligned spans, mixing them with other allocators
-> can also accelerate the VM fragmentation caused by the dumb mmap
-> algorithm (i.e. they make a 2M aligned mapping, some other mmap user
-> does 4k, now there's a nearly 2M gap when the next 2M region is made and
-> the kernel keeps going rather than reusing it). Anyway, that's a totally
-> separate issue from this. Just felt like complaining :).
+> Delete mlock_migrate_page()?  Not quite, it does still serve a purpose
+> for migrate_misplaced_transhuge_page(): where we could replace it by a
+> test, clear_page_mlock(), mlock_vma_page() sequence; but would that be
+> an improvement?  mlock_migrate_page() is fairly lean, and let's make
+> it leaner by skipping the irq save/restore now clearly not needed.
 > 
-> > Maybe what's really needed is a MADV_FREE variant that takes an iovec.
-> > On an all-cores multithreaded mm, the TLB shootdown broadcast takes
-> > thousands of cycles on each core more or less regardless of how much
-> > of the TLB gets zapped.
-> 
-> That would work very well. The allocator ends up having a sequence of
-> dirty spans that it needs to purge in one go. As long as purging is
-> fairly spread out, the cost of a single TLB shootdown isn't that bad. It
-> is extremely bad if it needs to do it over and over to purge a bunch of
-> ranges, which can happen if the memory has ended up being very, very
-> fragmentated despite the efforts to compact it (depends on what the
-> application ends up doing).
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-I posted a patch doing exactly iovec madvise. Doesn't support MADV_FREE yet
-though, but should be easy to do it.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-http://marc.info/?l=linux-mm&m=144615663522661&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
