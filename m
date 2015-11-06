@@ -1,141 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 30F1382F64
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2015 05:21:48 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so110998604pad.1
-        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 02:21:47 -0800 (PST)
-Received: from smtprelay.synopsys.com (smtprelay2.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id wv1si254949pbc.215.2015.11.06.02.21.47
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B23182F64
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2015 05:29:24 -0500 (EST)
+Received: by wmll128 with SMTP id l128so36874121wml.0
+        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 02:29:23 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id s127si2981338wmb.88.2015.11.06.02.29.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Nov 2015 02:21:47 -0800 (PST)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: Re: [PATCH] mm: optimize PageHighMem() check
-Date: Fri, 6 Nov 2015 10:21:39 +0000
-Message-ID: <C2D7FE5348E1B147BCA15975FBA23075F44D0EE2@IN01WEMBXA.internal.synopsys.com>
-References: <1443513260-14598-1-git-send-email-vgupta@synopsys.com>
- <20151001162528.32c5338efdff2bdea838befd@linux-foundation.org>
- <560E2F29.5070807@synopsys.com>
- <20151002135315.7ae22edce0bf54e38f69b1b0@linux-foundation.org>
- <C2D7FE5348E1B147BCA15975FBA23075D781A2B7@IN01WEMBXB.internal.synopsys.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Fri, 06 Nov 2015 02:29:22 -0800 (PST)
+Received: by wmec201 with SMTP id c201so13993735wme.0
+        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 02:29:22 -0800 (PST)
+Date: Fri, 6 Nov 2015 12:29:21 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 4/4] mm: prepare page_referenced() and page_idle to new
+ THP refcounting
+Message-ID: <20151106102921.GA6463@node.shutemov.name>
+References: <1446564375-72143-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1446564375-72143-5-git-send-email-kirill.shutemov@linux.intel.com>
+ <20151105163211.608eec970de21a95faf6e156@linux-foundation.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151105163211.608eec970de21a95faf6e156@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, "Kirill A.
- Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, Jennifer Herbert <jennifer.herbert@citrix.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, arcml <linux-snps-arc@lists.infradead.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>
 
-On Saturday 03 October 2015 03:49 PM, Vineet Gupta wrote:=0A=
-> On Saturday 03 October 2015 02:23 AM, Andrew Morton wrote:=0A=
->> > On Fri, 2 Oct 2015 12:45:53 +0530 Vineet Gupta <vgupta@synopsys.com> w=
-rote:=0A=
->> >=0A=
->>> >> On Friday 02 October 2015 04:55 AM, Andrew Morton wrote:=0A=
->>>> >>> On Tue, 29 Sep 2015 13:24:20 +0530 Vineet Gupta <Vineet.Gupta1@syn=
-opsys.com> wrote:=0A=
->>>> >>>=0A=
->>>>>> >>>>> This came up when implementing HIHGMEM/PAE40 for ARC.=0A=
->>>>>> >>>>> The kmap() / kmap_atomic() generated code seemed needlessly bl=
-oated due=0A=
->>>>>> >>>>> to the way PageHighMem() macro is implemented.=0A=
->>>>>> >>>>> It derives the exact zone for page and then does pointer subtr=
-action=0A=
->>>>>> >>>>> with first zone to infer the zone_type.=0A=
->>>>>> >>>>> The pointer arithmatic in turn generates the code bloat.=0A=
->>>>>> >>>>>=0A=
->>>>>> >>>>> PageHighMem(page)=0A=
->>>>>> >>>>>   is_highmem(page_zone(page))=0A=
->>>>>> >>>>>      zone_off =3D (char *)zone - (char *)zone->zone_pgdat->nod=
-e_zones=0A=
->>>>>> >>>>>=0A=
->>>>>> >>>>> Instead use is_highmem_idx() to work on zone_type available in=
- page flags=0A=
->>>>>> >>>>>=0A=
->>>>>> >>>>>    ----- Before -----=0A=
->>>>>> >>>>> 80756348:	mov_s      r13,r0=0A=
->>>>>> >>>>> 8075634a:	ld_s       r2,[r13,0]=0A=
->>>>>> >>>>> 8075634c:	lsr_s      r2,r2,30=0A=
->>>>>> >>>>> 8075634e:	mpy        r2,r2,0x2a4=0A=
->>>>>> >>>>> 80756352:	add_s      r2,r2,0x80aef880=0A=
->>>>>> >>>>> 80756358:	ld_s       r3,[r2,28]=0A=
->>>>>> >>>>> 8075635a:	sub_s      r2,r2,r3=0A=
->>>>>> >>>>> 8075635c:	breq       r2,0x2a4,80756378 <kmap+0x48>=0A=
->>>>>> >>>>> 80756364:	breq       r2,0x548,80756378 <kmap+0x48>=0A=
->>>>>> >>>>>=0A=
->>>>>> >>>>>    ----- After  -----=0A=
->>>>>> >>>>> 80756330:	mov_s      r13,r0=0A=
->>>>>> >>>>> 80756332:	ld_s       r2,[r13,0]=0A=
->>>>>> >>>>> 80756334:	lsr_s      r2,r2,30=0A=
->>>>>> >>>>> 80756336:	sub_s      r2,r2,1=0A=
->>>>>> >>>>> 80756338:	brlo       r2,2,80756348 <kmap+0x30>=0A=
->>>>>> >>>>>=0A=
->>>>>> >>>>> For x86 defconfig build (32 bit only) it saves around 900 byte=
-s.=0A=
->>>>>> >>>>> For ARC defconfig with HIGHMEM, it saved around 2K bytes.=0A=
->>>>>> >>>>>=0A=
->>>>>> >>>>>    ---->8-------=0A=
->>>>>> >>>>> ./scripts/bloat-o-meter x86/vmlinux-defconfig-pre x86/vmlinux-=
-defconfig-post=0A=
->>>>>> >>>>> add/remove: 0/0 grow/shrink: 0/36 up/down: 0/-934 (-934)=0A=
->>>>>> >>>>> function                                     old     new   del=
-ta=0A=
->>>>>> >>>>> saveable_page                                162     154      =
--8=0A=
->>>>>> >>>>> saveable_highmem_page                        154     146      =
--8=0A=
->>>>>> >>>>> skb_gro_reset_offset                         147     131     -=
-16=0A=
->>>>>> >>>>> ...=0A=
->>>>>> >>>>> ...=0A=
->>>>>> >>>>> __change_page_attr_set_clr                  1715    1678     -=
-37=0A=
->>>>>> >>>>> setup_data_read                              434     394     -=
-40=0A=
->>>>>> >>>>> mon_bin_event                               1967    1927     -=
-40=0A=
->>>>>> >>>>> swsusp_save                                 1148    1105     -=
-43=0A=
->>>>>> >>>>> _set_pages_array                             549     493     -=
-56=0A=
->>>>>> >>>>>    ---->8-------=0A=
->>>>>> >>>>>=0A=
->>>>>> >>>>> e.g. For ARC kmap()=0A=
->>>>>> >>>>>=0A=
->>>> >>> is_highmem() is deranged.  Can't we use a bit in zone->flags or=0A=
->>>> >>> something?=0A=
->>> >> It won't be "a" bit since zone_type is an enum.=0A=
->> > Yes it will!=0A=
->> >=0A=
->> > static inline int is_highmem(struct zone *zone)=0A=
->> > {=0A=
->> > 	return test_bit(ZONE_HIGHMEM, &zone->flags);=0A=
->> > }=0A=
-> Point is do we want to fix this specific case, or do we want to improve z=
-one_idx()=0A=
-> in general.=0A=
->=0A=
-> #define zone_idx(zone)        ((zone) - (zone)->zone_pgdat->node_zones=0A=
->=0A=
-> If former, I can split up zone->flags into 31:1 bit-field. Otherwise I wi=
-ll split=0A=
-> it into 24:8 to hold both zone_flags and zone_type=0A=
-=0A=
-=0A=
-Andrew, what do u think. Do we need to shoehorn type (idx) and flags into s=
-ame=0A=
-placeholder or simply add a new zone_idx field.=0A=
-There will be slight complications with former to avoid any possible collis=
-ions=0A=
-when someone calls set_bit() for flags holder bitfield.=0A=
-=0A=
-IMHO zone struct is already so bloated, adding another word would be OK spe=
-cially=0A=
-when number of zone structures is not too many !=0A=
-=0A=
--Vineet=0A=
+On Thu, Nov 05, 2015 at 04:32:11PM -0800, Andrew Morton wrote:
+> On Tue,  3 Nov 2015 17:26:15 +0200 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> 
+> > I've missed two simlar codepath which need some preparation to work well
+> > with reworked THP refcounting.
+> > 
+> > Both page_referenced() and page_idle_clear_pte_refs_one() assume that
+> > THP can only be mapped with PMD, so there's no reason to look on PTEs
+> > for PageTransHuge() pages. That's no true anymore: THP can be mapped
+> > with PTEs too.
+> > 
+> > The patch removes PageTransHuge() test from the functions and opencode
+> > page table check.
+> 
+> x86_64 allnoconfig:
+> 
+> In file included from mm/rmap.c:47:
+> include/linux/mm.h: In function 'page_referenced':
+> include/linux/mm.h:448: error: call to '__compiletime_assert_448' declared with attribute error: BUILD_BUG failed
+> make[1]: *** [mm/rmap.o] Error 1
+> make: *** [mm/rmap.o] Error 2
+> 
+> because
+> 
+> #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+> #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
+> 
+> 
+> btw, total_mapcount() is far too large to be inlined and
+
+The patch below is my propsal to fix this.
+
+> page_mapcount() is getting pretty bad too.
+
+Do you want me to uninline slow path (PageCompound())?
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a36f9fa4e4cd..f874d2a1d1a6 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -432,24 +432,14 @@ static inline int page_mapcount(struct page *page)
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++int total_mapcount(struct page *page);
++#else
+ static inline int total_mapcount(struct page *page)
+ {
+-	int i, ret;
+-
+-	VM_BUG_ON_PAGE(PageTail(page), page);
+-
+-	if (likely(!PageCompound(page)))
+-		return atomic_read(&page->_mapcount) + 1;
+-
+-	ret = compound_mapcount(page);
+-	if (PageHuge(page))
+-		return ret;
+-	for (i = 0; i < HPAGE_PMD_NR; i++)
+-		ret += atomic_read(&page[i]._mapcount) + 1;
+-	if (PageDoubleMap(page))
+-		ret -= HPAGE_PMD_NR;
+-	return ret;
++	return page_mapcount(page);
+ }
++#endif
+ 
+ static inline int page_count(struct page *page)
+ {
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 14cbbad54a3e..287bc009bc10 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -3236,6 +3236,25 @@ static void __split_huge_page(struct page *page, struct list_head *list)
+ 	}
+ }
+ 
++int total_mapcount(struct page *page)
++{
++	int i, ret;
++
++	VM_BUG_ON_PAGE(PageTail(page), page);
++
++	if (likely(!PageCompound(page)))
++		return atomic_read(&page->_mapcount) + 1;
++
++	ret = compound_mapcount(page);
++	if (PageHuge(page))
++		return ret;
++	for (i = 0; i < HPAGE_PMD_NR; i++)
++		ret += atomic_read(&page[i]._mapcount) + 1;
++	if (PageDoubleMap(page))
++		ret -= HPAGE_PMD_NR;
++	return ret;
++}
++
+ /*
+  * This function splits huge page into normal pages. @page can point to any
+  * subpage of huge page to split. Split doesn't change the position of @page.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
