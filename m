@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id CAE2782F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 19:16:55 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so102492344pab.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 16:16:55 -0800 (PST)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id cc4si13529739pbc.36.2015.11.05.16.16.54
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E30F82F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 19:32:13 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so102887483pab.0
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 16:32:13 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id tt9si11765857pbc.91.2015.11.05.16.32.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 16:16:54 -0800 (PST)
-Received: by padhx2 with SMTP id hx2so94400249pad.1
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 16:16:54 -0800 (PST)
-Date: Thu, 5 Nov 2015 19:16:48 -0500
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [PATCH] mm,vmscan: Use accurate values for zone_reclaimable()
- checks
-Message-ID: <20151106001648.GA18183@mtj.duckdns.org>
-References: <20151022143349.GD30579@mtj.duckdns.org>
- <alpine.DEB.2.20.1510220939310.23718@east.gentwo.org>
- <20151022151414.GF30579@mtj.duckdns.org>
- <20151023042649.GB18907@mtj.duckdns.org>
- <20151102150137.GB3442@dhcp22.suse.cz>
- <201511052359.JBB24816.FHtFOJOSLOVMQF@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.20.1511051144240.28554@east.gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1511051144240.28554@east.gentwo.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Nov 2015 16:32:12 -0800 (PST)
+Date: Thu, 5 Nov 2015 16:32:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/4] mm: prepare page_referenced() and page_idle to new
+ THP refcounting
+Message-Id: <20151105163211.608eec970de21a95faf6e156@linux-foundation.org>
+In-Reply-To: <1446564375-72143-5-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1446564375-72143-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1446564375-72143-5-git-send-email-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, rientjes@google.com, oleg@redhat.com, kwalker@redhat.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, skozina@redhat.com, mgorman@suse.de, riel@redhat.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>
 
-Hello,
+On Tue,  3 Nov 2015 17:26:15 +0200 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-On Thu, Nov 05, 2015 at 11:45:42AM -0600, Christoph Lameter wrote:
-> Sorry but we need work queue processing for vmstat counters that is
+> I've missed two simlar codepath which need some preparation to work well
+> with reworked THP refcounting.
+> 
+> Both page_referenced() and page_idle_clear_pte_refs_one() assume that
+> THP can only be mapped with PMD, so there's no reason to look on PTEs
+> for PageTransHuge() pages. That's no true anymore: THP can be mapped
+> with PTEs too.
+> 
+> The patch removes PageTransHuge() test from the functions and opencode
+> page table check.
 
-I made this analogy before but this is similar to looping with
-preemption off.  If anything on workqueue stays RUNNING w/o making
-forward progress, it's buggy.  I'd venture to say any code which busy
-loops without making forward progress in the time scale noticeable to
-human beings is borderline buggy too.  If things need to be retried in
-that time scale, putting in a short sleep between trials is a sensible
-thing to do.  There's no point in occupying the cpu and burning cycles
-without making forward progress.
+x86_64 allnoconfig:
 
-These things actually matter.  Freezer used to burn cycles this way
-and was really good at burning off the last remaining battery reserve
-during emergency hibernation if freezing takes some amount of time.
+In file included from mm/rmap.c:47:
+include/linux/mm.h: In function 'page_referenced':
+include/linux/mm.h:448: error: call to '__compiletime_assert_448' declared with attribute error: BUILD_BUG failed
+make[1]: *** [mm/rmap.o] Error 1
+make: *** [mm/rmap.o] Error 2
 
-It is true that as it currently stands this is error-prone as
-workqueue can't detect these conditions and warn about them.  The same
-goes for workqueues which sit in memory reclaim path but forgets
-WQ_MEM_RECLAIM.  I'm going to add lockup detection, similar to how
-softlockup but that's a different issue, so please update the code.
+because
 
-Thanks.
+#else /* CONFIG_TRANSPARENT_HUGEPAGE */
+#define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
 
--- 
-tejun
+
+btw, total_mapcount() is far too large to be inlined and
+page_mapcount() is getting pretty bad too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
