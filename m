@@ -1,73 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B64282F64
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2015 18:05:29 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so111738814pac.3
-        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 15:05:28 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTP id i9si3118872pbq.207.2015.11.06.15.05.27
-        for <linux-mm@kvack.org>;
-        Fri, 06 Nov 2015 15:05:28 -0800 (PST)
-Received: from mail.kernel.org (localhost [127.0.0.1])
-	by mail.kernel.org (Postfix) with ESMTP id 2FFC52074B
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2015 23:05:27 +0000 (UTC)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id E3FAE20722
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2015 23:05:24 +0000 (UTC)
-Received: by wmll128 with SMTP id l128so52690799wml.0
-        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 15:05:23 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <7hmvuqg3f1.fsf@deeprootsystems.com>
-References: <1446685239-28522-1-git-send-email-labbott@fedoraproject.org>
-	<20151105094615.GP8644@n2100.arm.linux.org.uk>
-	<563B81DA.2080409@redhat.com>
-	<20151105162719.GQ8644@n2100.arm.linux.org.uk>
-	<563BFCC4.8050705@redhat.com>
-	<CAGXu5jLS8GPxmMQwd9qw+w+fkMqU-GYyME5WUuKZZ4qTesVzCQ@mail.gmail.com>
-	<563CF510.9080506@redhat.com>
-	<CAGXu5jKLgL0Kt5xCWv-3ZUX94m1DNXLqsEDQKHoq7T=m6P7tvQ@mail.gmail.com>
-	<CAGXu5j+Jeg-Cwc7Tr8UeY9vkJLudw07+b=m0h-d9GuSyKiO4QA@mail.gmail.com>
-	<CAMAWPa9XvdS+dF78c7Fgs4ekRy7wVnfFT=0A5NLpu0UYaqV7fA@mail.gmail.com>
-	<CAGXu5j+U-Q2R1Hw4qSPpFUKz3xyYrASGc5buMJTSy0K-3mWHBA@mail.gmail.com>
-	<7h8u6ahm7d.fsf@deeprootsystems.com>
-	<CAGXu5jJnjHkkX3y31y5LJFhNrP=A8_BASg2MUR5rwA5MLPeVQg@mail.gmail.com>
-	<7hmvuqg3f1.fsf@deeprootsystems.com>
-Date: Fri, 6 Nov 2015 15:05:23 -0800
-Message-ID: <CAMAWPa_i9H9nw_hY5-=hJmenhXW2u_9DSKgZ5mEV0c_afGgqcQ@mail.gmail.com>
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E4EC82F64
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2015 18:42:01 -0500 (EST)
+Received: by obctp1 with SMTP id tp1so104578138obc.2
+        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 15:42:01 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i2si1139209obw.91.2015.11.06.15.42.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Nov 2015 15:42:00 -0800 (PST)
 Subject: Re: [PATCH] arm: Use kernel mm when updating section permissions
-From: Kevin Hilman <khilman@kernel.org>
-Content-Type: text/plain; charset=UTF-8
+References: <1446685239-28522-1-git-send-email-labbott@fedoraproject.org>
+ <20151105094615.GP8644@n2100.arm.linux.org.uk> <563B81DA.2080409@redhat.com>
+ <20151105162719.GQ8644@n2100.arm.linux.org.uk> <563BFCC4.8050705@redhat.com>
+ <CAGXu5jLS8GPxmMQwd9qw+w+fkMqU-GYyME5WUuKZZ4qTesVzCQ@mail.gmail.com>
+ <563CF510.9080506@redhat.com> <20151106204641.GT8644@n2100.arm.linux.org.uk>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <563D3AC5.4020203@redhat.com>
+Date: Fri, 6 Nov 2015 15:41:57 -0800
+MIME-Version: 1.0
+In-Reply-To: <20151106204641.GT8644@n2100.arm.linux.org.uk>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kevin Hilman <khilman@kernel.org>
-Cc: Kees Cook <keescook@chromium.org>, info@kernelci.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, Laura Abbott <labbott@fedoraproject.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Laura Abbott <labbott@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Tyler Baker <tyler.baker@linaro.org>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@fedoraproject.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Fri, Nov 6, 2015 at 2:37 PM, Kevin Hilman <khilman@kernel.org> wrote:
-> Kees Cook <keescook@chromium.org> writes:
+On 11/06/2015 12:46 PM, Russell King - ARM Linux wrote:
+> On Fri, Nov 06, 2015 at 10:44:32AM -0800, Laura Abbott wrote:
+>> with my test patch. I think setting both current->active_mm and &init_mm
+>> is sufficient. Maybe explicitly setting swapper_pg_dir would be cleaner?
 >
->> On Fri, Nov 6, 2015 at 1:06 PM, Kevin Hilman <khilman@kernel.org> wrote:
+> Please, stop thinking like this.  If you're trying to change the kernel
+> section mappings after threads have been spawned, you need to change
+> them for _all_ threads, which means you need to change them for every
+> page table that's in existence at that time - you can't do just one
+> table and hope everyone updates, it doesn't work like that.
 >
-> [...]
->
->> Well, all the stuff I wrote tests for in lkdtm expect the kernel to
->> entirely Oops, and examining the Oops from outside is needed to verify
->> it was the correct type of Oops. I don't think testing via lkdtm can
->> be done from kselftest sensibly.
->
-> Well, at least on arm32, it's definitely oops'ing, but it's not a full
-> panic, so the oops could be grabbed from dmesg.
->
-> FWIW, below is a log from and arm32 board running mainline v4.3 that
-> runs through all the non-panic/lockup tests one after the other without
-> a reboot.
 
-... however, a run on arm64 and it locks up after the OVERFLOW test,
-so I think you're right that we need an "outside observer" to reliably
-determine pass/fail on these.  We'll start looking at that.
+That's a bad assumption assumption on my part based on what I was
+observing. At the time of mark_rodata_ro, the only threads present
+are kernel threads which aren't going to have task->mm. Only the
+running thread is going to have active_mm. None of those are init_mm.
+To be complete we need:
 
-Kevin
+- Update every task->mm for every thread in every process
+- Update current->active_mm
+- Update &init_mm explicitly
+
+All this would need to be done under stop_machine as well. Does that cover
+everything or am I still off?
+
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
