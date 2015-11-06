@@ -1,106 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C4BFE82F64
-	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 20:15:44 -0500 (EST)
-Received: by igvi2 with SMTP id i2so23247320igv.0
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 17:15:44 -0800 (PST)
-Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
-        by mx.google.com with ESMTPS id l1si383588igx.27.2015.11.05.17.15.44
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A37D582F64
+	for <linux-mm@kvack.org>; Thu,  5 Nov 2015 21:31:34 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so81956105pac.3
+        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 18:31:34 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id gn6si12413190pbc.40.2015.11.05.18.31.33
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Nov 2015 17:15:44 -0800 (PST)
-Received: by ioll68 with SMTP id l68so110772090iol.3
-        for <linux-mm@kvack.org>; Thu, 05 Nov 2015 17:15:44 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <563BFCC4.8050705@redhat.com>
-References: <1446685239-28522-1-git-send-email-labbott@fedoraproject.org>
-	<20151105094615.GP8644@n2100.arm.linux.org.uk>
-	<563B81DA.2080409@redhat.com>
-	<20151105162719.GQ8644@n2100.arm.linux.org.uk>
-	<563BFCC4.8050705@redhat.com>
-Date: Thu, 5 Nov 2015 17:15:43 -0800
-Message-ID: <CAGXu5jLS8GPxmMQwd9qw+w+fkMqU-GYyME5WUuKZZ4qTesVzCQ@mail.gmail.com>
-Subject: Re: [PATCH] arm: Use kernel mm when updating section permissions
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Nov 2015 18:31:33 -0800 (PST)
+Date: Thu, 5 Nov 2015 18:31:32 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: + memcg-fix-thresholds-for-32b-architectures-fix-fix.patch
+ added to -mm tree
+Message-Id: <20151105183132.0a5f874c7f5f69b3c2e53dd1@linux-foundation.org>
+In-Reply-To: <20151104091804.GE29607@dhcp22.suse.cz>
+References: <563943fb.IYtEMWL7tCGWBkSl%akpm@linux-foundation.org>
+	<20151104091804.GE29607@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Laura Abbott <labbott@fedoraproject.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: ben@decadent.org.uk, hannes@cmpxchg.org, vdavydov@virtuozzo.com, linux-mm@kvack.org
 
-On Thu, Nov 5, 2015 at 5:05 PM, Laura Abbott <labbott@redhat.com> wrote:
-> On 11/05/2015 08:27 AM, Russell King - ARM Linux wrote:
->>
->> On Thu, Nov 05, 2015 at 08:20:42AM -0800, Laura Abbott wrote:
->>>
->>> On 11/05/2015 01:46 AM, Russell King - ARM Linux wrote:
->>>>
->>>> On Wed, Nov 04, 2015 at 05:00:39PM -0800, Laura Abbott wrote:
->>>>>
->>>>> Currently, read only permissions are not being applied even
->>>>> when CONFIG_DEBUG_RODATA is set. This is because section_update
->>>>> uses current->mm for adjusting the page tables. current->mm
->>>>> need not be equivalent to the kernel version. Use pgd_offset_k
->>>>> to get the proper page directory for updating.
->>>>
->>>>
->>>> What are you trying to achieve here?  You can't use these functions
->>>> at run time (after the first thread has been spawned) to change
->>>> permissions, because there will be multiple copies of the kernel
->>>> section mappings, and those copies will not get updated.
->>>>
->>>> In any case, this change will probably break kexec and ftrace, as
->>>> the running thread will no longer see the updated page tables.
->>>>
->>>
->>> I think I was hitting that exact problem with multiple copies
->>> not getting updated. The section_update code was being called
->>> and I was seeing the tables get updated but nothing was being
->>> applied when I tried to write to text or check the debugfs
->>> page table. The current flow is:
->>>
->>> rest_init -> kernel_thread(kernel_init) and from that thread
->>> mark_rodata_ro. So mark_rodata_ro is always going to happen
->>> in a thread.
->>>
->>> Do we need to update for both init_mm and the first running
->>> thread?
->>
->>
->> The "first running thread" is merely coincidental for things like kexec.
->>
->> Hmm.  Actually, I think the existing code _should_ be fine.  At the
->> point where mark_rodata_ro() is, we should still be using init_mm, so
->> updating the current threads page tables should actually be updating
->> the swapper_pg_dir.
->
->
-> That doesn't seem to hold true. Based on what I'm seeing, we lose
-> the the guarantee of init_mm after the first exec. If usermodehelper
-> gets called to load a module, that triggers an exec and the kernel
-> thread is no longer using init_mm after that. I'm testing with the
-> multi-v7 defconfig which uses the smsc911x driver which loads a
-> module during initcall. That gets called before mark_rodata_ro so
-> the init_mm is never updated. I verified that disabling smsc911x
-> makes things work as expected. I suspect the testing was never done
-> with a driver that tried to call usermodehelper during init time.
+On Wed, 4 Nov 2015 10:18:04 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-Ooooh. Nice catch. Yeah, my testing didn't include that case.
+> On Tue 03-11-15 15:32:11, Andrew Morton wrote:
+> > From: Andrew Morton <akpm@linux-foundation.org>
+> > Subject: memcg-fix-thresholds-for-32b-architectures-fix-fix
+> > 
+> > don't attempt to inline mem_cgroup_usage()
+> > 
+> > The compiler ignores the inline anwyay.  And __always_inlining it adds 600
+> > bytes of goop to the .o file.
+> 
+> I am not sure you whether you want to fold this into the original patch
+> but I would prefer this to be a separate one.
 
-> I got as far as narrowing it down that it happens after the usermodehelper
-> but I wasn't able to pinpoint where exactly the switch happened. It seems
-> like we need to have the page tables set up before any initcalls
-> happen otherwise we risk having an exec create stray processes which we
-> can't update.
-
-Can we just make mark_rodata_ro() a no-op and do the RO setting
-earlier when we do the NX setting?
-
--Kees
-
--- 
-Kees Cook
-Chrome OS Security
+I'm going to drop this - it was already marked inline and gcc just
+ignores the inline anyway so shrug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
