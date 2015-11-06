@@ -1,133 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B23182F64
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2015 05:29:24 -0500 (EST)
-Received: by wmll128 with SMTP id l128so36874121wml.0
-        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 02:29:23 -0800 (PST)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id s127si2981338wmb.88.2015.11.06.02.29.22
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 02F8882F64
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2015 05:34:46 -0500 (EST)
+Received: by wimw2 with SMTP id w2so27484622wim.1
+        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 02:34:45 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id m129si52292wmb.70.2015.11.06.02.34.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Nov 2015 02:29:22 -0800 (PST)
-Received: by wmec201 with SMTP id c201so13993735wme.0
-        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 02:29:22 -0800 (PST)
-Date: Fri, 6 Nov 2015 12:29:21 +0200
+        Fri, 06 Nov 2015 02:34:45 -0800 (PST)
+Received: by wmll128 with SMTP id l128so36990575wml.0
+        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 02:34:44 -0800 (PST)
+Date: Fri, 6 Nov 2015 12:34:43 +0200
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 4/4] mm: prepare page_referenced() and page_idle to new
- THP refcounting
-Message-ID: <20151106102921.GA6463@node.shutemov.name>
-References: <1446564375-72143-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1446564375-72143-5-git-send-email-kirill.shutemov@linux.intel.com>
- <20151105163211.608eec970de21a95faf6e156@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: hwpoison: adjust for new thp refcounting
+Message-ID: <20151106103442.GB6463@node.shutemov.name>
+References: <20151106064743.GA30023@hori1.linux.bs1.fc.nec.co.jp>
+ <1446796992-15798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151105163211.608eec970de21a95faf6e156@linux-foundation.org>
+In-Reply-To: <1446796992-15798-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Wanpeng Li <wanpeng.li@hotmail.com>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, Nov 05, 2015 at 04:32:11PM -0800, Andrew Morton wrote:
-> On Tue,  3 Nov 2015 17:26:15 +0200 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Fri, Nov 06, 2015 at 05:03:12PM +0900, Naoya Horiguchi wrote:
+> Some mm-related BUG_ON()s could trigger from hwpoison code due to recent
+> changes in thp refcounting rule. This patch fixes them up.
 > 
-> > I've missed two simlar codepath which need some preparation to work well
-> > with reworked THP refcounting.
-> > 
-> > Both page_referenced() and page_idle_clear_pte_refs_one() assume that
-> > THP can only be mapped with PMD, so there's no reason to look on PTEs
-> > for PageTransHuge() pages. That's no true anymore: THP can be mapped
-> > with PTEs too.
-> > 
-> > The patch removes PageTransHuge() test from the functions and opencode
-> > page table check.
+> In the new refcounting, we no longer use tail->_mapcount to keep tail's
+> refcount, and thereby we can simplify get/put_hwpoison_page().
 > 
-> x86_64 allnoconfig:
+> And another change is that tail's refcount is not transferred to the raw
+> page during thp split (more precisely, in new rule we don't take refcount
+> on tail page any more.) So when we need thp split, we have to transfer the
+> refcount properly to the 4kB soft-offlined page before migration.
 > 
-> In file included from mm/rmap.c:47:
-> include/linux/mm.h: In function 'page_referenced':
-> include/linux/mm.h:448: error: call to '__compiletime_assert_448' declared with attribute error: BUILD_BUG failed
-> make[1]: *** [mm/rmap.o] Error 1
-> make: *** [mm/rmap.o] Error 2
+> thp split code goes into core code only when precheck (total_mapcount(head)
+> == page_count(head) - 1) passes to avoid useless split, where we assume that
+> one refcount is held by the caller of thp split and the others are taken
+> via mapping. To meet this assumption, this patch moves thp split part in
+> soft_offline_page() after get_any_page().
 > 
-> because
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+> ChangeLog v1->v2:
+> - leave put_hwpoison_page() as a macro
 > 
-> #else /* CONFIG_TRANSPARENT_HUGEPAGE */
-> #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
+> - based on mmotm-2015-10-21-14-41 + Kirill's "[PATCH 0/4] Bugfixes for THP
+>   refcounting" series.
+> ---
+>  include/linux/mm.h  |    1 +
+>  mm/memory-failure.c |   75 +++++++++++++++------------------------------------
+>  2 files changed, 23 insertions(+), 53 deletions(-)
 > 
-> 
-> btw, total_mapcount() is far too large to be inlined and
+> diff --git mmotm-2015-10-21-14-41/include/linux/mm.h mmotm-2015-10-21-14-41_patched/include/linux/mm.h
+> index a36f9fa..51e3ffe 100644
+> --- mmotm-2015-10-21-14-41/include/linux/mm.h
+> +++ mmotm-2015-10-21-14-41_patched/include/linux/mm.h
+> @@ -2173,6 +2173,7 @@ extern int memory_failure(unsigned long pfn, int trapno, int flags);
+>  extern void memory_failure_queue(unsigned long pfn, int trapno, int flags);
+>  extern int unpoison_memory(unsigned long pfn);
+>  extern int get_hwpoison_page(struct page *page);
+> +#define put_hwpoison_page(page)	put_page(page)
+>  extern void put_hwpoison_page(struct page *page);
 
-The patch below is my propsal to fix this.
+This line should be removed.
 
-> page_mapcount() is getting pretty bad too.
+Otherwise looks good to me.
 
-Do you want me to uninline slow path (PageCompound())?
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a36f9fa4e4cd..f874d2a1d1a6 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -432,24 +432,14 @@ static inline int page_mapcount(struct page *page)
- 	return ret;
- }
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+int total_mapcount(struct page *page);
-+#else
- static inline int total_mapcount(struct page *page)
- {
--	int i, ret;
--
--	VM_BUG_ON_PAGE(PageTail(page), page);
--
--	if (likely(!PageCompound(page)))
--		return atomic_read(&page->_mapcount) + 1;
--
--	ret = compound_mapcount(page);
--	if (PageHuge(page))
--		return ret;
--	for (i = 0; i < HPAGE_PMD_NR; i++)
--		ret += atomic_read(&page[i]._mapcount) + 1;
--	if (PageDoubleMap(page))
--		ret -= HPAGE_PMD_NR;
--	return ret;
-+	return page_mapcount(page);
- }
-+#endif
- 
- static inline int page_count(struct page *page)
- {
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 14cbbad54a3e..287bc009bc10 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -3236,6 +3236,25 @@ static void __split_huge_page(struct page *page, struct list_head *list)
- 	}
- }
- 
-+int total_mapcount(struct page *page)
-+{
-+	int i, ret;
-+
-+	VM_BUG_ON_PAGE(PageTail(page), page);
-+
-+	if (likely(!PageCompound(page)))
-+		return atomic_read(&page->_mapcount) + 1;
-+
-+	ret = compound_mapcount(page);
-+	if (PageHuge(page))
-+		return ret;
-+	for (i = 0; i < HPAGE_PMD_NR; i++)
-+		ret += atomic_read(&page[i]._mapcount) + 1;
-+	if (PageDoubleMap(page))
-+		ret -= HPAGE_PMD_NR;
-+	return ret;
-+}
-+
- /*
-  * This function splits huge page into normal pages. @page can point to any
-  * subpage of huge page to split. Split doesn't change the position of @page.
 -- 
  Kirill A. Shutemov
 
