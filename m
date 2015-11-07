@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f49.google.com (mail-lf0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E35C82F64
-	for <linux-mm@kvack.org>; Sat,  7 Nov 2015 15:07:44 -0500 (EST)
-Received: by lfbn126 with SMTP id n126so85003488lfb.2
-        for <linux-mm@kvack.org>; Sat, 07 Nov 2015 12:07:43 -0800 (PST)
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 872CF82F64
+	for <linux-mm@kvack.org>; Sat,  7 Nov 2015 15:07:50 -0500 (EST)
+Received: by lbces9 with SMTP id es9so7577203lbc.2
+        for <linux-mm@kvack.org>; Sat, 07 Nov 2015 12:07:49 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id my5si4503370lbb.108.2015.11.07.12.07.42
+        by mx.google.com with ESMTPS id 196si4525044lfa.27.2015.11.07.12.07.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 07 Nov 2015 12:07:42 -0800 (PST)
+        Sat, 07 Nov 2015 12:07:49 -0800 (PST)
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH 3/5] memcg: only account kmem allocations marked as __GFP_ACCOUNT
-Date: Sat, 7 Nov 2015 23:07:07 +0300
-Message-ID: <14d7a7f5e696d71793ddd835604de309af1963fd.1446924358.git.vdavydov@virtuozzo.com>
+Subject: [PATCH 4/5] vmalloc: allow to account vmalloc to memcg
+Date: Sat, 7 Nov 2015 23:07:08 +0300
+Message-ID: <7fe5e6dbb66fa7f0102c012c59ac10c25c6b2da7.1446924358.git.vdavydov@virtuozzo.com>
 In-Reply-To: <cover.1446924358.git.vdavydov@virtuozzo.com>
 References: <cover.1446924358.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
@@ -22,83 +22,41 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Black-list kmem accounting policy (aka __GFP_NOACCOUNT) turned out to be
-fragile and difficult to maintain, because there seem to be many more
-allocations that should not be accounted than those that should be.
-Besides, false accounting an allocation might result in much worse
-consequences than not accounting at all, namely increased memory
-consumption due to pinned dead kmem caches.
-
-So this patch switches kmem accounting to the white-policy: now only
-those kmem allocations that are marked as __GFP_ACCOUNT are accounted to
-memcg. Currently, no kmem allocations are marked like this. The
-following patches will mark several kmem allocations that are known to
-be easily triggered from userspace and therefore should be accounted to
-memcg.
+This patch makes vmalloc family functions allocate vmalloc area pages
+with alloc_kmem_pages so that if __GFP_ACCOUNT is set they will be
+accounted to memcg. This is needed, at least, to account alloc_fdmem
+allocations.
 
 Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 ---
- include/linux/gfp.h        | 4 ++++
- include/linux/memcontrol.h | 2 ++
- mm/page_alloc.c            | 3 ++-
- 3 files changed, 8 insertions(+), 1 deletion(-)
+ mm/vmalloc.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 2b917ce34efc..61305a492356 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -30,6 +30,7 @@ struct vm_area_struct;
- #define ___GFP_HARDWALL		0x20000u
- #define ___GFP_THISNODE		0x40000u
- #define ___GFP_RECLAIMABLE	0x80000u
-+#define ___GFP_ACCOUNT		0x100000u
- #define ___GFP_NOTRACK		0x200000u
- #define ___GFP_NO_KSWAPD	0x400000u
- #define ___GFP_OTHER_NODE	0x800000u
-@@ -90,6 +91,8 @@ struct vm_area_struct;
- #define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL) /* Enforce hardwall cpuset memory allocs */
- #define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)/* No fallback, no policies */
- #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
-+#define __GFP_ACCOUNT	((__force gfp_t)___GFP_ACCOUNT)	/* Account to memcg (only relevant
-+							 * to kmem allocations) */
- #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 9db9ef5e8481..259cfb32b7cf 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1476,7 +1476,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 			struct page *page = area->pages[i];
  
- #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
-@@ -112,6 +115,7 @@ struct vm_area_struct;
- #define GFP_NOIO	(__GFP_WAIT)
- #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
- #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
-+#define GFP_KERNEL_ACCOUNT	(GFP_KERNEL | __GFP_ACCOUNT)
- #define GFP_TEMPORARY	(__GFP_WAIT | __GFP_IO | __GFP_FS | \
- 			 __GFP_RECLAIMABLE)
- #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 2103f36b3bd3..c9d9a8e7b45f 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -773,6 +773,8 @@ static inline bool __memcg_kmem_bypass(gfp_t gfp)
- {
- 	if (!memcg_kmem_enabled())
- 		return true;
-+	if (!(gfp & __GFP_ACCOUNT))
-+		return true;
- 	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
- 		return true;
- 	return false;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 446bb36ee59d..8e22f5b27de0 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3420,7 +3420,8 @@ EXPORT_SYMBOL(__free_page_frag);
+ 			BUG_ON(!page);
+-			__free_page(page);
++			__free_kmem_pages(page, 0);
+ 		}
  
- /*
-  * alloc_kmem_pages charges newly allocated pages to the kmem resource counter
-- * of the current memory cgroup.
-+ * of the current memory cgroup if __GFP_ACCOUNT is set, other than that it is
-+ * equivalent to alloc_pages.
-  *
-  * It should be used when the caller would like to use kmalloc, but since the
-  * allocation is large, it has to fall back to the page allocator.
+ 		if (area->flags & VM_VPAGES)
+@@ -1607,9 +1607,9 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 		struct page *page;
+ 
+ 		if (node == NUMA_NO_NODE)
+-			page = alloc_page(alloc_mask);
++			page = alloc_kmem_pages(alloc_mask, order);
+ 		else
+-			page = alloc_pages_node(node, alloc_mask, order);
++			page = alloc_kmem_pages_node(node, alloc_mask, order);
+ 
+ 		if (unlikely(!page)) {
+ 			/* Successfully allocated i pages, free them in __vunmap() */
 -- 
 2.1.4
 
