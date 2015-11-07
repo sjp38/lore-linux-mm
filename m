@@ -1,76 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A38882F64
-	for <linux-mm@kvack.org>; Fri,  6 Nov 2015 19:20:30 -0500 (EST)
-Received: by obdgf3 with SMTP id gf3so104884740obd.3
-        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 16:20:30 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d185si1209094oia.29.2015.11.06.16.20.29
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 568A782F64
+	for <linux-mm@kvack.org>; Fri,  6 Nov 2015 20:23:10 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so138654310pab.0
+        for <linux-mm@kvack.org>; Fri, 06 Nov 2015 17:23:10 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id fc2si3878773pbd.137.2015.11.06.17.23.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Nov 2015 16:20:29 -0800 (PST)
-Subject: Re: [PATCH] arm: Use kernel mm when updating section permissions
-References: <1446685239-28522-1-git-send-email-labbott@fedoraproject.org>
- <20151105094615.GP8644@n2100.arm.linux.org.uk> <563B81DA.2080409@redhat.com>
- <20151105162719.GQ8644@n2100.arm.linux.org.uk> <563BFCC4.8050705@redhat.com>
- <CAGXu5jLS8GPxmMQwd9qw+w+fkMqU-GYyME5WUuKZZ4qTesVzCQ@mail.gmail.com>
- <563CF510.9080506@redhat.com> <20151106204641.GT8644@n2100.arm.linux.org.uk>
- <563D3AC5.4020203@redhat.com>
- <CAGXu5jLf+BAhPvQihZ02jUpSE4woP-aMhfUQ6vobZBShrZXT4g@mail.gmail.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <563D43CA.9030405@redhat.com>
-Date: Fri, 6 Nov 2015 16:20:26 -0800
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 06 Nov 2015 17:23:09 -0800 (PST)
+Subject: Re: [PATCH] jbd2: get rid of superfluous __GFP_REPEAT
+References: <1446740160-29094-4-git-send-email-mhocko@kernel.org>
+ <1446826623-23959-1-git-send-email-mhocko@kernel.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <563D526F.6030504@I-love.SAKURA.ne.jp>
+Date: Sat, 7 Nov 2015 10:22:55 +0900
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jLf+BAhPvQihZ02jUpSE4woP-aMhfUQ6vobZBShrZXT4g@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <1446826623-23959-1-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Laura Abbott <labbott@fedoraproject.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: mhocko@kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, john.johansen@canonical.com
 
-On 11/06/2015 03:49 PM, Kees Cook wrote:
-> On Fri, Nov 6, 2015 at 3:41 PM, Laura Abbott <labbott@redhat.com> wrote:
->> On 11/06/2015 12:46 PM, Russell King - ARM Linux wrote:
->>>
->>> On Fri, Nov 06, 2015 at 10:44:32AM -0800, Laura Abbott wrote:
->>>>
->>>> with my test patch. I think setting both current->active_mm and &init_mm
->>>> is sufficient. Maybe explicitly setting swapper_pg_dir would be cleaner?
->>>
->>>
->>> Please, stop thinking like this.  If you're trying to change the kernel
->>> section mappings after threads have been spawned, you need to change
->>> them for _all_ threads, which means you need to change them for every
->>> page table that's in existence at that time - you can't do just one
->>> table and hope everyone updates, it doesn't work like that.
->>>
->>
->> That's a bad assumption assumption on my part based on what I was
->> observing. At the time of mark_rodata_ro, the only threads present
->> are kernel threads which aren't going to have task->mm. Only the
->> running thread is going to have active_mm. None of those are init_mm.
->> To be complete we need:
->>
->> - Update every task->mm for every thread in every process
->> - Update current->active_mm
->> - Update &init_mm explicitly
->>
->> All this would need to be done under stop_machine as well. Does that cover
->> everything or am I still off?
+On 2015/11/07 1:17, mhocko@kernel.org wrote:
+> From: Michal Hocko <mhocko@suse.com>
 >
-> I still think we need to find an earlier place to do this. :(
+> jbd2_alloc is explicit about its allocation preferences wrt. the
+> allocation size. Sub page allocations go to the slab allocator
+> and larger are using either the page allocator or vmalloc. This
+> is all good but the logic is unnecessarily complex. Requests larger
+> than order-3 are doing the vmalloc directly while smaller go to the
+> page allocator with __GFP_REPEAT. The flag doesn't do anything useful
+> for those because they are smaller than PAGE_ALLOC_COSTLY_ORDER.
 >
-> -Kees
+> Let's simplify the code flow and use kmalloc for sub-page requests
+> and the page allocator for others with fallback to vmalloc if the
+> allocation fails.
+>
+> Cc: "Theodore Ts'o" <tytso@mit.edu>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>   fs/jbd2/journal.c | 35 ++++++++++++-----------------------
+>   1 file changed, 12 insertions(+), 23 deletions(-)
+>
+> diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
+> index 81e622681c82..2945c96f171f 100644
+> --- a/fs/jbd2/journal.c
+> +++ b/fs/jbd2/journal.c
+> @@ -2299,18 +2299,15 @@ void *jbd2_alloc(size_t size, gfp_t flags)
+>
+>   	BUG_ON(size & (size-1)); /* Must be a power of 2 */
+>
+> -	flags |= __GFP_REPEAT;
+> -	if (size == PAGE_SIZE)
+> -		ptr = (void *)__get_free_pages(flags, 0);
+> -	else if (size > PAGE_SIZE) {
+> +	if (size < PAGE_SIZE)
+> +		ptr = kmem_cache_alloc(get_slab(size), flags);
+> +	else {
+>   		int order = get_order(size);
+>
+> -		if (order < 3)
+> -			ptr = (void *)__get_free_pages(flags, order);
+> -		else
+> +		ptr = (void *)__get_free_pages(flags, order);
+
+I thought that we can add __GFP_NOWARN for this __get_free_pages() call.
+But I noticed more important problem. See below.
+
+> +		if (!ptr)
+>   			ptr = vmalloc(size);
+> -	} else
+> -		ptr = kmem_cache_alloc(get_slab(size), flags);
+> +	}
+>
+>   	/* Check alignment; SLUB has gotten this wrong in the past,
+>   	 * and this can lead to user data corruption! */
+> @@ -2321,20 +2318,12 @@ void *jbd2_alloc(size_t size, gfp_t flags)
+>
+>   void jbd2_free(void *ptr, size_t size)
+>   {
+> -	if (size == PAGE_SIZE) {
+> -		free_pages((unsigned long)ptr, 0);
+> -		return;
+> -	}
+> -	if (size > PAGE_SIZE) {
+> -		int order = get_order(size);
+> -
+> -		if (order < 3)
+> -			free_pages((unsigned long)ptr, order);
+> -		else
+> -			vfree(ptr);
+> -		return;
+> -	}
+> -	kmem_cache_free(get_slab(size), ptr);
+> +	if (size < PAGE_SIZE)
+> +		kmem_cache_free(get_slab(size), ptr);
+> +	else if (is_vmalloc_addr(ptr))
+> +		vfree(ptr);
+> +	else
+> +		free_pages((unsigned long)ptr, get_order(size));
+>   };
+>
+>   /*
 >
 
-The problem is still the initmem. That needs to be writable and executable
-during inittime and then have the page tables adjusted afterwards if it is
-going to be freed back. I'll give this some more thought to see if I can
-come up with something or if anyone else has another idea.
+All jbd2_alloc() callers seem to pass GFP_NOFS. Therefore, use of
+vmalloc() which implicitly passes GFP_KERNEL | __GFP_HIGHMEM can cause
+deadlock, can't it? This vmalloc(size) call needs to be replaced with
+__vmalloc(size, flags).
 
-Thanks,
-Laura
+We need to check all vmalloc() callers in case they are calling vmalloc()
+under GFP_KERNEL-unsafe context. For example, I think that __aa_kvmalloc()
+needs to use __vmalloc() too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
