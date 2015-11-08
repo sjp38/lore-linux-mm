@@ -1,58 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 906456B0253
-	for <linux-mm@kvack.org>; Sun,  8 Nov 2015 00:05:03 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so163919497pab.0
-        for <linux-mm@kvack.org>; Sat, 07 Nov 2015 21:05:03 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id wp3si12705950pab.160.2015.11.07.21.05.02
+Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BEEE6B0253
+	for <linux-mm@kvack.org>; Sun,  8 Nov 2015 00:08:09 -0500 (EST)
+Received: by ykdv3 with SMTP id v3so133993356ykd.0
+        for <linux-mm@kvack.org>; Sat, 07 Nov 2015 21:08:09 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id w144si3798122ywd.67.2015.11.07.21.08.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 07 Nov 2015 21:05:02 -0800 (PST)
-Subject: Re: [PATCH] tree wide: Use kvfree() than conditional kfree()/vfree()
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1446896665-21818-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<CAHp75VfuH3oBSTmz1ww=H=q0btxBft+Z2Rdzav3VHHZypk6GVQ@mail.gmail.com>
-	<CAHp75Vds+xA+Mtb1rCM8ALsgiGmY3MeYs=HjYuaFzSyH1L_C0A@mail.gmail.com>
-In-Reply-To: <CAHp75Vds+xA+Mtb1rCM8ALsgiGmY3MeYs=HjYuaFzSyH1L_C0A@mail.gmail.com>
-Message-Id: <201511081404.HGJ65681.LOSJFOtMFOVHFQ@I-love.SAKURA.ne.jp>
-Date: Sun, 8 Nov 2015 14:04:46 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 07 Nov 2015 21:08:08 -0800 (PST)
+Date: Sun, 8 Nov 2015 00:08:02 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH] jbd2: get rid of superfluous __GFP_REPEAT
+Message-ID: <20151108050802.GB3880@thunk.org>
+References: <1446740160-29094-4-git-send-email-mhocko@kernel.org>
+ <1446826623-23959-1-git-send-email-mhocko@kernel.org>
+ <563D526F.6030504@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <563D526F.6030504@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: andy.shevchenko@gmail.com, julia@diku.dk, joe@perches.com
-Cc: mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, john.johansen@canonical.com
 
-Andy Shevchenko wrote:
-> Like Joe noticed you have left few places like
-> void my_func_kvfree(arg)
-> {
-> kvfree(arg);
-> }
->
-> Might make sense to remove them completely, especially in case when
-> you have changed the callers.
+On Sat, Nov 07, 2015 at 10:22:55AM +0900, Tetsuo Handa wrote:
+> All jbd2_alloc() callers seem to pass GFP_NOFS. Therefore, use of
+> vmalloc() which implicitly passes GFP_KERNEL | __GFP_HIGHMEM can cause
+> deadlock, can't it? This vmalloc(size) call needs to be replaced with
+> __vmalloc(size, flags).
 
-I think we should stop at
+jbd2_alloc is only passed in the bh->b_size, which can't be >
+PAGE_SIZE, so the code path that calls vmalloc() should never get
+called.  When we conveted jbd2_alloc() to suppor sub-page size
+allocations in commit d2eecb039368, there was an assumption that it
+could be called with a size greater than PAGE_SIZE, but that's
+certaily not true today.
 
-#define my_func_kvfree(arg) kvfree(arg)
-
-in case someone want to add some code in future.
-
-Also, we might want to add a helper that does vmalloc() when
-kmalloc() failed because locations that do
-
-  ptr = kmalloc(size, GFP_NOFS);
-  if (!ptr)
-      ptr = vmalloc(size); /* Wrong because GFP_KERNEL is used implicitly */
-
-are found.
-
-> One more thought. Might be good to provide a coccinelle script for
-> such places? Julia?
-
-Welcome. I'm sure I'm missing some locations.
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
