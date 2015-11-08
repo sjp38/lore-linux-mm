@@ -1,46 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 58D4282F64
-	for <linux-mm@kvack.org>; Sat,  7 Nov 2015 15:55:21 -0500 (EST)
-Received: by igvg19 with SMTP id g19so5412697igv.1
-        for <linux-mm@kvack.org>; Sat, 07 Nov 2015 12:55:21 -0800 (PST)
-Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
-        by mx.google.com with ESMTPS id u87si6454585iou.1.2015.11.07.12.55.20
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 906456B0253
+	for <linux-mm@kvack.org>; Sun,  8 Nov 2015 00:05:03 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so163919497pab.0
+        for <linux-mm@kvack.org>; Sat, 07 Nov 2015 21:05:03 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id wp3si12705950pab.160.2015.11.07.21.05.02
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Sat, 07 Nov 2015 12:55:20 -0800 (PST)
-Date: Sat, 7 Nov 2015 14:55:19 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH V2 2/2] slub: add missing kmem cgroup support to
- kmem_cache_free_bulk
-In-Reply-To: <20151107202548.GO29259@esperanza>
-Message-ID: <alpine.DEB.2.20.1511071453460.9141@east.gentwo.org>
-References: <20151105153704.1115.10475.stgit@firesoul> <20151105153756.1115.41409.stgit@firesoul> <20151105162514.GI29259@esperanza> <20151107175338.12a0368b@redhat.com> <20151107202548.GO29259@esperanza>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 07 Nov 2015 21:05:02 -0800 (PST)
+Subject: Re: [PATCH] tree wide: Use kvfree() than conditional kfree()/vfree()
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1446896665-21818-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<CAHp75VfuH3oBSTmz1ww=H=q0btxBft+Z2Rdzav3VHHZypk6GVQ@mail.gmail.com>
+	<CAHp75Vds+xA+Mtb1rCM8ALsgiGmY3MeYs=HjYuaFzSyH1L_C0A@mail.gmail.com>
+In-Reply-To: <CAHp75Vds+xA+Mtb1rCM8ALsgiGmY3MeYs=HjYuaFzSyH1L_C0A@mail.gmail.com>
+Message-Id: <201511081404.HGJ65681.LOSJFOtMFOVHFQ@I-love.SAKURA.ne.jp>
+Date: Sun, 8 Nov 2015 14:04:46 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: andy.shevchenko@gmail.com, julia@diku.dk, joe@perches.com
+Cc: mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 7 Nov 2015, Vladimir Davydov wrote:
-
-> Hmm, I thought that a bunch of objects allocated using
-> kmem_cache_alloc_bulk must be freed using kmem_cache_free_bulk. If it
-> does not hold, i.e. if one can allocate an array of objects one by one
-> using kmem_cache_alloc and then batch-free them using
-> kmem_cache_free_bulk, then my proposal is irrelevant.
-
-Nope they can be allocated and freed in multiple ways.
-
-> > With my limited mem cgroups, it looks like memcg works on the slab-page
-> > level?
+Andy Shevchenko wrote:
+> Like Joe noticed you have left few places like
+> void my_func_kvfree(arg)
+> {
+> kvfree(arg);
+> }
 >
-> Yes, a memcg has its private copy of each global kmem cache it attempted
-> to use, which implies that all objects on the same slab-page must belong
-> to the same memcg.
+> Might make sense to remove them completely, especially in case when
+> you have changed the callers.
 
-Every memcg duplicates all slab caches and thus these are separate caches.
-Bulk freeing to a mixture of cgroups caches does not work.
+I think we should stop at
+
+#define my_func_kvfree(arg) kvfree(arg)
+
+in case someone want to add some code in future.
+
+Also, we might want to add a helper that does vmalloc() when
+kmalloc() failed because locations that do
+
+  ptr = kmalloc(size, GFP_NOFS);
+  if (!ptr)
+      ptr = vmalloc(size); /* Wrong because GFP_KERNEL is used implicitly */
+
+are found.
+
+> One more thought. Might be good to provide a coccinelle script for
+> such places? Julia?
+
+Welcome. I'm sure I'm missing some locations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
