@@ -1,82 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC8E6B0256
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 13:28:50 -0500 (EST)
-Received: by pasz6 with SMTP id z6so212864158pas.2
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 10:28:50 -0800 (PST)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B4BDE6B0254
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 13:38:34 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so207038136pab.0
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 10:38:34 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ms6si23853554pbb.247.2015.11.09.10.28.50
+        by mx.google.com with ESMTPS id b1si23875115pat.193.2015.11.09.10.38.33
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Nov 2015 10:28:50 -0800 (PST)
-Date: Mon, 9 Nov 2015 21:28:40 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Nov 2015 10:38:34 -0800 (PST)
+Date: Mon, 9 Nov 2015 21:38:21 +0300
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 0/5] memcg/kmem: switch to white list policy
-Message-ID: <20151109182840.GJ31308@esperanza>
-References: <cover.1446924358.git.vdavydov@virtuozzo.com>
- <20151109140832.GE8916@dhcp22.suse.cz>
+Subject: Re: [PATCH V2 2/2] slub: add missing kmem cgroup support to
+ kmem_cache_free_bulk
+Message-ID: <20151109183821.GK31308@esperanza>
+References: <20151105153704.1115.10475.stgit@firesoul>
+ <20151105153756.1115.41409.stgit@firesoul>
+ <20151105162514.GI29259@esperanza>
+ <20151107175338.12a0368b@redhat.com>
+ <20151107202548.GO29259@esperanza>
+ <20151109173910.7a3c3a18@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20151109140832.GE8916@dhcp22.suse.cz>
+In-Reply-To: <20151109173910.7a3c3a18@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-On Mon, Nov 09, 2015 at 03:08:32PM +0100, Michal Hocko wrote:
-...
-> > Therefore this patch switches to the white list policy. Now kmalloc
-> > users have to explicitly opt in by passing __GFP_ACCOUNT flag.
+On Mon, Nov 09, 2015 at 05:39:10PM +0100, Jesper Dangaard Brouer wrote:
+> 
+> On Sat, 7 Nov 2015 23:25:48 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+> > On Sat, Nov 07, 2015 at 05:53:38PM +0100, Jesper Dangaard Brouer wrote:
+> > > On Thu, 5 Nov 2015 19:25:14 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+> > > 
+> > > > On Thu, Nov 05, 2015 at 04:38:06PM +0100, Jesper Dangaard Brouer wrote:
+> > > > > Initial implementation missed support for kmem cgroup support
+> > > > > in kmem_cache_free_bulk() call, add this.
+> > > > > 
+> > > > > If CONFIG_MEMCG_KMEM is not enabled, the compiler should
+> > > > > be smart enough to not add any asm code.
+> > > > > 
+> > > > > Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> > > > > 
+> > > > > ---
+> > > > > V2: Fixes according to input from:
+> > > > >  Vladimir Davydov <vdavydov@virtuozzo.com>
+> > > > >  and Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > > > 
+> [...]
+> > > > > diff --git a/mm/slub.c b/mm/slub.c
+> > > > > index 8e9e9b2ee6f3..bc64514ad1bb 100644
+> > > > > --- a/mm/slub.c
+> > > > > +++ b/mm/slub.c
+> > > > > @@ -2890,6 +2890,9 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+> > > > >  	do {
+> > > > >  		struct detached_freelist df;
+> > > > >  
+> > > > > +		/* Support for memcg */
+> > > > > +		s = cache_from_obj(s, p[size - 1]);
+> > > > > +
+> [...]
 > > 
-> > Currently, the list of accounted objects is quite limited and only
-> > includes those allocations that (1) are known to be easily triggered
-> > from userspace and (2) can fail gracefully (for the full list see patch
-> > no. 5) and it still misses many object types. However, accounting only
-> > those objects should be a satisfactory approximation of the behavior we
-> > used to have for most sane workloads.
+> > Yeah, after inspecting build_detached_freelist more closely, I see your
+> > patch is correct.
 > 
-> I am _all_ for this semantic I am just not sure what to do with the
-> legacy kmem controller. Can we change its semantic? If we cannot do that
-
-I think we can. If somebody reports a "bug" caused by this change, i.e.
-basically notices that something that used to be accounted is not any
-longer, it will be trivial to fix by adding __GFP_ACCOUNT where
-appropriate. If it is not, e.g. if accounting of objects of a particular
-type leads to intense false-sharing, we would end up disabling
-accounting for it anyway.
-
-> we would have to distinguish legacy and unified hierarchies during
-> runtime and add the flag automagically for the first one (that would
-> however require to keep __GFP_NOACCOUNT as well) which is all as clear
-> as mud. But maybe the workloads which are using kmem legacy API can cope
-> with that.
+> Actually, my patch is not correct... after spending most of my day
+> debugging V3 of patch 1/2, I've just realized this patch it the culprit.
 > 
-> Anyway if we go this way then I think the kmem accounting would be safe
-> to be enabled by default with the cgroup2.
-> 
-> > Thanks,
-> > 
-> > Vladimir Davydov (5):
-> >   Revert "kernfs: do not account ino_ida allocations to memcg"
-> >   Revert "gfp: add __GFP_NOACCOUNT"
-> 
-> The patch ordering would break the bisectability. I would simply squash
+> We cannot overwrite the original "s", as the second time around the
+> loop, "s" will be a memcg slab cache.  And then slab_equal_or_root()
+> cannot find  the "root_cache" (s->memcg_params.root_cache).
 
-How's that? AFAICS the kernel should compile after any first N=1..5
-patches of the series applied.
-
-> both places into the patch which replaces the flag.
-> 
-
-IMO it is more readable the way it is, but I don't insist.
+Yeah, you're right. Shame that I missed that.
 
 Thanks,
 Vladimir
-
-> >   memcg: only account kmem allocations marked as __GFP_ACCOUNT
-> >   vmalloc: allow to account vmalloc to memcg
-> >   Account certain kmem allocations to memcg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
