@@ -1,106 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C89F6B0255
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 18:00:50 -0500 (EST)
-Received: by ykdv3 with SMTP id v3so201074614ykd.0
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 15:00:49 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id r79si174102ywe.347.2015.11.09.15.00.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Nov 2015 15:00:49 -0800 (PST)
-Subject: Re: [PATCH] mm/hugetlb: Unmap pages if page fault raced with hole
- punch
-References: <1446158038-25815-1-git-send-email-mike.kravetz@oracle.com>
- <alpine.LSU.2.11.1510291937340.5781@eggly.anvils>
- <56339EBA.4070508@oracle.com> <5633D984.7080307@oracle.com>
- <alpine.LSU.2.11.1511082310390.15826@eggly.anvils>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <5641244F.3060108@oracle.com>
-Date: Mon, 9 Nov 2015 14:55:11 -0800
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1511082310390.15826@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id CD67B6B0257
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 18:18:33 -0500 (EST)
+Received: by pasz6 with SMTP id z6so219955282pas.2
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 15:18:33 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id xn5si521035pbb.194.2015.11.09.15.18.32
+        for <linux-mm@kvack.org>;
+        Mon, 09 Nov 2015 15:18:33 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] x86/mm: fix regression with huge pages on PAE
+Date: Tue, 10 Nov 2015 01:18:10 +0200
+Message-Id: <1447111090-8526-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>
+To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org
+Cc: bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com, boris.ostrovsky@oracle.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Toshi Kani <toshi.kani@hpe.com>
 
-On 11/08/2015 11:42 PM, Hugh Dickins wrote:
-> On Fri, 30 Oct 2015, Mike Kravetz wrote:
->>
->> The 'next = start' code is actually from the original truncate_hugepages
->> routine.  This functionality was combined with that needed for hole punch
->> to create remove_inode_hugepages().
->>
->> The following code was in truncate_hugepages:
->>
->> 	next = start;
->> 	while (1) {
->> 		if (!pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
->> 			if (next == start)
->> 				break;
->> 			next = start;
->> 			continue;
->> 		}
->>
->>
->> So, in the truncate case pages starting at 'start' are deleted until
->> pagevec_lookup fails.  Then, we call pagevec_lookup() again.  If no
->> pages are found we are done.  Else, we repeat the whole process.
->>
->> Does anyone recall the reason for going back and looking for pages at
->> index'es already deleted?  Git doesn't help as that was part of initial
->> commit.  My thought is that truncate can race with page faults.  The
->> truncate code sets inode offset before unmapping and deleting pages.
->> So, faults after the new offset is set should fail.  But, I suppose a
->> fault could race with setting offset and deleting of pages.  Does this
->> sound right?  Or, is there some other reason I am missing?
-> 
-> I believe your thinking is correct.  But remember that
-> truncate_inode_pages_range() is shared by almost all filesystems,
-> and different filesystems have different internal locking conventions,
-> and different propensities to such a race: it's trying to cover for
-> all of them.
-> 
-> Typically, writing is well serialized (by i_mutex) against truncation,
-> but faulting (like reading) sails through without enough of a lock.
-> We resort to i_size checks to avoid the worst of it, but there's often
-> a corner or two in which those checks are not quite good enough -
-> it's easy to check i_size at the beginning, but it needs to be checked
-> again at the end too, and what's been done undone - can be awkward.
+Recent PAT patchset has caused issue on 32-bit PAE machines:
 
-Well, it looks like the hugetlb_no_page() routine is checking i_size both
-before and after.  It appears to be doing the right thing to handle the
-race, but I need to stare at the code some more to make sure.
+[    8.905943] page:eea45000 count:0 mapcount:-128 mapping:  (null) index:0x0
+[    8.913041] flags: 0x40000000()
+[    8.916293] page dumped because: VM_BUG_ON_PAGE(page_mapcount(page) < 0)
+[    8.923204] ------------[ cut here ]------------
+[    8.927958] kernel BUG at /home/build/linux-boris/mm/huge_memory.c:1485!
+[    8.934860] invalid opcode: 0000 [#1] SMP
+[    8.939094] Modules linked in: ahci libahci ata_generic skge r8169 firewire_ohci mii libata qla2xxx(+) scsi_transport_fc scsi_mod radeon tpm_infineon ttm backlight wmi acpi_cpufreq tpm_tis
+[    8.956548] CPU: 2 PID: 1758 Comm: modprobe Not tainted 4.3.0upstream-09269-gce5c2d2 #1
+[    8.964792] Hardware name: To Be Filled By O.E.M. To Be Filled By O.E.M./To be filled by O.E.M., BIOS 080014  07/18/2008
+[    8.975991] task: ed84e600 ti: f6458000 task.ti: f6458000
+[    8.981552] EIP: 0060:[<c11bde80>] EFLAGS: 00010246 CPU: 2
+[    8.987203] EIP is at zap_huge_pmd+0x240/0x260
+[    8.991778] EAX: 00000000 EBX: f6459eb0 ECX: 00000292 EDX: 00000292
+[    8.998234] ESI: f6634d98 EDI: eea45000 EBP: f6459dc8 ESP: f6459d98
+[    8.998355] ata1: SATA link down (SStatus 0 SControl 300)
+[    9.000330] ata2: SATA link down (SStatus 0 SControl 300)
+[    9.015804]  DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
+[    9.021364] CR0: 8005003b CR2: b75b21a0 CR3: 3655b880 CR4: 000006f0
+[    9.027818] Stack:
+[    9.029885]  00000080 00000000 80000002 ee795000 80000002 ffe00000 00000000 ffffff7f
+[    9.037930]  eee6169c f70c5e40 b6600000 f6634d98 f6459e78 c119a7c8 b6600000 80000002
+[    9.045972]  00000003 c18992f4 c18992f0 00000003 00000286 f6459e0c c10db5f0 00000000
+[    9.054018] Call Trace:
+[    9.056537]  [<c119a7c8>] unmap_single_vma+0x6e8/0x7c0
+[    9.061829]  [<c10db5f0>] ? __wake_up+0x40/0x50
+[    9.063587] firewire_core 0000:08:05.0: created device fw0: GUID 000000001a1a2f03, S800
+[    9.074736]  [<c119a8e7>] unmap_vmas+0x47/0x80
+[    9.079312]  [<c11a0c44>] unmap_region+0x74/0xc0
+[    9.084067]  [<c11a2d50>] do_munmap+0x1b0/0x280
+[    9.088732]  [<c11a2e58>] vm_munmap+0x38/0x50
+[    9.093218]  [<c11a2e88>] SyS_munmap+0x18/0x20
+[    9.097795]  [<c1003861>] do_fast_syscall_32+0xa1/0x270
+[    9.103176]  [<c1095400>] ? __do_page_fault+0x430/0x430
+[    9.108559]  [<c169de51>] sysenter_past_esp+0x36/0x55
+[    9.113761] Code: 00 e9 05 fe ff ff 90 8d 74 26 00 0f 0b eb fe ba 4c e1 7a c1 89 f8 e8 f0 91 fd ff 0f 0b eb fe ba 6c e1 7a c1 89 f8 e8 e0 91 fd ff <0f> 0b eb fe ba c4 e1 7a c1 89 f8 e8 d0 91 fd ff 0f 0b eb fe 8d
+[    9.133727] EIP: [<c11bde80>] zap_huge_pmd+0x240/0x260 SS:ESP 0068:f6459d98
+[    9.140929] ---[ end trace cba8fb1fc2e2e78a ]---
 
-Because of the way the truncate code went back and did an extra lookup
-when done with the range, I assumed it was covering some race.  However,
-that may not be the case.
+The problem is in pmd_pfn_mask() and pmd_flags_mask(). These helpers use
+PMD_PAGE_MASK to calculate resulting mask. PMD_PAGE_MASK is 'unsigned
+long', not 'unsigned long long' as physaddr_t. As result upper bits of
+resulting mask is truncated.
 
-> 
-> I hope that in the case of hugetlbfs, since you already have the
-> additional fault_mutex to handle races between faults and punching,
-> it should be possible to get away without that "pincer" restarting.
+The patch reworks code to use PMD_SHIFT as base of mask calculation
+instead of PMD_PAGE_MASK.
 
-Yes, it looks like this may work as a straight loop over the range of
-pages.  I just need to study the code some more to make sure I am not
-missing something.
+pud_pfn_mask() and pud_flags_mask() aren't problematic since we don't
+have PUD page table level on 32-bit systems, but they reworked too to be
+consistent with PMD counterpart.
 
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-and-Tested-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Fixes: f70abb0fc3da ("x86/asm: Fix pud/pmd interfaces to handle large PAT bit")
+Cc: Toshi Kani <toshi.kani@hpe.com>
+---
+ arch/x86/include/asm/pgtable_types.h | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)
+
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index dd5b0aa9dd2f..c1e797266ce9 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -279,17 +279,14 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
+ static inline pudval_t pud_pfn_mask(pud_t pud)
+ {
+ 	if (native_pud_val(pud) & _PAGE_PSE)
+-		return PUD_PAGE_MASK & PHYSICAL_PAGE_MASK;
++		return ~((1ULL << PUD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+ 	else
+ 		return PTE_PFN_MASK;
+ }
+ 
+ static inline pudval_t pud_flags_mask(pud_t pud)
+ {
+-	if (native_pud_val(pud) & _PAGE_PSE)
+-		return ~(PUD_PAGE_MASK & (pudval_t)PHYSICAL_PAGE_MASK);
+-	else
+-		return ~PTE_PFN_MASK;
++	return ~pud_pfn_mask(pud);
+ }
+ 
+ static inline pudval_t pud_flags(pud_t pud)
+@@ -300,17 +297,14 @@ static inline pudval_t pud_flags(pud_t pud)
+ static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
+ {
+ 	if (native_pmd_val(pmd) & _PAGE_PSE)
+-		return PMD_PAGE_MASK & PHYSICAL_PAGE_MASK;
++		return ~((1ULL << PMD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+ 	else
+ 		return PTE_PFN_MASK;
+ }
+ 
+ static inline pmdval_t pmd_flags_mask(pmd_t pmd)
+ {
+-	if (native_pmd_val(pmd) & _PAGE_PSE)
+-		return ~(PMD_PAGE_MASK & (pmdval_t)PHYSICAL_PAGE_MASK);
+-	else
+-		return ~PTE_PFN_MASK;
++	return ~pmd_pfn_mask(pmd);
+ }
+ 
+ static inline pmdval_t pmd_flags(pmd_t pmd)
 -- 
-Mike Kravetz
-
-> 
-> Hugh
-> 
->>
->> I would like to continue having remove_inode_hugepages handle both the
->> truncate and hole punch case.  So, what to make sure the code correctly
->> handles both cases.
->>
->> -- 
->> Mike Kravetz
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
