@@ -1,42 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3214E6B0255
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 11:26:33 -0500 (EST)
-Received: by pasz6 with SMTP id z6so209759370pas.2
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 08:26:32 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id hx5si23299922pbc.82.2015.11.09.08.26.32
-        for <linux-mm@kvack.org>;
-        Mon, 09 Nov 2015 08:26:32 -0800 (PST)
-Date: Mon, 09 Nov 2015 11:26:29 -0500 (EST)
-Message-Id: <20151109.112629.1860510744923009883.davem@davemloft.net>
-Subject: Re: [PATCH] tree wide: Use kvfree() than conditional
- kfree()/vfree()
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20151109121126.GD11149@quack.suse.cz>
-References: <1447070170-8512-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20151109121126.GD11149@quack.suse.cz>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 8235A6B0255
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 11:39:17 -0500 (EST)
+Received: by igbhv6 with SMTP id hv6so79038637igb.0
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 08:39:17 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x23si3995865ioi.94.2015.11.09.08.39.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Nov 2015 08:39:15 -0800 (PST)
+Date: Mon, 9 Nov 2015 17:39:10 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH V2 2/2] slub: add missing kmem cgroup support to
+ kmem_cache_free_bulk
+Message-ID: <20151109173910.7a3c3a18@redhat.com>
+In-Reply-To: <20151107202548.GO29259@esperanza>
+References: <20151105153704.1115.10475.stgit@firesoul>
+	<20151105153756.1115.41409.stgit@firesoul>
+	<20151105162514.GI29259@esperanza>
+	<20151107175338.12a0368b@redhat.com>
+	<20151107202548.GO29259@esperanza>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jack@suse.cz
-Cc: penguin-kernel@I-love.SAKURA.ne.jp, akpm@linux-foundation.org, linux-mm@kvack.org, linux@arm.linux.org.uk, linux-acpi@vger.kernel.org, drbd-user@lists.linbit.com, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, oleg.drokin@intel.com, andreas.dilger@intel.com, codalist@coda.cs.cmu.edu, linux-mtd@lists.infradead.org, jack@suse.com, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, brouer@redhat.com
 
-From: Jan Kara <jack@suse.cz>
-Date: Mon, 9 Nov 2015 13:11:26 +0100
 
-> You can add
+On Sat, 7 Nov 2015 23:25:48 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+> On Sat, Nov 07, 2015 at 05:53:38PM +0100, Jesper Dangaard Brouer wrote:
+> > On Thu, 5 Nov 2015 19:25:14 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+> > 
+> > > On Thu, Nov 05, 2015 at 04:38:06PM +0100, Jesper Dangaard Brouer wrote:
+> > > > Initial implementation missed support for kmem cgroup support
+> > > > in kmem_cache_free_bulk() call, add this.
+> > > > 
+> > > > If CONFIG_MEMCG_KMEM is not enabled, the compiler should
+> > > > be smart enough to not add any asm code.
+> > > > 
+> > > > Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> > > > 
+> > > > ---
+> > > > V2: Fixes according to input from:
+> > > >  Vladimir Davydov <vdavydov@virtuozzo.com>
+> > > >  and Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > > 
+[...]
+> > > > diff --git a/mm/slub.c b/mm/slub.c
+> > > > index 8e9e9b2ee6f3..bc64514ad1bb 100644
+> > > > --- a/mm/slub.c
+> > > > +++ b/mm/slub.c
+> > > > @@ -2890,6 +2890,9 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+> > > >  	do {
+> > > >  		struct detached_freelist df;
+> > > >  
+> > > > +		/* Support for memcg */
+> > > > +		s = cache_from_obj(s, p[size - 1]);
+> > > > +
+[...]
 > 
-> Acked-by: Jan Kara <jack@suse.com>
-> 
-> for the UDF and fs/xattr.c parts.
+> Yeah, after inspecting build_detached_freelist more closely, I see your
+> patch is correct.
 
-Please do not quote and entire large patch just to give an ACK.
+Actually, my patch is not correct... after spending most of my day
+debugging V3 of patch 1/2, I've just realized this patch it the culprit.
 
-Just quote the minimum necessary context, which is usually just
-the commit message.
+We cannot overwrite the original "s", as the second time around the
+loop, "s" will be a memcg slab cache.  And then slab_equal_or_root()
+cannot find  the "root_cache" (s->memcg_params.root_cache).
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
