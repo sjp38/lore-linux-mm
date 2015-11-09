@@ -1,57 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id F11946B0253
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 15:41:06 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so209940761pab.0
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 12:41:06 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id x8si24480448pbt.238.2015.11.09.12.41.05
-        for <linux-mm@kvack.org>;
-        Mon, 09 Nov 2015 12:41:05 -0800 (PST)
-From: "Dilger, Andreas" <andreas.dilger@intel.com>
-Subject: Re: [PATCH] tree wide: Use kvfree() than conditional kfree()/vfree()
-Date: Mon, 9 Nov 2015 20:41:04 +0000
-Message-ID: <D26652E2.1197DE%andreas.dilger@intel.com>
-References: <1447070170-8512-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-In-Reply-To: <1447070170-8512-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <994BD6192472F340B6785C8E6A9E1FA4@intel.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E43C6B0253
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 15:47:13 -0500 (EST)
+Received: by wmnn186 with SMTP id n186so125744991wmn.1
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 12:47:13 -0800 (PST)
+Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
+        by mx.google.com with ESMTPS id vm2si20499319wjc.213.2015.11.09.12.47.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Nov 2015 12:47:12 -0800 (PST)
+Received: by wmec201 with SMTP id c201so87394482wme.1
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 12:47:12 -0800 (PST)
+Date: Mon, 9 Nov 2015 22:47:10 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v4 RESEND 4/11] x86/asm: Fix pud/pmd interfaces to handle
+ large PAT bit
+Message-ID: <20151109204710.GB5443@node.shutemov.name>
+References: <1442514264-12475-1-git-send-email-toshi.kani@hpe.com>
+ <1442514264-12475-5-git-send-email-toshi.kani@hpe.com>
+ <5640E08F.5020206@oracle.com>
+ <1447096601.21443.15.camel@hpe.com>
+ <5640F673.8070400@oracle.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5640F673.8070400@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Russell King <linux@arm.linux.org.uk>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "drbd-user@lists.linbit.com" <drbd-user@lists.linbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "Drokin, Oleg" <oleg.drokin@intel.com>, "codalist@coda.cs.cmu.edu" <codalist@coda.cs.cmu.edu>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, Jan Kara <jack@suse.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Toshi Kani <toshi.kani@hpe.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com
 
-On 2015/11/09, 04:56, "Tetsuo Handa" <penguin-kernel@I-love.SAKURA.ne.jp>
-wrote:
+On Mon, Nov 09, 2015 at 02:39:31PM -0500, Boris Ostrovsky wrote:
+> On 11/09/2015 02:16 PM, Toshi Kani wrote:
+> >On Mon, 2015-11-09 at 13:06 -0500, Boris Ostrovsky wrote:
+> >>On 09/17/2015 02:24 PM, Toshi Kani wrote:
+> >>>Now that we have pud/pmd mask interfaces, which handle pfn & flags
+> >>>mask properly for the large PAT bit.
+> >>>
+> >>>Fix pud/pmd pfn & flags interfaces by replacing PTE_PFN_MASK and
+> >>>PTE_FLAGS_MASK with the pud/pmd mask interfaces.
+> >>>
+> >>>Suggested-by: Juergen Gross <jgross@suse.com>
+> >>>Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> >>>Cc: Juergen Gross <jgross@suse.com>
+> >>>Cc: Konrad Wilk <konrad.wilk@oracle.com>
+> >>>Cc: Thomas Gleixner <tglx@linutronix.de>
+> >>>Cc: H. Peter Anvin <hpa@zytor.com>
+> >>>Cc: Ingo Molnar <mingo@redhat.com>
+> >>>Cc: Borislav Petkov <bp@alien8.de>
+> >>>---
+> >>>   arch/x86/include/asm/pgtable.h       |   14 ++++++++------
+> >>>   arch/x86/include/asm/pgtable_types.h |    4 ++--
+> >>>   2 files changed, 10 insertions(+), 8 deletions(-)
+> >>>
+> >>
+> >>Looks like this commit is causing this splat for 32-bit kernels. I am
+> >>attaching my config file, just in case.
+> >Thanks for the report!  I'd like to reproduce the issue since I am not sure how
+> >this change caused it...
+> >
+> >I tried to build a kernel with the attached config file, and got the following
+> >error.  Not sure what I am missing.
+> >
+> >----
+> >$ make -j24 ARCH=i386
+> >    :
+> >   LD      drivers/built-in.o
+> >   LINK    vmlinux
+> >./.config: line 44: $'\r': command not found
+> 
+> I wonder whether my email client added ^Ms to the file that I send. It
+> shouldn't have.
+> 
+> >Makefile:929: recipe for target 'vmlinux' failed
+> >make: *** [vmlinux] Error 127
+> >----
+> >
+> >Do you have steps to reproduce the issue?  Or do you see it during boot-time?
+> 
+> This always happens just after system has booted, it may still be going over
+> init scripts. I am booting with ramdisk, don't know whether it has anything
+> to do with this problem.
+> 
+> FWIW, it looks like pmd_pfn_mask() inline is causing this. Reverting it
+> alone makes this crash go away.
 
->There are many locations that do
->
->  if (memory_was_allocated_by_vmalloc)
->    vfree(ptr);
->  else
->    kfree(ptr);
->
->but kvfree() can handle both kmalloc()ed memory and vmalloc()ed memory
->using is_vmalloc_addr(). Unless callers have special reasons, we can
->replace this branch with kvfree(). Please check and reply if you found
->problems.
->
->Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
->Acked-by: Michal Hocko <mhocko@suse.com>
+Could you check the patch below?
 
-For Lustre part:
-Reviewed-by: Andreas Dilger <andreas.dilger@intel.com>
-
-Cheers, Andreas
---=20
-Andreas Dilger
-
-Lustre Principal Engineer
-Intel High Performance Data Division
-
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index dd5b0aa9dd2f..c1e797266ce9 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -279,17 +279,14 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
+ static inline pudval_t pud_pfn_mask(pud_t pud)
+ {
+ 	if (native_pud_val(pud) & _PAGE_PSE)
+-		return PUD_PAGE_MASK & PHYSICAL_PAGE_MASK;
++		return ~((1ULL << PUD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+ 	else
+ 		return PTE_PFN_MASK;
+ }
+ 
+ static inline pudval_t pud_flags_mask(pud_t pud)
+ {
+-	if (native_pud_val(pud) & _PAGE_PSE)
+-		return ~(PUD_PAGE_MASK & (pudval_t)PHYSICAL_PAGE_MASK);
+-	else
+-		return ~PTE_PFN_MASK;
++	return ~pud_pfn_mask(pud);
+ }
+ 
+ static inline pudval_t pud_flags(pud_t pud)
+@@ -300,17 +297,14 @@ static inline pudval_t pud_flags(pud_t pud)
+ static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
+ {
+ 	if (native_pmd_val(pmd) & _PAGE_PSE)
+-		return PMD_PAGE_MASK & PHYSICAL_PAGE_MASK;
++		return ~((1ULL << PMD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+ 	else
+ 		return PTE_PFN_MASK;
+ }
+ 
+ static inline pmdval_t pmd_flags_mask(pmd_t pmd)
+ {
+-	if (native_pmd_val(pmd) & _PAGE_PSE)
+-		return ~(PMD_PAGE_MASK & (pmdval_t)PHYSICAL_PAGE_MASK);
+-	else
+-		return ~PTE_PFN_MASK;
++	return ~pmd_pfn_mask(pmd);
+ }
+ 
+ static inline pmdval_t pmd_flags(pmd_t pmd)
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
