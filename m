@@ -1,280 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 76D1A6B0254
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 13:27:58 -0500 (EST)
-Received: by qgec40 with SMTP id c40so89962263qge.2
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 10:27:58 -0800 (PST)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [23.79.238.175])
-        by mx.google.com with ESMTP id f98si1503212qge.78.2015.11.09.10.27.57
-        for <linux-mm@kvack.org>;
-        Mon, 09 Nov 2015 10:27:57 -0800 (PST)
-From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH v4] mlock.2: mlock2.2: Add entry to for new mlock2 syscall
-Date: Mon,  9 Nov 2015 13:27:35 -0500
-Message-Id: <1447093655-30832-1-git-send-email-emunson@akamai.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id DDC8E6B0256
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 13:28:50 -0500 (EST)
+Received: by pasz6 with SMTP id z6so212864158pas.2
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 10:28:50 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ms6si23853554pbb.247.2015.11.09.10.28.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Nov 2015 10:28:50 -0800 (PST)
+Date: Mon, 9 Nov 2015 21:28:40 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 0/5] memcg/kmem: switch to white list policy
+Message-ID: <20151109182840.GJ31308@esperanza>
+References: <cover.1446924358.git.vdavydov@virtuozzo.com>
+ <20151109140832.GE8916@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20151109140832.GE8916@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Eric B Munson <emunson@akamai.com>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Jonathan Corbet <corbet@lwn.net>, linux-man@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Update the mlock.2 man page with information on mlock2() and the new
-mlockall() flag MCL_ONFAULT.
+On Mon, Nov 09, 2015 at 03:08:32PM +0100, Michal Hocko wrote:
+...
+> > Therefore this patch switches to the white list policy. Now kmalloc
+> > users have to explicitly opt in by passing __GFP_ACCOUNT flag.
+> > 
+> > Currently, the list of accounted objects is quite limited and only
+> > includes those allocations that (1) are known to be easily triggered
+> > from userspace and (2) can fail gracefully (for the full list see patch
+> > no. 5) and it still misses many object types. However, accounting only
+> > those objects should be a satisfactory approximation of the behavior we
+> > used to have for most sane workloads.
+> 
+> I am _all_ for this semantic I am just not sure what to do with the
+> legacy kmem controller. Can we change its semantic? If we cannot do that
 
-Signed-off-by: Eric B Munson <emunson@akamai.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Jonathan Corbet <corbet@lwn.net>
-Cc: linux-man@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
-Changes from V3:
- Add note about not having a glibc wrapper for mlock2
+I think we can. If somebody reports a "bug" caused by this change, i.e.
+basically notices that something that used to be accounted is not any
+longer, it will be trivial to fix by adding __GFP_ACCOUNT where
+appropriate. If it is not, e.g. if accounting of objects of a particular
+type leads to intense false-sharing, we would end up disabling
+accounting for it anyway.
 
-Changes from V2:
- Update available from kernel version
+> we would have to distinguish legacy and unified hierarchies during
+> runtime and add the flag automagically for the first one (that would
+> however require to keep __GFP_NOACCOUNT as well) which is all as clear
+> as mud. But maybe the workloads which are using kmem legacy API can cope
+> with that.
+> 
+> Anyway if we go this way then I think the kmem accounting would be safe
+> to be enabled by default with the cgroup2.
+> 
+> > Thanks,
+> > 
+> > Vladimir Davydov (5):
+> >   Revert "kernfs: do not account ino_ida allocations to memcg"
+> >   Revert "gfp: add __GFP_NOACCOUNT"
+> 
+> The patch ordering would break the bisectability. I would simply squash
 
- man2/mlock.2  | 114 +++++++++++++++++++++++++++++++++++++++++++++++++++-------
- man2/mlock2.2 |   1 +
- 2 files changed, 102 insertions(+), 13 deletions(-)
- create mode 100644 man2/mlock2.2
+How's that? AFAICS the kernel should compile after any first N=1..5
+patches of the series applied.
 
-diff --git a/man2/mlock.2 b/man2/mlock.2
-index 79c544d..0ad580c 100644
---- a/man2/mlock.2
-+++ b/man2/mlock.2
-@@ -23,21 +23,23 @@
- .\" <http://www.gnu.org/licenses/>.
- .\" %%%LICENSE_END
- .\"
--.TH MLOCK 2 2015-07-23 "Linux" "Linux Programmer's Manual"
-+.TH MLOCK 2 2015-08-28 "Linux" "Linux Programmer's Manual"
- .SH NAME
--mlock, munlock, mlockall, munlockall \- lock and unlock memory
-+mlock, mlock2, munlock, mlockall, munlockall \- lock and unlock memory
- .SH SYNOPSIS
- .nf
- .B #include <sys/mman.h>
- .sp
- .BI "int mlock(const void *" addr ", size_t " len );
-+.BI "int mlock2(const void *" addr ", size_t " len ", int " flags );
- .BI "int munlock(const void *" addr ", size_t " len );
- .sp
- .BI "int mlockall(int " flags );
- .B int munlockall(void);
- .fi
- .SH DESCRIPTION
--.BR mlock ()
-+.BR mlock (),
-+.BR mlock2 (),
- and
- .BR mlockall ()
- respectively lock part or all of the calling process's virtual address
-@@ -51,7 +53,7 @@ respectively unlocking part or all of the calling process's virtual
- address space, so that pages in the specified virtual address range may
- once more to be swapped out if required by the kernel memory manager.
- Memory locking and unlocking are performed in units of whole pages.
--.SS mlock() and munlock()
-+.SS mlock(), mlock2(), and munlock()
- .BR mlock ()
- locks pages in the address range starting at
- .I addr
-@@ -62,6 +64,39 @@ All pages that contain a part of the specified address range are
- guaranteed to be resident in RAM when the call returns successfully;
- the pages are guaranteed to stay in RAM until later unlocked.
- 
-+.BR mlock2 ()
-+also locks pages in the specified range starting at
-+.I addr
-+and continuing for
-+.I len
-+bytes.
-+However, the state of the pages contained in that range after the call
-+returns successfully will depend on the value in the
-+.I flags
-+argument.
-+
-+The
-+.I flags
-+argument can be either 0 or the following constant:
-+.TP 1.2i
-+.B MLOCK_ONFAULT
-+Lock pages that are currently resident and mark the entire range to have
-+pages locked when they are populated by the page fault.
-+.PP
-+
-+If
-+.I flags
-+is 0,
-+.BR mlock2 ()
-+will function exactly as
-+.BR mlock ()
-+would.
-+
-+Note: Currently, there is not a glibc wrapper for
-+.BR mlock2 ()
-+so it will need to be invoked using
-+.BR syscall (2)
-+
- .BR munlock ()
- unlocks pages in the address range starting at
- .I addr
-@@ -93,9 +128,33 @@ the process.
- .B MCL_FUTURE
- Lock all pages which will become mapped into the address space of the
- process in the future.
--These could be for instance new pages required
-+These could be, for instance, new pages required
- by a growing heap and stack as well as new memory-mapped files or
- shared memory regions.
-+.TP
-+.BR MCL_ONFAULT " (since Linux 4.4)"
-+Used together with
-+.BR MCL_CURRENT ,
-+.BR MCL_FUTURE ,
-+or both.  Mark all current (with
-+.BR MCL_CURRENT )
-+or future (with
-+.BR MCL_FUTURE )
-+mappings to lock pages when they are faulted in.  When used with
-+.BR MCL_CURRENT ,
-+all present pages are locked, but
-+.BR mlockall ()
-+will not fault in non-present pages.  When used with
-+.BR MCL_FUTURE ,
-+all future mappings will be marked to lock pages when they are faulted
-+in, but they will not be populated by the lock when the mapping is
-+created.
-+.B MCL_ONFAULT
-+must be used with either
-+.B MCL_CURRENT
-+or
-+.B MCL_FUTURE
-+or both.
- .PP
- If
- .B MCL_FUTURE
-@@ -148,7 +207,8 @@ to perform the requested operation.
- .\"SVr4 documents an additional EAGAIN error code.
- .LP
- For
--.BR mlock ()
-+.BR mlock (),
-+.BR mlock2 (),
- and
- .BR munlock ():
- .TP
-@@ -157,9 +217,9 @@ Some or all of the specified address range could not be locked.
- .TP
- .B EINVAL
- The result of the addition
--.IR start + len
-+.IR addr + len
- was less than
--.IR start
-+.IR addr
- (e.g., the addition may have resulted in an overflow).
- .TP
- .B EINVAL
-@@ -181,12 +241,23 @@ mapping would result in three mappings:
- two locked mappings at each end and an unlocked mapping in the middle.)
- .LP
- For
--.BR mlockall ():
-+.BR mlock2 ():
- .TP
- .B EINVAL
- Unknown \fIflags\fP were specified.
- .LP
- For
-+.BR mlockall ():
-+.TP
-+.B EINVAL
-+Unknown \fIflags\fP were specified or
-+.B MCL_ONFAULT
-+was specified without either
-+.B MCL_FUTURE
-+or
-+.BR MCL_CURRENT .
-+.LP
-+For
- .BR munlockall ():
- .TP
- .B EPERM
-@@ -259,9 +330,11 @@ or when the process terminates.
- The
- .BR mlockall ()
- .B MCL_FUTURE
--setting is not inherited by a child created via
-+and
-+.B MCL_FUTURE | MCL_ONFAULT
-+settings are not inherited by a child created via
- .BR fork (2)
--and is cleared during an
-+and are cleared during an
- .BR execve (2).
- 
- The memory lock on an address range is automatically removed
-@@ -270,7 +343,8 @@ if the address range is unmapped via
- 
- Memory locks do not stack, that is, pages which have been locked several times
- by calls to
--.BR mlock ()
-+.BR mlock (),
-+.BR mlock2 (),
- or
- .BR mlockall ()
- will be unlocked by a single call to
-@@ -280,9 +354,19 @@ for the corresponding range or by
- Pages which are mapped to several locations or by several processes stay
- locked into RAM as long as they are locked at least at one location or by
- at least one process.
-+
-+If a call to
-+.BR mlockall ()
-+which uses the
-+.B MCL_FUTURE
-+flag is followed by another call that does not specify this flag, the
-+changes made by the
-+.B MCL_FUTURE
-+call will be lost.
- .SS Linux notes
- Under Linux,
--.BR mlock ()
-+.BR mlock (),
-+.BR mlock2 (),
- and
- .BR munlock ()
- automatically round
-@@ -300,6 +384,7 @@ file shows how many kilobytes of memory the process with ID
- .I PID
- has locked using
- .BR mlock (),
-+.BR mlock2 (),
- .BR mlockall (),
- and
- .BR mmap (2)
-@@ -342,6 +427,9 @@ resource limit is encountered.
- .\" http://marc.theaimsgroup.com/?l=linux-kernel&m=113801392825023&w=2
- .\" "Rationale for RLIMIT_MEMLOCK"
- .\" 23 Jan 2006
-+.SH VERSIONS
-+.BR mlock2 (2)
-+is available since Linux 4.4.
- .SH SEE ALSO
- .BR mmap (2),
- .BR setrlimit (2),
-diff --git a/man2/mlock2.2 b/man2/mlock2.2
-new file mode 100644
-index 0000000..5e5b3c7
---- /dev/null
-+++ b/man2/mlock2.2
-@@ -0,0 +1 @@
-+.so man2/mlock.2
--- 
-1.9.1
+> both places into the patch which replaces the flag.
+> 
+
+IMO it is more readable the way it is, but I don't insist.
+
+Thanks,
+Vladimir
+
+> >   memcg: only account kmem allocations marked as __GFP_ACCOUNT
+> >   vmalloc: allow to account vmalloc to memcg
+> >   Account certain kmem allocations to memcg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
