@@ -1,105 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 77E236B0253
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 16:27:51 -0500 (EST)
-Received: by ioc74 with SMTP id 74so134146160ioc.2
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:27:51 -0800 (PST)
-Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com. [2607:f8b0:4001:c05::230])
-        by mx.google.com with ESMTPS id q1si744436igh.93.2015.11.09.13.27.50
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 96E746B0253
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 16:41:09 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so202759048pad.1
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:41:09 -0800 (PST)
+Received: from COL004-OMC1S12.hotmail.com (col004-omc1s12.hotmail.com. [65.55.34.22])
+        by mx.google.com with ESMTPS id v13si70332pas.84.2015.11.09.13.41.08
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Nov 2015 13:27:50 -0800 (PST)
-Received: by igbhv6 with SMTP id hv6so84482571igb.0
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:27:50 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 09 Nov 2015 13:41:08 -0800 (PST)
+Message-ID: <COL130-W65418E50E899195C9B2134B9150@phx.gbl>
+Content-Type: multipart/mixed;
+	boundary="_416340d1-4c65-41dd-96a1-c93a826e5e98_"
+From: Chen Gang <xili_gchen_5257@hotmail.com>
+Subject: [PATCH] mm/mmap.c: Remove redundant local variables for
+ may_expand_vm()
+Date: Tue, 10 Nov 2015 05:41:08 +0800
 MIME-Version: 1.0
-In-Reply-To: <5640EC58.7050006@android.com>
-References: <1446574204-15567-1-git-send-email-dcashman@android.com>
-	<1446574204-15567-2-git-send-email-dcashman@android.com>
-	<CAGXu5jKGzDD9WVQnMTT2EfupZtjpdcASUpx-3npLAB-FctLodA@mail.gmail.com>
-	<56393FD0.6080001@android.com>
-	<CAGXu5jLe=OgZ2DG_MRXA8x6BwpEd77fNZBj3wjbDiSdiBurz7w@mail.gmail.com>
-	<563A4EDC.6090403@android.com>
-	<563BA393.9020504@android.com>
-	<CAGXu5j+2xiRwt6mKrjzuf9O745GWOcjXzutONp6rz_Kj+3PfVQ@mail.gmail.com>
-	<1447040874.5195.2.camel@ellerman.id.au>
-	<5640EC58.7050006@android.com>
-Date: Mon, 9 Nov 2015 13:27:50 -0800
-Message-ID: <CAGXu5jLJM8_JqSxDagN0AHdFoXNEkn8zDBG_iJBW_Z9jeRst8g@mail.gmail.com>
-Subject: Re: [PATCH v2 2/2] arm: mm: support ARCH_MMAP_RND_BITS.
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Cashman <dcashman@android.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, dcashman <dcashman@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, "oleg@redhat.com" <oleg@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "dave@stgolabs.net" <dave@stgolabs.net>, "aarcange@redhat.com" <aarcange@redhat.com>
+Cc: Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
 
-On Mon, Nov 9, 2015 at 10:56 AM, Daniel Cashman <dcashman@android.com> wrote:
-> On 11/08/2015 07:47 PM, Michael Ellerman wrote:
->> On Fri, 2015-11-06 at 12:52 -0800, Kees Cook wrote:
->>> On Thu, Nov 5, 2015 at 10:44 AM, Daniel Cashman <dcashman@android.com> wrote:
->>>> On 11/04/2015 10:30 AM, Daniel Cashman wrote:
->>>>> On 11/3/15 3:21 PM, Kees Cook wrote:
->>>>>> On Tue, Nov 3, 2015 at 3:14 PM, Daniel Cashman <dcashman@android.com> wrote:
->>>>>>> On 11/03/2015 11:19 AM, Kees Cook wrote:
->>>>>>>> Do you have patches for x86 and arm64?
->>>>>>>
->>>>>>> I was holding off on those until I could gauge upstream reception.  If
->>>>>>> desired, I could put those together and add them as [PATCH 3/4] and
->>>>>>> [PATCH 4/4].
->>>>>>
->>>>>> If they're as trivial as I'm hoping, yeah, let's toss them in now. If
->>>>>> not, skip 'em. PowerPC, MIPS, and s390 should be relatively simple
->>>>>> too, but one or two of those have somewhat stranger calculations when
->>>>>> I looked, so their Kconfigs may not be as clean.
->>>>>
->>>>> Creating the patches should be simple, it's the choice of minimum and
->>>>> maximum values for each architecture that I'd be most concerned about.
->>>>> I'll put them together, though, and the ranges can be changed following
->>>>> discussion with those more knowledgeable, if needed.  I also don't have
->>>>> devices on which to test the PowerPC, MIPS and s390 changes, so I'll
->>>>> need someone's help for that.
->>>>
->>>> Actually, in preparing the x86 and arm64 patches, it became apparent
->>>> that the current patch-set does not address 32-bit executables running
->>>> on 64-bit systems (compatibility mode), since only one procfs
->>>> mmap_rnd_bits variable is created and exported. Some possible solutions:
->>>
->>> How about a single new CONFIG+sysctl that is the compat delta. For
->>> example, on x86, it's 20 bits. Then we don't get splashed with a whole
->>> new set of min/maxes, but we can reasonably control compat?
->>
->> Do you mean in addition to mmap_rnd_bits?
->>
->> So we'd end up with mmap_rnd_bits and also mmap_rnd_bits_compat_delta?
->> (naming TBD)
->>
->> If so yeah I think that would work.
->>
->> It would have the nice property of allowing you to add some more randomness to
->> all processes by bumping mmap_rnd_bits. But at the same time if you want to add
->> a lot more randomness to 64-bit processes, but just a bit (or none) to 32-bit
->> processes you can also do that.
->
-> I may be misunderstanding the suggestion, or perhaps simply too
-> conservative in my desire to prevent bad values, but I still think we
-> would have need for two min-max ranges.  If using a single
-> mmap_rnd_bits_compat value, there are two approaches: to either use
-> mmap_rnd_bits for 32-bit applications and then add the compat value for
-> 64-bit or the opposite, to have mmap_rnd_bits be the default and
-> subtract the compat value for the 32-bit applications.  In either case,
-> the compat value would need to be sensibly bounded, and that bounding
-> depends on acceptable values for both 32 and 64 bit applications.
+--_416340d1-4c65-41dd-96a1-c93a826e5e98_
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-Yeah, I think I wasn't thinking about this well. I think two sysctls
-should be fine: mmap_rnd_bits and mmap_compat_rnd_bits. And
-internally, we'd have a second set of CONFIGs (and ranges) to deal
-with CONFIG_COMPAT.
+>From 7050c267d8dda220226067039d815593d2f9a874 Mon Sep 17 00:00:00 2001=0A=
+From: Chen Gang <gang.chen.5i5j@gmail.com>=0A=
+Date: Tue=2C 10 Nov 2015 05:32:38 +0800=0A=
+Subject: [PATCH] mm/mmap.c: Remove redundant local variables for may_expand=
+_vm()=0A=
+=0A=
+After merge the related code into one line=2C the code is still simple and=
+=0A=
+meaningful enough.=0A=
+=0A=
+Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>=0A=
+---=0A=
+=A0mm/mmap.c | 7 +------=0A=
+=A01 file changed=2C 1 insertion(+)=2C 6 deletions(-)=0A=
+=0A=
+diff --git a/mm/mmap.c b/mm/mmap.c=0A=
+index 2ce04a6..a515260 100644=0A=
+--- a/mm/mmap.c=0A=
++++ b/mm/mmap.c=0A=
+@@ -2988=2C12 +2988=2C7 @@ out:=0A=
+=A0 */=0A=
+=A0int may_expand_vm(struct mm_struct *mm=2C unsigned long npages)=0A=
+=A0{=0A=
+-	unsigned long cur =3D mm->total_vm=3B	/* pages */=0A=
+-	unsigned long lim=3B=0A=
+-=0A=
+-	lim =3D rlimit(RLIMIT_AS)>> PAGE_SHIFT=3B=0A=
+-=0A=
+-	if (cur + npages> lim)=0A=
++	if (mm->total_vm + npages> (rlimit(RLIMIT_AS)>> PAGE_SHIFT))=0A=
+=A0		return 0=3B=0A=
+=A0	return 1=3B=0A=
+=A0}=0A=
+--=A0=0A=
+1.9.3=0A=
+=0A=
+ 		 	   		  =
 
--Kees
+--_416340d1-4c65-41dd-96a1-c93a826e5e98_
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+	filename="0001-mm-mmap.c-Remove-redundant-local-variables-for-may_e.patch"
 
--- 
-Kees Cook
-Chrome OS Security
+RnJvbSA3MDUwYzI2N2Q4ZGRhMjIwMjI2MDY3MDM5ZDgxNTU5M2QyZjlhODc0IE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQpGcm9tOiBDaGVuIEdhbmcgPGdhbmcuY2hlbi41aTVqQGdtYWlsLmNvbT4K
+RGF0ZTogVHVlLCAxMCBOb3YgMjAxNSAwNTozMjozOCArMDgwMApTdWJqZWN0OiBbUEFUQ0hdIG1t
+L21tYXAuYzogUmVtb3ZlIHJlZHVuZGFudCBsb2NhbCB2YXJpYWJsZXMgZm9yIG1heV9leHBhbmRf
+dm0oKQoKQWZ0ZXIgbWVyZ2UgdGhlIHJlbGF0ZWQgY29kZSBpbnRvIG9uZSBsaW5lLCB0aGUgY29k
+ZSBpcyBzdGlsbCBzaW1wbGUgYW5kCm1lYW5pbmdmdWwgZW5vdWdoLgoKU2lnbmVkLW9mZi1ieTog
+Q2hlbiBHYW5nIDxnYW5nLmNoZW4uNWk1akBnbWFpbC5jb20+Ci0tLQogbW0vbW1hcC5jIHwgNyAr
+LS0tLS0tCiAxIGZpbGUgY2hhbmdlZCwgMSBpbnNlcnRpb24oKyksIDYgZGVsZXRpb25zKC0pCgpk
+aWZmIC0tZ2l0IGEvbW0vbW1hcC5jIGIvbW0vbW1hcC5jCmluZGV4IDJjZTA0YTYuLmE1MTUyNjAg
+MTAwNjQ0Ci0tLSBhL21tL21tYXAuYworKysgYi9tbS9tbWFwLmMKQEAgLTI5ODgsMTIgKzI5ODgs
+NyBAQCBvdXQ6CiAgKi8KIGludCBtYXlfZXhwYW5kX3ZtKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLCB1
+bnNpZ25lZCBsb25nIG5wYWdlcykKIHsKLQl1bnNpZ25lZCBsb25nIGN1ciA9IG1tLT50b3RhbF92
+bTsJLyogcGFnZXMgKi8KLQl1bnNpZ25lZCBsb25nIGxpbTsKLQotCWxpbSA9IHJsaW1pdChSTElN
+SVRfQVMpID4+IFBBR0VfU0hJRlQ7Ci0KLQlpZiAoY3VyICsgbnBhZ2VzID4gbGltKQorCWlmICht
+bS0+dG90YWxfdm0gKyBucGFnZXMgPiAocmxpbWl0KFJMSU1JVF9BUykgPj4gUEFHRV9TSElGVCkp
+CiAJCXJldHVybiAwOwogCXJldHVybiAxOwogfQotLSAKMS45LjMKCg==
+
+--_416340d1-4c65-41dd-96a1-c93a826e5e98_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
