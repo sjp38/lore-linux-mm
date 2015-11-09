@@ -1,104 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id F03FA6B0257
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 15:25:28 -0500 (EST)
-Received: by ioc74 with SMTP id 74so132430921ioc.2
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 12:25:28 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r64si470809ioi.49.2015.11.09.12.25.28
+Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3386B6B0254
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 15:30:57 -0500 (EST)
+Received: by ykek133 with SMTP id k133so285991834yke.2
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 12:30:57 -0800 (PST)
+Received: from mail-yk0-x22e.google.com (mail-yk0-x22e.google.com. [2607:f8b0:4002:c07::22e])
+        by mx.google.com with ESMTPS id v13si9112424ywg.289.2015.11.09.12.30.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Nov 2015 12:25:28 -0800 (PST)
-Date: Mon, 9 Nov 2015 21:25:22 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH V3 1/2] slub: fix kmem cgroup bug in
- kmem_cache_alloc_bulk
-Message-ID: <20151109212522.6b38988c@redhat.com>
-In-Reply-To: <20151109191335.GM31308@esperanza>
-References: <20151109181604.8231.22983.stgit@firesoul>
-	<20151109181703.8231.66384.stgit@firesoul>
-	<20151109191335.GM31308@esperanza>
+        Mon, 09 Nov 2015 12:30:56 -0800 (PST)
+Received: by ykdr82 with SMTP id r82so10716100ykd.3
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 12:30:56 -0800 (PST)
+Date: Mon, 9 Nov 2015 15:30:53 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 0/5] memcg/kmem: switch to white list policy
+Message-ID: <20151109203053.GD28507@mtj.duckdns.org>
+References: <cover.1446924358.git.vdavydov@virtuozzo.com>
+ <20151109140832.GE8916@dhcp22.suse.cz>
+ <20151109182840.GJ31308@esperanza>
+ <20151109185401.GB28507@mtj.duckdns.org>
+ <20151109192747.GN31308@esperanza>
+ <20151109193253.GC28507@mtj.duckdns.org>
+ <20151109201218.GP31308@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151109201218.GP31308@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, brouer@redhat.com
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 9 Nov 2015 22:13:35 +0300
-Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+Hello, Vladimir.
 
-> On Mon, Nov 09, 2015 at 07:17:31PM +0100, Jesper Dangaard Brouer wrote:
-> ...
-> > @@ -2556,7 +2563,7 @@ redo:
-> >  	if (unlikely(gfpflags & __GFP_ZERO) && object)
-> >  		memset(object, 0, s->object_size);
-> >  
-> > -	slab_post_alloc_hook(s, gfpflags, object);
-> > +	slab_post_alloc_hook(s, gfpflags, 1, object);
+On Mon, Nov 09, 2015 at 11:12:18PM +0300, Vladimir Davydov wrote:
+> Because we won't be able to distinguish kmem_cache_alloc calls that
+> should be accounted from those that shouldn't. The problem is if two
+> caches
 > 
-> I think it must be &object
-
-The object is already a void ** type.
-
-> BTW why is object defined as void **? I suspect we can safely drop one
-> star.
-
-Maybe Christoph can explain this?
-
-
-> >  
-> >  	return object;
-> >  }
-> ...
-> > @@ -2953,11 +2958,15 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
-> >  			memset(p[j], 0, s->object_size);
-> >  	}
-> >  
-> > +	/* memcg and kmem_cache debug support */
-> > +	slab_post_alloc_hook(s, flags, size, p);
-> > +
-> >  	return true;
-> >  
-> >  error:
-> >  	__kmem_cache_free_bulk(s, i, p);
-> >  	local_irq_enable();
-> > +	memcg_kmem_put_cache(s);
+> 	A = kmem_cache_create(...)
 > 
-> I wouldn't tear memcg_kmem_put_cache from slab_post_alloc_hook. If we
-> add something else to slab_post_alloc_hook (e.g. we might want to call
-> tracing functions from there), we'll have to modify this error path
-> either, which is easy to miss.
+> and
 > 
-> What about calling
+> 	B = kmem_cache_create(...)
 > 
-> 	slab_post_alloc_hook(s, flags, 0, NULL);
+> happen to be merged, A and B will point to the same kmem_cache struct.
+> As a result, there is no way to distinguish
 > 
-> here?
+> 	kmem_cache_alloc(A)
+> 
+> which we want to account from
+> 
+> 	kmem_cache_alloc(B)
+> 
+> which we don't.
 
-Maybe the correct behavior here, to adhere to all the debugging options,
-is to call:
+Hmm.... can't we simply merge among !SLAB_ACCOUNT and SLAB_ACCOUNT
+kmem_caches within themselves?  I don't think we'd be losing anything
+by restricting merge at that level.  For anything to be tagged
+SLAB_ACCOUNT, it has to have a potential to grow enormous after all.
 
-error:
- local_irq_enable();
- slab_post_alloc_hook(s, flags, i, p);
- __kmem_cache_free_bulk(s, i, p);
- return false;
-
- 
-> >  	return false;
-> >  }
-> >  EXPORT_SYMBOL(kmem_cache_alloc_bulk);
-> > 
-
+Thanks.
 
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
