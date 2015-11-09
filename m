@@ -1,77 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id F11A36B0255
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 14:20:54 -0500 (EST)
-Received: by ykfs79 with SMTP id s79so53977090ykf.1
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 11:20:54 -0800 (PST)
-Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
-        by mx.google.com with ESMTPS id v65si8883127ywb.320.2015.11.09.11.20.49
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A7536B0257
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 14:27:57 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so183864284pac.3
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 11:27:57 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id uv3si24118339pac.101.2015.11.09.11.27.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Nov 2015 11:20:49 -0800 (PST)
-Message-ID: <1447096601.21443.15.camel@hpe.com>
-Subject: Re: [PATCH v4 RESEND 4/11] x86/asm: Fix pud/pmd interfaces to
- handle large PAT bit
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Mon, 09 Nov 2015 12:16:41 -0700
-In-Reply-To: <5640E08F.5020206@oracle.com>
-References: <1442514264-12475-1-git-send-email-toshi.kani@hpe.com>
-	 <1442514264-12475-5-git-send-email-toshi.kani@hpe.com>
-	 <5640E08F.5020206@oracle.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 09 Nov 2015 11:27:56 -0800 (PST)
+Date: Mon, 9 Nov 2015 22:27:47 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 0/5] memcg/kmem: switch to white list policy
+Message-ID: <20151109192747.GN31308@esperanza>
+References: <cover.1446924358.git.vdavydov@virtuozzo.com>
+ <20151109140832.GE8916@dhcp22.suse.cz>
+ <20151109182840.GJ31308@esperanza>
+ <20151109185401.GB28507@mtj.duckdns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20151109185401.GB28507@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
-Cc: akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 2015-11-09 at 13:06 -0500, Boris Ostrovsky wrote:
-> On 09/17/2015 02:24 PM, Toshi Kani wrote:
-> > Now that we have pud/pmd mask interfaces, which handle pfn & flags
-> > mask properly for the large PAT bit.
+On Mon, Nov 09, 2015 at 01:54:01PM -0500, Tejun Heo wrote:
+> On Mon, Nov 09, 2015 at 09:28:40PM +0300, Vladimir Davydov wrote:
+> > > I am _all_ for this semantic I am just not sure what to do with the
+> > > legacy kmem controller. Can we change its semantic? If we cannot do that
 > > 
-> > Fix pud/pmd pfn & flags interfaces by replacing PTE_PFN_MASK and
-> > PTE_FLAGS_MASK with the pud/pmd mask interfaces.
-> > 
-> > Suggested-by: Juergen Gross <jgross@suse.com>
-> > Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> > Cc: Juergen Gross <jgross@suse.com>
-> > Cc: Konrad Wilk <konrad.wilk@oracle.com>
-> > Cc: Thomas Gleixner <tglx@linutronix.de>
-> > Cc: H. Peter Anvin <hpa@zytor.com>
-> > Cc: Ingo Molnar <mingo@redhat.com>
-> > Cc: Borislav Petkov <bp@alien8.de>
-> > ---
-> >   arch/x86/include/asm/pgtable.h       |   14 ++++++++------
-> >   arch/x86/include/asm/pgtable_types.h |    4 ++--
-> >   2 files changed, 10 insertions(+), 8 deletions(-)
-> > 
+> > I think we can. If somebody reports a "bug" caused by this change, i.e.
+> > basically notices that something that used to be accounted is not any
+> > longer, it will be trivial to fix by adding __GFP_ACCOUNT where
+> > appropriate. If it is not, e.g. if accounting of objects of a particular
+> > type leads to intense false-sharing, we would end up disabling
+> > accounting for it anyway.
 > 
-> 
-> Looks like this commit is causing this splat for 32-bit kernels. I am 
-> attaching my config file, just in case.
+> I agree too, if anything is meaningfully broken by the flip, it just
+> indicates that the whitelist needs to be expanded; however, I wonder
+> whether this would be done better at slab level rather than per
+> allocation site.
 
-Thanks for the report!  I'd like to reproduce the issue since I am not sure how
-this change caused it...
+I'd like to, but this is not as simple as it seems at first glance. The
+problem is that slab caches of the same size are actively merged with
+each other. If we just added SLAB_ACCOUNT flag, which would be passed to
+kmem_cache_create to enable accounting, we'd divide all caches into two
+groups that couldn't be merged with each other even if kmem accounting
+was not used at all. This would be a show stopper.
 
-I tried to build a kernel with the attached config file, and got the following
-error.  Not sure what I am missing.  
+Of course, we could rework slab merging so that kmem_cache_create
+returned a new dummy cache even if it was actually merged. Such a cache
+would point to the real cache, which would be used for allocations. This
+wouldn't limit slab merging, but this would add one more dereference to
+alloc path, which is even worse.
 
-----
-$ make -j24 ARCH=i386
-   :
-  LD      drivers/built-in.o
-  LINK    vmlinux
-./.config: line 44: $'\r': command not found
-Makefile:929: recipe for target 'vmlinux' failed
-make: *** [vmlinux] Error 127
-----
-
-Do you have steps to reproduce the issue?  Or do you see it during boot-time?
+That's why I decided to go with marking individual allocations.
 
 Thanks,
--Toshi
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
