@@ -1,44 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B0FBE6B0256
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 17:04:53 -0500 (EST)
-Received: by igl9 with SMTP id 9so41047881igl.0
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 14:04:53 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id l80si879542iod.135.2015.11.09.14.04.52
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 02BA96B0038
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 17:37:11 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so204071458pad.1
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 14:37:10 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id hd5si287138pbb.257.2015.11.09.14.37.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 09 Nov 2015 14:04:53 -0800 (PST)
-Date: Mon, 9 Nov 2015 16:04:51 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH V3 1/2] slub: fix kmem cgroup bug in
- kmem_cache_alloc_bulk
-In-Reply-To: <20151109191335.GM31308@esperanza>
-Message-ID: <alpine.DEB.2.20.1511091603240.26497@east.gentwo.org>
-References: <20151109181604.8231.22983.stgit@firesoul> <20151109181703.8231.66384.stgit@firesoul> <20151109191335.GM31308@esperanza>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Nov 2015 14:37:10 -0800 (PST)
+Subject: Re: [PATCH v4 RESEND 4/11] x86/asm: Fix pud/pmd interfaces to handle
+ large PAT bit
+References: <1442514264-12475-1-git-send-email-toshi.kani@hpe.com>
+ <1442514264-12475-5-git-send-email-toshi.kani@hpe.com>
+ <5640E08F.5020206@oracle.com> <1447096601.21443.15.camel@hpe.com>
+ <5640F673.8070400@oracle.com> <20151109204710.GB5443@node.shutemov.name>
+From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Message-ID: <56411FFB.80104@oracle.com>
+Date: Mon, 9 Nov 2015 17:36:43 -0500
+MIME-Version: 1.0
+In-Reply-To: <20151109204710.GB5443@node.shutemov.name>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Toshi Kani <toshi.kani@hpe.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com
 
-On Mon, 9 Nov 2015, Vladimir Davydov wrote:
+On 11/09/2015 03:47 PM, Kirill A. Shutemov wrote:
+> On Mon, Nov 09, 2015 at 02:39:31PM -0500, Boris Ostrovsky wrote:
+>> On 11/09/2015 02:16 PM, Toshi Kani wrote:
+>>> On Mon, 2015-11-09 at 13:06 -0500, Boris Ostrovsky wrote:
+>>>> On 09/17/2015 02:24 PM, Toshi Kani wrote:
+>>>>> Now that we have pud/pmd mask interfaces, which handle pfn & flags
+>>>>> mask properly for the large PAT bit.
+>>>>>
+>>>>> Fix pud/pmd pfn & flags interfaces by replacing PTE_PFN_MASK and
+>>>>> PTE_FLAGS_MASK with the pud/pmd mask interfaces.
+>>>>>
+>>>>> Suggested-by: Juergen Gross <jgross@suse.com>
+>>>>> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+>>>>> Cc: Juergen Gross <jgross@suse.com>
+>>>>> Cc: Konrad Wilk <konrad.wilk@oracle.com>
+>>>>> Cc: Thomas Gleixner <tglx@linutronix.de>
+>>>>> Cc: H. Peter Anvin <hpa@zytor.com>
+>>>>> Cc: Ingo Molnar <mingo@redhat.com>
+>>>>> Cc: Borislav Petkov <bp@alien8.de>
+>>>>> ---
+>>>>>    arch/x86/include/asm/pgtable.h       |   14 ++++++++------
+>>>>>    arch/x86/include/asm/pgtable_types.h |    4 ++--
+>>>>>    2 files changed, 10 insertions(+), 8 deletions(-)
+>>>>>
+>>>> Looks like this commit is causing this splat for 32-bit kernels. I am
+>>>> attaching my config file, just in case.
+>>> Thanks for the report!  I'd like to reproduce the issue since I am not sure how
+>>> this change caused it...
+>>>
+>>> I tried to build a kernel with the attached config file, and got the following
+>>> error.  Not sure what I am missing.
+>>>
+>>> ----
+>>> $ make -j24 ARCH=i386
+>>>     :
+>>>    LD      drivers/built-in.o
+>>>    LINK    vmlinux
+>>> ./.config: line 44: $'\r': command not found
+>> I wonder whether my email client added ^Ms to the file that I send. It
+>> shouldn't have.
+>>
+>>> Makefile:929: recipe for target 'vmlinux' failed
+>>> make: *** [vmlinux] Error 127
+>>> ----
+>>>
+>>> Do you have steps to reproduce the issue?  Or do you see it during boot-time?
+>> This always happens just after system has booted, it may still be going over
+>> init scripts. I am booting with ramdisk, don't know whether it has anything
+>> to do with this problem.
+>>
+>> FWIW, it looks like pmd_pfn_mask() inline is causing this. Reverting it
+>> alone makes this crash go away.
+> Could you check the patch below?
 
-> I think it must be &object
+
+I does fix the problem on baremetal, thanks. My 32-bit Xen guests still 
+fail which I thought was the same issue but now that I looked at it more 
+carefully it has different signature.
+
+-boris
+
+
 >
-> BTW why is object defined as void **? I suspect we can safely drop one
-> star.
-
-See get_freepointer()
-
-static inline void *get_freepointer(struct kmem_cache *s, void *object)
-{
-        return *(void **)(object + s->offset);
-}
-
-The object at some point has a freepointer and ** allows the use of the
-s->offset field to get to it.
-
+> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+> index dd5b0aa9dd2f..c1e797266ce9 100644
+> --- a/arch/x86/include/asm/pgtable_types.h
+> +++ b/arch/x86/include/asm/pgtable_types.h
+> @@ -279,17 +279,14 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
+>   static inline pudval_t pud_pfn_mask(pud_t pud)
+>   {
+>   	if (native_pud_val(pud) & _PAGE_PSE)
+> -		return PUD_PAGE_MASK & PHYSICAL_PAGE_MASK;
+> +		return ~((1ULL << PUD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+>   	else
+>   		return PTE_PFN_MASK;
+>   }
+>   
+>   static inline pudval_t pud_flags_mask(pud_t pud)
+>   {
+> -	if (native_pud_val(pud) & _PAGE_PSE)
+> -		return ~(PUD_PAGE_MASK & (pudval_t)PHYSICAL_PAGE_MASK);
+> -	else
+> -		return ~PTE_PFN_MASK;
+> +	return ~pud_pfn_mask(pud);
+>   }
+>   
+>   static inline pudval_t pud_flags(pud_t pud)
+> @@ -300,17 +297,14 @@ static inline pudval_t pud_flags(pud_t pud)
+>   static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
+>   {
+>   	if (native_pmd_val(pmd) & _PAGE_PSE)
+> -		return PMD_PAGE_MASK & PHYSICAL_PAGE_MASK;
+> +		return ~((1ULL << PMD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+>   	else
+>   		return PTE_PFN_MASK;
+>   }
+>   
+>   static inline pmdval_t pmd_flags_mask(pmd_t pmd)
+>   {
+> -	if (native_pmd_val(pmd) & _PAGE_PSE)
+> -		return ~(PMD_PAGE_MASK & (pmdval_t)PHYSICAL_PAGE_MASK);
+> -	else
+> -		return ~PTE_PFN_MASK;
+> +	return ~pmd_pfn_mask(pmd);
+>   }
+>   
+>   static inline pmdval_t pmd_flags(pmd_t pmd)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
