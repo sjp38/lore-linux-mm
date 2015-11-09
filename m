@@ -1,93 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 96E746B0253
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 16:41:09 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so202759048pad.1
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:41:09 -0800 (PST)
-Received: from COL004-OMC1S12.hotmail.com (col004-omc1s12.hotmail.com. [65.55.34.22])
-        by mx.google.com with ESMTPS id v13si70332pas.84.2015.11.09.13.41.08
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 6320F6B0255
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 17:04:17 -0500 (EST)
+Received: by wmnn186 with SMTP id n186so128761088wmn.1
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 14:04:17 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lk1si152505wjb.153.2015.11.09.14.04.16
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 09 Nov 2015 13:41:08 -0800 (PST)
-Message-ID: <COL130-W65418E50E899195C9B2134B9150@phx.gbl>
-Content-Type: multipart/mixed;
-	boundary="_416340d1-4c65-41dd-96a1-c93a826e5e98_"
-From: Chen Gang <xili_gchen_5257@hotmail.com>
-Subject: [PATCH] mm/mmap.c: Remove redundant local variables for
- may_expand_vm()
-Date: Tue, 10 Nov 2015 05:41:08 +0800
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 09 Nov 2015 14:04:16 -0800 (PST)
+Subject: Re: [PATCH 1/3] tree wide: get rid of __GFP_REPEAT for order-0
+ allocations part I
+References: <1446740160-29094-1-git-send-email-mhocko@kernel.org>
+ <1446740160-29094-2-git-send-email-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5641185F.9020104@suse.cz>
+Date: Mon, 9 Nov 2015 23:04:15 +0100
 MIME-Version: 1.0
+In-Reply-To: <1446740160-29094-2-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "oleg@redhat.com" <oleg@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "dave@stgolabs.net" <dave@stgolabs.net>, "aarcange@redhat.com" <aarcange@redhat.com>
-Cc: Linux Memory <linux-mm@kvack.org>, kernel mailing list <linux-kernel@vger.kernel.org>
+To: mhocko@kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
---_416340d1-4c65-41dd-96a1-c93a826e5e98_
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+On 5.11.2015 17:15, mhocko@kernel.org wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> __GFP_REPEAT has a rather weak semantic but since it has been introduced
+> around 2.6.12 it has been ignored for low order allocations. Yet we have
+> the full kernel tree with its usage for apparently order-0 allocations.
+> This is really confusing because __GFP_REPEAT is explicitly documented
+> to allow allocation failures which is a weaker semantic than the current
+> order-0 has (basically nofail).
+> 
+> Let's simply reap out __GFP_REPEAT from those places. This would allow
+> to identify place which really need allocator to retry harder and
+> formulate a more specific semantic for what the flag is supposed to do
+> actually.
 
->From 7050c267d8dda220226067039d815593d2f9a874 Mon Sep 17 00:00:00 2001=0A=
-From: Chen Gang <gang.chen.5i5j@gmail.com>=0A=
-Date: Tue=2C 10 Nov 2015 05:32:38 +0800=0A=
-Subject: [PATCH] mm/mmap.c: Remove redundant local variables for may_expand=
-_vm()=0A=
-=0A=
-After merge the related code into one line=2C the code is still simple and=
-=0A=
-meaningful enough.=0A=
-=0A=
-Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>=0A=
----=0A=
-=A0mm/mmap.c | 7 +------=0A=
-=A01 file changed=2C 1 insertion(+)=2C 6 deletions(-)=0A=
-=0A=
-diff --git a/mm/mmap.c b/mm/mmap.c=0A=
-index 2ce04a6..a515260 100644=0A=
---- a/mm/mmap.c=0A=
-+++ b/mm/mmap.c=0A=
-@@ -2988=2C12 +2988=2C7 @@ out:=0A=
-=A0 */=0A=
-=A0int may_expand_vm(struct mm_struct *mm=2C unsigned long npages)=0A=
-=A0{=0A=
--	unsigned long cur =3D mm->total_vm=3B	/* pages */=0A=
--	unsigned long lim=3B=0A=
--=0A=
--	lim =3D rlimit(RLIMIT_AS)>> PAGE_SHIFT=3B=0A=
--=0A=
--	if (cur + npages> lim)=0A=
-+	if (mm->total_vm + npages> (rlimit(RLIMIT_AS)>> PAGE_SHIFT))=0A=
-=A0		return 0=3B=0A=
-=A0	return 1=3B=0A=
-=A0}=0A=
---=A0=0A=
-1.9.3=0A=
-=0A=
- 		 	   		  =
+So at first I thought "yeah that's obvious", but then after some more thinking,
+I'm not so sure anymore.
 
---_416340d1-4c65-41dd-96a1-c93a826e5e98_
-Content-Type: application/octet-stream
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
-	filename="0001-mm-mmap.c-Remove-redundant-local-variables-for-may_e.patch"
+I think we should formulate the semantic first, then do any changes. Also, let's
+look at the flag description (which comes from pre-git):
 
-RnJvbSA3MDUwYzI2N2Q4ZGRhMjIwMjI2MDY3MDM5ZDgxNTU5M2QyZjlhODc0IE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQpGcm9tOiBDaGVuIEdhbmcgPGdhbmcuY2hlbi41aTVqQGdtYWlsLmNvbT4K
-RGF0ZTogVHVlLCAxMCBOb3YgMjAxNSAwNTozMjozOCArMDgwMApTdWJqZWN0OiBbUEFUQ0hdIG1t
-L21tYXAuYzogUmVtb3ZlIHJlZHVuZGFudCBsb2NhbCB2YXJpYWJsZXMgZm9yIG1heV9leHBhbmRf
-dm0oKQoKQWZ0ZXIgbWVyZ2UgdGhlIHJlbGF0ZWQgY29kZSBpbnRvIG9uZSBsaW5lLCB0aGUgY29k
-ZSBpcyBzdGlsbCBzaW1wbGUgYW5kCm1lYW5pbmdmdWwgZW5vdWdoLgoKU2lnbmVkLW9mZi1ieTog
-Q2hlbiBHYW5nIDxnYW5nLmNoZW4uNWk1akBnbWFpbC5jb20+Ci0tLQogbW0vbW1hcC5jIHwgNyAr
-LS0tLS0tCiAxIGZpbGUgY2hhbmdlZCwgMSBpbnNlcnRpb24oKyksIDYgZGVsZXRpb25zKC0pCgpk
-aWZmIC0tZ2l0IGEvbW0vbW1hcC5jIGIvbW0vbW1hcC5jCmluZGV4IDJjZTA0YTYuLmE1MTUyNjAg
-MTAwNjQ0Ci0tLSBhL21tL21tYXAuYworKysgYi9tbS9tbWFwLmMKQEAgLTI5ODgsMTIgKzI5ODgs
-NyBAQCBvdXQ6CiAgKi8KIGludCBtYXlfZXhwYW5kX3ZtKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLCB1
-bnNpZ25lZCBsb25nIG5wYWdlcykKIHsKLQl1bnNpZ25lZCBsb25nIGN1ciA9IG1tLT50b3RhbF92
-bTsJLyogcGFnZXMgKi8KLQl1bnNpZ25lZCBsb25nIGxpbTsKLQotCWxpbSA9IHJsaW1pdChSTElN
-SVRfQVMpID4+IFBBR0VfU0hJRlQ7Ci0KLQlpZiAoY3VyICsgbnBhZ2VzID4gbGltKQorCWlmICht
-bS0+dG90YWxfdm0gKyBucGFnZXMgPiAocmxpbWl0KFJMSU1JVF9BUykgPj4gUEFHRV9TSElGVCkp
-CiAJCXJldHVybiAwOwogCXJldHVybiAxOwogfQotLSAKMS45LjMKCg==
+ * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
+ * _might_ fail.  This depends upon the particular VM implementation.
 
---_416340d1-4c65-41dd-96a1-c93a826e5e98_--
+So we say it's implementation detail, and IIRC the same is said about which
+orders are considered costly and which not, and the associated rules. So, can we
+blame callers that happen to use __GFP_REPEAT essentially as a no-op in the
+current implementation? And is it a problem that they do that?
+
+So I think we should answer the following questions:
+
+* What is the semantic of __GFP_REPEAT?
+  - My suggestion would be something like "I would really like this allocation
+to succeed. I still have some fallback but it's so suboptimal I'd rather wait
+for this allocation." And then we could e.g. change some heuristics to take that
+into account - e.g. direct compaction could ignore the deferred state and
+pageblock skip bits, to make sure it's as thorough as possible. Right now, that
+sort of happens, but not quite - given enough reclaim/compact attempts, the
+compact attempts might break out of deferred state. But pages_reclaimed might
+reach 1 << order before compaction "undefers", and then it breaks out of the
+loop. Is any such heuristic change possible for reclaim as well?
+As part of this question we should also keep in mind/rethink __GFP_NORETRY as
+that's supposed to be the opposite flag to __GFP_REPEAT.
+
+* Can it ever happen that __GFP_REPEAT could make some difference for order-0?
+  - Certainly not wrt compaction, how about reclaim?
+  - If it couldn't possibly affect order-0, then yeah proceed with Patch 1.
+
+* Is PAGE_ALLOC_COSTLY_ORDER considered an implementation detail?
+  - I would think so, and if yes, then we probably shouldn't remove
+__GFP_NORETRY for order-1+ allocations that happen to be not costly in the
+current implementation?
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
