@@ -1,75 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 977F56B0253
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 16:05:54 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so201948217pad.1
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:05:54 -0800 (PST)
-Received: from g2t2355.austin.hp.com (g2t2355.austin.hp.com. [15.217.128.54])
-        by mx.google.com with ESMTPS id k12si9641655pbq.184.2015.11.09.13.05.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Nov 2015 13:05:53 -0800 (PST)
-Message-ID: <1447102904.21443.20.camel@hpe.com>
-Subject: Re: [PATCH v4 RESEND 4/11] x86/asm: Fix pud/pmd interfaces to
- handle large PAT bit
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Mon, 09 Nov 2015 14:01:44 -0700
-In-Reply-To: <20151109201054.GA5443@node.shutemov.name>
-References: <1442514264-12475-1-git-send-email-toshi.kani@hpe.com>
-	 <1442514264-12475-5-git-send-email-toshi.kani@hpe.com>
-	 <5640E08F.5020206@oracle.com> <1447096601.21443.15.camel@hpe.com>
-	 <20151109201054.GA5443@node.shutemov.name>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B98F6B0254
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 16:06:19 -0500 (EST)
+Received: by wmec201 with SMTP id c201so101869772wme.0
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:06:19 -0800 (PST)
+Received: from 1wt.eu (wtarreau.pck.nerim.net. [62.212.114.60])
+        by mx.google.com with ESMTP id k187si774383wmg.85.2015.11.09.13.06.18
+        for <linux-mm@kvack.org>;
+        Mon, 09 Nov 2015 13:06:18 -0800 (PST)
+Date: Mon, 9 Nov 2015 22:06:08 +0100
+From: Willy Tarreau <w@1wt.eu>
+Subject: Re: [PATCH] ptrace: use fsuid, fsgid, effective creds for fs access checks
+Message-ID: <20151109210608.GH26584@1wt.eu>
+References: <1446984516-1784-1-git-send-email-jann@thejh.net> <20151109125554.43e6a711e59d1b8bf99cdeb1@linux-foundation.org>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151109125554.43e6a711e59d1b8bf99cdeb1@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jann Horn <jann@thejh.net>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge.hallyn@ubuntu.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Joe Perches <joe@perches.com>, Thomas Gleixner <tglx@linutronix.de>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org, linux-api@vger.kernel.org, security@kernel.org, Kees Cook <keescook@google.com>
 
-On Mon, 2015-11-09 at 22:10 +0200, Kirill A. Shutemov wrote:
-> On Mon, Nov 09, 2015 at 12:16:41PM -0700, Toshi Kani wrote:
-> > On Mon, 2015-11-09 at 13:06 -0500, Boris Ostrovsky wrote:
-> > > On 09/17/2015 02:24 PM, Toshi Kani wrote:
-> > > > Now that we have pud/pmd mask interfaces, which handle pfn & flags
-> > > > mask properly for the large PAT bit.
-> > > > 
-> > > > Fix pud/pmd pfn & flags interfaces by replacing PTE_PFN_MASK and
-> > > > PTE_FLAGS_MASK with the pud/pmd mask interfaces.
-> > > > 
-> > > > Suggested-by: Juergen Gross <jgross@suse.com>
-> > > > Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> > > > Cc: Juergen Gross <jgross@suse.com>
-> > > > Cc: Konrad Wilk <konrad.wilk@oracle.com>
-> > > > Cc: Thomas Gleixner <tglx@linutronix.de>
-> > > > Cc: H. Peter Anvin <hpa@zytor.com>
-> > > > Cc: Ingo Molnar <mingo@redhat.com>
-> > > > Cc: Borislav Petkov <bp@alien8.de>
-> > > > ---
-> > > >   arch/x86/include/asm/pgtable.h       |   14 ++++++++------
-> > > >   arch/x86/include/asm/pgtable_types.h |    4 ++--
-> > > >   2 files changed, 10 insertions(+), 8 deletions(-)
-> > > > 
-> > > 
-> > > 
-> > > Looks like this commit is causing this splat for 32-bit kernels. I am 
-> > > attaching my config file, just in case.
-> > 
-> > Thanks for the report!  I'd like to reproduce the issue since I am not sure 
-> > how this change caused it...
-> > 
-> > I tried to build a kernel with the attached config file, and got the 
-> > following error.  Not sure what I am missing.  
+On Mon, Nov 09, 2015 at 12:55:54PM -0800, Andrew Morton wrote:
+> > --- a/fs/proc/array.c
+> > +++ b/fs/proc/array.c
+> > @@ -395,7 +395,8 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
+> >  
+> >  	state = *get_task_state(task);
+> >  	vsize = eip = esp = 0;
+> > -	permitted = ptrace_may_access(task, PTRACE_MODE_READ | PTRACE_MODE_NOAUDIT);
+> > +	permitted = ptrace_may_access(task,
+> > +		PTRACE_MODE_READ | PTRACE_MODE_NOAUDIT | PTRACE_MODE_FSCREDS);
 > 
-> The problem is that PMD_PAGE_MASK as well as PUD_PAGE_MASK are 'unsigned
-> long', not 'unsigned long long'. So on 32-bit with PAE enabled your
-> pmd_pfn_mask()/pud_pfn_mask() will truncate bits 32..43 of pmd/pudval and
-> you'll never get proper page frame for pages above 4G.
+> There's lots of ugliness in the patch to do with fitting code into 80 cols. 
+> Can we do
+> 
+> #define PTRACE_foo (PTRACE_MODE_READ|PTRACE_MODE_FSCREDS)
+> 
+> to avoid all that?
 
-Thanks Kirill!  Yes, this explains the issue.  Since I did not change these
-MASKs, and I tested 32-bit kernels on a small system, I was not able to catch
-this issue...
--Toshi
+Or even simply bypass the 80-cols rule. Making code ugly or less easy
+to read for sake of an arbitrary rule is often not fun, and that's even
+more so when it comes to security fixes that people are expected to
+easily understand next time they put their fingers there.
+
+Willy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
