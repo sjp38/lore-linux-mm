@@ -1,49 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id F1DEB6B0253
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 16:19:04 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so202254054pad.1
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:19:04 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id sk2si24711914pac.33.2015.11.09.13.19.04
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Nov 2015 13:19:04 -0800 (PST)
-Date: Mon, 9 Nov 2015 13:19:02 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] ptrace: use fsuid, fsgid, effective creds for fs access
- checks
-Message-Id: <20151109131902.db961a5fe7b7fcbeb14f72fc@linux-foundation.org>
-In-Reply-To: <20151109211209.GA3236@pc.thejh.net>
-References: <1446984516-1784-1-git-send-email-jann@thejh.net>
-	<20151109125554.43e6a711e59d1b8bf99cdeb1@linux-foundation.org>
-	<20151109211209.GA3236@pc.thejh.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-lf0-f49.google.com (mail-lf0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id BF9E76B0254
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 16:19:20 -0500 (EST)
+Received: by lffu14 with SMTP id u14so17273673lff.1
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:19:20 -0800 (PST)
+Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id q194si10935076lfe.30.2015.11.09.13.19.19
+        for <linux-mm@kvack.org>;
+        Mon, 09 Nov 2015 13:19:19 -0800 (PST)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH] tree wide: Use kvfree() than conditional kfree()/vfree()
+Date: Mon, 09 Nov 2015 22:48:37 +0100
+Message-ID: <5253459.IxnqkcU2vL@vostro.rjw.lan>
+In-Reply-To: <1447070170-8512-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1447070170-8512-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jann@thejh.net>
-Cc: Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge.hallyn@ubuntu.com>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Joe Perches <joe@perches.com>, Thomas Gleixner <tglx@linutronix.de>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-security-module@vger.kernel.org, linux-api@vger.kernel.org, security@kernel.org, Willy Tarreau <w@1wt.eu>, Kees Cook <keescook@google.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, linux-acpi@vger.kernel.org, drbd-user@lists.linbit.com, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, codalist@coda.cs.cmu.edu, linux-mtd@lists.infradead.org, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Boris Petkov <bp@suse.de>
 
-On Mon, 9 Nov 2015 22:12:09 +0100 Jann Horn <jann@thejh.net> wrote:
+On Monday, November 09, 2015 08:56:10 PM Tetsuo Handa wrote:
+> There are many locations that do
 > 
-> > Can we do
-> > 
-> > #define PTRACE_foo (PTRACE_MODE_READ|PTRACE_MODE_FSCREDS)
-> > 
-> > to avoid all that?
+>   if (memory_was_allocated_by_vmalloc)
+>     vfree(ptr);
+>   else
+>     kfree(ptr);
 > 
-> Hm. All combinations of the PTRACE_MODE_*CREDS flags with
-> PTRACE_MODE_{READ,ATTACH} plus optionally PTRACE_MODE_NOAUDIT
-> make sense, I think. So your suggestion would be to create
-> four new #defines
-> PTRACE_MODE_{READ,ATTACH}_{FSCREDS,REALCREDS} and then let
-> callers OR in the PTRACE_MODE_NOAUDIT flag if needed?
+> but kvfree() can handle both kmalloc()ed memory and vmalloc()ed memory
+> using is_vmalloc_addr(). Unless callers have special reasons, we can
+> replace this branch with kvfree(). Please check and reply if you found
+> problems.
 
-If these flag combinations have an identifiable concept behind them then
-sure, it makes sense to capture that via a well-chosen identifier.
+ACK for the ACPI changes (and CCing Tony and Boris for the heads-up as they
+are way more famailiar with the APEI code than I am).
 
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
