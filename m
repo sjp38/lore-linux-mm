@@ -1,45 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f49.google.com (mail-lf0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id BF9E76B0254
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 16:19:20 -0500 (EST)
-Received: by lffu14 with SMTP id u14so17273673lff.1
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:19:20 -0800 (PST)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id q194si10935076lfe.30.2015.11.09.13.19.19
-        for <linux-mm@kvack.org>;
-        Mon, 09 Nov 2015 13:19:19 -0800 (PST)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH] tree wide: Use kvfree() than conditional kfree()/vfree()
-Date: Mon, 09 Nov 2015 22:48:37 +0100
-Message-ID: <5253459.IxnqkcU2vL@vostro.rjw.lan>
-In-Reply-To: <1447070170-8512-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1447070170-8512-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 77E236B0253
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 16:27:51 -0500 (EST)
+Received: by ioc74 with SMTP id 74so134146160ioc.2
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:27:51 -0800 (PST)
+Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com. [2607:f8b0:4001:c05::230])
+        by mx.google.com with ESMTPS id q1si744436igh.93.2015.11.09.13.27.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Nov 2015 13:27:50 -0800 (PST)
+Received: by igbhv6 with SMTP id hv6so84482571igb.0
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 13:27:50 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <5640EC58.7050006@android.com>
+References: <1446574204-15567-1-git-send-email-dcashman@android.com>
+	<1446574204-15567-2-git-send-email-dcashman@android.com>
+	<CAGXu5jKGzDD9WVQnMTT2EfupZtjpdcASUpx-3npLAB-FctLodA@mail.gmail.com>
+	<56393FD0.6080001@android.com>
+	<CAGXu5jLe=OgZ2DG_MRXA8x6BwpEd77fNZBj3wjbDiSdiBurz7w@mail.gmail.com>
+	<563A4EDC.6090403@android.com>
+	<563BA393.9020504@android.com>
+	<CAGXu5j+2xiRwt6mKrjzuf9O745GWOcjXzutONp6rz_Kj+3PfVQ@mail.gmail.com>
+	<1447040874.5195.2.camel@ellerman.id.au>
+	<5640EC58.7050006@android.com>
+Date: Mon, 9 Nov 2015 13:27:50 -0800
+Message-ID: <CAGXu5jLJM8_JqSxDagN0AHdFoXNEkn8zDBG_iJBW_Z9jeRst8g@mail.gmail.com>
+Subject: Re: [PATCH v2 2/2] arm: mm: support ARCH_MMAP_RND_BITS.
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, linux-acpi@vger.kernel.org, drbd-user@lists.linbit.com, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, codalist@coda.cs.cmu.edu, linux-mtd@lists.infradead.org, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, Tony Luck <tony.luck@intel.com>, Boris Petkov <bp@suse.de>
+To: Daniel Cashman <dcashman@android.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, dcashman <dcashman@google.com>
 
-On Monday, November 09, 2015 08:56:10 PM Tetsuo Handa wrote:
-> There are many locations that do
-> 
->   if (memory_was_allocated_by_vmalloc)
->     vfree(ptr);
->   else
->     kfree(ptr);
-> 
-> but kvfree() can handle both kmalloc()ed memory and vmalloc()ed memory
-> using is_vmalloc_addr(). Unless callers have special reasons, we can
-> replace this branch with kvfree(). Please check and reply if you found
-> problems.
+On Mon, Nov 9, 2015 at 10:56 AM, Daniel Cashman <dcashman@android.com> wrote:
+> On 11/08/2015 07:47 PM, Michael Ellerman wrote:
+>> On Fri, 2015-11-06 at 12:52 -0800, Kees Cook wrote:
+>>> On Thu, Nov 5, 2015 at 10:44 AM, Daniel Cashman <dcashman@android.com> wrote:
+>>>> On 11/04/2015 10:30 AM, Daniel Cashman wrote:
+>>>>> On 11/3/15 3:21 PM, Kees Cook wrote:
+>>>>>> On Tue, Nov 3, 2015 at 3:14 PM, Daniel Cashman <dcashman@android.com> wrote:
+>>>>>>> On 11/03/2015 11:19 AM, Kees Cook wrote:
+>>>>>>>> Do you have patches for x86 and arm64?
+>>>>>>>
+>>>>>>> I was holding off on those until I could gauge upstream reception.  If
+>>>>>>> desired, I could put those together and add them as [PATCH 3/4] and
+>>>>>>> [PATCH 4/4].
+>>>>>>
+>>>>>> If they're as trivial as I'm hoping, yeah, let's toss them in now. If
+>>>>>> not, skip 'em. PowerPC, MIPS, and s390 should be relatively simple
+>>>>>> too, but one or two of those have somewhat stranger calculations when
+>>>>>> I looked, so their Kconfigs may not be as clean.
+>>>>>
+>>>>> Creating the patches should be simple, it's the choice of minimum and
+>>>>> maximum values for each architecture that I'd be most concerned about.
+>>>>> I'll put them together, though, and the ranges can be changed following
+>>>>> discussion with those more knowledgeable, if needed.  I also don't have
+>>>>> devices on which to test the PowerPC, MIPS and s390 changes, so I'll
+>>>>> need someone's help for that.
+>>>>
+>>>> Actually, in preparing the x86 and arm64 patches, it became apparent
+>>>> that the current patch-set does not address 32-bit executables running
+>>>> on 64-bit systems (compatibility mode), since only one procfs
+>>>> mmap_rnd_bits variable is created and exported. Some possible solutions:
+>>>
+>>> How about a single new CONFIG+sysctl that is the compat delta. For
+>>> example, on x86, it's 20 bits. Then we don't get splashed with a whole
+>>> new set of min/maxes, but we can reasonably control compat?
+>>
+>> Do you mean in addition to mmap_rnd_bits?
+>>
+>> So we'd end up with mmap_rnd_bits and also mmap_rnd_bits_compat_delta?
+>> (naming TBD)
+>>
+>> If so yeah I think that would work.
+>>
+>> It would have the nice property of allowing you to add some more randomness to
+>> all processes by bumping mmap_rnd_bits. But at the same time if you want to add
+>> a lot more randomness to 64-bit processes, but just a bit (or none) to 32-bit
+>> processes you can also do that.
+>
+> I may be misunderstanding the suggestion, or perhaps simply too
+> conservative in my desire to prevent bad values, but I still think we
+> would have need for two min-max ranges.  If using a single
+> mmap_rnd_bits_compat value, there are two approaches: to either use
+> mmap_rnd_bits for 32-bit applications and then add the compat value for
+> 64-bit or the opposite, to have mmap_rnd_bits be the default and
+> subtract the compat value for the 32-bit applications.  In either case,
+> the compat value would need to be sensibly bounded, and that bounding
+> depends on acceptable values for both 32 and 64 bit applications.
 
-ACK for the ACPI changes (and CCing Tony and Boris for the heads-up as they
-are way more famailiar with the APEI code than I am).
+Yeah, I think I wasn't thinking about this well. I think two sysctls
+should be fine: mmap_rnd_bits and mmap_compat_rnd_bits. And
+internally, we'd have a second set of CONFIGs (and ranges) to deal
+with CONFIG_COMPAT.
 
-Thanks,
-Rafael
+-Kees
+
+-- 
+Kees Cook
+Chrome OS Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
