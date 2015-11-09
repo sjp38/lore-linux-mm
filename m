@@ -1,82 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 8235A6B0255
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 11:39:17 -0500 (EST)
-Received: by igbhv6 with SMTP id hv6so79038637igb.0
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 08:39:17 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x23si3995865ioi.94.2015.11.09.08.39.15
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B78066B0255
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 11:45:30 -0500 (EST)
+Received: by wmww144 with SMTP id w144so84088165wmw.1
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 08:45:30 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id g9si17703004wmd.73.2015.11.09.08.45.29
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Nov 2015 08:39:15 -0800 (PST)
-Date: Mon, 9 Nov 2015 17:39:10 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH V2 2/2] slub: add missing kmem cgroup support to
- kmem_cache_free_bulk
-Message-ID: <20151109173910.7a3c3a18@redhat.com>
-In-Reply-To: <20151107202548.GO29259@esperanza>
-References: <20151105153704.1115.10475.stgit@firesoul>
-	<20151105153756.1115.41409.stgit@firesoul>
-	<20151105162514.GI29259@esperanza>
-	<20151107175338.12a0368b@redhat.com>
-	<20151107202548.GO29259@esperanza>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Nov 2015 08:45:29 -0800 (PST)
+Date: Mon, 9 Nov 2015 11:45:18 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/5] memcg/kmem: switch to white list policy
+Message-ID: <20151109164518.GA23356@cmpxchg.org>
+References: <cover.1446924358.git.vdavydov@virtuozzo.com>
+ <20151109140832.GE8916@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151109140832.GE8916@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, brouer@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
+On Mon, Nov 09, 2015 at 03:08:32PM +0100, Michal Hocko wrote:
+> I am _all_ for this semantic I am just not sure what to do with the
+> legacy kmem controller. Can we change its semantic? If we cannot do that
+> we would have to distinguish legacy and unified hierarchies during
+> runtime and add the flag automagically for the first one (that would
+> however require to keep __GFP_NOACCOUNT as well) which is all as clear
+> as mud. But maybe the workloads which are using kmem legacy API can cope
+> with that.
 
-On Sat, 7 Nov 2015 23:25:48 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
-> On Sat, Nov 07, 2015 at 05:53:38PM +0100, Jesper Dangaard Brouer wrote:
-> > On Thu, 5 Nov 2015 19:25:14 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
-> > 
-> > > On Thu, Nov 05, 2015 at 04:38:06PM +0100, Jesper Dangaard Brouer wrote:
-> > > > Initial implementation missed support for kmem cgroup support
-> > > > in kmem_cache_free_bulk() call, add this.
-> > > > 
-> > > > If CONFIG_MEMCG_KMEM is not enabled, the compiler should
-> > > > be smart enough to not add any asm code.
-> > > > 
-> > > > Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
-> > > > 
-> > > > ---
-> > > > V2: Fixes according to input from:
-> > > >  Vladimir Davydov <vdavydov@virtuozzo.com>
-> > > >  and Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > > > 
-[...]
-> > > > diff --git a/mm/slub.c b/mm/slub.c
-> > > > index 8e9e9b2ee6f3..bc64514ad1bb 100644
-> > > > --- a/mm/slub.c
-> > > > +++ b/mm/slub.c
-> > > > @@ -2890,6 +2890,9 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
-> > > >  	do {
-> > > >  		struct detached_freelist df;
-> > > >  
-> > > > +		/* Support for memcg */
-> > > > +		s = cache_from_obj(s, p[size - 1]);
-> > > > +
-[...]
-> 
-> Yeah, after inspecting build_detached_freelist more closely, I see your
-> patch is correct.
+I think we can make that change for the existing kmem accounting too,
+simply because the whitelist should be covering all memory consumers
+that actually matter for isolation in practice. Yes, there is a risk
+for accidents, but we are not actually intending to change semantics.
 
-Actually, my patch is not correct... after spending most of my day
-debugging V3 of patch 1/2, I've just realized this patch it the culprit.
+> Anyway if we go this way then I think the kmem accounting would be safe
+> to be enabled by default with the cgroup2.
 
-We cannot overwrite the original "s", as the second time around the
-loop, "s" will be a memcg slab cache.  And then slab_equal_or_root()
-cannot find  the "root_cache" (s->memcg_params.root_cache).
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Cool, I'm happy we're on the same page about this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
