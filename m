@@ -1,74 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A7216B0256
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 15:12:28 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so184922635pac.3
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 12:12:28 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id pp8si24395059pbc.2.2015.11.09.12.12.27
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id F03FA6B0257
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 15:25:28 -0500 (EST)
+Received: by ioc74 with SMTP id 74so132430921ioc.2
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 12:25:28 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r64si470809ioi.49.2015.11.09.12.25.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Nov 2015 12:12:27 -0800 (PST)
-Date: Mon, 9 Nov 2015 23:12:18 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 0/5] memcg/kmem: switch to white list policy
-Message-ID: <20151109201218.GP31308@esperanza>
-References: <cover.1446924358.git.vdavydov@virtuozzo.com>
- <20151109140832.GE8916@dhcp22.suse.cz>
- <20151109182840.GJ31308@esperanza>
- <20151109185401.GB28507@mtj.duckdns.org>
- <20151109192747.GN31308@esperanza>
- <20151109193253.GC28507@mtj.duckdns.org>
+        Mon, 09 Nov 2015 12:25:28 -0800 (PST)
+Date: Mon, 9 Nov 2015 21:25:22 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH V3 1/2] slub: fix kmem cgroup bug in
+ kmem_cache_alloc_bulk
+Message-ID: <20151109212522.6b38988c@redhat.com>
+In-Reply-To: <20151109191335.GM31308@esperanza>
+References: <20151109181604.8231.22983.stgit@firesoul>
+	<20151109181703.8231.66384.stgit@firesoul>
+	<20151109191335.GM31308@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20151109193253.GC28507@mtj.duckdns.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, brouer@redhat.com
 
-On Mon, Nov 09, 2015 at 02:32:53PM -0500, Tejun Heo wrote:
-> On Mon, Nov 09, 2015 at 10:27:47PM +0300, Vladimir Davydov wrote:
-> > Of course, we could rework slab merging so that kmem_cache_create
-> > returned a new dummy cache even if it was actually merged. Such a cache
-> > would point to the real cache, which would be used for allocations. This
-> > wouldn't limit slab merging, but this would add one more dereference to
-> > alloc path, which is even worse.
+On Mon, 9 Nov 2015 22:13:35 +0300
+Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+
+> On Mon, Nov 09, 2015 at 07:17:31PM +0100, Jesper Dangaard Brouer wrote:
+> ...
+> > @@ -2556,7 +2563,7 @@ redo:
+> >  	if (unlikely(gfpflags & __GFP_ZERO) && object)
+> >  		memset(object, 0, s->object_size);
+> >  
+> > -	slab_post_alloc_hook(s, gfpflags, object);
+> > +	slab_post_alloc_hook(s, gfpflags, 1, object);
 > 
-> Hmmm, this could be me not really understanding but why can't we let
-> all slabs to be merged regardless of SLAB_ACCOUNT flag for root memcg
-> and point to per-memcg slabs (may be merged among them but most likely
+> I think it must be &object
 
-Because we won't be able to distinguish kmem_cache_alloc calls that
-should be accounted from those that shouldn't. The problem is if two
-caches
+The object is already a void ** type.
 
-	A = kmem_cache_create(...)
+> BTW why is object defined as void **? I suspect we can safely drop one
+> star.
 
-and
+Maybe Christoph can explain this?
 
-	B = kmem_cache_create(...)
 
-happen to be merged, A and B will point to the same kmem_cache struct.
-As a result, there is no way to distinguish
+> >  
+> >  	return object;
+> >  }
+> ...
+> > @@ -2953,11 +2958,15 @@ bool kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
+> >  			memset(p[j], 0, s->object_size);
+> >  	}
+> >  
+> > +	/* memcg and kmem_cache debug support */
+> > +	slab_post_alloc_hook(s, flags, size, p);
+> > +
+> >  	return true;
+> >  
+> >  error:
+> >  	__kmem_cache_free_bulk(s, i, p);
+> >  	local_irq_enable();
+> > +	memcg_kmem_put_cache(s);
+> 
+> I wouldn't tear memcg_kmem_put_cache from slab_post_alloc_hook. If we
+> add something else to slab_post_alloc_hook (e.g. we might want to call
+> tracing functions from there), we'll have to modify this error path
+> either, which is easy to miss.
+> 
+> What about calling
+> 
+> 	slab_post_alloc_hook(s, flags, 0, NULL);
+> 
+> here?
 
-	kmem_cache_alloc(A)
+Maybe the correct behavior here, to adhere to all the debugging options,
+is to call:
 
-which we want to account from
+error:
+ local_irq_enable();
+ slab_post_alloc_hook(s, flags, i, p);
+ __kmem_cache_free_bulk(s, i, p);
+ return false;
 
-	kmem_cache_alloc(B)
+ 
+> >  	return false;
+> >  }
+> >  EXPORT_SYMBOL(kmem_cache_alloc_bulk);
+> > 
 
-which we don't.
 
-> won't matter) for !root.  We're indirecting once anyway, no?
-
-If kmem accounting is not used, we aren't indirecting. That's why I
-don't think we can use dummy kmem_cache struct for merged caches, where
-we could store __GFP_ACCOUNT flag.
-
-Thanks,
-Vladimir
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
