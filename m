@@ -1,77 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id F0BA56B0253
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 03:00:33 -0500 (EST)
-Received: by obbww6 with SMTP id ww6so107833402obb.0
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 00:00:33 -0800 (PST)
-Received: from mail-ob0-x234.google.com (mail-ob0-x234.google.com. [2607:f8b0:4003:c01::234])
-        by mx.google.com with ESMTPS id lx7si5671712oeb.2.2015.11.09.00.00.33
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 79F6B6B0253
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 03:16:53 -0500 (EST)
+Received: by wikq8 with SMTP id q8so62938066wik.1
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 00:16:53 -0800 (PST)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com. [209.85.212.172])
+        by mx.google.com with ESMTPS id s7si15284035wmd.28.2015.11.09.00.16.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Nov 2015 00:00:33 -0800 (PST)
-Received: by obbww6 with SMTP id ww6so107833107obb.0
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 00:00:33 -0800 (PST)
+        Mon, 09 Nov 2015 00:16:52 -0800 (PST)
+Received: by wiby19 with SMTP id y19so10833799wib.0
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 00:16:52 -0800 (PST)
+Date: Mon, 9 Nov 2015 09:16:50 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] jbd2: get rid of superfluous __GFP_REPEAT
+Message-ID: <20151109081650.GA8916@dhcp22.suse.cz>
+References: <1446740160-29094-4-git-send-email-mhocko@kernel.org>
+ <1446826623-23959-1-git-send-email-mhocko@kernel.org>
+ <563D526F.6030504@I-love.SAKURA.ne.jp>
+ <20151108050802.GB3880@thunk.org>
 MIME-Version: 1.0
-In-Reply-To: <20151109075337.GC472@swordfish>
-References: <1447053784-27811-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<20151109075337.GC472@swordfish>
-Date: Mon, 9 Nov 2015 17:00:32 +0900
-Message-ID: <CAAmzW4MugYCu1+ZsRp63o=26eTuJG22C+nNrGBhDJvQDOzbQJw@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: introduce page reference manipulation functions
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151108050802.GB3880@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, john.johansen@canonical.com
 
-2015-11-09 16:53 GMT+09:00 Sergey Senozhatsky
-<sergey.senozhatsky.work@gmail.com>:
-> Hi,
->
-> On (11/09/15 16:23), Joonsoo Kim wrote:
-> [..]
->> +static inline int page_count(struct page *page)
->> +{
->> +     return atomic_read(&compound_head(page)->_count);
->> +}
->> +
->> +static inline void set_page_count(struct page *page, int v)
->> +{
->> +     atomic_set(&page->_count, v);
->> +}
->> +
->> +/*
->> + * Setup the page count before being freed into the page allocator for
->> + * the first time (boot or memory hotplug)
->> + */
->> +static inline void init_page_count(struct page *page)
->> +{
->> +     set_page_count(page, 1);
->> +}
->> +
->> +static inline void page_ref_add(struct page *page, int nr)
->> +{
->> +     atomic_add(nr, &page->_count);
->> +}
->
-> Since page_ref_FOO wrappers operate with page->_count and there
-> are already page_count()/set_page_count()/etc. may be name new
-> wrappers in page_count_FOO() manner?
+On Sun 08-11-15 00:08:02, Theodore Ts'o wrote:
+> On Sat, Nov 07, 2015 at 10:22:55AM +0900, Tetsuo Handa wrote:
+> > All jbd2_alloc() callers seem to pass GFP_NOFS. Therefore, use of
+> > vmalloc() which implicitly passes GFP_KERNEL | __GFP_HIGHMEM can cause
+> > deadlock, can't it? This vmalloc(size) call needs to be replaced with
+> > __vmalloc(size, flags).
+> 
+> jbd2_alloc is only passed in the bh->b_size, which can't be >
+> PAGE_SIZE, so the code path that calls vmalloc() should never get
+> called.  When we conveted jbd2_alloc() to suppor sub-page size
+> allocations in commit d2eecb039368, there was an assumption that it
+> could be called with a size greater than PAGE_SIZE, but that's
+> certaily not true today.
 
-Hello,
-
-I used that page_count_ before but change my mind.
-I think that ref is more relevant to this operation.
-Perhaps, it'd be better to change page_count()/set_page_count()
-to page_ref()/set_page_ref().
-
-FYI, some functions such as page_(un)freeze_refs uses ref. :)
-
-Thanks.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks for the clarification. Then the patch can be simplified even
+more then.
+---
