@@ -1,110 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C4FC16B0253
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 10:07:16 -0500 (EST)
-Received: by wmdw130 with SMTP id w130so74972282wmd.0
-        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 07:07:16 -0800 (PST)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id db5si5014946wjb.82.2015.11.10.07.07.15
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 790816B0253
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 10:13:43 -0500 (EST)
+Received: by wmww144 with SMTP id w144so4917533wmw.0
+        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 07:13:43 -0800 (PST)
+Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
+        by mx.google.com with ESMTPS id f63si22990672wme.60.2015.11.10.07.13.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Nov 2015 07:07:15 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so12536001wmv.1
-        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 07:07:14 -0800 (PST)
-Date: Tue, 10 Nov 2015 17:07:13 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] x86/mm: fix regression with huge pages on PAE
-Message-ID: <20151110150713.GA11956@node.shutemov.name>
-References: <1447111090-8526-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20151110123429.GE19187@pd.tnic>
- <20151110135303.GA11246@node.shutemov.name>
- <20151110144648.GG19187@pd.tnic>
+        Tue, 10 Nov 2015 07:13:40 -0800 (PST)
+Received: by wmww144 with SMTP id w144so121970118wmw.1
+        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 07:13:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151110144648.GG19187@pd.tnic>
+Date: Tue, 10 Nov 2015 23:13:39 +0800
+Message-ID: <CANudz+s6Y+aC1T4vy5OxqN67RSTAnP7+TD1-TH=Rsq82ZvFwGQ@mail.gmail.com>
+Subject: Bad page about page->flag 0xa(error|uptodate) when get_page_from_freelist
+From: loody <miloody@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com, boris.ostrovsky@oracle.com, Toshi Kani <toshi.kani@hpe.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Nov 10, 2015 at 03:46:48PM +0100, Borislav Petkov wrote:
-> On Tue, Nov 10, 2015 at 03:53:03PM +0200, Kirill A. Shutemov wrote:
-> > Oh.. pmdval_t/pudval_t is 'unsinged long' on 64 bit. But realmode code
-> > uses -m16 which makes 'unsigned long' 32-bit therefore truncation warning.
-> > 
-> > These helpers not really used in realmode code.
-> 
-> Hrrm, yeah, that's just the nasty include hell causing it. The diff
-> below fixes it with my config but it'll probably need a more careful
-> analysis and reshuffling of includes/defines.
-> 
-> Certainly better to do that than accomodating realmode to not throw
-> warnings with ifdeffery...
+hi all:
+there is a Bad page happen on my platform like below:
+(the first line is the message I purposely add in __rmqueue to report
+the order and migrtype)
 
-Yeah. Looks good to me.
+__rmqueue :  order= 0, migratetype = 2
+BUG: Bad page state in process TSK_MID_SI  pfn:1a780
+page:c0c00000 count:0 mapcount:0 mapping:  (null) index:0x2
+page flags: 0xa(error|uptodate)
+Modules linked in: mtu_sta(O) mali(O) ump(O) kteeclient(O) ndptsd(O)
+ndpci(O) ndpdemod(O) ndptuner(O) ndphdmiswitch(O) ndphdmi(O) ndp_pq(O)
+ndpcodec(O) ndpalsa(O)
+ndpextin(O) ndpdrm(O) driver(O) fusion(O) PreInit(O)
+CPU: 1 PID: 1643 Comm: TSK_MID_SI Tainted: G           O 3.10.0+ #7
+Backtrace:
+[<c0012ad4>] (dump_backtrace+0x0/0x114) from [<c0012d44>] (show_stack+0x20/0x24)
+ r6:c0c00000 r5:c07760c0 r4:c08cbe08 r3:271ae71c
+[<c0012d24>] (show_stack+0x0/0x24) from [<c0542508>] (dump_stack+0x24/0x28)
+[<c05424e4>] (dump_stack+0x0/0x28) from [<c010e080>] (bad_page+0xc4/0x114)
+[<c010dfbc>] (bad_page+0x0/0x114) from [<c010e6b0>]
+(get_page_from_freelist+0x458/0x6c0)
+ r6:0155f000 r5:c0c00000 r4:c0776640 r3:00000000
+[<c010e258>] (get_page_from_freelist+0x0/0x6c0) from [<c010f63c>]
+(__alloc_pages_nodemask+0x128/0x9a4)
+[<c010f514>] (__alloc_pages_nodemask+0x0/0x9a4) from [<c012b37c>]
+(do_wp_page+0xd0/0x74c)
+[<c012b2ac>] (do_wp_page+0x0/0x74c) from [<c012cef4>]
+(handle_pte_fault+0x41c/0x6b0)
+[<c012cad8>] (handle_pte_fault+0x0/0x6b0) from [<c012d214>]
+(handle_mm_fault+0x8c/0xbc)
+[<c012d188>] (handle_mm_fault+0x0/0xbc) from [<c054858c>]
+(do_page_fault+0x310/0x428)
+[<c054827c>] (do_page_fault+0x0/0x428) from [<c0008424>]
+(do_DataAbort+0x48/0xac)
+[<c00083dc>] (do_DataAbort+0x0/0xac) from [<c054691c>] (__dabt_usr+0x3c/0x40)
+ Exception stack(0xe4861fb0 to 0xe4861ff8)
+ 1fa0:                                     a582ac34 00000002 00000000 00000002
+ 1fc0: a582b4d4 a582b450 000003e8 00000000 00000061 a582af90 a582b450 00000000
+ 1fe0: 00000000 a582ac30 b41b12ab b41dd184 600d0170 ffffffff 00000000
+  r8:00000061
+ r7:00000000 r6:ffffffff r5:600d0170 r4:b41dd184
 
-> ---
-> diff --git a/arch/x86/boot/boot.h b/arch/x86/boot/boot.h
-> index 0033e96c3f09..9011a88353de 100644
-> --- a/arch/x86/boot/boot.h
-> +++ b/arch/x86/boot/boot.h
-> @@ -23,7 +23,6 @@
->  #include <stdarg.h>
->  #include <linux/types.h>
->  #include <linux/edd.h>
-> -#include <asm/boot.h>
->  #include <asm/setup.h>
->  #include "bitops.h"
->  #include "ctype.h"
-> diff --git a/arch/x86/boot/video-mode.c b/arch/x86/boot/video-mode.c
-> index aa8a96b052e3..896077ed3381 100644
-> --- a/arch/x86/boot/video-mode.c
-> +++ b/arch/x86/boot/video-mode.c
-> @@ -19,6 +19,9 @@
->  #include "video.h"
->  #include "vesa.h"
->  
-> +#define NORMAL_VGA	0xffff		/* 80x25 mode */
-> +#define EXTENDED_VGA	0xfffe		/* 80x50 mode */
-> +
->  /*
->   * Common variables
->   */
-> diff --git a/arch/x86/boot/video.c b/arch/x86/boot/video.c
-> index 05111bb8d018..a839448038b6 100644
-> --- a/arch/x86/boot/video.c
-> +++ b/arch/x86/boot/video.c
-> @@ -17,6 +17,8 @@
->  #include "video.h"
->  #include "vesa.h"
->  
-> +#define ASK_VGA		0xfffd		/* ask for it at bootup */
-> +
->  static u16 video_segment;
->  
->  static void store_cursor_position(void)
-> diff --git a/arch/x86/include/asm/x86_init.h b/arch/x86/include/asm/x86_init.h
-> index 48d34d28f5a6..cd0fc0cc78bc 100644
-> --- a/arch/x86/include/asm/x86_init.h
-> +++ b/arch/x86/include/asm/x86_init.h
-> @@ -1,7 +1,6 @@
->  #ifndef _ASM_X86_PLATFORM_H
->  #define _ASM_X86_PLATFORM_H
->  
-> -#include <asm/pgtable_types.h>
->  #include <asm/bootparam.h>
->  
->  struct mpc_bus;
-> 
-> -- 
-> Regards/Gruss,
->     Boris.
-> 
-> ECO tip #101: Trim your mails when you reply.
+I list my platform paramter like below
+1. Arm cortex A9 SMP 2 cores
+2. kernel version is 3.10
 
--- 
- Kirill A. Shutemov
+
+What makes me curious are
+1. evety time Bad page happen, it is always the same page, pfn= 1a780.
+2. in my case, the page that is reported as bad page, is allocated
+from __rmqueue_fallback.
+    Why there will be PG_error put in buddy and marked as free for
+later allocation?
+3. Why we don't put PG_error in PAGE_FLAGS_CHECK_AT_FREE?
+    as far as I know, PG_error means error ever occurs during an I/O
+operation involving the page.
+    Does that mean even the page gets I/O error, we still can put it
+as free one before any proper handling?
+4. why we need to check_new_page with PG_error, if we don't care it in
+free_pages_check?
+5. If I try to add more debug message in __rmqueue_fallback the bad
+page report will NOT happen.
+from #5,it seems some race condition happen for page management.
+Is there other debug methods, suggestions or need I provide more
+information to check this kind of problem?
+
+appreciate all your kind help in advance,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
