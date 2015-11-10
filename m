@@ -1,98 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 523F76B0253
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 15:06:05 -0500 (EST)
-Received: by pasz6 with SMTP id z6so6748471pas.2
-        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 12:06:05 -0800 (PST)
-Received: from lists.s-osg.org (lists.s-osg.org. [54.187.51.154])
-        by mx.google.com with ESMTP id yp1si7043734pbc.152.2015.11.10.12.06.03
-        for <linux-mm@kvack.org>;
-        Tue, 10 Nov 2015 12:06:03 -0800 (PST)
-Subject: Re: [PATCH selftests 5/6] selftests: vm: Try harder to allocate huge
- pages
-References: <1446334510.2595.13.camel@decadent.org.uk>
- <1446334747.2595.19.camel@decadent.org.uk>
- <alpine.DEB.2.10.1511101159480.29993@chino.kir.corp.google.com>
-From: Shuah Khan <shuahkh@osg.samsung.com>
-Message-ID: <56424E1F.9040507@osg.samsung.com>
-Date: Tue, 10 Nov 2015 13:05:51 -0700
-MIME-Version: 1.0
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E95C6B0253
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 16:48:40 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so29513884wmv.1
+        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 13:48:39 -0800 (PST)
+Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
+        by mx.google.com with ESMTPS id j135si8151574wmd.43.2015.11.10.13.48.38
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Nov 2015 13:48:38 -0800 (PST)
+Message-ID: <1447192104.6006.148.camel@decadent.org.uk>
+Subject: Re: [PATCH selftests 5/6] selftests: vm: Try harder to allocate
+ huge pages
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Tue, 10 Nov 2015 21:48:24 +0000
 In-Reply-To: <alpine.DEB.2.10.1511101159480.29993@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+References: <1446334510.2595.13.camel@decadent.org.uk>
+	 <1446334747.2595.19.camel@decadent.org.uk>
+	 <alpine.DEB.2.10.1511101159480.29993@chino.kir.corp.google.com>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-ModOyT22Cj1GC5VjRhVi"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Ben Hutchings <ben@decadent.org.uk>
-Cc: linux-api@vger.kernel.org, linux-mm@kvack.org, Shuah Khan <shuahkh@osg.samsung.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Shuah Khan <shuahkh@osg.samsung.com>, linux-api@vger.kernel.org, linux-mm@kvack.org
 
-On 11/10/2015 01:01 PM, David Rientjes wrote:
-> On Sat, 31 Oct 2015, Ben Hutchings wrote:
-> 
->> If we need to increase the number of huge pages, drop caches first
->> to reduce fragmentation and then check that we actually allocated
->> as many as we wanted.  Retry once if that doesn't work.
->>
->> Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
->> ---
->> The test always fails for me in a 1 GB VM without this.
->>
->> Ben.
->>
->>  tools/testing/selftests/vm/run_vmtests | 15 ++++++++++++++-
->>  1 file changed, 14 insertions(+), 1 deletion(-)
->>
->> diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
->> index 9179ce8..97ed1b2 100755
->> --- a/tools/testing/selftests/vm/run_vmtests
->> +++ b/tools/testing/selftests/vm/run_vmtests
->> @@ -20,13 +20,26 @@ done < /proc/meminfo
->>  if [ -n "$freepgs" ] && [ -n "$pgsize" ]; then
->>  	nr_hugepgs=`cat /proc/sys/vm/nr_hugepages`
->>  	needpgs=`expr $needmem / $pgsize`
->> -	if [ $freepgs -lt $needpgs ]; then
->> +	tries=2
->> +	while [ $tries -gt 0 ] && [ $freepgs -lt $needpgs ]; do
->>  		lackpgs=$(( $needpgs - $freepgs ))
->> +		echo 3 > /proc/sys/vm/drop_caches
->>  		echo $(( $lackpgs + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
->>  		if [ $? -ne 0 ]; then
->>  			echo "Please run this test as root"
->>  			exit 1
->>  		fi
->> +		while read name size unit; do
->> +			if [ "$name" = "HugePages_Free:" ]; then
->> +				freepgs=$size
->> +			fi
->> +		done < /proc/meminfo
->> +		tries=$((tries - 1))
->> +	done
->> +	if [ $freepgs -lt $needpgs ]; then
->> +		printf "Not enough huge pages available (%d < %d)\n" \
->> +		       $freepgs $needpgs
->> +		exit 1
->>  	fi
->>  else
->>  	echo "no hugetlbfs support in kernel?"
->>
-> 
-> I know this patch is in -mm and hasn't been merged by Linus yet, but I'm 
-> wondering why the multiple /proc/sys/vm/drop_caches is helping?  Would it 
-> simply suffice to put a sleep in there instead or is drop_caches actually 
-> doing something useful a second time around?
-> 
 
-I sent this up for merge in my pull request. Adding sleep would increase
-test run-time. Something to keep in mind.
+--=-ModOyT22Cj1GC5VjRhVi
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-thanks,
--- Shuah
+T24gVHVlLCAyMDE1LTExLTEwIGF0IDEyOjAxIC0wODAwLCBEYXZpZCBSaWVudGplcyB3cm90ZToK
+PiBPbiBTYXQsIDMxIE9jdCAyMDE1LCBCZW4gSHV0Y2hpbmdzIHdyb3RlOgo+IAo+ID4gSWYgd2Ug
+bmVlZCB0byBpbmNyZWFzZSB0aGUgbnVtYmVyIG9mIGh1Z2UgcGFnZXMsIGRyb3AgY2FjaGVzIGZp
+cnN0Cj4gPiB0byByZWR1Y2UgZnJhZ21lbnRhdGlvbiBhbmQgdGhlbiBjaGVjayB0aGF0IHdlIGFj
+dHVhbGx5IGFsbG9jYXRlZAo+ID4gYXMgbWFueSBhcyB3ZSB3YW50ZWQuwqDCoFJldHJ5IG9uY2Ug
+aWYgdGhhdCBkb2Vzbid0IHdvcmsuCj4gPiAKPiA+IFNpZ25lZC1vZmYtYnk6IEJlbiBIdXRjaGlu
+Z3MgPGJlbkBkZWNhZGVudC5vcmcudWs+Cj4gPiAtLS0KPiA+IFRoZSB0ZXN0IGFsd2F5cyBmYWls
+cyBmb3IgbWUgaW4gYSAxIEdCIFZNIHdpdGhvdXQgdGhpcy4KPiA+IAo+ID4gQmVuLgo+ID4gCj4g
+PiDCoHRvb2xzL3Rlc3Rpbmcvc2VsZnRlc3RzL3ZtL3J1bl92bXRlc3RzIHwgMTUgKysrKysrKysr
+KysrKystCj4gPiDCoDEgZmlsZSBjaGFuZ2VkLCAxNCBpbnNlcnRpb25zKCspLCAxIGRlbGV0aW9u
+KC0pCj4gPiAKPiA+IGRpZmYgLS1naXQgYS90b29scy90ZXN0aW5nL3NlbGZ0ZXN0cy92bS9ydW5f
+dm10ZXN0cyBiL3Rvb2xzL3Rlc3Rpbmcvc2VsZnRlc3RzL3ZtL3J1bl92bXRlc3RzCj4gPiBpbmRl
+eCA5MTc5Y2U4Li45N2VkMWIyIDEwMDc1NQo+ID4gLS0tIGEvdG9vbHMvdGVzdGluZy9zZWxmdGVz
+dHMvdm0vcnVuX3ZtdGVzdHMKPiA+ICsrKyBiL3Rvb2xzL3Rlc3Rpbmcvc2VsZnRlc3RzL3ZtL3J1
+bl92bXRlc3RzCj4gPiBAQCAtMjAsMTMgKzIwLDI2IEBAIGRvbmUgPCAvcHJvYy9tZW1pbmZvCj4g
+PiDCoGlmIFsgLW4gIiRmcmVlcGdzIiBdICYmIFsgLW4gIiRwZ3NpemUiIF07IHRoZW4KPiA+IMKg
+wqDCoMKgwqDCoG5yX2h1Z2VwZ3M9YGNhdCAvcHJvYy9zeXMvdm0vbnJfaHVnZXBhZ2VzYAo+ID4g
+wqDCoMKgwqDCoMKgbmVlZHBncz1gZXhwciAkbmVlZG1lbSAvICRwZ3NpemVgCj4gPiAtwqDCoMKg
+wqDCoGlmIFsgJGZyZWVwZ3MgLWx0ICRuZWVkcGdzIF07IHRoZW4KPiA+ICvCoMKgwqDCoMKgdHJp
+ZXM9Mgo+ID4gK8KgwqDCoMKgwqB3aGlsZSBbICR0cmllcyAtZ3QgMCBdICYmIFsgJGZyZWVwZ3Mg
+LWx0ICRuZWVkcGdzIF07IGRvCj4gPiDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgbGFja3Bn
+cz0kKCggJG5lZWRwZ3MgLSAkZnJlZXBncyApKQo+ID4gK8KgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
+oMKgZWNobyAzID4gL3Byb2Mvc3lzL3ZtL2Ryb3BfY2FjaGVzCj4gPiDCoMKgwqDCoMKgwqDCoMKg
+wqDCoMKgwqDCoMKgZWNobyAkKCggJGxhY2twZ3MgKyAkbnJfaHVnZXBncyApKSA+IC9wcm9jL3N5
+cy92bS9ucl9odWdlcGFnZXMKPiA+IMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqBpZiBbICQ/
+IC1uZSAwIF07IHRoZW4KPiA+IMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
+wqDCoMKgZWNobyAiUGxlYXNlIHJ1biB0aGlzIHRlc3QgYXMgcm9vdCIKPiA+IMKgwqDCoMKgwqDC
+oMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgZXhpdCAxCj4gPiDCoMKgwqDCoMKgwqDC
+oMKgwqDCoMKgwqDCoMKgZmkKPiA+ICvCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoHdoaWxlIHJl
+YWQgbmFtZSBzaXplIHVuaXQ7IGRvCj4gPiArwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
+wqDCoMKgwqDCoMKgaWYgWyAiJG5hbWUiID0gIkh1Z2VQYWdlc19GcmVlOiIgXTsgdGhlbgo+ID4g
+K8KgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
+wqBmcmVlcGdzPSRzaXplCj4gPiArwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
+wqDCoMKgZmkKPiA+ICvCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoGRvbmUgPCAvcHJvYy9tZW1p
+bmZvCj4gPiArwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqB0cmllcz0kKCh0cmllcyAtIDEpKQo+
+ID4gK8KgwqDCoMKgwqBkb25lCj4gPiArwqDCoMKgwqDCoGlmIFsgJGZyZWVwZ3MgLWx0ICRuZWVk
+cGdzIF07IHRoZW4KPiA+ICvCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoHByaW50ZiAiTm90IGVu
+b3VnaCBodWdlIHBhZ2VzIGF2YWlsYWJsZSAoJWQgPCAlZClcbiIgXAo+ID4gK8KgwqDCoMKgwqDC
+oMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqAkZnJlZXBncyAkbmVlZHBncwo+ID4gK8KgwqDC
+oMKgwqDCoMKgwqDCoMKgwqDCoMKgZXhpdCAxCj4gPiDCoMKgwqDCoMKgwqBmaQo+ID4gwqBlbHNl
+Cj4gPiDCoMKgwqDCoMKgwqBlY2hvICJubyBodWdldGxiZnMgc3VwcG9ydCBpbiBrZXJuZWw/Igo+
+ID4gCj4gCj4gSSBrbm93IHRoaXMgcGF0Y2ggaXMgaW4gLW1tIGFuZCBoYXNuJ3QgYmVlbiBtZXJn
+ZWQgYnkgTGludXMgeWV0LCBidXQgSSdtIAo+IHdvbmRlcmluZyB3aHkgdGhlIG11bHRpcGxlIC9w
+cm9jL3N5cy92bS9kcm9wX2NhY2hlcyBpcyBoZWxwaW5nP8KgIFdvdWxkIGl0IAo+IHNpbXBseSBz
+dWZmaWNlIHRvIHB1dCBhIHNsZWVwIGluIHRoZXJlIGluc3RlYWQgb3IgaXMgZHJvcF9jYWNoZXMg
+YWN0dWFsbHkgCj4gZG9pbmcgc29tZXRoaW5nIHVzZWZ1bCBhIHNlY29uZCB0aW1lIGFyb3VuZD8K
+CkluaXRpYWxseSBJIGp1c3QgcmV0cmllZCBzZXR0aW5nIG5yX2h1Z2VwYWdlcyB1cCB0byAxMCB0
+aW1lcywgd2hpY2gKd2Fzbid0IHN1ZmZpY2llbnQuIMKgVGhlbiBJIGFkZGVkIHRoZSBkcm9wX2Nh
+Y2hlcywgYW5kIGFmdGVyIHRoYXQKc2V0dGluZyBucl9odWdlcGFnZXMgdGVuZGVkIHRvIHdvcmtl
+ZCBmaXJzdCB0aW1lIHNvIEkgcmVkdWNlZCB0aGUgcmV0cnkKY291bnQuIMKgSXQgbWlnaHQgbm90
+IGJlIG5lY2Vzc2FyeSB0byByZXRyeSBhdCBhbGwuCgpCZW4uCgotLSAKQmVuIEh1dGNoaW5ncwpB
+bGwgdGhlIHNpbXBsZSBwcm9ncmFtcyBoYXZlIGJlZW4gd3JpdHRlbiwgYW5kIGFsbCB0aGUgZ29v
+ZCBuYW1lcyB0YWtlbi4=
 
--- 
-Shuah Khan
-Sr. Linux Kernel Developer
-Open Source Innovation Group
-Samsung Research America (Silicon Valley)
-shuahkh@osg.samsung.com | (970) 217-8978
+
+--=-ModOyT22Cj1GC5VjRhVi
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIVAwUAVkJmKOe/yOyVhhEJAQo0lQ//c7C5rLWMP/QLxxAF6B0nEtQV52w+eAZF
+nVKjGxN0EX+Co/i35LTgfDM60Md4WLzIrhsVv3iTZQzqW3LdGrHZHB4Myake5pym
+XgI6mkehbOSg4qcvhoBp74LHHK9tvkwrYqNoJCU9vFWD1YUwbvBxVmChl3OAP/6V
+6BmXrdCZw2GaTLkFCv0doEnzsVnA/AoY5gHwrwbvjWQRQPZkXfsudxYXdEcybpC0
+sYIlyB7EuzzgUtyN7Q1F8i3Hi6QlPKTYXjgrkyr3Fz8LFX5pKvshzlt9Y+26aLZJ
+3xTs1sekPWCaA3dP9CrhF8ox+vJGgmf86nbRXkOq/6I2UglpTWrhI+Ew2fjAmOOp
+3RkCeAWmlofI3zi1o3lqEj73aHJQB8aTL5iJk7J+hBH3n8AXKvhOUBiDyX9MJaup
+JV4F8pjfHV6LaUmV+xk8mTj/kgYp5YaoWvTVn9bPz4LRvwd1ipd7niZoFOAVXu8C
+XdkvviO1JtRP+9zYu/tG/JAq4C2srFxPTFPo6Hx41XiTWnRtLbuZRL3g5iHI4BXD
+ogqO4BRB3sJ+vUGAR4/uIQYGhM86Eqod3naJoUAu7yq0ozhXRoEuP+gmZ/Q/Xyfs
+hN41rHrmTInWlyugr/irpelSfTjSSon37RfJj1au9DuLqBN7nXDsLdBsuhsQfg+k
+XbtpPl6Rt2E=
+=wkeZ
+-----END PGP SIGNATURE-----
+
+--=-ModOyT22Cj1GC5VjRhVi--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
