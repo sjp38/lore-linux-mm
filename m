@@ -1,81 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 215916B0257
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 08:34:03 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so8096482wmv.1
-        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 05:34:02 -0800 (PST)
-Received: from zimbra13.linbit.com (zimbra13.linbit.com. [212.69.166.240])
-        by mx.google.com with ESMTPS id uc9si4435195wjc.194.2015.11.10.05.34.01
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B005A6B0254
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 08:53:07 -0500 (EST)
+Received: by wmec201 with SMTP id c201so134629108wme.0
+        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 05:53:07 -0800 (PST)
+Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
+        by mx.google.com with ESMTPS id u8si4550208wjx.172.2015.11.10.05.53.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Nov 2015 05:34:01 -0800 (PST)
-Date: Tue, 10 Nov 2015 14:34:00 +0100
-From: Lars Ellenberg <lars.ellenberg@linbit.com>
-Subject: Re: [DRBD-user] [PATCH] tree wide: Use kvfree() than conditional
- kfree()/vfree()
-Message-ID: <20151110133400.GZ14472@soda.linbit>
-References: <1447070170-8512-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        Tue, 10 Nov 2015 05:53:06 -0800 (PST)
+Received: by wmec201 with SMTP id c201so1678981wme.1
+        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 05:53:06 -0800 (PST)
+Date: Tue, 10 Nov 2015 15:53:03 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] x86/mm: fix regression with huge pages on PAE
+Message-ID: <20151110135303.GA11246@node.shutemov.name>
+References: <1447111090-8526-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20151110123429.GE19187@pd.tnic>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1447070170-8512-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20151110123429.GE19187@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, drbd-user@lists.linbit.com
+To: Borislav Petkov <bp@alien8.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com, boris.ostrovsky@oracle.com, Toshi Kani <toshi.kani@hpe.com>
 
-On Mon, Nov 09, 2015 at 08:56:10PM +0900, Tetsuo Handa wrote:
-> There are many locations that do
+On Tue, Nov 10, 2015 at 01:34:29PM +0100, Borislav Petkov wrote:
+> On Tue, Nov 10, 2015 at 01:18:10AM +0200, Kirill A. Shutemov wrote:
+> > diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+> > index dd5b0aa9dd2f..c1e797266ce9 100644
+> > --- a/arch/x86/include/asm/pgtable_types.h
+> > +++ b/arch/x86/include/asm/pgtable_types.h
+> > @@ -279,17 +279,14 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
+> >  static inline pudval_t pud_pfn_mask(pud_t pud)
+> >  {
+> >  	if (native_pud_val(pud) & _PAGE_PSE)
+> > -		return PUD_PAGE_MASK & PHYSICAL_PAGE_MASK;
+> > +		return ~((1ULL << PUD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
 > 
->   if (memory_was_allocated_by_vmalloc)
->     vfree(ptr);
->   else
->     kfree(ptr);
+> In file included from ./arch/x86/include/asm/boot.h:5:0,
+>                  from ./arch/x86/boot/boot.h:26,
+>                  from arch/x86/realmode/rm/wakemain.c:2:
+> ./arch/x86/include/asm/pgtable_types.h: In function a??pud_pfn_maska??:
+> ./arch/x86/include/asm/pgtable_types.h:282:10: warning: large integer implicitly truncated to unsigned type [-Woverflow]
+>    return ~((1ULL << PUD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+>           ^
+> ./arch/x86/include/asm/pgtable_types.h: In function a??pmd_pfn_maska??:
+> ./arch/x86/include/asm/pgtable_types.h:300:10: warning: large integer implicitly truncated to unsigned type [-Woverflow]
+>    return ~((1ULL << PMD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+>           ^
+> In file included from ./arch/x86/include/asm/boot.h:5:0,
+>                  from arch/x86/realmode/rm/../../boot/boot.h:26,
+>                  from arch/x86/realmode/rm/../../boot/video-mode.c:18,
+>                  from arch/x86/realmode/rm/video-mode.c:1:
+> ./arch/x86/include/asm/pgtable_types.h: In function a??pud_pfn_maska??:
+> ./arch/x86/include/asm/pgtable_types.h:282:10: warning: large integer implicitly truncated to unsigned type [-Woverflow]
+>    return ~((1ULL << PUD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+>           ^
+> ...
 > 
-> but kvfree() can handle both kmalloc()ed memory and vmalloc()ed memory
-> using is_vmalloc_addr(). Unless callers have special reasons, we can
-> replace this branch with kvfree(). Please check and reply if you found
-> problems.
+> That's a 64-bit config.
 
-For the DRBD part:
+Oh.. pmdval_t/pudval_t is 'unsinged long' on 64 bit. But realmode code
+uses -m16 which makes 'unsigned long' 32-bit therefore truncation warning.
 
->  drivers/block/drbd/drbd_bitmap.c                   | 26 +++++------------
->  drivers/block/drbd/drbd_int.h                      |  3 --
+These helpers not really used in realmode code. I see few ways out:
 
-> diff --git a/drivers/block/drbd/drbd_bitmap.c b/drivers/block/drbd/drbd_bitmap.c
-> index 9462d27..2daaafb 100644
-> --- a/drivers/block/drbd/drbd_bitmap.c
-> +++ b/drivers/block/drbd/drbd_bitmap.c
-> @@ -364,12 +364,9 @@ static void bm_free_pages(struct page **pages, unsigned long number)
->  	}
->  }
->  
-> -static void bm_vk_free(void *ptr, int v)
-> +static inline void bm_vk_free(void *ptr)
+ - convert helpers to macros to avoid their translation;
 
-Maybe drop this inline completely ...
+ - wrap the code into not-for-realmode ifdef. (Do we have any?);
 
->  {
-> -	if (v)
-> -		vfree(ptr);
-> -	else
-> -		kfree(ptr);
-> +	kvfree(ptr);
->  }
+ - convert pudval_t/pmdval_t to u64 for 64-bit. I'm not sure what side
+   effects would it have.
 
-... and just call kvfree() directly below?
+Any opinions?
 
-> -				bm_vk_free(new_pages, vmalloced);
-> +				bm_vk_free(new_pages);
-
-  +				kvfree(new_pages);
-  ...
-
-
-Other than that: looks good and harmless enough.
-Thanks,
-
-	Lars
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
