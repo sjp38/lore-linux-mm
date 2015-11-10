@@ -1,113 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DB6F6B0038
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 10:55:42 -0500 (EST)
-Received: by iofh3 with SMTP id h3so5007138iof.3
-        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 07:55:42 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h10si17255301igq.91.2015.11.10.07.55.41
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id AC5A26B0038
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 10:59:00 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so15066649wmv.1
+        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 07:59:00 -0800 (PST)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id m6si5249699wjz.192.2015.11.10.07.58.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Nov 2015 07:55:41 -0800 (PST)
-Date: Tue, 10 Nov 2015 16:55:34 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH V3 1/2] slub: fix kmem cgroup bug in
- kmem_cache_alloc_bulk
-Message-ID: <20151110165534.6154082e@redhat.com>
-In-Reply-To: <20151110084633.GT31308@esperanza>
-References: <20151109181604.8231.22983.stgit@firesoul>
-	<20151109181703.8231.66384.stgit@firesoul>
-	<20151109191335.GM31308@esperanza>
-	<20151109212522.6b38988c@redhat.com>
-	<20151110084633.GT31308@esperanza>
+        Tue, 10 Nov 2015 07:58:59 -0800 (PST)
+Received: by wmww144 with SMTP id w144so6719200wmw.0
+        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 07:58:59 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH 1/2] mm: introduce page reference manipulation functions
+In-Reply-To: <1447053784-27811-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1447053784-27811-1-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Tue, 10 Nov 2015 16:58:56 +0100
+Message-ID: <xa1th9ktg81r.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, brouer@redhat.com
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, 10 Nov 2015 11:46:33 +0300
-Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+On Mon, Nov 09 2015, Joonsoo Kim wrote:
+> Success of CMA allocation largely depends on success of migration
+> and key factor of it is page reference count. Until now, page reference
+> is manipulated by direct calling atomic functions so we cannot follow up
+> who and where manipulate it. Then, it is hard to find actual reason
+> of CMA allocation failure. CMA allocation should be guaranteed to succeed
+> so finding offending place is really important.
+>
+> In this patch, call sites where page reference is manipulated are convert=
+ed
+> to introduced wrapper function. This is preparation step to add tracepoint
+> to each page reference manipulation function. With this facility, we can
+> easily find reason of CMA allocation failure. There is no functional chan=
+ge
+> in this patch.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-> On Mon, Nov 09, 2015 at 09:25:22PM +0100, Jesper Dangaard Brouer wrote:
-> > On Mon, 9 Nov 2015 22:13:35 +0300
-> > Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
-> > 
-> > > On Mon, Nov 09, 2015 at 07:17:31PM +0100, Jesper Dangaard Brouer wrote:
-> > > ...
-> > > > @@ -2556,7 +2563,7 @@ redo:
-> > > >  	if (unlikely(gfpflags & __GFP_ZERO) && object)
-> > > >  		memset(object, 0, s->object_size);
-> > > >  
-> > > > -	slab_post_alloc_hook(s, gfpflags, object);
-> > > > +	slab_post_alloc_hook(s, gfpflags, 1, object);
-> > > 
-> > > I think it must be &object
-> > 
-> > The object is already a void ** type.
-> 
-> Let's forget about types for a second. object contains an address to the
-> newly allocated object, while slab_post_alloc_hook expects an array of
-> addresses to objects. Simple test. Suppose an allocation failed. Then
-> object equals 0. Passing 0 to slab_post_alloc_hook as @p and 1 as @size
-> will result in NULL ptr dereference.
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
-Argh, that is not good :-(
-I tested memory exhaustion and NULL ptr deref does happen in this case.
+> ---
+>  arch/mips/mm/gup.c                                |  2 +-
+>  arch/powerpc/mm/mmu_context_hash64.c              |  3 +-
+>  arch/powerpc/mm/pgtable_64.c                      |  2 +-
+>  arch/x86/mm/gup.c                                 |  2 +-
+>  drivers/block/aoe/aoecmd.c                        |  4 +-
+>  drivers/net/ethernet/freescale/gianfar.c          |  2 +-
+>  drivers/net/ethernet/intel/fm10k/fm10k_main.c     |  2 +-
+>  drivers/net/ethernet/intel/igb/igb_main.c         |  2 +-
+>  drivers/net/ethernet/intel/ixgbe/ixgbe_main.c     |  2 +-
+>  drivers/net/ethernet/intel/ixgbevf/ixgbevf_main.c |  2 +-
+>  drivers/net/ethernet/mellanox/mlx4/en_rx.c        |  7 +--
+>  drivers/net/ethernet/sun/niu.c                    |  2 +-
+>  include/linux/mm.h                                | 21 ++-----
+>  include/linux/page_ref.h                          | 76 +++++++++++++++++=
+++++++
+>  include/linux/pagemap.h                           | 19 +-----
+>  mm/huge_memory.c                                  |  6 +-
+>  mm/internal.h                                     |  5 --
+>  mm/memory_hotplug.c                               |  4 +-
+>  mm/migrate.c                                      | 10 +--
+>  mm/page_alloc.c                                   |  6 +-
+>  mm/vmscan.c                                       |  6 +-
+>  21 files changed, 114 insertions(+), 71 deletions(-)
+>  create mode 100644 include/linux/page_ref.h
+>
 
- BUG: unable to handle kernel NULL pointer dereference at           (null)
- IP: [<ffffffff8113dea2>] kmem_cache_alloc+0x92/0x1d0
-
-(gdb) list *(kmem_cache_alloc)+0x92
-0xffffffff8113dea2 is in kmem_cache_alloc (mm/slub.c:1302).
-1297	{
-1298		size_t i;
-1299	
-1300		flags &= gfp_allowed_mask;
-1301		for (i = 0; i < size; i++) {
-1302			void *object = p[i];
-1303	
-1304			kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
-1305			kmemleak_alloc_recursive(object, s->object_size, 1,
-1306						 s->flags, flags);
-(gdb) quit
-
-I changed:
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 2eab115e18c5..c5a62fd02321 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2484,7 +2484,7 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
- static __always_inline void *slab_alloc_node(struct kmem_cache *s,
-                gfp_t gfpflags, int node, unsigned long addr)
- {
--       void **object;
-+       void *object;
-        struct kmem_cache_cpu *c;
-        struct page *page;
-        unsigned long tid;
-@@ -2563,7 +2563,7 @@ redo:
-        if (unlikely(gfpflags & __GFP_ZERO) && object)
-                memset(object, 0, s->object_size);
- 
--       slab_post_alloc_hook(s, gfpflags, 1, object);
-+       slab_post_alloc_hook(s, gfpflags, 1, &object);
- 
-        return object;
- }
-
-But then the kernel cannot correctly boot?!?! (It dies in
-x86_perf_event_update+0x15.)  What did I miss???
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+--=20
+Best regards,                                            _     _
+.o. | Liege of Serenely Enlightened Majesty of         o' \,=3D./ `o
+..o | Computer Science,  =E3=83=9F=E3=83=8F=E3=82=A6 =E2=80=9Cmina86=E2=80=
+=9D =E3=83=8A=E3=82=B6=E3=83=AC=E3=83=B4=E3=82=A4=E3=83=84  (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>-----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
