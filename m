@@ -1,83 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E5D1B6B0038
-	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 19:28:17 -0500 (EST)
-Received: by pasz6 with SMTP id z6so221731060pas.2
-        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 16:28:17 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id t13si963260pas.21.2015.11.09.16.28.16
+Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 06DD76B0038
+	for <linux-mm@kvack.org>; Mon,  9 Nov 2015 19:44:42 -0500 (EST)
+Received: by ykek133 with SMTP id k133so293495439yke.2
+        for <linux-mm@kvack.org>; Mon, 09 Nov 2015 16:44:41 -0800 (PST)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id p82si365122ywe.224.2015.11.09.16.44.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 09 Nov 2015 16:28:17 -0800 (PST)
-Date: Tue, 10 Nov 2015 09:28:42 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/2] mm: introduce page reference manipulation functions
-Message-ID: <20151110002842.GC13894@js1304-P5Q-DELUXE>
-References: <1447053784-27811-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20151109075337.GC472@swordfish>
- <CAAmzW4MugYCu1+ZsRp63o=26eTuJG22C+nNrGBhDJvQDOzbQJw@mail.gmail.com>
- <20151109114537.GA3903@node.shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151109114537.GA3903@node.shutemov.name>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Nov 2015 16:44:41 -0800 (PST)
+Message-ID: <1447116034.21443.41.camel@hpe.com>
+Subject: Re: [PATCH v4 RESEND 4/11] x86/asm: Fix pud/pmd interfaces to
+ handle large PAT bit
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Mon, 09 Nov 2015 17:40:34 -0700
+In-Reply-To: <1447111134.21443.30.camel@hpe.com>
+References: <1442514264-12475-1-git-send-email-toshi.kani@hpe.com>
+	 <1442514264-12475-5-git-send-email-toshi.kani@hpe.com>
+	 <5640E08F.5020206@oracle.com> <1447096601.21443.15.camel@hpe.com>
+	 <5640F673.8070400@oracle.com> <20151109204710.GB5443@node.shutemov.name>
+	 <56411FFB.80104@oracle.com> <1447111134.21443.30.camel@hpe.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, bp@alien8.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com
 
-On Mon, Nov 09, 2015 at 01:45:37PM +0200, Kirill A. Shutemov wrote:
-> On Mon, Nov 09, 2015 at 05:00:32PM +0900, Joonsoo Kim wrote:
-> > 2015-11-09 16:53 GMT+09:00 Sergey Senozhatsky
-> > <sergey.senozhatsky.work@gmail.com>:
-> > > Hi,
-> > >
-> > > On (11/09/15 16:23), Joonsoo Kim wrote:
-> > > [..]
-> > >> +static inline int page_count(struct page *page)
-> > >> +{
-> > >> +     return atomic_read(&compound_head(page)->_count);
-> > >> +}
-> > >> +
-> > >> +static inline void set_page_count(struct page *page, int v)
-> > >> +{
-> > >> +     atomic_set(&page->_count, v);
-> > >> +}
-> > >> +
-> > >> +/*
-> > >> + * Setup the page count before being freed into the page allocator for
-> > >> + * the first time (boot or memory hotplug)
-> > >> + */
-> > >> +static inline void init_page_count(struct page *page)
-> > >> +{
-> > >> +     set_page_count(page, 1);
-> > >> +}
-> > >> +
-> > >> +static inline void page_ref_add(struct page *page, int nr)
-> > >> +{
-> > >> +     atomic_add(nr, &page->_count);
-> > >> +}
-> > >
-> > > Since page_ref_FOO wrappers operate with page->_count and there
-> > > are already page_count()/set_page_count()/etc. may be name new
-> > > wrappers in page_count_FOO() manner?
+On Mon, 2015-11-09 at 16:18 -0700, Toshi Kani wrote:
+> On Mon, 2015-11-09 at 17:36 -0500, Boris Ostrovsky wrote:
+> > On 11/09/2015 03:47 PM, Kirill A. Shutemov wrote:
+> > > On Mon, Nov 09, 2015 at 02:39:31PM -0500, Boris Ostrovsky wrote:
+> > > > On 11/09/2015 02:16 PM, Toshi Kani wrote:
+ :
+> > > > 
+> > > > FWIW, it looks like pmd_pfn_mask() inline is causing this. Reverting it
+> > > > alone makes this crash go away.
+> > > Could you check the patch below?
 > > 
-> > Hello,
 > > 
-> > I used that page_count_ before but change my mind.
-> > I think that ref is more relevant to this operation.
-> > Perhaps, it'd be better to change page_count()/set_page_count()
-> > to page_ref()/set_page_ref().
+> > I does fix the problem on baremetal, thanks. My 32-bit Xen guests still 
+> > fail which I thought was the same issue but now that I looked at it more 
+> > carefully it has different signature.
 > 
-> What about get_page() vs. page_cache_get() and put_page() vs.
-> page_cache_release()? Two different helpers for the same thing is annyoing
-> me for some time (plus PAGE_SIZE vs. PAGE_CACHE_SIZE, etc.).
-> 
-> If you want coherent API you might want to get them consitent too.
+> I do not think Xen is hitting this, but I think page_level_mask() has the same
+> issue for a long time.  I will set up 32-bit env on a system with >4GB memory 
+> to verify this.
 
-In fact, consistent naming is out of interest of this patchset. :)
+As Kirill explained me in his code review comment for *PAGE_MASK, page_level_mas
+k() is fine as it is used for virtual addresses.
 
-Thanks.
+-Toshi  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
