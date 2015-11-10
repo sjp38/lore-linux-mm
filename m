@@ -1,35 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E40616B0256
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 04:02:44 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so204457864pac.3
-        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 01:02:44 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id w15si3853405pbs.198.2015.11.10.01.02.43
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 3211B6B0038
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 04:27:03 -0500 (EST)
+Received: by wmec201 with SMTP id c201so123392058wme.0
+        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 01:27:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n6si22510661wmg.50.2015.11.10.01.27.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Nov 2015 01:02:44 -0800 (PST)
-Date: Tue, 10 Nov 2015 12:02:33 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH v1] tools/vm/page-types.c: support KPF_IDLE
-Message-ID: <20151110090233.GU31308@esperanza>
-References: <1447145404-5589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 10 Nov 2015 01:27:01 -0800 (PST)
+Subject: Re: [PATCH] mm/mlock.c: drop unneeded initialization in
+ munlock_vma_pages_range()
+References: <1447114962-31834-1-git-send-email-klimov.linux@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5641B864.2020709@suse.cz>
+Date: Tue, 10 Nov 2015 10:27:00 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <1447145404-5589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1447114962-31834-1-git-send-email-klimov.linux@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Alexey Klimov <klimov.linux@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, emunson@akamai.com
 
-On Tue, Nov 10, 2015 at 05:50:04PM +0900, Naoya Horiguchi wrote:
-> PageIdle is exported in include/uapi/linux/kernel-page-flags.h, so let's
-> make page-types.c tool handle it.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+On 11/10/2015 01:22 AM, Alexey Klimov wrote:
+> Before usage page pointer initialized by NULL is reinitialized by
+> follow_page_mask(). Drop useless init of page pointer in the beginning
+> of loop.
+>
+> Signed-off-by: Alexey Klimov <klimov.linux@gmail.com>
 
-Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>   mm/mlock.c | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/mlock.c b/mm/mlock.c
+> index 339d9e0..9cb87cb 100644
+> --- a/mm/mlock.c
+> +++ b/mm/mlock.c
+> @@ -425,7 +425,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+>   	vma->vm_flags &= VM_LOCKED_CLEAR_MASK;
+>
+>   	while (start < end) {
+> -		struct page *page = NULL;
+> +		struct page *page;
+>   		unsigned int page_mask;
+>   		unsigned long page_increm;
+>   		struct pagevec pvec;
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
