@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B81406B0038
-	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 11:05:15 -0500 (EST)
-Received: by wmdw130 with SMTP id w130so77442897wmd.0
-        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 08:05:15 -0800 (PST)
-Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
-        by mx.google.com with ESMTPS id ci12si5308390wjb.148.2015.11.10.08.05.14
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 072F36B0257
+	for <linux-mm@kvack.org>; Tue, 10 Nov 2015 11:06:37 -0500 (EST)
+Received: by wmww144 with SMTP id w144so7040486wmw.0
+        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 08:06:36 -0800 (PST)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id v12si5341285wjr.84.2015.11.10.08.06.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Nov 2015 08:05:14 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so15386446wmv.1
-        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 08:05:14 -0800 (PST)
+        Tue, 10 Nov 2015 08:06:35 -0800 (PST)
+Received: by wmww144 with SMTP id w144so7039248wmw.0
+        for <linux-mm@kvack.org>; Tue, 10 Nov 2015 08:06:35 -0800 (PST)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 1/3] mm/page_isolation: return last tested pfn rather than failure indicator
-In-Reply-To: <1447053861-28824-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1447053861-28824-1-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Tue, 10 Nov 2015 17:05:12 +0100
-Message-ID: <xa1tbnb1g7rb.fsf@mina86.com>
+Subject: Re: [PATCH 2/3] mm/cma: add new tracepoint, test_pages_isolated
+In-Reply-To: <1447053861-28824-2-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1447053861-28824-1-git-send-email-iamjoonsoo.kim@lge.com> <1447053861-28824-2-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Tue, 10 Nov 2015 17:06:31 +0100
+Message-ID: <xa1t8u65g7p4.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
@@ -26,37 +26,21 @@ To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 On Mon, Nov 09 2015, Joonsoo Kim wrote:
-> This is preparation step to report test failed pfn in new tracepoint
-> to analyze cma allocation failure problem. There is no functional change
-> in this patch.
+> cma allocation should be guranteeded to succeed, but, sometimes,
+> it could be failed in current implementation. To track down
+> the problem, we need to know which page is problematic and
+> this new tracepoint will report it.
 >
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+I=E2=80=99m not really familiar with tracing framework but other then that:
 
 Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
 > ---
->  mm/page_isolation.c | 13 ++++++-------
->  1 file changed, 6 insertions(+), 7 deletions(-)
->
-> @@ -266,10 +264,11 @@ int test_pages_isolated(unsigned long start_pfn, un=
-signed long end_pfn,
->  	/* Check all pages are free or marked as ISOLATED */
->  	zone =3D page_zone(page);
->  	spin_lock_irqsave(&zone->lock, flags);
-> -	ret =3D __test_page_isolated_in_pageblock(start_pfn, end_pfn,
-> +	pfn =3D __test_page_isolated_in_pageblock(start_pfn, end_pfn,
->  						skip_hwpoisoned_pages);
->  	spin_unlock_irqrestore(&zone->lock, flags);
-> -	return ret ? 0 : -EBUSY;
-> +
-> +	return (pfn < end_pfn) ? -EBUSY : 0;
-
-Parens aren=E2=80=99t necessary.  No strong feelings.
-
->  }
->=20=20
->  struct page *alloc_migrate_target(struct page *page, unsigned long priva=
-te,
+>  include/trace/events/cma.h | 26 ++++++++++++++++++++++++++
+>  mm/page_isolation.c        |  5 +++++
+>  2 files changed, 31 insertions(+)
 
 --=20
 Best regards,                                            _     _
