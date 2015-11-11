@@ -1,143 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id DD3D26B0256
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2015 10:28:26 -0500 (EST)
-Received: by igbhv6 with SMTP id hv6so23206064igb.0
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 07:28:26 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id im6si23616116igb.54.2015.11.11.07.28.25
+Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 07A586B0255
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2015 10:35:21 -0500 (EST)
+Received: by iofh3 with SMTP id h3so36862511iof.3
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 07:35:20 -0800 (PST)
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com. [129.33.205.209])
+        by mx.google.com with ESMTPS id w6si11925317igp.20.2015.11.11.07.35.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Nov 2015 07:28:26 -0800 (PST)
-Date: Wed, 11 Nov 2015 16:28:20 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH V3 1/2] slub: fix kmem cgroup bug in
- kmem_cache_alloc_bulk
-Message-ID: <20151111162820.49fa8350@redhat.com>
-In-Reply-To: <20151110183246.GV31308@esperanza>
-References: <20151109181604.8231.22983.stgit@firesoul>
-	<20151109181703.8231.66384.stgit@firesoul>
-	<20151109191335.GM31308@esperanza>
-	<20151109212522.6b38988c@redhat.com>
-	<20151110084633.GT31308@esperanza>
-	<20151110165534.6154082e@redhat.com>
-	<20151110183246.GV31308@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=AES128-SHA bits=128/128);
+        Wed, 11 Nov 2015 07:35:20 -0800 (PST)
+Received: from localhost
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <jjherne@linux.vnet.ibm.com>;
+	Wed, 11 Nov 2015 10:35:19 -0500
+Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id C654638C8046
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2015 10:35:17 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by b01cxnp22034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id tABFZH3958654774
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2015 15:35:17 GMT
+Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id tABFZHMW027242
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2015 10:35:17 -0500
+From: "Jason J. Herne" <jjherne@linux.vnet.ibm.com>
+Subject: [PATCH] mm: Loosen MADV_NOHUGEPAGE to enable Qemu postcopy on s390
+Date: Wed, 11 Nov 2015 10:35:16 -0500
+Message-Id: <1447256116-16461-1-git-send-email-jjherne@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, brouer@redhat.com
+To: linux-s390@vger.kernel.org
+Cc: linux-mm@kvack.org, aarcange@redhat.com, borntraeger@de.ibm.com, "Jason J. Herne" <jjherne@linux.vnet.ibm.com>
 
-On Tue, 10 Nov 2015 21:32:46 +0300
-Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+MADV_NOHUGEPAGE processing is too restrictive. kvm already disables
+hugepage but hugepage_madvise() takes the error path when we ask to turn
+on the MADV_NOHUGEPAGE bit and the bit is already on. This causes Qemu's
+new postcopy migration feature to fail on s390 because its first action is
+to madvise the guest address space as NOHUGEPAGE. This patch modifies the
+code so that the operation succeeds without error now.
 
-> On Tue, Nov 10, 2015 at 04:55:34PM +0100, Jesper Dangaard Brouer wrote:
-> > On Tue, 10 Nov 2015 11:46:33 +0300
-> > Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
-> > 
-> > > On Mon, Nov 09, 2015 at 09:25:22PM +0100, Jesper Dangaard Brouer wrote:
-> > > > On Mon, 9 Nov 2015 22:13:35 +0300
-> > > > Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
-> > > > 
-> > > > > On Mon, Nov 09, 2015 at 07:17:31PM +0100, Jesper Dangaard Brouer wrote:
-> > > > > ...
-> > > > > > @@ -2556,7 +2563,7 @@ redo:
-> > > > > >  	if (unlikely(gfpflags & __GFP_ZERO) && object)
-> > > > > >  		memset(object, 0, s->object_size);
-> > > > > >  
-> > > > > > -	slab_post_alloc_hook(s, gfpflags, object);
-> > > > > > +	slab_post_alloc_hook(s, gfpflags, 1, object);
-> > > > > 
-> > > > > I think it must be &object
-> > > > 
-> > > > The object is already a void ** type.
-> > > 
-> > > Let's forget about types for a second. object contains an address to the
-> > > newly allocated object, while slab_post_alloc_hook expects an array of
-> > > addresses to objects. Simple test. Suppose an allocation failed. Then
-> > > object equals 0. Passing 0 to slab_post_alloc_hook as @p and 1 as @size
-> > > will result in NULL ptr dereference.
-> > 
-> > Argh, that is not good :-(
-> > I tested memory exhaustion and NULL ptr deref does happen in this case.
-> > 
-> >  BUG: unable to handle kernel NULL pointer dereference at           (null)
-> >  IP: [<ffffffff8113dea2>] kmem_cache_alloc+0x92/0x1d0
-> > 
-> > (gdb) list *(kmem_cache_alloc)+0x92
-> > 0xffffffff8113dea2 is in kmem_cache_alloc (mm/slub.c:1302).
-> > 1297	{
-> > 1298		size_t i;
-> > 1299	
-> > 1300		flags &= gfp_allowed_mask;
-> > 1301		for (i = 0; i < size; i++) {
-> > 1302			void *object = p[i];
-> > 1303	
-> > 1304			kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
-> > 1305			kmemleak_alloc_recursive(object, s->object_size, 1,
-> > 1306						 s->flags, flags);
-> > (gdb) quit
-> > 
-> > I changed:
-> > 
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index 2eab115e18c5..c5a62fd02321 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -2484,7 +2484,7 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
-> >  static __always_inline void *slab_alloc_node(struct kmem_cache *s,
-> >                 gfp_t gfpflags, int node, unsigned long addr)
-> >  {
-> > -       void **object;
-> > +       void *object;
-> >         struct kmem_cache_cpu *c;
-> >         struct page *page;
-> >         unsigned long tid;
-> > @@ -2563,7 +2563,7 @@ redo:
-> >         if (unlikely(gfpflags & __GFP_ZERO) && object)
-> >                 memset(object, 0, s->object_size);
-> >  
-> > -       slab_post_alloc_hook(s, gfpflags, 1, object);
-> > +       slab_post_alloc_hook(s, gfpflags, 1, &object);
-> >  
-> >         return object;
-> >  }
-> > 
-> > But then the kernel cannot correctly boot?!?! (It dies in
-> > x86_perf_event_update+0x15.)  What did I miss???
-> 
-> Weird... I applied all your patches including the one above to
-> v4.3-rc6-mmotm-2015-10-21-14-41 and everything boots and works just fine
-> both inside a VM and on my x86 host. Are you sure the problem is caused
-> by your patches? Perhaps you updated the source tree in the meantime.
+Signed-off-by: Jason J. Herne <jjherne@linux.vnet.ibm.com>
+---
+ mm/huge_memory.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-I didn't rebase, but I likely _should_ rebase my patchset.  It could be
-something different from my patch, I will investigate further.
-
-When you tested it, did you make sure the compiler didn't "remove" the
-code inside the for loop?
-
-To put some code inside the for loop, I have enabled both
-CONFIG_KMEMCHECK and CONFIG_DEBUG_KMEMLEAK, plus CONFIG_SLUB_DEBUG_ON=y
-(but it seems SLUB_DEBUG gets somewhat removed when these gets enabled,
-didn't check the details).
-
-
-> Could you try to just remove the star from @object definition, w/o
-> applying your patches? May be, there is something in slab_alloc_node
-> that implicitly relies on the @object type (e.g. this_cpu_cmpxchg_double
-> macro)...
-
-Removing the star from @object definition works (without the other change).
-
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index c29ddeb..a8b5347 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2025,7 +2025,7 @@ int hugepage_madvise(struct vm_area_struct *vma,
+ 		/*
+ 		 * Be somewhat over-protective like KSM for now!
+ 		 */
+-		if (*vm_flags & (VM_NOHUGEPAGE | VM_NO_THP))
++		if (*vm_flags & VM_NO_THP)
+ 			return -EINVAL;
+ 		*vm_flags &= ~VM_HUGEPAGE;
+ 		*vm_flags |= VM_NOHUGEPAGE;
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
