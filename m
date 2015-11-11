@@ -1,191 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C3BAD6B0255
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2015 09:14:01 -0500 (EST)
-Received: by wmdw130 with SMTP id w130so114492977wmd.0
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 06:14:01 -0800 (PST)
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
-        by mx.google.com with ESMTPS id i202si31142330wmd.106.2015.11.11.06.14.00
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id DD3D26B0256
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2015 10:28:26 -0500 (EST)
+Received: by igbhv6 with SMTP id hv6so23206064igb.0
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 07:28:26 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id im6si23616116igb.54.2015.11.11.07.28.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Nov 2015 06:14:00 -0800 (PST)
-Received: by wmww144 with SMTP id w144so160988237wmw.1
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 06:13:59 -0800 (PST)
-From: mhocko@kernel.org
-Subject: [PATCH] mm: Allow GFP_IOFS for page_cache_read page cache allocation
-Date: Wed, 11 Nov 2015 15:13:53 +0100
-Message-Id: <1447251233-14449-1-git-send-email-mhocko@kernel.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Nov 2015 07:28:26 -0800 (PST)
+Date: Wed, 11 Nov 2015 16:28:20 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH V3 1/2] slub: fix kmem cgroup bug in
+ kmem_cache_alloc_bulk
+Message-ID: <20151111162820.49fa8350@redhat.com>
+In-Reply-To: <20151110183246.GV31308@esperanza>
+References: <20151109181604.8231.22983.stgit@firesoul>
+	<20151109181703.8231.66384.stgit@firesoul>
+	<20151109191335.GM31308@esperanza>
+	<20151109212522.6b38988c@redhat.com>
+	<20151110084633.GT31308@esperanza>
+	<20151110165534.6154082e@redhat.com>
+	<20151110183246.GV31308@esperanza>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, Mark Fasheh <mfasheh@suse.com>, ocfs2-devel@oss.oracle.com, ceph-devel@vger.kernel.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, brouer@redhat.com
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue, 10 Nov 2015 21:32:46 +0300
+Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
 
-page_cache_read has been historically using page_cache_alloc_cold to
-allocate a new page. This means that mapping_gfp_mask is used as the
-base for the gfp_mask. Many filesystems are setting this mask to
-GFP_NOFS to prevent from fs recursion issues. page_cache_read is
-called from the vm_operations_struct::fault() context during the page
-fault. This context doesn't need the reclaim protection normally.
+> On Tue, Nov 10, 2015 at 04:55:34PM +0100, Jesper Dangaard Brouer wrote:
+> > On Tue, 10 Nov 2015 11:46:33 +0300
+> > Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+> > 
+> > > On Mon, Nov 09, 2015 at 09:25:22PM +0100, Jesper Dangaard Brouer wrote:
+> > > > On Mon, 9 Nov 2015 22:13:35 +0300
+> > > > Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
+> > > > 
+> > > > > On Mon, Nov 09, 2015 at 07:17:31PM +0100, Jesper Dangaard Brouer wrote:
+> > > > > ...
+> > > > > > @@ -2556,7 +2563,7 @@ redo:
+> > > > > >  	if (unlikely(gfpflags & __GFP_ZERO) && object)
+> > > > > >  		memset(object, 0, s->object_size);
+> > > > > >  
+> > > > > > -	slab_post_alloc_hook(s, gfpflags, object);
+> > > > > > +	slab_post_alloc_hook(s, gfpflags, 1, object);
+> > > > > 
+> > > > > I think it must be &object
+> > > > 
+> > > > The object is already a void ** type.
+> > > 
+> > > Let's forget about types for a second. object contains an address to the
+> > > newly allocated object, while slab_post_alloc_hook expects an array of
+> > > addresses to objects. Simple test. Suppose an allocation failed. Then
+> > > object equals 0. Passing 0 to slab_post_alloc_hook as @p and 1 as @size
+> > > will result in NULL ptr dereference.
+> > 
+> > Argh, that is not good :-(
+> > I tested memory exhaustion and NULL ptr deref does happen in this case.
+> > 
+> >  BUG: unable to handle kernel NULL pointer dereference at           (null)
+> >  IP: [<ffffffff8113dea2>] kmem_cache_alloc+0x92/0x1d0
+> > 
+> > (gdb) list *(kmem_cache_alloc)+0x92
+> > 0xffffffff8113dea2 is in kmem_cache_alloc (mm/slub.c:1302).
+> > 1297	{
+> > 1298		size_t i;
+> > 1299	
+> > 1300		flags &= gfp_allowed_mask;
+> > 1301		for (i = 0; i < size; i++) {
+> > 1302			void *object = p[i];
+> > 1303	
+> > 1304			kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
+> > 1305			kmemleak_alloc_recursive(object, s->object_size, 1,
+> > 1306						 s->flags, flags);
+> > (gdb) quit
+> > 
+> > I changed:
+> > 
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index 2eab115e18c5..c5a62fd02321 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -2484,7 +2484,7 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+> >  static __always_inline void *slab_alloc_node(struct kmem_cache *s,
+> >                 gfp_t gfpflags, int node, unsigned long addr)
+> >  {
+> > -       void **object;
+> > +       void *object;
+> >         struct kmem_cache_cpu *c;
+> >         struct page *page;
+> >         unsigned long tid;
+> > @@ -2563,7 +2563,7 @@ redo:
+> >         if (unlikely(gfpflags & __GFP_ZERO) && object)
+> >                 memset(object, 0, s->object_size);
+> >  
+> > -       slab_post_alloc_hook(s, gfpflags, 1, object);
+> > +       slab_post_alloc_hook(s, gfpflags, 1, &object);
+> >  
+> >         return object;
+> >  }
+> > 
+> > But then the kernel cannot correctly boot?!?! (It dies in
+> > x86_perf_event_update+0x15.)  What did I miss???
+> 
+> Weird... I applied all your patches including the one above to
+> v4.3-rc6-mmotm-2015-10-21-14-41 and everything boots and works just fine
+> both inside a VM and on my x86 host. Are you sure the problem is caused
+> by your patches? Perhaps you updated the source tree in the meantime.
 
-ceph and ocfs2 which call filemap_fault from their fault handlers
-seem to be OK because they are not taking any fs lock before invoking
-generic implementation. xfs which takes XFS_MMAPLOCK_SHARED is safe
-from the reclaim recursion POV because this lock serializes truncate
-and punch hole with the page faults and it doesn't get involved in the
-reclaim.
+I didn't rebase, but I likely _should_ rebase my patchset.  It could be
+something different from my patch, I will investigate further.
 
-There is simply no reason to deliberately use a weaker allocation
-context when a __GFP_FS | __GFP_IO can be used. The GFP_NOFS
-protection might be even harmful. There is a push to fail GFP_NOFS
-allocations rather than loop within allocator indefinitely with a
-very limited reclaim ability. Once we start failing those requests
-the OOM killer might be triggered prematurely because the page cache
-allocation failure is propagated up the page fault path and end up in
-pagefault_out_of_memory.
+When you tested it, did you make sure the compiler didn't "remove" the
+code inside the for loop?
 
-We cannot play with mapping_gfp_mask directly because that would be racy
-wrt. parallel page faults and it might interfere with other users who
-really rely on NOFS semantic from the stored gfp_mask. The mask is also
-inode proper so it would even be a layering violation. What we can do
-instead is to push the gfp_mask into struct vm_fault and allow fs layer
-to overwrite it should the callback need to be called with a different
-allocation context.
+To put some code inside the for loop, I have enabled both
+CONFIG_KMEMCHECK and CONFIG_DEBUG_KMEMLEAK, plus CONFIG_SLUB_DEBUG_ON=y
+(but it seems SLUB_DEBUG gets somewhat removed when these gets enabled,
+didn't check the details).
 
-Initialize the default to (mapping_gfp_mask | __GFP_FS | __GFP_IO)
-because this should be safe from the page fault path normally. Why do we
-care about mapping_gfp_mask at all then? Because this doesn't hold only
-reclaim protection flags but it also might contain zone and movability
-restrictions (GFP_DMA32, __GFP_MOVABLE and others) so we have to respect
-those.
 
-Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
+> Could you try to just remove the star from @object definition, w/o
+> applying your patches? May be, there is something in slab_alloc_node
+> that implicitly relies on the @object type (e.g. this_cpu_cmpxchg_double
+> macro)...
 
-Hi,
-this has been posted previously as a part of larger GFP_NOFS related
-patch set (http://lkml.kernel.org/r/1438768284-30927-1-git-send-email-mhocko%40kernel.org)
-but I think it makes sense to discuss it even out of that scope.
+Removing the star from @object definition works (without the other change).
 
-I would like to hear FS and other MM people about the proposed interface.
-Using mapping_gfp_mask blindly doesn't sound good to me and vm_fault
-looks like a proper channel to communicate between MM and FS layers.
-
-Comments? Are there any better ideas?
-
- include/linux/mm.h |  4 ++++
- mm/filemap.c       |  9 ++++-----
- mm/memory.c        | 17 +++++++++++++++++
- 3 files changed, 25 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index fc9a3b8335bd..4b7aaeebe4f6 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -225,10 +225,14 @@ extern pgprot_t protection_map[16];
-  * ->fault function. The vma's ->fault is responsible for returning a bitmask
-  * of VM_FAULT_xxx flags that give details about how the fault was handled.
-  *
-+ * MM layer fills up gfp_mask for page allocations but fault handler might
-+ * alter it if its implementation requires a different allocation context.
-+ *
-  * pgoff should be used in favour of virtual_address, if possible.
-  */
- struct vm_fault {
- 	unsigned int flags;		/* FAULT_FLAG_xxx flags */
-+	gfp_t gfp_mask;			/* gfp mask to be used for allocations */
- 	pgoff_t pgoff;			/* Logical page offset based on vma */
- 	void __user *virtual_address;	/* Faulting virtual address */
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 834cd1425307..847ee43c2806 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1815,19 +1815,18 @@ EXPORT_SYMBOL(generic_file_read_iter);
-  * This adds the requested page to the page cache if it isn't already there,
-  * and schedules an I/O to read in its contents from disk.
-  */
--static int page_cache_read(struct file *file, pgoff_t offset)
-+static int page_cache_read(struct file *file, pgoff_t offset, gfp_t gfp_mask)
- {
- 	struct address_space *mapping = file->f_mapping;
- 	struct page *page;
- 	int ret;
- 
- 	do {
--		page = page_cache_alloc_cold(mapping);
-+		page = __page_cache_alloc(gfp_mask|__GFP_COLD);
- 		if (!page)
- 			return -ENOMEM;
- 
--		ret = add_to_page_cache_lru(page, mapping, offset,
--				mapping_gfp_constraint(mapping, GFP_KERNEL));
-+		ret = add_to_page_cache_lru(page, mapping, offset, gfp_mask & GFP_KERNEL);
- 		if (ret == 0)
- 			ret = mapping->a_ops->readpage(file, page);
- 		else if (ret == -EEXIST)
-@@ -2008,7 +2007,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	 * We're only likely to ever get here if MADV_RANDOM is in
- 	 * effect.
- 	 */
--	error = page_cache_read(file, offset);
-+	error = page_cache_read(file, offset, vmf->gfp_mask);
- 
- 	/*
- 	 * The page we want has now been added to the page cache.
-diff --git a/mm/memory.c b/mm/memory.c
-index 7f3b9f2769ad..d45fdb4c7dcc 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1943,6 +1943,20 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
- 		copy_user_highpage(dst, src, va, vma);
- }
- 
-+static gfp_t __get_fault_gfp_mask(struct vm_area_struct *vma)
-+{
-+	struct file *vm_file = vma->vm_file;
-+
-+	if (vm_file)
-+		return mapping_gfp_mask(vm_file->f_mapping) | __GFP_FS | __GFP_IO;
-+
-+	/*
-+	 * Special mappings (e.g. VDSO) do not have any file so fake
-+	 * a default GFP_KERNEL for them.
-+	 */
-+	return GFP_KERNEL;
-+}
-+
- /*
-  * Notify the address space that the page is about to become writable so that
-  * it can prohibit this or wait for the page to get into an appropriate state.
-@@ -1958,6 +1972,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
- 	vmf.virtual_address = (void __user *)(address & PAGE_MASK);
- 	vmf.pgoff = page->index;
- 	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
-+	vmf.gfp_mask = __get_fault_gfp_mask(vma);
- 	vmf.page = page;
- 	vmf.cow_page = NULL;
- 
-@@ -2762,6 +2777,7 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
- 	vmf.pgoff = pgoff;
- 	vmf.flags = flags;
- 	vmf.page = NULL;
-+	vmf.gfp_mask = __get_fault_gfp_mask(vma);
- 	vmf.cow_page = cow_page;
- 
- 	ret = vma->vm_ops->fault(vma, &vmf);
-@@ -2928,6 +2944,7 @@ static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
- 	vmf.pgoff = pgoff;
- 	vmf.max_pgoff = max_pgoff;
- 	vmf.flags = flags;
-+	vmf.gfp_mask = __get_fault_gfp_mask(vma);
- 	vma->vm_ops->map_pages(vma, &vmf);
- }
- 
 -- 
-2.6.2
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
