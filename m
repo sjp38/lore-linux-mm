@@ -1,71 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 34FBF6B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 15:47:48 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so75681329pab.0
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 12:47:47 -0800 (PST)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id qd4si22068554pac.42.2015.11.12.12.47.47
+Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B5776B0038
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 15:55:36 -0500 (EST)
+Received: by ykfs79 with SMTP id s79so113939297ykf.1
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 12:55:36 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v5si10924483ywb.119.2015.11.12.12.55.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Nov 2015 12:47:47 -0800 (PST)
-Received: by padhx2 with SMTP id hx2so75625402pad.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 12:47:47 -0800 (PST)
-Date: Thu, 12 Nov 2015 12:47:45 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: get rid of __alloc_pages_high_priority
-In-Reply-To: <1447343618-19696-1-git-send-email-mhocko@kernel.org>
-Message-ID: <alpine.DEB.2.10.1511121245430.10324@chino.kir.corp.google.com>
-References: <1447343618-19696-1-git-send-email-mhocko@kernel.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Nov 2015 12:55:35 -0800 (PST)
+Received: from int-mx14.intmail.prod.int.phx2.redhat.com (int-mx14.intmail.prod.int.phx2.redhat.com [10.5.11.27])
+	by mx1.redhat.com (Postfix) with ESMTPS id 200EB8F506
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 20:55:35 +0000 (UTC)
+Date: Thu, 12 Nov 2015 21:55:31 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Memory exhaustion testing?
+Message-ID: <20151112215531.69ccec19@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: linux-mm <linux-mm@kvack.org>
+Cc: brouer@redhat.com
 
-On Thu, 12 Nov 2015, mhocko@kernel.org wrote:
+Hi MM-people,
 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> __alloc_pages_high_priority doesn't do anything special other than it
-> calls get_page_from_freelist and loops around GFP_NOFAIL allocation
-> until it succeeds. It would be better if the first part was done in
-> __alloc_pages_slowpath where we modify the zonelist because this would
-> be easier to read and understand. And do the retry at the very same
-> place because retrying without even attempting to do any reclaim is
-> fragile because we are basically relying on somebody else to make the
-> reclaim (be it the direct reclaim or OOM killer) for us. The caller
-> might be holding resources (e.g. locks) which block other other
-> reclaimers from making any progress for example.
-> 
-> Remove the helper and open code it into its only user. We have to be
-> careful about __GFP_NOFAIL allocations from the PF_MEMALLOC context
-> even though this is a very bad idea to begin with because no progress
-> can be gurateed at all.  We shouldn't break the __GFP_NOFAIL semantic
-> here though. It could be argued that this is essentially GFP_NOWAIT
-> context which we do not support but PF_MEMALLOC is much harder to check
-> for existing users because they might happen deep down the code path
-> performed much later after setting the flag so we cannot really rule out
-> there is no kernel path triggering this combination.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> 
-> Hi,
-> I think that this is more a cleanup than any functional change. We
-> are rarely screwed so much that __alloc_pages_high_priority would
-> fail. Yet I think that __alloc_pages_high_priority is obscuring the
-> overal intention more than it is helpful. Another motivation is to
-> reduce wait_iff_congested call to a single one in the allocator. I plan
-> to do other changes in that area and get rid of it altogether.
+How do you/we test the error paths when the system runs out of memory?
 
-I think it's a combination of a cleanup (the inlining of 
-__alloc_pages_high_priority) and a functional change (no longer looping 
-infinitely around a get_page_from_freelist() call).  I'd suggest doing the 
-inlining in one patch and then the reworking of __GFP_NOFAIL when 
-ALLOC_NO_WATERMARKS fails just so we could easily revert the latter if 
-necessary.
+What kind of tools do you use?
+or Any tricks to provoke this?
+
+For testing my recent change to the SLUB allocator, I've implemented a
+crude kernel module that tries to allocate all memory, so I can test the
+error code-path in kmem_cache_alloc_bulk.
+
+see:
+ https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_bulk_test04_exhaust_mem.c
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
