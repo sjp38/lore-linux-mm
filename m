@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D362C6B0254
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 18:42:08 -0500 (EST)
-Received: by wmww144 with SMTP id w144so8225397wmw.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 15:42:08 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id CE2EB6B0256
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 18:42:10 -0500 (EST)
+Received: by wmec201 with SMTP id c201so57694223wme.0
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 15:42:10 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id m135si1461191wmb.47.2015.11.12.15.42.07
+        by mx.google.com with ESMTPS id a6si1438916wmh.59.2015.11.12.15.42.09
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Nov 2015 15:42:07 -0800 (PST)
+        Thu, 12 Nov 2015 15:42:09 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 02/14] mm: vmscan: simplify memcg vs. global shrinker invocation
-Date: Thu, 12 Nov 2015 18:41:21 -0500
-Message-Id: <1447371693-25143-3-git-send-email-hannes@cmpxchg.org>
+Subject: [PATCH 03/14] net: tcp_memcontrol: properly detect ancestor socket pressure
+Date: Thu, 12 Nov 2015 18:41:22 -0500
+Message-Id: <1447371693-25143-4-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
 References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,90 +20,43 @@ List-ID: <linux-mm.kvack.org>
 To: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Letting shrink_slab() handle the root_mem_cgroup, and implicitely the
-!CONFIG_MEMCG case, allows shrink_zone() to invoke the shrinkers
-unconditionally from within the memcg iteration loop.
+When charging socket memory, the code currently checks only the local
+page counter for excess to determine whether the memcg is under socket
+pressure. But even if the local counter is fine, one of the ancestors
+could have breached its limit, which should also force this child to
+enter socket pressure. This currently doesn't happen.
+
+Fix this by using page_counter_try_charge() first. If that fails, it
+means that either the local counter or one of the ancestors are in
+excess of their limit, and the child should enter socket pressure.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/memcontrol.h |  2 ++
- mm/vmscan.c                | 31 ++++++++++++++++---------------
- 2 files changed, 18 insertions(+), 15 deletions(-)
+ include/net/sock.h | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 9a7a24a..251bb51 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -502,6 +502,8 @@ void mem_cgroup_split_huge_fixup(struct page *head);
- #else /* CONFIG_MEMCG */
- struct mem_cgroup;
- 
-+#define root_mem_cgroup NULL
+diff --git a/include/net/sock.h b/include/net/sock.h
+index bbf7c2c..c4b33c9 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -1190,11 +1190,13 @@ static inline void memcg_memory_allocated_add(struct cg_proto *prot,
+ 					      unsigned long amt,
+ 					      int *parent_status)
+ {
+-	page_counter_charge(&prot->memory_allocated, amt);
++	struct page_counter *counter;
 +
- static inline void mem_cgroup_events(struct mem_cgroup *memcg,
- 				     enum mem_cgroup_events_index idx,
- 				     unsigned int nr)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a4507ec..e4f5b3c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -411,6 +411,10 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
++	if (page_counter_try_charge(&prot->memory_allocated, amt, &counter))
++		return;
  
-+	/* Global shrinker mode */
-+	if (memcg == root_mem_cgroup)
-+		memcg = NULL;
-+
- 	if (memcg && !memcg_kmem_is_active(memcg))
- 		return 0;
+-	if (page_counter_read(&prot->memory_allocated) >
+-	    prot->memory_allocated.limit)
+-		*parent_status = OVER_LIMIT;
++	page_counter_charge(&prot->memory_allocated, amt);
++	*parent_status = OVER_LIMIT;
+ }
  
-@@ -2410,11 +2414,22 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 			shrink_lruvec(lruvec, swappiness, sc, &lru_pages);
- 			zone_lru_pages += lru_pages;
- 
--			if (memcg && is_classzone)
-+			/*
-+			 * Shrink the slab caches in the same proportion that
-+			 * the eligible LRU pages were scanned.
-+			 */
-+			if (is_classzone) {
- 				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
- 					    memcg, sc->nr_scanned - scanned,
- 					    lru_pages);
- 
-+				if (reclaim_state) {
-+					sc->nr_reclaimed +=
-+						reclaim_state->reclaimed_slab;
-+					reclaim_state->reclaimed_slab = 0;
-+				}
-+			}
-+
- 			/*
- 			 * Direct reclaim and kswapd have to scan all memory
- 			 * cgroups to fulfill the overall scan target for the
-@@ -2432,20 +2447,6 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 			}
- 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
- 
--		/*
--		 * Shrink the slab caches in the same proportion that
--		 * the eligible LRU pages were scanned.
--		 */
--		if (global_reclaim(sc) && is_classzone)
--			shrink_slab(sc->gfp_mask, zone_to_nid(zone), NULL,
--				    sc->nr_scanned - nr_scanned,
--				    zone_lru_pages);
--
--		if (reclaim_state) {
--			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
--			reclaim_state->reclaimed_slab = 0;
--		}
--
- 		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
- 			   sc->nr_scanned - nr_scanned,
- 			   sc->nr_reclaimed - nr_reclaimed);
+ static inline void memcg_memory_allocated_sub(struct cg_proto *prot,
 -- 
 2.6.2
 
