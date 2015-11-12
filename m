@@ -1,109 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 26F6F6B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 09:29:27 -0500 (EST)
-Received: by igl9 with SMTP id 9so98174196igl.0
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 06:29:27 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0084.hostedemail.com. [216.40.44.84])
-        by mx.google.com with ESMTP id p16si30032263igw.68.2015.11.12.06.29.26
-        for <linux-mm@kvack.org>;
-        Thu, 12 Nov 2015 06:29:26 -0800 (PST)
-Date: Thu, 12 Nov 2015 09:29:23 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH V4] mm: fix kernel crash in khugepaged thread
-Message-ID: <20151112092923.19ee53dd@gandalf.local.home>
-In-Reply-To: <1447316462-19645-1-git-send-email-yalin.wang2010@gmail.com>
-References: <1447316462-19645-1-git-send-email-yalin.wang2010@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-vk0-f48.google.com (mail-vk0-f48.google.com [209.85.213.48])
+	by kanga.kvack.org (Postfix) with ESMTP id F1B906B0038
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 10:17:08 -0500 (EST)
+Received: by vkgy188 with SMTP id y188so12118156vkg.1
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 07:17:08 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 186si2868041vki.141.2015.11.12.07.17.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Nov 2015 07:17:08 -0800 (PST)
+From: "Jerome Marchand" <jmarchan@redhat.com>
+Subject: [PATCH] mm: vmalloc: don't remove inexistent guard hole in remove_vm_area()
+Date: Thu, 12 Nov 2015 16:17:04 +0100
+Message-Id: <1447341424-11466-1-git-send-email-jmarchan@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yalin wang <yalin.wang2010@gmail.com>
-Cc: mingo@redhat.com, akpm@linux-foundation.org, ebru.akagunduz@gmail.com, riel@redhat.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, jmarchan@redhat.com, mgorman@techsingularity.net, willy@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: linux-kernel@vger.kernel.org
 
-On Thu, 12 Nov 2015 16:21:02 +0800
-yalin wang <yalin.wang2010@gmail.com> wrote:
+Commit 71394fe50146 ("mm: vmalloc: add flag preventing guard hole
+allocation") missed a spot. Currently remove_vm_area() decreases
+vm->size to remove the guard hole page, even when it isn't present.
+This patch only decreases vm->size when VM_NO_GUARD isn't set.
 
-> This crash is caused by NULL pointer deference, in page_to_pfn() marco,
-> when page == NULL :
-> 
-> [  182.639154 ] Unable to handle kernel NULL pointer dereference at virtual address 00000000
+Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+---
+ mm/vmalloc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-
-> add the trace point with TP_CONDITION(page),
-
-I wonder if we still want to trace even if page is NULL?
-
-> avoid trace NULL page.
-> 
-> Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
-> ---
->  include/trace/events/huge_memory.h | 20 ++++++++++++--------
->  mm/huge_memory.c                   |  6 +++---
->  2 files changed, 15 insertions(+), 11 deletions(-)
-> 
-> diff --git a/include/trace/events/huge_memory.h b/include/trace/events/huge_memory.h
-> index 11c59ca..727647b 100644
-> --- a/include/trace/events/huge_memory.h
-> +++ b/include/trace/events/huge_memory.h
-> @@ -45,12 +45,14 @@ SCAN_STATUS
->  #define EM(a, b)	{a, b},
->  #define EMe(a, b)	{a, b}
->  
-> -TRACE_EVENT(mm_khugepaged_scan_pmd,
-> +TRACE_EVENT_CONDITION(mm_khugepaged_scan_pmd,
->  
-> -	TP_PROTO(struct mm_struct *mm, unsigned long pfn, bool writable,
-> +	TP_PROTO(struct mm_struct *mm, struct page *page, bool writable,
->  		 bool referenced, int none_or_zero, int status, int unmapped),
->  
-> -	TP_ARGS(mm, pfn, writable, referenced, none_or_zero, status, unmapped),
-> +	TP_ARGS(mm, page, writable, referenced, none_or_zero, status, unmapped),
-> +
-> +	TP_CONDITION(page),
->  
->  	TP_STRUCT__entry(
->  		__field(struct mm_struct *, mm)
-> @@ -64,7 +66,7 @@ TRACE_EVENT(mm_khugepaged_scan_pmd,
->  
->  	TP_fast_assign(
->  		__entry->mm = mm;
-> -		__entry->pfn = pfn;
-> +		__entry->pfn = page_to_pfn(page);
-
-Instead of the condition, we could have:
-
-	__entry->pfn = page ? page_to_pfn(page) : -1;
-
-
-But if there's no reason to do the tracepoint if page is NULL, then
-this patch is fine. I'm just throwing out this idea.
-
--- Steve
-
->  		__entry->writable = writable;
->  		__entry->referenced = referenced;
->  		__entry->none_or_zero = none_or_zero;
-> @@ -106,12 +108,14 @@ TRACE_EVENT(mm_collapse_huge_page,
->  		__print_symbolic(__entry->status, SCAN_STATUS))
->  );
->  
-> -TRACE_EVENT(mm_collapse_huge_page_isolate,
-> +TRACE_EVENT_CONDITION(mm_collapse_huge_page_isolate,
->  
-> -	TP_PROTO(unsigned long pfn, int none_or_zero,
-> +	TP_PROTO(struct page *page, int none_or_zero,
->  		 bool referenced, bool  writable, int status),
->  
-> -	TP_ARGS(pfn, none_or_zero, referenced, writable, status),
-> +	TP_ARGS(page, none_or_zero, referenced, writable, status),
-> +
-> +	TP_CONDITION(page),
->  
->  	TP_STRUCT__entry(
->  		__field(unsigned long, pfn)
-\
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index d045634..1388c3d 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1443,7 +1443,8 @@ struct vm_struct *remove_vm_area(const void *addr)
+ 		vmap_debug_free_range(va->va_start, va->va_end);
+ 		kasan_free_shadow(vm);
+ 		free_unmap_vmap_area(va);
+-		vm->size -= PAGE_SIZE;
++		if (!(vm->flags & VM_NO_GUARD))
++			vm->size -= PAGE_SIZE;
+ 
+ 		return vm;
+ 	}
+-- 
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
