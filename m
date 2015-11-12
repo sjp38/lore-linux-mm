@@ -1,42 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B2B5B6B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 13:48:39 -0500 (EST)
-Received: by wmec201 with SMTP id c201so47839500wme.0
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 10:48:39 -0800 (PST)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id xt8si20122754wjb.197.2015.11.12.10.48.38
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B8CD6B0038
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 14:12:37 -0500 (EST)
+Received: by wmww144 with SMTP id w144so531992wmw.0
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 11:12:37 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id ci5si20261785wjc.170.2015.11.12.11.12.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Nov 2015 10:48:38 -0800 (PST)
-Received: by wmww144 with SMTP id w144so213255653wmw.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 10:48:38 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Nov 2015 11:12:36 -0800 (PST)
+Date: Thu, 12 Nov 2015 14:12:20 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
+ hierarchy
+Message-ID: <20151112191220.GA25750@cmpxchg.org>
+References: <20151029152546.GG23598@dhcp22.suse.cz>
+ <20151029161009.GA9160@cmpxchg.org>
+ <20151104104239.GG29607@dhcp22.suse.cz>
+ <20151104195037.GA6872@cmpxchg.org>
+ <20151105144002.GB15111@dhcp22.suse.cz>
+ <20151105205522.GA1067@cmpxchg.org>
+ <20151105225200.GA5432@cmpxchg.org>
+ <20151106105724.GG4390@dhcp22.suse.cz>
+ <20151106161953.GA7813@cmpxchg.org>
+ <20151112183620.GC14880@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <1447346238-29153-1-git-send-email-jmarchan@redhat.com>
-References: <1447341424-11466-1-git-send-email-jmarchan@redhat.com>
-	<1447346238-29153-1-git-send-email-jmarchan@redhat.com>
-Date: Thu, 12 Nov 2015 21:48:38 +0300
-Message-ID: <CAPAsAGwExjJzBvDo-LSF1u8wJMCa-0BALxKZ2Se_cxUs8r+29g@mail.gmail.com>
-Subject: Re: [PATCH V2] mm: vmalloc: don't remove inexistent guard hole in remove_vm_area()
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151112183620.GC14880@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@kernel.org>, David Miller <davem@davemloft.net>, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-2015-11-12 19:37 GMT+03:00 Jerome Marchand <jmarchan@redhat.com>:
-> Commit 71394fe50146 ("mm: vmalloc: add flag preventing guard hole
-> allocation") missed a spot. Currently remove_vm_area() decreases
-> vm->size to "remove" the guard hole page, even when it isn't present.
-> All but one users just free the vm_struct rigth away and never access
-> vm->size anyway.
-> Don't touch the size in remove_vm_area() and have __vunmap() use the
-> proper get_vm_area_size() helper.
->
-> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+On Thu, Nov 12, 2015 at 06:36:20PM +0000, Mel Gorman wrote:
+> Bottom line, there is legimate confusion over whether cgroup controllers
+> are going to be enabled by default or not in the future. If they are
+> enabled by default, there is a non-zero cost to that and a change in
+> semantics that people may or may not be surprised by.
 
-Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Thanks for elaborating, Mel.
+
+My understanding is that this is a plain bug. I don't think anybody
+wants to put costs without benefits on their users.
+
+But I'll keep an eye on these reports, and I'll work with the systemd
+people should issues with the kernel interface materialize that would
+force them to enable resource control prematurely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
