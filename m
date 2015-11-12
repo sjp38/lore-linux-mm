@@ -1,46 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F1F66B0254
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 01:06:16 -0500 (EST)
-Received: by lbblt2 with SMTP id lt2so29198085lbb.3
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 22:06:15 -0800 (PST)
-Received: from mail-lf0-x229.google.com (mail-lf0-x229.google.com. [2a00:1450:4010:c07::229])
-        by mx.google.com with ESMTPS id z197si7601038lfc.156.2015.11.11.22.06.12
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id F379C6B0038
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 01:16:04 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so54806830pac.3
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 22:16:04 -0800 (PST)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id sf2si17754692pbc.162.2015.11.11.22.16.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Nov 2015 22:06:12 -0800 (PST)
-Received: by lffz63 with SMTP id z63so28303119lff.0
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 22:06:12 -0800 (PST)
-From: Arkadiusz =?utf-8?q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>
-Subject: Re: memory reclaim problems on fs usage
-Date: Thu, 12 Nov 2015 07:06:10 +0100
-References: <201511102313.36685.arekm@maven.pl> <201511111719.44035.arekm@maven.pl> <201511120719.EBF35970.OtSOHOVFJMFQFL@I-love.SAKURA.ne.jp>
-In-Reply-To: <201511120719.EBF35970.OtSOHOVFJMFQFL@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Nov 2015 22:16:04 -0800 (PST)
+Received: by pasz6 with SMTP id z6so56778936pas.2
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 22:16:03 -0800 (PST)
+Date: Thu, 12 Nov 2015 15:17:01 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 3/3] tools/vm/slabinfo: update struct slabinfo members'
+ types
+Message-ID: <20151112061701.GA498@swordfish>
+References: <1447162326-30626-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1447162326-30626-4-git-send-email-sergey.senozhatsky@gmail.com>
+ <alpine.DEB.2.10.1511111251030.4742@chino.kir.corp.google.com>
+ <20151112011347.GC1651@swordfish>
+ <alpine.DEB.2.10.1511112105200.9296@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <201511120706.10739.arekm@maven.pl>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1511112105200.9296@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: linux-mm@kvack.org, xfs@oss.sgi.com
+To: David Rientjes <rientjes@google.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wednesday 11 of November 2015, Tetsuo Handa wrote:
-> Arkadiusz Mi?kiewicz wrote:
-> > This patch is against which tree? (tried 4.1, 4.2 and 4.3)
->=20
-> Oops. Whitespace-damaged. This patch is for vanilla 4.1.2.
-> Reposting with one condition corrected.
+On (11/11/15 21:07), David Rientjes wrote:
+[..]
+> > > >  	/* Object size */
+> > > > -	unsigned long long min_objsize = max, max_objsize = 0, avg_objsize;
+> > > > +	unsigned int min_objsize = UINT_MAX, max_objsize = 0, avg_objsize;
+> > > >  
+> > > >  	/* Number of partial slabs in a slabcache */
+> > > >  	unsigned long long min_partial = max, max_partial = 0,
+> > > 
+> > > avg_objsize should not be unsigned int.
+> > 
+> > Hm. the assumption is that `avg_objsize' cannot be larger
+> > than `max_objsize', which is
+> > 	`int object_size;' in `struct kmem_cache' from slab_def.h
+> > and
+> > 	`unsigned int object_size;' in `struct kmem_cache' from slab.h.
+> > 
+> > 
+> >  avg_objsize = total_used / total_objects;
+> > 
+> 
 
-Here is log:
+I'm not sure I clearly understand the problems you're pointing
+me to.
 
-http://ixion.pld-linux.org/~arekm/log-mm-1.txt.gz
+> This has nothing to do with object_size in the kernel.
 
-Uncompresses is 1.4MB, so not posting here.
+what we have in slabinfo as slab_size(), ->object_size, etc.
+comming from slub's sysfs attrs:
 
-=2D-=20
-Arkadiusz Mi=C5=9Bkiewicz, arekm / ( maven.pl | pld-linux.org )
+	chdir("/sys/kernel/slab")
+	while readdir
+		...
+		slab->object_size = get_obj("object_size");
+		slab->slab_size = get_obj("slab_size");
+		...
+
+and attr show handlers are:
+
+...
+ static ssize_t slab_size_show(struct kmem_cache *s, char *buf)
+ {
+ 	return sprintf(buf, "%d\n", s->size);
+ }
+ SLAB_ATTR_RO(slab_size);
+
+ static ssize_t object_size_show(struct kmem_cache *s, char *buf)
+ {
+ 	return sprintf(buf, "%d\n", s->object_size);
+ }
+ SLAB_ATTR_RO(object_size);
+...
+
+so those are sprintf("%d") of `struct kmem_cache'-s `int'
+values.
+
+
+> total_used and total_objects are unsigned long long.
+
+yes, that's correct.
+but `total_used / total_objects' cannot be larger that the size
+of the largest object, which is represented in the kernel and
+returned to user space as `int'. it must fit into `unsigned int'.
+
+
+> If you need to convert max_objsize to be unsigned long long as
+> well, that would be better.
+
+... in case if someday `struct kmem_cache' will be updated to keep
+`unsigned long' sized objects and sysfs attrs will do sprintf("%lu")?
+IOW, if slabs will keep objects bigger that 4gig?
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
