@@ -1,41 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id F0F246B0253
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 15:55:59 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so75866452pab.0
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 12:55:59 -0800 (PST)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id qg3si22126358pbb.100.2015.11.12.12.55.59
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D1C1B6B0038
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 16:10:29 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so76214702pab.0
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 13:10:29 -0800 (PST)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id up8si22165101pac.111.2015.11.12.13.10.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Nov 2015 12:55:59 -0800 (PST)
-Received: by pasz6 with SMTP id z6so78440933pas.2
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 12:55:59 -0800 (PST)
-Date: Thu, 12 Nov 2015 12:55:57 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Nov 2015 13:10:28 -0800 (PST)
+Received: by padhx2 with SMTP id hx2so76155001pad.1
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 13:10:28 -0800 (PST)
+Date: Thu, 12 Nov 2015 13:10:27 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH V2] mm: vmalloc: don't remove inexistent guard hole in
- remove_vm_area()
-In-Reply-To: <1447346238-29153-1-git-send-email-jmarchan@redhat.com>
-Message-ID: <alpine.DEB.2.10.1511121255140.10324@chino.kir.corp.google.com>
-References: <1447341424-11466-1-git-send-email-jmarchan@redhat.com> <1447346238-29153-1-git-send-email-jmarchan@redhat.com>
+Subject: Re: [RFC] mempolicy: convert the shared_policy lock to a rwlock
+In-Reply-To: <1447348263-131817-1-git-send-email-nzimmer@sgi.com>
+Message-ID: <alpine.DEB.2.10.1511121301490.10324@chino.kir.corp.google.com>
+References: <1447348263-131817-1-git-send-email-nzimmer@sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: linux-mm@kvack.org, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Thu, 12 Nov 2015, Jerome Marchand wrote:
+On Thu, 12 Nov 2015, Nathan Zimmer wrote:
 
-> Commit 71394fe50146 ("mm: vmalloc: add flag preventing guard hole
-> allocation") missed a spot. Currently remove_vm_area() decreases
-> vm->size to "remove" the guard hole page, even when it isn't present.
-> All but one users just free the vm_struct rigth away and never access
-> vm->size anyway.
-> Don't touch the size in remove_vm_area() and have __vunmap() use the
-> proper get_vm_area_size() helper.
+> When running the SPECint_rate gcc on some very large boxes it was noticed
+> that the system was spending lots of time in mpol_shared_policy_lookup.
+> The gamess benchmark can also show it and is what I mostly used to chase
+> down the issue since the setup for that I found a easier.
 > 
-> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+> To be clear the binaries were on tmpfs because of disk I/O reqruirements.
+> We then used text replication to avoid icache misses and having all the
+> copies banging on the memory where the instruction code resides.
+> This results in us hitting a bottle neck in mpol_shared_policy_lookup
+> since lookup is serialised by the shared_policy lock.
+> 
+> I have only reproduced this on very large (3k+ cores) boxes.  The problem
+> starts showing up at just a few hundred ranks getting worse until it
+> threatens to livelock once it gets large enough.
+> For example on the gamess benchmark at 128 ranks this area consumes only
+> ~1% of time, at 512 ranks it consumes nearly 13%, and at 2k ranks it is
+> over 90%.
+> 
+> To alleviate the contention on this area I converted the spinslock to a
+> rwlock.  This allows the large number of lookups to happen simultaneously.
+> The results were quite good reducing this to consumtion at max ranks to
+> around 2%.
+> 
+
+There're a couple of places in the sp_lookup() comment that would need to 
+be fixed to either correct that this is no longer a spinlock and that the 
+caller must hold the read lock.  The comment for sp_insert() would have to 
+be fixed to specify the caller must hold the write lock.  When that's 
+fixed, feel free to add
 
 Acked-by: David Rientjes <rientjes@google.com>
 
