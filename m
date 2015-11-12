@@ -1,80 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AC1A6B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 03:46:54 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so58712255pac.3
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 00:46:54 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id yi1si18576717pbb.246.2015.11.12.00.46.53
-        for <linux-mm@kvack.org>;
-        Thu, 12 Nov 2015 00:46:53 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20151112080059.GA6835@gmail.com>
-References: <1447111090-8526-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20151110123429.GE19187@pd.tnic>
- <20151110135303.GA11246@node.shutemov.name>
- <20151110144648.GG19187@pd.tnic>
- <20151110150713.GA11956@node.shutemov.name>
- <20151110170447.GH19187@pd.tnic>
- <20151111095101.GA22512@pd.tnic>
- <20151112074854.GA5376@gmail.com>
- <20151112075758.GA20702@node.shutemov.name>
- <20151112080059.GA6835@gmail.com>
-Subject: Re: [PATCH] x86/mm: fix regression with huge pages on PAE
-Content-Transfer-Encoding: 7bit
-Message-Id: <20151112084616.EABFE19B@black.fi.intel.com>
-Date: Thu, 12 Nov 2015 10:46:16 +0200 (EET)
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 16CC26B0253
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 03:51:28 -0500 (EST)
+Received: by wmec201 with SMTP id c201so21623485wme.0
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 00:51:27 -0800 (PST)
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com. [74.125.82.48])
+        by mx.google.com with ESMTPS id n65si7041118wma.13.2015.11.12.00.51.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Nov 2015 00:51:27 -0800 (PST)
+Received: by wmww144 with SMTP id w144so78176573wmw.0
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 00:51:26 -0800 (PST)
+Date: Thu, 12 Nov 2015 09:51:25 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: Give __GFP_NOFAIL allocations access to memory
+ reserves
+Message-ID: <20151112085125.GD1174@dhcp22.suse.cz>
+References: <1447249697-13380-1-git-send-email-mhocko@kernel.org>
+ <20151111155446.GA24431@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151111155446.GA24431@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com, boris.ostrovsky@oracle.com, Toshi Kani <toshi.kani@hpe.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Ingo Molnar wrote:
-> 
-> * Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> 
-> > On Thu, Nov 12, 2015 at 08:48:54AM +0100, Ingo Molnar wrote:
-> > > 
-> > > * Borislav Petkov <bp@alien8.de> wrote:
-> > > 
-> > > > --- a/arch/x86/include/asm/pgtable_types.h
-> > > > +++ b/arch/x86/include/asm/pgtable_types.h
-> > > > @@ -279,17 +279,14 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
-> > > >  static inline pudval_t pud_pfn_mask(pud_t pud)
-> > > >  {
-> > > >  	if (native_pud_val(pud) & _PAGE_PSE)
-> > > > -		return PUD_PAGE_MASK & PHYSICAL_PAGE_MASK;
-> > > > +		return ~((1ULL << PUD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
-> > > >  	else
-> > > >  		return PTE_PFN_MASK;
-> > > >  }
-> > > 
-> > > >  static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
-> > > >  {
-> > > >  	if (native_pmd_val(pmd) & _PAGE_PSE)
-> > > > -		return PMD_PAGE_MASK & PHYSICAL_PAGE_MASK;
-> > > > +		return ~((1ULL << PMD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
-> > > >  	else
-> > > >  		return PTE_PFN_MASK;
-> > > >  }
-> > > 
-> > > So instead of uglifying the code, why not fix the real bug: change the 
-> > > PMD_PAGE_MASK/PUD_PAGE_MASK definitions to be 64-bit everywhere?
+On Wed 11-11-15 10:54:46, Johannes Weiner wrote:
+> On Wed, Nov 11, 2015 at 02:48:17PM +0100, mhocko@kernel.org wrote:
+> > From: Michal Hocko <mhocko@suse.com>
 > > 
-> > *PAGE_MASK are usually applied to virtual addresses. I don't think it
-> > should anything but 'unsigned long'. This is odd use case really.
+> > __GFP_NOFAIL is a big hammer used to ensure that the allocation
+> > request can never fail. This is a strong requirement and as such
+> > it also deserves a special treatment when the system is OOM. The
+> > primary problem here is that the allocation request might have
+> > come with some locks held and the oom victim might be blocked
+> > on the same locks. This is basically an OOM deadlock situation.
+> > 
+> > This patch tries to reduce the risk of such a deadlocks by giving
+> > __GFP_NOFAIL allocations a special treatment and let them dive into
+> > memory reserves after oom killer invocation. This should help them
+> > to make a progress and release resources they are holding. The OOM
+> > victim should compensate for the reserves consumption.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> > 
+> > Hi,
+> > this has been posted previously as a part of larger GFP_NOFS related
+> > patch set (http://lkml.kernel.org/r/1438768284-30927-1-git-send-email-mhocko%40kernel.org)
+> > but Andrea was asking basically the same thing at LSF early this year
+> > (I cannot seem to find it in any public archive though). I think the
+> > patch makes some sense on its own.
 > 
-> So we already have PHYSICAL_PAGE_MASK, why not introduce PHYSICAL_PMD_MASK et al, 
-> instead of uglifying the code?
+> I sent this right after LSF based on Andrea's suggestion:
+> 
+> https://lkml.org/lkml/2015/3/25/37
 
-Okay, makes sense. Check out the patch below.
+Ohh, I completely forgot as it was part of a larger series.
+Thanks for the pointer.
 
-> But, what problems do you expect with having a wider mask than its primary usage? 
-> If it's used for 32-bit values it will be truncated down safely. (But I have not 
-> tested it, so I might be missing some complication.)
+-- 
+Michal Hocko
+SUSE Labs
 
-Yeah, I basically worry about non realized side effect.
-
-And these masks are defined via {PMD,PUD}_PAGE_SIZE. Should we change them
-to 'unsigned long long' too or leave alone? What about PAGE_SIZE and
-PAGE_MASK? Need to be converted too?
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
