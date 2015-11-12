@@ -1,111 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EF5E6B0256
-	for <linux-mm@kvack.org>; Wed, 11 Nov 2015 23:32:49 -0500 (EST)
-Received: by igvi2 with SMTP id i2so7544850igv.0
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 20:32:49 -0800 (PST)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B0D96B0257
+	for <linux-mm@kvack.org>; Wed, 11 Nov 2015 23:32:51 -0500 (EST)
+Received: by pasz6 with SMTP id z6so54057605pas.2
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 20:32:51 -0800 (PST)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id ug6si27463363igb.61.2015.11.11.20.32.43
+        by mx.google.com with ESMTPS id t13si17195704pas.21.2015.11.11.20.32.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 11 Nov 2015 20:32:44 -0800 (PST)
+        Wed, 11 Nov 2015 20:32:45 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v3 04/17] mm: free swp_entry in madvise_free
-Date: Thu, 12 Nov 2015 13:33:00 +0900
-Message-Id: <1447302793-5376-5-git-send-email-minchan@kernel.org>
+Subject: [PATCH v3 07/17] mm: mark stable page dirty in KSM
+Date: Thu, 12 Nov 2015 13:33:03 +0900
+Message-Id: <1447302793-5376-8-git-send-email-minchan@kernel.org>
 In-Reply-To: <1447302793-5376-1-git-send-email-minchan@kernel.org>
 References: <1447302793-5376-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Minchan Kim <minchan@kernel.org>
 
-When I test below piece of code with 12 processes(ie, 512M * 12 = 6G
-consume) on my (3G ram + 12 cpu + 8G swap, the madvise_free is siginficat
-slower (ie, 2x times) than madvise_dontneed.
+The MADV_FREE patchset changes page reclaim to simply free a clean
+anonymous page with no dirty ptes, instead of swapping it out; but
+KSM uses clean write-protected ptes to reference the stable ksm page.
+So be sure to mark that page dirty, so it's never mistakenly discarded.
 
-loop = 5;
-mmap(512M);
-while (loop--) {
-        memset(512M);
-        madvise(MADV_FREE or MADV_DONTNEED);
-}
-
-The reason is lots of swapin.
-
-1) dontneed: 1,612 swapin
-2) madvfree: 879,585 swapin
-
-If we find hinted pages were already swapped out when syscall is called,
-it's pointless to keep the swapped-out pages in pte.
-Instead, let's free the cold page because swapin is more expensive
-than (alloc page + zeroing).
-
-With this patch, it reduced swapin from 879,585 to 1,878 so elapsed time
-
-1) dontneed: 6.10user 233.50system 0:50.44elapsed
-2) madvfree: 6.03user 401.17system 1:30.67elapsed
-2) madvfree + below patch: 6.70user 339.14system 1:04.45elapsed
-
-Acked-by: Michal Hocko <mhocko@suse.com>
+[hughd: adjusted comments]
 Acked-by: Hugh Dickins <hughd@google.com>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/madvise.c | 26 +++++++++++++++++++++++++-
- 1 file changed, 25 insertions(+), 1 deletion(-)
+ mm/ksm.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index a8813f7b37b3..6240a5de4a3a 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -270,6 +270,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 	spinlock_t *ptl;
- 	pte_t *pte, ptent;
- 	struct page *page;
-+	int nr_swap = 0;
- 
- 	split_huge_page_pmd(vma, addr, pmd);
- 	if (pmd_trans_unstable(pmd))
-@@ -280,8 +281,24 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 	for (; addr != end; pte++, addr += PAGE_SIZE) {
- 		ptent = *pte;
- 
--		if (!pte_present(ptent))
-+		if (pte_none(ptent))
- 			continue;
-+		/*
-+		 * If the pte has swp_entry, just clear page table to
-+		 * prevent swap-in which is more expensive rather than
-+		 * (page allocation + zeroing).
-+		 */
-+		if (!pte_present(ptent)) {
-+			swp_entry_t entry;
-+
-+			entry = pte_to_swp_entry(ptent);
-+			if (non_swap_entry(entry))
-+				continue;
-+			nr_swap--;
-+			free_swap_and_cache(entry);
-+			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
-+			continue;
-+		}
- 
- 		page = vm_normal_page(vma, addr, ptent);
- 		if (!page)
-@@ -317,6 +334,13 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 		}
- 	}
- 
-+	if (nr_swap) {
-+		if (current->mm == mm)
-+			sync_mm_rss(mm);
-+
-+		add_mm_counter(mm, MM_SWAPENTS, nr_swap);
-+	}
-+
- 	arch_leave_lazy_mmu_mode();
- 	pte_unmap_unlock(pte - 1, ptl);
- 	cond_resched();
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 7ee101eaacdf..18d2b7afecff 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1053,6 +1053,12 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
+ 			 */
+ 			set_page_stable_node(page, NULL);
+ 			mark_page_accessed(page);
++			/*
++			 * Page reclaim just frees a clean page with no dirty
++			 * ptes: make sure that the ksm page would be swapped.
++			 */
++			if (!PageDirty(page))
++				SetPageDirty(page);
+ 			err = 0;
+ 		} else if (pages_identical(page, kpage))
+ 			err = replace_page(vma, page, kpage, orig_pte);
 -- 
 1.9.1
 
