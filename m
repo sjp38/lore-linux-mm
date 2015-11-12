@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 796866B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 00:46:26 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so54034552pac.3
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 21:46:26 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id ps2si17632227pbb.23.2015.11.11.21.46.25
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F1F66B0254
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 01:06:16 -0500 (EST)
+Received: by lbblt2 with SMTP id lt2so29198085lbb.3
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 22:06:15 -0800 (PST)
+Received: from mail-lf0-x229.google.com (mail-lf0-x229.google.com. [2a00:1450:4010:c07::229])
+        by mx.google.com with ESMTPS id z197si7601038lfc.156.2015.11.11.22.06.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Nov 2015 21:46:25 -0800 (PST)
-Received: by pasz6 with SMTP id z6so55975366pas.2
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 21:46:25 -0800 (PST)
-Date: Wed, 11 Nov 2015 21:46:23 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/3] tools/vm/page-types: suppress gcc warnings
-In-Reply-To: <20151112005455.GA1651@swordfish>
-Message-ID: <alpine.DEB.2.10.1511112120020.9296@chino.kir.corp.google.com>
-References: <1447162326-30626-1-git-send-email-sergey.senozhatsky@gmail.com> <1447162326-30626-3-git-send-email-sergey.senozhatsky@gmail.com> <alpine.DEB.2.10.1511111242060.3565@chino.kir.corp.google.com> <20151112005455.GA1651@swordfish>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Nov 2015 22:06:12 -0800 (PST)
+Received: by lffz63 with SMTP id z63so28303119lff.0
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 22:06:12 -0800 (PST)
+From: Arkadiusz =?utf-8?q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>
+Subject: Re: memory reclaim problems on fs usage
+Date: Thu, 12 Nov 2015 07:06:10 +0100
+References: <201511102313.36685.arekm@maven.pl> <201511111719.44035.arekm@maven.pl> <201511120719.EBF35970.OtSOHOVFJMFQFL@I-love.SAKURA.ne.jp>
+In-Reply-To: <201511120719.EBF35970.OtSOHOVFJMFQFL@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <alpine.DEB.2.10.1511112121022.9296@chino.kir.corp.google.com>
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <201511120706.10739.arekm@maven.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: linux-mm@kvack.org, xfs@oss.sgi.com
 
-On Thu, 12 Nov 2015, Sergey Senozhatsky wrote:
+On Wednesday 11 of November 2015, Tetsuo Handa wrote:
+> Arkadiusz Mi?kiewicz wrote:
+> > This patch is against which tree? (tried 4.1, 4.2 and 4.3)
+>=20
+> Oops. Whitespace-damaged. This patch is for vanilla 4.1.2.
+> Reposting with one condition corrected.
 
-> > This can't possibly be correct, the warnings are legitimate and the result
-> > of the sigsetjmp() in the function.  You may be interested in
-> > returns_twice rather than marking random automatic variables as volatile.
-> 
-> Hm, ok. I saw no probs with `int first' and `end' being volatile
-> 
+Here is log:
 
-This will only happen with the undocumented change in your first patch 
-which adds -O2.
+http://ixion.pld-linux.org/~arekm/log-mm-1.txt.gz
 
-I don't know what version of gcc you're using, but only "first" and "end" 
-being marked volatile isn't sufficient since mere code inspection would 
-show that "off" will also be clobbered -- it's part of the loop.
+Uncompresses is 1.4MB, so not posting here.
+
+=2D-=20
+Arkadiusz Mi=C5=9Bkiewicz, arekm / ( maven.pl | pld-linux.org )
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
