@@ -1,74 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EB3526B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 10:55:51 -0500 (EST)
-Received: by wmww144 with SMTP id w144so206474752wmw.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 07:55:51 -0800 (PST)
-Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
-        by mx.google.com with ESMTPS id g18si38617974wmd.74.2015.11.12.07.55.50
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 203176B0038
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 11:04:14 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so40397461wmv.1
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 08:04:13 -0800 (PST)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
+        by mx.google.com with ESMTPS id m134si20274100wmd.84.2015.11.12.08.04.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Nov 2015 07:55:50 -0800 (PST)
-Received: by wmww144 with SMTP id w144so206474062wmw.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 07:55:50 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Nov 2015 08:04:13 -0800 (PST)
+Received: by wmww144 with SMTP id w144so94937861wmw.0
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 08:04:12 -0800 (PST)
+Date: Thu, 12 Nov 2015 17:04:10 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 3/6] memcg: only account kmem allocations marked as
+ __GFP_ACCOUNT
+Message-ID: <20151112160409.GM1174@dhcp22.suse.cz>
+References: <cover.1447172835.git.vdavydov@virtuozzo.com>
+ <14d7a7f5e696d71793ddd835604de309af1963fd.1447172835.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <1447341424-11466-1-git-send-email-jmarchan@redhat.com>
-References: <1447341424-11466-1-git-send-email-jmarchan@redhat.com>
-Date: Thu, 12 Nov 2015 18:55:50 +0300
-Message-ID: <CAPAsAGxNWhHSNHZWfaOb3NmbubSBGRd8O81L5rw1wMs-n_UgmA@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmalloc: don't remove inexistent guard hole in remove_vm_area()
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <14d7a7f5e696d71793ddd835604de309af1963fd.1447172835.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-2015-11-12 18:17 GMT+03:00 Jerome Marchand <jmarchan@redhat.com>:
-> Commit 71394fe50146 ("mm: vmalloc: add flag preventing guard hole
-> allocation") missed a spot. Currently remove_vm_area() decreases
-> vm->size to remove the guard hole page, even when it isn't present.
-> This patch only decreases vm->size when VM_NO_GUARD isn't set.
->
-> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+On Tue 10-11-15 21:34:04, Vladimir Davydov wrote:
+> Black-list kmem accounting policy (aka __GFP_NOACCOUNT) turned out to be
+> fragile and difficult to maintain, because there seem to be many more
+> allocations that should not be accounted than those that should be.
+> Besides, false accounting an allocation might result in much worse
+> consequences than not accounting at all, namely increased memory
+> consumption due to pinned dead kmem caches.
+> 
+> So this patch switches kmem accounting to the white-policy: now only
+> those kmem allocations that are marked as __GFP_ACCOUNT are accounted to
+> memcg. Currently, no kmem allocations are marked like this. The
+> following patches will mark several kmem allocations that are known to
+> be easily triggered from userspace and therefore should be accounted to
+> memcg.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+
+As mentioned previously I would simply squash 1-3 into a single patch.
+Anyway
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  mm/vmalloc.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index d045634..1388c3d 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1443,7 +1443,8 @@ struct vm_struct *remove_vm_area(const void *addr)
->                 vmap_debug_free_range(va->va_start, va->va_end);
->                 kasan_free_shadow(vm);
->                 free_unmap_vmap_area(va);
-> -               vm->size -= PAGE_SIZE;
-> +               if (!(vm->flags & VM_NO_GUARD))
-> +                       vm->size -= PAGE_SIZE;
->
+>  include/linux/gfp.h        | 4 ++++
+>  include/linux/memcontrol.h | 2 ++
+>  mm/page_alloc.c            | 3 ++-
+>  3 files changed, 8 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 2b917ce34efc..61305a492356 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -30,6 +30,7 @@ struct vm_area_struct;
+>  #define ___GFP_HARDWALL		0x20000u
+>  #define ___GFP_THISNODE		0x40000u
+>  #define ___GFP_RECLAIMABLE	0x80000u
+> +#define ___GFP_ACCOUNT		0x100000u
+>  #define ___GFP_NOTRACK		0x200000u
+>  #define ___GFP_NO_KSWAPD	0x400000u
+>  #define ___GFP_OTHER_NODE	0x800000u
+> @@ -90,6 +91,8 @@ struct vm_area_struct;
+>  #define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL) /* Enforce hardwall cpuset memory allocs */
+>  #define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)/* No fallback, no policies */
+>  #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
+> +#define __GFP_ACCOUNT	((__force gfp_t)___GFP_ACCOUNT)	/* Account to memcg (only relevant
+> +							 * to kmem allocations) */
+>  #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
+>  
+>  #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
+> @@ -112,6 +115,7 @@ struct vm_area_struct;
+>  #define GFP_NOIO	(__GFP_WAIT)
+>  #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
+>  #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
+> +#define GFP_KERNEL_ACCOUNT	(GFP_KERNEL | __GFP_ACCOUNT)
+>  #define GFP_TEMPORARY	(__GFP_WAIT | __GFP_IO | __GFP_FS | \
+>  			 __GFP_RECLAIMABLE)
+>  #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 2103f36b3bd3..c9d9a8e7b45f 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -773,6 +773,8 @@ static inline bool __memcg_kmem_bypass(gfp_t gfp)
+>  {
+>  	if (!memcg_kmem_enabled())
+>  		return true;
+> +	if (!(gfp & __GFP_ACCOUNT))
+> +		return true;
+>  	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
+>  		return true;
+>  	return false;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 446bb36ee59d..8e22f5b27de0 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3420,7 +3420,8 @@ EXPORT_SYMBOL(__free_page_frag);
+>  
+>  /*
+>   * alloc_kmem_pages charges newly allocated pages to the kmem resource counter
+> - * of the current memory cgroup.
+> + * of the current memory cgroup if __GFP_ACCOUNT is set, other than that it is
+> + * equivalent to alloc_pages.
+>   *
+>   * It should be used when the caller would like to use kmalloc, but since the
+>   * allocation is large, it has to fall back to the page allocator.
+> -- 
+> 2.1.4
 
-I'd fix this in another way. I think that remove_vm_area() shouldn't
-change vm's size, IMO it doesn't make sense.
-The only caller who cares about vm's size after removing is __vunmap():
-         area = remove_vm_area(addr);
-         ....
-         debug_check_no_locks_freed(addr, area->size);
-         debug_check_no_obj_freed(addr, area->size);
-
-We already have proper get_vm_area_size() helper which takes
-VM_NO_GUARD into account.
-So I think we should use that helper for debug_check_no_*() and just
-remove 'vm->size -= PAGE_SIZE;' line
-from remove_vm_area()
-
-
-
->                 return vm;
->         }
-> --
-> 2.4.3
->
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
