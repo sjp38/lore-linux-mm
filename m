@@ -1,129 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E15CC6B0253
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 16:28:32 -0500 (EST)
-Received: by lbbkw15 with SMTP id kw15so43114999lbb.0
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 13:28:32 -0800 (PST)
-Received: from mail-lf0-x22a.google.com (mail-lf0-x22a.google.com. [2a00:1450:4010:c07::22a])
-        by mx.google.com with ESMTPS id jb6si11406140lbc.123.2015.11.12.13.28.28
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Nov 2015 13:28:29 -0800 (PST)
-Received: by lfdo63 with SMTP id o63so41853319lfd.2
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 13:28:28 -0800 (PST)
-From: Arkadiusz =?utf-8?q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>
-Subject: Re: memory reclaim problems on fs usage
-Date: Thu, 12 Nov 2015 22:28:26 +0100
-References: <201511102313.36685.arekm@maven.pl> <201511120706.10739.arekm@maven.pl> <56449E44.7020407@I-love.SAKURA.ne.jp>
-In-Reply-To: <56449E44.7020407@I-love.SAKURA.ne.jp>
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 506336B0038
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 17:52:10 -0500 (EST)
+Received: by igvi2 with SMTP id i2so25180186igv.0
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 14:52:10 -0800 (PST)
+Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
+        by mx.google.com with ESMTP id u93si20888068ioi.92.2015.11.12.14.52.09
+        for <linux-mm@kvack.org>;
+        Thu, 12 Nov 2015 14:52:09 -0800 (PST)
+Reply-To: <abanman@sgi.com>
+From: Andrew Banman <abanman@sgi.com>
+Subject: [BUG] init_memory_block adds missing sections to memory_block on
+ large system
+Message-ID: <56451820.7000904@sgi.com>
+Date: Thu, 12 Nov 2015 16:52:16 -0600
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <201511122228.26399.arekm@maven.pl>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: linux-mm@kvack.org, xfs@oss.sgi.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: abanman@sgi.com, Russ Anderson <rja@sgi.com>, Alex Thorlton <athorlton@sgi.com>, gregkh@linuxfoundation.org, akpm@linux-foundation.org, sjenning@linux.vnet.ibm.com, nfont@austin.ibm.com, zhong@linux.vnet.ibm.com
 
-On Thursday 12 of November 2015, Tetsuo Handa wrote:
-> On 2015/11/12 15:06, Arkadiusz Mi=C5=9Bkiewicz wrote:
-> > On Wednesday 11 of November 2015, Tetsuo Handa wrote:
-> >> Arkadiusz Mi?kiewicz wrote:
-> >>> This patch is against which tree? (tried 4.1, 4.2 and 4.3)
-> >>=20
-> >> Oops. Whitespace-damaged. This patch is for vanilla 4.1.2.
-> >> Reposting with one condition corrected.
-> >=20
-> > Here is log:
-> >=20
-> > http://ixion.pld-linux.org/~arekm/log-mm-1.txt.gz
-> >=20
-> > Uncompresses is 1.4MB, so not posting here.
->=20
-> Thank you for the log. The result is unexpected for me.
+When block_size_bytes is set to 2GB (default behavior for systems with 64GB
+or more memory) init_memory_block runs the risk of adding non-present memory
+sections to a memory block. These are sections that were not discovered in
+sparse_init_one_section and so do not have a valid mem_map. Every pfn 
+associated with missing sections is invalid:
+!SECTION_MARKED_PRESENT -> !SECTION_HAS_MEM_MAP -> pfn_valid = false.
 
-[...]
+The problem is that memory blocks are set to always span the full number of
+sections per block, which runs the risk of including missing memory sections:
 
->=20
-> vmstat_update() and submit_flushes() remained pending for about 110
-> seconds. If xlog_cil_push_work() were spinning inside GFP_NOFS allocation,
-> it should be reported as MemAlloc: traces, but no such lines are recorded.
-> I don't know why xlog_cil_push_work() did not call schedule() for so long.
-> Anyway, applying
-> http://lkml.kernel.org/r/20151111160336.GD1432@dhcp22.suse.cz should solve
-> vmstat_update() part.
+drivers/base/memory.c
+---
+614        mem->start_section_nr =
+615                        base_memory_block_id(scn_nr) * sections_per_block;
+616        mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
 
-To apply that patch on top of 4.1.13 I also had to apply patches listed bel=
-ow.=20
+Relevant commits:
+cb5e39b8 - drivers: base: refactor add_memory_section to add_memory_block
+d3360164 - memory hotplug: Update phys_index to [start|end]_section_nr
+56a3c655 - memory-hotplug: update documentation ... and remove end_phys_index
 
-So in summary appllied:
-http://sprunge.us/GYBb
-http://sprunge.us/XWUX
-http://sprunge.us/jZjV
+printks (below) show which memory sections are getting SECTION_MARKED_PRESENT
+and SECTION_HAS_MEM_MAP, and the start & end section nums for each memory block.
+You can see that memory16 spans sections 256 through 271, but sections 264 
+through 511 are missing.
 
-(Could try http://lkml.kernel.org/r/20151111160336.GD1432@dhcp22.suse.cz on=
-ly=20
-if there is version for 4.1 tree somewhere)
+I found the problem when attempting to offline a block with missing sections.
+In test_pages_in_a_zone, pfn_valid_within always returns 1 since
+CONFIG_HOLES_IN_ZONE* is not set, thereby allowing an invalid pfn from a missing
+section to make its way through the rest of the code - quickly causing the 
+system to drop to kdb (see below). This was on the recent 4.3 kernel.
 
-commit 0aaa29a56e4fb0fc9e24edb649e2733a672ca099
-Author: Mel Gorman <mgorman@techsingularity.net>
-Date:   Fri Nov 6 16:28:37 2015 -0800
+I can't tell what the desired behavior is supposed to be. Was it intended for 
+memory blocks to have missing sections in order to give them a uniform number of
+sections? If that's the case, then pfn_valid_within is dangerous. Or is what I
+describe bad behavior, and memory blocks should only encompass valid pfns?
+OR is the real bug the fact that we have missing sections to begin with?
 
-    mm, page_alloc: reserve pageblocks for high-order atomic allocations on=
-=20
-demand
+Looking at the loops in memory_dev_init and add_memory_block you can see how
+a lot can go wrong depending on what sections are missing. For example, say
+section 48 was missing on this same system, then memory3 would start at
+section 49 and end at 64. That wouldn't stop memory4 from also starting at
+section 64. You could offline mem3 and take part of mem4 with it!
 
-commit 974a786e63c96a2401a78ddba926f34c128474f1
-Author: Mel Gorman <mgorman@techsingularity.net>
-Date:   Fri Nov 6 16:28:34 2015 -0800
+I've opened up a bugzilla where you can see more detailed output:
+https://bugzilla.kernel.org/show_bug.cgi?id=107781
 
-    mm, page_alloc: remove MIGRATE_RESERVE
+Any advice would be great,
 
-commit c2d42c16ad83006a706d83e51a7268db04af733a
-Author: Andrew Morton <akpm@linux-foundation.org>
-Date:   Thu Nov 5 18:48:43 2015 -0800
+Thanks!
 
-    mm/vmstat.c: uninline node_page_state()
+Andrew Banman
 
-commit 176bed1de5bf977938cad26551969eca8f0883b1
-Author: Linus Torvalds <torvalds@linux-foundation.org>
-Date:   Thu Oct 15 13:01:50 2015 -0700
+*Note that CONFIG_HOLES_IN_ZONE is not available on x86, and setting it would be
+inappropriate in this case - the problem is missing sections, not holes in a
+MAX_ORDER_NR_PAGES.
 
-    vmstat: explicitly schedule per-cpu work on the CPU we need it to run on
+--------------------------------------------------------------------------------
 
+Boot printks show which memory sections are present (for brevity I've omitted
+sequential runs of present sections):
 
-[...]
+8<---
+[    0.000000] ABANMAN section 0 MARKED_PRESENT
+...
+[    0.000000] ABANMAN section 15 MARKED_PRESENT
+[    0.000000] ABANMAN section 32 MARKED_PRESENT
+[    0.000000] ABANMAN section 33 MARKED_PRESENT
+...
+[    0.000000] ABANMAN section 256 MARKED_PRESENT
+[    0.000000] ABANMAN section 257 MARKED_PRESENT
+[    0.000000] ABANMAN section 258 MARKED_PRESENT
+[    0.000000] ABANMAN section 259 MARKED_PRESENT
+[    0.000000] ABANMAN section 260 MARKED_PRESENT
+[    0.000000] ABANMAN section 261 MARKED_PRESENT
+[    0.000000] ABANMAN section 262 MARKED_PRESENT
+[    0.000000] ABANMAN section 263 MARKED_PRESENT
+[    0.000000] ABANMAN section 512 MARKED_PRESENT
+[    0.000000] ABANMAN section 513 MARKED_PRESENT
+...
+[    0.000000] ABANMAN section 759 MARKED_PRESENT
+...
+[    1.154561] Using 2GB memory block size for large-memory system
+[    1.161219] ABANMAN memory0 registered: sec_start 0 end 15
+[    1.167395] ABANMAN memory2 registered: sec_start 32 end 47
+[    1.173659] ABANMAN memory3 registered: sec_start 48 end 63
+[    1.179928] ABANMAN memory4 registered: sec_start 64 end 79
+[    1.186193] ABANMAN memory5 registered: sec_start 80 end 95
+[    1.192450] ABANMAN memory6 registered: sec_start 96 end 111
+[    1.198794] ABANMAN memory7 registered: sec_start 112 end 127
+[    1.205225] ABANMAN memory8 registered: sec_start 128 end 143
+[    1.211664] ABANMAN memory9 registered: sec_start 144 end 159
+[    1.218102] ABANMAN memory10 registered: sec_start 160 end 175
+[    1.224633] ABANMAN memory11 registered: sec_start 176 end 191
+[    1.231166] ABANMAN memory12 registered: sec_start 192 end 207
+[    1.237706] ABANMAN memory13 registered: sec_start 208 end 223
+[    1.244235] ABANMAN memory14 registered: sec_start 224 end 239
+[    1.250777] ABANMAN memory15 registered: sec_start 240 end 255
+[    1.257304] ABANMAN memory16 registered: sec_start 256 end 271
+[    1.263843] ABANMAN memory32 registered: sec_start 512 end 527
+...
+[    1.361838] ABANMAN memory47 registered: sec_start 752 end 767
+--->8
 
->=20
-> Well, what steps should we try next for isolating the problem?
->=20
-> Swap is not used at all. Turning off swap might help.
+Offlining memory16 crashes the system:
 
-Disabled swap.
-
->=20
-> [ 8633.753574] Free swap  =3D 117220800kB
-> [ 8633.753576] Total swap =3D 117220820kB
->=20
-> Turning off perf might also help.
->=20
-> [ 5001.394085] perf interrupt took too long (2505 > 2495), lowering
-> kernel.perf_event_max_sample_rate to 50100
-
-Didn't find a way to disable perf. kernel .config option gets autoenabled b=
-y=20
-some dependency. So left this untouched.
-
-
-With mentioned patches I wasn't able to reproduce memory allocation problem=
-=20
-(still trying though).=20
-
-Current debug log: http://ixion.pld-linux.org/~arekm/log-mm-2.txt.gz
-
-=2D-=20
-Arkadiusz Mi=C5=9Bkiewicz, arekm / ( maven.pl | pld-linux.org )
+8<---
+# echo 0 > /sys/devices/system/memory/memory16/online
+Call Trace:
+ [<ffffffff813af90f>] memory_subsys_offline+0x5f/0x90
+ [<ffffffff8139acd5>] device_offline+0x85/0xb0
+ [<ffffffff8139adda>] online_store+0x3a/0x80
+ [<ffffffff8120f7ee>] sysfs_write_file+0xbe/0x140
+ [<ffffffff811a1bd8>] vfs_write+0xb8/0x1e0
+ [<ffffffff811a25f8>] SyS_write+0x48/0xa0
+ [<ffffffff8151f289>] system_call_fastpath+0x16/0x1b
+ [<00007ffff748dd30>] 0x7ffff748dd2f
+--->8
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
