@@ -1,115 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 203176B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 11:04:14 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so40397461wmv.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 08:04:13 -0800 (PST)
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
-        by mx.google.com with ESMTPS id m134si20274100wmd.84.2015.11.12.08.04.12
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 033D66B0038
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 11:17:45 -0500 (EST)
+Received: by wmww144 with SMTP id w144so95530528wmw.0
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 08:17:44 -0800 (PST)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id t18si20340767wme.69.2015.11.12.08.17.42
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Nov 2015 08:04:13 -0800 (PST)
-Received: by wmww144 with SMTP id w144so94937861wmw.0
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 08:04:12 -0800 (PST)
-Date: Thu, 12 Nov 2015 17:04:10 +0100
+        Thu, 12 Nov 2015 08:17:42 -0800 (PST)
+Received: by wmww144 with SMTP id w144so207424086wmw.1
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 08:17:42 -0800 (PST)
+Date: Thu, 12 Nov 2015 17:17:41 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 3/6] memcg: only account kmem allocations marked as
- __GFP_ACCOUNT
-Message-ID: <20151112160409.GM1174@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 4/6] slab: add SLAB_ACCOUNT flag
+Message-ID: <20151112161741.GN1174@dhcp22.suse.cz>
 References: <cover.1447172835.git.vdavydov@virtuozzo.com>
- <14d7a7f5e696d71793ddd835604de309af1963fd.1447172835.git.vdavydov@virtuozzo.com>
+ <1ce23e932ea53f47a3376de90b21a9db8293bd6c.1447172835.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <14d7a7f5e696d71793ddd835604de309af1963fd.1447172835.git.vdavydov@virtuozzo.com>
+In-Reply-To: <1ce23e932ea53f47a3376de90b21a9db8293bd6c.1447172835.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@virtuozzo.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue 10-11-15 21:34:04, Vladimir Davydov wrote:
-> Black-list kmem accounting policy (aka __GFP_NOACCOUNT) turned out to be
-> fragile and difficult to maintain, because there seem to be many more
-> allocations that should not be accounted than those that should be.
-> Besides, false accounting an allocation might result in much worse
-> consequences than not accounting at all, namely increased memory
-> consumption due to pinned dead kmem caches.
+On Tue 10-11-15 21:34:05, Vladimir Davydov wrote:
+> Currently, if we want to account all objects of a particular kmem cache,
+> we have to pass __GFP_ACCOUNT to each kmem_cache_alloc call, which is
+> inconvenient. This patch introduces SLAB_ACCOUNT flag which if passed to
+> kmem_cache_create will force accounting for every allocation from this
+> cache even if __GFP_ACCOUNT is not passed.
+
+Yes this is much better and less error prone for dedicated caches.
+
+> This patch does not make any of the existing caches use this flag - it
+> will be done later in the series.
 > 
-> So this patch switches kmem accounting to the white-policy: now only
-> those kmem allocations that are marked as __GFP_ACCOUNT are accounted to
-> memcg. Currently, no kmem allocations are marked like this. The
-> following patches will mark several kmem allocations that are known to
-> be easily triggered from userspace and therefore should be accounted to
-> memcg.
-> 
+> Note, a cache with SLAB_ACCOUNT cannot be merged with a cache w/o
+> SLAB_ACCOUNT, i.e. using this flag will probably reduce the number of
+> merged slabs even if kmem accounting is not used (only compiled in).
+
+I would expect some reasoning why this is the case. Why cannot caches of
+the same memcg be merged? I remember you have mentioned something in the
+previous discussion with Tejun but it should be in the changelog as well
+IMO.
+
+> Suggested-by: Tejun Heo <tj@kernel.org>
 > Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-As mentioned previously I would simply squash 1-3 into a single patch.
-Anyway
+I am not sufficiently qualified to judge the slab implementation
+specifics but for the overal approach
+
 Acked-by: Michal Hocko <mhocko@suse.com>
 
 > ---
->  include/linux/gfp.h        | 4 ++++
->  include/linux/memcontrol.h | 2 ++
->  mm/page_alloc.c            | 3 ++-
->  3 files changed, 8 insertions(+), 1 deletion(-)
+>  include/linux/memcontrol.h | 15 +++++++--------
+>  include/linux/slab.h       |  5 +++++
+>  mm/memcontrol.c            |  8 +++++++-
+>  mm/slab.h                  |  5 +++--
+>  mm/slab_common.c           |  3 ++-
+>  mm/slub.c                  |  2 ++
+>  6 files changed, 26 insertions(+), 12 deletions(-)
 > 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 2b917ce34efc..61305a492356 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -30,6 +30,7 @@ struct vm_area_struct;
->  #define ___GFP_HARDWALL		0x20000u
->  #define ___GFP_THISNODE		0x40000u
->  #define ___GFP_RECLAIMABLE	0x80000u
-> +#define ___GFP_ACCOUNT		0x100000u
->  #define ___GFP_NOTRACK		0x200000u
->  #define ___GFP_NO_KSWAPD	0x400000u
->  #define ___GFP_OTHER_NODE	0x800000u
-> @@ -90,6 +91,8 @@ struct vm_area_struct;
->  #define __GFP_HARDWALL   ((__force gfp_t)___GFP_HARDWALL) /* Enforce hardwall cpuset memory allocs */
->  #define __GFP_THISNODE	((__force gfp_t)___GFP_THISNODE)/* No fallback, no policies */
->  #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE) /* Page is reclaimable */
-> +#define __GFP_ACCOUNT	((__force gfp_t)___GFP_ACCOUNT)	/* Account to memcg (only relevant
-> +							 * to kmem allocations) */
->  #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)  /* Don't track with kmemcheck */
->  
->  #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
-> @@ -112,6 +115,7 @@ struct vm_area_struct;
->  #define GFP_NOIO	(__GFP_WAIT)
->  #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
->  #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
-> +#define GFP_KERNEL_ACCOUNT	(GFP_KERNEL | __GFP_ACCOUNT)
->  #define GFP_TEMPORARY	(__GFP_WAIT | __GFP_IO | __GFP_FS | \
->  			 __GFP_RECLAIMABLE)
->  #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL)
 > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 2103f36b3bd3..c9d9a8e7b45f 100644
+> index c9d9a8e7b45f..5c97265c1c6e 100644
 > --- a/include/linux/memcontrol.h
 > +++ b/include/linux/memcontrol.h
-> @@ -773,6 +773,8 @@ static inline bool __memcg_kmem_bypass(gfp_t gfp)
+> @@ -766,15 +766,13 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
+>  	return memcg ? memcg->kmemcg_id : -1;
+>  }
+>  
+> -struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep);
+> +struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
+>  void __memcg_kmem_put_cache(struct kmem_cache *cachep);
+>  
+> -static inline bool __memcg_kmem_bypass(gfp_t gfp)
+> +static inline bool __memcg_kmem_bypass(void)
 >  {
 >  	if (!memcg_kmem_enabled())
 >  		return true;
-> +	if (!(gfp & __GFP_ACCOUNT))
-> +		return true;
+> -	if (!(gfp & __GFP_ACCOUNT))
+> -		return true;
 >  	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
 >  		return true;
 >  	return false;
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 446bb36ee59d..8e22f5b27de0 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3420,7 +3420,8 @@ EXPORT_SYMBOL(__free_page_frag);
+> @@ -791,7 +789,9 @@ static inline bool __memcg_kmem_bypass(gfp_t gfp)
+>  static __always_inline int memcg_kmem_charge(struct page *page,
+>  					     gfp_t gfp, int order)
+>  {
+> -	if (__memcg_kmem_bypass(gfp))
+> +	if (__memcg_kmem_bypass())
+> +		return 0;
+> +	if (!(gfp & __GFP_ACCOUNT))
+>  		return 0;
+>  	return __memcg_kmem_charge(page, gfp, order);
+>  }
+> @@ -810,16 +810,15 @@ static __always_inline void memcg_kmem_uncharge(struct page *page, int order)
+>  /**
+>   * memcg_kmem_get_cache: selects the correct per-memcg cache for allocation
+>   * @cachep: the original global kmem cache
+> - * @gfp: allocation flags.
+>   *
+>   * All memory allocated from a per-memcg cache is charged to the owner memcg.
+>   */
+>  static __always_inline struct kmem_cache *
+>  memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+>  {
+> -	if (__memcg_kmem_bypass(gfp))
+> +	if (__memcg_kmem_bypass())
+>  		return cachep;
+> -	return __memcg_kmem_get_cache(cachep);
+> +	return __memcg_kmem_get_cache(cachep, gfp);
+>  }
+>  
+>  static __always_inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 7c82e3b307a3..20168c6ffe89 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -86,6 +86,11 @@
+>  #else
+>  # define SLAB_FAILSLAB		0x00000000UL
+>  #endif
+> +#ifdef CONFIG_MEMCG_KMEM
+> +# define SLAB_ACCOUNT		0x04000000UL	/* Account to memcg */
+> +#else
+> +# define SLAB_ACCOUNT		0x00000000UL
+> +#endif
+>  
+>  /* The following flags affect the page allocator grouping pages by mobility */
+>  #define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index bc502e590366..06e4f538e38e 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2332,7 +2332,7 @@ static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
+>   * Can't be called in interrupt context or from kernel threads.
+>   * This function needs to be called with rcu_read_lock() held.
+>   */
+> -struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep)
+> +struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+>  {
+>  	struct mem_cgroup *memcg;
+>  	struct kmem_cache *memcg_cachep;
+> @@ -2340,6 +2340,12 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep)
+>  
+>  	VM_BUG_ON(!is_root_cache(cachep));
+>  
+> +	if (cachep->flags & SLAB_ACCOUNT)
+> +		gfp |= __GFP_ACCOUNT;
+> +
+> +	if (!(gfp & __GFP_ACCOUNT))
+> +		return cachep;
+> +
+>  	if (current->memcg_kmem_skip_account)
+>  		return cachep;
+>  
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 27492eb678f7..2778de8673bd 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -128,10 +128,11 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
+>  
+>  #if defined(CONFIG_SLAB)
+>  #define SLAB_CACHE_FLAGS (SLAB_MEM_SPREAD | SLAB_NOLEAKTRACE | \
+> -			  SLAB_RECLAIM_ACCOUNT | SLAB_TEMPORARY | SLAB_NOTRACK)
+> +			  SLAB_RECLAIM_ACCOUNT | SLAB_TEMPORARY | \
+> +			  SLAB_NOTRACK | SLAB_ACCOUNT)
+>  #elif defined(CONFIG_SLUB)
+>  #define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
+> -			  SLAB_TEMPORARY | SLAB_NOTRACK)
+> +			  SLAB_TEMPORARY | SLAB_NOTRACK | SLAB_ACCOUNT)
+>  #else
+>  #define SLAB_CACHE_FLAGS (0)
+>  #endif
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index d88e97c10a2e..698b2c97b22b 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -37,7 +37,8 @@ struct kmem_cache *kmem_cache;
+>  		SLAB_TRACE | SLAB_DESTROY_BY_RCU | SLAB_NOLEAKTRACE | \
+>  		SLAB_FAILSLAB)
+>  
+> -#define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | SLAB_NOTRACK)
+> +#define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | \
+> +			 SLAB_NOTRACK | SLAB_ACCOUNT)
 >  
 >  /*
->   * alloc_kmem_pages charges newly allocated pages to the kmem resource counter
-> - * of the current memory cgroup.
-> + * of the current memory cgroup if __GFP_ACCOUNT is set, other than that it is
-> + * equivalent to alloc_pages.
->   *
->   * It should be used when the caller would like to use kmalloc, but since the
->   * allocation is large, it has to fall back to the page allocator.
+>   * Merge control. If this is set then no merging of slab caches will occur.
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 75a5fa92ac2a..b037cea9cfeb 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -5247,6 +5247,8 @@ static char *create_unique_id(struct kmem_cache *s)
+>  		*p++ = 'F';
+>  	if (!(s->flags & SLAB_NOTRACK))
+>  		*p++ = 't';
+> +	if (s->flags & SLAB_ACCOUNT)
+> +		*p++ = 'A';
+>  	if (p != name + 1)
+>  		*p++ = '-';
+>  	p += sprintf(p, "%07d", s->size);
 > -- 
 > 2.1.4
 
