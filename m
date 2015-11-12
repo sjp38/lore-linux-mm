@@ -1,108 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id F379C6B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 01:16:04 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so54806830pac.3
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 22:16:04 -0800 (PST)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id sf2si17754692pbc.162.2015.11.11.22.16.03
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D7B0A6B0038
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 02:15:10 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so56519345pad.1
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 23:15:10 -0800 (PST)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id nn10si18094798pbc.131.2015.11.11.23.15.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Nov 2015 22:16:04 -0800 (PST)
-Received: by pasz6 with SMTP id z6so56778936pas.2
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 22:16:03 -0800 (PST)
-Date: Thu, 12 Nov 2015 15:17:01 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 3/3] tools/vm/slabinfo: update struct slabinfo members'
- types
-Message-ID: <20151112061701.GA498@swordfish>
-References: <1447162326-30626-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1447162326-30626-4-git-send-email-sergey.senozhatsky@gmail.com>
- <alpine.DEB.2.10.1511111251030.4742@chino.kir.corp.google.com>
- <20151112011347.GC1651@swordfish>
- <alpine.DEB.2.10.1511112105200.9296@chino.kir.corp.google.com>
-MIME-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Nov 2015 23:15:10 -0800 (PST)
+Received: by pasz6 with SMTP id z6so58370510pas.2
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 23:15:09 -0800 (PST)
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1511112105200.9296@chino.kir.corp.google.com>
+Mime-Version: 1.0 (Mac OS X Mail 9.0 \(3094\))
+Subject: Re: [PATCH V2] mm: fix kernel crash in khugepaged thread
+From: yalin wang <yalin.wang2010@gmail.com>
+In-Reply-To: <20151105085033.GB7614@node.shutemov.name>
+Date: Thu, 12 Nov 2015 15:15:01 +0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <50393110-D4AD-4FAE-B3A6-63C2DE0730CC@gmail.com>
+References: <1445855960-28677-1-git-send-email-yalin.wang2010@gmail.com> <20151029003551.GB12018@node.shutemov.name> <563B0F72.5030908@suse.cz> <20151105085033.GB7614@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, jmarchan@redhat.com, mgorman@techsingularity.net, Ebru Akagunduz <ebru.akagunduz@gmail.com>, willy@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On (11/11/15 21:07), David Rientjes wrote:
-[..]
-> > > >  	/* Object size */
-> > > > -	unsigned long long min_objsize = max, max_objsize = 0, avg_objsize;
-> > > > +	unsigned int min_objsize = UINT_MAX, max_objsize = 0, avg_objsize;
-> > > >  
-> > > >  	/* Number of partial slabs in a slabcache */
-> > > >  	unsigned long long min_partial = max, max_partial = 0,
-> > > 
-> > > avg_objsize should not be unsigned int.
-> > 
-> > Hm. the assumption is that `avg_objsize' cannot be larger
-> > than `max_objsize', which is
-> > 	`int object_size;' in `struct kmem_cache' from slab_def.h
-> > and
-> > 	`unsigned int object_size;' in `struct kmem_cache' from slab.h.
-> > 
-> > 
-> >  avg_objsize = total_used / total_objects;
-> > 
-> 
-
-I'm not sure I clearly understand the problems you're pointing
-me to.
-
-> This has nothing to do with object_size in the kernel.
-
-what we have in slabinfo as slab_size(), ->object_size, etc.
-comming from slub's sysfs attrs:
-
-	chdir("/sys/kernel/slab")
-	while readdir
-		...
-		slab->object_size = get_obj("object_size");
-		slab->slab_size = get_obj("slab_size");
-		...
-
-and attr show handlers are:
-
-...
- static ssize_t slab_size_show(struct kmem_cache *s, char *buf)
- {
- 	return sprintf(buf, "%d\n", s->size);
- }
- SLAB_ATTR_RO(slab_size);
-
- static ssize_t object_size_show(struct kmem_cache *s, char *buf)
- {
- 	return sprintf(buf, "%d\n", s->object_size);
- }
- SLAB_ATTR_RO(object_size);
-...
-
-so those are sprintf("%d") of `struct kmem_cache'-s `int'
-values.
-
-
-> total_used and total_objects are unsigned long long.
-
-yes, that's correct.
-but `total_used / total_objects' cannot be larger that the size
-of the largest object, which is represented in the kernel and
-returned to user space as `int'. it must fit into `unsigned int'.
-
-
-> If you need to convert max_objsize to be unsigned long long as
-> well, that would be better.
-
-... in case if someday `struct kmem_cache' will be updated to keep
-`unsigned long' sized objects and sysfs attrs will do sprintf("%lu")?
-IOW, if slabs will keep objects bigger that 4gig?
-
-	-ss
+Ok
+i will send a V3 patch.
+> On Nov 5, 2015, at 16:50, Kirill A. Shutemov <kirill@shutemov.name> =
+wrote:
+>=20
+> On Thu, Nov 05, 2015 at 09:12:34AM +0100, Vlastimil Babka wrote:
+>> On 10/29/2015 01:35 AM, Kirill A. Shutemov wrote:
+>>>> @@ -2605,9 +2603,9 @@ out_unmap:
+>>>> 		/* collapse_huge_page will return with the mmap_sem =
+released */
+>>>> 		collapse_huge_page(mm, address, hpage, vma, node);
+>>>> 	}
+>>>> -out:
+>>>> -	trace_mm_khugepaged_scan_pmd(mm, page_to_pfn(page), writable, =
+referenced,
+>>>> -				     none_or_zero, result, unmapped);
+>>>> +	trace_mm_khugepaged_scan_pmd(mm, pte_present(pteval) ?
+>>>> +			pte_pfn(pteval) : -1, writable, referenced,
+>>>> +			none_or_zero, result, unmapped);
+>>>=20
+>>> maybe passing down pte instead of pfn?
+>>=20
+>> Maybe just pass the page, and have tracepoint's fast assign check for =
+!NULL and
+>> do page_to_pfn itself? That way the complexity and overhead is only =
+in the
+>> tracepoint and when enabled.
+>=20
+> Agreed.
+>=20
+> --=20
+> Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
