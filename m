@@ -1,145 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DCF36B0254
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 12:11:25 -0500 (EST)
-Received: by igvg19 with SMTP id g19so18738843igv.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 09:11:25 -0800 (PST)
-Received: from relay.sgi.com (relay1.sgi.com. [192.48.180.66])
-        by mx.google.com with ESMTP id f133si19154340ioe.30.2015.11.12.09.11.24
-        for <linux-mm@kvack.org>;
-        Thu, 12 Nov 2015 09:11:24 -0800 (PST)
-From: Nathan Zimmer <nzimmer@sgi.com>
-Subject: [RFC] mempolicy: convert the shared_policy lock to a rwlock
-Date: Thu, 12 Nov 2015 11:11:03 -0600
-Message-Id: <1447348263-131817-1-git-send-email-nzimmer@sgi.com>
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E7B1B6B0038
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 13:36:24 -0500 (EST)
+Received: by wmec201 with SMTP id c201so105169273wme.1
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 10:36:24 -0800 (PST)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id kj9si20125158wjb.72.2015.11.12.10.36.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Nov 2015 10:36:23 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id C4D6B989E3
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 18:36:22 +0000 (UTC)
+Date: Thu, 12 Nov 2015 18:36:20 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 5/8] mm: memcontrol: account socket memory on unified
+ hierarchy
+Message-ID: <20151112183620.GC14880@techsingularity.net>
+References: <20151027164227.GB7749@cmpxchg.org>
+ <20151029152546.GG23598@dhcp22.suse.cz>
+ <20151029161009.GA9160@cmpxchg.org>
+ <20151104104239.GG29607@dhcp22.suse.cz>
+ <20151104195037.GA6872@cmpxchg.org>
+ <20151105144002.GB15111@dhcp22.suse.cz>
+ <20151105205522.GA1067@cmpxchg.org>
+ <20151105225200.GA5432@cmpxchg.org>
+ <20151106105724.GG4390@dhcp22.suse.cz>
+ <20151106161953.GA7813@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20151106161953.GA7813@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Nathan Zimmer <nzimmer@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>, David Miller <davem@davemloft.net>, akpm@linux-foundation.org, vdavydov@virtuozzo.com, tj@kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-When running the SPECint_rate gcc on some very large boxes it was noticed
-that the system was spending lots of time in mpol_shared_policy_lookup.
-The gamess benchmark can also show it and is what I mostly used to chase
-down the issue since the setup for that I found a easier.
+On Fri, Nov 06, 2015 at 11:19:53AM -0500, Johannes Weiner wrote:
+> On Fri, Nov 06, 2015 at 11:57:24AM +0100, Michal Hocko wrote:
+> > On Thu 05-11-15 17:52:00, Johannes Weiner wrote:
+> > > On Thu, Nov 05, 2015 at 03:55:22PM -0500, Johannes Weiner wrote:
+> > > > On Thu, Nov 05, 2015 at 03:40:02PM +0100, Michal Hocko wrote:
+> > > > > This would be true if they moved on to the new cgroup API intentionally.
+> > > > > The reality is more complicated though. AFAIK sysmted is waiting for
+> > > > > cgroup2 already and privileged services enable all available resource
+> > > > > controllers by default as I've learned just recently.
+> > > > 
+> > > > Have you filed a report with them? I don't think they should turn them
+> > > > on unless users explicitely configure resource control for the unit.
+> > > 
+> > > Okay, verified with systemd people that they're not planning on
+> > > enabling resource control per default.
+> > > 
+> > > Inflammatory half-truths, man. This is not constructive.
+> > 
+> > What about Delegate=yes feature then? We have just been burnt by this
+> > quite heavily. AFAIU nspawn@.service and nspawn@.service have this
+> > enabled by default
+> > http://lists.freedesktop.org/archives/systemd-commits/2014-November/007400.html
+> 
+> That's when you launch a *container* and want it to be able to use
+> nested resource control.
+> 
+> We're talking about actual container users here. It's not turning on
+> resource control for all "privileged services", which is what we were
+> worried about here. Can you at least admit that when you yourself link
+> to the refuting evidence?
+> 
+> And if you've been "burnt quite heavily" by this, where is your bug
+> report to stop other users from getting "burnt quite heavily" as well?
+> 
 
-To be clear the binaries were on tmpfs because of disk I/O reqruirements.
-We then used text replication to avoid icache misses and having all the
-copies banging on the memory where the instruction code resides.
-This results in us hitting a bottle neck in mpol_shared_policy_lookup
-since lookup is serialised by the shared_policy lock.
+I didn't read this thread in detail but the lack of public information on
+problems with cgroup controllers is partially my fault so I'd like to correct
+that.
 
-I have only reproduced this on very large (3k+ cores) boxes.  The problem
-starts showing up at just a few hundred ranks getting worse until it
-threatens to livelock once it gets large enough.
-For example on the gamess benchmark at 128 ranks this area consumes only
-~1% of time, at 512 ranks it consumes nearly 13%, and at 2k ranks it is
-over 90%.
+https://bugzilla.suse.com/show_bug.cgi?id=954765
 
-To alleviate the contention on this area I converted the spinslock to a
-rwlock.  This allows the large number of lookups to happen simultaneously.
-The results were quite good reducing this to consumtion at max ranks to
-around 2%.
+This bug documents some of the impact that was incurred due to ssh
+sessions being resource controlled by default. It talks primarily about
+pipetest being impacted by cpu,cpuacct. It is also found in the recent
+past that dbench4 was previously impacted because the blkio controller
+was enabled. That bug is not public but basically dbench4 regressed 80% as
+the journal thread was in a different cgroup than dbench4. dbench4 would
+stall for 8ms in case more IO was issued before the journal thread could
+issue any IO. The opensuse bug 954765 bug is not affected by blkio because
+it's disabled by a distribution-specific patch. Mike Galbraith adds some
+additional information on why activating the cpu controller can have an
+impact on semantics even if the overhead was zero.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Signed-off-by: Nathan Zimmer <nzimmer@sgi.com>
----
- include/linux/mempolicy.h |  2 +-
- mm/mempolicy.c            | 16 ++++++++--------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+It may be the case that it's an oversight by the systemd developers and the
+intent was only to affect containers. My experience was that everything
+was affected. It also may be the case that this is an opensuse-specific
+problem due to how the maintainers packaged systemd. I don't actually
+know and hopefully the bug will be able to determine if upstream is really
+affected or not.
 
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index 3d385c8..2696c1f 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -122,7 +122,7 @@ struct sp_node {
- 
- struct shared_policy {
- 	struct rb_root root;
--	spinlock_t lock;
-+	rwlock_t lock;
- };
- 
- int vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst);
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 87a1779..ebf82a3 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2211,13 +2211,13 @@ mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
- 
- 	if (!sp->root.rb_node)
- 		return NULL;
--	spin_lock(&sp->lock);
-+	read_lock(&sp->lock);
- 	sn = sp_lookup(sp, idx, idx+1);
- 	if (sn) {
- 		mpol_get(sn->policy);
- 		pol = sn->policy;
- 	}
--	spin_unlock(&sp->lock);
-+	read_unlock(&sp->lock);
- 	return pol;
- }
- 
-@@ -2360,7 +2360,7 @@ static int shared_policy_replace(struct shared_policy *sp, unsigned long start,
- 	int ret = 0;
- 
- restart:
--	spin_lock(&sp->lock);
-+	write_lock(&sp->lock);
- 	n = sp_lookup(sp, start, end);
- 	/* Take care of old policies in the same range. */
- 	while (n && n->start < end) {
-@@ -2393,7 +2393,7 @@ restart:
- 	}
- 	if (new)
- 		sp_insert(sp, new);
--	spin_unlock(&sp->lock);
-+	write_unlock(&sp->lock);
- 	ret = 0;
- 
- err_out:
-@@ -2405,7 +2405,7 @@ err_out:
- 	return ret;
- 
- alloc_new:
--	spin_unlock(&sp->lock);
-+	write_unlock(&sp->lock);
- 	ret = -ENOMEM;
- 	n_new = kmem_cache_alloc(sn_cache, GFP_KERNEL);
- 	if (!n_new)
-@@ -2431,7 +2431,7 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
- 	int ret;
- 
- 	sp->root = RB_ROOT;		/* empty tree == default mempolicy */
--	spin_lock_init(&sp->lock);
-+	rwlock_init(&sp->lock);
- 
- 	if (mpol) {
- 		struct vm_area_struct pvma;
-@@ -2497,14 +2497,14 @@ void mpol_free_shared_policy(struct shared_policy *p)
- 
- 	if (!p->root.rb_node)
- 		return;
--	spin_lock(&p->lock);
-+	write_lock(&p->lock);
- 	next = rb_first(&p->root);
- 	while (next) {
- 		n = rb_entry(next, struct sp_node, nd);
- 		next = rb_next(&n->nd);
- 		sp_delete(p, n);
- 	}
--	spin_unlock(&p->lock);
-+	write_unlock(&p->lock);
- }
- 
- #ifdef CONFIG_NUMA_BALANCING
+There is also a link to this bug on the upstream project so there is some
+chance they are aware https://github.com/systemd/systemd/issues/1715
+
+Bottom line, there is legimate confusion over whether cgroup controllers
+are going to be enabled by default or not in the future. If they are
+enabled by default, there is a non-zero cost to that and a change in
+semantics that people may or may not be surprised by.
+
 -- 
-1.8.2.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
