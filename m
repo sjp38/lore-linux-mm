@@ -1,49 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B5776B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 15:55:36 -0500 (EST)
-Received: by ykfs79 with SMTP id s79so113939297ykf.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 12:55:36 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v5si10924483ywb.119.2015.11.12.12.55.35
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id F0F246B0253
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 15:55:59 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so75866452pab.0
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 12:55:59 -0800 (PST)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id qg3si22126358pbb.100.2015.11.12.12.55.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Nov 2015 12:55:35 -0800 (PST)
-Received: from int-mx14.intmail.prod.int.phx2.redhat.com (int-mx14.intmail.prod.int.phx2.redhat.com [10.5.11.27])
-	by mx1.redhat.com (Postfix) with ESMTPS id 200EB8F506
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 20:55:35 +0000 (UTC)
-Date: Thu, 12 Nov 2015 21:55:31 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Memory exhaustion testing?
-Message-ID: <20151112215531.69ccec19@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Nov 2015 12:55:59 -0800 (PST)
+Received: by pasz6 with SMTP id z6so78440933pas.2
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 12:55:59 -0800 (PST)
+Date: Thu, 12 Nov 2015 12:55:57 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH V2] mm: vmalloc: don't remove inexistent guard hole in
+ remove_vm_area()
+In-Reply-To: <1447346238-29153-1-git-send-email-jmarchan@redhat.com>
+Message-ID: <alpine.DEB.2.10.1511121255140.10324@chino.kir.corp.google.com>
+References: <1447341424-11466-1-git-send-email-jmarchan@redhat.com> <1447346238-29153-1-git-send-email-jmarchan@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: brouer@redhat.com
+To: Jerome Marchand <jmarchan@redhat.com>
+Cc: linux-mm@kvack.org, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-Hi MM-people,
+On Thu, 12 Nov 2015, Jerome Marchand wrote:
 
-How do you/we test the error paths when the system runs out of memory?
+> Commit 71394fe50146 ("mm: vmalloc: add flag preventing guard hole
+> allocation") missed a spot. Currently remove_vm_area() decreases
+> vm->size to "remove" the guard hole page, even when it isn't present.
+> All but one users just free the vm_struct rigth away and never access
+> vm->size anyway.
+> Don't touch the size in remove_vm_area() and have __vunmap() use the
+> proper get_vm_area_size() helper.
+> 
+> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
 
-What kind of tools do you use?
-or Any tricks to provoke this?
-
-For testing my recent change to the SLUB allocator, I've implemented a
-crude kernel module that tries to allocate all memory, so I can test the
-error code-path in kmem_cache_alloc_bulk.
-
-see:
- https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_bulk_test04_exhaust_mem.c
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
