@@ -1,74 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B774D6B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 02:42:45 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so57225419pad.1
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 23:42:45 -0800 (PST)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id mr9si18249259pbb.183.2015.11.11.23.42.44
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id BDCCD6B0254
+	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 02:48:59 -0500 (EST)
+Received: by wmdw130 with SMTP id w130so142498352wmd.0
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 23:48:59 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id vm2si16964594wjc.213.2015.11.11.23.48.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Nov 2015 23:42:45 -0800 (PST)
-Received: by padhk6 with SMTP id hk6so7436498pad.2
-        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 23:42:44 -0800 (PST)
-From: yalin wang <yalin.wang2010@gmail.com>
-Subject: [PATCH] mm: change trace_mm_vmscan_writepage() proto type
-Date: Thu, 12 Nov 2015 15:42:33 +0800
-Message-Id: <1447314153-10625-1-git-send-email-yalin.wang2010@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Nov 2015 23:48:58 -0800 (PST)
+Received: by wmec201 with SMTP id c201so19359741wme.0
+        for <linux-mm@kvack.org>; Wed, 11 Nov 2015 23:48:58 -0800 (PST)
+Date: Thu, 12 Nov 2015 08:48:54 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] x86/mm: fix regression with huge pages on PAE
+Message-ID: <20151112074854.GA5376@gmail.com>
+References: <1447111090-8526-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20151110123429.GE19187@pd.tnic>
+ <20151110135303.GA11246@node.shutemov.name>
+ <20151110144648.GG19187@pd.tnic>
+ <20151110150713.GA11956@node.shutemov.name>
+ <20151110170447.GH19187@pd.tnic>
+ <20151111095101.GA22512@pd.tnic>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151111095101.GA22512@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rostedt@goodmis.org, mingo@redhat.com, namhyung@kernel.org, acme@redhat.com, yalin.wang2010@gmail.com, akpm@linux-foundation.org, mhocko@suse.cz, vdavydov@parallels.com, vbabka@suse.cz, hannes@cmpxchg.org, mgorman@techsingularity.net, bywxiaobai@163.com, tj@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com, boris.ostrovsky@oracle.com, Toshi Kani <toshi.kani@hpe.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-Move trace_reclaim_flags() into trace function,
-so that we don't need caculate these flags if the trace is disabled.
 
-Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
----
- include/trace/events/vmscan.h | 7 +++----
- mm/vmscan.c                   | 2 +-
- 2 files changed, 4 insertions(+), 5 deletions(-)
+* Borislav Petkov <bp@alien8.de> wrote:
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index f66476b..dae7836 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -330,10 +330,9 @@ DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_memcg_isolate,
- 
- TRACE_EVENT(mm_vmscan_writepage,
- 
--	TP_PROTO(struct page *page,
--		int reclaim_flags),
-+	TP_PROTO(struct page *page),
- 
--	TP_ARGS(page, reclaim_flags),
-+	TP_ARGS(page),
- 
- 	TP_STRUCT__entry(
- 		__field(unsigned long, pfn)
-@@ -342,7 +341,7 @@ TRACE_EVENT(mm_vmscan_writepage,
- 
- 	TP_fast_assign(
- 		__entry->pfn = page_to_pfn(page);
--		__entry->reclaim_flags = reclaim_flags;
-+		__entry->reclaim_flags = trace_reclaim_flags(page);
- 	),
- 
- 	TP_printk("page=%p pfn=%lu flags=%s",
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a4507ec..83cea53 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -594,7 +594,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
- 			/* synchronous write or broken a_ops? */
- 			ClearPageReclaim(page);
- 		}
--		trace_mm_vmscan_writepage(page, trace_reclaim_flags(page));
-+		trace_mm_vmscan_writepage(page);
- 		inc_zone_page_state(page, NR_VMSCAN_WRITE);
- 		return PAGE_SUCCESS;
- 	}
--- 
-1.9.1
+> --- a/arch/x86/include/asm/pgtable_types.h
+> +++ b/arch/x86/include/asm/pgtable_types.h
+> @@ -279,17 +279,14 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
+>  static inline pudval_t pud_pfn_mask(pud_t pud)
+>  {
+>  	if (native_pud_val(pud) & _PAGE_PSE)
+> -		return PUD_PAGE_MASK & PHYSICAL_PAGE_MASK;
+> +		return ~((1ULL << PUD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+>  	else
+>  		return PTE_PFN_MASK;
+>  }
+
+>  static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
+>  {
+>  	if (native_pmd_val(pmd) & _PAGE_PSE)
+> -		return PMD_PAGE_MASK & PHYSICAL_PAGE_MASK;
+> +		return ~((1ULL << PMD_SHIFT) - 1) & PHYSICAL_PAGE_MASK;
+>  	else
+>  		return PTE_PFN_MASK;
+>  }
+
+So instead of uglifying the code, why not fix the real bug: change the 
+PMD_PAGE_MASK/PUD_PAGE_MASK definitions to be 64-bit everywhere?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
