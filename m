@@ -1,78 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CDA66B0260
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 10:33:34 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so87011313wmv.1
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 07:33:34 -0800 (PST)
-Received: from e06smtp08.uk.ibm.com (e06smtp08.uk.ibm.com. [195.75.94.104])
-        by mx.google.com with ESMTPS id 5si6178871wml.80.2015.11.13.07.33.33
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8746B0267
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 10:36:18 -0500 (EST)
+Received: by wmww144 with SMTP id w144so33598054wmw.1
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 07:36:18 -0800 (PST)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id m186si6235301wmd.46.2015.11.13.07.36.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Nov 2015 07:33:33 -0800 (PST)
-Received: from localhost
-	by e06smtp08.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <andreas.krebbel@de.ibm.com>;
-	Fri, 13 Nov 2015 15:33:32 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id EF1C9219004D
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 15:33:25 +0000 (GMT)
-Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id tADFXUPH7012736
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 15:33:30 GMT
-Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id tADFXUMc003462
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 08:33:30 -0700
-Received: from d50lp01.ny.us.ibm.com ([146.89.104.207])
-	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVin) with ESMTP id tADFXTGY001678
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 08:33:30 -0700
-Message-Id: <201511131533.tADFXTGY001678@d06av05.portsmouth.uk.ibm.com>
-Received: from /spool/local
-	by d50lp01.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <andreas.krebbel@de.ibm.com>;
-	Fri, 13 Nov 2015 10:32:42 -0500
-Received: from /spool/local
-	by smtp.notes.na.collabserv.com with smtp.notes.na.collabserv.com ESMTP
-	for <linux-mm@kvack.org> from <andreas.krebbel@de.ibm.com>;
-	Fri, 13 Nov 2015 15:32:39 -0000
-In-Reply-To: <alpine.DEB.2.20.1511130919240.15385@east.gentwo.org>
-Subject: Re: [linux-next:master 12891/13017] mm/slub.c:2396:1: warning:
- '___slab_alloc' uses dynamic stack allocation
-From: "Andreas Krebbel1" <Andreas.Krebbel@de.ibm.com>
-Date: Fri, 13 Nov 2015 16:32:33 +0100
-References: <201511111413.65wysS6A%fengguang.wu@intel.com><20151111124108.53df1f48218c1366f9e763f0@linux-foundation.org>
- <20151113125200.319a3101@mschwide>
- <201511131513.tADFDwJN030997@d06av03.portsmouth.uk.ibm.com>
- <alpine.DEB.2.20.1511130919240.15385@east.gentwo.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Nov 2015 07:36:17 -0800 (PST)
+Received: by wmec201 with SMTP id c201so35818251wme.1
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 07:36:17 -0800 (PST)
+Date: Fri, 13 Nov 2015 16:36:15 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: change may_enter_fs check condition
+Message-ID: <20151113153615.GE2632@dhcp22.suse.cz>
+References: <1447415255-832-1-git-send-email-yalin.wang2010@gmail.com>
+ <5645D10C.701@suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5645D10C.701@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kbuild test robot <fengguang.wu@intel.com>, heicars2@linux.vnet.ibm.com, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, mschwid2@linux.vnet.ibm.com
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, vdavydov@parallels.com, hannes@cmpxchg.org, mgorman@techsingularity.net, tj@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> On Fri, 13 Nov 2015, Andreas Krebbel1 wrote:
->=20
-> > this appears to be the result of aligning struct page to more than 8=20
-bytes
-> > and putting it onto the stack - wich is only 8 bytes aligned.  The
-> > compiler has to perform runtime alignment to achieve that. It=20
-allocates
-> > memory using *alloca* and does the math with the returned pointer. Our
-> > dynamic stack allocation option basically only checks if there is an
-> > alloca user.
->=20
-> The slub uses of struct page only require an alignment of the page=20
-struct
-> on the stack to a word. So its fine.
+On Fri 13-11-15 13:01:16, Vlastimil Babka wrote:
+> On 11/13/2015 12:47 PM, yalin wang wrote:
+> >Add page_is_file_cache() for __GFP_FS check,
+> >otherwise, a Pageswapcache() && PageDirty() page can always be write
+> >back if the gfp flag is __GFP_FS, this is not the expected behavior.
+> 
+> I'm not sure I understand your point correctly *), but you seem to imply
+> that there would be an allocation that has __GFP_FS but doesn't have
+> __GFP_IO? Are there such allocations and does it make sense?
 
-Our compare and swap double hardware instruction unfortunately requires 16 =
+No it doesn't. There is a natural layering here and __GFP_FS allocations
+should contain __GFP_IO.
 
-byte alignment. That's probably the reason why this alignment has been=20
-picked. So I don't think that we can easily get rid of it.
+The patch as is makes only little sense to me. Are you seeing any issue
+which this is trying to fix?
 
--Andreas-
+> *) It helps to state which problem you actually observed and are trying to
+> fix. Or was this found by code inspection? In that case describe the
+> theoretical problem, as "expected behavior" isn't always understood by
+> everyone the same.
+> 
+> >Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+> >---
+> >  mm/vmscan.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> >
+> >diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >index bd2918e..f8fc8c1 100644
+> >--- a/mm/vmscan.c
+> >+++ b/mm/vmscan.c
+> >@@ -930,7 +930,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		if (page_mapped(page) || PageSwapCache(page))
+> >  			sc->nr_scanned++;
+> >
+> >-		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
+> >+		may_enter_fs = (page_is_file_cache(page) && (sc->gfp_mask & __GFP_FS)) ||
+> >  			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
+> >
+> >  		/*
+> >
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
