@@ -1,159 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 715EF6B0269
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 14:23:20 -0500 (EST)
-Received: by wmww144 with SMTP id w144so44204068wmw.0
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 11:23:19 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 81si7480607wmm.87.2015.11.13.11.23.18
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 65C516B026D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 14:46:28 -0500 (EST)
+Received: by obbww6 with SMTP id ww6so81806369obb.0
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 11:46:28 -0800 (PST)
+Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
+        by mx.google.com with ESMTPS id q4si13113023oia.7.2015.11.13.11.46.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Nov 2015 11:23:19 -0800 (PST)
-Date: Fri, 13 Nov 2015 11:23:10 -0800
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: Re: [PATCH, RESEND] ipc/shm: handle removed segments gracefully in
- shm_mmap()
-Message-ID: <20151113192310.GC3502@linux-uzut.site>
-References: <1447232220-36879-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20151111170347.GA3502@linux-uzut.site>
- <20151111195023.GA17310@node.shutemov.name>
- <20151113053137.GB3502@linux-uzut.site>
- <20151113091259.GB28904@node.shutemov.name>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Nov 2015 11:46:27 -0800 (PST)
+Received: by oies6 with SMTP id s6so55966169oie.1
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 11:46:27 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20151113091259.GB28904@node.shutemov.name>
+In-Reply-To: <56459B9A.7080501@gmail.com>
+References: <1447302793-5376-1-git-send-email-minchan@kernel.org>
+ <1447302793-5376-2-git-send-email-minchan@kernel.org> <CALCETrWA6aZC_3LPM3niN+2HFjGEm_65m9hiEdpBtEZMn0JhwQ@mail.gmail.com>
+ <564421DA.9060809@gmail.com> <20151113061511.GB5235@bbox> <56458056.8020105@gmail.com>
+ <20151113063802.GF5235@bbox> <56458720.4010400@gmail.com> <20151113070356.GG5235@bbox>
+ <56459B9A.7080501@gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Fri, 13 Nov 2015 11:46:07 -0800
+Message-ID: <CALCETrVx0JFchtJrrKVqEYvTwWvC+DwSLxzhD_A7EdNu2PiG7w@mail.gmail.com>
+Subject: Re: [PATCH v3 01/17] mm: support madvise(MADV_FREE)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dmitry Vyukov <dvyukov@google.com>, Manfred Spraul <manfred@colorfullife.com>
+To: Daniel Micay <danielmicay@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin wang <yalin.wang2010@gmail.com>
 
-On Fri, 13 Nov 2015, Kirill A. Shutemov wrote:
-
->On Thu, Nov 12, 2015 at 09:31:37PM -0800, Davidlohr Bueso wrote:
->> On Wed, 11 Nov 2015, Kirill A. Shutemov wrote:
->> >And I had concern about your approach:
->> >
->> >	If I read it correctly, with the patch we would ignore locking
->> >	failure inside shm_open() and mmap will succeed in this case. So
->> >	the idea is to have shm_close() no-op and therefore symmetrical.
+On Fri, Nov 13, 2015 at 12:13 AM, Daniel Micay <danielmicay@gmail.com> wrote:
+> On 13/11/15 02:03 AM, Minchan Kim wrote:
+>> On Fri, Nov 13, 2015 at 01:45:52AM -0500, Daniel Micay wrote:
+>>>> And now I am thinking if we use access bit, we could implment MADV_FREE_UNDO
+>>>> easily when we need it. Maybe, that's what you want. Right?
+>>>
+>>> Yes, but why the access bit instead of the dirty bit for that? It could
+>>> always be made more strict (i.e. access bit) in the future, while going
+>>> the other way won't be possible. So I think the dirty bit is really the
+>>> more conservative choice since if it turns out to be a mistake it can be
+>>> fixed without a backwards incompatible change.
 >>
->> Both open and close are no-ops in the case the segment has been removed,
+>> Absolutely true. That's why I insist on dirty bit until now although
+>> I didn't tell the reason. But I thought you wanted to change for using
+>> access bit for the future, too. It seems MADV_FREE start to bloat
+>> over and over again before knowing real problems and usecases.
+>> It's almost same situation with volatile ranges so I really want to
+>> stop at proper point which maintainer should decide, I hope.
+>> Without it, we will make the feature a lot heavy by just brain storming
+>> and then causes lots of churn in MM code without real bebenfit
+>> It would be very painful for us.
 >
->The part I disagree is that shm_open() shouldn't be allowed for removed
->segment. Basically, I prefer to keep the policy we have now.
+> Well, I don't think you need more than a good API and an implementation
+> with no known bugs, kernel security concerns or backwards compatibility
+> issues. Configuration and API extensions are something for later (i.e.
+> land a baseline, then submit stuff like sysctl tunables). Just my take
+> on it though...
 >
->> that's the symmetrical, and I'm not sure I follow -- we don't ignore locking
->> failure in shm_open _at all_. Just like your approach, all I do is return if
->> there's an error...
->
->As you wrote in the comment, shm_check_vma_validity() check is racy. It's
->just speculative check which doesn't guarantee that shm_lock() in
->shm_open() will succeed. If this race happen, you just ignore this locking
->failure and proceed. You compensate this, essentially failed shm_open(),
->by no-op in shm_close().
 
-With the exception of the call in shm_mmap, we handle shm_open and shm_close
-the same way, we both consider them no-ops, just that you return the error
-code from shm_lock. But we can easily recover this error within the mmap call,
-so this seems unnecessary. See below.
+As long as it's anonymous MAP_PRIVATE only, then the security aspects
+should be okay.  MADV_DONTNEED seems to work on pretty much any VMA,
+and there's been long history of interesting bugs there.
 
->
->In my opinion, failed shm_lock() in shm_open() should lead to returning
->error from shm_mmap(). And there's no need in shm_close() hackery.
->My patch tries to implement this.
->
->>
->> >	That's look fragile to me. We would silently miss some other
->> >	broken open/close pattern.
->>
->> Such cases, if any, should be fixed and handled appropriately, not hide
->> it under the rung, methinks.
->
->But, don't you think you *do* hide such cases? With you patch pattern like
->shm_open()-shm_close()-shm_close() will not trigger any visible effect.
->
->> >>o My no-ops explicitly pair.
->> >
->> >As I said before, I don't think we should ignore locking error in
->> >shm_open(). If we propagate the error back to caller shm_close() should
->> >never happen, therefore no-op is unneeded in shm_close(): my patch trigger
->> >WARN() there.
->>
->> Yes, you WARN() in shm_close, but you still make it a no-op...
->
->We can crash kernel with BUG_ON() there, but would it help anyone?
+As for dirty vs accessed, an argument in favor of going straight to
+accessed is that it means that users can write code like this without
+worrying about whether they have a kernel that uses the dirty bit:
 
-So a failed shm_lock() used to always be a BUG_ON, but I don't think
-we want to go back to that. Ultimately, a busted ipc id is not a reason
-to halt the kernel.
+x = mmap(...);
+*x = 1;  /* mark it present */
 
->The WARN() is just to make broken open/close visible.
+/* i'm done with it */
+*x = 1;
+madvise(MADV_FREE, x, ...);
 
-I really don't like that you have two different logic for shm_open and close
-(more below).
+wait a while;
 
->
->> >>>	ret = sfd->file->f_op->mmap(sfd->file, vma);
->> >>>-	if (ret != 0)
->> >>>+	if (ret) {
->> >>>+		shm_close(vma);
->> >>>		return ret;
->> >>>+	}
->> >>
->> >>Hmm what's this shm_close() about?
->> >
->> >Undo shp->shm_nattch++ in successful __shm_open().
->>
->> Yeah that's just nasty.
->
->I don't see why: we successfully opened the segment, but f_op->mmap
->failed -- let's close the segment. It's normal error path.
-
-I was referring to the fact that I hate having to prematurely call shm_open()
-just for this case, and then have to backout, ie for nattach. Similarly, I
-dislike that you make shm_close behave one way and _shm_open another, looks
-hacky.
-
-That said, I do agree that we should inform EIDRM back to the shm_mmap
-caller. My immediate thought would be to recheck right after shm_open returns.
-I realize this is also hacky as we run into similar inconsistencies that I
-mentioned above. But that's a caller (and the only one), not the whole
-shm_open/close. Also, just like we are concerned about EIDRM, should we also
-care about EINVAL -- where we race with explicit user shmctl(RMID) calls but
-we hold reference to nattach?? I mean, why bother doing mmap if the segment is
-marked for deletion and ipc won't touch it again anyway (failed idr lookups).
-The downside to that is the extra lookup overhead, so perhaps your approach
-is better. But looks like the right thing to do conceptually. Something like so?
-
-shm_mmap()
-{
-	err = shm_check_vma_validity()
-	if (err)
-
-	->mmap()
-
-	shm_open()
-	err = shm_check_vma_validity()
-	if (err)
-	   return err; /* shm_open was a nop, return the corresponding error */
-
-	return 0;
+/* is it still there? */
+if (*x == 1) {
+  /* use whatever was cached there */
+} else {
+ /* reinitialize it */
+ *x = 1;
 }
 
-So considering EINVAL, even your approach to bumping up nattach by calling
-_shm_open earlier isn't enough. Races exposed to user called rmid can still
-occur between dropping the lock and doing ->mmap(). Ultimately this leads to
-all ipc_valid_object() checks, as we totally ignore SHM_DEST segments nowadays
-since we forbid mapping previously removed segments.
+With the dirty bit, this will look like it works, but on occasion
+users will lose the race where they probe *x to see if the data was
+lost and then the data gets lost before the next write comes in.
 
-I think this is the first thing we must decide before going forward with this
-mess. ipc currently defines invalid objects by merely checking the deleted flag.
+Sure, that load from *x could be changed to RMW or users could do a
+dummy write (e.g. x[1] = 1; if (*x == 1) ...), but people might forget
+to do that, and the caching implications are a little bit worse.
 
-Manfred, any thoughts?
+Note that switching to RMW is really really dangerous.  Doing:
 
-Thanks,
-Davidlohr
+*x &= 1;
+if (*x == 1) ...;
+
+is safe on x86 if the compiler generates:
+
+andl $1, (%[x]);
+cmpl $1, (%[x]);
+
+but is unsafe if the compiler generates:
+
+movl (%[x]), %eax;
+andl $1, %eax;
+movl %eax, (%[x]);
+cmpl $1, %eax;
+
+and even worse if the write is omitted when "provably" unnecessary.
+
+OTOH, if switching to the accessed bit is too much of a mess, then
+using the dirty bit at first isn't so bad.
+
+--Andy
+
+-- 
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
