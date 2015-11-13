@@ -1,54 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id DF06B6B0038
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 03:41:19 -0500 (EST)
-Received: by iofh3 with SMTP id h3so91275611iof.3
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 00:41:19 -0800 (PST)
-Received: from out11.biz.mail.alibaba.com (out114-135.biz.mail.alibaba.com. [205.204.114.135])
-        by mx.google.com with ESMTP id u93si23749583ioi.92.2015.11.13.00.41.17
-        for <linux-mm@kvack.org>;
-        Fri, 13 Nov 2015 00:41:19 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-Subject: Re: [PATCH V4] mm: fix kernel crash in khugepaged thread
-Date: Fri, 13 Nov 2015 16:41:03 +0800
-Message-ID: <0ab001d11def$081c80d0$18558270$@alibaba-inc.com>
+Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com [209.85.220.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 013186B0038
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 04:01:30 -0500 (EST)
+Received: by qkfo3 with SMTP id o3so40809335qkf.1
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 01:01:29 -0800 (PST)
+Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
+        by mx.google.com with ESMTPS id 92si15091368qks.80.2015.11.13.01.01.29
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Nov 2015 01:01:29 -0800 (PST)
+Received: by qkas77 with SMTP id s77so4755977qka.2
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 01:01:29 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+In-Reply-To: <CA+55aFx84N=o=RWJTy2Bjs-GNjKQuCZYyVWDTgOtRq3-qSO-yg@mail.gmail.com>
+References: <1447111090-8526-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<20151110123429.GE19187@pd.tnic>
+	<20151110135303.GA11246@node.shutemov.name>
+	<20151110144648.GG19187@pd.tnic>
+	<20151110150713.GA11956@node.shutemov.name>
+	<20151110170447.GH19187@pd.tnic>
+	<20151111095101.GA22512@pd.tnic>
+	<20151112074854.GA5376@gmail.com>
+	<20151112075758.GA20702@node.shutemov.name>
+	<20151112080059.GA6835@gmail.com>
+	<CA+55aFx84N=o=RWJTy2Bjs-GNjKQuCZYyVWDTgOtRq3-qSO-yg@mail.gmail.com>
+Date: Fri, 13 Nov 2015 01:01:28 -0800
+Message-ID: <CAA9_cmei11nOh8oO_kFyqupf=MSpMHN-OZxVCRajZs1zenu7QA@mail.gmail.com>
+Subject: Re: [PATCH] x86/mm: fix regression with huge pages on PAE
+From: Dan Williams <dan.j.williams@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: 'yalin wang' <yalin.wang2010@gmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Anvin <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, =?UTF-8?B?SsO8cmdlbiBHcm/Dnw==?= <jgross@suse.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, elliott@hpe.com, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Toshi Kani <toshi.kani@hpe.com>
 
-> 
-> Instead of the condition, we could have:
-> 
-> 	__entry->pfn = page ? page_to_pfn(page) : -1;
-> 
-> 
-> But if there's no reason to do the tracepoint if page is NULL, then
-> this patch is fine. I'm just throwing out this idea.
-> 
-we trace only if page is valid
+On Thu, Nov 12, 2015 at 11:29 AM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+> On Thu, Nov 12, 2015 at 12:00 AM, Ingo Molnar <mingo@kernel.org> wrote:
+[..]
+> I have this dim memory of us playing around with just making PAGE_SIZE
+> (and thus PAGE_MASK) always be signed, but that it caused other
+> problems. Signed types have downsides too.
 
---- linux-next/mm/huge_memory.c	Fri Nov 13 16:00:22 2015
-+++ b/mm/huge_memory.c	Fri Nov 13 16:26:19 2015
-@@ -1987,7 +1987,8 @@ static int __collapse_huge_page_isolate(
- 
- out:
- 	release_pte_pages(pte, _pte);
--	trace_mm_collapse_huge_page_isolate(page_to_pfn(page), none_or_zero,
-+	if (page)
-+		trace_mm_collapse_huge_page_isolate(page_to_pfn(page), none_or_zero,
- 					    referenced, writable, result);
- 	return 0;
- }
---
-
-
+FWIW, I ran into this recently with the pfn_t patch.  mips and powerpc
+have PAGE_MASK as a signed int.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
