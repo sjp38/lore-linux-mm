@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B8ECB6B025B
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 07:05:19 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so98850776pab.0
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 04:05:19 -0800 (PST)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id u8si27140739pbs.22.2015.11.13.04.05.18
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id D522E6B025D
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 07:08:07 -0500 (EST)
+Received: by pasz6 with SMTP id z6so102160740pas.2
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 04:08:07 -0800 (PST)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id c8si27122283pas.153.2015.11.13.04.08.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Nov 2015 04:05:18 -0800 (PST)
-Received: by pasz6 with SMTP id z6so102097356pas.2
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 04:05:18 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Nov 2015 04:08:06 -0800 (PST)
+Received: by padhx2 with SMTP id hx2so98823751pad.1
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 04:08:06 -0800 (PST)
 From: yalin wang <yalin.wang2010@gmail.com>
-Subject: [PATCH V5] mm: fix kernel crash in khugepaged thread
-Date: Fri, 13 Nov 2015 20:05:10 +0800
-Message-Id: <1447416310-24028-1-git-send-email-yalin.wang2010@gmail.com>
+Subject: [PATCH V6] mm: fix kernel crash in khugepaged thread
+Date: Fri, 13 Nov 2015 20:07:57 +0800
+Message-Id: <1447416477-24881-1-git-send-email-yalin.wang2010@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: rostedt@goodmis.org, mingo@redhat.com, akpm@linux-foundation.org, riel@redhat.com, ebru.akagunduz@gmail.com, kirill.shutemov@linux.intel.com, yalin.wang2010@gmail.com, vbabka@suse.cz, jmarchan@redhat.com, mgorman@techsingularity.net, willy@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
@@ -89,9 +89,6 @@ when page == NULL :
 [  182.664571 ] CPU2: stopping
 [  182.664794 ] CPU: 2 PID: 0 Comm: swapper/2 Tainted: G      D W       4.3.0-rc6-next-20151022ajb-00001-g32f3386-dirty #3
 [  182.665248 ] Hardware name: linux,dummy-virt (DT)
-
-add the trace point with TP_CONDITION(page),
-avoid trace NULL page.
 
 Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
 ---
