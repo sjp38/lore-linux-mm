@@ -1,95 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C202C6B0253
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 01:16:59 -0500 (EST)
-Received: by igcph11 with SMTP id ph11so9609294igc.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 22:16:59 -0800 (PST)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id m5si3201920igx.59.2015.11.12.22.16.59
+Received: from mail-io0-f172.google.com (mail-io0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 99AA06B0038
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 01:18:22 -0500 (EST)
+Received: by ioc74 with SMTP id 74so88581768ioc.2
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 22:18:22 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id j18si22968665ioe.14.2015.11.12.22.18.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Nov 2015 22:16:59 -0800 (PST)
-Received: by igbhv6 with SMTP id hv6so8843823igb.0
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 22:16:59 -0800 (PST)
-Subject: Re: [PATCH v3 01/17] mm: support madvise(MADV_FREE)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 12 Nov 2015 22:18:22 -0800 (PST)
+Date: Fri, 13 Nov 2015 15:18:55 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v3 03/17] arch: uapi: asm: mman.h: Let MADV_FREE have
+ same value for all architectures
+Message-ID: <20151113061855.GD5235@bbox>
 References: <1447302793-5376-1-git-send-email-minchan@kernel.org>
- <1447302793-5376-2-git-send-email-minchan@kernel.org>
- <CALCETrWA6aZC_3LPM3niN+2HFjGEm_65m9hiEdpBtEZMn0JhwQ@mail.gmail.com>
- <564421DA.9060809@gmail.com> <20151113061511.GB5235@bbox>
-From: Daniel Micay <danielmicay@gmail.com>
-Message-ID: <56458056.8020105@gmail.com>
-Date: Fri, 13 Nov 2015 01:16:54 -0500
+ <1447302793-5376-4-git-send-email-minchan@kernel.org>
+ <20151112112753.GC22481@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <20151113061511.GB5235@bbox>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="xUQjHnNorMAP2CtbNRgGKI9eOOJ95DwwN"
+In-Reply-To: <20151112112753.GC22481@node.shutemov.name>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin wang <yalin.wang2010@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Chen Gang <gang.chen.5i5j@gmail.com>, "rth@twiddle.net" <rth@twiddle.net>, "ink@jurassic.park.msu.ru" <ink@jurassic.park.msu.ru>, "mattst88@gmail.com" <mattst88@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, "jejb@parisc-linux.org" <jejb@parisc-linux.org>, "deller@gmx.de" <deller@gmx.de>, "chris@zankel.net" <chris@zankel.net>, "jcmvbkbc@gmail.com" <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org, sparclinux@vger.kernel.org, roland@kernel.org, darrick.wong@oracle.com, davem@davemloft.net
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---xUQjHnNorMAP2CtbNRgGKI9eOOJ95DwwN
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+On Thu, Nov 12, 2015 at 01:27:53PM +0200, Kirill A. Shutemov wrote:
+> On Thu, Nov 12, 2015 at 01:32:59PM +0900, Minchan Kim wrote:
+> > From: Chen Gang <gang.chen.5i5j@gmail.com>
+> > 
+> > For uapi, need try to let all macros have same value, and MADV_FREE is
+> > added into main branch recently, so need redefine MADV_FREE for it.
+> > 
+> > At present, '8' can be shared with all architectures, so redefine it to
+> > '8'.
+> 
+> Why not fold the patch into thre previous one?
 
-On 13/11/15 01:15 AM, Minchan Kim wrote:
-> On Thu, Nov 12, 2015 at 12:21:30AM -0500, Daniel Micay wrote:
->>> I also think that the kernel should commit to either zeroing the page=
-
->>> or leaving it unchanged in response to MADV_FREE (even if the decisio=
-n
->>> of which to do is made later on).  I think that your patch series doe=
-s
->>> this, but only after a few of the patches are applied (the swap entry=
-
->>> freeing), and I think that it should be a real guaranteed part of the=
-
->>> semantics and maybe have a test case.
->>
->> This would be a good thing to test because it would be required to add=
-
->> MADV_FREE_UNDO down the road. It would mean the same semantics as the
->> MEM_RESET and MEM_RESET_UNDO features on Windows, and there's probably=
-
->> value in that for the sake of migrating existing software too.
->=20
-> So, do you mean that we could implement MADV_FREE_UNDO with "read"
-> opearation("just access bit marking) easily in future?
->=20
-> If so, it would be good reason to change MADV_FREE from dirty bit to
-> access bit. Okay, I will look at that.
-
-I just meant testing that the data is either zero or the old data if
-it's read before it's written to. Not having it stay around once there
-is a read. Not sure if that's what Andy meant.
-
-
---xUQjHnNorMAP2CtbNRgGKI9eOOJ95DwwN
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIbBAEBCAAGBQJWRYBWAAoJEPnnEuWa9fIq2pwP9RHoHe0xE9qYJgj0eNxnEKwY
-8RZdxpMNZ3TeYcxqKPMY1gFj8eVbT4ey6QfwyZcatqPcktBlmPPnrPj76HDkAX9v
-nnL0WafLaKkrKP1EHCvQMzIy374JOCLLwN3jMl8UAa/a7dcgDFewwrMwLuu8K026
-YDuGEmdz1j4TpsvhOTNbZZBbzt82Jtx3ZYCnqNUqGgJY36Gmhzhaj6ipPuCOc1v2
-eDZPkaRSdQ3QrhRNQo/KOu0g95xpco61soMtfPqp+wyCHJOkAmd+1kQHcDscvLNm
-SjgdEzjdYZt+n+Fs2AiNksyV9Vd+sekDK5j6L31EmDgPZwBkJ0zQsuNQpyMlmK1q
-2TdObDpw9bEXs+nxo+FXjcjTjVtw3RaB2Foqf/ztctjIXs0EGc/1yaqbHtGXjl13
-S58GFMrSH6HxoPph1650FoeK4cb6UDuyVmp0vLecT8GJJDevavVwh2610JwLJ2NH
-jZNzE05efPGn7dnZmYMYjOscmuMCg0PdxCNKOcstbyFvicfLaVMiUX/r7kWcJi4Q
-CYDuUMi02cuSFHWIh/8GKwaACp9/EqAHRox39fGk4xC5gEvZEM2JtNDhd7B3UCYe
-vpXRxV2hS+ZohUd5E6h1swy4XPCDkrTPVJsF4+bxDq7ffm75BfCg9x4OjKn2x9dJ
-zCKEJ2q3b8Ldwe2mTaw=
-=jOqT
------END PGP SIGNATURE-----
-
---xUQjHnNorMAP2CtbNRgGKI9eOOJ95DwwN--
+Because it was a little bit arguable at that time whether we could use
+number 8 for all of arches. If so, simply I can drop this patch only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
