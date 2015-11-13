@@ -1,79 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 07A9E6B0038
-	for <linux-mm@kvack.org>; Thu, 12 Nov 2015 23:53:42 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so88034392pad.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 20:53:41 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id t13si24718086pas.21.2015.11.12.20.53.41
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id EBC576B0038
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 00:31:45 -0500 (EST)
+Received: by wmec201 with SMTP id c201so64932362wme.0
+        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 21:31:45 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jp7si12335988wjc.168.2015.11.12.21.31.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Nov 2015 20:53:41 -0800 (PST)
-Received: by padhx2 with SMTP id hx2so88034095pad.1
-        for <linux-mm@kvack.org>; Thu, 12 Nov 2015 20:53:41 -0800 (PST)
-Message-ID: <1447390418.22599.34.camel@edumazet-glaptop2.roam.corp.google.com>
-Subject: Re: [PATCH 08/14] net: tcp_memcontrol: sanitize tcp memory
- accounting callbacks
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Thu, 12 Nov 2015 20:53:38 -0800
-In-Reply-To: <1447371693-25143-9-git-send-email-hannes@cmpxchg.org>
-References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
-	 <1447371693-25143-9-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 12 Nov 2015 21:31:44 -0800 (PST)
+Date: Thu, 12 Nov 2015 21:31:37 -0800
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: [PATCH, RESEND] ipc/shm: handle removed segments gracefully in
+ shm_mmap()
+Message-ID: <20151113053137.GB3502@linux-uzut.site>
+References: <1447232220-36879-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20151111170347.GA3502@linux-uzut.site>
+ <20151111195023.GA17310@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20151111195023.GA17310@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dmitry Vyukov <dvyukov@google.com>
 
-On Thu, 2015-11-12 at 18:41 -0500, Johannes Weiner wrote:
+On Wed, 11 Nov 2015, Kirill A. Shutemov wrote:
+>And I had concern about your approach:
+>
+>	If I read it correctly, with the patch we would ignore locking
+>	failure inside shm_open() and mmap will succeed in this case. So
+>	the idea is to have shm_close() no-op and therefore symmetrical.
 
+Both open and close are no-ops in the case the segment has been removed,
+that's the symmetrical, and I'm not sure I follow -- we don't ignore locking
+failure in shm_open _at all_. Just like your approach, all I do is return if
+there's an error...
 
-> @@ -711,6 +705,12 @@ static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
->  struct sock;
->  void sock_update_memcg(struct sock *sk);
->  void sock_release_memcg(struct sock *sk);
-> +bool mem_cgroup_charge_skmem(struct cg_proto *proto, unsigned int nr_pages);
-> +void mem_cgroup_uncharge_skmem(struct cg_proto *proto, unsigned int nr_pages);
-> +static inline bool mem_cgroup_under_socket_pressure(struct cg_proto *proto)
-> +{
-> +	return proto->memory_pressure;
-> +}
->  #endif /* CONFIG_INET && CONFIG_MEMCG_KMEM */
->  
->  #ifdef CONFIG_MEMCG_KMEM
-> diff --git a/include/net/sock.h b/include/net/sock.h
-> index 2eefc99..8cc7613 100644
-> --- a/include/net/sock.h
-> +++ b/include/net/sock.h
-> @@ -1126,8 +1126,8 @@ static inline bool sk_under_memory_pressure(const struct sock *sk)
->  	if (!sk->sk_prot->memory_pressure)
->  		return false;
->  
-> -	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-> -		return !!sk->sk_cgrp->memory_pressure;
-> +	if (mem_cgroup_sockets_enabled && sk->sk_cgrp &&
-> +	    mem_cgroup_under_socket_pressure(sk->sk_cgrp))
->  
->  	return !!*sk->sk_prot->memory_pressure;
->  }
+>	That's look fragile to me. We would silently miss some other
+>	broken open/close pattern.
 
+Such cases, if any, should be fixed and handled appropriately, not hide
+it under the rung, methinks.
 
-This looks wrong ?
+>>
+>> o My shm_check_vma_validity() also deals with IPC_RMID as we do the
+>> ipc_valid_object() check.
+>
+>Mine too:
+>
+> shm_mmap()
+>   __shm_open()
+>     shm_lock()
+>       ipc_lock()
+>         ipc_valid_object()
+>
+>Or I miss something?
 
-if (A && B && C)
-    return !!*sk->sk_prot->memory_pressure;
+Sorry, I meant ipc_obtain_object_idr, so EINVAL is also accounted for, we
+the segment is already deleted and not only marked as such.
 
-<compiler should eventually barf, 
-as this function should not return void>
-}
+>
+>> o We have a new WARN where necessary, instead of having one now is shm_open.
+>
+>I'm not sure why you think that shm_close() which was never paired with
+>successful shm_open() doesn't deserve WARN().
+>
+>> o My no-ops explicitly pair.
+>
+>As I said before, I don't think we should ignore locking error in
+>shm_open(). If we propagate the error back to caller shm_close() should
+>never happen, therefore no-op is unneeded in shm_close(): my patch trigger
+>WARN() there.
 
+Yes, you WARN() in shm_close, but you still make it a no-op...
 
+>
+>> >	ret = sfd->file->f_op->mmap(sfd->file, vma);
+>> >-	if (ret != 0)
+>> >+	if (ret) {
+>> >+		shm_close(vma);
+>> >		return ret;
+>> >+	}
+>>
+>> Hmm what's this shm_close() about?
+>
+>Undo shp->shm_nattch++ in successful __shm_open().
 
+Yeah that's just nasty.
 
+>
+>I've got impression that I miss something important about how locking in
+>IPC/SHM works, but I cannot grasp what.. Hm?.
 
-
+Could you be more specific? The only lock involved here is the ipc object lock,
+if you haven't, you might want to refer to ipc/util.c which has a brief ipc
+locking description.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
