@@ -1,107 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 273AA6B0254
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 06:52:07 -0500 (EST)
-Received: by wmww144 with SMTP id w144so27195615wmw.0
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 03:52:06 -0800 (PST)
-Received: from e06smtp06.uk.ibm.com (e06smtp06.uk.ibm.com. [195.75.94.102])
-        by mx.google.com with ESMTPS id y4si25330783wjr.114.2015.11.13.03.52.05
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A7CE6B0257
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 06:54:20 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so98384399pac.3
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 03:54:20 -0800 (PST)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id iw10si27027786pac.40.2015.11.13.03.54.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Nov 2015 03:52:06 -0800 (PST)
-Received: from localhost
-	by e06smtp06.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Fri, 13 Nov 2015 11:52:05 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 80B232190067
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 11:51:57 +0000 (GMT)
-Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id tADBq2o08192292
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 11:52:02 GMT
-Received: from d06av08.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id tADBq1qL006442
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 04:52:02 -0700
-Date: Fri, 13 Nov 2015 12:52:00 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [linux-next:master 12891/13017] mm/slub.c:2396:1: warning:
- '___slab_alloc' uses dynamic stack allocation
-Message-ID: <20151113125200.319a3101@mschwide>
-In-Reply-To: <20151111124108.53df1f48218c1366f9e763f0@linux-foundation.org>
-References: <201511111413.65wysS6A%fengguang.wu@intel.com>
-	<20151111124108.53df1f48218c1366f9e763f0@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Nov 2015 03:54:20 -0800 (PST)
+Received: by pacdm15 with SMTP id dm15so98384255pac.3
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 03:54:19 -0800 (PST)
+Content-Type: text/plain; charset=windows-1252
+Mime-Version: 1.0 (Mac OS X Mail 9.0 \(3094\))
+Subject: Re: [PATCH V4] mm: fix kernel crash in khugepaged thread
+From: yalin wang <yalin.wang2010@gmail.com>
+In-Reply-To: <5645BFAA.1070004@suse.cz>
+Date: Fri, 13 Nov 2015 19:54:11 +0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <D7E480F5-D879-4016-B530-5A4D7CB05675@gmail.com>
+References: <1447316462-19645-1-git-send-email-yalin.wang2010@gmail.com> <20151112092923.19ee53dd@gandalf.local.home> <5645BFAA.1070004@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Christoph Lameter <cl@linux-foundation.org>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andreas Krebbel <Andreas.Krebbel@de.ibm.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, jmarchan@redhat.com, mgorman@techsingularity.net, willy@linux.intel.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, 11 Nov 2015 12:41:08 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On Wed, 11 Nov 2015 14:34:19 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
-> 
-> > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> > head:   2bba65ab5f9f1cebd21d95c410b96952851f58b3
-> > commit: e191357c4c31d02eb30736a49327ef32407fab47 [12891/13017] slub: create new ___slab_alloc function that can be called with irqs disabled
-> > config: s390-allmodconfig (attached as .config)
-> > reproduce:
-> >         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-> >         chmod +x ~/bin/make.cross
-> >         git checkout e191357c4c31d02eb30736a49327ef32407fab47
-> >         # save the attached .config to linux build tree
-> >         make.cross ARCH=s390 
-> > 
-> > All warnings (new ones prefixed by >>):
-> > 
-> >    mm/slub.c: In function 'unfreeze_partials.isra.42':
-> >    mm/slub.c:2019:1: warning: 'unfreeze_partials.isra.42' uses dynamic stack allocation
-> >     }
-> >     ^
-> >    mm/slub.c: In function 'get_partial_node.isra.43':
-> >    mm/slub.c:1654:1: warning: 'get_partial_node.isra.43' uses dynamic stack allocation
-> >     }
-> >     ^
-> >    mm/slub.c: In function 'deactivate_slab':
-> >    mm/slub.c:1951:1: warning: 'deactivate_slab' uses dynamic stack allocation
-> >     }
-> >     ^
-> >    mm/slub.c: In function '__slab_free':
-> >    mm/slub.c:2696:1: warning: '__slab_free' uses dynamic stack allocation
-> >     }
-> >     ^
-> >    mm/slub.c: In function '___slab_alloc':
-> > >> mm/slub.c:2396:1: warning: '___slab_alloc' uses dynamic stack allocation
-> >     }
-> >     ^
-> 
-> This patch doesn't add any dynamic stack allocations.  The fact that
-> slub.c already had a bunch of these warnings makes me suspect that it's
-> happening in one of the s390 headers?
- 
-That looks like a false positive to me. I can not find any function that does
-a dynamic allocation and the generated code creates a stack frame with a
-constant size. A bit odd is the fact that the stack frame is create in two
-steps, e.g. deactivate_slab:
-
-    a632:       b9 04 00 ef             lgr     %r14,%r15
-    a636:       a7 fb ff 50             aghi    %r15,-176	# first 176 bytes
-    a63a:       b9 04 00 bf             lgr     %r11,%r15
-    a63e:       e3 e0 f0 98 00 24       stg     %r14,152(%r15)
-    a644:       e3 10 f0 98 00 04       lg      %r1,152(%r15)
-    a64a:       a7 fb ff 30             aghi    %r15,-208	# another 208 bytes
-    a64e:       e3 30 b0 e8 00 24       stg     %r3,232(%r11)
-    a654:       e3 40 b0 d8 00 24       stg     %r4,216(%r11)
-
-Strange. Andreas can you make something of this?
-
--- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+> On Nov 13, 2015, at 18:47, Vlastimil Babka <vbabka@suse.cz> wrote:
+>=20
+> On 11/12/2015 03:29 PM, Steven Rostedt wrote:
+>> On Thu, 12 Nov 2015 16:21:02 +0800
+>> yalin wang <yalin.wang2010@gmail.com> wrote:
+>>=20
+>>> This crash is caused by NULL pointer deference, in page_to_pfn() =
+marco,
+>>> when page =3D=3D NULL :
+>>>=20
+>>> [  182.639154 ] Unable to handle kernel NULL pointer dereference at =
+virtual address 00000000
+>>=20
+>>=20
+>>> add the trace point with TP_CONDITION(page),
+>>=20
+>> I wonder if we still want to trace even if page is NULL?
+>=20
+> I'd say we want to. There's even a "SCAN_PAGE_NULL" result defined for =
+that case, and otherwise we would only have to guess why collapsing =
+failed, which is the thing that the tracepoint should help us find out =
+in the first place :)
+>=20
+>>> avoid trace NULL page.
+>>>=20
+>>> Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+>>> ---
+>>>  include/trace/events/huge_memory.h | 20 ++++++++++++--------
+>>>  mm/huge_memory.c                   |  6 +++---
+>>>  2 files changed, 15 insertions(+), 11 deletions(-)
+>>>=20
+>>> diff --git a/include/trace/events/huge_memory.h =
+b/include/trace/events/huge_memory.h
+>>> index 11c59ca..727647b 100644
+>>> --- a/include/trace/events/huge_memory.h
+>>> +++ b/include/trace/events/huge_memory.h
+>>> @@ -45,12 +45,14 @@ SCAN_STATUS
+>>>  #define EM(a, b)	{a, b},
+>>>  #define EMe(a, b)	{a, b}
+>>>=20
+>>> -TRACE_EVENT(mm_khugepaged_scan_pmd,
+>>> +TRACE_EVENT_CONDITION(mm_khugepaged_scan_pmd,
+>>>=20
+>>> -	TP_PROTO(struct mm_struct *mm, unsigned long pfn, bool writable,
+>>> +	TP_PROTO(struct mm_struct *mm, struct page *page, bool writable,
+>>>  		 bool referenced, int none_or_zero, int status, int =
+unmapped),
+>>>=20
+>>> -	TP_ARGS(mm, pfn, writable, referenced, none_or_zero, status, =
+unmapped),
+>>> +	TP_ARGS(mm, page, writable, referenced, none_or_zero, status, =
+unmapped),
+>>> +
+>>> +	TP_CONDITION(page),
+>>>=20
+>>>  	TP_STRUCT__entry(
+>>>  		__field(struct mm_struct *, mm)
+>>> @@ -64,7 +66,7 @@ TRACE_EVENT(mm_khugepaged_scan_pmd,
+>>>=20
+>>>  	TP_fast_assign(
+>>>  		__entry->mm =3D mm;
+>>> -		__entry->pfn =3D pfn;
+>>> +		__entry->pfn =3D page_to_pfn(page);
+>>=20
+>> Instead of the condition, we could have:
+>>=20
+>> 	__entry->pfn =3D page ? page_to_pfn(page) : -1;
+>=20
+> I agree. Please do it like this.
+ok ,  i will send V5 patch .=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
