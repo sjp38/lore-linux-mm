@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E4A226B025C
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 19:07:47 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so114823841pab.0
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 16:07:47 -0800 (PST)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EE4C86B025F
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 19:07:49 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so7742453pac.2
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 16:07:49 -0800 (PST)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id z4si30586026pbv.39.2015.11.13.16.07.44
+        by mx.google.com with ESMTP id z4si30586026pbv.39.2015.11.13.16.07.45
         for <linux-mm@kvack.org>;
-        Fri, 13 Nov 2015 16:07:44 -0800 (PST)
+        Fri, 13 Nov 2015 16:07:45 -0800 (PST)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v2 09/11] ext2: add support for DAX fsync/msync
-Date: Fri, 13 Nov 2015 17:06:48 -0700
-Message-Id: <1447459610-14259-10-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v2 10/11] ext4: add support for DAX fsync/msync
+Date: Fri, 13 Nov 2015 17:06:49 -0700
+Message-Id: <1447459610-14259-11-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -29,49 +29,70 @@ was set up for DAX page faults.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- fs/ext2/file.c | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ fs/ext4/file.c  |  4 +++-
+ fs/ext4/fsync.c | 12 ++++++++++--
+ 2 files changed, 13 insertions(+), 3 deletions(-)
 
-diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-index 11a42c5..6c30ea2 100644
---- a/fs/ext2/file.c
-+++ b/fs/ext2/file.c
-@@ -102,8 +102,8 @@ static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index 749b222..8c8965c 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -291,8 +291,8 @@ static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma,
  {
  	struct inode *inode = file_inode(vma->vm_file);
- 	struct ext2_inode_info *ei = EXT2_I(inode);
+ 	struct super_block *sb = inode->i_sb;
 -	int ret = VM_FAULT_NOPAGE;
  	loff_t size;
 +	int ret;
  
- 	sb_start_pagefault(inode->i_sb);
+ 	sb_start_pagefault(sb);
  	file_update_time(vma->vm_file);
-@@ -113,6 +113,8 @@ static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
+@@ -300,6 +300,8 @@ static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma,
  	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
  	if (vmf->pgoff >= size)
  		ret = VM_FAULT_SIGBUS;
 +	else
 +		ret = dax_pfn_mkwrite(vma, vmf);
+ 	up_read(&EXT4_I(inode)->i_mmap_sem);
+ 	sb_end_pagefault(sb);
  
- 	up_read(&ei->dax_sem);
- 	sb_end_pagefault(inode->i_sb);
-@@ -161,6 +163,16 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
- 	struct super_block *sb = file->f_mapping->host->i_sb;
- 	struct address_space *mapping = sb->s_bdev->bd_inode->i_mapping;
+diff --git a/fs/ext4/fsync.c b/fs/ext4/fsync.c
+index 8850254..e87c29b 100644
+--- a/fs/ext4/fsync.c
++++ b/fs/ext4/fsync.c
+@@ -27,6 +27,7 @@
+ #include <linux/sched.h>
+ #include <linux/writeback.h>
+ #include <linux/blkdev.h>
++#include <linux/dax.h>
  
-+#ifdef CONFIG_FS_DAX
+ #include "ext4.h"
+ #include "ext4_jbd2.h"
+@@ -86,7 +87,8 @@ static int ext4_sync_parent(struct inode *inode)
+ 
+ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
+ {
+-	struct inode *inode = file->f_mapping->host;
++	struct address_space *mapping = file->f_mapping;
++	struct inode *inode = mapping->host;
+ 	struct ext4_inode_info *ei = EXT4_I(inode);
+ 	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
+ 	int ret = 0, err;
+@@ -112,7 +114,13 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
+ 		goto out;
+ 	}
+ 
+-	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 +	if (dax_mapping(mapping)) {
-+		struct ext2_inode_info *ei = EXT2_I(file_inode(file));
-+
-+		down_read(&ei->dax_sem);
++		down_read(&ei->i_mmap_sem);
 +		dax_fsync(mapping, start, end);
-+		up_read(&ei->dax_sem);
++		up_read(&ei->i_mmap_sem);
 +	}
-+#endif
 +
- 	ret = generic_file_fsync(file, start, end, datasync);
- 	if (ret == -EIO || test_and_clear_bit(AS_EIO, &mapping->flags)) {
- 		/* We don't really know where the IO error happened... */
++	ret = filemap_write_and_wait_range(mapping, start, end);
+ 	if (ret)
+ 		return ret;
+ 	/*
 -- 
 2.1.0
 
