@@ -1,196 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 26D296B0253
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 19:39:55 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so114958668pac.3
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 16:39:54 -0800 (PST)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id ua10si30721521pab.236.2015.11.13.16.39.54
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 50B736B0253
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 19:43:36 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so115193072pad.1
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 16:43:36 -0800 (PST)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id il5si9405836pbc.198.2015.11.13.16.43.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Nov 2015 16:39:54 -0800 (PST)
-Received: by pacej9 with SMTP id ej9so8360074pac.2
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 16:39:54 -0800 (PST)
-Date: Fri, 13 Nov 2015 16:39:52 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v3] mm/hugetlbfs Fix bugs in fallocate hole punch of
- areas with holes
-In-Reply-To: <1447215288-23753-1-git-send-email-mike.kravetz@oracle.com>
-Message-ID: <alpine.LSU.2.11.1511131636350.1310@eggly.anvils>
-References: <1447215288-23753-1-git-send-email-mike.kravetz@oracle.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Nov 2015 16:43:34 -0800 (PST)
+Received: by padhx2 with SMTP id hx2so115192654pad.1
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 16:43:34 -0800 (PST)
+Subject: Re: [PATCH v2 03/11] pmem: enable REQ_FUA/REQ_FLUSH handling
+Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
+Content-Type: multipart/signed; boundary="Apple-Mail=_1216766E-B738-4495-BFC0-CB153BFD6B45"; protocol="application/pgp-signature"; micalg=pgp-sha256
+From: Andreas Dilger <adilger@dilger.ca>
+In-Reply-To: <CAPcyv4j4arHE+iAALn1WPDzSb_QSCDy8udtXU1FV=kYSZDfv8A@mail.gmail.com>
+Date: Fri, 13 Nov 2015 17:43:28 -0700
+Message-Id: <22E0F870-C1FB-431E-BF6C-B395A09A2B0D@dilger.ca>
+References: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com> <1447459610-14259-4-git-send-email-ross.zwisler@linux.intel.com> <CAPcyv4j4arHE+iAALn1WPDzSb_QSCDy8udtXU1FV=kYSZDfv8A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Tue, 10 Nov 2015, Mike Kravetz wrote:
 
-> Hugh Dickins pointed out problems with the new hugetlbfs fallocate
-> hole punch code.  These problems are in the routine remove_inode_hugepages
-> and mostly occur in the case where there are holes in the range of
-> pages to be removed.  These holes could be the result of a previous hole
-> punch or simply sparse allocation.  The current code could access pages
-> outside the specified range.
-> 
-> remove_inode_hugepages handles both hole punch and truncate operations.
-> Page index handling was fixed/cleaned up so that the loop index always
-> matches the page being processed.  The code now only makes a single pass
-> through the range of pages as it was determined page faults could not
-> race with truncate.  A cond_resched() was added after removing up to
-> PAGEVEC_SIZE pages.
-> 
-> Some totally unnecessary code in hugetlbfs_fallocate() that remained from
-> early development was also removed.
-> 
-> V3:
->   Add more descriptive comments and minor improvements as suggested by
->   Naoya Horiguchi
-> v2:
->   Make remove_inode_hugepages simpler after verifying truncate can not
->   race with page faults here.
-> 
-> Tested with fallocate tests submitted here:
-> http://librelist.com/browser//libhugetlbfs/2015/6/25/patch-tests-add-tests-for-fallocate-system-call/
-> And, some ftruncate tests under development
-> 
-> Fixes: b5cec28d36f5 ("hugetlbfs: truncate_hugepages() takes a range of pages")
-> Cc: stable@vger.kernel.org [4.3]
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+--Apple-Mail=_1216766E-B738-4495-BFC0-CB153BFD6B45
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=us-ascii
 
-Acked-by: Hugh Dickins <hughd@google.com>
+On Nov 13, 2015, at 5:20 PM, Dan Williams <dan.j.williams@intel.com> =
+wrote:
+>=20
+> On Fri, Nov 13, 2015 at 4:06 PM, Ross Zwisler
+> <ross.zwisler@linux.intel.com> wrote:
+>> Currently the PMEM driver doesn't accept REQ_FLUSH or REQ_FUA bios.  =
+These
+>> are sent down via blkdev_issue_flush() in response to a fsync() or =
+msync()
+>> and are used by filesystems to order their metadata, among other =
+things.
+>>=20
+>> When we get an msync() or fsync() it is the responsibility of the DAX =
+code
+>> to flush all dirty pages to media.  The PMEM driver then just has =
+issue a
+>> wmb_pmem() in response to the REQ_FLUSH to ensure that before we =
+return all
+>> the flushed data has been durably stored on the media.
+>>=20
+>> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+>=20
+> Hmm, I'm not seeing why we need this patch.  If the actual flushing of
+> the cache is done by the core why does the driver need support
+> REQ_FLUSH?  Especially since it's just a couple instructions.  REQ_FUA
+> only makes sense if individual writes can bypass the "drive" cache,
+> but no I/O submitted to the driver proper is ever cached we always
+> flush it through to media.
 
-> ---
->  fs/hugetlbfs/inode.c | 65 ++++++++++++++++++++++++++--------------------------
->  1 file changed, 32 insertions(+), 33 deletions(-)
-> 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 316adb9..de4bdfa 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -332,12 +332,17 @@ static void remove_huge_page(struct page *page)
->   * truncation is indicated by end of range being LLONG_MAX
->   *	In this case, we first scan the range and release found pages.
->   *	After releasing pages, hugetlb_unreserve_pages cleans up region/reserv
-> - *	maps and global counts.
-> + *	maps and global counts.  Page faults can not race with truncation
-> + *	in this routine.  hugetlb_no_page() prevents page faults in the
-> + *	truncated range.  It checks i_size before allocation, and again after
-> + *	with the page table lock for the page held.  The same lock must be
-> + *	acquired to unmap a page.
->   * hole punch is indicated if end is not LLONG_MAX
->   *	In the hole punch case we scan the range and release found pages.
->   *	Only when releasing a page is the associated region/reserv map
->   *	deleted.  The region/reserv map for ranges without associated
-> - *	pages are not modified.
-> + *	pages are not modified.  Page faults can race with hole punch.
-> + *	This is indicated if we find a mapped page.
->   * Note: If the passed end of range value is beyond the end of file, but
->   * not LLONG_MAX this routine still performs a hole punch operation.
->   */
-> @@ -361,46 +366,37 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->  	next = start;
->  	while (next < end) {
->  		/*
-> -		 * Make sure to never grab more pages that we
-> -		 * might possibly need.
-> +		 * Don't grab more pages than the number left in the range.
->  		 */
->  		if (end - next < lookup_nr)
->  			lookup_nr = end - next;
->  
->  		/*
-> -		 * This pagevec_lookup() may return pages past 'end',
-> -		 * so we must check for page->index > end.
-> +		 * When no more pages are found, we are done.
->  		 */
-> -		if (!pagevec_lookup(&pvec, mapping, next, lookup_nr)) {
-> -			if (next == start)
-> -				break;
-> -			next = start;
-> -			continue;
-> -		}
-> +		if (!pagevec_lookup(&pvec, mapping, next, lookup_nr))
-> +			break;
->  
->  		for (i = 0; i < pagevec_count(&pvec); ++i) {
->  			struct page *page = pvec.pages[i];
->  			u32 hash;
->  
-> +			/*
-> +			 * The page (index) could be beyond end.  This is
-> +			 * only possible in the punch hole case as end is
-> +			 * max page offset in the truncate case.
-> +			 */
-> +			next = page->index;
-> +			if (next >= end)
-> +				break;
-> +
->  			hash = hugetlb_fault_mutex_hash(h, current->mm,
->  							&pseudo_vma,
->  							mapping, next, 0);
->  			mutex_lock(&hugetlb_fault_mutex_table[hash]);
->  
->  			lock_page(page);
-> -			if (page->index >= end) {
-> -				unlock_page(page);
-> -				mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-> -				next = end;	/* we are done */
-> -				break;
-> -			}
-> -
-> -			/*
-> -			 * If page is mapped, it was faulted in after being
-> -			 * unmapped.  Do nothing in this race case.  In the
-> -			 * normal case page is not mapped.
-> -			 */
-> -			if (!page_mapped(page)) {
-> +			if (likely(!page_mapped(page))) {
->  				bool rsv_on_error = !PagePrivate(page);
->  				/*
->  				 * We must free the huge page and remove
-> @@ -421,17 +417,23 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->  						hugetlb_fix_reserve_counts(
->  							inode, rsv_on_error);
->  				}
-> +			} else {
-> +				/*
-> +				 * If page is mapped, it was faulted in after
-> +				 * being unmapped.  It indicates a race between
-> +				 * hole punch and page fault.  Do nothing in
-> +				 * this case.  Getting here in a truncate
-> +				 * operation is a bug.
-> +				 */
-> +				BUG_ON(truncate_op);
->  			}
->  
-> -			if (page->index > next)
-> -				next = page->index;
-> -
-> -			++next;
->  			unlock_page(page);
-> -
->  			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
->  		}
-> +		++next;
->  		huge_pagevec_release(&pvec);
-> +		cond_resched();
->  	}
->  
->  	if (truncate_op)
-> @@ -647,9 +649,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
->  	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
->  		i_size_write(inode, offset + len);
->  	inode->i_ctime = CURRENT_TIME;
-> -	spin_lock(&inode->i_lock);
-> -	inode->i_private = NULL;
-> -	spin_unlock(&inode->i_lock);
->  out:
->  	mutex_unlock(&inode->i_mutex);
->  	return error;
-> -- 
-> 2.4.3
+If the upper level filesystem gets an error when submitting a flush
+request, then it assumes the underlying hardware is broken and cannot
+be as aggressive in IO submission, but instead has to wait for in-flight
+IO to complete.  Since FUA/FLUSH is basically a no-op for pmem devices,
+it doesn't make sense _not_ to support this functionality.
+
+Cheers, Andreas
+
+
+
+
+
+
+--Apple-Mail=_1216766E-B738-4495-BFC0-CB153BFD6B45
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename=signature.asc
+Content-Type: application/pgp-signature;
+	name=signature.asc
+Content-Description: Message signed with OpenPGP using GPGMail
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - http://gpgtools.org
+
+iQIVAwUBVkaDsXKl2rkXzB/gAQibwBAAgoTcZevnn7sprjKcrySWAvw9bcubKzY8
+W4c6wkFftY8858ROsblZ/0+OhZPFlf2zJ2G3g+8sJ4Upv1s0MpyGHYS6QVu/QLn3
+xy4O7ivbLMtFOfMFWfheKAb8GxJxzpklB5yhyHaMnxtCxEg71K5D9mnqTi/jPIv6
+L0yWugsuzeSVeJ423NsFCxRZkWN2wrSuT6PS7bPeN/VBUC8wfU+LMXnmye9+tl1Z
+EkZWf11PQOz5kkEkN6Xk+ShgAVz7GR6w3jYHxDvNbZ+bDvlPGsV8Wvf+GZIo0Q4/
+SdhfRfNG/D2KKQlCAfZyyEdcSRcoSvkhAPny+ocGW9+rUNd86LMllbvfGzkRNH9Y
+pfocoQZHxcJ9G52XeqVVJvFzajQhPryzdOePg5YwnckY5h6Td0K46THztFKMN51K
+vXNhhbV/EHy7EjgNOsu+4tTfWrVdSGB4AiKlJlZ4SU5e4FaJxLR00jzm5nVSZpbC
+NW8NO+uE8deVLw1BJbVFq6S4qm1NshY0EZ4SYuksdJaAwo3kZtdjvbmnFq2Er+ta
+PVoWA5oJl5pZ0WRxEckchTIXC7iqwgVdBtPBqiAOZ4u+X3caU7kx+hYpjCymozvy
+6RdWl1hfgIv5lkJGf1SBOaLz1KSu2ElTtGDbWaQpxnKNnsE0Ye/gTd4m9bb86e+O
+b5j4DzeyM0E=
+=ibQq
+-----END PGP SIGNATURE-----
+
+--Apple-Mail=_1216766E-B738-4495-BFC0-CB153BFD6B45--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
