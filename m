@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id EE4C86B025F
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 19:07:49 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so7742453pac.2
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 16:07:49 -0800 (PST)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E49376B0260
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 19:07:51 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so114508311pad.1
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 16:07:51 -0800 (PST)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id z4si30586026pbv.39.2015.11.13.16.07.45
+        by mx.google.com with ESMTP id z4si30586026pbv.39.2015.11.13.16.07.46
         for <linux-mm@kvack.org>;
-        Fri, 13 Nov 2015 16:07:45 -0800 (PST)
+        Fri, 13 Nov 2015 16:07:46 -0800 (PST)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v2 10/11] ext4: add support for DAX fsync/msync
-Date: Fri, 13 Nov 2015 17:06:49 -0700
-Message-Id: <1447459610-14259-11-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v2 11/11] xfs: add support for DAX fsync/msync
+Date: Fri, 13 Nov 2015 17:06:50 -0700
+Message-Id: <1447459610-14259-12-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -29,70 +29,59 @@ was set up for DAX page faults.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- fs/ext4/file.c  |  4 +++-
- fs/ext4/fsync.c | 12 ++++++++++--
- 2 files changed, 13 insertions(+), 3 deletions(-)
+ fs/xfs/xfs_file.c | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
 
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 749b222..8c8965c 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -291,8 +291,8 @@ static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma,
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index 39743ef..2b490a1 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -209,7 +209,8 @@ xfs_file_fsync(
+ 	loff_t			end,
+ 	int			datasync)
  {
- 	struct inode *inode = file_inode(vma->vm_file);
- 	struct super_block *sb = inode->i_sb;
--	int ret = VM_FAULT_NOPAGE;
- 	loff_t size;
-+	int ret;
+-	struct inode		*inode = file->f_mapping->host;
++	struct address_space	*mapping = file->f_mapping;
++	struct inode		*inode = mapping->host;
+ 	struct xfs_inode	*ip = XFS_I(inode);
+ 	struct xfs_mount	*mp = ip->i_mount;
+ 	int			error = 0;
+@@ -218,7 +219,13 @@ xfs_file_fsync(
  
- 	sb_start_pagefault(sb);
- 	file_update_time(vma->vm_file);
-@@ -300,6 +300,8 @@ static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma,
+ 	trace_xfs_file_fsync(ip);
+ 
+-	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
++	if (dax_mapping(mapping)) {
++		xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
++		dax_fsync(mapping, start, end);
++		xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
++	}
++
++	error = filemap_write_and_wait_range(mapping, start, end);
+ 	if (error)
+ 		return error;
+ 
+@@ -1603,9 +1610,8 @@ xfs_filemap_pmd_fault(
+ /*
+  * pfn_mkwrite was originally inteneded to ensure we capture time stamp
+  * updates on write faults. In reality, it's need to serialise against
+- * truncate similar to page_mkwrite. Hence we open-code dax_pfn_mkwrite()
+- * here and cycle the XFS_MMAPLOCK_SHARED to ensure we serialise the fault
+- * barrier in place.
++ * truncate similar to page_mkwrite. Hence we cycle the XFS_MMAPLOCK_SHARED
++ * to ensure we serialise the fault barrier in place.
+  */
+ static int
+ xfs_filemap_pfn_mkwrite(
+@@ -1628,6 +1634,8 @@ xfs_filemap_pfn_mkwrite(
  	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
  	if (vmf->pgoff >= size)
  		ret = VM_FAULT_SIGBUS;
-+	else
++	else if (IS_DAX(inode))
 +		ret = dax_pfn_mkwrite(vma, vmf);
- 	up_read(&EXT4_I(inode)->i_mmap_sem);
- 	sb_end_pagefault(sb);
- 
-diff --git a/fs/ext4/fsync.c b/fs/ext4/fsync.c
-index 8850254..e87c29b 100644
---- a/fs/ext4/fsync.c
-+++ b/fs/ext4/fsync.c
-@@ -27,6 +27,7 @@
- #include <linux/sched.h>
- #include <linux/writeback.h>
- #include <linux/blkdev.h>
-+#include <linux/dax.h>
- 
- #include "ext4.h"
- #include "ext4_jbd2.h"
-@@ -86,7 +87,8 @@ static int ext4_sync_parent(struct inode *inode)
- 
- int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
- {
--	struct inode *inode = file->f_mapping->host;
-+	struct address_space *mapping = file->f_mapping;
-+	struct inode *inode = mapping->host;
- 	struct ext4_inode_info *ei = EXT4_I(inode);
- 	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
- 	int ret = 0, err;
-@@ -112,7 +114,13 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
- 		goto out;
- 	}
- 
--	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
-+	if (dax_mapping(mapping)) {
-+		down_read(&ei->i_mmap_sem);
-+		dax_fsync(mapping, start, end);
-+		up_read(&ei->i_mmap_sem);
-+	}
-+
-+	ret = filemap_write_and_wait_range(mapping, start, end);
- 	if (ret)
- 		return ret;
- 	/*
+ 	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+ 	sb_end_pagefault(inode->i_sb);
+ 	return ret;
 -- 
 2.1.0
 
