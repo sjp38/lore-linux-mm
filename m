@@ -1,45 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F0166B0254
-	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 19:51:49 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so115349000pad.1
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 16:51:48 -0800 (PST)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id pz7si30857313pab.1.2015.11.13.16.51.48
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Nov 2015 16:51:48 -0800 (PST)
-Received: by pacej9 with SMTP id ej9so8584907pac.2
-        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 16:51:48 -0800 (PST)
-Date: Fri, 13 Nov 2015 16:51:40 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] tmpfs: avoid a little creat and stat slowdown
-In-Reply-To: <8737wafge7.fsf@yhuang-dev.intel.com>
-Message-ID: <alpine.LSU.2.11.1511131645300.1539@eggly.anvils>
-References: <alpine.LSU.2.11.1510291208000.3475@eggly.anvils> <87bnbagqa0.fsf@yhuang-dev.intel.com> <alpine.LSU.2.11.1511081543590.14116@eggly.anvils> <8737wafge7.fsf@yhuang-dev.intel.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 419096B0254
+	for <linux-mm@kvack.org>; Fri, 13 Nov 2015 20:02:54 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so115400008pac.3
+        for <linux-mm@kvack.org>; Fri, 13 Nov 2015 17:02:54 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id xm9si30898664pbc.199.2015.11.13.17.02.53
+        for <linux-mm@kvack.org>;
+        Fri, 13 Nov 2015 17:02:53 -0800 (PST)
+Subject: Re: [PATCH v2 02/11] mm: add pmd_mkclean()
+References: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1447459610-14259-3-git-send-email-ross.zwisler@linux.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <56468838.6010506@intel.com>
+Date: Fri, 13 Nov 2015 17:02:48 -0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1447459610-14259-3-git-send-email-ross.zwisler@linux.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Josef Bacik <jbacik@fb.com>, Yu Zhao <yuzhao@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org
+Cc: "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-On Fri, 13 Nov 2015, Huang, Ying wrote:
-> 
-> c435a390574d is the direct parent of afa2db2fb6f1 in its original git.
-> 43819159da2b is your patch applied on top of v4.3-rc7.  The comparison
-> of 43819159da2b with v4.3-rc7 is as follow:
-...
-> So you patch improved 11.9% from its base v4.3-rc7.  I think other
-> difference are caused by other changes.  Sorry for confusing.
+On 11/13/2015 04:06 PM, Ross Zwisler wrote:
+> +static inline pmd_t pmd_mkclean(pmd_t pmd)
+> +{
+> +	return pmd_clear_flags(pmd, _PAGE_DIRTY | _PAGE_SOFT_DIRTY);
+> +}
 
-Thanks for getting back on this: that's rather what I was hoping to hear.
-
-Of course, no user will care which commit is responsible for a slowdown,
-and we may need to look further; but I couldn't make sense of it before,
-so this was a relief.
-
-Hugh
+pte_mkclean() doesn't clear _PAGE_SOFT_DIRTY.  What the thought behind
+doing it here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
