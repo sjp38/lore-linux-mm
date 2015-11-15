@@ -1,103 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f43.google.com (mail-lf0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 5611B6B026B
-	for <linux-mm@kvack.org>; Sun, 15 Nov 2015 06:29:28 -0500 (EST)
-Received: by lfdo63 with SMTP id o63so72978787lfd.2
-        for <linux-mm@kvack.org>; Sun, 15 Nov 2015 03:29:27 -0800 (PST)
-Received: from mail-lf0-x229.google.com (mail-lf0-x229.google.com. [2a00:1450:4010:c07::229])
-        by mx.google.com with ESMTPS id dp2si21907113lbc.159.2015.11.15.03.29.26
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 537836B0255
+	for <linux-mm@kvack.org>; Sun, 15 Nov 2015 08:55:18 -0500 (EST)
+Received: by lbbcs9 with SMTP id cs9so75379479lbb.1
+        for <linux-mm@kvack.org>; Sun, 15 Nov 2015 05:55:17 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id e78si22273273lfg.162.2015.11.15.05.55.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 15 Nov 2015 03:29:26 -0800 (PST)
-Received: by lfs39 with SMTP id 39so73139509lfs.3
-        for <linux-mm@kvack.org>; Sun, 15 Nov 2015 03:29:26 -0800 (PST)
-From: Arkadiusz =?utf-8?q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>
-Subject: Re: memory reclaim problems on fs usage
-Date: Sun, 15 Nov 2015 12:29:23 +0100
-References: <201511102313.36685.arekm@maven.pl> <201511142140.38245.arekm@maven.pl> <201511151135.JGD81717.OFOOSMFJFQHVtL@I-love.SAKURA.ne.jp>
-In-Reply-To: <201511151135.JGD81717.OFOOSMFJFQHVtL@I-love.SAKURA.ne.jp>
+        Sun, 15 Nov 2015 05:55:16 -0800 (PST)
+Date: Sun, 15 Nov 2015 16:54:57 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 14/14] mm: memcontrol: hook up vmpressure to socket
+ pressure
+Message-ID: <20151115135457.GM31308@esperanza>
+References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
+ <1447371693-25143-15-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <201511151229.23312.arekm@maven.pl>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1447371693-25143-15-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: htejun@gmail.com, cl@linux.com, mhocko@suse.com, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Sunday 15 of November 2015, Tetsuo Handa wrote:
-> Arkadiusz Miskiewicz wrote:
-> > > > vmstat_update() and submit_flushes() remained pending for about 110
-> > > > seconds. If xlog_cil_push_work() were spinning inside GFP_NOFS
-> > > > allocation, it should be reported as MemAlloc: traces, but no such
-> > > > lines are recorded. I don't know why xlog_cil_push_work() did not
-> > > > call schedule() for so long. Anyway, applying
-> > > > http://lkml.kernel.org/r/20151111160336.GD1432@dhcp22.suse.cz should
-> > > > solve vmstat_update() part.
-> > >=20
-> > > To apply that patch on top of 4.1.13 I also had to apply patches list=
-ed
-> > > below.
-> > >=20
-> > > So in summary appllied:
-> > > http://sprunge.us/GYBb
-> > > http://sprunge.us/XWUX
-> > > http://sprunge.us/jZjV
-> >=20
-> > I've tried more to trigger "page allocation failure" with usual actions
-> > that triggered it previously but couldn't reproduce. With these patches
-> > applied it doesn't happen.
-> >=20
-> > Logs from my tests:
-> >=20
-> > http://ixion.pld-linux.org/~arekm/log-mm-3.txt.gz
-> > http://ixion.pld-linux.org/~arekm/log-mm-4.txt.gz (with swap added)
->=20
-> Good.
->=20
-> vmstat_update() and submit_flushes() are no longer pending for long.
->=20
-> log-mm-4.txt:Nov 14 16:40:08 srv kernel: [167753.393960]     pending:
-> vmstat_shepherd, vmpressure_work_fn log-mm-4.txt:Nov 14 16:40:08 srv
-> kernel: [167753.393984]     pending: submit_flushes [md_mod]
-> log-mm-4.txt:Nov 14 16:41:08 srv kernel: [167813.439405]     pending:
-> submit_flushes [md_mod] log-mm-4.txt:Nov 14 17:17:19 srv kernel:
-> [169985.104806]     pending: vmstat_shepherd
->=20
-> I think that the vmstat statistics now have correct values.
->=20
-> > But are these patches solving the problem or just hiding it?
->=20
-> Excuse me but I can't judge.
->
-> If you are interested in monitoring how vmstat statistics are changing
-> under stalled condition, you can try below patch.
+On Thu, Nov 12, 2015 at 06:41:33PM -0500, Johannes Weiner wrote:
+> Let the networking stack know when a memcg is under reclaim pressure
+> so that it can clamp its transmit windows accordingly.
+> 
+> Whenever the reclaim efficiency of a cgroup's LRU lists drops low
+> enough for a MEDIUM or HIGH vmpressure event to occur, assert a
+> pressure state in the socket and tcp memory code that tells it to curb
+> consumption growth from sockets associated with said control group.
+> 
+> vmpressure events are naturally edge triggered, so for hysteresis
+> assert socket pressure for a second to allow for subsequent vmpressure
+> events to occur before letting the socket code return to normal.
 
+AFAICS, in contrast to v1, now you don't modify vmpressure behavior,
+which means socket_pressure will only be set when cgroup hits its
+high/hard limit. On tightly packed system, this is unlikely IMO -
+cgroups will mostly experience pressure due to memory shortage at the
+global level and/or their low limit configuration, in which case no
+vmpressure events will be triggered and therefore tcp window won't be
+clamped accordingly.
 
-Here is log with this and all previous patches applied:
-http://ixion.pld-linux.org/~arekm/log-mm-5.txt.gz
+May be, we could use a per memcg slab shrinker to detect memory
+pressure? This looks like abusing shrinkers API though.
 
-
->=20
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 35a46b4..3de3a14 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2794,8 +2794,7 @@ static int kmallocwd(void *unused)
->  	rcu_read_unlock();
->  	preempt_enable();
->  	show_workqueue_state();
-> -	if (dump_target_pid <=3D 0)
-> -		dump_target_pid =3D -pid;
-> +	show_mem(0);
->  	/* Wait until next timeout duration. */
->  	schedule_timeout_interruptible(kmallocwd_timeout);
->  	if (memalloc_counter[index])
-
-
-=2D-=20
-Arkadiusz Mi=C5=9Bkiewicz, arekm / ( maven.pl | pld-linux.org )
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
