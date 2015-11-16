@@ -1,81 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 4107F6B0038
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 11:51:07 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so180294937pad.1
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 08:51:07 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id zo6si51578263pbc.29.2015.11.16.08.51.06
-        for <linux-mm@kvack.org>;
-        Mon, 16 Nov 2015 08:51:06 -0800 (PST)
-Date: Mon, 16 Nov 2015 16:51:00 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v7 0/4] KASAN for arm64
-Message-ID: <20151116165100.GE6556@e104818-lin.cambridge.arm.com>
-References: <1444665180-301-1-git-send-email-ryabinin.a.a@gmail.com>
- <20151013083432.GG6320@e104818-lin.cambridge.arm.com>
- <5649BAFD.6030005@arm.com>
- <5649F783.40109@gmail.com>
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C15F6B0255
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 11:58:13 -0500 (EST)
+Received: by wmww144 with SMTP id w144so128172758wmw.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 08:58:12 -0800 (PST)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id b186si26802528wmd.88.2015.11.16.08.58.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Nov 2015 08:58:11 -0800 (PST)
+Received: by wmec201 with SMTP id c201so129389993wme.1
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 08:58:11 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <5649F783.40109@gmail.com>
+In-Reply-To: <20151116144130.GD3443@quack.suse.cz>
+References: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
+	<20151116144130.GD3443@quack.suse.cz>
+Date: Mon, 16 Nov 2015 08:58:11 -0800
+Message-ID: <CAPcyv4gb8rh4Xkn-yzjbazftnXp8f6hr21LR5ZZehQBNLeNkZA@mail.gmail.com>
+Subject: Re: [PATCH v2 00/11] DAX fsynx/msync support
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, Yury <yury.norov@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Linus Walleij <linus.walleij@linaro.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, kasan-dev <kasan-dev@googlegroups.com>, Alexey Klimov <klimov.linux@gmail.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, David Keitel <dkeitel@codeaurora.org>, linux-arm-kernel@lists.infradead.org
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Mon, Nov 16, 2015 at 06:34:27PM +0300, Andrey Ryabinin wrote:
-> On 11/16/2015 02:16 PM, Suzuki K. Poulose wrote:
-> > On 13/10/15 09:34, Catalin Marinas wrote:
-> >> On Mon, Oct 12, 2015 at 06:52:56PM +0300, Andrey Ryabinin wrote:
-> >>> Andrey Ryabinin (3):
-> >>>    arm64: move PGD_SIZE definition to pgalloc.h
-> >>>    arm64: add KASAN support
-> >>>    Documentation/features/KASAN: arm64 supports KASAN now
-> >>>
-> >>> Linus Walleij (1):
-> >>>    ARM64: kasan: print memory assignment
-> >>
-> >> Patches queued for 4.4. Thanks.
-> > 
-> > I get the following failure with KASAN + 16K_PAGES + 48BIT_VA, with 4.4-rc1:
-> > 
-> > arch/arm64/mm/kasan_init.c: In function a??kasan_early_inita??:
-> > include/linux/compiler.h:484:38: error: call to a??__compiletime_assert_95a?? declared with attribute error: BUILD_BUG_ON failed: !IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE)
-> >   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
-> >                                       ^
-> > include/linux/compiler.h:467:4: note: in definition of macro a??__compiletime_asserta??
-> >     prefix ## suffix();    \
-> >     ^
-> > include/linux/compiler.h:484:2: note: in expansion of macro a??_compiletime_asserta??
-> >   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
-> >   ^
-> > include/linux/bug.h:50:37: note: in expansion of macro a??compiletime_asserta??
-> >  #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
-> >                                      ^
-> > include/linux/bug.h:74:2: note: in expansion of macro a??BUILD_BUG_ON_MSGa??
-> >   BUILD_BUG_ON_MSG(condition, "BUILD_BUG_ON failed: " #condition)
-> >   ^
-> > arch/arm64/mm/kasan_init.c:95:2: note: in expansion of macro a??BUILD_BUG_ONa??
-> >   BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
-> > 
-> > The problem is that the PGDIR_SIZE is (1UL << 47) with 16K+48bit, which makes
-> > the KASAN_SHADOW_END unaligned(which is aligned to (1UL << (48 - 3)) ). Is the
-> > alignment really needed ? Thoughts on how best we could fix this ?
-> 
-> Yes, it's really needed, because some code relies on this (e.g.
-> clear_pgs() and kasan_init()). But it should be possible to get rid of
-> this requirement.
+On Mon, Nov 16, 2015 at 6:41 AM, Jan Kara <jack@suse.cz> wrote:
+> On Fri 13-11-15 17:06:39, Ross Zwisler wrote:
+>> This patch series adds support for fsync/msync to DAX.
+>>
+>> Patches 1 through 7 add various utilities that the DAX code will eventually
+>> need, and the DAX code itself is added by patch 8.  Patches 9-11 update the
+>> three filesystems that currently support DAX, ext2, ext4 and XFS, to use
+>> the new DAX fsync/msync code.
+>>
+>> These patches build on the recent DAX locking changes from Dave Chinner,
+>> Jan Kara and myself.  Dave's changes for XFS and my changes for ext2 have
+>> been merged in the v4.4 window, but Jan's are still unmerged.  You can grab
+>> them here:
+>>
+>> http://www.spinics.net/lists/linux-ext4/msg49951.html
+>
+> I had a quick look and the patches look sane to me. I'll try to give them
+> more detailed look later this week. When thinking about the general design
+> I was wondering: When we have this infrastructure to track data potentially
+> lingering in CPU caches, would not it be a performance win to use standard
+> cached stores in dax_io() and mark corresponding pages as dirty in page
+> cache the same way as this patch set does it for mmaped writes? I have no
+> idea how costly are non-temporal stores compared to cached ones and how
+> would this compare to the cost of dirty tracking so this may be just
+> completely bogus...
 
-I don't think clear_pgds() and kasan_init() are the only problems. IIUC,
-kasan_populate_zero_shadow() also assumes that KASan shadow covers
-multiple pgds. You need some kind of recursive writing which avoids
-populating an entry which is not empty (like kasan_early_pud_populate).
-
--- 
-Catalin
+Keep in mind that this approach will flush every virtual address that
+may be dirty.  For example, if you touch 1byte in a 2MB page we'll end
+up looping through the entire 2MB range.  At some point the dirty size
+becomes large enough that is cheaper to flush the entire cache, we
+have not measured where that crossover point is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
