@@ -1,109 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 64EFE6B0253
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 04:10:03 -0500 (EST)
-Received: by wmec201 with SMTP id c201so109694391wme.1
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 01:10:02 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j11si44664901wjq.53.2015.11.16.01.10.01
+	by kanga.kvack.org (Postfix) with ESMTP id 3B7DB6B0253
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 04:32:45 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so166216660wmv.1
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 01:32:44 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id ko8si10404221wjb.26.2015.11.16.01.32.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 16 Nov 2015 01:10:01 -0800 (PST)
-Subject: Re: [PATCH V2] mm: change mm_vmscan_lru_shrink_inactive() proto types
-References: <1447641465-1582-1-git-send-email-yalin.wang2010@gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56499D67.6050102@suse.cz>
-Date: Mon, 16 Nov 2015 10:09:59 +0100
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Nov 2015 01:32:43 -0800 (PST)
+Received: by wmdw130 with SMTP id w130so102339737wmd.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 01:32:43 -0800 (PST)
+Date: Mon, 16 Nov 2015 11:32:41 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH, RESEND] ipc/shm: handle removed segments gracefully in
+ shm_mmap()
+Message-ID: <20151116093241.GB9778@node.shutemov.name>
+References: <1447232220-36879-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20151111170347.GA3502@linux-uzut.site>
+ <20151111195023.GA17310@node.shutemov.name>
+ <20151113053137.GB3502@linux-uzut.site>
+ <20151113091259.GB28904@node.shutemov.name>
+ <20151113192310.GC3502@linux-uzut.site>
 MIME-Version: 1.0
-In-Reply-To: <1447641465-1582-1-git-send-email-yalin.wang2010@gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151113192310.GC3502@linux-uzut.site>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yalin wang <yalin.wang2010@gmail.com>, rostedt@goodmis.org, mingo@redhat.com, acme@redhat.com, namhyung@kernel.org, akpm@linux-foundation.org, mhocko@suse.cz, vdavydov@parallels.com, hannes@cmpxchg.org, mgorman@techsingularity.net, tj@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dmitry Vyukov <dvyukov@google.com>, Manfred Spraul <manfred@colorfullife.com>
 
-On 11/16/2015 03:37 AM, yalin wang wrote:
-> Move node_id zone_idx shrink flags into trace function,
-> so thay we don't need caculate these args if the trace is disabled,
-> and will make this function have less arguments.
->
-> Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
+On Fri, Nov 13, 2015 at 11:23:10AM -0800, Davidlohr Bueso wrote:
+> On Fri, 13 Nov 2015, Kirill A. Shutemov wrote:
+> 
+> >On Thu, Nov 12, 2015 at 09:31:37PM -0800, Davidlohr Bueso wrote:
+> >>On Wed, 11 Nov 2015, Kirill A. Shutemov wrote:
+> >>>>>	ret = sfd->file->f_op->mmap(sfd->file, vma);
+> >>>>>-	if (ret != 0)
+> >>>>>+	if (ret) {
+> >>>>>+		shm_close(vma);
+> >>>>>		return ret;
+> >>>>>+	}
+> >>>>
+> >>>>Hmm what's this shm_close() about?
+> >>>
+> >>>Undo shp->shm_nattch++ in successful __shm_open().
+> >>
+> >>Yeah that's just nasty.
+> >
+> >I don't see why: we successfully opened the segment, but f_op->mmap
+> >failed -- let's close the segment. It's normal error path.
+> 
+> I was referring to the fact that I hate having to prematurely call shm_open()
+> just for this case, and then have to backout, ie for nattach. Similarly, I
+> dislike that you make shm_close behave one way and _shm_open another, looks
+> hacky.
+> 
+> That said, I do agree that we should inform EIDRM back to the shm_mmap
+> caller. My immediate thought would be to recheck right after shm_open returns.
+> I realize this is also hacky as we run into similar inconsistencies that I
+> mentioned above. But that's a caller (and the only one), not the whole
+> shm_open/close. Also, just like we are concerned about EIDRM, should we also
+> care about EINVAL -- where we race with explicit user shmctl(RMID) calls but
+> we hold reference to nattach?? I mean, why bother doing mmap if the segment is
+> marked for deletion and ipc won't touch it again anyway (failed idr lookups).
+> The downside to that is the extra lookup overhead, so perhaps your approach
+> is better. But looks like the right thing to do conceptually. Something like so?
+> 
+> shm_mmap()
+> {
+> 	err = shm_check_vma_validity()
+> 	if (err)
+> 
+> 	->mmap()
+> 
+> 	shm_open()
+> 	err = shm_check_vma_validity()
+> 	if (err)
+> 	   return err; /* shm_open was a nop, return the corresponding error */
+> 
+> 	return 0;
+> }
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+The problem I have with this approach is that it assumes that there's
+nothing to undo from ->mmap in case of shm_check_validity() failed in the
+second call. That seems true at the moment, but I'm not sure if we can
+assume this in general and if it's future-proof.
 
-Note that you could have added it yourself, as I said it's fine with me 
-after doing the zone_to_nid() change. Also you can keep acked-by and 
-reviewed-by from V1 when posting a V2 with only such a small change. V2 
-didn't change the tracepoint API further from V1, so I'm quite sure 
-Steven wouldn't mind keeping his:
+> So considering EINVAL, even your approach to bumping up nattach by calling
+> _shm_open earlier isn't enough. Races exposed to user called rmid can still
+> occur between dropping the lock and doing ->mmap().
 
-Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
+Ugh.. I see. That's a problem.
 
-(although it's true that the call to keep/drop the tags is not always 
-obvious)
+Looks like a problem we solved for mm_struct by separation of mm_count
+from mm_users. Should we have two counters instead of shm_nattch?
 
-Thanks.
+> Ultimately this leads to all ipc_valid_object() checks, as we totally
+> ignore SHM_DEST segments nowadays since we forbid mapping previously
+> removed segments.
+> 
+> I think this is the first thing we must decide before going forward with this
+> mess. ipc currently defines invalid objects by merely checking the deleted flag.
 
-> ---
->   include/trace/events/vmscan.h | 14 +++++++-------
->   mm/vmscan.c                   |  7 ++-----
->   2 files changed, 9 insertions(+), 12 deletions(-)
->
-> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> index dae7836..31763dd 100644
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -352,11 +352,11 @@ TRACE_EVENT(mm_vmscan_writepage,
->
->   TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
->
-> -	TP_PROTO(int nid, int zid,
-> -			unsigned long nr_scanned, unsigned long nr_reclaimed,
-> -			int priority, int reclaim_flags),
-> +	TP_PROTO(struct zone *zone,
-> +		unsigned long nr_scanned, unsigned long nr_reclaimed,
-> +		int priority, int file),
->
-> -	TP_ARGS(nid, zid, nr_scanned, nr_reclaimed, priority, reclaim_flags),
-> +	TP_ARGS(zone, nr_scanned, nr_reclaimed, priority, file),
->
->   	TP_STRUCT__entry(
->   		__field(int, nid)
-> @@ -368,12 +368,12 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
->   	),
->
->   	TP_fast_assign(
-> -		__entry->nid = nid;
-> -		__entry->zid = zid;
-> +		__entry->nid = zone_to_nid(zone);
-> +		__entry->zid = zone_idx(zone);
->   		__entry->nr_scanned = nr_scanned;
->   		__entry->nr_reclaimed = nr_reclaimed;
->   		__entry->priority = priority;
-> -		__entry->reclaim_flags = reclaim_flags;
-> +		__entry->reclaim_flags = trace_shrink_flags(file);
->   	),
->
->   	TP_printk("nid=%d zid=%d nr_scanned=%ld nr_reclaimed=%ld priority=%d flags=%s",
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 69ca1f5..f8fc8c1 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1691,11 +1691,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->   	    current_may_throttle())
->   		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
->
-> -	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
-> -		zone_idx(zone),
-> -		nr_scanned, nr_reclaimed,
-> -		sc->priority,
-> -		trace_shrink_flags(file));
-> +	trace_mm_vmscan_lru_shrink_inactive(zone, nr_scanned, nr_reclaimed,
-> +			sc->priority, file);
->   	return nr_reclaimed;
->   }
->
->
+To me all these flags mess should be replaced by proper refcounting.
+Although, I admit, I don't understand SysV IPC API good enough to say for
+sure if it's possible.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
