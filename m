@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 427436B0253
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 05:05:50 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so170720080pac.3
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 02:05:50 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id zx6si49596877pbc.51.2015.11.16.02.05.49
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 347B66B0254
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 05:10:13 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so173306003pab.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 02:10:13 -0800 (PST)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id rw4si49323043pab.147.2015.11.16.02.10.12
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Nov 2015 02:05:49 -0800 (PST)
-Received: by pacej9 with SMTP id ej9so64064401pac.2
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 02:05:49 -0800 (PST)
-Date: Mon, 16 Nov 2015 02:05:46 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Nov 2015 02:10:12 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so173305786pab.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 02:10:12 -0800 (PST)
+Date: Mon, 16 Nov 2015 02:10:10 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 6/7] mm/gfp: make gfp_zonelist return directly and bool
-In-Reply-To: <1447656686-4851-7-git-send-email-baiyaowei@cmss.chinamobile.com>
-Message-ID: <alpine.DEB.2.10.1511160205010.18751@chino.kir.corp.google.com>
-References: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com> <1447656686-4851-7-git-send-email-baiyaowei@cmss.chinamobile.com>
+Subject: Re: [PATCH 4/7] mm/vmscan: page_is_file_cache can be boolean
+In-Reply-To: <1447656686-4851-5-git-send-email-baiyaowei@cmss.chinamobile.com>
+Message-ID: <alpine.DEB.2.10.1511160209060.18751@chino.kir.corp.google.com>
+References: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com> <1447656686-4851-5-git-send-email-baiyaowei@cmss.chinamobile.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,28 +26,35 @@ Cc: akpm@linux-foundation.org, bhe@redhat.com, dan.j.williams@intel.com, dave.ha
 
 On Mon, 16 Nov 2015, Yaowei Bai wrote:
 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 6523109..1da03f5 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -375,12 +375,9 @@ static inline enum zone_type gfp_zone(gfp_t flags)
->   * virtual kernel addresses to the allocated page(s).
+> diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+> index cf55945..af73135 100644
+> --- a/include/linux/mm_inline.h
+> +++ b/include/linux/mm_inline.h
+> @@ -8,8 +8,8 @@
+>   * page_is_file_cache - should the page be on a file LRU or anon LRU?
+>   * @page: the page to test
+>   *
+> - * Returns 1 if @page is page cache page backed by a regular filesystem,
+> - * or 0 if @page is anonymous, tmpfs or otherwise ram or swap backed.
+> + * Returns true if @page is page cache page backed by a regular filesystem,
+> + * or false if @page is anonymous, tmpfs or otherwise ram or swap backed.
+>   * Used by functions that manipulate the LRU lists, to sort a page
+>   * onto the right LRU list.
+>   *
+> @@ -17,7 +17,7 @@
+>   * needs to survive until the page is last deleted from the LRU, which
+>   * could be as far down as __page_cache_release.
 >   */
->  
-> -static inline int gfp_zonelist(gfp_t flags)
-> +static inline bool gfp_zonelist(gfp_t flags)
+> -static inline int page_is_file_cache(struct page *page)
+> +static inline bool page_is_file_cache(struct page *page)
 >  {
-> -	if (IS_ENABLED(CONFIG_NUMA) && unlikely(flags & __GFP_THISNODE))
-> -		return 1;
-> -
-> -	return 0;
-> +	return IS_ENABLED(CONFIG_NUMA) && unlikely(flags & __GFP_THISNODE);
+>  	return !PageSwapBacked(page);
 >  }
->  
->  /*
 
-This function is used to index into a pgdat's node_zonelists[] array, bool 
-makes no sense.
+Since page_is_file_cache() is often used to determine which zlc to 
+increment or decrement (usage such as 
+NR_ISOLATED_ANON + page_is_file_cache(page)), I don't think this style is 
+helpful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
