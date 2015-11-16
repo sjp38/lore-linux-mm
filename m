@@ -1,94 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 9792A6B0038
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 13:15:57 -0500 (EST)
-Received: by wmww144 with SMTP id w144so131380313wmw.0
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 10:15:57 -0800 (PST)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id n123si7011768wmd.100.2015.11.16.10.15.56
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 445876B0038
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 13:18:23 -0500 (EST)
+Received: by lbbsy6 with SMTP id sy6so64881324lbb.2
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 10:18:22 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id u8si27335021lbb.149.2015.11.16.10.18.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Nov 2015 10:15:56 -0800 (PST)
-Received: by wmdw130 with SMTP id w130so123027949wmd.0
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 10:15:56 -0800 (PST)
+        Mon, 16 Nov 2015 10:18:21 -0800 (PST)
+Date: Mon, 16 Nov 2015 13:18:10 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 13/14] mm: memcontrol: account socket memory in unified
+ hierarchy memory controller
+Message-ID: <20151116181810.GB32544@cmpxchg.org>
+References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
+ <1447371693-25143-14-git-send-email-hannes@cmpxchg.org>
+ <20151116155923.GH14116@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1447675755-5692-1-git-send-email-yigal@plexistor.com>
-References: <1447675755-5692-1-git-send-email-yigal@plexistor.com>
-Date: Mon, 16 Nov 2015 10:15:56 -0800
-Message-ID: <CAPcyv4gaeq=dJziT3xdWfaprVg6KsRO2-yR9QC3_XV8zb6b=Mg@mail.gmail.com>
-Subject: Re: [PATCH] mm, dax: fix DAX deadlocks (COW fault)
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151116155923.GH14116@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yigal Korman <yigal@plexistor.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, david <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Stable Tree <stable@vger.kernel.org>, Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <dchinner@redhat.com>, Jan Kara <jack@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Nov 16, 2015 at 4:09 AM, Yigal Korman <yigal@plexistor.com> wrote:
-> DAX handling of COW faults has wrong locking sequence:
->         dax_fault does i_mmap_lock_read
->         do_cow_fault does i_mmap_unlock_write
->
-> Ross's commit[1] missed a fix[2] that Kirill added to Matthew's
-> commit[3].
->
-> Original COW locking logic was introduced by Matthew here[4].
->
-> This should be applied to v4.3 as well.
->
-> [1] 0f90cc6609c7 mm, dax: fix DAX deadlocks
-> [2] 52a2b53ffde6 mm, dax: use i_mmap_unlock_write() in do_cow_fault()
-> [3] 843172978bb9 dax: fix race between simultaneous faults
-> [4] 2e4cdab0584f mm: allow page fault handlers to perform the COW
->
-> Signed-off-by: Yigal Korman <yigal@plexistor.com>
->
-> Cc: Stable Tree <stable@vger.kernel.org>
-> Cc: Boaz Harrosh <boaz@plexistor.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Dave Chinner <dchinner@redhat.com>
-> Cc: Jan Kara <jack@suse.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> ---
->  mm/memory.c | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/memory.c b/mm/memory.c
-> index c716913..e5071af 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3015,9 +3015,9 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->                 } else {
->                         /*
->                          * The fault handler has no page to lock, so it holds
-> -                        * i_mmap_lock for write to protect against truncate.
-> +                        * i_mmap_lock for read to protect against truncate.
->                          */
-> -                       i_mmap_unlock_write(vma->vm_file->f_mapping);
-> +                       i_mmap_unlock_read(vma->vm_file->f_mapping);
->                 }
->                 goto uncharge_out;
->         }
-> @@ -3031,9 +3031,9 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->         } else {
->                 /*
->                  * The fault handler has no page to lock, so it holds
-> -                * i_mmap_lock for write to protect against truncate.
-> +                * i_mmap_lock for read to protect against truncate.
->                  */
-> -               i_mmap_unlock_write(vma->vm_file->f_mapping);
-> +               i_mmap_unlock_read(vma->vm_file->f_mapping);
->         }
->         return ret;
->  uncharge_out:
+On Mon, Nov 16, 2015 at 04:59:25PM +0100, Michal Hocko wrote:
+> On Thu 12-11-15 18:41:32, Johannes Weiner wrote:
+> > Socket memory can be a significant share of overall memory consumed by
+> > common workloads. In order to provide reasonable resource isolation in
+> > the unified hierarchy, this type of memory needs to be included in the
+> > tracking/accounting of a cgroup under active memory resource control.
+> > 
+> > Overhead is only incurred when a non-root control group is created AND
+> > the memory controller is instructed to track and account the memory
+> > footprint of that group. cgroup.memory=nosocket can be specified on
+> > the boot commandline to override any runtime configuration and
+> > forcibly exclude socket memory from active memory resource control.
+> 
+> Do you have any numbers about the overhead?
 
-Looks good to me.  I'll include this with some other DAX fixes I have pending.
+Hm? Performance numbers make sense when you have a specific scenario
+and a theory on how to optimize the implementation for it. What load
+would you test and what would be the baseline to compare it to?
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> With a way to disable this feature I am OK with it.
+> cgroup.memory=nosocket should be documented (at least in
+> Documentation/kernel-parameters.txt)
+
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index f8aae63..d518340 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -599,6 +599,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+ 			cut the overhead, others just disable the usage. So
+ 			only cgroup_disable=memory is actually worthy}
+ 
++	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
++			Format: <string>
++			nosocket -- Disable socket memory accounting.
++
+ 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
+ 			Format: { "0" | "1" }
+ 			See security/selinux/Kconfig help text.
+
+> Other than that
+> Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+---
