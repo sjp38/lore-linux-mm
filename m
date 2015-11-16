@@ -1,71 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 468716B0253
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 05:54:56 -0500 (EST)
-Received: by wmww144 with SMTP id w144so104531365wmw.1
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 02:54:55 -0800 (PST)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id 12si45134008wjt.125.2015.11.16.02.54.54
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A21BE6B0253
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 06:26:44 -0500 (EST)
+Received: by wmec201 with SMTP id c201so171065243wme.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 03:26:44 -0800 (PST)
+Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
+        by mx.google.com with ESMTPS id p3si27876332wjy.59.2015.11.16.03.26.43
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Nov 2015 02:54:55 -0800 (PST)
-Received: by wmdw130 with SMTP id w130so105311572wmd.0
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 02:54:54 -0800 (PST)
-Date: Mon, 16 Nov 2015 12:54:53 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: kernel oops on mmotm-2015-10-15-15-20
-Message-ID: <20151116105452.GA10575@node.shutemov.name>
-References: <20151103071650.GA21553@node.shutemov.name>
- <20151103073329.GL17906@bbox>
- <20151103152019.GM17906@bbox>
- <20151104142135.GA13303@node.shutemov.name>
- <20151105001922.GD7357@bbox>
- <20151108225522.GA29600@node.shutemov.name>
- <20151112003614.GA5235@bbox>
- <20151116014521.GA7973@bbox>
- <20151116084522.GA9778@node.shutemov.name>
- <20151116103220.GA32578@bbox>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 16 Nov 2015 03:26:43 -0800 (PST)
+Subject: Re: [PATCH v7 0/4] KASAN for arm64
+References: <1444665180-301-1-git-send-email-ryabinin.a.a@gmail.com>
+ <20151013083432.GG6320@e104818-lin.cambridge.arm.com>
+From: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
+Message-ID: <5649BAFD.6030005@arm.com>
+Date: Mon, 16 Nov 2015 11:16:13 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151116103220.GA32578@bbox>
+In-Reply-To: <20151013083432.GG6320@e104818-lin.cambridge.arm.com>
+Content-Type: text/plain; charset=WINDOWS-1252; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Yury <yury.norov@gmail.com>, Alexey Klimov <klimov.linux@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Andrey Konovalov <andreyknvl@google.com>, Linus Walleij <linus.walleij@linaro.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-kernel@vger.kernel.org, kasan-dev <kasan-dev@googlegroups.com>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On Mon, Nov 16, 2015 at 07:32:20PM +0900, Minchan Kim wrote:
-> On Mon, Nov 16, 2015 at 10:45:22AM +0200, Kirill A. Shutemov wrote:
-> > On Mon, Nov 16, 2015 at 10:45:21AM +0900, Minchan Kim wrote:
-> > > During the test with MADV_FREE on kernel I applied your patches,
-> > > I couldn't see any problem.
-> > > 
-> > > However, in this round, I did another test which is same one
-> > > I attached but a liitle bit different because it doesn't do
-> > > (memcg things/kill/swapoff) for testing program long-live test.
-> > 
-> > Could you share updated test?
-> 
-> It's part of my testing suite so I should factor it out.
-> I will send it when I go to office tomorrow.
+On 13/10/15 09:34, Catalin Marinas wrote:
+> On Mon, Oct 12, 2015 at 06:52:56PM +0300, Andrey Ryabinin wrote:
+>> Andrey Ryabinin (3):
+>>    arm64: move PGD_SIZE definition to pgalloc.h
+>>    arm64: add KASAN support
+>>    Documentation/features/KASAN: arm64 supports KASAN now
+>>
+>> Linus Walleij (1):
+>>    ARM64: kasan: print memory assignment
+>
+> Patches queued for 4.4. Thanks.
+>
 
-Thanks.
+Hi,
 
-> > And could you try to reproduce it on clean mmotm-2015-11-10-15-53?
-> 
-> Befor leaving office, I queued it up and result is below.
-> It seems you fixed already but didn't apply it to mmotm yet. Right?
-> Anyway, please confirm and say to me what I should add more patches
-> into mmotm-2015-11-10-15-53 for follow up your recent many bug
-> fix patches.
+I get the following failure with KASAN + 16K_PAGES + 48BIT_VA, with 4.4-rc1=
+:
 
-The two my patches which are not in the mmotm-2015-11-10-15-53 release:
 
-http://lkml.kernel.org/g/1447236557-68682-1-git-send-email-kirill.shutemov@linux.intel.com
-http://lkml.kernel.org/g/1447236567-68751-1-git-send-email-kirill.shutemov@linux.intel.com
+arch/arm64/mm/kasan_init.c: In function =91kasan_early_init=92:
+include/linux/compiler.h:484:38: error: call to =91__compiletime_assert_95=
+=92 declared with attribute error: BUILD_BUG_ON failed: !IS_ALIGNED(KASAN_S=
+HADOW_END, PGDIR_SIZE)
+   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+                                       ^
+include/linux/compiler.h:467:4: note: in definition of macro =91__compileti=
+me_assert=92
+     prefix ## suffix();    \
+     ^
+include/linux/compiler.h:484:2: note: in expansion of macro =91_compiletime=
+_assert=92
+   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+   ^
+include/linux/bug.h:50:37: note: in expansion of macro =91compiletime_asser=
+t=92
+  #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
+                                      ^
+include/linux/bug.h:74:2: note: in expansion of macro =91BUILD_BUG_ON_MSG=
+=92
+   BUILD_BUG_ON_MSG(condition, "BUILD_BUG_ON failed: " #condition)
+   ^
+arch/arm64/mm/kasan_init.c:95:2: note: in expansion of macro =91BUILD_BUG_O=
+N=92
+   BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
 
--- 
- Kirill A. Shutemov
+
+---
+
+The problem is that the PGDIR_SIZE is (1UL << 47) with 16K+48bit, which mak=
+es
+the KASAN_SHADOW_END unaligned(which is aligned to (1UL << (48 - 3)) ). Is =
+the
+alignment really needed ? Thoughts on how best we could fix this ?
+
+Cheers
+Suzuki
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
