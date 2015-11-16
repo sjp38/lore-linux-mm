@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 530186B0255
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 15:33:54 -0500 (EST)
-Received: by wmww144 with SMTP id w144so126966787wmw.1
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 12:33:53 -0800 (PST)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id lm6si48428700wjb.63.2015.11.16.12.33.52
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AB1E6B0255
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 15:34:56 -0500 (EST)
+Received: by wmww144 with SMTP id w144so127002154wmw.1
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 12:34:56 -0800 (PST)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id z133si28153260wmc.39.2015.11.16.12.34.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Nov 2015 12:33:53 -0800 (PST)
-Received: by wmdw130 with SMTP id w130so127936190wmd.0
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 12:33:52 -0800 (PST)
-References: <1447698757-8762-1-git-send-email-ard.biesheuvel@linaro.org> <1447698757-8762-2-git-send-email-ard.biesheuvel@linaro.org> <20151116185859.GF8644@n2100.arm.linux.org.uk> <CAKv+Gu-COD0eSWqaTfV_QgCDEiBg5Af8FDVx+TMiYuVkqgTrvw@mail.gmail.com> <20151116194914.GK8644@n2100.arm.linux.org.uk>
-Mime-Version: 1.0 (1.0)
-In-Reply-To: <20151116194914.GK8644@n2100.arm.linux.org.uk>
-Content-Type: text/plain;
-	charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <35E90006-1E43-4483-8B18-7123E12E68FF@linaro.org>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Subject: Re: [PATCH v2 01/12] mm/memblock: add MEMBLOCK_NOMAP attribute to memblock memory table
-Date: Mon, 16 Nov 2015 21:33:47 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Nov 2015 12:34:55 -0800 (PST)
+Received: by wmww144 with SMTP id w144so136548755wmw.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 12:34:55 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20151116194846.GB32203@linux.intel.com>
+References: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
+	<1447459610-14259-4-git-send-email-ross.zwisler@linux.intel.com>
+	<CAPcyv4j4arHE+iAALn1WPDzSb_QSCDy8udtXU1FV=kYSZDfv8A@mail.gmail.com>
+	<22E0F870-C1FB-431E-BF6C-B395A09A2B0D@dilger.ca>
+	<CAPcyv4jwx3VzyRugcpH7KCOKM64kJ4Bq4wgY=iNJMvLTHrBv-Q@mail.gmail.com>
+	<20151116133714.GB3443@quack.suse.cz>
+	<20151116140526.GA6733@quack.suse.cz>
+	<CAPcyv4jZjnkz2YYtGWmkA23KAUMT092kjRtFkJ3QrzgPfTucfA@mail.gmail.com>
+	<20151116194846.GB32203@linux.intel.com>
+Date: Mon, 16 Nov 2015 12:34:55 -0800
+Message-ID: <CAPcyv4hU0HMBFy=MveUaECK0fVfgUFBjUUPTWA8HOP6MG5XEfQ@mail.gmail.com>
+Subject: Re: [PATCH v2 03/11] pmem: enable REQ_FUA/REQ_FLUSH handling
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, Grant Likely <grant.likely@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>, Leif Lindholm <leif.lindholm@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>, Ryan Harkin <ryan.harkin@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Andreas Dilger <adilger@dilger.ca>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
+On Mon, Nov 16, 2015 at 11:48 AM, Ross Zwisler
+<ross.zwisler@linux.intel.com> wrote:
+> On Mon, Nov 16, 2015 at 09:28:59AM -0800, Dan Williams wrote:
+>> On Mon, Nov 16, 2015 at 6:05 AM, Jan Kara <jack@suse.cz> wrote:
+>> > On Mon 16-11-15 14:37:14, Jan Kara wrote:
+[..]
+> Is there any reason why this wouldn't work or wouldn't be a good idea?
 
+We don't have numbers to support the claim that pcommit is so
+expensive as to need be deferred, especially if the upper layers are
+already taking the hit on doing the flushes.
 
-> On 16 nov. 2015, at 20:49, Russell King - ARM Linux <linux@arm.linux.org.u=
-k> wrote:
->=20
->> On Mon, Nov 16, 2015 at 08:09:38PM +0100, Ard Biesheuvel wrote:
->> The main difference is that memblock_is_memory() still returns true
->> for the region. This is useful in some cases, e.g., to decide which
->> attributes to use when mapping.
->=20
-> Ok, so we'd need to switch to using memblock_is_map_memory() instead
-> for pfn_valid() then.
+REQ_FLUSH, means flush your volatile write cache.  Currently all I/O
+through the driver never hits a volatile cache so there's no need to
+tell the block layer that we have a volatile write cache, especially
+when you have the core mm taking responsibility for doing cache
+maintenance for dax-mmap ranges.
 
-Indeed, as is implemented by 10/12
+We also don't have numbers on if/when wbinvd is a more performant solution.
 
-> --=20
-> FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
-> according to speedtest.net.
+tl;dr Now that we have a baseline implementation can we please use
+data to make future arch decisions?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
