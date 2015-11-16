@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D1C526B0254
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 08:22:28 -0500 (EST)
-Received: by wmdw130 with SMTP id w130so110733389wmd.0
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 05:22:28 -0800 (PST)
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
-        by mx.google.com with ESMTPS id kt2si45866480wjb.176.2015.11.16.05.22.27
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E4176B0255
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 08:22:48 -0500 (EST)
+Received: by wmdw130 with SMTP id w130so110745992wmd.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 05:22:48 -0800 (PST)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id x187si25589265wme.113.2015.11.16.05.22.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Nov 2015 05:22:27 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so176020070wmv.1
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 05:22:27 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Nov 2015 05:22:47 -0800 (PST)
+Received: by wmvv187 with SMTP id v187so176034502wmv.1
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 05:22:47 -0800 (PST)
 From: mhocko@kernel.org
-Subject: [PATCH 1/2] mm: get rid of __alloc_pages_high_priority
-Date: Mon, 16 Nov 2015 14:22:18 +0100
-Message-Id: <1447680139-16484-2-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 2/2] mm: do not loop over ALLOC_NO_WATERMARKS without triggering reclaim
+Date: Mon, 16 Nov 2015 14:22:19 +0100
+Message-Id: <1447680139-16484-3-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1447680139-16484-1-git-send-email-mhocko@kernel.org>
 References: <1447680139-16484-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,75 +24,85 @@ Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm
 
 From: Michal Hocko <mhocko@suse.com>
 
-__alloc_pages_high_priority doesn't do anything special other than it
-calls get_page_from_freelist and loops around GFP_NOFAIL allocation
-until it succeeds. It would be better if the first part was done in
-__alloc_pages_slowpath where we modify the zonelist because this would
-be easier to read and understand. Opencoding the function into its only
-caller allows to simplify it a bit as well.
+__alloc_pages_slowpath is looping over ALLOC_NO_WATERMARKS requests if
+__GFP_NOFAIL is requested. This is fragile because we are basically
+relying on somebody else to make the reclaim (be it the direct reclaim
+or OOM killer) for us. The caller might be holding resources (e.g.
+locks) which block other other reclaimers from making any progress for
+example. Remove the retry loop and rely on __alloc_pages_slowpath to
+invoke all allowed reclaim steps and retry logic.
 
-This patch doesn't introduce any functional changes.
+We have to be careful about __GFP_NOFAIL allocations from the
+PF_MEMALLOC context even though this is a very bad idea to begin with
+because no progress can be gurateed at all.  We shouldn't break the
+__GFP_NOFAIL semantic here though. It could be argued that this is
+essentially GFP_NOWAIT context which we do not support but PF_MEMALLOC
+is much harder to check for existing users because they might happen
+deep down the code path performed much later after setting the flag
+so we cannot really rule out there is no kernel path triggering this
+combination.
 
+Acked-by: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/page_alloc.c | 36 +++++++++---------------------------
- 1 file changed, 9 insertions(+), 27 deletions(-)
+ mm/page_alloc.c | 32 ++++++++++++++++++--------------
+ 1 file changed, 18 insertions(+), 14 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8034909faad2..b153fa3d0b9b 100644
+index b153fa3d0b9b..df7746280427 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2902,28 +2902,6 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 	return page;
- }
- 
--/*
-- * This is called in the allocator slow-path if the allocation request is of
-- * sufficient urgency to ignore watermarks and take other desperate measures
-- */
--static inline struct page *
--__alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
--				const struct alloc_context *ac)
--{
--	struct page *page;
--
--	do {
--		page = get_page_from_freelist(gfp_mask, order,
--						ALLOC_NO_WATERMARKS, ac);
--
--		if (!page && gfp_mask & __GFP_NOFAIL)
--			wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC,
--									HZ/50);
--	} while (!page && (gfp_mask & __GFP_NOFAIL));
--
--	return page;
--}
--
- static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
- {
- 	struct zoneref *z;
-@@ -3068,12 +3046,16 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+@@ -3046,32 +3046,36 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
  		 * allocations are system rather than user orientated
  		 */
  		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
-+		do {
-+			page = get_page_from_freelist(gfp_mask, order,
-+							ALLOC_NO_WATERMARKS, ac);
-+			if (page)
-+				goto got_pg;
- 
--		page = __alloc_pages_high_priority(gfp_mask, order, ac);
+-		do {
+-			page = get_page_from_freelist(gfp_mask, order,
+-							ALLOC_NO_WATERMARKS, ac);
+-			if (page)
+-				goto got_pg;
 -
--		if (page) {
--			goto got_pg;
--		}
-+			if (gfp_mask & __GFP_NOFAIL)
-+				wait_iff_congested(ac->preferred_zone,
-+						   BLK_RW_ASYNC, HZ/50);
-+		} while (gfp_mask & __GFP_NOFAIL);
+-			if (gfp_mask & __GFP_NOFAIL)
+-				wait_iff_congested(ac->preferred_zone,
+-						   BLK_RW_ASYNC, HZ/50);
+-		} while (gfp_mask & __GFP_NOFAIL);
++		page = get_page_from_freelist(gfp_mask, order,
++						ALLOC_NO_WATERMARKS, ac);
++		if (page)
++			goto got_pg;
  	}
  
  	/* Caller is not willing to reclaim, we can't balance anything */
+ 	if (!can_direct_reclaim) {
+ 		/*
+-		 * All existing users of the deprecated __GFP_NOFAIL are
+-		 * blockable, so warn of any new users that actually allow this
+-		 * type of allocation to fail.
++		 * All existing users of the __GFP_NOFAIL are blockable, so warn
++		 * of any new users that actually allow this type of allocation
++		 * to fail.
+ 		 */
+ 		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
+ 		goto nopage;
+ 	}
+ 
+ 	/* Avoid recursion of direct reclaim */
+-	if (current->flags & PF_MEMALLOC)
++	if (current->flags & PF_MEMALLOC) {
++		/*
++		 * __GFP_NOFAIL request from this context is rather bizarre
++		 * because we cannot reclaim anything and only can loop waiting
++		 * for somebody to do a work for us.
++		 */
++		if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
++			cond_resched();
++			goto retry;
++		}
+ 		goto nopage;
++	}
+ 
+ 	/* Avoid allocations with no watermarks from looping endlessly */
+ 	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
 -- 
 2.6.2
 
