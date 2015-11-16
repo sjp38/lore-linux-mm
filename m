@@ -1,114 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B7DB6B0253
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 04:32:45 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so166216660wmv.1
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 01:32:44 -0800 (PST)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id ko8si10404221wjb.26.2015.11.16.01.32.43
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 427436B0253
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 05:05:50 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so170720080pac.3
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 02:05:50 -0800 (PST)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id zx6si49596877pbc.51.2015.11.16.02.05.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Nov 2015 01:32:43 -0800 (PST)
-Received: by wmdw130 with SMTP id w130so102339737wmd.0
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 01:32:43 -0800 (PST)
-Date: Mon, 16 Nov 2015 11:32:41 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH, RESEND] ipc/shm: handle removed segments gracefully in
- shm_mmap()
-Message-ID: <20151116093241.GB9778@node.shutemov.name>
-References: <1447232220-36879-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20151111170347.GA3502@linux-uzut.site>
- <20151111195023.GA17310@node.shutemov.name>
- <20151113053137.GB3502@linux-uzut.site>
- <20151113091259.GB28904@node.shutemov.name>
- <20151113192310.GC3502@linux-uzut.site>
+        Mon, 16 Nov 2015 02:05:49 -0800 (PST)
+Received: by pacej9 with SMTP id ej9so64064401pac.2
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 02:05:49 -0800 (PST)
+Date: Mon, 16 Nov 2015 02:05:46 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 6/7] mm/gfp: make gfp_zonelist return directly and bool
+In-Reply-To: <1447656686-4851-7-git-send-email-baiyaowei@cmss.chinamobile.com>
+Message-ID: <alpine.DEB.2.10.1511160205010.18751@chino.kir.corp.google.com>
+References: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com> <1447656686-4851-7-git-send-email-baiyaowei@cmss.chinamobile.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151113192310.GC3502@linux-uzut.site>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dmitry Vyukov <dvyukov@google.com>, Manfred Spraul <manfred@colorfullife.com>
+To: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+Cc: akpm@linux-foundation.org, bhe@redhat.com, dan.j.williams@intel.com, dave.hansen@linux.intel.com, dave@stgolabs.net, dhowells@redhat.com, dingel@linux.vnet.ibm.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, holt@sgi.com, iamjoonsoo.kim@lge.com, joe@perches.com, kuleshovmail@gmail.com, mgorman@suse.de, mhocko@suse.cz, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, penberg@kernel.org, sasha.levin@oracle.com, tj@kernel.org, tony.luck@intel.com, vbabka@suse.cz, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 13, 2015 at 11:23:10AM -0800, Davidlohr Bueso wrote:
-> On Fri, 13 Nov 2015, Kirill A. Shutemov wrote:
-> 
-> >On Thu, Nov 12, 2015 at 09:31:37PM -0800, Davidlohr Bueso wrote:
-> >>On Wed, 11 Nov 2015, Kirill A. Shutemov wrote:
-> >>>>>	ret = sfd->file->f_op->mmap(sfd->file, vma);
-> >>>>>-	if (ret != 0)
-> >>>>>+	if (ret) {
-> >>>>>+		shm_close(vma);
-> >>>>>		return ret;
-> >>>>>+	}
-> >>>>
-> >>>>Hmm what's this shm_close() about?
-> >>>
-> >>>Undo shp->shm_nattch++ in successful __shm_open().
-> >>
-> >>Yeah that's just nasty.
-> >
-> >I don't see why: we successfully opened the segment, but f_op->mmap
-> >failed -- let's close the segment. It's normal error path.
-> 
-> I was referring to the fact that I hate having to prematurely call shm_open()
-> just for this case, and then have to backout, ie for nattach. Similarly, I
-> dislike that you make shm_close behave one way and _shm_open another, looks
-> hacky.
-> 
-> That said, I do agree that we should inform EIDRM back to the shm_mmap
-> caller. My immediate thought would be to recheck right after shm_open returns.
-> I realize this is also hacky as we run into similar inconsistencies that I
-> mentioned above. But that's a caller (and the only one), not the whole
-> shm_open/close. Also, just like we are concerned about EIDRM, should we also
-> care about EINVAL -- where we race with explicit user shmctl(RMID) calls but
-> we hold reference to nattach?? I mean, why bother doing mmap if the segment is
-> marked for deletion and ipc won't touch it again anyway (failed idr lookups).
-> The downside to that is the extra lookup overhead, so perhaps your approach
-> is better. But looks like the right thing to do conceptually. Something like so?
-> 
-> shm_mmap()
-> {
-> 	err = shm_check_vma_validity()
-> 	if (err)
-> 
-> 	->mmap()
-> 
-> 	shm_open()
-> 	err = shm_check_vma_validity()
-> 	if (err)
-> 	   return err; /* shm_open was a nop, return the corresponding error */
-> 
-> 	return 0;
-> }
+On Mon, 16 Nov 2015, Yaowei Bai wrote:
 
-The problem I have with this approach is that it assumes that there's
-nothing to undo from ->mmap in case of shm_check_validity() failed in the
-second call. That seems true at the moment, but I'm not sure if we can
-assume this in general and if it's future-proof.
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 6523109..1da03f5 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -375,12 +375,9 @@ static inline enum zone_type gfp_zone(gfp_t flags)
+>   * virtual kernel addresses to the allocated page(s).
+>   */
+>  
+> -static inline int gfp_zonelist(gfp_t flags)
+> +static inline bool gfp_zonelist(gfp_t flags)
+>  {
+> -	if (IS_ENABLED(CONFIG_NUMA) && unlikely(flags & __GFP_THISNODE))
+> -		return 1;
+> -
+> -	return 0;
+> +	return IS_ENABLED(CONFIG_NUMA) && unlikely(flags & __GFP_THISNODE);
+>  }
+>  
+>  /*
 
-> So considering EINVAL, even your approach to bumping up nattach by calling
-> _shm_open earlier isn't enough. Races exposed to user called rmid can still
-> occur between dropping the lock and doing ->mmap().
-
-Ugh.. I see. That's a problem.
-
-Looks like a problem we solved for mm_struct by separation of mm_count
-from mm_users. Should we have two counters instead of shm_nattch?
-
-> Ultimately this leads to all ipc_valid_object() checks, as we totally
-> ignore SHM_DEST segments nowadays since we forbid mapping previously
-> removed segments.
-> 
-> I think this is the first thing we must decide before going forward with this
-> mess. ipc currently defines invalid objects by merely checking the deleted flag.
-
-To me all these flags mess should be replaced by proper refcounting.
-Although, I admit, I don't understand SysV IPC API good enough to say for
-sure if it's possible.
-
--- 
- Kirill A. Shutemov
+This function is used to index into a pgdat's node_zonelists[] array, bool 
+makes no sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
