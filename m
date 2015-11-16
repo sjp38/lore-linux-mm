@@ -1,148 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
-	by kanga.kvack.org (Postfix) with ESMTP id CB0826B0258
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 14:50:12 -0500 (EST)
-Received: by ykba77 with SMTP id a77so257955169ykb.2
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 11:50:12 -0800 (PST)
-Received: from mail-yk0-x231.google.com (mail-yk0-x231.google.com. [2607:f8b0:4002:c07::231])
-        by mx.google.com with ESMTPS id c70si16920841ywb.23.2015.11.16.11.50.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Nov 2015 11:50:12 -0800 (PST)
-Received: by ykdr82 with SMTP id r82so258341051ykd.3
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 11:50:11 -0800 (PST)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EF826B0038
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 15:01:08 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so184966584pad.1
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 12:01:07 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id kg6si30732434pbc.17.2015.11.16.12.01.07
+        for <linux-mm@kvack.org>;
+        Mon, 16 Nov 2015 12:01:07 -0800 (PST)
+Date: Mon, 16 Nov 2015 13:01:02 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 00/11] DAX fsynx/msync support
+Message-ID: <20151116200102.GA9737@linux.intel.com>
+References: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20151116144130.GD3443@quack.suse.cz>
+ <CAPcyv4gb8rh4Xkn-yzjbazftnXp8f6hr21LR5ZZehQBNLeNkZA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1447698757-8762-1-git-send-email-ard.biesheuvel@linaro.org>
-References: <1447698757-8762-1-git-send-email-ard.biesheuvel@linaro.org>
-Date: Mon, 16 Nov 2015 19:50:11 +0000
-Message-ID: <CAD0U-hKfQvV_Dagc2BomK1wuJQG_-bsnLSyGcRduUN9zf30AHg@mail.gmail.com>
-Subject: Re: [PATCH v2 00/12] UEFI boot and runtime services support for
- 32-bit ARM
-From: Ryan Harkin <ryan.harkin@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4gb8rh4Xkn-yzjbazftnXp8f6hr21LR5ZZehQBNLeNkZA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-efi@vger.kernel.org, Matt Fleming <matt.fleming@intel.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Will Deacon <will.deacon@arm.com>, Grant Likely <grant.likely@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>, Leif Lindholm <leif.lindholm@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-Hi Ard,
+On Mon, Nov 16, 2015 at 08:58:11AM -0800, Dan Williams wrote:
+> On Mon, Nov 16, 2015 at 6:41 AM, Jan Kara <jack@suse.cz> wrote:
+> > On Fri 13-11-15 17:06:39, Ross Zwisler wrote:
+> >> This patch series adds support for fsync/msync to DAX.
+> >>
+> >> Patches 1 through 7 add various utilities that the DAX code will eventually
+> >> need, and the DAX code itself is added by patch 8.  Patches 9-11 update the
+> >> three filesystems that currently support DAX, ext2, ext4 and XFS, to use
+> >> the new DAX fsync/msync code.
+> >>
+> >> These patches build on the recent DAX locking changes from Dave Chinner,
+> >> Jan Kara and myself.  Dave's changes for XFS and my changes for ext2 have
+> >> been merged in the v4.4 window, but Jan's are still unmerged.  You can grab
+> >> them here:
+> >>
+> >> http://www.spinics.net/lists/linux-ext4/msg49951.html
+> >
+> > I had a quick look and the patches look sane to me. I'll try to give them
+> > more detailed look later this week. When thinking about the general design
+> > I was wondering: When we have this infrastructure to track data potentially
+> > lingering in CPU caches, would not it be a performance win to use standard
+> > cached stores in dax_io() and mark corresponding pages as dirty in page
+> > cache the same way as this patch set does it for mmaped writes? I have no
+> > idea how costly are non-temporal stores compared to cached ones and how
+> > would this compare to the cost of dirty tracking so this may be just
+> > completely bogus...
+> 
+> Keep in mind that this approach will flush every virtual address that
+> may be dirty.  For example, if you touch 1byte in a 2MB page we'll end
+> up looping through the entire 2MB range.  At some point the dirty size
+> becomes large enough that is cheaper to flush the entire cache, we
+> have not measured where that crossover point is.
 
-On 16 November 2015 at 18:32, Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
-> This series adds support for booting the 32-bit ARM kernel directly from
-> UEFI firmware using a builtin UEFI stub. It mostly reuses refactored arm64
-> code, and the differences (primarily the PE/COFF header and entry point and
-> the efi_create_mapping() implementation) are split out into arm64 and ARM
-> versions.
->
-> Changes since v1:
-> - The primary difference between this version and the first one is that all
->   prerequisites have either been merged, dropped for now (early FDT handling)
->   or folded into this series (MEMBLOCK_NOMAP). IOW, this series can be applied
->   on top of v4.4-rc1 directly.
-> - Dropped handling of UEFI permission bits. The reason is that the UEFIv2.5
->   approach (EFI_PROPERTIES_TABLE) is flawed, and will be replaced by something
->   better in the next version of the spec.
->
-> Patch #1 adds support for the MEMBLOCK_NOMAP attribute to the generic memblock
-> code. Its purpose is to annotate memory regions as normal memory even if they
-> are removed from the kernel direct mapping.
->
-> Patch #2 implements MEMBLOCK_NOMAP support for arm64
->
-> Patch #3 updates the EFI init code to remove UEFI reserved regions and regions
-> used by runtime services from the kernel direct mapping
->
-> Patch #4 splits off most of arch/arm64/kernel/efi.c into arch agnostic files
-> arm-init.c and arm-runtime.c under drivers/firmware/efi.
->
-> Patch #5 refactors the code split off in patch #1 to isolate the arm64 specific
-> pieces, and change a couple of arm64-isms that ARM handles slightly differently.
->
-> Patch #6 enables the generic early_ioremap and early_memremap implementations
-> for ARM. It reuses the kmap fixmap region, which is not used that early anyway.
->
-> Patch #7 splits off the core functionality of create_mapping() into a new
-> function __create_mapping() that we can reuse for mapping UEFI runtime regions.
->
-> Patch #8 factors out the early_alloc() routine so we can invoke __create_mapping
-> using another (late) allocator.
->
-> Patch #9 implements create_mapping_late() that uses a late allocator.
->
-> Patch #10 implements MEMBLOCK_NOMAP support for ARM
->
-> Patch #11 implements the UEFI support in the kernel proper to probe the UEFI
-> memory map and map the runtime services.
->
-> Patch #12 ties together all of the above, by implementing the UEFI stub, and
-> introducing the Kconfig symbols that allow all of this to be built.
->
-> Instructions how to build and run the 32-bit ARM UEFI firmware can be found here:
-> https://wiki.linaro.org/LEG/UEFIforQEMU
->
-> Ard Biesheuvel (11):
->   mm/memblock: add MEMBLOCK_NOMAP attribute to memblock memory table
->   arm64: only consider memblocks with NOMAP cleared for linear mapping
->   arm64/efi: mark UEFI reserved regions as MEMBLOCK_NOMAP
->   arm64/efi: split off EFI init and runtime code for reuse by 32-bit ARM
->   arm64/efi: refactor EFI init and runtime code for reuse by 32-bit ARM
->   ARM: add support for generic early_ioremap/early_memremap
->   ARM: split off core mapping logic from create_mapping
->   ARM: factor out allocation routine from __create_mapping()
->   ARM: implement create_mapping_late() for EFI use
->   ARM: only consider memblocks with NOMAP cleared for linear mapping
->   ARM: wire up UEFI init and runtime support
->
-> Roy Franz (1):
->   ARM: add UEFI stub support
->
->  arch/arm/Kconfig                          |  20 ++
->  arch/arm/boot/compressed/Makefile         |   4 +-
->  arch/arm/boot/compressed/efi-header.S     | 130 ++++++++
->  arch/arm/boot/compressed/head.S           |  54 +++-
->  arch/arm/boot/compressed/vmlinux.lds.S    |   7 +
->  arch/arm/include/asm/Kbuild               |   1 +
->  arch/arm/include/asm/efi.h                |  90 ++++++
->  arch/arm/include/asm/fixmap.h             |  29 +-
->  arch/arm/include/asm/mach/map.h           |   1 +
->  arch/arm/kernel/Makefile                  |   1 +
->  arch/arm/kernel/efi.c                     |  38 +++
->  arch/arm/kernel/setup.c                   |  10 +-
->  arch/arm/mm/init.c                        |   5 +-
->  arch/arm/mm/ioremap.c                     |   9 +
->  arch/arm/mm/mmu.c                         | 110 ++++---
->  arch/arm64/include/asm/efi.h              |  16 +
->  arch/arm64/kernel/efi.c                   | 331 ++------------------
->  arch/arm64/mm/init.c                      |   2 +-
->  arch/arm64/mm/mmu.c                       |   2 +
->  drivers/firmware/efi/Makefile             |   4 +
->  drivers/firmware/efi/arm-init.c           | 197 ++++++++++++
->  drivers/firmware/efi/arm-runtime.c        | 134 ++++++++
->  drivers/firmware/efi/efi.c                |   2 +
->  drivers/firmware/efi/libstub/Makefile     |   9 +
->  drivers/firmware/efi/libstub/arm-stub.c   |   4 +-
->  drivers/firmware/efi/libstub/arm32-stub.c |  85 +++++
->  include/linux/memblock.h                  |   8 +
->  mm/memblock.c                             |  28 ++
->  28 files changed, 975 insertions(+), 356 deletions(-)
->  create mode 100644 arch/arm/boot/compressed/efi-header.S
->  create mode 100644 arch/arm/include/asm/efi.h
->  create mode 100644 arch/arm/kernel/efi.c
->  create mode 100644 drivers/firmware/efi/arm-init.c
->  create mode 100644 drivers/firmware/efi/arm-runtime.c
->  create mode 100644 drivers/firmware/efi/libstub/arm32-stub.c
->
-> --
-> 1.9.1
->
-
-I've tested this series against 4.4-rc1 on Versatile Express TC2,
-booting both as a "regular" kernel and as a EFI Stub on BusyBox and
-OpenEmbedded.  So if it helps any, you can add my:
-
-Tested-by: Ryan Harkin <ryan.harkin@linaro.org>
-
-I'm afraid I'm not knowledgeable enough to review the code.
+Yep, I expect there will be a crossover point where flushing the entire
+processor cache will be beneficial.  I agree with Dan that we'll need to
+figure this out via measurement, and that we'd similarly need measurements to
+justify the decision to write dirty data at the DAX level without flushing and
+mark entries as dirty for fsync/msync to clean up later.  It could turn out to
+be great, but we'll have to see. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
