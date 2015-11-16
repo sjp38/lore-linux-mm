@@ -1,75 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 445876B0038
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 13:18:23 -0500 (EST)
-Received: by lbbsy6 with SMTP id sy6so64881324lbb.2
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 10:18:22 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id u8si27335021lbb.149.2015.11.16.10.18.21
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F17B6B0038
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 13:32:47 -0500 (EST)
+Received: by wmec201 with SMTP id c201so191316502wme.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 10:32:47 -0800 (PST)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id m139si34282179wmb.0.2015.11.16.10.32.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Nov 2015 10:18:21 -0800 (PST)
-Date: Mon, 16 Nov 2015 13:18:10 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 13/14] mm: memcontrol: account socket memory in unified
- hierarchy memory controller
-Message-ID: <20151116181810.GB32544@cmpxchg.org>
-References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
- <1447371693-25143-14-git-send-email-hannes@cmpxchg.org>
- <20151116155923.GH14116@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151116155923.GH14116@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Nov 2015 10:32:46 -0800 (PST)
+Received: by wmww144 with SMTP id w144so132041079wmw.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 10:32:46 -0800 (PST)
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Subject: [PATCH v2 00/12] UEFI boot and runtime services support for 32-bit ARM
+Date: Mon, 16 Nov 2015 19:32:25 +0100
+Message-Id: <1447698757-8762-1-git-send-email-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: linux-arm-kernel@lists.infradead.org, linux-efi@vger.kernel.org, matt.fleming@intel.com, linux@arm.linux.org.uk, will.deacon@arm.com, grant.likely@linaro.org, catalin.marinas@arm.com, mark.rutland@arm.com, leif.lindholm@linaro.org, roy.franz@linaro.org
+Cc: msalter@redhat.com, ryan.harkin@linaro.org, akpm@linux-foundation.org, linux-mm@kvack.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-On Mon, Nov 16, 2015 at 04:59:25PM +0100, Michal Hocko wrote:
-> On Thu 12-11-15 18:41:32, Johannes Weiner wrote:
-> > Socket memory can be a significant share of overall memory consumed by
-> > common workloads. In order to provide reasonable resource isolation in
-> > the unified hierarchy, this type of memory needs to be included in the
-> > tracking/accounting of a cgroup under active memory resource control.
-> > 
-> > Overhead is only incurred when a non-root control group is created AND
-> > the memory controller is instructed to track and account the memory
-> > footprint of that group. cgroup.memory=nosocket can be specified on
-> > the boot commandline to override any runtime configuration and
-> > forcibly exclude socket memory from active memory resource control.
-> 
-> Do you have any numbers about the overhead?
+This series adds support for booting the 32-bit ARM kernel directly from
+UEFI firmware using a builtin UEFI stub. It mostly reuses refactored arm64
+code, and the differences (primarily the PE/COFF header and entry point and
+the efi_create_mapping() implementation) are split out into arm64 and ARM
+versions.
 
-Hm? Performance numbers make sense when you have a specific scenario
-and a theory on how to optimize the implementation for it. What load
-would you test and what would be the baseline to compare it to?
+Changes since v1:
+- The primary difference between this version and the first one is that all
+  prerequisites have either been merged, dropped for now (early FDT handling)
+  or folded into this series (MEMBLOCK_NOMAP). IOW, this series can be applied
+  on top of v4.4-rc1 directly.
+- Dropped handling of UEFI permission bits. The reason is that the UEFIv2.5
+  approach (EFI_PROPERTIES_TABLE) is flawed, and will be replaced by something
+  better in the next version of the spec.
 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> With a way to disable this feature I am OK with it.
-> cgroup.memory=nosocket should be documented (at least in
-> Documentation/kernel-parameters.txt)
+Patch #1 adds support for the MEMBLOCK_NOMAP attribute to the generic memblock
+code. Its purpose is to annotate memory regions as normal memory even if they
+are removed from the kernel direct mapping.
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index f8aae63..d518340 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -599,6 +599,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			cut the overhead, others just disable the usage. So
- 			only cgroup_disable=memory is actually worthy}
- 
-+	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
-+			Format: <string>
-+			nosocket -- Disable socket memory accounting.
-+
- 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
- 			Format: { "0" | "1" }
- 			See security/selinux/Kconfig help text.
+Patch #2 implements MEMBLOCK_NOMAP support for arm64
 
-> Other than that
-> Acked-by: Michal Hocko <mhocko@suse.com>
+Patch #3 updates the EFI init code to remove UEFI reserved regions and regions
+used by runtime services from the kernel direct mapping
 
-Thanks!
+Patch #4 splits off most of arch/arm64/kernel/efi.c into arch agnostic files
+arm-init.c and arm-runtime.c under drivers/firmware/efi.
 
----
+Patch #5 refactors the code split off in patch #1 to isolate the arm64 specific
+pieces, and change a couple of arm64-isms that ARM handles slightly differently.
+
+Patch #6 enables the generic early_ioremap and early_memremap implementations
+for ARM. It reuses the kmap fixmap region, which is not used that early anyway.
+
+Patch #7 splits off the core functionality of create_mapping() into a new
+function __create_mapping() that we can reuse for mapping UEFI runtime regions.
+
+Patch #8 factors out the early_alloc() routine so we can invoke __create_mapping
+using another (late) allocator.
+
+Patch #9 implements create_mapping_late() that uses a late allocator.
+
+Patch #10 implements MEMBLOCK_NOMAP support for ARM
+
+Patch #11 implements the UEFI support in the kernel proper to probe the UEFI
+memory map and map the runtime services.
+
+Patch #12 ties together all of the above, by implementing the UEFI stub, and
+introducing the Kconfig symbols that allow all of this to be built.
+
+Instructions how to build and run the 32-bit ARM UEFI firmware can be found here:
+https://wiki.linaro.org/LEG/UEFIforQEMU
+
+Ard Biesheuvel (11):
+  mm/memblock: add MEMBLOCK_NOMAP attribute to memblock memory table
+  arm64: only consider memblocks with NOMAP cleared for linear mapping
+  arm64/efi: mark UEFI reserved regions as MEMBLOCK_NOMAP
+  arm64/efi: split off EFI init and runtime code for reuse by 32-bit ARM
+  arm64/efi: refactor EFI init and runtime code for reuse by 32-bit ARM
+  ARM: add support for generic early_ioremap/early_memremap
+  ARM: split off core mapping logic from create_mapping
+  ARM: factor out allocation routine from __create_mapping()
+  ARM: implement create_mapping_late() for EFI use
+  ARM: only consider memblocks with NOMAP cleared for linear mapping
+  ARM: wire up UEFI init and runtime support
+
+Roy Franz (1):
+  ARM: add UEFI stub support
+
+ arch/arm/Kconfig                          |  20 ++
+ arch/arm/boot/compressed/Makefile         |   4 +-
+ arch/arm/boot/compressed/efi-header.S     | 130 ++++++++
+ arch/arm/boot/compressed/head.S           |  54 +++-
+ arch/arm/boot/compressed/vmlinux.lds.S    |   7 +
+ arch/arm/include/asm/Kbuild               |   1 +
+ arch/arm/include/asm/efi.h                |  90 ++++++
+ arch/arm/include/asm/fixmap.h             |  29 +-
+ arch/arm/include/asm/mach/map.h           |   1 +
+ arch/arm/kernel/Makefile                  |   1 +
+ arch/arm/kernel/efi.c                     |  38 +++
+ arch/arm/kernel/setup.c                   |  10 +-
+ arch/arm/mm/init.c                        |   5 +-
+ arch/arm/mm/ioremap.c                     |   9 +
+ arch/arm/mm/mmu.c                         | 110 ++++---
+ arch/arm64/include/asm/efi.h              |  16 +
+ arch/arm64/kernel/efi.c                   | 331 ++------------------
+ arch/arm64/mm/init.c                      |   2 +-
+ arch/arm64/mm/mmu.c                       |   2 +
+ drivers/firmware/efi/Makefile             |   4 +
+ drivers/firmware/efi/arm-init.c           | 197 ++++++++++++
+ drivers/firmware/efi/arm-runtime.c        | 134 ++++++++
+ drivers/firmware/efi/efi.c                |   2 +
+ drivers/firmware/efi/libstub/Makefile     |   9 +
+ drivers/firmware/efi/libstub/arm-stub.c   |   4 +-
+ drivers/firmware/efi/libstub/arm32-stub.c |  85 +++++
+ include/linux/memblock.h                  |   8 +
+ mm/memblock.c                             |  28 ++
+ 28 files changed, 975 insertions(+), 356 deletions(-)
+ create mode 100644 arch/arm/boot/compressed/efi-header.S
+ create mode 100644 arch/arm/include/asm/efi.h
+ create mode 100644 arch/arm/kernel/efi.c
+ create mode 100644 drivers/firmware/efi/arm-init.c
+ create mode 100644 drivers/firmware/efi/arm-runtime.c
+ create mode 100644 drivers/firmware/efi/libstub/arm32-stub.c
+
+-- 
+1.9.1
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
