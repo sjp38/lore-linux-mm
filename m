@@ -1,63 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 71EAE6B0253
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 03:47:43 -0500 (EST)
-Received: by wmww144 with SMTP id w144so99979144wmw.1
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 00:47:43 -0800 (PST)
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com. [195.75.94.109])
-        by mx.google.com with ESMTPS id wo7si44532285wjb.160.2015.11.16.00.47.42
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 64EFE6B0253
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 04:10:03 -0500 (EST)
+Received: by wmec201 with SMTP id c201so109694391wme.1
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 01:10:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j11si44664901wjq.53.2015.11.16.01.10.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Nov 2015 00:47:42 -0800 (PST)
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Mon, 16 Nov 2015 08:47:42 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 46D0717D8063
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 08:48:00 +0000 (GMT)
-Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id tAG8ldVO41418768
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 08:47:39 GMT
-Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id tAG7ldUf011247
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 00:47:40 -0700
-Date: Mon, 16 Nov 2015 09:47:37 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [linux-next:master 12891/13017] mm/slub.c:2396:1: warning:
- '___slab_alloc' uses dynamic stack allocation
-Message-ID: <20151116094737.270168cc@mschwide>
-In-Reply-To: <201511131414.tADEE1co028795@d06av10.portsmouth.uk.ibm.com>
-References: <201511111413.65wysS6A%fengguang.wu@intel.com>
-	<20151111124108.53df1f48218c1366f9e763f0@linux-foundation.org>
-	<20151113125200.319a3101@mschwide>
-	<201511131414.tADEE1co028795@d06av10.portsmouth.uk.ibm.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 16 Nov 2015 01:10:01 -0800 (PST)
+Subject: Re: [PATCH V2] mm: change mm_vmscan_lru_shrink_inactive() proto types
+References: <1447641465-1582-1-git-send-email-yalin.wang2010@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56499D67.6050102@suse.cz>
+Date: Mon, 16 Nov 2015 10:09:59 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <1447641465-1582-1-git-send-email-yalin.wang2010@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andreas Krebbel1 <Andreas.Krebbel@de.ibm.com>
-Cc: mschwid2@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, kbuild test robot <fengguang.wu@intel.com>, heicars2@linux.vnet.ibm.com, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
+To: yalin wang <yalin.wang2010@gmail.com>, rostedt@goodmis.org, mingo@redhat.com, acme@redhat.com, namhyung@kernel.org, akpm@linux-foundation.org, mhocko@suse.cz, vdavydov@parallels.com, hannes@cmpxchg.org, mgorman@techsingularity.net, tj@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 13 Nov 2015 16:13:46 +0100
-"Andreas Krebbel1" <Andreas.Krebbel@de.ibm.com> wrote:
+On 11/16/2015 03:37 AM, yalin wang wrote:
+> Move node_id zone_idx shrink flags into trace function,
+> so thay we don't need caculate these args if the trace is disabled,
+> and will make this function have less arguments.
+>
+> Signed-off-by: yalin wang <yalin.wang2010@gmail.com>
 
-> this appears to be the result of aligning struct page to more than 8 bytes 
-> and putting it onto the stack - wich is only 8 bytes aligned.  The 
-> compiler has to perform runtime alignment to achieve that. It allocates 
-> memory using *alloca* and does the math with the returned pointer. Our 
-> dynamic stack allocation option basically only checks if there is an 
-> alloca user.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-I can confirm that this is caused by the struct page alignment, if I
-force HAVE_ALIGNED_STRUCT_PAGE=n the warning vanishes.
+Note that you could have added it yourself, as I said it's fine with me 
+after doing the zone_to_nid() change. Also you can keep acked-by and 
+reviewed-by from V1 when posting a V2 with only such a small change. V2 
+didn't change the tracepoint API further from V1, so I'm quite sure 
+Steven wouldn't mind keeping his:
 
--- 
-blue skies,
-   Martin.
+Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
 
-"Reality continues to ruin my life." - Calvin.
+(although it's true that the call to keep/drop the tags is not always 
+obvious)
+
+Thanks.
+
+> ---
+>   include/trace/events/vmscan.h | 14 +++++++-------
+>   mm/vmscan.c                   |  7 ++-----
+>   2 files changed, 9 insertions(+), 12 deletions(-)
+>
+> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+> index dae7836..31763dd 100644
+> --- a/include/trace/events/vmscan.h
+> +++ b/include/trace/events/vmscan.h
+> @@ -352,11 +352,11 @@ TRACE_EVENT(mm_vmscan_writepage,
+>
+>   TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
+>
+> -	TP_PROTO(int nid, int zid,
+> -			unsigned long nr_scanned, unsigned long nr_reclaimed,
+> -			int priority, int reclaim_flags),
+> +	TP_PROTO(struct zone *zone,
+> +		unsigned long nr_scanned, unsigned long nr_reclaimed,
+> +		int priority, int file),
+>
+> -	TP_ARGS(nid, zid, nr_scanned, nr_reclaimed, priority, reclaim_flags),
+> +	TP_ARGS(zone, nr_scanned, nr_reclaimed, priority, file),
+>
+>   	TP_STRUCT__entry(
+>   		__field(int, nid)
+> @@ -368,12 +368,12 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
+>   	),
+>
+>   	TP_fast_assign(
+> -		__entry->nid = nid;
+> -		__entry->zid = zid;
+> +		__entry->nid = zone_to_nid(zone);
+> +		__entry->zid = zone_idx(zone);
+>   		__entry->nr_scanned = nr_scanned;
+>   		__entry->nr_reclaimed = nr_reclaimed;
+>   		__entry->priority = priority;
+> -		__entry->reclaim_flags = reclaim_flags;
+> +		__entry->reclaim_flags = trace_shrink_flags(file);
+>   	),
+>
+>   	TP_printk("nid=%d zid=%d nr_scanned=%ld nr_reclaimed=%ld priority=%d flags=%s",
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 69ca1f5..f8fc8c1 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1691,11 +1691,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>   	    current_may_throttle())
+>   		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
+>
+> -	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
+> -		zone_idx(zone),
+> -		nr_scanned, nr_reclaimed,
+> -		sc->priority,
+> -		trace_shrink_flags(file));
+> +	trace_mm_vmscan_lru_shrink_inactive(zone, nr_scanned, nr_reclaimed,
+> +			sc->priority, file);
+>   	return nr_reclaimed;
+>   }
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
