@@ -1,81 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A07666B0253
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 09:22:49 -0500 (EST)
-Received: by ioir85 with SMTP id r85so120083413ioi.1
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 06:22:49 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0177.hostedemail.com. [216.40.44.177])
-        by mx.google.com with ESMTP id ej8si29257928igc.1.2015.11.16.06.22.48
-        for <linux-mm@kvack.org>;
-        Mon, 16 Nov 2015 06:22:48 -0800 (PST)
-Date: Mon, 16 Nov 2015 09:22:42 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH V4] mm: fix kernel crash in khugepaged thread
-Message-ID: <20151116092242.26474f89@gandalf.local.home>
-In-Reply-To: <2F74FF6B-66DC-4BF9-972A-C2F5FFFA979F@gmail.com>
-References: <1447316462-19645-1-git-send-email-yalin.wang2010@gmail.com>
-	<20151112092923.19ee53dd@gandalf.local.home>
-	<5645BFAA.1070004@suse.cz>
-	<D7E480F5-D879-4016-B530-5A4D7CB05675@gmail.com>
-	<20151113090115.1ad4235b@gandalf.local.home>
-	<2F74FF6B-66DC-4BF9-972A-C2F5FFFA979F@gmail.com>
+Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
+	by kanga.kvack.org (Postfix) with ESMTP id D6F806B0254
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 09:24:45 -0500 (EST)
+Received: by ykfs79 with SMTP id s79so241356953ykf.1
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 06:24:45 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l139si23392366ywb.93.2015.11.16.06.24.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Nov 2015 06:24:45 -0800 (PST)
+Date: Mon, 16 Nov 2015 15:24:40 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: Memory exhaustion testing?
+Message-ID: <20151116152440.101ea77d@redhat.com>
+In-Reply-To: <alpine.DEB.2.10.1511131452130.6173@chino.kir.corp.google.com>
+References: <20151112215531.69ccec19@redhat.com>
+	<alpine.DEB.2.10.1511131452130.6173@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yalin wang <yalin.wang2010@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A.
- Shutemov" <kirill.shutemov@linux.intel.com>, jmarchan@redhat.com, mgorman@techsingularity.net, willy@linux.intel.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm <linux-mm@kvack.org>, brouer@redhat.com, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-On Mon, 16 Nov 2015 09:35:53 +0800
-yalin wang <yalin.wang2010@gmail.com> wrote:
 
-> > On Nov 13, 2015, at 22:01, Steven Rostedt <rostedt@goodmis.org> wrote:
-> >=20
-> > On Fri, 13 Nov 2015 19:54:11 +0800
-> > yalin wang <yalin.wang2010@gmail.com> wrote:
-> >  =20
-> >>>>> 	TP_fast_assign(
-> >>>>> 		__entry->mm =3D mm;
-> >>>>> -		__entry->pfn =3D pfn;
-> >>>>> +		__entry->pfn =3D page_to_pfn(page);   =20
-> >>>>=20
-> >>>> Instead of the condition, we could have:
-> >>>>=20
-> >>>> 	__entry->pfn =3D page ? page_to_pfn(page) : -1;   =20
-> >>>=20
-> >>> I agree. Please do it like this.   =20
-> >=20
-> > hmm, pfn is defined as an unsigned long, would -1 be the best.
-> > Or should it be (-1UL).
-> >=20
-> > Then we could also have:
-> >=20
-> >        TP_printk("mm=3D%p, scan_pfn=3D0x%lx%s, writable=3D%d, reference=
-d=3D%d, none_or_zero=3D%d, status=3D%s, unmapped=3D%d",
-> >                __entry->mm,
-> >                __entry->pfn =3D=3D (-1UL) ? 0 : __entry->pfn,
-> > 		__entry->pfn =3D=3D (-1UL) ? "(null)" : "",
-> >=20
-> > Note the added %s after %lx I have in the print format.
-> >=20
-> > -- Steve =20
-> it is not easy to print for perf tools in userspace ,
-> if you use this format ,
-> for user space perf tool, it print the entry by look up the member in ent=
-ry struct by offset ,
-> you print a dynamic string which user space perf tool don=E2=80=99t know =
-how to print this string .
+On Fri, 13 Nov 2015 14:54:37 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
 
-Have you tried it? It should work. If not, I'll fix it. The string
-"null" is exported in the trace output file, and perf should have
-enough information to know how to handle that. If it fails to parse, I
-can easily fix it.
+> [...]  This is why 
+> failslab had been used in the past, and does a good job at runtime 
+> testing.  
 
-Remember, I'm the author of the parsing of events in userspace.
+Thanks for mentioning CONFIG_FAILSLAB.  First I disregarded
+"failslab" (I did notice it in the slub code) because it didn't
+exercised the code path I wanted in kmem_cache_alloc_bulk().
 
--- Steve
+But went to looking up the config setting I notice that we do have a
+hole section for "Fault-injection".  Which is great, and what I was
+looking for.
+
+Menu config Location:
+ -> Kernel hacking
+  -> Fault-injection framework (FAULT_INJECTION [=y])
+
+I think what I need can be covered by FAIL_PAGE_ALLOC, or should_fail_alloc_page().
+I'll try and play a bit with it...
+
+- - 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
+
+[*] Fault-injection framework
+[*]   Fault-injection capability for kmalloc
+[*]   Fault-injection capabilitiy for alloc_pages()
+[ ]   Fault-injection capability for disk IO
+[ ]   Fault-injection capability for faking disk interrupts
+[ ]   Fault-injection capability for futexes
+[*]   Debugfs entries for fault-injection capabilities
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
