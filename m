@@ -1,71 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 366086B0255
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 09:43:37 -0500 (EST)
-Received: by ykdr82 with SMTP id r82so241211447ykd.3
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 06:43:37 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y136si23505687ywd.16.2015.11.16.06.43.36
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id AC06E6B0255
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 10:33:57 -0500 (EST)
+Received: by lbblt2 with SMTP id lt2so90973106lbb.3
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 07:33:57 -0800 (PST)
+Received: from mail-lf0-x22c.google.com (mail-lf0-x22c.google.com. [2a00:1450:4010:c07::22c])
+        by mx.google.com with ESMTPS id g39si26589143lfi.77.2015.11.16.07.33.55
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Nov 2015 06:43:36 -0800 (PST)
-Date: Mon, 16 Nov 2015 15:43:32 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: Memory exhaustion testing?
-Message-ID: <20151116154332.3f8fd151@redhat.com>
-In-Reply-To: <5646EF73.5010005@I-love.SAKURA.ne.jp>
-References: <20151112215531.69ccec19@redhat.com>
-	<5646EF73.5010005@I-love.SAKURA.ne.jp>
+        Mon, 16 Nov 2015 07:33:56 -0800 (PST)
+Received: by lffu14 with SMTP id u14so88983040lff.1
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 07:33:55 -0800 (PST)
+Subject: Re: [PATCH v7 0/4] KASAN for arm64
+References: <1444665180-301-1-git-send-email-ryabinin.a.a@gmail.com>
+ <20151013083432.GG6320@e104818-lin.cambridge.arm.com>
+ <5649BAFD.6030005@arm.com>
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Message-ID: <5649F783.40109@gmail.com>
+Date: Mon, 16 Nov 2015 18:34:27 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <5649BAFD.6030005@arm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm <linux-mm@kvack.org>, brouer@redhat.com
+To: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Yury <yury.norov@gmail.com>, Alexey Klimov <klimov.linux@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Andrey Konovalov <andreyknvl@google.com>, Linus Walleij <linus.walleij@linaro.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-kernel@vger.kernel.org, kasan-dev <kasan-dev@googlegroups.com>, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On Sat, 14 Nov 2015 17:23:15 +0900
-Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
-
-> On 2015/11/13 5:55, Jesper Dangaard Brouer wrote:
-> > Hi MM-people,
-> >
-> > How do you/we test the error paths when the system runs out of memory?
-> >
-> > What kind of tools do you use?
-> > or Any tricks to provoke this?
+On 11/16/2015 02:16 PM, Suzuki K. Poulose wrote:
+> On 13/10/15 09:34, Catalin Marinas wrote:
+>> On Mon, Oct 12, 2015 at 06:52:56PM +0300, Andrey Ryabinin wrote:
+>>> Andrey Ryabinin (3):
+>>>    arm64: move PGD_SIZE definition to pgalloc.h
+>>>    arm64: add KASAN support
+>>>    Documentation/features/KASAN: arm64 supports KASAN now
+>>>
+>>> Linus Walleij (1):
+>>>    ARM64: kasan: print memory assignment
+>>
+>> Patches queued for 4.4. Thanks.
+>>
 > 
-> I use SystemTap for injecting memory allocation failure.
+> Hi,
 > 
-> http://lkml.kernel.org/r/201503182136.EJC90660.QSFOVJFOLHFOtM@I-love.SAKURA.ne.jp
+> I get the following failure with KASAN + 16K_PAGES + 48BIT_VA, with 4.4-rc1:
 > 
-> >
-> > For testing my recent change to the SLUB allocator, I've implemented a
-> > crude kernel module that tries to allocate all memory, so I can test the
-> > error code-path in kmem_cache_alloc_bulk.
-> >
-> > see:
-> >   https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_bulk_test04_exhaust_mem.c
-> >
 > 
-> I think you can test the error code-path in kmem_cache_alloc_bulk as
-> well.
+> arch/arm64/mm/kasan_init.c: In function ?kasan_early_init?:
+> include/linux/compiler.h:484:38: error: call to ?__compiletime_assert_95? declared with attribute error: BUILD_BUG_ON failed: !IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE)
+>   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+>                                       ^
+> include/linux/compiler.h:467:4: note: in definition of macro ?__compiletime_assert?
+>     prefix ## suffix();    \
+>     ^
+> include/linux/compiler.h:484:2: note: in expansion of macro ?_compiletime_assert?
+>   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+>   ^
+> include/linux/bug.h:50:37: note: in expansion of macro ?compiletime_assert?
+>  #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
+>                                      ^
+> include/linux/bug.h:74:2: note: in expansion of macro ?BUILD_BUG_ON_MSG?
+>   BUILD_BUG_ON_MSG(condition, "BUILD_BUG_ON failed: " #condition)
+>   ^
+> arch/arm64/mm/kasan_init.c:95:2: note: in expansion of macro ?BUILD_BUG_ON?
+>   BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
+> 
+> 
+> ---
+> 
+> The problem is that the PGDIR_SIZE is (1UL << 47) with 16K+48bit, which makes
+> the KASAN_SHADOW_END unaligned(which is aligned to (1UL << (48 - 3)) ). Is the
+> alignment really needed ? Thoughts on how best we could fix this ?
+> 
 
-Yes, making __alloc_pages_nodemask() fail should propagate all the way
-back into kmem_cache_alloc_bulk().
+Yes, it's really needed, because some code relies on this (e.g.  clear_pgs() and kasan_init()).
+But it should be possible to get rid of this requirement.
 
-I do like your approach, but I think my use-case can be covered by
-CONFIG_FAIL_PAGE_ALLOC (which like you, also hook into __alloc_pages_nodemask).
-Although it seems I have more control with your approach, to filter in
-which situations it should happen in.
+At first we need to rework clear_pgs().
+The purpose of clear_pgs() is to remove kasan shadow from swapper_pg_dir.
+So clear_pgs() should clear the top most kasan_zero_* entries from page tables.
+Previously it was enough to clear PGDs, in case of 16K_PAGES + 48BIT_VA we probably need to clear PMDs
 
-Thanks for your input! :-)
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+
+We also have to change following part of kasan_init()
+...
+	/*
+	 * We are going to perform proper setup of shadow memory.
+	 * At first we should unmap early shadow (clear_pgds() call bellow).
+	 * However, instrumented code couldn't execute without shadow memory.
+	 * tmp_pg_dir used to keep early shadow mapped until full shadow
+	 * setup will be finished.
+	 */
+	memcpy(tmp_pg_dir, swapper_pg_dir, sizeof(tmp_pg_dir));
+
+
+Besides tmp_pg_dir we will need one more temporary page table to store those entries
+which later will be removed from swapper_pg_dir by clear_pgds().
+
+
+
+> Cheers
+> Suzuki
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
