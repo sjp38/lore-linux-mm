@@ -1,54 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f53.google.com (mail-vk0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CD9C6B0038
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 06:48:41 -0500 (EST)
-Received: by vkas68 with SMTP id s68so3468310vka.2
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 03:48:40 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w128si2342480vkd.59.2015.11.17.03.48.40
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id AEE2C6B0255
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 07:25:16 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so7915957pac.3
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 04:25:16 -0800 (PST)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id sa8si32337522pbb.131.2015.11.17.04.25.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Nov 2015 03:48:40 -0800 (PST)
-Subject: [PATCH] fault-inject: correct printk order for interval vs.
- probability
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Tue, 17 Nov 2015 12:48:37 +0100
-Message-ID: <20151117114750.12395.53387.stgit@firesoul>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+        Tue, 17 Nov 2015 04:25:15 -0800 (PST)
+Received: by padhk6 with SMTP id hk6so1127576pad.2
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 04:25:15 -0800 (PST)
+Subject: Re: [PATCH v2] percpu: remove PERCPU_ENOUGH_ROOM which is stale definition
+Mime-Version: 1.0 (Apple Message framework v1283)
+Content-Type: text/plain; charset=us-ascii
+From: Jungseok Lee <jungseoklee85@gmail.com>
+In-Reply-To: <20151116155506.GC18894@mtj.duckdns.org>
+Date: Tue, 17 Nov 2015 21:25:10 +0900
 Content-Transfer-Encoding: 7bit
+Message-Id: <7ECE283C-7EC8-4E17-98C5-F4895F17A2DC@gmail.com>
+References: <1446643567-2250-1-git-send-email-jungseoklee85@gmail.com> <20151116155506.GC18894@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akinobu.mita@gmail.com, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, dmonakhov@openvz.org, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: cl@linux.com, tony.luck@intel.com, fenghua.yu@intel.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 
-In function fail_dump() printk output of the attributes interval and
-probability got swapped.  This was introduced in commit
-6adc4a22f20b ("fault-inject: add ratelimit option").
+On Nov 17, 2015, at 12:55 AM, Tejun Heo wrote:
 
-Fixes: 6adc4a22f20b ("fault-inject: add ratelimit option")
-Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+Dear Tejun,
 
----
-Don't know who is maintainer for lib/, hope someone will
-pick this up...
+> On Wed, Nov 04, 2015 at 01:26:07PM +0000, Jungseok Lee wrote:
+>> As pure cleanup, this patch removes PERCPU_ENOUGH_ROOM which is not
+>> used any more. That is, no code refers to the definition.
+>> 
+>> Acked-by: Christoph Lameter <cl@linux.com>
+>> Signed-off-by: Jungseok Lee <jungseoklee85@gmail.com>
+> 
+> Applied to percpu/for-4.5.
 
- lib/fault-inject.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I don't know how to handle this one as not getting feedbacks from ia64
+side. Thanks for taking caring of this one!
 
-diff --git a/lib/fault-inject.c b/lib/fault-inject.c
-index f1cdeb024d17..6a823a53e357 100644
---- a/lib/fault-inject.c
-+++ b/lib/fault-inject.c
-@@ -44,7 +44,7 @@ static void fail_dump(struct fault_attr *attr)
- 		printk(KERN_NOTICE "FAULT_INJECTION: forcing a failure.\n"
- 		       "name %pd, interval %lu, probability %lu, "
- 		       "space %d, times %d\n", attr->dname,
--		       attr->probability, attr->interval,
-+		       attr->interval, attr->probability,
- 		       atomic_read(&attr->space),
- 		       atomic_read(&attr->times));
- 		if (attr->verbose > 1)
+Best Regards
+Jungseok Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
