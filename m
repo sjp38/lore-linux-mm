@@ -1,50 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 57A096B0038
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 11:30:10 -0500 (EST)
-Received: by wmec201 with SMTP id c201so34368272wme.1
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 08:30:10 -0800 (PST)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id t2si19083422wjx.60.2015.11.17.08.30.09
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 43B396B0038
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 12:26:58 -0500 (EST)
+Received: by lbbkw15 with SMTP id kw15so9933461lbb.0
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 09:26:57 -0800 (PST)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id e20si31405956lfi.75.2015.11.17.09.26.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Nov 2015 08:30:09 -0800 (PST)
-Received: by wmww144 with SMTP id w144so33731119wmw.0
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 08:30:09 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1447777222-13396-1-git-send-email-aryabinin@virtuozzo.com>
-References: <1447777222-13396-1-git-send-email-aryabinin@virtuozzo.com>
-From: Catalin Marinas <catalin.marinas@gmail.com>
-Date: Tue, 17 Nov 2015 16:29:49 +0000
-Message-ID: <CAHkRjk7_2udHhf-MmsF4uvusYR+b17jLGoL=5OzOdDXQAiC_9w@mail.gmail.com>
-Subject: Re: [PATCH] kasan: fix kmemleak false-positive in kasan_module_alloc()
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Nov 2015 09:26:56 -0800 (PST)
+Received: by lfu94 with SMTP id 94so1181611lfu.1
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 09:26:56 -0800 (PST)
+From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Subject: [PATCH] mm/mmap.c: remove incorrect MAP_FIXED flag comparison from mmap_region
+Date: Tue, 17 Nov 2015 18:26:38 +0100
+Message-Id: <1447781198-5496-1-git-send-email-kwapulinski.piotr@gmail.com>
+In-Reply-To: <20151117161928.GA9611@redhat.com>
+References: <20151117161928.GA9611@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: mhocko@suse.com
+Cc: oleg@redhat.com, akpm@linux-foundation.org, cmetcalf@ezchip.com, mszeredi@suse.cz, viro@zeniv.linux.org.uk, dave@stgolabs.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, jack@suse.cz, xiexiuqi@huawei.com, vbabka@suse.cz, Vineet.Gupta1@synopsys.com, riel@redhat.com, gang.chen.5i5j@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
 
-On 17 November 2015 at 16:20, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> kasan_module_alloc() allocates shadow memory for module and frees it on module
-> unloading. It doesn't store the pointer to allocated shadow memory because
-> it could be calculated from the shadowed address, i.e. kasan_mem_to_shadow(addr).
-> Since kmemleak cannot find pointer to allocated shadow, it thinks that memory leaked.
-> We should tell kmemleak that this is not a leak.
-[...]
-> @@ -444,6 +445,7 @@ int kasan_module_alloc(void *addr, size_t size)
->
->         if (ret) {
->                 find_vm_area(addr)->flags |= VM_KASAN;
-> +               kmemleak_not_leak(ret);
->                 return 0;
->         }
+The following flag comparison in mmap_region is not fully correct:
 
-If such memory does not contain any pointers to other objects, you
-could use kmemleak_ignore() which would make kmemleak not scan it at
-all (slight performance improvement).
+if (!(vm_flags & MAP_FIXED))
 
+The vm_flags should not be compared with MAP_FIXED (0x10). It is a bit
+confusing. This condition is almost always true since VM_MAYREAD (0x10)
+flag is almost always set by default. This patch removes this condition.
+
+Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+---
+ mm/mmap.c | 7 -------
+ 1 file changed, 7 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2ce04a6..02422ea 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1547,13 +1547,6 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	if (!may_expand_vm(mm, len >> PAGE_SHIFT)) {
+ 		unsigned long nr_pages;
+ 
+-		/*
+-		 * MAP_FIXED may remove pages of mappings that intersects with
+-		 * requested mapping. Account for the pages it would unmap.
+-		 */
+-		if (!(vm_flags & MAP_FIXED))
+-			return -ENOMEM;
+-
+ 		nr_pages = count_vma_pages_range(mm, addr, addr + len);
+ 
+ 		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
 -- 
-Catalin
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
