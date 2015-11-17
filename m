@@ -1,108 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f44.google.com (mail-lf0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F8F16B0261
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 15:19:10 -0500 (EST)
-Received: by lfaz4 with SMTP id z4so13042069lfa.0
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 12:19:09 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id q140si13251150lfe.67.2015.11.17.12.19.08
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CDBE6B0263
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 17:22:34 -0500 (EST)
+Received: by wmec201 with SMTP id c201so47624377wme.1
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 14:22:33 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 6si310846wmc.49.2015.11.17.14.22.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Nov 2015 12:19:08 -0800 (PST)
-Date: Tue, 17 Nov 2015 23:18:50 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Nov 2015 14:22:32 -0800 (PST)
+Date: Tue, 17 Nov 2015 17:22:17 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH 14/14] mm: memcontrol: hook up vmpressure to socket
  pressure
-Message-ID: <20151117201849.GQ31308@esperanza>
+Message-ID: <20151117222217.GA20394@cmpxchg.org>
 References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
  <1447371693-25143-15-git-send-email-hannes@cmpxchg.org>
  <20151115135457.GM31308@esperanza>
  <20151116185316.GC32544@cmpxchg.org>
+ <20151117201849.GQ31308@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151116185316.GC32544@cmpxchg.org>
+In-Reply-To: <20151117201849.GQ31308@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
 Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Nov 16, 2015 at 01:53:16PM -0500, Johannes Weiner wrote:
-> On Sun, Nov 15, 2015 at 04:54:57PM +0300, Vladimir Davydov wrote:
-> > On Thu, Nov 12, 2015 at 06:41:33PM -0500, Johannes Weiner wrote:
-> > > Let the networking stack know when a memcg is under reclaim pressure
-> > > so that it can clamp its transmit windows accordingly.
-> > > 
-> > > Whenever the reclaim efficiency of a cgroup's LRU lists drops low
-> > > enough for a MEDIUM or HIGH vmpressure event to occur, assert a
-> > > pressure state in the socket and tcp memory code that tells it to curb
-> > > consumption growth from sockets associated with said control group.
-> > > 
-> > > vmpressure events are naturally edge triggered, so for hysteresis
-> > > assert socket pressure for a second to allow for subsequent vmpressure
-> > > events to occur before letting the socket code return to normal.
+On Tue, Nov 17, 2015 at 11:18:50PM +0300, Vladimir Davydov wrote:
+> AFAIK vmpressure was designed to allow userspace to tune hard limits of
+> cgroups in accordance with their demands, in which case the way how
+> vmpressure notifications work makes sense.
+
+You can still do that when the reporting happens on the reclaim level,
+it's easy to figure out where the pressure comes from once a group is
+struggling to reclaim its LRU pages.
+
+Reporting on the pressure level does nothing but destroy valuable
+information that would be useful in scenarios other than tuning a
+hierarchical memory limit.
+
+> > But you guys were wary about the patch that changed it, and this
+> 
+> Changing vmpressure semantics as you proposed in v1 would result in
+> userspace getting notifications even if cgroup does not hit its limit.
+> May be it could be useful to someone (e.g. it could help tuning
+> memory.low), but I am pretty sure this would also result in breakages
+> for others.
+
+Maybe. I'll look into a two-layer vmpressure recording/reporting model
+that would give us reclaim-level events internally while retaining
+pressure-level events for the existing userspace interface.
+
+> > series has kicked up enough dust already, so I backed it out.
 > > 
-> > AFAICS, in contrast to v1, now you don't modify vmpressure behavior,
-> > which means socket_pressure will only be set when cgroup hits its
-> > high/hard limit. On tightly packed system, this is unlikely IMO -
-> > cgroups will mostly experience pressure due to memory shortage at the
-> > global level and/or their low limit configuration, in which case no
-> > vmpressure events will be triggered and therefore tcp window won't be
-> > clamped accordingly.
+> > But this will still be useful. Yes, it won't help in rebalancing an
+> > regularly working system, which would be cool, but it'll still help
+> > contain a worklad that is growing beyond expectations, which is the
+> > scenario that kickstarted this work.
 > 
-> Yeah, this is an inherent problem in the vmpressure design and it
-> makes the feature significantly less useful than it could be IMO.
+> I haven't looked through all the previous patches in the series, but
+> AFAIU they should do the trick, no? Notifying sockets about vmpressure
+> is rather needed to protect a workload from itself.
 
-AFAIK vmpressure was designed to allow userspace to tune hard limits of
-cgroups in accordance with their demands, in which case the way how
-vmpressure notifications work makes sense.
+No, the only critical thing is to protect the system from OOM
+conditions caused by what should be containerized processes.
 
-> 
-> But you guys were wary about the patch that changed it, and this
+That's a correctness issue.
 
-Changing vmpressure semantics as you proposed in v1 would result in
-userspace getting notifications even if cgroup does not hit its limit.
-May be it could be useful to someone (e.g. it could help tuning
-memory.low), but I am pretty sure this would also result in breakages
-for others.
+How much we mitigate the consequences inside the container when the
+workload screws up is secondary. But even that is already much better
+in this series compared to memcg v1, while leaving us with all the
+freedom to continue improving this internal mitigation in the future.
 
-> series has kicked up enough dust already, so I backed it out.
-> 
-> But this will still be useful. Yes, it won't help in rebalancing an
-> regularly working system, which would be cool, but it'll still help
-> contain a worklad that is growing beyond expectations, which is the
-> scenario that kickstarted this work.
+> And with this patch it will work this way, but only if sum limits <
+> total ram, which is rather rare in practice. On tightly packed
+> systems it does nothing.
 
-I haven't looked through all the previous patches in the series, but
-AFAIU they should do the trick, no? Notifying sockets about vmpressure
-is rather needed to protect a workload from itself. And with this patch
-it will work this way, but only if sum limits < total ram, which is
-rather rare in practice. On tightly packed systems it does nothing.
+That's not true, it's still useful when things go south inside a
+cgroup, even with overcommitted limits. See above.
 
-That said, I don't think we should commit this particular patch. Neither
-do I think socket accounting should be enabled by default in the unified
-hierarchy for now, since the implementation is still incomplete. IMHO.
+We can optimize the continuous global pressure rebalancing later on;
+whether that'll be based on a modified vmpressure implementation, or
+adding reclaim efficiency to the shrinker API or whatever.
 
-Thanks,
-Vladimir
+> That said, I don't think we should commit this particular patch. Neither
+> do I think socket accounting should be enabled by default in the unified
+> hierarchy for now, since the implementation is still incomplete. IMHO.
 
-> 
-> > May be, we could use a per memcg slab shrinker to detect memory
-> > pressure? This looks like abusing shrinkers API though.
-> 
-> Actually, I thought about doing this long-term.
-> 
-> Shrinkers are a nice way to export VM pressure to auxiliary allocators
-> and caches. But currently, the only metric we export is LRU scan rate,
-> whose application is limited to ageable caches: it doesn't make sense
-> to cause auxiliary workingsets to shrink when the VM is merely picking
-> up the drop-behind pages of a one-off page cache stream. I think it
-> would make sense for shrinkers to include reclaim efficiency so that
-> they can be used by caches that don't have 'accessed' bits and object
-> rotation, but are able to shrink based on the cost they're imposing.
-> 
-> But a change like this is beyond the scope of this series, IMO.
-> 
+I don't see a technical basis for either of those suggestions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
