@@ -1,63 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B0716B0038
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 00:17:03 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so199034460pac.3
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 21:17:03 -0800 (PST)
-Received: from us-alimail-mta1.hst.scl.en.alidc.net (mail113-249.mail.alibaba.com. [205.204.113.249])
-        by mx.google.com with ESMTP id nj10si55482545pbc.46.2015.11.16.21.17.01
-        for <linux-mm@kvack.org>;
-        Mon, 16 Nov 2015 21:17:02 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com> <1447656686-4851-6-git-send-email-baiyaowei@cmss.chinamobile.com>
-In-Reply-To: <1447656686-4851-6-git-send-email-baiyaowei@cmss.chinamobile.com>
-Subject: Re: [PATCH 5/7] mm/lru: remove unused is_unevictable_lru function
-Date: Tue, 17 Nov 2015 13:16:37 +0800
-Message-ID: <006701d120f7$24aaa870$6dfff950$@alibaba-inc.com>
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B6A36B0038
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 00:33:47 -0500 (EST)
+Received: by ioir85 with SMTP id r85so8263362ioi.1
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 21:33:47 -0800 (PST)
+Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
+        by mx.google.com with ESMTPS id c18si27231853igr.28.2015.11.16.21.33.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Nov 2015 21:33:46 -0800 (PST)
+Received: by iouu10 with SMTP id u10so8431904iou.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 21:33:46 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+In-Reply-To: <20151116194812.GJ8644@n2100.arm.linux.org.uk>
+References: <1447698757-8762-1-git-send-email-ard.biesheuvel@linaro.org>
+	<1447698757-8762-12-git-send-email-ard.biesheuvel@linaro.org>
+	<20151116190156.GH8644@n2100.arm.linux.org.uk>
+	<CAKv+Gu8w+2GA5tV4roYtEsza+mkCZKYX_=tT2t=+eh-ZO1Y2fA@mail.gmail.com>
+	<20151116194812.GJ8644@n2100.arm.linux.org.uk>
+Date: Tue, 17 Nov 2015 06:33:46 +0100
+Message-ID: <CAKv+Gu8H5oqrke-TpMj9i00=OJpi82NKySF40yVQoOhXbaQvXA@mail.gmail.com>
+Subject: Re: [PATCH v2 11/12] ARM: wire up UEFI init and runtime support
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Yaowei Bai' <baiyaowei@cmss.chinamobile.com>, akpm@linux-foundation.org
-Cc: bhe@redhat.com, dan.j.williams@intel.com, dave.hansen@linux.intel.com, dave@stgolabs.net, dhowells@redhat.com, dingel@linux.vnet.ibm.com, hannes@cmpxchg.org, holt@sgi.com, iamjoonsoo.kim@lge.com, joe@perches.com, kuleshovmail@gmail.com, mgorman@suse.de, mhocko@suse.cz, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, penberg@kernel.org, rientjes@google.com, sasha.levin@oracle.com, tj@kernel.org, tony.luck@intel.com, vbabka@suse.cz, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Will Deacon <will.deacon@arm.com>, Grant Likely <grant.likely@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>, Leif Lindholm <leif.lindholm@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>, Ryan Harkin <ryan.harkin@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-> 
-> Since commit a0b8cab3 ("mm: remove lru parameter from __pagevec_lru_add
-> and remove parts of pagevec API") there's no user of this function anymore,
-> so remove it.
-> 
-> Signed-off-by: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-> ---
+On 16 November 2015 at 20:48, Russell King - ARM Linux
+<linux@arm.linux.org.uk> wrote:
+> On Mon, Nov 16, 2015 at 08:04:00PM +0100, Ard Biesheuvel wrote:
+>> OK. So you mean set TTBR to the zero page, perform the TLB flush and
+>> only then switch to the new page tables?
+>
+> Not quite.
+>
+> If you have global mappings below TASK_SIZE, you would need this
+> sequence when switching either to or from the UEFI page tables:
+>
+> - switch to another set of page tables which only map kernel space
+>   with nothing at all in userspace.
+> - flush the TLB.
+> - switch to your target page tables.
+>
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+Doh. I am so used to always having two TTBR's available, but indeed,
+we shouldn't pull the rug from under our feet.
 
->  include/linux/mmzone.h | 5 -----
->  1 file changed, 5 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index e23a9e7..9963846 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -195,11 +195,6 @@ static inline int is_active_lru(enum lru_list lru)
->  	return (lru == LRU_ACTIVE_ANON || lru == LRU_ACTIVE_FILE);
->  }
-> 
-> -static inline int is_unevictable_lru(enum lru_list lru)
-> -{
-> -	return (lru == LRU_UNEVICTABLE);
-> -}
-> -
->  struct zone_reclaim_stat {
->  	/*
->  	 * The pageout code in vmscan.c keeps track of how many of the
-> --
-> 1.9.1
-> 
+> As I say in response to one of your other patches, it's probably
+> much easier to avoid any global mappings below TASK_SIZE.
 
+Let me look into that.
+
+Thanks,
+Ard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
