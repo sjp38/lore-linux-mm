@@ -1,93 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 92AD36B0038
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 02:43:44 -0500 (EST)
-Received: by wmec201 with SMTP id c201so213251752wme.0
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 23:43:44 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y10si44414603wjw.208.2015.11.16.23.43.43
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 16 Nov 2015 23:43:43 -0800 (PST)
-Subject: Re: [PATCH V4] mm: fix kernel crash in khugepaged thread
-References: <1447316462-19645-1-git-send-email-yalin.wang2010@gmail.com>
- <20151112092923.19ee53dd@gandalf.local.home> <5645BFAA.1070004@suse.cz>
- <D7E480F5-D879-4016-B530-5A4D7CB05675@gmail.com>
- <20151113090115.1ad4235b@gandalf.local.home>
- <2F74FF6B-66DC-4BF9-972A-C2F5FFFA979F@gmail.com> <5649ACF6.1000704@suse.cz>
- <20151116092501.761f31d7@gandalf.local.home>
- <233209B0-A466-4149-93C6-7173FF0FD4C5@gmail.com>
- <20151116214304.6fa42a4e@grimm.local.home>
- <8582F660-B54A-474B-960E-CD5D0FF6428F@gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <564ADAB1.9030500@suse.cz>
-Date: Tue, 17 Nov 2015 08:43:45 +0100
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 12A426B0038
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 03:31:09 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so2375085pab.0
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 00:31:08 -0800 (PST)
+Received: from cmccmta1.chinamobile.com (cmccmta1.chinamobile.com. [221.176.66.79])
+        by mx.google.com with ESMTP id eo5si22288681pbb.133.2015.11.17.00.31.06
+        for <linux-mm@kvack.org>;
+        Tue, 17 Nov 2015 00:31:07 -0800 (PST)
+Date: Tue, 17 Nov 2015 16:29:42 +0800
+From: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+Subject: Re: [PATCH 6/7] mm/gfp: make gfp_zonelist return directly and bool
+Message-ID: <20151117082942.GA8832@yaowei-K42JY>
+References: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com>
+ <1447656686-4851-7-git-send-email-baiyaowei@cmss.chinamobile.com>
+ <alpine.DEB.2.10.1511160205010.18751@chino.kir.corp.google.com>
+ <20151117015950.GA5867@yaowei-K42JY>
+ <alpine.DEB.2.10.1511162142220.12557@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <8582F660-B54A-474B-960E-CD5D0FF6428F@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1511162142220.12557@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yalin wang <yalin.wang2010@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, jmarchan@redhat.com, mgorman@techsingularity.net, willy@linux.intel.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: akpm@linux-foundation.org, bhe@redhat.com, dan.j.williams@intel.com, dave.hansen@linux.intel.com, dave@stgolabs.net, dhowells@redhat.com, dingel@linux.vnet.ibm.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, holt@sgi.com, iamjoonsoo.kim@lge.com, joe@perches.com, kuleshovmail@gmail.com, mgorman@suse.de, mhocko@suse.cz, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, penberg@kernel.org, sasha.levin@oracle.com, tj@kernel.org, tony.luck@intel.com, vbabka@suse.cz, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 17.11.2015 4:58, yalin wang wrote:
+On Mon, Nov 16, 2015 at 09:44:11PM -0800, David Rientjes wrote:
+> On Tue, 17 Nov 2015, Yaowei Bai wrote:
 > 
->> On Nov 17, 2015, at 10:43, Steven Rostedt <rostedt@goodmis.org> wrote:
->>
->> On Tue, 17 Nov 2015 10:21:47 +0800
->> yalin wang <yalin.wang2010@gmail.com> wrote:
->>
->>
->>
->> Because the print_fmt has nothing to do with the fields. You can have
->> as your print_fmt as:
->>
->> 	TP_printk("Message = %s", "hello dolly!")
->>
->> And both userspace and the kernel with process that correctly (if I got
->> string processing working in userspace, which I believe I do). The
->> string is processed, it's not dependent on TP_STRUCT__entry() unless it
->> references a field there. Which can also be used too:
->>
->> 	TP_printk("Message = %s", __entry->musical ? "Hello dolly!" :
->> 			"Death Trap!")
->>
->> userspace will see in the entry:
->>
->> print_fmt: "Message = %s", REC->musical ? "Hello dolly!" : "Death Trap!"
->>
->> as long as the field "musical" exists, all is well.
->>
->> -- Steve
-> Aha,  i see.
-> Thanks very much for your explanation.
-> Better print fat is :   
-> TP_printk("mm=%p, scan_pfn=%s, writable=%d, referenced=%d, none_or_zero=%d, status=%s, unmapped=%d",
->                __entry->mm,
-> 		__entry->pfn == (-1UL) ? "(null)" :  itoa(buff,  __entry->pin, 10), a?|..)
+> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> > index 6523109..14a6249 100644
+> > --- a/include/linux/gfp.h
+> > +++ b/include/linux/gfp.h
+> > @@ -378,9 +378,9 @@ static inline enum zone_type gfp_zone(gfp_t flags)
+> >  static inline int gfp_zonelist(gfp_t flags)
+> >  {
+> >         if (IS_ENABLED(CONFIG_NUMA) && unlikely(flags & __GFP_THISNODE))
+> > -               return 1;
+> > +               return ZONELIST_NOFALLBACK;
+> >  
+> > -       return 0;
+> > +       return ZONELIST_FALLBACK;
+> >  }
+> >  
+> >  /*
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index e23a9e7..9664d6c 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -576,8 +576,6 @@ static inline bool zone_is_empty(struct zone *zone)
+> >  /* Maximum number of zones on a zonelist */
+> >  #define MAX_ZONES_PER_ZONELIST (MAX_NUMNODES * MAX_NR_ZONES)
+> >  
+> > -#ifdef CONFIG_NUMA
+> > -
+> >  /*
+> >   * The NUMA zonelists are doubled because we need zonelists that restrict the
+> >   * allocations to a single node for __GFP_THISNODE.
+> > @@ -585,10 +583,13 @@ static inline bool zone_is_empty(struct zone *zone)
+> >   * [0] : Zonelist with fallback
+> >   * [1] : No fallback (__GFP_THISNODE)
+> >   */
+> > -#define MAX_ZONELISTS 2
+> > -#else
+> > -#define MAX_ZONELISTS 1
+> > +enum {
+> > +       ZONELIST_FALLBACK,
+> > +#ifdef CONFIG_NUMA
+> > +       ZONELIST_NOFALLBACK,
+> >  #endif
+> > +       MAX_ZONELISTS
+> > +};
+> >  
+> >  /*
+> >   * This struct contains information about a zone in a zonelist. It is stored
 > 
-> is this possible ?
+> This is a different change than the original. 
 
-I doubt so.
+The original patch doesn't make sense as you said so let's drop it.
 
-Why don't we just do (with %lx):
- __entry->pfn != -1UL ? __entry->pfn : 0,
+> I don't see a benefit from 
+> it, but I have no strong feelings on it.  If someone else finds value in 
+> this, please update the comment when defining the enum as well.
 
-Status already tells us that it's not a real pfn 0 (which I doubt would be
-userspace-mapped and thus reachable by khugepaged anyway?).
-Also it's what some other tracepoints do, see e.g. mm_page class in
-include/trace/events/kmem.h.
+OK, i'll send a update patch to review first and if nobody disagrees with it i will
+resend this patchset.
 
-> Thanks
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
