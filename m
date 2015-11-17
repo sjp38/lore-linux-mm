@@ -1,60 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 43B396B0038
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 12:26:58 -0500 (EST)
-Received: by lbbkw15 with SMTP id kw15so9933461lbb.0
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 09:26:57 -0800 (PST)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id e20si31405956lfi.75.2015.11.17.09.26.56
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id D5A376B0255
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 12:38:28 -0500 (EST)
+Received: by igcto18 with SMTP id to18so18906527igc.0
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 09:38:28 -0800 (PST)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0077.outbound.protection.outlook.com. [157.55.234.77])
+        by mx.google.com with ESMTPS id l23si25851452iod.19.2015.11.17.09.38.27
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Nov 2015 09:26:56 -0800 (PST)
-Received: by lfu94 with SMTP id 94so1181611lfu.1
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 09:26:56 -0800 (PST)
-From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Subject: [PATCH] mm/mmap.c: remove incorrect MAP_FIXED flag comparison from mmap_region
-Date: Tue, 17 Nov 2015 18:26:38 +0100
-Message-Id: <1447781198-5496-1-git-send-email-kwapulinski.piotr@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 17 Nov 2015 09:38:27 -0800 (PST)
+Subject: Re: [PATCH] mm: fix incorrect behavior when process virtual address
+ space limit is exceeded
+References: <1447695379-14526-1-git-send-email-kwapulinski.piotr@gmail.com>
+ <20151117161928.GA9611@redhat.com>
+From: Chris Metcalf <cmetcalf@ezchip.com>
+Message-ID: <564B6605.8080808@ezchip.com>
+Date: Tue, 17 Nov 2015 12:38:13 -0500
+MIME-Version: 1.0
 In-Reply-To: <20151117161928.GA9611@redhat.com>
-References: <20151117161928.GA9611@redhat.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: oleg@redhat.com, akpm@linux-foundation.org, cmetcalf@ezchip.com, mszeredi@suse.cz, viro@zeniv.linux.org.uk, dave@stgolabs.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, jack@suse.cz, xiexiuqi@huawei.com, vbabka@suse.cz, Vineet.Gupta1@synopsys.com, riel@redhat.com, gang.chen.5i5j@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+To: Oleg Nesterov <oleg@redhat.com>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Cc: akpm@linux-foundation.org, mszeredi@suse.cz, viro@zeniv.linux.org.uk, dave@stgolabs.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mhocko@suse.com, iamjoonsoo.kim@lge.com, jack@suse.cz, xiexiuqi@huawei.com, vbabka@suse.cz, Vineet.Gupta1@synopsys.com, riel@redhat.com, gang.chen.5i5j@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The following flag comparison in mmap_region is not fully correct:
+On 11/17/2015 11:19 AM, Oleg Nesterov wrote:
+> On 11/16, Piotr Kwapulinski wrote:
+>> @@ -1551,7 +1552,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+>>   		 * MAP_FIXED may remove pages of mappings that intersects with
+>>   		 * requested mapping. Account for the pages it would unmap.
+>>   		 */
+>> -		if (!(vm_flags & MAP_FIXED))
+>> +		if (!(flags & MAP_FIXED))
+>>   			return -ENOMEM;
+> And afaics arch/tile/mm/elf.c can use do_mmap(MAP_FIXED ...) rather than
+> mmap_region(), it can be changed by a separate patch. In this case we can
+> unexport mmap_region().
 
-if (!(vm_flags & MAP_FIXED))
+The problem is that we are mapping a region of virtual address space that
+the chip provides for setting up interrupt handlers (at 0xfc000000) but that
+is above the TASK_SIZE cutoff, so do_mmap() would fail the call in
+get_unmapped_area().
 
-The vm_flags should not be compared with MAP_FIXED (0x10). It is a bit
-confusing. This condition is almost always true since VM_MAYREAD (0x10)
-flag is almost always set by default. This patch removes this condition.
-
-Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
----
- mm/mmap.c | 7 -------
- 1 file changed, 7 deletions(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 2ce04a6..02422ea 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1547,13 +1547,6 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 	if (!may_expand_vm(mm, len >> PAGE_SHIFT)) {
- 		unsigned long nr_pages;
- 
--		/*
--		 * MAP_FIXED may remove pages of mappings that intersects with
--		 * requested mapping. Account for the pages it would unmap.
--		 */
--		if (!(vm_flags & MAP_FIXED))
--			return -ENOMEM;
--
- 		nr_pages = count_vma_pages_range(mm, addr, addr + len);
- 
- 		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
 -- 
-2.6.2
+Chris Metcalf, EZChip Semiconductor
+http://www.ezchip.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
