@@ -1,95 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CDBE6B0263
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 17:22:34 -0500 (EST)
-Received: by wmec201 with SMTP id c201so47624377wme.1
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 14:22:33 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 6si310846wmc.49.2015.11.17.14.22.32
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id CC9E26B0265
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 18:38:57 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so24424136pab.0
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 15:38:57 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d7si4529011pbu.76.2015.11.17.15.38.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Nov 2015 14:22:32 -0800 (PST)
-Date: Tue, 17 Nov 2015 17:22:17 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 14/14] mm: memcontrol: hook up vmpressure to socket
- pressure
-Message-ID: <20151117222217.GA20394@cmpxchg.org>
-References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
- <1447371693-25143-15-git-send-email-hannes@cmpxchg.org>
- <20151115135457.GM31308@esperanza>
- <20151116185316.GC32544@cmpxchg.org>
- <20151117201849.GQ31308@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151117201849.GQ31308@esperanza>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Nov 2015 15:38:56 -0800 (PST)
+Date: Tue, 17 Nov 2015 15:38:55 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] writeback: initialize m_dirty to avoid compile warning
+Message-Id: <20151117153855.99d2acd0568d146c29defda5@linux-foundation.org>
+In-Reply-To: <1447439201-32009-1-git-send-email-yang.shi@linaro.org>
+References: <1447439201-32009-1-git-send-email-yang.shi@linaro.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Yang Shi <yang.shi@linaro.org>
+Cc: tj@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
 
-On Tue, Nov 17, 2015 at 11:18:50PM +0300, Vladimir Davydov wrote:
-> AFAIK vmpressure was designed to allow userspace to tune hard limits of
-> cgroups in accordance with their demands, in which case the way how
-> vmpressure notifications work makes sense.
+On Fri, 13 Nov 2015 10:26:41 -0800 Yang Shi <yang.shi@linaro.org> wrote:
 
-You can still do that when the reporting happens on the reclaim level,
-it's easy to figure out where the pressure comes from once a group is
-struggling to reclaim its LRU pages.
-
-Reporting on the pressure level does nothing but destroy valuable
-information that would be useful in scenarios other than tuning a
-hierarchical memory limit.
-
-> > But you guys were wary about the patch that changed it, and this
+> When building kernel with gcc 5.2, the below warning is raised:
 > 
-> Changing vmpressure semantics as you proposed in v1 would result in
-> userspace getting notifications even if cgroup does not hit its limit.
-> May be it could be useful to someone (e.g. it could help tuning
-> memory.low), but I am pretty sure this would also result in breakages
-> for others.
-
-Maybe. I'll look into a two-layer vmpressure recording/reporting model
-that would give us reclaim-level events internally while retaining
-pressure-level events for the existing userspace interface.
-
-> > series has kicked up enough dust already, so I backed it out.
-> > 
-> > But this will still be useful. Yes, it won't help in rebalancing an
-> > regularly working system, which would be cool, but it'll still help
-> > contain a worklad that is growing beyond expectations, which is the
-> > scenario that kickstarted this work.
+> mm/page-writeback.c: In function 'balance_dirty_pages.isra.10':
+> mm/page-writeback.c:1545:17: warning: 'm_dirty' may be used uninitialized in this function [-Wmaybe-uninitialized]
+>    unsigned long m_dirty, m_thresh, m_bg_thresh;
 > 
-> I haven't looked through all the previous patches in the series, but
-> AFAIU they should do the trick, no? Notifying sockets about vmpressure
-> is rather needed to protect a workload from itself.
+> The m_dirty{thresh, bg_thresh} are initialized in the block of "if (mdtc)",
+> so if mdts is null, they won't be initialized before being used.
+> Initialize m_dirty to zero, also initialize m_thresh and m_bg_thresh to keep
+> consistency.
+> 
+> They are used later by if condition:
+> !mdtc || m_dirty <= dirty_freerun_ceiling(m_thresh, m_bg_thresh)
+> 
+> If mdtc is null, dirty_freerun_ceiling will not be called at all, so the
+> initialization will not change any behavior other than just ceasing the compile
+> warning.
 
-No, the only critical thing is to protect the system from OOM
-conditions caused by what should be containerized processes.
+Geeze I hate that warning.  gcc really could be a bit smarter about it
+and this is such a case.
 
-That's a correctness issue.
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -1542,7 +1542,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+>  	for (;;) {
+>  		unsigned long now = jiffies;
+>  		unsigned long dirty, thresh, bg_thresh;
+> -		unsigned long m_dirty, m_thresh, m_bg_thresh;
+> +		unsigned long m_dirty = 0, m_thresh = 0, m_bg_thresh = 0;
+>  
+>  		/*
+>  		 * Unstable writes are a feature of certain networked
 
-How much we mitigate the consequences inside the container when the
-workload screws up is secondary. But even that is already much better
-in this series compared to memcg v1, while leaving us with all the
-freedom to continue improving this internal mitigation in the future.
+Adding runtime overhead to suppress a compile-time warning is Just
+Wrong.
 
-> And with this patch it will work this way, but only if sum limits <
-> total ram, which is rather rare in practice. On tightly packed
-> systems it does nothing.
+With gcc-4.4.4 the above patch actually reduces page-writeback.o's
+.text by 36 bytes, lol.  With gcc-4.8.4 the patch saves 19 bytes.  No
+idea what's going on there...
 
-That's not true, it's still useful when things go south inside a
-cgroup, even with overcommitted limits. See above.
 
-We can optimize the continuous global pressure rebalancing later on;
-whether that'll be based on a modified vmpressure implementation, or
-adding reclaim efficiency to the shrinker API or whatever.
+And initializing locals in the above fashion can hide real bugs -
+looky:
 
-> That said, I don't think we should commit this particular patch. Neither
-> do I think socket accounting should be enabled by default in the unified
-> hierarchy for now, since the implementation is still incomplete. IMHO.
+--- a/mm/page-writeback.c~a
++++ a/mm/page-writeback.c
+@@ -1544,6 +1544,8 @@ static void balance_dirty_pages(struct a
+ 		unsigned long dirty, thresh, bg_thresh;
+ 		unsigned long m_dirty = 0, m_thresh = 0, m_bg_thresh = 0;
+ 
++		printk("%lu\n", m_dirty);
++
+ 		/*
+ 		 * Unstable writes are a feature of certain networked
+ 		 * filesystems (i.e. NFS) in which data may have been
 
-I don't see a technical basis for either of those suggestions.
+After the fake initialization there is no warning.  Perhaps it would be
+better to initialize these things to some insane value so the kernel
+will at least malfunction in some observable fashion if this happens.
+
+I think unintialized_var() is a good solution - it's self-documenting
+and adds no overhead.  It still has the can-hide-real-bugs issue, but
+it's better than fake initialization.
+
+But Linus chucks a wobbly over unintialized_var() so shrug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
