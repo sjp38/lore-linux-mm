@@ -1,151 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C17EE6B0253
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 04:26:44 -0500 (EST)
-Received: by ioir85 with SMTP id r85so12604552ioi.1
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 01:26:44 -0800 (PST)
-Received: from mail-io0-x22f.google.com (mail-io0-x22f.google.com. [2607:f8b0:4001:c06::22f])
-        by mx.google.com with ESMTPS id f11si23237816ioj.131.2015.11.17.01.26.44
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id F13106B0038
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 04:32:18 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so217299048wmv.1
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 01:32:18 -0800 (PST)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id bw7si52148698wjb.40.2015.11.17.01.32.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Nov 2015 01:26:44 -0800 (PST)
-Received: by ioir85 with SMTP id r85so12604354ioi.1
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 01:26:44 -0800 (PST)
+        Tue, 17 Nov 2015 01:32:17 -0800 (PST)
+Received: by wmww144 with SMTP id w144so16779298wmw.0
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 01:32:17 -0800 (PST)
+Date: Tue, 17 Nov 2015 11:32:13 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: kernel oops on mmotm-2015-10-15-15-20
+Message-ID: <20151117093213.GA16243@node.shutemov.name>
+References: <20151103152019.GM17906@bbox>
+ <20151104142135.GA13303@node.shutemov.name>
+ <20151105001922.GD7357@bbox>
+ <20151108225522.GA29600@node.shutemov.name>
+ <20151112003614.GA5235@bbox>
+ <20151116014521.GA7973@bbox>
+ <20151116084522.GA9778@node.shutemov.name>
+ <20151116103220.GA32578@bbox>
+ <20151116105452.GA10575@node.shutemov.name>
+ <20151117073539.GB32578@bbox>
 MIME-Version: 1.0
-In-Reply-To: <CAD0U-hKfQvV_Dagc2BomK1wuJQG_-bsnLSyGcRduUN9zf30AHg@mail.gmail.com>
-References: <1447698757-8762-1-git-send-email-ard.biesheuvel@linaro.org>
-	<CAD0U-hKfQvV_Dagc2BomK1wuJQG_-bsnLSyGcRduUN9zf30AHg@mail.gmail.com>
-Date: Tue, 17 Nov 2015 10:26:43 +0100
-Message-ID: <CAKv+Gu9i+t0zhLY=XqnHt9gX3OzhXGnqd9qfWy2wi0OinBzehg@mail.gmail.com>
-Subject: Re: [PATCH v2 00/12] UEFI boot and runtime services support for
- 32-bit ARM
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151117073539.GB32578@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ryan Harkin <ryan.harkin@linaro.org>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Matt Fleming <matt.fleming@intel.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Will Deacon <will.deacon@arm.com>, Grant Likely <grant.likely@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>, Leif Lindholm <leif.lindholm@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On 16 November 2015 at 20:50, Ryan Harkin <ryan.harkin@linaro.org> wrote:
-> Hi Ard,
->
-> On 16 November 2015 at 18:32, Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
->> This series adds support for booting the 32-bit ARM kernel directly from
->> UEFI firmware using a builtin UEFI stub. It mostly reuses refactored arm64
->> code, and the differences (primarily the PE/COFF header and entry point and
->> the efi_create_mapping() implementation) are split out into arm64 and ARM
->> versions.
->>
->> Changes since v1:
->> - The primary difference between this version and the first one is that all
->>   prerequisites have either been merged, dropped for now (early FDT handling)
->>   or folded into this series (MEMBLOCK_NOMAP). IOW, this series can be applied
->>   on top of v4.4-rc1 directly.
->> - Dropped handling of UEFI permission bits. The reason is that the UEFIv2.5
->>   approach (EFI_PROPERTIES_TABLE) is flawed, and will be replaced by something
->>   better in the next version of the spec.
->>
->> Patch #1 adds support for the MEMBLOCK_NOMAP attribute to the generic memblock
->> code. Its purpose is to annotate memory regions as normal memory even if they
->> are removed from the kernel direct mapping.
->>
->> Patch #2 implements MEMBLOCK_NOMAP support for arm64
->>
->> Patch #3 updates the EFI init code to remove UEFI reserved regions and regions
->> used by runtime services from the kernel direct mapping
->>
->> Patch #4 splits off most of arch/arm64/kernel/efi.c into arch agnostic files
->> arm-init.c and arm-runtime.c under drivers/firmware/efi.
->>
->> Patch #5 refactors the code split off in patch #1 to isolate the arm64 specific
->> pieces, and change a couple of arm64-isms that ARM handles slightly differently.
->>
->> Patch #6 enables the generic early_ioremap and early_memremap implementations
->> for ARM. It reuses the kmap fixmap region, which is not used that early anyway.
->>
->> Patch #7 splits off the core functionality of create_mapping() into a new
->> function __create_mapping() that we can reuse for mapping UEFI runtime regions.
->>
->> Patch #8 factors out the early_alloc() routine so we can invoke __create_mapping
->> using another (late) allocator.
->>
->> Patch #9 implements create_mapping_late() that uses a late allocator.
->>
->> Patch #10 implements MEMBLOCK_NOMAP support for ARM
->>
->> Patch #11 implements the UEFI support in the kernel proper to probe the UEFI
->> memory map and map the runtime services.
->>
->> Patch #12 ties together all of the above, by implementing the UEFI stub, and
->> introducing the Kconfig symbols that allow all of this to be built.
->>
->> Instructions how to build and run the 32-bit ARM UEFI firmware can be found here:
->> https://wiki.linaro.org/LEG/UEFIforQEMU
->>
->> Ard Biesheuvel (11):
->>   mm/memblock: add MEMBLOCK_NOMAP attribute to memblock memory table
->>   arm64: only consider memblocks with NOMAP cleared for linear mapping
->>   arm64/efi: mark UEFI reserved regions as MEMBLOCK_NOMAP
->>   arm64/efi: split off EFI init and runtime code for reuse by 32-bit ARM
->>   arm64/efi: refactor EFI init and runtime code for reuse by 32-bit ARM
->>   ARM: add support for generic early_ioremap/early_memremap
->>   ARM: split off core mapping logic from create_mapping
->>   ARM: factor out allocation routine from __create_mapping()
->>   ARM: implement create_mapping_late() for EFI use
->>   ARM: only consider memblocks with NOMAP cleared for linear mapping
->>   ARM: wire up UEFI init and runtime support
->>
->> Roy Franz (1):
->>   ARM: add UEFI stub support
->>
->>  arch/arm/Kconfig                          |  20 ++
->>  arch/arm/boot/compressed/Makefile         |   4 +-
->>  arch/arm/boot/compressed/efi-header.S     | 130 ++++++++
->>  arch/arm/boot/compressed/head.S           |  54 +++-
->>  arch/arm/boot/compressed/vmlinux.lds.S    |   7 +
->>  arch/arm/include/asm/Kbuild               |   1 +
->>  arch/arm/include/asm/efi.h                |  90 ++++++
->>  arch/arm/include/asm/fixmap.h             |  29 +-
->>  arch/arm/include/asm/mach/map.h           |   1 +
->>  arch/arm/kernel/Makefile                  |   1 +
->>  arch/arm/kernel/efi.c                     |  38 +++
->>  arch/arm/kernel/setup.c                   |  10 +-
->>  arch/arm/mm/init.c                        |   5 +-
->>  arch/arm/mm/ioremap.c                     |   9 +
->>  arch/arm/mm/mmu.c                         | 110 ++++---
->>  arch/arm64/include/asm/efi.h              |  16 +
->>  arch/arm64/kernel/efi.c                   | 331 ++------------------
->>  arch/arm64/mm/init.c                      |   2 +-
->>  arch/arm64/mm/mmu.c                       |   2 +
->>  drivers/firmware/efi/Makefile             |   4 +
->>  drivers/firmware/efi/arm-init.c           | 197 ++++++++++++
->>  drivers/firmware/efi/arm-runtime.c        | 134 ++++++++
->>  drivers/firmware/efi/efi.c                |   2 +
->>  drivers/firmware/efi/libstub/Makefile     |   9 +
->>  drivers/firmware/efi/libstub/arm-stub.c   |   4 +-
->>  drivers/firmware/efi/libstub/arm32-stub.c |  85 +++++
->>  include/linux/memblock.h                  |   8 +
->>  mm/memblock.c                             |  28 ++
->>  28 files changed, 975 insertions(+), 356 deletions(-)
->>  create mode 100644 arch/arm/boot/compressed/efi-header.S
->>  create mode 100644 arch/arm/include/asm/efi.h
->>  create mode 100644 arch/arm/kernel/efi.c
->>  create mode 100644 drivers/firmware/efi/arm-init.c
->>  create mode 100644 drivers/firmware/efi/arm-runtime.c
->>  create mode 100644 drivers/firmware/efi/libstub/arm32-stub.c
->>
->> --
->> 1.9.1
->>
->
-> I've tested this series against 4.4-rc1 on Versatile Express TC2,
-> booting both as a "regular" kernel and as a EFI Stub on BusyBox and
-> OpenEmbedded.  So if it helps any, you can add my:
->
-> Tested-by: Ryan Harkin <ryan.harkin@linaro.org>
->
+On Tue, Nov 17, 2015 at 04:35:39PM +0900, Minchan Kim wrote:
+> On Mon, Nov 16, 2015 at 12:54:53PM +0200, Kirill A. Shutemov wrote:
+> > On Mon, Nov 16, 2015 at 07:32:20PM +0900, Minchan Kim wrote:
+> > > On Mon, Nov 16, 2015 at 10:45:22AM +0200, Kirill A. Shutemov wrote:
+> > > > On Mon, Nov 16, 2015 at 10:45:21AM +0900, Minchan Kim wrote:
+> > > > > During the test with MADV_FREE on kernel I applied your patches,
+> > > > > I couldn't see any problem.
+> > > > > 
+> > > > > However, in this round, I did another test which is same one
+> > > > > I attached but a liitle bit different because it doesn't do
+> > > > > (memcg things/kill/swapoff) for testing program long-live test.
+> > > > 
+> > > > Could you share updated test?
+> > > 
+> > > It's part of my testing suite so I should factor it out.
+> > > I will send it when I go to office tomorrow.
+> > 
+> > Thanks.
+> > 
+> > > > And could you try to reproduce it on clean mmotm-2015-11-10-15-53?
+> > > 
+> > > Befor leaving office, I queued it up and result is below.
+> > > It seems you fixed already but didn't apply it to mmotm yet. Right?
+> > > Anyway, please confirm and say to me what I should add more patches
+> > > into mmotm-2015-11-10-15-53 for follow up your recent many bug
+> > > fix patches.
+> > 
+> > The two my patches which are not in the mmotm-2015-11-10-15-53 release:
+> > 
+> > http://lkml.kernel.org/g/1447236557-68682-1-git-send-email-kirill.shutemov@linux.intel.com
+> > http://lkml.kernel.org/g/1447236567-68751-1-git-send-email-kirill.shutemov@linux.intel.com
+> 
+> 1. mm: fix __page_mapcount()
+> 2. thp: fix leak due split_huge_page() vs. exit race
+> 
+> If I missed some patches, let me know it.
+> 
+> I applied above two patches based on mmotm-2015-11-10-15-53 and tested again.
+> But unfortunately, the result was below.
+> 
+> Now, I am making test program I can send to you but it seems to be not easy
+> because small changes for factoring it out from testing suite seems to change
+> something(ex, timing) and makes hard to reproduce. I will try it again.
 
-Thanks Ryan!
+Your test suite seems generate quite a few bug reports. Don't mind make whole
+suite public?
+ 
+> page:ffffea0000240080 count:2 mapcount:1 mapping:ffff88007eff3321 index:0x600000e02
+> flags: 0x4000000000040018(uptodate|dirty|swapbacked)
+> page dumped because: VM_BUG_ON_PAGE(!PageLocked(page))
+> page->mem_cgroup:ffff880077cf0c00
+> ------------[ cut here ]------------
+> kernel BUG at mm/huge_memory.c:3272!
+> invalid opcode: 0000 [#1] SMP 
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Modules linked in:
+> CPU: 8 PID: 59 Comm: khugepaged Not tainted 4.3.0-mm1-kirill+ #8
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> task: ffff880073441a40 ti: ffff88007344c000 task.ti: ffff88007344c000
+> RIP: 0010:[<ffffffff8114bc9b>]  [<ffffffff8114bc9b>] split_huge_page_to_list+0x8fb/0x910
+> RSP: 0018:ffff88007344f968  EFLAGS: 00010286
+> RAX: 0000000000000021 RBX: ffffea0000240080 RCX: 0000000000000000
+> RDX: 0000000000000001 RSI: 0000000000000246 RDI: ffffffff821df4d8
+> RBP: ffff88007344f9e8 R08: 0000000000000000 R09: ffff8800000bc600
+> R10: ffffffff8163e2c0 R11: 0000000000004b47 R12: ffffea0000240080
+> R13: ffffea0000240088 R14: ffffea0000240080 R15: 0000000000000000
+> FS:  0000000000000000(0000) GS:ffff880078300000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> CR2: 00007ffd59edcd68 CR3: 0000000001808000 CR4: 00000000000006a0
+> Stack:
+>  cccccccccccccccd ffffea0000240080 ffff88007344fa00 ffffea0000240088
+>  ffff88007344fa00 0000000000000000 ffff88007344f9e8 ffffffff810f0200
+>  ffffea0000240000 0000000000000000 0000000000000000 ffffea0000240080
+> Call Trace:
+>  [<ffffffff810f0200>] ? __lock_page+0xa0/0xb0
+>  [<ffffffff8114bdc5>] deferred_split_scan+0x115/0x240
+>  [<ffffffff8111851c>] ? list_lru_count_one+0x1c/0x30
+>  [<ffffffff811018d3>] shrink_slab.part.42+0x1e3/0x350
+>  [<ffffffff8110644a>] shrink_zone+0x26a/0x280
+>  [<ffffffff8110658d>] do_try_to_free_pages+0x12d/0x3b0
+>  [<ffffffff811068c4>] try_to_free_pages+0xb4/0x140
+>  [<ffffffff810f9279>] __alloc_pages_nodemask+0x459/0x920
+>  [<ffffffff8108d750>] ? trace_event_raw_event_tick_stop+0xd0/0xd0
+>  [<ffffffff81147465>] khugepaged+0x155/0x1b10
+>  [<ffffffff81073ca0>] ? prepare_to_wait_event+0xf0/0xf0
+>  [<ffffffff81147310>] ? __split_huge_pmd_locked+0x4e0/0x4e0
+>  [<ffffffff81057e49>] kthread+0xc9/0xe0
+>  [<ffffffff81057d80>] ? kthread_park+0x60/0x60
+>  [<ffffffff8142aa6f>] ret_from_fork+0x3f/0x70
+>  [<ffffffff81057d80>] ? kthread_park+0x60/0x60
+> Code: ff ff 48 c7 c6 00 cd 77 81 4c 89 f7 e8 df ce fc ff 0f 0b 48 83 e8 01 e9 94 f7 ff ff 48 c7 c6 80 bb 77 81 4c 89 f7 e8 c5 ce fc ff <0f> 0b 48 c7 c6 48 c9 77 81 4c 89 e7 e8 b4 ce fc ff 0f 0b 66 90 
+> RIP  [<ffffffff8114bc9b>] split_huge_page_to_list+0x8fb/0x910
+>  RSP <ffff88007344f968>
+> ---[ end trace 0ee39378e850d8de ]---
+> Kernel panic - not syncing: Fatal exception
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Kernel Offset: disabled
+
+I looked more into it. It seems a race between split_huge_page() and
+deferred_split_scan() as the dumped page is not huge.
+
+Could you check if the patch below makes any difference to the situation?
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 91e2f4b7ca39..923c0f6eb50a 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -3186,13 +3186,6 @@ static void __split_huge_page(struct page *page, struct list_head *list)
+ 	spin_lock_irq(&zone->lru_lock);
+ 	lruvec = mem_cgroup_page_lruvec(head, zone);
+ 
+-	spin_lock(&split_queue_lock);
+-	if (!list_empty(page_deferred_list(head))) {
+-		split_queue_len--;
+-		list_del(page_deferred_list(head));
+-	}
+-	spin_unlock(&split_queue_lock);
+-
+ 	/* complete memcg works before add pages to LRU */
+ 	mem_cgroup_split_huge_fixup(head);
+ 
+@@ -3299,12 +3292,20 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 	freeze_page(anon_vma, head);
+ 	VM_BUG_ON_PAGE(compound_mapcount(head), head);
+ 
++	/* Prevent deferred_split_scan() touching ->_count */
++	spin_lock(&split_queue_lock);
+ 	count = page_count(head);
+ 	mapcount = total_mapcount(head);
+ 	if (mapcount == count - 1) {
++		if (!list_empty(page_deferred_list(head))) {
++			split_queue_len--;
++			list_del(page_deferred_list(head));
++		}
++		spin_unlock(&split_queue_lock);
+ 		__split_huge_page(page, list);
+ 		ret = 0;
+ 	} else if (IS_ENABLED(CONFIG_DEBUG_VM) && mapcount > count - 1) {
++		spin_unlock(&split_queue_lock);
+ 		pr_alert("total_mapcount: %u, page_count(): %u\n",
+ 				mapcount, count);
+ 		if (PageTail(page))
+@@ -3312,6 +3313,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 		dump_page(page, "total_mapcount(head) > page_count(head) - 1");
+ 		BUG();
+ 	} else {
++		spin_unlock(&split_queue_lock);
+ 		unfreeze_page(anon_vma, head);
+ 		ret = -EBUSY;
+ 	}
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
