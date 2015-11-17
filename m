@@ -1,88 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 63ED96B0253
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 04:02:52 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so3246505pab.0
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 01:02:52 -0800 (PST)
-Received: from cmccmta2.chinamobile.com (cmccmta2.chinamobile.com. [221.176.66.80])
-        by mx.google.com with ESMTP id k8si601107pbq.49.2015.11.17.01.02.50
-        for <linux-mm@kvack.org>;
-        Tue, 17 Nov 2015 01:02:51 -0800 (PST)
-From: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-Subject: [PATCH] mm/zonelist: enumerate zonelists array index
-Date: Tue, 17 Nov 2015 17:02:04 +0800
-Message-Id: <1447750924-9047-1-git-send-email-baiyaowei@cmss.chinamobile.com>
-In-Reply-To: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com>
-References: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com>
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 617106B0038
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 04:18:38 -0500 (EST)
+Received: by igcph11 with SMTP id ph11so75049274igc.1
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 01:18:38 -0800 (PST)
+Received: from mail-io0-x230.google.com (mail-io0-x230.google.com. [2607:f8b0:4001:c06::230])
+        by mx.google.com with ESMTPS id t12si28447568igd.27.2015.11.17.01.18.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Nov 2015 01:18:37 -0800 (PST)
+Received: by ioir85 with SMTP id r85so12433894ioi.1
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 01:18:37 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20151116184919.GD8644@n2100.arm.linux.org.uk>
+References: <1447698757-8762-1-git-send-email-ard.biesheuvel@linaro.org>
+	<1447698757-8762-6-git-send-email-ard.biesheuvel@linaro.org>
+	<20151116184919.GD8644@n2100.arm.linux.org.uk>
+Date: Tue, 17 Nov 2015 10:18:37 +0100
+Message-ID: <CAKv+Gu9+Pw3vv-EiZYg1zNmoBYPqcWY=XECzTcVV8WtY5WjpTg@mail.gmail.com>
+Subject: Re: [PATCH v2 05/12] arm64/efi: refactor EFI init and runtime code
+ for reuse by 32-bit ARM
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: bhe@redhat.com, dan.j.williams@intel.com, dave.hansen@linux.intel.com, dave@stgolabs.net, dhowells@redhat.com, dingel@linux.vnet.ibm.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, holt@sgi.com, iamjoonsoo.kim@lge.com, joe@perches.com, kuleshovmail@gmail.com, mgorman@suse.de, mhocko@suse.cz, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, penberg@kernel.org, rientjes@google.com, sasha.levin@oracle.com, tj@kernel.org, tony.luck@intel.com, vbabka@suse.cz, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Matt Fleming <matt.fleming@intel.com>, Will Deacon <will.deacon@arm.com>, Grant Likely <grant.likely@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>, Leif Lindholm <leif.lindholm@linaro.org>, Roy Franz <roy.franz@linaro.org>, Mark Salter <msalter@redhat.com>, Ryan Harkin <ryan.harkin@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hardcoding index to zonelists array in gfp_zonelist() is not a good idea,
-let's enumerate it to improve readability.
+On 16 November 2015 at 19:49, Russell King - ARM Linux
+<linux@arm.linux.org.uk> wrote:
+> On Mon, Nov 16, 2015 at 07:32:30PM +0100, Ard Biesheuvel wrote:
+>> diff --git a/drivers/firmware/efi/arm-runtime.c b/drivers/firmware/efi/arm-runtime.c
+>> index e62ee5df96ca..ad11ba6964f6 100644
+>> --- a/drivers/firmware/efi/arm-runtime.c
+>> +++ b/drivers/firmware/efi/arm-runtime.c
+>> @@ -23,18 +23,15 @@
+>>
+>>  #include <asm/cacheflush.h>
+>>  #include <asm/efi.h>
+>> -#include <asm/tlbflush.h>
+>> -#include <asm/mmu_context.h>
+>> +#include <asm/io.h>
+>
+> Shouldn't this be linux/io.h ?
+>
 
-No functional change.
-
-Signed-off-by: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
----
- include/linux/gfp.h    |  4 ++--
- include/linux/mmzone.h | 20 +++++++++-----------
- 2 files changed, 11 insertions(+), 13 deletions(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 6523109..14a6249 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -378,9 +378,9 @@ static inline enum zone_type gfp_zone(gfp_t flags)
- static inline int gfp_zonelist(gfp_t flags)
- {
- 	if (IS_ENABLED(CONFIG_NUMA) && unlikely(flags & __GFP_THISNODE))
--		return 1;
-+		return ZONELIST_NOFALLBACK;
- 
--	return 0;
-+	return ZONELIST_FALLBACK;
- }
- 
- /*
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index e23a9e7..bb31301 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -576,19 +576,17 @@ static inline bool zone_is_empty(struct zone *zone)
- /* Maximum number of zones on a zonelist */
- #define MAX_ZONES_PER_ZONELIST (MAX_NUMNODES * MAX_NR_ZONES)
- 
-+enum {
-+	ZONELIST_FALLBACK,	/* zonelist with fallback */
- #ifdef CONFIG_NUMA
--
--/*
-- * The NUMA zonelists are doubled because we need zonelists that restrict the
-- * allocations to a single node for __GFP_THISNODE.
-- *
-- * [0]	: Zonelist with fallback
-- * [1]	: No fallback (__GFP_THISNODE)
-- */
--#define MAX_ZONELISTS 2
--#else
--#define MAX_ZONELISTS 1
-+	/*
-+	 * The NUMA zonelists are doubled because we need zonelists that restrict
-+	 * the allocations to a single node for __GFP_THISNODE.
-+	 */
-+	ZONELIST_NOFALLBACK,	/* zonelist without fallback (__GFP_THISNODE) */
- #endif
-+	MAX_ZONELISTS
-+};
- 
- /*
-  * This struct contains information about a zone in a zonelist. It is stored
--- 
-1.9.1
-
-
+Yes. Will change it for v3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
