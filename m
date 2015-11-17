@@ -1,66 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 83BF76B0038
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 21:41:16 -0500 (EST)
-Received: by oige206 with SMTP id e206so94564530oig.2
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 18:41:16 -0800 (PST)
-Received: from cmccmta2.chinamobile.com (cmccmta2.chinamobile.com. [221.176.66.80])
-        by mx.google.com with ESMTP id c15si23776076obf.72.2015.11.16.18.41.14
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 765576B0038
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 21:43:08 -0500 (EST)
+Received: by igcph11 with SMTP id ph11so70586465igc.1
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 18:43:08 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0090.hostedemail.com. [216.40.44.90])
+        by mx.google.com with ESMTP id m7si18677360igj.18.2015.11.16.18.43.07
         for <linux-mm@kvack.org>;
-        Mon, 16 Nov 2015 18:41:15 -0800 (PST)
-Date: Tue, 17 Nov 2015 10:40:01 +0800
-From: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-Subject: Re: [PATCH 7/7] mm/mmzone: refactor memmap_valid_within
-Message-ID: <20151117024001.GC5867@yaowei-K42JY>
-References: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com>
- <1447656686-4851-8-git-send-email-baiyaowei@cmss.chinamobile.com>
- <20151116124501.GF14116@dhcp22.suse.cz>
+        Mon, 16 Nov 2015 18:43:07 -0800 (PST)
+Date: Mon, 16 Nov 2015 21:43:04 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH V4] mm: fix kernel crash in khugepaged thread
+Message-ID: <20151116214304.6fa42a4e@grimm.local.home>
+In-Reply-To: <233209B0-A466-4149-93C6-7173FF0FD4C5@gmail.com>
+References: <1447316462-19645-1-git-send-email-yalin.wang2010@gmail.com>
+	<20151112092923.19ee53dd@gandalf.local.home>
+	<5645BFAA.1070004@suse.cz>
+	<D7E480F5-D879-4016-B530-5A4D7CB05675@gmail.com>
+	<20151113090115.1ad4235b@gandalf.local.home>
+	<2F74FF6B-66DC-4BF9-972A-C2F5FFFA979F@gmail.com>
+	<5649ACF6.1000704@suse.cz>
+	<20151116092501.761f31d7@gandalf.local.home>
+	<233209B0-A466-4149-93C6-7173FF0FD4C5@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151116124501.GF14116@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, bhe@redhat.com, dan.j.williams@intel.com, dave.hansen@linux.intel.com, dave@stgolabs.net, dhowells@redhat.com, dingel@linux.vnet.ibm.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, holt@sgi.com, iamjoonsoo.kim@lge.com, joe@perches.com, kuleshovmail@gmail.com, mgorman@suse.de, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, penberg@kernel.org, rientjes@google.com, sasha.levin@oracle.com, tj@kernel.org, tony.luck@intel.com, vbabka@suse.cz, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: yalin wang <yalin.wang2010@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A.
+ Shutemov" <kirill.shutemov@linux.intel.com>, jmarchan@redhat.com, mgorman@techsingularity.net, willy@linux.intel.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Nov 16, 2015 at 01:45:01PM +0100, Michal Hocko wrote:
-> On Mon 16-11-15 14:51:26, Yaowei Bai wrote:
-> [...]
-> > @@ -72,16 +72,10 @@ struct zoneref *next_zones_zonelist(struct zoneref *z,
-> >  }
-> >  
-> >  #ifdef CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
-> > -int memmap_valid_within(unsigned long pfn,
-> > +bool memmap_valid_within(unsigned long pfn,
-> >  					struct page *page, struct zone *zone)
-> >  {
-> > -	if (page_to_pfn(page) != pfn)
-> > -		return 0;
-> > -
-> > -	if (page_zone(page) != zone)
-> > -		return 0;
-> > -
-> > -	return 1;
-> > +	return page_to_pfn(page) == pfn && page_zone(page) == zone;
-> 
-> I do not think this is easier to read. Quite contrary
+On Tue, 17 Nov 2015 10:21:47 +0800
+yalin wang <yalin.wang2010@gmail.com> wrote:
 
-OK, so we can just make it return ture/false without refactoring it.
+ =20
+> i have not tried ,
+> just a question,
+> if you print a %s , but don=E2=80=99t call trace_define_field() do define=
+ this string in
+> __entry ,  how does user space perf tool to get this string info and prin=
+t it ?
+> i am curious ..
+> i can try this when i have time.  and report to you .
 
-> 
-> >  }
-> >  #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
-> >  
-> > -- 
-> > 1.9.1
-> > 
-> > 
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+Because the print_fmt has nothing to do with the fields. You can have
+as your print_fmt as:
 
+	TP_printk("Message =3D %s", "hello dolly!")
+
+And both userspace and the kernel with process that correctly (if I got
+string processing working in userspace, which I believe I do). The
+string is processed, it's not dependent on TP_STRUCT__entry() unless it
+references a field there. Which can also be used too:
+
+	TP_printk("Message =3D %s", __entry->musical ? "Hello dolly!" :
+			"Death Trap!")
+
+userspace will see in the entry:
+
+ print_fmt: "Message =3D %s", REC->musical ? "Hello dolly!" : "Death Trap!"
+
+as long as the field "musical" exists, all is well.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
