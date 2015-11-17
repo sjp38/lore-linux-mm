@@ -1,87 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DB176B0038
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 22:58:53 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so200203692pab.0
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 19:58:52 -0800 (PST)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id ny6si10954446pab.215.2015.11.16.19.58.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Nov 2015 19:58:52 -0800 (PST)
-Received: by padhx2 with SMTP id hx2so197051793pad.1
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 19:58:52 -0800 (PST)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 9.0 \(3094\))
-Subject: Re: [PATCH V4] mm: fix kernel crash in khugepaged thread
-From: yalin wang <yalin.wang2010@gmail.com>
-In-Reply-To: <20151116214304.6fa42a4e@grimm.local.home>
-Date: Tue, 17 Nov 2015 11:58:44 +0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <8582F660-B54A-474B-960E-CD5D0FF6428F@gmail.com>
-References: <1447316462-19645-1-git-send-email-yalin.wang2010@gmail.com> <20151112092923.19ee53dd@gandalf.local.home> <5645BFAA.1070004@suse.cz> <D7E480F5-D879-4016-B530-5A4D7CB05675@gmail.com> <20151113090115.1ad4235b@gandalf.local.home> <2F74FF6B-66DC-4BF9-972A-C2F5FFFA979F@gmail.com> <5649ACF6.1000704@suse.cz> <20151116092501.761f31d7@gandalf.local.home> <233209B0-A466-4149-93C6-7173FF0FD4C5@gmail.com> <20151116214304.6fa42a4e@grimm.local.home>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B0716B0038
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 00:17:03 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so199034460pac.3
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 21:17:03 -0800 (PST)
+Received: from us-alimail-mta1.hst.scl.en.alidc.net (mail113-249.mail.alibaba.com. [205.204.113.249])
+        by mx.google.com with ESMTP id nj10si55482545pbc.46.2015.11.16.21.17.01
+        for <linux-mm@kvack.org>;
+        Mon, 16 Nov 2015 21:17:02 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com> <1447656686-4851-6-git-send-email-baiyaowei@cmss.chinamobile.com>
+In-Reply-To: <1447656686-4851-6-git-send-email-baiyaowei@cmss.chinamobile.com>
+Subject: Re: [PATCH 5/7] mm/lru: remove unused is_unevictable_lru function
+Date: Tue, 17 Nov 2015 13:16:37 +0800
+Message-ID: <006701d120f7$24aaa870$6dfff950$@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, jmarchan@redhat.com, mgorman@techsingularity.net, willy@linux.intel.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: 'Yaowei Bai' <baiyaowei@cmss.chinamobile.com>, akpm@linux-foundation.org
+Cc: bhe@redhat.com, dan.j.williams@intel.com, dave.hansen@linux.intel.com, dave@stgolabs.net, dhowells@redhat.com, dingel@linux.vnet.ibm.com, hannes@cmpxchg.org, holt@sgi.com, iamjoonsoo.kim@lge.com, joe@perches.com, kuleshovmail@gmail.com, mgorman@suse.de, mhocko@suse.cz, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, penberg@kernel.org, rientjes@google.com, sasha.levin@oracle.com, tj@kernel.org, tony.luck@intel.com, vbabka@suse.cz, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+> 
+> Since commit a0b8cab3 ("mm: remove lru parameter from __pagevec_lru_add
+> and remove parts of pagevec API") there's no user of this function anymore,
+> so remove it.
+> 
+> Signed-off-by: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+> ---
 
-> On Nov 17, 2015, at 10:43, Steven Rostedt <rostedt@goodmis.org> wrote:
->=20
-> On Tue, 17 Nov 2015 10:21:47 +0800
-> yalin wang <yalin.wang2010@gmail.com> wrote:
->=20
->=20
->> i have not tried ,
->> just a question,
->> if you print a %s , but don=E2=80=99t call trace_define_field() do =
-define this string in
->> __entry ,  how does user space perf tool to get this string info and =
-print it ?
->> i am curious ..
->> i can try this when i have time.  and report to you .
->=20
-> Because the print_fmt has nothing to do with the fields. You can have
-> as your print_fmt as:
->=20
-> 	TP_printk("Message =3D %s", "hello dolly!")
->=20
-> And both userspace and the kernel with process that correctly (if I =
-got
-> string processing working in userspace, which I believe I do). The
-> string is processed, it's not dependent on TP_STRUCT__entry() unless =
-it
-> references a field there. Which can also be used too:
->=20
-> 	TP_printk("Message =3D %s", __entry->musical ? "Hello dolly!" :
-> 			"Death Trap!")
->=20
-> userspace will see in the entry:
->=20
-> print_fmt: "Message =3D %s", REC->musical ? "Hello dolly!" : "Death =
-Trap!"
->=20
-> as long as the field "musical" exists, all is well.
->=20
-> -- Steve
-Aha,  i see.
-Thanks very much for your explanation.
-Better print fat is :  =20
-TP_printk("mm=3D%p, scan_pfn=3D%s, writable=3D%d, referenced=3D%d, =
-none_or_zero=3D%d, status=3D%s, unmapped=3D%d",
-               __entry->mm,
-		__entry->pfn =3D=3D (-1UL) ? "(null)" :  itoa(buff,  =
-__entry->pin, 10), =E2=80=A6..)
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-is this possible ?
-
-Thanks
-
-
-
-
-
-
+>  include/linux/mmzone.h | 5 -----
+>  1 file changed, 5 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index e23a9e7..9963846 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -195,11 +195,6 @@ static inline int is_active_lru(enum lru_list lru)
+>  	return (lru == LRU_ACTIVE_ANON || lru == LRU_ACTIVE_FILE);
+>  }
+> 
+> -static inline int is_unevictable_lru(enum lru_list lru)
+> -{
+> -	return (lru == LRU_UNEVICTABLE);
+> -}
+> -
+>  struct zone_reclaim_stat {
+>  	/*
+>  	 * The pageout code in vmscan.c keeps track of how many of the
+> --
+> 1.9.1
+> 
 
 
 --
