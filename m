@@ -1,193 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id F13106B0038
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 04:32:18 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so217299048wmv.1
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 01:32:18 -0800 (PST)
-Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
-        by mx.google.com with ESMTPS id bw7si52148698wjb.40.2015.11.17.01.32.17
+	by kanga.kvack.org (Postfix) with ESMTP id AF3706B0038
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 05:40:20 -0500 (EST)
+Received: by wmww144 with SMTP id w144so147638441wmw.1
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 02:40:20 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id n123si21185272wmg.124.2015.11.17.02.40.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Nov 2015 01:32:17 -0800 (PST)
-Received: by wmww144 with SMTP id w144so16779298wmw.0
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 01:32:17 -0800 (PST)
-Date: Tue, 17 Nov 2015 11:32:13 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: kernel oops on mmotm-2015-10-15-15-20
-Message-ID: <20151117093213.GA16243@node.shutemov.name>
-References: <20151103152019.GM17906@bbox>
- <20151104142135.GA13303@node.shutemov.name>
- <20151105001922.GD7357@bbox>
- <20151108225522.GA29600@node.shutemov.name>
- <20151112003614.GA5235@bbox>
- <20151116014521.GA7973@bbox>
- <20151116084522.GA9778@node.shutemov.name>
- <20151116103220.GA32578@bbox>
- <20151116105452.GA10575@node.shutemov.name>
- <20151117073539.GB32578@bbox>
+        Tue, 17 Nov 2015 02:40:19 -0800 (PST)
+Received: by wmec201 with SMTP id c201so19360141wme.1
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 02:40:19 -0800 (PST)
+Message-ID: <564B0410.9040502@plexistor.com>
+Date: Tue, 17 Nov 2015 12:40:16 +0200
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151117073539.GB32578@bbox>
+Subject: Re: [PATCH] mm, dax: fix DAX deadlocks (COW fault)
+References: <1447675755-5692-1-git-send-email-yigal@plexistor.com> <CAPcyv4gaeq=dJziT3xdWfaprVg6KsRO2-yR9QC3_XV8zb6b=Mg@mail.gmail.com> <20151116183404.GA22996@linux.intel.com>
+In-Reply-To: <20151116183404.GA22996@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Yigal Korman <yigal@plexistor.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, david <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Stable Tree <stable@vger.kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <dchinner@redhat.com>, Jan Kara <jack@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-On Tue, Nov 17, 2015 at 04:35:39PM +0900, Minchan Kim wrote:
-> On Mon, Nov 16, 2015 at 12:54:53PM +0200, Kirill A. Shutemov wrote:
-> > On Mon, Nov 16, 2015 at 07:32:20PM +0900, Minchan Kim wrote:
-> > > On Mon, Nov 16, 2015 at 10:45:22AM +0200, Kirill A. Shutemov wrote:
-> > > > On Mon, Nov 16, 2015 at 10:45:21AM +0900, Minchan Kim wrote:
-> > > > > During the test with MADV_FREE on kernel I applied your patches,
-> > > > > I couldn't see any problem.
-> > > > > 
-> > > > > However, in this round, I did another test which is same one
-> > > > > I attached but a liitle bit different because it doesn't do
-> > > > > (memcg things/kill/swapoff) for testing program long-live test.
-> > > > 
-> > > > Could you share updated test?
-> > > 
-> > > It's part of my testing suite so I should factor it out.
-> > > I will send it when I go to office tomorrow.
-> > 
-> > Thanks.
-> > 
-> > > > And could you try to reproduce it on clean mmotm-2015-11-10-15-53?
-> > > 
-> > > Befor leaving office, I queued it up and result is below.
-> > > It seems you fixed already but didn't apply it to mmotm yet. Right?
-> > > Anyway, please confirm and say to me what I should add more patches
-> > > into mmotm-2015-11-10-15-53 for follow up your recent many bug
-> > > fix patches.
-> > 
-> > The two my patches which are not in the mmotm-2015-11-10-15-53 release:
-> > 
-> > http://lkml.kernel.org/g/1447236557-68682-1-git-send-email-kirill.shutemov@linux.intel.com
-> > http://lkml.kernel.org/g/1447236567-68751-1-git-send-email-kirill.shutemov@linux.intel.com
+On 11/16/2015 08:34 PM, Ross Zwisler wrote:
+> On Mon, Nov 16, 2015 at 10:15:56AM -0800, Dan Williams wrote:
+>> On Mon, Nov 16, 2015 at 4:09 AM, Yigal Korman <yigal@plexistor.com> wrote:
+>>> DAX handling of COW faults has wrong locking sequence:
+>>>         dax_fault does i_mmap_lock_read
+>>>         do_cow_fault does i_mmap_unlock_write
+>>>
+>>> Ross's commit[1] missed a fix[2] that Kirill added to Matthew's
+>>> commit[3].
+>>>
+>>> Original COW locking logic was introduced by Matthew here[4].
+>>>
+>>> This should be applied to v4.3 as well.
+>>>
+>>> [1] 0f90cc6609c7 mm, dax: fix DAX deadlocks
+>>> [2] 52a2b53ffde6 mm, dax: use i_mmap_unlock_write() in do_cow_fault()
+>>> [3] 843172978bb9 dax: fix race between simultaneous faults
+>>> [4] 2e4cdab0584f mm: allow page fault handlers to perform the COW
+>>>
+>>> Signed-off-by: Yigal Korman <yigal@plexistor.com>
+>>>
+>>> Cc: Stable Tree <stable@vger.kernel.org>
+>>> Cc: Boaz Harrosh <boaz@plexistor.com>
+>>> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+>>> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+>>> Cc: Dan Williams <dan.j.williams@intel.com>
+>>> Cc: Dave Chinner <dchinner@redhat.com>
+>>> Cc: Jan Kara <jack@suse.com>
+>>> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>>> Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
+>>> ---
+>>>  mm/memory.c | 8 ++++----
+>>>  1 file changed, 4 insertions(+), 4 deletions(-)
+>>>
+>>> diff --git a/mm/memory.c b/mm/memory.c
+>>> index c716913..e5071af 100644
+>>> --- a/mm/memory.c
+>>> +++ b/mm/memory.c
+>>> @@ -3015,9 +3015,9 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>>>                 } else {
+>>>                         /*
+>>>                          * The fault handler has no page to lock, so it holds
+>>> -                        * i_mmap_lock for write to protect against truncate.
+>>> +                        * i_mmap_lock for read to protect against truncate.
+>>>                          */
+>>> -                       i_mmap_unlock_write(vma->vm_file->f_mapping);
+>>> +                       i_mmap_unlock_read(vma->vm_file->f_mapping);
+>>>                 }
+>>>                 goto uncharge_out;
+>>>         }
+>>> @@ -3031,9 +3031,9 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>>>         } else {
+>>>                 /*
+>>>                  * The fault handler has no page to lock, so it holds
+>>> -                * i_mmap_lock for write to protect against truncate.
+>>> +                * i_mmap_lock for read to protect against truncate.
+>>>                  */
+>>> -               i_mmap_unlock_write(vma->vm_file->f_mapping);
+>>> +               i_mmap_unlock_read(vma->vm_file->f_mapping);
+>>>         }
+>>>         return ret;
+>>>  uncharge_out:
+>>
+>> Looks good to me.  I'll include this with some other DAX fixes I have pending.
 > 
-> 1. mm: fix __page_mapcount()
-> 2. thp: fix leak due split_huge_page() vs. exit race
+> Looks good to me as well.  Thanks for catching this.
 > 
-> If I missed some patches, let me know it.
-> 
-> I applied above two patches based on mmotm-2015-11-10-15-53 and tested again.
-> But unfortunately, the result was below.
-> 
-> Now, I am making test program I can send to you but it seems to be not easy
-> because small changes for factoring it out from testing suite seems to change
-> something(ex, timing) and makes hard to reproduce. I will try it again.
 
-Your test suite seems generate quite a few bug reports. Don't mind make whole
-suite public?
- 
-> page:ffffea0000240080 count:2 mapcount:1 mapping:ffff88007eff3321 index:0x600000e02
-> flags: 0x4000000000040018(uptodate|dirty|swapbacked)
-> page dumped because: VM_BUG_ON_PAGE(!PageLocked(page))
-> page->mem_cgroup:ffff880077cf0c00
-> ------------[ cut here ]------------
-> kernel BUG at mm/huge_memory.c:3272!
-> invalid opcode: 0000 [#1] SMP 
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Modules linked in:
-> CPU: 8 PID: 59 Comm: khugepaged Not tainted 4.3.0-mm1-kirill+ #8
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> task: ffff880073441a40 ti: ffff88007344c000 task.ti: ffff88007344c000
-> RIP: 0010:[<ffffffff8114bc9b>]  [<ffffffff8114bc9b>] split_huge_page_to_list+0x8fb/0x910
-> RSP: 0018:ffff88007344f968  EFLAGS: 00010286
-> RAX: 0000000000000021 RBX: ffffea0000240080 RCX: 0000000000000000
-> RDX: 0000000000000001 RSI: 0000000000000246 RDI: ffffffff821df4d8
-> RBP: ffff88007344f9e8 R08: 0000000000000000 R09: ffff8800000bc600
-> R10: ffffffff8163e2c0 R11: 0000000000004b47 R12: ffffea0000240080
-> R13: ffffea0000240088 R14: ffffea0000240080 R15: 0000000000000000
-> FS:  0000000000000000(0000) GS:ffff880078300000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> CR2: 00007ffd59edcd68 CR3: 0000000001808000 CR4: 00000000000006a0
-> Stack:
->  cccccccccccccccd ffffea0000240080 ffff88007344fa00 ffffea0000240088
->  ffff88007344fa00 0000000000000000 ffff88007344f9e8 ffffffff810f0200
->  ffffea0000240000 0000000000000000 0000000000000000 ffffea0000240080
-> Call Trace:
->  [<ffffffff810f0200>] ? __lock_page+0xa0/0xb0
->  [<ffffffff8114bdc5>] deferred_split_scan+0x115/0x240
->  [<ffffffff8111851c>] ? list_lru_count_one+0x1c/0x30
->  [<ffffffff811018d3>] shrink_slab.part.42+0x1e3/0x350
->  [<ffffffff8110644a>] shrink_zone+0x26a/0x280
->  [<ffffffff8110658d>] do_try_to_free_pages+0x12d/0x3b0
->  [<ffffffff811068c4>] try_to_free_pages+0xb4/0x140
->  [<ffffffff810f9279>] __alloc_pages_nodemask+0x459/0x920
->  [<ffffffff8108d750>] ? trace_event_raw_event_tick_stop+0xd0/0xd0
->  [<ffffffff81147465>] khugepaged+0x155/0x1b10
->  [<ffffffff81073ca0>] ? prepare_to_wait_event+0xf0/0xf0
->  [<ffffffff81147310>] ? __split_huge_pmd_locked+0x4e0/0x4e0
->  [<ffffffff81057e49>] kthread+0xc9/0xe0
->  [<ffffffff81057d80>] ? kthread_park+0x60/0x60
->  [<ffffffff8142aa6f>] ret_from_fork+0x3f/0x70
->  [<ffffffff81057d80>] ? kthread_park+0x60/0x60
-> Code: ff ff 48 c7 c6 00 cd 77 81 4c 89 f7 e8 df ce fc ff 0f 0b 48 83 e8 01 e9 94 f7 ff ff 48 c7 c6 80 bb 77 81 4c 89 f7 e8 c5 ce fc ff <0f> 0b 48 c7 c6 48 c9 77 81 4c 89 e7 e8 b4 ce fc ff 0f 0b 66 90 
-> RIP  [<ffffffff8114bc9b>] split_huge_page_to_list+0x8fb/0x910
->  RSP <ffff88007344f968>
-> ---[ end trace 0ee39378e850d8de ]---
-> Kernel panic - not syncing: Fatal exception
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Kernel Offset: disabled
+Yes. None of the xfstests catch this. It needs a private-mapping mmap in some combination
+of other activity on the file at the same time.
 
-I looked more into it. It seems a race between split_huge_page() and
-deferred_split_scan() as the dumped page is not huge.
+Which the linker of gcc does. We have a test of a git clone Kernel-tree and make. which
+catches this in the make phase. For some reason on ext4 it is reliable to crash but on xfs 1/2
+the runs go through, go figure.
 
-Could you check if the patch below makes any difference to the situation?
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 91e2f4b7ca39..923c0f6eb50a 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -3186,13 +3186,6 @@ static void __split_huge_page(struct page *page, struct list_head *list)
- 	spin_lock_irq(&zone->lru_lock);
- 	lruvec = mem_cgroup_page_lruvec(head, zone);
- 
--	spin_lock(&split_queue_lock);
--	if (!list_empty(page_deferred_list(head))) {
--		split_queue_len--;
--		list_del(page_deferred_list(head));
--	}
--	spin_unlock(&split_queue_lock);
--
- 	/* complete memcg works before add pages to LRU */
- 	mem_cgroup_split_huge_fixup(head);
- 
-@@ -3299,12 +3292,20 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 	freeze_page(anon_vma, head);
- 	VM_BUG_ON_PAGE(compound_mapcount(head), head);
- 
-+	/* Prevent deferred_split_scan() touching ->_count */
-+	spin_lock(&split_queue_lock);
- 	count = page_count(head);
- 	mapcount = total_mapcount(head);
- 	if (mapcount == count - 1) {
-+		if (!list_empty(page_deferred_list(head))) {
-+			split_queue_len--;
-+			list_del(page_deferred_list(head));
-+		}
-+		spin_unlock(&split_queue_lock);
- 		__split_huge_page(page, list);
- 		ret = 0;
- 	} else if (IS_ENABLED(CONFIG_DEBUG_VM) && mapcount > count - 1) {
-+		spin_unlock(&split_queue_lock);
- 		pr_alert("total_mapcount: %u, page_count(): %u\n",
- 				mapcount, count);
- 		if (PageTail(page))
-@@ -3312,6 +3313,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 		dump_page(page, "total_mapcount(head) > page_count(head) - 1");
- 		BUG();
- 	} else {
-+		spin_unlock(&split_queue_lock);
- 		unfreeze_page(anon_vma, head);
- 		ret = -EBUSY;
- 	}
--- 
- Kirill A. Shutemov
+Thanks Yigal for the fast fix
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
