@@ -1,123 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id AB33C6B025F
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 14:10:43 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so17215261pac.2
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 11:10:43 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id sj4si4665701pac.228.2015.11.17.11.10.42
-        for <linux-mm@kvack.org>;
-        Tue, 17 Nov 2015 11:10:42 -0800 (PST)
-Date: Tue, 17 Nov 2015 12:03:41 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v2 11/11] xfs: add support for DAX fsync/msync
-Message-ID: <20151117190341.GD28024@linux.intel.com>
-References: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
- <1447459610-14259-12-git-send-email-ross.zwisler@linux.intel.com>
- <20151116231222.GY19199@dastard>
+Received: from mail-lf0-f44.google.com (mail-lf0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F8F16B0261
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 15:19:10 -0500 (EST)
+Received: by lfaz4 with SMTP id z4so13042069lfa.0
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 12:19:09 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id q140si13251150lfe.67.2015.11.17.12.19.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Nov 2015 12:19:08 -0800 (PST)
+Date: Tue, 17 Nov 2015 23:18:50 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 14/14] mm: memcontrol: hook up vmpressure to socket
+ pressure
+Message-ID: <20151117201849.GQ31308@esperanza>
+References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
+ <1447371693-25143-15-git-send-email-hannes@cmpxchg.org>
+ <20151115135457.GM31308@esperanza>
+ <20151116185316.GC32544@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20151116231222.GY19199@dastard>
+In-Reply-To: <20151116185316.GC32544@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, x86@kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Tue, Nov 17, 2015 at 10:12:22AM +1100, Dave Chinner wrote:
-> On Fri, Nov 13, 2015 at 05:06:50PM -0700, Ross Zwisler wrote:
-> > To properly support the new DAX fsync/msync infrastructure filesystems
-> > need to call dax_pfn_mkwrite() so that DAX can properly track when a user
-> > write faults on a previously cleaned address.  They also need to call
-> > dax_fsync() in the filesystem fsync() path.  This dax_fsync() call uses
-> > addresses retrieved from get_block() so it needs to be ordered with
-> > respect to truncate.  This is accomplished by using the same locking that
-> > was set up for DAX page faults.
+On Mon, Nov 16, 2015 at 01:53:16PM -0500, Johannes Weiner wrote:
+> On Sun, Nov 15, 2015 at 04:54:57PM +0300, Vladimir Davydov wrote:
+> > On Thu, Nov 12, 2015 at 06:41:33PM -0500, Johannes Weiner wrote:
+> > > Let the networking stack know when a memcg is under reclaim pressure
+> > > so that it can clamp its transmit windows accordingly.
+> > > 
+> > > Whenever the reclaim efficiency of a cgroup's LRU lists drops low
+> > > enough for a MEDIUM or HIGH vmpressure event to occur, assert a
+> > > pressure state in the socket and tcp memory code that tells it to curb
+> > > consumption growth from sockets associated with said control group.
+> > > 
+> > > vmpressure events are naturally edge triggered, so for hysteresis
+> > > assert socket pressure for a second to allow for subsequent vmpressure
+> > > events to occur before letting the socket code return to normal.
 > > 
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > ---
-> >  fs/xfs/xfs_file.c | 18 +++++++++++++-----
-> >  1 file changed, 13 insertions(+), 5 deletions(-)
-> > 
-> > diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> > index 39743ef..2b490a1 100644
-> > --- a/fs/xfs/xfs_file.c
-> > +++ b/fs/xfs/xfs_file.c
-> > @@ -209,7 +209,8 @@ xfs_file_fsync(
-> >  	loff_t			end,
-> >  	int			datasync)
-> >  {
-> > -	struct inode		*inode = file->f_mapping->host;
-> > +	struct address_space	*mapping = file->f_mapping;
-> > +	struct inode		*inode = mapping->host;
-> >  	struct xfs_inode	*ip = XFS_I(inode);
-> >  	struct xfs_mount	*mp = ip->i_mount;
-> >  	int			error = 0;
-> > @@ -218,7 +219,13 @@ xfs_file_fsync(
-> >  
-> >  	trace_xfs_file_fsync(ip);
-> >  
-> > -	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
-> > +	if (dax_mapping(mapping)) {
-> > +		xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-> > +		dax_fsync(mapping, start, end);
-> > +		xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-> > +	}
-> > +
-> > +	error = filemap_write_and_wait_range(mapping, start, end);
+> > AFAICS, in contrast to v1, now you don't modify vmpressure behavior,
+> > which means socket_pressure will only be set when cgroup hits its
+> > high/hard limit. On tightly packed system, this is unlikely IMO -
+> > cgroups will mostly experience pressure due to memory shortage at the
+> > global level and/or their low limit configuration, in which case no
+> > vmpressure events will be triggered and therefore tcp window won't be
+> > clamped accordingly.
 > 
-> Ok, I don't understand a couple of things here.
+> Yeah, this is an inherent problem in the vmpressure design and it
+> makes the feature significantly less useful than it could be IMO.
+
+AFAIK vmpressure was designed to allow userspace to tune hard limits of
+cgroups in accordance with their demands, in which case the way how
+vmpressure notifications work makes sense.
+
 > 
-> Firstly, if it's a DAX mapping, why are we still calling
-> filemap_write_and_wait_range() after the dax_fsync() call that has
-> already written back all the dirty cachelines?
+> But you guys were wary about the patch that changed it, and this
+
+Changing vmpressure semantics as you proposed in v1 would result in
+userspace getting notifications even if cgroup does not hit its limit.
+May be it could be useful to someone (e.g. it could help tuning
+memory.low), but I am pretty sure this would also result in breakages
+for others.
+
+> series has kicked up enough dust already, so I backed it out.
 > 
-> Secondly, exactly what is the XFS_MMAPLOCK_SHARED lock supposed to
-> be doing here? I don't see where dax_fsync() has any callouts to
-> get_block(), so the comment "needs to be ordered with respect to
-> truncate" doesn't make any obvious sense. If we have a racing
-> truncate removing entries from the radix tree, then thanks to the
-> mapping tree lock we'll either find an entry we need to write back,
-> or we won't find any entry at all, right?
+> But this will still be useful. Yes, it won't help in rebalancing an
+> regularly working system, which would be cool, but it'll still help
+> contain a worklad that is growing beyond expectations, which is the
+> scenario that kickstarted this work.
 
-You're right, dax_fsync() doesn't call out to get_block() any more.  It does
-save the results of get_block() calls from the page faults, though, and I was
-concerned about the following race:
+I haven't looked through all the previous patches in the series, but
+AFAIU they should do the trick, no? Notifying sockets about vmpressure
+is rather needed to protect a workload from itself. And with this patch
+it will work this way, but only if sum limits < total ram, which is
+rather rare in practice. On tightly packed systems it does nothing.
 
-fsync thread				truncate thread
-------------				---------------
-dax_fsync()
-save tagged entries in pvec
+That said, I don't think we should commit this particular patch. Neither
+do I think socket accounting should be enabled by default in the unified
+hierarchy for now, since the implementation is still incomplete. IMHO.
 
-					change block mapping for inode so that
-					entries saved in pvec are no longer
-					owned by this inode
+Thanks,
+Vladimir
 
-loop through pvec using stale results
-from get_block(), flushing and cleaning
-entries we no longer own
-
-In looking at the xfs_file_fsync() code, though, it seems like if this race
-existed it would also exist for page cache entries that were being put into a
-pvec in write_cache_pages(), and that we would similarly be writing back
-cached pages that no longer belong to this inode.
-
-Is this race non-existent?
-
-> Lastly, this flushing really needs to be inside
-> filemap_write_and_wait_range(), because we call the writeback code
-> from many more places than just fsync to ensure ordering of various
-> operations such that files are in known state before proceeding
-> (e.g. hole punch).
-
-The call to dax_fsync() (soon to be dax_writeback_mapping_range()) first lived
-in do_writepages() in the RFC version, but was moved into the filesystem so we
-could have access to get_block(), which is no longer needed, and so we could
-use the FS level locking.  If the race described above isn't an issue then I
-agree moving this call out of the filesystems and down into the generic page
-writeback code is probably the right thing to do.
-
-Thanks for the feedback.
+> 
+> > May be, we could use a per memcg slab shrinker to detect memory
+> > pressure? This looks like abusing shrinkers API though.
+> 
+> Actually, I thought about doing this long-term.
+> 
+> Shrinkers are a nice way to export VM pressure to auxiliary allocators
+> and caches. But currently, the only metric we export is LRU scan rate,
+> whose application is limited to ageable caches: it doesn't make sense
+> to cause auxiliary workingsets to shrink when the VM is merely picking
+> up the drop-behind pages of a one-off page cache stream. I think it
+> would make sense for shrinkers to include reclaim efficiency so that
+> they can be used by caches that don't have 'accessed' bits and object
+> rotation, but are able to shrink based on the cost they're imposing.
+> 
+> But a change like this is beyond the scope of this series, IMO.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
