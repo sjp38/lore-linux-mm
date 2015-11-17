@@ -1,106 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id AF3706B0038
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 05:40:20 -0500 (EST)
-Received: by wmww144 with SMTP id w144so147638441wmw.1
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 02:40:20 -0800 (PST)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id n123si21185272wmg.124.2015.11.17.02.40.19
+Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 736646B0038
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 05:58:23 -0500 (EST)
+Received: by ioc74 with SMTP id 74so14413793ioc.2
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 02:58:23 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id t10si28886883igr.54.2015.11.17.02.58.22
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Nov 2015 02:40:19 -0800 (PST)
-Received: by wmec201 with SMTP id c201so19360141wme.1
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 02:40:19 -0800 (PST)
-Message-ID: <564B0410.9040502@plexistor.com>
-Date: Tue, 17 Nov 2015 12:40:16 +0200
-From: Boaz Harrosh <boaz@plexistor.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 17 Nov 2015 02:58:22 -0800 (PST)
+Subject: Re: [PATCH 2/2] mm: do not loop over ALLOC_NO_WATERMARKS without
+ triggering reclaim
+References: <1447680139-16484-1-git-send-email-mhocko@kernel.org>
+ <1447680139-16484-3-git-send-email-mhocko@kernel.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <564B0841.6030409@I-love.SAKURA.ne.jp>
+Date: Tue, 17 Nov 2015 19:58:09 +0900
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm, dax: fix DAX deadlocks (COW fault)
-References: <1447675755-5692-1-git-send-email-yigal@plexistor.com> <CAPcyv4gaeq=dJziT3xdWfaprVg6KsRO2-yR9QC3_XV8zb6b=Mg@mail.gmail.com> <20151116183404.GA22996@linux.intel.com>
-In-Reply-To: <20151116183404.GA22996@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <1447680139-16484-3-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Yigal Korman <yigal@plexistor.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, david <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Stable Tree <stable@vger.kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <dchinner@redhat.com>, Jan Kara <jack@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>
+To: mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 11/16/2015 08:34 PM, Ross Zwisler wrote:
-> On Mon, Nov 16, 2015 at 10:15:56AM -0800, Dan Williams wrote:
->> On Mon, Nov 16, 2015 at 4:09 AM, Yigal Korman <yigal@plexistor.com> wrote:
->>> DAX handling of COW faults has wrong locking sequence:
->>>         dax_fault does i_mmap_lock_read
->>>         do_cow_fault does i_mmap_unlock_write
->>>
->>> Ross's commit[1] missed a fix[2] that Kirill added to Matthew's
->>> commit[3].
->>>
->>> Original COW locking logic was introduced by Matthew here[4].
->>>
->>> This should be applied to v4.3 as well.
->>>
->>> [1] 0f90cc6609c7 mm, dax: fix DAX deadlocks
->>> [2] 52a2b53ffde6 mm, dax: use i_mmap_unlock_write() in do_cow_fault()
->>> [3] 843172978bb9 dax: fix race between simultaneous faults
->>> [4] 2e4cdab0584f mm: allow page fault handlers to perform the COW
->>>
->>> Signed-off-by: Yigal Korman <yigal@plexistor.com>
->>>
->>> Cc: Stable Tree <stable@vger.kernel.org>
->>> Cc: Boaz Harrosh <boaz@plexistor.com>
->>> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
->>> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
->>> Cc: Dan Williams <dan.j.williams@intel.com>
->>> Cc: Dave Chinner <dchinner@redhat.com>
->>> Cc: Jan Kara <jack@suse.com>
->>> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->>> Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
->>> ---
->>>  mm/memory.c | 8 ++++----
->>>  1 file changed, 4 insertions(+), 4 deletions(-)
->>>
->>> diff --git a/mm/memory.c b/mm/memory.c
->>> index c716913..e5071af 100644
->>> --- a/mm/memory.c
->>> +++ b/mm/memory.c
->>> @@ -3015,9 +3015,9 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->>>                 } else {
->>>                         /*
->>>                          * The fault handler has no page to lock, so it holds
->>> -                        * i_mmap_lock for write to protect against truncate.
->>> +                        * i_mmap_lock for read to protect against truncate.
->>>                          */
->>> -                       i_mmap_unlock_write(vma->vm_file->f_mapping);
->>> +                       i_mmap_unlock_read(vma->vm_file->f_mapping);
->>>                 }
->>>                 goto uncharge_out;
->>>         }
->>> @@ -3031,9 +3031,9 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->>>         } else {
->>>                 /*
->>>                  * The fault handler has no page to lock, so it holds
->>> -                * i_mmap_lock for write to protect against truncate.
->>> +                * i_mmap_lock for read to protect against truncate.
->>>                  */
->>> -               i_mmap_unlock_write(vma->vm_file->f_mapping);
->>> +               i_mmap_unlock_read(vma->vm_file->f_mapping);
->>>         }
->>>         return ret;
->>>  uncharge_out:
->>
->> Looks good to me.  I'll include this with some other DAX fixes I have pending.
-> 
-> Looks good to me as well.  Thanks for catching this.
+Michal Hocko wrote:
+> __alloc_pages_slowpath is looping over ALLOC_NO_WATERMARKS requests if
+> __GFP_NOFAIL is requested. This is fragile because we are basically
+> relying on somebody else to make the reclaim (be it the direct reclaim
+> or OOM killer) for us. The caller might be holding resources (e.g.
+> locks) which block other other reclaimers from making any progress for
+> example. Remove the retry loop and rely on __alloc_pages_slowpath to
+> invoke all allowed reclaim steps and retry logic.
+
+This implies invoking OOM killer, doesn't it?
+
+>   	/* Avoid recursion of direct reclaim */
+> -	if (current->flags & PF_MEMALLOC)
+> +	if (current->flags & PF_MEMALLOC) {
+> +		/*
+> +		 * __GFP_NOFAIL request from this context is rather bizarre
+> +		 * because we cannot reclaim anything and only can loop waiting
+> +		 * for somebody to do a work for us.
+> +		 */
+> +		if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+> +			cond_resched();
+> +			goto retry;
+
+I think that this "goto retry;" omits call to out_of_memory() which is allowed
+for __GFP_NOFAIL allocations. Even if this is what you meant, current thread
+can be a workqueue, which currently need a short sleep (as with
+wait_iff_congested() changes), can't it?
+
+> +		}
+>   		goto nopage;
+> +	}
+>   
+>   	/* Avoid allocations with no watermarks from looping endlessly */
+>   	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
 > 
 
-Yes. None of the xfstests catch this. It needs a private-mapping mmap in some combination
-of other activity on the file at the same time.
+Well, is it cond_resched() which should include
 
-Which the linker of gcc does. We have a test of a git clone Kernel-tree and make. which
-catches this in the make phase. For some reason on ext4 it is reliable to crash but on xfs 1/2
-the runs go through, go figure.
+  if (current->flags & PF_WQ_WORKER)
+  	schedule_timeout(1);
 
-Thanks Yigal for the fast fix
-Boaz
+than wait_iff_congested() because not all yield calls use wait_iff_congested()
+and giving pending workqueue jobs a chance to be processed is anyway preferable?
+
+  int __sched _cond_resched(void)
+  {
+  	if (should_resched(0)) {
+  		if ((current->flags & PF_WQ_WORKER) && workqueue_has_pending_jobs())
+  			schedule_timeout(1);
+  		else
+  			preempt_schedule_common();
+  		return 1;
+  	}
+  	return 0;
+  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
