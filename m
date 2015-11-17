@@ -1,61 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A55A6B0038
-	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 18:57:27 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so193517017pab.0
-        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 15:57:26 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id ff7si53303999pac.213.2015.11.16.15.57.26
-        for <linux-mm@kvack.org>;
-        Mon, 16 Nov 2015 15:57:26 -0800 (PST)
-Date: Mon, 16 Nov 2015 16:57:24 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v2 03/11] pmem: enable REQ_FUA/REQ_FLUSH handling
-Message-ID: <20151116235724.GA10256@linux.intel.com>
-References: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
- <1447459610-14259-4-git-send-email-ross.zwisler@linux.intel.com>
- <CAPcyv4j4arHE+iAALn1WPDzSb_QSCDy8udtXU1FV=kYSZDfv8A@mail.gmail.com>
- <22E0F870-C1FB-431E-BF6C-B395A09A2B0D@dilger.ca>
- <CAPcyv4jwx3VzyRugcpH7KCOKM64kJ4Bq4wgY=iNJMvLTHrBv-Q@mail.gmail.com>
- <20151116133714.GB3443@quack.suse.cz>
- <20151116140526.GA6733@quack.suse.cz>
- <CAPcyv4jZjnkz2YYtGWmkA23KAUMT092kjRtFkJ3QrzgPfTucfA@mail.gmail.com>
- <20151116194846.GB32203@linux.intel.com>
- <CAPcyv4hU0HMBFy=MveUaECK0fVfgUFBjUUPTWA8HOP6MG5XEfQ@mail.gmail.com>
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id BBCEB6B0038
+	for <linux-mm@kvack.org>; Mon, 16 Nov 2015 19:33:27 -0500 (EST)
+Received: by wmdw130 with SMTP id w130so134015462wmd.0
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 16:33:27 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id x84si22385054wmg.94.2015.11.16.16.33.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Nov 2015 16:33:26 -0800 (PST)
+Received: by wmeo63 with SMTP id o63so690130wme.2
+        for <linux-mm@kvack.org>; Mon, 16 Nov 2015 16:33:26 -0800 (PST)
+Date: Tue, 17 Nov 2015 01:33:24 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: fix incorrect behavior when process virtual address
+ space limit is exceeded
+Message-ID: <20151117003324.GA1078@dhcp22.suse.cz>
+References: <1447695379-14526-1-git-send-email-kwapulinski.piotr@gmail.com>
+ <20151116205210.GB27526@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4hU0HMBFy=MveUaECK0fVfgUFBjUUPTWA8HOP6MG5XEfQ@mail.gmail.com>
+In-Reply-To: <20151116205210.GB27526@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, Andreas Dilger <adilger@dilger.ca>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Cc: akpm@linux-foundation.org, cmetcalf@ezchip.com, mszeredi@suse.cz, viro@zeniv.linux.org.uk, dave@stgolabs.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, jack@suse.cz, xiexiuqi@huawei.com, vbabka@suse.cz, Vineet.Gupta1@synopsys.com, oleg@redhat.com, riel@redhat.com, gang.chen.5i5j@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Cyril Hrubis <chrubis@suse.cz>
 
-On Mon, Nov 16, 2015 at 12:34:55PM -0800, Dan Williams wrote:
-> On Mon, Nov 16, 2015 at 11:48 AM, Ross Zwisler
-> <ross.zwisler@linux.intel.com> wrote:
-> > On Mon, Nov 16, 2015 at 09:28:59AM -0800, Dan Williams wrote:
-> >> On Mon, Nov 16, 2015 at 6:05 AM, Jan Kara <jack@suse.cz> wrote:
-> >> > On Mon 16-11-15 14:37:14, Jan Kara wrote:
-> [..]
-> > Is there any reason why this wouldn't work or wouldn't be a good idea?
+On Mon 16-11-15 21:52:10, Michal Hocko wrote:
+> [CCing Cyril]
 > 
-> We don't have numbers to support the claim that pcommit is so
-> expensive as to need be deferred, especially if the upper layers are
-> already taking the hit on doing the flushes.
+> On Mon 16-11-15 18:36:19, Piotr Kwapulinski wrote:
+> > When a new virtual memory area is added to the process's virtual address
+> > space and this vma causes the process's virtual address space limit
+> > (RLIMIT_AS) to be exceeded then kernel behaves incorrectly. Incorrect
+> > behavior is a result of a kernel bug. The kernel in most cases
+> > unnecessarily scans the entire process's virtual address space trying to
+> > find the overlapping vma with the virtual memory region being added.
+> > The kernel incorrectly compares the MAP_FIXED flag with vm_flags variable
+> > in mmap_region function. The vm_flags variable should not be compared
+> > with MAP_FIXED flag. The MAP_FIXED flag has got the same numerical value
+> > as VM_MAYREAD flag (0x10). As a result the following test
+> > from mmap_region:
+> > 
+> > if (!(vm_flags & MAP_FIXED))
+> > is in fact:
+> > if (!(vm_flags & VM_MAYREAD))
 > 
-> REQ_FLUSH, means flush your volatile write cache.  Currently all I/O
-> through the driver never hits a volatile cache so there's no need to
-> tell the block layer that we have a volatile write cache, especially
-> when you have the core mm taking responsibility for doing cache
-> maintenance for dax-mmap ranges.
+> It seems this has been broken since it was introduced e8420a8ece80
+> ("mm/mmap: check for RLIMIT_AS before unmapping"). The patch has fixed
+> the case where unmap happened before the we tested may_expand_vm and
+> failed which was sufficient for the LTP test case but it apparently
+> never tried to consider the overlapping ranges to eventually allow to
+> create the mapping.
 > 
-> We also don't have numbers on if/when wbinvd is a more performant solution.
+> > The VM_MAYREAD flag is almost always set in vm_flags while MAP_FIXED
+> > flag is not so common. The result of the above condition is somewhat
+> > reverted.
+> > This patch fixes this bug. It causes that the kernel tries to find the
+> > overlapping vma only when the requested virtual memory region has got
+> > the fixed starting virtual address (MAP_FIXED flag set).
+> > For tile architecture Calling mmap_region with the MAP_FIXED flag only is
+> > sufficient. However the MAP_ANONYMOUS and MAP_PRIVATE flags are passed for
+> > the completeness of the solution.
 > 
-> tl;dr Now that we have a baseline implementation can we please use
-> data to make future arch decisions?
+> I found the changelog rather hard to grasp. But the fix is correct. The
+> user visible effect is that RLIMIT_AS might hit for a MAP_FIXED
+> mapping even though it wouldn't enlarge the used address space.
 
-Sure, fair enough.
+And I was obviously blind and read the condition incorrectly. Sigh...
+There is no real issue in fact. We do call count_vma_pages_range even
+for !MAP_FIXED case but that is merely a pointless find_vma call but
+nothing really earth shattering. So nothing for the stable tree and also
+quite exaggerated to be called a bug.
+
+I am sorry about the confusion.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
