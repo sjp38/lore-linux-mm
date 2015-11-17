@@ -1,85 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 736646B0038
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 05:58:23 -0500 (EST)
-Received: by ioc74 with SMTP id 74so14413793ioc.2
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 02:58:23 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id t10si28886883igr.54.2015.11.17.02.58.22
+Received: from mail-vk0-f53.google.com (mail-vk0-f53.google.com [209.85.213.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CD9C6B0038
+	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 06:48:41 -0500 (EST)
+Received: by vkas68 with SMTP id s68so3468310vka.2
+        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 03:48:40 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w128si2342480vkd.59.2015.11.17.03.48.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Nov 2015 02:58:22 -0800 (PST)
-Subject: Re: [PATCH 2/2] mm: do not loop over ALLOC_NO_WATERMARKS without
- triggering reclaim
-References: <1447680139-16484-1-git-send-email-mhocko@kernel.org>
- <1447680139-16484-3-git-send-email-mhocko@kernel.org>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <564B0841.6030409@I-love.SAKURA.ne.jp>
-Date: Tue, 17 Nov 2015 19:58:09 +0900
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Nov 2015 03:48:40 -0800 (PST)
+Subject: [PATCH] fault-inject: correct printk order for interval vs.
+ probability
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Date: Tue, 17 Nov 2015 12:48:37 +0100
+Message-ID: <20151117114750.12395.53387.stgit@firesoul>
 MIME-Version: 1.0
-In-Reply-To: <1447680139-16484-3-git-send-email-mhocko@kernel.org>
-Content-Type: text/plain; charset=iso-2022-jp
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: akinobu.mita@gmail.com, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, dmonakhov@openvz.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
-Michal Hocko wrote:
-> __alloc_pages_slowpath is looping over ALLOC_NO_WATERMARKS requests if
-> __GFP_NOFAIL is requested. This is fragile because we are basically
-> relying on somebody else to make the reclaim (be it the direct reclaim
-> or OOM killer) for us. The caller might be holding resources (e.g.
-> locks) which block other other reclaimers from making any progress for
-> example. Remove the retry loop and rely on __alloc_pages_slowpath to
-> invoke all allowed reclaim steps and retry logic.
+In function fail_dump() printk output of the attributes interval and
+probability got swapped.  This was introduced in commit
+6adc4a22f20b ("fault-inject: add ratelimit option").
 
-This implies invoking OOM killer, doesn't it?
+Fixes: 6adc4a22f20b ("fault-inject: add ratelimit option")
+Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
 
->   	/* Avoid recursion of direct reclaim */
-> -	if (current->flags & PF_MEMALLOC)
-> +	if (current->flags & PF_MEMALLOC) {
-> +		/*
-> +		 * __GFP_NOFAIL request from this context is rather bizarre
-> +		 * because we cannot reclaim anything and only can loop waiting
-> +		 * for somebody to do a work for us.
-> +		 */
-> +		if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
-> +			cond_resched();
-> +			goto retry;
+---
+Don't know who is maintainer for lib/, hope someone will
+pick this up...
 
-I think that this "goto retry;" omits call to out_of_memory() which is allowed
-for __GFP_NOFAIL allocations. Even if this is what you meant, current thread
-can be a workqueue, which currently need a short sleep (as with
-wait_iff_congested() changes), can't it?
+ lib/fault-inject.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> +		}
->   		goto nopage;
-> +	}
->   
->   	/* Avoid allocations with no watermarks from looping endlessly */
->   	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-> 
-
-Well, is it cond_resched() which should include
-
-  if (current->flags & PF_WQ_WORKER)
-  	schedule_timeout(1);
-
-than wait_iff_congested() because not all yield calls use wait_iff_congested()
-and giving pending workqueue jobs a chance to be processed is anyway preferable?
-
-  int __sched _cond_resched(void)
-  {
-  	if (should_resched(0)) {
-  		if ((current->flags & PF_WQ_WORKER) && workqueue_has_pending_jobs())
-  			schedule_timeout(1);
-  		else
-  			preempt_schedule_common();
-  		return 1;
-  	}
-  	return 0;
-  }
+diff --git a/lib/fault-inject.c b/lib/fault-inject.c
+index f1cdeb024d17..6a823a53e357 100644
+--- a/lib/fault-inject.c
++++ b/lib/fault-inject.c
+@@ -44,7 +44,7 @@ static void fail_dump(struct fault_attr *attr)
+ 		printk(KERN_NOTICE "FAULT_INJECTION: forcing a failure.\n"
+ 		       "name %pd, interval %lu, probability %lu, "
+ 		       "space %d, times %d\n", attr->dname,
+-		       attr->probability, attr->interval,
++		       attr->interval, attr->probability,
+ 		       atomic_read(&attr->space),
+ 		       atomic_read(&attr->times));
+ 		if (attr->verbose > 1)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
