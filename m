@@ -1,107 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CE676B0259
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 18:20:21 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so59303717pad.1
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:20:21 -0800 (PST)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id qg3si7501930pbb.100.2015.11.18.15.20.20
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 473CE6B0255
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 18:24:02 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so59408261pac.3
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:24:02 -0800 (PST)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id ax2si7501594pbc.170.2015.11.18.15.24.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Nov 2015 15:20:20 -0800 (PST)
-Received: by pacdm15 with SMTP id dm15so59322583pac.3
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:20:20 -0800 (PST)
+        Wed, 18 Nov 2015 15:24:01 -0800 (PST)
+Received: by pacej9 with SMTP id ej9so59357689pac.2
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:24:01 -0800 (PST)
+Subject: Re: [PATCH 1/4] mm: mmap: Add new /proc tunable for mmap_base ASLR.
+References: <1447886901-26098-1-git-send-email-dcashman@android.com>
+ <1447886901-26098-2-git-send-email-dcashman@android.com>
+ <CAGXu5jL7GXKqj1UTpwEwtZ_kKpeorA0fz84Pq=15kdZ3vGytQA@mail.gmail.com>
 From: Daniel Cashman <dcashman@android.com>
-Subject: [PATCH v3 4/4] x86: mm: support ARCH_MMAP_RND_BITS.
-Date: Wed, 18 Nov 2015 15:20:08 -0800
-Message-Id: <1447888808-31571-5-git-send-email-dcashman@android.com>
-In-Reply-To: <1447888808-31571-4-git-send-email-dcashman@android.com>
-References: <1447888808-31571-1-git-send-email-dcashman@android.com>
- <1447888808-31571-2-git-send-email-dcashman@android.com>
- <1447888808-31571-3-git-send-email-dcashman@android.com>
- <1447888808-31571-4-git-send-email-dcashman@android.com>
+Message-ID: <564D088E.7060409@android.com>
+Date: Wed, 18 Nov 2015 15:23:58 -0800
+MIME-Version: 1.0
+In-Reply-To: <CAGXu5jL7GXKqj1UTpwEwtZ_kKpeorA0fz84Pq=15kdZ3vGytQA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com
+To: Kees Cook <keescook@chromium.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Hector Marco <hecmargi@upv.es>, Borislav Petkov <bp@suse.de>, Daniel Cashman <dcashman@google.com>
 
-From: dcashman <dcashman@google.com>
+> I think the min/max values should be const, since they're determined
+> at build time and should never change.
 
-x86: arch_mmap_rnd() uses hard-coded values, 8 for 32-bit and 28 for
-64-bit, to generate the random offset for the mmap base address.
-This value represents a compromise between increased ASLR
-effectiveness and avoiding address-space fragmentation. Replace it
-with a Kconfig option, which is sensibly bounded, so that platform
-developers may choose where to place this compromise. Keep default
-values as new minimums.
+Ok. Also, I just submitted the patch-set again with [PATCH v3] instead
+of [PATCH] so I'd prefer discussion there; sorry for the mistake.
 
-Signed-off-by: Daniel Cashman <dcashman@google.com>
----
- arch/x86/Kconfig   | 16 ++++++++++++++++
- arch/x86/mm/mmap.c | 12 ++++++------
- 2 files changed, 22 insertions(+), 6 deletions(-)
-
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index db3622f..12768c4 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -82,6 +82,8 @@ config X86
- 	select HAVE_ARCH_KASAN			if X86_64 && SPARSEMEM_VMEMMAP
- 	select HAVE_ARCH_KGDB
- 	select HAVE_ARCH_KMEMCHECK
-+	select HAVE_ARCH_MMAP_RND_BITS
-+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
- 	select HAVE_ARCH_SECCOMP_FILTER
- 	select HAVE_ARCH_SOFT_DIRTY		if X86_64
- 	select HAVE_ARCH_TRACEHOOK
-@@ -183,6 +185,20 @@ config HAVE_LATENCYTOP_SUPPORT
- config MMU
- 	def_bool y
- 
-+config ARCH_MMAP_RND_BITS_MIN
-+       default 28 if 64BIT
-+       default 8
-+
-+config ARCH_MMAP_RND_BITS_MAX
-+	default 32 if 64BIT
-+	default 16
-+
-+config ARCH_MMAP_RND_COMPAT_BITS_MIN
-+	default 8
-+
-+config ARCH_MMAP_RND_COMPAT_BITS_MAX
-+	default 16
-+
- config SBUS
- 	bool
- 
-diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-index 844b06d..647fecf 100644
---- a/arch/x86/mm/mmap.c
-+++ b/arch/x86/mm/mmap.c
-@@ -69,14 +69,14 @@ unsigned long arch_mmap_rnd(void)
- {
- 	unsigned long rnd;
- 
--	/*
--	 *  8 bits of randomness in 32bit mmaps, 20 address space bits
--	 * 28 bits of randomness in 64bit mmaps, 40 address space bits
--	 */
- 	if (mmap_is_ia32())
--		rnd = (unsigned long)get_random_int() % (1<<8);
-+#ifdef CONFIG_COMPAT
-+		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
-+#else
-+		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
-+#endif
- 	else
--		rnd = (unsigned long)get_random_int() % (1<<28);
-+		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
- 
- 	return rnd << PAGE_SHIFT;
- }
--- 
-2.6.0.rc2.230.g3dd15c0
+-Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
