@@ -1,133 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 034BE6B0275
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 04:29:59 -0500 (EST)
-Received: by wmec201 with SMTP id c201so63970471wme.1
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 01:29:58 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C42DB6B0276
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 04:30:00 -0500 (EST)
+Received: by wmec201 with SMTP id c201so268450966wme.0
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 01:30:00 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c125si3629587wmd.11.2015.11.18.01.29.56
+        by mx.google.com with ESMTPS id wg10si2714548wjb.216.2015.11.18.01.29.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Wed, 18 Nov 2015 01:29:56 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v5 0/6] enhance shmem process and swap accounting
-Date: Wed, 18 Nov 2015 10:29:30 +0100
-Message-Id: <1447838976-17607-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v5 2/6] mm, proc: account for shmem swap in /proc/pid/smaps
+Date: Wed, 18 Nov 2015 10:29:32 +0100
+Message-Id: <1447838976-17607-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1447838976-17607-1-git-send-email-vbabka@suse.cz>
+References: <1447838976-17607-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Michal Hocko <mhocko@suse.com>
 
-Changes since v4:
-o Rebase on next-20151118
-o Hugh pointed out a problem with private mappings of tmpfs files where
-  smaps would show a sum of shmem object's swapped out pages and swapped
-  out COWed pages. Fixed this by falling back to the find_get_page() approach.
-  Patches are now layered by employing find_get_page() first, and then
-  optimizing the non-private mappings on top (with some measurements).
-o Expanded commit messages.
+Currently, /proc/pid/smaps will always show "Swap: 0 kB" for shmem-backed
+mappings, even if the mapped portion does contain pages that were swapped out.
+This is because unlike private anonymous mappings, shmem does not change pte
+to swap entry, but pte_none when swapping the page out. In the smaps page
+walk, such page thus looks like it was never faulted in.
 
-Changes since v3:
-o Rebase on next-20151002
-o Apply (feedb)acks from Michal Hocko and Konstantin Khlebnikov (Thanks!)
-  - drop CONFIG_SHMEM ifdefs, as it was the 2nd suggestion already
-  - add comments about not taking i_mutex in patch 2
-o Rename VmAnon/VmFile/VmShm to RssAnon/RssFile... to make it hopefully more
-  obvious that it's a breakdown of VmRSS. Naming things sucks.
+This patch changes smaps_pte_entry() to determine the swap status for such
+pte_none entries for shmem mappings, similarly to how mincore_page() does it.
+Swapped out shmem pages are thus accounted for. For private mappings of tmpfs
+files that COWed some of the pages, swaped out status of the original shmem
+pages is naturally ignored. If some of the private copies was also swapped
+out, they are accounted via their page table swap entries, so the resulting
+reported swap usage is then a sum of both swapped out private copies, and
+swapped out shmem pages that were not COWed. No double accounting can thus
+happen.
 
-Changes since v2:
-o Rebase on next-20150805.
-o This means that /proc/pid/maps has the proportional swap share (SwapPss:)
-  field as per https://lkml.org/lkml/2015/6/15/274
-  It's not clear what to do with shmem here so it's 0 for now.
-  - swapped out shmem doesn't have swap entries, so we would have to look at who
-    else has the shmem object (partially) mapped
-  - to be more precise we should also check if his range actually includes 
-    the offset in question, which could get rather involved
-  - or is there some easy way I don't see?
-o Konstantin suggested for patch 3/4 that I drop the CONFIG_SHMEM #ifdefs
-  I didn't see the point in going against tinyfication when the work is
-  already done, but I can do that if more people think it's better and it
-  would block the series.
+The accounting is arguably still not as precise as for private anonymous
+mappings, since now we will count also pages that the process in question never
+accessed, but another process populated them and then let them become swapped
+out. I believe it is still less confusing and subtle than not showing any swap
+usage by shmem mappings at all. Swapped out counter might of interest of users
+who would like to prevent from future swapins during performance critical
+operation and pre-fault them at their convenience. Especially for larger
+swapped out regions the cost of swapin is much higher than a fresh page
+allocation.  So a differentiation between pte_none vs. swapped out is important
+for those usecases.
 
-Changes since v1:
-o In Patch 2, rely on SHMEM_I(inode)->swapped if possible, and fallback to
-  radix tree iterator on partially mapped shmem objects, i.e. decouple shmem
-  swap usage determination from the page walk, for performance reasons.
-  Thanks to Jerome and Konstantin for the tips.
-  The downside is that mm/shmem.c had to be touched.
+One downside of this patch is that it makes /proc/pid/smaps more expensive for
+shmem mappings, as we consult the radix tree for each pte_none entry, so the
+overal complexity is O(n*log(n)). I have measured this on a process that
+creates a 2GB mapping and dirties single pages with a stride of 2MB, and time
+how long does it take to cat /proc/pid/smaps of this process 100 times.
 
-This series is based on Jerome Marchand's [1] so let me quote the first
-paragraph from there:
+Private anonymous mapping:
 
-There are several shortcomings with the accounting of shared memory
-(sysV shm, shared anonymous mapping, mapping to a tmpfs file). The
-values in /proc/<pid>/status and statm don't allow to distinguish
-between shmem memory and a shared mapping to a regular file, even
-though theirs implication on memory usage are quite different: at
-reclaim, file mapping can be dropped or write back on disk while shmem
-needs a place in swap. As for shmem pages that are swapped-out or in
-swap cache, they aren't accounted at all.
+real    0m0.949s
+user    0m0.116s
+sys     0m0.348s
 
-The original motivation for myself is that a customer found (IMHO rightfully)
-confusing that e.g. top output for process swap usage is unreliable with
-respect to swapped out shmem pages, which are not accounted for.
+Mapping of a /dev/shm/file:
 
-The fundamental difference between private anonymous and shmem pages is that
-the latter has PTE's converted to pte_none, and not swapents. As such, they are
-not accounted to the number of swapents visible e.g. in /proc/pid/status VmSwap
-row. It might be theoretically possible to use swapents when swapping out shmem
-(without extra cost, as one has to change all mappers anyway), and on swap in
-only convert the swapent for the faulting process, leaving swapents in other
-processes until they also fault (so again no extra cost). But I don't know how
-many assumptions this would break, and it would be too disruptive change for a
-relatively small benefit.
+real    0m3.831s
+user    0m0.180s
+sys     0m3.212s
 
-Instead, my approach is to document the limitation of VmSwap, and provide means
-to determine the swap usage for shmem areas for those who are interested and
-willing to pay the price, using /proc/pid/smaps. Because outside of ipcs, I
-don't think it's possible to currently to determine the usage at all.  The
-previous patchset [1] did introduce new shmem-specific fields into smaps
-output, and functions to determine the values. I take a simpler approach,
-noting that smaps output already has a "Swap: X kB" line, where currently X ==
-0 always for shmem areas. I think we can just consider this a bug and provide
-the proper value by consulting the radix tree, as e.g. mincore_page() does. In the
-patch changelog I explain why this is also not perfect (and cannot be without
-swapents), but still arguably much better than showing a 0.
+The difference rather substantional, so the next patch will reduce the cost
+for shared or read-only mappings.
 
-The last two patches are adapted from Jerome's patchset and provide a VmRSS
-breakdown to RssAnon, RssFile and RssShm in /proc/pid/status. Hugh noted that
-this is a welcome addition, and I agree that it might help e.g. debugging
-process memory usage at albeit non-zero, but still rather low cost of extra
-per-mm counter and some page flag checks.
+In a less controlled experiment, I've gathered pids of processes on my desktop
+that have either '/dev/shm/*' or 'SYSV*' in smaps. This included the Chrome
+browser and some KDE processes. Again, I've run cat /proc/pid/smaps on each
+100 times.
 
-[1] http://lwn.net/Articles/611966/
+Before this patch:
 
-Jerome Marchand (2):
-  mm, shmem: add internal shmem resident memory accounting
-  mm, procfs: breakdown RSS for anon, shmem and file in /proc/pid/status
+real    0m9.050s
+user    0m0.518s
+sys     0m8.066s
 
-Vlastimil Babka (4):
-  mm, documentation: clarify /proc/pid/status VmSwap limitations for
-    shmem
-  mm, proc: account for shmem swap in /proc/pid/smaps
-  mm, proc: reduce cost of /proc/pid/smaps for shmem mappings
-  mm, proc: reduce cost of /proc/pid/smaps for unpopulated shmem
-    mappings
+After this patch:
 
- Documentation/filesystems/proc.txt | 21 ++++++++--
- arch/s390/mm/pgtable.c             |  5 +--
- fs/proc/task_mmu.c                 | 70 ++++++++++++++++++++++++++++++--
- include/linux/mm.h                 | 18 ++++++++-
- include/linux/mm_types.h           |  7 ++--
- include/linux/shmem_fs.h           |  4 ++
- kernel/events/uprobes.c            |  2 +-
- mm/memory.c                        | 30 +++++---------
- mm/oom_kill.c                      |  5 ++-
- mm/rmap.c                          | 12 ++----
- mm/shmem.c                         | 81 ++++++++++++++++++++++++++++++++++++++
- 11 files changed, 208 insertions(+), 47 deletions(-)
+real    0m9.221s
+user    0m0.541s
+sys     0m8.187s
 
+This suggests low impact on average systems.
+
+Note that this patch doesn't attempt to adjust the SwapPss field for shmem
+mappings, which would need extra work to determine who else could have the
+pages mapped. Thus the value stays zero except for COWed swapped out pages in
+a shmem mapping, which are accounted as usual.
+
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Acked-by: Jerome Marchand <jmarchan@redhat.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ Documentation/filesystems/proc.txt |  5 +++-
+ fs/proc/task_mmu.c                 | 51 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 9f13b6e..fdeb5b3 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -460,7 +460,10 @@ and a page is modified, the file page is replaced by a private anonymous copy.
+ hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
+ reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
+ "Swap" shows how much would-be-anonymous memory is also used, but out on swap.
+-"SwapPss" shows proportional swap share of this mapping.
++For shmem mappings, "Swap" includes also the size of the mapped (and not
++replaced by copy-on-write) part of the underlying shmem object out on swap.
++"SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
++does not take into account swapped out page of underlying shmem objects.
+ "Locked" indicates whether the mapping is locked in memory or not.
+ 
+ "VmFlags" field deserves a separate description. This member represents the kernel
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 9e0938b..7e0c4c2 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -451,6 +451,7 @@ struct mem_size_stats {
+ 	unsigned long private_hugetlb;
+ 	u64 pss;
+ 	u64 swap_pss;
++	bool check_shmem_swap;
+ };
+ 
+ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+@@ -500,6 +501,45 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+ 	}
+ }
+ 
++#ifdef CONFIG_SHMEM
++static unsigned long smaps_shmem_swap(struct vm_area_struct *vma,
++		unsigned long addr)
++{
++	struct page *page;
++
++	page = find_get_entry(vma->vm_file->f_mapping,
++					linear_page_index(vma, addr));
++	if (!page)
++		return 0;
++
++	if (radix_tree_exceptional_entry(page))
++		return PAGE_SIZE;
++
++	page_cache_release(page);
++	return 0;
++
++}
++
++static int smaps_pte_hole(unsigned long addr, unsigned long end,
++		struct mm_walk *walk)
++{
++	struct mem_size_stats *mss = walk->private;
++
++	while (addr < end) {
++		mss->swap += smaps_shmem_swap(walk->vma, addr);
++		addr += PAGE_SIZE;
++	}
++
++	return 0;
++}
++#else
++static unsigned long smaps_shmem_swap(struct vm_area_struct *vma,
++		unsigned long addr)
++{
++	return 0;
++}
++#endif
++
+ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
+ 		struct mm_walk *walk)
+ {
+@@ -527,6 +567,9 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
+ 			}
+ 		} else if (is_migration_entry(swpent))
+ 			page = migration_entry_to_page(swpent);
++	} else if (unlikely(IS_ENABLED(CONFIG_SHMEM) && mss->check_shmem_swap
++							&& pte_none(*pte))) {
++		mss->swap += smaps_shmem_swap(vma, addr);
+ 	}
+ 
+ 	if (!page)
+@@ -686,6 +729,14 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 	};
+ 
+ 	memset(&mss, 0, sizeof mss);
++
++#ifdef CONFIG_SHMEM
++	if (vma->vm_file && shmem_mapping(vma->vm_file->f_mapping)) {
++		mss.check_shmem_swap = true;
++		smaps_walk.pte_hole = smaps_pte_hole;
++	}
++#endif
++
+ 	/* mmap_sem is held in m_start */
+ 	walk_page_vma(vma, &smaps_walk);
+ 
 -- 
 2.6.3
 
