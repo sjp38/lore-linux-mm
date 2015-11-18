@@ -1,51 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ADFA6B0255
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 17:33:31 -0500 (EST)
-Received: by wmww144 with SMTP id w144so92552720wmw.0
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:33:31 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id 190si7947248wmb.18.2015.11.18.14.33.30
+Received: from mail-lf0-f51.google.com (mail-lf0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0008F6B0257
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 17:36:22 -0500 (EST)
+Received: by lfaz4 with SMTP id z4so36548553lfa.0
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:36:22 -0800 (PST)
+Received: from mail-lf0-x22b.google.com (mail-lf0-x22b.google.com. [2a00:1450:4010:c07::22b])
+        by mx.google.com with ESMTPS id zn4si3570995lbb.188.2015.11.18.14.36.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Nov 2015 14:33:30 -0800 (PST)
-Date: Wed, 18 Nov 2015 23:32:28 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v3 01/22] timer: Allow to check when the timer callback
- has not finished yet
-In-Reply-To: <1447853127-3461-2-git-send-email-pmladek@suse.com>
-Message-ID: <alpine.DEB.2.11.1511182331010.3761@nanos>
-References: <1447853127-3461-1-git-send-email-pmladek@suse.com> <1447853127-3461-2-git-send-email-pmladek@suse.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Nov 2015 14:36:21 -0800 (PST)
+Received: by lfs39 with SMTP id 39so36462729lfs.3
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:36:20 -0800 (PST)
+From: Arkadiusz =?utf-8?q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>
+Subject: Re: memory reclaim problems on fs usage
+Date: Wed, 18 Nov 2015 23:36:18 +0100
+References: <201511102313.36685.arekm@maven.pl> <201511151549.35299.arekm@maven.pl> <20151116161518.GI14116@dhcp22.suse.cz>
+In-Reply-To: <20151116161518.GI14116@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <201511182336.18231.arekm@maven.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, htejun@gmail.com, cl@linux.com, linux-mm@kvack.org, xfs@oss.sgi.com
 
-On Wed, 18 Nov 2015, Petr Mladek wrote:
-> timer_pending() checks whether the list of callbacks is empty.
-> Each callback is removed from the list before it is called,
-> see call_timer_fn() in __run_timers().
-> 
-> Sometimes we need to make sure that the callback has finished.
-> For example, if we want to free some resources that are accessed
-> by the callback.
-> 
-> For this purpose, this patch adds timer_active(). It checks both
-> the list of callbacks and the running_timer. It takes the base_lock
-> to see a consistent state.
-> 
-> I plan to use it to implement delayed works in kthread worker.
-> But I guess that it will have wider use. In fact, I wonder if
-> timer_pending() is misused in some situations.
+On Monday 16 of November 2015, Michal Hocko wrote:
+> On Sun 15-11-15 15:49:35, Arkadiusz Mi=C5=9Bkiewicz wrote:
+> > On Sunday 15 of November 2015, Tetsuo Handa wrote:
+> > > Arkadiusz Miskiewicz wrote:
+> > > > On Sunday 15 of November 2015, Tetsuo Handa wrote:
+> > > > > I think that the vmstat statistics now have correct values.
+> > > > >=20
+> > > > > > But are these patches solving the problem or just hiding it?
+> > > > >=20
+> > > > > Excuse me but I can't judge.
+> > > > >=20
+> > > > > If you are interested in monitoring how vmstat statistics are
+> > > > > changing under stalled condition, you can try below patch.
+> > > >=20
+> > > > Here is log with this and all previous patches applied:
+> > > > http://ixion.pld-linux.org/~arekm/log-mm-5.txt.gz
+> > >=20
+> > > Regarding "Node 0 Normal" (min:7104kB low:8880kB high:10656kB),
+> > > all free: values look sane to me. I think that your problem was solve=
+d.
+> >=20
+> > Great, thanks!
+> >=20
+> > Will all (or part) of these patches
+> >=20
+> > http://sprunge.us/GYBb
+>=20
+> Migrate reserves are not a stable material I am afraid. "vmstat:
+> explicitly schedule per-cpu work on the CPU we need it to run on"
+> was not marked for stable either but I am not sure why it should make
+> any difference for your load. I understand that testing this is really
+> tedious but it would be better to know which of the patches actually
+> made a difference.
 
-Well. That's nice and good. But how will that new function solve
-anything? After you drop the lock the state is not longer valid.
- 
-Thanks,
+Ok. In mean time I've tried 4.3.0 kernel + patches (the same as before + on=
+e=20
+more) on second server which runs even more rsnapshot processes and also us=
+es=20
+xfs on md raid 6.
 
-	tglx
+Patches:
+http://sprunge.us/DfIQ (debug patch from Tetsuo)
+http://sprunge.us/LQPF (backport of things from git + one from ml)
+
+The problem is now with high order allocations probably:
+http://ixion.pld-linux.org/~arekm/log-mm-2srv-1.txt.gz
+
+System is doing very slow progress and for example depmod run took 2 hours
+http://sprunge.us/HGbE
+Sometimes I was able to ssh-in, dmesg took 10-15 minutes but sometimes it=20
+worked fast for short period.
+
+Ideas?
+
+ps. I also had one problem with low order allocation but only once and wasn=
+'t=20
+able to reproduce so far. I was running kernel with backport patches but no=
+=20
+debug patch, so got only this in logs:
+http://sprunge.us/WPXi
+
+=2D-=20
+Arkadiusz Mi=C5=9Bkiewicz, arekm / ( maven.pl | pld-linux.org )
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
