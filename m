@@ -1,85 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id AA0526B0038
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 12:00:25 -0500 (EST)
-Received: by qgea14 with SMTP id a14so32101746qge.0
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 09:00:25 -0800 (PST)
-Received: from iolanthe.rowland.org (iolanthe.rowland.org. [192.131.102.54])
-        by mx.google.com with SMTP id h35si3010076qgh.126.2015.11.18.09.00.24
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AF13B6B0038
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 12:24:29 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so50869707pad.1
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 09:24:29 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id tz9si5473618pac.197.2015.11.18.09.24.28
         for <linux-mm@kvack.org>;
-        Wed, 18 Nov 2015 09:00:24 -0800 (PST)
-Date: Wed, 18 Nov 2015 12:00:23 -0500 (EST)
-From: Alan Stern <stern@rowland.harvard.edu>
-Subject: Allocating DMA-able memory for user programs
-In-Reply-To: <1447831502.5522.5.camel@suse.com>
-Message-ID: <Pine.LNX.4.44L0.1511181123220.1688-100000@iolanthe.rowland.org>
+        Wed, 18 Nov 2015 09:24:28 -0800 (PST)
+Date: Wed, 18 Nov 2015 17:24:23 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v7 0/4] KASAN for arm64
+Message-ID: <20151118172422.GA5799@e104818-lin.cambridge.arm.com>
+References: <1444665180-301-1-git-send-email-ryabinin.a.a@gmail.com>
+ <20151013083432.GG6320@e104818-lin.cambridge.arm.com>
+ <5649BAFD.6030005@arm.com>
+ <5649F783.40109@gmail.com>
+ <20151116165100.GE6556@e104818-lin.cambridge.arm.com>
+ <564C8C47.1080904@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <564C8C47.1080904@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Oliver Neukum <oneukum@suse.com>, "Steinar H. Gunderson" <sgunderson@bigfoot.com>, Markus Rechberger <mrechberger@gmail.com>, USB list <linux-usb@vger.kernel.org>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: linux-arm-kernel@lists.infradead.org, Yury <yury.norov@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Andrey Konovalov <andreyknvl@google.com>, Linus Walleij <linus.walleij@linaro.org>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, kasan-dev <kasan-dev@googlegroups.com>, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, Alexey Klimov <klimov.linux@gmail.com>, David Keitel <dkeitel@codeaurora.org>, Dmitry Vyukov <dvyukov@google.com>
 
-Memory management folk:
+On Wed, Nov 18, 2015 at 05:33:43PM +0300, Andrey Ryabinin wrote:
+> On 11/16/2015 07:51 PM, Catalin Marinas wrote:
+> > On Mon, Nov 16, 2015 at 06:34:27PM +0300, Andrey Ryabinin wrote:
+> >> On 11/16/2015 02:16 PM, Suzuki K. Poulose wrote:
+> >>> arch/arm64/mm/kasan_init.c:95:2: note: in expansion of macro a??BUILD_BUG_ONa??
+> >>>   BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
+> >>>
+> >>> The problem is that the PGDIR_SIZE is (1UL << 47) with 16K+48bit, which makes
+> >>> the KASAN_SHADOW_END unaligned(which is aligned to (1UL << (48 - 3)) ). Is the
+> >>> alignment really needed ? Thoughts on how best we could fix this ?
+> >>
+> >> Yes, it's really needed, because some code relies on this (e.g.
+> >> clear_pgs() and kasan_init()). But it should be possible to get rid of
+> >> this requirement.
+> > 
+> > I don't think clear_pgds() and kasan_init() are the only problems. IIUC,
+> > kasan_populate_zero_shadow() also assumes that KASan shadow covers
+> > multiple pgds. You need some kind of recursive writing which avoids
+> > populating an entry which is not empty (like kasan_early_pud_populate).
+> 
+> I think kasan_populate_zero_shadow() should be fine. We call pgd_populate() only
+> if address range covers the entire pgd:
+> 
+> 		if (IS_ALIGNED(addr, PGDIR_SIZE) && end - addr >= PGDIR_SIZE) {
+> ....
+> 			pgd_populate(&init_mm, pgd, kasan_zero_pud);
+> ....
+> 
+> and otherwise we check for pgd_none(*pgd):
+> 		if (pgd_none(*pgd)) {
+> 			pgd_populate(&init_mm, pgd,
+> 				early_alloc(PAGE_SIZE, NUMA_NO_NODE));
+> 		}
 
-People have been complaining about memory-related problems with their 
-userspace USB drivers.  There are two basic issues:
+OK, I missed the fact that zero_pud_populate() handles the pmd/pte
+population with kasan_zero_*.
 
-	Memory fragmentation eventually prevents the kernel from 
-	allocating contiguous buffers large enough to hold the I/O 
-	data.  Such buffers currently have to be allocated for
-	each individual I/O transfer.
+So if it's only tmp_pg_dir, as you said already, you can add a tmp_pud
+for the case where KASAN_SHADOW_SIZE is smaller than PGDIR_SIZE and
+change clear_pgds() to erase the puds.
 
-	Copying data back and forth between the userspace and kernel
-	buffers wastes a lot of time.
-
-The ideal solution, of course, is to use some form of zerocopy I/O, 
-telling the hardware to DMA to/from the userspace buffer directly.  
-However, we are under some constraints that make this difficult.
-
-	Mapping a userspace buffer for DMA implies using some form of
-	scatter-gather, because pages with adjacent virtual addresses
-	generally are not physically adjacent.  But the USB kernel
-	drivers do not support scatter-gather for isochronous
-	transfers, only for bulk transfers (and the complaints here
-	are concerned with isochronous).
-
-	Even if scatter-gather weren't an issue, user memory pages
-	are not always usable for hardware DMA.  Lots of USB 
-	controllers do only 32-bit DMA, so the pages containing the
-	user buffer would have to be located physically below 4 GB.
-	(If an IOMMU is present this may not matter, but plenty of
-	lower-end systems don't have an IOMMU.)
-
-	We want to avoid using automatic bounce buffers, for two
-	reasons.  First, they obviously defeat the purpose of
-	zerocopy I/O.  Second, isochronous READ transfers often
-	leave gaps in the data buffer.  (For example, a buffer might
-	be set up to hold two 32-byte transfers, but the first
-	transfer might only receive 20 bytes of data.  The buffer
-	would end up containing 20 bytes of data read in, followed
-	by a 12-byte gap holding stale data -- whatever happened to be 
-	there before -- followed by 32 bytes of data read in.)  If we 
-	use a bounce buffer automatically allocated in the kernel, we
-	have no way to prevent the stale data in the gaps from being
-	copied back to userspace, which would be a security leak.
-
-The only solution we have come up with is to create a device-specific
-mmap(2) implementation that would allocate contiguous pages within the
-device's DMA mask and map them into the user's virtual address space.  
-The user program could then use these pages as a buffer to get true
-zerocopy I/O.
-
-There's the potential issue of exhausting a limited resource (memory
-below 4 GB), but we can take care of that by placing on overall cap on
-the amount of memory allocated using this mechanism.
-
-Does this seem reasonable?  I'm not certain about the wisdom of
-creating an API for allocating and locking pages below 4 GB and then
-hiding it away in the USB subsystem.  But if you folks say it's okay, 
-we'll go ahead and do it.
-
-Alan Stern
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
