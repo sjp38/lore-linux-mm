@@ -1,187 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C03436B025A
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 18:25:51 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so61421663pab.0
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:25:51 -0800 (PST)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 505B26B025B
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 18:25:52 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so59432560pad.1
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:25:52 -0800 (PST)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id un9si7295761pac.89.2015.11.18.15.25.50
+        by mx.google.com with ESMTP id un9si7295761pac.89.2015.11.18.15.25.51
         for <linux-mm@kvack.org>;
         Wed, 18 Nov 2015 15:25:51 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 5/9] radix-tree: implement radix_tree_maybe_preload_order()
-Date: Thu, 19 Nov 2015 01:25:32 +0200
-Message-Id: <1447889136-6928-6-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1447889136-6928-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1447889136-6928-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 0/9] RFD: huge tmpfs: compound vs. team pages
+Date: Thu, 19 Nov 2015 01:25:27 +0200
+Message-Id: <1447889136-6928-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The new helper is similar to radix_tree_maybe_preload(), but tries to
-preload number of nodes required to insert (1 << order) continuous
-naturally-aligned elements.
+Hello everybody,
 
-This is required to push huge pages into pagecache.
+The code below the cover letter is not intended for inclusion or rigorous
+review. It's rather an excuse to start discussion on how we want to
+implement huge pages in shmem/tmpfs and in page cache in general.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- include/linux/radix-tree.h |  1 +
- lib/radix-tree.c           | 70 ++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 63 insertions(+), 8 deletions(-)
+Back in February Hugh posted[1] his implementation of huge pages in tmpfs.
+There wasn't fallow ups with the patchset since then, but as far as I
+know the implementation is in use within Google.
 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 33170dbd9db4..3a3759644283 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -279,6 +279,7 @@ unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
- 			unsigned long first_index, unsigned int max_items);
- int radix_tree_preload(gfp_t gfp_mask);
- int radix_tree_maybe_preload(gfp_t gfp_mask);
-+int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order);
- void radix_tree_init(void);
- void *radix_tree_tag_set(struct radix_tree_root *root,
- 			unsigned long index, unsigned int tag);
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index fcf5d98574ce..e15b1d1bec68 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -42,6 +42,9 @@
-  */
- static unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH + 1] __read_mostly;
- 
-+/* Number of nodes in fully populated tree of given height */
-+static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
-+
- /*
-  * Radix tree node cache.
-  */
-@@ -251,7 +254,7 @@ radix_tree_node_free(struct radix_tree_node *node)
-  * To make use of this facility, the radix tree must be initialised without
-  * __GFP_DIRECT_RECLAIM being passed to INIT_RADIX_TREE().
-  */
--static int __radix_tree_preload(gfp_t gfp_mask)
-+static int __radix_tree_preload(gfp_t gfp_mask, int nr)
- {
- 	struct radix_tree_preload *rtp;
- 	struct radix_tree_node *node;
-@@ -259,14 +262,14 @@ static int __radix_tree_preload(gfp_t gfp_mask)
- 
- 	preempt_disable();
- 	rtp = this_cpu_ptr(&radix_tree_preloads);
--	while (rtp->nr < RADIX_TREE_PRELOAD_SIZE) {
-+	while (rtp->nr < nr) {
- 		preempt_enable();
- 		node = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
- 		if (node == NULL)
- 			goto out;
- 		preempt_disable();
- 		rtp = this_cpu_ptr(&radix_tree_preloads);
--		if (rtp->nr < RADIX_TREE_PRELOAD_SIZE) {
-+		if (rtp->nr < nr) {
- 			node->private_data = rtp->nodes;
- 			rtp->nodes = node;
- 			rtp->nr++;
-@@ -292,7 +295,7 @@ int radix_tree_preload(gfp_t gfp_mask)
- {
- 	/* Warn on non-sensical use... */
- 	WARN_ON_ONCE(!gfpflags_allow_blocking(gfp_mask));
--	return __radix_tree_preload(gfp_mask);
-+	return __radix_tree_preload(gfp_mask, RADIX_TREE_PRELOAD_SIZE);
- }
- EXPORT_SYMBOL(radix_tree_preload);
- 
-@@ -304,7 +307,7 @@ EXPORT_SYMBOL(radix_tree_preload);
- int radix_tree_maybe_preload(gfp_t gfp_mask)
- {
- 	if (gfpflags_allow_blocking(gfp_mask))
--		return __radix_tree_preload(gfp_mask);
-+		return __radix_tree_preload(gfp_mask, RADIX_TREE_PRELOAD_SIZE);
- 	/* Preloading doesn't help anything with this gfp mask, skip it */
- 	preempt_disable();
- 	return 0;
-@@ -312,6 +315,52 @@ int radix_tree_maybe_preload(gfp_t gfp_mask)
- EXPORT_SYMBOL(radix_tree_maybe_preload);
- 
- /*
-+ * The same as function above, but preload number of nodes required to insert
-+ * (1 << order) continuous naturally-aligned elements.
-+ */
-+int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
-+{
-+	unsigned long nr_subtrees;
-+	int nr_nodes, subtree_height;
-+
-+	/* Preloading doesn't help anything with this gfp mask, skip it */
-+	if (!gfpflags_allow_blocking(gfp_mask)) {
-+		preempt_disable();
-+		return 0;
-+	}
-+
-+
-+	/*
-+	 * Calculate number and height of fully populated subtrees it takes to
-+	 * store (1 << order) elements.
-+	 */
-+	nr_subtrees = 1 << order;
-+	for (subtree_height = 0; nr_subtrees > RADIX_TREE_MAP_SIZE;
-+			subtree_height++)
-+		nr_subtrees >>= RADIX_TREE_MAP_SHIFT;
-+
-+	/*
-+	 * The worst case is zero height tree with a single item at index 0 and
-+	 * then inserting items starting at ULONG_MAX - (1 << order).
-+	 *
-+	 * This requires RADIX_TREE_MAX_PATH nodes to build branch from root to
-+	 * 0-index item.
-+	 */
-+	nr_nodes = RADIX_TREE_MAX_PATH;
-+
-+	/* Plus branch to fully populated subtrees. */
-+	nr_nodes += RADIX_TREE_MAX_PATH - subtree_height;
-+
-+	/* Root node is shared. */
-+	nr_nodes--;
-+
-+	/* Plus nodes required to build subtrees. */
-+	nr_nodes += nr_subtrees * height_to_maxnodes[subtree_height];
-+
-+	return __radix_tree_preload(gfp_mask, nr_nodes);
-+}
-+
-+/*
-  *	Return the maximum key which can be store into a
-  *	radix tree with height HEIGHT.
-  */
-@@ -1454,12 +1503,17 @@ static __init unsigned long __maxindex(unsigned int height)
- 	return ~0UL >> shift;
- }
- 
--static __init void radix_tree_init_maxindex(void)
-+static __init void radix_tree_init_arrays(void)
- {
--	unsigned int i;
-+	unsigned int i, j;
- 
- 	for (i = 0; i < ARRAY_SIZE(height_to_maxindex); i++)
- 		height_to_maxindex[i] = __maxindex(i);
-+	for (i = 0; i < ARRAY_SIZE(height_to_maxnodes); i++) {
-+		for (j = i; j > 0; j--)
-+			height_to_maxnodes[i] += height_to_maxindex[j - 1] + 1;
-+	}
-+
- }
- 
- static int radix_tree_callback(struct notifier_block *nfb,
-@@ -1489,6 +1543,6 @@ void __init radix_tree_init(void)
- 			sizeof(struct radix_tree_node), 0,
- 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
- 			radix_tree_node_ctor);
--	radix_tree_init_maxindex();
-+	radix_tree_init_arrays();
- 	hotcpu_notifier(radix_tree_callback, 0);
- }
+The implementation is built around new concept of "team pages". It's a new
+way couple small pages together to be able map them as huge. It's intended
+to be used instead of compound pages as more flexible mechanism which fits
+better for page cache.
+
+I believe THP refcounting rework made team pages unnecessary: compound
+page are flexible enough to serve needs of page cache.
+
+Of course, the only way to prove the claim is "show the code" :)
+
+I've started playing with this and you can checkout my early prototype in
+this patchset. Don't expect much: I still learn tmpfs code and it goes
+slowly. It can handle only very basic use-cases at the moment.
+
+It would make my life easier if we could agree on what base for huge tmpfs
+we want to see upstream and move forward together.
+
+I would really like to see collaboration on this effort. At least one
+company with tmpfs expert seems interested in the feature. ;)
+
+Any comments?
+
+[1] http://lkml.kernel.org/g/alpine.LSU.2.11.1502201941340.14414@eggly.anvils
+
+Kirill A. Shutemov (9):
+  mm: do not pass mm_struct into handle_mm_fault
+  mm: introduce fault_env
+  mm: postpone page table allocation until do_set_pte()
+  mm: introduce do_set_pmd()
+  radix-tree: implement radix_tree_maybe_preload_order()
+  rmap: support file THP
+  thp: support file pages in zap_huge_pmd()
+  thp: handle file pages in split_huge_pmd()
+  WIP: shmem: add huge pages support
+
+ Documentation/filesystems/Locking |  10 +-
+ arch/alpha/mm/fault.c             |   2 +-
+ arch/arc/mm/fault.c               |   2 +-
+ arch/arm/mm/fault.c               |   2 +-
+ arch/arm64/mm/fault.c             |   2 +-
+ arch/avr32/mm/fault.c             |   2 +-
+ arch/cris/mm/fault.c              |   2 +-
+ arch/frv/mm/fault.c               |   2 +-
+ arch/hexagon/mm/vm_fault.c        |   2 +-
+ arch/ia64/mm/fault.c              |   2 +-
+ arch/m32r/mm/fault.c              |   2 +-
+ arch/m68k/mm/fault.c              |   2 +-
+ arch/metag/mm/fault.c             |   2 +-
+ arch/microblaze/mm/fault.c        |   2 +-
+ arch/mips/mm/fault.c              |   2 +-
+ arch/mn10300/mm/fault.c           |   2 +-
+ arch/nios2/mm/fault.c             |   2 +-
+ arch/openrisc/mm/fault.c          |   2 +-
+ arch/parisc/mm/fault.c            |   2 +-
+ arch/powerpc/mm/copro_fault.c     |   2 +-
+ arch/powerpc/mm/fault.c           |   2 +-
+ arch/s390/mm/fault.c              |   2 +-
+ arch/score/mm/fault.c             |   2 +-
+ arch/sh/mm/fault.c                |   2 +-
+ arch/sparc/mm/fault_32.c          |   4 +-
+ arch/sparc/mm/fault_64.c          |   2 +-
+ arch/tile/mm/fault.c              |   2 +-
+ arch/um/kernel/trap.c             |   2 +-
+ arch/unicore32/mm/fault.c         |   2 +-
+ arch/x86/mm/fault.c               |   2 +-
+ arch/xtensa/mm/fault.c            |   2 +-
+ drivers/iommu/amd_iommu_v2.c      |   2 +-
+ fs/userfaultfd.c                  |  22 +-
+ include/linux/huge_mm.h           |  20 +-
+ include/linux/mm.h                |  33 +-
+ include/linux/page-flags.h        |   2 +-
+ include/linux/radix-tree.h        |   1 +
+ include/linux/rmap.h              |   2 +-
+ include/linux/userfaultfd_k.h     |   8 +-
+ lib/radix-tree.c                  |  70 +++-
+ mm/filemap.c                      | 162 +++++---
+ mm/gup.c                          |   5 +-
+ mm/huge_memory.c                  | 313 ++++++++-------
+ mm/internal.h                     |  12 +-
+ mm/ksm.c                          |   3 +-
+ mm/memory.c                       | 790 +++++++++++++++++++++-----------------
+ mm/migrate.c                      |   2 +-
+ mm/rmap.c                         |  51 ++-
+ mm/shmem.c                        | 208 +++++++---
+ mm/swap.c                         |   2 +
+ mm/truncate.c                     |   5 +-
+ mm/util.c                         |   6 +
+ 52 files changed, 1037 insertions(+), 754 deletions(-)
+
 -- 
 2.6.2
 
