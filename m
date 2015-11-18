@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 45C8A6B0257
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 18:20:18 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so59302409pad.1
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:20:18 -0800 (PST)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D7D4F6B0258
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 18:20:19 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so59322057pac.3
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:20:19 -0800 (PST)
 Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id ch2si7235931pad.150.2015.11.18.15.20.17
+        by mx.google.com with ESMTPS id tx3si7469156pbc.224.2015.11.18.15.20.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Nov 2015 15:20:17 -0800 (PST)
-Received: by pacej9 with SMTP id ej9so59272554pac.2
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:20:17 -0800 (PST)
+        Wed, 18 Nov 2015 15:20:19 -0800 (PST)
+Received: by padhx2 with SMTP id hx2so59302816pad.1
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:20:19 -0800 (PST)
 From: Daniel Cashman <dcashman@android.com>
-Subject: [PATCH v3 2/4] arm: mm: support ARCH_MMAP_RND_BITS.
-Date: Wed, 18 Nov 2015 15:20:06 -0800
-Message-Id: <1447888808-31571-3-git-send-email-dcashman@android.com>
-In-Reply-To: <1447888808-31571-2-git-send-email-dcashman@android.com>
+Subject: [PATCH v3 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
+Date: Wed, 18 Nov 2015 15:20:07 -0800
+Message-Id: <1447888808-31571-4-git-send-email-dcashman@android.com>
+In-Reply-To: <1447888808-31571-3-git-send-email-dcashman@android.com>
 References: <1447888808-31571-1-git-send-email-dcashman@android.com>
  <1447888808-31571-2-git-send-email-dcashman@android.com>
+ <1447888808-31571-3-git-send-email-dcashman@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -25,61 +26,77 @@ Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mi
 
 From: dcashman <dcashman@google.com>
 
-arm: arch_mmap_rnd() uses a hard-code value of 8 to generate the
+arm64: arch_mmap_rnd() uses STACK_RND_MASK to generate the
 random offset for the mmap base address.  This value represents a
 compromise between increased ASLR effectiveness and avoiding
 address-space fragmentation. Replace it with a Kconfig option, which
 is sensibly bounded, so that platform developers may choose where to
-place this compromise. Keep 8 as the minimum acceptable value.
+place this compromise. Keep default values as new minimums.
 
 Signed-off-by: Daniel Cashman <dcashman@google.com>
 ---
- arch/arm/Kconfig   | 10 ++++++++++
- arch/arm/mm/mmap.c |  3 +--
- 2 files changed, 11 insertions(+), 2 deletions(-)
+ arch/arm64/Kconfig   | 23 +++++++++++++++++++++++
+ arch/arm64/mm/mmap.c |  6 ++++--
+ 2 files changed, 27 insertions(+), 2 deletions(-)
 
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 0365cbb..ca2e43a 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -35,6 +35,7 @@ config ARM
- 	select HAVE_ARCH_BITREVERSE if (CPU_32v7M || CPU_32v7) && !CPU_32v6
- 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL && !CPU_ENDIAN_BE32
- 	select HAVE_ARCH_KGDB if !CPU_ENDIAN_BE32
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 9ac16a4..be38e4c 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -51,6 +51,8 @@ config ARM64
+ 	select HAVE_ARCH_JUMP_LABEL
+ 	select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP
+ 	select HAVE_ARCH_KGDB
 +	select HAVE_ARCH_MMAP_RND_BITS
- 	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
++	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
+ 	select HAVE_ARCH_SECCOMP_FILTER
  	select HAVE_ARCH_TRACEHOOK
  	select HAVE_BPF_JIT
-@@ -306,6 +307,15 @@ config MMU
- 	  Select if you want MMU-based virtualised addressing space
- 	  support by paged memory management. If unsure, say 'Y'.
+@@ -104,6 +106,27 @@ config ARCH_PHYS_ADDR_T_64BIT
+ config MMU
+ 	def_bool y
  
 +config ARCH_MMAP_RND_BITS_MIN
-+	default 8
++       default 15 if ARM64_64K_PAGES
++       default 19
 +
 +config ARCH_MMAP_RND_BITS_MAX
-+	default 14 if MMU && PAGE_OFFSET=0x40000000
-+	default 15 if MMU && PAGE_OFFSET=0x80000000
-+	default 16 if MMU
-+	default 8
++       default 20 if ARM64_64K_PAGES && ARCH_VA_BITS=39
++       default 24 if ARCH_VA_BITS=39
++       default 23 if ARM64_64K_PAGES && ARCH_VA_BITS=42
++       default 27 if ARCH_VA_BITS=42
++       default 29 if ARM64_64K_PAGES && ARCH_VA_BITS=48
++       default 33 if ARCH_VA_BITS=48
++       default 15 if ARM64_64K_PAGES
++       default 19
 +
- #
- # The "ARM system type" choice list is ordered alphabetically by option
- # text.  Please add new entries in the option alphabetic order.
-diff --git a/arch/arm/mm/mmap.c b/arch/arm/mm/mmap.c
-index 407dc78..c938693 100644
---- a/arch/arm/mm/mmap.c
-+++ b/arch/arm/mm/mmap.c
-@@ -173,8 +173,7 @@ unsigned long arch_mmap_rnd(void)
++config ARCH_MMAP_RND_COMPAT_BITS_MIN
++       default 7 if ARM64_64K_PAGES
++       default 11
++
++config ARCH_MMAP_RND_COMPAT_BITS_MAX
++       default 16
++
+ config NO_IOPORT_MAP
+ 	def_bool y if !PCI
+ 
+diff --git a/arch/arm64/mm/mmap.c b/arch/arm64/mm/mmap.c
+index ed17747..b84d5b1 100644
+--- a/arch/arm64/mm/mmap.c
++++ b/arch/arm64/mm/mmap.c
+@@ -51,8 +51,10 @@ unsigned long arch_mmap_rnd(void)
  {
  	unsigned long rnd;
  
--	/* 8 bits of randomness in 20 address space bits */
--	rnd = (unsigned long)get_random_int() % (1 << 8);
-+	rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
- 
+-	rnd = (unsigned long)get_random_int() & STACK_RND_MASK;
+-
++	if (test_thread_flag(TIF_32BIT))
++		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
++	else
++		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
  	return rnd << PAGE_SHIFT;
  }
+ 
 -- 
 2.6.0.rc2.230.g3dd15c0
 
