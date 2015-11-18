@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C42DB6B0276
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 04:30:00 -0500 (EST)
-Received: by wmec201 with SMTP id c201so268450966wme.0
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 01:30:00 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B33286B0278
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 04:30:03 -0500 (EST)
+Received: by wmww144 with SMTP id w144so188645143wmw.1
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 01:30:03 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wg10si2714548wjb.216.2015.11.18.01.29.56
+        by mx.google.com with ESMTPS id r140si39472832wmd.52.2015.11.18.01.29.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Wed, 18 Nov 2015 01:29:56 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v5 2/6] mm, proc: account for shmem swap in /proc/pid/smaps
-Date: Wed, 18 Nov 2015 10:29:32 +0100
-Message-Id: <1447838976-17607-3-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v5 4/6] mm, proc: reduce cost of /proc/pid/smaps for unpopulated shmem mappings
+Date: Wed, 18 Nov 2015 10:29:34 +0100
+Message-Id: <1447838976-17607-5-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1447838976-17607-1-git-send-email-vbabka@suse.cz>
 References: <1447838976-17607-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,186 +20,213 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Michal Hocko <mhocko@suse.com>
 
-Currently, /proc/pid/smaps will always show "Swap: 0 kB" for shmem-backed
-mappings, even if the mapped portion does contain pages that were swapped out.
-This is because unlike private anonymous mappings, shmem does not change pte
-to swap entry, but pte_none when swapping the page out. In the smaps page
-walk, such page thus looks like it was never faulted in.
+Following the previous patch, further reduction of /proc/pid/smaps cost is
+possible for private writable shmem mappings with unpopulated areas where
+the page walk invokes the .pte_hole function. We can use radix tree iterator
+for each such area instead of calling find_get_entry() in a loop. This is
+possible at the extra maintenance cost of introducing another shmem function
+shmem_partial_swap_usage().
 
-This patch changes smaps_pte_entry() to determine the swap status for such
-pte_none entries for shmem mappings, similarly to how mincore_page() does it.
-Swapped out shmem pages are thus accounted for. For private mappings of tmpfs
-files that COWed some of the pages, swaped out status of the original shmem
-pages is naturally ignored. If some of the private copies was also swapped
-out, they are accounted via their page table swap entries, so the resulting
-reported swap usage is then a sum of both swapped out private copies, and
-swapped out shmem pages that were not COWed. No double accounting can thus
-happen.
+To demonstrate the diference, I have measured this on a process that creates a
+private writable 2GB mapping of a partially swapped out /dev/shm/file (which
+cannot employ the optimizations from the prvious patch) and doesn't populate it
+at all. I time how long does it take to cat /proc/pid/smaps of this process 100
+times.
 
-The accounting is arguably still not as precise as for private anonymous
-mappings, since now we will count also pages that the process in question never
-accessed, but another process populated them and then let them become swapped
-out. I believe it is still less confusing and subtle than not showing any swap
-usage by shmem mappings at all. Swapped out counter might of interest of users
-who would like to prevent from future swapins during performance critical
-operation and pre-fault them at their convenience. Especially for larger
-swapped out regions the cost of swapin is much higher than a fresh page
-allocation.  So a differentiation between pte_none vs. swapped out is important
-for those usecases.
-
-One downside of this patch is that it makes /proc/pid/smaps more expensive for
-shmem mappings, as we consult the radix tree for each pte_none entry, so the
-overal complexity is O(n*log(n)). I have measured this on a process that
-creates a 2GB mapping and dirties single pages with a stride of 2MB, and time
-how long does it take to cat /proc/pid/smaps of this process 100 times.
-
-Private anonymous mapping:
-
-real    0m0.949s
-user    0m0.116s
-sys     0m0.348s
-
-Mapping of a /dev/shm/file:
+Before this patch:
 
 real    0m3.831s
 user    0m0.180s
 sys     0m3.212s
 
-The difference rather substantional, so the next patch will reduce the cost
-for shared or read-only mappings.
-
-In a less controlled experiment, I've gathered pids of processes on my desktop
-that have either '/dev/shm/*' or 'SYSV*' in smaps. This included the Chrome
-browser and some KDE processes. Again, I've run cat /proc/pid/smaps on each
-100 times.
-
-Before this patch:
-
-real    0m9.050s
-user    0m0.518s
-sys     0m8.066s
-
 After this patch:
 
-real    0m9.221s
-user    0m0.541s
-sys     0m8.187s
+real    0m1.176s
+user    0m0.180s
+sys     0m0.684s
 
-This suggests low impact on average systems.
-
-Note that this patch doesn't attempt to adjust the SwapPss field for shmem
-mappings, which would need extra work to determine who else could have the
-pages mapped. Thus the value stays zero except for COWed swapped out pages in
-a shmem mapping, which are accounted as usual.
+The time is similar to case where radix tree iterator is employed on the whole
+mapping.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- Documentation/filesystems/proc.txt |  5 +++-
- fs/proc/task_mmu.c                 | 51 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 55 insertions(+), 1 deletion(-)
+ fs/proc/task_mmu.c       | 42 ++++++++++---------------------
+ include/linux/shmem_fs.h |  2 ++
+ mm/shmem.c               | 65 ++++++++++++++++++++++++++++--------------------
+ 3 files changed, 53 insertions(+), 56 deletions(-)
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 9f13b6e..fdeb5b3 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -460,7 +460,10 @@ and a page is modified, the file page is replaced by a private anonymous copy.
- hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
- reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
- "Swap" shows how much would-be-anonymous memory is also used, but out on swap.
--"SwapPss" shows proportional swap share of this mapping.
-+For shmem mappings, "Swap" includes also the size of the mapped (and not
-+replaced by copy-on-write) part of the underlying shmem object out on swap.
-+"SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
-+does not take into account swapped out page of underlying shmem objects.
- "Locked" indicates whether the mapping is locked in memory or not.
- 
- "VmFlags" field deserves a separate description. This member represents the kernel
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 9e0938b..7e0c4c2 100644
+index 491e675..a0338ec 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -451,6 +451,7 @@ struct mem_size_stats {
- 	unsigned long private_hugetlb;
- 	u64 pss;
- 	u64 swap_pss;
-+	bool check_shmem_swap;
- };
- 
- static void smaps_account(struct mem_size_stats *mss, struct page *page,
-@@ -500,6 +501,45 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
- 	}
+@@ -503,42 +503,16 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
  }
  
-+#ifdef CONFIG_SHMEM
-+static unsigned long smaps_shmem_swap(struct vm_area_struct *vma,
-+		unsigned long addr)
-+{
-+	struct page *page;
-+
-+	page = find_get_entry(vma->vm_file->f_mapping,
-+					linear_page_index(vma, addr));
-+	if (!page)
-+		return 0;
-+
-+	if (radix_tree_exceptional_entry(page))
-+		return PAGE_SIZE;
-+
-+	page_cache_release(page);
-+	return 0;
-+
-+}
-+
-+static int smaps_pte_hole(unsigned long addr, unsigned long end,
-+		struct mm_walk *walk)
-+{
-+	struct mem_size_stats *mss = walk->private;
-+
-+	while (addr < end) {
-+		mss->swap += smaps_shmem_swap(walk->vma, addr);
-+		addr += PAGE_SIZE;
-+	}
-+
-+	return 0;
-+}
-+#else
-+static unsigned long smaps_shmem_swap(struct vm_area_struct *vma,
-+		unsigned long addr)
-+{
-+	return 0;
-+}
-+#endif
-+
- static void smaps_pte_entry(pte_t *pte, unsigned long addr,
+ #ifdef CONFIG_SHMEM
+-static unsigned long smaps_shmem_swap(struct vm_area_struct *vma,
+-		unsigned long addr)
+-{
+-	struct page *page;
+-
+-	page = find_get_entry(vma->vm_file->f_mapping,
+-					linear_page_index(vma, addr));
+-	if (!page)
+-		return 0;
+-
+-	if (radix_tree_exceptional_entry(page))
+-		return PAGE_SIZE;
+-
+-	page_cache_release(page);
+-	return 0;
+-
+-}
+-
+ static int smaps_pte_hole(unsigned long addr, unsigned long end,
  		struct mm_walk *walk)
  {
-@@ -527,6 +567,9 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
- 			}
- 		} else if (is_migration_entry(swpent))
+ 	struct mem_size_stats *mss = walk->private;
+ 
+-	while (addr < end) {
+-		mss->swap += smaps_shmem_swap(walk->vma, addr);
+-		addr += PAGE_SIZE;
+-	}
++	mss->swap += shmem_partial_swap_usage(
++			walk->vma->vm_file->f_mapping, addr, end);
+ 
+ 	return 0;
+ }
+-#else
+-static unsigned long smaps_shmem_swap(struct vm_area_struct *vma,
+-		unsigned long addr)
+-{
+-	return 0;
+-}
+ #endif
+ 
+ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
+@@ -570,7 +544,17 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
  			page = migration_entry_to_page(swpent);
-+	} else if (unlikely(IS_ENABLED(CONFIG_SHMEM) && mss->check_shmem_swap
-+							&& pte_none(*pte))) {
-+		mss->swap += smaps_shmem_swap(vma, addr);
+ 	} else if (unlikely(IS_ENABLED(CONFIG_SHMEM) && mss->check_shmem_swap
+ 							&& pte_none(*pte))) {
+-		mss->swap += smaps_shmem_swap(vma, addr);
++		page = find_get_entry(vma->vm_file->f_mapping,
++						linear_page_index(vma, addr));
++		if (!page)
++			return;
++
++		if (radix_tree_exceptional_entry(page))
++			mss->swap += PAGE_SIZE;
++		else
++			page_cache_release(page);
++
++		return;
  	}
  
  	if (!page)
-@@ -686,6 +729,14 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 	};
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index bd58be5..a43f41c 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -61,6 +61,8 @@ extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
+ extern int shmem_unuse(swp_entry_t entry, struct page *page);
  
- 	memset(&mss, 0, sizeof mss);
-+
-+#ifdef CONFIG_SHMEM
-+	if (vma->vm_file && shmem_mapping(vma->vm_file->f_mapping)) {
-+		mss.check_shmem_swap = true;
-+		smaps_walk.pte_hole = smaps_pte_hole;
-+	}
-+#endif
-+
- 	/* mmap_sem is held in m_start */
- 	walk_page_vma(vma, &smaps_walk);
+ extern unsigned long shmem_swap_usage(struct vm_area_struct *vma);
++extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
++						pgoff_t start, pgoff_t end);
  
+ static inline struct page *shmem_read_mapping_page(
+ 				struct address_space *mapping, pgoff_t index)
+diff --git a/mm/shmem.c b/mm/shmem.c
+index bc0f676..8689a58 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -361,41 +361,18 @@ static int shmem_free_swap(struct address_space *mapping,
+ 
+ /*
+  * Determine (in bytes) how many of the shmem object's pages mapped by the
+- * given vma is swapped out.
++ * given offsets are swapped out.
+  *
+  * This is safe to call without i_mutex or mapping->tree_lock thanks to RCU,
+  * as long as the inode doesn't go away and racy results are not a problem.
+  */
+-unsigned long shmem_swap_usage(struct vm_area_struct *vma)
++unsigned long shmem_partial_swap_usage(struct address_space *mapping,
++						pgoff_t start, pgoff_t end)
+ {
+-	struct inode *inode = file_inode(vma->vm_file);
+-	struct shmem_inode_info *info = SHMEM_I(inode);
+-	struct address_space *mapping = inode->i_mapping;
+-	unsigned long swapped;
+-	pgoff_t start, end;
+ 	struct radix_tree_iter iter;
+ 	void **slot;
+ 	struct page *page;
+-
+-	/* Be careful as we don't hold info->lock */
+-	swapped = READ_ONCE(info->swapped);
+-
+-	/*
+-	 * The easier cases are when the shmem object has nothing in swap, or
+-	 * the vma maps it whole. Then we can simply use the stats that we
+-	 * already track.
+-	 */
+-	if (!swapped)
+-		return 0;
+-
+-	if (!vma->vm_pgoff && vma->vm_end - vma->vm_start >= inode->i_size)
+-		return swapped << PAGE_SHIFT;
+-
+-	swapped = 0;
+-
+-	/* Here comes the more involved part */
+-	start = linear_page_index(vma, vma->vm_start);
+-	end = linear_page_index(vma, vma->vm_end);
++	unsigned long swapped = 0;
+ 
+ 	rcu_read_lock();
+ 
+@@ -430,6 +407,40 @@ unsigned long shmem_swap_usage(struct vm_area_struct *vma)
+ }
+ 
+ /*
++ * Determine (in bytes) how many of the shmem object's pages mapped by the
++ * given vma is swapped out.
++ *
++ * This is safe to call without i_mutex or mapping->tree_lock thanks to RCU,
++ * as long as the inode doesn't go away and racy results are not a problem.
++ */
++unsigned long shmem_swap_usage(struct vm_area_struct *vma)
++{
++	struct inode *inode = file_inode(vma->vm_file);
++	struct shmem_inode_info *info = SHMEM_I(inode);
++	struct address_space *mapping = inode->i_mapping;
++	unsigned long swapped;
++
++	/* Be careful as we don't hold info->lock */
++	swapped = READ_ONCE(info->swapped);
++
++	/*
++	 * The easier cases are when the shmem object has nothing in swap, or
++	 * the vma maps it whole. Then we can simply use the stats that we
++	 * already track.
++	 */
++	if (!swapped)
++		return 0;
++
++	if (!vma->vm_pgoff && vma->vm_end - vma->vm_start >= inode->i_size)
++		return swapped << PAGE_SHIFT;
++
++	/* Here comes the more involved part */
++	return shmem_partial_swap_usage(mapping,
++			linear_page_index(vma, vma->vm_start),
++			linear_page_index(vma, vma->vm_end));
++}
++
++/*
+  * SysV IPC SHM_UNLOCK restore Unevictable pages to their evictable lists.
+  */
+ void shmem_unlock_mapping(struct address_space *mapping)
 -- 
 2.6.3
 
