@@ -1,150 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C844A6B0280
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 11:03:13 -0500 (EST)
-Received: by lbbcs9 with SMTP id cs9so27147752lbb.1
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 08:03:13 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id eq17si2372371lbc.115.2015.11.18.08.03.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Nov 2015 08:03:11 -0800 (PST)
-Date: Wed, 18 Nov 2015 19:02:54 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 14/14] mm: memcontrol: hook up vmpressure to socket
- pressure
-Message-ID: <20151118160253.GR31308@esperanza>
-References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
- <1447371693-25143-15-git-send-email-hannes@cmpxchg.org>
- <20151115135457.GM31308@esperanza>
- <20151116185316.GC32544@cmpxchg.org>
- <20151117201849.GQ31308@esperanza>
- <20151117222217.GA20394@cmpxchg.org>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D64196B026E
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 11:18:05 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so49194614pac.2
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 08:18:05 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id ti16si5174247pac.192.2015.11.18.08.18.04
+        for <linux-mm@kvack.org>;
+        Wed, 18 Nov 2015 08:18:05 -0800 (PST)
+Date: Wed, 18 Nov 2015 09:16:08 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 03/11] pmem: enable REQ_FUA/REQ_FLUSH handling
+Message-ID: <20151118161608.GA10656@linux.intel.com>
+References: <1447459610-14259-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1447459610-14259-4-git-send-email-ross.zwisler@linux.intel.com>
+ <CAPcyv4j4arHE+iAALn1WPDzSb_QSCDy8udtXU1FV=kYSZDfv8A@mail.gmail.com>
+ <22E0F870-C1FB-431E-BF6C-B395A09A2B0D@dilger.ca>
+ <CAPcyv4jwx3VzyRugcpH7KCOKM64kJ4Bq4wgY=iNJMvLTHrBv-Q@mail.gmail.com>
+ <20151116200950.GB9737@linux.intel.com>
+ <20151118104055.GA6097@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151117222217.GA20394@cmpxchg.org>
+In-Reply-To: <20151118104055.GA6097@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Andreas Dilger <adilger@dilger.ca>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "J. Bruce Fields" <bfields@fieldses.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <willy@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, X86 ML <x86@kernel.org>, XFS Developers <xfs@oss.sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Tue, Nov 17, 2015 at 05:22:17PM -0500, Johannes Weiner wrote:
-> On Tue, Nov 17, 2015 at 11:18:50PM +0300, Vladimir Davydov wrote:
-> > AFAIK vmpressure was designed to allow userspace to tune hard limits of
-> > cgroups in accordance with their demands, in which case the way how
-> > vmpressure notifications work makes sense.
-> 
-> You can still do that when the reporting happens on the reclaim level,
-> it's easy to figure out where the pressure comes from once a group is
-> struggling to reclaim its LRU pages.
-
-Right, one only needs to check usage-vs-limit in the cgroup that
-received a notification and all its ascendants, but I doubt existing
-applications do that.
-
-> 
-> Reporting on the pressure level does nothing but destroy valuable
-> information that would be useful in scenarios other than tuning a
-> hierarchical memory limit.
-
-Agree.
-
-> 
-> > > But you guys were wary about the patch that changed it, and this
-> > 
-> > Changing vmpressure semantics as you proposed in v1 would result in
-> > userspace getting notifications even if cgroup does not hit its limit.
-> > May be it could be useful to someone (e.g. it could help tuning
-> > memory.low), but I am pretty sure this would also result in breakages
-> > for others.
-> 
-> Maybe. I'll look into a two-layer vmpressure recording/reporting model
-> that would give us reclaim-level events internally while retaining
-> pressure-level events for the existing userspace interface.
-
-It would be great. I think vmpressure, as you propose to implement it,
-could be useful even in the unified hierarchy for tuning memory.low and
-memory.high.
-
-> 
-> > > series has kicked up enough dust already, so I backed it out.
+On Wed, Nov 18, 2015 at 11:40:55AM +0100, Jan Kara wrote:
+> On Mon 16-11-15 13:09:50, Ross Zwisler wrote:
+> > On Fri, Nov 13, 2015 at 06:32:40PM -0800, Dan Williams wrote:
+> > > On Fri, Nov 13, 2015 at 4:43 PM, Andreas Dilger <adilger@dilger.ca> wrote:
+> > > > On Nov 13, 2015, at 5:20 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> > > >>
+> > > >> On Fri, Nov 13, 2015 at 4:06 PM, Ross Zwisler
+> > > >> <ross.zwisler@linux.intel.com> wrote:
+> > > >>> Currently the PMEM driver doesn't accept REQ_FLUSH or REQ_FUA bios.  These
+> > > >>> are sent down via blkdev_issue_flush() in response to a fsync() or msync()
+> > > >>> and are used by filesystems to order their metadata, among other things.
+> > > >>>
+> > > >>> When we get an msync() or fsync() it is the responsibility of the DAX code
+> > > >>> to flush all dirty pages to media.  The PMEM driver then just has issue a
+> > > >>> wmb_pmem() in response to the REQ_FLUSH to ensure that before we return all
+> > > >>> the flushed data has been durably stored on the media.
+> > > >>>
+> > > >>> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > > >>
+> > > >> Hmm, I'm not seeing why we need this patch.  If the actual flushing of
+> > > >> the cache is done by the core why does the driver need support
+> > > >> REQ_FLUSH?  Especially since it's just a couple instructions.  REQ_FUA
+> > > >> only makes sense if individual writes can bypass the "drive" cache,
+> > > >> but no I/O submitted to the driver proper is ever cached we always
+> > > >> flush it through to media.
+> > > >
+> > > > If the upper level filesystem gets an error when submitting a flush
+> > > > request, then it assumes the underlying hardware is broken and cannot
+> > > > be as aggressive in IO submission, but instead has to wait for in-flight
+> > > > IO to complete.
 > > > 
-> > > But this will still be useful. Yes, it won't help in rebalancing an
-> > > regularly working system, which would be cool, but it'll still help
-> > > contain a worklad that is growing beyond expectations, which is the
-> > > scenario that kickstarted this work.
+> > > Upper level filesystems won't get errors when the driver does not
+> > > support flush.  Those requests are ended cleanly in
+> > > generic_make_request_checks().  Yes, the fs still needs to wait for
+> > > outstanding I/O to complete but in the case of pmem all I/O is
+> > > synchronous.  There's never anything to await when flushing at the
+> > > pmem driver level.
+> > > 
+> > > > Since FUA/FLUSH is basically a no-op for pmem devices,
+> > > > it doesn't make sense _not_ to support this functionality.
+> > > 
+> > > Seems to be a nop either way.  Given that DAX may lead to dirty data
+> > > pending to the device in the cpu cache that a REQ_FLUSH request will
+> > > not touch, its better to leave it all to the mm core to handle.  I.e.
+> > > it doesn't make sense to call the driver just for two instructions
+> > > (sfence + pcommit) when the mm core is taking on the cache flushing.
+> > > Either handle it all in the mm or the driver, not a mixture.
 > > 
-> > I haven't looked through all the previous patches in the series, but
-> > AFAIU they should do the trick, no? Notifying sockets about vmpressure
-> > is rather needed to protect a workload from itself.
+> > Does anyone know if ext4 and/or XFS alter their algorithms based on whether
+> > the driver supports REQ_FLUSH/REQ_FUA?  Will the filesystem behave more
+> > efficiently with respect to their internal I/O ordering, etc., if PMEM
+> > advertises REQ_FLUSH/REQ_FUA support, even though we could do the same thing
+> > at the DAX layer?
 > 
-> No, the only critical thing is to protect the system from OOM
-> conditions caused by what should be containerized processes.
-> 
-> That's a correctness issue.
-> 
-> How much we mitigate the consequences inside the container when the
-> workload screws up is secondary. But even that is already much better
-> in this series compared to memcg v1, while leaving us with all the
-> freedom to continue improving this internal mitigation in the future.
-> 
-> > And with this patch it will work this way, but only if sum limits <
-> > total ram, which is rather rare in practice. On tightly packed
-> > systems it does nothing.
-> 
-> That's not true, it's still useful when things go south inside a
-> cgroup, even with overcommitted limits. See above.
+> So the information whether the driver supports FLUSH / FUA is generally
+> ignored by filesystems. We issue REQ_FLUSH / REQ_FUA requests to achieve
+> required ordering for fs consistency and expect that block layer does the
+> right thing - i.e., if the device has volatile write cache, it will be
+> flushed, if it doesn't have it, the request will be ignored. So the
+> difference between supporting and not supporting REQ_FLUSH / REQ_FUA is
+> only in how block layer handles such requests.
 
-I meant solely this patch here, not the rest of the patch set. In the
-overcommitted case there is no difference if we have the last patch or
-not AFAIU.
-
-> 
-> We can optimize the continuous global pressure rebalancing later on;
-> whether that'll be based on a modified vmpressure implementation, or
-> adding reclaim efficiency to the shrinker API or whatever.
-> 
-> > That said, I don't think we should commit this particular patch. Neither
-> > do I think socket accounting should be enabled by default in the unified
-> > hierarchy for now, since the implementation is still incomplete. IMHO.
-> 
-> I don't see a technical basis for either of those suggestions.
-> 
-
-IMHO users switching to the unified hierarchy don't expect that
-something gets broken in the default setup unless it's a bug. They
-expect API changes, new functionality appeared, some features dropped,
-but not breakages.
-
-With this patch set, one gets socket accounting enabled by default,
-which would be OK if it always worked right, at least in theory. But it
-does not if the node is overcommitted - one might get unexpected local
-OOMs due to growing socket buffers, which have never been seen in the
-legacy hierarchy.
-
-You say that it will help coping with global OOM, which is true, but it
-looks like trading an old problem for a new one, which is unaccepted in
-this particular case IMHO, because the legacy hierarchy has been used
-for years and people are likely to be used to old problems such as lack
-of socket buffers accounting - they might already work around this
-problem by tuning global tcp limits for instance. After switching to the
-unified hierarchy they'll get a new problem in the default setup, which
-is no good IMHO.
-
-I'm not against enabling socket buffers accounting by default, but only
-once it is expected to work in 99% cases, at least theoretically.
-
-Why can't we apply all patches but the last one (they look OK at first
-glance, but I need more time to review them carefully) and disable
-socket accounting by default for now? Then you or someone else would
-prepare a separate patch set introducing vmpressure propagation to
-socket code, so that socket accounting could be enabled by default.
-
-I don't insist. It's just my vision on how things should be done.
-
-Thanks,
-Vladimir
+Cool, thank you for the info.  Based on this I'll pull out the
+REQ_FLUSH/REQ_FUA patch for v3 of this series and move the wmb_pmem() call up
+to DAX as Dan suggests.  If performance data shows that we can get a benefit
+from centralizing wmb_pmem() behind REQ_FUA/REQ_FLUSH, I'll add it back in
+later as part of that series.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
