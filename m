@@ -1,71 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CBDF6B0253
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 16:48:38 -0500 (EST)
-Received: by wmdw130 with SMTP id w130so216839176wmd.0
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 13:48:38 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id i129si7729412wma.2.2015.11.18.13.48.36
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ADFA6B0255
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 17:33:31 -0500 (EST)
+Received: by wmww144 with SMTP id w144so92552720wmw.0
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:33:31 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id 190si7947248wmb.18.2015.11.18.14.33.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Nov 2015 13:48:37 -0800 (PST)
-Date: Wed, 18 Nov 2015 16:48:22 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 13/14] mm: memcontrol: account socket memory in unified
- hierarchy memory controller
-Message-ID: <20151118214822.GA1365@cmpxchg.org>
-References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
- <1447371693-25143-14-git-send-email-hannes@cmpxchg.org>
- <20151116155923.GH14116@dhcp22.suse.cz>
- <20151116181810.GB32544@cmpxchg.org>
- <20151118162256.GK19145@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Nov 2015 14:33:30 -0800 (PST)
+Date: Wed, 18 Nov 2015 23:32:28 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v3 01/22] timer: Allow to check when the timer callback
+ has not finished yet
+In-Reply-To: <1447853127-3461-2-git-send-email-pmladek@suse.com>
+Message-ID: <alpine.DEB.2.11.1511182331010.3761@nanos>
+References: <1447853127-3461-1-git-send-email-pmladek@suse.com> <1447853127-3461-2-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151118162256.GK19145@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Nov 18, 2015 at 05:22:56PM +0100, Michal Hocko wrote:
-> On Mon 16-11-15 13:18:10, Johannes Weiner wrote:
-> > What load would you test and what would be the baseline to compare it
-> > to?
+On Wed, 18 Nov 2015, Petr Mladek wrote:
+> timer_pending() checks whether the list of callbacks is empty.
+> Each callback is removed from the list before it is called,
+> see call_timer_fn() in __run_timers().
 > 
-> It seems like netperf with a stream load running in a memcg with no
-> limits vs. in root memcg (and no other cgroups) should give at least a
-> hint about the runtime overhead, no?
+> Sometimes we need to make sure that the callback has finished.
+> For example, if we want to free some resources that are accessed
+> by the callback.
+> 
+> For this purpose, this patch adds timer_active(). It checks both
+> the list of callbacks and the running_timer. It takes the base_lock
+> to see a consistent state.
+> 
+> I plan to use it to implement delayed works in kthread worker.
+> But I guess that it will have wider use. In fact, I wonder if
+> timer_pending() is misused in some situations.
 
-Comparing root vs. dedicated group generally doesn't make sense since
-you either need containment or you don't. It makes more sense to test
-both times inside a memory-controlled cgroup, one with a regular boot,
-one with cgroup.memory=nosocket.
+Well. That's nice and good. But how will that new function solve
+anything? After you drop the lock the state is not longer valid.
+ 
+Thanks,
 
-So I ran perf record -g -a netperf -t TCP_STREAM multiple times inside
-a memory-controlled cgroup, but mostly mem_cgroup_charge_skmem() does
-not show up in the profile at all. Once it was there with 0.00%.
-
-I ran another test that downloads the latest kernel image from
-kernel.org at 13MB/s (on my i5 laptop) and it looks like this:
-
-     0.02%     0.01%  irq/44-iwlwifi   [kernel.kallsyms]           [k] mem_cgroup_charge_skmem
-             |
-             ---mem_cgroup_charge_skmem
-                __sk_mem_schedule
-                tcp_try_rmem_schedule
-                tcp_data_queue
-                tcp_rcv_established
-                tcp_v4_do_rcv
-                tcp_v4_rcv
-                ip_local_deliver
-                ip_rcv
-                __netif_receive_skb_core
-                __netif_receive_skb
-                netif_receive_skb_internal
-                napi_gro_complete
-
-The runs vary too much for this to be measurable in elapsed time.
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
