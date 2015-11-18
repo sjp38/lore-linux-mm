@@ -1,107 +1,267 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 265196B025E
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 17:48:54 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so58576993pac.3
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:48:53 -0800 (PST)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id ns9si7313657pbb.147.2015.11.18.14.48.53
+Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 236B66B0255
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 18:18:09 -0500 (EST)
+Received: by ioir85 with SMTP id r85so71213172ioi.1
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:18:08 -0800 (PST)
+Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
+        by mx.google.com with ESMTPS id s74si7968245ioi.32.2015.11.18.15.18.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Nov 2015 14:48:53 -0800 (PST)
-Received: by pacdm15 with SMTP id dm15so58576809pac.3
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:48:53 -0800 (PST)
-From: Daniel Cashman <dcashman@android.com>
-Subject: [PATCH 4/4] x86: mm: support ARCH_MMAP_RND_BITS.
-Date: Wed, 18 Nov 2015 14:48:21 -0800
-Message-Id: <1447886901-26098-5-git-send-email-dcashman@android.com>
-In-Reply-To: <1447886901-26098-4-git-send-email-dcashman@android.com>
+        Wed, 18 Nov 2015 15:18:08 -0800 (PST)
+Received: by iofh3 with SMTP id h3so71319789iof.3
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:18:08 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1447886901-26098-2-git-send-email-dcashman@android.com>
 References: <1447886901-26098-1-git-send-email-dcashman@android.com>
- <1447886901-26098-2-git-send-email-dcashman@android.com>
- <1447886901-26098-3-git-send-email-dcashman@android.com>
- <1447886901-26098-4-git-send-email-dcashman@android.com>
+	<1447886901-26098-2-git-send-email-dcashman@android.com>
+Date: Wed, 18 Nov 2015 15:18:07 -0800
+Message-ID: <CAGXu5jL7GXKqj1UTpwEwtZ_kKpeorA0fz84Pq=15kdZ3vGytQA@mail.gmail.com>
+Subject: Re: [PATCH 1/4] mm: mmap: Add new /proc tunable for mmap_base ASLR.
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com
+To: Daniel Cashman <dcashman@android.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Hector Marco <hecmargi@upv.es>, Borislav Petkov <bp@suse.de>, Daniel Cashman <dcashman@google.com>
 
-From: dcashman <dcashman@google.com>
+On Wed, Nov 18, 2015 at 2:48 PM, Daniel Cashman <dcashman@android.com> wrote:
+> From: dcashman <dcashman@google.com>
+>
+> ASLR currently only uses 8 bits to generate the random offset for the
+> mmap base address on 32 bit architectures. This value was chosen to
+> prevent a poorly chosen value from dividing the address space in such
+> a way as to prevent large allocations. This may not be an issue on all
+> platforms. Allow the specification of a minimum number of bits so that
+> platforms desiring greater ASLR protection may determine where to place
+> the trade-off.
+>
+> Signed-off-by: Daniel Cashman <dcashman@google.com>
+> ---
+>  Documentation/sysctl/vm.txt | 29 ++++++++++++++++++++
+>  arch/Kconfig                | 64 +++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/mm.h          | 11 ++++++++
+>  kernel/sysctl.c             | 22 ++++++++++++++++
+>  mm/mmap.c                   | 12 +++++++++
+>  5 files changed, 138 insertions(+)
+>
+> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> index f72370b..d77a81a 100644
+> --- a/Documentation/sysctl/vm.txt
+> +++ b/Documentation/sysctl/vm.txt
+> @@ -42,6 +42,8 @@ Currently, these files are in /proc/sys/vm:
+>  - min_slab_ratio
+>  - min_unmapped_ratio
+>  - mmap_min_addr
+> +- mmap_rnd_bits
+> +- mmap_rnd_compat_bits
+>  - nr_hugepages
+>  - nr_overcommit_hugepages
+>  - nr_trim_pages         (only if CONFIG_MMU=n)
+> @@ -485,6 +487,33 @@ against future potential kernel bugs.
+>
+>  ==============================================================
+>
+> +mmap_rnd_bits:
+> +
+> +This value can be used to select the number of bits to use to
+> +determine the random offset to the base address of vma regions
+> +resulting from mmap allocations on architectures which support
+> +tuning address space randomization.  This value will be bounded
+> +by the architecture's minimum and maximum supported values.
+> +
+> +This value can be changed after boot using the
+> +/proc/sys/kernel/mmap_rnd_bits tunable
 
-x86: arch_mmap_rnd() uses hard-coded values, 8 for 32-bit and 28 for
-64-bit, to generate the random offset for the mmap base address.
-This value represents a compromise between increased ASLR
-effectiveness and avoiding address-space fragmentation. Replace it
-with a Kconfig option, which is sensibly bounded, so that platform
-developers may choose where to place this compromise. Keep default
-values as new minimums.
+Here and several places below also need the swap from
+"/proc/sys/kernel/..." to ".../vm/...".
 
-Signed-off-by: Daniel Cashman <dcashman@google.com>
----
- arch/x86/Kconfig   | 16 ++++++++++++++++
- arch/x86/mm/mmap.c | 12 ++++++------
- 2 files changed, 22 insertions(+), 6 deletions(-)
+> +
+> +==============================================================
+> +
+> +mmap_rnd_compat_bits:
+> +
+> +This value can be used to select the number of bits to use to
+> +determine the random offset to the base address of vma regions
+> +resulting from mmap allocations for applications run in
+> +compatibility mode on architectures which support tuning address
+> +space randomization.  This value will be bounded by the
+> +architecture's minimum and maximum supported values.
+> +
+> +This value can be changed after boot using the
+> +/proc/sys/kernel/mmap_rnd_compat_bits tunable
+> +
+> +==============================================================
+> +
+>  nr_hugepages
+>
+>  Change the minimum size of the hugepage pool.
+> diff --git a/arch/Kconfig b/arch/Kconfig
+> index 4e949e5..141823f 100644
+> --- a/arch/Kconfig
+> +++ b/arch/Kconfig
+> @@ -511,6 +511,70 @@ config ARCH_HAS_ELF_RANDOMIZE
+>           - arch_mmap_rnd()
+>           - arch_randomize_brk()
+>
+> +config HAVE_ARCH_MMAP_RND_BITS
+> +       bool
+> +       help
+> +         An arch should select this symbol if it supports setting a variable
+> +         number of bits for use in establishing the base address for mmap
+> +         allocations and provides values for both:
+> +         - ARCH_MMAP_RND_BITS_MIN
+> +         - ARCH_MMAP_RND_BITS_MAX
+> +
+> +config ARCH_MMAP_RND_BITS_MIN
+> +       int
+> +
+> +config ARCH_MMAP_RND_BITS_MAX
+> +       int
+> +
+> +config ARCH_MMAP_RND_BITS_DEFAULT
+> +       int
+> +
+> +config ARCH_MMAP_RND_BITS
+> +       int "Number of bits to use for ASLR of mmap base address" if EXPERT
+> +       range ARCH_MMAP_RND_BITS_MIN ARCH_MMAP_RND_BITS_MAX
+> +       default ARCH_MMAP_RND_BITS_DEFAULT if ARCH_MMAP_RND_BITS_DEFAULT
+> +       default ARCH_MMAP_RND_BITS_MIN
+> +       depends on HAVE_ARCH_MMAP_RND_BITS
+> +       help
+> +         This value can be used to select the number of bits to use to
+> +         determine the random offset to the base address of vma regions
+> +         resulting from mmap allocations. This value will be bounded
+> +         by the architecture's minimum and maximum supported values.
+> +
+> +         This value can be changed after boot using the
+> +         /proc/sys/kernel/mmap_rnd_bits tunable
+> +
+> +config HAVE_ARCH_MMAP_RND_COMPAT_BITS
+> +       bool
+> +       help
+> +         An arch should select this symbol if it supports running applications
+> +         in compatibility mode, supports setting a variable number of bits for
+> +         use in establishing the base address for mmap allocations, and
+> +         provides values for both:
+> +         - ARCH_MMAP_RND_COMPAT_BITS_MIN
+> +         - ARCH_MMAP_RND_COMPAT_BITS_MAX
+> +
+> +config ARCH_MMAP_RND_COMPAT_BITS_MIN
+> +       int
+> +
+> +config ARCH_MMAP_RND_COMPAT_BITS_MAX
+> +       int
+> +
+> +config ARCH_MMAP_RND_COMPAT_BITS
+> +       int "Number of bits to use for ASLR of mmap base address for compatible applications" if EXPERT
+> +       range ARCH_MMAP_RND_COMPAT_BITS_MIN ARCH_MMAP_RND_COMPAT_BITS_MAX
+> +       default ARCH_MMAP_RND_COMPAT_BITS_MIN
+> +       depends on HAVE_ARCH_MMAP_RND_COMPAT_BITS
+> +       help
+> +         This value can be used to select the number of bits to use to
+> +         determine the random offset to the base address of vma regions
+> +         resulting from mmap allocations for compatible applications This
+> +         value will be bounded by the architecture's minimum and maximum
+> +         supported values.
+> +
+> +         This value can be changed after boot using the
+> +         /proc/sys/kernel/mmap_rnd_compat_bits tunable
+> +
+>  config HAVE_COPY_THREAD_TLS
+>         bool
+>         help
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 00bad77..7d39828 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -51,6 +51,17 @@ extern int sysctl_legacy_va_layout;
+>  #define sysctl_legacy_va_layout 0
+>  #endif
+>
+> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
+> +extern int mmap_rnd_bits_min;
+> +extern int mmap_rnd_bits_max;
+> +extern int mmap_rnd_bits;
+> +#endif
+> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_COMPAT_BITS
+> +extern int mmap_rnd_compat_bits_min;
+> +extern int mmap_rnd_compat_bits_max;
+> +extern int mmap_rnd_compat_bits;
+> +#endif
+> +
+>  #include <asm/page.h>
+>  #include <asm/pgtable.h>
+>  #include <asm/processor.h>
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index dc6858d..40e5de6 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -1568,6 +1568,28 @@ static struct ctl_table vm_table[] = {
+>                 .mode           = 0644,
+>                 .proc_handler   = proc_doulongvec_minmax,
+>         },
+> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
+> +       {
+> +               .procname       = "mmap_rnd_bits",
+> +               .data           = &mmap_rnd_bits,
+> +               .maxlen         = sizeof(mmap_rnd_bits),
+> +               .mode           = 0644,
+> +               .proc_handler   = proc_dointvec_minmax,
+> +               .extra1         = &mmap_rnd_bits_min,
+> +               .extra2         = &mmap_rnd_bits_max,
+> +       },
+> +#endif
+> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_COMPAT_BITS
+> +       {
+> +               .procname       = "mmap_rnd_compat_bits",
+> +               .data           = &mmap_rnd_compat_bits,
+> +               .maxlen         = sizeof(mmap_rnd_compat_bits),
+> +               .mode           = 0644,
+> +               .proc_handler   = proc_dointvec_minmax,
+> +               .extra1         = &mmap_rnd_compat_bits_min,
+> +               .extra2         = &mmap_rnd_compat_bits_max,
+> +       },
+> +#endif
+>         { }
+>  };
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 2ce04a6..aa49841 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -58,6 +58,18 @@
+>  #define arch_rebalance_pgtables(addr, len)             (addr)
+>  #endif
+>
+> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
+> +int mmap_rnd_bits_min = CONFIG_ARCH_MMAP_RND_BITS_MIN;
+> +int mmap_rnd_bits_max = CONFIG_ARCH_MMAP_RND_BITS_MAX;
+> +int mmap_rnd_bits = CONFIG_ARCH_MMAP_RND_BITS;
+> +#endif
+> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_COMPAT_BITS
+> +int mmap_rnd_compat_bits_min = CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MIN;
+> +int mmap_rnd_compat_bits_max = CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MAX;
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index db3622f..12768c4 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -82,6 +82,8 @@ config X86
- 	select HAVE_ARCH_KASAN			if X86_64 && SPARSEMEM_VMEMMAP
- 	select HAVE_ARCH_KGDB
- 	select HAVE_ARCH_KMEMCHECK
-+	select HAVE_ARCH_MMAP_RND_BITS
-+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
- 	select HAVE_ARCH_SECCOMP_FILTER
- 	select HAVE_ARCH_SOFT_DIRTY		if X86_64
- 	select HAVE_ARCH_TRACEHOOK
-@@ -183,6 +185,20 @@ config HAVE_LATENCYTOP_SUPPORT
- config MMU
- 	def_bool y
- 
-+config ARCH_MMAP_RND_BITS_MIN
-+       default 28 if 64BIT
-+       default 8
-+
-+config ARCH_MMAP_RND_BITS_MAX
-+	default 32 if 64BIT
-+	default 16
-+
-+config ARCH_MMAP_RND_COMPAT_BITS_MIN
-+	default 8
-+
-+config ARCH_MMAP_RND_COMPAT_BITS_MAX
-+	default 16
-+
- config SBUS
- 	bool
- 
-diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-index 844b06d..647fecf 100644
---- a/arch/x86/mm/mmap.c
-+++ b/arch/x86/mm/mmap.c
-@@ -69,14 +69,14 @@ unsigned long arch_mmap_rnd(void)
- {
- 	unsigned long rnd;
- 
--	/*
--	 *  8 bits of randomness in 32bit mmaps, 20 address space bits
--	 * 28 bits of randomness in 64bit mmaps, 40 address space bits
--	 */
- 	if (mmap_is_ia32())
--		rnd = (unsigned long)get_random_int() % (1<<8);
-+#ifdef CONFIG_COMPAT
-+		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_compat_bits);
-+#else
-+		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
-+#endif
- 	else
--		rnd = (unsigned long)get_random_int() % (1<<28);
-+		rnd = (unsigned long)get_random_int() % (1 << mmap_rnd_bits);
- 
- 	return rnd << PAGE_SHIFT;
- }
+I think the min/max values should be const, since they're determined
+at build time and should never change.
+
+> +int mmap_rnd_compat_bits = CONFIG_ARCH_MMAP_RND_COMPAT_BITS;
+> +#endif
+> +
+> +
+>  static void unmap_region(struct mm_struct *mm,
+>                 struct vm_area_struct *vma, struct vm_area_struct *prev,
+>                 unsigned long start, unsigned long end);
+> --
+> 2.6.0.rc2.230.g3dd15c0
+>
+
+-Kees
+
 -- 
-2.6.0.rc2.230.g3dd15c0
+Kees Cook
+Chrome OS Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
