@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CFD76B0259
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 18:25:47 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so59430804pad.1
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:25:47 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id tq4si7233407pab.243.2015.11.18.15.25.46
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C03436B025A
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 18:25:51 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so61421663pab.0
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 15:25:51 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id un9si7295761pac.89.2015.11.18.15.25.50
         for <linux-mm@kvack.org>;
-        Wed, 18 Nov 2015 15:25:46 -0800 (PST)
+        Wed, 18 Nov 2015 15:25:51 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 6/9] rmap: support file THP
-Date: Thu, 19 Nov 2015 01:25:33 +0200
-Message-Id: <1447889136-6928-7-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 5/9] radix-tree: implement radix_tree_maybe_preload_order()
+Date: Thu, 19 Nov 2015 01:25:32 +0200
+Message-Id: <1447889136-6928-6-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1447889136-6928-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1447889136-6928-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,179 +19,169 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Naive approach: on mapping/unmapping the page as compound we update
-->_mapcount on each 4k page. That's not efficient, but it's not obvious
-how we can optimize this. We can look into optimization later.
+The new helper is similar to radix_tree_maybe_preload(), but tries to
+preload number of nodes required to insert (1 << order) continuous
+naturally-aligned elements.
 
-PG_double_map optimization doesn't work for file pages since lifecycle
-of file pages is different comparing to anon pages: file page can be
-mapped again at any time.
+This is required to push huge pages into pagecache.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/rmap.h |  2 +-
- mm/memory.c          |  4 ++--
- mm/migrate.c         |  2 +-
- mm/rmap.c            | 51 +++++++++++++++++++++++++++++++++------------------
- mm/util.c            |  6 ++++++
- 5 files changed, 43 insertions(+), 22 deletions(-)
+ include/linux/radix-tree.h |  1 +
+ lib/radix-tree.c           | 70 ++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 63 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index ebf3750e42b2..03dde08ba963 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -175,7 +175,7 @@ void do_page_add_anon_rmap(struct page *, struct vm_area_struct *,
- 			   unsigned long, int);
- void page_add_new_anon_rmap(struct page *, struct vm_area_struct *,
- 		unsigned long, bool);
--void page_add_file_rmap(struct page *);
-+void page_add_file_rmap(struct page *, bool);
- void page_remove_rmap(struct page *, bool);
- 
- void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
-diff --git a/mm/memory.c b/mm/memory.c
-index 522279922946..3f6f1e2f7afb 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1456,7 +1456,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
- 	/* Ok, finally just insert the thing.. */
- 	get_page(page);
- 	inc_mm_counter_fast(mm, MM_FILEPAGES);
--	page_add_file_rmap(page);
-+	page_add_file_rmap(page, false);
- 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
- 
- 	retval = 0;
-@@ -2925,7 +2925,7 @@ int do_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
- 		lru_cache_add_active_or_unevictable(page, vma);
- 	} else {
- 		inc_mm_counter_fast(vma->vm_mm, MM_FILEPAGES);
--		page_add_file_rmap(page);
-+		page_add_file_rmap(page, false);
- 	}
- 	set_pte_at(vma->vm_mm, fe->address, fe->pte, entry);
- 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index b1034f9c77e7..004adee21c61 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -169,7 +169,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 	} else if (PageAnon(new))
- 		page_add_anon_rmap(new, vma, addr, false);
- 	else
--		page_add_file_rmap(new);
-+		page_add_file_rmap(new, false);
- 
- 	if (vma->vm_flags & VM_LOCKED)
- 		mlock_vma_page(new);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index e90b81ff306d..7a04cbb5d953 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1255,33 +1255,51 @@ void page_add_new_anon_rmap(struct page *page,
-  *
-  * The caller needs to hold the pte lock.
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 33170dbd9db4..3a3759644283 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -279,6 +279,7 @@ unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
+ 			unsigned long first_index, unsigned int max_items);
+ int radix_tree_preload(gfp_t gfp_mask);
+ int radix_tree_maybe_preload(gfp_t gfp_mask);
++int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order);
+ void radix_tree_init(void);
+ void *radix_tree_tag_set(struct radix_tree_root *root,
+ 			unsigned long index, unsigned int tag);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index fcf5d98574ce..e15b1d1bec68 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -42,6 +42,9 @@
   */
--void page_add_file_rmap(struct page *page)
-+void page_add_file_rmap(struct page *page, bool compound)
- {
- 	struct mem_cgroup *memcg;
-+	int i, nr = 1;
+ static unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH + 1] __read_mostly;
  
- 	memcg = mem_cgroup_begin_page_stat(page);
--	if (atomic_inc_and_test(&page->_mapcount)) {
--		__inc_zone_page_state(page, NR_FILE_MAPPED);
--		mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
-+	if (compound) {
-+		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
-+			goto out;
-+		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
-+			if (atomic_inc_and_test(&page[i]._mapcount))
-+				nr++;
-+		}
-+	} else {
-+		if (!atomic_inc_and_test(&page->_mapcount))
-+			goto out;
- 	}
-+	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, nr);
-+	mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
-+out:
- 	mem_cgroup_end_page_stat(memcg);
++/* Number of nodes in fully populated tree of given height */
++static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
++
+ /*
+  * Radix tree node cache.
+  */
+@@ -251,7 +254,7 @@ radix_tree_node_free(struct radix_tree_node *node)
+  * To make use of this facility, the radix tree must be initialised without
+  * __GFP_DIRECT_RECLAIM being passed to INIT_RADIX_TREE().
+  */
+-static int __radix_tree_preload(gfp_t gfp_mask)
++static int __radix_tree_preload(gfp_t gfp_mask, int nr)
+ {
+ 	struct radix_tree_preload *rtp;
+ 	struct radix_tree_node *node;
+@@ -259,14 +262,14 @@ static int __radix_tree_preload(gfp_t gfp_mask)
+ 
+ 	preempt_disable();
+ 	rtp = this_cpu_ptr(&radix_tree_preloads);
+-	while (rtp->nr < RADIX_TREE_PRELOAD_SIZE) {
++	while (rtp->nr < nr) {
+ 		preempt_enable();
+ 		node = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
+ 		if (node == NULL)
+ 			goto out;
+ 		preempt_disable();
+ 		rtp = this_cpu_ptr(&radix_tree_preloads);
+-		if (rtp->nr < RADIX_TREE_PRELOAD_SIZE) {
++		if (rtp->nr < nr) {
+ 			node->private_data = rtp->nodes;
+ 			rtp->nodes = node;
+ 			rtp->nr++;
+@@ -292,7 +295,7 @@ int radix_tree_preload(gfp_t gfp_mask)
+ {
+ 	/* Warn on non-sensical use... */
+ 	WARN_ON_ONCE(!gfpflags_allow_blocking(gfp_mask));
+-	return __radix_tree_preload(gfp_mask);
++	return __radix_tree_preload(gfp_mask, RADIX_TREE_PRELOAD_SIZE);
+ }
+ EXPORT_SYMBOL(radix_tree_preload);
+ 
+@@ -304,7 +307,7 @@ EXPORT_SYMBOL(radix_tree_preload);
+ int radix_tree_maybe_preload(gfp_t gfp_mask)
+ {
+ 	if (gfpflags_allow_blocking(gfp_mask))
+-		return __radix_tree_preload(gfp_mask);
++		return __radix_tree_preload(gfp_mask, RADIX_TREE_PRELOAD_SIZE);
+ 	/* Preloading doesn't help anything with this gfp mask, skip it */
+ 	preempt_disable();
+ 	return 0;
+@@ -312,6 +315,52 @@ int radix_tree_maybe_preload(gfp_t gfp_mask)
+ EXPORT_SYMBOL(radix_tree_maybe_preload);
+ 
+ /*
++ * The same as function above, but preload number of nodes required to insert
++ * (1 << order) continuous naturally-aligned elements.
++ */
++int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
++{
++	unsigned long nr_subtrees;
++	int nr_nodes, subtree_height;
++
++	/* Preloading doesn't help anything with this gfp mask, skip it */
++	if (!gfpflags_allow_blocking(gfp_mask)) {
++		preempt_disable();
++		return 0;
++	}
++
++
++	/*
++	 * Calculate number and height of fully populated subtrees it takes to
++	 * store (1 << order) elements.
++	 */
++	nr_subtrees = 1 << order;
++	for (subtree_height = 0; nr_subtrees > RADIX_TREE_MAP_SIZE;
++			subtree_height++)
++		nr_subtrees >>= RADIX_TREE_MAP_SHIFT;
++
++	/*
++	 * The worst case is zero height tree with a single item at index 0 and
++	 * then inserting items starting at ULONG_MAX - (1 << order).
++	 *
++	 * This requires RADIX_TREE_MAX_PATH nodes to build branch from root to
++	 * 0-index item.
++	 */
++	nr_nodes = RADIX_TREE_MAX_PATH;
++
++	/* Plus branch to fully populated subtrees. */
++	nr_nodes += RADIX_TREE_MAX_PATH - subtree_height;
++
++	/* Root node is shared. */
++	nr_nodes--;
++
++	/* Plus nodes required to build subtrees. */
++	nr_nodes += nr_subtrees * height_to_maxnodes[subtree_height];
++
++	return __radix_tree_preload(gfp_mask, nr_nodes);
++}
++
++/*
+  *	Return the maximum key which can be store into a
+  *	radix tree with height HEIGHT.
+  */
+@@ -1454,12 +1503,17 @@ static __init unsigned long __maxindex(unsigned int height)
+ 	return ~0UL >> shift;
  }
  
--static void page_remove_file_rmap(struct page *page)
-+static void page_remove_file_rmap(struct page *page, bool compound)
+-static __init void radix_tree_init_maxindex(void)
++static __init void radix_tree_init_arrays(void)
  {
- 	struct mem_cgroup *memcg;
-+	int i, nr = 1;
+-	unsigned int i;
++	unsigned int i, j;
  
- 	memcg = mem_cgroup_begin_page_stat(page);
+ 	for (i = 0; i < ARRAY_SIZE(height_to_maxindex); i++)
+ 		height_to_maxindex[i] = __maxindex(i);
++	for (i = 0; i < ARRAY_SIZE(height_to_maxnodes); i++) {
++		for (j = i; j > 0; j--)
++			height_to_maxnodes[i] += height_to_maxindex[j - 1] + 1;
++	}
++
+ }
  
--	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
--	if (unlikely(PageHuge(page))) {
--		/* hugetlb pages are always mapped with pmds */
--		atomic_dec(compound_mapcount_ptr(page));
--		goto out;
-+	/* page still mapped by someone else? */
-+	if (compound) {
-+		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
-+			goto out;
-+		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
-+			if (atomic_add_negative(-1, &page[i]._mapcount))
-+				nr++;
-+		}
-+	} else {
-+		if (!atomic_add_negative(-1, &page->_mapcount))
-+			goto out;
- 	}
- 
--	/* page still mapped by someone else? */
--	if (!atomic_add_negative(-1, &page->_mapcount))
-+	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
-+	if (unlikely(PageHuge(page)))
- 		goto out;
- 
- 	/*
-@@ -1289,7 +1307,7 @@ static void page_remove_file_rmap(struct page *page)
- 	 * these counters are not modified in interrupt context, and
- 	 * pte lock(a spinlock) is held, which implies preemption disabled.
- 	 */
--	__dec_zone_page_state(page, NR_FILE_MAPPED);
-+	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, -nr);
- 	mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
- 
- 	if (unlikely(PageMlocked(page)))
-@@ -1342,11 +1360,8 @@ static void page_remove_anon_compound_rmap(struct page *page)
-  */
- void page_remove_rmap(struct page *page, bool compound)
- {
--	if (!PageAnon(page)) {
--		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
--		page_remove_file_rmap(page);
--		return;
--	}
-+	if (!PageAnon(page))
-+		return page_remove_file_rmap(page, compound);
- 
- 	if (compound)
- 		return page_remove_anon_compound_rmap(page);
-diff --git a/mm/util.c b/mm/util.c
-index 5be2a4bdf76b..6d318731e2fc 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -412,6 +412,12 @@ int __page_mapcount(struct page *page)
- 	int ret;
- 
- 	ret = atomic_read(&page->_mapcount) + 1;
-+	/*
-+	 * For file THP page->_mapcount contains total number of mapping
-+	 * of the page: no need to look into compound_mapcount.
-+	 */
-+	if (!PageAnon(page) && !PageHuge(page))
-+		return ret;
- 	page = compound_head(page);
- 	ret += atomic_read(compound_mapcount_ptr(page)) + 1;
- 	if (PageDoubleMap(page))
+ static int radix_tree_callback(struct notifier_block *nfb,
+@@ -1489,6 +1543,6 @@ void __init radix_tree_init(void)
+ 			sizeof(struct radix_tree_node), 0,
+ 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
+ 			radix_tree_node_ctor);
+-	radix_tree_init_maxindex();
++	radix_tree_init_arrays();
+ 	hotcpu_notifier(radix_tree_callback, 0);
+ }
 -- 
 2.6.2
 
