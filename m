@@ -1,88 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 073266B0255
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 13:57:04 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so53111511pad.1
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 10:57:03 -0800 (PST)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id c15si6156776pbu.93.2015.11.18.10.57.03
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B97F16B0255
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:05:40 -0500 (EST)
+Received: by wmdw130 with SMTP id w130so211813490wmd.0
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 11:05:40 -0800 (PST)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id gh7si5941679wjb.118.2015.11.18.11.05.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Nov 2015 10:57:03 -0800 (PST)
-Received: by padhx2 with SMTP id hx2so53111299pad.1
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 10:57:03 -0800 (PST)
-Message-ID: <564CC9FD.3080307@linaro.org>
-Date: Wed, 18 Nov 2015 10:57:01 -0800
-From: "Shi, Yang" <yang.shi@linaro.org>
+        Wed, 18 Nov 2015 11:05:39 -0800 (PST)
+Received: by wmww144 with SMTP id w144so210310322wmw.1
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 11:05:39 -0800 (PST)
+Date: Wed, 18 Nov 2015 21:05:36 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv12 32/37] thp: reintroduce split_huge_page()
+Message-ID: <20151118190536.GA26376@node.shutemov.name>
+References: <1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1444145044-72349-33-git-send-email-kirill.shutemov@linux.intel.com>
+ <564CA63C.8090800@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] writeback: initialize m_dirty to avoid compile warning
-References: <1447439201-32009-1-git-send-email-yang.shi@linaro.org>	<20151117153855.99d2acd0568d146c29defda5@linux-foundation.org>	<20151118181142.GC11496@mtj.duckdns.org>	<564CC314.1090904@linaro.org>	<20151118183344.GD11496@mtj.duckdns.org>	<564CC5DB.8000104@linaro.org> <20151118105517.2947aaa2.akpm@linux-foundation.org>
-In-Reply-To: <20151118105517.2947aaa2.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <564CA63C.8090800@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 11/18/2015 10:55 AM, Andrew Morton wrote:
-> On Wed, 18 Nov 2015 10:39:23 -0800 "Shi, Yang" <yang.shi@linaro.org> wrote:
->
->> On 11/18/2015 10:33 AM, Tejun Heo wrote:
->>> Hello,
->>>
->>> On Wed, Nov 18, 2015 at 10:27:32AM -0800, Shi, Yang wrote:
->>>>> This was the main reason the code was structured the way it is.  If
->>>>> cgroup writeback is not enabled, any derefs of mdtc variables should
->>>>> trigger warnings.  Ugh... I don't know.  Compiler really should be
->>>>> able to tell this much.
->>>>
->>>> Thanks for the explanation. It sounds like a compiler problem.
->>>>
->>>> If you think it is still good to cease the compile warning, maybe we could
->>>
->>> If this is gonna be a problem with new gcc versions, I don't think we
->>> have any other options. :(
->>>
->>>> just assign it to an insane value as what Andrew suggested, maybe
->>>> 0xdeadbeef.
->>>
->>> I'd just keep it at zero.  Whatever we do, the effect is gonna be
->>> difficult to track down - it's not gonna blow up in an obvious way.
->>> Can you please add a comment tho explaining that this is to work
->>> around compiler deficiency?
->>
->> Sure.
->>
->> Other than this, in v2, I will just initialize m_dirty since compiler
->> just reports it is uninitialized.
->
-> gcc-4.4.4 and gcc-4.8.4 warn about all three variables.
+On Wed, Nov 18, 2015 at 11:24:28AM -0500, Sasha Levin wrote:
+> On 10/06/2015 11:23 AM, Kirill A. Shutemov wrote:
+> > This patch adds implementation of split_huge_page() for new
+> > refcountings.
+> > 
+> > Unlike previous implementation, new split_huge_page() can fail if
+> > somebody holds GUP pin on the page. It also means that pin on page
+> > would prevent it from bening split under you. It makes situation in
+> > many places much cleaner.
+> > 
+> > The basic scheme of split_huge_page():
+> > 
+> >   - Check that sum of mapcounts of all subpage is equal to page_count()
+> >     plus one (caller pin). Foll off with -EBUSY. This way we can avoid
+> >     useless PMD-splits.
+> > 
+> >   - Freeze the page counters by splitting all PMD and setup migration
+> >     PTEs.
+> > 
+> >   - Re-check sum of mapcounts against page_count(). Page's counts are
+> >     stable now. -EBUSY if page is pinned.
+> > 
+> >   - Split compound page.
+> > 
+> >   - Unfreeze the page by removing migration entries.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Tested-by: Sasha Levin <sasha.levin@oracle.com>
+> > Tested-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> > Acked-by: Jerome Marchand <jmarchan@redhat.com>
+> 
+> Hey Kirill,
+> 
+> I saw the following while fuzzing:
+> 
+> [ 3400.024040] ==================================================================
+> [ 3400.024040] BUG: KASAN: slab-out-of-bounds in unfreeze_page+0x706/0xbf0 at addr ffff880670dbc0c0
+> [ 3400.024040] Read of size 8 by task run_vmtests/10752
+> [ 3400.024040] =============================================================================
+> [ 3400.024040] BUG vm_area_struct (Not tainted): kasan: bad access detected
+> [ 3400.024040] -----------------------------------------------------------------------------
+> [ 3400.024040]
+> [ 3400.024040] Disabling lock debugging due to kernel taint
+> [ 3400.024040] INFO: Allocated in copy_process+0x2d6d/0x5b00 age=18600 cpu=28 pid=9566
+> [ 3400.024040]  ___slab_alloc+0x434/0x5b0
+> [ 3400.024040]  __slab_alloc.isra.37+0x79/0xd0
+> [ 3400.024040]  kmem_cache_alloc+0x103/0x330
+> [ 3400.024040]  copy_process+0x2d6d/0x5b00
+> [ 3400.024040]  _do_fork+0x180/0xbb0
+> [ 3400.024040]  SyS_clone+0x3c/0x50
+> [ 3400.024040]  tracesys_phase2+0x88/0x8d
+> [ 3400.024040] INFO: Freed in remove_vma+0x170/0x180 age=18613 cpu=10 pid=21787
+> [ 3400.024040]  __slab_free+0x64/0x260
+> [ 3400.024040]  kmem_cache_free+0x1e1/0x3b0
+> [ 3400.024040]  remove_vma+0x170/0x180
+> [ 3400.024040]  exit_mmap+0x30a/0x3c0
+> [ 3400.024040]  mmput+0x98/0x240
+> [ 3400.024040]  do_exit+0xbe5/0x2830
+> [ 3400.024040]  do_group_exit+0x1b5/0x300
+> [ 3400.024040]  SyS_exit_group+0x22/0x30
+> [ 3400.024040]  tracesys_phase2+0x88/0x8d
+> [ 3400.024040] INFO: Slab 0xffffea0019c36f00 objects=33 used=33 fp=0x          (null) flags=0x12fffff80004080
+> [ 3400.024040] INFO: Object 0xffff880670dbc000 @offset=0 fp=0x00007f6bff4e7000
+> [ 3400.024040]
+> [ 3400.024040] Object ffff880670dbc000: 00 70 4e ff 6b 7f 00 00 00 90 80 ff 6b 7f 00 00  .pN.k.......k...
+> [ 3400.024040] Object ffff880670dbc010: f0 e0 db 70 06 88 ff ff e0 03 80 02 18 88 ff ff  ...p............
+> [ 3400.024040] Object ffff880670dbc020: 01 04 80 02 18 88 ff ff 00 00 00 00 00 00 00 00  ................
+> [ 3400.024040] Object ffff880670dbc030: 00 00 00 00 00 00 00 00 00 70 ce 7e 3f 7f 00 00  .........p.~?...
+> [ 3400.024040] Object ffff880670dbc040: 00 f0 83 a6 06 88 ff ff 25 00 00 00 00 00 00 80  ........%.......
+> [ 3400.024040] Object ffff880670dbc050: 73 00 10 08 00 00 00 00 00 00 00 00 00 00 00 00  s...............
+> [ 3400.024040] Object ffff880670dbc060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [ 3400.024040] Object ffff880670dbc070: 00 00 00 00 00 00 00 00 90 dc cf a4 06 88 ff ff  ................
+> [ 3400.024040] Object ffff880670dbc080: 10 d8 cf a4 06 88 ff ff b8 d1 ee 24 08 88 ff ff  ...........$....
+> [ 3400.024040] Object ffff880670dbc090: 00 00 00 00 00 00 00 00 e7 f4 bf f6 07 00 00 00  ................
+> [ 3400.024040] Object ffff880670dbc0a0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [ 3400.024040] Object ffff880670dbc0b0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [ 3400.024040] CPU: 20 PID: 10752 Comm: run_vmtests Tainted: G    B           4.3.0-next-20151115-sasha-00042-g0f5ce29 #2641
+> [ 3400.024040]  0000000000000014 0000000076bf224e ffff880ef1b7ee70 ffffffffabe427db
+> [ 3400.024040]  ffff880182342000 ffff880670dbc000 ffff880670dbc000 ffff880ef1b7eea0
+> [ 3400.024040]  ffffffffaa792a7a ffff880182342000 ffffea0019c36f00 ffff880670dbc000
+> [ 3400.024040] Call Trace:
+> [ 3400.024040] dump_stack (lib/dump_stack.c:52)
+> [ 3400.024040] print_trailer (mm/slub.c:655)
+> [ 3400.024040] object_err (mm/slub.c:662)
+> [ 3400.024040] kasan_report_error (mm/kasan/report.c:138 mm/kasan/report.c:236)
+> [ 3400.024040] __asan_report_load8_noabort (mm/kasan/report.c:280)
+> [ 3400.024040] unfreeze_page (mm/huge_memory.c:3062 mm/huge_memory.c:3099)
+> [ 3400.024040] split_huge_page_to_list (include/linux/compiler.h:218 mm/huge_memory.c:3208 mm/huge_memory.c:3291)
+> [ 3400.024040] deferred_split_scan (mm/huge_memory.c:3378)
+> [ 3400.024040] shrink_slab (mm/vmscan.c:352 mm/vmscan.c:444)
+> [ 3400.024040] shrink_zone (mm/vmscan.c:2444)
+> [ 3400.024040] do_try_to_free_pages (mm/vmscan.c:2595 mm/vmscan.c:2645)
+> [ 3400.024040] try_to_free_pages (mm/vmscan.c:2853)
+> [ 3400.024040] __alloc_pages_nodemask (mm/page_alloc.c:2864 mm/page_alloc.c:2882 mm/page_alloc.c:3150 mm/page_alloc.c:3261)
+> [ 3400.024040] alloc_fresh_huge_page (include/linux/gfp.h:415 include/linux/gfp.h:428 mm/hugetlb.c:1330 mm/hugetlb.c:1348)
+> [ 3400.024040] __nr_hugepages_store_common (include/linux/spinlock.h:302 mm/hugetlb.c:2164 mm/hugetlb.c:2279)
+> [ 3400.024040] hugetlb_sysctl_handler_common (mm/hugetlb.c:2784)
+> [ 3400.024040] hugetlb_sysctl_handler (mm/hugetlb.c:2796)
+> [ 3400.024040] proc_sys_call_handler (fs/proc/proc_sysctl.c:543)
+> [ 3400.024040] proc_sys_write (fs/proc/proc_sysctl.c:562)
+> [ 3400.024040] __vfs_write (fs/read_write.c:489)
+> [ 3400.024040] vfs_write (fs/read_write.c:538)
+> [ 3400.024040] SyS_write (fs/read_write.c:585 fs/read_write.c:577)
+> [ 3400.024040] tracesys_phase2 (arch/x86/entry/entry_64.S:273)
+> [ 3400.024040] Memory state around the buggy address:
+> [ 3400.024040]  ffff880670dbbf80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> [ 3400.024040]  ffff880670dbc000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> [ 3400.024040] >ffff880670dbc080: 00 00 00 00 00 00 00 00 fc fc fc fc fc fc fc fc
+> [ 3400.024040]                                            ^
+> [ 3400.024040]  ffff880670dbc100: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+> [ 3400.024040]  ffff880670dbc180: fc fc fc fc fc fc fc fc fc fc fc fc fc fc 00 00
+> [ 3400.024040] ==================================================================
 
-It sounds 5.x is smarter :-)
->
->
-> --- a/mm/page-writeback.c~writeback-initialize-m_dirty-to-avoid-compile-warning-fix
-> +++ a/mm/page-writeback.c
-> @@ -1542,7 +1542,9 @@ static void balance_dirty_pages(struct a
->   	for (;;) {
->   		unsigned long now = jiffies;
->   		unsigned long dirty, thresh, bg_thresh;
-> -		unsigned long m_dirty = 0, m_thresh = 0, m_bg_thresh = 0;
-> +		unsigned long m_dirty = 0;	/* stop bogus uninit warnings */
-> +		unsigned long m_thresh = 0;
-> +		unsigned long m_bg_thresh = 0;
+Hm. This looks like THP leak. I fixed one with this patch:
 
-Still need v2?
+http://lkml.kernel.org/g/1447236567-68751-1-git-send-email-kirill.shutemov@linux.intel.com
 
-Thanks,
-Yang
+It's in -mm tree, but there wasn't any releases since it's applied. It's
+not in -next for this reason.
 
->
->   		/*
->   		 * Unstable writes are a feature of certain networked
-> _
->
+There's one more patch with the same status:
+
+http://lkml.kernel.org/g/1447236557-68682-1-git-send-email-kirill.shutemov@linux.intel.com
+
+There's also one patch I've asked Minchan Kim to test. I'm not yet sure
+it's correct:
+
+http://lkml.kernel.org/g/20151117093213.GA16243@node.shutemov.name
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
