@@ -1,86 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 271686B0269
-	for <linux-mm@kvack.org>; Tue, 17 Nov 2015 20:40:10 -0500 (EST)
-Received: by obbbj7 with SMTP id bj7so22120177obb.1
-        for <linux-mm@kvack.org>; Tue, 17 Nov 2015 17:40:10 -0800 (PST)
-Received: from cmccmta2.chinamobile.com (cmccmta2.chinamobile.com. [221.176.66.80])
-        by mx.google.com with ESMTP id s83si212322oia.49.2015.11.17.17.40.08
-        for <linux-mm@kvack.org>;
-        Tue, 17 Nov 2015 17:40:09 -0800 (PST)
-From: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-Subject: [PATCH] mm/mmzone: memmap_valid_within can be boolean
-Date: Wed, 18 Nov 2015 09:38:20 +0800
-Message-Id: <1447810700-2535-1-git-send-email-baiyaowei@cmss.chinamobile.com>
-In-Reply-To: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com>
-References: <1447656686-4851-1-git-send-email-baiyaowei@cmss.chinamobile.com>
+Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 61D7F6B026B
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 03:39:53 -0500 (EST)
+Received: by ykba77 with SMTP id a77so51637215ykb.2
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 00:39:52 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k200si1755527ywe.163.2015.11.18.00.39.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Nov 2015 00:39:52 -0800 (PST)
+Date: Wed, 18 Nov 2015 09:39:45 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH] fault-inject: correct printk order for interval vs.
+ probability
+Message-ID: <20151118093945.4bbd6bd7@redhat.com>
+In-Reply-To: <20151117114750.12395.53387.stgit@firesoul>
+References: <20151117114750.12395.53387.stgit@firesoul>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: bhe@redhat.com, dan.j.williams@intel.com, dave.hansen@linux.intel.com, dave@stgolabs.net, dhowells@redhat.com, dingel@linux.vnet.ibm.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, holt@sgi.com, iamjoonsoo.kim@lge.com, joe@perches.com, kuleshovmail@gmail.com, mgorman@suse.de, mhocko@suse.cz, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, penberg@kernel.org, rientjes@google.com, sasha.levin@oracle.com, tj@kernel.org, tony.luck@intel.com, vbabka@suse.cz, vdavydov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akinobu.mita@gmail.com, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, dmonakhov@openvz.org, brouer@redhat.com, Florian Westphal <fw@strlen.de>
 
-This patch makes memmap_valid_within return bool due to this
-particular function only using either one or zero as its return
-value.
 
-No functional change.
+Disregard this patch... Florian already fixed it in:
 
-Signed-off-by: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
----
- include/linux/mmzone.h | 6 +++---
- mm/mmzone.c            | 8 ++++----
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ bb387002693e ("fault-inject: fix inverted interval/probability values in printk")
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 9963846..b9b59bb8 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1202,13 +1202,13 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
-  * the zone and PFN linkages are still valid. This is expensive, but walkers
-  * of the full memmap are extremely rare.
-  */
--int memmap_valid_within(unsigned long pfn,
-+bool memmap_valid_within(unsigned long pfn,
- 					struct page *page, struct zone *zone);
- #else
--static inline int memmap_valid_within(unsigned long pfn,
-+static inline bool memmap_valid_within(unsigned long pfn,
- 					struct page *page, struct zone *zone)
- {
--	return 1;
-+	return true;
- }
- #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
- 
-diff --git a/mm/mmzone.c b/mm/mmzone.c
-index 7d87ebb..52687fb 100644
---- a/mm/mmzone.c
-+++ b/mm/mmzone.c
-@@ -72,16 +72,16 @@ struct zoneref *next_zones_zonelist(struct zoneref *z,
- }
- 
- #ifdef CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
--int memmap_valid_within(unsigned long pfn,
-+bool memmap_valid_within(unsigned long pfn,
- 					struct page *page, struct zone *zone)
- {
- 	if (page_to_pfn(page) != pfn)
--		return 0;
-+		return false;
- 
- 	if (page_zone(page) != zone)
--		return 0;
-+		return false;
- 
--	return 1;
-+	return true;
- }
- #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
- 
+$ git describe --contains bb387002693e
+v4.3-rc7~11^2~1
+
+
+On Tue, 17 Nov 2015 12:48:37 +0100
+Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+
+> In function fail_dump() printk output of the attributes interval and
+> probability got swapped.  This was introduced in commit
+> 6adc4a22f20b ("fault-inject: add ratelimit option").
+> 
+> Fixes: 6adc4a22f20b ("fault-inject: add ratelimit option")
+> Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> 
+> ---
+> Don't know who is maintainer for lib/, hope someone will
+> pick this up...
+> 
+>  lib/fault-inject.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/lib/fault-inject.c b/lib/fault-inject.c
+> index f1cdeb024d17..6a823a53e357 100644
+> --- a/lib/fault-inject.c
+> +++ b/lib/fault-inject.c
+> @@ -44,7 +44,7 @@ static void fail_dump(struct fault_attr *attr)
+>  		printk(KERN_NOTICE "FAULT_INJECTION: forcing a failure.\n"
+>  		       "name %pd, interval %lu, probability %lu, "
+>  		       "space %d, times %d\n", attr->dname,
+> -		       attr->probability, attr->interval,
+> +		       attr->interval, attr->probability,
+>  		       atomic_read(&attr->space),
+>  		       atomic_read(&attr->times));
+>  		if (attr->verbose > 1)
+
 -- 
-1.9.1
-
-
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
