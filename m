@@ -1,94 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f51.google.com (mail-lf0-f51.google.com [209.85.215.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0008F6B0257
-	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 17:36:22 -0500 (EST)
-Received: by lfaz4 with SMTP id z4so36548553lfa.0
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:36:22 -0800 (PST)
-Received: from mail-lf0-x22b.google.com (mail-lf0-x22b.google.com. [2a00:1450:4010:c07::22b])
-        by mx.google.com with ESMTPS id zn4si3570995lbb.188.2015.11.18.14.36.20
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DC5A6B0259
+	for <linux-mm@kvack.org>; Wed, 18 Nov 2015 17:48:27 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so58546343pad.1
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:48:27 -0800 (PST)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id rr7si7119446pab.62.2015.11.18.14.48.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Nov 2015 14:36:21 -0800 (PST)
-Received: by lfs39 with SMTP id 39so36462729lfs.3
-        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:36:20 -0800 (PST)
-From: Arkadiusz =?utf-8?q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>
-Subject: Re: memory reclaim problems on fs usage
-Date: Wed, 18 Nov 2015 23:36:18 +0100
-References: <201511102313.36685.arekm@maven.pl> <201511151549.35299.arekm@maven.pl> <20151116161518.GI14116@dhcp22.suse.cz>
-In-Reply-To: <20151116161518.GI14116@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <201511182336.18231.arekm@maven.pl>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Nov 2015 14:48:26 -0800 (PST)
+Received: by pacdm15 with SMTP id dm15so58566776pac.3
+        for <linux-mm@kvack.org>; Wed, 18 Nov 2015 14:48:26 -0800 (PST)
+From: Daniel Cashman <dcashman@android.com>
+Subject: [PATCH 0/4] Allow customizable random offset to mmap_base address.
+Date: Wed, 18 Nov 2015 14:48:17 -0800
+Message-Id: <1447886901-26098-1-git-send-email-dcashman@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, htejun@gmail.com, cl@linux.com, linux-mm@kvack.org, xfs@oss.sgi.com
+To: linux-kernel@vger.kernel.org
+Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com
 
-On Monday 16 of November 2015, Michal Hocko wrote:
-> On Sun 15-11-15 15:49:35, Arkadiusz Mi=C5=9Bkiewicz wrote:
-> > On Sunday 15 of November 2015, Tetsuo Handa wrote:
-> > > Arkadiusz Miskiewicz wrote:
-> > > > On Sunday 15 of November 2015, Tetsuo Handa wrote:
-> > > > > I think that the vmstat statistics now have correct values.
-> > > > >=20
-> > > > > > But are these patches solving the problem or just hiding it?
-> > > > >=20
-> > > > > Excuse me but I can't judge.
-> > > > >=20
-> > > > > If you are interested in monitoring how vmstat statistics are
-> > > > > changing under stalled condition, you can try below patch.
-> > > >=20
-> > > > Here is log with this and all previous patches applied:
-> > > > http://ixion.pld-linux.org/~arekm/log-mm-5.txt.gz
-> > >=20
-> > > Regarding "Node 0 Normal" (min:7104kB low:8880kB high:10656kB),
-> > > all free: values look sane to me. I think that your problem was solve=
-d.
-> >=20
-> > Great, thanks!
-> >=20
-> > Will all (or part) of these patches
-> >=20
-> > http://sprunge.us/GYBb
->=20
-> Migrate reserves are not a stable material I am afraid. "vmstat:
-> explicitly schedule per-cpu work on the CPU we need it to run on"
-> was not marked for stable either but I am not sure why it should make
-> any difference for your load. I understand that testing this is really
-> tedious but it would be better to know which of the patches actually
-> made a difference.
+From: dcashman <dcashman@google.com>
 
-Ok. In mean time I've tried 4.3.0 kernel + patches (the same as before + on=
-e=20
-more) on second server which runs even more rsnapshot processes and also us=
-es=20
-xfs on md raid 6.
+Address Space Layout Randomization (ASLR) provides a barrier to exploitation of user-space processes in the presence of security vulnerabilities by making it more difficult to find desired code/data which could help an attack. This is done by adding a random offset to the location of regions in the process address space, with a greater range of potential offset values corresponding to better protection/a larger search-space for brute force, but also to greater potential for fragmentation.
 
-Patches:
-http://sprunge.us/DfIQ (debug patch from Tetsuo)
-http://sprunge.us/LQPF (backport of things from git + one from ml)
+The offset added to the mmap_base address, which provides the basis for the majority of the mappings for a process, is set once on process exec in arch_pick_mmap_layout() and is done via hard-coded per-arch values, which reflect, hopefully, the best compromise for all systems. The trade-off between increased entropy in the offset value generation and the corresponding increased variability in address space fragmentation is not absolute, however, and some platforms may tolerate higher amounts of entropy. This patch introduces both new Kconfig values and a sysctl interface which may be used to change the amount of entropy used for offset generation on a system.
 
-The problem is now with high order allocations probably:
-http://ixion.pld-linux.org/~arekm/log-mm-2srv-1.txt.gz
+The direct motivation for this change was in response to the libstagefright vulnerabilities that affected Android, specifically to information provided by Google's project zero at:
 
-System is doing very slow progress and for example depmod run took 2 hours
-http://sprunge.us/HGbE
-Sometimes I was able to ssh-in, dmesg took 10-15 minutes but sometimes it=20
-worked fast for short period.
+http://googleprojectzero.blogspot.com/2015/09/stagefrightened.html
 
-Ideas?
+The attack presented therein, by Google's project zero, specifically targeted the limited randomness used to generate the offset added to the mmap_base address in order to craft a brute-force-based attack. Concretely, the attack was against the mediaserver process, which was limited to respawning every 5 seconds, on an arm device. The hard-coded 8 bits used resulted in an average expected success rate of defeating the mmap ASLR after just over 10 minutes (128 tries at 5 seconds a piece). With this patch, and an accompanying increase in the entropy value to 16 bits, the same attack would take an average expected time of over 45 hours (32768 tries), which makes it both less feasible and more likely to be noticed.
 
-ps. I also had one problem with low order allocation but only once and wasn=
-'t=20
-able to reproduce so far. I was running kernel with backport patches but no=
-=20
-debug patch, so got only this in logs:
-http://sprunge.us/WPXi
+The introduced Kconfig and sysctl options are limited by per-arch minimum and maximum values, the minimum of which was chosen to match the current hard-coded value and the maximum of which was chosen so as to give the greatest flexibility without generating an invalid mmap_base address, generally a 3-4 bits less than the number of bits in the user-space accessible virtual address space.
 
-=2D-=20
-Arkadiusz Mi=C5=9Bkiewicz, arekm / ( maven.pl | pld-linux.org )
+When decided whether or not to change the default value, a system developer should consider that mmap_base address could be placed anywhere up to 2^(value) bits away from the non-randomized location, which would introduce variable-sized areas above and below the mmap_base address such that the maximum vm_area_struct size may be reduced, preventing very large allocations.
+
+Changes in v3:
+* moved sysctl from /proc/sys/kernel to /proc/sys/vm
+* added to arch/x86 (both 32 and 64 bit)
+* added to arch/arm64
+* added ability for arch to specify default value in between max - min
+
+dcashman (4):
+  mm: mmap: Add new /proc tunable for mmap_base ASLR.
+  arm: mm: support ARCH_MMAP_RND_BITS.
+  arm64: mm: support ARCH_MMAP_RND_BITS.
+  x86: mm: support ARCH_MMAP_RND_BITS.
+
+ Documentation/sysctl/vm.txt | 29 ++++++++++++++++++++
+ arch/Kconfig                | 64 +++++++++++++++++++++++++++++++++++++++++++++
+ arch/arm/Kconfig            | 10 +++++++
+ arch/arm/mm/mmap.c          |  3 +--
+ arch/arm64/Kconfig          | 23 ++++++++++++++++
+ arch/arm64/mm/mmap.c        |  6 +++--
+ arch/x86/Kconfig            | 16 ++++++++++++
+ arch/x86/mm/mmap.c          | 12 ++++-----
+ include/linux/mm.h          | 11 ++++++++
+ kernel/sysctl.c             | 22 ++++++++++++++++
+ mm/mmap.c                   | 12 +++++++++
+ 11 files changed, 198 insertions(+), 10 deletions(-)
+
+-- 
+2.6.0.rc2.230.g3dd15c0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
