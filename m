@@ -1,65 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C8CD16B0253
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 07:35:57 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so82958776pab.0
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 04:35:57 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id um10si11614451pab.110.2015.11.19.04.35.56
-        for <linux-mm@kvack.org>;
-        Thu, 19 Nov 2015 04:35:57 -0800 (PST)
-Date: Thu, 19 Nov 2015 20:35:46 +0800
-From: Fengguang Wu <lkp@intel.com>
-Subject: Re: [kbuild-all] [patch -mm] mm, vmalloc: remove VM_VPAGES
-Message-ID: <20151119123546.GA25179@wfg-t540p.sh.intel.com>
-References: <201511190854.Z8lkE4h1%fengguang.wu@intel.com>
- <alpine.DEB.2.10.1511181659290.8399@chino.kir.corp.google.com>
- <20151119113300.GA22395@wfg-t540p.sh.intel.com>
- <201511192123.DHI75684.FFHOOQSVMLOFJt@I-love.SAKURA.ne.jp>
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id BDF906B0253
+	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 07:41:58 -0500 (EST)
+Received: by wmec201 with SMTP id c201so23628071wme.0
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 04:41:58 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.75])
+        by mx.google.com with ESMTPS id s10si47800183wmf.20.2015.11.19.04.41.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Nov 2015 04:41:57 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] mm: include linux/pfn.h for PHYS_PFN definition
+Date: Thu, 19 Nov 2015 13:41:53 +0100
+Message-ID: <5841074.QcbTqgbsZz@wuerfel>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201511192123.DHI75684.FFHOOQSVMLOFJt@I-love.SAKURA.ne.jp>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, linux-mm@kvack.org, akpm@linux-foundation.org, kbuild-all@01.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org, Chen Gang <gang.chen.5i5j@gmail.com>, Oleg Nesterov <oleg@redhat.com>
 
-On Thu, Nov 19, 2015 at 09:23:41PM +0900, Tetsuo Handa wrote:
-> Fengguang Wu wrote:
-> > Hi David,
-> > 
-> > On Wed, Nov 18, 2015 at 05:00:07PM -0800, David Rientjes wrote:
-> > > On Thu, 19 Nov 2015, kbuild test robot wrote:
-> > > 
-> > > > Hi David,
-> > > > 
-> > > > [auto build test ERROR on: next-20151118]
-> > > > [also build test ERROR on: v4.4-rc1]
-> > > > 
-> > > 
-> > > You need to teach your bot what patches I'm proposing for the -mm tree 
-> > > (notice the patch title) instead of your various trees.
-> > 
-> > Per my understanding linux-next is the -mm tree.
-> > Or do you mean some standalone -mm git tree?
-> > 
-> > Thanks,
-> > Fengguang
-> > 
-> 
-> This build error will be gone when
-> "[PATCH] tree wide: Use kvfree() than conditional kfree()/vfree()"
-> (currently in -mm tree) is applied.
+A change to asm-generic/memory_model.h caused a new build error
+in some configurations:
 
-Got it. I can find that patch in the mmotm tree:
+mach-clps711x/common.c:39:10: error: implicit declaration of function 'PHYS_PFN'
+   .pfn  = __phys_to_pfn(CLPS711X_PHYS_BASE),
 
-        git://git.cmpxchg.org/linux-mmotm.git
+This includes the linux/pfn.h header from the same file to avoid the
+error.
 
-I'll teach the robot to use it instead of linux-next for [-mm] patches.
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Fixes: bf1c6c9895de ("mm: add PHYS_PFN, use it in __phys_to_pfn()")
+---
+I was listed as 'Cc' on the original patch, but don't see it in my inbox.
 
-Thanks,
-Fengguang
+I can queue up the fixed version in the asm-generic tree if you like that,
+otherwise please fold this fixup into the patch, or drop it if we want to
+avoid the extra #include.
+
+diff --git a/include/asm-generic/memory_model.h b/include/asm-generic/memory_model.h
+index c785a79d9385..5148150cc80b 100644
+--- a/include/asm-generic/memory_model.h
++++ b/include/asm-generic/memory_model.h
+@@ -1,6 +1,8 @@
+ #ifndef __ASM_MEMORY_MODEL_H
+ #define __ASM_MEMORY_MODEL_H
+ 
++#include <linux/pfn.h>
++
+ #ifndef __ASSEMBLY__
+ 
+ #if defined(CONFIG_FLATMEM)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
