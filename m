@@ -1,86 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 76FB26B0253
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 08:29:14 -0500 (EST)
-Received: by wmec201 with SMTP id c201so117795444wme.1
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 05:29:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id pc1si11243594wjb.243.2015.11.19.05.29.13
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF066B0253
+	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 08:50:27 -0500 (EST)
+Received: by wmec201 with SMTP id c201so118628331wme.1
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 05:50:26 -0800 (PST)
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com. [74.125.82.48])
+        by mx.google.com with ESMTPS id g9si12225791wmd.74.2015.11.19.05.50.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 19 Nov 2015 05:29:13 -0800 (PST)
-Subject: Re: hugepage compaction causes performance drop
-References: <20151119092920.GA11806@aaronlu.sh.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <564DCEA6.3000802@suse.cz>
-Date: Thu, 19 Nov 2015 14:29:10 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Nov 2015 05:50:25 -0800 (PST)
+Received: by wmvv187 with SMTP id v187so26528483wmv.1
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 05:50:25 -0800 (PST)
+Date: Thu, 19 Nov 2015 14:50:24 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 13/14] mm: memcontrol: account socket memory in unified
+ hierarchy memory controller
+Message-ID: <20151119135023.GH8494@dhcp22.suse.cz>
+References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
+ <1447371693-25143-14-git-send-email-hannes@cmpxchg.org>
+ <20151116155923.GH14116@dhcp22.suse.cz>
+ <20151116181810.GB32544@cmpxchg.org>
+ <20151118162256.GK19145@dhcp22.suse.cz>
+ <20151118214822.GA1365@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20151119092920.GA11806@aaronlu.sh.intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151118214822.GA1365@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org
-Cc: Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, lkp@lists.01.org, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-+CC Andrea, David, Joonsoo
+On Wed 18-11-15 16:48:22, Johannes Weiner wrote:
+[...]
+> So I ran perf record -g -a netperf -t TCP_STREAM multiple times inside
+> a memory-controlled cgroup, but mostly mem_cgroup_charge_skmem() does
+> not show up in the profile at all. Once it was there with 0.00%.
 
-On 11/19/2015 10:29 AM, Aaron Lu wrote:
-> Hi,
->
-> One vm related test case run by LKP on a Haswell EP with 128GiB memory
-> showed that compaction code would cause performance drop about 30%. To
-> illustrate the problem, I've simplified the test with a program called
-> usemem(see attached). The test goes like this:
-> 1 Boot up the server;
-> 2 modprobe scsi_debug(a module that could use memory as SCSI device),
->    dev_size set to 4/5 free memory, i.e. about 100GiB. Use it as swap.
-> 3 run the usemem test, which use mmap to map a MAP_PRIVATE | MAP_ANON
->    region with the size set to 3/4 of (remaining_free_memory + swap), and
->    then write to that region sequentially to trigger page fault and swap
->    out.
->
-> The above test runs with two configs regarding the below two sysfs files:
-> /sys/kernel/mm/transparent_hugepage/enabled
-> /sys/kernel/mm/transparent_hugepage/defrag
-> 1 transparent hugepage and defrag are both set to always, let's call it
->    always-always case;
-> 2 transparent hugepage is set to always while defrag is set to never,
->    let's call it always-never case.
->
-> The output from the always-always case is:
-> Setting up swapspace version 1, size = 104627196 KiB
-> no label, UUID=aafa53ae-af9e-46c9-acb9-8b3d4f57f610
-> cmdline: /lkp/aaron/src/bin/usemem 99994672128
-> 99994672128 transferred in 95 seconds, throughput: 1003 MB/s
->
-> And the output from the always-never case is:
-> etting up swapspace version 1, size = 104629244 KiB
-> no label, UUID=60563c82-d1c6-4d86-b9fa-b52f208097e9
-> cmdline: /lkp/aaron/src/bin/usemem 99995965440
-> 99995965440 transferred in 67 seconds, throughput: 1423 MB/s
+OK, this sounds very good! This means that most workloads which are not
+focusing solely on the network traffic shouldn't even notice. I can
+imagine that workloads with high throughput demands would notice but I
+would also expect them to disable the feature.
 
-So yeah this is an example of workload that has no benefit from THP's, 
-but pays all the cost. Fixing that is non-trivial and I admit I haven't 
-pushed my prior efforts there too much lately...
-But it's also possible there still are actual compaction bugs making the 
-issue worse.
+Could you add this information to the changelog, please?
 
-> The vmstat and perf-profile are also attached, please let me know if you
-> need any more information, thanks.
+> I ran another test that downloads the latest kernel image from
+> kernel.org at 13MB/s (on my i5 laptop) and it looks like this:
+> 
+>      0.02%     0.01%  irq/44-iwlwifi   [kernel.kallsyms]           [k] mem_cgroup_charge_skmem
+>              |
+>              ---mem_cgroup_charge_skmem
+>                 __sk_mem_schedule
+>                 tcp_try_rmem_schedule
+>                 tcp_data_queue
+>                 tcp_rcv_established
+>                 tcp_v4_do_rcv
+>                 tcp_v4_rcv
+>                 ip_local_deliver
+>                 ip_rcv
+>                 __netif_receive_skb_core
+>                 __netif_receive_skb
+>                 netif_receive_skb_internal
+>                 napi_gro_complete
+> 
+> The runs vary too much for this to be measurable in elapsed time.
 
-Output from vmstat (the tool) isn't much useful here, a periodic "cat 
-/proc/vmstat" would be much better.
-The perf profiles are somewhat weirdly sorted by children cost (?), but 
-I noticed a very high cost (46%) in pageblock_pfn_to_page(). This could 
-be due to a very large but sparsely populated zone. Could you provide 
-/proc/zoneinfo?
-If the compaction scanners behave strangely due to a bug, enabling the 
-ftrace compaction tracepoints should help find the cause. That might 
-produce a very large output, but maybe it would be enough to see some 
-parts of it (i.e. towards beginning, middle, end of the experiment).
-
-Vlastimil
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
