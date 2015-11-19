@@ -1,57 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A93B96B0038
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 11:44:16 -0500 (EST)
-Received: by wmec201 with SMTP id c201so34848397wme.0
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 08:44:16 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gd4si12409270wjb.2.2015.11.19.08.44.15
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 99C5B6B0038
+	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 11:52:39 -0500 (EST)
+Received: by wmdw130 with SMTP id w130so248417665wmd.0
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 08:52:39 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id bw7si12423436wjb.40.2015.11.19.08.52.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 19 Nov 2015 08:44:15 -0800 (PST)
-Subject: Re: [PATCH 3/5] mm, page_owner: copy page owner info during migration
-References: <1446649261-27122-1-git-send-email-vbabka@suse.cz>
- <1446649261-27122-4-git-send-email-vbabka@suse.cz>
- <alpine.LSU.2.11.1511081318110.12914@eggly.anvils>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <564DFC5C.2090103@suse.cz>
-Date: Thu, 19 Nov 2015 17:44:12 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Nov 2015 08:52:38 -0800 (PST)
+Date: Thu, 19 Nov 2015 11:52:25 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 13/14] mm: memcontrol: account socket memory in unified
+ hierarchy memory controller
+Message-ID: <20151119165225.GA1949@cmpxchg.org>
+References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
+ <1447371693-25143-14-git-send-email-hannes@cmpxchg.org>
+ <20151116155923.GH14116@dhcp22.suse.cz>
+ <20151116181810.GB32544@cmpxchg.org>
+ <20151118162256.GK19145@dhcp22.suse.cz>
+ <20151118214822.GA1365@cmpxchg.org>
+ <20151119135023.GH8494@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1511081318110.12914@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151119135023.GH8494@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Tejun Heo <tj@kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 11/08/2015 10:29 PM, Hugh Dickins wrote:
->
-> Would it be possible to move that line into migrate_page_copy()?
->
-> I don't think it's wrong where you placed it, but that block is really
-> about resetting the old page ready for freeing, and I'd prefer to keep
-> all the transference of properties from old to new in migrate_page_copy()
-> if we can.
+On Thu, Nov 19, 2015 at 02:50:24PM +0100, Michal Hocko wrote:
+> On Wed 18-11-15 16:48:22, Johannes Weiner wrote:
+> [...]
+> > So I ran perf record -g -a netperf -t TCP_STREAM multiple times inside
+> > a memory-controlled cgroup, but mostly mem_cgroup_charge_skmem() does
+> > not show up in the profile at all. Once it was there with 0.00%.
+> 
+> OK, this sounds very good! This means that most workloads which are not
+> focusing solely on the network traffic shouldn't even notice. I can
+> imagine that workloads with high throughput demands would notice but I
+> would also expect them to disable the feature.
 
-OK, makes sense, will do in v2.
+Even for high throughput, the cost of this is a function of number of
+packets sent. E.g. the 13MB/s over wifi showed the socket charging at
+0.02%. But I just did an http transfer over 1Gbit ethernet at around
+110MB/s, ten times the bandwidth, and the charge function is at 0.00%.
 
-> But check how that behaves in the migrate_misplaced_transhuge_page()
-> case: I haven't studied long enough, but I think you may have been missing
-> to copy_page_owner in that case;
+> Could you add this information to the changelog, please?
 
-You're right, I missed that path :/
+Sure, but which information exactly?
 
-> but beware of its "fail_putback", which
-> for some things nastily entails undoing what's already been done.
-
-Yeah, I think I don't need to reset page owner info in the fail_putback 
-path, for the same reason I don't reset it from the old page when 
-migration is successful. The page is going to be freed anyway, and if it 
-somehow hits a bug before that, we will still have something to print 
-(after patch 5).
-
-Thanks!
+If we had found a realistic networking workload that is expected to be
+containerized and had shown that load to be negatively affected by the
+charging calls, that would have been worth bringing up in conjunction
+with the boot-time flag. But what do we have to say here? People care
+about cost. It seems unnecessary to point out the absence of it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
