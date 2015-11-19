@@ -1,200 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id BEA986B0255
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 14:10:25 -0500 (EST)
-Received: by iouu10 with SMTP id u10so101265577iou.0
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 11:10:25 -0800 (PST)
-Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
-        by mx.google.com with ESMTPS id x77si13796486iod.113.2015.11.19.11.10.25
+Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com [209.85.220.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BE5A6B0256
+	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 14:11:07 -0500 (EST)
+Received: by qkda6 with SMTP id a6so29107505qkd.3
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 11:11:07 -0800 (PST)
+Received: from BLU004-OMC1S25.hotmail.com (blu004-omc1s25.hotmail.com. [65.55.116.36])
+        by mx.google.com with ESMTPS id t130si7931852qhb.55.2015.11.19.11.11.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Nov 2015 11:10:25 -0800 (PST)
-Received: by iofh3 with SMTP id h3so99841123iof.3
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 11:10:25 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 19 Nov 2015 11:11:06 -0800 (PST)
+Message-ID: <BLU436-SMTP20633C03AB00B1A9777C8C8B91B0@phx.gbl>
+Date: Fri, 20 Nov 2015 03:13:39 +0800
+From: Chen Gang <xili_gchen_5257@hotmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1447892054-8095-1-git-send-email-labbott@fedoraproject.org>
-References: <1447892054-8095-1-git-send-email-labbott@fedoraproject.org>
-Date: Thu, 19 Nov 2015 11:10:24 -0800
-Message-ID: <CAGXu5j+y1m9oONvCQg=MgrkwAgUV5OChoAY=q6vvyGNExY1Zjg@mail.gmail.com>
-Subject: Re: [PATCHv2] arm: Update all mm structures with section adjustments
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] mm: include linux/pfn.h for PHYS_PFN definition
+References: <5841074.QcbTqgbsZz@wuerfel>
+In-Reply-To: <5841074.QcbTqgbsZz@wuerfel>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@fedoraproject.org>
-Cc: Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org, Chen Gang <gang.chen.5i5j@gmail.com>, Oleg Nesterov <oleg@redhat.com>
 
-On Wed, Nov 18, 2015 at 4:14 PM, Laura Abbott <labbott@fedoraproject.org> wrote:
-> Currently, when updating section permissions to mark areas RO
-> or NX, the only mm updated is current->mm. This is working off
-> the assumption that there are no additional mm structures at
-> the time. This may not always hold true. (Example: calling
-> modprobe early will trigger a fork/exec). Ensure all mm structres
-> get updated with the new section information.
->
-> Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
 
-This looks right to me. :)
-
-Reviewed-by: Kees Cook <keescook@chromium.org>
-
-Russell, does this work for you?
-
--Kees
-
+On 11/19/15 20:41=2C Arnd Bergmann wrote:
+> A change to asm-generic/memory_model.h caused a new build error
+> in some configurations:
+>=20
+> mach-clps711x/common.c:39:10: error: implicit declaration of function 'PH=
+YS_PFN'
+>    .pfn  =3D __phys_to_pfn(CLPS711X_PHYS_BASE)=2C
+>=20
+> This includes the linux/pfn.h header from the same file to avoid the
+> error.
+>=20
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> Fixes: bf1c6c9895de ("mm: add PHYS_PFN=2C use it in __phys_to_pfn()")
 > ---
-> I don't think we can get away from updating the sections if the initmem is
-> going to be freed back to the buddy allocator. I think this should cover
-> everything based on my understanding but my knowledge may be incomplete.
-> ---
->  arch/arm/mm/init.c | 92 ++++++++++++++++++++++++++++++++++++------------------
->  1 file changed, 62 insertions(+), 30 deletions(-)
->
-> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-> index 8a63b4c..7f8cd1b 100644
-> --- a/arch/arm/mm/init.c
-> +++ b/arch/arm/mm/init.c
-> @@ -22,6 +22,7 @@
->  #include <linux/memblock.h>
->  #include <linux/dma-contiguous.h>
->  #include <linux/sizes.h>
-> +#include <linux/stop_machine.h>
->
->  #include <asm/cp15.h>
->  #include <asm/mach-types.h>
-> @@ -627,12 +628,10 @@ static struct section_perm ro_perms[] = {
->   * safe to be called with preemption disabled, as under stop_machine().
->   */
->  static inline void section_update(unsigned long addr, pmdval_t mask,
-> -                                 pmdval_t prot)
-> +                                 pmdval_t prot, struct mm_struct *mm)
->  {
-> -       struct mm_struct *mm;
->         pmd_t *pmd;
->
-> -       mm = current->active_mm;
->         pmd = pmd_offset(pud_offset(pgd_offset(mm, addr), addr), addr);
->
->  #ifdef CONFIG_ARM_LPAE
-> @@ -656,49 +655,82 @@ static inline bool arch_has_strict_perms(void)
->         return !!(get_cr() & CR_XP);
->  }
->
-> -#define set_section_perms(perms, field)        {                               \
-> -       size_t i;                                                       \
-> -       unsigned long addr;                                             \
-> -                                                                       \
-> -       if (!arch_has_strict_perms())                                   \
-> -               return;                                                 \
-> -                                                                       \
-> -       for (i = 0; i < ARRAY_SIZE(perms); i++) {                       \
-> -               if (!IS_ALIGNED(perms[i].start, SECTION_SIZE) ||        \
-> -                   !IS_ALIGNED(perms[i].end, SECTION_SIZE)) {          \
-> -                       pr_err("BUG: section %lx-%lx not aligned to %lx\n", \
-> -                               perms[i].start, perms[i].end,           \
-> -                               SECTION_SIZE);                          \
-> -                       continue;                                       \
-> -               }                                                       \
-> -                                                                       \
-> -               for (addr = perms[i].start;                             \
-> -                    addr < perms[i].end;                               \
-> -                    addr += SECTION_SIZE)                              \
-> -                       section_update(addr, perms[i].mask,             \
-> -                                      perms[i].field);                 \
-> -       }                                                               \
-> +void set_section_perms(struct section_perm *perms, int n, bool set,
-> +                       struct mm_struct *mm)
-> +{
-> +       size_t i;
-> +       unsigned long addr;
+> I was listed as 'Cc' on the original patch=2C but don't see it in my inbo=
+x.
+>=20
+> I can queue up the fixed version in the asm-generic tree if you like that=
+=2C
+> otherwise please fold this fixup into the patch=2C or drop it if we want =
+to
+> avoid the extra #include.
+>=20
+> diff --git a/include/asm-generic/memory_model.h b/include/asm-generic/mem=
+ory_model.h
+> index c785a79d9385..5148150cc80b 100644
+> --- a/include/asm-generic/memory_model.h
+> +++ b/include/asm-generic/memory_model.h
+> @@ -1=2C6 +1=2C8 @@
+>  #ifndef __ASM_MEMORY_MODEL_H
+>  #define __ASM_MEMORY_MODEL_H
+> =20
+> +#include <linux/pfn.h>
 > +
-> +       if (!arch_has_strict_perms())
-> +               return;
-> +
-> +       for (i = 0; i < n; i++) {
-> +               if (!IS_ALIGNED(perms[i].start, SECTION_SIZE) ||
-> +                   !IS_ALIGNED(perms[i].end, SECTION_SIZE)) {
-> +                       pr_err("BUG: section %lx-%lx not aligned to %lx\n",
-> +                               perms[i].start, perms[i].end,
-> +                               SECTION_SIZE);
-> +                       continue;
-> +               }
-> +
-> +               for (addr = perms[i].start;
-> +                    addr < perms[i].end;
-> +                    addr += SECTION_SIZE)
-> +                       section_update(addr, perms[i].mask,
-> +                               set ? perms[i].prot : perms[i].clear, mm);
-> +       }
-> +
->  }
->
-> -static inline void fix_kernmem_perms(void)
-> +static void update_sections_early(struct section_perm perms[], int n)
->  {
-> -       set_section_perms(nx_perms, prot);
-> +       struct task_struct *t, *s;
-> +
-> +       read_lock(&tasklist_lock);
-> +       for_each_process(t) {
-> +               if (t->flags & PF_KTHREAD)
-> +                       continue;
-> +               for_each_thread(t, s)
-> +                       set_section_perms(perms, n, true, s->mm);
-> +       }
-> +       read_unlock(&tasklist_lock);
-> +       set_section_perms(perms, n, true, current->active_mm);
-> +       set_section_perms(perms, n, true, &init_mm);
-> +}
-> +
-> +int __fix_kernmem_perms(void *unused)
-> +{
-> +       update_sections_early(nx_perms, ARRAY_SIZE(nx_perms));
-> +       return 0;
-> +}
-> +
-> +void fix_kernmem_perms(void)
-> +{
-> +       stop_machine(__fix_kernmem_perms, NULL, NULL);
->  }
->
->  #ifdef CONFIG_DEBUG_RODATA
-> +int __mark_rodata_ro(void *unused)
-> +{
-> +       update_sections_early(ro_perms, ARRAY_SIZE(ro_perms));
-> +       return 0;
-> +}
-> +
->  void mark_rodata_ro(void)
->  {
-> -       set_section_perms(ro_perms, prot);
-> +       stop_machine(__mark_rodata_ro, NULL, NULL);
->  }
->
->  void set_kernel_text_rw(void)
->  {
-> -       set_section_perms(ro_perms, clear);
-> +       set_section_perms(ro_perms, ARRAY_SIZE(ro_perms), false,
-> +                               current->active_mm);
->  }
->
->  void set_kernel_text_ro(void)
->  {
-> -       set_section_perms(ro_perms, prot);
-> +       set_section_perms(ro_perms, ARRAY_SIZE(ro_perms), true,
-> +                               current->active_mm);
->  }
->  #endif /* CONFIG_DEBUG_RODATA */
->
-> --
-> 2.5.0
->
 
+For me=2C it is OK=2C thanks.
 
+>  #ifndef __ASSEMBLY__
+> =20
+>  #if defined(CONFIG_FLATMEM)
+>=20
 
--- 
-Kees Cook
-Chrome OS Security
+--=20
+Chen Gang (=E9=99=88=E5=88=9A)
+
+Open=2C share=2C and attitude like air=2C water=2C and life which God bless=
+ed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
