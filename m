@@ -1,46 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 019226B0253
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 13:38:00 -0500 (EST)
-Received: by wmdw130 with SMTP id w130so252205535wmd.0
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 10:37:59 -0800 (PST)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id AD7E86B0255
+	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 13:57:16 -0500 (EST)
+Received: by wmec201 with SMTP id c201so131073864wme.1
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 10:57:16 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id w189si5764991wmd.3.2015.11.19.10.37.58
+        by mx.google.com with ESMTPS id e8si49942774wma.7.2015.11.19.10.57.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Nov 2015 10:37:58 -0800 (PST)
-Date: Thu, 19 Nov 2015 13:37:45 -0500
+        Thu, 19 Nov 2015 10:57:15 -0800 (PST)
+Date: Thu, 19 Nov 2015 13:56:56 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [kbuild-all] [patch -mm] mm, vmalloc: remove VM_VPAGES
-Message-ID: <20151119183745.GA2555@cmpxchg.org>
-References: <201511190854.Z8lkE4h1%fengguang.wu@intel.com>
- <alpine.DEB.2.10.1511181659290.8399@chino.kir.corp.google.com>
- <20151119113300.GA22395@wfg-t540p.sh.intel.com>
- <201511192123.DHI75684.FFHOOQSVMLOFJt@I-love.SAKURA.ne.jp>
- <20151119123546.GA25179@wfg-t540p.sh.intel.com>
+Subject: Re: [PATCH v2 1/6] Revert "kernfs: do not account ino_ida
+ allocations to memcg"
+Message-ID: <20151119185656.GA3941@cmpxchg.org>
+References: <cover.1447172835.git.vdavydov@virtuozzo.com>
+ <c468a2d2b39d755de2383c6ae49be6a53360a22b.1447172835.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151119123546.GA25179@wfg-t540p.sh.intel.com>
+In-Reply-To: <c468a2d2b39d755de2383c6ae49be6a53360a22b.1447172835.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <lkp@intel.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rientjes@google.com, linux-mm@kvack.org, akpm@linux-foundation.org, kbuild-all@01.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Greg Thelen <gthelen@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Fengguang,
-
-On Thu, Nov 19, 2015 at 08:35:46PM +0800, Fengguang Wu wrote:
+On Tue, Nov 10, 2015 at 09:34:02PM +0300, Vladimir Davydov wrote:
+> This reverts commit 499611ed451508a42d1d7d1faff10177827755d5.
 > 
->         git://git.cmpxchg.org/linux-mmotm.git
+> Black-list kmem accounting policy (aka __GFP_NOACCOUNT) turned out to be
+> fragile and difficult to maintain, because there seem to be many more
+> allocations that should not be accounted than those that should be.
+> Besides, false accounting an allocation might result in much worse
+> consequences than not accounting at all, namely increased memory
+> consumption due to pinned dead kmem caches.
 > 
-> I'll teach the robot to use it instead of linux-next for [-mm] patches.
+> So it was decided to switch to the white-list policy. This patch reverts
+> bits introducing the black-list policy. The white-list policy will be
+> introduced later in the series.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-Yup, that seems like a more suitable base.
-
-But you might even consider putting them on top of linux-mmots.git,
-which is released more frequently than mmotm. Not sure what other MM
-hackers do, but I tend to develop against mmots, and there could be
-occasional breakage when dependencies haven't yet trickled into mmotm.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
