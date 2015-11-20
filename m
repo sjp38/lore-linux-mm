@@ -1,87 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C7AC6B0253
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 21:54:31 -0500 (EST)
-Received: by qgea14 with SMTP id a14so64851629qge.0
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 18:54:30 -0800 (PST)
-Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com. [2607:f8b0:400d:c04::22f])
-        by mx.google.com with ESMTPS id s19si9291128qki.89.2015.11.19.18.54.22
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B4BE46B0253
+	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 22:04:41 -0500 (EST)
+Received: by qgcc31 with SMTP id c31so22284420qgc.3
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 19:04:41 -0800 (PST)
+Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
+        by mx.google.com with ESMTPS id y70si9335103qgd.62.2015.11.19.19.04.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Nov 2015 18:54:22 -0800 (PST)
-Received: by qgea14 with SMTP id a14so64850228qge.0
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 18:54:22 -0800 (PST)
-Date: Thu, 19 Nov 2015 21:54:13 -0500
+        Thu, 19 Nov 2015 19:04:41 -0800 (PST)
+Received: by qkda6 with SMTP id a6so32662133qkd.3
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 19:04:40 -0800 (PST)
+Date: Thu, 19 Nov 2015 22:04:37 -0500
 From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [RFC 6/8] userfaultfd: hook userfault handler to write
- protection fault
-Message-ID: <20151120025403.GA3093@gmail.com>
+Subject: Re: [RFC 7/8] userfaultfd: fault try one more time
+Message-ID: <20151120030436.GB3093@gmail.com>
 References: <cover.1447964595.git.shli@fb.com>
- <8b39e7027b26de92477a83d8145e22eb5f3b6989.1447964595.git.shli@fb.com>
+ <07f86ce80ddfc38fbf8247287e5b6475b1cd436d.1447964595.git.shli@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <8b39e7027b26de92477a83d8145e22eb5f3b6989.1447964595.git.shli@fb.com>
+In-Reply-To: <07f86ce80ddfc38fbf8247287e5b6475b1cd436d.1447964595.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@fb.com>
 Cc: linux-mm@kvack.org, kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Thu, Nov 19, 2015 at 02:33:51PM -0800, Shaohua Li wrote:
-> There are several cases write protection fault happens. It could be a write
-> to zero page, swaped page or userfault write protected page. When the
-> fault happens, there is no way to know if userfault write protect the
-> page before. Here we just blindly issue a userfault notification for vma
-> with VM_UFFD_WP regardless if app write protects it yet. Application
-> should be ready to handle such wp fault.
-> 
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Pavel Emelyanov <xemul@parallels.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Shaohua Li <shli@fb.com>
-> ---
->  mm/memory.c | 66 +++++++++++++++++++++++++++++++++++++++++++++----------------
->  1 file changed, 49 insertions(+), 17 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index deb679c..5d16a31 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1994,10 +1994,11 @@ static inline int wp_page_reuse(struct mm_struct *mm,
->  			struct vm_area_struct *vma, unsigned long address,
->  			pte_t *page_table, spinlock_t *ptl, pte_t orig_pte,
->  			struct page *page, int page_mkwrite,
-> -			int dirty_shared)
-> +			int dirty_shared, unsigned int flags)
->  	__releases(ptl)
->  {
->  	pte_t entry;
-> +	bool do_uffd = false;
->  	/*
->  	 * Clear the pages cpupid information as the existing
->  	 * information potentially belongs to a now completely
-> @@ -2008,10 +2009,16 @@ static inline int wp_page_reuse(struct mm_struct *mm,
->  
->  	flush_cache_page(vma, address, pte_pfn(orig_pte));
->  	entry = pte_mkyoung(orig_pte);
-> -	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-> +	if (userfaultfd_wp(vma) && page) {
-> +		entry = pte_mkdirty(entry);
+On Thu, Nov 19, 2015 at 02:33:52PM -0800, Shaohua Li wrote:
+> For a swapin memory write fault, fault handler already retry once to
+> read the page in. userfaultfd can't do the retry again and fail. Give
+> another retry for userfaultfd in such case. gup isn't fixed yet, so will
+> return -EBUSY.
 
+This whole patch make me nervous. I do not see the point in it. So on
+page fault in first pass you have the RETRY flag set and you can either
+return VM_FAULT_RETRY because (1) lock_page_or_retry() in do_swap_page()
+or because (2) handle_userfault().
 
-Why do you pte_mkdirty() it makes no sense to me unless i am missing something.
-In fact, IIRC, userfaultd is only concerning private anonymous vma so you should
-only need to modify 3 places. do_anonymous_page(), do_swap_page() and do_wp_page()
+In second case, on retry you already have a valid read only pte so you
+go directly to do_wp_page() and this is properly handle by current
+handle_userfault() code. So it does not make sense to add complexity
+for that case.
 
-You also want to hook in wp_huge_pmd() and __do_huge_pmd_anonymous_page() to
-properly cover THP.
+You seem to hint that you are doing this for the first case (1) but even
+for that one it does not make sense. So if we fail to lock the page it
+is because someone else is doing something with that page and most likely
+it is related to the userfaultfd already (like another thread took the
+fault and is doing all the steps you need). So you just want a regular
+retry, ie do_swap_page() return retry and on retry it is likely that
+everything is already all good. If not that it takes the slow painful
+wait code path.
 
-So i think you need to simplify this patch and make sure you handle THP properly.
+I genuinely do not see what benefit and reasons there is to this new
+special usefaultfd retry flag.
 
 Cheers,
 Jerome
