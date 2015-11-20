@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id CFF746B025B
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:03:02 -0500 (EST)
-Received: by ioc74 with SMTP id 74so115793323ioc.2
-        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:03:02 -0800 (PST)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1341D6B025C
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:03:05 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so112725997pab.0
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:03:04 -0800 (PST)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTPS id h71si433551iod.67.2015.11.20.00.02.50
+        by mx.google.com with ESMTPS id ie4si17981104pbb.168.2015.11.20.00.02.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 20 Nov 2015 00:02:51 -0800 (PST)
+        Fri, 20 Nov 2015 00:02:53 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v4 08/16] sparc: add pmd_[dirty|mkclean] for THP
-Date: Fri, 20 Nov 2015 17:02:40 +0900
-Message-Id: <1448006568-16031-9-git-send-email-minchan@kernel.org>
+Subject: [PATCH v4 09/16] powerpc: add pmd_[dirty|mkclean] for THP
+Date: Fri, 20 Nov 2015 17:02:41 +0900
+Message-Id: <1448006568-16031-10-git-send-email-minchan@kernel.org>
 In-Reply-To: <1448006568-16031-1-git-send-email-minchan@kernel.org>
 References: <1448006568-16031-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -29,29 +29,25 @@ support.
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- arch/sparc/include/asm/pgtable_64.h | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ arch/powerpc/include/asm/pgtable-ppc64.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 131d36fcd07a..5833dc5ee7d7 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -717,6 +717,15 @@ static inline pmd_t pmd_mkdirty(pmd_t pmd)
- 	return __pmd(pte_val(pte));
- }
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index fa1dfb7f7b48..85e15c8067be 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -507,9 +507,11 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
+ #define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
+ #define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
+ #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
++#define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
+ #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
+ #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
+ #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
++#define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
+ #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
+ #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
  
-+static inline pmd_t pmd_mkclean(pmd_t pmd)
-+{
-+	pte_t pte = __pte(pmd_val(pmd));
-+
-+	pte = pte_mkclean(pte);
-+
-+	return __pmd(pte_val(pte));
-+}
-+
- static inline pmd_t pmd_mkyoung(pmd_t pmd)
- {
- 	pte_t pte = __pte(pmd_val(pmd));
 -- 
 1.9.1
 
