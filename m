@@ -1,47 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 19D526B0253
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 04:48:39 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so112029149pac.3
-        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 01:48:38 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id vq10si18002497pab.74.2015.11.20.01.48.38
+Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A7836B0253
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 04:51:27 -0500 (EST)
+Received: by ykdr82 with SMTP id r82so152347108ykd.3
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 01:51:26 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id y81si9546809ywy.200.2015.11.20.01.51.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Nov 2015 01:48:38 -0800 (PST)
-Date: Fri, 20 Nov 2015 12:48:23 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 06/14] net: tcp_memcontrol: remove dead per-memcg count
- of allocated sockets
-Message-ID: <20151120094823.GY31308@esperanza>
-References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
- <1447371693-25143-7-git-send-email-hannes@cmpxchg.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Nov 2015 01:51:26 -0800 (PST)
+Message-ID: <564EEC06.9030501@huawei.com>
+Date: Fri, 20 Nov 2015 17:46:46 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <1447371693-25143-7-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [RFC] mm: direct mapping count in /proc/meminfo is error
+References: <564ED708.5090405@huawei.com> <564EDD3F.6070302@cn.fujitsu.com>
+In-Reply-To: <564EDD3F.6070302@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, zhong jiang <zhongjiang@huawei.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Nov 12, 2015 at 06:41:25PM -0500, Johannes Weiner wrote:
-> The number of allocated sockets is used for calculations in the soft
-> limit phase, where packets are accepted but the socket is under memory
-> pressure. Since there is no soft limit phase in tcp_memcontrol, and
-> memory pressure is only entered when packets are already dropped, this
-> is actually dead code. Remove it.
+On 2015/11/20 16:43, Tang Chen wrote:
 
-Actually, we can get into the soft limit phase due to the global limit
-(tcp_memory_pressure is set), but then using per-memcg sockets_allocated
-counter is just wrong.
-
+> Hi Shi,
 > 
-> As this is the last user of parent_cg_proto(), remove that too.
+> Would you please share where did you add the printk debug info ?
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Sure, at the end of init_mem_mapping(), I add a new function, like arch_report_meminfo(),
+just change "seq_printf" to "printk".
+
+Thanks,
+Xishi Qiu
+
+> Thanks. :)
+> 
+> On 11/20/2015 04:17 PM, Xishi Qiu wrote:
+>> I find the direct mapping count in /proc/meminfo is error.
+>> The value should be equal to the size of init_memory_mapping which
+>> showed in boot log.
+>>
+>> I add some print to show direct_pages_count[] immediately after
+>> init_memory_mapping(). The reason is that we double counting.
+>>
+>> Here is the log(kernel v4.4):
+>> ...
+>> [    0.000000] init_memory_mapping: [mem 0x00000000-0x000fffff]  // called from "init_memory_mapping(0, ISA_END_ADDRESS);"
+>> [    0.000000]  [mem 0x00000000-0x000fffff] page 4k
+>> [    0.000000] BRK [0x01ebf000, 0x01ebffff] PGTABLE
+>> [    0.000000] BRK [0x01ec0000, 0x01ec0fff] PGTABLE
+>> [    0.000000] BRK [0x01ec1000, 0x01ec1fff] PGTABLE
+>> [    0.000000] init_memory_mapping: [mem 0xc3fe00000-0xc3fffffff]  // called from "memory_map_top_down(ISA_END_ADDRESS, end);"
+>> [    0.000000]  [mem 0xc3fe00000-0xc3fffffff] page 1G  // increase count of PG_LEVEL_1G in c00000000(48G)-c3fffffff(49G) one time
+>> [    0.000000] init_memory_mapping: [mem 0xc20000000-0xc3fdfffff]
+>> [    0.000000]  [mem 0xc20000000-0xc3fdfffff] page 1G  // increase count of PG_LEVEL_1G in c00000000(48G)-c3fffffff(49G) two time
+>> [    0.000000] init_memory_mapping: [mem 0x00100000-0xbf78ffff]
+>> [    0.000000]  [mem 0x00100000-0x001fffff] page 4k
+>> [    0.000000]  [mem 0x00200000-0x3fffffff] page 2M
+>> [    0.000000]  [mem 0x40000000-0x7fffffff] page 1G
+>> [    0.000000]  [mem 0x80000000-0xbf5fffff] page 2M
+>> [    0.000000]  [mem 0xbf600000-0xbf78ffff] page 4k
+>> [    0.000000] init_memory_mapping: [mem 0x100000000-0xc1fffffff]
+>> [    0.000000]  [mem 0x100000000-0xc1fffffff] page 1G  // increase count of PG_LEVEL_1G in c00000000(48G)-c3fffffff(49G) three time
+>> ...
+>> [    0.000000] DirectMap4k:        3648 kB
+>> [    0.000000] DirectMap2M:     2084864 kB
+>> [    0.000000] DirectMap1G:    50331648 kB
+>>
+>> euler-linux:~ # cat /proc/meminfo | grep DirectMap
+>> DirectMap4k:       91712 kB
+>> DirectMap2M:     4093952 kB
+>> DirectMap1G:    48234496 kB
+>>
+>>
+>> total DirectMap is 48234496 + 4093952 + 91712 = 52420160kb
+>>             50331648 + 2084864 + 3648 = 52420160kb
+>> total init_memory_mapping is 50323008kb
+>>
+>> 52420160kb - 50323008kb = 2097152kb = 2G
+>>
+>> However I haven't find a better way to fix it, any ideas?
+>>
+>> Thanks,
+>> Xishi Qiu
+>>
+>>
+>> .
+>>
+> 
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
