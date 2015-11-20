@@ -1,134 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id CE0616B0257
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:02:54 -0500 (EST)
-Received: by igbxm8 with SMTP id xm8so6583365igb.1
-        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:02:54 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTPS id p34si467527ioi.58.2015.11.20.00.02.47
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id F203A6B0258
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:02:56 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so109220619pac.2
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:02:56 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id eo5si17978500pbb.133.2015.11.20.00.02.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Fri, 20 Nov 2015 00:02:48 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v4 03/16] arch: uapi: asm: mman.h: Let MADV_FREE have same value for all architectures
-Date: Fri, 20 Nov 2015 17:02:35 +0900
-Message-Id: <1448006568-16031-4-git-send-email-minchan@kernel.org>
+Subject: [PATCH v4 05/16] mm: move lazily freed pages to inactive list
+Date: Fri, 20 Nov 2015 17:02:37 +0900
+Message-Id: <1448006568-16031-6-git-send-email-minchan@kernel.org>
 In-Reply-To: <1448006568-16031-1-git-send-email-minchan@kernel.org>
 References: <1448006568-16031-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Andy Lutomirski <luto@amacapital.net>, Chen Gang <gang.chen.5i5j@gmail.com>, "rth@twiddle.net" <rth@twiddle.net>, "ink@jurassic.park.msu.ru" <ink@jurassic.park.msu.ru>, "mattst88@gmail.com" <mattst88@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, "jejb@parisc-linux.org" <jejb@parisc-linux.org>, "deller@gmx.de" <deller@gmx.de>, "chris@zankel.net" <chris@zankel.net>, "jcmvbkbc@gmail.com" <jcmvbkbc@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org, sparclinux@vger.kernel.org, roland@kernel.org, darrick.wong@oracle.com, davem@davemloft.net, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Andy Lutomirski <luto@amacapital.net>, Minchan Kim <minchan@kernel.org>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>
 
-From: Chen Gang <gang.chen.5i5j@gmail.com>
+MADV_FREE is a hint that it's okay to discard pages if there is memory
+pressure and we use reclaimers(ie, kswapd and direct reclaim) to free them
+so there is no value keeping them in the active anonymous LRU so this
+patch moves them to inactive LRU list's head.
 
-For uapi, need try to let all macros have same value, and MADV_FREE is
-added into main branch recently, so need redefine MADV_FREE for it.
+This means that MADV_FREE-ed pages which were living on the inactive list
+are reclaimed first because they are more likely to be cold rather than
+recently active pages.
 
-At present, '8' can be shared with all architectures, so redefine it to
-'8'.
+An arguable issue for the approach would be whether we should put the page
+to the head or tail of the inactive list.  I chose head because the kernel
+cannot make sure it's really cold or warm for every MADV_FREE usecase but
+at least we know it's not *hot*, so landing of inactive head would be a
+comprimise for various usecases.
 
-Cc: rth@twiddle.net <rth@twiddle.net>,
-Cc: ink@jurassic.park.msu.ru <ink@jurassic.park.msu.ru>
-Cc: mattst88@gmail.com <mattst88@gmail.com>
-Cc: Ralf Baechle <ralf@linux-mips.org>
-Cc: jejb@parisc-linux.org <jejb@parisc-linux.org>
-Cc: deller@gmx.de <deller@gmx.de>
-Cc: chris@zankel.net <chris@zankel.net>
-Cc: jcmvbkbc@gmail.com <jcmvbkbc@gmail.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-arch@vger.kernel.org
-Cc: linux-api@vger.kernel.org
-Cc: sparclinux@vger.kernel.org
-Cc: roland@kernel.org
-Cc: darrick.wong@oracle.com
-Cc: davem@davemloft.net
+This fixes suboptimal behavior of MADV_FREE when pages living on the
+active list will sit there for a long time even under memory pressure
+while the inactive list is reclaimed heavily.  This basically breaks the
+whole purpose of using MADV_FREE to help the system to free memory which
+is might not be used.
+
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Wang, Yalin <Yalin.Wang@sonymobile.com>
 Acked-by: Hugh Dickins <hughd@google.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
-Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- arch/alpha/include/uapi/asm/mman.h     | 2 +-
- arch/mips/include/uapi/asm/mman.h      | 2 +-
- arch/parisc/include/uapi/asm/mman.h    | 2 +-
- arch/xtensa/include/uapi/asm/mman.h    | 2 +-
- include/uapi/asm-generic/mman-common.h | 2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ include/linux/swap.h |  1 +
+ mm/madvise.c         |  2 ++
+ mm/swap.c            | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 47 insertions(+)
 
-diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-index 836fbd44f65b..0b8a5de7aee3 100644
---- a/arch/alpha/include/uapi/asm/mman.h
-+++ b/arch/alpha/include/uapi/asm/mman.h
-@@ -44,9 +44,9 @@
- #define MADV_WILLNEED	3		/* will need these pages */
- #define	MADV_SPACEAVAIL	5		/* ensure resources are available */
- #define MADV_DONTNEED	6		/* don't need these pages */
--#define MADV_FREE	7		/* free pages only if memory pressure */
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 7ba7dccaf0e7..f629df4cc13d 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -308,6 +308,7 @@ extern void lru_add_drain_cpu(int cpu);
+ extern void lru_add_drain_all(void);
+ extern void rotate_reclaimable_page(struct page *page);
+ extern void deactivate_file_page(struct page *page);
++extern void deactivate_page(struct page *page);
+ extern void swap_setup(void);
  
- /* common/generic parameters */
-+#define MADV_FREE	8		/* free pages only if memory pressure */
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
-diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-index 106e741aa7ee..d247f5457944 100644
---- a/arch/mips/include/uapi/asm/mman.h
-+++ b/arch/mips/include/uapi/asm/mman.h
-@@ -67,9 +67,9 @@
- #define MADV_SEQUENTIAL 2		/* expect sequential page references */
- #define MADV_WILLNEED	3		/* will need these pages */
- #define MADV_DONTNEED	4		/* don't need these pages */
--#define MADV_FREE	5		/* free pages only if memory pressure */
+ extern void add_page_to_unevictable_list(struct page *page);
+diff --git a/mm/madvise.c b/mm/madvise.c
+index c8e23102fc99..60e4d7f8ea16 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -340,6 +340,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 			ptent = pte_mkold(ptent);
+ 			ptent = pte_mkclean(ptent);
+ 			set_pte_at(mm, addr, pte, ptent);
++			if (PageActive(page))
++				deactivate_page(page);
+ 			tlb_remove_tlb_entry(tlb, pte, addr);
+ 		}
+ 	}
+diff --git a/mm/swap.c b/mm/swap.c
+index 983f692a47fd..4a6aec976ab1 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -45,6 +45,7 @@ int page_cluster;
+ static DEFINE_PER_CPU(struct pagevec, lru_add_pvec);
+ static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
+ static DEFINE_PER_CPU(struct pagevec, lru_deactivate_file_pvecs);
++static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
  
- /* common parameters: try to keep these consistent across architectures */
-+#define MADV_FREE	8		/* free pages only if memory pressure */
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
-diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-index 6cb8db76fd4e..700d83fd9352 100644
---- a/arch/parisc/include/uapi/asm/mman.h
-+++ b/arch/parisc/include/uapi/asm/mman.h
-@@ -40,9 +40,9 @@
- #define MADV_SPACEAVAIL 5               /* insure that resources are reserved */
- #define MADV_VPS_PURGE  6               /* Purge pages from VM page cache */
- #define MADV_VPS_INHERIT 7              /* Inherit parents page size */
--#define MADV_FREE	8		/* free pages only if memory pressure */
+ /*
+  * This path almost never happens for VM activity - pages are normally
+@@ -799,6 +800,24 @@ static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec,
+ 	update_page_reclaim_stat(lruvec, file, 0);
+ }
  
- /* common/generic parameters */
-+#define MADV_FREE	8		/* free pages only if memory pressure */
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
-diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index 1b19f25bc567..77eaca434071 100644
---- a/arch/xtensa/include/uapi/asm/mman.h
-+++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -80,9 +80,9 @@
- #define MADV_SEQUENTIAL	2		/* expect sequential page references */
- #define MADV_WILLNEED	3		/* will need these pages */
- #define MADV_DONTNEED	4		/* don't need these pages */
--#define MADV_FREE	5		/* free pages only if memory pressure */
++
++static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
++			    void *arg)
++{
++	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
++		int file = page_is_file_cache(page);
++		int lru = page_lru_base_type(page);
++
++		del_page_from_lru_list(page, lruvec, lru + LRU_ACTIVE);
++		ClearPageActive(page);
++		ClearPageReferenced(page);
++		add_page_to_lru_list(page, lruvec, lru);
++
++		__count_vm_event(PGDEACTIVATE);
++		update_page_reclaim_stat(lruvec, file, 0);
++	}
++}
++
+ /*
+  * Drain pages out of the cpu's pagevecs.
+  * Either "cpu" is the current CPU, and preemption has already been
+@@ -825,6 +844,10 @@ void lru_add_drain_cpu(int cpu)
+ 	if (pagevec_count(pvec))
+ 		pagevec_lru_move_fn(pvec, lru_deactivate_file_fn, NULL);
  
- /* common parameters: try to keep these consistent across architectures */
-+#define MADV_FREE	8		/* free pages only if memory pressure */
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index 7a94102b7a02..869595947873 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -34,9 +34,9 @@
- #define MADV_SEQUENTIAL	2		/* expect sequential page references */
- #define MADV_WILLNEED	3		/* will need these pages */
- #define MADV_DONTNEED	4		/* don't need these pages */
--#define MADV_FREE	5		/* free pages only if memory pressure */
++	pvec = &per_cpu(lru_deactivate_pvecs, cpu);
++	if (pagevec_count(pvec))
++		pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
++
+ 	activate_page_drain(cpu);
+ }
  
- /* common parameters: try to keep these consistent across architectures */
-+#define MADV_FREE	8		/* free pages only if memory pressure */
- #define MADV_REMOVE	9		/* remove these pages & resources */
- #define MADV_DONTFORK	10		/* don't inherit across fork */
- #define MADV_DOFORK	11		/* do inherit across fork */
+@@ -854,6 +877,26 @@ void deactivate_file_page(struct page *page)
+ 	}
+ }
+ 
++/**
++ * deactivate_page - deactivate a page
++ * @page: page to deactivate
++ *
++ * deactivate_page() moves @page to the inactive list if @page was on the active
++ * list and was not an unevictable page.  This is done to accelerate the reclaim
++ * of @page.
++ */
++void deactivate_page(struct page *page)
++{
++	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
++		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
++
++		page_cache_get(page);
++		if (!pagevec_add(pvec, page))
++			pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
++		put_cpu_var(lru_deactivate_pvecs);
++	}
++}
++
+ void lru_add_drain(void)
+ {
+ 	lru_add_drain_cpu(get_cpu());
+@@ -883,6 +926,7 @@ void lru_add_drain_all(void)
+ 		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
+ 		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
+ 		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
++		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
+ 		    need_activate_page_drain(cpu)) {
+ 			INIT_WORK(work, lru_add_drain_per_cpu);
+ 			schedule_work_on(cpu, work);
 -- 
 1.9.1
 
