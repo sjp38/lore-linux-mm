@@ -1,245 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 953E26B0253
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 10:35:49 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so77269957wmv.1
-        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 07:35:49 -0800 (PST)
-Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
-        by mx.google.com with ESMTPS id 132si78559wms.106.2015.11.20.07.35.47
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 067C66B0038
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 10:45:41 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so119897968pad.1
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 07:45:40 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id bm5si103355pad.107.2015.11.20.07.45.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 20 Nov 2015 07:35:48 -0800 (PST)
-Message-ID: <564F3DCA.1080907@arm.com>
-Date: Fri, 20 Nov 2015 15:35:38 +0000
-From: Vladimir Murzin <vladimir.murzin@arm.com>
-MIME-Version: 1.0
-Subject: [BISECTED] rcu_sched self-detected stall since 3.17
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Nov 2015 07:45:39 -0800 (PST)
+Message-ID: <1448034329.89124.26.camel@infradead.org>
+Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
+ handler.
+From: David Woodhouse <dwmw2@infradead.org>
+Date: Fri, 20 Nov 2015 15:45:29 +0000
+In-Reply-To: <1444590209.92154.116.camel@infradead.org>
+References: <20140701110018.GH26537@8bytes.org>
+	 <20140701193343.GB3322@gmail.com> <20140701210620.GL26537@8bytes.org>
+	 <20140701213208.GC3322@gmail.com> <20140703183024.GA3306@gmail.com>
+	 <20140703231541.GR26537@8bytes.org>
+	 <019CCE693E457142B37B791721487FD918085329@storexdag01.amd.com>
+	 <20140707101158.GD1958@8bytes.org>
+	 <1404729783.31606.1.camel@tlv-gabbay-ws.amd.com>
+	 <20140708080059.GF1958@8bytes.org> <20140708170355.GA2469@gmail.com>
+	 <1444590209.92154.116.camel@infradead.org>
+Content-Type: multipart/signed; micalg="sha-1"; protocol="application/x-pkcs7-signature";
+	boundary="=-s7xX5QrOV+dS+Os8SMv/"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: neilb@suse.de, oleg@redhat.com, peterz@infradead.org, mark.rutland@arm.com, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+To: Jerome Glisse <j.glisse@gmail.com>, "joro@8bytes.org" <joro@8bytes.org>, "Tang, CQ" <cq.tang@intel.com>
+Cc: "peterz@infradead.org" <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hpa@zytor.com" <hpa@zytor.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "jakumar@nvidia.com" <jakumar@nvidia.com>, "ldunning@nvidia.com" <ldunning@nvidia.com>, "mgorman@suse.de" <mgorman@suse.de>, "jweiner@redhat.com" <jweiner@redhat.com>, "sgutti@nvidia.com" <sgutti@nvidia.com>, "riel@redhat.com" <riel@redhat.com>, "Bridgman, John" <John.Bridgman@amd.com>, "jhubbard@nvidia.com" <jhubbard@nvidia.com>, "mhairgrove@nvidia.com" <mhairgrove@nvidia.com>, "cabuschardt@nvidia.com" <cabuschardt@nvidia.com>, "dpoole@nvidia.com" <dpoole@nvidia.com>, "Cornwall, Jay" <Jay.Cornwall@amd.com>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "SCheung@nvidia.com" <SCheung@nvidia.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "arvindg@nvidia.com" <arvindg@nvidia.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
 
-Hi,
 
-I've been getting rcu_sched self-detected stall on one of our test
-environment with the following (or similar) log:
+--=-s7xX5QrOV+dS+Os8SMv/
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Linux 4.3
+On Sun, 2015-10-11 at 20:03 +0100, David Woodhouse wrote:
+> As we try to put together a generic API for device access to processes'
+> address space, I definitely think we want to stick with the model that
+> we take a reference on the mm, and we *keep* it until the device driver
+> unbinds from the mm (because its file descriptor is closed, or
+> whatever).
 
-> INFO: rcu_sched self-detected stall on CPU
-> =092: (2099 ticks this GP) idle=3Da73/140000000000001/0 softirq=3D277/283=
- fqs=3D2092=20
-> =09 (t=3D2100 jiffies g=3D-197 c=3D-198 q=3D230)
-> Task dump for CPU 2:
-> paranoia        R running      0   423      1 0x00000003
-> [<c0016f20>] (unwind_backtrace) from [<c0012fd0>] (show_stack+0x10/0x14)
-> [<c0012fd0>] (show_stack) from [<c006c52c>] (rcu_dump_cpu_stacks+0xa4/0xc=
-4)
-> [<c006c52c>] (rcu_dump_cpu_stacks) from [<c006f188>] (rcu_check_callbacks=
-+0x2dc/0x81c)
-> [<c006f188>] (rcu_check_callbacks) from [<c0072278>] (update_process_time=
-s+0x38/0x64)
-> [<c0072278>] (update_process_times) from [<c007e7b8>] (tick_periodic+0xa8=
-/0xb8)
-> [<c007e7b8>] (tick_periodic) from [<c007e904>] (tick_handle_periodic+0x28=
-/0x88)
-> [<c007e904>] (tick_handle_periodic) from [<c0223074>] (arch_timer_handler=
-_virt+0x28/0x30)
-> [<c0223074>] (arch_timer_handler_virt) from [<c0068008>] (handle_percpu_d=
-evid_irq+0x6c/0x84)
-> [<c0068008>] (handle_percpu_devid_irq) from [<c0064244>] (generic_handle_=
-irq+0x24/0x34)
-> [<c0064244>] (generic_handle_irq) from [<c0064518>] (__handle_domain_irq+=
-0x98/0xac)
-> [<c0064518>] (__handle_domain_irq) from [<c0009444>] (gic_handle_irq+0x54=
-/0x90)
-> [<c0009444>] (gic_handle_irq) from [<c0013b14>] (__irq_svc+0x54/0x70)
-> Exception stack(0xdb007c60 to 0xdb007ca8)
-> 7c60: 00000000 00000000 00000000 00000001 dc3e9a20 00000000 00000000 0000=
-0001
-> 7c80: dc3e9a20 0000001b 00080000 0000000b ffffffff db007cb0 c00ac8f0 c00a=
-a96c
-> 7ca0: 600d0113 ffffffff
-> [<c0013b14>] (__irq_svc) from [<c00aa96c>] (free_pages_prepare+0x18c/0x21=
-8)
-> [<c00aa96c>] (free_pages_prepare) from [<c00ac8f0>] (free_hot_cold_page+0=
-x34/0x168)
-> [<c00ac8f0>] (free_hot_cold_page) from [<c00c996c>] (handle_mm_fault+0x7b=
-8/0xe60)
-> [<c00c996c>] (handle_mm_fault) from [<c001c194>] (do_page_fault+0x12c/0x3=
-78)
-> [<c001c194>] (do_page_fault) from [<c00092dc>] (do_DataAbort+0x38/0xb4)
-> [<c00092dc>] (do_DataAbort) from [<c0013aa0>] (__dabt_svc+0x40/0x60)
-> Exception stack(0xdb007e68 to 0xdb007eb0)
-> 7e60:                   0001b2c8 00000d30 00000000 00000055 00000051 dbb0=
-4600
-> 7e80: 00000000 db007ec8 db8ea700 db8f3080 dba43240 0001b2c8 00000000 db00=
-7eb8
-> 7ea0: c012c178 c0174ce8 200d0113 ffffffff
-> [<c0013aa0>] (__dabt_svc) from [<c0174ce8>] (__clear_user_std+0x34/0x68)
-> [<c0174ce8>] (__clear_user_std) from [<c012c178>] (padzero+0x58/0x74)
-> [<c012c178>] (padzero) from [<c012cb4c>] (load_elf_binary+0x730/0x1250)
-> [<c012cb4c>] (load_elf_binary) from [<c00ecd6c>] (search_binary_handler+0=
-xa0/0x23c)
-> [<c00ecd6c>] (search_binary_handler) from [<c00ed730>] (do_execveat_commo=
-n+0x444/0x5d8)
-> [<c00ed730>] (do_execveat_common) from [<c00ed8e8>] (do_execve+0x24/0x2c)
-> [<c00ed8e8>] (do_execve) from [<c000f580>] (ret_fast_syscall+0x0/0x3c)
+I've found another problem with this.
 
-(I put report for Linux 3.17 under [2])
+In use some cases, we mmap() the device file descriptor which is
+responsible for the PASID binding. And in that case we end up with a
+recursive refcount.
 
-This rcu_sched self-detected stall is usually reproduced 2 or 3 times
-out of 10 runs, but sometimes even more runs go without issue.
+When the process exits, its file descriptors are closed... but the
+underlying struct file remains open because it's still referenced from
+the mmap'd VMA.
 
-I bisected [1] it to commit
+That VMA remains alive because it's still part of the MM.
 
-commit 743162013d40ca612b4cb53d3a200dff2d9ab26e
-Author: NeilBrown <neilb@suse.de>
-Date:   Mon Jul 7 15:16:04 2014 +1000
+And the MM remains alive because the PASID binding still holds a
+refcount for it because device's struct file didn't get closed yet...
+because it's still mmap'd... because the MM is still alive...
 
-    sched: Remove proliferation of wait_on_bit() action functions
+So I suspect that even for the relatively simple case where the
+lifetime of the PASID can be bound to a file descriptor (unlike with
+amdkfd), we probably still want to explicitly manage its lifetime as an
+'off-cpu task' and explicitly kill it when the process dies.
 
-The only change I noticed is from (mm/filemap.c)
+I'm still not keen on doing that implicitly through the mm_release. I
+think that way lies a lot of subtle bugs.
 
-=09io_schedule();
-=09fatal_signal_pending(current)
+--=20
+David Woodhouse                            Open Source Technology Centre
+David.Woodhouse@intel.com                              Intel Corporation
 
-to (kernel/sched/wait.c)
 
-=09signal_pending_state(current->state, current)
-=09io_schedule();
+--=-s7xX5QrOV+dS+Os8SMv/
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Disposition: attachment; filename="smime.p7s"
+Content-Transfer-Encoding: base64
 
-and if I apply following diff I don't see stalls anymore.
+MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAQAAoIISjjCCBicw
+ggUPoAMCAQICAw3vNzANBgkqhkiG9w0BAQUFADCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
+YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
+ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
+MB4XDTE1MDUwNTA5NDM0MVoXDTE2MDUwNTA5NTMzNlowQjEcMBoGA1UEAwwTZHdtdzJAaW5mcmFk
+ZWFkLm9yZzEiMCAGCSqGSIb3DQEJARYTZHdtdzJAaW5mcmFkZWFkLm9yZzCCASIwDQYJKoZIhvcN
+AQEBBQADggEPADCCAQoCggEBAMkbm9kPbx1j/X4RVyf/pPKSYwelcco69TvnQQbKM8m8xkWjXJI1
+jpJ1jMaGUZGFToINMSZi7lZawUozudWbXSKy1SikENSTJHffsdRAIlsp+hR8vWvjsKUry6sEdqPG
+doa5RY7+N4WRusWZDYW/RRWE6i9EL9qV86CVPYqw22UBOUw4/j/HVGCV6TSB8yE5iEwhk/hUuzRr
+FZm1MJMR7mCS7BCR8Lr5jFY61lWpBiXNXIxLZCvDc26KR5L5tYX43iUVO3fzES1GRVoYnxxk2tmz
+fcsZG5vK+Trc9L8OZJfkYrEHH3+Iw41MQ0w/djVtYr1+HYldx0QmYXAtnhIj+UMCAwEAAaOCAtkw
+ggLVMAkGA1UdEwQCMAAwCwYDVR0PBAQDAgSwMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcD
+BDAdBgNVHQ4EFgQUszC96C3w5/2+d+atSr0IpT26YI4wHwYDVR0jBBgwFoAUU3Ltkpzg2ssBXHx+
+ljVO8tS4UYIwHgYDVR0RBBcwFYETZHdtdzJAaW5mcmFkZWFkLm9yZzCCAUwGA1UdIASCAUMwggE/
+MIIBOwYLKwYBBAGBtTcBAgMwggEqMC4GCCsGAQUFBwIBFiJodHRwOi8vd3d3LnN0YXJ0c3NsLmNv
+bS9wb2xpY3kucGRmMIH3BggrBgEFBQcCAjCB6jAnFiBTdGFydENvbSBDZXJ0aWZpY2F0aW9uIEF1
+dGhvcml0eTADAgEBGoG+VGhpcyBjZXJ0aWZpY2F0ZSB3YXMgaXNzdWVkIGFjY29yZGluZyB0byB0
+aGUgQ2xhc3MgMSBWYWxpZGF0aW9uIHJlcXVpcmVtZW50cyBvZiB0aGUgU3RhcnRDb20gQ0EgcG9s
+aWN5LCByZWxpYW5jZSBvbmx5IGZvciB0aGUgaW50ZW5kZWQgcHVycG9zZSBpbiBjb21wbGlhbmNl
+IG9mIHRoZSByZWx5aW5nIHBhcnR5IG9ibGlnYXRpb25zLjA2BgNVHR8ELzAtMCugKaAnhiVodHRw
+Oi8vY3JsLnN0YXJ0c3NsLmNvbS9jcnR1MS1jcmwuY3JsMIGOBggrBgEFBQcBAQSBgTB/MDkGCCsG
+AQUFBzABhi1odHRwOi8vb2NzcC5zdGFydHNzbC5jb20vc3ViL2NsYXNzMS9jbGllbnQvY2EwQgYI
+KwYBBQUHMAKGNmh0dHA6Ly9haWEuc3RhcnRzc2wuY29tL2NlcnRzL3N1Yi5jbGFzczEuY2xpZW50
+LmNhLmNydDAjBgNVHRIEHDAahhhodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS8wDQYJKoZIhvcNAQEF
+BQADggEBAHMQmxHHodpS85X8HRyxhvfkys7r+taCNOaNU9cxQu/cZ/6k5nS2qGNMzZ6jb7ueY/V7
+7p+4DW/9ZWODDTf4Fz00mh5SSVc20Bz7t+hhxwHd62PZgENh5i76Qq2tw48U8AsYo5damHby1epf
+neZafLpUkLLO7AGBJIiRVTevdvyXQ0qnixOmKMWyvrhSNGuVIKVdeqLP+102Dwf+dpFyw+j1hz28
+jEEKpHa+NR1b2kXuSPi/rMGhexwlJOh4tK8KQ6Ryr0rIN//NSbOgbyYZrzc/ZUWX9V5OA84ChFb2
+vkFl0OcYrttp/rhDBLITwffPxSZeoBh9H7zYzkbCXKL3BUIwggYnMIIFD6ADAgECAgMN7zcwDQYJ
+KoZIhvcNAQEFBQAwgYwxCzAJBgNVBAYTAklMMRYwFAYDVQQKEw1TdGFydENvbSBMdGQuMSswKQYD
+VQQLEyJTZWN1cmUgRGlnaXRhbCBDZXJ0aWZpY2F0ZSBTaWduaW5nMTgwNgYDVQQDEy9TdGFydENv
+bSBDbGFzcyAxIFByaW1hcnkgSW50ZXJtZWRpYXRlIENsaWVudCBDQTAeFw0xNTA1MDUwOTQzNDFa
+Fw0xNjA1MDUwOTUzMzZaMEIxHDAaBgNVBAMME2R3bXcyQGluZnJhZGVhZC5vcmcxIjAgBgkqhkiG
+9w0BCQEWE2R3bXcyQGluZnJhZGVhZC5vcmcwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIB
+AQDJG5vZD28dY/1+EVcn/6TykmMHpXHKOvU750EGyjPJvMZFo1ySNY6SdYzGhlGRhU6CDTEmYu5W
+WsFKM7nVm10istUopBDUkyR337HUQCJbKfoUfL1r47ClK8urBHajxnaGuUWO/jeFkbrFmQ2Fv0UV
+hOovRC/alfOglT2KsNtlATlMOP4/x1Rglek0gfMhOYhMIZP4VLs0axWZtTCTEe5gkuwQkfC6+YxW
+OtZVqQYlzVyMS2Qrw3NuikeS+bWF+N4lFTt38xEtRkVaGJ8cZNrZs33LGRubyvk63PS/DmSX5GKx
+Bx9/iMONTENMP3Y1bWK9fh2JXcdEJmFwLZ4SI/lDAgMBAAGjggLZMIIC1TAJBgNVHRMEAjAAMAsG
+A1UdDwQEAwIEsDAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwQwHQYDVR0OBBYEFLMwvegt
+8Of9vnfmrUq9CKU9umCOMB8GA1UdIwQYMBaAFFNy7ZKc4NrLAVx8fpY1TvLUuFGCMB4GA1UdEQQX
+MBWBE2R3bXcyQGluZnJhZGVhZC5vcmcwggFMBgNVHSAEggFDMIIBPzCCATsGCysGAQQBgbU3AQID
+MIIBKjAuBggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjCB9wYI
+KwYBBQUHAgIwgeowJxYgU3RhcnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwAwIBARqBvlRo
+aXMgY2VydGlmaWNhdGUgd2FzIGlzc3VlZCBhY2NvcmRpbmcgdG8gdGhlIENsYXNzIDEgVmFsaWRh
+dGlvbiByZXF1aXJlbWVudHMgb2YgdGhlIFN0YXJ0Q29tIENBIHBvbGljeSwgcmVsaWFuY2Ugb25s
+eSBmb3IgdGhlIGludGVuZGVkIHB1cnBvc2UgaW4gY29tcGxpYW5jZSBvZiB0aGUgcmVseWluZyBw
+YXJ0eSBvYmxpZ2F0aW9ucy4wNgYDVR0fBC8wLTAroCmgJ4YlaHR0cDovL2NybC5zdGFydHNzbC5j
+b20vY3J0dTEtY3JsLmNybDCBjgYIKwYBBQUHAQEEgYEwfzA5BggrBgEFBQcwAYYtaHR0cDovL29j
+c3Auc3RhcnRzc2wuY29tL3N1Yi9jbGFzczEvY2xpZW50L2NhMEIGCCsGAQUFBzAChjZodHRwOi8v
+YWlhLnN0YXJ0c3NsLmNvbS9jZXJ0cy9zdWIuY2xhc3MxLmNsaWVudC5jYS5jcnQwIwYDVR0SBBww
+GoYYaHR0cDovL3d3dy5zdGFydHNzbC5jb20vMA0GCSqGSIb3DQEBBQUAA4IBAQBzEJsRx6HaUvOV
+/B0csYb35MrO6/rWgjTmjVPXMULv3Gf+pOZ0tqhjTM2eo2+7nmP1e+6fuA1v/WVjgw03+Bc9NJoe
+UklXNtAc+7foYccB3etj2YBDYeYu+kKtrcOPFPALGKOXWph28tXqX53mWny6VJCyzuwBgSSIkVU3
+r3b8l0NKp4sTpijFsr64UjRrlSClXXqiz/tdNg8H/naRcsPo9Yc9vIxBCqR2vjUdW9pF7kj4v6zB
+oXscJSToeLSvCkOkcq9KyDf/zUmzoG8mGa83P2VFl/VeTgPOAoRW9r5BZdDnGK7baf64QwSyE8H3
+z8UmXqAYfR+82M5Gwlyi9wVCMIIGNDCCBBygAwIBAgIBHjANBgkqhkiG9w0BAQUFADB9MQswCQYD
+VQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
+Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNhdGlvbiBBdXRo
+b3JpdHkwHhcNMDcxMDI0MjEwMTU1WhcNMTcxMDI0MjEwMTU1WjCBjDELMAkGA1UEBhMCSUwxFjAU
+BgNVBAoTDVN0YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRl
+IFNpZ25pbmcxODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUg
+Q2xpZW50IENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxwmDzM4t2BqxKaQuE6uW
+vooyg4ymiEGWVUet1G8SD+rqvyNH4QrvnEIaFHxOhESip7vMz39ScLpNLbL1QpOlPW/tFIzNHS3q
+d2XRNYG5Sv9RcGE+T4qbLtsjjJbi6sL7Ls/f/X9ftTyhxvxWkf8KW37iKrueKsxw2HqolH7GM6FX
+5UfNAwAu4ZifkpmZzU1slBhyWwaQPEPPZRsWoTb7q8hmgv6Nv3Hg9rmA1/VPBIOQ6SKRkHXG0Hhm
+q1dOFoAFI411+a/9nWm5rcVjGcIWZ2v/43Yksq60jExipA4l5uv9/+Hm33mbgmCszdj/Dthf13tg
+Av2O83hLJ0exTqfrlwIDAQABo4IBrTCCAakwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
+AQYwHQYDVR0OBBYEFFNy7ZKc4NrLAVx8fpY1TvLUuFGCMB8GA1UdIwQYMBaAFE4L7xqkQFulF2mH
+MMo0aEPQQa7yMGYGCCsGAQUFBwEBBFowWDAnBggrBgEFBQcwAYYbaHR0cDovL29jc3Auc3RhcnRz
+c2wuY29tL2NhMC0GCCsGAQUFBzAChiFodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9zZnNjYS5jcnQw
+WwYDVR0fBFQwUjAnoCWgI4YhaHR0cDovL3d3dy5zdGFydHNzbC5jb20vc2ZzY2EuY3JsMCegJaAj
+hiFodHRwOi8vY3JsLnN0YXJ0c3NsLmNvbS9zZnNjYS5jcmwwgYAGA1UdIAR5MHcwdQYLKwYBBAGB
+tTcBAgEwZjAuBggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjA0
+BggrBgEFBQcCARYoaHR0cDovL3d3dy5zdGFydHNzbC5jb20vaW50ZXJtZWRpYXRlLnBkZjANBgkq
+hkiG9w0BAQUFAAOCAgEACoMIfXirLAZcuGOMXq4cuSN3TaFx2H2GvD5VSy/6rV55BYHbWNaPeQn3
+oBSU8KgQZn/Kck1JxbLpAxVCNtsxeW1R87ifhsYZ0qjdrA9anrW2MAWCtosmAOT4OxK9QPoSjCMx
+M3HbkZCDJgnlE8jMopH21BbyAYr7b5EfGRQJNtgWcvqSXwKHnTutR08+Kkn0KAkXCzeQNLeA5LlY
+UzFyM7kPAp8pIRMQ+seHunmyG642S2+y/qHEdMuGIwpfz3eDF1PdctL04qYK/zu+Qg1Bw0RwgigV
+Zs/0c5HP2/e9DBHh7eSwtzYlk4AUr6yxLlcwSjOfOmKEQ/Q8tzh0IFiNu9IPuTGAPBn4CPxD0+Ru
+8T2wg8/s43R/PT3kd1OEqOJUl7q+h+r6fpvU0Fzxd2tC8Ga6fDEPme+1Nbi+03pVjuZQKbGwKJ66
+gEn06WqaxVZC+J8hh/jR0k9mST1iAZPNYulcNJ8tKmVtjYsv0L1TSm2+NwON58tO+pIVzu3DWwSE
+XSf+qkDavQam+QtEOZxLBXI++aMUEapSn+k3Lxm48ZCYfAWLb/Xj7F5JQMbZvCexglAbYR0kIHqW
+5DnsYSdMD/IplJMojx0NBrxJ3fN9dvX2Y6BIXRsF1du4qESm4/3CKuyUV7p9DW3mPlHTGLvYxnyK
+Qy7VFBkoLINszBrOUeIxggNvMIIDawIBATCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0
+YXJ0Q29tIEx0ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcx
+ODA2BgNVBAMTL1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENB
+AgMN7zcwCQYFKw4DAhoFAKCCAa8wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0B
+CQUxDxcNMTUxMTIwMTU0NTI5WjAjBgkqhkiG9w0BCQQxFgQUdiKgPyof2nH+YZpUJ06xxNjx/7ww
+gaUGCSsGAQQBgjcQBDGBlzCBlDCBjDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0
+ZC4xKzApBgNVBAsTIlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcxODA2BgNVBAMT
+L1N0YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgQ2xpZW50IENBAgMN7zcwgacG
+CyqGSIb3DQEJEAILMYGXoIGUMIGMMQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRk
+LjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzE4MDYGA1UEAxMv
+U3RhcnRDb20gQ2xhc3MgMSBQcmltYXJ5IEludGVybWVkaWF0ZSBDbGllbnQgQ0ECAw3vNzANBgkq
+hkiG9w0BAQEFAASCAQAQQfbViuIk23wEhvPN09mpqNAgP/PWna7ohcNhm8fHFE6dsJn0pj5yeCFJ
+4ze0Ec9P9SpPEfzYh1SbpSW53nYXjyEBpTwTKLa+j/kfHaFqZavJkI1E8G04Kn9wbZCFJYo+LzlD
+6DdFRQv1avxmBksi00/xEZJYn/2wBDrZ+rzxw73YoUqOFM9BgdiHfKDAMvjcIl0OADum5dYkH9wH
+63fm+X48JzWoroksV/QD4Kbjbbpj3siDQck/I1T7Ttsn/ePSy7PnFqRNy3MFXIy3cR6xHw7gaM5t
+Ln8xJYccMPHGdWC/yNOxDGK6x5d2t0yh0xYl06Sz+fv/bVAYV1tmvdrLAAAAAAAA
 
-diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index a104879..2d68cdb 100644
---- a/kernel/sched/wait.c
-+++ b/kernel/sched/wait.c
-@@ -514,9 +514,10 @@ EXPORT_SYMBOL(bit_wait);
 
- __sched int bit_wait_io(void *word)
- {
-+       io_schedule();
-+
-        if (signal_pending_state(current->state, current))
-                return 1;
--       io_schedule();
-        return 0;
- }
- EXPORT_SYMBOL(bit_wait_io);
-
-Any ideas why it might happen and why diff above helps?
-
-[1] Bisect log:
-
-I checked 4.[0-3] and 3.1[7-9] manually
-I have https://lkml.org/lkml/2015/8/26/649 for better report
-
-> git bisect start '--no-checkout'
-> # good: [19583ca584d6f574384e17fe7613dfaeadcdc4a6] Linux 3.16
-> git bisect good 19583ca584d6f574384e17fe7613dfaeadcdc4a6
-> # bad: [53ee983378ff23e8f3ff95ecf99dea7c6c221900] Merge tag 'staging-3.17=
--rc1' of git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging
-> git bisect bad 53ee983378ff23e8f3ff95ecf99dea7c6c221900
-> # good: [2042088cd67d0064d18c52c13c69af2499907bb1] staging: comedi: ni_la=
-bpc: tidy up labpc_ai_scan_mode()
-> git bisect good 2042088cd67d0064d18c52c13c69af2499907bb1
-> # bad: [98959948a7ba33cf8c708626e0d2a1456397e1c6] Merge branch 'sched-cor=
-e-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
-> git bisect bad 98959948a7ba33cf8c708626e0d2a1456397e1c6
-> # good: [c9b88e9581828bb8bba06c5e7ee8ed1761172b6e] Merge tag 'trace-3.17-=
-2' of git://git.kernel.org/pub/scm/linux/kernel/git/rostedt/linux-trace
-> git bisect good c9b88e9581828bb8bba06c5e7ee8ed1761172b6e
-> # good: [5bda4f638f36ef4c4e3b1397b02affc3db94356e] Merge branch 'core-rcu=
--for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
-> git bisect good 5bda4f638f36ef4c4e3b1397b02affc3db94356e
-> # good: [2336ebc32676df5b794acfe0c980583ec6c05f34] Merge tag 'perf-core-f=
-or-mingo' of git://git.kernel.org/pub/scm/linux/kernel/git/jolsa/perf into =
-perf/core
-> git bisect good 2336ebc32676df5b794acfe0c980583ec6c05f34
-> # good: [ef35ad26f8ff44d2c93e29952cdb336bda729d9d] Merge branch 'perf-cor=
-e-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
-> git bisect good ef35ad26f8ff44d2c93e29952cdb336bda729d9d
-> # good: [1c5d3eb3759013bc7ee4197aa0a9f245bdb6eb90] sched/numa: Simplify t=
-ask_numa_compare()
-> git bisect good 1c5d3eb3759013bc7ee4197aa0a9f245bdb6eb90
-> # good: [6e76ea8a8209386c3cc7ee5594e6ea5d25525cf2] sched: Remove extra st=
-atic_key*() function indirection
-> git bisect good 6e76ea8a8209386c3cc7ee5594e6ea5d25525cf2
-> # bad: [c1221321b7c25b53204447cff9949a6d5a7ddddc] sched: Allow wait_on_bi=
-t_action() functions to support a timeout
-> git bisect bad c1221321b7c25b53204447cff9949a6d5a7ddddc
-> # good: [e720fff6341fe4b95e5a93c939bd3c77fa55ced4] sched/numa: Revert "Us=
-e effective_load() to balance NUMA loads"
-> git bisect good e720fff6341fe4b95e5a93c939bd3c77fa55ced4
-> # bad: [743162013d40ca612b4cb53d3a200dff2d9ab26e] sched: Remove prolifera=
-tion of wait_on_bit() action functions
-> git bisect bad 743162013d40ca612b4cb53d3a200dff2d9ab26e
-> # good: [d26fad5b38e1c4667d4f2604936e59c837caa54d] Merge tag 'v3.16-rc5' =
-into sched/core, to refresh the branch before applying bigger tree-wide cha=
-nges
-> git bisect good d26fad5b38e1c4667d4f2604936e59c837caa54d
-
-[2] rcu_sched self-detected stall under Linux 3.17
-
-> INFO: rcu_sched self-detected stall on CPU { 2}  (t=3D2100 jiffies g=3D-1=
-99 c=3D-200 q=3D172)
-> Task dump for CPU 2:
-> paranoia        R running      0   414      1 0x00000003
-> [<c0015394>] (unwind_backtrace) from [<c00117dc>] (show_stack+0x10/0x14)
-> [<c00117dc>] (show_stack) from [<c00602d0>] (rcu_dump_cpu_stacks+0xa4/0xc=
-4)
-> [<c00602d0>] (rcu_dump_cpu_stacks) from [<c0062aec>] (rcu_check_callbacks=
-+0x280/0x6f8)
-> [<c0062aec>] (rcu_check_callbacks) from [<c0065b9c>] (update_process_time=
-s+0x40/0x60)
-> [<c0065b9c>] (update_process_times) from [<c007169c>] (tick_periodic+0xa8=
-/0xb8)
-> [<c007169c>] (tick_periodic) from [<c00717bc>] (tick_handle_periodic+0x28=
-/0x88)
-> [<c00717bc>] (tick_handle_periodic) from [<c01fc414>] (arch_timer_handler=
-_virt+0x28/0x30)
-> [<c01fc414>] (arch_timer_handler_virt) from [<c005d100>] (handle_percpu_d=
-evid_irq+0x6c/0x84)
-> [<c005d100>] (handle_percpu_devid_irq) from [<c0059658>] (generic_handle_=
-irq+0x2c/0x3c)
-> [<c0059658>] (generic_handle_irq) from [<c000ee3c>] (handle_IRQ+0x7c/0x8c=
-)
-> [<c000ee3c>] (handle_IRQ) from [<c00085f8>] (gic_handle_irq+0x40/0x5c)
-> [<c00085f8>] (gic_handle_irq) from [<c0012300>] (__irq_svc+0x40/0x54)
-> Exception stack(0xdb063c60 to 0xdb063ca8)
-> 3c60: 00000000 0001b000 dbbfc000 0000000b dbbfc000 0000000b dbbfc000 0001=
-b000
-> 3c80: 0001b000 dbb2d6e0 0000001b db03c380 0000006c db063ca8 c00b935c c00b=
-935c
-> 3ca0: a00d0113 ffffffff
-> [<c0012300>] (__irq_svc) from [<c00b935c>] (do_cow_fault.isra.97+0x1c/0x1=
-98)
-> [<c00b935c>] (do_cow_fault.isra.97) from [<c00b9804>] (handle_mm_fault+0x=
-14c/0x900)
-> [<c00b9804>] (handle_mm_fault) from [<c001ae38>] (do_page_fault+0x120/0x3=
-d8)
-> [<c001ae38>] (do_page_fault) from [<c00084c0>] (do_DataAbort+0x38/0x98)
-> [<c00084c0>] (do_DataAbort) from [<c0012298>] (__dabt_svc+0x38/0x60)
-> Exception stack(0xdb063e70 to 0xdb063eb8)
-> 3e60:                                     0001b2c8 00000d30 00000000 0000=
-0000
-> 3e80: db902a80 dbadc100 00000000 db063ec8 db062008 dbadc200 0001b2c8 0001=
-b6cc
-> 3ea0: 00000000 db063eb8 c011689c c015a884 200d0013 ffffffff
-> [<c0012298>] (__dabt_svc) from [<c015a884>] (__clear_user_std+0x34/0x64)
-> [<c015a884>] (__clear_user_std) from [<c011689c>] (padzero+0x44/0x58)
-> [<c011689c>] (padzero) from [<c01182e8>] (load_elf_binary+0x778/0x138c)
-> [<c01182e8>] (load_elf_binary) from [<c00da960>] (search_binary_handler+0=
-x98/0x1d8)
-> [<c00da960>] (search_binary_handler) from [<c00dbc2c>] (do_execve+0x35c/0=
-x4bc)
-> [<c00dbc2c>] (do_execve) from [<c000e520>] (ret_fast_syscall+0x0/0x30)
-
-Thanks
-Vladimir
+--=-s7xX5QrOV+dS+Os8SMv/--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
