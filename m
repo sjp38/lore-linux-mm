@@ -1,64 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B174C6B0038
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 13:37:22 -0500 (EST)
-Received: by wmdw130 with SMTP id w130so30334231wmd.0
-        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 10:37:22 -0800 (PST)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D8D8A6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 13:43:08 -0500 (EST)
+Received: by wmdw130 with SMTP id w130so30494716wmd.0
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 10:43:08 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id z76si1090462wmz.87.2015.11.20.10.37.21
+        by mx.google.com with ESMTPS id p3si1173628wjx.215.2015.11.20.10.43.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Nov 2015 10:37:21 -0800 (PST)
-Date: Fri, 20 Nov 2015 13:37:07 -0500
+        Fri, 20 Nov 2015 10:43:07 -0800 (PST)
+Date: Fri, 20 Nov 2015 13:42:54 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] vmscan: do not force-scan file lru if its absolute size
- is small
-Message-ID: <20151120183707.GA5623@cmpxchg.org>
-References: <1448038976-28796-1-git-send-email-vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 08/14] net: tcp_memcontrol: sanitize tcp memory
+ accounting callbacks
+Message-ID: <20151120184254.GB5623@cmpxchg.org>
+References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
+ <1447371693-25143-9-git-send-email-hannes@cmpxchg.org>
+ <20151120105857.GB31308@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1448038976-28796-1-git-send-email-vdavydov@virtuozzo.com>
+In-Reply-To: <20151120105857.GB31308@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, Nov 20, 2015 at 08:02:56PM +0300, Vladimir Davydov wrote:
-> We assume there is enough inactive page cache if the size of inactive
-> file lru is greater than the size of active file lru, in which case we
-> force-scan file lru ignoring anonymous pages. While this logic works
-> fine when there are plenty of page cache pages, it fails if the size of
-> file lru is small (several MB): in this case (lru_size >> prio) will be
-> 0 for normal scan priorities, as a result, if inactive file lru happens
-> to be larger than active file lru, anonymous pages of a cgroup will
-> never get evicted unless the system experiences severe memory pressure,
-> even if there are gigabytes of unused anonymous memory there, which is
-> unfair in respect to other cgroups, whose workloads might be page cache
-> oriented.
+On Fri, Nov 20, 2015 at 01:58:57PM +0300, Vladimir Davydov wrote:
+> On Thu, Nov 12, 2015 at 06:41:27PM -0500, Johannes Weiner wrote:
+> > There won't be a tcp control soft limit, so integrating the memcg code
+> > into the global skmem limiting scheme complicates things
+> > unnecessarily. Replace this with simple and clear charge and uncharge
+> > calls--hidden behind a jump label--to account skb memory.
+> > 
+> > Note that this is not purely aesthetic: as a result of shoehorning the
+> > per-memcg code into the same memory accounting functions that handle
+> > the global level, the old code would compare the per-memcg consumption
+> > against the smaller of the per-memcg limit and the global limit. This
+> > allowed the total consumption of multiple sockets to exceed the global
+> > limit, as long as the individual sockets stayed within bounds. After
+> > this change, the code will always compare the per-memcg consumption to
+> > the per-memcg limit, and the global consumption to the global limit,
+> > and thus close this loophole.
+> > 
+> > Without a soft limit, the per-memcg memory pressure state in sockets
+> > is generally questionable. However, we did it until now, so we
+> > continue to enter it when the hard limit is hit, and packets are
+> > dropped, to let other sockets in the cgroup know that they shouldn't
+> > grow their transmit windows, either. However, keep it simple in the
+> > new callback model and leave memory pressure lazily when the next
+> > packet is accepted (as opposed to doing it synchroneously when packets
+> > are processed). When packets are dropped, network performance will
+> > already be in the toilet, so that should be a reasonable trade-off.
+> > 
+> > As described above, consumption is now checked on the per-memcg level
+> > and the global level separately. Likewise, memory pressure states are
+> > maintained on both the per-memcg level and the global level, and a
+> > socket is considered under pressure when either level asserts as much.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> This patch attempts to fix this by elaborating the "enough inactive page
-> cache" check: it makes it not only check that inactive lru size > active
-> lru size, but also that we will scan something from the cgroup at the
-> current scan priority. If these conditions do not hold, we proceed to
-> SCAN_FRACT as usual.
+> It leaves the legacy functionality intact, while making the code look
+> much better.
 > 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-This makes sense, the inactive:active ratio of the file list alone
-does not give the full picture to decide whether to skip anonymous.
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-
-> @@ -2046,7 +2046,8 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
->  	 * There is enough inactive page cache, do not reclaim
->  	 * anything from the anonymous working set right now.
->  	 */
-> -	if (!inactive_file_is_low(lruvec)) {
-> +	if (!inactive_file_is_low(lruvec) &&
-> +	    get_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority > 0) {
-
-The > 0 seems unnecessary, no? There are too many > in this line :-)
+Thank you very much!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
