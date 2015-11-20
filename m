@@ -1,49 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CDC76B026A
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:18:01 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so109691081pad.1
-        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:18:00 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTPS id cy6si17432983pad.242.2015.11.20.00.17.59
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id AAC1A6B026C
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:19:02 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so60692459wmv.1
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:19:02 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id a6si2546978wmh.59.2015.11.20.00.18.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 20 Nov 2015 00:18:00 -0800 (PST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v4 11/16] arm64: add pmd_mkclean for THP
-Date: Fri, 20 Nov 2015 17:02:43 +0900
-Message-Id: <1448006568-16031-12-git-send-email-minchan@kernel.org>
-In-Reply-To: <1448006568-16031-1-git-send-email-minchan@kernel.org>
-References: <1448006568-16031-1-git-send-email-minchan@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Nov 2015 00:19:01 -0800 (PST)
+Message-ID: <564ED708.5090405@huawei.com>
+Date: Fri, 20 Nov 2015 16:17:12 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: [RFC] mm: direct mapping count in /proc/meminfo is error
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Andy Lutomirski <luto@amacapital.net>, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, zhong jiang <zhongjiang@huawei.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent overwrite
-of the contents since MADV_FREE syscall is called for THP page.
+I find the direct mapping count in /proc/meminfo is error. 
+The value should be equal to the size of init_memory_mapping which
+showed in boot log. 
 
-This patch adds pmd_mkclean for THP page MADV_FREE support.
+I add some print to show direct_pages_count[] immediately after
+init_memory_mapping(). The reason is that we double counting.
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- arch/arm64/include/asm/pgtable.h | 1 +
- 1 file changed, 1 insertion(+)
+Here is the log(kernel v4.4):
+...
+[    0.000000] init_memory_mapping: [mem 0x00000000-0x000fffff]  // called from "init_memory_mapping(0, ISA_END_ADDRESS);"
+[    0.000000]  [mem 0x00000000-0x000fffff] page 4k
+[    0.000000] BRK [0x01ebf000, 0x01ebffff] PGTABLE
+[    0.000000] BRK [0x01ec0000, 0x01ec0fff] PGTABLE
+[    0.000000] BRK [0x01ec1000, 0x01ec1fff] PGTABLE
+[    0.000000] init_memory_mapping: [mem 0xc3fe00000-0xc3fffffff]  // called from "memory_map_top_down(ISA_END_ADDRESS, end);"
+[    0.000000]  [mem 0xc3fe00000-0xc3fffffff] page 1G  // increase count of PG_LEVEL_1G in c00000000(48G)-c3fffffff(49G) one time
+[    0.000000] init_memory_mapping: [mem 0xc20000000-0xc3fdfffff]
+[    0.000000]  [mem 0xc20000000-0xc3fdfffff] page 1G  // increase count of PG_LEVEL_1G in c00000000(48G)-c3fffffff(49G) two time
+[    0.000000] init_memory_mapping: [mem 0x00100000-0xbf78ffff]
+[    0.000000]  [mem 0x00100000-0x001fffff] page 4k
+[    0.000000]  [mem 0x00200000-0x3fffffff] page 2M
+[    0.000000]  [mem 0x40000000-0x7fffffff] page 1G
+[    0.000000]  [mem 0x80000000-0xbf5fffff] page 2M
+[    0.000000]  [mem 0xbf600000-0xbf78ffff] page 4k
+[    0.000000] init_memory_mapping: [mem 0x100000000-0xc1fffffff]
+[    0.000000]  [mem 0x100000000-0xc1fffffff] page 1G  // increase count of PG_LEVEL_1G in c00000000(48G)-c3fffffff(49G) three time
+...
+[    0.000000] DirectMap4k:        3648 kB
+[    0.000000] DirectMap2M:     2084864 kB
+[    0.000000] DirectMap1G:    50331648 kB
 
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index 26b066690593..a945263addd4 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -325,6 +325,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
- #define pmd_mksplitting(pmd)	pte_pmd(pte_mkspecial(pmd_pte(pmd)))
- #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
- #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
-+#define pmd_mkclean(pmd)       pte_pmd(pte_mkclean(pmd_pte(pmd)))
- #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
- #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
- #define pmd_mknotpresent(pmd)	(__pmd(pmd_val(pmd) & ~PMD_TYPE_MASK))
--- 
-1.9.1
+euler-linux:~ # cat /proc/meminfo | grep DirectMap
+DirectMap4k:       91712 kB
+DirectMap2M:     4093952 kB
+DirectMap1G:    48234496 kB
+
+
+total DirectMap is 48234496 + 4093952 + 91712 = 52420160kb
+		    50331648 + 2084864 + 3648 = 52420160kb
+total init_memory_mapping is 50323008kb
+
+52420160kb - 50323008kb = 2097152kb = 2G
+
+However I haven't find a better way to fix it, any ideas?
+
+Thanks,
+Xishi Qiu
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
