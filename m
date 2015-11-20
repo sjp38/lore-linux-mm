@@ -1,108 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id CF8F66B0038
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 14:25:19 -0500 (EST)
-Received: by wmec201 with SMTP id c201so85919844wme.0
-        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 11:25:19 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 1si1488753wjw.32.2015.11.20.11.25.18
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 23A4C6B0253
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 16:43:15 -0500 (EST)
+Received: by wmdw130 with SMTP id w130so35137899wmd.0
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 13:43:14 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o124si2159847wmg.25.2015.11.20.13.43.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Nov 2015 11:25:18 -0800 (PST)
-Date: Fri, 20 Nov 2015 14:25:06 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 13/14] mm: memcontrol: account socket memory in unified
- hierarchy memory controller
-Message-ID: <20151120192506.GD5623@cmpxchg.org>
-References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
- <1447371693-25143-14-git-send-email-hannes@cmpxchg.org>
- <20151120131033.GF31308@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151120131033.GF31308@esperanza>
+        Fri, 20 Nov 2015 13:43:13 -0800 (PST)
+Date: Fri, 20 Nov 2015 13:43:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] vmscan: do not force-scan file lru if its absolute size
+ is small
+Message-Id: <20151120134311.8ff0947215fc522f72f791fe@linux-foundation.org>
+In-Reply-To: <20151120183707.GA5623@cmpxchg.org>
+References: <1448038976-28796-1-git-send-email-vdavydov@virtuozzo.com>
+	<20151120183707.GA5623@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 20, 2015 at 04:10:33PM +0300, Vladimir Davydov wrote:
-> On Thu, Nov 12, 2015 at 06:41:32PM -0500, Johannes Weiner wrote:
-> ...
-> > @@ -5514,16 +5550,43 @@ void sock_release_memcg(struct sock *sk)
-> >   */
-> >  bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
-> >  {
-> > +	unsigned int batch = max(CHARGE_BATCH, nr_pages);
-> >  	struct page_counter *counter;
-> > +	bool force = false;
-> >  
-> > -	if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
-> > -				    nr_pages, &counter)) {
-> > -		memcg->tcp_mem.memory_pressure = 0;
-> > +#ifdef CONFIG_MEMCG_KMEM
-> > +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
-> > +		if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
-> > +					    nr_pages, &counter)) {
-> > +			memcg->tcp_mem.memory_pressure = 0;
-> > +			return true;
-> > +		}
-> > +		page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
-> > +		memcg->tcp_mem.memory_pressure = 1;
-> > +		return false;
-> > +	}
-> > +#endif
-> > +	if (consume_stock(memcg, nr_pages))
-> >  		return true;
-> > +retry:
-> > +	if (page_counter_try_charge(&memcg->memory, batch, &counter))
-> > +		goto done;
-> > +
-> > +	if (batch > nr_pages) {
-> > +		batch = nr_pages;
-> > +		goto retry;
-> >  	}
-> > -	page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
-> > -	memcg->tcp_mem.memory_pressure = 1;
-> > -	return false;
-> > +
-> > +	page_counter_charge(&memcg->memory, batch);
-> > +	force = true;
-> > +done:
+On Fri, 20 Nov 2015 13:37:07 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+
+> On Fri, Nov 20, 2015 at 08:02:56PM +0300, Vladimir Davydov wrote:
+> > We assume there is enough inactive page cache if the size of inactive
+> > file lru is greater than the size of active file lru, in which case we
+> > force-scan file lru ignoring anonymous pages. While this logic works
+> > fine when there are plenty of page cache pages, it fails if the size of
+> > file lru is small (several MB): in this case (lru_size >> prio) will be
+> > 0 for normal scan priorities, as a result, if inactive file lru happens
+> > to be larger than active file lru, anonymous pages of a cgroup will
+> > never get evicted unless the system experiences severe memory pressure,
+> > even if there are gigabytes of unused anonymous memory there, which is
+> > unfair in respect to other cgroups, whose workloads might be page cache
+> > oriented.
+> > 
+> > This patch attempts to fix this by elaborating the "enough inactive page
+> > cache" check: it makes it not only check that inactive lru size > active
+> > lru size, but also that we will scan something from the cgroup at the
+> > current scan priority. If these conditions do not hold, we proceed to
+> > SCAN_FRACT as usual.
+> > 
+> > Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 > 
-> > +	css_get_many(&memcg->css, batch);
+> This makes sense, the inactive:active ratio of the file list alone
+> does not give the full picture to decide whether to skip anonymous.
 > 
-> Is there any point to get css reference per each charged page? For kmem
-> it is absolutely necessary, because dangling slabs must block
-> destruction of memcg's kmem caches, which are destroyed on css_free. But
-> for sockets there's no such problem: memcg will be destroyed only after
-> all sockets are destroyed and therefore uncharged (since
-> sock_update_memcg pins css).
-
-I'm afraid we have to when we want to share 'stock' with cache and
-anon pages, which hold individual references. drain_stock() always
-assumes one reference per cached page.
-
-> > +	if (batch > nr_pages)
-> > +		refill_stock(memcg, batch - nr_pages);
-> > +
-> > +	schedule_work(&memcg->socket_work);
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> I think it's suboptimal to schedule the work even if we are below the
-> high threshold.
+> > @@ -2046,7 +2046,8 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
+> >  	 * There is enough inactive page cache, do not reclaim
+> >  	 * anything from the anonymous working set right now.
+> >  	 */
+> > -	if (!inactive_file_is_low(lruvec)) {
+> > +	if (!inactive_file_is_low(lruvec) &&
+> > +	    get_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority > 0) {
+> 
+> The > 0 seems unnecessary, no? There are too many > in this line :-)
 
-Hm, it seemed unnecessary to duplicate the hierarchy check since this
-is in the batch-exhausted slowpath anyway.
-
-> BTW why do we need this work at all? Why is reclaim_high called from
-> task_work not enough?
-
-The problem lies in the memcg association: the random task that gets
-interrupted by an arriving packet might not be in the same memcg as
-the one owning receiving socket. And multiple interrupts could happen
-while we're in the kernel already charging pages. We'd basically have
-to maintain a list of memcgs that need to run reclaim_high associated
-with current.
+And an update to the code comment would be helpful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
