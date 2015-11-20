@@ -1,85 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 03F3E6B0255
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:46:31 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so110342832pac.2
-        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:46:30 -0800 (PST)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id a1si17657745pas.56.2015.11.20.00.46.29
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D05416B0255
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:55:04 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so110638083pac.3
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:55:04 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id q65si416216pfi.120.2015.11.20.00.55.03
         for <linux-mm@kvack.org>;
-        Fri, 20 Nov 2015 00:46:30 -0800 (PST)
-Message-ID: <564EDD3F.6070302@cn.fujitsu.com>
-Date: Fri, 20 Nov 2015 16:43:43 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+        Fri, 20 Nov 2015 00:55:04 -0800 (PST)
+Subject: Re: hugepage compaction causes performance drop
+References: <20151119092920.GA11806@aaronlu.sh.intel.com>
+ <564DCEA6.3000802@suse.cz>
+From: Aaron Lu <aaron.lu@intel.com>
+Message-ID: <564EDFE5.5010709@intel.com>
+Date: Fri, 20 Nov 2015 16:55:01 +0800
 MIME-Version: 1.0
-Subject: Re: [RFC] mm: direct mapping count in /proc/meminfo is error
-References: <564ED708.5090405@huawei.com>
-In-Reply-To: <564ED708.5090405@huawei.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
+In-Reply-To: <564DCEA6.3000802@suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, zhong jiang <zhongjiang@huawei.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
+Cc: Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, lkp@lists.01.org, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hi Shi,
+On 11/19/2015 09:29 PM, Vlastimil Babka wrote:
+> +CC Andrea, David, Joonsoo
+> 
+> On 11/19/2015 10:29 AM, Aaron Lu wrote:
+>> The vmstat and perf-profile are also attached, please let me know if you
+>> need any more information, thanks.
+> 
+> Output from vmstat (the tool) isn't much useful here, a periodic "cat 
+> /proc/vmstat" would be much better.
 
-Would you please share where did you add the printk debug info ?
+No problem.
 
-Thanks. :)
+> The perf profiles are somewhat weirdly sorted by children cost (?), but 
+> I noticed a very high cost (46%) in pageblock_pfn_to_page(). This could 
+> be due to a very large but sparsely populated zone. Could you provide 
+> /proc/zoneinfo?
 
-On 11/20/2015 04:17 PM, Xishi Qiu wrote:
-> I find the direct mapping count in /proc/meminfo is error.
-> The value should be equal to the size of init_memory_mapping which
-> showed in boot log.
->
-> I add some print to show direct_pages_count[] immediately after
-> init_memory_mapping(). The reason is that we double counting.
->
-> Here is the log(kernel v4.4):
-> ...
-> [    0.000000] init_memory_mapping: [mem 0x00000000-0x000fffff]  // called from "init_memory_mapping(0, ISA_END_ADDRESS);"
-> [    0.000000]  [mem 0x00000000-0x000fffff] page 4k
-> [    0.000000] BRK [0x01ebf000, 0x01ebffff] PGTABLE
-> [    0.000000] BRK [0x01ec0000, 0x01ec0fff] PGTABLE
-> [    0.000000] BRK [0x01ec1000, 0x01ec1fff] PGTABLE
-> [    0.000000] init_memory_mapping: [mem 0xc3fe00000-0xc3fffffff]  // called from "memory_map_top_down(ISA_END_ADDRESS, end);"
-> [    0.000000]  [mem 0xc3fe00000-0xc3fffffff] page 1G  // increase count of PG_LEVEL_1G in c00000000(48G)-c3fffffff(49G) one time
-> [    0.000000] init_memory_mapping: [mem 0xc20000000-0xc3fdfffff]
-> [    0.000000]  [mem 0xc20000000-0xc3fdfffff] page 1G  // increase count of PG_LEVEL_1G in c00000000(48G)-c3fffffff(49G) two time
-> [    0.000000] init_memory_mapping: [mem 0x00100000-0xbf78ffff]
-> [    0.000000]  [mem 0x00100000-0x001fffff] page 4k
-> [    0.000000]  [mem 0x00200000-0x3fffffff] page 2M
-> [    0.000000]  [mem 0x40000000-0x7fffffff] page 1G
-> [    0.000000]  [mem 0x80000000-0xbf5fffff] page 2M
-> [    0.000000]  [mem 0xbf600000-0xbf78ffff] page 4k
-> [    0.000000] init_memory_mapping: [mem 0x100000000-0xc1fffffff]
-> [    0.000000]  [mem 0x100000000-0xc1fffffff] page 1G  // increase count of PG_LEVEL_1G in c00000000(48G)-c3fffffff(49G) three time
-> ...
-> [    0.000000] DirectMap4k:        3648 kB
-> [    0.000000] DirectMap2M:     2084864 kB
-> [    0.000000] DirectMap1G:    50331648 kB
->
-> euler-linux:~ # cat /proc/meminfo | grep DirectMap
-> DirectMap4k:       91712 kB
-> DirectMap2M:     4093952 kB
-> DirectMap1G:    48234496 kB
->
->
-> total DirectMap is 48234496 + 4093952 + 91712 = 52420160kb
-> 		    50331648 + 2084864 + 3648 = 52420160kb
-> total init_memory_mapping is 50323008kb
->
-> 52420160kb - 50323008kb = 2097152kb = 2G
->
-> However I haven't find a better way to fix it, any ideas?
->
-> Thanks,
-> Xishi Qiu
->
->
-> .
->
+Is a one time /proc/zoneinfo enough or also a periodic one?
+
+> If the compaction scanners behave strangely due to a bug, enabling the 
+> ftrace compaction tracepoints should help find the cause. That might 
+> produce a very large output, but maybe it would be enough to see some 
+> parts of it (i.e. towards beginning, middle, end of the experiment).
+
+I'll see how to do this, never used ftrace before.
+
+Thanks for the quick response.
+
+Regards,
+Aaron
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
