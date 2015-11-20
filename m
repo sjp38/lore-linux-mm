@@ -1,97 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A43C86B0253
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 22:13:25 -0500 (EST)
-Received: by qgea14 with SMTP id a14so65062559qge.0
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 19:13:25 -0800 (PST)
-Received: from mail-qk0-x22d.google.com (mail-qk0-x22d.google.com. [2607:f8b0:400d:c09::22d])
-        by mx.google.com with ESMTPS id e200si9354400qhc.22.2015.11.19.19.13.24
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 3892E6B0253
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 01:21:45 -0500 (EST)
+Received: by ioir85 with SMTP id r85so114226103ioi.1
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 22:21:45 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTPS id w8si1730331igb.12.2015.11.19.22.21.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Nov 2015 19:13:25 -0800 (PST)
-Received: by qkfo3 with SMTP id o3so32650302qkf.1
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 19:13:24 -0800 (PST)
-Date: Thu, 19 Nov 2015 22:13:21 -0500
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [RFC 0/8] userfaultfd: add write protect support
-Message-ID: <20151120031321.GC3093@gmail.com>
-References: <cover.1447964595.git.shli@fb.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 19 Nov 2015 22:21:44 -0800 (PST)
+Date: Fri, 20 Nov 2015 15:21:52 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 2/3] mm/page_isolation: add new tracepoint,
+ test_pages_isolated
+Message-ID: <20151120062151.GA13061@js1304-P5Q-DELUXE>
+References: <1447381428-12445-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1447381428-12445-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <20151119153411.6215be690f75f70b3fa84766@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <cover.1447964595.git.shli@fb.com>
+In-Reply-To: <20151119153411.6215be690f75f70b3fa84766@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Steven Rostedt <rostedt@goodmis.org>
 
-On Thu, Nov 19, 2015 at 02:33:45PM -0800, Shaohua Li wrote:
-> Hi,
+On Thu, Nov 19, 2015 at 03:34:11PM -0800, Andrew Morton wrote:
+> On Fri, 13 Nov 2015 11:23:47 +0900 Joonsoo Kim <js1304@gmail.com> wrote:
 > 
-> There is plan to support write protect fault into userfaultfd before, but it's
-> not implemented yet. I'm working on a library to support different types of
-> buffer like compressed buffer and file buffer, something like a page cache
-> implementation in userspace. The buffer enables userfaultfd and does something
-> like decompression in userfault handler. When memory size exceeds a
-> threshold, madvise is used to reclaim memory. The problem is data can be
-> corrupted in reclaim without memory protection support.
+> > cma allocation should be guranteeded to succeed, but, sometimes,
+> > it could be failed in current implementation. To track down
+> > the problem, we need to know which page is problematic and
+> > this new tracepoint will report it.
 > 
-> For example, in the compressed buffer case, reclaim does:
-> 1. compress memory range and store compressed data elsewhere
-> 2. madvise the memory range
+> akpm3:/usr/src/25> size mm/page_isolation.o
+>    text    data     bss     dec     hex filename
+>    2972     112    1096    4180    1054 mm/page_isolation.o-before
+>    4608     570    1840    7018    1b6a mm/page_isolation.o-after
 > 
-> But if the memory is changed before 2, new change is lost. memory write
-> protection can solve the issue. With it, the reclaim does:
-> 1. write protect memory range
-> 2. compress memory range and store compressed data elsewhere
-> 3. madvise the memory range
-> 4. undo write protect memory range and wakeup tasks waiting in write protect
-> fault.
-> If a task changes memory before 3, write protect fault will be triggered. we
-> can put the task into sleep till step 4 runs for example. In this way memory
-> changes will not be lost.
+> This seems an excessive amount of bloat for one little tracepoint.  Is
+> this expected and normal (and acceptable)?
 
-While i understand the whole concept of write protection while doing compression.
-I do not see valid usecase for this. Inside the kernel we already have thing like
-zswap that already does what you seem to want to do (ie compress memory range and
-transparently uncompress it on next CPU access).
+Hello,
 
-I fail to see a usecase where we would realy would like to do this in userspace.
+I checked bloat on other tracepoints and found that it's normal.
+It takes 1KB more per tracepoint.
 
-> 
-> This patch set add write protect support for userfaultfd. One issue is write
-> protect fault can happen even without enabling write protect in userfault. For
-> example, a write to address backed by zero page. There is no way to distinguish
-> if this is a write protect fault expected by userfault. This patch just blindly
-> triggers write protect fault to userfault if corresponding vma enables
-> VM_UFFD_WP. Application should be prepared to handle such write protect fault.
-> 
-> Thanks,
-> Shaohua
-> 
-> 
-> Shaohua Li (8):
->   userfaultfd: add helper for writeprotect check
->   userfaultfd: support write protection for userfault vma range
->   userfaultfd: expose writeprotect API to ioctl
->   userfaultfd: allow userfaultfd register success with writeprotection
->   userfaultfd: undo write proctection in unregister
->   userfaultfd: hook userfault handler to write protection fault
->   userfaultfd: fault try one more time
->   userfaultfd: enabled write protection in userfaultfd API
-
->From organization point of view, i would put the "expose writeprotect API to ioctl"
-as the last patch in the serie after all the plumbing is done. This would make
-"enabled write protection in userfaultfd API" useless and avoid akward changes in
-some of the others patches where you add commented/disabled code.
-
-Also you want to handle GUP, like you want the write protection to fails if there
-is GUP and you want GUP to force breaking write protection, otherwise this will be
-broken if anyone mix it with something that trigger GUP.
-
-Cheers,
-Jerome
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
