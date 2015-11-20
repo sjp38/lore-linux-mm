@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 56C166B0268
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:17:55 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so113120685pab.0
-        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:17:55 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id hp4si17493936pad.113.2015.11.20.00.17.53
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CDC76B026A
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:18:01 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so109691081pad.1
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:18:00 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTPS id cy6si17432983pad.242.2015.11.20.00.17.59
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 20 Nov 2015 00:17:54 -0800 (PST)
+        Fri, 20 Nov 2015 00:18:00 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v4 10/16] arm: add pmd_mkclean for THP
-Date: Fri, 20 Nov 2015 17:02:42 +0900
-Message-Id: <1448006568-16031-11-git-send-email-minchan@kernel.org>
+Subject: [PATCH v4 11/16] arm64: add pmd_mkclean for THP
+Date: Fri, 20 Nov 2015 17:02:43 +0900
+Message-Id: <1448006568-16031-12-git-send-email-minchan@kernel.org>
 In-Reply-To: <1448006568-16031-1-git-send-email-minchan@kernel.org>
 References: <1448006568-16031-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -27,21 +27,21 @@ This patch adds pmd_mkclean for THP page MADV_FREE support.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- arch/arm/include/asm/pgtable-3level.h | 1 +
+ arch/arm64/include/asm/pgtable.h | 1 +
  1 file changed, 1 insertion(+)
 
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index a745a2a53853..6d6012a320b2 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -249,6 +249,7 @@ PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
- PMD_BIT_FUNC(mksplitting, |= L_PMD_SECT_SPLITTING);
- PMD_BIT_FUNC(mkwrite,   &= ~L_PMD_SECT_RDONLY);
- PMD_BIT_FUNC(mkdirty,   |= L_PMD_SECT_DIRTY);
-+PMD_BIT_FUNC(mkclean,   &= ~L_PMD_SECT_DIRTY);
- PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
- 
- #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index 26b066690593..a945263addd4 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -325,6 +325,7 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
+ #define pmd_mksplitting(pmd)	pte_pmd(pte_mkspecial(pmd_pte(pmd)))
+ #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
+ #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
++#define pmd_mkclean(pmd)       pte_pmd(pte_mkclean(pmd_pte(pmd)))
+ #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
+ #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
+ #define pmd_mknotpresent(pmd)	(__pmd(pmd_val(pmd) & ~PMD_TYPE_MASK))
 -- 
 1.9.1
 
