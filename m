@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id EF9206B0259
-	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:02:58 -0500 (EST)
-Received: by ioc74 with SMTP id 74so115791857ioc.2
-        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:02:58 -0800 (PST)
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id EFFAB6B025A
+	for <linux-mm@kvack.org>; Fri, 20 Nov 2015 03:03:00 -0500 (EST)
+Received: by iofh3 with SMTP id h3so116215183iof.3
+        for <linux-mm@kvack.org>; Fri, 20 Nov 2015 00:03:00 -0800 (PST)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id u29si433125ioi.124.2015.11.20.00.02.48
+        by mx.google.com with ESMTPS id f9si2149590igc.5.2015.11.20.00.02.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 20 Nov 2015 00:02:49 -0800 (PST)
+        Fri, 20 Nov 2015 00:02:50 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v4 06/16] mm: mark stable page dirty in KSM
-Date: Fri, 20 Nov 2015 17:02:38 +0900
-Message-Id: <1448006568-16031-7-git-send-email-minchan@kernel.org>
+Subject: [PATCH v4 07/16] x86: add pmd_[dirty|mkclean] for THP
+Date: Fri, 20 Nov 2015 17:02:39 +0900
+Message-Id: <1448006568-16031-8-git-send-email-minchan@kernel.org>
 In-Reply-To: <1448006568-16031-1-git-send-email-minchan@kernel.org>
 References: <1448006568-16031-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,35 +20,34 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Andy Lutomirski <luto@amacapital.net>, Minchan Kim <minchan@kernel.org>
 
-The MADV_FREE patchset changes page reclaim to simply free a clean
-anonymous page with no dirty ptes, instead of swapping it out; but
-KSM uses clean write-protected ptes to reference the stable ksm page.
-So be sure to mark that page dirty, so it's never mistakenly discarded.
+MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent overwrite
+of the contents since MADV_FREE syscall is called for THP page.
 
-[hughd: adjusted comments]
-Acked-by: Hugh Dickins <hughd@google.com>
+This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
+support.
+
 Signed-off-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/ksm.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ arch/x86/include/asm/pgtable.h | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 7ee101eaacdf..18d2b7afecff 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1053,6 +1053,12 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
- 			 */
- 			set_page_stable_node(page, NULL);
- 			mark_page_accessed(page);
-+			/*
-+			 * Page reclaim just frees a clean page with no dirty
-+			 * ptes: make sure that the ksm page would be swapped.
-+			 */
-+			if (!PageDirty(page))
-+				SetPageDirty(page);
- 			err = 0;
- 		} else if (pages_identical(page, kpage))
- 			err = replace_page(vma, page, kpage, orig_pte);
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 867da5bbb4a3..b964d54300e1 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -267,6 +267,11 @@ static inline pmd_t pmd_mkold(pmd_t pmd)
+ 	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
+ }
+ 
++static inline pmd_t pmd_mkclean(pmd_t pmd)
++{
++	return pmd_clear_flags(pmd, _PAGE_DIRTY);
++}
++
+ static inline pmd_t pmd_wrprotect(pmd_t pmd)
+ {
+ 	return pmd_clear_flags(pmd, _PAGE_RW);
 -- 
 1.9.1
 
