@@ -1,59 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B4BE46B0253
-	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 22:04:41 -0500 (EST)
-Received: by qgcc31 with SMTP id c31so22284420qgc.3
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 19:04:41 -0800 (PST)
-Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
-        by mx.google.com with ESMTPS id y70si9335103qgd.62.2015.11.19.19.04.41
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A43C86B0253
+	for <linux-mm@kvack.org>; Thu, 19 Nov 2015 22:13:25 -0500 (EST)
+Received: by qgea14 with SMTP id a14so65062559qge.0
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 19:13:25 -0800 (PST)
+Received: from mail-qk0-x22d.google.com (mail-qk0-x22d.google.com. [2607:f8b0:400d:c09::22d])
+        by mx.google.com with ESMTPS id e200si9354400qhc.22.2015.11.19.19.13.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Nov 2015 19:04:41 -0800 (PST)
-Received: by qkda6 with SMTP id a6so32662133qkd.3
-        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 19:04:40 -0800 (PST)
-Date: Thu, 19 Nov 2015 22:04:37 -0500
+        Thu, 19 Nov 2015 19:13:25 -0800 (PST)
+Received: by qkfo3 with SMTP id o3so32650302qkf.1
+        for <linux-mm@kvack.org>; Thu, 19 Nov 2015 19:13:24 -0800 (PST)
+Date: Thu, 19 Nov 2015 22:13:21 -0500
 From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [RFC 7/8] userfaultfd: fault try one more time
-Message-ID: <20151120030436.GB3093@gmail.com>
+Subject: Re: [RFC 0/8] userfaultfd: add write protect support
+Message-ID: <20151120031321.GC3093@gmail.com>
 References: <cover.1447964595.git.shli@fb.com>
- <07f86ce80ddfc38fbf8247287e5b6475b1cd436d.1447964595.git.shli@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <07f86ce80ddfc38fbf8247287e5b6475b1cd436d.1447964595.git.shli@fb.com>
+In-Reply-To: <cover.1447964595.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Nov 19, 2015 at 02:33:52PM -0800, Shaohua Li wrote:
-> For a swapin memory write fault, fault handler already retry once to
-> read the page in. userfaultfd can't do the retry again and fail. Give
-> another retry for userfaultfd in such case. gup isn't fixed yet, so will
-> return -EBUSY.
+On Thu, Nov 19, 2015 at 02:33:45PM -0800, Shaohua Li wrote:
+> Hi,
+> 
+> There is plan to support write protect fault into userfaultfd before, but it's
+> not implemented yet. I'm working on a library to support different types of
+> buffer like compressed buffer and file buffer, something like a page cache
+> implementation in userspace. The buffer enables userfaultfd and does something
+> like decompression in userfault handler. When memory size exceeds a
+> threshold, madvise is used to reclaim memory. The problem is data can be
+> corrupted in reclaim without memory protection support.
+> 
+> For example, in the compressed buffer case, reclaim does:
+> 1. compress memory range and store compressed data elsewhere
+> 2. madvise the memory range
+> 
+> But if the memory is changed before 2, new change is lost. memory write
+> protection can solve the issue. With it, the reclaim does:
+> 1. write protect memory range
+> 2. compress memory range and store compressed data elsewhere
+> 3. madvise the memory range
+> 4. undo write protect memory range and wakeup tasks waiting in write protect
+> fault.
+> If a task changes memory before 3, write protect fault will be triggered. we
+> can put the task into sleep till step 4 runs for example. In this way memory
+> changes will not be lost.
 
-This whole patch make me nervous. I do not see the point in it. So on
-page fault in first pass you have the RETRY flag set and you can either
-return VM_FAULT_RETRY because (1) lock_page_or_retry() in do_swap_page()
-or because (2) handle_userfault().
+While i understand the whole concept of write protection while doing compression.
+I do not see valid usecase for this. Inside the kernel we already have thing like
+zswap that already does what you seem to want to do (ie compress memory range and
+transparently uncompress it on next CPU access).
 
-In second case, on retry you already have a valid read only pte so you
-go directly to do_wp_page() and this is properly handle by current
-handle_userfault() code. So it does not make sense to add complexity
-for that case.
+I fail to see a usecase where we would realy would like to do this in userspace.
 
-You seem to hint that you are doing this for the first case (1) but even
-for that one it does not make sense. So if we fail to lock the page it
-is because someone else is doing something with that page and most likely
-it is related to the userfaultfd already (like another thread took the
-fault and is doing all the steps you need). So you just want a regular
-retry, ie do_swap_page() return retry and on retry it is likely that
-everything is already all good. If not that it takes the slow painful
-wait code path.
+> 
+> This patch set add write protect support for userfaultfd. One issue is write
+> protect fault can happen even without enabling write protect in userfault. For
+> example, a write to address backed by zero page. There is no way to distinguish
+> if this is a write protect fault expected by userfault. This patch just blindly
+> triggers write protect fault to userfault if corresponding vma enables
+> VM_UFFD_WP. Application should be prepared to handle such write protect fault.
+> 
+> Thanks,
+> Shaohua
+> 
+> 
+> Shaohua Li (8):
+>   userfaultfd: add helper for writeprotect check
+>   userfaultfd: support write protection for userfault vma range
+>   userfaultfd: expose writeprotect API to ioctl
+>   userfaultfd: allow userfaultfd register success with writeprotection
+>   userfaultfd: undo write proctection in unregister
+>   userfaultfd: hook userfault handler to write protection fault
+>   userfaultfd: fault try one more time
+>   userfaultfd: enabled write protection in userfaultfd API
 
-I genuinely do not see what benefit and reasons there is to this new
-special usefaultfd retry flag.
+>From organization point of view, i would put the "expose writeprotect API to ioctl"
+as the last patch in the serie after all the plumbing is done. This would make
+"enabled write protection in userfaultfd API" useless and avoid akward changes in
+some of the others patches where you add commented/disabled code.
+
+Also you want to handle GUP, like you want the write protection to fails if there
+is GUP and you want GUP to force breaking write protection, otherwise this will be
+broken if anyone mix it with something that trigger GUP.
 
 Cheers,
 Jerome
