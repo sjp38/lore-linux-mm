@@ -1,96 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D1966B0253
-	for <linux-mm@kvack.org>; Sun, 22 Nov 2015 07:13:33 -0500 (EST)
-Received: by iofh3 with SMTP id h3so164285871iof.3
-        for <linux-mm@kvack.org>; Sun, 22 Nov 2015 04:13:32 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id l1si6180029igx.27.2015.11.22.04.13.31
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 51F686B0255
+	for <linux-mm@kvack.org>; Sun, 22 Nov 2015 07:55:34 -0500 (EST)
+Received: by wmec201 with SMTP id c201so73474348wme.1
+        for <linux-mm@kvack.org>; Sun, 22 Nov 2015 04:55:33 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q133si12563727wmb.22.2015.11.22.04.55.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 22 Nov 2015 04:13:32 -0800 (PST)
-Subject: linux-4.4-rc1: TIF_MEMDIE without SIGKILL pending?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-Id: <201511222113.FCF57847.OOMJVQtFFSOFLH@I-love.SAKURA.ne.jp>
-Date: Sun, 22 Nov 2015 21:13:22 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 22 Nov 2015 04:55:32 -0800 (PST)
+Subject: Re: [PATCH] mm, oom: Give __GFP_NOFAIL allocations access to memory
+ reserves
+References: <1447249697-13380-1-git-send-email-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5651BB43.8030102@suse.cz>
+Date: Sun, 22 Nov 2015 13:55:31 +0100
+MIME-Version: 1.0
+In-Reply-To: <1447249697-13380-1-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, oleg@redhat.com
-Cc: linux-mm@kvack.org
+To: mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-I was updating kmallocwd in preparation for testing "[RFC 0/3] OOM detection
-rework v2" patchset. I noticed an unexpected result with linux.git as of
-3ad5d7e06a96 .
+On 11.11.2015 14:48, mhocko@kernel.org wrote:
+>  mm/page_alloc.c | 10 +++++++++-
+>  1 file changed, 9 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 8034909faad2..d30bce9d7ac8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2766,8 +2766,16 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  			goto out;
+>  	}
+>  	/* Exhausted what can be done so it's blamo time */
+> -	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
+> +	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+>  		*did_some_progress = 1;
+> +
+> +		if (gfp_mask & __GFP_NOFAIL) {
+> +			page = get_page_from_freelist(gfp_mask, order,
+> +					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
+> +			WARN_ONCE(!page, "Unable to fullfil gfp_nofail allocation."
+> +				    " Consider increasing min_free_kbytes.\n");
 
-The problem is that an OOM victim arrives at do_exit() with TIF_MEMDIE flag
-set but without pending SIGKILL. Is this correct behavior?
+It seems redundant to me to keep the WARN_ON_ONCE also above in the if () part?
+Also s/gfp_nofail/GFP_NOFAIL/ for consistency?
 
-----------
-diff --git a/kernel/exit.c b/kernel/exit.c
-index 07110c6..ea5bcd0 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -656,6 +656,7 @@ void do_exit(long code)
- 	int group_dead;
- 	TASKS_RCU(int tasks_rcu_i);
- 
-+	BUG_ON(test_thread_flag(TIF_MEMDIE) && !fatal_signal_pending(current));
- 	profile_task_exit(tsk);
- 
- 	WARN_ON(blk_needs_flush_plug(tsk));
-----------
+Hm and probably out of scope of your patch, but I understand the WARN_ONCE
+(WARN_ON_ONCE) to be _ONCE just to prevent a flood from a single task looping
+here. But for distinct tasks and potentially far away in time, wouldn't we want
+to see all the warnings? Would that be feasible to implement?
 
-[  103.796002] ------------[ cut here ]------------
-[  103.797700] kernel BUG at kernel/exit.c:659!
-[  103.799314] invalid opcode: 0000 [#1] SMP
-[  103.800932] Modules linked in: ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 nf_conntrack_ipv6 nf_defrag_ipv6 ipt_REJECT nf_reject_ipv4 nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_nat ebtable_broute bridge stp llc e\
-btable_filter ebtables ip6table_mangle ip6table_security ip6table_raw ip6table_filter ip6_tables iptable_mangle iptable_security iptable_raw iptable_filter ip_tables coretemp crct10dif_pclmul crc32_pclmul crc32c_intel aesni_intel glue_h\
-elper lrw gf128mul ablk_helper ppdev cryptd vmw_balloon serio_raw pcspkr parport_pc vmw_vmci parport shpchp i2c_piix4 sd_mod ata_generic pata_acpi vmwgfx drm_kms_helper syscopyarea sysfillrect sysimgblt fb_sys_fops ttm drm ahci ata_piix\
- mptspi scsi_transport_spi mptscsih libahci libata mptbase e1000 i2c_core
-[  103.820275] CPU: 1 PID: 11036 Comm: oom-tester4 Not tainted 4.4.0-rc1+ #9
-[  103.822514] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-[  103.825459] task: ffff880078f0c200 ti: ffff880078db8000 task.ti: ffff880078db8000
-[  103.827850] RIP: 0010:[<ffffffff810726ef>]  [<ffffffff810726ef>] do_exit+0xa3f/0xb40
-[  103.830535] RSP: 0018:ffff880078dbbcd0  EFLAGS: 00010246
-[  103.832606] RAX: 0000000000100084 RBX: 0000000000000002 RCX: 0000000000000000
-[  103.834935] RDX: 00000000418004fc RSI: 0000000000000001 RDI: 0000000000000002
-[  103.837314] RBP: ffff880078dbbd30 R08: 0000000000000000 R09: 0000000000000000
-[  103.839595] R10: 0000000000000001 R11: ffff880078f0c930 R12: 0000000000000002
-[  103.841894] R13: ffff880078f0c200 R14: ffff880078f0c200 R15: 0000000000000008
-[  103.844305] FS:  00007fbf5610a740(0000) GS:ffff88007fc40000(0000) knlGS:0000000000000000
-[  103.846845] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  103.849002] CR2: 000055a5c65d17d0 CR3: 0000000078dfd000 CR4: 00000000001406e0
-[  103.851433] Stack:
-[  103.852787]  0000000000000001 ffff880078f0c200 0000000000000046 ffff880078dbbe18
-[  103.855263]  ffff880078dbbe38 ffff880078f0c200 000000005c6d8319 ffff880035dc2f40
-[  103.857717]  0000000000000002 ffff880078f0c200 ffff880078dbbe38 0000000000000008
-[  103.860138] Call Trace:
-[  103.861603]  [<ffffffff81072877>] do_group_exit+0x47/0xc0
-  include/linux/sched.h:807
-  kernel/exit.c:862
-[  103.863513]  [<ffffffff8107e0b2>] get_signal+0x222/0x7e0
-  kernel/signal.c:2307
-[  103.865395]  [<ffffffff8100f362>] do_signal+0x32/0x670
-  arch/x86/kernel/signal.c:709
-[  103.867219]  [<ffffffff8106a517>] ? syscall_slow_exit_work+0x4b/0x10d
-  arch/x86/entry/common.c:306
-[  103.869264]  [<ffffffff8106a46a>] ? exit_to_usermode_loop+0x2e/0x90
-  arch/x86/include/asm/paravirt.h:816
-  arch/x86/entry/common.c:237
-[  103.871249]  [<ffffffff8106a488>] exit_to_usermode_loop+0x4c/0x90
-  arch/x86/entry/common.c:249
-[  103.873324]  [<ffffffff8100355b>] syscall_return_slowpath+0xbb/0x130
-  arch/x86/entry/common.c:282
-  arch/x86/entry/common.c:344
-[  103.875322]  [<ffffffff816e85da>] int_ret_from_sys_call+0x25/0x9f
-  arch/x86/entry/entry_64.S:282
-[  103.877228] Code: ba 9f 81 31 c0 e8 ed 6c 0c 00 48 8b b8 90 00 00 00 e8 e6 6b 02 00 e9 31 fb ff ff 49 8b 46 08 48 8b 40 08 a8 04 0f 85 bd 00 00 00 <0f> 0b 4c 89 f7 e8 77 80 0a 00 e9 fb f6 ff ff 49 8b 96 c0 05 00
-[  103.884329] RIP  [<ffffffff810726ef>] do_exit+0xa3f/0xb40
-  kernel/exit.c:659
-[  103.886121]  RSP <ffff880078dbbcd0>
-[  103.887537] ---[ end trace a5e757a180b4cf32 ]---
+> +		}
+> +	}
+>  out:
+>  	mutex_unlock(&oom_lock);
+>  	return page;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
