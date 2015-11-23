@@ -1,61 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 053CB6B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 07:55:02 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so190613797pad.1
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:55:01 -0800 (PST)
-Received: from out02.mta.xmission.com (out02.mta.xmission.com. [166.70.13.232])
-        by mx.google.com with ESMTPS id 4si19291861pfq.125.2015.11.23.04.55.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 23 Nov 2015 04:55:01 -0800 (PST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20151120001043.GA28204@www.outflux.net>
-	<20151123122624.GI23418@quack.suse.cz>
-Date: Mon, 23 Nov 2015 06:34:06 -0600
-In-Reply-To: <20151123122624.GI23418@quack.suse.cz> (Jan Kara's message of
-	"Mon, 23 Nov 2015 13:26:24 +0100")
-Message-ID: <87lh9odhdt.fsf@x220.int.ebiederm.org>
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id F35C76B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 09:26:07 -0500 (EST)
+Received: by igl9 with SMTP id 9so51877783igl.0
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 06:26:07 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0188.hostedemail.com. [216.40.44.188])
+        by mx.google.com with ESMTP id g2si9526985igc.14.2015.11.23.06.26.07
+        for <linux-mm@kvack.org>;
+        Mon, 23 Nov 2015 06:26:07 -0800 (PST)
+Date: Mon, 23 Nov 2015 09:26:04 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
+ reference manipulation
+Message-ID: <20151123092604.7ec1397d@gandalf.local.home>
+In-Reply-To: <20151123082805.GB29397@js1304-P5Q-DELUXE>
+References: <1447053784-27811-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1447053784-27811-2-git-send-email-iamjoonsoo.kim@lge.com>
+	<564C9A86.1090906@suse.cz>
+	<20151120063325.GB13061@js1304-P5Q-DELUXE>
+	<20151120114225.7efeeafe@grimm.local.home>
+	<20151123082805.GB29397@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [PATCH] fs: clear file set[ug]id when writing via mmap
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Andy Lutomirski <luto@amacapital.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Shachar Raindel <raindel@mellanox.com>, Boaz Harrosh <boaz@plexistor.com>, Michal Hocko <mhocko@suse.cz>, Haggai Eran <haggaie@mellanox.com>, Theodore Tso <tytso@google.com>, Willy Tarreau <w@1wt.eu>, Dirk Steinmetz <public@rsjtdrjgfuzkfg.com>, Michael Kerrisk-manpages <mtk.manpages@gmail.com>, Serge Hallyn <serge.hallyn@ubuntu.com>, Seth Forshee <seth.forshee@canonical.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Serge Hallyn <serge.hallyn@canonical.com>, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, "Kirill A.
+ Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-Jan Kara <jack@suse.cz> writes:
+On Mon, 23 Nov 2015 17:28:05 +0900
+Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 
-> On Thu 19-11-15 16:10:43, Kees Cook wrote:
->> Normally, when a user can modify a file that has setuid or setgid bits,
->> those bits are cleared when they are not the file owner or a member of the
->> group. This is enforced when using write() directly but not when writing
->> to a shared mmap on the file. This could allow the file writer to gain
->> privileges by changing the binary without losing the setuid/setgid bits.
->> 
->> Signed-off-by: Kees Cook <keescook@chromium.org>
->> Cc: stable@vger.kernel.org
->
-> So I had another look at this and now I understand why we didn't do it from
-> the start:
->
-> To call file_remove_privs() safely, we need to hold inode->i_mutex since
-> that operations is going to modify file mode / extended attributes and
-> i_mutex protects those. However we cannot get i_mutex in the page fault
-> path as that ranks above mmap_sem which we hold during the whole page
-> fault.
->
-> So calling file_remove_privs() when opening the file is probably as good as
-> it can get. It doesn't catch the case when suid bits / IMA attrs are set
-> while the file is already open but I don't see easy way around this.
+> On Fri, Nov 20, 2015 at 11:42:25AM -0500, Steven Rostedt wrote:
+> > On Fri, 20 Nov 2015 15:33:25 +0900
+> > Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> > 
+> >   
+> > > Steven, is it possible to add tracepoint to inlined fucntion such as
+> > > get_page() in include/linux/mm.h?  
+> > 
+> > I highly recommend against it. The tracepoint code adds a bit of bloat,
+> > and if you inline it, you add that bloat to every use case. Also, it  
+> 
+> Is it worse than adding function call to my own stub function into
+> inlined function such as get_page(). I implemented it as following.
+> 
+> get_page()
+> {
+>         atomic_inc()
+>         stub_get_page()
+> }
+> 
+> stub_get_page() in foo.c
+> {
+>         trace_page_ref_get_page()
+> }
 
-Could we perhaps do this on mmap MAP_WRITE instead of open, and simply
-deny adding these attributes if a file is mapped for write?
+Now you just slowed down the fast path. But what you could do is:
 
-That would seem to be a little more compatible with what we already do,
-and guards against the races you mention as well.
+get_page()
+{
+	atomic_inc();
+	if (trace_page_ref_get_page_enabled())
+		stub_get_page();
+}
 
-Eric
+Now that "trace_page_ref_get_page_enabled()" will turn into:
+
+	if (static_key_false(&__tracepoint_page_ref_get_page.key)) {
+
+which is a jump label (nop when disabled, a jmp when enabled). That's
+less bloat but doesn't solve the include problem. You still need to add
+the include of that will cause havoc with other tracepoints.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
