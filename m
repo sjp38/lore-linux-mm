@@ -1,27 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 495456B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 17:27:08 -0500 (EST)
-Received: by ykdv3 with SMTP id v3so255115231ykd.0
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 14:27:08 -0800 (PST)
-Received: from mail-yk0-x22e.google.com (mail-yk0-x22e.google.com. [2607:f8b0:4002:c07::22e])
-        by mx.google.com with ESMTPS id e68si8597435ywf.237.2015.11.23.14.27.07
+Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
+	by kanga.kvack.org (Postfix) with ESMTP id E791F6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 17:58:27 -0500 (EST)
+Received: by ykdr82 with SMTP id r82so254936521ykd.3
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 14:58:27 -0800 (PST)
+Received: from mail-yk0-x22c.google.com (mail-yk0-x22c.google.com. [2607:f8b0:4002:c07::22c])
+        by mx.google.com with ESMTPS id e4si9067751ywd.29.2015.11.23.14.58.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 14:27:07 -0800 (PST)
-Received: by ykdv3 with SMTP id v3so255114913ykd.0
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 14:27:07 -0800 (PST)
-Date: Mon, 23 Nov 2015 17:27:03 -0500
+        Mon, 23 Nov 2015 14:58:27 -0800 (PST)
+Received: by ykba77 with SMTP id a77so255483708ykb.2
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 14:58:27 -0800 (PST)
+Date: Mon, 23 Nov 2015 17:58:23 -0500
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 07/22] kthread: Detect when a kthread work is used by
- more workers
-Message-ID: <20151123222703.GH19072@mtj.duckdns.org>
+Subject: Re: [PATCH v3 09/22] kthread: Allow to cancel kthread work
+Message-ID: <20151123225823.GI19072@mtj.duckdns.org>
 References: <1447853127-3461-1-git-send-email-pmladek@suse.com>
- <1447853127-3461-8-git-send-email-pmladek@suse.com>
+ <1447853127-3461-10-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1447853127-3461-8-git-send-email-pmladek@suse.com>
+In-Reply-To: <1447853127-3461-10-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Petr Mladek <pmladek@suse.com>
@@ -29,20 +28,48 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, 
 
 Hello,
 
-On Wed, Nov 18, 2015 at 02:25:12PM +0100, Petr Mladek wrote:
-> @@ -610,6 +625,12 @@ repeat:
->  	if (work) {
->  		__set_current_state(TASK_RUNNING);
->  		work->func(work);
+On Wed, Nov 18, 2015 at 02:25:14PM +0100, Petr Mladek wrote:
+> +static int
+> +try_to_cancel_kthread_work(struct kthread_work *work,
+> +				   spinlock_t *lock,
+> +				   unsigned long *flags)
+> +{
+> +	int ret = 0;
 > +
-> +		spin_lock_irq(&worker->lock);
-> +		/* Allow to queue the work into another worker */
-> +		if (!kthread_work_pending(work))
-> +			work->worker = NULL;
-> +		spin_unlock_irq(&worker->lock);
+> +	if (work->timer) {
+> +		/* Try to cancel the timer if pending. */
+> +		if (del_timer(work->timer)) {
+> +			ret = 1;
+> +			goto out;
+> +		}
+> +
+> +		/* Are we racing with the timer callback? */
+> +		if (timer_active(work->timer)) {
+> +			/* Bad luck, need to avoid a deadlock. */
+> +			spin_unlock_irqrestore(lock, *flags);
+> +			del_timer_sync(work->timer);
+> +			ret = -EAGAIN;
+> +			goto out;
+> +		}
 
-Doesn't this mean that the work item can't be freed from its callback?
-That pattern tends to happen regularly.
+As the timer side is already kinda trylocking anyway, can't the cancel
+path be made simpler?  Sth like
+
+	lock(worker);
+	work->canceling = true;
+	del_timer_sync(work->timer);
+	unlock(worker);
+
+And the timer can do (ignoring the multiple worker support, do we even
+need that?)
+
+	while (!trylock(worker)) {
+		if (work->canceling)
+			return;
+		cpu_relax();
+	}
+	queue;
+	unlock(worker);
 
 Thanks.
 
