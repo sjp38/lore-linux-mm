@@ -1,59 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EFF86B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 07:26:29 -0500 (EST)
-Received: by wmec201 with SMTP id c201so102689075wme.1
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:26:28 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v20si18858670wjq.230.2015.11.23.04.26.28
+Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 043F06B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 07:38:42 -0500 (EST)
+Received: by oies6 with SMTP id s6so123373087oie.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:38:41 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id a62si7352935oib.7.2015.11.23.04.38.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 23 Nov 2015 04:26:28 -0800 (PST)
-Date: Mon, 23 Nov 2015 13:26:24 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] fs: clear file set[ug]id when writing via mmap
-Message-ID: <20151123122624.GI23418@quack.suse.cz>
-References: <20151120001043.GA28204@www.outflux.net>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 23 Nov 2015 04:38:41 -0800 (PST)
+Subject: Re: linux-4.4-rc1: TIF_MEMDIE without SIGKILL pending?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201511222113.FCF57847.OOMJVQtFFSOFLH@I-love.SAKURA.ne.jp>
+	<20151123083024.GA21436@dhcp22.suse.cz>
+	<201511232006.EDD81713.JMSFOOtQFOHLFV@I-love.SAKURA.ne.jp>
+	<20151123113352.GH21050@dhcp22.suse.cz>
+In-Reply-To: <20151123113352.GH21050@dhcp22.suse.cz>
+Message-Id: <201511232138.DJG69728.SQLFOJOFOMVHFt@I-love.SAKURA.ne.jp>
+Date: Mon, 23 Nov 2015 21:38:33 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151120001043.GA28204@www.outflux.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Shachar Raindel <raindel@mellanox.com>, Boaz Harrosh <boaz@plexistor.com>, Michal Hocko <mhocko@suse.cz>, Haggai Eran <haggaie@mellanox.com>, Theodore Tso <tytso@google.com>, Willy Tarreau <w@1wt.eu>, Dirk Steinmetz <public@rsjtdrjgfuzkfg.com>, Michael Kerrisk-manpages <mtk.manpages@gmail.com>, Serge Hallyn <serge.hallyn@ubuntu.com>, Seth Forshee <seth.forshee@canonical.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Serge Hallyn <serge.hallyn@canonical.com>, linux-mm@kvack.org
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, oleg@redhat.com, linux-mm@kvack.org
 
-On Thu 19-11-15 16:10:43, Kees Cook wrote:
-> Normally, when a user can modify a file that has setuid or setgid bits,
-> those bits are cleared when they are not the file owner or a member of the
-> group. This is enforced when using write() directly but not when writing
-> to a shared mmap on the file. This could allow the file writer to gain
-> privileges by changing the binary without losing the setuid/setgid bits.
+Michal Hocko wrote:
+> I haven't checked where exactly you added the BUG_ON, I was merely
+> comenting on the possibility that TIF_MEMDIE is set without sending
+> SIGKILL.
 > 
-> Signed-off-by: Kees Cook <keescook@chromium.org>
-> Cc: stable@vger.kernel.org
+> Now that I am looking at your BUG_ON more closely I am wondering whether
+> it makes sense at all. The fatal signal has been dequeued in get_signal
+> before we call into do_group_exit AFAICS.
 
-So I had another look at this and now I understand why we didn't do it from
-the start:
+Indeed, it makes no sense at all.
+Making below change made expected output.
 
-To call file_remove_privs() safely, we need to hold inode->i_mutex since
-that operations is going to modify file mode / extended attributes and
-i_mutex protects those. However we cannot get i_mutex in the page fault
-path as that ranks above mmap_sem which we hold during the whole page
-fault.
+  MemAlloc: oom-tester4(11306) uninterruptible exiting victim
 
-So calling file_remove_privs() when opening the file is probably as good as
-it can get. It doesn't catch the case when suid bits / IMA attrs are set
-while the file is already open but I don't see easy way around this.
+----------
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 01127b8..8c8fb6d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3289,8 +3289,9 @@ static int kmallocwd(void *unused)
+ 			snprintf(buf, sizeof(buf),
+ 				 " gfp=0x%x order=%u delay=%lu", memalloc.gfp,
+ 				 memalloc.order, now - memalloc.start);
+-		pr_warn("MemAlloc: %s(%u)%s%s%s%s\n", p->comm, p->pid, buf,
++		pr_warn("MemAlloc: %s(%u)%s%s%s%s%s\n", p->comm, p->pid, buf,
+ 			(type & 8) ? " uninterruptible" : "",
++			(p->flags & PF_EXITING) ? " exiting" : "",
+ 			(type & 2) ? " dying" : "",
+ 			(type & 1) ? " victim" : "");
+ 		touch_nmi_watchdog();
+----------
 
-BTW: This is another example where page fault locking is constraining us
-and life would be simpler for filesystems we they get called without
-mmap_sem held...
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+I'll make V3 of kmallocwd. Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
