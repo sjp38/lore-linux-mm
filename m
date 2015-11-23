@@ -1,69 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D39AD6B0257
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:24:30 -0500 (EST)
-Received: by oige206 with SMTP id e206so116509450oig.2
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 01:24:30 -0800 (PST)
-Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
-        by mx.google.com with ESMTPS id y6si7795241oei.53.2015.11.23.01.24.30
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8285E6B0254
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:29:29 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so151083256wmv.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 01:29:29 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id n131si18001772wmf.11.2015.11.23.01.29.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 01:24:30 -0800 (PST)
-Received: by oixx65 with SMTP id x65so116649451oix.0
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 01:24:30 -0800 (PST)
+        Mon, 23 Nov 2015 01:29:28 -0800 (PST)
+Received: by wmuu63 with SMTP id u63so45486127wmu.0
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 01:29:28 -0800 (PST)
+Date: Mon, 23 Nov 2015 10:29:26 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: Give __GFP_NOFAIL allocations access to memory
+ reserves
+Message-ID: <20151123092925.GB21050@dhcp22.suse.cz>
+References: <1447249697-13380-1-git-send-email-mhocko@kernel.org>
+ <5651BB43.8030102@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <5652CF40.6040400@intel.com>
-References: <20151119092920.GA11806@aaronlu.sh.intel.com>
-	<564DCEA6.3000802@suse.cz>
-	<564EDFE5.5010709@intel.com>
-	<564EE8FD.7090702@intel.com>
-	<564EF0B6.10508@suse.cz>
-	<20151123081601.GA29397@js1304-P5Q-DELUXE>
-	<5652CF40.6040400@intel.com>
-Date: Mon, 23 Nov 2015 18:24:29 +0900
-Message-ID: <CAAmzW4M6oJukBLwucByK89071RukF4UEyt02A7ZjenpPr5rsdQ@mail.gmail.com>
-Subject: Re: hugepage compaction causes performance drop
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5651BB43.8030102@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, lkp@lists.01.org, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-2015-11-23 17:33 GMT+09:00 Aaron Lu <aaron.lu@intel.com>:
-> On 11/23/2015 04:16 PM, Joonsoo Kim wrote:
->> Numbers looks fine to me. I guess this performance degradation is
->> caused by COMPACT_CLUSTER_MAX change (from 32 to 256). THP allocation
->> is async so should be aborted quickly. But, after isolating 256
->> migratable pages, it can't be aborted and will finish 256 pages
->> migration (at least, current implementation).
+On Sun 22-11-15 13:55:31, Vlastimil Babka wrote:
+> On 11.11.2015 14:48, mhocko@kernel.org wrote:
+> >  mm/page_alloc.c | 10 +++++++++-
+> >  1 file changed, 9 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 8034909faad2..d30bce9d7ac8 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2766,8 +2766,16 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+> >  			goto out;
+> >  	}
+> >  	/* Exhausted what can be done so it's blamo time */
+> > -	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
+> > +	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+> >  		*did_some_progress = 1;
+> > +
+> > +		if (gfp_mask & __GFP_NOFAIL) {
+> > +			page = get_page_from_freelist(gfp_mask, order,
+> > +					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
+> > +			WARN_ONCE(!page, "Unable to fullfil gfp_nofail allocation."
+> > +				    " Consider increasing min_free_kbytes.\n");
+> 
+> It seems redundant to me to keep the WARN_ON_ONCE also above in the if () part?
 
-Let me correct above comment. It can be aborted after some try.
+They are warning about two different things. The first one catches a
+buggy code which uses __GFP_NOFAIL from oom disabled context while the
+second one tries to help the administrator with a hint that memory
+reserves are too small.
 
->> Aaron, please test again with setting COMPACT_CLUSTER_MAX to 32
->> (in swap.h)?
->
-> This is what I found in include/linux/swap.h:
->
-> #define SWAP_CLUSTER_MAX 32UL
-> #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
->
-> Looks like it is already 32, or am I looking at the wrong place?
->
-> BTW, I'm using v4.3 for all these tests, and I just checked v4.4-rc2,
-> the above definition doesn't change.
+> Also s/gfp_nofail/GFP_NOFAIL/ for consistency?
 
-Sorry. I looked at linux-next tree and, there, it is 128.
-Please ignore my comment! :)
+Fair enough, changed.
 
->>
->> And, please attach always-always's vmstat numbers, too.
->
-> Sure, attached the vmstat tool output, taken every second.
+> Hm and probably out of scope of your patch, but I understand the WARN_ONCE
+> (WARN_ON_ONCE) to be _ONCE just to prevent a flood from a single task looping
+> here. But for distinct tasks and potentially far away in time, wouldn't we want
+> to see all the warnings? Would that be feasible to implement?
 
-Oops... I'd like to see '1 sec interval cat /proc/vmstat' for always-never.
+I was thinking about that as well some time ago but it was quite
+hard to find a good enough API to tell when to warn again. The first
+WARN_ON_ONCE should trigger for all different _code paths_ no matter
+how frequently they appear to catch all the buggy callers. The second
+one would benefit from a new warning after min_free_kbytes was updated
+because it would tell the administrator that the last update was not
+sufficient for the workload.
 
-Thanks.
+> 
+> > +		}
+> > +	}
+> >  out:
+> >  	mutex_unlock(&oom_lock);
+> >  	return page;
+> > 
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
