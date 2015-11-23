@@ -1,80 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AB816B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 05:39:47 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so193226060pab.0
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 02:39:46 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id kn1si18966565pbc.209.2015.11.23.02.39.46
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 41A8C6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 06:06:12 -0500 (EST)
+Received: by oies6 with SMTP id s6so120683910oie.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 03:06:11 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id l65si7115758oia.45.2015.11.23.03.06.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 02:39:46 -0800 (PST)
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH v2] vmscan: do not force-scan file lru if its absolute size is small
-Date: Mon, 23 Nov 2015 13:39:33 +0300
-Message-ID: <1448275173-10538-1-git-send-email-vdavydov@virtuozzo.com>
-In-Reply-To: <20151120134311.8ff0947215fc522f72f791fe@linux-foundation.org>
-References: <20151120134311.8ff0947215fc522f72f791fe@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 23 Nov 2015 03:06:10 -0800 (PST)
+Subject: Re: linux-4.4-rc1: TIF_MEMDIE without SIGKILL pending?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201511222113.FCF57847.OOMJVQtFFSOFLH@I-love.SAKURA.ne.jp>
+	<20151123083024.GA21436@dhcp22.suse.cz>
+In-Reply-To: <20151123083024.GA21436@dhcp22.suse.cz>
+Message-Id: <201511232006.EDD81713.JMSFOOtQFOHLFV@I-love.SAKURA.ne.jp>
+Date: Mon, 23 Nov 2015 20:06:02 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, oleg@redhat.com, linux-mm@kvack.org
 
-We assume there is enough inactive page cache if the size of inactive
-file lru is greater than the size of active file lru, in which case we
-force-scan file lru ignoring anonymous pages. While this logic works
-fine when there are plenty of page cache pages, it fails if the size of
-file lru is small (several MB): in this case (lru_size >> prio) will be
-0 for normal scan priorities, as a result, if inactive file lru happens
-to be larger than active file lru, anonymous pages of a cgroup will
-never get evicted unless the system experiences severe memory pressure,
-even if there are gigabytes of unused anonymous memory there, which is
-unfair in respect to other cgroups, whose workloads might be page cache
-oriented.
+Michal Hocko wrote:
+> On Sun 22-11-15 21:13:22, Tetsuo Handa wrote:
+> > I was updating kmallocwd in preparation for testing "[RFC 0/3] OOM detection
+> > rework v2" patchset. I noticed an unexpected result with linux.git as of
+> > 3ad5d7e06a96 .
+> > 
+> > The problem is that an OOM victim arrives at do_exit() with TIF_MEMDIE flag
+> > set but without pending SIGKILL. Is this correct behavior?
+> 
+> Have a look at out_of_memory where we do:
+>         /*
+>          * If current has a pending SIGKILL or is exiting, then automatically
+>          * select it.  The goal is to allow it to allocate so that it may
+>          * quickly exit and free its memory.
+>          *
+>          * But don't select if current has already released its mm and cleared
+>          * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
+>          */
+>         if (current->mm &&
+>             (fatal_signal_pending(current) || task_will_free_mem(current))) {
+>                 mark_oom_victim(current);
+>                 return true;
+>         }
+> 
+> So if the current was exiting already we are not killing it, we just give it
+> access to memory reserves to expedite the exit. We do the same thing for the
+> memcg case.
 
-This patch attempts to fix this by elaborating the "enough inactive page
-cache" check: it makes it not only check that inactive lru size > active
-lru size, but also that we will scan something from the cgroup at the
-current scan priority. If these conditions do not hold, we proceed to
-SCAN_FRACT as usual.
+The result is the same even if I do
 
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
----
-Changes in v2:
- - remove unnecessary > 0 (Johannes)
- - elaborate on the comment (Andrew)
+-	BUG_ON(test_thread_flag(TIF_MEMDIE) && !fatal_signal_pending(current));
++	BUG_ON(test_thread_flag(TIF_MEMDIE) && !fatal_signal_pending(current) && !task_will_free_mem(current));
 
- mm/vmscan.c | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+. I think that task_will_free_mem() is always false because this BUG_ON()
+is located before "exit_signals(tsk);  /* sets PF_EXITING */" line.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bd2918e6391a..97ba9e1cde09 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2043,10 +2043,16 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
- 	}
- 
- 	/*
--	 * There is enough inactive page cache, do not reclaim
--	 * anything from the anonymous working set right now.
-+	 * If there is enough inactive page cache, i.e. if the size of the
-+	 * inactive list is greater than that of the active list *and* the
-+	 * inactive list actually has some pages to scan on this priority, we
-+	 * do not reclaim anything from the anonymous working set right now.
-+	 * Without the second condition we could end up never scanning an
-+	 * lruvec even if it has plenty of old anonymous pages unless the
-+	 * system is under heavy pressure.
- 	 */
--	if (!inactive_file_is_low(lruvec)) {
-+	if (!inactive_file_is_low(lruvec) &&
-+	    get_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
- 		scan_balance = SCAN_FILE;
- 		goto out;
- 	}
--- 
-2.1.4
+> 
+> Why would that be an issue in the first place?
+
+The real problem I care is TIF_MEMDIE livelock.
+
+  MemAlloc: oom-tester4(11040) uninterruptible dying victim
+  MemAlloc: oom-tester4(11045) gfp=0x242014a order=0 delay=10000 dying
+
+I'm not talking about TIF_MEMDIE livelock in this thread. I'm just worrying
+that below output (which is caused by an OOM victim arriving at do_exit()
+with TIF_MEMDIE flag set but without pending SIGKILL) is a foretaste of
+unnoticed problem.
+
+  MemAlloc: oom-tester4(11520) uninterruptible victim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
