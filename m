@@ -1,67 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 28F616B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 06:50:38 -0500 (EST)
-Received: by qgeb1 with SMTP id b1so111929606qge.1
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 03:50:37 -0800 (PST)
-Received: from mail-qg0-x22c.google.com (mail-qg0-x22c.google.com. [2607:f8b0:400d:c04::22c])
-        by mx.google.com with ESMTPS id 111si10859700qgx.29.2015.11.23.03.50.36
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 35B096B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 07:15:23 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so51360334wmu.0
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:15:22 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
+        by mx.google.com with ESMTPS id p9si10711545wjw.8.2015.11.23.04.15.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 03:50:36 -0800 (PST)
-Received: by qgeb1 with SMTP id b1so111929274qge.1
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 03:50:36 -0800 (PST)
-Date: Mon, 23 Nov 2015 06:50:33 -0500
-From: Jeff Layton <jlayton@poochiereds.net>
-Subject: Re: [PATCH] mm: fix up sparse warning in gfpflags_allow_blocking
-Message-ID: <20151123065033.0a8bdc00@tlielax.poochiereds.net>
-In-Reply-To: <20151123095048.GB21436@dhcp22.suse.cz>
-References: <1448030459-20990-1-git-send-email-jeff.layton@primarydata.com>
-	<20151123095048.GB21436@dhcp22.suse.cz>
+        Mon, 23 Nov 2015 04:15:21 -0800 (PST)
+Received: by wmec201 with SMTP id c201so157506378wme.0
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:15:21 -0800 (PST)
+Date: Mon, 23 Nov 2015 13:15:20 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] vmscan: do not force-scan file lru if its absolute
+ size is small
+Message-ID: <20151123121509.GI21050@dhcp22.suse.cz>
+References: <20151120134311.8ff0947215fc522f72f791fe@linux-foundation.org>
+ <1448275173-10538-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1448275173-10538-1-git-send-email-vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 23 Nov 2015 10:50:49 +0100
-Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Fri 20-11-15 09:40:59, Jeff Layton wrote:
-> > sparse says:
-> > 
-> >     include/linux/gfp.h:274:26: warning: incorrect type in return expression (different base types)
-> >     include/linux/gfp.h:274:26:    expected bool
-> >     include/linux/gfp.h:274:26:    got restricted gfp_t
-> > 
-> > ...add a forced cast to silence the warning.
-> > 
-> > Cc: Mel Gorman <mgorman@techsingularity.net>
-> > Signed-off-by: Jeff Layton <jeff.layton@primarydata.com>
-> > ---
-> >  include/linux/gfp.h | 2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> > index 6523109e136d..8942af0813e3 100644
-> > --- a/include/linux/gfp.h
-> > +++ b/include/linux/gfp.h
-> > @@ -271,7 +271,7 @@ static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
-> >  
-> >  static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
-> >  {
-> > -	return gfp_flags & __GFP_DIRECT_RECLAIM;
-> > +	return (bool __force)(gfp_flags & __GFP_DIRECT_RECLAIM);
+On Mon 23-11-15 13:39:33, Vladimir Davydov wrote:
+> We assume there is enough inactive page cache if the size of inactive
+> file lru is greater than the size of active file lru, in which case we
+> force-scan file lru ignoring anonymous pages. While this logic works
+> fine when there are plenty of page cache pages, it fails if the size of
+> file lru is small (several MB): in this case (lru_size >> prio) will be
+> 0 for normal scan priorities, as a result, if inactive file lru happens
+> to be larger than active file lru, anonymous pages of a cgroup will
+> never get evicted unless the system experiences severe memory pressure,
+> even if there are gigabytes of unused anonymous memory there, which is
+> unfair in respect to other cgroups, whose workloads might be page cache
+> oriented.
 > 
-> Wouldn't (gfp_flags & __GFP_DIRECT_RECLAIM) != 0 be easier/better to read?
-> 
+> This patch attempts to fix this by elaborating the "enough inactive page
+> cache" check: it makes it not only check that inactive lru size > active
+> lru size, but also that we will scan something from the cgroup at the
+> current scan priority. If these conditions do not hold, we proceed to
+> SCAN_FRACT as usual.
 
-Yeah, good point. Andrew, do you want me to respin that?
+Yes this makes sense. FWIW I have a similar patch waiting for feedback
+from testing which catches the other extreme case when we force anon
+pages scan without any progress from the kswapd context (I hope I get to
+post it soon).
+
+get_scan_count is getting more and more convoluted :/
+
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+> ---
+> Changes in v2:
+>  - remove unnecessary > 0 (Johannes)
+>  - elaborate on the comment (Andrew)
+> 
+>  mm/vmscan.c | 12 +++++++++---
+>  1 file changed, 9 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index bd2918e6391a..97ba9e1cde09 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2043,10 +2043,16 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
+>  	}
+>  
+>  	/*
+> -	 * There is enough inactive page cache, do not reclaim
+> -	 * anything from the anonymous working set right now.
+> +	 * If there is enough inactive page cache, i.e. if the size of the
+> +	 * inactive list is greater than that of the active list *and* the
+> +	 * inactive list actually has some pages to scan on this priority, we
+> +	 * do not reclaim anything from the anonymous working set right now.
+> +	 * Without the second condition we could end up never scanning an
+> +	 * lruvec even if it has plenty of old anonymous pages unless the
+> +	 * system is under heavy pressure.
+>  	 */
+> -	if (!inactive_file_is_low(lruvec)) {
+> +	if (!inactive_file_is_low(lruvec) &&
+> +	    get_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
+>  		scan_balance = SCAN_FILE;
+>  		goto out;
+>  	}
+> -- 
+> 2.1.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Jeff Layton <jlayton@poochiereds.net>
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
