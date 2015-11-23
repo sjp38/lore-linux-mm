@@ -1,72 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 55BC06B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 07:45:07 -0500 (EST)
-Received: by wmww144 with SMTP id w144so94619638wmw.1
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:45:06 -0800 (PST)
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
-        by mx.google.com with ESMTPS id j21si18907691wmj.77.2015.11.23.04.45.05
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 053CB6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 07:55:02 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so190613797pad.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:55:01 -0800 (PST)
+Received: from out02.mta.xmission.com (out02.mta.xmission.com. [166.70.13.232])
+        by mx.google.com with ESMTPS id 4si19291861pfq.125.2015.11.23.04.55.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 04:45:06 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so158941481wmv.1
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:45:05 -0800 (PST)
-Date: Mon, 23 Nov 2015 13:45:04 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: fix up sparse warning in gfpflags_allow_blocking
-Message-ID: <20151123124503.GJ21050@dhcp22.suse.cz>
-References: <1448281409-13132-1-git-send-email-jeff.layton@primarydata.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 23 Nov 2015 04:55:01 -0800 (PST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20151120001043.GA28204@www.outflux.net>
+	<20151123122624.GI23418@quack.suse.cz>
+Date: Mon, 23 Nov 2015 06:34:06 -0600
+In-Reply-To: <20151123122624.GI23418@quack.suse.cz> (Jan Kara's message of
+	"Mon, 23 Nov 2015 13:26:24 +0100")
+Message-ID: <87lh9odhdt.fsf@x220.int.ebiederm.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1448281409-13132-1-git-send-email-jeff.layton@primarydata.com>
+Content-Type: text/plain
+Subject: Re: [PATCH] fs: clear file set[ug]id when writing via mmap
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@poochiereds.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Andy Lutomirski <luto@amacapital.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Shachar Raindel <raindel@mellanox.com>, Boaz Harrosh <boaz@plexistor.com>, Michal Hocko <mhocko@suse.cz>, Haggai Eran <haggaie@mellanox.com>, Theodore Tso <tytso@google.com>, Willy Tarreau <w@1wt.eu>, Dirk Steinmetz <public@rsjtdrjgfuzkfg.com>, Michael Kerrisk-manpages <mtk.manpages@gmail.com>, Serge Hallyn <serge.hallyn@ubuntu.com>, Seth Forshee <seth.forshee@canonical.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Serge Hallyn <serge.hallyn@canonical.com>, linux-mm@kvack.org
 
-On Mon 23-11-15 07:23:29, Jeff Layton wrote:
-> sparse says:
-> 
->     include/linux/gfp.h:274:26: warning: incorrect type in return expression (different base types)
->     include/linux/gfp.h:274:26:    expected bool
->     include/linux/gfp.h:274:26:    got restricted gfp_t
-> 
-> Add a comparison to zero to have it return bool.
-> 
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Signed-off-by: Jeff Layton <jeff.layton@primarydata.com>
+Jan Kara <jack@suse.cz> writes:
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+> On Thu 19-11-15 16:10:43, Kees Cook wrote:
+>> Normally, when a user can modify a file that has setuid or setgid bits,
+>> those bits are cleared when they are not the file owner or a member of the
+>> group. This is enforced when using write() directly but not when writing
+>> to a shared mmap on the file. This could allow the file writer to gain
+>> privileges by changing the binary without losing the setuid/setgid bits.
+>> 
+>> Signed-off-by: Kees Cook <keescook@chromium.org>
+>> Cc: stable@vger.kernel.org
+>
+> So I had another look at this and now I understand why we didn't do it from
+> the start:
+>
+> To call file_remove_privs() safely, we need to hold inode->i_mutex since
+> that operations is going to modify file mode / extended attributes and
+> i_mutex protects those. However we cannot get i_mutex in the page fault
+> path as that ranks above mmap_sem which we hold during the whole page
+> fault.
+>
+> So calling file_remove_privs() when opening the file is probably as good as
+> it can get. It doesn't catch the case when suid bits / IMA attrs are set
+> while the file is already open but I don't see easy way around this.
 
-Thanks!
+Could we perhaps do this on mmap MAP_WRITE instead of open, and simply
+deny adding these attributes if a file is mapped for write?
 
-> ---
->  include/linux/gfp.h | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> [v2: use a compare instead of forced cast, as suggested by Michal]
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 6523109e136d..b76c92073b1b 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -271,7 +271,7 @@ static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
->  
->  static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
->  {
-> -	return gfp_flags & __GFP_DIRECT_RECLAIM;
-> +	return (gfp_flags & __GFP_DIRECT_RECLAIM) != 0;
->  }
->  
->  #ifdef CONFIG_HIGHMEM
-> -- 
-> 2.4.3
+That would seem to be a little more compatible with what we already do,
+and guards against the races you mention as well.
 
--- 
-Michal Hocko
-SUSE Labs
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
