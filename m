@@ -1,52 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 60E8B6B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 16:08:46 -0500 (EST)
-Received: by oige206 with SMTP id e206so140350874oig.2
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 13:08:46 -0800 (PST)
-Received: from g4t3428.houston.hp.com (g4t3428.houston.hp.com. [15.201.208.56])
-        by mx.google.com with ESMTPS id ro4si9491491oeb.94.2015.11.23.13.08.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 13:08:45 -0800 (PST)
-Message-ID: <1448312664.19320.9.camel@hpe.com>
-Subject: Re: [PATCH] dax: Split pmd map when fallback on COW
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Mon, 23 Nov 2015 14:04:24 -0700
-In-Reply-To: <CAPcyv4hafiv+EJaWGDhrV4Fe7=h=naALTwY0b=pfC2yfS7NShw@mail.gmail.com>
-References: <1448309120-20911-1-git-send-email-toshi.kani@hpe.com>
-	 <CAPcyv4ibgtMJdKG19vaS_s2_eFy8ufZm92G2DH6N7brDiE+LYA@mail.gmail.com>
-	 <1448311559.19320.2.camel@hpe.com>
-	 <CAPcyv4hafiv+EJaWGDhrV4Fe7=h=naALTwY0b=pfC2yfS7NShw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9118A6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 16:25:13 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so208963292pab.0
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 13:25:13 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id hq4si22614888pbb.89.2015.11.23.13.25.12
+        for <linux-mm@kvack.org>;
+        Mon, 23 Nov 2015 13:25:12 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] page-flags: drop __TestClearPage*() helpers
+Date: Mon, 23 Nov 2015 23:24:38 +0200
+Message-Id: <1448313878-36033-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, 2015-11-23 at 12:56 -0800, Dan Williams wrote:
-> On Mon, Nov 23, 2015 at 12:45 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
-> > On Mon, 2015-11-23 at 12:45 -0800, Dan Williams wrote:
-> > > On Mon, Nov 23, 2015 at 12:05 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
-> [..]
-> > > This is a nop if CONFIG_TRANSPARENT_HUGEPAGE=n, so I don't think it's
-> > > a complete fix.
-> > 
-> > Well, __dax_pmd_fault() itself depends on CONFIG_TRANSPARENT_HUGEPAGE.
-> > 
-> 
-> Indeed it is... I think that's wrong because transparent huge pages
-> rely on struct page??
+Nobody uses them.
 
-I do not think this issue is related with struct page.  wp_huge_pmd() calls
-either do_huge_pmd_wp_page() or dax_pmd_fault().  do_huge_pmd_wp_page() splits a
-pmd page when it returns with VM_FAULT_FALLBACK.  So, this change keeps them
-consistent on VM_FAULT_FALLBACK.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/page-flags.h | 10 +---------
+ scripts/tags.sh            |  2 --
+ 2 files changed, 1 insertion(+), 11 deletions(-)
 
-Thanks,
--Toshi
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 190f1915a097..7bc7fd9c4c5c 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -211,10 +211,6 @@ static inline int TestSetPage##uname(struct page *page)			\
+ static inline int TestClearPage##uname(struct page *page)		\
+ 	{ return test_and_clear_bit(PG_##lname, &policy(page, 1)->flags); }
+ 
+-#define __TESTCLEARFLAG(uname, lname, policy)				\
+-static inline int __TestClearPage##uname(struct page *page)		\
+-	{ return __test_and_clear_bit(PG_##lname, &policy(page, 1)->flags); }
+-
+ #define PAGEFLAG(uname, lname, policy)					\
+ 	TESTPAGEFLAG(uname, lname, policy)				\
+ 	SETPAGEFLAG(uname, lname, policy)				\
+@@ -247,9 +243,6 @@ static inline int TestSetPage##uname(struct page *page) { return 0; }
+ #define TESTCLEARFLAG_FALSE(uname)					\
+ static inline int TestClearPage##uname(struct page *page) { return 0; }
+ 
+-#define __TESTCLEARFLAG_FALSE(uname)					\
+-static inline int __TestClearPage##uname(struct page *page) { return 0; }
+-
+ #define PAGEFLAG_FALSE(uname) TESTPAGEFLAG_FALSE(uname)			\
+ 	SETPAGEFLAG_NOOP(uname) CLEARPAGEFLAG_NOOP(uname)
+ 
+@@ -331,10 +324,9 @@ PAGEFLAG(Unevictable, unevictable, PF_HEAD)
+ PAGEFLAG(Mlocked, mlocked, PF_NO_TAIL)
+ 	__CLEARPAGEFLAG(Mlocked, mlocked, PF_NO_TAIL)
+ 	TESTSCFLAG(Mlocked, mlocked, PF_NO_TAIL)
+-	__TESTCLEARFLAG(Mlocked, mlocked, PF_NO_TAIL)
+ #else
+ PAGEFLAG_FALSE(Mlocked) __CLEARPAGEFLAG_NOOP(Mlocked)
+-	TESTSCFLAG_FALSE(Mlocked) __TESTCLEARFLAG_FALSE(Mlocked)
++	TESTSCFLAG_FALSE(Mlocked)
+ #endif
+ 
+ #ifdef CONFIG_ARCH_USES_PG_UNCACHED
+diff --git a/scripts/tags.sh b/scripts/tags.sh
+index 8e5aee6d9da2..b4f119544a83 100755
+--- a/scripts/tags.sh
++++ b/scripts/tags.sh
+@@ -193,7 +193,6 @@ exuberant()
+ 	--regex-c++='/CLEARPAGEFLAG_NOOP\(([^,)]*).*/ClearPage\1/'	\
+ 	--regex-c++='/__CLEARPAGEFLAG_NOOP\(([^,)]*).*/__ClearPage\1/'	\
+ 	--regex-c++='/TESTCLEARFLAG_FALSE\(([^,)]*).*/TestClearPage\1/' \
+-	--regex-c++='/__TESTCLEARFLAG_FALSE\(([^,)]*).*/__TestClearPage\1/' \
+ 	--regex-c++='/_PE\(([^,)]*).*/PEVENT_ERRNO__\1/'		\
+ 	--regex-c++='/TASK_PFA_TEST\([^,]*,\s*([^)]*)\)/task_\1/'	\
+ 	--regex-c++='/TASK_PFA_SET\([^,]*,\s*([^)]*)\)/task_set_\1/'	\
+@@ -258,7 +257,6 @@ emacs()
+ 	--regex='/CLEARPAGEFLAG_NOOP(\([^,)]*\).*/ClearPage\1/'	\
+ 	--regex='/__CLEARPAGEFLAG_NOOP(\([^,)]*\).*/__ClearPage\1/' \
+ 	--regex='/TESTCLEARFLAG_FALSE(\([^,)]*\).*/TestClearPage\1/' \
+-	--regex='/__TESTCLEARFLAG_FALSE(\([^,)]*\).*/__TestClearPage\1/' \
+ 	--regex='/TASK_PFA_TEST\([^,]*,\s*([^)]*)\)/task_\1/'		\
+ 	--regex='/TASK_PFA_SET\([^,]*,\s*([^)]*)\)/task_set_\1/'	\
+ 	--regex='/TASK_PFA_CLEAR\([^,]*,\s*([^)]*)\)/task_clear_\1/'	\
+-- 
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
