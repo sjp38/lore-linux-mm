@@ -1,84 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B333F6B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 15:50:20 -0500 (EST)
-Received: by obbnk6 with SMTP id nk6so112215693obb.2
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 12:50:20 -0800 (PST)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id p3si9463606oeq.99.2015.11.23.12.50.20
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id DE9F46B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 15:53:03 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so179988060wmv.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 12:53:03 -0800 (PST)
+Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
+        by mx.google.com with ESMTPS id bt17si21541531wjb.137.2015.11.23.12.53.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 12:50:20 -0800 (PST)
-Message-ID: <1448311559.19320.2.camel@hpe.com>
-Subject: Re: [PATCH] dax: Split pmd map when fallback on COW
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Mon, 23 Nov 2015 13:45:59 -0700
-In-Reply-To: <CAPcyv4ibgtMJdKG19vaS_s2_eFy8ufZm92G2DH6N7brDiE+LYA@mail.gmail.com>
-References: <1448309120-20911-1-git-send-email-toshi.kani@hpe.com>
-	 <CAPcyv4ibgtMJdKG19vaS_s2_eFy8ufZm92G2DH6N7brDiE+LYA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 23 Nov 2015 12:53:02 -0800 (PST)
+Received: by wmec201 with SMTP id c201so179731099wme.0
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 12:53:02 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1448309082-20851-1-git-send-email-toshi.kani@hpe.com>
+References: <1448309082-20851-1-git-send-email-toshi.kani@hpe.com>
+Date: Mon, 23 Nov 2015 12:53:02 -0800
+Message-ID: <CAPcyv4gOrc_heKtBRZiiKeywo6Dn2JSTtfKgvse_1siyvd7kTg@mail.gmail.com>
+Subject: Re: [PATCH] mm: Fix mmap MAP_POPULATE for DAX pmd mapping
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, mauricio.porto@hpe.com, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, 2015-11-23 at 12:45 -0800, Dan Williams wrote:
-> On Mon, Nov 23, 2015 at 12:05 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
-> > An infinite loop of PMD faults was observed when attempted to
-> > mlock() a private read-only PMD mmap'd range of a DAX file.
-> > 
-> > __dax_pmd_fault() simply returns with VM_FAULT_FALLBACK when
-> > falling back to PTE on COW.  However, __handle_mm_fault()
-> > returns without falling back to handle_pte_fault() because
-> > a PMD map is present in this case.
-> > 
-> > Change __dax_pmd_fault() to split the PMD map, if present,
-> > before returning with VM_FAULT_FALLBACK.
-> > 
-> > Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> > Cc: Dan Williams <dan.j.williams@intel.com>
-> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Cc: Matthew Wilcox <willy@linux.intel.com>
-> > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> 
-> I thought the patch from Ross already addressed the infinite loop:
-> 
-> https://patchwork.kernel.org/patch/7653731/
+On Mon, Nov 23, 2015 at 12:04 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
+> The following oops was observed when mmap() with MAP_POPULATE
+> pre-faulted pmd mappings of a DAX file.  follow_trans_huge_pmd()
+> expects that a target address has a struct page.
+>
+>   BUG: unable to handle kernel paging request at ffffea0012220000
+>   follow_trans_huge_pmd+0xba/0x390
+>   follow_page_mask+0x33d/0x420
+>   __get_user_pages+0xdc/0x800
+>   populate_vma_page_range+0xb5/0xe0
+>   __mm_populate+0xc5/0x150
+>   vm_mmap_pgoff+0xd5/0xe0
+>   SyS_mmap_pgoff+0x1c1/0x290
+>   SyS_mmap+0x1b/0x30
+>
+> Fix it by making the PMD pre-fault handling consistent with PTE.
+> After pre-faulted in faultin_page(), follow_page_mask() calls
+> follow_trans_huge_pmd(), which is changed to call follow_pfn_pmd()
+> for VM_PFNMAP or VM_MIXEDMAP.  follow_pfn_pmd() handles FOLL_TOUCH
+> and returns with -EEXIST.
 
-This fixes a different issue.  I hit this one while testing my other patch along
-with the Ross's patch.
+As of 4.4.-rc2 DAX pmd mappings are disabled.  So we have time to do
+something more comprehensive in 4.5.
 
-> > ---
-> >  fs/dax.c |    4 +++-
-> >  1 file changed, 3 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/fs/dax.c b/fs/dax.c
-> > index 43671b6..3405583 100644
-> > --- a/fs/dax.c
-> > +++ b/fs/dax.c
-> > @@ -546,8 +546,10 @@ int __dax_pmd_fault(struct vm_area_struct *vma,
-> > unsigned long address,
-> >                 return VM_FAULT_FALLBACK;
-> > 
-> >         /* Fall back to PTEs if we're going to COW */
-> > -       if (write && !(vma->vm_flags & VM_SHARED))
-> > +       if (write && !(vma->vm_flags & VM_SHARED)) {
-> > +               split_huge_page_pmd(vma, address, pmd);
-> >                 return VM_FAULT_FALLBACK;
-> > +       }
-> >         /* If the PMD would extend outside the VMA */
-> >         if (pmd_addr < vma->vm_start)
-> >                 return VM_FAULT_FALLBACK;
-> 
-> This is a nop if CONFIG_TRANSPARENT_HUGEPAGE=n, so I don't think it's
-> a complete fix.
+>
+> Reported-by: Mauricio Porto <mauricio.porto@hpe.com>
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Matthew Wilcox <willy@linux.intel.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> ---
+>  mm/huge_memory.c |   34 ++++++++++++++++++++++++++++++++++
+>  1 file changed, 34 insertions(+)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index d5b8920..f56e034 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+[..]
+> @@ -1288,6 +1315,13 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+>         if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
+>                 goto out;
+>
+> +       /* pfn map does not have a struct page */
+> +       if (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP)) {
+> +               ret = follow_pfn_pmd(vma, addr, pmd, flags);
+> +               page = ERR_PTR(ret);
+> +               goto out;
+> +       }
+> +
+>         page = pmd_page(*pmd);
+>         VM_BUG_ON_PAGE(!PageHead(page), page);
+>         if (flags & FOLL_TOUCH) {
 
-Well, __dax_pmd_fault() itself depends on CONFIG_TRANSPARENT_HUGEPAGE.
+I think it is already problematic that dax pmd mappings are getting
+confused with transparent huge pages.  They're more closely related to
+a hugetlbfs pmd mappings in that they are mapping an explicit
+allocation.  I have some pending patches to address this dax-pmd vs
+hugetlb-pmd vs thp-pmd classification that I will post shortly.
 
-Thanks,
--Toshi
+By the way, I'm collecting DAX pmd regression tests [1], is this just
+a simple crash upon using MAP_POPULATE?
+
+[1]: https://github.com/pmem/ndctl/blob/master/lib/test-dax-pmd.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
