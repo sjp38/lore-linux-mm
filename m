@@ -1,114 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 43D136B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 05:13:48 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so152861680wmv.1
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 02:13:47 -0800 (PST)
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
-        by mx.google.com with ESMTPS id k67si18168139wma.23.2015.11.23.02.13.46
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AB816B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 05:39:47 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so193226060pab.0
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 02:39:46 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id kn1si18966565pbc.209.2015.11.23.02.39.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 02:13:47 -0800 (PST)
-Received: by wmww144 with SMTP id w144so97530627wmw.0
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 02:13:46 -0800 (PST)
-Date: Mon, 23 Nov 2015 11:13:45 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: Give __GFP_NOFAIL allocations access to memory
- reserves
-Message-ID: <20151123101345.GF21050@dhcp22.suse.cz>
-References: <1447249697-13380-1-git-send-email-mhocko@kernel.org>
- <5651BB43.8030102@suse.cz>
- <20151123092925.GB21050@dhcp22.suse.cz>
- <5652DFCE.3010201@suse.cz>
+        Mon, 23 Nov 2015 02:39:46 -0800 (PST)
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: [PATCH v2] vmscan: do not force-scan file lru if its absolute size is small
+Date: Mon, 23 Nov 2015 13:39:33 +0300
+Message-ID: <1448275173-10538-1-git-send-email-vdavydov@virtuozzo.com>
+In-Reply-To: <20151120134311.8ff0947215fc522f72f791fe@linux-foundation.org>
+References: <20151120134311.8ff0947215fc522f72f791fe@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5652DFCE.3010201@suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 23-11-15 10:43:42, Vlastimil Babka wrote:
-> On 11/23/2015 10:29 AM, Michal Hocko wrote:
-> >On Sun 22-11-15 13:55:31, Vlastimil Babka wrote:
-> >>On 11.11.2015 14:48, mhocko@kernel.org wrote:
-> >>>  mm/page_alloc.c | 10 +++++++++-
-> >>>  1 file changed, 9 insertions(+), 1 deletion(-)
-> >>>
-> >>>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >>>index 8034909faad2..d30bce9d7ac8 100644
-> >>>--- a/mm/page_alloc.c
-> >>>+++ b/mm/page_alloc.c
-> >>>@@ -2766,8 +2766,16 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
-> >>>  			goto out;
-> >>>  	}
-> >>>  	/* Exhausted what can be done so it's blamo time */
-> >>>-	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
-> >>>+	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
-> >>>  		*did_some_progress = 1;
-> >>>+
-> >>>+		if (gfp_mask & __GFP_NOFAIL) {
-> >>>+			page = get_page_from_freelist(gfp_mask, order,
-> >>>+					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
-> >>>+			WARN_ONCE(!page, "Unable to fullfil gfp_nofail allocation."
-> >>>+				    " Consider increasing min_free_kbytes.\n");
-> >>
-> >>It seems redundant to me to keep the WARN_ON_ONCE also above in the if () part?
-> >
-> >They are warning about two different things. The first one catches a
-> >buggy code which uses __GFP_NOFAIL from oom disabled context while the
-> 
-> Ah, I see, I misinterpreted what the return values of out_of_memory() mean.
-> But now that I look at its code, it seems to only return false when
-> oom_killer_disabled is set to true. Which is a global thing and nothing to
-> do with the context of the __GFP_NOFAIL allocation?
+We assume there is enough inactive page cache if the size of inactive
+file lru is greater than the size of active file lru, in which case we
+force-scan file lru ignoring anonymous pages. While this logic works
+fine when there are plenty of page cache pages, it fails if the size of
+file lru is small (several MB): in this case (lru_size >> prio) will be
+0 for normal scan priorities, as a result, if inactive file lru happens
+to be larger than active file lru, anonymous pages of a cgroup will
+never get evicted unless the system experiences severe memory pressure,
+even if there are gigabytes of unused anonymous memory there, which is
+unfair in respect to other cgroups, whose workloads might be page cache
+oriented.
 
-I am not sure I follow you here. The point of the warning is to warn
-when the oom killer is disbaled (out_of_memory returns false) _and_ the
-request is __GFP_NOFAIL because we simply cannot guarantee any forward
-progress and just a use of the allocation flag is not supproted.
+This patch attempts to fix this by elaborating the "enough inactive page
+cache" check: it makes it not only check that inactive lru size > active
+lru size, but also that we will scan something from the cgroup at the
+current scan priority. If these conditions do not hold, we proceed to
+SCAN_FRACT as usual.
 
-[...]
-> >>Hm and probably out of scope of your patch, but I understand the WARN_ONCE
-> >>(WARN_ON_ONCE) to be _ONCE just to prevent a flood from a single task looping
-> >>here. But for distinct tasks and potentially far away in time, wouldn't we want
-> >>to see all the warnings? Would that be feasible to implement?
-> >
-> >I was thinking about that as well some time ago but it was quite
-> >hard to find a good enough API to tell when to warn again. The first
-> >WARN_ON_ONCE should trigger for all different _code paths_ no matter
-> >how frequently they appear to catch all the buggy callers. The second
-> >one would benefit from a new warning after min_free_kbytes was updated
-> >because it would tell the administrator that the last update was not
-> >sufficient for the workload.
-> 
-> Hm, what about adding a flag to the struct alloc_context, so that when the
-> particular allocation attempt emits the warning, it sets a flag in the
-> alloc_context so that it won't emit them again as long as it keeps looping
-> and attempting oom. Other allocations will warn independently.
+Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+---
+Changes in v2:
+ - remove unnecessary > 0 (Johannes)
+ - elaborate on the comment (Andrew)
 
-That could still trigger a flood of messages. Say you have many
-concurrent users from the same call path...
+ mm/vmscan.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index bd2918e6391a..97ba9e1cde09 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2043,10 +2043,16 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
+ 	}
  
-I am not really sure making the code more complicating for this warning
-is really worth it. If anything we can use ratelimited variant.
-
-> We could also print the same info as the "allocation failed" warnings do,
-> since it's very similar, except we can't fail - but the admin/bug reporter
-> should be interested in the same details as for an allocation failure that
-> is allowed to fail. But it's also true that we have probably just printed
-> the info during out_of_memory()... except when we skipped that for some
-> reason?
-
-The first WARN_ON_ONCE happens when OOM killer doesn't trigger so a
-memory situation might be worth considering. The later one might have
-seen the OOM report which is the likely case. So if anyting the first
-one should dump the info.
-
+ 	/*
+-	 * There is enough inactive page cache, do not reclaim
+-	 * anything from the anonymous working set right now.
++	 * If there is enough inactive page cache, i.e. if the size of the
++	 * inactive list is greater than that of the active list *and* the
++	 * inactive list actually has some pages to scan on this priority, we
++	 * do not reclaim anything from the anonymous working set right now.
++	 * Without the second condition we could end up never scanning an
++	 * lruvec even if it has plenty of old anonymous pages unless the
++	 * system is under heavy pressure.
+ 	 */
+-	if (!inactive_file_is_low(lruvec)) {
++	if (!inactive_file_is_low(lruvec) &&
++	    get_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
+ 		scan_balance = SCAN_FILE;
+ 		goto out;
+ 	}
 -- 
-Michal Hocko
-SUSE Labs
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
