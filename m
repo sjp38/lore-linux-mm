@@ -1,80 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id F35C76B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 09:26:07 -0500 (EST)
-Received: by igl9 with SMTP id 9so51877783igl.0
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 06:26:07 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0188.hostedemail.com. [216.40.44.188])
-        by mx.google.com with ESMTP id g2si9526985igc.14.2015.11.23.06.26.07
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2664F6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 10:05:07 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so193499784pac.2
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 07:05:06 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id kn9si19906201pab.17.2015.11.23.07.05.06
         for <linux-mm@kvack.org>;
-        Mon, 23 Nov 2015 06:26:07 -0800 (PST)
-Date: Mon, 23 Nov 2015 09:26:04 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
- reference manipulation
-Message-ID: <20151123092604.7ec1397d@gandalf.local.home>
-In-Reply-To: <20151123082805.GB29397@js1304-P5Q-DELUXE>
-References: <1447053784-27811-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1447053784-27811-2-git-send-email-iamjoonsoo.kim@lge.com>
-	<564C9A86.1090906@suse.cz>
-	<20151120063325.GB13061@js1304-P5Q-DELUXE>
-	<20151120114225.7efeeafe@grimm.local.home>
-	<20151123082805.GB29397@js1304-P5Q-DELUXE>
+        Mon, 23 Nov 2015 07:05:06 -0800 (PST)
+Date: Mon, 23 Nov 2015 15:04:59 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v3 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
+Message-ID: <20151123150459.GD4236@arm.com>
+References: <1447888808-31571-1-git-send-email-dcashman@android.com>
+ <1447888808-31571-2-git-send-email-dcashman@android.com>
+ <1447888808-31571-3-git-send-email-dcashman@android.com>
+ <1447888808-31571-4-git-send-email-dcashman@android.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1447888808-31571-4-git-send-email-dcashman@android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, "Kirill A.
- Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: Daniel Cashman <dcashman@android.com>
+Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com
 
-On Mon, 23 Nov 2015 17:28:05 +0900
-Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-
-> On Fri, Nov 20, 2015 at 11:42:25AM -0500, Steven Rostedt wrote:
-> > On Fri, 20 Nov 2015 15:33:25 +0900
-> > Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > 
-> >   
-> > > Steven, is it possible to add tracepoint to inlined fucntion such as
-> > > get_page() in include/linux/mm.h?  
-> > 
-> > I highly recommend against it. The tracepoint code adds a bit of bloat,
-> > and if you inline it, you add that bloat to every use case. Also, it  
+On Wed, Nov 18, 2015 at 03:20:07PM -0800, Daniel Cashman wrote:
+> From: dcashman <dcashman@google.com>
 > 
-> Is it worse than adding function call to my own stub function into
-> inlined function such as get_page(). I implemented it as following.
+> arm64: arch_mmap_rnd() uses STACK_RND_MASK to generate the
+> random offset for the mmap base address.  This value represents a
+> compromise between increased ASLR effectiveness and avoiding
+> address-space fragmentation. Replace it with a Kconfig option, which
+> is sensibly bounded, so that platform developers may choose where to
+> place this compromise. Keep default values as new minimums.
 > 
-> get_page()
-> {
->         atomic_inc()
->         stub_get_page()
-> }
+> Signed-off-by: Daniel Cashman <dcashman@google.com>
+> ---
+>  arch/arm64/Kconfig   | 23 +++++++++++++++++++++++
+>  arch/arm64/mm/mmap.c |  6 ++++--
+>  2 files changed, 27 insertions(+), 2 deletions(-)
 > 
-> stub_get_page() in foo.c
-> {
->         trace_page_ref_get_page()
-> }
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 9ac16a4..be38e4c 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -51,6 +51,8 @@ config ARM64
+>  	select HAVE_ARCH_JUMP_LABEL
+>  	select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP
+>  	select HAVE_ARCH_KGDB
+> +	select HAVE_ARCH_MMAP_RND_BITS
+> +	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
+>  	select HAVE_ARCH_SECCOMP_FILTER
+>  	select HAVE_ARCH_TRACEHOOK
+>  	select HAVE_BPF_JIT
+> @@ -104,6 +106,27 @@ config ARCH_PHYS_ADDR_T_64BIT
+>  config MMU
+>  	def_bool y
+>  
+> +config ARCH_MMAP_RND_BITS_MIN
+> +       default 15 if ARM64_64K_PAGES
+> +       default 19
+> +
+> +config ARCH_MMAP_RND_BITS_MAX
+> +       default 20 if ARM64_64K_PAGES && ARCH_VA_BITS=39
+> +       default 24 if ARCH_VA_BITS=39
+> +       default 23 if ARM64_64K_PAGES && ARCH_VA_BITS=42
+> +       default 27 if ARCH_VA_BITS=42
+> +       default 29 if ARM64_64K_PAGES && ARCH_VA_BITS=48
+> +       default 33 if ARCH_VA_BITS=48
+> +       default 15 if ARM64_64K_PAGES
+> +       default 19
+> +
+> +config ARCH_MMAP_RND_COMPAT_BITS_MIN
+> +       default 7 if ARM64_64K_PAGES
+> +       default 11
 
-Now you just slowed down the fast path. But what you could do is:
+FYI: we now support 16k pages too, so this might need updating. It would
+be much nicer if this was somehow computed rather than have the results
+all open-coded like this.
 
-get_page()
-{
-	atomic_inc();
-	if (trace_page_ref_get_page_enabled())
-		stub_get_page();
-}
-
-Now that "trace_page_ref_get_page_enabled()" will turn into:
-
-	if (static_key_false(&__tracepoint_page_ref_get_page.key)) {
-
-which is a jump label (nop when disabled, a jmp when enabled). That's
-less bloat but doesn't solve the include problem. You still need to add
-the include of that will cause havoc with other tracepoints.
-
--- Steve
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
