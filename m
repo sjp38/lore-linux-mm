@@ -1,57 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 683766B0254
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 07:23:36 -0500 (EST)
-Received: by qgcc31 with SMTP id c31so68982258qgc.3
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:23:36 -0800 (PST)
-Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com. [2607:f8b0:400d:c04::22f])
-        by mx.google.com with ESMTPS id p63si10965867qkl.45.2015.11.23.04.23.35
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EFF86B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 07:26:29 -0500 (EST)
+Received: by wmec201 with SMTP id c201so102689075wme.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:26:28 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v20si18858670wjq.230.2015.11.23.04.26.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 04:23:35 -0800 (PST)
-Received: by qgec40 with SMTP id c40so111899755qge.2
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 04:23:35 -0800 (PST)
-From: Jeff Layton <jlayton@poochiereds.net>
-Subject: [PATCH v2] mm: fix up sparse warning in gfpflags_allow_blocking
-Date: Mon, 23 Nov 2015 07:23:29 -0500
-Message-Id: <1448281409-13132-1-git-send-email-jeff.layton@primarydata.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 23 Nov 2015 04:26:28 -0800 (PST)
+Date: Mon, 23 Nov 2015 13:26:24 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] fs: clear file set[ug]id when writing via mmap
+Message-ID: <20151123122624.GI23418@quack.suse.cz>
+References: <20151120001043.GA28204@www.outflux.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151120001043.GA28204@www.outflux.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Shachar Raindel <raindel@mellanox.com>, Boaz Harrosh <boaz@plexistor.com>, Michal Hocko <mhocko@suse.cz>, Haggai Eran <haggaie@mellanox.com>, Theodore Tso <tytso@google.com>, Willy Tarreau <w@1wt.eu>, Dirk Steinmetz <public@rsjtdrjgfuzkfg.com>, Michael Kerrisk-manpages <mtk.manpages@gmail.com>, Serge Hallyn <serge.hallyn@ubuntu.com>, Seth Forshee <seth.forshee@canonical.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "Eric W . Biederman" <ebiederm@xmission.com>, Serge Hallyn <serge.hallyn@canonical.com>, linux-mm@kvack.org
 
-sparse says:
+On Thu 19-11-15 16:10:43, Kees Cook wrote:
+> Normally, when a user can modify a file that has setuid or setgid bits,
+> those bits are cleared when they are not the file owner or a member of the
+> group. This is enforced when using write() directly but not when writing
+> to a shared mmap on the file. This could allow the file writer to gain
+> privileges by changing the binary without losing the setuid/setgid bits.
+> 
+> Signed-off-by: Kees Cook <keescook@chromium.org>
+> Cc: stable@vger.kernel.org
 
-    include/linux/gfp.h:274:26: warning: incorrect type in return expression (different base types)
-    include/linux/gfp.h:274:26:    expected bool
-    include/linux/gfp.h:274:26:    got restricted gfp_t
+So I had another look at this and now I understand why we didn't do it from
+the start:
 
-Add a comparison to zero to have it return bool.
+To call file_remove_privs() safely, we need to hold inode->i_mutex since
+that operations is going to modify file mode / extended attributes and
+i_mutex protects those. However we cannot get i_mutex in the page fault
+path as that ranks above mmap_sem which we hold during the whole page
+fault.
 
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Signed-off-by: Jeff Layton <jeff.layton@primarydata.com>
----
- include/linux/gfp.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+So calling file_remove_privs() when opening the file is probably as good as
+it can get. It doesn't catch the case when suid bits / IMA attrs are set
+while the file is already open but I don't see easy way around this.
 
-[v2: use a compare instead of forced cast, as suggested by Michal]
+BTW: This is another example where page fault locking is constraining us
+and life would be simpler for filesystems we they get called without
+mmap_sem held...
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 6523109e136d..b76c92073b1b 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -271,7 +271,7 @@ static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
- 
- static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
- {
--	return gfp_flags & __GFP_DIRECT_RECLAIM;
-+	return (gfp_flags & __GFP_DIRECT_RECLAIM) != 0;
- }
- 
- #ifdef CONFIG_HIGHMEM
+								Honza
 -- 
-2.4.3
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
