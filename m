@@ -1,62 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f53.google.com (mail-lf0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 876036B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 12:37:23 -0500 (EST)
-Received: by lfs39 with SMTP id 39so112906735lfs.3
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 09:37:22 -0800 (PST)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id a199si9557310lfb.197.2015.11.23.09.37.21
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id AF0936B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 13:20:53 -0500 (EST)
+Received: by wmww144 with SMTP id w144so116457876wmw.0
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 10:20:53 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id s139si21091628wmd.7.2015.11.23.10.20.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 09:37:21 -0800 (PST)
-Received: by lffu14 with SMTP id u14so11024590lff.2
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 09:37:21 -0800 (PST)
-From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Subject: [PATCH v3] mm/mmap.c: remove incorrect MAP_FIXED flag comparison from mmap_region
-Date: Mon, 23 Nov 2015 18:36:42 +0100
-Message-Id: <1448300202-5004-1-git-send-email-kwapulinski.piotr@gmail.com>
-In-Reply-To: <20151123081946.GA21050@dhcp22.suse.cz>
-References: <20151123081946.GA21050@dhcp22.suse.cz>
+        Mon, 23 Nov 2015 10:20:52 -0800 (PST)
+Date: Mon, 23 Nov 2015 13:20:37 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 09/14] net: tcp_memcontrol: simplify linkage between
+ socket and page counter
+Message-ID: <20151123182037.GE13000@cmpxchg.org>
+References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
+ <1447371693-25143-10-git-send-email-hannes@cmpxchg.org>
+ <20151120124216.GD31308@esperanza>
+ <20151120185648.GC5623@cmpxchg.org>
+ <20151123093646.GA29014@esperanza>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151123093646.GA29014@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: akpm@linux-foundation.org, oleg@redhat.com, cmetcalf@ezchip.com, mszeredi@suse.cz, viro@zeniv.linux.org.uk, dave@stgolabs.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, jack@suse.cz, xiexiuqi@huawei.com, vbabka@suse.cz, Vineet.Gupta1@synopsys.com, riel@redhat.com, gang.chen.5i5j@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-The following flag comparison in mmap_region makes no sense:
+On Mon, Nov 23, 2015 at 12:36:46PM +0300, Vladimir Davydov wrote:
+> On Fri, Nov 20, 2015 at 01:56:48PM -0500, Johannes Weiner wrote:
+> > I actually had all this at first, but then wondered if it makes more
+> > sense to keep the legacy code in isolation. Don't you think it would
+> > be easier to keep track of what's v1 and what's v2 if we keep the
+> > legacy stuff physically separate as much as possible? In particular I
+> > found that 'tcp_mem.' marker really useful while working on the code.
+> > 
+> > In the same vein, tcp_memcontrol.c doesn't really hurt anybody and I'd
+> > expect it to remain mostly unopened and unchanged in the future. But
+> > if we merge it into memcontrol.c, that code will likely be in the way
+> > and we'd have to make it explicit somehow that this is not actually
+> > part of the new memory controller anymore.
+> > 
+> > What do you think?
+> 
+> There isn't much code left in tcp_memcontrol.c, and not all of it is
+> legacy. We still want to call tcp_init_cgroup and tcp_destroy_cgroup
+> from memcontrol.c - in fact, it's the only call site, so I think we'd
+> better keep these functions there. Apart from init/destroy, there is
+> only stuff for handling legacy files, which is relatively small and
+> isolated. We can just put it along with memsw and kmem legacy files in
+> the end of memcontrol.c adding a comment that it's legacy. Personally,
+> I'd find the code easier to follow then, because currently the logic
+> behind the ACTIVE flag as well as memcg->tcp_mem init/use/destroy turns
+> out to be scattered between two files in different subsystems for no
+> apparent reason now, as it does not need tcp_prot any more. Besides,
+> this would allow us to accurately reuse the ACTIVE flag in init/destroy
+> for inc/dec static branch and probably in sock_update_memcg instead of
+> sprinkling cgroup_subsys_on_dfl all over the place, which would make the
+> code a bit cleaner IMO (in fact, that's why I proposed to drop ACTIVATED
+> bit and replace cg_proto->flags with ->active bool).
 
-if (!(vm_flags & MAP_FIXED))
-    return -ENOMEM;
+As far as I can see, all of tcp_memcontrol.c is legacy, including the
+init and destroy functions. We only call them to set up the legacy
+tcp_mem state and do legacy jump-label maintenance. Delete it all and
+the unified hierarchy controller would still work. So I don't really
+see the benefits of consolidating it, and more risk of convoluting.
 
-The condition is always false and thus the above "return -ENOMEM" is never
-executed. The vm_flags must not be compared with MAP_FIXED flag.
-The vm_flags may only be compared with VM_* flags.
-MAP_FIXED has the same value as VM_MAYREAD.
-Hitting the rlimit is a slow path and find_vma_intersection should realize
-that there is no overlapping VMA for !MAP_FIXED case pretty quickly.
+That being said, if you care strongly about it and see opportunities
+to cut down code and make things more readable, please feel free to
+turn the flags -> bool patch into a followup series and I'll be happy
+to review it.
 
-Remove the code that makes no sense.
-
-Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
----
- mm/mmap.c | 3 ---
- 1 file changed, 3 deletions(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 2ce04a6..42a8259 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1551,9 +1551,6 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 		 * MAP_FIXED may remove pages of mappings that intersects with
- 		 * requested mapping. Account for the pages it would unmap.
- 		 */
--		if (!(vm_flags & MAP_FIXED))
--			return -ENOMEM;
--
- 		nr_pages = count_vma_pages_range(mm, addr, addr + len);
- 
- 		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
--- 
-2.6.2
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
