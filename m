@@ -1,103 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id A69A06B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 03:15:43 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so183964838pac.2
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 00:15:43 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id sa8si18236092pbb.131.2015.11.23.00.15.42
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E5766B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 03:19:50 -0500 (EST)
+Received: by wmww144 with SMTP id w144so85431220wmw.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 00:19:49 -0800 (PST)
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
+        by mx.google.com with ESMTPS id c64si17646674wmi.55.2015.11.23.00.19.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 23 Nov 2015 00:15:42 -0800 (PST)
-Date: Mon, 23 Nov 2015 17:16:01 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: hugepage compaction causes performance drop
-Message-ID: <20151123081601.GA29397@js1304-P5Q-DELUXE>
-References: <20151119092920.GA11806@aaronlu.sh.intel.com>
- <564DCEA6.3000802@suse.cz>
- <564EDFE5.5010709@intel.com>
- <564EE8FD.7090702@intel.com>
- <564EF0B6.10508@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Nov 2015 00:19:49 -0800 (PST)
+Received: by wmec201 with SMTP id c201so148306179wme.0
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 00:19:48 -0800 (PST)
+Date: Mon, 23 Nov 2015 09:19:47 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 2/2] mm/mmap.c: remove incorrect MAP_FIXED flag
+ comparison from mmap_region
+Message-ID: <20151123081946.GA21050@dhcp22.suse.cz>
+References: <20151118162939.GA1842@home.local>
+ <1448037734-4734-1-git-send-email-kwapulinski.piotr@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <564EF0B6.10508@suse.cz>
+In-Reply-To: <1448037734-4734-1-git-send-email-kwapulinski.piotr@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Aaron Lu <aaron.lu@intel.com>, linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, lkp@lists.01.org, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Cc: akpm@linux-foundation.org, oleg@redhat.com, cmetcalf@ezchip.com, mszeredi@suse.cz, viro@zeniv.linux.org.uk, dave@stgolabs.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, jack@suse.cz, xiexiuqi@huawei.com, vbabka@suse.cz, Vineet.Gupta1@synopsys.com, riel@redhat.com, gang.chen.5i5j@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Nov 20, 2015 at 11:06:46AM +0100, Vlastimil Babka wrote:
-> On 11/20/2015 10:33 AM, Aaron Lu wrote:
-> >On 11/20/2015 04:55 PM, Aaron Lu wrote:
-> >>On 11/19/2015 09:29 PM, Vlastimil Babka wrote:
-> >>>+CC Andrea, David, Joonsoo
-> >>>
-> >>>On 11/19/2015 10:29 AM, Aaron Lu wrote:
-> >>>>The vmstat and perf-profile are also attached, please let me know if you
-> >>>>need any more information, thanks.
-> >>>
-> >>>Output from vmstat (the tool) isn't much useful here, a periodic "cat
-> >>>/proc/vmstat" would be much better.
-> >>
-> >>No problem.
-> >>
-> >>>The perf profiles are somewhat weirdly sorted by children cost (?), but
-> >>>I noticed a very high cost (46%) in pageblock_pfn_to_page(). This could
-> >>>be due to a very large but sparsely populated zone. Could you provide
-> >>>/proc/zoneinfo?
-> >>
-> >>Is a one time /proc/zoneinfo enough or also a periodic one?
-> >
-> >Please see attached, note that this is a new run so the perf profile is
-> >a little different.
-> >
-> >Thanks,
-> >Aaron
+On Fri 20-11-15 17:42:14, Piotr Kwapulinski wrote:
+> The following flag comparison in mmap_region makes no sense:
 > 
-> Thanks.
+> if (!(vm_flags & MAP_FIXED))
+>     return -ENOMEM;
 > 
-> DMA32 is a bit sparse:
+> The condition is always false and thus the above "return -ENOMEM" is never
+> executed. The vm_flags must not be compared with MAP_FIXED flag.
+> The vm_flags may only be compared with VM_* flags.
+> MAP_FIXED has the same value as VM_MAYREAD.
+> It has no user visible effect.
 > 
-> Node 0, zone    DMA32
->   pages free     62829
->         min      327
->         low      408
->         high     490
->         scanned  0
->         spanned  1044480
->         present  495951
->         managed  479559
+> Remove the code that makes no sense.
 > 
-> Since the other zones are much larger, probably this is not the
-> culprit. But tracepoints should tell us more. I have a theory that
-> updating free scanner's cached pfn doesn't happen if it aborts due
-> to need_resched() during isolate_freepages(), before hitting a valid
-> pageblock, if the zone has a large hole in it. But zoneinfo doesn't
-> tell us if the large difference between "spanned" and
-> "present"/"managed" is due to a large hole, or many smaller holes...
-> 
-> compact_migrate_scanned 1982396
-> compact_free_scanned 40576943
-> compact_isolated 2096602
-> compact_stall 9070
-> compact_fail 6025
-> compact_success 3045
-> 
-> So it's struggling to find free pages, no wonder about that. I'm
+> Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
 
-Numbers looks fine to me. I guess this performance degradation is
-caused by COMPACT_CLUSTER_MAX change (from 32 to 256). THP allocation
-is async so should be aborted quickly. But, after isolating 256
-migratable pages, it can't be aborted and will finish 256 pages
-migration (at least, current implementation).
+I think this is preferable. Hitting the rlimit is a slow path and
+find_vma_intersection should realize that there is no overlapping
+VMA for !MAP_FIXED case pretty quickly.
 
-Aaron, please test again with setting COMPACT_CLUSTER_MAX to 32
-(in swap.h)?
+I would prefer this to be in the changelog rather than/in addition to
+"It has no user visible effect" which is really vague.
 
-And, please attach always-always's vmstat numbers, too.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Thanks.
+> ---
+> I made a mistake in a changelog in a previous version of this patch.
+> I'm Sorry for the confusion.
+> This patch may be considered to be applied only in case the patch
+> "[PATCH v2 1/2] mm: fix incorrect behavior when process virtual
+> address space limit is exceeded"
+> is not going to be accepted.
+> 
+>  mm/mmap.c | 3 ---
+>  1 file changed, 3 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 2ce04a6..42a8259 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1551,9 +1551,6 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+>  		 * MAP_FIXED may remove pages of mappings that intersects with
+>  		 * requested mapping. Account for the pages it would unmap.
+>  		 */
+> -		if (!(vm_flags & MAP_FIXED))
+> -			return -ENOMEM;
+> -
+>  		nr_pages = count_vma_pages_range(mm, addr, addr + len);
+>  
+>  		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
+> -- 
+> 2.6.2
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
