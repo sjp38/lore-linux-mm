@@ -1,132 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 318196B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 05:01:19 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so192294876pab.0
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 02:01:18 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id c1si18220365pap.77.2015.11.23.02.01.18
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 43D136B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 05:13:48 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so152861680wmv.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 02:13:47 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id k67si18168139wma.23.2015.11.23.02.13.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 02:01:18 -0800 (PST)
-Date: Mon, 23 Nov 2015 13:00:59 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 13/14] mm: memcontrol: account socket memory in unified
- hierarchy memory controller
-Message-ID: <20151123100059.GB29014@esperanza>
-References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
- <1447371693-25143-14-git-send-email-hannes@cmpxchg.org>
- <20151120131033.GF31308@esperanza>
- <20151120192506.GD5623@cmpxchg.org>
+        Mon, 23 Nov 2015 02:13:47 -0800 (PST)
+Received: by wmww144 with SMTP id w144so97530627wmw.0
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 02:13:46 -0800 (PST)
+Date: Mon, 23 Nov 2015 11:13:45 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: Give __GFP_NOFAIL allocations access to memory
+ reserves
+Message-ID: <20151123101345.GF21050@dhcp22.suse.cz>
+References: <1447249697-13380-1-git-send-email-mhocko@kernel.org>
+ <5651BB43.8030102@suse.cz>
+ <20151123092925.GB21050@dhcp22.suse.cz>
+ <5652DFCE.3010201@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151120192506.GD5623@cmpxchg.org>
+In-Reply-To: <5652DFCE.3010201@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Nov 20, 2015 at 02:25:06PM -0500, Johannes Weiner wrote:
-> On Fri, Nov 20, 2015 at 04:10:33PM +0300, Vladimir Davydov wrote:
-> > On Thu, Nov 12, 2015 at 06:41:32PM -0500, Johannes Weiner wrote:
-> > ...
-> > > @@ -5514,16 +5550,43 @@ void sock_release_memcg(struct sock *sk)
-> > >   */
-> > >  bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
-> > >  {
-> > > +	unsigned int batch = max(CHARGE_BATCH, nr_pages);
-> > >  	struct page_counter *counter;
-> > > +	bool force = false;
-> > >  
-> > > -	if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
-> > > -				    nr_pages, &counter)) {
-> > > -		memcg->tcp_mem.memory_pressure = 0;
-> > > +#ifdef CONFIG_MEMCG_KMEM
-> > > +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
-> > > +		if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
-> > > +					    nr_pages, &counter)) {
-> > > +			memcg->tcp_mem.memory_pressure = 0;
-> > > +			return true;
-> > > +		}
-> > > +		page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
-> > > +		memcg->tcp_mem.memory_pressure = 1;
-> > > +		return false;
-> > > +	}
-> > > +#endif
-> > > +	if (consume_stock(memcg, nr_pages))
-> > >  		return true;
-> > > +retry:
-> > > +	if (page_counter_try_charge(&memcg->memory, batch, &counter))
-> > > +		goto done;
-> > > +
-> > > +	if (batch > nr_pages) {
-> > > +		batch = nr_pages;
-> > > +		goto retry;
-> > >  	}
-> > > -	page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
-> > > -	memcg->tcp_mem.memory_pressure = 1;
-> > > -	return false;
-> > > +
-> > > +	page_counter_charge(&memcg->memory, batch);
-> > > +	force = true;
-> > > +done:
-> > 
-> > > +	css_get_many(&memcg->css, batch);
-> > 
-> > Is there any point to get css reference per each charged page? For kmem
-> > it is absolutely necessary, because dangling slabs must block
-> > destruction of memcg's kmem caches, which are destroyed on css_free. But
-> > for sockets there's no such problem: memcg will be destroyed only after
-> > all sockets are destroyed and therefore uncharged (since
-> > sock_update_memcg pins css).
+On Mon 23-11-15 10:43:42, Vlastimil Babka wrote:
+> On 11/23/2015 10:29 AM, Michal Hocko wrote:
+> >On Sun 22-11-15 13:55:31, Vlastimil Babka wrote:
+> >>On 11.11.2015 14:48, mhocko@kernel.org wrote:
+> >>>  mm/page_alloc.c | 10 +++++++++-
+> >>>  1 file changed, 9 insertions(+), 1 deletion(-)
+> >>>
+> >>>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >>>index 8034909faad2..d30bce9d7ac8 100644
+> >>>--- a/mm/page_alloc.c
+> >>>+++ b/mm/page_alloc.c
+> >>>@@ -2766,8 +2766,16 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+> >>>  			goto out;
+> >>>  	}
+> >>>  	/* Exhausted what can be done so it's blamo time */
+> >>>-	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
+> >>>+	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+> >>>  		*did_some_progress = 1;
+> >>>+
+> >>>+		if (gfp_mask & __GFP_NOFAIL) {
+> >>>+			page = get_page_from_freelist(gfp_mask, order,
+> >>>+					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
+> >>>+			WARN_ONCE(!page, "Unable to fullfil gfp_nofail allocation."
+> >>>+				    " Consider increasing min_free_kbytes.\n");
+> >>
+> >>It seems redundant to me to keep the WARN_ON_ONCE also above in the if () part?
+> >
+> >They are warning about two different things. The first one catches a
+> >buggy code which uses __GFP_NOFAIL from oom disabled context while the
 > 
-> I'm afraid we have to when we want to share 'stock' with cache and
-> anon pages, which hold individual references. drain_stock() always
-> assumes one reference per cached page.
+> Ah, I see, I misinterpreted what the return values of out_of_memory() mean.
+> But now that I look at its code, it seems to only return false when
+> oom_killer_disabled is set to true. Which is a global thing and nothing to
+> do with the context of the __GFP_NOFAIL allocation?
 
-Missed that, you're right.
+I am not sure I follow you here. The point of the warning is to warn
+when the oom killer is disbaled (out_of_memory returns false) _and_ the
+request is __GFP_NOFAIL because we simply cannot guarantee any forward
+progress and just a use of the allocation flag is not supproted.
 
+[...]
+> >>Hm and probably out of scope of your patch, but I understand the WARN_ONCE
+> >>(WARN_ON_ONCE) to be _ONCE just to prevent a flood from a single task looping
+> >>here. But for distinct tasks and potentially far away in time, wouldn't we want
+> >>to see all the warnings? Would that be feasible to implement?
+> >
+> >I was thinking about that as well some time ago but it was quite
+> >hard to find a good enough API to tell when to warn again. The first
+> >WARN_ON_ONCE should trigger for all different _code paths_ no matter
+> >how frequently they appear to catch all the buggy callers. The second
+> >one would benefit from a new warning after min_free_kbytes was updated
+> >because it would tell the administrator that the last update was not
+> >sufficient for the workload.
 > 
-> > > +	if (batch > nr_pages)
-> > > +		refill_stock(memcg, batch - nr_pages);
-> > > +
-> > > +	schedule_work(&memcg->socket_work);
-> > 
-> > I think it's suboptimal to schedule the work even if we are below the
-> > high threshold.
-> 
-> Hm, it seemed unnecessary to duplicate the hierarchy check since this
-> is in the batch-exhausted slowpath anyway.
+> Hm, what about adding a flag to the struct alloc_context, so that when the
+> particular allocation attempt emits the warning, it sets a flag in the
+> alloc_context so that it won't emit them again as long as it keeps looping
+> and attempting oom. Other allocations will warn independently.
 
-Dunno, may be you're right.
+That could still trigger a flood of messages. Say you have many
+concurrent users from the same call path...
+ 
+I am not really sure making the code more complicating for this warning
+is really worth it. If anything we can use ratelimited variant.
 
-I've another question regarding this socket_work: its reclaim target
-always equals CHARGE_BATCH. Can't it result in a workload exceeding
-memory.high in case there are a lot of allocations coming from different
-cpus? In this case the work might not manage to complete before another
-allocation happens. May be, we should accumulate the number of pages to
-be reclaimed by the work, as we do in try_charge?
+> We could also print the same info as the "allocation failed" warnings do,
+> since it's very similar, except we can't fail - but the admin/bug reporter
+> should be interested in the same details as for an allocation failure that
+> is allowed to fail. But it's also true that we have probably just printed
+> the info during out_of_memory()... except when we skipped that for some
+> reason?
 
-> 
-> > BTW why do we need this work at all? Why is reclaim_high called from
-> > task_work not enough?
-> 
-> The problem lies in the memcg association: the random task that gets
-> interrupted by an arriving packet might not be in the same memcg as
-> the one owning receiving socket. And multiple interrupts could happen
-> while we're in the kernel already charging pages. We'd basically have
-> to maintain a list of memcgs that need to run reclaim_high associated
-> with current.
-> 
+The first WARN_ON_ONCE happens when OOM killer doesn't trigger so a
+memory situation might be worth considering. The later one might have
+seen the OOM report which is the likely case. So if anyting the first
+one should dump the info.
 
-Right, I think this is worth placing in a comment to memcg->socket_work.
-I wonder if we could use it *instead* of task_work for handling every
-allocation, not only socket-related. Would it make any sense? May be, it
-could reduce the latency experienced by tasks in memory cgroups.
-
-Thanks,
-Vladimir
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
