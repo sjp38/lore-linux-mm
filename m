@@ -1,77 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 23E3F6B0255
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 11:22:44 -0500 (EST)
-Received: by wmww144 with SMTP id w144so111796143wmw.0
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 08:22:43 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 202si20221685wmp.104.2015.11.23.08.22.42
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A55F6B0255
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 11:30:15 -0500 (EST)
+Received: by wmec201 with SMTP id c201so112898917wme.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 08:30:15 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id kv9si20299249wjb.199.2015.11.23.08.30.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 23 Nov 2015 08:22:42 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH] mm: fix swapped Movable and Reclaimable in /proc/pagetypeinfo
-Date: Mon, 23 Nov 2015 17:22:14 +0100
-Message-Id: <1448295734-14072-1-git-send-email-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Nov 2015 08:30:14 -0800 (PST)
+Date: Mon, 23 Nov 2015 11:30:03 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2] vmscan: do not force-scan file lru if its absolute
+ size is small
+Message-ID: <20151123163003.GC13000@cmpxchg.org>
+References: <20151120134311.8ff0947215fc522f72f791fe@linux-foundation.org>
+ <1448275173-10538-1-git-send-email-vdavydov@virtuozzo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1448275173-10538-1-git-send-email-vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Commit 016c13daa5c9 ("mm, page_alloc: use masks and shifts when converting GFP
-flags to migrate types") has swapped MIGRATE_MOVABLE and MIGRATE_RECLAIMABLE
-in the enum definition. However, migratetype_names wasn't updated to reflect
-that. As a result, the file /proc/pagetypeinfo shows the counts for Movable as
-Reclaimable and vice versa.
+On Mon, Nov 23, 2015 at 01:39:33PM +0300, Vladimir Davydov wrote:
+> We assume there is enough inactive page cache if the size of inactive
+> file lru is greater than the size of active file lru, in which case we
+> force-scan file lru ignoring anonymous pages. While this logic works
+> fine when there are plenty of page cache pages, it fails if the size of
+> file lru is small (several MB): in this case (lru_size >> prio) will be
+> 0 for normal scan priorities, as a result, if inactive file lru happens
+> to be larger than active file lru, anonymous pages of a cgroup will
+> never get evicted unless the system experiences severe memory pressure,
+> even if there are gigabytes of unused anonymous memory there, which is
+> unfair in respect to other cgroups, whose workloads might be page cache
+> oriented.
+> 
+> This patch attempts to fix this by elaborating the "enough inactive page
+> cache" check: it makes it not only check that inactive lru size > active
+> lru size, but also that we will scan something from the cgroup at the
+> current scan priority. If these conditions do not hold, we proceed to
+> SCAN_FRACT as usual.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-Additionally, commit 0aaa29a56e4f ("mm, page_alloc: reserve pageblocks for
-high-order atomic allocations on demand") introduced MIGRATE_HIGHATOMIC, but
-did not add a letter to distinguish it into show_migration_types(), so it
-doesn't appear in the listing of free areas during page alloc failures or oom
-kills.
-
-This patch fixes both problems. The atomic reserves will show with a letter
-'H' in the free areas listings.
-
-Fixes: 016c13daa5c9e4827eca703e2f0621c131f2cca3
-Fixes: 0aaa29a56e4fb0fc9e24edb649e2733a672ca099
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/page_alloc.c | 3 ++-
- mm/vmstat.c     | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 17a3c66..165980d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3647,8 +3647,9 @@ static void show_migration_types(unsigned char type)
- {
- 	static const char types[MIGRATE_TYPES] = {
- 		[MIGRATE_UNMOVABLE]	= 'U',
--		[MIGRATE_RECLAIMABLE]	= 'E',
- 		[MIGRATE_MOVABLE]	= 'M',
-+		[MIGRATE_RECLAIMABLE]	= 'E',
-+		[MIGRATE_HIGHATOMIC]	= 'H'
- #ifdef CONFIG_CMA
- 		[MIGRATE_CMA]		= 'C',
- #endif
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 879a2be..2ec3434 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -921,8 +921,8 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
- #ifdef CONFIG_PROC_FS
- static char * const migratetype_names[MIGRATE_TYPES] = {
- 	"Unmovable",
--	"Reclaimable",
- 	"Movable",
-+	"Reclaimable",
- 	"HighAtomic",
- #ifdef CONFIG_CMA
- 	"CMA",
--- 
-2.6.3
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
