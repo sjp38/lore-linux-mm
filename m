@@ -1,89 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E5766B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 03:19:50 -0500 (EST)
-Received: by wmww144 with SMTP id w144so85431220wmw.1
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 00:19:49 -0800 (PST)
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
-        by mx.google.com with ESMTPS id c64si17646674wmi.55.2015.11.23.00.19.48
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id DC7EC6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 03:27:47 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so184400433pad.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 00:27:47 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTPS id w74si17839838pfi.93.2015.11.23.00.27.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Nov 2015 00:19:49 -0800 (PST)
-Received: by wmec201 with SMTP id c201so148306179wme.0
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 00:19:48 -0800 (PST)
-Date: Mon, 23 Nov 2015 09:19:47 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 2/2] mm/mmap.c: remove incorrect MAP_FIXED flag
- comparison from mmap_region
-Message-ID: <20151123081946.GA21050@dhcp22.suse.cz>
-References: <20151118162939.GA1842@home.local>
- <1448037734-4734-1-git-send-email-kwapulinski.piotr@gmail.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 23 Nov 2015 00:27:47 -0800 (PST)
+Date: Mon, 23 Nov 2015 17:28:05 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
+ reference manipulation
+Message-ID: <20151123082805.GB29397@js1304-P5Q-DELUXE>
+References: <1447053784-27811-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1447053784-27811-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <564C9A86.1090906@suse.cz>
+ <20151120063325.GB13061@js1304-P5Q-DELUXE>
+ <20151120114225.7efeeafe@grimm.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1448037734-4734-1-git-send-email-kwapulinski.piotr@gmail.com>
+In-Reply-To: <20151120114225.7efeeafe@grimm.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Cc: akpm@linux-foundation.org, oleg@redhat.com, cmetcalf@ezchip.com, mszeredi@suse.cz, viro@zeniv.linux.org.uk, dave@stgolabs.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, jack@suse.cz, xiexiuqi@huawei.com, vbabka@suse.cz, Vineet.Gupta1@synopsys.com, riel@redhat.com, gang.chen.5i5j@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-On Fri 20-11-15 17:42:14, Piotr Kwapulinski wrote:
-> The following flag comparison in mmap_region makes no sense:
+On Fri, Nov 20, 2015 at 11:42:25AM -0500, Steven Rostedt wrote:
+> On Fri, 20 Nov 2015 15:33:25 +0900
+> Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 > 
-> if (!(vm_flags & MAP_FIXED))
->     return -ENOMEM;
 > 
-> The condition is always false and thus the above "return -ENOMEM" is never
-> executed. The vm_flags must not be compared with MAP_FIXED flag.
-> The vm_flags may only be compared with VM_* flags.
-> MAP_FIXED has the same value as VM_MAYREAD.
-> It has no user visible effect.
+> > Steven, is it possible to add tracepoint to inlined fucntion such as
+> > get_page() in include/linux/mm.h?
 > 
-> Remove the code that makes no sense.
-> 
-> Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+> I highly recommend against it. The tracepoint code adds a bit of bloat,
+> and if you inline it, you add that bloat to every use case. Also, it
 
-I think this is preferable. Hitting the rlimit is a slow path and
-find_vma_intersection should realize that there is no overlapping
-VMA for !MAP_FIXED case pretty quickly.
+Is it worse than adding function call to my own stub function into
+inlined function such as get_page(). I implemented it as following.
 
-I would prefer this to be in the changelog rather than/in addition to
-"It has no user visible effect" which is really vague.
+get_page()
+{
+        atomic_inc()
+        stub_get_page()
+}
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+stub_get_page() in foo.c
+{
+        trace_page_ref_get_page()
+}
 
-> ---
-> I made a mistake in a changelog in a previous version of this patch.
-> I'm Sorry for the confusion.
-> This patch may be considered to be applied only in case the patch
-> "[PATCH v2 1/2] mm: fix incorrect behavior when process virtual
-> address space limit is exceeded"
-> is not going to be accepted.
+> makes things difficult if this file is included in other files that
+> create tracepoints, which I could easily imagine would be the case.
+> That is, if a tracepoint file in include/trace/events/foo.h needs to
+> include include/linux/mm.h, when you do CREATE_TRACEPOINTS for foo.h,
+> it will create tracepoints for mm.h as to use tracepoints there you
+> would need to include the include/trace/events/mm.h (or whatever its
+> name is), and that has caused issues in the past.
 > 
->  mm/mmap.c | 3 ---
->  1 file changed, 3 deletions(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 2ce04a6..42a8259 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1551,9 +1551,6 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
->  		 * MAP_FIXED may remove pages of mappings that intersects with
->  		 * requested mapping. Account for the pages it would unmap.
->  		 */
-> -		if (!(vm_flags & MAP_FIXED))
-> -			return -ENOMEM;
-> -
->  		nr_pages = count_vma_pages_range(mm, addr, addr + len);
->  
->  		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
-> -- 
-> 2.6.2
-> 
+> Now, if you still want to have these tracepoints in the inlined
+> function, it would be best to add a new file mm_trace.h? or something
+> that would include it, and then have only the .c files include that
+> directly. Do not put it into mm.h as that would definitely cause
+> tracepoint include troubles.
 
--- 
-Michal Hocko
-SUSE Labs
+Okay. If I choose this way, I have to change too many places and churn
+the code. If bloat of my implementation is similar with this suggestion,
+I prefer my implementation.
+
+Thanks for good advice.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
