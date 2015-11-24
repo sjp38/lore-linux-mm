@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 28E5B6B0266
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 07:37:02 -0500 (EST)
-Received: by wmww144 with SMTP id w144so24452159wmw.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 04:37:01 -0800 (PST)
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AC4482F64
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 07:37:04 -0500 (EST)
+Received: by wmww144 with SMTP id w144so24453484wmw.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 04:37:04 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ir3si14668642wjb.25.2015.11.24.04.36.44
+        by mx.google.com with ESMTPS id y140si26526680wmc.19.2015.11.24.04.36.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Tue, 24 Nov 2015 04:36:44 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 7/9] mm, page_owner: dump page owner info from dump_page()
-Date: Tue, 24 Nov 2015 13:36:19 +0100
-Message-Id: <1448368581-6923-8-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v2 6/9] mm, debug: introduce dump_gfpflag_names() for symbolic printing of gfp_flags
+Date: Tue, 24 Nov 2015 13:36:18 +0100
+Message-Id: <1448368581-6923-7-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
 References: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,139 +20,118 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
 
-The page_owner mechanism is useful for dealing with memory leaks. By reading
-/sys/kernel/debug/page_owner one can determine the stack traces leading to
-allocations of all pages, and find e.g. a buggy driver.
+It would be useful to convert gfp_flags into string representation when
+printing them in case of allocation failure, OOM etc. There's a script
+./scripts/gfp-translate to make this simpler, but it needs the matching version
+of the sources to be accurate, and the flags have been undergoing some changes
+recently.
 
-This information might be also potentially useful for debugging, such as the
-VM_BUG_ON_PAGE() calls to dump_page(). So let's print the stored info from
-dump_page().
+The ftrace framework already has this translation in the form of
+show_gfp_flags() defined in include/trace/events/gfpflags.h which defines the
+translation table internally. Allow reusing the table outside ftrace by putting
+it behind __def_gfpflag_names definition and introduce dump_gfpflag_names() to
+handle the printing.
 
-Example output:
-
-page:ffffea0002868a00 count:1 mapcount:0 mapping:ffff8800bba8e958 index:0x63a22c
-flags: 0x1fffff80000060(lru|active)
-page dumped because: VM_BUG_ON_PAGE(1)
-page->mem_cgroup:ffff880138efdc00
-page allocated via order 0, migratetype Movable, gfp_mask 0x2420848(GFP_NOFS|GFP_NOFAIL|GFP_HARDWALL|GFP_MOVABLE)
- [<ffffffff81164e8a>] __alloc_pages_nodemask+0x15a/0xa30
- [<ffffffff811ab808>] alloc_pages_current+0x88/0x120
- [<ffffffff8115bc36>] __page_cache_alloc+0xe6/0x120
- [<ffffffff8115c226>] pagecache_get_page+0x56/0x200
- [<ffffffff812058c2>] __getblk_slow+0xd2/0x2b0
- [<ffffffff81205ae0>] __getblk_gfp+0x40/0x50
- [<ffffffffa0283abe>] jbd2_journal_get_descriptor_buffer+0x3e/0x90 [jbd2]
- [<ffffffffa027c793>] jbd2_journal_commit_transaction+0x8e3/0x1870 [jbd2]
-page has been migrated, last migrate reason: compaction
+While at it, also fill in the names for the flags and flag combinations that
+have been missing in the table. GFP_NOWAIT no longer equals to "no flags", so
+change the output for no flags to "none".
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/page_owner.h |  9 +++++++++
- mm/debug.c                 |  2 ++
- mm/page_alloc.c            |  1 +
- mm/page_owner.c            | 25 +++++++++++++++++++++++++
- 4 files changed, 37 insertions(+)
+ include/linux/mmdebug.h         |  1 +
+ include/trace/events/gfpflags.h | 14 +++++++++++---
+ mm/debug.c                      | 10 ++++++++++
+ 3 files changed, 22 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
-index 555893b..46f1b93 100644
---- a/include/linux/page_owner.h
-+++ b/include/linux/page_owner.h
-@@ -13,6 +13,7 @@ extern void __set_page_owner(struct page *page,
- extern gfp_t __get_page_owner_gfp(struct page *page);
- extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
- extern void __set_page_owner_migrate_reason(struct page *page, int reason);
-+extern void __dump_page_owner(struct page *page);
+diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
+index c447d80..3b77fab 100644
+--- a/include/linux/mmdebug.h
++++ b/include/linux/mmdebug.h
+@@ -10,6 +10,7 @@ struct mm_struct;
+ extern void dump_page(struct page *page, const char *reason);
+ extern void dump_page_badflags(struct page *page, const char *reason,
+ 			       unsigned long badflags);
++extern void dump_gfpflag_names(unsigned long gfp_flags);
+ void dump_vma(const struct vm_area_struct *vma);
+ void dump_mm(const struct mm_struct *mm);
  
- static inline void reset_page_owner(struct page *page, unsigned int order)
- {
-@@ -44,6 +45,11 @@ static inline void set_page_owner_migrate_reason(struct page *page, int reason)
- 	if (static_branch_unlikely(&page_owner_inited))
- 		__set_page_owner_migrate_reason(page, reason);
- }
-+static inline void dump_page_owner(struct page *page)
-+{
-+	if (static_branch_unlikely(&page_owner_inited))
-+		__dump_page_owner(page);
-+}
- #else
- static inline void reset_page_owner(struct page *page, unsigned int order)
- {
-@@ -62,5 +68,8 @@ static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
- static inline void set_page_owner_migrate_reason(struct page *page, int reason)
- {
- }
-+static inline void dump_page_owner(struct page *page)
-+{
-+}
- #endif /* CONFIG_PAGE_OWNER */
- #endif /* __LINUX_PAGE_OWNER_H */
+diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
+index dde6bf0..3d580fd 100644
+--- a/include/trace/events/gfpflags.h
++++ b/include/trace/events/gfpflags.h
+@@ -8,8 +8,8 @@
+  *
+  * Thus most bits set go first.
+  */
+-#define show_gfp_flags(flags)						\
+-	(flags) ? __print_flags(flags, "|",				\
++
++#define __def_gfpflag_names						\
+ 	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
+ 	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"}, \
+ 	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
+@@ -19,9 +19,13 @@
+ 	{(unsigned long)GFP_NOFS,		"GFP_NOFS"},		\
+ 	{(unsigned long)GFP_ATOMIC,		"GFP_ATOMIC"},		\
+ 	{(unsigned long)GFP_NOIO,		"GFP_NOIO"},		\
++	{(unsigned long)GFP_NOWAIT,		"GFP_NOWAIT"},		\
++	{(unsigned long)__GFP_DMA,		"GFP_DMA"},		\
++	{(unsigned long)__GFP_DMA32,		"GFP_DMA32"},		\
+ 	{(unsigned long)__GFP_HIGH,		"GFP_HIGH"},		\
+ 	{(unsigned long)__GFP_ATOMIC,		"GFP_ATOMIC"},		\
+ 	{(unsigned long)__GFP_IO,		"GFP_IO"},		\
++	{(unsigned long)__GFP_FS,		"GFP_FS"},		\
+ 	{(unsigned long)__GFP_COLD,		"GFP_COLD"},		\
+ 	{(unsigned long)__GFP_NOWARN,		"GFP_NOWARN"},		\
+ 	{(unsigned long)__GFP_REPEAT,		"GFP_REPEAT"},		\
+@@ -36,8 +40,12 @@
+ 	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
+ 	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
+ 	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
++	{(unsigned long)__GFP_WRITE,		"GFP_WRITE"},		\
+ 	{(unsigned long)__GFP_DIRECT_RECLAIM,	"GFP_DIRECT_RECLAIM"},	\
+ 	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"GFP_KSWAPD_RECLAIM"},	\
+ 	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
+-	) : "GFP_NOWAIT"
+ 
++#define show_gfp_flags(flags)						\
++	(flags) ? __print_flags(flags, "|",				\
++	__def_gfpflag_names						\
++	) : "none"
 diff --git a/mm/debug.c b/mm/debug.c
-index 1a71a3b..c3300ee 100644
+index d9718fc..1a71a3b 100644
 --- a/mm/debug.c
 +++ b/mm/debug.c
-@@ -10,6 +10,7 @@
+@@ -9,6 +9,7 @@
+ #include <linux/mm.h>
  #include <linux/trace_events.h>
  #include <linux/memcontrol.h>
- #include <trace/events/gfpflags.h>
-+#include <linux/page_owner.h>
++#include <trace/events/gfpflags.h>
  
  static const struct trace_print_flags pageflag_names[] = {
  	{1UL << PG_locked,		"locked"	},
-@@ -118,6 +119,7 @@ void dump_page_badflags(struct page *page, const char *reason,
- void dump_page(struct page *page, const char *reason)
+@@ -46,6 +47,10 @@ static const struct trace_print_flags pageflag_names[] = {
+ #endif
+ };
+ 
++static const struct trace_print_flags gfpflag_names[] = {
++	__def_gfpflag_names
++};
++
+ static void dump_flag_names(unsigned long flags,
+ 			const struct trace_print_flags *names, int count)
  {
- 	dump_page_badflags(page, reason, 0);
-+	dump_page_owner(page);
- }
- EXPORT_SYMBOL(dump_page);
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 61a023a..f806a1a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -448,6 +448,7 @@ static void bad_page(struct page *page, const char *reason,
- 	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
- 		current->comm, page_to_pfn(page));
- 	dump_page_badflags(page, reason, bad_flags);
-+	dump_page_owner(page);
- 
- 	print_modules();
- 	dump_stack();
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 59fd6f1..a81cfa0 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -193,6 +193,31 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 	return -ENOMEM;
+@@ -73,6 +78,11 @@ static void dump_flag_names(unsigned long flags,
+ 	pr_cont(")\n");
  }
  
-+void __dump_page_owner(struct page *page)
++void dump_gfpflag_names(unsigned long gfp_flags)
 +{
-+	struct page_ext *page_ext = lookup_page_ext(page);
-+	struct stack_trace trace = {
-+		.nr_entries = page_ext->nr_entries,
-+		.entries = &page_ext->trace_entries[0],
-+	};
-+	gfp_t gfp_mask = page_ext->gfp_mask;
-+	int mt = gfpflags_to_migratetype(gfp_mask);
-+
-+	if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
-+		pr_alert("page_owner info is not active (free page?)\n");
-+		return;
-+	}
-+			                        ;
-+	pr_alert("page allocated via order %u, migratetype %s, gfp_mask 0x%x",
-+			page_ext->order, migratetype_names[mt], gfp_mask);
-+	dump_gfpflag_names(gfp_mask);
-+	print_stack_trace(&trace, 0);
-+
-+	if (page_ext->last_migrate_reason != -1)
-+		pr_alert("page has been migrated, last migrate reason: %s\n",
-+			migrate_reason_names[page_ext->last_migrate_reason]);
++	dump_flag_names(gfp_flags, gfpflag_names, ARRAY_SIZE(gfpflag_names));
 +}
 +
- static ssize_t
- read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+ void dump_page_badflags(struct page *page, const char *reason,
+ 		unsigned long badflags)
  {
 -- 
 2.6.3
