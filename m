@@ -1,69 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 878366B0255
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 11:39:01 -0500 (EST)
-Received: by wmec201 with SMTP id c201so34800661wme.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 08:39:01 -0800 (PST)
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
-        by mx.google.com with ESMTPS id pm2si20433189wjb.168.2015.11.24.08.39.00
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C19EC6B0255
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 12:02:43 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so105292265wmu.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 09:02:42 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id hx7si12462263wjb.181.2015.11.24.09.02.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 08:39:00 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so218412095wmv.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 08:39:00 -0800 (PST)
-Date: Tue, 24 Nov 2015 17:38:58 +0100
+        Tue, 24 Nov 2015 09:02:41 -0800 (PST)
+Received: by wmuu63 with SMTP id u63so105291300wmu.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 09:02:41 -0800 (PST)
+Date: Tue, 24 Nov 2015 18:02:39 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memcg: fix memory.high target
-Message-ID: <20151124163857.GL29472@dhcp22.suse.cz>
-References: <1448281351-15103-1-git-send-email-vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] mm, oom: Give __GFP_NOFAIL allocations access to memory
+ reserves
+Message-ID: <20151124170239.GA13492@dhcp22.suse.cz>
+References: <1447249697-13380-1-git-send-email-mhocko@kernel.org>
+ <5651BB43.8030102@suse.cz>
+ <20151123092925.GB21050@dhcp22.suse.cz>
+ <5652DFCE.3010201@suse.cz>
+ <20151123101345.GF21050@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1511231320160.30886@chino.kir.corp.google.com>
+ <20151124094708.GA29472@dhcp22.suse.cz>
+ <20151124162604.GB9598@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1448281351-15103-1-git-send-email-vdavydov@virtuozzo.com>
+In-Reply-To: <20151124162604.GB9598@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 23-11-15 15:22:31, Vladimir Davydov wrote:
-> When the memory.high threshold is exceeded, try_charge() schedules a
-> task_work to reclaim the excess. The reclaim target is set to the number
-> of pages requested by try_charge(). This is wrong, because try_charge()
-> usually charges more pages than requested (batch > nr_pages) in order to
-> refill per cpu stocks. As a result, a process in a cgroup can easily
-> exceed memory.high significantly when doing a lot of charges w/o
-> returning to userspace (e.g. reading a file in big chunks).
+On Tue 24-11-15 11:26:04, Johannes Weiner wrote:
+> On Tue, Nov 24, 2015 at 10:47:09AM +0100, Michal Hocko wrote:
+> > Besides that there is no other reliable warning that we are getting
+> > _really_ short on memory unlike when the allocation failure is
+> > allowed. OOM killer report might be missing because there was no actual
+> > killing happening.
 > 
-> Fix this issue by assuring that when exceeding memory.high a process
-> reclaims as many pages as were actually charged (i.e. batch).
+> This is why I would like to see that warning generalized, and not just
+> for __GFP_NOFAIL. We have allocations other than explicit __GFP_NOFAIL
+> that will loop forever in the allocator,
 
-Good point. This will not affect the single page load because the
-reclaim is done in SWAP_CLUSTER_MAX chunks anyway.
+Yes but does it make sense to warn for all of them? Wouldn't it be
+sufficient to warn about those which cannot allocate anything even
+though they are doing ALLOC_NO_WATERMARKS? We could still hint the
+administrator to increase min_free_kbytes for his particular workload.
+Such a situation should be really exceptional and warn_once should be
+sufficient.
 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> and when this deadlocks the
+> machine all we see is other tasks hanging, but not the culprit. If we
+> were to get a backtrace of some task in the allocator that is known to
+> hold locks, suddenly all the other hung tasks will make sense, and it
+> will clearly distinguish such an allocator deadlock from other issues.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+Tetsuo was suggesting a more sophisticated infrastructure for tracking
+allocations [1] which take too long without making progress. I haven't
+seen his patch because I was too busy with other stuff but maybe this is
+what you would like to see?
 
-> ---
->  mm/memcontrol.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 648cc9f02437..06c476ab0f2c 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2133,7 +2133,7 @@ done_restock:
->  	 */
->  	do {
->  		if (page_counter_read(&memcg->memory) > memcg->high) {
-> -			current->memcg_nr_pages_over_high += nr_pages;
-> +			current->memcg_nr_pages_over_high += batch;
->  			set_notify_resume(current);
->  			break;
->  		}
-> -- 
-> 2.1.4
+Anyway I would like to make some progress on this patch. Do you think
+that it would be acceptable in the current form without the warning or
+you preffer a different way?
 
+[1] http://lkml.kernel.org/r/201510182105.AGA00839.FHVFFStLQOMOOJ%40I-love.SAKURA.ne.jp
 -- 
 Michal Hocko
 SUSE Labs
