@@ -1,83 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 93DE56B0259
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 07:36:48 -0500 (EST)
-Received: by wmec201 with SMTP id c201so24562502wme.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 04:36:48 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C4FFA6B025B
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 07:36:50 -0500 (EST)
+Received: by wmww144 with SMTP id w144so24445586wmw.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 04:36:50 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o67si6304736wmb.70.2015.11.24.04.36.43
+        by mx.google.com with ESMTPS id b186si26468119wmd.88.2015.11.24.04.36.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Tue, 24 Nov 2015 04:36:43 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 0/9] page_owner improvements for debugging
-Date: Tue, 24 Nov 2015 13:36:12 +0100
-Message-Id: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v2 4/9] mm, page_owner: copy page owner info during migration
+Date: Tue, 24 Nov 2015 13:36:16 +0100
+Message-Id: <1448368581-6923-5-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
+References: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
 
-This is the second version of patchset which originally aimed to improve the
-page_owner functionality. Thanks to feedback from v1 and some bugs I
-discovered along the way, it is now larger in scope and number of patches.
-It's based on next-20151124.
+The page_owner mechanism stores gfp_flags of an allocation and stack trace
+that lead to it. During page migration, the original information is
+practically replaced by the allocation of free page as the migration target.
+Arguably this is less useful and might lead to all the page_owner info for
+migratable pages gradually converge towards compaction or numa balancing
+migrations. It has also lead to inaccuracies such as one fixed by commit
+e2cfc91120fa ("mm/page_owner: set correct gfp_mask on page_owner").
 
-For page_owner, the main changes are
-o Use static key to further reduce overhead when compiled in but not enabled.
-o Improve output wrt. page and pageblock migratetypes
-o Transfer the info on page migrations and track last migration reason.
-o Dump the info as part of dump_page() to hopefully help debugging.
+This patch thus introduces copying the page_owner info during migration.
+However, since the fact that the page has been migrated from its original
+place might be useful for debugging, the next patch will introduce a way to
+track that information as well.
 
-For the last point, Kirill requested a human readable printing of gfp_mask and
-migratetype after v1. At that point it probably makes a lot of sense to do the
-same for page alloc failure and OOM warnings. The flags have been undergoing
-revisions recently, and we might be getting reports from various kernel
-versions that differ. The ./scripts/gfp-translate tool needs to be pointed at
-the corresponding sources to be accurate.  The downside is potentially breaking
-scripts that grep these warnings, but it's not a first change done there over
-the years.
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/page_owner.h | 10 +++++++++-
+ mm/migrate.c               |  3 +++
+ mm/page_owner.c            | 25 +++++++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 1 deletion(-)
 
-Note I'm not entirely happy about the dump_gfpflag_names() implementation, due
-to usage of pr_cont() unreliable on SMP (and I've seen spurious newlines in
-dmesg output, while being correct on serial console or /var/log/messages).
-It also doesn't allow plugging the gfp_mask translation into
-/sys/kernel/debug/page_owner where it also could make sense. Maybe a new
-*printf formatting flag? Too specialized maybe? Or just prepare the string in
-a buffer on stack with strscpy?
-
-Other changes since v1:
-o Change placement of page owner migration calls to cover missing cases (Hugh)
-o Move dump_page_owner() call up from dump_page_badflags(), so the latter can
-  be used for adding debugging prints without page owner info (Kirill)
-
-Vlastimil Babka (9):
-  mm, debug: fix wrongly filtered flags in dump_vma()
-  mm, page_owner: print symbolic migratetype of both page and pageblock
-  mm, page_owner: convert page_owner_inited to static key
-  mm, page_owner: copy page owner info during migration
-  mm, page_owner: track and print last migrate reason
-  mm, debug: introduce dump_gfpflag_names() for symbolic printing of
-    gfp_flags
-  mm, page_owner: dump page owner info from dump_page()
-  mm, page_alloc: print symbolic gfp_flags on allocation failure
-  mm, oom: print symbolic gfp_flags in oom warning
-
- Documentation/vm/page_owner.txt |  9 +++--
- include/linux/migrate.h         |  6 ++-
- include/linux/mmdebug.h         |  1 +
- include/linux/mmzone.h          |  3 ++
- include/linux/page_ext.h        |  1 +
- include/linux/page_owner.h      | 50 ++++++++++++++++++-------
- include/trace/events/gfpflags.h | 14 +++++--
- mm/debug.c                      | 44 ++++++++++++++++------
- mm/migrate.c                    | 23 ++++++++++--
- mm/oom_kill.c                   | 10 +++--
- mm/page_alloc.c                 | 18 ++++++++-
- mm/page_owner.c                 | 82 +++++++++++++++++++++++++++++++++++++----
- mm/vmstat.c                     | 15 +-------
- 13 files changed, 213 insertions(+), 63 deletions(-)
-
+diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
+index 8e2eb15..6440daa 100644
+--- a/include/linux/page_owner.h
++++ b/include/linux/page_owner.h
+@@ -11,6 +11,7 @@ extern void __reset_page_owner(struct page *page, unsigned int order);
+ extern void __set_page_owner(struct page *page,
+ 			unsigned int order, gfp_t gfp_mask);
+ extern gfp_t __get_page_owner_gfp(struct page *page);
++extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
+ 
+ static inline void reset_page_owner(struct page *page, unsigned int order)
+ {
+@@ -32,6 +33,11 @@ static inline gfp_t get_page_owner_gfp(struct page *page)
+ 	else
+ 		return 0;
+ }
++static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
++{
++	if (static_branch_unlikely(&page_owner_inited))
++		__copy_page_owner(oldpage, newpage);
++}
+ #else
+ static inline void reset_page_owner(struct page *page, unsigned int order)
+ {
+@@ -44,6 +50,8 @@ static inline gfp_t get_page_owner_gfp(struct page *page)
+ {
+ 	return 0;
+ }
+-
++static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
++{
++}
+ #endif /* CONFIG_PAGE_OWNER */
+ #endif /* __LINUX_PAGE_OWNER_H */
+diff --git a/mm/migrate.c b/mm/migrate.c
+index b1034f9..863a0f1 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -38,6 +38,7 @@
+ #include <linux/balloon_compaction.h>
+ #include <linux/mmu_notifier.h>
+ #include <linux/page_idle.h>
++#include <linux/page_owner.h>
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -578,6 +579,8 @@ void migrate_page_copy(struct page *newpage, struct page *page)
+ 	 */
+ 	if (PageWriteback(newpage))
+ 		end_page_writeback(newpage);
++
++	copy_page_owner(page, newpage);
+ }
+ 
+ /************************************************************
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 10a6a46..f571e55 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -84,6 +84,31 @@ gfp_t __get_page_owner_gfp(struct page *page)
+ 	return page_ext->gfp_mask;
+ }
+ 
++void __copy_page_owner(struct page *oldpage, struct page *newpage)
++{
++	struct page_ext *old_ext = lookup_page_ext(oldpage);
++	struct page_ext *new_ext = lookup_page_ext(newpage);
++	int i;
++
++	new_ext->order = old_ext->order;
++	new_ext->gfp_mask = old_ext->gfp_mask;
++	new_ext->nr_entries = old_ext->nr_entries;
++
++	for (i = 0; i < ARRAY_SIZE(new_ext->trace_entries); i++)
++		new_ext->trace_entries[i] = old_ext->trace_entries[i];
++
++	/*
++	 * We don't clear the bit on the oldpage as it's going to be freed
++	 * after migration. Until then, the info can be useful in case of
++	 * a bug, and the overal stats will be off a bit only temporarily.
++	 * Also, migrate_misplaced_transhuge_page() can still fail the
++	 * migration and then we want the oldpage to retain the info. But
++	 * in that case we also don't need to explicitly clear the info from
++	 * the new page, which will be freed.
++	 */
++	__set_bit(PAGE_EXT_OWNER, &new_ext->flags);
++}
++
+ static ssize_t
+ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 		struct page *page, struct page_ext *page_ext)
 -- 
 2.6.3
 
