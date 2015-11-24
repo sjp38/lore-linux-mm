@@ -1,80 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 9661A6B0038
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 05:21:45 -0500 (EST)
-Received: by wmuu63 with SMTP id u63so89577897wmu.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 02:21:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g10si25735468wmi.15.2015.11.24.02.21.44
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E6C26B0038
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 05:42:24 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so202427735wmv.1
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 02:42:23 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id hf9si25844059wjc.36.2015.11.24.02.42.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 Nov 2015 02:21:44 -0800 (PST)
-Date: Tue, 24 Nov 2015 11:21:43 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v3 09/22] kthread: Allow to cancel kthread work
-Message-ID: <20151124102143.GG10750@pathway.suse.cz>
-References: <1447853127-3461-1-git-send-email-pmladek@suse.com>
- <1447853127-3461-10-git-send-email-pmladek@suse.com>
- <20151123225823.GI19072@mtj.duckdns.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Nov 2015 02:42:23 -0800 (PST)
+Received: by wmec201 with SMTP id c201so201978770wme.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 02:42:22 -0800 (PST)
+Date: Tue, 24 Nov 2015 11:42:21 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, vmstat: Allow WQ concurrency to discover memory
+ reclaim doesn't make any progress
+Message-ID: <20151124104220.GE29472@dhcp22.suse.cz>
+References: <1447936253-18134-1-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151123225823.GI19072@mtj.duckdns.org>
+In-Reply-To: <1447936253-18134-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, Cristopher Lameter <clameter@sgi.com>, Arkadiusz =?utf-8?Q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 2015-11-23 17:58:23, Tejun Heo wrote:
-> Hello,
-> 
-> On Wed, Nov 18, 2015 at 02:25:14PM +0100, Petr Mladek wrote:
-> > +static int
-> > +try_to_cancel_kthread_work(struct kthread_work *work,
-> > +				   spinlock_t *lock,
-> > +				   unsigned long *flags)
-> > +{
-> > +	int ret = 0;
-> > +
-> > +	if (work->timer) {
-> > +		/* Try to cancel the timer if pending. */
-> > +		if (del_timer(work->timer)) {
-> > +			ret = 1;
-> > +			goto out;
-> > +		}
-> > +
-> > +		/* Are we racing with the timer callback? */
-> > +		if (timer_active(work->timer)) {
-> > +			/* Bad luck, need to avoid a deadlock. */
-> > +			spin_unlock_irqrestore(lock, *flags);
-> > +			del_timer_sync(work->timer);
-> > +			ret = -EAGAIN;
-> > +			goto out;
-> > +		}
-> 
-> As the timer side is already kinda trylocking anyway, can't the cancel
-> path be made simpler?  Sth like
-> 
-> 	lock(worker);
-> 	work->canceling = true;
-> 	del_timer_sync(work->timer);
-> 	unlock(worker);
-> 
-> And the timer can do (ignoring the multiple worker support, do we even
-> need that?)
-> 
-> 	while (!trylock(worker)) {
-> 		if (work->canceling)
-> 			return;
-> 		cpu_relax();
-> 	}
-> 	queue;
-> 	unlock(worker);
+Ping... Are there any concerns about this patch?
 
-Why did I not find out this myself ?:-)
+On Thu 19-11-15 13:30:53, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> Tetsuo Handa has reported that the system might basically livelock in OOM
+> condition without triggering the OOM killer. The issue is caused by
+> internal dependency of the direct reclaim on vmstat counter updates (via
+> zone_reclaimable) which are performed from the workqueue context.
+> If all the current workers get assigned to an allocation request,
+> though, they will be looping inside the allocator trying to reclaim
+> memory but zone_reclaimable can see stalled numbers so it will consider
+> a zone reclaimable even though it has been scanned way too much. WQ
+> concurrency logic will not consider this situation as a congested workqueue
+> because it relies that worker would have to sleep in such a situation.
+> This also means that it doesn't try to spawn new workers or invoke
+> the rescuer thread if the one is assigned to the queue.
+> 
+> In order to fix this issue we need to do two things. First we have to
+> let wq concurrency code know that we are in trouble so we have to do
+> a short sleep. In order to prevent from issues handled by 0e093d99763e
+> ("writeback: do not sleep on the congestion queue if there are no
+> congested BDIs or if significant congestion is not being encountered in
+> the current zone") we limit the sleep only to worker threads which are
+> the ones of the interest anyway.
+> 
+> The second thing to do is to create a dedicated workqueue for vmstat and
+> mark it WQ_MEM_RECLAIM to note it participates in the reclaim and to
+> have a spare worker thread for it.
+> 
+> Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: stable # 2.6.36+
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+> [I am convinced that I have posted this as a separate patch but I cannot
+> find it in the archive nor in my inbox, so let me try again.]
+> 
+> Hi Andrew,
+> 
+> The original issue reported by Tetsuo [1] has seen multiple attempts for
+> a fix. The easiest one being [2] which was targeted to the particular
+> problem. There was a more general concern that looping inside the
+> allocator without ever sleeping breaks the basic assumption of worker
+> concurrency logic so the fix should be more general. Another attempt [3]
+> therefore added a short (1 jiffy) sleep into the page allocator. This
+> would, however, introduce sleeping for all callers of the page allocator
+> which is not really needed. This patch tries to be a compromise and
+> introduce sleeping only where it matters - for kworkers.
+> 
+> Even though we haven't seen bug reports in the past I would suggest
+> backporting this to the stable trees. The issue is present since we have
+> stopped useing congestion_wait in the retry loop because WQ concurrency
+> is older as well as vmstat worqueue based refresh AFAICS.
+> 
+> [1] http://lkml.kernel.org/r/201510130025.EJF21331.FFOQJtVOMLFHSO%40I-love.SAKURA.ne.jp
+> [2] http://lkml.kernel.org/r/201510212126.JIF90648.HOOFJVFQLMStOF@I-love.SAKURA.ne.jp
+> [3] http://lkml.kernel.org/r/201510251952.CEF04109.OSOtLFHFVFJMQO@I-love.SAKURA.ne.jp
+> 
+>  mm/backing-dev.c | 19 ++++++++++++++++---
+>  mm/vmstat.c      |  6 ++++--
+>  2 files changed, 20 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index 8ed2ffd963c5..7340353f8aea 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -957,8 +957,9 @@ EXPORT_SYMBOL(congestion_wait);
+>   * jiffies for either a BDI to exit congestion of the given @sync queue
+>   * or a write to complete.
+>   *
+> - * In the absence of zone congestion, cond_resched() is called to yield
+> - * the processor if necessary but otherwise does not sleep.
+> + * In the absence of zone congestion, a short sleep or a cond_resched is
+> + * performed to yield the processor and to allow other subsystems to make
+> + * a forward progress.
+>   *
+>   * The return value is 0 if the sleep is for the full timeout. Otherwise,
+>   * it is the number of jiffies that were still remaining when the function
+> @@ -978,7 +979,19 @@ long wait_iff_congested(struct zone *zone, int sync, long timeout)
+>  	 */
+>  	if (atomic_read(&nr_wb_congested[sync]) == 0 ||
+>  	    !test_bit(ZONE_CONGESTED, &zone->flags)) {
+> -		cond_resched();
+> +
+> +		/*
+> +		 * Memory allocation/reclaim might be called from a WQ
+> +		 * context and the current implementation of the WQ
+> +		 * concurrency control doesn't recognize that a particular
+> +		 * WQ is congested if the worker thread is looping without
+> +		 * ever sleeping. Therefore we have to do a short sleep
+> +		 * here rather than calling cond_resched().
+> +		 */
+> +		if (current->flags & PF_WQ_WORKER)
+> +			schedule_timeout(1);
+> +		else
+> +			cond_resched();
+>  
+>  		/* In case we scheduled, work out time remaining */
+>  		ret = timeout - (jiffies - start);
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 45dcbcb5c594..0975da8e3432 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1381,6 +1381,7 @@ static const struct file_operations proc_vmstat_file_operations = {
+>  #endif /* CONFIG_PROC_FS */
+>  
+>  #ifdef CONFIG_SMP
+> +static struct workqueue_struct *vmstat_wq;
+>  static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+>  int sysctl_stat_interval __read_mostly = HZ;
+>  static cpumask_var_t cpu_stat_off;
+> @@ -1393,7 +1394,7 @@ static void vmstat_update(struct work_struct *w)
+>  		 * to occur in the future. Keep on running the
+>  		 * update worker thread.
+>  		 */
+> -		schedule_delayed_work_on(smp_processor_id(),
+> +		queue_delayed_work_on(smp_processor_id(), vmstat_wq,
+>  			this_cpu_ptr(&vmstat_work),
+>  			round_jiffies_relative(sysctl_stat_interval));
+>  	} else {
+> @@ -1462,7 +1463,7 @@ static void vmstat_shepherd(struct work_struct *w)
+>  		if (need_update(cpu) &&
+>  			cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
+>  
+> -			schedule_delayed_work_on(cpu,
+> +			queue_delayed_work_on(cpu, vmstat_wq,
+>  				&per_cpu(vmstat_work, cpu), 0);
+>  
+>  	put_online_cpus();
+> @@ -1551,6 +1552,7 @@ static int __init setup_vmstat(void)
+>  
+>  	start_shepherd_timer();
+>  	cpu_notifier_register_done();
+> +	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+>  #endif
+>  #ifdef CONFIG_PROC_FS
+>  	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+> -- 
+> 2.6.2
+> 
 
-Thanks for hint,
-Petr
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
