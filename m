@@ -1,77 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AF7F6B0256
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 16:38:36 -0500 (EST)
-Received: by obbww6 with SMTP id ww6so24381310obb.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 13:38:36 -0800 (PST)
-Received: from g4t3428.houston.hp.com (g4t3428.houston.hp.com. [15.201.208.56])
-        by mx.google.com with ESMTPS id g76si12958173oib.27.2015.11.24.13.38.32
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EE4E6B0255
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 16:52:23 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so230362231wmv.1
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 13:52:23 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 132si959056wmj.99.2015.11.24.13.52.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 13:38:32 -0800 (PST)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v3 3/3] ACPI/APEI/EINJ: Allow memory error injection to NVDIMM
-Date: Tue, 24 Nov 2015 15:33:38 -0700
-Message-Id: <1448404418-28800-4-git-send-email-toshi.kani@hpe.com>
-In-Reply-To: <1448404418-28800-1-git-send-email-toshi.kani@hpe.com>
-References: <1448404418-28800-1-git-send-email-toshi.kani@hpe.com>
+        Tue, 24 Nov 2015 13:52:22 -0800 (PST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH 00/13] mm: memcontrol: account socket memory in unified hierarchy v4
+Date: Tue, 24 Nov 2015 16:51:52 -0500
+Message-Id: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, rjw@rjwysocki.net, dan.j.williams@intel.com
-Cc: tony.luck@intel.com, bp@alien8.de, vishal.l.verma@intel.com, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Miller <davem@davemloft.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-In the case of memory error injection, einj_error_inject() checks
-if a target address is regular RAM.  Update this check to add a call
-to region_intersects_pmem() to verify if a target address range is
-NVDIMM.  This allows injecting a memory error to both RAM and NVDIMM
-for testing.
+Hi,
 
-In addition, the current RAM check, page_is_ram(), is replaced with
-region_intersects_ram() so that it can verify a target address range
-with the requested size.
+this is version 4 of the patches to add socket memory accounting to
+the unified hierarchy memory controller.
 
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Reviewed-by: Dan Williams <dan.j.williams@intel.com>
-Acked-by: Tony Luck <tony.luck@intel.com>
-Cc: Rafael J. Wysocki <rjw@rjwysocki.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Vishal Verma <vishal.l.verma@intel.com>
+Andrew, absent any new showstoppers, please consider merging this
+series for v4.5. Thanks!
+
+Changes since v3 include:
+
+- Restored the local vmpressure reporting while preserving the
+  hierarchical pressure semantics of the user interface, such that
+  networking is throttled also for global memory shortage, and not
+  just when encountering configured cgroup limits. As per Vladimir,
+  this will make fully provisioned systems perform more smoothly.
+
+- Make packet submission paths enter direct reclaim when memory is
+  tight, and reserve the background balancing worklet for receiving
+  packets in softirq context.
+
+- Dropped a buggy shrinker cleanup, spotted by Vladimir.
+
+- Fixed a missing return statement, spotted by Eric.
+
+- Documented cgroup.memory=nosocket, as per Michal.
+
+- Rebased onto latest mmots and added ack tags.
+
+Changes since v2 include:
+
+- Fixed an underflow bug in the mem+swap counter that came through the
+  design of the per-cpu charge cache. To fix that, the unused mem+swap
+  counter is now fully patched out on unified hierarchy. Double whammy.
+
+- Restored the counting jump label such that the networking callbacks
+  get patched out again when the last memory-controlled cgroup goes
+  away. The code was already there, so we might as well keep it.
+
+- Broke down the massive tcp_memcontrol rewrite patch into smaller
+  logical pieces to (hopefully) make it easier to review and verify.
+
+Changes since v1 include:
+
+- No accounting overhead unless a dedicated cgroup is created and the
+  memory controller instructed to track that group's memory footprint.
+  Distribution kernels enable CONFIG_MEMCG, and users (incl. systemd)
+  might create cgroups only for process control or resources other
+  than memory. As noted by David and Michal, these setups shouldn't
+  pay any overhead for this.
+
+- Continue to enter the socket pressure state when hitting the memory
+  controller's hard limit. Vladimir noted that there is at least some
+  value in telling other sockets in the cgroup to not increase their
+  transmit windows when one of them is already dropping packets.
+
+- Drop the controversial vmpressure rework. Instead of changing the
+  level where pressure is noted, keep noting pressure in its origin
+  and then make the pressure check hierarchical. As noted by Michal
+  and Vladimir, we shouldn't risk changing user-visible behavior.
+
 ---
- drivers/acpi/apei/einj.c |   13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/acpi/apei/einj.c b/drivers/acpi/apei/einj.c
-index 0431883..52792d2 100644
---- a/drivers/acpi/apei/einj.c
-+++ b/drivers/acpi/apei/einj.c
-@@ -519,7 +519,7 @@ static int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
- 			     u64 param3, u64 param4)
- {
- 	int rc;
--	unsigned long pfn;
-+	u64 base_addr, size;
- 
- 	/* If user manually set "flags", make sure it is legal */
- 	if (flags && (flags &
-@@ -545,10 +545,15 @@ static int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
- 	/*
- 	 * Disallow crazy address masks that give BIOS leeway to pick
- 	 * injection address almost anywhere. Insist on page or
--	 * better granularity and that target address is normal RAM.
-+	 * better granularity and that target address is normal RAM or
-+	 * NVDIMM.
- 	 */
--	pfn = PFN_DOWN(param1 & param2);
--	if (!page_is_ram(pfn) || ((param2 & PAGE_MASK) != PAGE_MASK))
-+	base_addr = param1 & param2;
-+	size = ~param2 + 1;
-+
-+	if (((param2 & PAGE_MASK) != PAGE_MASK) ||
-+	    ((region_intersects_ram(base_addr, size) != REGION_INTERSECTS) &&
-+	     (region_intersects_pmem(base_addr, size) != REGION_INTERSECTS)))
- 		return -EINVAL;
- 
- inject:
+Socket buffer memory can make up a significant share of a workload's
+memory footprint that can be directly linked to userspace activity,
+and so it needs to be part of the memory controller to provide proper
+resource isolation/containment.
+
+Historically, socket buffers were accounted in a separate counter,
+without any pressure equalization between anonymous memory, page
+cache, and the socket buffers. When the socket buffer pool was
+exhausted, buffer allocations would fail hard and cause network
+performance to tank, regardless of whether there was still memory
+available to the group or not. Likewise, struggling anonymous or cache
+workingsets could not dip into an idle socket memory pool. Because of
+this, the feature was not usable for many real life applications.
+
+To not repeat this mistake, the new memory controller will account all
+types of memory pages it is tracking on behalf of a cgroup in a single
+pool. Upon pressure, the VM reclaims and shrinks and puts pressure on
+whatever memory consumer in that pool is within its reach.
+
+For socket memory, pressure feedback is provided through vmpressure
+events. When the VM has trouble freeing memory, the network code is
+instructed to stop growing the cgroup's transmit windows.
+
+This series begins with a rework of the existing tcp memory controller
+that simplifies and cleans up the code while allowing us to have only
+one set of networking hooks for both memory controller versions. The
+original behavior of the existing tcp controller should be preserved.
+
+It then adds socket accounting to the v2 memory controller, including
+the use of the per-cpu charge cache and async memory.high enforcement
+from socket memory charges.
+
+Lastly, vmpressure is hooked up to the socket code so that it stops
+growing transmit windows when the VM has trouble reclaiming memory.
+
+ Documentation/kernel-parameters.txt |   4 +
+ include/linux/memcontrol.h          |  71 ++++----
+ include/linux/vmpressure.h          |   5 +-
+ include/net/sock.h                  | 149 ++---------------
+ include/net/tcp.h                   |   5 +-
+ include/net/tcp_memcontrol.h        |   1 -
+ mm/backing-dev.c                    |   2 +-
+ mm/memcontrol.c                     | 296 ++++++++++++++++++++++------------
+ mm/vmpressure.c                     |  78 ++++++---
+ mm/vmscan.c                         |  10 +-
+ net/core/sock.c                     |  78 +++------
+ net/ipv4/tcp.c                      |   3 +-
+ net/ipv4/tcp_ipv4.c                 |   9 +-
+ net/ipv4/tcp_memcontrol.c           |  82 ++++------
+ net/ipv4/tcp_output.c               |   7 +-
+ net/ipv6/tcp_ipv6.c                 |   3 -
+ 16 files changed, 383 insertions(+), 420 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
