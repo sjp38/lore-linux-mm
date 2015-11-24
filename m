@@ -1,60 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id AE6A16B0038
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 09:56:48 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so24687537pac.2
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 06:56:48 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id zz9si26922172pac.245.2015.11.24.06.56.47
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 931DA6B0254
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 09:57:09 -0500 (EST)
+Received: by wmec201 with SMTP id c201so30279907wme.1
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 06:57:09 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w1si27249200wmw.37.2015.11.24.06.57.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 06:56:47 -0800 (PST)
-Date: Tue, 24 Nov 2015 15:56:41 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v3 07/22] kthread: Detect when a kthread work is used by
- more workers
-Message-ID: <20151124145641.GV17308@twins.programming.kicks-ass.net>
-References: <1447853127-3461-1-git-send-email-pmladek@suse.com>
- <1447853127-3461-8-git-send-email-pmladek@suse.com>
- <20151123222703.GH19072@mtj.duckdns.org>
- <20151124100650.GF10750@pathway.suse.cz>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 24 Nov 2015 06:57:08 -0800 (PST)
+Subject: Re: [PATCH 1/3] mm/page_isolation: return last tested pfn rather than
+ failure indicator
+References: <1447381428-12445-1-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56547ABE.8020001@suse.cz>
+Date: Tue, 24 Nov 2015 15:57:02 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151124100650.GF10750@pathway.suse.cz>
+In-Reply-To: <1447381428-12445-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, Nov 24, 2015 at 11:06:50AM +0100, Petr Mladek wrote:
-> On Mon 2015-11-23 17:27:03, Tejun Heo wrote:
-> > Hello,
-> > 
-> > On Wed, Nov 18, 2015 at 02:25:12PM +0100, Petr Mladek wrote:
-> > > @@ -610,6 +625,12 @@ repeat:
-> > >  	if (work) {
-> > >  		__set_current_state(TASK_RUNNING);
-> > >  		work->func(work);
-> > > +
-> > > +		spin_lock_irq(&worker->lock);
-> > > +		/* Allow to queue the work into another worker */
-> > > +		if (!kthread_work_pending(work))
-> > > +			work->worker = NULL;
-> > > +		spin_unlock_irq(&worker->lock);
-> > 
-> > Doesn't this mean that the work item can't be freed from its callback?
-> > That pattern tends to happen regularly.
-> 
-> I am not sure if I understand your question. Do you mean switching
-> work->func during the life time of the struct kthread_work? This
-> should not be affected by the above code.
+On 11/13/2015 03:23 AM, Joonsoo Kim wrote:
+> This is preparation step to report test failed pfn in new tracepoint
+> to analyze cma allocation failure problem. There is no functional change
+> in this patch.
+>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Acked-by: Michal Nazarewicz <mina86@mina86.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-No, work->func(work) doing: kfree(work).
-
-That is indeed something quite frequently done, and since you now have
-references to work after calling func, things would go *boom* rather
-quickly.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
