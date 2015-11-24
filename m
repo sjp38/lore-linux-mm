@@ -1,61 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 366726B0258
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 08:37:13 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so209738310wmv.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 05:37:12 -0800 (PST)
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
-        by mx.google.com with ESMTPS id o125si19783892wma.42.2015.11.24.05.37.12
+Received: from mail-lf0-f50.google.com (mail-lf0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E9646B0257
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 08:43:47 -0500 (EST)
+Received: by lfaz4 with SMTP id z4so20986803lfa.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 05:43:46 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id jm1si12348485lbc.135.2015.11.24.05.43.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 05:37:12 -0800 (PST)
-Received: by wmww144 with SMTP id w144so138909493wmw.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 05:37:11 -0800 (PST)
-Date: Tue, 24 Nov 2015 14:37:10 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm, vmscan: do not overestimate anonymous
- reclaimable pages
-Message-ID: <20151124133710.GJ29472@dhcp22.suse.cz>
-References: <1448366100-11023-1-git-send-email-mhocko@kernel.org>
- <1448366100-11023-3-git-send-email-mhocko@kernel.org>
- <20151124130740.GG29014@esperanza>
+        Tue, 24 Nov 2015 05:43:45 -0800 (PST)
+Date: Tue, 24 Nov 2015 16:43:27 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 09/14] net: tcp_memcontrol: simplify linkage between
+ socket and page counter
+Message-ID: <20151124134327.GH29014@esperanza>
+References: <1447371693-25143-1-git-send-email-hannes@cmpxchg.org>
+ <1447371693-25143-10-git-send-email-hannes@cmpxchg.org>
+ <20151120124216.GD31308@esperanza>
+ <20151120185648.GC5623@cmpxchg.org>
+ <20151123093646.GA29014@esperanza>
+ <20151123182037.GE13000@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20151124130740.GG29014@esperanza>
+In-Reply-To: <20151123182037.GE13000@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Miller <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Tue 24-11-15 16:07:40, Vladimir Davydov wrote:
-> On Tue, Nov 24, 2015 at 12:55:00PM +0100, Michal Hocko wrote:
-> > zone_reclaimable_pages considers all anonymous pages on LRUs reclaimable
-> > if there is at least one entry on the swap storage left. This can be
-> > really misleading when the swap is short on space and skew reclaim
-> > decisions based on zone_reclaimable_pages. Fix this by clamping the
-> > number to the minimum of the available swap space and anon LRU pages.
+On Mon, Nov 23, 2015 at 01:20:37PM -0500, Johannes Weiner wrote:
+> On Mon, Nov 23, 2015 at 12:36:46PM +0300, Vladimir Davydov wrote:
+> > On Fri, Nov 20, 2015 at 01:56:48PM -0500, Johannes Weiner wrote:
+> > > I actually had all this at first, but then wondered if it makes more
+> > > sense to keep the legacy code in isolation. Don't you think it would
+> > > be easier to keep track of what's v1 and what's v2 if we keep the
+> > > legacy stuff physically separate as much as possible? In particular I
+> > > found that 'tcp_mem.' marker really useful while working on the code.
+> > > 
+> > > In the same vein, tcp_memcontrol.c doesn't really hurt anybody and I'd
+> > > expect it to remain mostly unopened and unchanged in the future. But
+> > > if we merge it into memcontrol.c, that code will likely be in the way
+> > > and we'd have to make it explicit somehow that this is not actually
+> > > part of the new memory controller anymore.
+> > > 
+> > > What do you think?
+> > 
+> > There isn't much code left in tcp_memcontrol.c, and not all of it is
+> > legacy. We still want to call tcp_init_cgroup and tcp_destroy_cgroup
+> > from memcontrol.c - in fact, it's the only call site, so I think we'd
+> > better keep these functions there. Apart from init/destroy, there is
+> > only stuff for handling legacy files, which is relatively small and
+> > isolated. We can just put it along with memsw and kmem legacy files in
+> > the end of memcontrol.c adding a comment that it's legacy. Personally,
+> > I'd find the code easier to follow then, because currently the logic
+> > behind the ACTIVE flag as well as memcg->tcp_mem init/use/destroy turns
+> > out to be scattered between two files in different subsystems for no
+> > apparent reason now, as it does not need tcp_prot any more. Besides,
+> > this would allow us to accurately reuse the ACTIVE flag in init/destroy
+> > for inc/dec static branch and probably in sock_update_memcg instead of
+> > sprinkling cgroup_subsys_on_dfl all over the place, which would make the
+> > code a bit cleaner IMO (in fact, that's why I proposed to drop ACTIVATED
+> > bit and replace cg_proto->flags with ->active bool).
 > 
-> Suppose there's 100M of swap and 1G of anon pages. This patch makes
-> zone_reclaimable_pages return 100M instead of 1G in this case. If you
-> rotate 600M of oldest anon pages, which is quite possible,
-> zone_reclaimable will start returning false, which is wrong, because
-> there are still 400M pages that were not even scanned, besides those
-> 600M of rotated pages could have become reclaimable after their ref bits
-> got cleared.
+> As far as I can see, all of tcp_memcontrol.c is legacy, including the
+> init and destroy functions. We only call them to set up the legacy
+> tcp_mem state and do legacy jump-label maintenance. Delete it all and
+> the unified hierarchy controller would still work. So I don't really
+> see the benefits of consolidating it, and more risk of convoluting.
+> 
+> That being said, if you care strongly about it and see opportunities
+> to cut down code and make things more readable, please feel free to
+> turn the flags -> bool patch into a followup series and I'll be happy
+> to review it.
 
-Uhm, OK, I guess you are right. Making zone_reclaimable less
-conservative can lead to hard to expect results. Scratch this patch
-please.
- 
-> I think it is the name of zone_reclaimable_pages which is misleading. It
-> should be called something like "zone_scannable_pages" judging by how it
-> is used in zone_reclaimable.
+OK, I'll look into that.
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+Regarding this patch, I don't have any questions left,
+
+Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
