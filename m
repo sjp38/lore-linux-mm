@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B3C26B0259
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 16:58:57 -0500 (EST)
-Received: by wmec201 with SMTP id c201so230014946wme.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 13:58:57 -0800 (PST)
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id BF4136B025A
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 16:59:53 -0500 (EST)
+Received: by wmec201 with SMTP id c201so45861737wme.1
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 13:59:53 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id p9si21686829wjw.8.2015.11.24.13.58.56
+        by mx.google.com with ESMTPS id o5si29778703wjq.214.2015.11.24.13.59.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 13:58:56 -0800 (PST)
-Date: Tue, 24 Nov 2015 16:58:44 -0500
+        Tue, 24 Nov 2015 13:59:52 -0800 (PST)
+Date: Tue, 24 Nov 2015 16:59:40 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 12/13] mm: memcontrol: account socket memory in unified
- hierarchy memory controller
-Message-ID: <20151124215844.GA1373@cmpxchg.org>
+Subject: [PATCH 13/13] mm: memcontrol: hook up vmpressure to socket pressure
+Message-ID: <20151124215940.GB1373@cmpxchg.org>
 References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -24,298 +23,358 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: David Miller <davem@davemloft.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Socket memory can be a significant share of overall memory consumed by
-common workloads. In order to provide reasonable resource isolation in
-the unified hierarchy, this type of memory needs to be included in the
-tracking/accounting of a cgroup under active memory resource control.
+Let the networking stack know when a memcg is under reclaim pressure
+so that it can clamp its transmit windows accordingly.
 
-Overhead is only incurred when a non-root control group is created AND
-the memory controller is instructed to track and account the memory
-footprint of that group. cgroup.memory=nosocket can be specified on
-the boot commandline to override any runtime configuration and
-forcibly exclude socket memory from active memory resource control.
+Whenever the reclaim efficiency of a cgroup's LRU lists drops low
+enough for a MEDIUM or HIGH vmpressure event to occur, assert a
+pressure state in the socket and tcp memory code that tells it to curb
+consumption growth from sockets associated with said control group.
+
+Traditionally, vmpressure reports for the entire subtree of a memcg
+under pressure, which drops useful information on the individual
+groups reclaimed. However, it's too late to change the userinterface,
+so add a second reporting mode that reports on the level of reclaim
+instead of at the level of pressure, and use that report for sockets.
+
+vmpressure events are naturally edge triggered, so for hysteresis
+assert socket pressure for a second to allow for subsequent vmpressure
+events to occur before letting the socket code return to normal.
+
+This will likely need finetuning for a wider variety of workloads, but
+for now stick to the vmpressure presets and keep hysteresis simple.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- Documentation/kernel-parameters.txt |   4 ++
- include/linux/memcontrol.h          |  11 +++-
- mm/memcontrol.c                     | 122 +++++++++++++++++++++++++++++-------
- 3 files changed, 111 insertions(+), 26 deletions(-)
+ include/linux/memcontrol.h | 32 ++++++++++++++++---
+ include/linux/vmpressure.h |  5 ++-
+ mm/memcontrol.c            | 17 ++--------
+ mm/vmpressure.c            | 78 +++++++++++++++++++++++++++++++++++-----------
+ mm/vmscan.c                | 10 +++++-
+ 5 files changed, 103 insertions(+), 39 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 742f69d..7868f1b 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -599,6 +599,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			cut the overhead, others just disable the usage. So
- 			only cgroup_disable=memory is actually worthy}
- 
-+	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
-+			Format: <string>
-+			nosocket -- Disable socket memory accounting.
-+
- 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
- 			Format: { "0" | "1" }
- 			See security/selinux/Kconfig help text.
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index dad56ef..fae0aaf 100644
+index fae0aaf..a8df46c 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -170,6 +170,9 @@ struct mem_cgroup {
- 	unsigned long low;
- 	unsigned long high;
+@@ -249,6 +249,10 @@ struct mem_cgroup {
+ 	struct wb_domain cgwb_domain;
+ #endif
  
-+	/* Range enforcement for interrupt charges */
-+	struct work_struct high_work;
-+
- 	unsigned long soft_limit;
- 
- 	/* vmpressure notifications */
-@@ -679,7 +682,7 @@ static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
- 
- #endif	/* CONFIG_CGROUP_WRITEBACK */
- 
--#if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
 +#ifdef CONFIG_INET
- struct sock;
- extern struct static_key memcg_sockets_enabled_key;
- #define mem_cgroup_sockets_enabled static_key_false(&memcg_sockets_enabled_key)
-@@ -689,11 +692,15 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
- void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
++	unsigned long		socket_pressure;
++#endif
++
+ 	/* List of events which userspace want to receive */
+ 	struct list_head event_list;
+ 	spinlock_t event_list_lock;
+@@ -292,18 +296,34 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
+ 
+ bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
+ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+-struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
+ 
+ static inline
+ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
+ 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
+ }
+ 
++#define mem_cgroup_from_counter(counter, member)	\
++	container_of(counter, struct mem_cgroup, member)
++
+ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
+ 				   struct mem_cgroup *,
+ 				   struct mem_cgroup_reclaim_cookie *);
+ void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
+ 
++/**
++ * parent_mem_cgroup - find the accounting parent of a memcg
++ * @memcg: memcg whose parent to find
++ *
++ * Returns the parent memcg, or NULL if this is the root or the memory
++ * controller is in legacy no-hierarchy mode.
++ */
++static inline struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg)
++{
++	if (!memcg->memory.parent)
++		return NULL;
++	return mem_cgroup_from_counter(memcg->memory.parent, memory);
++}
++
+ static inline bool mem_cgroup_is_descendant(struct mem_cgroup *memcg,
+ 			      struct mem_cgroup *root)
+ {
+@@ -693,10 +713,14 @@ void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
  static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
  {
-+#ifdef CONFIG_MEMCG_KMEM
- 	return memcg->tcp_mem.memory_pressure;
-+#else
+ #ifdef CONFIG_MEMCG_KMEM
+-	return memcg->tcp_mem.memory_pressure;
+-#else
+-	return false;
++	if (memcg->tcp_mem.memory_pressure)
++		return true;
+ #endif
++	do {
++		if (time_before(jiffies, memcg->socket_pressure))
++			return true;
++	} while ((memcg = parent_mem_cgroup(memcg)));
 +	return false;
-+#endif
  }
  #else
  #define mem_cgroup_sockets_enabled 0
--#endif /* CONFIG_INET && CONFIG_MEMCG_KMEM */
-+#endif /* CONFIG_INET */
+diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
+index 3e45358..a77b142 100644
+--- a/include/linux/vmpressure.h
++++ b/include/linux/vmpressure.h
+@@ -12,6 +12,9 @@
+ struct vmpressure {
+ 	unsigned long scanned;
+ 	unsigned long reclaimed;
++
++	unsigned long tree_scanned;
++	unsigned long tree_reclaimed;
+ 	/* The lock is used to keep the scanned/reclaimed above in sync. */
+ 	struct spinlock sr_lock;
  
- #ifdef CONFIG_MEMCG_KMEM
- extern struct static_key memcg_kmem_enabled_key;
+@@ -26,7 +29,7 @@ struct vmpressure {
+ struct mem_cgroup;
+ 
+ #ifdef CONFIG_MEMCG
+-extern void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
++extern void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
+ 		       unsigned long scanned, unsigned long reclaimed);
+ extern void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio);
+ 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ed030b5..59555b0 100644
+index 59555b0..a0da91f 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -80,6 +80,9 @@ struct mem_cgroup *root_mem_cgroup __read_mostly;
- 
- #define MEM_CGROUP_RECLAIM_RETRIES	5
- 
-+/* Socket memory accounting disabled? */
-+static bool cgroup_memory_nosocket;
-+
- /* Whether the swap controller is active */
- #ifdef CONFIG_MEMCG_SWAP
- int do_swap_account __read_mostly;
-@@ -1923,6 +1926,26 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
- 	return NOTIFY_OK;
+@@ -1091,9 +1091,6 @@ bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg)
+ 	return ret;
  }
  
-+static void reclaim_high(struct mem_cgroup *memcg,
-+			 unsigned int nr_pages,
-+			 gfp_t gfp_mask)
-+{
-+	do {
-+		if (page_counter_read(&memcg->memory) <= memcg->high)
-+			continue;
-+		mem_cgroup_events(memcg, MEMCG_HIGH, 1);
-+		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
-+	} while ((memcg = parent_mem_cgroup(memcg)));
-+}
-+
-+static void high_work_func(struct work_struct *work)
-+{
-+	struct mem_cgroup *memcg;
-+
-+	memcg = container_of(work, struct mem_cgroup, high_work);
-+	reclaim_high(memcg, CHARGE_BATCH, GFP_KERNEL);
-+}
-+
- /*
-  * Scheduled by try_charge() to be executed from the userland return path
-  * and reclaims memory over the high limit.
-@@ -1930,20 +1953,13 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
- void mem_cgroup_handle_over_high(void)
- {
- 	unsigned int nr_pages = current->memcg_nr_pages_over_high;
--	struct mem_cgroup *memcg, *pos;
-+	struct mem_cgroup *memcg;
+-#define mem_cgroup_from_counter(counter, member)	\
+-	container_of(counter, struct mem_cgroup, member)
+-
+ /**
+  * mem_cgroup_margin - calculate chargeable space of a memory cgroup
+  * @memcg: the memory cgroup
+@@ -4159,17 +4156,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ 	kfree(memcg);
+ }
  
- 	if (likely(!nr_pages))
+-/*
+- * Returns the parent mem_cgroup in memcgroup hierarchy with hierarchy enabled.
+- */
+-struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg)
+-{
+-	if (!memcg->memory.parent)
+-		return NULL;
+-	return mem_cgroup_from_counter(memcg->memory.parent, memory);
+-}
+-EXPORT_SYMBOL(parent_mem_cgroup);
+-
+ static struct cgroup_subsys_state * __ref
+ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ {
+@@ -4210,6 +4196,9 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ #ifdef CONFIG_CGROUP_WRITEBACK
+ 	INIT_LIST_HEAD(&memcg->cgwb_list);
+ #endif
++#ifdef CONFIG_INET
++	memcg->socket_pressure = jiffies;
++#endif
+ 	return &memcg->css;
+ 
+ free_out:
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 4c25e62..af262bb 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -137,14 +137,11 @@ struct vmpressure_event {
+ };
+ 
+ static bool vmpressure_event(struct vmpressure *vmpr,
+-			     unsigned long scanned, unsigned long reclaimed)
++			     enum vmpressure_levels level)
+ {
+ 	struct vmpressure_event *ev;
+-	enum vmpressure_levels level;
+ 	bool signalled = false;
+ 
+-	level = vmpressure_calc_level(scanned, reclaimed);
+-
+ 	mutex_lock(&vmpr->events_lock);
+ 
+ 	list_for_each_entry(ev, &vmpr->events, node) {
+@@ -164,6 +161,7 @@ static void vmpressure_work_fn(struct work_struct *work)
+ 	struct vmpressure *vmpr = work_to_vmpressure(work);
+ 	unsigned long scanned;
+ 	unsigned long reclaimed;
++	enum vmpressure_levels level;
+ 
+ 	spin_lock(&vmpr->sr_lock);
+ 	/*
+@@ -174,19 +172,21 @@ static void vmpressure_work_fn(struct work_struct *work)
+ 	 * here. No need for any locks here since we don't care if
+ 	 * vmpr->reclaimed is in sync.
+ 	 */
+-	scanned = vmpr->scanned;
++	scanned = vmpr->tree_scanned;
+ 	if (!scanned) {
+ 		spin_unlock(&vmpr->sr_lock);
+ 		return;
+ 	}
+ 
+-	reclaimed = vmpr->reclaimed;
+-	vmpr->scanned = 0;
+-	vmpr->reclaimed = 0;
++	reclaimed = vmpr->tree_reclaimed;
++	vmpr->tree_scanned = 0;
++	vmpr->tree_reclaimed = 0;
+ 	spin_unlock(&vmpr->sr_lock);
+ 
++	level = vmpressure_calc_level(scanned, reclaimed);
++
+ 	do {
+-		if (vmpressure_event(vmpr, scanned, reclaimed))
++		if (vmpressure_event(vmpr, level))
+ 			break;
+ 		/*
+ 		 * If not handled, propagate the event upward into the
+@@ -199,6 +199,7 @@ static void vmpressure_work_fn(struct work_struct *work)
+  * vmpressure() - Account memory pressure through scanned/reclaimed ratio
+  * @gfp:	reclaimer's gfp mask
+  * @memcg:	cgroup memory controller handle
++ * @tree:	legacy subtree mode
+  * @scanned:	number of pages scanned
+  * @reclaimed:	number of pages reclaimed
+  *
+@@ -206,9 +207,16 @@ static void vmpressure_work_fn(struct work_struct *work)
+  * "instantaneous" memory pressure (scanned/reclaimed ratio). The raw
+  * pressure index is then further refined and averaged over time.
+  *
++ * If @tree is set, vmpressure is in traditional userspace reporting
++ * mode: @memcg is considered the pressure root and userspace is
++ * notified of the entire subtree's reclaim efficiency.
++ *
++ * If @tree is not set, reclaim efficiency is recorded for @memcg, and
++ * only in-kernel users are notified.
++ *
+  * This function does not return any value.
+  */
+-void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
++void vmpressure(gfp_t gfp, struct mem_cgroup *memcg, bool tree,
+ 		unsigned long scanned, unsigned long reclaimed)
+ {
+ 	struct vmpressure *vmpr = memcg_to_vmpressure(memcg);
+@@ -238,15 +246,47 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+ 	if (!scanned)
  		return;
  
--	pos = memcg = get_mem_cgroup_from_mm(current->mm);
--
--	do {
--		if (page_counter_read(&pos->memory) <= pos->high)
--			continue;
--		mem_cgroup_events(pos, MEMCG_HIGH, 1);
--		try_to_free_mem_cgroup_pages(pos, nr_pages, GFP_KERNEL, true);
--	} while ((pos = parent_mem_cgroup(pos)));
--
-+	memcg = get_mem_cgroup_from_mm(current->mm);
-+	reclaim_high(memcg, nr_pages, GFP_KERNEL);
- 	css_put(&memcg->css);
- 	current->memcg_nr_pages_over_high = 0;
- }
-@@ -2078,6 +2094,11 @@ done_restock:
- 	 */
- 	do {
- 		if (page_counter_read(&memcg->memory) > memcg->high) {
-+			/* Don't bother a random interrupted task */
-+			if (in_interrupt()) {
-+				schedule_work(&memcg->high_work);
-+				break;
-+			}
- 			current->memcg_nr_pages_over_high += batch;
- 			set_notify_resume(current);
- 			break;
-@@ -4126,6 +4147,8 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- {
- 	int node;
+-	spin_lock(&vmpr->sr_lock);
+-	vmpr->scanned += scanned;
+-	vmpr->reclaimed += reclaimed;
+-	scanned = vmpr->scanned;
+-	spin_unlock(&vmpr->sr_lock);
++	if (tree) {
++		spin_lock(&vmpr->sr_lock);
++		vmpr->tree_scanned += scanned;
++		vmpr->tree_reclaimed += reclaimed;
++		scanned = vmpr->scanned;
++		spin_unlock(&vmpr->sr_lock);
  
-+	cancel_work_sync(&memcg->high_work);
+-	if (scanned < vmpressure_win)
+-		return;
+-	schedule_work(&vmpr->work);
++		if (scanned < vmpressure_win)
++			return;
++		schedule_work(&vmpr->work);
++	} else {
++		enum vmpressure_levels level;
 +
- 	mem_cgroup_remove_from_trees(memcg);
- 
- 	for_each_node(node)
-@@ -4172,6 +4195,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
- 		page_counter_init(&memcg->kmem, NULL);
- 	}
- 
-+	INIT_WORK(&memcg->high_work, high_work_func);
- 	memcg->last_scanned_node = MAX_NUMNODES;
- 	INIT_LIST_HEAD(&memcg->oom_notify);
- 	memcg->move_charge_at_immigrate = 0;
-@@ -4243,6 +4267,11 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
- 	if (ret)
- 		return ret;
- 
-+#ifdef CONFIG_INET
-+	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
-+		static_key_slow_inc(&memcg_sockets_enabled_key);
-+#endif
++		/* For now, no users for root-level efficiency */
++		if (memcg == root_mem_cgroup)
++			return;
 +
- 	/*
- 	 * Make sure the memcg is initialized: mem_cgroup_iter()
- 	 * orders reading memcg->initialized against its callers
-@@ -4282,6 +4311,10 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
- 
- 	memcg_destroy_kmem(memcg);
-+#ifdef CONFIG_INET
-+	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
-+		static_key_slow_dec(&memcg_sockets_enabled_key);
-+#endif
- 	__mem_cgroup_free(memcg);
- }
- 
-@@ -5470,8 +5503,7 @@ void mem_cgroup_replace_page(struct page *oldpage, struct page *newpage)
- 	commit_charge(newpage, memcg, true);
- }
- 
--/* Writing them here to avoid exposing memcg's inner layout */
--#if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
-+#ifdef CONFIG_INET
- 
- struct static_key memcg_sockets_enabled_key;
- EXPORT_SYMBOL(memcg_sockets_enabled_key);
-@@ -5496,10 +5528,15 @@ void sock_update_memcg(struct sock *sk)
- 
- 	rcu_read_lock();
- 	memcg = mem_cgroup_from_task(current);
--	if (memcg != root_mem_cgroup &&
--	    memcg->tcp_mem.active &&
--	    css_tryget_online(&memcg->css))
-+	if (memcg == root_mem_cgroup)
-+		goto out;
-+#ifdef CONFIG_MEMCG_KMEM
-+	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && !memcg->tcp_mem.active)
-+		goto out;
-+#endif
-+	if (css_tryget_online(&memcg->css))
- 		sk->sk_memcg = memcg;
-+out:
- 	rcu_read_unlock();
- }
- EXPORT_SYMBOL(sock_update_memcg);
-@@ -5520,15 +5557,30 @@ void sock_release_memcg(struct sock *sk)
-  */
- bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
- {
--	struct page_counter *counter;
-+	gfp_t gfp_mask = GFP_KERNEL;
- 
--	if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
--				    nr_pages, &counter)) {
--		memcg->tcp_mem.memory_pressure = 0;
--		return true;
-+#ifdef CONFIG_MEMCG_KMEM
-+	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
-+		struct page_counter *counter;
-+
-+		if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
-+					    nr_pages, &counter)) {
-+			memcg->tcp_mem.memory_pressure = 0;
-+			return true;
++		spin_lock(&vmpr->sr_lock);
++		scanned = vmpr->scanned += scanned;
++		reclaimed = vmpr->reclaimed += reclaimed;
++		if (scanned < vmpressure_win) {
++			spin_unlock(&vmpr->sr_lock);
++			return;
 +		}
-+		page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
-+		memcg->tcp_mem.memory_pressure = 1;
-+		return false;
- 	}
--	page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
--	memcg->tcp_mem.memory_pressure = 1;
-+#endif
-+	/* Don't block in the packet receive path */
-+	if (in_softirq())
-+		gfp_mask = GFP_NOWAIT;
++		vmpr->scanned = vmpr->reclaimed = 0;
++		spin_unlock(&vmpr->sr_lock);
 +
-+	if (try_charge(memcg, gfp_mask, nr_pages) == 0)
-+		return true;
++		level = vmpressure_calc_level(scanned, reclaimed);
 +
-+	try_charge(memcg, gfp_mask|__GFP_NOFAIL, nr_pages);
- 	return false;
++		if (level > VMPRESSURE_LOW) {
++			/*
++			 * Let the socket buffer allocator know that
++			 * we are having trouble reclaiming LRU pages.
++			 *
++			 * For hysteresis keep the pressure state
++			 * asserted for a second in which subsequent
++			 * pressure events can occur.
++			 */
++			memcg->socket_pressure = jiffies + HZ;
++		}
++	}
  }
  
-@@ -5539,10 +5591,32 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
-  */
- void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
- {
--	page_counter_uncharge(&memcg->tcp_mem.memory_allocated, nr_pages);
-+#ifdef CONFIG_MEMCG_KMEM
-+	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
-+		page_counter_uncharge(&memcg->tcp_mem.memory_allocated,
-+				      nr_pages);
-+		return;
-+	}
-+#endif
-+	page_counter_uncharge(&memcg->memory, nr_pages);
-+	css_put_many(&memcg->css, nr_pages);
+ /**
+@@ -276,7 +316,7 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
+ 	 * to the vmpressure() basically means that we signal 'critical'
+ 	 * level.
+ 	 */
+-	vmpressure(gfp, memcg, vmpressure_win, 0);
++	vmpressure(gfp, memcg, true, vmpressure_win, 0);
  }
  
--#endif
-+#endif /* CONFIG_INET */
-+
-+static int __init cgroup_memory(char *s)
-+{
-+	char *token;
-+
-+	while ((token = strsep(&s, ",")) != NULL) {
-+		if (!*token)
-+			continue;
-+		if (!strcmp(token, "nosocket"))
-+			cgroup_memory_nosocket = true;
-+	}
-+	return 0;
-+}
-+__setup("cgroup.memory=", cgroup_memory);
+ /**
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 97ba9e1..50e54c0 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2396,6 +2396,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+ 		memcg = mem_cgroup_iter(root, NULL, &reclaim);
+ 		do {
+ 			unsigned long lru_pages;
++			unsigned long reclaimed;
+ 			unsigned long scanned;
+ 			struct lruvec *lruvec;
+ 			int swappiness;
+@@ -2408,6 +2409,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
  
- /*
-  * subsys_initcall() for memory controller.
+ 			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+ 			swappiness = mem_cgroup_swappiness(memcg);
++			reclaimed = sc->nr_reclaimed;
+ 			scanned = sc->nr_scanned;
+ 
+ 			shrink_lruvec(lruvec, swappiness, sc, &lru_pages);
+@@ -2418,6 +2420,11 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+ 					    memcg, sc->nr_scanned - scanned,
+ 					    lru_pages);
+ 
++			/* Record the group's reclaim efficiency */
++			vmpressure(sc->gfp_mask, memcg, false,
++				   sc->nr_scanned - scanned,
++				   sc->nr_reclaimed - reclaimed);
++
+ 			/*
+ 			 * Direct reclaim and kswapd have to scan all memory
+ 			 * cgroups to fulfill the overall scan target for the
+@@ -2449,7 +2456,8 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+ 			reclaim_state->reclaimed_slab = 0;
+ 		}
+ 
+-		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
++		/* Record the subtree's reclaim efficiency */
++		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
+ 			   sc->nr_scanned - nr_scanned,
+ 			   sc->nr_reclaimed - nr_reclaimed);
+ 
 -- 
 2.6.2
 
