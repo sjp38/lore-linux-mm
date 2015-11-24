@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 99A3E6B0038
-	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 20:59:43 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so3845686pac.3
-        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 17:59:43 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id j6si23976457pbq.165.2015.11.23.17.59.41
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C37C6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Nov 2015 21:16:21 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so4436108pad.1
+        for <linux-mm@kvack.org>; Mon, 23 Nov 2015 18:16:21 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTPS id q88si23585028pfa.36.2015.11.23.18.16.19
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 23 Nov 2015 17:59:42 -0800 (PST)
-Date: Tue, 24 Nov 2015 10:56:04 +0900
+        Mon, 23 Nov 2015 18:16:20 -0800 (PST)
+Date: Tue, 24 Nov 2015 10:45:28 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: [PATCH 2/2] mm/page_ref: add tracepoint to track down page
  reference manipulation
-Message-ID: <20151124015604.GB32335@js1304-P5Q-DELUXE>
+Message-ID: <20151124014527.GA32335@js1304-P5Q-DELUXE>
 References: <1447053784-27811-1-git-send-email-iamjoonsoo.kim@lge.com>
  <1447053784-27811-2-git-send-email-iamjoonsoo.kim@lge.com>
  <564C9A86.1090906@suse.cz>
@@ -76,11 +76,9 @@ On Mon, Nov 23, 2015 at 09:26:04AM -0500, Steven Rostedt wrote:
 > less bloat but doesn't solve the include problem. You still need to add
 > the include of that will cause havoc with other tracepoints.
 
-Yes, it also has include dependency problem so I can't use
-trace_page_ref_get_page_enabled() in mm.h.
-
-BTW, I try to open code trace_page_ref_get_page_enabled() in
-get_page() as following and it works fine.
+Yes, It also has a include dependency problem so I can't use
+trace_page_ref_get_page_enabled() in mm.h. BTW, I tested following
+implementation and it works fine.
 
 extern struct tracepoint __tracepoint_page_ref_get_page;
 
@@ -91,10 +89,11 @@ get_page()
                 stub_get_page()
 }
 
-I know that it's not good coding practice to use raw data structure,
-but, page reference management functions has complex dependency
-so I'm not sure I can solve it completely. For this special case, can
-I use it?
+This would not slow down fast path although it can't prevent bloat.
+I know that it isn't good code practice, but, this page reference
+handling functions have complex include dependency so I'm not sure
+I can solve it completely. For this special case, can I use
+this raw data structure?
 
 Thanks.
 
