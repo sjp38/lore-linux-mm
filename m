@@ -1,52 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 814516B0253
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 18:23:27 -0500 (EST)
-Received: by qgeb1 with SMTP id b1so21965480qge.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 15:23:27 -0800 (PST)
-Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2on0076.outbound.protection.outlook.com. [65.55.169.76])
-        by mx.google.com with ESMTPS id u102si18252985qge.90.2015.11.24.15.23.26
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 063076B0253
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 18:44:52 -0500 (EST)
+Received: by wmec201 with SMTP id c201so232753887wme.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 15:44:51 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t11si30416019wjr.220.2015.11.24.15.44.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 Nov 2015 15:23:26 -0800 (PST)
-Subject: Re: [PATCH] Fix a bdi reregistration race, v2
-References: <564F9AFF.3050605@sandisk.com>
- <20151124231331.GA25591@infradead.org>
-From: Bart Van Assche <bart.vanassche@sandisk.com>
-Message-ID: <5654F169.6070000@sandisk.com>
-Date: Tue, 24 Nov 2015 15:23:21 -0800
-MIME-Version: 1.0
-In-Reply-To: <20151124231331.GA25591@infradead.org>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Nov 2015 15:44:50 -0800 (PST)
+Date: Tue, 24 Nov 2015 15:44:48 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, vmstat: Allow WQ concurrency to discover memory
+ reclaim doesn't make any progress
+Message-Id: <20151124154448.ac124e62528db313279224ef@linux-foundation.org>
+In-Reply-To: <1447936253-18134-1-git-send-email-mhocko@kernel.org>
+References: <1447936253-18134-1-git-send-email-mhocko@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: James Bottomley <jbottomley@parallels.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Jens Axboe <axboe@fb.com>, Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.de>, Aaro Koskinen <aaro.koskinen@iki.fi>, "linux-scsi@vger.kernel.org" <linux-scsi@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, Cristopher Lameter <clameter@sgi.com>, Arkadiusz =?UTF-8?Q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>
 
-On 11/24/2015 03:13 PM, Christoph Hellwig wrote:
-> What sort of re-registration is this? Seems like we should only
-> release the minor number once the bdi is released.
+On Thu, 19 Nov 2015 13:30:53 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-Hello Christoph,
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> Tetsuo Handa has reported that the system might basically livelock in OOM
+> condition without triggering the OOM killer. The issue is caused by
+> internal dependency of the direct reclaim on vmstat counter updates (via
+> zone_reclaimable) which are performed from the workqueue context.
+> If all the current workers get assigned to an allocation request,
+> though, they will be looping inside the allocator trying to reclaim
+> memory but zone_reclaimable can see stalled numbers so it will consider
+> a zone reclaimable even though it has been scanned way too much. WQ
+> concurrency logic will not consider this situation as a congested workqueue
+> because it relies that worker would have to sleep in such a situation.
+> This also means that it doesn't try to spawn new workers or invoke
+> the rescuer thread if the one is assigned to the queue.
+> 
+> In order to fix this issue we need to do two things. First we have to
+> let wq concurrency code know that we are in trouble so we have to do
+> a short sleep. In order to prevent from issues handled by 0e093d99763e
+> ("writeback: do not sleep on the congestion queue if there are no
+> congested BDIs or if significant congestion is not being encountered in
+> the current zone") we limit the sleep only to worker threads which are
+> the ones of the interest anyway.
+> 
+> The second thing to do is to create a dedicated workqueue for vmstat and
+> mark it WQ_MEM_RECLAIM to note it participates in the reclaim and to
+> have a spare worker thread for it.
 
-As you most likely know the BDI device name for disks is based on the 
-device major and minor number:
+This vmstat update thing is being a problem.  Please see Joonsoo's
+"mm/vmstat: retrieve more accurate vmstat value".
 
-$ ls -l /dev/sda
-brw-rw---- 1 root disk 8, 0 Nov 24 14:53 /dev/sda
-$ ls -l /sys/block/sda/bdi
-lrwxrwxrwx 1 root root 0 Nov 24 15:17 /sys/block/sda/bdi -> 
-../../../../../../../../virtual/bdi/8:0
+Joonsoo, might this patch help with that issue?
 
-So if a driver stops using a (major, minor) number pair and the same 
-device number is reused before the bdi device has been released the 
-warning mentioned in the patch description at the start of this thread 
-is triggered. This patch fixes that race by removing the bdi device from 
-sysfs during the __scsi_remove_device() call instead of when the bdi 
-device is released.
+> 
+> The original issue reported by Tetsuo [1] has seen multiple attempts for
+> a fix. The easiest one being [2] which was targeted to the particular
+> problem. There was a more general concern that looping inside the
+> allocator without ever sleeping breaks the basic assumption of worker
+> concurrency logic so the fix should be more general. Another attempt [3]
+> therefore added a short (1 jiffy) sleep into the page allocator. This
+> would, however, introduce sleeping for all callers of the page allocator
+> which is not really needed. This patch tries to be a compromise and
+> introduce sleeping only where it matters - for kworkers.
+> 
+> Even though we haven't seen bug reports in the past I would suggest
+> backporting this to the stable trees. The issue is present since we have
+> stopped useing congestion_wait in the retry loop because WQ concurrency
+> is older as well as vmstat worqueue based refresh AFAICS.
 
-Bart.
+hm, I'm reluctant.  If the patch fixes something that real people are
+really hurting from then yes.  But I suspect this is just one fly-swat
+amongst many.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
