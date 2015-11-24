@@ -1,112 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id BF3F96B0038
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 04:57:24 -0500 (EST)
-Received: by wmww144 with SMTP id w144so130861855wmw.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 01:57:24 -0800 (PST)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id j84si25607740wma.50.2015.11.24.01.57.23
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id ED0F06B0038
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 05:03:09 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so88891266wmu.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 02:03:09 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v79si25571940wmv.95.2015.11.24.02.03.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 01:57:23 -0800 (PST)
-Received: by wmuu63 with SMTP id u63so88668897wmu.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 01:57:22 -0800 (PST)
-Date: Tue, 24 Nov 2015 11:57:20 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH -mm v2] mm: add page_check_address_transhuge helper
-Message-ID: <20151124095720.GD15712@node.shutemov.name>
-References: <1448011913-12121-1-git-send-email-vdavydov@virtuozzo.com>
- <20151124042941.GE705@swordfish>
- <20151124090930.GB15712@node.shutemov.name>
- <20151124093617.GE29014@esperanza>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 24 Nov 2015 02:03:08 -0800 (PST)
+Date: Tue, 24 Nov 2015 11:03:05 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 1/3] mm, oom: refactor oom detection
+Message-ID: <20151124100305.GB29472@dhcp22.suse.cz>
+References: <1447851840-15640-1-git-send-email-mhocko@kernel.org>
+ <1447851840-15640-2-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1511191455310.17510@chino.kir.corp.google.com>
+ <20151120090626.GB16698@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1511201523520.10092@chino.kir.corp.google.com>
+ <20151123094106.GD21050@dhcp22.suse.cz>
+ <20151123182447.GF13000@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151124093617.GE29014@esperanza>
+In-Reply-To: <20151123182447.GF13000@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, Nov 24, 2015 at 12:36:17PM +0300, Vladimir Davydov wrote:
-> On Tue, Nov 24, 2015 at 11:09:30AM +0200, Kirill A. Shutemov wrote:
-> > On Tue, Nov 24, 2015 at 01:29:41PM +0900, Sergey Senozhatsky wrote:
-> ...
-> > > mm/built-in.o: In function `page_referenced_one':
-> > > rmap.c:(.text+0x32070): undefined reference to `pmdp_clear_flush_young'
-> > 
-> > Something like this?
-> ...
-> > @@ -929,9 +929,12 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
-> >  				referenced++;
-> >  		}
-> >  		pte_unmap(pte);
-> > -	} else {
-> > +	} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
-> >  		if (pmdp_clear_flush_young_notify(vma, address, pmd))
-> >  			referenced++;
-> > +	} else {
-> > +		/* unexpected pmd-mapped page? */
-> > +		WARN_ON_ONCE(1);
-> >  	}
-> >  	spin_unlock(ptl);
+On Mon 23-11-15 13:24:47, Johannes Weiner wrote:
+> On Mon, Nov 23, 2015 at 10:41:06AM +0100, Michal Hocko wrote:
+> > @@ -3197,8 +3197,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> >  		unsigned long target;
+> >  
+> >  		reclaimable = zone_reclaimable_pages(zone) +
+> > -			      zone_page_state(zone, NR_ISOLATED_FILE) +
+> > -			      zone_page_state(zone, NR_ISOLATED_ANON);
+> > +			      zone_page_state(zone, NR_ISOLATED_FILE);
+> > +		if (get_nr_swap_pages() > 0)
+> > +			reclaimable += zone_page_state(zone, NR_ISOLATED_ANON);
 > 
-> I think we'd better compile out page_check_address_transhuge altogether if
-> CONFIG_TRANSPARENT_HUGEPAGE is disabled and use page_check_address instead.
-> This would also reduce the kernel size a bit.
+> Can you include the isolated counts in zone_reclaimable_pages()?
 
-Looks good to me, if compiler is clever enough to remove
-pmdp_clear_flush_young_notify() call for !THP. I'm not sure it is.
+OK, this makes sense. NR_ISOLATED_* should be a temporary condition
+after which pages either get back to the LRU or they get migrated to a
+different location thus freed.
 
-> ---
-> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-> index b9eedc63e9e6..77d1ba57d495 100644
-> --- a/include/linux/rmap.h
-> +++ b/include/linux/rmap.h
-> @@ -219,9 +219,20 @@ static inline pte_t *page_check_address(struct page *page, struct mm_struct *mm,
->   * Used by idle page tracking to check if a page was referenced via page
->   * tables.
->   */
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  bool page_check_address_transhuge(struct page *page, struct mm_struct *mm,
->  				  unsigned long address, pmd_t **pmdp,
->  				  pte_t **ptep, spinlock_t **ptlp);
-> +#else
-> +static inline bool page_check_address_transhuge(struct page *page,
-> +				struct mm_struct *mm, unsigned long address,
-> +				pmd_t **pmdp, pte_t **ptep, spinlock_t **ptlp)
-> +{
-> +	*ptep = page_check_address(page, mm, address, ptlp, 0);
-> +	*pmdp = NULL;
-> +	return !!*ptep;
-> +}
-> +#endif
->  
->  /*
->   * Used by swapoff to help locate where page is expected in vma.
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 27916086ac50..6f371261dd12 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -798,6 +798,7 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
->  	return 1;
->  }
->  
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  /*
->   * Check that @page is mapped at @address into @mm. In contrast to
->   * page_check_address(), this function can handle transparent huge pages.
-> @@ -885,6 +886,7 @@ found:
->  	*ptlp = ptl;
->  	return true;
->  }
-> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->  
->  struct page_referenced_arg {
->  	int mapcount;
+I will spin this intot a separate patch.
 
+Thanks!
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
