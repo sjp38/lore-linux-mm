@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E99806B0260
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 16:53:07 -0500 (EST)
-Received: by wmuu63 with SMTP id u63so114761973wmu.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 13:53:07 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 8164B6B0261
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 16:53:10 -0500 (EST)
+Received: by wmww144 with SMTP id w144so156918790wmw.1
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 13:53:10 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id y63si1010271wmc.28.2015.11.24.13.53.06
+        by mx.google.com with ESMTPS id v189si1005957wmg.35.2015.11.24.13.53.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 13:53:06 -0800 (PST)
+        Tue, 24 Nov 2015 13:53:09 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 10/13] mm: memcontrol: do not account memory+swap on unified hierarchy
-Date: Tue, 24 Nov 2015 16:52:02 -0500
-Message-Id: <1448401925-22501-11-git-send-email-hannes@cmpxchg.org>
+Subject: [PATCH 11/13] mm: memcontrol: move socket code for unified hierarchy accounting
+Date: Tue, 24 Nov 2015 16:52:03 -0500
+Message-Id: <1448401925-22501-12-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
 References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,204 +20,182 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: David Miller <davem@davemloft.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-The unified hierarchy memory controller doesn't expose the memory+swap
-counter to userspace, but its accounting is hardcoded in all charge
-paths right now, including the per-cpu charge cache ("the stock").
-
-To avoid adding yet more pointless memory+swap accounting with the
-socket memory support in unified hierarchy, disable the counter
-altogether when in unified hierarchy mode.
+The unified hierarchy memory controller will account socket
+memory. Move the infrastructure functions accordingly.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Acked-by: Michal Hocko <mhocko@suse.com>
 Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 ---
- mm/memcontrol.c | 44 +++++++++++++++++++++++++-------------------
- 1 file changed, 25 insertions(+), 19 deletions(-)
+ mm/memcontrol.c | 148 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 74 insertions(+), 74 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 0602bee..6b8c0f7 100644
+index 6b8c0f7..ed030b5 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -87,6 +87,12 @@ int do_swap_account __read_mostly;
- #define do_swap_account		0
- #endif
+@@ -294,80 +294,6 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
+ 	return mem_cgroup_from_css(css);
+ }
  
-+/* Whether legacy memory+swap accounting is active */
-+static bool do_memsw_account(void)
+-/* Writing them here to avoid exposing memcg's inner layout */
+-#if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
+-
+-struct static_key memcg_sockets_enabled_key;
+-EXPORT_SYMBOL(memcg_sockets_enabled_key);
+-
+-void sock_update_memcg(struct sock *sk)
+-{
+-	struct mem_cgroup *memcg;
+-
+-	/* Socket cloning can throw us here with sk_cgrp already
+-	 * filled. It won't however, necessarily happen from
+-	 * process context. So the test for root memcg given
+-	 * the current task's memcg won't help us in this case.
+-	 *
+-	 * Respecting the original socket's memcg is a better
+-	 * decision in this case.
+-	 */
+-	if (sk->sk_memcg) {
+-		BUG_ON(mem_cgroup_is_root(sk->sk_memcg));
+-		css_get(&sk->sk_memcg->css);
+-		return;
+-	}
+-
+-	rcu_read_lock();
+-	memcg = mem_cgroup_from_task(current);
+-	if (memcg != root_mem_cgroup &&
+-	    memcg->tcp_mem.active &&
+-	    css_tryget_online(&memcg->css))
+-		sk->sk_memcg = memcg;
+-	rcu_read_unlock();
+-}
+-EXPORT_SYMBOL(sock_update_memcg);
+-
+-void sock_release_memcg(struct sock *sk)
+-{
+-	WARN_ON(!sk->sk_memcg);
+-	css_put(&sk->sk_memcg->css);
+-}
+-
+-/**
+- * mem_cgroup_charge_skmem - charge socket memory
+- * @memcg: memcg to charge
+- * @nr_pages: number of pages to charge
+- *
+- * Charges @nr_pages to @memcg. Returns %true if the charge fit within
+- * @memcg's configured limit, %false if the charge had to be forced.
+- */
+-bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+-{
+-	struct page_counter *counter;
+-
+-	if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
+-				    nr_pages, &counter)) {
+-		memcg->tcp_mem.memory_pressure = 0;
+-		return true;
+-	}
+-	page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
+-	memcg->tcp_mem.memory_pressure = 1;
+-	return false;
+-}
+-
+-/**
+- * mem_cgroup_uncharge_skmem - uncharge socket memory
+- * @memcg - memcg to uncharge
+- * @nr_pages - number of pages to uncharge
+- */
+-void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+-{
+-	page_counter_uncharge(&memcg->tcp_mem.memory_allocated, nr_pages);
+-}
+-
+-#endif
+-
+ #ifdef CONFIG_MEMCG_KMEM
+ /*
+  * This will be the memcg's index in each cache's ->memcg_params.memcg_caches.
+@@ -5544,6 +5470,80 @@ void mem_cgroup_replace_page(struct page *oldpage, struct page *newpage)
+ 	commit_charge(newpage, memcg, true);
+ }
+ 
++/* Writing them here to avoid exposing memcg's inner layout */
++#if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
++
++struct static_key memcg_sockets_enabled_key;
++EXPORT_SYMBOL(memcg_sockets_enabled_key);
++
++void sock_update_memcg(struct sock *sk)
 +{
-+	return !cgroup_subsys_on_dfl(memory_cgrp_subsys) && do_swap_account;
++	struct mem_cgroup *memcg;
++
++	/* Socket cloning can throw us here with sk_cgrp already
++	 * filled. It won't however, necessarily happen from
++	 * process context. So the test for root memcg given
++	 * the current task's memcg won't help us in this case.
++	 *
++	 * Respecting the original socket's memcg is a better
++	 * decision in this case.
++	 */
++	if (sk->sk_memcg) {
++		BUG_ON(mem_cgroup_is_root(sk->sk_memcg));
++		css_get(&sk->sk_memcg->css);
++		return;
++	}
++
++	rcu_read_lock();
++	memcg = mem_cgroup_from_task(current);
++	if (memcg != root_mem_cgroup &&
++	    memcg->tcp_mem.active &&
++	    css_tryget_online(&memcg->css))
++		sk->sk_memcg = memcg;
++	rcu_read_unlock();
++}
++EXPORT_SYMBOL(sock_update_memcg);
++
++void sock_release_memcg(struct sock *sk)
++{
++	WARN_ON(!sk->sk_memcg);
++	css_put(&sk->sk_memcg->css);
 +}
 +
- static const char * const mem_cgroup_stat_names[] = {
- 	"cache",
- 	"rss",
-@@ -1177,7 +1183,7 @@ static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
- 	if (count < limit)
- 		margin = limit - count;
- 
--	if (do_swap_account) {
-+	if (do_memsw_account()) {
- 		count = page_counter_read(&memcg->memsw);
- 		limit = READ_ONCE(memcg->memsw.limit);
- 		if (count <= limit)
-@@ -1280,7 +1286,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- 		pr_cont(":");
- 
- 		for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
--			if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
-+			if (i == MEM_CGROUP_STAT_SWAP && !do_memsw_account())
- 				continue;
- 			pr_cont(" %s:%luKB", mem_cgroup_stat_names[i],
- 				K(mem_cgroup_read_stat(iter, i)));
-@@ -1903,7 +1909,7 @@ static void drain_stock(struct memcg_stock_pcp *stock)
- 
- 	if (stock->nr_pages) {
- 		page_counter_uncharge(&old->memory, stock->nr_pages);
--		if (do_swap_account)
-+		if (do_memsw_account())
- 			page_counter_uncharge(&old->memsw, stock->nr_pages);
- 		css_put_many(&old->css, stock->nr_pages);
- 		stock->nr_pages = 0;
-@@ -2033,11 +2039,11 @@ retry:
- 	if (consume_stock(memcg, nr_pages))
- 		return 0;
- 
--	if (!do_swap_account ||
-+	if (!do_memsw_account() ||
- 	    page_counter_try_charge(&memcg->memsw, batch, &counter)) {
- 		if (page_counter_try_charge(&memcg->memory, batch, &counter))
- 			goto done_restock;
--		if (do_swap_account)
-+		if (do_memsw_account())
- 			page_counter_uncharge(&memcg->memsw, batch);
- 		mem_over_limit = mem_cgroup_from_counter(counter, memory);
- 	} else {
-@@ -2124,7 +2130,7 @@ force:
- 	 * temporarily by force charging it.
- 	 */
- 	page_counter_charge(&memcg->memory, nr_pages);
--	if (do_swap_account)
-+	if (do_memsw_account())
- 		page_counter_charge(&memcg->memsw, nr_pages);
- 	css_get_many(&memcg->css, nr_pages);
- 
-@@ -2161,7 +2167,7 @@ static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
- 		return;
- 
- 	page_counter_uncharge(&memcg->memory, nr_pages);
--	if (do_swap_account)
-+	if (do_memsw_account())
- 		page_counter_uncharge(&memcg->memsw, nr_pages);
- 
- 	css_put_many(&memcg->css, nr_pages);
-@@ -2447,7 +2453,7 @@ void __memcg_kmem_uncharge(struct page *page, int order)
- 
- 	page_counter_uncharge(&memcg->kmem, nr_pages);
- 	page_counter_uncharge(&memcg->memory, nr_pages);
--	if (do_swap_account)
-+	if (do_memsw_account())
- 		page_counter_uncharge(&memcg->memsw, nr_pages);
- 
- 	page->mem_cgroup = NULL;
-@@ -3160,7 +3166,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
- 
- 	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
--		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
-+		if (i == MEM_CGROUP_STAT_SWAP && !do_memsw_account())
- 			continue;
- 		seq_printf(m, "%s %lu\n", mem_cgroup_stat_names[i],
- 			   mem_cgroup_read_stat(memcg, i) * PAGE_SIZE);
-@@ -3182,14 +3188,14 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 	}
- 	seq_printf(m, "hierarchical_memory_limit %llu\n",
- 		   (u64)memory * PAGE_SIZE);
--	if (do_swap_account)
-+	if (do_memsw_account())
- 		seq_printf(m, "hierarchical_memsw_limit %llu\n",
- 			   (u64)memsw * PAGE_SIZE);
- 
- 	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
- 		unsigned long long val = 0;
- 
--		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
-+		if (i == MEM_CGROUP_STAT_SWAP && !do_memsw_account())
- 			continue;
- 		for_each_mem_cgroup_tree(mi, memcg)
- 			val += mem_cgroup_read_stat(mi, i) * PAGE_SIZE;
-@@ -3320,7 +3326,7 @@ static void mem_cgroup_threshold(struct mem_cgroup *memcg)
- {
- 	while (memcg) {
- 		__mem_cgroup_threshold(memcg, false);
--		if (do_swap_account)
-+		if (do_memsw_account())
- 			__mem_cgroup_threshold(memcg, true);
- 
- 		memcg = parent_mem_cgroup(memcg);
-@@ -4466,7 +4472,7 @@ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
- 	 * we call find_get_page() with swapper_space directly.
- 	 */
- 	page = find_get_page(swap_address_space(ent), ent.val);
--	if (do_swap_account)
-+	if (do_memsw_account())
- 		entry->val = ent.val;
- 
- 	return page;
-@@ -4501,7 +4507,7 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
- 		page = find_get_entry(mapping, pgoff);
- 		if (radix_tree_exceptional_entry(page)) {
- 			swp_entry_t swp = radix_to_swp_entry(page);
--			if (do_swap_account)
-+			if (do_memsw_account())
- 				*entry = swp;
- 			page = find_get_page(swap_address_space(swp), swp.val);
- 		}
-@@ -5276,7 +5282,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
- 		if (page->mem_cgroup)
- 			goto out;
- 
--		if (do_swap_account) {
-+		if (do_memsw_account()) {
- 			swp_entry_t ent = { .val = page_private(page), };
- 			unsigned short id = lookup_swap_cgroup_id(ent);
- 
-@@ -5340,7 +5346,7 @@ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
- 	memcg_check_events(memcg, page);
- 	local_irq_enable();
- 
--	if (do_swap_account && PageSwapCache(page)) {
-+	if (do_memsw_account() && PageSwapCache(page)) {
- 		swp_entry_t entry = { .val = page_private(page) };
- 		/*
- 		 * The swap entry might not get freed for a long time,
-@@ -5385,7 +5391,7 @@ static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
- 
- 	if (!mem_cgroup_is_root(memcg)) {
- 		page_counter_uncharge(&memcg->memory, nr_pages);
--		if (do_swap_account)
-+		if (do_memsw_account())
- 			page_counter_uncharge(&memcg->memsw, nr_pages);
- 		memcg_oom_recover(memcg);
- 	}
-@@ -5593,7 +5599,7 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
- 	VM_BUG_ON_PAGE(PageLRU(page), page);
- 	VM_BUG_ON_PAGE(page_count(page), page);
- 
--	if (!do_swap_account)
-+	if (!do_memsw_account())
- 		return;
- 
- 	memcg = page->mem_cgroup;
-@@ -5633,7 +5639,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t entry)
- 	struct mem_cgroup *memcg;
- 	unsigned short id;
- 
--	if (!do_swap_account)
-+	if (!do_memsw_account())
- 		return;
- 
- 	id = swap_cgroup_record(entry, 0);
++/**
++ * mem_cgroup_charge_skmem - charge socket memory
++ * @memcg: memcg to charge
++ * @nr_pages: number of pages to charge
++ *
++ * Charges @nr_pages to @memcg. Returns %true if the charge fit within
++ * @memcg's configured limit, %false if the charge had to be forced.
++ */
++bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
++{
++	struct page_counter *counter;
++
++	if (page_counter_try_charge(&memcg->tcp_mem.memory_allocated,
++				    nr_pages, &counter)) {
++		memcg->tcp_mem.memory_pressure = 0;
++		return true;
++	}
++	page_counter_charge(&memcg->tcp_mem.memory_allocated, nr_pages);
++	memcg->tcp_mem.memory_pressure = 1;
++	return false;
++}
++
++/**
++ * mem_cgroup_uncharge_skmem - uncharge socket memory
++ * @memcg - memcg to uncharge
++ * @nr_pages - number of pages to uncharge
++ */
++void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
++{
++	page_counter_uncharge(&memcg->tcp_mem.memory_allocated, nr_pages);
++}
++
++#endif
++
+ /*
+  * subsys_initcall() for memory controller.
+  *
 -- 
 2.6.2
 
