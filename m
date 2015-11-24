@@ -1,71 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id DA7866B0255
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 06:55:13 -0500 (EST)
-Received: by wmec201 with SMTP id c201so23028047wme.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 03:55:13 -0800 (PST)
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
-        by mx.google.com with ESMTPS id z2si17662723wjx.135.2015.11.24.03.55.11
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 436F76B0254
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 07:12:36 -0500 (EST)
+Received: by wmww144 with SMTP id w144so135761480wmw.1
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 04:12:35 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f2si26322347wma.46.2015.11.24.04.12.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 03:55:11 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so205422718wmv.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 03:55:11 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm, vmscan: do not overestimate anonymous reclaimable pages
-Date: Tue, 24 Nov 2015 12:55:00 +0100
-Message-Id: <1448366100-11023-3-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1448366100-11023-1-git-send-email-mhocko@kernel.org>
-References: <1448366100-11023-1-git-send-email-mhocko@kernel.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 24 Nov 2015 04:12:35 -0800 (PST)
+Date: Tue, 24 Nov 2015 13:12:33 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v3 17/22] ipmi: Convert kipmi kthread into kthread worker
+ API
+Message-ID: <20151124121233.GH10750@pathway.suse.cz>
+References: <1447853127-3461-1-git-send-email-pmladek@suse.com>
+ <1447853127-3461-18-git-send-email-pmladek@suse.com>
+ <56536AA6.5040102@acm.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56536AA6.5040102@acm.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Corey Minyard <minyard@acm.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, openipmi-developer@lists.sourceforge.net
 
-From: Michal Hocko <mhocko@suse.com>
+On Mon 2015-11-23 13:36:06, Corey Minyard wrote:
+> 
+> 
+> On 11/18/2015 07:25 AM, Petr Mladek wrote:
+> > Kthreads are currently implemented as an infinite loop. Each
+> > has its own variant of checks for terminating, freezing,
+> > awakening. In many cases it is unclear to say in which state
+> > it is and sometimes it is done a wrong way.
+> >
+> > The plan is to convert kthreads into kthread_worker or workqueues
+> > API. It allows to split the functionality into separate operations.
+> > It helps to make a better structure. Also it defines a clean state
+> > where no locks are taken, IRQs blocked, the kthread might sleep
+> > or even be safely migrated.
+> >
+> > The kthread worker API is useful when we want to have a dedicated
+> > single thread for the work. It helps to make sure that it is
+> > available when needed. Also it allows a better control, e.g.
+> > define a scheduling priority.
+> >
+> > This patch converts kipmi kthread into the kthread worker API because
+> > it modifies the scheduling priority. The change is quite straightforward.
+> 
+> I think this is correct.  That code was hard to get right, but I don't
+> see where any
+> logic is actually changed.
 
-zone_reclaimable_pages considers all anonymous pages on LRUs reclaimable
-if there is at least one entry on the swap storage left. This can be
-really misleading when the swap is short on space and skew reclaim
-decisions based on zone_reclaimable_pages. Fix this by clamping the
-number to the minimum of the available swap space and anon LRU pages.
+I believe that it was hard to make it working.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/vmscan.c | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 946d348f5040..646001a1f279 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -195,15 +195,20 @@ static bool sane_reclaim(struct scan_control *sc)
- static unsigned long zone_reclaimable_pages(struct zone *zone)
- {
- 	unsigned long nr;
-+	long nr_swap = get_nr_swap_pages();
- 
- 	nr = zone_page_state(zone, NR_ACTIVE_FILE) +
- 	     zone_page_state(zone, NR_INACTIVE_FILE) +
- 	     zone_page_state(zone, NR_ISOLATED_FILE);
- 
--	if (get_nr_swap_pages() > 0)
--		nr += zone_page_state(zone, NR_ACTIVE_ANON) +
--		      zone_page_state(zone, NR_INACTIVE_ANON) +
--		      zone_page_state(zone, NR_ISOLATED_ANON);
-+	if (nr_swap > 0) {
-+		unsigned long anon;
-+
-+		anon = zone_page_state(zone, NR_ACTIVE_ANON) +
-+		       zone_page_state(zone, NR_INACTIVE_ANON) +
-+		       zone_page_state(zone, NR_ISOLATED_ANON);
-+		nr += min_t(unsigned long, nr_swap, anon);
-+	}
- 
- 	return nr;
- }
--- 
-2.6.2
+> This also doesn't really look any simpler (you end up with more LOC than
+> you did before :) ),
+> though it will make things more consistent and reduce errors and that's
+> a good thing.
+
+I have just realized that the original code actually looks racy. For
+example, it does:
+
+	__set_current_state(TASK_INTERRUPTIBLE);
+	schedule();
+
+without rechecking the state in between. There might already be a new
+message and it might miss the wake_up_process(). Similar problem is
+with the schedule_timeout_interruptible(100); I mean:
+
+
+CPU 0					CPU 1
+
+
+ipmi_thread()
+  spin_lock_irqsave();
+  smi_result = smi_event_handler();
+  spin_unlock_irqrestore();
+
+  [...]
+  else if (smi_result == SI_SM_IDLE)
+    /* true */
+    if (atomic_read(need_watch)) {
+      /* true */
+
+					sender()
+					  spin_lock_irqsave()
+					  check_start_timer_thread()
+					    wake_up_process()
+
+					    /*
+					     * NOPE because kthread
+					     * is not sleeping
+					     */
+
+     schedule_timeout_interruptible(100);
+
+     /*
+      * We sleep 100 jiffies but
+      * there is a pending message.
+      */
+
+
+This is not a problem with the kthread worker API because
+
+	mod_delayed_kthread_work(smi_info->worker,
+				 &smi_info->work, 0);
+
+would queue the work to be done immediately and
+
+	queue_delayed_kthread_work(smi_info->worker,
+				   &smi_info->work, 100);
+
+would do nothing in this case.
+
+
+> My only comment is I would like the worker function named ipmi_worker,
+> not ipmi_func.
+
+You probably want it because the original name was ipmi_thread. But
+it might cause confusion with new_smi->worker. The function gets
+assigned to work->func, see struct kthread_work. Therefore I think that
+_func suffix makes more sense.
+
+> Reviewed-by: Corey Minyard <cminyard@mvista.com>
+
+
+Thanks a lot for review,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
