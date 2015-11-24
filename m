@@ -1,121 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 70A9C6B0258
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 07:36:46 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so207145987wmv.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 04:36:46 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 93DE56B0259
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 07:36:48 -0500 (EST)
+Received: by wmec201 with SMTP id c201so24562502wme.1
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 04:36:48 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l7si26329731wmf.85.2015.11.24.04.36.43
+        by mx.google.com with ESMTPS id o67si6304736wmb.70.2015.11.24.04.36.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Tue, 24 Nov 2015 04:36:43 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 1/9] mm, debug: fix wrongly filtered flags in dump_vma()
-Date: Tue, 24 Nov 2015 13:36:13 +0100
-Message-Id: <1448368581-6923-2-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
-References: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v2 0/9] page_owner improvements for debugging
+Date: Tue, 24 Nov 2015 13:36:12 +0100
+Message-Id: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
 
-The dump_vma() function uses dump_flags() for printing the flags as symbolic
-names. That function however does a page-flags specific filtering of bits
-higher than NR_PAGEFLAGS in order to remove the zone id part. For dump_vma()
-this results in removing several VM_* flags from the symbolic translation.
+This is the second version of patchset which originally aimed to improve the
+page_owner functionality. Thanks to feedback from v1 and some bugs I
+discovered along the way, it is now larger in scope and number of patches.
+It's based on next-20151124.
 
-Fix this by refactoring dump_flags() to dump_flag_names(), which only prints
-the symbolic names in parentheses. Printing the raw flag value with a prefix,
-and any filtering is left to the caller. In addition to fixing the bug, this
-allows better flexibility, which will be useful to print gfp_flags by a later
-patch.
+For page_owner, the main changes are
+o Use static key to further reduce overhead when compiled in but not enabled.
+o Improve output wrt. page and pageblock migratetypes
+o Transfer the info on page migrations and track last migration reason.
+o Dump the info as part of dump_page() to hopefully help debugging.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/debug.c | 32 ++++++++++++++++++++------------
- 1 file changed, 20 insertions(+), 12 deletions(-)
+For the last point, Kirill requested a human readable printing of gfp_mask and
+migratetype after v1. At that point it probably makes a lot of sense to do the
+same for page alloc failure and OOM warnings. The flags have been undergoing
+revisions recently, and we might be getting reports from various kernel
+versions that differ. The ./scripts/gfp-translate tool needs to be pointed at
+the corresponding sources to be accurate.  The downside is potentially breaking
+scripts that grep these warnings, but it's not a first change done there over
+the years.
 
-diff --git a/mm/debug.c b/mm/debug.c
-index 8362765..d9718fc 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -46,17 +46,14 @@ static const struct trace_print_flags pageflag_names[] = {
- #endif
- };
- 
--static void dump_flags(unsigned long flags,
-+static void dump_flag_names(unsigned long flags,
- 			const struct trace_print_flags *names, int count)
- {
- 	const char *delim = "";
- 	unsigned long mask;
- 	int i;
- 
--	pr_emerg("flags: %#lx(", flags);
--
--	/* remove zone id */
--	flags &= (1UL << NR_PAGEFLAGS) - 1;
-+	pr_cont("(");
- 
- 	for (i = 0; i < count && flags; i++) {
- 
-@@ -79,6 +76,8 @@ static void dump_flags(unsigned long flags,
- void dump_page_badflags(struct page *page, const char *reason,
- 		unsigned long badflags)
- {
-+	unsigned long printflags = page->flags;
-+
- 	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
- 		  page, atomic_read(&page->_count), page_mapcount(page),
- 		  page->mapping, page->index);
-@@ -86,13 +85,19 @@ void dump_page_badflags(struct page *page, const char *reason,
- 		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
- 	pr_cont("\n");
- 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS);
--	dump_flags(page->flags, pageflag_names, ARRAY_SIZE(pageflag_names));
-+
-+	pr_emerg("flags: %#lx", printflags);
-+	/* remove zone id */
-+	printflags &= (1UL << NR_PAGEFLAGS) - 1;
-+	dump_flag_names(printflags, pageflag_names, ARRAY_SIZE(pageflag_names));
-+
- 	if (reason)
- 		pr_alert("page dumped because: %s\n", reason);
- 	if (page->flags & badflags) {
--		pr_alert("bad because of flags:\n");
--		dump_flags(page->flags & badflags,
--				pageflag_names, ARRAY_SIZE(pageflag_names));
-+		printflags = page->flags & badflags;
-+		pr_alert("bad because of flags: %#lx:", printflags);
-+		dump_flag_names(printflags, pageflag_names,
-+						ARRAY_SIZE(pageflag_names));
- 	}
- #ifdef CONFIG_MEMCG
- 	if (page->mem_cgroup)
-@@ -162,7 +167,9 @@ void dump_vma(const struct vm_area_struct *vma)
- 		(unsigned long)pgprot_val(vma->vm_page_prot),
- 		vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
- 		vma->vm_file, vma->vm_private_data);
--	dump_flags(vma->vm_flags, vmaflags_names, ARRAY_SIZE(vmaflags_names));
-+	pr_emerg("flags: %#lx", vma->vm_flags);
-+	dump_flag_names(vma->vm_flags, vmaflags_names,
-+						ARRAY_SIZE(vmaflags_names));
- }
- EXPORT_SYMBOL(dump_vma);
- 
-@@ -233,8 +240,9 @@ void dump_mm(const struct mm_struct *mm)
- 		""		/* This is here to not have a comma! */
- 		);
- 
--		dump_flags(mm->def_flags, vmaflags_names,
--				ARRAY_SIZE(vmaflags_names));
-+	pr_emerg("def_flags: %#lx(", mm->def_flags);
-+	dump_flag_names(mm->def_flags, vmaflags_names,
-+					ARRAY_SIZE(vmaflags_names));
- }
- 
- #endif		/* CONFIG_DEBUG_VM */
+Note I'm not entirely happy about the dump_gfpflag_names() implementation, due
+to usage of pr_cont() unreliable on SMP (and I've seen spurious newlines in
+dmesg output, while being correct on serial console or /var/log/messages).
+It also doesn't allow plugging the gfp_mask translation into
+/sys/kernel/debug/page_owner where it also could make sense. Maybe a new
+*printf formatting flag? Too specialized maybe? Or just prepare the string in
+a buffer on stack with strscpy?
+
+Other changes since v1:
+o Change placement of page owner migration calls to cover missing cases (Hugh)
+o Move dump_page_owner() call up from dump_page_badflags(), so the latter can
+  be used for adding debugging prints without page owner info (Kirill)
+
+Vlastimil Babka (9):
+  mm, debug: fix wrongly filtered flags in dump_vma()
+  mm, page_owner: print symbolic migratetype of both page and pageblock
+  mm, page_owner: convert page_owner_inited to static key
+  mm, page_owner: copy page owner info during migration
+  mm, page_owner: track and print last migrate reason
+  mm, debug: introduce dump_gfpflag_names() for symbolic printing of
+    gfp_flags
+  mm, page_owner: dump page owner info from dump_page()
+  mm, page_alloc: print symbolic gfp_flags on allocation failure
+  mm, oom: print symbolic gfp_flags in oom warning
+
+ Documentation/vm/page_owner.txt |  9 +++--
+ include/linux/migrate.h         |  6 ++-
+ include/linux/mmdebug.h         |  1 +
+ include/linux/mmzone.h          |  3 ++
+ include/linux/page_ext.h        |  1 +
+ include/linux/page_owner.h      | 50 ++++++++++++++++++-------
+ include/trace/events/gfpflags.h | 14 +++++--
+ mm/debug.c                      | 44 ++++++++++++++++------
+ mm/migrate.c                    | 23 ++++++++++--
+ mm/oom_kill.c                   | 10 +++--
+ mm/page_alloc.c                 | 18 ++++++++-
+ mm/page_owner.c                 | 82 +++++++++++++++++++++++++++++++++++++----
+ mm/vmstat.c                     | 15 +-------
+ 13 files changed, 213 insertions(+), 63 deletions(-)
+
 -- 
 2.6.3
 
