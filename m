@@ -1,49 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 48CDA6B0254
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 05:08:46 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so18086349pad.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 02:08:46 -0800 (PST)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id ey1si25515157pab.184.2015.11.24.02.08.45
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 9661A6B0038
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 05:21:45 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so89577897wmu.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 02:21:45 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g10si25735468wmi.15.2015.11.24.02.21.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 02:08:45 -0800 (PST)
-Received: by padhx2 with SMTP id hx2so18086119pad.1
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 02:08:45 -0800 (PST)
-Date: Tue, 24 Nov 2015 19:09:44 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH -mm v2] mm: add page_check_address_transhuge helper
-Message-ID: <20151124100944.GA514@swordfish>
-References: <1448011913-12121-1-git-send-email-vdavydov@virtuozzo.com>
- <20151124042941.GE705@swordfish>
- <20151124090930.GB15712@node.shutemov.name>
- <20151124093617.GE29014@esperanza>
- <20151124094659.GF29014@esperanza>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 24 Nov 2015 02:21:44 -0800 (PST)
+Date: Tue, 24 Nov 2015 11:21:43 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v3 09/22] kthread: Allow to cancel kthread work
+Message-ID: <20151124102143.GG10750@pathway.suse.cz>
+References: <1447853127-3461-1-git-send-email-pmladek@suse.com>
+ <1447853127-3461-10-git-send-email-pmladek@suse.com>
+ <20151123225823.GI19072@mtj.duckdns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151124094659.GF29014@esperanza>
+In-Reply-To: <20151123225823.GI19072@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello,
-
-On (11/24/15 12:46), Vladimir Davydov wrote:
+On Mon 2015-11-23 17:58:23, Tejun Heo wrote:
+> Hello,
 > 
-> Sergey, could you please check if the patch below fixes build for you?
+> On Wed, Nov 18, 2015 at 02:25:14PM +0100, Petr Mladek wrote:
+> > +static int
+> > +try_to_cancel_kthread_work(struct kthread_work *work,
+> > +				   spinlock_t *lock,
+> > +				   unsigned long *flags)
+> > +{
+> > +	int ret = 0;
+> > +
+> > +	if (work->timer) {
+> > +		/* Try to cancel the timer if pending. */
+> > +		if (del_timer(work->timer)) {
+> > +			ret = 1;
+> > +			goto out;
+> > +		}
+> > +
+> > +		/* Are we racing with the timer callback? */
+> > +		if (timer_active(work->timer)) {
+> > +			/* Bad luck, need to avoid a deadlock. */
+> > +			spin_unlock_irqrestore(lock, *flags);
+> > +			del_timer_sync(work->timer);
+> > +			ret = -EAGAIN;
+> > +			goto out;
+> > +		}
+> 
+> As the timer side is already kinda trylocking anyway, can't the cancel
+> path be made simpler?  Sth like
+> 
+> 	lock(worker);
+> 	work->canceling = true;
+> 	del_timer_sync(work->timer);
+> 	unlock(worker);
+> 
+> And the timer can do (ignoring the multiple worker support, do we even
+> need that?)
+> 
+> 	while (!trylock(worker)) {
+> 		if (work->canceling)
+> 			return;
+> 		cpu_relax();
+> 	}
+> 	queue;
+> 	unlock(worker);
 
-yes, it does.
+Why did I not find out this myself ?:-)
 
-add/remove: 0/1 grow/shrink: 0/2 up/down: 0/-649 (-649)
-function                                     old     new   delta
-__warned                                    2632    2631      -1
-page_referenced_one                          218     159     -59
-page_check_address_transhuge                 589       -    -589
-
-	-ss
+Thanks for hint,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
