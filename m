@@ -1,94 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D9C1F6B0038
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 13:16:47 -0500 (EST)
-Received: by oiww189 with SMTP id w189so14925386oiw.3
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 10:16:47 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id e11si12320140oig.85.2015.11.24.10.16.47
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 41A0C6B0038
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 14:57:21 -0500 (EST)
+Received: by wmec201 with SMTP id c201so225945651wme.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 11:57:20 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id et14si22046386wjc.67.2015.11.24.11.57.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 10:16:47 -0800 (PST)
-Subject: Re: [PATCH v1] mm: hugetlb: fix hugepage memory leak caused by wrong
- reserve count
-References: <1448004017-23679-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <050201d12369$167a0a10$436e1e30$@alibaba-inc.com>
- <564F9702.5070007@oracle.com>
- <20151124053258.GA27211@hori1.linux.bs1.fc.nec.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <5654A984.1020005@oracle.com>
-Date: Tue, 24 Nov 2015 10:16:36 -0800
+        Tue, 24 Nov 2015 11:57:19 -0800 (PST)
+Date: Tue, 24 Nov 2015 14:57:10 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm, oom: Give __GFP_NOFAIL allocations access to memory
+ reserves
+Message-ID: <20151124195710.GA12923@cmpxchg.org>
+References: <1447249697-13380-1-git-send-email-mhocko@kernel.org>
+ <5651BB43.8030102@suse.cz>
+ <20151123092925.GB21050@dhcp22.suse.cz>
+ <5652DFCE.3010201@suse.cz>
+ <20151123101345.GF21050@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1511231320160.30886@chino.kir.corp.google.com>
+ <20151124094708.GA29472@dhcp22.suse.cz>
+ <20151124162604.GB9598@cmpxchg.org>
+ <20151124170239.GA13492@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20151124053258.GA27211@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20151124170239.GA13492@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'David Rientjes' <rientjes@google.com>, 'Dave Hansen' <dave.hansen@intel.com>, 'Mel Gorman' <mgorman@suse.de>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 'Naoya Horiguchi' <nao.horiguchi@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 11/23/2015 09:32 PM, Naoya Horiguchi wrote:
-> On Fri, Nov 20, 2015 at 01:56:18PM -0800, Mike Kravetz wrote:
->> On 11/19/2015 11:57 PM, Hillf Danton wrote:
->>>>
->>>> When dequeue_huge_page_vma() in alloc_huge_page() fails, we fall back to
->>>> alloc_buddy_huge_page() to directly create a hugepage from the buddy allocator.
->>>> In that case, however, if alloc_buddy_huge_page() succeeds we don't decrement
->>>> h->resv_huge_pages, which means that successful hugetlb_fault() returns without
->>>> releasing the reserve count. As a result, subsequent hugetlb_fault() might fail
->>>> despite that there are still free hugepages.
->>>>
->>>> This patch simply adds decrementing code on that code path.
->>
->> In general, I agree with the patch.  If we allocate a huge page via the
->> buddy allocator and that page will be used to satisfy a reservation, then
->> we need to decrement the reservation count.
->>
->> As Hillf mentions, this code is not exactly the same in linux-next.
->> Specifically, there is the new call to take the memory policy of the
->> vma into account when calling the buddy allocator.  I do not think,
->> this impacts your proposed change but you may want to test with that
->> in place.
->>
->>>>
->>>> I reproduced this problem when testing v4.3 kernel in the following situation:
->>>> - the test machine/VM is a NUMA system,
->>>> - hugepage overcommiting is enabled,
->>>> - most of hugepages are allocated and there's only one free hugepage
->>>>   which is on node 0 (for example),
->>>> - another program, which calls set_mempolicy(MPOL_BIND) to bind itself to
->>>>   node 1, tries to allocate a hugepage,
->>
->> I am curious about this scenario.  When this second program attempts to
->> allocate the page, I assume it creates a reservation first.  Is this
->> reservation before or after setting mempolicy?  If the mempolicy was set
->> first, I would have expected the reservation to allocate a page on
->> node 1 to satisfy the reservation.
+On Tue, Nov 24, 2015 at 06:02:39PM +0100, Michal Hocko wrote:
+> On Tue 24-11-15 11:26:04, Johannes Weiner wrote:
+> > On Tue, Nov 24, 2015 at 10:47:09AM +0100, Michal Hocko wrote:
+> > > Besides that there is no other reliable warning that we are getting
+> > > _really_ short on memory unlike when the allocation failure is
+> > > allowed. OOM killer report might be missing because there was no actual
+> > > killing happening.
+> > 
+> > This is why I would like to see that warning generalized, and not just
+> > for __GFP_NOFAIL. We have allocations other than explicit __GFP_NOFAIL
+> > that will loop forever in the allocator,
 > 
-> My testing called set_mempolicy() at first then called mmap(), but things
-> didn't change if I reordered them, because currently hugetlb reservation is
-> not NUMA-aware.
+> Yes but does it make sense to warn for all of them? Wouldn't it be
+> sufficient to warn about those which cannot allocate anything even
+> though they are doing ALLOC_NO_WATERMARKS?
 
-Ah right.  I was looking at gather_surplus_pages() as called by
-hugetlb_acct_memory() to account for a new reservation.  In your case,
-the global free count is still large enough to satisfy the reservation
-so gather_surplus_pages simply increases the global reservation count.
+Why is it important whether they can do ALLOC_NO_WATERMARKS or not?
 
-If there were not enough free pages, alloc_buddy_huge_page() would be
-called in an attempt to allocate enough free pages.  As is the case in
-alloc_huge_page(), the mempolicy of the of the task would be taken into
-account (if there is no vma specific policy).  So, the new huge pages to
-satisfy the reservation would 'hopefully' be allocated on the correct node.
+I'm worried about all those that can loop forever with locks held.
 
-Sorry, I thinking your test might be allocating a new huge page at
-reservation time.  But, it is not.
--- 
-Mike Kravetz
-
+> > and when this deadlocks the
+> > machine all we see is other tasks hanging, but not the culprit. If we
+> > were to get a backtrace of some task in the allocator that is known to
+> > hold locks, suddenly all the other hung tasks will make sense, and it
+> > will clearly distinguish such an allocator deadlock from other issues.
 > 
-> Thanks,
-> Naoya Horiguchi
-> 
+> Tetsuo was suggesting a more sophisticated infrastructure for tracking
+> allocations [1] which take too long without making progress. I haven't
+> seen his patch because I was too busy with other stuff but maybe this is
+> what you would like to see?
+
+That seems a bit excessive. I was thinking something more like this:
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 05ef7fb..fbfc581 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3004,6 +3004,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	enum migrate_mode migration_mode = MIGRATE_ASYNC;
+ 	bool deferred_compaction = false;
+ 	int contended_compaction = COMPACT_CONTENDED_NONE;
++	unsigned int nr_tries = 0;
+ 
+ 	/*
+ 	 * In the slowpath, we sanity check order to avoid ever trying to
+@@ -3033,6 +3034,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		goto nopage;
+ 
+ retry:
++	if (++nr_retries % 100 == 0)
++		warn_alloc_failed(gfp_mask, order, "Potential GFP deadlock\n");
++
+ 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+ 		wake_all_kswapds(order, ac);
+ 
+> Anyway I would like to make some progress on this patch. Do you think
+> that it would be acceptable in the current form without the warning or
+> you preffer a different way?
+
+Oh, I have nothing against your patch, please go ahead with it. I just
+wondered out loud when you proposed a warning about deadlocking NOFAIL
+allocations but limited it to explicit __GFP_NOFAIL allocations, when
+those obviously aren't the only ones that can deadlock in that way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
