@@ -1,56 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f52.google.com (mail-lf0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 05CD06B0038
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 13:15:40 -0500 (EST)
-Received: by lfaz4 with SMTP id z4so31792831lfa.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 10:15:39 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id m77si13379406lfg.133.2015.11.24.10.15.37
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D9C1F6B0038
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 13:16:47 -0500 (EST)
+Received: by oiww189 with SMTP id w189so14925386oiw.3
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 10:16:47 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id e11si12320140oig.85.2015.11.24.10.16.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 10:15:38 -0800 (PST)
-Date: Tue, 24 Nov 2015 13:15:21 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm v2] mm: add page_check_address_transhuge helper
-Message-ID: <20151124181521.GA19885@cmpxchg.org>
-References: <1448011913-12121-1-git-send-email-vdavydov@virtuozzo.com>
- <20151124042941.GE705@swordfish>
- <20151124090930.GB15712@node.shutemov.name>
- <20151124093617.GE29014@esperanza>
+        Tue, 24 Nov 2015 10:16:47 -0800 (PST)
+Subject: Re: [PATCH v1] mm: hugetlb: fix hugepage memory leak caused by wrong
+ reserve count
+References: <1448004017-23679-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <050201d12369$167a0a10$436e1e30$@alibaba-inc.com>
+ <564F9702.5070007@oracle.com>
+ <20151124053258.GA27211@hori1.linux.bs1.fc.nec.co.jp>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <5654A984.1020005@oracle.com>
+Date: Tue, 24 Nov 2015 10:16:36 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151124093617.GE29014@esperanza>
+In-Reply-To: <20151124053258.GA27211@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'David Rientjes' <rientjes@google.com>, 'Dave Hansen' <dave.hansen@intel.com>, 'Mel Gorman' <mgorman@suse.de>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 'Naoya Horiguchi' <nao.horiguchi@gmail.com>
 
-On Tue, Nov 24, 2015 at 12:36:17PM +0300, Vladimir Davydov wrote:
-> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-> index b9eedc63e9e6..77d1ba57d495 100644
-> --- a/include/linux/rmap.h
-> +++ b/include/linux/rmap.h
-> @@ -219,9 +219,20 @@ static inline pte_t *page_check_address(struct page *page, struct mm_struct *mm,
->   * Used by idle page tracking to check if a page was referenced via page
->   * tables.
->   */
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  bool page_check_address_transhuge(struct page *page, struct mm_struct *mm,
->  				  unsigned long address, pmd_t **pmdp,
->  				  pte_t **ptep, spinlock_t **ptlp);
-> +#else
-> +static inline bool page_check_address_transhuge(struct page *page,
-> +				struct mm_struct *mm, unsigned long address,
-> +				pmd_t **pmdp, pte_t **ptep, spinlock_t **ptlp)
-> +{
-> +	*ptep = page_check_address(page, mm, address, ptlp, 0);
-> +	*pmdp = NULL;
-> +	return !!*ptep;
-> +}
-> +#endif
+On 11/23/2015 09:32 PM, Naoya Horiguchi wrote:
+> On Fri, Nov 20, 2015 at 01:56:18PM -0800, Mike Kravetz wrote:
+>> On 11/19/2015 11:57 PM, Hillf Danton wrote:
+>>>>
+>>>> When dequeue_huge_page_vma() in alloc_huge_page() fails, we fall back to
+>>>> alloc_buddy_huge_page() to directly create a hugepage from the buddy allocator.
+>>>> In that case, however, if alloc_buddy_huge_page() succeeds we don't decrement
+>>>> h->resv_huge_pages, which means that successful hugetlb_fault() returns without
+>>>> releasing the reserve count. As a result, subsequent hugetlb_fault() might fail
+>>>> despite that there are still free hugepages.
+>>>>
+>>>> This patch simply adds decrementing code on that code path.
+>>
+>> In general, I agree with the patch.  If we allocate a huge page via the
+>> buddy allocator and that page will be used to satisfy a reservation, then
+>> we need to decrement the reservation count.
+>>
+>> As Hillf mentions, this code is not exactly the same in linux-next.
+>> Specifically, there is the new call to take the memory policy of the
+>> vma into account when calling the buddy allocator.  I do not think,
+>> this impacts your proposed change but you may want to test with that
+>> in place.
+>>
+>>>>
+>>>> I reproduced this problem when testing v4.3 kernel in the following situation:
+>>>> - the test machine/VM is a NUMA system,
+>>>> - hugepage overcommiting is enabled,
+>>>> - most of hugepages are allocated and there's only one free hugepage
+>>>>   which is on node 0 (for example),
+>>>> - another program, which calls set_mempolicy(MPOL_BIND) to bind itself to
+>>>>   node 1, tries to allocate a hugepage,
+>>
+>> I am curious about this scenario.  When this second program attempts to
+>> allocate the page, I assume it creates a reservation first.  Is this
+>> reservation before or after setting mempolicy?  If the mempolicy was set
+>> first, I would have expected the reservation to allocate a page on
+>> node 1 to satisfy the reservation.
+> 
+> My testing called set_mempolicy() at first then called mmap(), but things
+> didn't change if I reordered them, because currently hugetlb reservation is
+> not NUMA-aware.
 
-Tested-by: Johannes Weiner <hannes@cmpxchg.org>
+Ah right.  I was looking at gather_surplus_pages() as called by
+hugetlb_acct_memory() to account for a new reservation.  In your case,
+the global free count is still large enough to satisfy the reservation
+so gather_surplus_pages simply increases the global reservation count.
+
+If there were not enough free pages, alloc_buddy_huge_page() would be
+called in an attempt to allocate enough free pages.  As is the case in
+alloc_huge_page(), the mempolicy of the of the task would be taken into
+account (if there is no vma specific policy).  So, the new huge pages to
+satisfy the reservation would 'hopefully' be allocated on the correct node.
+
+Sorry, I thinking your test might be allocating a new huge page at
+reservation time.  But, it is not.
+-- 
+Mike Kravetz
+
+> 
+> Thanks,
+> Naoya Horiguchi
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
