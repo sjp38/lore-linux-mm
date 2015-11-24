@@ -1,85 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id BCE356B0253
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 17:31:31 -0500 (EST)
-Received: by wmec201 with SMTP id c201so230973525wme.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 14:31:31 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id n131si1240969wmf.11.2015.11.24.14.31.30
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F5FA6B0253
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 18:02:30 -0500 (EST)
+Received: by wmec201 with SMTP id c201so231774150wme.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 15:02:30 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id gh7si30192457wjb.118.2015.11.24.15.02.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 14:31:30 -0800 (PST)
-Date: Tue, 24 Nov 2015 17:31:16 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: WARNING in handle_mm_fault
-Message-ID: <20151124223116.GA2874@cmpxchg.org>
-References: <CACT4Y+ZCkv0BPOdo3aiheA5LXzXhcnuiw7kCoWL=b9FcC8-wqg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+ZCkv0BPOdo3aiheA5LXzXhcnuiw7kCoWL=b9FcC8-wqg@mail.gmail.com>
+        Tue, 24 Nov 2015 15:02:29 -0800 (PST)
+Date: Tue, 24 Nov 2015 15:02:27 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] vmscan: fix slab vs lru balance
+Message-Id: <20151124150227.78c9e39b789f593c5216471e@linux-foundation.org>
+In-Reply-To: <1448369241-26593-1-git-send-email-vdavydov@virtuozzo.com>
+References: <1448369241-26593-1-git-send-email-vdavydov@virtuozzo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Eric Dumazet <edumazet@google.com>, Greg Thelen <gthelen@google.com>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Dmitry,
+On Tue, 24 Nov 2015 15:47:21 +0300 Vladimir Davydov <vdavydov@virtuozzo.com> wrote:
 
-On Tue, Nov 24, 2015 at 02:50:26PM +0100, Dmitry Vyukov wrote:
-> As a blind guess, I've added the following BUG into copy_process:
+> The comment to shrink_slab states that the portion of kmem objects
+> scanned by it equals the portion of lru pages scanned by shrink_zone
+> over shrinker->seeks.
 > 
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index b4dc490..c5667e8 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -1620,6 +1620,8 @@ static struct task_struct *copy_process(unsigned
-> long clone_flags,
->         trace_task_newtask(p, clone_flags);
->         uprobe_copy_process(p, clone_flags);
+> shrinker->seeks is supposed to be equal to the number of disk seeks
+> required to recreated an object. It is usually set to DEFAULT_SEEKS (2),
+> which is quite logical, because most kmem objects (e.g. dentry or inode)
+> require random IO to reread (seek to read and seek back).
 > 
-> +       BUG_ON(p->memcg_may_oom);
-> +
->         return p;
+> That said, one would expect that dcache is scanned two times less
+> intensively than page cache, which sounds sane as dentries are generally
+> more costly to recreate.
+> 
+> However, the formula for distributing memory pressure between slab and
+> lru actually looks as follows (see do_shrink_slab):
+> 
+>                               lru_scanned
+> objs_to_scan = objs_total * --------------- * 4 / shrinker->seeks
+>                             lru_reclaimable
+> 
+> That is dcache, as well as most of other slab caches, is scanned two
+> times more aggressively than page cache.
+> 
+> Fix this by dropping '4' from the equation above.
+> 
 
-Thanks for your report.
+oh geeze.  Who wrote that crap?
 
-I don't see how this could happen through the legitimate setters of
-p->memcg_may_oom. Something must clobber it. What happens with the
-following patch applied?
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index edad7a4..42e1285 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1463,9 +1463,11 @@ struct task_struct {
- 	unsigned sched_reset_on_fork:1;
- 	unsigned sched_contributes_to_load:1;
- 	unsigned sched_migrated:1;
-+	unsigned dummy_a:1;
- #ifdef CONFIG_MEMCG
- 	unsigned memcg_may_oom:1;
- #endif
-+	unsigned dummy_b:1;
- #ifdef CONFIG_MEMCG_KMEM
- 	unsigned memcg_kmem_skip_account:1;
- #endif
-diff --git a/kernel/fork.c b/kernel/fork.c
-index f97f2c4..ab6f7ba 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -1617,6 +1617,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
- 	trace_task_newtask(p, clone_flags);
- 	uprobe_copy_process(p, clone_flags);
+commit c3f4656118a78c1c294e0b4d338ac946265a822b
+Author: Andrew Morton <akpm@osdl.org>
+Date:   Mon Dec 29 23:48:44 2003 -0800
+
+    [PATCH] shrink_slab acounts for seeks incorrectly
+    
+    wli points out that shrink_slab inverts the sense of shrinker->seeks: those
+    caches which require more seeks to reestablish an object are shrunk harder.
+    That's wrong - they should be shrunk less.
+    
+    So fix that up, but scaling the result so that the patch is actually a no-op
+    at this time, because all caches use DEFAULT_SEEKS (2).
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b859482..f2da3c9 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -154,7 +154,7 @@ static int shrink_slab(long scanned, unsigned int gfp_mask)
+ 	list_for_each_entry(shrinker, &shrinker_list, list) {
+ 		unsigned long long delta;
  
-+	if (p->dummy_a || p->dummy_b || p->memcg_may_oom) {
-+		printk(KERN_ALERT "dummy_a:%d dummy_b:%d memcg_may_oom:%d\n",
-+		       p->dummy_a, p->dummy_b, p->memcg_may_oom);
-+		BUG();
-+	}
-+
- 	return p;
- 
- bad_fork_cancel_cgroup:
+-		delta = scanned * shrinker->seeks;
++		delta = 4 * (scanned / shrinker->seeks);
+ 		delta *= (*shrinker->shrinker)(0, gfp_mask);
+ 		do_div(delta, pages + 1);
+ 		shrinker->nr += delta;
+
+
+What a pathetic changelog.
+
+The current code may be good, it may be bad, but I'm reluctant to
+change it without a solid demonstration that the result is overall
+superior.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
