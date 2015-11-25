@@ -1,49 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 9493C6B0038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 05:27:43 -0500 (EST)
-Received: by wmec201 with SMTP id c201so249222096wme.0
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:27:43 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id an2si33572715wjc.209.2015.11.25.02.27.42
-        for <linux-mm@kvack.org>;
-        Wed, 25 Nov 2015 02:27:42 -0800 (PST)
-Date: Wed, 25 Nov 2015 11:27:38 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH] x86/mm: fix regression with huge pages on PAE
-Message-ID: <20151125102738.GD29499@pd.tnic>
-References: <20151110170447.GH19187@pd.tnic>
- <20151111095101.GA22512@pd.tnic>
- <20151112074854.GA5376@gmail.com>
- <20151112075758.GA20702@node.shutemov.name>
- <20151112080059.GA6835@gmail.com>
- <20151112084616.EABFE19B@black.fi.intel.com>
- <20151112085418.GA18963@gmail.com>
- <20151112090018.GA22481@node.shutemov.name>
- <56547B4F.6030902@oracle.com>
- <20151124201448.GA8954@node.shutemov.name>
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 691126B0254
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 05:28:31 -0500 (EST)
+Received: by wmww144 with SMTP id w144so62982846wmw.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:28:31 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y127si4774480wmy.71.2015.11.25.02.28.30
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 25 Nov 2015 02:28:30 -0800 (PST)
+Subject: Re: [PATCH v2 6/9] mm, debug: introduce dump_gfpflag_names() for
+ symbolic printing of gfp_flags
+References: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
+ <1448368581-6923-7-git-send-email-vbabka@suse.cz>
+ <20151125081645.GC10494@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56558D4C.3060902@suse.cz>
+Date: Wed, 25 Nov 2015 11:28:28 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20151124201448.GA8954@node.shutemov.name>
+In-Reply-To: <20151125081645.GC10494@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, konrad.wilk@oracle.com, elliott@hpe.com, Toshi Kani <toshi.kani@hpe.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-On Tue, Nov 24, 2015 at 10:14:49PM +0200, Kirill A. Shutemov wrote:
-> I haven't seen any actionable objections to the updated patch.
-> Not sure why it's not applied.
+On 11/25/2015 09:16 AM, Joonsoo Kim wrote:
+> On Tue, Nov 24, 2015 at 01:36:18PM +0100, Vlastimil Babka wrote:
+>> --- a/include/trace/events/gfpflags.h
+>> +++ b/include/trace/events/gfpflags.h
+>> @@ -8,8 +8,8 @@
+>>   *
+>>   * Thus most bits set go first.
+>>   */
+>> -#define show_gfp_flags(flags)						\
+>> -	(flags) ? __print_flags(flags, "|",				\
+>> +
+>> +#define __def_gfpflag_names						\
+>>  	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
+>>  	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"}, \
+>>  	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
+>> @@ -19,9 +19,13 @@
+>>  	{(unsigned long)GFP_NOFS,		"GFP_NOFS"},		\
+>>  	{(unsigned long)GFP_ATOMIC,		"GFP_ATOMIC"},		\
+>>  	{(unsigned long)GFP_NOIO,		"GFP_NOIO"},		\
+>> +	{(unsigned long)GFP_NOWAIT,		"GFP_NOWAIT"},		\
+>> +	{(unsigned long)__GFP_DMA,		"GFP_DMA"},		\
+>> +	{(unsigned long)__GFP_DMA32,		"GFP_DMA32"},		\
+>>  	{(unsigned long)__GFP_HIGH,		"GFP_HIGH"},		\
+>>  	{(unsigned long)__GFP_ATOMIC,		"GFP_ATOMIC"},		\
+>>  	{(unsigned long)__GFP_IO,		"GFP_IO"},		\
+>> +	{(unsigned long)__GFP_FS,		"GFP_FS"},		\
+>>  	{(unsigned long)__GFP_COLD,		"GFP_COLD"},		\
+>>  	{(unsigned long)__GFP_NOWARN,		"GFP_NOWARN"},		\
+>>  	{(unsigned long)__GFP_REPEAT,		"GFP_REPEAT"},		\
+>> @@ -36,8 +40,12 @@
+>>  	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
+>>  	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
+>>  	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
+>> +	{(unsigned long)__GFP_WRITE,		"GFP_WRITE"},		\
+>>  	{(unsigned long)__GFP_DIRECT_RECLAIM,	"GFP_DIRECT_RECLAIM"},	\
+>>  	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"GFP_KSWAPD_RECLAIM"},	\
+>>  	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
+>> -	) : "GFP_NOWAIT"
+>>  
+>> +#define show_gfp_flags(flags)						\
+>> +	(flags) ? __print_flags(flags, "|",				\
+>> +	__def_gfpflag_names						\
+>> +	) : "none"
+> 
+> How about moving this to gfp.h or something?
+> Now, we use it in out of tracepoints so there is no need to keep it
+> in include/trace/events/xxx.
 
-It is now.
-
-Thanks.
-
--- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+Hm I didn't want to pollute such widely included header with such defines. And
+show_gfp_flags shouldn't be there definitely as it depends on __print_flags.
+What do others think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
