@@ -1,82 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 691126B0254
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 05:28:31 -0500 (EST)
-Received: by wmww144 with SMTP id w144so62982846wmw.0
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:28:31 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y127si4774480wmy.71.2015.11.25.02.28.30
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 39EB16B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 05:41:02 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so132123978wmu.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:41:01 -0800 (PST)
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
+        by mx.google.com with ESMTPS id cm4si33719884wjb.78.2015.11.25.02.41.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 25 Nov 2015 02:28:30 -0800 (PST)
-Subject: Re: [PATCH v2 6/9] mm, debug: introduce dump_gfpflag_names() for
- symbolic printing of gfp_flags
-References: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
- <1448368581-6923-7-git-send-email-vbabka@suse.cz>
- <20151125081645.GC10494@js1304-P5Q-DELUXE>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56558D4C.3060902@suse.cz>
-Date: Wed, 25 Nov 2015 11:28:28 +0100
-MIME-Version: 1.0
-In-Reply-To: <20151125081645.GC10494@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Nov 2015 02:41:01 -0800 (PST)
+Received: by wmww144 with SMTP id w144so63423009wmw.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:41:00 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/2] GFP_NOFAIL reserves + warning about reserves depletion
+Date: Wed, 25 Nov 2015 11:40:52 +0100
+Message-Id: <1448448054-804-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 11/25/2015 09:16 AM, Joonsoo Kim wrote:
-> On Tue, Nov 24, 2015 at 01:36:18PM +0100, Vlastimil Babka wrote:
->> --- a/include/trace/events/gfpflags.h
->> +++ b/include/trace/events/gfpflags.h
->> @@ -8,8 +8,8 @@
->>   *
->>   * Thus most bits set go first.
->>   */
->> -#define show_gfp_flags(flags)						\
->> -	(flags) ? __print_flags(flags, "|",				\
->> +
->> +#define __def_gfpflag_names						\
->>  	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
->>  	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"}, \
->>  	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
->> @@ -19,9 +19,13 @@
->>  	{(unsigned long)GFP_NOFS,		"GFP_NOFS"},		\
->>  	{(unsigned long)GFP_ATOMIC,		"GFP_ATOMIC"},		\
->>  	{(unsigned long)GFP_NOIO,		"GFP_NOIO"},		\
->> +	{(unsigned long)GFP_NOWAIT,		"GFP_NOWAIT"},		\
->> +	{(unsigned long)__GFP_DMA,		"GFP_DMA"},		\
->> +	{(unsigned long)__GFP_DMA32,		"GFP_DMA32"},		\
->>  	{(unsigned long)__GFP_HIGH,		"GFP_HIGH"},		\
->>  	{(unsigned long)__GFP_ATOMIC,		"GFP_ATOMIC"},		\
->>  	{(unsigned long)__GFP_IO,		"GFP_IO"},		\
->> +	{(unsigned long)__GFP_FS,		"GFP_FS"},		\
->>  	{(unsigned long)__GFP_COLD,		"GFP_COLD"},		\
->>  	{(unsigned long)__GFP_NOWARN,		"GFP_NOWARN"},		\
->>  	{(unsigned long)__GFP_REPEAT,		"GFP_REPEAT"},		\
->> @@ -36,8 +40,12 @@
->>  	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
->>  	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
->>  	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
->> +	{(unsigned long)__GFP_WRITE,		"GFP_WRITE"},		\
->>  	{(unsigned long)__GFP_DIRECT_RECLAIM,	"GFP_DIRECT_RECLAIM"},	\
->>  	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"GFP_KSWAPD_RECLAIM"},	\
->>  	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
->> -	) : "GFP_NOWAIT"
->>  
->> +#define show_gfp_flags(flags)						\
->> +	(flags) ? __print_flags(flags, "|",				\
->> +	__def_gfpflag_names						\
->> +	) : "none"
-> 
-> How about moving this to gfp.h or something?
-> Now, we use it in out of tracepoints so there is no need to keep it
-> in include/trace/events/xxx.
+Hi,
+The first patch has been posted [1] last time and it seems there is no
+major opposition to it. The only concern was a warning which was used
+to note the ALLOC_NO_WATERMARKS request for the __GFP_NOFAIL failed.
 
-Hm I didn't want to pollute such widely included header with such defines. And
-show_gfp_flags shouldn't be there definitely as it depends on __print_flags.
-What do others think?
+I still think that the warning is helpful so I've separated it to 
+its own patch 2 and make it more generic to all ALLOC_NO_WATERMARKS
+failures. The warning is on off but an update to min_free_kbytes
+allows dump the warning again.
+
+[1] http://lkml.kernel.org/r/1447249697-13380-1-git-send-email-mhocko@kernel.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
