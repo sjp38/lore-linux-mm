@@ -1,50 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f53.google.com (mail-lf0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A47D6B0254
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:28:13 -0500 (EST)
-Received: by lfdl133 with SMTP id l133so66659955lfd.2
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 08:28:12 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id gj7si16501071lbc.183.2015.11.25.08.28.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Nov 2015 08:28:11 -0800 (PST)
-Date: Wed, 25 Nov 2015 19:27:57 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] vmscan: do not throttle kthreads due to too_many_isolated
-Message-ID: <20151125162756.GJ29014@esperanza>
-References: <1448465801-3280-1-git-send-email-vdavydov@virtuozzo.com>
- <5655D789.80201@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <5655D789.80201@suse.cz>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 357BB6B0255
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:28:14 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so61840289pac.2
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 08:28:14 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id 10si35165278pfk.32.2015.11.25.08.28.13
+        for <linux-mm@kvack.org>;
+        Wed, 25 Nov 2015 08:28:13 -0800 (PST)
+Date: Wed, 25 Nov 2015 11:28:11 -0500 (EST)
+Message-Id: <20151125.112811.22762794078922115.davem@davemloft.net>
+Subject: Re: [PATCH 07/13] net: tcp_memcontrol: sanitize tcp memory
+ accounting callbacks
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1448401925-22501-8-git-send-email-hannes@cmpxchg.org>
+References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
+	<1448401925-22501-8-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: hannes@cmpxchg.org
+Cc: akpm@linux-foundation.org, vdavydov@virtuozzo.com, mhocko@suse.cz, tj@kernel.org, eric.dumazet@gmail.com, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Wed, Nov 25, 2015 at 04:45:13PM +0100, Vlastimil Babka wrote:
-> On 11/25/2015 04:36 PM, Vladimir Davydov wrote:
-> > Block device drivers often hand off io request processing to kernel
-> > threads (example: device mapper). If such a thread calls kmalloc, it can
-> > dive into direct reclaim path and end up waiting for too_many_isolated
-> > to return false, blocking writeback. This can lead to a dead lock if the
+From: Johannes Weiner <hannes@cmpxchg.org>
+Date: Tue, 24 Nov 2015 16:51:59 -0500
+
+> There won't be a tcp control soft limit, so integrating the memcg code
+> into the global skmem limiting scheme complicates things
+> unnecessarily. Replace this with simple and clear charge and uncharge
+> calls--hidden behind a jump label--to account skb memory.
 > 
-> Shouldn't such allocation lack __GFP_IO to prevent this and other kinds of
-> deadlocks? And/or have mempools?
+> Note that this is not purely aesthetic: as a result of shoehorning the
+> per-memcg code into the same memory accounting functions that handle
+> the global level, the old code would compare the per-memcg consumption
+> against the smaller of the per-memcg limit and the global limit. This
+> allowed the total consumption of multiple sockets to exceed the global
+> limit, as long as the individual sockets stayed within bounds. After
+> this change, the code will always compare the per-memcg consumption to
+> the per-memcg limit, and the global consumption to the global limit,
+> and thus close this loophole.
+> 
+> Without a soft limit, the per-memcg memory pressure state in sockets
+> is generally questionable. However, we did it until now, so we
+> continue to enter it when the hard limit is hit, and packets are
+> dropped, to let other sockets in the cgroup know that they shouldn't
+> grow their transmit windows, either. However, keep it simple in the
+> new callback model and leave memory pressure lazily when the next
+> packet is accepted (as opposed to doing it synchroneously when packets
+> are processed). When packets are dropped, network performance will
+> already be in the toilet, so that should be a reasonable trade-off.
+> 
+> As described above, consumption is now checked on the per-memcg level
+> and the global level separately. Likewise, memory pressure states are
+> maintained on both the per-memcg level and the global level, and a
+> socket is considered under pressure when either level asserts as much.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
-Not necessarily. loopback is an example: it can call
-grab_cache_write_begin -> add_to_page_cache_lru with GFP_KERNEL.
-
-> PF_KTHREAD looks like a big hammer to me that will solve only one
-> potential problem...
-
-This problem can result in processes hanging forever. Any ideas how this
-could be fixed in a better way?
-
-Thanks,
-Vladimir
+Acked-by: David S. Miller <davem@davemloft.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
