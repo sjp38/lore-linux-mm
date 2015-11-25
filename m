@@ -1,96 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A9DAD6B0254
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 14:16:49 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so65785913pad.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:16:49 -0800 (PST)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id kz10si2803565pab.59.2015.11.25.11.16.48
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id CABE56B0255
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 14:32:56 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so68081291pab.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:32:56 -0800 (PST)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id ti10si2886121pab.52.2015.11.25.11.32.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Nov 2015 11:16:48 -0800 (PST)
-Received: by pacdm15 with SMTP id dm15so65657350pac.3
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:16:48 -0800 (PST)
-Subject: Re: [PATCH v3 1/4] mm: mmap: Add new /proc tunable for mmap_base
- ASLR.
+        Wed, 25 Nov 2015 11:32:55 -0800 (PST)
+Received: by pabfh17 with SMTP id fh17so68081031pab.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:32:55 -0800 (PST)
+Subject: Re: [PATCH v3 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
 References: <1447888808-31571-1-git-send-email-dcashman@android.com>
  <1447888808-31571-2-git-send-email-dcashman@android.com>
- <20151124164001.71844bcfb4d7a500cd25d9c6@linux-foundation.org>
- <CAGXu5jKaW=H1WWuW_M4LpfcGGUWE3yvsiMnzMiAbeta__YpSJg@mail.gmail.com>
+ <1447888808-31571-3-git-send-email-dcashman@android.com>
+ <1447888808-31571-4-git-send-email-dcashman@android.com>
+ <20151123150459.GD4236@arm.com> <56536114.1020305@android.com>
+ <1448425601.3762.9.camel@ellerman.id.au>
 From: Daniel Cashman <dcashman@android.com>
-Message-ID: <5656091E.6080803@android.com>
-Date: Wed, 25 Nov 2015 11:16:46 -0800
+Message-ID: <56560CE5.3020202@android.com>
+Date: Wed, 25 Nov 2015 11:32:53 -0800
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jKaW=H1WWuW_M4LpfcGGUWE3yvsiMnzMiAbeta__YpSJg@mail.gmail.com>
+In-Reply-To: <1448425601.3762.9.camel@ellerman.id.au>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Hector Marco <hecmargi@upv.es>, Borislav Petkov <bp@suse.de>, Daniel Cashman <dcashman@google.com>
+To: Michael Ellerman <mpe@ellerman.id.au>, Will Deacon <will.deacon@arm.com>, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com
 
-On 11/24/2015 04:47 PM, Kees Cook wrote:
-> On Tue, Nov 24, 2015 at 4:40 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> On Wed, 18 Nov 2015 15:20:05 -0800 Daniel Cashman <dcashman@android.com> wrote:
->>
->>> --- a/kernel/sysctl.c
->>> +++ b/kernel/sysctl.c
->>> @@ -1568,6 +1568,28 @@ static struct ctl_table vm_table[] = {
->>>               .mode           = 0644,
->>>               .proc_handler   = proc_doulongvec_minmax,
->>>       },
->>> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
->>> +     {
->>> +             .procname       = "mmap_rnd_bits",
->>> +             .data           = &mmap_rnd_bits,
->>> +             .maxlen         = sizeof(mmap_rnd_bits),
->>> +             .mode           = 0644,
->>
->> Is there any harm in permitting the attacker to read these values?
->>
->> And is there any benefit in permitting non-attackers to read them?
-> 
-> I'm on the fence. Things like kernel/randomize_va_space is 644. But
-> since I don't see a benefit in exposing them, let's make them all 600
-> instead -- it's a new interface, better to keep it narrower now.
-
-Is there any harm in allowing the attacker to read these values? Nothing
-immediately comes to mind.  It is a form of information leakage, and I
-guess a local attacker could use this information to calibrate an attack
-or decide whether or not brute-forcing is a worthy approach, but this
-easily could be leaked in other ways as well.
-
-Is there a benefit to allowing non-attackers to read them?  Possibly
-could be used in tests seeking to verify the system environment, but
-again, this could be discovered in other ways.
-
-I like Kees' suggestion of starting narrow and granting if need arises.
-
+On 11/24/2015 08:26 PM, Michael Ellerman wrote:
+> On Mon, 2015-11-23 at 10:55 -0800, Daniel Cashman wrote:
+>> On 11/23/2015 07:04 AM, Will Deacon wrote:
+>>> On Wed, Nov 18, 2015 at 03:20:07PM -0800, Daniel Cashman wrote:
+>>>> +config ARCH_MMAP_RND_BITS_MAX
+>>>> +       default 20 if ARM64_64K_PAGES && ARCH_VA_BITS=39
+>>>> +       default 24 if ARCH_VA_BITS=39
+>>>> +       default 23 if ARM64_64K_PAGES && ARCH_VA_BITS=42
+>>>> +       default 27 if ARCH_VA_BITS=42
+>>>> +       default 29 if ARM64_64K_PAGES && ARCH_VA_BITS=48
+>>>> +       default 33 if ARCH_VA_BITS=48
+>>>> +       default 15 if ARM64_64K_PAGES
+>>>> +       default 19
+>>>> +
+>>>> +config ARCH_MMAP_RND_COMPAT_BITS_MIN
+>>>> +       default 7 if ARM64_64K_PAGES
+>>>> +       default 11
 >>>
->>> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
->>> +int mmap_rnd_bits_min = CONFIG_ARCH_MMAP_RND_BITS_MIN;
->>> +int mmap_rnd_bits_max = CONFIG_ARCH_MMAP_RND_BITS_MAX;
->>> +int mmap_rnd_bits = CONFIG_ARCH_MMAP_RND_BITS;
->>> +#endif
->>> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_COMPAT_BITS
->>> +int mmap_rnd_compat_bits_min = CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MIN;
->>> +int mmap_rnd_compat_bits_max = CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MAX;
->>> +int mmap_rnd_compat_bits = CONFIG_ARCH_MMAP_RND_COMPAT_BITS;
+>>> FYI: we now support 16k pages too, so this might need updating. It would
+>>> be much nicer if this was somehow computed rather than have the results
+>>> all open-coded like this.
 >>
->> These could be __read_mostly.
+>> Yes, I ideally wanted this to be calculated based on the different page
+>> options and VA_BITS (which itself has a similar stanza), but I don't
+>> know how to do that/if it is currently supported in Kconfig. This would
+>> be even more desirable with the addition of 16K_PAGES, as with this
+>> setup we have a combinatorial problem.
 >>
->> If one believes in such things.  One effect of __read_mostly is to
->> clump the write-often stuff into the same cachelines and I've never
->> been convinced that one outweighs the other...
+>> We could move this logic into the code where min/max are initialized,
+>> but that would create its own mess, creating new Kconfig values to
+>> introduce it in an arch-agnostic way after patch-set v2 moved that to
+>> mm/mmap.c instead of arch/${arch}/mm/mmap.c Suggestions welcome.
 > 
-> The _min and _max values should be const, actually, since they're
-> build-time selected. The _bits could easily be __read_mostly, yeah.
+> 
+> Could we instead change the meaning of the mmap_rnd_bits value to be the number
+> of address space bits that may be randomised?
+> 
+> ie. 40 would mean "please randomise in a 1T range", which with PAGE_SIZE=4K
+> gives you 28 random bits. etc.
+> 
+> That would make the value independent of PAGE_SIZE, and only depend on the size
+> of the address space.
+> 
+> It would also mean the values userspace sets and sees don't need to change if the
+> kernel PAGE_SIZE changes. (which probably doesn't happen often but still)
 
-Yes, one would generally expect these to never be touched, and even if
-they were, the threshold of __read_mostly would certainly be crossed.
+This is an intriguing idea. It might actually be more meaningful to a
+sysadmin when weighing how high they're willing to go, since it makes
+the relation to the address space overall more apparent.  Though the
+cost would be more obvious, the benefit would become less-so, as the
+amount of entropy used, and thus expected brute-force requirements would
+be hidden.  I'll defer to Andrew Morton, as the maintainer, to make this
+decision as I think both approaches are valid.
 
--Dan
+Thank You,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
