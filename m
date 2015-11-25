@@ -1,105 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E1AE6B0255
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 14:36:45 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so66210438pad.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:36:45 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id c17si36047782pfd.44.2015.11.25.11.36.44
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E7E56B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 15:08:19 -0500 (EST)
+Received: by wmvv187 with SMTP id v187so2389371wmv.1
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 12:08:19 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id vx5si36773492wjc.219.2015.11.25.12.08.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Nov 2015 11:36:44 -0800 (PST)
-Received: by pabfh17 with SMTP id fh17so68161800pab.0
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:36:44 -0800 (PST)
-Subject: Re: [PATCH v3 1/4] mm: mmap: Add new /proc tunable for mmap_base
- ASLR.
-References: <1447888808-31571-1-git-send-email-dcashman@android.com>
- <1447888808-31571-2-git-send-email-dcashman@android.com>
- <1448426400.3762.11.camel@ellerman.id.au>
-From: Daniel Cashman <dcashman@android.com>
-Message-ID: <56560DCA.7050009@android.com>
-Date: Wed, 25 Nov 2015 11:36:42 -0800
+        Wed, 25 Nov 2015 12:08:18 -0800 (PST)
+Date: Wed, 25 Nov 2015 15:08:06 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH] mm, oom: introduce oom reaper
+Message-ID: <20151125200806.GA13388@cmpxchg.org>
+References: <1448467018-20603-1-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <1448426400.3762.11.camel@ellerman.id.au>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1448467018-20603-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, linux-kernel@vger.kernel.org
-Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Argangeli <andrea@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 11/24/2015 08:40 PM, Michael Ellerman wrote:
-> On Wed, 2015-11-18 at 15:20 -0800, Daniel Cashman wrote:
-> 
->> From: dcashman <dcashman@google.com>
->>
->> ASLR currently only uses 8 bits to generate the random offset for the
->> mmap base address on 32 bit architectures. This value was chosen to
->> prevent a poorly chosen value from dividing the address space in such
->> a way as to prevent large allocations. This may not be an issue on all
->> platforms. Allow the specification of a minimum number of bits so that
->> platforms desiring greater ASLR protection may determine where to place
->> the trade-off.
-> 
-> ...
-> 
->> diff --git a/arch/Kconfig b/arch/Kconfig
->> index 4e949e5..141823f 100644
->> --- a/arch/Kconfig
->> +++ b/arch/Kconfig
->> @@ -511,6 +511,70 @@ config ARCH_HAS_ELF_RANDOMIZE
->>  	  - arch_mmap_rnd()
->>  	  - arch_randomize_brk()
->>  
->> +config HAVE_ARCH_MMAP_RND_BITS
->> +	bool
->> +	help
->> +	  An arch should select this symbol if it supports setting a variable
->> +	  number of bits for use in establishing the base address for mmap
->> +	  allocations and provides values for both:
->> +	  - ARCH_MMAP_RND_BITS_MIN
->> +	  - ARCH_MMAP_RND_BITS_MAX
->> +
->> +config ARCH_MMAP_RND_BITS_MIN
->> +	int
->> +
->> +config ARCH_MMAP_RND_BITS_MAX
->> +	int
->> +
->> +config ARCH_MMAP_RND_BITS_DEFAULT
->> +	int
->> +
->> +config ARCH_MMAP_RND_BITS
->> +	int "Number of bits to use for ASLR of mmap base address" if EXPERT
->> +	range ARCH_MMAP_RND_BITS_MIN ARCH_MMAP_RND_BITS_MAX
->> +	default ARCH_MMAP_RND_BITS_DEFAULT if ARCH_MMAP_RND_BITS_DEFAULT
-> 
-> Here you support a default which is separate from the minimum.
-> 
->> +	default ARCH_MMAP_RND_BITS_MIN
->> +	depends on HAVE_ARCH_MMAP_RND_BITS
-> 
-> ...
->> +
->> +config ARCH_MMAP_RND_COMPAT_BITS
->> +	int "Number of bits to use for ASLR of mmap base address for compatible applications" if EXPERT
->> +	range ARCH_MMAP_RND_COMPAT_BITS_MIN ARCH_MMAP_RND_COMPAT_BITS_MAX
->> +	default ARCH_MMAP_RND_COMPAT_BITS_MIN
-> 
-> But here you don't.
-> 
-> Just forgot?
+Hi Michal,
 
-Yes.  Good catch.
+I think whatever we end up doing to smoothen things for the "common
+case" (as much as OOM kills can be considered common), we need a plan
+to resolve the memory deadlock situations in a finite amount of time.
 
-> I'd like to have a default which is separate from the minimum. That way we can
-> have a default which is reasonably large, but allow it to be lowered easily if
-> anything breaks.
+Eventually we have to attempt killing another task. Or kill all of
+them to save the kernel.
 
-Will add it, along w/the documentation cleanup and other changes.
+It just strikes me as odd to start with smoothening the common case,
+rather than making it functionally correct first.
 
-Thank You,
-Dan
+On Wed, Nov 25, 2015 at 04:56:58PM +0100, Michal Hocko wrote:
+> A kernel thread has been chosen because we need a reliable way of
+> invocation so workqueue context is not appropriate because all the
+> workers might be busy (e.g. allocating memory). Kswapd which sounds
+> like another good fit is not appropriate as well because it might get
+> blocked on locks during reclaim as well.
+
+Why not do it directly from the allocating context? I.e. when entering
+the OOM killer and finding a lingering TIF_MEMDIE from a previous kill
+just reap its memory directly then and there. It's not like the
+allocating task has anything else to do in the meantime...
+
+> @@ -1123,7 +1126,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+>  			continue;
+>  		}
+>  		/* If details->check_mapping, we leave swap entries. */
+> -		if (unlikely(details))
+> +		if (unlikely(details || !details->check_swap_entries))
+>  			continue;
+
+&&
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
