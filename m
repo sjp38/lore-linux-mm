@@ -1,70 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id B0A146B0259
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 21:44:15 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so41478002pac.2
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 18:44:15 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id xq4si30604966pab.229.2015.11.24.18.44.13
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id E2F8A6B0253
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 21:53:21 -0500 (EST)
+Received: by igbxm8 with SMTP id xm8so28896224igb.1
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 18:53:21 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTPS id c16si2479897igo.99.2015.11.24.18.53.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 Nov 2015 18:44:14 -0800 (PST)
-Date: Wed, 25 Nov 2015 11:44:36 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm, vmstat: Allow WQ concurrency to discover memory
- reclaim doesn't make any progress
-Message-ID: <20151125024435.GB9563@js1304-P5Q-DELUXE>
-References: <1447936253-18134-1-git-send-email-mhocko@kernel.org>
- <20151124154448.ac124e62528db313279224ef@linux-foundation.org>
+        Tue, 24 Nov 2015 18:53:21 -0800 (PST)
+Date: Wed, 25 Nov 2015 11:53:18 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v4 00/16] MADV_FREE support
+Message-ID: <20151125025318.GA2678@bbox>
+References: <1448006568-16031-1-git-send-email-minchan@kernel.org>
+ <20151124135851.bd50e261e30ed4e178baaef9@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151124154448.ac124e62528db313279224ef@linux-foundation.org>
+In-Reply-To: <20151124135851.bd50e261e30ed4e178baaef9@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, Cristopher Lameter <clameter@sgi.com>, Arkadiusz =?utf-8?Q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jason Evans <je@fb.com>, Daniel Micay <danielmicay@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Shaohua Li <shli@kernel.org>, Michal Hocko <mhocko@suse.cz>, yalin.wang2010@gmail.com, Andy Lutomirski <luto@amacapital.net>
 
-On Tue, Nov 24, 2015 at 03:44:48PM -0800, Andrew Morton wrote:
-> On Thu, 19 Nov 2015 13:30:53 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > Tetsuo Handa has reported that the system might basically livelock in OOM
-> > condition without triggering the OOM killer. The issue is caused by
-> > internal dependency of the direct reclaim on vmstat counter updates (via
-> > zone_reclaimable) which are performed from the workqueue context.
-> > If all the current workers get assigned to an allocation request,
-> > though, they will be looping inside the allocator trying to reclaim
-> > memory but zone_reclaimable can see stalled numbers so it will consider
-> > a zone reclaimable even though it has been scanned way too much. WQ
-> > concurrency logic will not consider this situation as a congested workqueue
-> > because it relies that worker would have to sleep in such a situation.
-> > This also means that it doesn't try to spawn new workers or invoke
-> > the rescuer thread if the one is assigned to the queue.
-> > 
-> > In order to fix this issue we need to do two things. First we have to
-> > let wq concurrency code know that we are in trouble so we have to do
-> > a short sleep. In order to prevent from issues handled by 0e093d99763e
-> > ("writeback: do not sleep on the congestion queue if there are no
-> > congested BDIs or if significant congestion is not being encountered in
-> > the current zone") we limit the sleep only to worker threads which are
-> > the ones of the interest anyway.
-> > 
-> > The second thing to do is to create a dedicated workqueue for vmstat and
-> > mark it WQ_MEM_RECLAIM to note it participates in the reclaim and to
-> > have a spare worker thread for it.
-> 
-> This vmstat update thing is being a problem.  Please see Joonsoo's
-> "mm/vmstat: retrieve more accurate vmstat value".
-> 
-> Joonsoo, might this patch help with that issue?
+Hi Andrew,
 
-That issue cannot be solved by this patch. This patch solves blocking
-vmstat updator problem but that issue is caused by long update delay
-(not blocking). In there, update happens every 1 sec as usuall.
+On Tue, Nov 24, 2015 at 01:58:51PM -0800, Andrew Morton wrote:
+> On Fri, 20 Nov 2015 17:02:32 +0900 Minchan Kim <minchan@kernel.org> wrote:
+> 
+> > I have been spent a lot of time to land MADV_FREE feature
+> > by request of userland people(esp, Daniel and Jason, jemalloc guys.
+> 
+> A couple of things...
+> 
+> There's a massive and complex reject storm against Kirill's page-flags
+> and thp changes.  The problems in hugetlb.c are more than I can
+> reasonably fix up, sorry.  How would you feel about redoing the patches
+> against next -mm?
 
-Thanks.
+No problem at all.
+
+> 
+> Secondly, "mm: introduce lazyfree LRU list" and "mm: support MADV_FREE
+> on swapless system" are new, and require significant reviewer
+> attention.  But there's so much other stuff flying around that I doubt
+> if we'll get effective review.  So perhaps it would be best to shelve
+> those new things and introduce them later, after the basic old
+> MADV_FREE work has settled in?
+> 
+
+That's really what we(Daniel, Michael and me) want so far.
+A people who is reluctant to it is Johannes who wanted to support
+MADV_FREE on swapless system via new LRU from the beginning.
+
+If Johannes is not strong against Andrew's plan, I will resend
+new patchset(ie, not including new stuff) based on next -mmotm.
+
+Hannes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
