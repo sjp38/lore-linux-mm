@@ -1,92 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 600CB6B0038
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 23:49:39 -0500 (EST)
-Received: by iouu10 with SMTP id u10so43457690iou.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 20:49:39 -0800 (PST)
-Received: from cmccmta1.chinamobile.com (cmccmta1.chinamobile.com. [221.176.66.79])
-        by mx.google.com with ESMTP id 19si18565839iol.108.2015.11.24.20.49.37
-        for <linux-mm@kvack.org>;
-        Tue, 24 Nov 2015 20:49:38 -0800 (PST)
-From: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-Subject: [PATCH] mm: vmscan: Obey indeed proportional scanning for kswapd and memcg
-Date: Wed, 25 Nov 2015 12:48:20 +0800
-Message-Id: <1448426900-2907-1-git-send-email-baiyaowei@cmss.chinamobile.com>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 417696B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 00:26:36 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so45637112pac.3
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 21:26:36 -0800 (PST)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id qp8si31551847pac.135.2015.11.24.21.26.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Nov 2015 21:26:35 -0800 (PST)
+Received: by pacej9 with SMTP id ej9so45674942pac.2
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 21:26:35 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH v2] mm/compaction: __compact_pgdat() code cleanuup
+Date: Wed, 25 Nov 2015 14:26:12 +0900
+Message-Id: <1448429172-24961-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, jslaby@suse.cz, Valdis.Kletnieks@vt.edu, zcalusic@bitsync.net, vbabka@suse.cz, vdavydov@parallels.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Yaowei Bai <bywxiaobai@163.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Commit e82e0561dae9f3ae5 ("mm: vmscan: obey proportional scanning
-requirements for kswapd") intended to preserve the proportional scanning
-and reclaim what was requested by get_scan_count() for kswapd and memcg
-by stopping reclaiming one type(anon or file) LRU and reducing the other's
-amount of scanning proportional to the original scan target.
+This patch uses is_via_compact_memory() to distinguish direct compaction.
+And it also reduces indentation on compaction_defer_reset
+by filtering failure case. There is no functional change.
 
-So the way to determine which LRU should be stopped reclaiming should be
-comparing scanned/unscanned percentages to the original scan target of two
-lru types instead of absolute values what implemented currently, because
-larger absolute value doesn't mean larger percentage, there shall be
-chance that larger absolute value with smaller percentage, for instance:
-
-	target_file = 1000
-	target_anon = 500
-	nr_file = 500
-	nr_anon = 400
-
-in this case, because nr_file > nr_anon, according to current implement,
-we will stop scanning anon lru and shrink file lru. This breaks
-proportional scanning intent and makes more unproportional.
-
-This patch changes to compare percentage to the original scan target to
-determine which lru should be shrunk.
-
-Signed-off-by: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+Acked-by: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/vmscan.c | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ mm/compaction.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2aec424..09a37436 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2216,6 +2216,7 @@ static void shrink_lruvec(struct lruvec *lruvec, int swappiness,
- 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
- 					nr[LRU_INACTIVE_FILE]) {
- 		unsigned long nr_anon, nr_file, percentage;
-+		unsigned long percentage_anon, percentage_file;
- 		unsigned long nr_scanned;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index de3e1e7..01b1e5e 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1658,14 +1658,15 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+ 				!compaction_deferred(zone, cc->order))
+ 			compact_zone(zone, cc);
  
- 		for_each_evictable_lru(lru) {
-@@ -2250,16 +2251,17 @@ static void shrink_lruvec(struct lruvec *lruvec, int swappiness,
- 		if (!nr_file || !nr_anon)
- 			break;
- 
--		if (nr_file > nr_anon) {
--			unsigned long scan_target = targets[LRU_INACTIVE_ANON] +
--						targets[LRU_ACTIVE_ANON] + 1;
-+		percentage_anon = nr_anon * 100 / (targets[LRU_INACTIVE_ANON] +
-+						targets[LRU_ACTIVE_ANON] + 1);
-+		percentage_file = nr_file * 100 / (targets[LRU_INACTIVE_FILE] +
-+						targets[LRU_ACTIVE_FILE] + 1);
+-		if (cc->order > 0) {
+-			if (zone_watermark_ok(zone, cc->order,
+-						low_wmark_pages(zone), 0, 0))
+-				compaction_defer_reset(zone, cc->order, false);
+-		}
+-
+ 		VM_BUG_ON(!list_empty(&cc->freepages));
+ 		VM_BUG_ON(!list_empty(&cc->migratepages));
 +
-+		if (percentage_file > percentage_anon) {
- 			lru = LRU_BASE;
--			percentage = nr_anon * 100 / scan_target;
-+			percentage = percentage_anon;
- 		} else {
--			unsigned long scan_target = targets[LRU_INACTIVE_FILE] +
--						targets[LRU_ACTIVE_FILE] + 1;
- 			lru = LRU_FILE;
--			percentage = nr_file * 100 / scan_target;
-+			percentage = percentage_file;
- 		}
++		if (is_via_compact_memory(cc->order))
++			continue;
++
++		if (zone_watermark_ok(zone, cc->order,
++				low_wmark_pages(zone), 0, 0))
++			compaction_defer_reset(zone, cc->order, false);
+ 	}
+ }
  
- 		/* Stop scanning the smaller of the LRU */
 -- 
 1.9.1
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
