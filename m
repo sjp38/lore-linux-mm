@@ -1,83 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 063076B0253
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 18:44:52 -0500 (EST)
-Received: by wmec201 with SMTP id c201so232753887wme.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 15:44:51 -0800 (PST)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EEBE6B0253
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 19:39:12 -0500 (EST)
+Received: by wmec201 with SMTP id c201so233920165wme.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 16:39:12 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id t11si30416019wjr.220.2015.11.24.15.44.50
+        by mx.google.com with ESMTPS id a6si1905922wmh.59.2015.11.24.16.39.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 15:44:50 -0800 (PST)
-Date: Tue, 24 Nov 2015 15:44:48 -0800
+        Tue, 24 Nov 2015 16:39:11 -0800 (PST)
+Date: Tue, 24 Nov 2015 16:39:07 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, vmstat: Allow WQ concurrency to discover memory
- reclaim doesn't make any progress
-Message-Id: <20151124154448.ac124e62528db313279224ef@linux-foundation.org>
-In-Reply-To: <1447936253-18134-1-git-send-email-mhocko@kernel.org>
-References: <1447936253-18134-1-git-send-email-mhocko@kernel.org>
+Subject: Re: [PATCH v3 0/4] Allow customizable random offset to mmap_base
+ address.
+Message-Id: <20151124163907.1a406b79458b1bb0d3519684@linux-foundation.org>
+In-Reply-To: <1447888808-31571-1-git-send-email-dcashman@android.com>
+References: <1447888808-31571-1-git-send-email-dcashman@android.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, Cristopher Lameter <clameter@sgi.com>, Arkadiusz =?UTF-8?Q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>
+To: Daniel Cashman <dcashman@android.com>
+Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com, Ralf Baechle <ralf@linux-mips.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Thu, 19 Nov 2015 13:30:53 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Wed, 18 Nov 2015 15:20:04 -0800 Daniel Cashman <dcashman@android.com> wrote:
 
-> From: Michal Hocko <mhocko@suse.com>
+> Address Space Layout Randomization (ASLR) provides a barrier to
+> exploitation of user-space processes in the presence of security
+> vulnerabilities by making it more difficult to find desired code/data
+> which could help an attack.  This is done by adding a random offset to the
+> location of regions in the process address space, with a greater range of
+> potential offset values corresponding to better protection/a larger
+> search-space for brute force, but also to greater potential for
+> fragmentation.
 > 
-> Tetsuo Handa has reported that the system might basically livelock in OOM
-> condition without triggering the OOM killer. The issue is caused by
-> internal dependency of the direct reclaim on vmstat counter updates (via
-> zone_reclaimable) which are performed from the workqueue context.
-> If all the current workers get assigned to an allocation request,
-> though, they will be looping inside the allocator trying to reclaim
-> memory but zone_reclaimable can see stalled numbers so it will consider
-> a zone reclaimable even though it has been scanned way too much. WQ
-> concurrency logic will not consider this situation as a congested workqueue
-> because it relies that worker would have to sleep in such a situation.
-> This also means that it doesn't try to spawn new workers or invoke
-> the rescuer thread if the one is assigned to the queue.
+> The offset added to the mmap_base address, which provides the basis for
+> the majority of the mappings for a process, is set once on process exec in
+> arch_pick_mmap_layout() and is done via hard-coded per-arch values, which
+> reflect, hopefully, the best compromise for all systems.  The trade-off
+> between increased entropy in the offset value generation and the
+> corresponding increased variability in address space fragmentation is not
+> absolute, however, and some platforms may tolerate higher amounts of
+> entropy.  This patch introduces both new Kconfig values and a sysctl
+> interface which may be used to change the amount of entropy used for
+> offset generation on a system.
 > 
-> In order to fix this issue we need to do two things. First we have to
-> let wq concurrency code know that we are in trouble so we have to do
-> a short sleep. In order to prevent from issues handled by 0e093d99763e
-> ("writeback: do not sleep on the congestion queue if there are no
-> congested BDIs or if significant congestion is not being encountered in
-> the current zone") we limit the sleep only to worker threads which are
-> the ones of the interest anyway.
+> The direct motivation for this change was in response to the
+> libstagefright vulnerabilities that affected Android, specifically to
+> information provided by Google's project zero at:
 > 
-> The second thing to do is to create a dedicated workqueue for vmstat and
-> mark it WQ_MEM_RECLAIM to note it participates in the reclaim and to
-> have a spare worker thread for it.
-
-This vmstat update thing is being a problem.  Please see Joonsoo's
-"mm/vmstat: retrieve more accurate vmstat value".
-
-Joonsoo, might this patch help with that issue?
-
+> http://googleprojectzero.blogspot.com/2015/09/stagefrightened.html
 > 
-> The original issue reported by Tetsuo [1] has seen multiple attempts for
-> a fix. The easiest one being [2] which was targeted to the particular
-> problem. There was a more general concern that looping inside the
-> allocator without ever sleeping breaks the basic assumption of worker
-> concurrency logic so the fix should be more general. Another attempt [3]
-> therefore added a short (1 jiffy) sleep into the page allocator. This
-> would, however, introduce sleeping for all callers of the page allocator
-> which is not really needed. This patch tries to be a compromise and
-> introduce sleeping only where it matters - for kworkers.
+> The attack presented therein, by Google's project zero, specifically
+> targeted the limited randomness used to generate the offset added to the
+> mmap_base address in order to craft a brute-force-based attack. 
+> Concretely, the attack was against the mediaserver process, which was
+> limited to respawning every 5 seconds, on an arm device.  The hard-coded 8
+> bits used resulted in an average expected success rate of defeating the
+> mmap ASLR after just over 10 minutes (128 tries at 5 seconds a piece). 
+> With this patch, and an accompanying increase in the entropy value to 16
+> bits, the same attack would take an average expected time of over 45 hours
+> (32768 tries), which makes it both less feasible and more likely to be
+> noticed.
 > 
-> Even though we haven't seen bug reports in the past I would suggest
-> backporting this to the stable trees. The issue is present since we have
-> stopped useing congestion_wait in the retry loop because WQ concurrency
-> is older as well as vmstat worqueue based refresh AFAICS.
+> The introduced Kconfig and sysctl options are limited by per-arch minimum
+> and maximum values, the minimum of which was chosen to match the current
+> hard-coded value and the maximum of which was chosen so as to give the
+> greatest flexibility without generating an invalid mmap_base address,
+> generally a 3-4 bits less than the number of bits in the user-space
+> accessible virtual address space.
+> 
+> When decided whether or not to change the default value, a system
+> developer should consider that mmap_base address could be placed anywhere
+> up to 2^(value) bits away from the non-randomized location, which would
+> introduce variable-sized areas above and below the mmap_base address such
+> that the maximum vm_area_struct size may be reduced, preventing very large
+> allocations. 
 
-hm, I'm reluctant.  If the patch fixes something that real people are
-really hurting from then yes.  But I suspect this is just one fly-swat
-amongst many.
+Nice, thanks.
 
+mips, powerpc and s390 also implement arch_mmap_rnd().  Are there any
+special considerations here, or it just a matter of maintainers wiring
+it up and testing it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
