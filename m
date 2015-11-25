@@ -1,78 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 260FB6B0038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 05:45:20 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so54012429pac.2
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:45:19 -0800 (PST)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id ag6si403668pad.210.2015.11.25.02.45.19
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 95D156B0254
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 05:46:01 -0500 (EST)
+Received: by wmww144 with SMTP id w144so63594764wmw.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:46:01 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z133si4876357wmc.82.2015.11.25.02.46.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Nov 2015 02:45:19 -0800 (PST)
-Received: by pacdm15 with SMTP id dm15so53992151pac.3
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:45:19 -0800 (PST)
-Date: Wed, 25 Nov 2015 02:45:15 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm/compaction: __compact_pgdat() code cleanuup
-In-Reply-To: <1448429172-24961-1-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.10.1511250242100.32374@chino.kir.corp.google.com>
-References: <1448429172-24961-1-git-send-email-iamjoonsoo.kim@lge.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 25 Nov 2015 02:46:00 -0800 (PST)
+Subject: Re: [PATCH v2] mm/cma: always check which page cause allocation
+ failure
+References: <20151125023913.GA9563@js1304-P5Q-DELUXE>
+ <1448429565-29748-1-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56559165.5080304@suse.cz>
+Date: Wed, 25 Nov 2015 11:45:57 +0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1448429565-29748-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Yaowei Bai <bywxiaobai@163.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, 25 Nov 2015, Joonsoo Kim wrote:
-
-> This patch uses is_via_compact_memory() to distinguish direct compaction.
-
-When I think of "direct compaction", I think of compaction triggered for 
-high-order allocations from the page allocator before direct reclaim.  
-This is the opposite of being triggered for is_via_compact_memory().
-
-> And it also reduces indentation on compaction_defer_reset
-> by filtering failure case. There is no functional change.
+On 11/25/2015 06:32 AM, Joonsoo Kim wrote:
+> Now, we have tracepoint in test_pages_isolated() to notify
+> pfn which cannot be isolated. But, in alloc_contig_range(),
+> some error path doesn't call test_pages_isolated() so it's still
+> hard to know exact pfn that causes allocation failure.
 > 
-> Acked-by: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+> This patch change this situation by calling test_pages_isolated()
+> in almost error path. In allocation failure case, some overhead
+> is added by this change, but, allocation failure is really rare
+> event so it would not matter.
+> 
+> In fatal signal pending case, we don't call test_pages_isolated()
+> because this failure is intentional one.
+> 
+> There was a bogus outer_start problem due to unchecked buddy order
+> and this patch also fix it. Before this patch, it didn't matter,
+> because end result is same thing. But, after this patch,
+> tracepoint will report failed pfn so it should be accurate.
+> 
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/compaction.c | 13 +++++++------
->  1 file changed, 7 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index de3e1e7..01b1e5e 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1658,14 +1658,15 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
->  				!compaction_deferred(zone, cc->order))
->  			compact_zone(zone, cc);
->  
-> -		if (cc->order > 0) {
-> -			if (zone_watermark_ok(zone, cc->order,
-> -						low_wmark_pages(zone), 0, 0))
-> -				compaction_defer_reset(zone, cc->order, false);
-> -		}
-> -
->  		VM_BUG_ON(!list_empty(&cc->freepages));
->  		VM_BUG_ON(!list_empty(&cc->migratepages));
-> +
-> +		if (is_via_compact_memory(cc->order))
-> +			continue;
 
-This will be the third call to is_via_compact_memory() in this function.  
-Maybe just do
-
-	const bool sysctl = is_via_compact_memory(cc->order);
-
-early in the function since it won't change during the iteration?  (And 
-maybe get rid of that extra newline that already exists at the beginning 
-of the iteration?
-
-Otherwise:
-
-Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
