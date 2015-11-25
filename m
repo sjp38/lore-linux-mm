@@ -1,56 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FD5E6B025A
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:30:52 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so62019021pad.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 08:30:52 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id pu2si2037188pac.80.2015.11.25.08.30.50
-        for <linux-mm@kvack.org>;
-        Wed, 25 Nov 2015 08:30:51 -0800 (PST)
-Date: Wed, 25 Nov 2015 11:30:48 -0500 (EST)
-Message-Id: <20151125.113048.45218641761530031.davem@davemloft.net>
-Subject: Re: [PATCH 13/13] mm: memcontrol: hook up vmpressure to socket
- pressure
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20151124215940.GB1373@cmpxchg.org>
-References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
-	<20151124215940.GB1373@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B60746B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 12:21:24 -0500 (EST)
+Received: by wmww144 with SMTP id w144so78394354wmw.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 09:21:24 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id ge7si35889117wjc.227.2015.11.25.09.21.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Nov 2015 09:21:23 -0800 (PST)
+Received: by wmww144 with SMTP id w144so78393498wmw.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 09:21:22 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <201511260027.CCC26590.SOHFMQLVJOtFOF@I-love.SAKURA.ne.jp>
+References: <CACT4Y+ZCkv0BPOdo3aiheA5LXzXhcnuiw7kCoWL=b9FcC8-wqg@mail.gmail.com>
+ <20151125084403.GA24703@dhcp22.suse.cz> <565592A1.50407@I-love.SAKURA.ne.jp>
+ <CACT4Y+Zn+mK37-mvqDQTyt1Psp6HT2heT0e937SO24F7V1q7PA@mail.gmail.com> <201511260027.CCC26590.SOHFMQLVJOtFOF@I-love.SAKURA.ne.jp>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 25 Nov 2015 18:21:02 +0100
+Message-ID: <CACT4Y+ZdF09hOnb_bL4GNjytSMMGvNde8=9pdZt6gZQB1sp0hQ@mail.gmail.com>
+Subject: Re: WARNING in handle_mm_fault
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org
-Cc: akpm@linux-foundation.org, vdavydov@virtuozzo.com, mhocko@suse.cz, tj@kernel.org, eric.dumazet@gmail.com, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Eric Dumazet <edumazet@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Peter Zijlstra <peterz@infradead.org>
 
-From: Johannes Weiner <hannes@cmpxchg.org>
-Date: Tue, 24 Nov 2015 16:59:40 -0500
+On Wed, Nov 25, 2015 at 4:27 PM, Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+> Dmitry Vyukov wrote:
+>> If the race described in
+>> http://www.spinics.net/lists/cgroups/msg14078.html does actually
+>> happen, then there is nothing to check.
+>> https://gcc.gnu.org/ml/gcc/2012-02/msg00005.html talks about different
+>> memory locations, if there is store-widening involving different
+>> memory locations, then this is a compiler bug. But the race happens on
+>> a single memory location, in such case the code is buggy.
+>>
+>
+> All ->in_execve ->in_iowait ->sched_reset_on_fork ->sched_contributes_to_load
+> ->sched_migrated ->memcg_may_oom ->memcg_kmem_skip_account ->brk_randomized
+> shares the same byte.
+>
+> sched_fork(p) modifies p->sched_reset_on_fork but p is not yet visible.
+> __sched_setscheduler(p) modifies p->sched_reset_on_fork.
+> try_to_wake_up(p) modifies p->sched_contributes_to_load.
+> perf_event_task_migrate(p) modifies p->sched_migrated.
+>
+> Trying to reproduce this problem with
+>
+>  static __always_inline bool
+>  perf_sw_migrate_enabled(void)
+>  {
+> -       if (static_key_false(&perf_swevent_enabled[PERF_COUNT_SW_CPU_MIGRATIONS]))
+> -               return true;
+>         return false;
+>  }
+>
+> would help testing ->sched_migrated case.
 
-> Let the networking stack know when a memcg is under reclaim pressure
-> so that it can clamp its transmit windows accordingly.
-> 
-> Whenever the reclaim efficiency of a cgroup's LRU lists drops low
-> enough for a MEDIUM or HIGH vmpressure event to occur, assert a
-> pressure state in the socket and tcp memory code that tells it to curb
-> consumption growth from sockets associated with said control group.
-> 
-> Traditionally, vmpressure reports for the entire subtree of a memcg
-> under pressure, which drops useful information on the individual
-> groups reclaimed. However, it's too late to change the userinterface,
-> so add a second reporting mode that reports on the level of reclaim
-> instead of at the level of pressure, and use that report for sockets.
-> 
-> vmpressure events are naturally edge triggered, so for hysteresis
-> assert socket pressure for a second to allow for subsequent vmpressure
-> events to occur before letting the socket code return to normal.
-> 
-> This will likely need finetuning for a wider variety of workloads, but
-> for now stick to the vmpressure presets and keep hysteresis simple.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Acked-by: David S. Miller <davem@davemloft.net>
+
+
+
+
+
+
+I have some progress.
+
+With the following patch:
+
+dvyukov@dvyukov-z840:~/src/linux-dvyukov$ git diff
+include/linux/sched.h mm/memory.c
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 2fae7d8..4c126a1 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1455,6 +1455,8 @@ struct task_struct {
+        /* Used for emulating ABI behavior of previous Linux versions */
+        unsigned int personality;
+
++       union {
++       struct {
+        unsigned in_execve:1;   /* Tell the LSMs that the process is doing an
+                                 * execve */
+        unsigned in_iowait:1;
+@@ -1463,18 +1465,24 @@ struct task_struct {
+        unsigned sched_reset_on_fork:1;
+        unsigned sched_contributes_to_load:1;
+        unsigned sched_migrated:1;
++       unsigned dummy_a:1;
+ #ifdef CONFIG_MEMCG
+        unsigned memcg_may_oom:1;
+ #endif
++       unsigned dummy_b:1;
+ #ifdef CONFIG_MEMCG_KMEM
+        unsigned memcg_kmem_skip_account:1;
+ #endif
+ #ifdef CONFIG_COMPAT_BRK
+        unsigned brk_randomized:1;
+ #endif
++       };
++       unsigned nonatomic_flags;
++       };
+
+        unsigned long atomic_flags; /* Flags needing atomic access. */
+
++
+        struct restart_block restart_block;
+
+        pid_t pid;
+diff --git a/mm/memory.c b/mm/memory.c
+index deb679c..6351dac 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -62,6 +62,7 @@
+ #include <linux/dma-debug.h>
+ #include <linux/debugfs.h>
+ #include <linux/userfaultfd_k.h>
++#include <linux/kasan.h>
+
+ #include <asm/io.h>
+ #include <asm/pgalloc.h>
+@@ -3436,12 +3437,45 @@ int handle_mm_fault(struct mm_struct *mm,
+struct vm_area_struct *vma,
+         * Enable the memcg OOM handling for faults triggered in user
+         * space.  Kernel faults are handled more gracefully.
+         */
+-       if (flags & FAULT_FLAG_USER)
++       if (flags & FAULT_FLAG_USER) {
++               volatile int x;
++               unsigned f0, f1;
++               f0 = READ_ONCE(current->nonatomic_flags);
++               for (x = 0; x < 1000; x++) {
++                       WRITE_ONCE(current->nonatomic_flags, 0xaeaeaeae);
++                       cpu_relax();
++                       WRITE_ONCE(current->nonatomic_flags, 0xaeaeaeab);
++                       cpu_relax();
++                       f1 = READ_ONCE(current->nonatomic_flags);
++                       if (f1 != 0xaeaeaeab) {
++                               pr_err("enable: flags 0x%x -> 0x%x\n", f0, f1);
++                               break;
++                       }
++               }
++               WRITE_ONCE(current->nonatomic_flags, f0);
++
+                mem_cgroup_oom_enable();
++       }
+
+        ret = __handle_mm_fault(mm, vma, address, flags);
+
+        if (flags & FAULT_FLAG_USER) {
++               volatile int x;
++               unsigned f0, f1;
++               f0 = READ_ONCE(current->nonatomic_flags);
++               for (x = 0; x < 1000; x++) {
++                       WRITE_ONCE(current->nonatomic_flags, 0xaeaeaeae);
++                       cpu_relax();
++                       WRITE_ONCE(current->nonatomic_flags, 0xaeaeaeab);
++                       cpu_relax();
++                       f1 = READ_ONCE(current->nonatomic_flags);
++                       if (f1 != 0xaeaeaeab) {
++                               pr_err("enable: flags 0x%x -> 0x%x\n", f0, f1);
++                               break;
++                       }
++               }
++               WRITE_ONCE(current->nonatomic_flags, f0);
++
+                mem_cgroup_oom_disable();
+                 /*
+                  * The task may have entered a memcg OOM situation but
+
+
+I see:
+
+[  153.484152] enable: flags 0x8 -> 0xaeaeaeaf
+[  168.707786] enable: flags 0x8 -> 0xaeaeaeae
+[  169.654966] enable: flags 0x40 -> 0xaeaeaeae
+[  176.809080] enable: flags 0x48 -> 0xaeaeaeaa
+[  177.496219] enable: flags 0x8 -> 0xaeaeaeaf
+[  193.266703] enable: flags 0x0 -> 0xaeaeaeae
+[  199.536435] enable: flags 0x8 -> 0xaeaeaeae
+[  210.650809] enable: flags 0x48 -> 0xaeaeaeaf
+[  210.869397] enable: flags 0x8 -> 0xaeaeaeaf
+[  216.150804] enable: flags 0x8 -> 0xaeaeaeaa
+[  231.607211] enable: flags 0x8 -> 0xaeaeaeaf
+[  260.677408] enable: flags 0x48 -> 0xaeaeaeae
+[  272.065364] enable: flags 0x40 -> 0xaeaeaeaf
+[  281.594973] enable: flags 0x48 -> 0xaeaeaeaf
+[  282.899860] enable: flags 0x8 -> 0xaeaeaeaf
+[  286.472173] enable: flags 0x8 -> 0xaeaeaeae
+[  286.763203] enable: flags 0x8 -> 0xaeaeaeaf
+[  288.229107] enable: flags 0x0 -> 0xaeaeaeaf
+[  291.336522] enable: flags 0x8 -> 0xaeaeaeae
+[  310.082981] enable: flags 0x48 -> 0xaeaeaeaf
+[  313.798935] enable: flags 0x8 -> 0xaeaeaeaf
+[  343.340508] enable: flags 0x8 -> 0xaeaeaeaf
+[  344.170635] enable: flags 0x48 -> 0xaeaeaeaf
+[  357.568555] enable: flags 0x8 -> 0xaeaeaeaf
+[  359.158179] enable: flags 0x48 -> 0xaeaeaeaf
+[  361.188300] enable: flags 0x40 -> 0xaeaeaeaa
+[  365.636639] enable: flags 0x8 -> 0xaeaeaeaf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
