@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E3046B0254
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 06:29:54 -0500 (EST)
-Received: by wmww144 with SMTP id w144so175970743wmw.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 03:29:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t206si5092909wmt.109.2015.11.25.03.29.52
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 75CAE6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 06:54:23 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so57430384pab.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 03:54:23 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id ff10si753749pab.240.2015.11.25.03.54.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 25 Nov 2015 03:29:52 -0800 (PST)
-Date: Wed, 25 Nov 2015 11:29:50 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v2] mm: fix swapped Movable and Reclaimable in
- /proc/pagetypeinfo
-Message-ID: <20151125112949.GQ19677@suse.de>
-References: <1448295734-14072-1-git-send-email-vbabka@suse.cz>
- <1448297590-19088-1-git-send-email-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1448297590-19088-1-git-send-email-vbabka@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Nov 2015 03:54:22 -0800 (PST)
+Subject: Re: [PATCH] mm, vmstat: Allow WQ concurrency to discover memory reclaim doesn't make any progress
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1447936253-18134-1-git-send-email-mhocko@kernel.org>
+	<20151124154448.ac124e62528db313279224ef@linux-foundation.org>
+	<20151125110705.GC27283@dhcp22.suse.cz>
+In-Reply-To: <20151125110705.GC27283@dhcp22.suse.cz>
+Message-Id: <201511252054.DEC87052.MSLVJHFQtOFOFO@I-love.SAKURA.ne.jp>
+Date: Wed, 25 Nov 2015 20:54:13 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: tj@kernel.org, clameter@sgi.com, arekm@maven.pl, linux-mm@kvack.org, linux-kernel@vger.kernel.org, js1304@gmail.com, cl@linux.com
 
-On Mon, Nov 23, 2015 at 05:53:10PM +0100, Vlastimil Babka wrote:
-> Commit 016c13daa5c9 ("mm, page_alloc: use masks and shifts when converting GFP
-> flags to migrate types") has swapped MIGRATE_MOVABLE and MIGRATE_RECLAIMABLE
-> in the enum definition. However, migratetype_names wasn't updated to reflect
-> that. As a result, the file /proc/pagetypeinfo shows the counts for Movable as
-> Reclaimable and vice versa.
-> 
-> Additionally, commit 0aaa29a56e4f ("mm, page_alloc: reserve pageblocks for
-> high-order atomic allocations on demand") introduced MIGRATE_HIGHATOMIC, but
-> did not add a letter to distinguish it into show_migration_types(), so it
-> doesn't appear in the listing of free areas during page alloc failures or oom
-> kills.
-> 
-> This patch fixes both problems. The atomic reserves will show with a letter
-> 'H' in the free areas listings.
-> 
-> Fixes: 016c13daa5c9e4827eca703e2f0621c131f2cca3
-> Fixes: 0aaa29a56e4fb0fc9e24edb649e2733a672ca099
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Michal Hocko wrote:
+> Anyway I think that the issue is not solely theoretical. WQ_MEM_RECLAIM
+> is simply not working if the allocation path doesn't sleep currently and
+> my understanding of what Tejun claims [2] is that that reimplementing WQ
+> concurrency would be too intrusive and lacks sufficient justification
+> because other kernel paths do sleep. This patch tries to reduce the
+> sleep only to worker threads which should not cause any problems to
+> regular tasks.
 
-Thanks
+I received many unexplained hangup/reboot reports from customers when I was
+working at support center. But we can't answer whether real people ever hit
+this problem because we have no watchdog for memory allocation stalls.
+I want one like http://lkml.kernel.org/r/201511250024.AAE78692.QVOtFFOSFOMLJH@I-love.SAKURA.ne.jp
+as I wrote off-list ( "mm,oom: The reason why I continue proposing timeout
+based approach." ). It will help with judging when we tackle TIF_MEMDIE
+livelock problem.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
-
--- 
-Mel Gorman
-SUSE Labs
+What I can say is that RHEL6 (a 2.6.32-based distro) backported the
+wait_iff_congested() changes and therefore people might really hit
+this problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
