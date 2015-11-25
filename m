@@ -1,60 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id AF4756B0038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 10:27:56 -0500 (EST)
-Received: by iouu10 with SMTP id u10so57714591iou.0
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 07:27:56 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id p34si21939779ioi.58.2015.11.25.07.27.55
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 0259D6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 10:31:43 -0500 (EST)
+Received: by wmww144 with SMTP id w144so184843844wmw.1
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 07:31:42 -0800 (PST)
+Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
+        by mx.google.com with ESMTPS id d203si6584109wmc.51.2015.11.25.07.31.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Nov 2015 07:27:55 -0800 (PST)
-Subject: Re: WARNING in handle_mm_fault
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <CACT4Y+ZCkv0BPOdo3aiheA5LXzXhcnuiw7kCoWL=b9FcC8-wqg@mail.gmail.com>
-	<20151125084403.GA24703@dhcp22.suse.cz>
-	<565592A1.50407@I-love.SAKURA.ne.jp>
-	<CACT4Y+Zn+mK37-mvqDQTyt1Psp6HT2heT0e937SO24F7V1q7PA@mail.gmail.com>
-In-Reply-To: <CACT4Y+Zn+mK37-mvqDQTyt1Psp6HT2heT0e937SO24F7V1q7PA@mail.gmail.com>
-Message-Id: <201511260027.CCC26590.SOHFMQLVJOtFOF@I-love.SAKURA.ne.jp>
-Date: Thu, 26 Nov 2015 00:27:17 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Nov 2015 07:31:42 -0800 (PST)
+Received: by wmvv187 with SMTP id v187so262476590wmv.1
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 07:31:41 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20151125150207.GM11639@twins.programming.kicks-ass.net>
+References: <20150913185940.GA25369@htj.duckdns.org>
+	<55FEC685.5010404@oracle.com>
+	<20150921200141.GH13263@mtj.duckdns.org>
+	<20151125144354.GB17308@twins.programming.kicks-ass.net>
+	<20151125150207.GM11639@twins.programming.kicks-ass.net>
+Date: Wed, 25 Nov 2015 18:31:41 +0300
+Message-ID: <CAPAsAGwa9-7UBUnhysfek3kyWKMgaUJRwtDPEqas1rKwkeTtoA@mail.gmail.com>
+Subject: Re: [PATCH 1/2] memcg: flatten task_struct->memcg_oom
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dvyukov@google.com
-Cc: mhocko@kernel.org, hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, syzkaller@googlegroups.com, kcc@google.com, glider@google.com, sasha.levin@oracle.com, edumazet@google.com, gthelen@google.com, tj@kernel.org, peterz@infradead.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mhocko@kernel.org, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, vdavydov@parallels.com, kernel-team@fb.com, Dmitry Vyukov <dvyukov@google.com>
 
-Dmitry Vyukov wrote:
-> If the race described in
-> http://www.spinics.net/lists/cgroups/msg14078.html does actually
-> happen, then there is nothing to check.
-> https://gcc.gnu.org/ml/gcc/2012-02/msg00005.html talks about different
-> memory locations, if there is store-widening involving different
-> memory locations, then this is a compiler bug. But the race happens on
-> a single memory location, in such case the code is buggy.
-> 
+2015-11-25 18:02 GMT+03:00 Peter Zijlstra <peterz@infradead.org>:
+> On Wed, Nov 25, 2015 at 03:43:54PM +0100, Peter Zijlstra wrote:
+>> On Mon, Sep 21, 2015 at 04:01:41PM -0400, Tejun Heo wrote:
+>> > So, the only way the patch could have caused the above is if someone
+>> > who isn't the task itself is writing to the bitfields while the task
+>> > is running.  Looking through the fields, ->sched_reset_on_fork seems a
+>> > bit suspicious.  __sched_setscheduler() looks like it can modify the
+>> > bit while the target task is running.  Peter, am I misreading the
+>> > code?
+>>
+>> Nope, that's quite possible. Looks like we need to break up those
+>> bitfields a bit. All the scheduler ones should be serialized by
+>> scheduler locks, but the others are fair game.
+>
+> Maybe something like so; but my brain is a complete mess today.
+>
+> ---
+>  include/linux/sched.h | 11 ++++++-----
+>  1 file changed, 6 insertions(+), 5 deletions(-)
+>
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index f425aac63317..b474e0f05327 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1455,14 +1455,15 @@ struct task_struct {
+>         /* Used for emulating ABI behavior of previous Linux versions */
+>         unsigned int personality;
+>
+> -       unsigned in_execve:1;   /* Tell the LSMs that the process is doing an
+> -                                * execve */
+> -       unsigned in_iowait:1;
+> -
+> -       /* Revert to default priority/policy when forking */
+> +       /* scheduler bits, serialized by scheduler locks */
+>         unsigned sched_reset_on_fork:1;
+>         unsigned sched_contributes_to_load:1;
+>         unsigned sched_migrated:1;
+> +       unsigned __padding_sched:29;
 
-All ->in_execve ->in_iowait ->sched_reset_on_fork ->sched_contributes_to_load
-->sched_migrated ->memcg_may_oom ->memcg_kmem_skip_account ->brk_randomized
-shares the same byte.
+AFAIK the order of bit fields is implementation defined, so GCC could
+sort all these bits as it wants.
+You could use unnamed zero-widht bit-field to force padding:
 
-sched_fork(p) modifies p->sched_reset_on_fork but p is not yet visible.
-__sched_setscheduler(p) modifies p->sched_reset_on_fork.
-try_to_wake_up(p) modifies p->sched_contributes_to_load.
-perf_event_task_migrate(p) modifies p->sched_migrated.
+         unsigned :0; //force aligment to the next boundary.
 
-Trying to reproduce this problem with
-
- static __always_inline bool
- perf_sw_migrate_enabled(void)
- {
--	if (static_key_false(&perf_swevent_enabled[PERF_COUNT_SW_CPU_MIGRATIONS]))
--		return true;
- 	return false;
- }
-
-would help testing ->sched_migrated case.
+> +
+> +       /* unserialized, strictly 'current' */
+> +       unsigned in_execve:1; /* bit to tell LSMs we're in execve */
+> +       unsigned in_iowait:1;
+>  #ifdef CONFIG_MEMCG
+>         unsigned memcg_may_oom:1;
+>  #endif
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
