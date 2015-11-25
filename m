@@ -1,76 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B0746B0038
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 23:26:46 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so44066331pac.3
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 20:26:46 -0800 (PST)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CE6F6B0038
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 23:40:04 -0500 (EST)
+Received: by pabfh17 with SMTP id fh17so45831373pab.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 20:40:03 -0800 (PST)
 Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id 71si31425156pft.108.2015.11.24.20.26.45
+        by mx.google.com with ESMTPS id x3si31281168pas.51.2015.11.24.20.40.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 20:26:45 -0800 (PST)
-Message-ID: <1448425601.3762.9.camel@ellerman.id.au>
-Subject: Re: [PATCH v3 3/4] arm64: mm: support ARCH_MMAP_RND_BITS.
+        Tue, 24 Nov 2015 20:40:03 -0800 (PST)
+Message-ID: <1448426400.3762.11.camel@ellerman.id.au>
+Subject: Re: [PATCH v3 1/4] mm: mmap: Add new /proc tunable for mmap_base
+ ASLR.
 From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Wed, 25 Nov 2015 15:26:41 +1100
-In-Reply-To: <56536114.1020305@android.com>
+Date: Wed, 25 Nov 2015 15:40:00 +1100
+In-Reply-To: <1447888808-31571-2-git-send-email-dcashman@android.com>
 References: <1447888808-31571-1-git-send-email-dcashman@android.com>
 	 <1447888808-31571-2-git-send-email-dcashman@android.com>
-	 <1447888808-31571-3-git-send-email-dcashman@android.com>
-	 <1447888808-31571-4-git-send-email-dcashman@android.com>
-	 <20151123150459.GD4236@arm.com> <56536114.1020305@android.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Cashman <dcashman@android.com>, Will Deacon <will.deacon@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com
+To: Daniel Cashman <dcashman@android.com>, linux-kernel@vger.kernel.org
+Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com
 
-On Mon, 2015-11-23 at 10:55 -0800, Daniel Cashman wrote:
-> On 11/23/2015 07:04 AM, Will Deacon wrote:
-> > On Wed, Nov 18, 2015 at 03:20:07PM -0800, Daniel Cashman wrote:
-> > > +config ARCH_MMAP_RND_BITS_MAX
-> > > +       default 20 if ARM64_64K_PAGES && ARCH_VA_BITS=39
-> > > +       default 24 if ARCH_VA_BITS=39
-> > > +       default 23 if ARM64_64K_PAGES && ARCH_VA_BITS=42
-> > > +       default 27 if ARCH_VA_BITS=42
-> > > +       default 29 if ARM64_64K_PAGES && ARCH_VA_BITS=48
-> > > +       default 33 if ARCH_VA_BITS=48
-> > > +       default 15 if ARM64_64K_PAGES
-> > > +       default 19
-> > > +
-> > > +config ARCH_MMAP_RND_COMPAT_BITS_MIN
-> > > +       default 7 if ARM64_64K_PAGES
-> > > +       default 11
-> > 
-> > FYI: we now support 16k pages too, so this might need updating. It would
-> > be much nicer if this was somehow computed rather than have the results
-> > all open-coded like this.
+On Wed, 2015-11-18 at 15:20 -0800, Daniel Cashman wrote:
+
+> From: dcashman <dcashman@google.com>
 > 
-> Yes, I ideally wanted this to be calculated based on the different page
-> options and VA_BITS (which itself has a similar stanza), but I don't
-> know how to do that/if it is currently supported in Kconfig. This would
-> be even more desirable with the addition of 16K_PAGES, as with this
-> setup we have a combinatorial problem.
-> 
-> We could move this logic into the code where min/max are initialized,
-> but that would create its own mess, creating new Kconfig values to
-> introduce it in an arch-agnostic way after patch-set v2 moved that to
-> mm/mmap.c instead of arch/${arch}/mm/mmap.c Suggestions welcome.
+> ASLR currently only uses 8 bits to generate the random offset for the
+> mmap base address on 32 bit architectures. This value was chosen to
+> prevent a poorly chosen value from dividing the address space in such
+> a way as to prevent large allocations. This may not be an issue on all
+> platforms. Allow the specification of a minimum number of bits so that
+> platforms desiring greater ASLR protection may determine where to place
+> the trade-off.
 
+...
 
-Could we instead change the meaning of the mmap_rnd_bits value to be the number
-of address space bits that may be randomised?
+> diff --git a/arch/Kconfig b/arch/Kconfig
+> index 4e949e5..141823f 100644
+> --- a/arch/Kconfig
+> +++ b/arch/Kconfig
+> @@ -511,6 +511,70 @@ config ARCH_HAS_ELF_RANDOMIZE
+>  	  - arch_mmap_rnd()
+>  	  - arch_randomize_brk()
+>  
+> +config HAVE_ARCH_MMAP_RND_BITS
+> +	bool
+> +	help
+> +	  An arch should select this symbol if it supports setting a variable
+> +	  number of bits for use in establishing the base address for mmap
+> +	  allocations and provides values for both:
+> +	  - ARCH_MMAP_RND_BITS_MIN
+> +	  - ARCH_MMAP_RND_BITS_MAX
+> +
+> +config ARCH_MMAP_RND_BITS_MIN
+> +	int
+> +
+> +config ARCH_MMAP_RND_BITS_MAX
+> +	int
+> +
+> +config ARCH_MMAP_RND_BITS_DEFAULT
+> +	int
+> +
+> +config ARCH_MMAP_RND_BITS
+> +	int "Number of bits to use for ASLR of mmap base address" if EXPERT
+> +	range ARCH_MMAP_RND_BITS_MIN ARCH_MMAP_RND_BITS_MAX
+> +	default ARCH_MMAP_RND_BITS_DEFAULT if ARCH_MMAP_RND_BITS_DEFAULT
 
-ie. 40 would mean "please randomise in a 1T range", which with PAGE_SIZE=4K
-gives you 28 random bits. etc.
+Here you support a default which is separate from the minimum.
 
-That would make the value independent of PAGE_SIZE, and only depend on the size
-of the address space.
+> +	default ARCH_MMAP_RND_BITS_MIN
+> +	depends on HAVE_ARCH_MMAP_RND_BITS
 
-It would also mean the values userspace sets and sees don't need to change if the
-kernel PAGE_SIZE changes. (which probably doesn't happen often but still)
+...
+> +
+> +config ARCH_MMAP_RND_COMPAT_BITS
+> +	int "Number of bits to use for ASLR of mmap base address for compatible applications" if EXPERT
+> +	range ARCH_MMAP_RND_COMPAT_BITS_MIN ARCH_MMAP_RND_COMPAT_BITS_MAX
+> +	default ARCH_MMAP_RND_COMPAT_BITS_MIN
+
+But here you don't.
+
+Just forgot?
+
+I'd like to have a default which is separate from the minimum. That way we can
+have a default which is reasonably large, but allow it to be lowered easily if
+anything breaks.
 
 cheers
 
