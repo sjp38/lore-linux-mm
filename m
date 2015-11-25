@@ -1,52 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 95D156B0254
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 05:46:01 -0500 (EST)
-Received: by wmww144 with SMTP id w144so63594764wmw.0
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:46:01 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z133si4876357wmc.82.2015.11.25.02.46.00
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 118E36B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 05:51:41 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so54161141pac.2
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:51:40 -0800 (PST)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id lq8si428360pab.72.2015.11.25.02.51.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 25 Nov 2015 02:46:00 -0800 (PST)
-Subject: Re: [PATCH v2] mm/cma: always check which page cause allocation
- failure
-References: <20151125023913.GA9563@js1304-P5Q-DELUXE>
- <1448429565-29748-1-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56559165.5080304@suse.cz>
-Date: Wed, 25 Nov 2015 11:45:57 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Nov 2015 02:51:40 -0800 (PST)
+Received: by pacej9 with SMTP id ej9so54160934pac.2
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:51:40 -0800 (PST)
+Date: Wed, 25 Nov 2015 02:51:38 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] mm, oom: Give __GFP_NOFAIL allocations access to
+ memory reserves
+In-Reply-To: <1448448054-804-2-git-send-email-mhocko@kernel.org>
+Message-ID: <alpine.DEB.2.10.1511250248540.32374@chino.kir.corp.google.com>
+References: <1448448054-804-1-git-send-email-mhocko@kernel.org> <1448448054-804-2-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <1448429565-29748-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 11/25/2015 06:32 AM, Joonsoo Kim wrote:
-> Now, we have tracepoint in test_pages_isolated() to notify
-> pfn which cannot be isolated. But, in alloc_contig_range(),
-> some error path doesn't call test_pages_isolated() so it's still
-> hard to know exact pfn that causes allocation failure.
-> 
-> This patch change this situation by calling test_pages_isolated()
-> in almost error path. In allocation failure case, some overhead
-> is added by this change, but, allocation failure is really rare
-> event so it would not matter.
-> 
-> In fatal signal pending case, we don't call test_pages_isolated()
-> because this failure is intentional one.
-> 
-> There was a bogus outer_start problem due to unchecked buddy order
-> and this patch also fix it. Before this patch, it didn't matter,
-> because end result is same thing. But, after this patch,
-> tracepoint will report failed pfn so it should be accurate.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Wed, 25 Nov 2015, Michal Hocko wrote:
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> __GFP_NOFAIL is a big hammer used to ensure that the allocation
+> request can never fail. This is a strong requirement and as such
+> it also deserves a special treatment when the system is OOM. The
+> primary problem here is that the allocation request might have
+> come with some locks held and the oom victim might be blocked
+> on the same locks. This is basically an OOM deadlock situation.
+> 
+> This patch tries to reduce the risk of such a deadlocks by giving
+> __GFP_NOFAIL allocations a special treatment and let them dive into
+> memory reserves after oom killer invocation. This should help them
+> to make a progress and release resources they are holding. The OOM
+> victim should compensate for the reserves consumption.
+> 
+> Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/page_alloc.c | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 8034909faad2..70db11c27046 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2766,8 +2766,13 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  			goto out;
+>  	}
+>  	/* Exhausted what can be done so it's blamo time */
+> -	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
+> +	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+>  		*did_some_progress = 1;
+> +
+> +		if (gfp_mask & __GFP_NOFAIL)
+> +			page = get_page_from_freelist(gfp_mask, order,
+> +					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
+> +	}
+>  out:
+>  	mutex_unlock(&oom_lock);
+>  	return page;
+
+I don't understand why you're setting ALLOC_CPUSET if you're giving them 
+"special treatment".  If you want to allow access to memory reserves to 
+prevent an oom livelock, then why not also allow it access to allocate 
+outside its cpuset?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
