@@ -1,214 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 585896B0038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 02:21:28 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so48748664pac.3
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 23:21:28 -0800 (PST)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 71F1E6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 03:10:45 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so50165605pad.1
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 00:10:45 -0800 (PST)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id 12si32447575pfb.199.2015.11.24.23.21.26
+        by mx.google.com with ESMTPS id rn8si1884339pab.174.2015.11.25.00.10.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 Nov 2015 23:21:27 -0800 (PST)
-Date: Wed, 25 Nov 2015 16:21:24 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: kernel oops on mmotm-2015-10-15-15-20
-Message-ID: <20151125072124.GC2678@bbox>
-References: <20151108225522.GA29600@node.shutemov.name>
- <20151112003614.GA5235@bbox>
- <20151116014521.GA7973@bbox>
- <20151116084522.GA9778@node.shutemov.name>
- <20151116103220.GA32578@bbox>
- <20151116105452.GA10575@node.shutemov.name>
- <20151117073539.GB32578@bbox>
- <20151117093213.GA16243@node.shutemov.name>
- <20151119021221.GA15540@bbox>
- <20151119065827.GA26601@node.shutemov.name>
+        Wed, 25 Nov 2015 00:10:44 -0800 (PST)
+Date: Wed, 25 Nov 2015 17:11:10 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 2/9] mm, page_owner: print symbolic migratetype of
+ both page and pageblock
+Message-ID: <20151125081110.GA10494@js1304-P5Q-DELUXE>
+References: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
+ <1448368581-6923-3-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20151119065827.GA26601@node.shutemov.name>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1448368581-6923-3-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-On Thu, Nov 19, 2015 at 08:58:27AM +0200, Kirill A. Shutemov wrote:
-> On Thu, Nov 19, 2015 at 11:12:21AM +0900, Minchan Kim wrote:
-> > On Tue, Nov 17, 2015 at 11:32:13AM +0200, Kirill A. Shutemov wrote:
-> > > On Tue, Nov 17, 2015 at 04:35:39PM +0900, Minchan Kim wrote:
-> > > > On Mon, Nov 16, 2015 at 12:54:53PM +0200, Kirill A. Shutemov wrote:
-> > > > > On Mon, Nov 16, 2015 at 07:32:20PM +0900, Minchan Kim wrote:
-> > > > > > On Mon, Nov 16, 2015 at 10:45:22AM +0200, Kirill A. Shutemov wrote:
-> > > > > > > On Mon, Nov 16, 2015 at 10:45:21AM +0900, Minchan Kim wrote:
-> > > > > > > > During the test with MADV_FREE on kernel I applied your patches,
-> > > > > > > > I couldn't see any problem.
-> > > > > > > > 
-> > > > > > > > However, in this round, I did another test which is same one
-> > > > > > > > I attached but a liitle bit different because it doesn't do
-> > > > > > > > (memcg things/kill/swapoff) for testing program long-live test.
-> > > > > > > 
-> > > > > > > Could you share updated test?
-> > > > > > 
-> > > > > > It's part of my testing suite so I should factor it out.
-> > > > > > I will send it when I go to office tomorrow.
-> > > > > 
-> > > > > Thanks.
-> > > > > 
-> > > > > > > And could you try to reproduce it on clean mmotm-2015-11-10-15-53?
-> > > > > > 
-> > > > > > Befor leaving office, I queued it up and result is below.
-> > > > > > It seems you fixed already but didn't apply it to mmotm yet. Right?
-> > > > > > Anyway, please confirm and say to me what I should add more patches
-> > > > > > into mmotm-2015-11-10-15-53 for follow up your recent many bug
-> > > > > > fix patches.
-> > > > > 
-> > > > > The two my patches which are not in the mmotm-2015-11-10-15-53 release:
-> > > > > 
-> > > > > http://lkml.kernel.org/g/1447236557-68682-1-git-send-email-kirill.shutemov@linux.intel.com
-> > > > > http://lkml.kernel.org/g/1447236567-68751-1-git-send-email-kirill.shutemov@linux.intel.com
-> > > > 
-> > > > 1. mm: fix __page_mapcount()
-> > > > 2. thp: fix leak due split_huge_page() vs. exit race
-> > > > 
-> > > > If I missed some patches, let me know it.
-> > > > 
-> > > > I applied above two patches based on mmotm-2015-11-10-15-53 and tested again.
-> > > > But unfortunately, the result was below.
-> > > > 
-> > > > Now, I am making test program I can send to you but it seems to be not easy
-> > > > because small changes for factoring it out from testing suite seems to change
-> > > > something(ex, timing) and makes hard to reproduce. I will try it again.
-> > > 
-> > > Your test suite seems generate quite a few bug reports. Don't mind make whole
-> > > suite public?
-> > 
-> > It's tough due to including company internal stuffs.
-> > That's why I try to factor the part I can share out but unfortunatel,
-> > I couldn't grab a time for retrying until now. :(
-> > 
-> > >  
-> > > > page:ffffea0000240080 count:2 mapcount:1 mapping:ffff88007eff3321 index:0x600000e02
-> > > > flags: 0x4000000000040018(uptodate|dirty|swapbacked)
-> > > > page dumped because: VM_BUG_ON_PAGE(!PageLocked(page))
-> > > > page->mem_cgroup:ffff880077cf0c00
-> > > > ------------[ cut here ]------------
-> > > > kernel BUG at mm/huge_memory.c:3272!
-> > > > invalid opcode: 0000 [#1] SMP 
-> > > > Dumping ftrace buffer:
-> > > >    (ftrace buffer empty)
-> > > > Modules linked in:
-> > > > CPU: 8 PID: 59 Comm: khugepaged Not tainted 4.3.0-mm1-kirill+ #8
-> > > > Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> > > > task: ffff880073441a40 ti: ffff88007344c000 task.ti: ffff88007344c000
-> > > > RIP: 0010:[<ffffffff8114bc9b>]  [<ffffffff8114bc9b>] split_huge_page_to_list+0x8fb/0x910
-> > > > RSP: 0018:ffff88007344f968  EFLAGS: 00010286
-> > > > RAX: 0000000000000021 RBX: ffffea0000240080 RCX: 0000000000000000
-> > > > RDX: 0000000000000001 RSI: 0000000000000246 RDI: ffffffff821df4d8
-> > > > RBP: ffff88007344f9e8 R08: 0000000000000000 R09: ffff8800000bc600
-> > > > R10: ffffffff8163e2c0 R11: 0000000000004b47 R12: ffffea0000240080
-> > > > R13: ffffea0000240088 R14: ffffea0000240080 R15: 0000000000000000
-> > > > FS:  0000000000000000(0000) GS:ffff880078300000(0000) knlGS:0000000000000000
-> > > > CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> > > > CR2: 00007ffd59edcd68 CR3: 0000000001808000 CR4: 00000000000006a0
-> > > > Stack:
-> > > >  cccccccccccccccd ffffea0000240080 ffff88007344fa00 ffffea0000240088
-> > > >  ffff88007344fa00 0000000000000000 ffff88007344f9e8 ffffffff810f0200
-> > > >  ffffea0000240000 0000000000000000 0000000000000000 ffffea0000240080
-> > > > Call Trace:
-> > > >  [<ffffffff810f0200>] ? __lock_page+0xa0/0xb0
-> > > >  [<ffffffff8114bdc5>] deferred_split_scan+0x115/0x240
-> > > >  [<ffffffff8111851c>] ? list_lru_count_one+0x1c/0x30
-> > > >  [<ffffffff811018d3>] shrink_slab.part.42+0x1e3/0x350
-> > > >  [<ffffffff8110644a>] shrink_zone+0x26a/0x280
-> > > >  [<ffffffff8110658d>] do_try_to_free_pages+0x12d/0x3b0
-> > > >  [<ffffffff811068c4>] try_to_free_pages+0xb4/0x140
-> > > >  [<ffffffff810f9279>] __alloc_pages_nodemask+0x459/0x920
-> > > >  [<ffffffff8108d750>] ? trace_event_raw_event_tick_stop+0xd0/0xd0
-> > > >  [<ffffffff81147465>] khugepaged+0x155/0x1b10
-> > > >  [<ffffffff81073ca0>] ? prepare_to_wait_event+0xf0/0xf0
-> > > >  [<ffffffff81147310>] ? __split_huge_pmd_locked+0x4e0/0x4e0
-> > > >  [<ffffffff81057e49>] kthread+0xc9/0xe0
-> > > >  [<ffffffff81057d80>] ? kthread_park+0x60/0x60
-> > > >  [<ffffffff8142aa6f>] ret_from_fork+0x3f/0x70
-> > > >  [<ffffffff81057d80>] ? kthread_park+0x60/0x60
-> > > > Code: ff ff 48 c7 c6 00 cd 77 81 4c 89 f7 e8 df ce fc ff 0f 0b 48 83 e8 01 e9 94 f7 ff ff 48 c7 c6 80 bb 77 81 4c 89 f7 e8 c5 ce fc ff <0f> 0b 48 c7 c6 48 c9 77 81 4c 89 e7 e8 b4 ce fc ff 0f 0b 66 90 
-> > > > RIP  [<ffffffff8114bc9b>] split_huge_page_to_list+0x8fb/0x910
-> > > >  RSP <ffff88007344f968>
-> > > > ---[ end trace 0ee39378e850d8de ]---
-> > > > Kernel panic - not syncing: Fatal exception
-> > > > Dumping ftrace buffer:
-> > > >    (ftrace buffer empty)
-> > > > Kernel Offset: disabled
-> > > 
-> > > I looked more into it. It seems a race between split_huge_page() and
-> > > deferred_split_scan() as the dumped page is not huge.
-> > > 
-> > > Could you check if the patch below makes any difference to the situation?
-> > > 
-> > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > > index 91e2f4b7ca39..923c0f6eb50a 100644
-> > > --- a/mm/huge_memory.c
-> > > +++ b/mm/huge_memory.c
-> > > @@ -3186,13 +3186,6 @@ static void __split_huge_page(struct page *page, struct list_head *list)
-> > >  	spin_lock_irq(&zone->lru_lock);
-> > >  	lruvec = mem_cgroup_page_lruvec(head, zone);
-> > >  
-> > > -	spin_lock(&split_queue_lock);
-> > > -	if (!list_empty(page_deferred_list(head))) {
-> > > -		split_queue_len--;
-> > > -		list_del(page_deferred_list(head));
-> > > -	}
-> > > -	spin_unlock(&split_queue_lock);
-> > > -
-> > >  	/* complete memcg works before add pages to LRU */
-> > >  	mem_cgroup_split_huge_fixup(head);
-> > >  
-> > > @@ -3299,12 +3292,20 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
-> > >  	freeze_page(anon_vma, head);
-> > >  	VM_BUG_ON_PAGE(compound_mapcount(head), head);
-> > >  
-> > > +	/* Prevent deferred_split_scan() touching ->_count */
-> > > +	spin_lock(&split_queue_lock);
-> > >  	count = page_count(head);
-> > >  	mapcount = total_mapcount(head);
-> > >  	if (mapcount == count - 1) {
-> > > +		if (!list_empty(page_deferred_list(head))) {
-> > > +			split_queue_len--;
-> > > +			list_del(page_deferred_list(head));
-> > > +		}
-> > > +		spin_unlock(&split_queue_lock);
-> > >  		__split_huge_page(page, list);
-> > >  		ret = 0;
-> > >  	} else if (IS_ENABLED(CONFIG_DEBUG_VM) && mapcount > count - 1) {
-> > > +		spin_unlock(&split_queue_lock);
-> > >  		pr_alert("total_mapcount: %u, page_count(): %u\n",
-> > >  				mapcount, count);
-> > >  		if (PageTail(page))
-> > > @@ -3312,6 +3313,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
-> > >  		dump_page(page, "total_mapcount(head) > page_count(head) - 1");
-> > >  		BUG();
-> > >  	} else {
-> > > +		spin_unlock(&split_queue_lock);
-> > >  		unfreeze_page(anon_vma, head);
-> > >  		ret = -EBUSY;
-> > >  	}
-> > > -- 
-> > >  Kirill A. Shutemov
-> > > 
-> > 
-> > It seems to solve that BUG_ON. One guest which doesn't include above fix hit
-> > the BUG_ON within 10 hours. However, another machine with above fix works
-> > during 1 day above without the BUG_ON but it introduces new problem.
-> > 
-> >         BUG: Bad rss-counter state mm:ffff88007f411c00 idx:0 val:-1
-> >         BUG: Bad rss-counter state mm:ffff88007f411c00 idx:1 val:1
+On Tue, Nov 24, 2015 at 01:36:14PM +0100, Vlastimil Babka wrote:
+> The information in /sys/kernel/debug/page_owner includes the migratetype of
+> the pageblock the page belongs to. This is also checked against the page's
+> migratetype (as declared by gfp_flags during its allocation), and the page is
+> reported as Fallback if its migratetype differs from the pageblock's one.
 > 
-> That's rather strange: looks like one file page was charged as anon or
-> one anon page was uncharged as file. Not sure yet how this can be caused
-> by my THP patchset :/
+> This is somewhat misleading because in fact fallback allocation is not the only
+> reason why these two can differ. It also doesn't direcly provide the page's
+> migratetype, although it's possible to derive that from the gfp_flags.
+> 
+> It's arguably better to print both page and pageblock's migratetype and leave
+> the interpretation to the consumer than to suggest fallback allocation as the
+> only possible reason. While at it, we can print the migratetypes as string
+> the same way as /proc/pagetypeinfo does, as some of the numeric values depend
+> on kernel configuration. For that, this patch moves the migratetype_names
+> array from #ifdef CONFIG_PROC_FS part of mm/vmstat.c to mm/page_alloc.c and
+> exports it.
+> 
+> Example page_owner entry after the patch:
+> 
+> Page allocated via order 0, mask 0x2420848
+> PFN 512 type Reclaimable Block 1 type Reclaimable Flags   R  LA
+>  [<ffffffff81164e8a>] __alloc_pages_nodemask+0x15a/0xa30
+>  [<ffffffff811ab808>] alloc_pages_current+0x88/0x120
+>  [<ffffffff8115bc36>] __page_cache_alloc+0xe6/0x120
+>  [<ffffffff8115c226>] pagecache_get_page+0x56/0x200
+>  [<ffffffff81205892>] __getblk_slow+0xd2/0x2b0
+>  [<ffffffff81205ab0>] __getblk_gfp+0x40/0x50
+>  [<ffffffff81206ad7>] __breadahead+0x17/0x50
+>  [<ffffffffa0437b27>] __ext4_get_inode_loc+0x397/0x3e0 [ext4]
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
+>  include/linux/mmzone.h |  3 +++
+>  mm/page_alloc.c        | 13 +++++++++++++
+>  mm/page_owner.c        |  6 +++---
+>  mm/vmstat.c            | 13 -------------
+>  4 files changed, 19 insertions(+), 16 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 3b6fb71..2bfad18 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -63,6 +63,9 @@ enum {
+>  	MIGRATE_TYPES
+>  };
+>  
+> +/* In mm/page_alloc.c; keep in sync also with show_migration_types() there */
+> +extern char * const migratetype_names[MIGRATE_TYPES];
+> +
+>  #ifdef CONFIG_CMA
+>  #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+>  #else
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 35ab351..61a023a 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -229,6 +229,19 @@ static char * const zone_names[MAX_NR_ZONES] = {
+>  #endif
+>  };
+>  
+> +char * const migratetype_names[MIGRATE_TYPES] = {
+> +	"Unmovable",
+> +	"Movable",
+> +	"Reclaimable",
+> +	"HighAtomic",
+> +#ifdef CONFIG_CMA
+> +	"CMA",
+> +#endif
+> +#ifdef CONFIG_MEMORY_ISOLATION
+> +	"Isolate",
+> +#endif
+> +};
+> +
+>  compound_page_dtor * const compound_page_dtors[] = {
+>  	NULL,
+>  	free_compound_page,
+> diff --git a/mm/page_owner.c b/mm/page_owner.c
+> index 983c3a1..f35826e 100644
+> --- a/mm/page_owner.c
+> +++ b/mm/page_owner.c
+> @@ -110,11 +110,11 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+>  	pageblock_mt = get_pfnblock_migratetype(page, pfn);
+>  	page_mt  = gfpflags_to_migratetype(page_ext->gfp_mask);
+>  	ret += snprintf(kbuf + ret, count - ret,
+> -			"PFN %lu Block %lu type %d %s Flags %s%s%s%s%s%s%s%s%s%s%s%s\n",
+> +			"PFN %lu type %s Block %lu type %s Flags %s%s%s%s%s%s%s%s%s%s%s%s\n",
 
-I couldn't reproduce this problem in another test for a week and the test
-doesn't have any problem until now.
+How about generalizing dump_flag_names() more and using it here?
+This output is neat than dump_flag_names() but not complete.
 
 Thanks.
 
