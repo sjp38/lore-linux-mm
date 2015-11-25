@@ -1,67 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id BDF4A6B0038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 07:45:02 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so255283753wmv.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 04:45:02 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o6si34393784wjz.221.2015.11.25.04.45.01
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6714E6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 08:06:20 -0500 (EST)
+Received: by wmww144 with SMTP id w144so68501300wmw.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 05:06:20 -0800 (PST)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id w132si5688640wma.114.2015.11.25.05.06.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 25 Nov 2015 04:45:01 -0800 (PST)
-Subject: Re: hugepage compaction causes performance drop
-References: <564DCEA6.3000802@suse.cz> <564EDFE5.5010709@intel.com>
- <564EE8FD.7090702@intel.com> <564EF0B6.10508@suse.cz>
- <20151123081601.GA29397@js1304-P5Q-DELUXE> <5652CF40.6040400@intel.com>
- <CAAmzW4M6oJukBLwucByK89071RukF4UEyt02A7ZjenpPr5rsdQ@mail.gmail.com>
- <5653DC2C.3090706@intel.com> <20151124045536.GA3112@js1304-P5Q-DELUXE>
- <5654116F.1030301@intel.com> <20151124082941.GA4136@js1304-P5Q-DELUXE>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5655AD4A.4080001@suse.cz>
-Date: Wed, 25 Nov 2015 13:44:58 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Nov 2015 05:06:19 -0800 (PST)
+Received: by wmvv187 with SMTP id v187so256144921wmv.1
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 05:06:18 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20151124082941.GA4136@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20151124223116.GA2874@cmpxchg.org>
+References: <CACT4Y+ZCkv0BPOdo3aiheA5LXzXhcnuiw7kCoWL=b9FcC8-wqg@mail.gmail.com>
+ <20151124223116.GA2874@cmpxchg.org>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 25 Nov 2015 14:05:58 +0100
+Message-ID: <CACT4Y+ZbBNji+176aZmxf5McxS+EV3Sj6Gw+D292JPYx1nyuwQ@mail.gmail.com>
+Subject: Re: WARNING in handle_mm_fault
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Aaron Lu <aaron.lu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, lkp@lists.01.org, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Eric Dumazet <edumazet@google.com>, Greg Thelen <gthelen@google.com>
 
-On 11/24/2015 09:29 AM, Joonsoo Kim wrote:
-> On Tue, Nov 24, 2015 at 03:27:43PM +0800, Aaron Lu wrote:
-> 
-> Thanks.
-> 
-> Okay. Output proves the theory. pagetypeinfo shows that there are
-> too many unmovable pageblocks. isolate_freepages() should skip these
-> so it's not easy to meet proper pageblock until need_resched(). Hence,
-> updating cached pfn doesn't happen. (You can see unchanged free_pfn
-> with 'grep compaction_begin tracepoint-output')
+On Tue, Nov 24, 2015 at 11:31 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> Hi Dmitry,
+>
+> On Tue, Nov 24, 2015 at 02:50:26PM +0100, Dmitry Vyukov wrote:
+>> As a blind guess, I've added the following BUG into copy_process:
+>>
+>> diff --git a/kernel/fork.c b/kernel/fork.c
+>> index b4dc490..c5667e8 100644
+>> --- a/kernel/fork.c
+>> +++ b/kernel/fork.c
+>> @@ -1620,6 +1620,8 @@ static struct task_struct *copy_process(unsigned
+>> long clone_flags,
+>>         trace_task_newtask(p, clone_flags);
+>>         uprobe_copy_process(p, clone_flags);
+>>
+>> +       BUG_ON(p->memcg_may_oom);
+>> +
+>>         return p;
+>
+> Thanks for your report.
+>
+> I don't see how this could happen through the legitimate setters of
+> p->memcg_may_oom. Something must clobber it. What happens with the
+> following patch applied?
+>
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index edad7a4..42e1285 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1463,9 +1463,11 @@ struct task_struct {
+>         unsigned sched_reset_on_fork:1;
+>         unsigned sched_contributes_to_load:1;
+>         unsigned sched_migrated:1;
+> +       unsigned dummy_a:1;
+>  #ifdef CONFIG_MEMCG
+>         unsigned memcg_may_oom:1;
+>  #endif
+> +       unsigned dummy_b:1;
+>  #ifdef CONFIG_MEMCG_KMEM
+>         unsigned memcg_kmem_skip_account:1;
+>  #endif
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index f97f2c4..ab6f7ba 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -1617,6 +1617,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
+>         trace_task_newtask(p, clone_flags);
+>         uprobe_copy_process(p, clone_flags);
+>
+> +       if (p->dummy_a || p->dummy_b || p->memcg_may_oom) {
+> +               printk(KERN_ALERT "dummy_a:%d dummy_b:%d memcg_may_oom:%d\n",
+> +                      p->dummy_a, p->dummy_b, p->memcg_may_oom);
+> +               BUG();
+> +       }
+> +
+>         return p;
+>
+>  bad_fork_cancel_cgroup:
 
-Hm to me it seems that the scanners meet a lot, so they restart at zone
-boundaries and that's fine. There's nothing to cache.
 
-> But, I don't think that updating cached pfn is enough to solve your problem.
-> More complex change would be needed, I guess.
-
-One factor is probably that THP only use async compaction and those don't result
-in deferred compaction, which should help here. It also means that
-pageblock_skip bits are not being reset except by kswapd...
-
-Oh and pageblock_pfn_to_page is done before checking the pageblock skip bits, so
-that's why it's prominent in the profiles. Although it was less prominent (9% vs
-46% before) in the last data... was perf collected while tracing, thus
-generating extra noise?
-
-> Thanks.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I cannot reproduce the condition again, either with your patch or with
+mine patch... Will try harder.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
