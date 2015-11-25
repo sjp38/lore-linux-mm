@@ -1,99 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 08B706B0259
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 21:38:50 -0500 (EST)
-Received: by igcmv3 with SMTP id mv3so64179352igc.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 18:38:49 -0800 (PST)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id B0A146B0259
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 21:44:15 -0500 (EST)
+Received: by pacej9 with SMTP id ej9so41478002pac.2
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 18:44:15 -0800 (PST)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTPS id j84si3872238iof.79.2015.11.24.18.38.48
+        by mx.google.com with ESMTPS id xq4si30604966pab.229.2015.11.24.18.44.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 Nov 2015 18:38:49 -0800 (PST)
-Date: Wed, 25 Nov 2015 11:39:14 +0900
+        Tue, 24 Nov 2015 18:44:14 -0800 (PST)
+Date: Wed, 25 Nov 2015 11:44:36 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 3/3] mm/cma: always check which page cause allocation
- failure
-Message-ID: <20151125023913.GA9563@js1304-P5Q-DELUXE>
-References: <1447381428-12445-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1447381428-12445-3-git-send-email-iamjoonsoo.kim@lge.com>
- <565481FC.4090500@suse.cz>
+Subject: Re: [PATCH] mm, vmstat: Allow WQ concurrency to discover memory
+ reclaim doesn't make any progress
+Message-ID: <20151125024435.GB9563@js1304-P5Q-DELUXE>
+References: <1447936253-18134-1-git-send-email-mhocko@kernel.org>
+ <20151124154448.ac124e62528db313279224ef@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <565481FC.4090500@suse.cz>
+In-Reply-To: <20151124154448.ac124e62528db313279224ef@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>, Cristopher Lameter <clameter@sgi.com>, Arkadiusz =?utf-8?Q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Christoph Lameter <cl@linux.com>
 
-On Tue, Nov 24, 2015 at 04:27:56PM +0100, Vlastimil Babka wrote:
-> On 11/13/2015 03:23 AM, Joonsoo Kim wrote:
-> >Now, we have tracepoint in test_pages_isolated() to notify
-> >pfn which cannot be isolated. But, in alloc_contig_range(),
-> >some error path doesn't call test_pages_isolated() so it's still
-> >hard to know exact pfn that causes allocation failure.
-> >
-> >This patch change this situation by calling test_pages_isolated()
-> >in almost error path. In allocation failure case, some overhead
-> >is added by this change, but, allocation failure is really rare
-> >event so it would not matter.
-> >
-> >In fatal signal pending case, we don't call test_pages_isolated()
-> >because this failure is intentional one.
-> >
-> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >---
-> >  mm/page_alloc.c | 10 +++++++---
-> >  1 file changed, 7 insertions(+), 3 deletions(-)
-> >
-> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >index d89960d..e78d78f 100644
-> >--- a/mm/page_alloc.c
-> >+++ b/mm/page_alloc.c
-> >@@ -6756,8 +6756,12 @@ int alloc_contig_range(unsigned long start, unsigned long end,
-> >  	if (ret)
-> >  		return ret;
-> >
-> >+	/*
-> >+	 * In case of -EBUSY, we'd like to know which page causes problem.
-> >+	 * So, just fall through. We will check it in test_pages_isolated().
-> >+	 */
-> >  	ret = __alloc_contig_migrate_range(&cc, start, end);
-> >-	if (ret)
-> >+	if (ret && ret != -EBUSY)
-> >  		goto done;
-> >
-> >  	/*
-> >@@ -6784,8 +6788,8 @@ int alloc_contig_range(unsigned long start, unsigned long end,
-> >  	outer_start = start;
-> >  	while (!PageBuddy(pfn_to_page(outer_start))) {
-> >  		if (++order >= MAX_ORDER) {
-> >-			ret = -EBUSY;
-> >-			goto done;
-> >+			outer_start = start;
-> >+			break;
-> >  		}
-> >  		outer_start &= ~0UL << order;
-> >  	}
+On Tue, Nov 24, 2015 at 03:44:48PM -0800, Andrew Morton wrote:
+> On Thu, 19 Nov 2015 13:30:53 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Ugh isn't this crazy loop broken? Shouldn't it test that the buddy
-> it finds has order high enough? e.g.:
->   buddy = pfn_to_page(outer_start)
->   outer_start + (1UL << page_order(buddy)) > start
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > Tetsuo Handa has reported that the system might basically livelock in OOM
+> > condition without triggering the OOM killer. The issue is caused by
+> > internal dependency of the direct reclaim on vmstat counter updates (via
+> > zone_reclaimable) which are performed from the workqueue context.
+> > If all the current workers get assigned to an allocation request,
+> > though, they will be looping inside the allocator trying to reclaim
+> > memory but zone_reclaimable can see stalled numbers so it will consider
+> > a zone reclaimable even though it has been scanned way too much. WQ
+> > concurrency logic will not consider this situation as a congested workqueue
+> > because it relies that worker would have to sleep in such a situation.
+> > This also means that it doesn't try to spawn new workers or invoke
+> > the rescuer thread if the one is assigned to the queue.
+> > 
+> > In order to fix this issue we need to do two things. First we have to
+> > let wq concurrency code know that we are in trouble so we have to do
+> > a short sleep. In order to prevent from issues handled by 0e093d99763e
+> > ("writeback: do not sleep on the congestion queue if there are no
+> > congested BDIs or if significant congestion is not being encountered in
+> > the current zone") we limit the sleep only to worker threads which are
+> > the ones of the interest anyway.
+> > 
+> > The second thing to do is to create a dedicated workqueue for vmstat and
+> > mark it WQ_MEM_RECLAIM to note it participates in the reclaim and to
+> > have a spare worker thread for it.
 > 
-> Otherwise you might end up with something like:
-> - at "start" there's a page that CMA failed to freed
-> - at "start-1" there's another non-buddy page
-> - at "start-3" there's an order-1 buddy, so you set outer_start to start-3
-> - test_pages_isolated() will complain (via the new tracepoint) about
-> pfn of start-1, but actually you would like it to complain about pfn
-> of "start"?
+> This vmstat update thing is being a problem.  Please see Joonsoo's
+> "mm/vmstat: retrieve more accurate vmstat value".
 > 
-> So the loop has been broken before your patch, but it didn't matter,
-> just potentially wasted some time by picking bogus outer_start. But
-> now your tracepoint will give you weird results.
+> Joonsoo, might this patch help with that issue?
 
-Good catch. I will fix it.
+That issue cannot be solved by this patch. This patch solves blocking
+vmstat updator problem but that issue is caused by long update delay
+(not blocking). In there, update happens every 1 sec as usuall.
 
 Thanks.
 
