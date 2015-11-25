@@ -1,61 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E7E56B0038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 15:08:19 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so2389371wmv.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 12:08:19 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id vx5si36773492wjc.219.2015.11.25.12.08.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Nov 2015 12:08:18 -0800 (PST)
-Date: Wed, 25 Nov 2015 15:08:06 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH] mm, oom: introduce oom reaper
-Message-ID: <20151125200806.GA13388@cmpxchg.org>
-References: <1448467018-20603-1-git-send-email-mhocko@kernel.org>
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F4966B0255
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 15:31:10 -0500 (EST)
+Received: by wmec201 with SMTP id c201so85544617wme.1
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 12:31:10 -0800 (PST)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
+        by mx.google.com with ESMTP id o14si8040884wmg.93.2015.11.25.12.31.09
+        for <linux-mm@kvack.org>;
+        Wed, 25 Nov 2015 12:31:09 -0800 (PST)
+Date: Wed, 25 Nov 2015 20:31:02 +0000
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH v2] drm/i915: Disable shrinker for non-swapped backed
+ objects
+Message-ID: <20151125203102.GJ22980@nuc-i3427.alporthouse.com>
+References: <20151124231738.GA15770@nuc-i3427.alporthouse.com>
+ <1448476616-5257-1-git-send-email-chris@chris-wilson.co.uk>
+ <20151125190610.GA12238@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1448467018-20603-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <20151125190610.GA12238@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Argangeli <andrea@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Akash Goel <akash.goel@intel.com>, sourab.gupta@intel.com
 
-Hi Michal,
+On Wed, Nov 25, 2015 at 02:06:10PM -0500, Johannes Weiner wrote:
+> On Wed, Nov 25, 2015 at 06:36:56PM +0000, Chris Wilson wrote:
+> > If the system has no available swap pages, we cannot make forward
+> > progress in the shrinker by releasing active pages, only by releasing
+> > purgeable pages which are immediately reaped. Take total_swap_pages into
+> > account when counting up available objects to be shrunk and subsequently
+> > shrinking them. By doing so, we avoid unbinding objects that cannot be
+> > shrunk and so wasting CPU cycles flushing those objects from the GPU to
+> > the system and then immediately back again (as they will more than
+> > likely be reused shortly after).
+> > 
+> > Based on a patch by Akash Goel.
+> > 
+> > v2: Check for frontswap without physical swap (or dedicated swap space).
+> > If frontswap is available, we may be able to compress the GPU pages
+> > instead of swapping out to disk. In this case, we do want to shrink GPU
+> > objects and so make them available for compressing.
+> 
+> Frontswap always sits on top of an active swap device. It's enough to
+> check for available swap space.
+> 
+> > +static bool swap_available(void)
+> > +{
+> > +	return total_swap_pages || frontswap_enabled;
+> > +}
+> 
+> If you use get_nr_swap_pages() instead of total_swap_pages, this will
+> also stop scanning objects once the swap space is full. We do that in
+> the VM to stop scanning anonymous pages.
 
-I think whatever we end up doing to smoothen things for the "common
-case" (as much as OOM kills can be considered common), we need a plan
-to resolve the memory deadlock situations in a finite amount of time.
-
-Eventually we have to attempt killing another task. Or kill all of
-them to save the kernel.
-
-It just strikes me as odd to start with smoothening the common case,
-rather than making it functionally correct first.
-
-On Wed, Nov 25, 2015 at 04:56:58PM +0100, Michal Hocko wrote:
-> A kernel thread has been chosen because we need a reliable way of
-> invocation so workqueue context is not appropriate because all the
-> workers might be busy (e.g. allocating memory). Kswapd which sounds
-> like another good fit is not appropriate as well because it might get
-> blocked on locks during reclaim as well.
-
-Why not do it directly from the allocating context? I.e. when entering
-the OOM killer and finding a lingering TIF_MEMDIE from a previous kill
-just reap its memory directly then and there. It's not like the
-allocating task has anything else to do in the meantime...
-
-> @@ -1123,7 +1126,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
->  			continue;
->  		}
->  		/* If details->check_mapping, we leave swap entries. */
-> -		if (unlikely(details))
-> +		if (unlikely(details || !details->check_swap_entries))
->  			continue;
-
-&&
+Thanks. Would EXPORT_SYMBOL_GPL(nr_swap_pages) (or equivalent) be
+acceptable?
+-Chris
+ 
+-- 
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
