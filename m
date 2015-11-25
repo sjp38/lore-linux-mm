@@ -1,160 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id B1ADD6B0254
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 03:16:20 -0500 (EST)
-Received: by igcto18 with SMTP id to18so32319795igc.0
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 00:16:20 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTPS id rt1si4145070igb.69.2015.11.25.00.16.19
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FCCB6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 03:44:07 -0500 (EST)
+Received: by wmww144 with SMTP id w144so59314252wmw.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 00:44:06 -0800 (PST)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
+        by mx.google.com with ESMTPS id x7si33060962wjq.156.2015.11.25.00.44.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 25 Nov 2015 00:16:20 -0800 (PST)
-Date: Wed, 25 Nov 2015 17:16:45 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 6/9] mm, debug: introduce dump_gfpflag_names() for
- symbolic printing of gfp_flags
-Message-ID: <20151125081645.GC10494@js1304-P5Q-DELUXE>
-References: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
- <1448368581-6923-7-git-send-email-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Nov 2015 00:44:05 -0800 (PST)
+Received: by wmvv187 with SMTP id v187so245714836wmv.1
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 00:44:05 -0800 (PST)
+Date: Wed, 25 Nov 2015 09:44:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: WARNING in handle_mm_fault
+Message-ID: <20151125084403.GA24703@dhcp22.suse.cz>
+References: <CACT4Y+ZCkv0BPOdo3aiheA5LXzXhcnuiw7kCoWL=b9FcC8-wqg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1448368581-6923-7-git-send-email-vbabka@suse.cz>
+In-Reply-To: <CACT4Y+ZCkv0BPOdo3aiheA5LXzXhcnuiw7kCoWL=b9FcC8-wqg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Eric Dumazet <edumazet@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Peter Zijlstra <peterz@infradead.org>
 
-On Tue, Nov 24, 2015 at 01:36:18PM +0100, Vlastimil Babka wrote:
-> It would be useful to convert gfp_flags into string representation when
-> printing them in case of allocation failure, OOM etc. There's a script
-> ./scripts/gfp-translate to make this simpler, but it needs the matching version
-> of the sources to be accurate, and the flags have been undergoing some changes
-> recently.
+[CCing Tejun and Peter]
+
+On Tue 24-11-15 14:50:26, Dmitry Vyukov wrote:
+> Hello,
 > 
-> The ftrace framework already has this translation in the form of
-> show_gfp_flags() defined in include/trace/events/gfpflags.h which defines the
-> translation table internally. Allow reusing the table outside ftrace by putting
-> it behind __def_gfpflag_names definition and introduce dump_gfpflag_names() to
-> handle the printing.
+> I am hitting the following WARNING on commit
+> 8005c49d9aea74d382f474ce11afbbc7d7130bec (Nov 15):
 > 
-> While at it, also fill in the names for the flags and flag combinations that
-> have been missing in the table. GFP_NOWAIT no longer equals to "no flags", so
-> change the output for no flags to "none".
 > 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  include/linux/mmdebug.h         |  1 +
->  include/trace/events/gfpflags.h | 14 +++++++++++---
->  mm/debug.c                      | 10 ++++++++++
->  3 files changed, 22 insertions(+), 3 deletions(-)
+> ------------[ cut here ]------------
+> WARNING: CPU: 3 PID: 12661 at include/linux/memcontrol.h:412
+> handle_mm_fault+0x17ec/0x3530()
+> Modules linked in:
+> CPU: 3 PID: 12661 Comm: executor Tainted: G    B   W       4.4.0-rc1+ #81
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>  00000000ffffffff ffff88003725fc80 ffffffff825d3336 0000000000000000
+>  ffff880061d95900 ffffffff84cfb6c0 ffff88003725fcc0 ffffffff81247889
+>  ffffffff815b68fc ffffffff84cfb6c0 000000000000019c 0000000002f68038
+> Call Trace:
+>  [<ffffffff81247ab9>] warn_slowpath_null+0x29/0x30 kernel/panic.c:411
+>  [<ffffffff815b68fc>] handle_mm_fault+0x17ec/0x3530 mm/memory.c:3440
+>  [<     inline     >] access_error arch/x86/mm/fault.c:1020
+>  [<ffffffff81220951>] __do_page_fault+0x361/0x8b0 arch/x86/mm/fault.c:1227
+>  [<     inline     >] trace_page_fault_kernel
+> ./arch/x86/include/asm/trace/exceptions.h:44
+>  [<     inline     >] trace_page_fault_entries arch/x86/mm/fault.c:1314
+>  [<ffffffff81220f5a>] trace_do_page_fault+0x8a/0x230 arch/x86/mm/fault.c:1330
+>  [<ffffffff81213f14>] do_async_page_fault+0x14/0x70
+>  [<ffffffff84bf2b98>] async_page_fault+0x28/0x30
+> ---[ end trace 179dec89fcb66e7f ]---
+
+Sasha has reported the same thing some time ago
+http://www.spinics.net/lists/cgroups/msg14075.html. Tejun had a theory
+http://www.spinics.net/lists/cgroups/msg14078.html but we never got down
+to the solution.
+
+> Reproduction instructions are somewhat involved. I can provide
+> detailed instructions if necessary. But maybe we can debug it without
+> the reproducer. Just in case I've left some traces here:
+> https://gist.githubusercontent.com/dvyukov/451019c8fb14aa4565a4/raw/4f6d55c19fbec74c5923a1aa62acf1db81fe4e98/gistfile1.txt
 > 
-> diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
-> index c447d80..3b77fab 100644
-> --- a/include/linux/mmdebug.h
-> +++ b/include/linux/mmdebug.h
-> @@ -10,6 +10,7 @@ struct mm_struct;
->  extern void dump_page(struct page *page, const char *reason);
->  extern void dump_page_badflags(struct page *page, const char *reason,
->  			       unsigned long badflags);
-> +extern void dump_gfpflag_names(unsigned long gfp_flags);
->  void dump_vma(const struct vm_area_struct *vma);
->  void dump_mm(const struct mm_struct *mm);
->  
-> diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
-> index dde6bf0..3d580fd 100644
-> --- a/include/trace/events/gfpflags.h
-> +++ b/include/trace/events/gfpflags.h
-> @@ -8,8 +8,8 @@
->   *
->   * Thus most bits set go first.
->   */
-> -#define show_gfp_flags(flags)						\
-> -	(flags) ? __print_flags(flags, "|",				\
+> 
+> As a blind guess, I've added the following BUG into copy_process:
+> 
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index b4dc490..c5667e8 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -1620,6 +1620,8 @@ static struct task_struct *copy_process(unsigned
+> long clone_flags,
+>         trace_task_newtask(p, clone_flags);
+>         uprobe_copy_process(p, clone_flags);
+> 
+> +       BUG_ON(p->memcg_may_oom);
 > +
-> +#define __def_gfpflag_names						\
->  	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
->  	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"}, \
->  	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
-> @@ -19,9 +19,13 @@
->  	{(unsigned long)GFP_NOFS,		"GFP_NOFS"},		\
->  	{(unsigned long)GFP_ATOMIC,		"GFP_ATOMIC"},		\
->  	{(unsigned long)GFP_NOIO,		"GFP_NOIO"},		\
-> +	{(unsigned long)GFP_NOWAIT,		"GFP_NOWAIT"},		\
-> +	{(unsigned long)__GFP_DMA,		"GFP_DMA"},		\
-> +	{(unsigned long)__GFP_DMA32,		"GFP_DMA32"},		\
->  	{(unsigned long)__GFP_HIGH,		"GFP_HIGH"},		\
->  	{(unsigned long)__GFP_ATOMIC,		"GFP_ATOMIC"},		\
->  	{(unsigned long)__GFP_IO,		"GFP_IO"},		\
-> +	{(unsigned long)__GFP_FS,		"GFP_FS"},		\
->  	{(unsigned long)__GFP_COLD,		"GFP_COLD"},		\
->  	{(unsigned long)__GFP_NOWARN,		"GFP_NOWARN"},		\
->  	{(unsigned long)__GFP_REPEAT,		"GFP_REPEAT"},		\
-> @@ -36,8 +40,12 @@
->  	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
->  	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
->  	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
-> +	{(unsigned long)__GFP_WRITE,		"GFP_WRITE"},		\
->  	{(unsigned long)__GFP_DIRECT_RECLAIM,	"GFP_DIRECT_RECLAIM"},	\
->  	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"GFP_KSWAPD_RECLAIM"},	\
->  	{(unsigned long)__GFP_OTHER_NODE,	"GFP_OTHER_NODE"}	\
-> -	) : "GFP_NOWAIT"
->  
-> +#define show_gfp_flags(flags)						\
-> +	(flags) ? __print_flags(flags, "|",				\
-> +	__def_gfpflag_names						\
-> +	) : "none"
-
-How about moving this to gfp.h or something?
-Now, we use it in out of tracepoints so there is no need to keep it
-in include/trace/events/xxx.
-
-Thanks.
-
-
-> diff --git a/mm/debug.c b/mm/debug.c
-> index d9718fc..1a71a3b 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -9,6 +9,7 @@
->  #include <linux/mm.h>
->  #include <linux/trace_events.h>
->  #include <linux/memcontrol.h>
-> +#include <trace/events/gfpflags.h>
->  
->  static const struct trace_print_flags pageflag_names[] = {
->  	{1UL << PG_locked,		"locked"	},
-> @@ -46,6 +47,10 @@ static const struct trace_print_flags pageflag_names[] = {
->  #endif
->  };
->  
-> +static const struct trace_print_flags gfpflag_names[] = {
-> +	__def_gfpflag_names
-> +};
-> +
->  static void dump_flag_names(unsigned long flags,
->  			const struct trace_print_flags *names, int count)
->  {
-> @@ -73,6 +78,11 @@ static void dump_flag_names(unsigned long flags,
->  	pr_cont(")\n");
->  }
->  
-> +void dump_gfpflag_names(unsigned long gfp_flags)
-> +{
-> +	dump_flag_names(gfp_flags, gfpflag_names, ARRAY_SIZE(gfpflag_names));
-> +}
-> +
->  void dump_page_badflags(struct page *page, const char *reason,
->  		unsigned long badflags)
->  {
-> -- 
-> 2.6.3
+>         return p;
+> 
+> 
+> And it fired:
+> 
+> ------------[ cut here ]------------
+> kernel BUG at kernel/fork.c:1623!
+> invalid opcode: 0000 [#1] SMP KASAN
+> Modules linked in:
+> CPU: 3 PID: 28384 Comm: executor Not tainted 4.4.0-rc1+ #83
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> task: ffff880034c542c0 ti: ffff880033140000 task.ti: ffff880033140000
+> RIP: 0010:[<ffffffff81242df3>]  [<ffffffff81242df3>] copy_process+0x32e3/0x5bf0
+> RSP: 0018:ffff880033147c28  EFLAGS: 00010246
+> RAX: ffff880034c542c0 RBX: ffff880033148000 RCX: 0000000000000001
+> RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffff880060ca9a14
+> RBP: ffff880033147e08 R08: ffff880060ca9808 R09: 0000000000000001
+> R10: 0000000000000000 R11: 0000000000000001 R12: ffff88006269b148
+> R13: 00000000003d0f00 R14: 1ffff10006628fa8 R15: ffff880060ca9640
+> FS:  0000000002017880(0063) GS:ffff88006dd00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007fc73b14ae78 CR3: 000000000089a000 CR4: 00000000000006e0
+> Stack:
+>  ffffea00017e1780 1ffff10006628f8b ffff880033147c48 ffffffff81338b22
+>  ffff880034c54a58 ffffffff816509d0 0000000000000246 ffffffff00000001
+>  ffff880060ca99b8 00007fc73b14ae78 ffffea00017e1780 00000002624ab4d0
+> Call Trace:
+>  [<ffffffff81245afd>] _do_fork+0x14d/0xb40 kernel/fork.c:1729
+>  [<     inline     >] SYSC_clone kernel/fork.c:1838
+>  [<ffffffff812465c7>] SyS_clone+0x37/0x50 kernel/fork.c:1832
+>  [<ffffffff84bf0c76>] entry_SYSCALL_64_fastpath+0x16/0x7a
+> arch/x86/entry/entry_64.S:185
+> Code: 03 0f b6 04 02 48 89 fa 83 e2 07 38 d0 7f 09 84 c0 74 05 e8 c0
+> e4 3d 00 41 f6 87 d4 03 00 00 20 0f 84 d7 ce ff ff e8 ed 70 21 00 <0f>
+> 0b e8 e6 70 21 00 48 8b 1d 8f 39 cf 04 49 bc 00 00 00 00 00
+> RIP  [<ffffffff81242df3>] copy_process+0x32e3/0x5bf0
+> kernel/fork.c:1623 (discriminator 1)
+>  RSP <ffff880033147c28>
+> ---[ end trace 6b4b09a815461606 ]---
+> 
+> 
+> So it seems that copy_process creates tasks with memcg_may_oom flag
+> set, which looks wrong. Can it be the root cause?
+> 
+> 
+> Thank you
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
