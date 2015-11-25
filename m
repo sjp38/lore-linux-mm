@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 745586B0038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:29:24 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so61866316pac.2
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 08:29:24 -0800 (PST)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FA736B0258
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:29:40 -0500 (EST)
+Received: by padhx2 with SMTP id hx2so61989371pad.1
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 08:29:40 -0800 (PST)
 Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id h71si35202101pfj.158.2015.11.25.08.29.23
+        by mx.google.com with ESMTP id 81si35222869pfr.79.2015.11.25.08.29.39
         for <linux-mm@kvack.org>;
-        Wed, 25 Nov 2015 08:29:23 -0800 (PST)
-Date: Wed, 25 Nov 2015 11:29:21 -0500 (EST)
-Message-Id: <20151125.112921.1371682675467323296.davem@davemloft.net>
-Subject: Re: [PATCH 10/13] mm: memcontrol: do not account memory+swap on
- unified hierarchy
+        Wed, 25 Nov 2015 08:29:39 -0800 (PST)
+Date: Wed, 25 Nov 2015 11:29:37 -0500 (EST)
+Message-Id: <20151125.112937.1072774228536687101.davem@davemloft.net>
+Subject: Re: [PATCH 11/13] mm: memcontrol: move socket code for unified
+ hierarchy accounting
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <1448401925-22501-11-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1448401925-22501-12-git-send-email-hannes@cmpxchg.org>
 References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
-	<1448401925-22501-11-git-send-email-hannes@cmpxchg.org>
+	<1448401925-22501-12-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -25,15 +25,10 @@ To: hannes@cmpxchg.org
 Cc: akpm@linux-foundation.org, vdavydov@virtuozzo.com, mhocko@suse.cz, tj@kernel.org, eric.dumazet@gmail.com, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
 From: Johannes Weiner <hannes@cmpxchg.org>
-Date: Tue, 24 Nov 2015 16:52:02 -0500
+Date: Tue, 24 Nov 2015 16:52:03 -0500
 
-> The unified hierarchy memory controller doesn't expose the memory+swap
-> counter to userspace, but its accounting is hardcoded in all charge
-> paths right now, including the per-cpu charge cache ("the stock").
-> 
-> To avoid adding yet more pointless memory+swap accounting with the
-> socket memory support in unified hierarchy, disable the counter
-> altogether when in unified hierarchy mode.
+> The unified hierarchy memory controller will account socket
+> memory. Move the infrastructure functions accordingly.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > Acked-by: Michal Hocko <mhocko@suse.com>
