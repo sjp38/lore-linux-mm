@@ -1,86 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 0259D6B0038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 10:31:43 -0500 (EST)
-Received: by wmww144 with SMTP id w144so184843844wmw.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 07:31:42 -0800 (PST)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id d203si6584109wmc.51.2015.11.25.07.31.41
+Received: from mail-lf0-f44.google.com (mail-lf0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B18A06B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 10:36:56 -0500 (EST)
+Received: by lfs39 with SMTP id 39so62663416lfs.3
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 07:36:56 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id q140si16426075lfe.67.2015.11.25.07.36.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Nov 2015 07:31:42 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so262476590wmv.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 07:31:41 -0800 (PST)
+        Wed, 25 Nov 2015 07:36:54 -0800 (PST)
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: [PATCH] vmscan: do not throttle kthreads due to too_many_isolated
+Date: Wed, 25 Nov 2015 18:36:41 +0300
+Message-ID: <1448465801-3280-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20151125150207.GM11639@twins.programming.kicks-ass.net>
-References: <20150913185940.GA25369@htj.duckdns.org>
-	<55FEC685.5010404@oracle.com>
-	<20150921200141.GH13263@mtj.duckdns.org>
-	<20151125144354.GB17308@twins.programming.kicks-ass.net>
-	<20151125150207.GM11639@twins.programming.kicks-ass.net>
-Date: Wed, 25 Nov 2015 18:31:41 +0300
-Message-ID: <CAPAsAGwa9-7UBUnhysfek3kyWKMgaUJRwtDPEqas1rKwkeTtoA@mail.gmail.com>
-Subject: Re: [PATCH 1/2] memcg: flatten task_struct->memcg_oom
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mhocko@kernel.org, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, vdavydov@parallels.com, kernel-team@fb.com, Dmitry Vyukov <dvyukov@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2015-11-25 18:02 GMT+03:00 Peter Zijlstra <peterz@infradead.org>:
-> On Wed, Nov 25, 2015 at 03:43:54PM +0100, Peter Zijlstra wrote:
->> On Mon, Sep 21, 2015 at 04:01:41PM -0400, Tejun Heo wrote:
->> > So, the only way the patch could have caused the above is if someone
->> > who isn't the task itself is writing to the bitfields while the task
->> > is running.  Looking through the fields, ->sched_reset_on_fork seems a
->> > bit suspicious.  __sched_setscheduler() looks like it can modify the
->> > bit while the target task is running.  Peter, am I misreading the
->> > code?
->>
->> Nope, that's quite possible. Looks like we need to break up those
->> bitfields a bit. All the scheduler ones should be serialized by
->> scheduler locks, but the others are fair game.
->
-> Maybe something like so; but my brain is a complete mess today.
->
-> ---
->  include/linux/sched.h | 11 ++++++-----
->  1 file changed, 6 insertions(+), 5 deletions(-)
->
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index f425aac63317..b474e0f05327 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -1455,14 +1455,15 @@ struct task_struct {
->         /* Used for emulating ABI behavior of previous Linux versions */
->         unsigned int personality;
->
-> -       unsigned in_execve:1;   /* Tell the LSMs that the process is doing an
-> -                                * execve */
-> -       unsigned in_iowait:1;
-> -
-> -       /* Revert to default priority/policy when forking */
-> +       /* scheduler bits, serialized by scheduler locks */
->         unsigned sched_reset_on_fork:1;
->         unsigned sched_contributes_to_load:1;
->         unsigned sched_migrated:1;
-> +       unsigned __padding_sched:29;
+Block device drivers often hand off io request processing to kernel
+threads (example: device mapper). If such a thread calls kmalloc, it can
+dive into direct reclaim path and end up waiting for too_many_isolated
+to return false, blocking writeback. This can lead to a dead lock if the
+pages were isolated by processes performing memcg reclaim, because they
+call wait_on_page_writeback upon encountering a page under writeback,
+which will never finish if bio_endio is to be called by the kernel
+thread stuck in the reclaimer, waiting for the isolated pages to be put
+back.
 
-AFAIK the order of bit fields is implementation defined, so GCC could
-sort all these bits as it wants.
-You could use unnamed zero-widht bit-field to force padding:
+I've never encountered such a dead lock on vanilla kernel, neither have
+I tried to reproduce it. However, I faced it with an out-of-tree block
+device driver, which uses a kernel thread for completing bios: the
+kernel thread got stuck busy-checking too_many_isolated on the DMA zone,
+which had only 3 inactive and 68 isolated file pages (2163 pages were
+free); the pages were isolated by memcg processes waiting for writeback
+to finish. I don't see anything that could prevent this in case of e.g.
+device mapper.
 
-         unsigned :0; //force aligment to the next boundary.
+Let's fix this problem by making too_many_isolated always return false
+for kernel threads. Apart from fixing the possible dead lock in case of
+the legacy cgroup hierarchy, this makes sense even if the unified
+hierarchy is used, where processes performing memcg reclaim will never
+call wait_on_page_writeback, because kernel threads might be responsible
+for cleaning pages necessary for reclaim - BTW throttle_direct_reclaim
+never throttles kernel threads for the same reason.
 
-> +
-> +       /* unserialized, strictly 'current' */
-> +       unsigned in_execve:1; /* bit to tell LSMs we're in execve */
-> +       unsigned in_iowait:1;
->  #ifdef CONFIG_MEMCG
->         unsigned memcg_may_oom:1;
->  #endif
->
+Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+---
+ mm/vmscan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9d553b07bb86..0f1318a52b23 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1457,7 +1457,7 @@ static int too_many_isolated(struct zone *zone, int file,
+ {
+ 	unsigned long inactive, isolated;
+ 
+-	if (current_is_kswapd())
++	if (current->flags & PF_KTHREAD)
+ 		return 0;
+ 
+ 	if (!sane_reclaim(sc))
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
