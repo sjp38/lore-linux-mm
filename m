@@ -1,40 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id E56686B0038
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:26:42 -0500 (EST)
-Received: by pabfh17 with SMTP id fh17so63772467pab.0
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 08:26:42 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id d10si34942394pap.237.2015.11.25.08.26.41
-        for <linux-mm@kvack.org>;
-        Wed, 25 Nov 2015 08:26:42 -0800 (PST)
-Date: Wed, 25 Nov 2015 11:26:39 -0500 (EST)
-Message-Id: <20151125.112639.2178229649261742673.davem@davemloft.net>
-Subject: Re: [PATCH 06/13] net: tcp_memcontrol: simplify the per-memcg
- limit access
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1448401925-22501-7-git-send-email-hannes@cmpxchg.org>
-References: <1448401925-22501-1-git-send-email-hannes@cmpxchg.org>
-	<1448401925-22501-7-git-send-email-hannes@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-lf0-f53.google.com (mail-lf0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A47D6B0254
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:28:13 -0500 (EST)
+Received: by lfdl133 with SMTP id l133so66659955lfd.2
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 08:28:12 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id gj7si16501071lbc.183.2015.11.25.08.28.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Nov 2015 08:28:11 -0800 (PST)
+Date: Wed, 25 Nov 2015 19:27:57 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] vmscan: do not throttle kthreads due to too_many_isolated
+Message-ID: <20151125162756.GJ29014@esperanza>
+References: <1448465801-3280-1-git-send-email-vdavydov@virtuozzo.com>
+ <5655D789.80201@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <5655D789.80201@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org
-Cc: akpm@linux-foundation.org, vdavydov@virtuozzo.com, mhocko@suse.cz, tj@kernel.org, eric.dumazet@gmail.com, netdev@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Johannes Weiner <hannes@cmpxchg.org>
-Date: Tue, 24 Nov 2015 16:51:58 -0500
-
-> tcp_memcontrol replicates the global sysctl_mem limit array per
-> cgroup, but it only ever sets these entries to the value of the
-> memory_allocated page_counter limit. Use the latter directly.
+On Wed, Nov 25, 2015 at 04:45:13PM +0100, Vlastimil Babka wrote:
+> On 11/25/2015 04:36 PM, Vladimir Davydov wrote:
+> > Block device drivers often hand off io request processing to kernel
+> > threads (example: device mapper). If such a thread calls kmalloc, it can
+> > dive into direct reclaim path and end up waiting for too_many_isolated
+> > to return false, blocking writeback. This can lead to a dead lock if the
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> Shouldn't such allocation lack __GFP_IO to prevent this and other kinds of
+> deadlocks? And/or have mempools?
 
-Acked-by: David S. Miller <davem@davemloft.net>
+Not necessarily. loopback is an example: it can call
+grab_cache_write_begin -> add_to_page_cache_lru with GFP_KERNEL.
+
+> PF_KTHREAD looks like a big hammer to me that will solve only one
+> potential problem...
+
+This problem can result in processes hanging forever. Any ideas how this
+could be fixed in a better way?
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
