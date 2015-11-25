@@ -1,100 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 696036B0257
-	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 19:47:39 -0500 (EST)
-Received: by ioc74 with SMTP id 74so38579034ioc.2
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 16:47:39 -0800 (PST)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id p16si1826674igw.68.2015.11.24.16.47.38
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 08B706B0259
+	for <linux-mm@kvack.org>; Tue, 24 Nov 2015 21:38:50 -0500 (EST)
+Received: by igcmv3 with SMTP id mv3so64179352igc.0
+        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 18:38:49 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTPS id j84si3872238iof.79.2015.11.24.18.38.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Nov 2015 16:47:38 -0800 (PST)
-Received: by igl9 with SMTP id 9so84478084igl.0
-        for <linux-mm@kvack.org>; Tue, 24 Nov 2015 16:47:38 -0800 (PST)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 24 Nov 2015 18:38:49 -0800 (PST)
+Date: Wed, 25 Nov 2015 11:39:14 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 3/3] mm/cma: always check which page cause allocation
+ failure
+Message-ID: <20151125023913.GA9563@js1304-P5Q-DELUXE>
+References: <1447381428-12445-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1447381428-12445-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <565481FC.4090500@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20151124164001.71844bcfb4d7a500cd25d9c6@linux-foundation.org>
-References: <1447888808-31571-1-git-send-email-dcashman@android.com>
-	<1447888808-31571-2-git-send-email-dcashman@android.com>
-	<20151124164001.71844bcfb4d7a500cd25d9c6@linux-foundation.org>
-Date: Tue, 24 Nov 2015 16:47:37 -0800
-Message-ID: <CAGXu5jKaW=H1WWuW_M4LpfcGGUWE3yvsiMnzMiAbeta__YpSJg@mail.gmail.com>
-Subject: Re: [PATCH v3 1/4] mm: mmap: Add new /proc tunable for mmap_base ASLR.
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <565481FC.4090500@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Daniel Cashman <dcashman@android.com>, LKML <linux-kernel@vger.kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Jonathan Corbet <corbet@lwn.net>, Don Zickus <dzickus@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Heinrich Schuchardt <xypron.glpk@gmx.de>, jpoimboe@redhat.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, n-horiguchi@ah.jp.nec.com, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Mark Salyzyn <salyzyn@android.com>, Jeffrey Vander Stoep <jeffv@google.com>, Nick Kralevich <nnk@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Hector Marco <hecmargi@upv.es>, Borislav Petkov <bp@suse.de>, Daniel Cashman <dcashman@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Nov 24, 2015 at 4:40 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 18 Nov 2015 15:20:05 -0800 Daniel Cashman <dcashman@android.com> wrote:
->
->> --- a/kernel/sysctl.c
->> +++ b/kernel/sysctl.c
->> @@ -1568,6 +1568,28 @@ static struct ctl_table vm_table[] = {
->>               .mode           = 0644,
->>               .proc_handler   = proc_doulongvec_minmax,
->>       },
->> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
->> +     {
->> +             .procname       = "mmap_rnd_bits",
->> +             .data           = &mmap_rnd_bits,
->> +             .maxlen         = sizeof(mmap_rnd_bits),
->> +             .mode           = 0644,
->
-> Is there any harm in permitting the attacker to read these values?
->
-> And is there any benefit in permitting non-attackers to read them?
+On Tue, Nov 24, 2015 at 04:27:56PM +0100, Vlastimil Babka wrote:
+> On 11/13/2015 03:23 AM, Joonsoo Kim wrote:
+> >Now, we have tracepoint in test_pages_isolated() to notify
+> >pfn which cannot be isolated. But, in alloc_contig_range(),
+> >some error path doesn't call test_pages_isolated() so it's still
+> >hard to know exact pfn that causes allocation failure.
+> >
+> >This patch change this situation by calling test_pages_isolated()
+> >in almost error path. In allocation failure case, some overhead
+> >is added by this change, but, allocation failure is really rare
+> >event so it would not matter.
+> >
+> >In fatal signal pending case, we don't call test_pages_isolated()
+> >because this failure is intentional one.
+> >
+> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >---
+> >  mm/page_alloc.c | 10 +++++++---
+> >  1 file changed, 7 insertions(+), 3 deletions(-)
+> >
+> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >index d89960d..e78d78f 100644
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -6756,8 +6756,12 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+> >  	if (ret)
+> >  		return ret;
+> >
+> >+	/*
+> >+	 * In case of -EBUSY, we'd like to know which page causes problem.
+> >+	 * So, just fall through. We will check it in test_pages_isolated().
+> >+	 */
+> >  	ret = __alloc_contig_migrate_range(&cc, start, end);
+> >-	if (ret)
+> >+	if (ret && ret != -EBUSY)
+> >  		goto done;
+> >
+> >  	/*
+> >@@ -6784,8 +6788,8 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+> >  	outer_start = start;
+> >  	while (!PageBuddy(pfn_to_page(outer_start))) {
+> >  		if (++order >= MAX_ORDER) {
+> >-			ret = -EBUSY;
+> >-			goto done;
+> >+			outer_start = start;
+> >+			break;
+> >  		}
+> >  		outer_start &= ~0UL << order;
+> >  	}
+> 
+> Ugh isn't this crazy loop broken? Shouldn't it test that the buddy
+> it finds has order high enough? e.g.:
+>   buddy = pfn_to_page(outer_start)
+>   outer_start + (1UL << page_order(buddy)) > start
+> 
+> Otherwise you might end up with something like:
+> - at "start" there's a page that CMA failed to freed
+> - at "start-1" there's another non-buddy page
+> - at "start-3" there's an order-1 buddy, so you set outer_start to start-3
+> - test_pages_isolated() will complain (via the new tracepoint) about
+> pfn of start-1, but actually you would like it to complain about pfn
+> of "start"?
+> 
+> So the loop has been broken before your patch, but it didn't matter,
+> just potentially wasted some time by picking bogus outer_start. But
+> now your tracepoint will give you weird results.
 
-I'm on the fence. Things like kernel/randomize_va_space is 644. But
-since I don't see a benefit in exposing them, let's make them all 600
-instead -- it's a new interface, better to keep it narrower now.
+Good catch. I will fix it.
 
->
->> +             .proc_handler   = proc_dointvec_minmax,
->> +             .extra1         = &mmap_rnd_bits_min,
->> +             .extra2         = &mmap_rnd_bits_max,
->> +     },
->> +#endif
->> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_COMPAT_BITS
->> +     {
->> +             .procname       = "mmap_rnd_compat_bits",
->> +             .data           = &mmap_rnd_compat_bits,
->> +             .maxlen         = sizeof(mmap_rnd_compat_bits),
->> +             .mode           = 0644,
->> +             .proc_handler   = proc_dointvec_minmax,
->> +             .extra1         = &mmap_rnd_compat_bits_min,
->> +             .extra2         = &mmap_rnd_compat_bits_max,
->> +     },
->> +#endif
->>
->> ...
->>
->> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
->> +int mmap_rnd_bits_min = CONFIG_ARCH_MMAP_RND_BITS_MIN;
->> +int mmap_rnd_bits_max = CONFIG_ARCH_MMAP_RND_BITS_MAX;
->> +int mmap_rnd_bits = CONFIG_ARCH_MMAP_RND_BITS;
->> +#endif
->> +#ifdef CONFIG_HAVE_ARCH_MMAP_RND_COMPAT_BITS
->> +int mmap_rnd_compat_bits_min = CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MIN;
->> +int mmap_rnd_compat_bits_max = CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MAX;
->> +int mmap_rnd_compat_bits = CONFIG_ARCH_MMAP_RND_COMPAT_BITS;
->
-> These could be __read_mostly.
->
-> If one believes in such things.  One effect of __read_mostly is to
-> clump the write-often stuff into the same cachelines and I've never
-> been convinced that one outweighs the other...
-
-The _min and _max values should be const, actually, since they're
-build-time selected. The _bits could easily be __read_mostly, yeah.
-
--Kees
-
--- 
-Kees Cook
-Chrome OS & Brillo Security
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
