@@ -1,61 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D395B6B0254
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 14:06:21 -0500 (EST)
-Received: by wmww144 with SMTP id w144so192612493wmw.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:06:21 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id t82si7684152wmg.38.2015.11.25.11.06.20
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E34C6B0255
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 14:07:13 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so65448496pac.3
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:07:13 -0800 (PST)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id fe1si2760195pab.82.2015.11.25.11.07.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Nov 2015 11:06:20 -0800 (PST)
-Date: Wed, 25 Nov 2015 14:06:10 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2] drm/i915: Disable shrinker for non-swapped backed
- objects
-Message-ID: <20151125190610.GA12238@cmpxchg.org>
-References: <20151124231738.GA15770@nuc-i3427.alporthouse.com>
- <1448476616-5257-1-git-send-email-chris@chris-wilson.co.uk>
+        Wed, 25 Nov 2015 11:07:12 -0800 (PST)
+Received: by pacej9 with SMTP id ej9so65423153pac.2
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 11:07:12 -0800 (PST)
+Subject: Re: [PATCH v3 0/4] Allow customizable random offset to mmap_base
+ address.
+References: <1447888808-31571-1-git-send-email-dcashman@android.com>
+ <20151124163907.1a406b79458b1bb0d3519684@linux-foundation.org>
+From: Daniel Cashman <dcashman@android.com>
+Message-ID: <565606DD.2090502@android.com>
+Date: Wed, 25 Nov 2015 11:07:09 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1448476616-5257-1-git-send-email-chris@chris-wilson.co.uk>
+In-Reply-To: <20151124163907.1a406b79458b1bb0d3519684@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Akash Goel <akash.goel@intel.com>, sourab.gupta@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com, Ralf Baechle <ralf@linux-mips.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Wed, Nov 25, 2015 at 06:36:56PM +0000, Chris Wilson wrote:
-> If the system has no available swap pages, we cannot make forward
-> progress in the shrinker by releasing active pages, only by releasing
-> purgeable pages which are immediately reaped. Take total_swap_pages into
-> account when counting up available objects to be shrunk and subsequently
-> shrinking them. By doing so, we avoid unbinding objects that cannot be
-> shrunk and so wasting CPU cycles flushing those objects from the GPU to
-> the system and then immediately back again (as they will more than
-> likely be reused shortly after).
-> 
-> Based on a patch by Akash Goel.
-> 
-> v2: Check for frontswap without physical swap (or dedicated swap space).
-> If frontswap is available, we may be able to compress the GPU pages
-> instead of swapping out to disk. In this case, we do want to shrink GPU
-> objects and so make them available for compressing.
+On 11/24/2015 04:39 PM, Andrew Morton wrote:
 
-Frontswap always sits on top of an active swap device. It's enough to
-check for available swap space.
+> mips, powerpc and s390 also implement arch_mmap_rnd().  Are there any
+> special considerations here, or it just a matter of maintainers wiring
+> it up and testing it?
 
-> +static bool swap_available(void)
-> +{
-> +	return total_swap_pages || frontswap_enabled;
-> +}
+I had not yet looked at those at all, as I had no way to do even a
+rudimentary "does it boot" test and opted to post v3 first.  Upon first
+glance, it should just be a matter of wiring it up:
 
-If you use get_nr_swap_pages() instead of total_swap_pages, this will
-also stop scanning objects once the swap space is full. We do that in
-the VM to stop scanning anonymous pages.
+Mips is divided into 12/16 bits for 32/64 bit (assume baseline 4k page)
+w/COMPAT kconfig,  powerpc is 11/18 w/COMPAT, s390 is 11/11 w/COMPAT.
+s390 is a bit strange as COMPAT is for a 31-bit address space, although
+is_32bit_task() is used to determine which mask to use, and the mask
+itself for 64-bit only introduces 11 bits of entropy, but while still
+affecting larger chunks of the address space (mask is 0x3ff80, resulting
+in an effective 0x7ff shift of PAGE_SIZE + 7 bits).
 
-On a sidenote, frontswap_enabled is #defined to 1 when the feature is
-compiled in, so this would be a no-op on most distro kernels.
+I could go ahead and add these to patchset v4 and as with the previous
+architectures, rely on feedback from arch-specific maintainers to help
+tune and test the values.
+
+-Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
