@@ -1,85 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 462016B0255
-	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 16:01:59 -0500 (EST)
-Received: by padhx2 with SMTP id hx2so67970064pad.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 13:01:59 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id v1si36535443pfa.242.2015.11.25.13.01.58
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 47E6A6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Nov 2015 16:17:17 -0500 (EST)
+Received: by wmww144 with SMTP id w144so85813461wmw.0
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 13:17:16 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id eq8si37029514wjc.248.2015.11.25.13.17.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Nov 2015 13:01:58 -0800 (PST)
-Received: by padhx2 with SMTP id hx2so67969866pad.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 13:01:58 -0800 (PST)
-Date: Wed, 25 Nov 2015 13:01:56 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/2] mm: warn about ALLOC_NO_WATERMARKS request
- failures
-In-Reply-To: <20151125115527.GF27283@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1511251257320.24689@chino.kir.corp.google.com>
-References: <1448448054-804-1-git-send-email-mhocko@kernel.org> <1448448054-804-3-git-send-email-mhocko@kernel.org> <alpine.DEB.2.10.1511250251490.32374@chino.kir.corp.google.com> <20151125115527.GF27283@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Nov 2015 13:17:16 -0800 (PST)
+Date: Wed, 25 Nov 2015 22:16:16 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v3 02/22] kthread/smpboot: Do not park in
+ kthread_create_on_cpu()
+In-Reply-To: <1447853127-3461-3-git-send-email-pmladek@suse.com>
+Message-ID: <alpine.DEB.2.11.1511252216040.12555@nanos>
+References: <1447853127-3461-1-git-send-email-pmladek@suse.com> <1447853127-3461-3-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Petr Mladek <pmladek@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 25 Nov 2015, Michal Hocko wrote:
-
-> > > @@ -2642,6 +2644,13 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
-> > >  	if (zonelist_rescan)
-> > >  		goto zonelist_scan;
-> > >  
-> > > +	/* WARN only once unless min_free_kbytes is updated */
-> > > +	if (warn_alloc_no_wmarks && (alloc_flags & ALLOC_NO_WATERMARKS)) {
-> > > +		warn_alloc_no_wmarks = 0;
-> > > +		WARN(1, "Memory reserves are depleted for order:%d, mode:0x%x."
-> > > +			" You might consider increasing min_free_kbytes\n",
-> > > +			order, gfp_mask);
-> > > +	}
-> > >  	return NULL;
-> > >  }
-> > >  
-> > 
-> > Doesn't this warn for high-order allocations prior to the first call to 
-> > direct compaction whereas min_free_kbytes may be irrelevant?
+On Wed, 18 Nov 2015, Petr Mladek wrote:
+> kthread_create_on_cpu() was added by the commit 2a1d446019f9a5983e
+> ("kthread: Implement park/unpark facility"). It is currently used
+> only when enabling new CPU. For this purpose, the newly created
+> kthread has to be parked.
 > 
-> Hmm, you are concerned about high order ALLOC_NO_WATERMARKS allocation
-> which happen prior to compaction, right? I am wondering whether there
-> are reasonable chances that a compaction would make a difference if we
-> are so depleted that there is no single page with >= order.
-> ALLOC_NO_WATERMARKS with high order allocations should be rare if
-> existing at all.
+> The CPU binding is a bit tricky. The kthread is parked when the CPU
+> has not been allowed yet. And the CPU is bound when the kthread
+> is unparked.
 > 
-
-No, I'm concerned about get_page_from_freelist() failing for an order-9 
-allocation due to _fragmentation_ and then emitting this warning although 
-free watermarks may be gigabytes of memory higher than min watermarks.
-
-> > Providing 
-> > the order is good, but there's no indication when min_free_kbytes may be 
-> > helpful from this warning. 
+> The function would be useful for more per-CPU kthreads, e.g.
+> bnx2fc_thread, fcoethread. For this purpose, the newly created
+> kthread should stay in the uninterruptible state.
 > 
-> I am not sure I understand what you mean here.
+> This patch moves the parking into smpboot. It binds the thread
+> already when created. Then the function might be used universally.
+> Also the behavior is consistent with kthread_create() and
+> kthread_create_on_node().
 > 
+> Signed-off-by: Petr Mladek <pmladek@suse.com>
 
-You show the order of the failed allocation in your new warning.  Good.  
-It won't help to raise min_free_kbytes to infinity if the high-order 
-allocation failed due to fragmentation.  Does that make sense?
-
-> > WARN() isn't even going to show the state of memory.
-> 
-> I was considering to do that but it would make the code unnecessarily
-> more complex. If the allocation is allowed to fail it would dump the
-> allocation failure. The purpose of the message is to tell us that
-> reserves are not sufficient. I am not sure seeing the memory state dump
-> would help us much more.
-> 
-
-If the purpsoe of the message is to tell us when reserves are 
-insufficient, it doesn't achieve that purpose if allocations fail due to 
-fragmentation or lowmem_reserve_ratio.
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
