@@ -1,47 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f44.google.com (mail-vk0-f44.google.com [209.85.213.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E0566B0038
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 00:04:00 -0500 (EST)
-Received: by vkha189 with SMTP id a189so47190344vkh.2
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 21:03:59 -0800 (PST)
-Received: from mail-vk0-x22c.google.com (mail-vk0-x22c.google.com. [2607:f8b0:400c:c05::22c])
-        by mx.google.com with ESMTPS id l194si26961371vke.212.2015.11.25.21.03.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Nov 2015 21:03:59 -0800 (PST)
-Received: by vkbs1 with SMTP id s1so47280049vkb.1
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 21:03:59 -0800 (PST)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E6E6C6B0038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 00:47:27 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so79824381pac.3
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 21:47:27 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id cy6si39140339pad.242.2015.11.25.21.47.26
+        for <linux-mm@kvack.org>;
+        Wed, 25 Nov 2015 21:47:27 -0800 (PST)
+Subject: Re: hugepage compaction causes performance drop
+References: <564DCEA6.3000802@suse.cz> <564EDFE5.5010709@intel.com>
+ <564EE8FD.7090702@intel.com> <564EF0B6.10508@suse.cz>
+ <20151123081601.GA29397@js1304-P5Q-DELUXE> <5652CF40.6040400@intel.com>
+ <CAAmzW4M6oJukBLwucByK89071RukF4UEyt02A7ZjenpPr5rsdQ@mail.gmail.com>
+ <5653DC2C.3090706@intel.com> <20151124045536.GA3112@js1304-P5Q-DELUXE>
+ <5654116F.1030301@intel.com> <20151124082941.GA4136@js1304-P5Q-DELUXE>
+ <5655AD4A.4080001@suse.cz>
+From: Aaron Lu <aaron.lu@intel.com>
+Message-ID: <56569CEC.1050809@intel.com>
+Date: Thu, 26 Nov 2015 13:47:24 +0800
 MIME-Version: 1.0
-In-Reply-To: <20151126015612.GB13138@js1304-P5Q-DELUXE>
-References: <1448346123-2699-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<20151125120021.GA27342@dhcp22.suse.cz>
-	<20151126015612.GB13138@js1304-P5Q-DELUXE>
-Date: Thu, 26 Nov 2015 10:33:59 +0530
-Message-ID: <CAOaiJ-=n+fSchrxbB-Lr=bh32HOwsXNLUU==6ZRbbXqufU5n7w@mail.gmail.com>
-Subject: Re: [PATCH] mm/vmstat: retrieve more accurate vmstat value
-From: vinayak menon <vinayakm.list@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <5655AD4A.4080001@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, lkp@lists.01.org, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Thu, Nov 26, 2015 at 7:26 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> On Wed, Nov 25, 2015 at 01:00:22PM +0100, Michal Hocko wrote:
->> On Tue 24-11-15 15:22:03, Joonsoo Kim wrote:
->> > When I tested compaction in low memory condition, I found that
->> > my benchmark is stuck in congestion_wait() at shrink_inactive_list().
->> > This stuck last for 1 sec and after then it can escape. More investigation
->> > shows that it is due to stale vmstat value. vmstat is updated every 1 sec
->> > so it is stuck for 1 sec.
+On 11/25/2015 08:44 PM, Vlastimil Babka wrote:
+> On 11/24/2015 09:29 AM, Joonsoo Kim wrote:
+>> On Tue, Nov 24, 2015 at 03:27:43PM +0800, Aaron Lu wrote:
 >>
->> Wouldn't it be sufficient to use zone_page_state_snapshot in
->> too_many_isolated?
->
-This was done by this patch I believe,
-http://lkml.iu.edu/hypermail/linux/kernel/1501.2/00001.html, though
-the original  issue (wait of more than 1 sec) was fixed by the vmstat
-changes.
+>> Thanks.
+>>
+>> Okay. Output proves the theory. pagetypeinfo shows that there are
+>> too many unmovable pageblocks. isolate_freepages() should skip these
+>> so it's not easy to meet proper pageblock until need_resched(). Hence,
+>> updating cached pfn doesn't happen. (You can see unchanged free_pfn
+>> with 'grep compaction_begin tracepoint-output')
+> 
+> Hm to me it seems that the scanners meet a lot, so they restart at zone
+> boundaries and that's fine. There's nothing to cache.
+> 
+>> But, I don't think that updating cached pfn is enough to solve your problem.
+>> More complex change would be needed, I guess.
+> 
+> One factor is probably that THP only use async compaction and those don't result
+> in deferred compaction, which should help here. It also means that
+> pageblock_skip bits are not being reset except by kswapd...
+> 
+> Oh and pageblock_pfn_to_page is done before checking the pageblock skip bits, so
+> that's why it's prominent in the profiles. Although it was less prominent (9% vs
+> 46% before) in the last data... was perf collected while tracing, thus
+> generating extra noise?
+
+The perf is always run during these test runs, it will start 25 seconds
+later after the test starts to give it some time to eat the remaining
+free memory so that when perf starts collection data, the swap out should
+already start. The perf data is collected for 10 seconds.
+
+I guess the test run under trace-cmd is slower before before, so the
+perf is collecting data at a different time window.
+
+Regards,
+Aaron
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
