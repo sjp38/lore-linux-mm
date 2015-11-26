@@ -1,73 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E317B6B0038
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 06:25:22 -0500 (EST)
-Received: by wmuu63 with SMTP id u63so17497326wmu.0
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 03:25:22 -0800 (PST)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
-        by mx.google.com with ESMTP id x7si40690313wjq.156.2015.11.26.03.25.21
-        for <linux-mm@kvack.org>;
-        Thu, 26 Nov 2015 03:25:21 -0800 (PST)
-Date: Thu, 26 Nov 2015 11:25:14 +0000
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [PATCH v2] drm/i915: Disable shrinker for non-swapped backed
- objects
-Message-ID: <20151126112514.GG23362@nuc-i3427.alporthouse.com>
-References: <20151124231738.GA15770@nuc-i3427.alporthouse.com>
- <1448476616-5257-1-git-send-email-chris@chris-wilson.co.uk>
- <20151125190610.GA12238@cmpxchg.org>
- <20151125203102.GJ22980@nuc-i3427.alporthouse.com>
- <20151125204635.GA14536@cmpxchg.org>
-MIME-Version: 1.0
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E1FD6B0038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 06:33:52 -0500 (EST)
+Received: by oiww189 with SMTP id w189so45548864oiw.3
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 03:33:52 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id rk8si8064857oeb.17.2015.11.26.03.33.51
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 26 Nov 2015 03:33:51 -0800 (PST)
+Subject: Re: WARNING in handle_mm_fault
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <CACT4Y+Zn+mK37-mvqDQTyt1Psp6HT2heT0e937SO24F7V1q7PA@mail.gmail.com>
+	<201511260027.CCC26590.SOHFMQLVJOtFOF@I-love.SAKURA.ne.jp>
+	<CACT4Y+ZdF09hOnb_bL4GNjytSMMGvNde8=9pdZt6gZQB1sp0hQ@mail.gmail.com>
+	<20151125173730.GS27283@dhcp22.suse.cz>
+	<CACT4Y+Y0EESD_HhgGE2pWPqfJsDgvSny=ZMfP1ewaSzd6z_bLg@mail.gmail.com>
+In-Reply-To: <CACT4Y+Y0EESD_HhgGE2pWPqfJsDgvSny=ZMfP1ewaSzd6z_bLg@mail.gmail.com>
+Message-Id: <201511262033.EAB48965.FVJOOOMLFHStFQ@I-love.SAKURA.ne.jp>
+Date: Thu, 26 Nov 2015 20:33:05 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20151125204635.GA14536@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Akash Goel <akash.goel@intel.com>, sourab.gupta@intel.com
+To: dvyukov@google.com, syzkaller@googlegroups.com
+Cc: hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kcc@google.com, glider@google.com, sasha.levin@oracle.com, edumazet@google.com, gthelen@google.com, tj@kernel.org, peterz@infradead.org
 
-On Wed, Nov 25, 2015 at 03:46:35PM -0500, Johannes Weiner wrote:
-> On Wed, Nov 25, 2015 at 08:31:02PM +0000, Chris Wilson wrote:
-> > On Wed, Nov 25, 2015 at 02:06:10PM -0500, Johannes Weiner wrote:
-> > > On Wed, Nov 25, 2015 at 06:36:56PM +0000, Chris Wilson wrote:
-> > > > +static bool swap_available(void)
-> > > > +{
-> > > > +	return total_swap_pages || frontswap_enabled;
-> > > > +}
-> > > 
-> > > If you use get_nr_swap_pages() instead of total_swap_pages, this will
-> > > also stop scanning objects once the swap space is full. We do that in
-> > > the VM to stop scanning anonymous pages.
-> > 
-> > Thanks. Would EXPORT_SYMBOL_GPL(nr_swap_pages) (or equivalent) be
-> > acceptable?
+Dmitry Vyukov wrote:
+> On Wed, Nov 25, 2015 at 6:37 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Wed 25-11-15 18:21:02, Dmitry Vyukov wrote:
+> > [...]
+> >> I have some progress.
+> >
+> > Please have a look at Peter's patch posted in the original email thread
+> > http://lkml.kernel.org/r/20151125150207.GM11639@twins.programming.kicks-ass.net
 > 
-> No opposition from me. Just please add a small comment that this is
-> for shrinkers with swappable objects.
+> Yes, I've posted there as well. That patch should help.
+> 
+OK. This bug seems to exist since commit ca94c442535a "sched: Introduce
+SCHED_RESET_ON_FORK scheduling policy flag". Should
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 58877312cf6b..1c7861f4c43c 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -48,6 +48,14 @@ static sector_t map_swap_entry(swp_entry_t, struct block_device**);
- DEFINE_SPINLOCK(swap_lock);
- static unsigned int nr_swapfiles;
- atomic_long_t nr_swap_pages;
-+/*
-+ * Some modules use swappable objects and may try to swap them out under
-+ * memory pressure (via the shrinker). Before doing so, they may wish to
-+ * check to see if any swap space is available. The shrinker also directly
-+ * uses the available swap space to determine whether it can swapout
-+ * anon pages in the same manner.
-+ */
-+EXPORT_SYMBOL_GPL(nr_swap_pages);
+  Cc: <stable@vger.kernel.org>  [2.6.32+]
 
-Something like that, after a couple more edits?
--Chris
+line be added?
 
--- 
-Chris Wilson, Intel Open Source Technology Centre
+By the way, does use of "unsigned char" than "unsigned" save some bytes?
+Simply trying not to change the size of "struct task_struct"...
+According to C99, only "unsigned int", "signed int" and "_Bool" are
+allowed. But many compilers accept other types such as "unsigned char",
+given that we watch out for compiler bugs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
