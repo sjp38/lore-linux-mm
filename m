@@ -1,81 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 977E56B0038
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 10:11:37 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so35584875wmv.1
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 07:11:37 -0800 (PST)
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com. [195.75.94.109])
-        by mx.google.com with ESMTPS id v79si4049057wmv.95.2015.11.26.07.11.36
+Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E1D26B0038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 10:26:17 -0500 (EST)
+Received: by oixx65 with SMTP id x65so48524678oix.0
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 07:26:17 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id l6si9841055oev.91.2015.11.26.07.26.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Nov 2015 07:11:36 -0800 (PST)
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Thu, 26 Nov 2015 15:11:35 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 1D9961B08074
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 15:11:57 +0000 (GMT)
-Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id tAQFBXok50528318
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 15:11:33 GMT
-Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id tAQEBWxq014840
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 07:11:34 -0700
-Date: Thu, 26 Nov 2015 16:11:29 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH v3 0/4] Allow customizable random offset to mmap_base
- address.
-Message-ID: <20151126161129.59024450@mschwide>
-In-Reply-To: <565606DD.2090502@android.com>
-References: <1447888808-31571-1-git-send-email-dcashman@android.com>
-	<20151124163907.1a406b79458b1bb0d3519684@linux-foundation.org>
-	<565606DD.2090502@android.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 26 Nov 2015 07:26:16 -0800 (PST)
+Subject: Re: [RFC PATCH] mm, oom: introduce oom reaper
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1448467018-20603-1-git-send-email-mhocko@kernel.org>
+	<20151125200806.GA13388@cmpxchg.org>
+	<20151126110849.GC7953@dhcp22.suse.cz>
+In-Reply-To: <20151126110849.GC7953@dhcp22.suse.cz>
+Message-Id: <201511270024.DFJ57385.OFtJQSMOFFLOHV@I-love.SAKURA.ne.jp>
+Date: Fri, 27 Nov 2015 00:24:43 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Cashman <dcashman@android.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, keescook@chromium.org, mingo@kernel.org, linux-arm-kernel@lists.infradead.org, corbet@lwn.net, dzickus@redhat.com, ebiederm@xmission.com, xypron.glpk@gmx.de, jpoimboe@redhat.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, tglx@linutronix.de, rientjes@google.com, linux-mm@kvack.org, linux-doc@vger.kernel.org, salyzyn@android.com, jeffv@google.com, nnk@google.com, catalin.marinas@arm.com, will.deacon@arm.com, hpa@zytor.com, x86@kernel.org, hecmargi@upv.es, bp@suse.de, dcashman@google.com, Ralf Baechle <ralf@linux-mips.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: mhocko@kernel.org, hannes@cmpxchg.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, mgorman@suse.de, rientjes@google.com, riel@redhat.com, hughd@google.com, oleg@redhat.com, andrea@kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 25 Nov 2015 11:07:09 -0800
-Daniel Cashman <dcashman@android.com> wrote:
-
-> On 11/24/2015 04:39 PM, Andrew Morton wrote:
+Michal Hocko wrote:
+> On Wed 25-11-15 15:08:06, Johannes Weiner wrote:
+> > Hi Michal,
+> > 
+> > I think whatever we end up doing to smoothen things for the "common
+> > case" (as much as OOM kills can be considered common), we need a plan
+> > to resolve the memory deadlock situations in a finite amount of time.
+> > 
+> > Eventually we have to attempt killing another task. Or kill all of
+> > them to save the kernel.
+> > 
+> > It just strikes me as odd to start with smoothening the common case,
+> > rather than making it functionally correct first.
 > 
-> > mips, powerpc and s390 also implement arch_mmap_rnd().  Are there any
-> > special considerations here, or it just a matter of maintainers wiring
-> > it up and testing it?
-> 
-> I had not yet looked at those at all, as I had no way to do even a
-> rudimentary "does it boot" test and opted to post v3 first.  Upon first
-> glance, it should just be a matter of wiring it up:
-> 
-> Mips is divided into 12/16 bits for 32/64 bit (assume baseline 4k page)
-> w/COMPAT kconfig,  powerpc is 11/18 w/COMPAT, s390 is 11/11 w/COMPAT.
-> s390 is a bit strange as COMPAT is for a 31-bit address space, although
-> is_32bit_task() is used to determine which mask to use, and the mask
-> itself for 64-bit only introduces 11 bits of entropy, but while still
-> affecting larger chunks of the address space (mask is 0x3ff80, resulting
-> in an effective 0x7ff shift of PAGE_SIZE + 7 bits).
 
-s390 uses a mmap randomization of 11 bits but applies it to different
-bits dependent if the task is a compat task or not. From the machine
-perspective we would like to always use the randomization bits for
-normal, non-compat tasks. But as the 2GB address space for compat tasks
-is really limited the randomization is applied in bits 2^12..2^22 for
-compat tasks vs 2^19..2^29 for normal tasks at the cost of performance.
-This has to do with the cache aliasing on z13.
+Me too.
 
-By the way we will replace is_32bit_task with() is_compat_task(), I have
-a patch from Heiko pending for that.
+> I believe there is not an universally correct solution for this
+> problem. OOM killer is a heuristic and a destructive one so I think we
+> should limit it as much as possible. I do agree that we should allow an
+> administrator to define a policy when things go terribly wrong - e.g.
+> panic/emerg. reboot after the system is trashing on OOM for more than
+> a defined amount of time. But I think that this is orthogonal to this
+> patch. This patch should remove one large class of potential deadlocks
+> and corner cases without too much cost or maintenance burden. It doesn't
+> remove a need for the last resort solution though.
+>  
 
--- 
-blue skies,
-   Martin.
+ From the point of view of a technical staff at support center, offering
+the last resort solution has higher priority than smoothening the common
+case. We cannot test all memory pressure patterns before distributor's
+kernel is released. We are too late to workaround unhandled patterns
+after distributor's kernel is deployed to customer's systems.
 
-"Reality continues to ruin my life." - Calvin.
+Yet another report was posted in a different thread
+"[PATCH] vmscan: do not throttle kthreads due to too_many_isolated".
+I think I showed you several times including "mm,oom: The reason why
+I continue proposing timeout based approach."
+(uptime > 100 of http://I-love.SAKURA.ne.jp/tmp/serial-20150920.txt.xz )
+that we are already seeing infinite loop at too_many_isolated() even
+without using out of tree drivers. I hope that my patch
+http://lkml.kernel.org/r/201505232339.DAB00557.VFFLHMSOJFOOtQ@I-love.SAKURA.ne.jp
+included all necessary changes for serving as a base of the last resort.
+Please don't loop forever when unexpected memory pressure is given.
+Please don't assume somebody else can make forward progress.
+
+Please do consider offering the last resort solution first.
+That will help reducing unexplained hangup/reboot troubles.
+
+Given that said, several comments on your patch.
+
+> @@ -408,6 +413,108 @@ static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);
+>  
+>  bool oom_killer_disabled __read_mostly;
+>  
+> +/*
+> + * OOM Reaper kernel thread which tries to reap the memory used by the OOM
+> + * victim (if that is possible) to help the OOM killer to move on.
+> + */
+> +static struct task_struct *oom_reaper_th;
+> +static struct mm_struct *mm_to_reap;
+> +static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
+> +
+> +static bool __oom_reap_vmas(struct mm_struct *mm)
+> +{
+> +	struct mmu_gather tlb;
+> +	struct vm_area_struct *vma;
+> +	struct zap_details details = {.check_swap_entries = true,
+> +				      .ignore_dirty = true};
+> +	bool ret = true;
+> +
+> +	/* We might have raced with exit path */
+> +	if (!atomic_inc_not_zero(&mm->mm_users))
+> +		return true;
+> +
+> +	if (!down_read_trylock(&mm->mmap_sem)) {
+> +		ret = false;
+> +		goto out;
+> +	}
+> +
+> +	tlb_gather_mmu(&tlb, mm, 0, -1);
+> +	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+> +		if (is_vm_hugetlb_page(vma))
+> +			continue;
+> +
+> +		/*
+> +		 * Only anonymous pages have a good chance to be dropped
+> +		 * without additional steps which we cannot afford as we
+> +		 * are OOM already.
+> +		 */
+> +		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
+> +			unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
+> +					 &details);
+
+How do you plan to make sure that reclaimed pages are used by
+fatal_signal_pending() tasks?
+http://lkml.kernel.org/r/201509242050.EHE95837.FVFOOtMQHLJOFS@I-love.SAKURA.ne.jp
+http://lkml.kernel.org/r/201510121543.EJF21858.LtJFHOOOSQVMFF@I-love.SAKURA.ne.jp
+
+> +	}
+> +	tlb_finish_mmu(&tlb, 0, -1);
+> +	up_read(&mm->mmap_sem);
+> +out:
+> +	mmput(mm);
+> +	return ret;
+> +}
+
+> +static int oom_reaper(void *unused)
+> +{
+> +	DEFINE_WAIT(wait);
+> +
+> +	while (!kthread_should_stop()) {
+
+Is there a situation where this kernel thread should stop?
+I think this kernel thread should not stop because restarting
+this kernel thread might invoke the OOM killer.
+
+But if there is such situation, leaving this function with
+oom_reaper_th != NULL is not handled by wake_oom_reaper().
+
+> +		struct mm_struct *mm;
+> +
+> +		prepare_to_wait(&oom_reaper_wait, &wait, TASK_UNINTERRUPTIBLE);
+> +		mm = READ_ONCE(mm_to_reap);
+
+Why not simply mm = xchg(&mm_to_reap, NULL) and free the slot for
+next OOM victim (though xchg() may not be sufficient)?
+
+> +		if (!mm) {
+> +			freezable_schedule();
+> +			finish_wait(&oom_reaper_wait, &wait);
+> +		} else {
+> +			finish_wait(&oom_reaper_wait, &wait);
+> +			oom_reap_vmas(mm);
+> +			WRITE_ONCE(mm_to_reap, NULL);
+> +		}
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +static void wake_oom_reaper(struct mm_struct *mm)
+> +{
+> +	struct mm_struct *old_mm;
+> +
+> +	if (!oom_reaper_th)
+> +		return;
+> +
+> +	/*
+> +	 * Make sure that only a single mm is ever queued for the reaper
+> +	 * because multiple are not necessary and the operation might be
+> +	 * disruptive so better reduce it to the bare minimum.
+> +	 */
+> +	old_mm = cmpxchg(&mm_to_reap, NULL, mm);
+
+I think we should not skip queuing next OOM victim, for it is possible
+that first OOM victim is chosen by one memory cgroup OOM, and next OOM
+victim is chosen by another memory cgroup OOM or system wide OOM before
+oom_reap_vmas() for first OOM victim completes.
+
+To handle such case, we would need to do something like
+
+ struct mm_struct {
+     (...snipped...)
++    struct list_head *memdie; /* Set to non-NULL when chosen by OOM killer */
+ }
+
+and add to a list of OOM victims.
+
+> +	if (!old_mm) {
+> +		/*
+> +		 * Pin the given mm. Use mm_count instead of mm_users because
+> +		 * we do not want to delay the address space tear down.
+> +		 */
+> +		atomic_inc(&mm->mm_count);
+> +		wake_up(&oom_reaper_wait);
+> +	}
+> +}
+> +
+>  /**
+>   * mark_oom_victim - mark the given task as OOM victim
+>   * @tsk: task to mark
+> @@ -421,6 +528,11 @@ void mark_oom_victim(struct task_struct *tsk)
+>  	/* OOM killer might race with memcg OOM */
+>  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+>  		return;
+> +
+> +	/* Kick oom reaper to help us release some memory */
+> +	if (tsk->mm)
+> +		wake_oom_reaper(tsk->mm);
+> +
+
+We cannot wake up at this moment. It is too early because there may be
+other threads sharing tsk->mm but SIGKILL not yet received. Also, there
+may be unkillable threads sharing tsk->mm. I think appropriate location
+to wake the reaper up is
+
+                  do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+          }
+          rcu_read_unlock();
+          /* here */
+          mmdrop(mm);
+          put_task_struct(victim);
+  }
+
+in oom_kill_process().
+
+>  	/*
+>  	 * Make sure that the task is woken up from uninterruptible sleep
+>  	 * if it is frozen because OOM killer wouldn't be able to free
+> @@ -767,3 +879,22 @@ void pagefault_out_of_memory(void)
+>  
+>  	mutex_unlock(&oom_lock);
+>  }
+> +
+> +static int __init oom_init(void)
+> +{
+> +	oom_reaper_th = kthread_run(oom_reaper, NULL, "oom_reaper");
+> +	if (IS_ERR(oom_reaper_th)) {
+> +		pr_err("Unable to start OOM reaper %ld. Continuing regardless\n",
+> +				PTR_ERR(oom_reaper_th));
+
+BUG_ON(IS_ERR(oom_reaper_th)) or panic() should be OK.
+Continuing with IS_ERR(oom_reaper_th) is not handled by wake_oom_reaper().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
