@@ -1,89 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8693B6B0038
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 05:43:59 -0500 (EST)
-Received: by wmvv187 with SMTP id v187so25105774wmv.1
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 02:43:58 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b8si40547841wjx.62.2015.11.26.02.43.58
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C91E76B0038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 05:47:14 -0500 (EST)
+Received: by wmww144 with SMTP id w144so17078923wmw.0
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 02:47:14 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id 77si2657661wme.95.2015.11.26.02.47.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 26 Nov 2015 02:43:58 -0800 (PST)
-Subject: Re: [PATCH v2 7/9] mm, page_owner: dump page owner info from
- dump_page()
-References: <1448368581-6923-1-git-send-email-vbabka@suse.cz>
- <1448368581-6923-8-git-send-email-vbabka@suse.cz>
- <20151125145853.GM27283@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5656E26D.1070503@suse.cz>
-Date: Thu, 26 Nov 2015 11:43:57 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Nov 2015 02:47:13 -0800 (PST)
+Received: by wmec201 with SMTP id c201so17024467wme.1
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 02:47:13 -0800 (PST)
+Date: Thu, 26 Nov 2015 10:47:11 +0000
+From: Matt Fleming <matt@codeblueprint.co.uk>
+Subject: Re: [PATCH v3 13/13] ARM: add UEFI stub support
+Message-ID: <20151126104711.GH2765@codeblueprint.co.uk>
+References: <1448269593-20758-1-git-send-email-ard.biesheuvel@linaro.org>
+ <1448269593-20758-14-git-send-email-ard.biesheuvel@linaro.org>
 MIME-Version: 1.0
-In-Reply-To: <20151125145853.GM27283@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1448269593-20758-14-git-send-email-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, mark.rutland@arm.com, linux-efi@vger.kernel.org, leif.lindholm@linaro.org, akpm@linux-foundation.org, kuleshovmail@gmail.com, linux-mm@kvack.org, ryan.harkin@linaro.org, grant.likely@linaro.org, roy.franz@linaro.org, msalter@redhat.com
 
-On 11/25/2015 03:58 PM, Michal Hocko wrote:
-> Nice! This can be really helpful.
+On Mon, 23 Nov, at 10:06:33AM, Ard Biesheuvel wrote:
+> From: Roy Franz <roy.franz@linaro.org>
 > 
->> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> This patch adds EFI stub support for the ARM Linux kernel.
 > 
-> Appart from a typo below, looks good to me
-> Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
-
-> [...]
+> The EFI stub operates similarly to the x86 and arm64 stubs: it is a
+> shim between the EFI firmware and the normal zImage entry point, and
+> sets up the environment that the zImage is expecting. This includes
+> optionally loading the initrd and device tree from the system partition
+> based on the kernel command line.
 > 
->> +void __dump_page_owner(struct page *page)
->> +{
->> +	struct page_ext *page_ext = lookup_page_ext(page);
->> +	struct stack_trace trace = {
->> +		.nr_entries = page_ext->nr_entries,
->> +		.entries = &page_ext->trace_entries[0],
->> +	};
->> +	gfp_t gfp_mask = page_ext->gfp_mask;
->> +	int mt = gfpflags_to_migratetype(gfp_mask);
->> +
->> +	if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
->> +		pr_alert("page_owner info is not active (free page?)\n");
->> +		return;
->> +	}
->> +			                        ;
-> 
-> Typo?
+> Signed-off-by: Roy Franz <roy.franz@linaro.org>
+> Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> ---
+>  arch/arm/Kconfig                          |  19 +++
+>  arch/arm/boot/compressed/Makefile         |   4 +-
+>  arch/arm/boot/compressed/efi-header.S     | 130 ++++++++++++++++++++
+>  arch/arm/boot/compressed/head.S           |  54 +++++++-
+>  arch/arm/boot/compressed/vmlinux.lds.S    |   7 ++
+>  arch/arm/include/asm/efi.h                |  23 ++++
+>  drivers/firmware/efi/libstub/Makefile     |   9 ++
+>  drivers/firmware/efi/libstub/arm-stub.c   |   4 +-
+>  drivers/firmware/efi/libstub/arm32-stub.c |  85 +++++++++++++
+>  9 files changed, 331 insertions(+), 4 deletions(-)
 
-The cat did it!
+[...]
 
-------8<------
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Thu, 26 Nov 2015 11:41:11 +0100
-Subject: mm, page_owner: dump page owner info from dump_page()-fix
+> +
+> +	/*
+> +	 * Relocate the zImage, if required. ARM doesn't have a
+> +	 * preferred address, so we set it to 0, as we want to allocate
+> +	 * as low in memory as possible.
+> +	 */
+> +	*image_size = image->image_size;
+> +	status = efi_relocate_kernel(sys_table, image_addr, *image_size,
+> +				     *image_size, 0, 0);
+> +	if (status != EFI_SUCCESS) {
+> +		pr_efi_err(sys_table, "Failed to relocate kernel.\n");
+> +		efi_free(sys_table, *reserve_size, *reserve_addr);
+> +		*reserve_size = 0;
+> +		return status;
+> +	}
 
-Remove stray semicolon.
----
- mm/page_owner.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index a81cfa0c13c3..f4acd2452c35 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -207,7 +207,7 @@ void __dump_page_owner(struct page *page)
- 		pr_alert("page_owner info is not active (free page?)\n");
- 		return;
- 	}
--			                        ;
-+
- 	pr_alert("page allocated via order %u, migratetype %s, gfp_mask 0x%x",
- 			page_ext->order, migratetype_names[mt], gfp_mask);
- 	dump_gfpflag_names(gfp_mask);
--- 
-2.6.3
-
+If efi_relocate_kernel() successfully allocates memory at address 0x0,
+is that going to cause issues with NULL pointer checking?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
