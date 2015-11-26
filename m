@@ -1,180 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B27236B0038
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 11:21:28 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so90036905pac.2
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 08:21:28 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s131si1591142pfs.12.2015.11.26.08.21.27
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A28AF6B0038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 11:34:15 -0500 (EST)
+Received: by wmec201 with SMTP id c201so38460956wme.0
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 08:34:15 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTP id w126si4510173wmb.120.2015.11.26.08.34.14
         for <linux-mm@kvack.org>;
-        Thu, 26 Nov 2015 08:21:27 -0800 (PST)
-Date: Thu, 26 Nov 2015 16:21:17 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH RFT] arm64: kasan: Make KASAN work with 16K pages + 48
- bit VA
-Message-ID: <20151126162117.GH32343@leverpostej>
-References: <1448543686-31869-1-git-send-email-aryabinin@virtuozzo.com>
- <20151126144859.GE32343@leverpostej>
- <56572998.9070102@virtuozzo.com>
+        Thu, 26 Nov 2015 08:34:14 -0800 (PST)
+Date: Thu, 26 Nov 2015 17:34:13 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: 4.3+: Atheros ethernet fails after resume from s2ram, due to order 4
+ allocation
+Message-ID: <20151126163413.GA3816@amd>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56572998.9070102@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Yury <yury.norov@gmail.com>, Alexey Klimov <klimov.linux@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Linus Walleij <linus.walleij@linaro.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-kernel@vger.kernel.org, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
+To: kernel list <linux-kernel@vger.kernel.org>, jcliburn@gmail.com, chris.snook@gmail.com, netdev@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-mm@kvack.org, nic-devel@qualcomm.com
+Cc: ronangeles@gmail.com, ebiederm@xmission.com
 
-On Thu, Nov 26, 2015 at 06:47:36PM +0300, Andrey Ryabinin wrote:
-> 
-> 
-> On 11/26/2015 05:48 PM, Mark Rutland wrote:
-> > Hi,
-> > 
-> > On Thu, Nov 26, 2015 at 04:14:46PM +0300, Andrey Ryabinin wrote:
-> >> Currently kasan assumes that shadow memory covers one or more entire PGDs.
-> >> That's not true for 16K pages + 48bit VA space, where PGDIR_SIZE is bigger
-> >> than the whole shadow memory.
-> >>
-> >> This patch tries to fix that case.
-> >> clear_page_tables() is a new replacement of clear_pgs(). Instead of always
-> >> clearing pgds it clears top level page table entries that entirely belongs
-> >> to shadow memory.
-> >> In addition to 'tmp_pg_dir' we now have 'tmp_pud' which is used to store
-> >> puds that now might be cleared by clear_page_tables.
-> >>
-> >> Reported-by: Suzuki K. Poulose <Suzuki.Poulose@arm.com>
-> >> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> >> ---
-> >>
-> >>  *** THIS is not tested with 16k pages ***
-> >>
-> >>  arch/arm64/mm/kasan_init.c | 87 ++++++++++++++++++++++++++++++++++++++++------
-> >>  1 file changed, 76 insertions(+), 11 deletions(-)
-> >>
-> >> diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
-> >> index cf038c7..ea9f92a 100644
-> >> --- a/arch/arm64/mm/kasan_init.c
-> >> +++ b/arch/arm64/mm/kasan_init.c
-> >> @@ -22,6 +22,7 @@
-> >>  #include <asm/tlbflush.h>
-> >>  
-> >>  static pgd_t tmp_pg_dir[PTRS_PER_PGD] __initdata __aligned(PGD_SIZE);
-> >> +static pud_t tmp_pud[PAGE_SIZE/sizeof(pud_t)] __initdata __aligned(PAGE_SIZE);
-> >>  
-> >>  static void __init kasan_early_pte_populate(pmd_t *pmd, unsigned long addr,
-> >>  					unsigned long end)
-> >> @@ -92,20 +93,84 @@ asmlinkage void __init kasan_early_init(void)
-> >>  {
-> >>  	BUILD_BUG_ON(KASAN_SHADOW_OFFSET != KASAN_SHADOW_END - (1UL << 61));
-> >>  	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PGDIR_SIZE));
-> >> -	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
-> >> +	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE));
-> > 
-> > We also assume that even in the shared PUD case, the shadow region falls
-> > within the same PGD entry, or we would need more than a single tmp_pud.
-> > 
-> > It would be good to test for that.
-> > 
-> 
-> Something like this:
-> 
-> 	#define KASAN_SHADOW_SIZE (KASAN_SHADOW_END - KASAN_SHADOW_START)
-> 
-> 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGD_SIZE)
-> 			 && !((PGDIR_SIZE > KASAN_SHADOW_SIZE)
-> 				 && IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE)));
+Hi!
 
-I was thinking something more like:
+...and dmesg tells us what is going on:
 
-	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE);
-	BUILD_BUG_ON(KASAN_SHADOW_START >> PGDIR_SHIFT !=
-		     KASAN_SHADOW_END >> PGDIR_SHIFT);
+[ 6961.550240] NetworkManager: page allocation failure: order:4,
+mode:0x2080020
+[ 6961.550249] CPU: 0 PID: 2590 Comm: NetworkManager Tainted: G
+W       4.3.0+ #124
+[ 6961.550250] Hardware name: Acer Aspire 5732Z/Aspire 5732Z, BIOS
+V3.07 02/10/2010
+[ 6961.550252]  00000000 00000000 f2ad1a04 c42ba5b8 00000000 f2ad1a2c
+c40d650a c4d3ee1c
+[ 6961.550260]  f34ef600 00000004 02080020 c4eeef40 00000000 00000010
+00000000 f2ad1ac8
+[ 6961.550266]  c40d8caa 02080020 00000004 00000000 00000070 f34ef200
+00000060 00000010
+[ 6961.550272] Call Trace:
+...[ 6961.550299]  [<c4006811>] dma_generic_alloc_coherent+0x71/0x120
+[ 6961.550301]  [<c40067a0>] ? via_no_dac+0x30/0x30
+[ 6961.550307]  [<c465b16e>] atl1c_open+0x29e/0x300
+[ 6961.550313]  [<c48b96f5>] ? call_netdevice_notifiers_info+0x25/0x50
+[ 6961.550316]  [<c48c081b>] __dev_open+0x7b/0xf0
+[ 6961.550318]  [<c48c0ac9>] __dev_change_flags+0x89/0x140
+[ 6961.550320]  [<c48c0ba3>] dev_change_flags+0x23/0x60
+[ 6961.550325]  [<c48ce416>] do_setlink+0x286/0x7b0
+[ 6961.550328]  [<c42ded02>] ? nla_parse+0x22/0xd0
+[ 6961.550330]  [<c48cf906>] rtnl_newlink+0x5d6/0x860
+[ 6961.550336]  [<c407f8a1>] ? __lock_acquire.isra.24+0x3a1/0xc80
+[ 6961.550342]  [<c4047ae2>] ? ns_capable+0x22/0x60
+[ 6961.550345]  [<c48e7c5d>] ? __netlink_ns_capable+0x2d/0x40
+[ 6961.550351]  [<c49c9c54>] ? xprt_transmit+0x94/0x220
+[ 6961.550354]  [<c48cd9e6>] rtnetlink_rcv_msg+0x76/0x1f0
+[ 6961.550356]  [<c48cd970>] ? rtnetlink_rcv+0x30/0x30
+[ 6961.550359]  [<c48eb35e>] netlink_rcv_skb+0x8e/0xb0
+...
+[ 6961.550412] Mem-Info:
+[ 6961.550417] active_anon:30319 inactive_anon:25075 isolated_anon:0
+ active_file:327764 inactive_file:152179 isolated_file:16
+  unevictable:0 dirty:6 writeback:0 unstable:0
+   slab_reclaimable:149091 slab_unreclaimable:18973
+    mapped:18100 shmem:4847 pagetables:1538 bounce:0
+     free:57732 free_pcp:10 free_cma:0
+...
+[ 6961.550492] 485897 total pagecache pages
+[ 6961.550494] 1086 pages in swap cache
+[ 6961.550496] Swap cache stats: add 16738, delete 15652, find
+6708/8500
+[ 6961.550497] Free swap  = 1656440kB
+[ 6961.550498] Total swap = 1681428kB
+[ 6961.550499] 785914 pages RAM
+[ 6961.550500] 557663 pages HighMem/MovableOnly
+[ 6961.550501] 12639 pages reserved
+[ 6961.550506] atl1c 0000:05:00.0: pci_alloc_consistend failed
+[ 6962.148358] psmouse serio1: synaptics: queried max coordinates: x
+[..5772], y [..5086]
 
-> >> +		if (!pud_none(*pud))
-> >> +			clear_pmds(pud, addr, next);
-> > 
-> > I don't understand this. The KASAN shadow region is PUD_SIZE aligned at
-> > either end, so KASAN should never own a partial pud entry like this.
-> > 
-> > Regardless, were this case to occur, surely we'd be clearing pmd entries
-> > in the active page tables? We didn't copy anything at the pmd level.
-> > 
-> > That doesn't seem right.
-> > 
-> 
-> Just take a look at p?d_clear() macroses, under CONFIG_PGTABLE_LEVELS=2 for example.
-> pgd_clear() and pud_clear() is nops, and pmd_clear() is actually clears pgd.
+Order 4 allocation... probably doable during boot, but not really
+suitable during resume.
 
-I see. Thanks for pointing that out.
+I'm not sure how repeatable it is, but it definitely happened more
+than once.
 
-I detest the weird folding behaviour we have in the p??_* macros. It
-violates least surprise almost every time.
+        /*                                                                      
+         * real ring DMA buffer                                                 
+         * each ring/block may need up to 8 bytes for alignment, hence the      
+         * additional bytes tacked onto the end.                                
+         */
+        ring_header->size = size =
+                sizeof(struct atl1c_tpd_desc) * tpd_ring->count * 2 +
+                sizeof(struct atl1c_rx_free_desc) * rx_desc_count +
+                sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
+                8 * 4;
 
-> I could replace p?d_clear() with set_p?d(p?d, __p?d(0)).
-> In that case going down to pmds is not needed, set_p?d() macro will do it for us.
+        ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
+                                &ring_header->dma);
+        if (unlikely(!ring_header->desc)) {
+                dev_err(&pdev->dev, "pci_alloc_consistend failed\n");
+                goto err_nomem;
+        }
 
-I think it would be simpler to rely on the fact that we only use puds
-with 4 levels of table (and hence the p??_* macros will operate at the
-levels their names imply).
+(Note the typo in dev_err... at least it is easy to grep).
 
-We can verify that at build time with:
-
-BUILD_BUG_ON(CONFIG_PGTABLE_LEVELS != 4 &&
-	     (!IS_ALIGNED(KASAN_SHADOW_START, PGDIR_SIZE) ||
-	      !IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE)));
-
-> >> +static void copy_pagetables(void)
-> >> +{
-> >> +	pgd_t *pgd = tmp_pg_dir + pgd_index(KASAN_SHADOW_START);
-> >> +
-> >> +	memcpy(tmp_pg_dir, swapper_pg_dir, sizeof(tmp_pg_dir));
-> >> +
-> >>  	/*
-> >> -	 * Remove references to kasan page tables from
-> >> -	 * swapper_pg_dir. pgd_clear() can't be used
-> >> -	 * here because it's nop on 2,3-level pagetable setups
-> >> +	 * If kasan shadow shares PGD with other mappings,
-> >> +	 * clear_page_tables() will clear puds instead of pgd,
-> >> +	 * so we need temporary pud table to keep early shadow mapped.
-> >>  	 */
-> >> -	for (; start < end; start += PGDIR_SIZE)
-> >> -		set_pgd(pgd_offset_k(start), __pgd(0));
-> >> +	if (PGDIR_SIZE > KASAN_SHADOW_END - KASAN_SHADOW_START) {
-> >> +		pud_t *pud;
-> >> +		pmd_t *pmd;
-> >> +		pte_t *pte;
-> >> +
-> >> +		memcpy(tmp_pud, pgd_page_vaddr(*pgd), sizeof(tmp_pud));
-> >> +
-> >> +		pgd_populate(&init_mm, pgd, tmp_pud);
-> >> +		pud = pud_offset(pgd, KASAN_SHADOW_START);
-> >> +		pmd = pmd_offset(pud, KASAN_SHADOW_START);
-> >> +		pud_populate(&init_mm, pud, pmd);
-> >> +		pte = pte_offset_kernel(pmd, KASAN_SHADOW_START);
-> >> +		pmd_populate_kernel(&init_mm, pmd, pte);
-> > 
-> > I don't understand why we need to do anything below the pud level here.
-> > We only copy down to the pud level, and we already initialised the
-> > shared ptes and pmds earlier.
-> > 
-> > Regardless of this patch, we currently initialise the shared tables
-> > repeatedly, which is redundant after the first time we initialise them.
-> > We could improve that.
-> > 
-> 
-> Sure, just pgd_populate() will work here, because this code is only for 16K+48-bit,
-> which has 4-level pagetables.
-> But it wouldn't work if 16k+48-bit would have > 4-level.
-> Because pgd_populate() in nop in such case, so we need to go down to actually set 'tmp_pud'
-
-I don't follow.
-
-16K + 48-bit will always require 4 levels given the page table format.
-We never have more than 4 levels.
-
-Thanks,
-Mark.
+Ok, so what went on is easy.. any ideas how to fix it?
+									Pavel
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
