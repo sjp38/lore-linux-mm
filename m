@@ -1,54 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E1FD6B0038
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 06:33:52 -0500 (EST)
-Received: by oiww189 with SMTP id w189so45548864oiw.3
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 03:33:52 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id rk8si8064857oeb.17.2015.11.26.03.33.51
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Nov 2015 03:33:51 -0800 (PST)
-Subject: Re: WARNING in handle_mm_fault
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <CACT4Y+Zn+mK37-mvqDQTyt1Psp6HT2heT0e937SO24F7V1q7PA@mail.gmail.com>
-	<201511260027.CCC26590.SOHFMQLVJOtFOF@I-love.SAKURA.ne.jp>
-	<CACT4Y+ZdF09hOnb_bL4GNjytSMMGvNde8=9pdZt6gZQB1sp0hQ@mail.gmail.com>
-	<20151125173730.GS27283@dhcp22.suse.cz>
-	<CACT4Y+Y0EESD_HhgGE2pWPqfJsDgvSny=ZMfP1ewaSzd6z_bLg@mail.gmail.com>
-In-Reply-To: <CACT4Y+Y0EESD_HhgGE2pWPqfJsDgvSny=ZMfP1ewaSzd6z_bLg@mail.gmail.com>
-Message-Id: <201511262033.EAB48965.FVJOOOMLFHStFQ@I-love.SAKURA.ne.jp>
-Date: Thu, 26 Nov 2015 20:33:05 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 047286B0038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 07:10:19 -0500 (EST)
+Received: by pacdm15 with SMTP id dm15so85546691pac.3
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 04:10:18 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id rf10si8409552pab.94.2015.11.26.04.10.17
+        for <linux-mm@kvack.org>;
+        Thu, 26 Nov 2015 04:10:18 -0800 (PST)
+Date: Thu, 26 Nov 2015 12:10:08 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH v7 0/4] KASAN for arm64
+Message-ID: <20151126121007.GC32343@leverpostej>
+References: <1444665180-301-1-git-send-email-ryabinin.a.a@gmail.com>
+ <20151013083432.GG6320@e104818-lin.cambridge.arm.com>
+ <5649BAFD.6030005@arm.com>
+ <5649F783.40109@gmail.com>
+ <564B40A7.1000206@arm.com>
+ <564B4BFC.1020905@virtuozzo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <564B4BFC.1020905@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dvyukov@google.com, syzkaller@googlegroups.com
-Cc: hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kcc@google.com, glider@google.com, sasha.levin@oracle.com, edumazet@google.com, gthelen@google.com, tj@kernel.org, peterz@infradead.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Catalin Marinas <catalin.marinas@arm.com>
+Cc: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, Yury <yury.norov@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Linus Walleij <linus.walleij@linaro.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, kasan-dev <kasan-dev@googlegroups.com>, Alexey Klimov <klimov.linux@gmail.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, David Keitel <dkeitel@codeaurora.org>, linux-arm-kernel@lists.infradead.org
 
-Dmitry Vyukov wrote:
-> On Wed, Nov 25, 2015 at 6:37 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Wed 25-11-15 18:21:02, Dmitry Vyukov wrote:
-> > [...]
-> >> I have some progress.
-> >
-> > Please have a look at Peter's patch posted in the original email thread
-> > http://lkml.kernel.org/r/20151125150207.GM11639@twins.programming.kicks-ass.net
+Hi Catalin,
+
+Can you pick up Andrey's patch below for v4.4, until we have a better
+solution?
+
+I stumbled across this myself and was about to post a similar patch.
+
+FWIW:
+
+Acked-by: Mark Rutland <mark.rutland@arm.com>
+
+Thanks,
+Mark.
+
+On Tue, Nov 17, 2015 at 06:47:08PM +0300, Andrey Ryabinin wrote:
+> We should either add proper Kconfig dependency for now, or just make it work.
 > 
-> Yes, I've posted there as well. That patch should help.
 > 
-OK. This bug seems to exist since commit ca94c442535a "sched: Introduce
-SCHED_RESET_ON_FORK scheduling policy flag". Should
-
-  Cc: <stable@vger.kernel.org>  [2.6.32+]
-
-line be added?
-
-By the way, does use of "unsigned char" than "unsigned" save some bytes?
-Simply trying not to change the size of "struct task_struct"...
-According to C99, only "unsigned int", "signed int" and "_Bool" are
-allowed. But many compilers accept other types such as "unsigned char",
-given that we watch out for compiler bugs.
+> From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Subject: [PATCH] arm64: KASAN depends on !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
+> 
+> On KASAN + 16K_PAGES + 48BIT_VA
+>  arch/arm64/mm/kasan_init.c: In function a??kasan_early_inita??:
+>  include/linux/compiler.h:484:38: error: call to a??__compiletime_assert_95a?? declared with attribute error: BUILD_BUG_ON failed: !IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE)
+>     _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+> 
+> Currently KASAN will not work on 16K_PAGES and 48BIT_VA, so
+> forbid such configuration to avoid above build failure.
+> 
+> Reported-by: Suzuki K. Poulose <Suzuki.Poulose@arm.com>
+> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> ---
+>  arch/arm64/Kconfig | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 9ac16a4..bf7de69 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -49,7 +49,7 @@ config ARM64
+>  	select HAVE_ARCH_AUDITSYSCALL
+>  	select HAVE_ARCH_BITREVERSE
+>  	select HAVE_ARCH_JUMP_LABEL
+> -	select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP
+> +	select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP && !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
+>  	select HAVE_ARCH_KGDB
+>  	select HAVE_ARCH_SECCOMP_FILTER
+>  	select HAVE_ARCH_TRACEHOOK
+> -- 
+> 2.4.10
+> 
+> 
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
