@@ -1,108 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C5B76B0038
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 06:08:52 -0500 (EST)
-Received: by wmec201 with SMTP id c201so26008369wme.0
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 03:08:51 -0800 (PST)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id t7si4021181wjf.187.2015.11.26.03.08.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Nov 2015 03:08:50 -0800 (PST)
-Received: by wmec201 with SMTP id c201so26007605wme.0
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 03:08:50 -0800 (PST)
-Date: Thu, 26 Nov 2015 12:08:49 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: introduce oom reaper
-Message-ID: <20151126110849.GC7953@dhcp22.suse.cz>
-References: <1448467018-20603-1-git-send-email-mhocko@kernel.org>
- <20151125200806.GA13388@cmpxchg.org>
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E317B6B0038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 06:25:22 -0500 (EST)
+Received: by wmuu63 with SMTP id u63so17497326wmu.0
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 03:25:22 -0800 (PST)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
+        by mx.google.com with ESMTP id x7si40690313wjq.156.2015.11.26.03.25.21
+        for <linux-mm@kvack.org>;
+        Thu, 26 Nov 2015 03:25:21 -0800 (PST)
+Date: Thu, 26 Nov 2015 11:25:14 +0000
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH v2] drm/i915: Disable shrinker for non-swapped backed
+ objects
+Message-ID: <20151126112514.GG23362@nuc-i3427.alporthouse.com>
+References: <20151124231738.GA15770@nuc-i3427.alporthouse.com>
+ <1448476616-5257-1-git-send-email-chris@chris-wilson.co.uk>
+ <20151125190610.GA12238@cmpxchg.org>
+ <20151125203102.GJ22980@nuc-i3427.alporthouse.com>
+ <20151125204635.GA14536@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20151125200806.GA13388@cmpxchg.org>
+In-Reply-To: <20151125204635.GA14536@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Argangeli <andrea@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Akash Goel <akash.goel@intel.com>, sourab.gupta@intel.com
 
-On Wed 25-11-15 15:08:06, Johannes Weiner wrote:
-> Hi Michal,
+On Wed, Nov 25, 2015 at 03:46:35PM -0500, Johannes Weiner wrote:
+> On Wed, Nov 25, 2015 at 08:31:02PM +0000, Chris Wilson wrote:
+> > On Wed, Nov 25, 2015 at 02:06:10PM -0500, Johannes Weiner wrote:
+> > > On Wed, Nov 25, 2015 at 06:36:56PM +0000, Chris Wilson wrote:
+> > > > +static bool swap_available(void)
+> > > > +{
+> > > > +	return total_swap_pages || frontswap_enabled;
+> > > > +}
+> > > 
+> > > If you use get_nr_swap_pages() instead of total_swap_pages, this will
+> > > also stop scanning objects once the swap space is full. We do that in
+> > > the VM to stop scanning anonymous pages.
+> > 
+> > Thanks. Would EXPORT_SYMBOL_GPL(nr_swap_pages) (or equivalent) be
+> > acceptable?
 > 
-> I think whatever we end up doing to smoothen things for the "common
-> case" (as much as OOM kills can be considered common), we need a plan
-> to resolve the memory deadlock situations in a finite amount of time.
-> 
-> Eventually we have to attempt killing another task. Or kill all of
-> them to save the kernel.
-> 
-> It just strikes me as odd to start with smoothening the common case,
-> rather than making it functionally correct first.
+> No opposition from me. Just please add a small comment that this is
+> for shrinkers with swappable objects.
 
-I believe there is not an universally correct solution for this
-problem. OOM killer is a heuristic and a destructive one so I think we
-should limit it as much as possible. I do agree that we should allow an
-administrator to define a policy when things go terribly wrong - e.g.
-panic/emerg. reboot after the system is trashing on OOM for more than
-a defined amount of time. But I think that this is orthogonal to this
-patch. This patch should remove one large class of potential deadlocks
-and corner cases without too much cost or maintenance burden. It doesn't
-remove a need for the last resort solution though.
- 
-> On Wed, Nov 25, 2015 at 04:56:58PM +0100, Michal Hocko wrote:
-> > A kernel thread has been chosen because we need a reliable way of
-> > invocation so workqueue context is not appropriate because all the
-> > workers might be busy (e.g. allocating memory). Kswapd which sounds
-> > like another good fit is not appropriate as well because it might get
-> > blocked on locks during reclaim as well.
-> 
-> Why not do it directly from the allocating context? I.e. when entering
-> the OOM killer and finding a lingering TIF_MEMDIE from a previous kill
-> just reap its memory directly then and there. It's not like the
-> allocating task has anything else to do in the meantime...
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 58877312cf6b..1c7861f4c43c 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -48,6 +48,14 @@ static sector_t map_swap_entry(swp_entry_t, struct block_device**);
+ DEFINE_SPINLOCK(swap_lock);
+ static unsigned int nr_swapfiles;
+ atomic_long_t nr_swap_pages;
++/*
++ * Some modules use swappable objects and may try to swap them out under
++ * memory pressure (via the shrinker). Before doing so, they may wish to
++ * check to see if any swap space is available. The shrinker also directly
++ * uses the available swap space to determine whether it can swapout
++ * anon pages in the same manner.
++ */
++EXPORT_SYMBOL_GPL(nr_swap_pages);
 
-One reason is that we have to exclude race with exit_mmap so we have to
-increase mm_users but we cannot mmput in this context because we might
-deadlock. So we have to tear down from a different context. Another
-reason is that address space of the victim might be really large and
-reaping from on behalf of one (random) task might be really unfair
-wrt. others. Doing that from a kernel threads sounds like an easy and
-relatively cheap way to workaround both issues.
+Something like that, after a couple more edits?
+-Chris
 
-> 
-> > @@ -1123,7 +1126,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
-> >  			continue;
-> >  		}
-> >  		/* If details->check_mapping, we leave swap entries. */
-> > -		if (unlikely(details))
-> > +		if (unlikely(details || !details->check_swap_entries))
-> >  			continue;
-> 
-> &&
-
-Ups, thanks for catching this! I was playing with the condition and
-rearranged the code multiple times before posting.
-
-Thanks!
----
-diff --git a/mm/memory.c b/mm/memory.c
-index 4750d7e942a3..49cafa195527 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1125,8 +1125,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 			}
- 			continue;
- 		}
--		/* If details->check_mapping, we leave swap entries. */
--		if (unlikely(details || !details->check_swap_entries))
-+		/* only check swap_entries if explicitly asked for in details */
-+		if (unlikely(details && !details->check_swap_entries))
- 			continue;
- 
- 		entry = pte_to_swp_entry(ptent);
 -- 
-Michal Hocko
-SUSE Labs
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
