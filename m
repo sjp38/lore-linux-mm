@@ -1,69 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f50.google.com (mail-lf0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A4A236B0038
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 03:16:41 -0500 (EST)
-Received: by lffu14 with SMTP id u14so88688972lff.1
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 00:16:41 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id e187si18134347lfg.203.2015.11.26.00.16.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Nov 2015 00:16:40 -0800 (PST)
-Date: Thu, 26 Nov 2015 11:16:24 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] vmscan: do not throttle kthreads due to too_many_isolated
-Message-ID: <20151126081624.GK29014@esperanza>
-References: <1448465801-3280-1-git-send-email-vdavydov@virtuozzo.com>
- <5655D789.80201@suse.cz>
- <20151125162756.GJ29014@esperanza>
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ADBF6B0038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 03:29:51 -0500 (EST)
+Received: by ioir85 with SMTP id r85so79516110ioi.1
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 00:29:51 -0800 (PST)
+Received: from us-alimail-mta2.hst.scl.en.alidc.net (mail113-251.mail.alibaba.com. [205.204.113.251])
+        by mx.google.com with ESMTP id wf4si2817545pab.231.2015.11.26.00.29.48
+        for <linux-mm@kvack.org>;
+        Thu, 26 Nov 2015 00:29:50 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1448524936-10501-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1448524936-10501-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v1] mm: hugetlb: call huge_pte_alloc() only if ptep is null
+Date: Thu, 26 Nov 2015 16:29:30 +0800
+Message-ID: <00d301d12824$932eda30$b98c8e90$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20151125162756.GJ29014@esperanza>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-On Wed, Nov 25, 2015 at 07:27:57PM +0300, Vladimir Davydov wrote:
-> On Wed, Nov 25, 2015 at 04:45:13PM +0100, Vlastimil Babka wrote:
-> > On 11/25/2015 04:36 PM, Vladimir Davydov wrote:
-> > > Block device drivers often hand off io request processing to kernel
-> > > threads (example: device mapper). If such a thread calls kmalloc, it can
-> > > dive into direct reclaim path and end up waiting for too_many_isolated
-> > > to return false, blocking writeback. This can lead to a dead lock if the
-> > 
-> > Shouldn't such allocation lack __GFP_IO to prevent this and other kinds of
-> > deadlocks? And/or have mempools?
-> 
-> Not necessarily. loopback is an example: it can call
-> grab_cache_write_begin -> add_to_page_cache_lru with GFP_KERNEL.
-
-Anyway, kthreads that use GFP_NOIO and/or mempool aren't safe either,
-because it isn't an allocation context problem: the reclaimer locks up
-not because it tries to take an fs/io lock the caller holds, but because
-it waits for isolated pages to be put back, which will never happen,
-since processes that isolated them depend on the kthread making
-progress. This is purely a reclaimer heuristic, which kmalloc users are
-not aware of.
-
-My point is that, in contrast to userspace processes, it is dangerous to
-throttle kthreads in the reclaimer, because they might be responsible
-for reclaimer progress (e.g. performing writeback).
-
-Regarding side effects of this patch. Well, there aren't many kthreads
-out there, so I don't believe this can put the system under the risk of
-thrashing because of isolating too many reclaimable pages.
-
-Thanks,
-Vladimir
+To: 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: 'David Rientjes' <rientjes@google.com>, 'Hugh Dickins' <hughd@google.com>, 'Dave Hansen' <dave.hansen@intel.com>, 'Mel Gorman' <mgorman@suse.de>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Naoya Horiguchi' <nao.horiguchi@gmail.com>
 
 > 
-> > PF_KTHREAD looks like a big hammer to me that will solve only one
-> > potential problem...
+> Currently at the beginning of hugetlb_fault(), we call huge_pte_offset()
+> and check whether the obtained *ptep is a migration/hwpoison entry or not.
+> And if not, then we get to call huge_pte_alloc(). This is racy because the
+> *ptep could turn into migration/hwpoison entry after the huge_pte_offset()
+> check. This race results in BUG_ON in huge_pte_alloc().
 > 
-> This problem can result in processes hanging forever. Any ideas how this
-> could be fixed in a better way?
+> We don't have to call huge_pte_alloc() when the huge_pte_offset() returns
+> non-NULL, so let's fix this bug with moving the code into else block.
+> 
+> Note that the *ptep could turn into a migration/hwpoison entry after
+> this block, but that's not a problem because we have another !pte_present
+> check later (we never go into hugetlb_no_page() in that case.)
+> 
+> Fixes: 290408d4a250 ("hugetlb: hugepage migration core")
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: <stable@vger.kernel.org> [2.6.36+]
+> ---
+
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+
+>  mm/hugetlb.c |    8 ++++----
+>  1 files changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git next-20151123/mm/hugetlb.c next-20151123_patched/mm/hugetlb.c
+> index 1101ccd..6ad5e91 100644
+> --- next-20151123/mm/hugetlb.c
+> +++ next-20151123_patched/mm/hugetlb.c
+> @@ -3696,12 +3696,12 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
+>  			return VM_FAULT_HWPOISON_LARGE |
+>  				VM_FAULT_SET_HINDEX(hstate_index(h));
+> +	} else {
+> +		ptep = huge_pte_alloc(mm, address, huge_page_size(h));
+> +		if (!ptep)
+> +			return VM_FAULT_OOM;
+>  	}
+> 
+> -	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
+> -	if (!ptep)
+> -		return VM_FAULT_OOM;
+> -
+>  	mapping = vma->vm_file->f_mapping;
+>  	idx = vma_hugecache_offset(h, vma, address);
+> 
+> --
+> 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
