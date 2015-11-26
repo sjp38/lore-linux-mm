@@ -1,70 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E6E6C6B0038
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 00:47:27 -0500 (EST)
-Received: by pacdm15 with SMTP id dm15so79824381pac.3
-        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 21:47:27 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id cy6si39140339pad.242.2015.11.25.21.47.26
-        for <linux-mm@kvack.org>;
-        Wed, 25 Nov 2015 21:47:27 -0800 (PST)
-Subject: Re: hugepage compaction causes performance drop
-References: <564DCEA6.3000802@suse.cz> <564EDFE5.5010709@intel.com>
- <564EE8FD.7090702@intel.com> <564EF0B6.10508@suse.cz>
- <20151123081601.GA29397@js1304-P5Q-DELUXE> <5652CF40.6040400@intel.com>
- <CAAmzW4M6oJukBLwucByK89071RukF4UEyt02A7ZjenpPr5rsdQ@mail.gmail.com>
- <5653DC2C.3090706@intel.com> <20151124045536.GA3112@js1304-P5Q-DELUXE>
- <5654116F.1030301@intel.com> <20151124082941.GA4136@js1304-P5Q-DELUXE>
- <5655AD4A.4080001@suse.cz>
-From: Aaron Lu <aaron.lu@intel.com>
-Message-ID: <56569CEC.1050809@intel.com>
-Date: Thu, 26 Nov 2015 13:47:24 +0800
-MIME-Version: 1.0
-In-Reply-To: <5655AD4A.4080001@suse.cz>
-Content-Type: text/plain; charset=utf-8
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 385576B0254
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 02:04:53 -0500 (EST)
+Received: by igcph11 with SMTP id ph11so5443107igc.1
+        for <linux-mm@kvack.org>; Wed, 25 Nov 2015 23:04:53 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id i80si26165461ioi.14.2015.11.25.23.04.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Nov 2015 23:04:52 -0800 (PST)
+Message-ID: <1448521487.19291.1.camel@ellerman.id.au>
+Subject: Re: + arc-convert-to-dma_map_ops.patch added to -mm tree
+From: Michael Ellerman <mpe@ellerman.id.au>
+Date: Thu, 26 Nov 2015 18:04:47 +1100
+In-Reply-To: <56544C89.7060302@synopsys.com>
+References: <564b9e3a.DaXj5xWV8Mzu1fPX%akpm@linux-foundation.org>
+	 <C2D7FE5348E1B147BCA15975FBA23075F44D2EEF@IN01WEMBXA.internal.synopsys.com>
+	 <20151124075047.GA29572@lst.de>
+	 <C2D7FE5348E1B147BCA15975FBA23075F44D3928@IN01WEMBXA.internal.synopsys.com>
+	 <1448362882.32654.1.camel@ellerman.id.au> <56544C89.7060302@synopsys.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, lkp@lists.01.org, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>, "hch@lst.de" <hch@lst.de>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, arcml <linux-snps-arc@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, linux-next <linux-next@vger.kernel.org>, Anton Kolesov <Anton.Kolesov@synopsys.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Guenter Roeck <linux@roeck-us.net>, Alexey Brodkin <Alexey.Brodkin@synopsys.com>, Francois Bedard <Francois.Bedard@synopsys.com>
 
-On 11/25/2015 08:44 PM, Vlastimil Babka wrote:
-> On 11/24/2015 09:29 AM, Joonsoo Kim wrote:
->> On Tue, Nov 24, 2015 at 03:27:43PM +0800, Aaron Lu wrote:
->>
->> Thanks.
->>
->> Okay. Output proves the theory. pagetypeinfo shows that there are
->> too many unmovable pageblocks. isolate_freepages() should skip these
->> so it's not easy to meet proper pageblock until need_resched(). Hence,
->> updating cached pfn doesn't happen. (You can see unchanged free_pfn
->> with 'grep compaction_begin tracepoint-output')
+On Tue, 2015-11-24 at 17:09 +0530, Vineet Gupta wrote:
+> Hi Michael,
+> On Tuesday 24 November 2015 04:31 PM, Michael Ellerman wrote:
+> > On Tue, 2015-11-24 at 09:46 +0000, Vineet Gupta wrote:
+> > > > On Tuesday 24 November 2015 01:20 PM, hch@lst.de wrote:
+> > > > > > Hi Vineet,
+> > > > > > 
+> > > > > > the original version went through the buildbot, which succeeded.  It seems
+> > > > > > like the official buildbot does not support arc, and might benefit from
+> > > > > > helping to set up an arc environment. 
+> > > > 
+> > > > I have in the past asked kisskb service folks - but haven't heard back from them.
+> > > > Stephan, Michael could you please add ARC toolchain to kisskb build service. I can
+> > > > buy you guys a beer (or some other beverage of choice) next time we meet :-)
+> > Sure, where do I get a toolchain? Can I just build upstream binutils + GCC?
+> > 
+> We are in the process of revamping upstream support for GNU tools (they were added
+> many years ago, bit-rotted and now are being redone again).
 > 
-> Hm to me it seems that the scanners meet a lot, so they restart at zone
-> boundaries and that's fine. There's nothing to cache.
+> The current tools are hoisted on github.
+> https://github.com/foss-for-synopsys-dwc-arc-processors/
 > 
->> But, I don't think that updating cached pfn is enough to solve your problem.
->> More complex change would be needed, I guess.
+> You could use upstream buildroot which automatically picks up relevant tools
+> branches from our github repos.
 > 
-> One factor is probably that THP only use async compaction and those don't result
-> in deferred compaction, which should help here. It also means that
-> pageblock_skip bits are not being reset except by kswapd...
+> Please note that ARC cores are based off two ISA: ARCompact and recently announced
+> ARCv2. Thus it would be awesome if we could build following kernel configs on
+> regular basis:
+>  - axs101_defconfig
+>  - axs103_smp_defconfig
 > 
-> Oh and pageblock_pfn_to_page is done before checking the pageblock skip bits, so
-> that's why it's prominent in the profiles. Although it was less prominent (9% vs
-> 46% before) in the last data... was perf collected while tracing, thus
-> generating extra noise?
+> This however needs 2 toolchain installs as we don't have multilibed tools which
+> support both ISA.
+> 
+> You can do following to generate the tools (this first pass builds the kernel as
+> well which can be disabled if u so wish).
+> 
+> $ wget http://buildroot.uclibc.org/downloads/buildroot-2015.08.1.tar.gz
+> $ tar -xvf buildroot-2015.08.1.tar.gz
+> $ cd buildroot-2015.08.1; mkdir arcv2 arcomp
+> 
+> $ make O=arcv2 snps_axs103_defconfig ; cd arcv2; make ; cd .. # for ARCv2 tools
+> $ make O=arcomp snps_axs101_defconfig ; cd arcomp; make # for ARCompact tools
 
-The perf is always run during these test runs, it will start 25 seconds
-later after the test starts to give it some time to eat the remaining
-free memory so that when perf starts collection data, the swap out should
-already start. The perf data is collected for 10 seconds.
+OK. In general I'm not inclined to support custom toolchains, simply because of
+the extra work required.
 
-I guess the test run under trace-cmd is slower before before, so the
-perf is collecting data at a different time window.
+But seeing as you asked nicely and gave me instructions I'll try and build it
+and see how I go :)
 
-Regards,
-Aaron
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
