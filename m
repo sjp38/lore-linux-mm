@@ -1,320 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 653F56B0254
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 11:34:59 -0500 (EST)
-Received: by wmuu63 with SMTP id u63so27773828wmu.0
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 08:34:58 -0800 (PST)
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com. [74.125.82.54])
-        by mx.google.com with ESMTPS id w2si4546837wme.80.2015.11.26.08.34.57
+Received: from mail-lf0-f50.google.com (mail-lf0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D86EC6B0038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 11:40:41 -0500 (EST)
+Received: by lfs39 with SMTP id 39so100732307lfs.3
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 08:40:41 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id 196si19214936lfa.27.2015.11.26.08.40.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Nov 2015 08:34:58 -0800 (PST)
-Received: by wmvv187 with SMTP id v187so38697608wmv.1
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 08:34:57 -0800 (PST)
-Date: Thu, 26 Nov 2015 17:34:56 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: introduce oom reaper
-Message-ID: <20151126163456.GM7953@dhcp22.suse.cz>
-References: <1448467018-20603-1-git-send-email-mhocko@kernel.org>
- <20151125200806.GA13388@cmpxchg.org>
- <20151126110849.GC7953@dhcp22.suse.cz>
- <201511270024.DFJ57385.OFtJQSMOFFLOHV@I-love.SAKURA.ne.jp>
+        Thu, 26 Nov 2015 08:40:40 -0800 (PST)
+Subject: Re: [PATCH RFT] arm64: kasan: Make KASAN work with 16K pages + 48 bit
+ VA
+References: <1448543686-31869-1-git-send-email-aryabinin@virtuozzo.com>
+ <20151126144859.GE32343@leverpostej> <56572998.9070102@virtuozzo.com>
+ <20151126162117.GH32343@leverpostej>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <56573615.8030604@virtuozzo.com>
+Date: Thu, 26 Nov 2015 19:40:53 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201511270024.DFJ57385.OFtJQSMOFFLOHV@I-love.SAKURA.ne.jp>
+In-Reply-To: <20151126162117.GH32343@leverpostej>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, mgorman@suse.de, rientjes@google.com, riel@redhat.com, hughd@google.com, oleg@redhat.com, andrea@kernel.org, linux-kernel@vger.kernel.org
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, Yury <yury.norov@gmail.com>, Alexey Klimov <klimov.linux@gmail.com>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Linus Walleij <linus.walleij@linaro.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-kernel@vger.kernel.org, David Keitel <dkeitel@codeaurora.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
 
-On Fri 27-11-15 00:24:43, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Wed 25-11-15 15:08:06, Johannes Weiner wrote:
-> > > Hi Michal,
-> > > 
-> > > I think whatever we end up doing to smoothen things for the "common
-> > > case" (as much as OOM kills can be considered common), we need a plan
-> > > to resolve the memory deadlock situations in a finite amount of time.
-> > > 
-> > > Eventually we have to attempt killing another task. Or kill all of
-> > > them to save the kernel.
-> > > 
-> > > It just strikes me as odd to start with smoothening the common case,
-> > > rather than making it functionally correct first.
-> > 
+On 11/26/2015 07:21 PM, Mark Rutland wrote:
+> On Thu, Nov 26, 2015 at 06:47:36PM +0300, Andrey Ryabinin wrote:
+>>
+>>
+>> On 11/26/2015 05:48 PM, Mark Rutland wrote:
+>>> Hi,
+>>>
+>>> On Thu, Nov 26, 2015 at 04:14:46PM +0300, Andrey Ryabinin wrote:
+>>>> Currently kasan assumes that shadow memory covers one or more entire PGDs.
+>>>> That's not true for 16K pages + 48bit VA space, where PGDIR_SIZE is bigger
+>>>> than the whole shadow memory.
+>>>>
+>>>> This patch tries to fix that case.
+>>>> clear_page_tables() is a new replacement of clear_pgs(). Instead of always
+>>>> clearing pgds it clears top level page table entries that entirely belongs
+>>>> to shadow memory.
+>>>> In addition to 'tmp_pg_dir' we now have 'tmp_pud' which is used to store
+>>>> puds that now might be cleared by clear_page_tables.
+>>>>
+>>>> Reported-by: Suzuki K. Poulose <Suzuki.Poulose@arm.com>
+>>>> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+>>>> ---
+>>>>
+>>>>  *** THIS is not tested with 16k pages ***
+>>>>
+>>>>  arch/arm64/mm/kasan_init.c | 87 ++++++++++++++++++++++++++++++++++++++++------
+>>>>  1 file changed, 76 insertions(+), 11 deletions(-)
+>>>>
+>>>> diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+>>>> index cf038c7..ea9f92a 100644
+>>>> --- a/arch/arm64/mm/kasan_init.c
+>>>> +++ b/arch/arm64/mm/kasan_init.c
+>>>> @@ -22,6 +22,7 @@
+>>>>  #include <asm/tlbflush.h>
+>>>>  
+>>>>  static pgd_t tmp_pg_dir[PTRS_PER_PGD] __initdata __aligned(PGD_SIZE);
+>>>> +static pud_t tmp_pud[PAGE_SIZE/sizeof(pud_t)] __initdata __aligned(PAGE_SIZE);
+>>>>  
+>>>>  static void __init kasan_early_pte_populate(pmd_t *pmd, unsigned long addr,
+>>>>  					unsigned long end)
+>>>> @@ -92,20 +93,84 @@ asmlinkage void __init kasan_early_init(void)
+>>>>  {
+>>>>  	BUILD_BUG_ON(KASAN_SHADOW_OFFSET != KASAN_SHADOW_END - (1UL << 61));
+>>>>  	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PGDIR_SIZE));
+>>>> -	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
+>>>> +	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE));
+>>>
+>>> We also assume that even in the shared PUD case, the shadow region falls
+>>> within the same PGD entry, or we would need more than a single tmp_pud.
+>>>
+>>> It would be good to test for that.
+>>>
+>>
+>> Something like this:
+>>
+>> 	#define KASAN_SHADOW_SIZE (KASAN_SHADOW_END - KASAN_SHADOW_START)
+>>
+>> 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGD_SIZE)
+>> 			 && !((PGDIR_SIZE > KASAN_SHADOW_SIZE)
+>> 				 && IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE)));
 > 
-> Me too.
+> I was thinking something more like:
 > 
-> > I believe there is not an universally correct solution for this
-> > problem. OOM killer is a heuristic and a destructive one so I think we
-> > should limit it as much as possible. I do agree that we should allow an
-> > administrator to define a policy when things go terribly wrong - e.g.
-> > panic/emerg. reboot after the system is trashing on OOM for more than
-> > a defined amount of time. But I think that this is orthogonal to this
-> > patch. This patch should remove one large class of potential deadlocks
-> > and corner cases without too much cost or maintenance burden. It doesn't
-> > remove a need for the last resort solution though.
-> >  
+> 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE);
+> 	BUILD_BUG_ON(KASAN_SHADOW_START >> PGDIR_SHIFT !=
+> 		     KASAN_SHADOW_END >> PGDIR_SHIFT);
 > 
->  From the point of view of a technical staff at support center, offering
-> the last resort solution has higher priority than smoothening the common
-> case. We cannot test all memory pressure patterns before distributor's
-> kernel is released. We are too late to workaround unhandled patterns
-> after distributor's kernel is deployed to customer's systems.
-
-This has been posted months ago without any additional tracktion.
- 
-> Yet another report was posted in a different thread
-> "[PATCH] vmscan: do not throttle kthreads due to too_many_isolated".
-> I think I showed you several times including "mm,oom: The reason why
-> I continue proposing timeout based approach."
-> (uptime > 100 of http://I-love.SAKURA.ne.jp/tmp/serial-20150920.txt.xz )
-> that we are already seeing infinite loop at too_many_isolated() even
-> without using out of tree drivers. I hope that my patch
-> http://lkml.kernel.org/r/201505232339.DAB00557.VFFLHMSOJFOOtQ@I-love.SAKURA.ne.jp
-> included all necessary changes for serving as a base of the last resort.
-> Please don't loop forever when unexpected memory pressure is given.
-> Please don't assume somebody else can make forward progress.
+>>>> +		if (!pud_none(*pud))
+>>>> +			clear_pmds(pud, addr, next);
+>>>
+>>> I don't understand this. The KASAN shadow region is PUD_SIZE aligned at
+>>> either end, so KASAN should never own a partial pud entry like this.
+>>>
+>>> Regardless, were this case to occur, surely we'd be clearing pmd entries
+>>> in the active page tables? We didn't copy anything at the pmd level.
+>>>
+>>> That doesn't seem right.
+>>>
+>>
+>> Just take a look at p?d_clear() macroses, under CONFIG_PGTABLE_LEVELS=2 for example.
+>> pgd_clear() and pud_clear() is nops, and pmd_clear() is actually clears pgd.
 > 
-> Please do consider offering the last resort solution first.
-> That will help reducing unexplained hangup/reboot troubles.
-
-And the answer alwas has been that the proposed last resort solutions
-have their own issues. I am not going repeat them here because I really
-do not want to make this thread yet another mess of unrelated topics. I
-am suggesting another reclaim technique so please stick to the topic
-here.  I do not see any reason why we should convolute this with last
-resort solutions.
- 
-> Given that said, several comments on your patch.
+> I see. Thanks for pointing that out.
 > 
-> > @@ -408,6 +413,108 @@ static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);
-> >  
-> >  bool oom_killer_disabled __read_mostly;
-> >  
-> > +/*
-> > + * OOM Reaper kernel thread which tries to reap the memory used by the OOM
-> > + * victim (if that is possible) to help the OOM killer to move on.
-> > + */
-> > +static struct task_struct *oom_reaper_th;
-> > +static struct mm_struct *mm_to_reap;
-> > +static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
-> > +
-> > +static bool __oom_reap_vmas(struct mm_struct *mm)
-> > +{
-> > +	struct mmu_gather tlb;
-> > +	struct vm_area_struct *vma;
-> > +	struct zap_details details = {.check_swap_entries = true,
-> > +				      .ignore_dirty = true};
-> > +	bool ret = true;
-> > +
-> > +	/* We might have raced with exit path */
-> > +	if (!atomic_inc_not_zero(&mm->mm_users))
-> > +		return true;
-> > +
-> > +	if (!down_read_trylock(&mm->mmap_sem)) {
-> > +		ret = false;
-> > +		goto out;
-> > +	}
-> > +
-> > +	tlb_gather_mmu(&tlb, mm, 0, -1);
-> > +	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
-> > +		if (is_vm_hugetlb_page(vma))
-> > +			continue;
-> > +
-> > +		/*
-> > +		 * Only anonymous pages have a good chance to be dropped
-> > +		 * without additional steps which we cannot afford as we
-> > +		 * are OOM already.
-> > +		 */
-> > +		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
-> > +			unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
-> > +					 &details);
+> I detest the weird folding behaviour we have in the p??_* macros. It
+> violates least surprise almost every time.
 > 
-> How do you plan to make sure that reclaimed pages are used by
-> fatal_signal_pending() tasks?
-> http://lkml.kernel.org/r/201509242050.EHE95837.FVFOOtMQHLJOFS@I-love.SAKURA.ne.jp
-> http://lkml.kernel.org/r/201510121543.EJF21858.LtJFHOOOSQVMFF@I-love.SAKURA.ne.jp
-
-Well the wake_oom_reaper is responsible to hand over mm of the OOM
-victim and as such it should be a killed process.  I guess you mean that
-the mm might be shared with another process which is hidden from the OOM
-killer, right? Well I think this is not something to care about at this
-layer. We shouldn't select a tasks which can lead to this situation in
-the first place. Such an oom victim is basically selected incorrectly. I
-think we can handle that by a flag in mm_struct.
-
-I guess we have never cared too much about this case because it sounds
-like a misconfiguration. If you want to shoot your own head the do it.
-It is true that this patch will make such a case more prominent because
-we can cause a side effect now. I can cook up a patch to help to sort
-this out.
-
-Thanks for pointing this out.
-
+>> I could replace p?d_clear() with set_p?d(p?d, __p?d(0)).
+>> In that case going down to pmds is not needed, set_p?d() macro will do it for us.
 > 
-> > +	}
-> > +	tlb_finish_mmu(&tlb, 0, -1);
-> > +	up_read(&mm->mmap_sem);
-> > +out:
-> > +	mmput(mm);
-> > +	return ret;
-> > +}
+> I think it would be simpler to rely on the fact that we only use puds
+> with 4 levels of table (and hence the p??_* macros will operate at the
+> levels their names imply).
 > 
-> > +static int oom_reaper(void *unused)
-> > +{
-> > +	DEFINE_WAIT(wait);
-> > +
-> > +	while (!kthread_should_stop()) {
+
+It's not only about puds.
+E.g. if we need to clear PGD with 2-level page tables, than we need to call pmd_clear().
+
+So we should either leave this code as is, or switch to set_pgd/set_pud.
+
+
+> We can verify that at build time with:
 > 
-> Is there a situation where this kernel thread should stop?
-
-No, but this seems to be a generic kthread pattern so I've reused it.
-I thought that every kernel thread is supposed to do that because
-they will be torn down on powerdown from somewhere but I cannot seem to
-find it right now. So for now I will go with while (true) here.
-
-> I think this kernel thread should not stop because restarting
-> this kernel thread might invoke the OOM killer.
-> But if there is such situation, leaving this function with
-> oom_reaper_th != NULL is not handled by wake_oom_reaper().
->
+> BUILD_BUG_ON(CONFIG_PGTABLE_LEVELS != 4 &&
+> 	     (!IS_ALIGNED(KASAN_SHADOW_START, PGDIR_SIZE) ||
+> 	      !IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE)));
 > 
-> > +		struct mm_struct *mm;
-> > +
-> > +		prepare_to_wait(&oom_reaper_wait, &wait, TASK_UNINTERRUPTIBLE);
-> > +		mm = READ_ONCE(mm_to_reap);
+>>>> +static void copy_pagetables(void)
+>>>> +{
+>>>> +	pgd_t *pgd = tmp_pg_dir + pgd_index(KASAN_SHADOW_START);
+>>>> +
+>>>> +	memcpy(tmp_pg_dir, swapper_pg_dir, sizeof(tmp_pg_dir));
+>>>> +
+>>>>  	/*
+>>>> -	 * Remove references to kasan page tables from
+>>>> -	 * swapper_pg_dir. pgd_clear() can't be used
+>>>> -	 * here because it's nop on 2,3-level pagetable setups
+>>>> +	 * If kasan shadow shares PGD with other mappings,
+>>>> +	 * clear_page_tables() will clear puds instead of pgd,
+>>>> +	 * so we need temporary pud table to keep early shadow mapped.
+>>>>  	 */
+>>>> -	for (; start < end; start += PGDIR_SIZE)
+>>>> -		set_pgd(pgd_offset_k(start), __pgd(0));
+>>>> +	if (PGDIR_SIZE > KASAN_SHADOW_END - KASAN_SHADOW_START) {
+>>>> +		pud_t *pud;
+>>>> +		pmd_t *pmd;
+>>>> +		pte_t *pte;
+>>>> +
+>>>> +		memcpy(tmp_pud, pgd_page_vaddr(*pgd), sizeof(tmp_pud));
+>>>> +
+>>>> +		pgd_populate(&init_mm, pgd, tmp_pud);
+>>>> +		pud = pud_offset(pgd, KASAN_SHADOW_START);
+>>>> +		pmd = pmd_offset(pud, KASAN_SHADOW_START);
+>>>> +		pud_populate(&init_mm, pud, pmd);
+>>>> +		pte = pte_offset_kernel(pmd, KASAN_SHADOW_START);
+>>>> +		pmd_populate_kernel(&init_mm, pmd, pte);
+>>>
+>>> I don't understand why we need to do anything below the pud level here.
+>>> We only copy down to the pud level, and we already initialised the
+>>> shared ptes and pmds earlier.
+>>>
+>>> Regardless of this patch, we currently initialise the shared tables
+>>> repeatedly, which is redundant after the first time we initialise them.
+>>> We could improve that.
+>>>
+>>
+>> Sure, just pgd_populate() will work here, because this code is only for 16K+48-bit,
+>> which has 4-level pagetables.
+>> But it wouldn't work if 16k+48-bit would have > 4-level.
+>> Because pgd_populate() in nop in such case, so we need to go down to actually set 'tmp_pud'
 > 
-> Why not simply mm = xchg(&mm_to_reap, NULL) and free the slot for
-> next OOM victim (though xchg() may not be sufficient)?
-
-Because it is not clear whether that is necessary. I wanted to minimize
-the effect of the external reaping to bare minumum. oom_reap_vmas will
-bail out early when it sees that it is racing with exit_mmap so we would
-release mm_to_reap early if we are not going to release anything.
-
+> I don't follow.
 > 
-> > +		if (!mm) {
-> > +			freezable_schedule();
-> > +			finish_wait(&oom_reaper_wait, &wait);
-> > +		} else {
-> > +			finish_wait(&oom_reaper_wait, &wait);
-> > +			oom_reap_vmas(mm);
-> > +			WRITE_ONCE(mm_to_reap, NULL);
-> > +		}
-> > +	}
-> > +
-> > +	return 0;
-> > +}
-> > +
-> > +static void wake_oom_reaper(struct mm_struct *mm)
-> > +{
-> > +	struct mm_struct *old_mm;
-> > +
-> > +	if (!oom_reaper_th)
-> > +		return;
-> > +
-> > +	/*
-> > +	 * Make sure that only a single mm is ever queued for the reaper
-> > +	 * because multiple are not necessary and the operation might be
-> > +	 * disruptive so better reduce it to the bare minimum.
-> > +	 */
-> > +	old_mm = cmpxchg(&mm_to_reap, NULL, mm);
+> 16K + 48-bit will always require 4 levels given the page table format.
+> We never have more than 4 levels.
 > 
-> I think we should not skip queuing next OOM victim, for it is possible
-> that first OOM victim is chosen by one memory cgroup OOM, and next OOM
-> victim is chosen by another memory cgroup OOM or system wide OOM before
-> oom_reap_vmas() for first OOM victim completes.
 
-Does that matter though. Be it a memcg OOM or a global OOM victim, we
-will still release a memory which should help the global case which we
-care about the most. Memcg OOM killer handling is easier because we do
-not hold any locks while waiting for the OOM to be handled.
+Oh, it should be '< 4' of course.
+Yes, 16K + 48-bit is always 4-levels, but I tried to not rely on this here.
 
-> To handle such case, we would need to do something like
+But since we can rely on 4-levels here, I'm gonna leave only pgd_populate() and add you BUILD_BUG_ON().
+
+
+> Thanks,
+> Mark.
 > 
->  struct mm_struct {
->      (...snipped...)
-> +    struct list_head *memdie; /* Set to non-NULL when chosen by OOM killer */
->  }
-> 
-> and add to a list of OOM victims.
-
-I really wanted to prevent from additional memory footprint for a highly
-unlikely case. Why should everybody pay for a case which is rarely hit?
-
-Also if this turns out to be a real problem then it can be added on top
-of the existing code. I would really like this to be as easy as
-possible.
-
-[...]
-> > @@ -421,6 +528,11 @@ void mark_oom_victim(struct task_struct *tsk)
-> >  	/* OOM killer might race with memcg OOM */
-> >  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
-> >  		return;
-> > +
-> > +	/* Kick oom reaper to help us release some memory */
-> > +	if (tsk->mm)
-> > +		wake_oom_reaper(tsk->mm);
-> > +
-> 
-> We cannot wake up at this moment. It is too early because there may be
-> other threads sharing tsk->mm but SIGKILL not yet received.
-
-OK, I can see your point and I was considering that. I have settled with
-conclusion that we shouldn't care that much because they would page fault
-and get stuck in the allocation because we are OOM. There might be some
-corner cases but I guess you are right that this should be as
-concervative as possible so I will move the wake up to oom_kill_process.
-
-> Also, there
-> may be unkillable threads sharing tsk->mm. I think appropriate location
-> to wake the reaper up is
-
-I have commented on this already.
-
-> 
->                   do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
->           }
->           rcu_read_unlock();
->           /* here */
->           mmdrop(mm);
->           put_task_struct(victim);
->   }
-> 
-> in oom_kill_process().
-
-OK I will move it here. We will lose other cases where nobody is killed
-because those would have to guarantee the same thing as mentioned above
-but that sounds like good for now solution.
-
-> 
-> >  	/*
-> >  	 * Make sure that the task is woken up from uninterruptible sleep
-> >  	 * if it is frozen because OOM killer wouldn't be able to free
-> > @@ -767,3 +879,22 @@ void pagefault_out_of_memory(void)
-> >  
-> >  	mutex_unlock(&oom_lock);
-> >  }
-> > +
-> > +static int __init oom_init(void)
-> > +{
-> > +	oom_reaper_th = kthread_run(oom_reaper, NULL, "oom_reaper");
-> > +	if (IS_ERR(oom_reaper_th)) {
-> > +		pr_err("Unable to start OOM reaper %ld. Continuing regardless\n",
-> > +				PTR_ERR(oom_reaper_th));
-> 
-> BUG_ON(IS_ERR(oom_reaper_th)) or panic() should be OK.
-> Continuing with IS_ERR(oom_reaper_th) is not handled by wake_oom_reaper().
-
-Yes, but we can live without this kernel thread, right? I do not think
-this will ever happen but why should we panic the system?
-
-Thanks for the review.
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
