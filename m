@@ -1,50 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 21E5C6B0038
-	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 10:05:09 -0500 (EST)
-Received: by pacej9 with SMTP id ej9so88734575pac.2
-        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 07:05:08 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w71si831755pfi.241.2015.11.26.07.05.08
-        for <linux-mm@kvack.org>;
-        Thu, 26 Nov 2015 07:05:08 -0800 (PST)
-Date: Thu, 26 Nov 2015 15:05:01 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v7 0/4] KASAN for arm64
-Message-ID: <20151126150501.GJ3109@e104818-lin.cambridge.arm.com>
-References: <1444665180-301-1-git-send-email-ryabinin.a.a@gmail.com>
- <20151013083432.GG6320@e104818-lin.cambridge.arm.com>
- <5649BAFD.6030005@arm.com>
- <5649F783.40109@gmail.com>
- <564B40A7.1000206@arm.com>
- <564B4BFC.1020905@virtuozzo.com>
- <20151126121007.GC32343@leverpostej>
- <5656F991.8090108@virtuozzo.com>
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id F3B3A6B0038
+	for <linux-mm@kvack.org>; Thu, 26 Nov 2015 10:08:22 -0500 (EST)
+Received: by wmec201 with SMTP id c201so35271366wme.0
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 07:08:22 -0800 (PST)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id 202si4027250wmp.104.2015.11.26.07.08.21
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Nov 2015 07:08:21 -0800 (PST)
+Received: by wmww144 with SMTP id w144so26023453wmw.0
+        for <linux-mm@kvack.org>; Thu, 26 Nov 2015 07:08:21 -0800 (PST)
+Date: Thu, 26 Nov 2015 16:08:20 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: Allow GFP_IOFS for page_cache_read page cache
+ allocation
+Message-ID: <20151126150820.GI7953@dhcp22.suse.cz>
+References: <1447251233-14449-1-git-send-email-mhocko@kernel.org>
+ <20151112095301.GA25265@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5656F991.8090108@virtuozzo.com>
+In-Reply-To: <20151112095301.GA25265@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, linux-arm-kernel@lists.infradead.org, Yury <yury.norov@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Linus Walleij <linus.walleij@linaro.org>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, kasan-dev <kasan-dev@googlegroups.com>, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, Alexey Klimov <klimov.linux@gmail.com>, David Keitel <dkeitel@codeaurora.org>, Dmitry Vyukov <dvyukov@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, Mark Fasheh <mfasheh@suse.com>, ocfs2-devel@oss.oracle.com, ceph-devel@vger.kernel.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Nov 26, 2015 at 03:22:41PM +0300, Andrey Ryabinin wrote:
-> On 11/26/2015 03:10 PM, Mark Rutland wrote:
-> > Can you pick up Andrey's patch below for v4.4, until we have a better
-> > solution?
+On Thu 12-11-15 10:53:01, Jan Kara wrote:
+> On Wed 11-11-15 15:13:53, mhocko@kernel.org wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > page_cache_read has been historically using page_cache_alloc_cold to
+> > allocate a new page. This means that mapping_gfp_mask is used as the
+> > base for the gfp_mask. Many filesystems are setting this mask to
+> > GFP_NOFS to prevent from fs recursion issues. page_cache_read is
+> > called from the vm_operations_struct::fault() context during the page
+> > fault. This context doesn't need the reclaim protection normally.
+> > 
+> > ceph and ocfs2 which call filemap_fault from their fault handlers
+> > seem to be OK because they are not taking any fs lock before invoking
+> > generic implementation. xfs which takes XFS_MMAPLOCK_SHARED is safe
+> > from the reclaim recursion POV because this lock serializes truncate
+> > and punch hole with the page faults and it doesn't get involved in the
+> > reclaim.
+> > 
+> > There is simply no reason to deliberately use a weaker allocation
+> > context when a __GFP_FS | __GFP_IO can be used. The GFP_NOFS
+> > protection might be even harmful. There is a push to fail GFP_NOFS
+> > allocations rather than loop within allocator indefinitely with a
+> > very limited reclaim ability. Once we start failing those requests
+> > the OOM killer might be triggered prematurely because the page cache
+> > allocation failure is propagated up the page fault path and end up in
+> > pagefault_out_of_memory.
+> > 
+> > We cannot play with mapping_gfp_mask directly because that would be racy
+> > wrt. parallel page faults and it might interfere with other users who
+> > really rely on NOFS semantic from the stored gfp_mask. The mask is also
+> > inode proper so it would even be a layering violation. What we can do
+> > instead is to push the gfp_mask into struct vm_fault and allow fs layer
+> > to overwrite it should the callback need to be called with a different
+> > allocation context.
+> > 
+> > Initialize the default to (mapping_gfp_mask | __GFP_FS | __GFP_IO)
+> > because this should be safe from the page fault path normally. Why do we
+> > care about mapping_gfp_mask at all then? Because this doesn't hold only
+> > reclaim protection flags but it also might contain zone and movability
+> > restrictions (GFP_DMA32, __GFP_MOVABLE and others) so we have to respect
+> > those.
+> > 
+> > Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> > 
+> > Hi,
+> > this has been posted previously as a part of larger GFP_NOFS related
+> > patch set (http://lkml.kernel.org/r/1438768284-30927-1-git-send-email-mhocko%40kernel.org)
+> > but I think it makes sense to discuss it even out of that scope.
+> > 
+> > I would like to hear FS and other MM people about the proposed interface.
+> > Using mapping_gfp_mask blindly doesn't sound good to me and vm_fault
+> > looks like a proper channel to communicate between MM and FS layers.
+> > 
+> > Comments? Are there any better ideas?
 > 
-> FYI, better solution is almost ready, I'm going to send it today.
-> However, I don't know for sure whether it works or not :)
+> Makes sense to me and the filesystems I know should be fine with this
+> (famous last words ;). Feel free to add:
+> 
+> Acked-by: Jan Kara <jack@suse.com>
 
-I merged the Kconfig fix for 4.4, it's not a significant loss since I
-don't expect anyone to jump onto the 16K page configuration. We'll take
-the proper fix for 4.5.
-
-Thanks.
-
+Thanks a lot! Are there any objections from other fs/mm people?
 -- 
-Catalin
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
